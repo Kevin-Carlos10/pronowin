@@ -1,0 +1,482 @@
+<%- include('layout_top', { page: 'settings' }) %>
+
+<style>
+/* ── Layout ──────────────────────────────────────────────────────────────────── */
+.st-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+@media(max-width:860px) { .st-grid { grid-template-columns:1fr; } }
+
+/* ── Stats état ──────────────────────────────────────────────────────────────── */
+.st-states { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:.65rem; margin-bottom:1rem; }
+.st-state  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.75rem 1rem; display:flex; align-items:center; gap:.75rem; }
+.st-state-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+.st-state .lbl { font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; font-weight:700; color:var(--text-dim); }
+.st-state .val { font-size:.85rem; font-weight:700; }
+
+/* ── Cards ───────────────────────────────────────────────────────────────────── */
+.st-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.4rem; }
+.st-card h2 { font-size:.95rem; font-weight:700; margin-bottom:.2rem; display:flex; align-items:center; gap:.5rem; }
+.st-card .desc { font-size:.78rem; color:var(--text-dim); margin-bottom:1.1rem; }
+
+/* ── Toggle switch ───────────────────────────────────────────────────────────── */
+.tog-row { display:flex; align-items:center; justify-content:space-between; gap:1rem; padding:.65rem 0; }
+.tog-lbl { font-size:.875rem; font-weight:600; }
+.tog-sub { font-size:.75rem; color:var(--text-dim); margin-top:2px; }
+.tog-sw  { position:relative; width:44px; height:24px; flex-shrink:0; }
+.tog-sw input { opacity:0; width:0; height:0; }
+.tog-slider { position:absolute; inset:0; background:var(--border); border-radius:99px; cursor:pointer; transition:background .2s; }
+.tog-slider::before { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:transform .2s; }
+.tog-sw input:checked + .tog-slider { background:var(--primary); }
+.tog-sw input:checked + .tog-slider::before { transform:translateX(20px); }
+
+/* ── Status badge ────────────────────────────────────────────────────────────── */
+.st-badge { display:inline-flex; align-items:center; gap:.35rem; font-size:.78rem; font-weight:600; padding:.25rem .65rem; border-radius:99px; }
+.st-on  { background:rgba(34,197,94,.12); color:var(--success); }
+.st-off { background:var(--surface-d); color:var(--text-dim); }
+
+/* ── Announce type pills ─────────────────────────────────────────────────────── */
+.ann-types { display:flex; gap:.5rem; }
+.ann-type-btn { flex:1; padding:.4rem; border:2px solid var(--border); border-radius:var(--radius-s); background:none; color:var(--text-m); font-size:.8rem; font-weight:600; cursor:pointer; transition:all .15s; }
+.ann-type-btn.active-info    { border-color:var(--info);    color:var(--info);    background:rgba(59,130,246,.08); }
+.ann-type-btn.active-warning { border-color:var(--warning); color:var(--warning); background:rgba(245,158,11,.08); }
+.ann-type-btn.active-danger  { border-color:var(--error);   color:var(--error);   background:rgba(239,68,68,.08); }
+
+/* ── Preview annonce ─────────────────────────────────────────────────────────── */
+.ann-preview { border-radius:var(--radius-s); padding:.6rem .9rem; font-size:.82rem; font-weight:500; display:flex; align-items:center; gap:.5rem; margin-top:.6rem; }
+.ann-preview.info    { background:rgba(59,130,246,.1);  border:1px solid rgba(59,130,246,.25); color:var(--info); }
+.ann-preview.warning { background:rgba(245,158,11,.1);  border:1px solid rgba(245,158,11,.25); color:var(--warning); }
+.ann-preview.danger  { background:rgba(239,68,68,.1);   border:1px solid rgba(239,68,68,.25);  color:var(--error); }
+
+/* ── Backup zone ─────────────────────────────────────────────────────────────── */
+.bk-zone { border:2px dashed var(--border); border-radius:var(--radius-s); padding:1.25rem; text-align:center; transition:border-color .2s; cursor:pointer; }
+.bk-zone:hover { border-color:var(--primary); }
+
+/* ── Data files table ────────────────────────────────────────────────────────── */
+.df-row { display:flex; justify-content:space-between; align-items:center; padding:.45rem 0; border-bottom:1px solid var(--border); font-size:.8rem; }
+.df-row:last-child { border-bottom:0; }
+
+/* ── Système info ────────────────────────────────────────────────────────────── */
+.sys-row { display:flex; justify-content:space-between; padding:.4rem 0; border-bottom:1px solid var(--border); font-size:.8rem; }
+.sys-row:last-child { border-bottom:0; }
+
+/* ── Danger zone ─────────────────────────────────────────────────────────────── */
+.danger-zone { border:1px solid rgba(239,68,68,.3); border-radius:var(--radius); padding:1.4rem; background:rgba(239,68,68,.03); grid-column:1/-1; }
+.danger-zone h2 { color:var(--error); }
+.danger-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:.75rem; margin-top:.9rem; }
+.danger-item { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.9rem 1rem; }
+.danger-item .di-title { font-size:.83rem; font-weight:700; margin-bottom:.2rem; }
+.danger-item .di-desc  { font-size:.73rem; color:var(--text-dim); margin-bottom:.7rem; }
+</style>
+
+<%
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  }
+  var _logCount   = (dataFiles.find(function(f){return f.key==='audit_log';})    || {count:0}).count || 0;
+  var _notifCount = (dataFiles.find(function(f){return f.key==='notifications';}) || {count:0}).count || 0;
+  var _artCount   = (dataFiles.find(function(f){return f.key==='actualites';})   || {count:0}).count || 0;
+%>
+
+<div class="topbar">
+  <div>
+    <h2>⚙️ Paramètres</h2>
+    <small>Configuration du panel d'administration</small>
+  </div>
+  <% if (settings.updatedAt) { %>
+  <span style="font-size:.75rem;color:var(--text-dim)">
+    Mis à jour le <%= fmtDate(settings.updatedAt) %><% if (settings.updatedBy) { %> par <strong><%= settings.updatedBy %></strong><% } %>
+  </span>
+  <% } %>
+</div>
+
+<% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
+<% if (error)   { %><div class="alert alert-error"   style="display:none"><%= error %></div><% } %>
+
+<!-- ── État actuel ────────────────────────────────────────────────────────────── -->
+<div class="st-states">
+  <div class="st-state">
+    <div class="st-state-dot" style="background:<%= settings.maintenanceMode ? 'var(--warning)' : 'var(--success)' %>"></div>
+    <div>
+      <div class="lbl">Maintenance</div>
+      <div class="val" style="color:<%= settings.maintenanceMode ? 'var(--warning)' : 'var(--success)' %>">
+        <%= settings.maintenanceMode ? 'Active' : 'Inactive' %>
+      </div>
+    </div>
+  </div>
+  <div class="st-state">
+    <div class="st-state-dot" style="background:<%= settings.announcementEnabled ? 'var(--info)' : 'var(--border)' %>"></div>
+    <div>
+      <div class="lbl">Annonce</div>
+      <div class="val" style="color:<%= settings.announcementEnabled ? 'var(--info)' : 'var(--text-dim)' %>">
+        <%= settings.announcementEnabled ? 'Activée' : 'Désactivée' %>
+      </div>
+    </div>
+  </div>
+  <div class="st-state">
+    <div class="st-state-dot" style="background:var(--primary)"></div>
+    <div>
+      <div class="lbl">Session</div>
+      <div class="val" style="color:var(--primary)"><%= settings.sessionTimeoutMin %> min</div>
+    </div>
+  </div>
+  <div class="st-state">
+    <div class="st-state-dot" style="background:var(--error)"></div>
+    <div>
+      <div class="lbl">Max tentatives</div>
+      <div class="val" style="color:var(--error)"><%= settings.loginMaxAttempts %> / bloc. <%= settings.loginBlockMinutes %>min</div>
+    </div>
+  </div>
+  <div class="st-state">
+    <div class="st-state-dot" style="background:var(--success)"></div>
+    <div>
+      <div class="lbl">Serveur</div>
+      <div class="val" style="color:var(--success)">UP · <%= sysInfo.uptime %></div>
+    </div>
+  </div>
+  <div class="st-state">
+    <div class="st-state-dot" style="background:var(--text-dim)"></div>
+    <div>
+      <div class="lbl">Mémoire</div>
+      <div class="val" style="color:var(--text-m)"><%= sysInfo.memMb %></div>
+    </div>
+  </div>
+</div>
+
+<div class="st-grid">
+
+  <!-- ── Maintenance ────────────────────────────────────────────────────────── -->
+  <div class="st-card">
+    <h2>🔧 Mode maintenance</h2>
+    <p class="desc">Affiche un bandeau d'avertissement sur toutes les pages du panel.</p>
+    <form method="POST" action="/admin/settings/maintenance">
+
+      <div class="tog-row" style="border-bottom:1px solid var(--border);margin-bottom:1rem;padding-bottom:.75rem">
+        <div>
+          <div class="tog-lbl">Activer la maintenance</div>
+          <div class="tog-sub">Avertit les admins que le système est en maintenance</div>
+        </div>
+        <label class="tog-sw">
+          <input type="checkbox" name="maintenanceMode" value="1" id="maint-tog" <%= settings.maintenanceMode ? 'checked' : '' %>>
+          <span class="tog-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group" style="margin-bottom:1rem">
+        <label style="font-size:.78rem;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.04em">Message affiché</label>
+        <textarea class="input" name="maintenanceMessage" rows="3" maxlength="500"
+          style="margin-top:.35rem"
+          placeholder="Ex : Le panel est en cours de maintenance…"><%= settings.maintenanceMessage %></textarea>
+        <div style="font-size:.71rem;color:var(--text-dim);margin-top:.25rem">Max 500 caractères</div>
+      </div>
+
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem">
+        <span class="st-badge <%= settings.maintenanceMode ? 'st-on' : 'st-off' %>" id="maint-status">
+          <%= settings.maintenanceMode ? '🔧 Actif' : '✓ Inactif' %>
+        </span>
+        <button class="btn btn-primary" type="submit">Sauvegarder</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ── Annonce globale ────────────────────────────────────────────────────── -->
+  <div class="st-card">
+    <h2>📢 Annonce globale</h2>
+    <p class="desc">Message d'information affiché en haut de toutes les pages du panel.</p>
+    <form method="POST" action="/admin/settings/announcement">
+
+      <div class="tog-row" style="border-bottom:1px solid var(--border);margin-bottom:1rem;padding-bottom:.75rem">
+        <div>
+          <div class="tog-lbl">Annonce activée</div>
+          <div class="tog-sub">Afficher le message en haut du panel</div>
+        </div>
+        <label class="tog-sw">
+          <input type="checkbox" name="announcementEnabled" value="1" <%= settings.announcementEnabled ? 'checked' : '' %>>
+          <span class="tog-slider"></span>
+        </label>
+      </div>
+
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label style="font-size:.78rem;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.4rem">Type</label>
+        <div class="ann-types">
+          <% ['info','warning','danger'].forEach(t => { %>
+          <label style="flex:1">
+            <input type="radio" name="announcementType" value="<%= t %>" style="display:none"
+              <%= settings.announcementType === t ? 'checked' : '' %>
+              onchange="selectAnnType('<%= t %>')">
+            <span class="ann-type-btn <%= settings.announcementType===t ? 'active-'+t : '' %>" id="ann-btn-<%= t %>"
+              onclick="this.previousElementSibling.checked=true;selectAnnType('<%= t %>')">
+              <%= t==='info'?'ℹ️ Info':t==='warning'?'⚠️ Avert.':'🚨 Danger' %>
+            </span>
+          </label>
+          <% }); %>
+        </div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:.75rem">
+        <label style="font-size:.78rem;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.4rem">
+          Message <span id="ann-cnt" style="font-weight:400;color:var(--text-dim)"><%= (settings.announcementText||'').length %>/300</span>
+        </label>
+        <textarea class="input" name="announcementText" id="ann-text" rows="2" maxlength="300"
+          placeholder="Ex : Mise à jour ce soir à 23h…"
+          oninput="updateAnnPreview()"><%= settings.announcementText %></textarea>
+        <div class="ann-preview <%= settings.announcementType||'info' %>" id="ann-preview" style="<%= settings.announcementText ? '' : 'display:none' %>">
+          <span id="ann-preview-ico"><%= settings.announcementType==='warning'?'⚠️':settings.announcementType==='danger'?'🚨':'ℹ️' %></span>
+          <span id="ann-preview-txt"><%= settings.announcementText %></span>
+        </div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end">
+        <button class="btn btn-primary" type="submit">Sauvegarder</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ── Apparence & Sécurité ──────────────────────────────────────────────── -->
+  <div class="st-card">
+    <h2>🎨 Apparence & Sécurité</h2>
+    <p class="desc">Personnalisation du panel et paramètres de connexion.</p>
+    <form method="POST" action="/admin/settings/general">
+
+      <div class="form-group" style="margin-bottom:.9rem">
+        <label style="font-size:.78rem;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.35rem">Titre du panel</label>
+        <input class="input" type="text" name="panelTitle" value="<%= settings.panelTitle %>" maxlength="60" placeholder="PronoWin Admin">
+        <div style="font-size:.71rem;color:var(--text-dim);margin-top:.25rem">Affiché dans l'onglet du navigateur</div>
+      </div>
+
+      <div class="form-group" style="margin-bottom:.9rem">
+        <label style="font-size:.78rem;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.35rem">Fuseau horaire</label>
+        <select class="input" name="timezone">
+          <% ['Europe/Paris','Africa/Abidjan','Africa/Dakar','Africa/Douala','Africa/Lagos','Africa/Nairobi','America/New_York','America/Los_Angeles','Asia/Dubai','UTC'].forEach(tz => { %>
+          <option value="<%= tz %>" <%= settings.timezone===tz?'selected':'' %>><%= tz %></option>
+          <% }); %>
+        </select>
+        <div style="font-size:.71rem;color:var(--text-dim);margin-top:.25rem">Utilisé pour l'affichage des dates</div>
+      </div>
+
+      <div style="border-top:1px solid var(--border);padding-top:.9rem;margin-bottom:.9rem">
+        <div style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.75rem">🔒 Sécurité connexion</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
+          <div>
+            <label style="font-size:.72rem;color:var(--text-dim);display:block;margin-bottom:.3rem">Session (min)</label>
+            <input class="input" type="number" name="sessionTimeoutMin" min="5" max="480" value="<%= settings.sessionTimeoutMin %>">
+            <div style="font-size:.68rem;color:var(--text-dim);margin-top:.2rem">5–480</div>
+          </div>
+          <div>
+            <label style="font-size:.72rem;color:var(--text-dim);display:block;margin-bottom:.3rem">Max tentatives</label>
+            <input class="input" type="number" name="loginMaxAttempts" min="1" max="20" value="<%= settings.loginMaxAttempts %>">
+            <div style="font-size:.68rem;color:var(--text-dim);margin-top:.2rem">1–20</div>
+          </div>
+          <div>
+            <label style="font-size:.72rem;color:var(--text-dim);display:block;margin-bottom:.3rem">Blocage (min)</label>
+            <input class="input" type="number" name="loginBlockMinutes" min="1" max="120" value="<%= settings.loginBlockMinutes %>">
+            <div style="font-size:.68rem;color:var(--text-dim);margin-top:.2rem">1–120</div>
+          </div>
+        </div>
+        <div style="font-size:.7rem;color:var(--text-dim);margin-top:.6rem">⚠️ Les paramètres de sécurité prennent effet au prochain redémarrage.</div>
+      </div>
+
+      <div style="display:flex;justify-content:flex-end">
+        <button class="btn btn-primary" type="submit">Sauvegarder</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ── Sauvegarde & Restauration ──────────────────────────────────────────── -->
+  <div class="st-card">
+    <h2>💾 Sauvegarde & Restauration</h2>
+    <p class="desc">Exporter ou restaurer les données locales du panel.</p>
+
+    <!-- Export -->
+    <div class="bk-zone" style="margin-bottom:1rem" onclick="window.location='/admin/settings/backup'">
+      <div style="font-size:1.8rem;margin-bottom:.4rem">📦</div>
+      <p style="font-weight:700;margin-bottom:.2rem;font-size:.88rem">Télécharger une sauvegarde</p>
+      <p style="font-size:.75rem;color:var(--text-dim);margin-bottom:.65rem">
+        Inclus : sous-admins, audit, notifs, bans, actualités, paramètres
+      </p>
+      <span class="btn btn-primary btn-sm" onclick="event.stopPropagation();window.location='/admin/settings/backup'">⬇️ Télécharger</span>
+    </div>
+
+    <!-- Import -->
+    <form method="POST" action="/admin/settings/restore" id="restore-form">
+      <div class="bk-zone" id="drop-zone" style="margin-bottom:.65rem"
+        onclick="document.getElementById('bk-file').click()"
+        ondragover="event.preventDefault();this.style.borderColor='var(--primary)'"
+        ondragleave="this.style.borderColor=''"
+        ondrop="handleDrop(event)">
+        <div style="font-size:1.3rem;margin-bottom:.3rem">📂</div>
+        <p style="font-size:.78rem;color:var(--text-dim)" id="drop-lbl">
+          Glisser ou <span style="color:var(--primary);font-weight:600">cliquer</span> pour choisir un <code>.json</code>
+        </p>
+      </div>
+      <input type="file" id="bk-file" accept=".json" style="display:none" onchange="loadBkFile(this)">
+      <textarea name="backup_json" id="bk-json" style="display:none"></textarea>
+      <div style="display:flex;gap:.75rem;align-items:center">
+        <button class="btn btn-outline" type="button" id="restore-btn" disabled
+          data-msg="Cette action va écraser les données actuelles (sous-admins, paramètres, logs). Êtes-vous sûr ?"
+          onclick="askConfirm({icon:'⚠️',title:'Restaurer la sauvegarde',msg:this.dataset.msg,btnLabel:'Restaurer',btnClass:'btn-warning',onConfirm:()=>document.getElementById('restore-form').submit()})">
+          ♻️ Restaurer
+        </button>
+        <span id="bk-filename" style="font-size:.75rem;color:var(--text-dim)"></span>
+      </div>
+    </form>
+
+    <!-- Fichiers actuels -->
+    <div style="margin-top:1.1rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <div style="font-size:.7rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.55rem">Fichiers de données</div>
+      <% dataFiles.forEach(f => { %>
+      <div class="df-row">
+        <div>
+          <code style="font-size:.75rem;color:var(--text-m)"><%= f.name %>.json</code>
+          <% if(f.count !== null) { %><span style="font-size:.7rem;color:var(--text-dim);margin-left:.4rem"><%= f.count %> entrée<%= f.count!==1?'s':'' %></span><% } %>
+        </div>
+        <span style="font-size:.72rem;color:var(--text-dim)"><%= f.size %></span>
+      </div>
+      <% }); %>
+    </div>
+  </div>
+
+  <!-- ── Infos système ──────────────────────────────────────────────────────── -->
+  <div class="st-card">
+    <h2>🖥️ Infos système</h2>
+    <p class="desc">État du serveur Node.js et de l'environnement.</p>
+    <div class="sys-row"><span style="color:var(--text-dim)">Node.js</span><span style="font-weight:600;font-family:monospace"><%= sysInfo.nodeVersion %></span></div>
+    <div class="sys-row"><span style="color:var(--text-dim)">Port</span><span style="font-weight:600;font-family:monospace"><%= sysInfo.port %></span></div>
+    <div class="sys-row"><span style="color:var(--text-dim)">Environnement</span>
+      <span class="badge <%= sysInfo.env==='production'?'badge-ok':'badge-info' %>"><%= sysInfo.env %></span>
+    </div>
+    <div class="sys-row"><span style="color:var(--text-dim)">Uptime</span><span style="font-weight:600;color:var(--success)"><%= sysInfo.uptime %></span></div>
+    <div class="sys-row"><span style="color:var(--text-dim)">Mémoire RSS</span><span style="font-weight:600"><%= sysInfo.memMb %></span></div>
+    <div class="sys-row" style="border-bottom:0"><span style="color:var(--text-dim)">Timezone</span><span style="font-weight:600"><%= settings.timezone %></span></div>
+
+    <div style="margin-top:1.1rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <div style="font-size:.7rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.55rem">Liens rapides</div>
+      <div style="display:flex;flex-direction:column;gap:.4rem">
+        <a href="/admin/audit"      class="btn btn-outline btn-sm" style="justify-content:flex-start">📋 Journal d'audit</a>
+        <a href="/admin/sub-admins" class="btn btn-outline btn-sm" style="justify-content:flex-start">🔐 Gérer les sous-admins</a>
+        <a href="/admin/profile"    class="btn btn-outline btn-sm" style="justify-content:flex-start">👤 Mon profil</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Zone danger ────────────────────────────────────────────────────────── -->
+  <div class="danger-zone">
+    <h2>⚠️ Zone de danger</h2>
+    <p style="font-size:.78rem;color:var(--text-dim)">Ces actions sont irréversibles. Effectuez une sauvegarde avant de procéder.</p>
+    <div class="danger-grid">
+
+      <div class="danger-item">
+        <div class="di-title">🗑️ Effacer le journal d'audit</div>
+        <div class="di-desc">Supprime toutes les entrées du journal d'activité admin. La sauvegarde est recommandée.</div>
+        <form method="POST" action="/admin/settings/clear-logs">
+          <button type="button" class="btn btn-danger btn-sm"
+            data-count="<%= _logCount %>"
+            onclick="askConfirm({icon:'🗑️',title:'Effacer le journal d\'audit',msg:'Supprimer les <strong>'+this.dataset.count+'</strong> entrées du journal ? Cette action est irréversible.',btnLabel:'Effacer',btnClass:'btn-danger',onConfirm:()=>this.closest('form').submit()})">
+            Effacer les logs
+          </button>
+        </form>
+      </div>
+
+      <div class="danger-item">
+        <div class="di-title">🗑️ Effacer l'historique notifications</div>
+        <div class="di-desc">Supprime l'historique des campagnes de notifications push envoyées.</div>
+        <form method="POST" action="/admin/settings/clear-notifs">
+          <button type="button" class="btn btn-danger btn-sm"
+            data-count="<%= _notifCount %>"
+            onclick="askConfirm({icon:'🗑️',title:'Effacer l\'historique notifications',msg:'Supprimer les <strong>'+this.dataset.count+'</strong> entrées de l\'historique ?',btnLabel:'Effacer',btnClass:'btn-danger',onConfirm:()=>this.closest('form').submit()})">
+            Effacer l'historique
+          </button>
+        </form>
+      </div>
+
+      <div class="danger-item">
+        <div class="di-title">🗑️ Supprimer toutes les actualités</div>
+        <div class="di-desc">Supprime définitivement tous les articles publiés et brouillons.</div>
+        <form method="POST" action="/admin/settings/clear-actualites">
+          <button type="button" class="btn btn-danger btn-sm"
+            data-count="<%= _artCount %>"
+            onclick="askConfirm({icon:'🗑️',title:'Supprimer toutes les actualités',msg:'Supprimer les <strong>'+this.dataset.count+'</strong> articles ? Cette action est irréversible.',btnLabel:'Supprimer',btnClass:'btn-danger',onConfirm:()=>this.closest('form').submit()})">
+            Supprimer les articles
+          </button>
+        </form>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<script>
+/* ── Toggle maintenance ── */
+document.getElementById('maint-tog')?.addEventListener('change', function() {
+  const b = document.getElementById('maint-status');
+  b.className = 'st-badge ' + (this.checked ? 'st-on' : 'st-off');
+  b.textContent = this.checked ? '🔧 Actif' : '✓ Inactif';
+});
+
+/* ── Type annonce ── */
+let _annType = '<%= settings.announcementType || "info" %>';
+function selectAnnType(t) {
+  _annType = t;
+  ['info','warning','danger'].forEach(x => {
+    const b = document.getElementById('ann-btn-' + x);
+    if (b) b.className = 'ann-type-btn' + (x === t ? ' active-' + t : '');
+  });
+  updateAnnPreview();
+}
+
+/* ── Preview annonce ── */
+function updateAnnPreview() {
+  const txt  = document.getElementById('ann-text')?.value || '';
+  const prev = document.getElementById('ann-preview');
+  const ico  = document.getElementById('ann-preview-ico');
+  const span = document.getElementById('ann-preview-txt');
+  const cnt  = document.getElementById('ann-cnt');
+  if (cnt) { cnt.textContent = txt.length + '/300'; cnt.style.color = txt.length > 270 ? 'var(--error)' : txt.length > 230 ? 'var(--warning)' : ''; }
+  if (!prev) return;
+  if (!txt.trim()) { prev.style.display = 'none'; return; }
+  prev.style.display = '';
+  prev.className = 'ann-preview ' + _annType;
+  if (ico) ico.textContent = _annType === 'warning' ? '⚠️' : _annType === 'danger' ? '🚨' : 'ℹ️';
+  if (span) span.textContent = txt;
+}
+
+/* ── Backup / Restore ── */
+function loadBkFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      document.getElementById('bk-json').value = e.target.result;
+      document.getElementById('restore-btn').disabled = false;
+      const count = Object.keys(data).filter(k => k !== '_meta').length;
+      document.getElementById('bk-filename').textContent = '📄 ' + file.name + ' (' + count + ' fichier(s))';
+      document.getElementById('drop-lbl').innerHTML = '✅ <strong>' + file.name + '</strong> chargé';
+    } catch(err) { showToast('Fichier JSON invalide : ' + err.message, 'error'); }
+  };
+  reader.readAsText(file);
+}
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').style.borderColor = '';
+  const file = e.dataTransfer.files[0];
+  if (!file) return;
+  const dt = new DataTransfer();
+  dt.items.add(file);
+  const inp = document.getElementById('bk-file');
+  inp.files = dt.files;
+  loadBkFile(inp);
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', function() {
+  updateAnnPreview();
+  document.querySelectorAll('.alert-success,.alert-error').forEach(el => {
+    const txt = el.textContent.trim();
+    if (txt) showToast(txt, el.classList.contains('alert-success') ? 'success' : 'error');
+  });
+});
+</script>
+
+<%- include('layout_bottom') %>

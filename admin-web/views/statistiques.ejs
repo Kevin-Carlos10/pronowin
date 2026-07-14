@@ -1,0 +1,447 @@
+<%- include('layout_top', {page:'statistiques'}) %>
+
+<style>
+/* ── KPI avancés ── */
+.kpi-row       { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px,1fr)); gap: .9rem; margin-bottom: 1.25rem; }
+.kpi-box       { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; position: relative; overflow: hidden; transition: transform var(--transition), box-shadow var(--transition); }
+.kpi-box:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.kpi-box::after{ content:''; position:absolute; bottom:0;left:0;right:0; height:2px; }
+.kpi-box.c-blue::after   { background:var(--info); }
+.kpi-box.c-orange::after { background:var(--primary); }
+.kpi-box.c-green::after  { background:var(--success); }
+.kpi-box.c-red::after    { background:var(--error); }
+.kpi-box.c-purple::after { background:var(--purple); }
+.kpi-box.c-teal::after   { background:#14B8A6; }
+.kpi-emoji  { font-size: 1.3rem; margin-bottom: .35rem; }
+.kpi-v      { font-size: 1.75rem; font-weight: 800; line-height: 1; letter-spacing: -.5px; }
+.kpi-l      { font-size: .72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; margin-top: .25rem; }
+.kpi-delta  { font-size: .75rem; margin-top: .4rem; font-weight: 500; }
+.delta-up   { color: var(--success); }
+.delta-down { color: var(--error); }
+.delta-neu  { color: var(--text-dim); }
+
+/* ── Grilles de charts ── */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.g3 { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.g3b{ display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1rem; }
+.ch-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
+.ch-card h3 { font-size: .9rem; font-weight: 700; margin-bottom: .9rem; display:flex;align-items:center;justify-content:space-between; }
+.ch-card h3 small { font-weight: 400; color: var(--text-dim); font-size: .75rem; }
+
+/* ── Progress bars ── */
+.prog-row { margin-bottom: .9rem; }
+.prog-row:last-child { margin-bottom: 0; }
+.prog-head { display:flex; justify-content:space-between; margin-bottom:.3rem; font-size:.82rem; }
+.prog-lbl  { color: var(--text-m); }
+.prog-val  { font-weight: 600; color: var(--text); }
+.prog-bar  { background: var(--surface-d); border-radius: 99px; height: 6px; overflow: hidden; }
+.prog-fill { height: 6px; border-radius: 99px; transition: width .6s cubic-bezier(.22,.61,.36,1); }
+
+/* ── Top table ── */
+.top-table  { width:100%; border-collapse:collapse; }
+.top-table th { text-align:left; padding:.5rem .75rem; font-size:.72rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--border); }
+.top-table td { padding:.65rem .75rem; border-bottom:1px solid var(--border); font-size:.83rem; vertical-align:middle; }
+.top-table tr:last-child td { border-bottom:0; }
+.top-table tr:hover td { background:var(--surface-d); }
+.rank-badge { width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700; }
+
+/* ── Switcher période ── */
+.period-bar { display:flex;gap:.4rem;flex-wrap:wrap; }
+.period-bar .btn.active { background:var(--btn-primary);color:#fff;border-color:var(--btn-primary); }
+
+@media (max-width: 900px) { .g2,.g3,.g3b { grid-template-columns:1fr; } }
+</style>
+
+<div class="topbar">
+  <div>
+    <h2>📈 Statistiques avancées</h2>
+    <small id="period-label">Chargement…</small>
+  </div>
+  <div class="period-bar">
+    <button onclick="setPeriod(7)"  id="btn-7"   class="btn btn-outline btn-sm">7j</button>
+    <button onclick="setPeriod(30)" id="btn-30"  class="btn btn-outline btn-sm">30j</button>
+    <button onclick="setPeriod(90)" id="btn-90"  class="btn btn-outline btn-sm">90j</button>
+    <button onclick="setPeriod(0)"  id="btn-all" class="btn btn-outline btn-sm">Tout</button>
+    <button onclick="refreshAll()"  class="btn btn-outline btn-sm" title="Actualiser">🔄</button>
+  </div>
+</div>
+
+<!-- ── KPI ligne 1 ─────────────────────────────────────────────────────────── -->
+<div class="kpi-row">
+  <div class="kpi-box c-blue">
+    <div class="kpi-emoji">👥</div>
+    <div class="kpi-v" id="k-users">—</div>
+    <div class="kpi-l">Utilisateurs total</div>
+    <div class="kpi-delta delta-neu" id="k-users-d">—</div>
+  </div>
+  <div class="kpi-box c-green">
+    <div class="kpi-emoji">🆕</div>
+    <div class="kpi-v" id="k-new">—</div>
+    <div class="kpi-l">Nouveaux (période)</div>
+    <div class="kpi-delta delta-neu" id="k-new-d">—</div>
+  </div>
+  <div class="kpi-box c-orange">
+    <div class="kpi-emoji">👑</div>
+    <div class="kpi-v" id="k-premium">—</div>
+    <div class="kpi-l">Premium actifs</div>
+    <div class="kpi-delta delta-neu" id="k-conv">—</div>
+  </div>
+  <div class="kpi-box c-red">
+    <div class="kpi-emoji">💰</div>
+    <div class="kpi-v" id="k-revenue">—</div>
+    <div class="kpi-l">Revenus FCFA</div>
+    <div class="kpi-delta delta-neu" id="k-revenue-d">—</div>
+  </div>
+  <div class="kpi-box c-teal">
+    <div class="kpi-emoji">📤</div>
+    <div class="kpi-v" id="k-withdrawals">—</div>
+    <div class="kpi-l">Retraits FCFA</div>
+    <div class="kpi-delta delta-neu" id="k-net">—</div>
+  </div>
+  <div class="kpi-box c-purple">
+    <div class="kpi-emoji">🎯</div>
+    <div class="kpi-v" id="k-winrate">—</div>
+    <div class="kpi-l">Taux de réussite pronos</div>
+    <div class="kpi-delta delta-neu" id="k-pronos-total">—</div>
+  </div>
+</div>
+
+<!-- ── Revenus + Inscriptions (grands graphiques) ──────────────────────────── -->
+<div class="g2">
+  <div class="ch-card">
+    <h3>💰 Revenus par jour <small id="rev-total-lbl"></small></h3>
+    <div style="height:200px"><canvas id="c-revenue"></canvas></div>
+  </div>
+  <div class="ch-card">
+    <h3>👥 Inscriptions par jour <small id="users-total-lbl"></small></h3>
+    <div style="height:200px"><canvas id="c-signups"></canvas></div>
+  </div>
+</div>
+
+<!-- ── Répartition revenus + méthodes ─────────────────────────────────────── -->
+<div class="g3">
+  <div class="ch-card">
+    <h3>📊 Flux financiers par méthode de paiement</h3>
+    <div style="height:200px"><canvas id="c-methods"></canvas></div>
+  </div>
+  <div class="ch-card">
+    <h3>💳 Sources de revenus</h3>
+    <div style="height:200px;display:flex;align-items:center;justify-content:center"><canvas id="c-sources" style="max-height:190px"></canvas></div>
+  </div>
+</div>
+
+<!-- ── Pronostics + Répartition users ─────────────────────────────────────── -->
+<div class="g3b">
+  <div class="ch-card">
+    <h3>🎯 Performances pronostics <small id="pronos-period-lbl"></small></h3>
+    <div style="height:190px;display:flex;align-items:center;justify-content:center"><canvas id="c-pronos" style="max-height:180px"></canvas></div>
+  </div>
+  <div class="ch-card">
+    <h3>📦 Répartition utilisateurs</h3>
+    <div id="user-breakdown" style="padding-top:.25rem"></div>
+  </div>
+</div>
+
+<!-- ── Évolution mensuelle (12 derniers mois) ──────────────────────────────── -->
+<div class="ch-card" style="margin-bottom:1rem">
+  <h3>📅 Évolution sur 12 mois <small>Inscriptions vs Revenus</small></h3>
+  <div style="height:200px"><canvas id="c-monthly"></canvas></div>
+</div>
+
+<!-- ── Top utilisateurs ───────────────────────────────────────────────────── -->
+<div class="ch-card" style="margin-bottom:1rem;padding:0;overflow:hidden">
+  <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border)">
+    <h3 style="margin:0;font-size:.95rem;">🏆 Top 10 utilisateurs — dépôts</h3>
+  </div>
+  <div class="table-wrap">
+    <table class="top-table">
+      <thead>
+        <tr>
+          <th>#</th><th>Utilisateur</th><th>Téléphone</th><th>Plan</th>
+          <th style="text-align:right">Nb dépôts</th><th style="text-align:right">Total FCFA</th>
+        </tr>
+      </thead>
+      <tbody id="top-body">
+        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">Chargement…</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Chart.js ────────────────────────────────────────────────────────────── -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script>
+/* ── Config globale Chart.js ── */
+Chart.defaults.color        = '#8892AA';
+Chart.defaults.borderColor  = '#1E2A42';
+Chart.defaults.font.family  = "'Inter', system-ui, sans-serif";
+Chart.defaults.font.size    = 11;
+Chart.defaults.plugins.legend.labels.boxWidth = 10;
+Chart.defaults.plugins.legend.labels.padding  = 14;
+Chart.defaults.plugins.tooltip.backgroundColor = '#141926';
+Chart.defaults.plugins.tooltip.borderColor     = '#1E2A42';
+Chart.defaults.plugins.tooltip.borderWidth     = 1;
+Chart.defaults.plugins.tooltip.titleColor      = '#E2E8F0';
+Chart.defaults.plugins.tooltip.bodyColor       = '#8892AA';
+Chart.defaults.plugins.tooltip.padding         = 10;
+
+const COLORS = { blue:'#3B82F6', orange:'#F5A623', green:'#22C55E', red:'#EF4444', purple:'#A78BFA', teal:'#14B8A6', pink:'#EC4899' };
+function rgba(hex,a){ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${a})`; }
+function fmt(n){ return Math.round(n??0).toLocaleString('fr-FR'); }
+function fmtK(n){ n=Math.round(n??0); return n>=1000000?`${(n/1000000).toFixed(1)}M`:n>=1000?`${(n/1000).toFixed(0)}k`:String(n); }
+
+let charts = {};
+let currentDays = 30;
+
+function destroyAll(){ Object.values(charts).forEach(c=>{try{c.destroy()}catch{}}); charts={}; }
+
+/* ── Switcher période ── */
+function setPeriod(days){
+  currentDays = days;
+  document.querySelectorAll('.period-bar .btn').forEach(b=>b.classList.remove('active'));
+  const id = days===7?'btn-7':days===30?'btn-30':days===90?'btn-90':'btn-all';
+  document.getElementById(id)?.classList.add('active');
+  const lbl = days===0?'Toute la période':`${days} derniers jours`;
+  document.getElementById('period-label').textContent = `Période : ${lbl}`;
+  loadStats(days);
+}
+function refreshAll(){ loadStats(currentDays); }
+
+/* ── Helpers graphiques ── */
+function lineChart(id, labels, datasets){
+  charts[id]?.destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, {
+    type:'line',
+    data:{ labels, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display: datasets.length>1 } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{maxTicksLimit:8} },
+        y:{ grid:{color:'#1E2A42'}, beginAtZero:true, ticks:{callback:v=>fmtK(v)} },
+      }
+    }
+  });
+}
+
+function barChart(id, labels, datasets){
+  charts[id]?.destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ display: datasets.length>1 } },
+      scales:{
+        x:{ grid:{display:false}, ticks:{maxTicksLimit:10} },
+        y:{ grid:{color:'#1E2A42'}, beginAtZero:true, ticks:{callback:v=>fmtK(v)}, stacked: datasets.length>1 },
+      }
+    }
+  });
+}
+
+function doughnutChart(id, labels, data, colors){
+  charts[id]?.destroy();
+  const ctx = document.getElementById(id).getContext('2d');
+  charts[id] = new Chart(ctx, {
+    type:'doughnut',
+    data:{
+      labels,
+      datasets:[{
+        data, hoverOffset:6,
+        backgroundColor: colors.map(c=>rgba(c,.55)),
+        borderColor:     colors,
+        borderWidth: 1.5,
+      }]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false, cutout:'65%',
+      plugins:{ legend:{ position:'right' } }
+    }
+  });
+}
+
+/* ── Barre de progression ── */
+function progRow(label, value, max, color){
+  const p = max>0 ? Math.min(100,Math.round(value/max*100)) : 0;
+  return `<div class="prog-row">
+    <div class="prog-head"><span class="prog-lbl">${label}</span><span class="prog-val">${fmt(value)}</span></div>
+    <div class="prog-bar"><div class="prog-fill" style="width:${p}%;background:${color}"></div></div>
+  </div>`;
+}
+
+/* ── KPI helper ── */
+function setKpi(id, val, deltaId, delta, isUp){
+  document.getElementById(id).textContent = val;
+  if(deltaId){
+    const el = document.getElementById(deltaId);
+    el.textContent = delta;
+    el.className = `kpi-delta ${isUp===true?'delta-up':isUp===false?'delta-down':'delta-neu'}`;
+  }
+}
+
+/* ── Charger les statistiques ── */
+async function loadStats(days){
+  const qs = days>0 ? `days=${days}` : 'all=1';
+
+  try {
+    const [dash, revSeries, userSeries, methods, monthly, topUsers, pronos] = await Promise.allSettled([
+      fetch(`/admin/api/stats/dashboard?${qs}`).then(r=>r.json()),
+      fetch(`/admin/api/stats/revenue?${qs}`).then(r=>r.json()),
+      fetch(`/admin/api/stats/signups?${qs}`).then(r=>r.json()),
+      fetch(`/admin/api/stats/methods?${qs}`).then(r=>r.json()),
+      fetch('/admin/api/stats/monthly').then(r=>r.json()),
+      fetch('/admin/api/stats/top-users').then(r=>r.json()),
+      fetch('/admin/api/stats/pronostics').then(r=>r.json()),
+    ]);
+
+    destroyAll();
+
+    /* ── KPIs ── */
+    if(dash.status==='fulfilled'){
+      const d = dash.value;
+      setKpi('k-users',   fmt(d.users?.total ?? 0),   'k-users-d',  d.users?.new>0?`+${fmt(d.users.new)} nouveaux`:null, true);
+      setKpi('k-new',     `+${fmt(d.users?.new ?? 0)}`,'k-new-d',   d.users?.growth_pct!=null?(d.users.growth_pct>=0?'+':'')+d.users.growth_pct+'% vs période préc.':null, d.users?.growth_pct>=0);
+      setKpi('k-premium', fmt(d.users?.premium ?? 0),  'k-conv',    d.users?.conversion_rate!=null?`Taux : ${d.users.conversion_rate}%`:null, null);
+      setKpi('k-revenue', fmtK(d.revenue?.deposits ?? 0) + ' F', 'k-revenue-d', d.revenue?.net!=null?`Net : ${fmtK(d.revenue.net)} F`:null, (d.revenue?.net??0)>=0);
+      setKpi('k-withdrawals', fmtK(d.revenue?.withdrawals ?? 0) + ' F', 'k-net', null, null);
+      document.getElementById('rev-total-lbl').textContent   = fmt(d.revenue?.deposits ?? 0) + ' FCFA total';
+      document.getElementById('users-total-lbl').textContent = fmt(d.users?.new ?? 0) + ' nouveaux';
+
+      /* Répartition users */
+      const uTotal = Math.max(d.users?.total ?? 1, 1);
+      document.getElementById('user-breakdown').innerHTML =
+        progRow('Premium actifs',    d.users?.premium ?? 0,    uTotal, COLORS.orange) +
+        progRow('Gratuits',          d.users?.free ?? 0,       uTotal, COLORS.blue)   +
+        progRow('Nouveaux (période)',d.users?.new ?? 0,        uTotal, COLORS.green)  +
+        `<div style="display:flex;justify-content:space-between;padding-top:.75rem;border-top:1px solid var(--border);margin-top:.5rem;font-size:.82rem">
+          <span style="color:var(--text-dim)">Taux de conversion</span>
+          <span style="color:var(--primary);font-weight:700">${d.users?.conversion_rate ?? 0}%</span>
+        </div>`;
+
+      /* Sources revenus doughnut */
+      const src = d.revenue ?? {};
+      doughnutChart('c-sources',
+        ['Dépôts','Abonnements','Commissions'],
+        [src.deposits??0, src.subscriptions??0, src.commissions??0],
+        [COLORS.red, COLORS.orange, COLORS.purple]
+      );
+    }
+
+    /* ── Graphique revenus ── */
+    if(revSeries.status==='fulfilled'){
+      const s = revSeries.value;
+      const labels = (s.labels ?? s).map ? (s.labels ?? s.map(d=>d.label??d.date)) : [];
+      const values = s.values ?? s.map?.(d=>d.amount??d.value) ?? [];
+      const ctx    = document.getElementById('c-revenue').getContext('2d');
+      const grad   = ctx.createLinearGradient(0,0,0,200);
+      grad.addColorStop(0, rgba(COLORS.red,.4));
+      grad.addColorStop(1, rgba(COLORS.red,.02));
+      lineChart('c-revenue', labels, [{
+        label:'Revenus FCFA', data: values,
+        borderColor: COLORS.red, backgroundColor: grad,
+        fill:true, tension:.4, pointRadius:2, pointBackgroundColor:COLORS.red,
+      }]);
+    }
+
+    /* ── Graphique inscriptions ── */
+    if(userSeries.status==='fulfilled'){
+      const s = userSeries.value;
+      const labels = s.labels ?? s.map?.(d=>d.label??d.date) ?? [];
+      const total   = s.values ?? s.map?.(d=>d.total??d.value??d) ?? [];
+      const premium = s.premium ?? s.map?.(d=>d.premium??0) ?? [];
+      const ctxU    = document.getElementById('c-signups').getContext('2d');
+      const gU      = ctxU.createLinearGradient(0,0,0,200);
+      gU.addColorStop(0, rgba(COLORS.blue,.35));
+      gU.addColorStop(1, rgba(COLORS.blue,.02));
+      lineChart('c-signups', labels, [
+        { label:'Total', data:total, borderColor:COLORS.blue, backgroundColor:gU, fill:true, tension:.4, pointRadius:2 },
+        ...(premium.some(v=>v>0) ? [{ label:'→ Premium', data:premium, borderColor:COLORS.orange, backgroundColor:'transparent', tension:.4, pointRadius:2, borderDash:[4,3] }] : [])
+      ]);
+    }
+
+    /* ── Méthodes de paiement ── */
+    if(methods.status==='fulfilled'){
+      const m = methods.value;
+      const methLabels  = m.map?.(x=>x.method?.replace(/_/g,' ')??x.label??'?') ?? [];
+      const methDeposits = m.map?.(x=>x.deposits??x.amount??0) ?? [];
+      const methWith     = m.map?.(x=>x.withdrawals??0) ?? [];
+      barChart('c-methods', methLabels, [
+        { label:'Dépôts',   data:methDeposits, backgroundColor:rgba(COLORS.green,.55), borderColor:COLORS.green, borderWidth:1.5, borderRadius:5 },
+        ...(methWith.some(v=>v>0)?[{ label:'Retraits', data:methWith, backgroundColor:rgba(COLORS.red,.45), borderColor:COLORS.red, borderWidth:1.5, borderRadius:5 }]:[]),
+      ]);
+    }
+
+    /* ── Pronostics ── */
+    if(pronos.status==='fulfilled'){
+      const p = pronos.value;
+      const won=p.won??0, lost=p.lost??0, pend=p.pending??0;
+      const total=won+lost+pend;
+      const wr = total>0?Math.round(won/(won+lost||1)*100):0;
+      setKpi('k-winrate', wr+'%', 'k-pronos-total', `${total} pronostics`, wr>=60);
+      document.getElementById('pronos-period-lbl').textContent = `${total} au total`;
+      doughnutChart('c-pronos',
+        ['Gagnés','Perdus','En cours'],
+        [won, lost, pend],
+        [COLORS.green, COLORS.red, COLORS.orange]
+      );
+    }
+
+    /* ── Évolution mensuelle (12 mois) ── */
+    if(monthly.status==='fulfilled'){
+      const m = monthly.value;
+      const mlabels = m.map?.(x=>x.month??x.label??'') ?? [];
+      const musers  = m.map?.(x=>x.new_users??x.users??0) ?? [];
+      const mrev    = m.map?.(x=>x.revenue??x.amount??0) ?? [];
+      // Double axe Y
+      charts['c-monthly']?.destroy();
+      const ctxM = document.getElementById('c-monthly').getContext('2d');
+      charts['c-monthly'] = new Chart(ctxM, {
+        data:{
+          labels: mlabels,
+          datasets:[
+            { type:'bar',  label:'Inscriptions', data:musers, backgroundColor:rgba(COLORS.blue,.4), borderColor:COLORS.blue, borderWidth:1.5, borderRadius:4, yAxisID:'yU' },
+            { type:'line', label:'Revenus (FCFA)', data:mrev, borderColor:COLORS.orange, backgroundColor:rgba(COLORS.orange,.1), fill:true, tension:.4, pointRadius:3, yAxisID:'yR' },
+          ]
+        },
+        options:{
+          responsive:true, maintainAspectRatio:false,
+          plugins:{ legend:{ display:true, position:'top' } },
+          scales:{
+            x:{ grid:{display:false} },
+            yU:{ position:'left',  beginAtZero:true, ticks:{precision:0}, grid:{color:'#1E2A42'} },
+            yR:{ position:'right', beginAtZero:true, ticks:{callback:v=>fmtK(v)}, grid:{display:false} },
+          }
+        }
+      });
+    }
+
+    /* ── Top utilisateurs ── */
+    if(topUsers.status==='fulfilled'){
+      const list = topUsers.value ?? [];
+      const colors = ['#F5A623','#8892AA','#CD7F32'];
+      document.getElementById('top-body').innerHTML = list.length===0
+        ? '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">Aucune transaction</td></tr>'
+        : list.map((u,i)=>{
+          const color = i<3?colors[i]:'var(--text-dim)';
+          return `<tr>
+            <td><span class="rank-badge" style="background:${rgba(color,.15)};color:${color}">${i+1}</span></td>
+            <td><strong>${u.user?.pseudo??'—'}</strong>${u.user?.email?`<div style="font-size:.72rem;color:var(--text-dim)">${u.user.email}</div>`:''}</td>
+            <td style="color:var(--text-dim);font-size:.8rem">${u.user?.phoneNumber??'—'}</td>
+            <td><span class="badge ${u.user?.subscriptionPlan==='premium'?'badge-warn':'badge-info'}">${u.user?.subscriptionPlan??'free'}</span></td>
+            <td style="text-align:right;font-weight:600">${u.deposit_count??0}</td>
+            <td style="text-align:right;color:var(--success);font-weight:700">${fmt(u.total_deposits??0)} F</td>
+          </tr>`;
+        }).join('');
+    }
+
+  } catch(e){ console.error('Stats error:', e); }
+}
+
+/* ── Init ── */
+setPeriod(30);
+</script>
+
+<%- include('layout_bottom') %>

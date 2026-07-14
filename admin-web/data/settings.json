@@ -1,0 +1,14 @@
+{
+  "maintenanceMode": false,
+  "maintenanceMessage": "Le panel est en cours de maintenance. Revenez dans quelques instants.",
+  "announcementEnabled": false,
+  "announcementText": "",
+  "announcementType": "info",
+  "panelTitle": "PronoWin Admin",
+  "timezone": "Europe/Paris",
+  "sessionTimeoutMin": 30,
+  "loginMaxAttempts": 5,
+  "loginBlockMinutes": 15,
+  "updatedAt": null,
+  "updatedBy": null
+}

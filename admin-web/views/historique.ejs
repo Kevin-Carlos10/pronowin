@@ -1,0 +1,375 @@
+<%- include('layout_top', {page:'historique'}) %>
+
+<style>
+/* ── Stats ─────────────────────────────────────────────────────────────────── */
+.hi-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.7rem; margin-bottom:1rem; }
+.hi-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.8rem 1rem; }
+.hi-stat .v { font-size:1.3rem; font-weight:800; line-height:1; margin-bottom:.15rem; }
+.hi-stat .l { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+
+/* ── Filter bar ─────────────────────────────────────────────────────────────── */
+.hi-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.hi-filter input, .hi-filter select {
+  background:var(--surface-d); border:1px solid var(--border);
+  border-radius:var(--radius-s); padding:.42rem .7rem;
+  color:var(--text); font-size:.83rem; font-family:inherit;
+  outline:none; transition:border-color .15s;
+}
+.hi-filter input:focus, .hi-filter select:focus { border-color:var(--primary); }
+.hi-filter input[type=text]  { flex:1; min-width:180px; }
+.hi-filter input[type=date]  { width:145px; }
+.hi-filter input[type=number]{ width:110px; }
+
+/* ── Filter tags actifs ─────────────────────────────────────────────────────── */
+.hi-tags { display:flex; flex-wrap:wrap; gap:.35rem; padding:.6rem 1.1rem; border-top:1px solid var(--border); }
+.hi-tag  { display:inline-flex; align-items:center; gap:.35rem; font-size:.75rem; background:rgba(var(--primary-rgb),.1); border:1px solid rgba(var(--primary-rgb),.25); color:var(--primary); padding:.2rem .55rem; border-radius:99px; }
+.hi-tag a { color:var(--primary); text-decoration:none; opacity:.7; }
+.hi-tag a:hover { opacity:1; }
+
+/* ── Presets ────────────────────────────────────────────────────────────────── */
+.hi-presets { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; padding:.6rem 1.1rem; border-top:1px solid var(--border); }
+.hi-preset-tag { display:inline-flex; align-items:center; gap:.35rem; font-size:.75rem; background:var(--surface-d); border:1px solid var(--border); color:var(--text-m); padding:.2rem .55rem; border-radius:99px; cursor:pointer; transition:all .15s; }
+.hi-preset-tag:hover { border-color:var(--primary); color:var(--primary); }
+
+/* ── Table ──────────────────────────────────────────────────────────────────── */
+.hi-table { width:100%; border-collapse:collapse; }
+.hi-table th { text-align:left; padding:.55rem 1rem; font-size:.7rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; border-bottom:1px solid var(--border); white-space:nowrap; cursor:pointer; user-select:none; }
+.hi-table th:hover { color:var(--text); }
+.hi-table td { padding:.65rem 1rem; border-bottom:1px solid var(--border); font-size:.83rem; vertical-align:middle; }
+.hi-table tr:last-child td { border-bottom:0; }
+.hi-table tr:hover td { background:var(--surface-d); }
+.hi-amount { font-size:1rem; font-weight:800; }
+.hi-amount.dep { color:var(--success); }
+.hi-amount.with { color:var(--warning); }
+.hi-note { font-size:.72rem; color:var(--text-dim); margin-top:.2rem; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ── Modal ──────────────────────────────────────────────────────────────────── */
+.hi-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.65); backdrop-filter:blur(4px); z-index:200; align-items:center; justify-content:center; }
+.hi-modal-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.75rem; width:min(96vw,460px); animation:slideUp .22s ease; }
+.hi-modal-box h3 { font-size:1rem; font-weight:700; margin-bottom:1.1rem; }
+
+/* ── Pagination ─────────────────────────────────────────────────────────────── */
+.hi-pager { display:flex; justify-content:space-between; align-items:center; padding:.85rem 1.25rem; border-top:1px solid var(--border); }
+.hi-pager-nums { display:flex; gap:.35rem; }
+</style>
+
+<%
+  function _hq(obj) {
+    return Object.entries(obj).filter(([,v])=>v).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join('&');
+  }
+  const _qs = _hq({ search, type, status, method, date_from:dateFrom, date_to:dateTo, amount_min, amount_max, sort_by:sortBy });
+  const _hasFilter = !!(search || type || status || method || dateFrom || dateTo || amount_min || amount_max);
+  const _hasAdv    = !!(dateFrom || dateTo || amount_min || amount_max);
+
+  function pageUrl(p) { return '/admin/historique?' + _hq({ search, type, status, method, date_from:dateFrom, date_to:dateTo, amount_min, amount_max, page:String(p) }); }
+%>
+
+<div class="topbar">
+  <div>
+    <h2>📋 Historique des transactions</h2>
+    <small><%= total %> transaction<%= total>1?'s':'' %><%= _hasFilter ? ' (filtrées)' : '' %></small>
+  </div>
+  <a href="/admin/historique/export?<%= _qs %>" class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)">⬇️ Export CSV</a>
+</div>
+
+<% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
+<% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
+
+<!-- ── Stats ─────────────────────────────────────────────────────────────────── -->
+<div class="hi-stats">
+  <div class="hi-stat">
+    <div class="v" style="color:var(--success)"><%= stats.volume_deposits ? (stats.volume_deposits/1000).toFixed(0)+'k' : '0' %></div>
+    <div class="l">FCFA déposés</div>
+  </div>
+  <div class="hi-stat">
+    <div class="v" style="color:var(--warning)"><%= stats.volume_withdrawals ? (stats.volume_withdrawals/1000).toFixed(0)+'k' : '0' %></div>
+    <div class="l">FCFA retirés</div>
+  </div>
+  <div class="hi-stat">
+    <div class="v" style="color:var(--info)"><%= stats.completed_deposits || 0 %></div>
+    <div class="l">Dépôts confirmés</div>
+  </div>
+  <div class="hi-stat">
+    <div class="v" style="color:#A78BFA"><%= stats.completed_withdrawals || 0 %></div>
+    <div class="l">Retraits effectués</div>
+  </div>
+  <div class="hi-stat">
+    <div class="v" style="color:var(--error)"><%= stats.pending_count || 0 %></div>
+    <div class="l">En attente</div>
+  </div>
+  <div class="hi-stat">
+    <div class="v" style="color:var(--primary)"><%= stats.monthly_volume ? (stats.monthly_volume/1000).toFixed(0)+'k' : '0' %></div>
+    <div class="l">Volume 30 jours</div>
+  </div>
+  <div class="hi-stat">
+    <div class="v" style="color:var(--success)"><%= stats.today_deposits || 0 %></div>
+    <div class="l">Dépôts auj.</div>
+  </div>
+  <div class="hi-stat">
+    <div class="v" style="color:var(--warning)"><%= stats.today_withdrawals || 0 %></div>
+    <div class="l">Retraits auj.</div>
+  </div>
+</div>
+
+<!-- ── Filtres ────────────────────────────────────────────────────────────────── -->
+<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem">
+  <form method="GET" action="/admin/historique" id="filter-form">
+
+    <!-- Ligne principale -->
+    <div class="hi-filter" style="margin-bottom:<%= _hasAdv ? '.75rem' : '0' %>">
+      <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, ID 1xBet…">
+
+      <select name="type" onchange="this.form.submit()">
+        <option value="">Tous types</option>
+        <option value="deposit"    <%= type==='deposit'    ?'selected':'' %>>⬇️ Dépôts</option>
+        <option value="withdrawal" <%= type==='withdrawal' ?'selected':'' %>>⬆️ Retraits</option>
+      </select>
+
+      <select name="status" onchange="this.form.submit()">
+        <option value="">Tous statuts</option>
+        <option value="pending"    <%= status==='pending'    ?'selected':'' %>>⏳ En attente</option>
+        <option value="processing" <%= status==='processing' ?'selected':'' %>>🔄 En cours</option>
+        <option value="completed"  <%= status==='completed'  ?'selected':'' %>>✅ Confirmé</option>
+        <option value="rejected"   <%= status==='rejected'   ?'selected':'' %>>❌ Rejeté</option>
+      </select>
+
+      <select name="method" onchange="this.form.submit()">
+        <option value="">Toutes méthodes</option>
+        <option value="orange_money" <%= method==='orange_money' ?'selected':'' %>>🟠 Orange Money</option>
+        <option value="moov_money"   <%= method==='moov_money'   ?'selected':'' %>>🔵 Moov Money</option>
+        <option value="mtn_momo"     <%= method==='mtn_momo'     ?'selected':'' %>>🟡 MTN MoMo</option>
+        <option value="wave"         <%= method==='wave'         ?'selected':'' %>>🌊 Wave</option>
+      </select>
+
+      <button type="button" class="btn btn-outline btn-sm" onclick="toggleAdv()" id="adv-btn">
+        📅 <%= _hasAdv ? 'Dates ▲' : 'Dates ▼' %>
+      </button>
+      <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+      <% if(_hasFilter){ %><a href="/admin/historique" class="btn btn-outline btn-sm">✕ Reset</a><% } %>
+    </div>
+
+    <!-- Panneau avancé -->
+    <div id="adv-panel" style="<%= _hasAdv ? '' : 'display:none' %>">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.6rem;margin-bottom:.6rem">
+        <div>
+          <div style="font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:.3rem">Du</div>
+          <input type="date" name="date_from" value="<%= dateFrom %>">
+        </div>
+        <div>
+          <div style="font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:.3rem">Au</div>
+          <input type="date" name="date_to" value="<%= dateTo %>">
+        </div>
+        <div>
+          <div style="font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:.3rem">Montant min</div>
+          <input type="number" name="amount_min" value="<%= amount_min %>" min="0" placeholder="5 000">
+        </div>
+        <div>
+          <div style="font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:.3rem">Montant max</div>
+          <input type="number" name="amount_max" value="<%= amount_max %>" min="0" placeholder="100 000">
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
+        <span style="font-size:.72rem;color:var(--text-dim)">Presets :</span>
+        <div id="presets-list"></div>
+        <button type="button" class="btn btn-outline btn-sm" onclick="savePreset()">💾 Sauvegarder</button>
+      </div>
+    </div>
+
+  </form>
+
+  <!-- Tags filtres actifs -->
+  <% if(_hasFilter){ %>
+  <div class="hi-tags">
+    <span style="font-size:.72rem;color:var(--text-dim)">Filtres actifs :</span>
+    <% if(search){ %><span class="hi-tag">🔍 <%= search %> <a href="/admin/historique?<%= _hq({type,status,method,date_from:dateFrom,date_to:dateTo}) %>">×</a></span><% } %>
+    <% if(type){ %><span class="hi-tag">Type: <%= type %> <a href="/admin/historique?<%= _hq({search,status,method,date_from:dateFrom,date_to:dateTo}) %>">×</a></span><% } %>
+    <% if(status){ %><span class="hi-tag">Statut: <%= status %> <a href="/admin/historique?<%= _hq({search,type,method,date_from:dateFrom,date_to:dateTo}) %>">×</a></span><% } %>
+    <% if(method){ %><span class="hi-tag">Méthode: <%= method %> <a href="/admin/historique?<%= _hq({search,type,status,date_from:dateFrom,date_to:dateTo}) %>">×</a></span><% } %>
+    <% if(dateFrom){ %><span class="hi-tag">Du: <%= dateFrom %> <a href="/admin/historique?<%= _hq({search,type,status,method,date_to:dateTo}) %>">×</a></span><% } %>
+    <% if(dateTo){ %><span class="hi-tag">Au: <%= dateTo %> <a href="/admin/historique?<%= _hq({search,type,status,method,date_from:dateFrom}) %>">×</a></span><% } %>
+    <% if(amount_min){ %><span class="hi-tag">Min: <%= parseInt(amount_min).toLocaleString() %> FCFA <a href="/admin/historique?<%= _hq({search,type,status,method,date_from:dateFrom,date_to:dateTo,amount_max}) %>">×</a></span><% } %>
+    <% if(amount_max){ %><span class="hi-tag">Max: <%= parseInt(amount_max).toLocaleString() %> FCFA <a href="/admin/historique?<%= _hq({search,type,status,method,date_from:dateFrom,date_to:dateTo,amount_min}) %>">×</a></span><% } %>
+  </div>
+  <% } %>
+</div>
+
+<!-- ── Table ──────────────────────────────────────────────────────────────────── -->
+<div class="card" style="padding:0;overflow:hidden">
+  <% if (!data || data.length === 0) { %>
+  <div style="padding:3.5rem;text-align:center;color:var(--text-dim)">
+    <div style="font-size:2.5rem;margin-bottom:.6rem"><%= _hasFilter ? '🔍' : '📋' %></div>
+    <p>Aucune transaction<%= _hasFilter ? ' correspondant aux filtres' : '' %>.</p>
+    <% if(_hasFilter){ %><a href="/admin/historique" class="btn btn-outline btn-sm" style="margin-top:.75rem">Voir toutes</a><% } %>
+  </div>
+  <% } else { %>
+  <div class="table-wrap">
+    <table class="hi-table">
+      <thead>
+        <tr>
+          <th>Utilisateur</th>
+          <th>Type</th>
+          <th>Montant</th>
+          <th>Méthode</th>
+          <th>ID 1xBet</th>
+          <th>N° Envoyeur</th>
+          <th>Statut</th>
+          <th>Date</th>
+          <% if(hasPerm('historique','write')) { %><th style="width:40px"></th><% } %>
+        </tr>
+      </thead>
+      <tbody>
+      <% data.forEach(function(tx) {
+           const isDeposit   = tx.type === 'deposit';
+           const statusLabel = tx.status==='completed'?'✅ Confirmé':tx.status==='rejected'?'❌ Rejeté':tx.status==='processing'?'🔄 En cours':'⏳ Attente';
+           const statusCls   = tx.status==='completed'?'badge-ok':tx.status==='rejected'?'badge-err':tx.status==='processing'?'badge-info':'badge-warn';
+           const methodLabel = tx.paymentMethod==='orange_money'?'🟠 Orange':tx.paymentMethod==='moov_money'?'🔵 Moov':tx.paymentMethod==='wave'?'🌊 Wave':'🟡 MTN';
+           const dateStr     = new Date(tx.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
+           const procStr     = tx.processedAt ? new Date(tx.processedAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) : null;
+      %>
+      <tr>
+        <td>
+          <div style="font-weight:600">
+            <% if(tx.user) { %>
+            <a href="/admin/users/<%= tx.user.id %>" style="color:var(--text);text-decoration:none"><%= tx.user.pseudo %></a>
+            <% } else { %>—<% } %>
+          </div>
+          <div style="font-size:.75rem;color:var(--text-dim)"><%= tx.user ? tx.user.phoneNumber : '' %></div>
+        </td>
+        <td><span class="badge <%= isDeposit?'badge-ok':'badge-warn' %>"><%= isDeposit?'⬇️ Dépôt':'⬆️ Retrait' %></span></td>
+        <td>
+          <div class="hi-amount <%= isDeposit?'dep':'with' %>"><%= (tx.amount||0).toLocaleString() %><span style="font-size:.75rem;font-weight:400;color:var(--text-dim)"> F</span></div>
+        </td>
+        <td style="color:var(--text-m);font-size:.8rem"><%= methodLabel %></td>
+        <td style="color:var(--primary);font-size:.8rem;font-weight:600;font-family:monospace"><%= tx.xbetId || '—' %></td>
+        <td style="color:var(--text-dim);font-size:.78rem;font-family:monospace"><%= tx.senderPhone || '—' %></td>
+        <td>
+          <span class="badge <%= statusCls %>"><%= statusLabel %></span>
+          <% if(tx.adminNote){ %><div class="hi-note" title="<%= tx.adminNote %>"><%= tx.adminNote %></div><% } %>
+        </td>
+        <td style="color:var(--text-m);font-size:.78rem;white-space:nowrap">
+          <%= dateStr %>
+          <% if(procStr){ %><div style="color:var(--text-dim);font-size:.72rem">✓ <%= procStr %></div><% } %>
+        </td>
+        <% if(hasPerm('historique','write')) { %>
+        <td>
+          <button class="btn btn-sm btn-outline"
+            data-id="<%= tx.id %>"
+            data-status="<%= tx.status %>"
+            data-note="<%= (tx.adminNote||'').replace(/"/g,'&quot;') %>"
+            onclick="openEdit(this)" title="Modifier">✏️</button>
+        </td>
+        <% } %>
+      </tr>
+      <% }); %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <% if (totalPages > 1) { %>
+  <div class="hi-pager">
+    <span style="color:var(--text-dim);font-size:.78rem">
+      <%= ((page-1)*perPage)+1 %>–<%= Math.min(page*perPage, total) %> sur <%= total %>
+    </span>
+    <div class="hi-pager-nums">
+      <% if(page>1){ %><a href="<%= pageUrl(1) %>" class="btn btn-sm btn-outline">«</a><a href="<%= pageUrl(page-1) %>" class="btn btn-sm btn-outline">‹</a><% } %>
+      <span style="padding:.35rem .75rem;background:var(--surface-d);border-radius:var(--radius-s);font-size:.8rem;font-weight:700"><%= page %> / <%= totalPages %></span>
+      <% if(page<totalPages){ %><a href="<%= pageUrl(page+1) %>" class="btn btn-sm btn-outline">›</a><a href="<%= pageUrl(totalPages) %>" class="btn btn-sm btn-outline">»</a><% } %>
+    </div>
+  </div>
+  <% } %>
+  <% } %>
+</div>
+
+<!-- ── Modal modification ─────────────────────────────────────────────────────── -->
+<div class="hi-modal" id="edit-modal">
+  <div class="hi-modal-box">
+    <h3>✏️ Modifier la transaction</h3>
+    <form id="edit-form" method="POST">
+      <div class="form-group" style="margin-bottom:.9rem">
+        <label>Statut</label>
+        <select class="input" name="status" id="edit-status">
+          <option value="pending">⏳ En attente</option>
+          <option value="processing">🔄 En cours</option>
+          <option value="completed">✅ Confirmé</option>
+          <option value="rejected">❌ Rejeté</option>
+        </select>
+      </div>
+      <div class="form-group" style="margin-bottom:1.25rem">
+        <label>Note admin</label>
+        <textarea class="input" name="admin_note" id="edit-note" rows="3" placeholder="Note visible dans l'historique…"></textarea>
+      </div>
+      <div style="display:flex;gap:.75rem">
+        <button type="button" class="btn btn-outline" onclick="closeEditModal()" style="flex:1">Annuler</button>
+        <button type="submit" class="btn btn-primary" style="flex:1">💾 Sauvegarder</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+/* ── Modal ── */
+function openEdit(btn) {
+  document.getElementById('edit-form').action   = '/admin/historique/' + btn.dataset.id;
+  document.getElementById('edit-status').value  = btn.dataset.status;
+  document.getElementById('edit-note').value    = btn.dataset.note;
+  const m = document.getElementById('edit-modal');
+  m.style.display = 'flex';
+}
+function closeEditModal() { document.getElementById('edit-modal').style.display = 'none'; }
+document.getElementById('edit-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeEditModal();
+});
+document.addEventListener('keydown', e => { if(e.key==='Escape') closeEditModal(); });
+
+/* ── Panneau avancé ── */
+function toggleAdv() {
+  const p   = document.getElementById('adv-panel');
+  const btn = document.getElementById('adv-btn');
+  const open = p.style.display === 'none';
+  p.style.display = open ? '' : 'none';
+  btn.textContent = open ? '📅 Dates ▲' : '📅 Dates ▼';
+}
+
+/* ── Presets ── */
+const PRESET_KEY = 'pw_presets_historique';
+function loadPresets() { try { return JSON.parse(localStorage.getItem(PRESET_KEY) ?? '[]'); } catch { return []; } }
+function savePreset() {
+  const name = prompt('Nom du preset :');
+  if (!name?.trim()) return;
+  const params = new URLSearchParams(new FormData(document.getElementById('filter-form')));
+  const presets = loadPresets();
+  presets.unshift({ name:name.trim(), qs:params.toString(), ts:Date.now() });
+  localStorage.setItem(PRESET_KEY, JSON.stringify(presets.slice(0, 10)));
+  renderPresets();
+  if (typeof showToast === 'function') showToast('Preset sauvegardé !', 'success');
+}
+function applyPreset(qs) { window.location.href = '/admin/historique?' + qs; }
+function deletePreset(i) {
+  const p = loadPresets(); p.splice(i,1);
+  localStorage.setItem(PRESET_KEY, JSON.stringify(p));
+  renderPresets();
+}
+function renderPresets() {
+  const list    = document.getElementById('presets-list');
+  if (!list) return;
+  const presets = loadPresets();
+  if (!presets.length) {
+    list.innerHTML = '<span style="font-size:.72rem;color:var(--text-dim)">Aucun preset</span>';
+    return;
+  }
+  list.innerHTML = presets.map((p, i) =>
+    `<span class="hi-preset-tag" onclick="applyPreset('${p.qs.replace(/'/g,"\\'")}')">${p.name}<span onclick="event.stopPropagation();deletePreset(${i})" style="opacity:.5;margin-left:.2rem"> ×</span></span>`
+  ).join('');
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', function() {
+  renderPresets();
+  document.querySelectorAll('.alert-success,.alert-error').forEach(el => {
+    if (el.textContent.trim()) showToast(el.textContent.trim(), el.classList.contains('alert-success') ? 'success' : 'error');
+  });
+});
+</script>
+
+<%- include('layout_bottom') %>

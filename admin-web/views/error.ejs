@@ -1,0 +1,55 @@
+<%
+  var _status  = (typeof status  !== 'undefined') ? status  : 500;
+  var _title   = (typeof title   !== 'undefined') ? title   : 'Erreur';
+  var _message = (typeof message !== 'undefined') ? message : "Une erreur s'est produite.";
+  var _hint    = (typeof hint    !== 'undefined') ? hint    : null;
+  var _back    = (typeof back    !== 'undefined') ? back    : '/admin/dashboard';
+  var icon     = _status === 404 ? '🔍' : _status === 403 ? '🔒' : _status === 401 ? '🔑' : '⚠️';
+  var color    = _status === 404 ? 'var(--info)' : _status === 403 ? 'var(--warning)' : 'var(--error)';
+%>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PronoWin Admin — <%= _title %></title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    .error-wrap  { min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:2rem; }
+    .error-box   { max-width:440px;width:100%;text-align:center; }
+    .error-code  { font-size:5rem;font-weight:800;letter-spacing:-4px;line-height:1;margin-bottom:.5rem; }
+    .error-icon  { font-size:3.5rem;margin-bottom:1rem; }
+    .error-title { font-size:1.4rem;font-weight:700;margin-bottom:.6rem; }
+    .error-msg   { color:var(--text-m);font-size:.92rem;line-height:1.65;margin-bottom:.4rem; }
+    .error-hint  { color:var(--text-dim);font-size:.82rem;line-height:1.5;margin-bottom:2rem; }
+    .error-actions { display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap; }
+    .divider-line { height:1px;background:var(--border);margin:2rem 0 1.5rem; }
+  </style>
+</head>
+<body>
+<div class="error-wrap">
+  <div class="error-box">
+
+    <% if (_status && _status !== 500) { %>
+    <div class="error-code" style="color:<%= color %>"><%= _status %></div>
+    <% } else { %>
+    <div class="error-icon"><%= icon %></div>
+    <% } %>
+
+    <h1 class="error-title"><%= _title %></h1>
+    <p class="error-msg"><%= _message %></p>
+    <% if (_hint) { %><p class="error-hint"><%= _hint %></p><% } %>
+
+    <div class="error-actions">
+      <a href="<%= _back %>" class="btn btn-primary">← Retour</a>
+      <a href="/admin/dashboard" class="btn btn-outline">🏠 Dashboard</a>
+    </div>
+
+    <div class="divider-line"></div>
+    <a href="/admin/logout" style="color:var(--text-dim);font-size:.8rem;text-decoration:none;">🚪 Se déconnecter</a>
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,5 @@
+<!-- À ajouter dans android/app/src/main/AndroidManifest.xml -->
+<!-- AVANT la balise <application> -->
+
+<uses-permission android:name="android.permission.USE_BIOMETRIC"/>
+<uses-permission android:name="android.permission.USE_FINGERPRINT"/>

@@ -1,0 +1,151 @@
+<%- include('layout_top', {page:'abonnements'}) %>
+<div class="topbar">
+  <div>
+    <h2>👑 Preuves Premium</h2>
+    <small>Validation manuelle — Paiement direct & Code 1xBet</small>
+  </div>
+  <a href="/admin/abonnements/export" class="btn btn-outline" id="export-btn-abonnements"
+     onclick="exportBtnFeedback(this)">⬇️ Export CSV</a>
+</div>
+
+<% if(typeof success !== 'undefined' && success){ %>
+  <div class="alert alert-success">✅ Preuve traitée avec succès !</div>
+<% } %>
+<% if(typeof error !== 'undefined' && error){ %>
+  <div class="alert alert-error">❌ <%= error %></div>
+<% } %>
+
+<!-- Modal image plein écran -->
+<div class="modal-bg" id="img-modal" onclick="this.classList.remove('open')">
+  <img id="modal-img" class="modal-img" src="" alt="Preuve">
+  <p style="color:rgba(255,255,255,.6);margin-top:8px;font-size:12px">Cliquez n'importe où pour fermer</p>
+</div>
+
+<% if(!data.data || data.data.length === 0){ %>
+  <div class="card"><p class="empty">✅ Aucune preuve en attente. Tout est à jour !</p></div>
+<% } else { %>
+
+<% data.data.forEach(p => { %>
+<div class="card" style="padding:0;overflow:hidden;margin-bottom:20px">
+
+  <!-- En-tête de la carte -->
+  <div style="background:#0D1220;padding:14px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #1E2A42">
+    <div style="width:38px;height:38px;border-radius:50%;background:#151B2E;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#F5A623">
+      <%= (p.user?.pseudo ?? '?')[0].toUpperCase() %>
+    </div>
+    <div style="flex:1">
+      <p style="font-weight:600;color:#fff"><%= p.user?.pseudo ?? '—' %></p>
+      <p style="font-size:12px;color:#8892AA"><%= p.user?.phoneNumber %></p>
+    </div>
+    <span class="badge <%= p.type==='payment_screenshot' ? 'badge-ok' : 'badge-info' %>" style="font-size:12px">
+      <%= p.type==='payment_screenshot' ? '💳 Paiement direct' : '🎮 Compte 1xBet' %>
+    </span>
+    <p style="font-size:11px;color:#8892AA;margin-left:8px">
+      <%= new Date(p.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %>
+    </p>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:0">
+
+    <!-- Colonne 1 : Infos utilisateur -->
+    <div style="padding:18px;border-right:1px solid #1E2A42">
+      <p style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Informations</p>
+
+      <div style="margin-bottom:8px">
+        <p style="font-size:11px;color:#8892AA">ID 1xBet</p>
+        <p style="font-size:15px;font-weight:600;color:#F5A623"><%= p.xbetId ?? '⚠️ Non renseigné' %></p>
+      </div>
+
+      <% if(p.type === 'payment_screenshot'){ %>
+        <div style="margin-bottom:8px">
+          <p style="font-size:11px;color:#8892AA">Montant déclaré</p>
+          <p style="font-size:20px;font-weight:700;color:#fff"><%= p.amount?.toLocaleString() ?? '—' %> FCFA</p>
+        </div>
+        <div>
+          <p style="font-size:11px;color:#8892AA">Numéro envoyeur</p>
+          <p style="font-size:13px;color:#E2E8F0"><%= p.senderPhone ?? '—' %></p>
+        </div>
+      <% } else { %>
+        <div style="margin-bottom:8px">
+          <p style="font-size:11px;color:#8892AA">Code promo utilisé</p>
+          <p style="font-size:13px;color:#A78BFA;font-weight:600"><%= process.env.XBET_PROMO_CODE ?? 'PRONOWIN2025' %></p>
+        </div>
+        <div style="background:rgba(167,139,250,.08);border:0.5px solid rgba(167,139,250,.2);border-radius:8px;padding:10px;margin-top:8px">
+          <p style="font-size:11px;color:#A78BFA">Vérifiez que le compte 1xBet a bien été créé avec notre code promo</p>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Colonne 2 : Capture d'écran -->
+    <div style="padding:18px;border-right:1px solid #1E2A42">
+      <p style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Capture d'écran</p>
+      <% if(p.screenshotUrl){ %>
+        <img
+          src="<%= p.screenshotUrl %>"
+          alt="Preuve"
+          style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;cursor:pointer;border:1px solid #1E2A42"
+          onclick="document.getElementById('modal-img').src=this.src;document.getElementById('img-modal').classList.add('open')"
+          onerror="this.parentElement.innerHTML='<p style=color:#EF4444;font-size:12px>❌ Image non accessible</p>'"
+        >
+        <p style="font-size:11px;color:#8892AA;margin-top:6px;text-align:center">Cliquez pour agrandir</p>
+      <% } else { %>
+        <div style="height:120px;display:flex;align-items:center;justify-content:center;background:#0D1220;border-radius:10px;border:1px dashed #2A3050">
+          <p style="color:#EF4444;font-size:12px">⚠️ Aucune image soumise</p>
+        </div>
+      <% } %>
+    </div>
+
+    <!-- Colonne 3 : Actions -->
+    <div style="padding:18px">
+      <p style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px">Décision</p>
+      <form method="POST" action="/admin/abonnements/<%= p.id %>" style="display:flex;flex-direction:column;gap:10px">
+
+        <% if(p.type === 'payment_screenshot'){ %>
+        <div style="background:rgba(245,166,35,.06);border:0.5px solid rgba(245,166,35,.2);border-radius:8px;padding:10px;font-size:11px;color:#8892AA">
+          <strong style="color:#F5A623">À vérifier :</strong><br>
+          Confirmez que vous avez reçu <strong><%= p.amount?.toLocaleString() %> FCFA</strong>
+          de <strong><%= p.senderPhone %></strong> sur votre numéro MobCash.
+        </div>
+        <% } else { %>
+        <div style="background:rgba(167,139,250,.06);border:0.5px solid rgba(167,139,250,.2);border-radius:8px;padding:10px;font-size:11px;color:#8892AA">
+          <strong style="color:#A78BFA">À vérifier :</strong><br>
+          Confirmez que l'ID 1xBet <strong><%= p.xbetId %></strong> est bien un nouveau compte créé avec votre code promo.
+        </div>
+        <% } %>
+
+        <div>
+          <label style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px">Durée Premium (jours)</label>
+          <input type="number" name="duration_days" value="30" min="1" max="365"
+            style="width:100%;margin-top:4px">
+        </div>
+
+        <div>
+          <label style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px">Note pour l'utilisateur (optionnel)</label>
+          <textarea name="admin_note" rows="2" style="width:100%;margin-top:4px;font-size:12px"
+            placeholder="Message envoyé par notification..."></textarea>
+        </div>
+
+        <div style="display:flex;gap:8px">
+          <button type="submit" name="action" value="approve"
+            class="btn btn-success" style="flex:1;justify-content:center">
+            ✅ Approuver
+          </button>
+          <button type="submit" name="action" value="reject"
+            class="btn btn-danger" style="flex:1;justify-content:center">
+            ❌ Rejeter
+          </button>
+        </div>
+
+      </form>
+    </div>
+  </div>
+</div>
+<% }) %>
+
+<% if(data.total > data.data.length){ %>
+  <p style="text-align:center;color:#8892AA;margin-top:8px;font-size:13px">
+    Affichage de <%= data.data.length %> sur <%= data.total %> preuves
+  </p>
+<% } %>
+<% } %>
+<%- include('layout_bottom') %>

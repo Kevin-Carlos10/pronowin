@@ -1,0 +1,355 @@
+<%- include('layout_top', {page:'actualites'}) %>
+
+<style>
+/* ── Layout deux colonnes ────────────────────────────────────────────────────── */
+.af-grid { display:grid; grid-template-columns:1fr 340px; gap:1rem; align-items:start; }
+@media(max-width:900px) { .af-grid { grid-template-columns:1fr; } }
+
+/* ── Formulaire ──────────────────────────────────────────────────────────────── */
+.af-field { margin-bottom:1rem; }
+.af-field label { display:block; font-size:.78rem; font-weight:700; color:var(--text-m); margin-bottom:.35rem; text-transform:uppercase; letter-spacing:.04em; }
+.af-field .hint { font-size:.72rem; color:var(--text-dim); margin-top:.3rem; }
+.af-counter { font-size:.7rem; color:var(--text-dim); float:right; transition:color .2s; }
+.af-counter.warn { color:var(--warning); }
+.af-counter.over { color:var(--error); font-weight:700; }
+
+/* ── Type pills ───────────────────────────────────────────────────────────────── */
+.af-cat-pills { display:flex; gap:.5rem; flex-wrap:wrap; }
+.af-cat-pill {
+  display:flex; align-items:center; gap:.4rem;
+  padding:.4rem .8rem; border-radius:99px; cursor:pointer; user-select:none;
+  border:1.5px solid var(--border); color:var(--text-m); font-size:.82rem; font-weight:600;
+  transition:all .18s;
+}
+.af-cat-pill:hover { border-color:var(--primary); color:var(--primary); }
+.af-cat-pill.active { border-color:var(--primary); background:rgba(var(--primary-rgb),.1); color:var(--primary); }
+input[name=category] { display:none; }
+
+/* ── Toggle switch ───────────────────────────────────────────────────────────── */
+.af-toggle-row { display:flex; align-items:center; justify-content:space-between; padding:.65rem .9rem; background:var(--surface-d); border-radius:var(--radius-s); border:1px solid var(--border); }
+.af-toggle-row + .af-toggle-row { margin-top:.5rem; }
+.af-toggle-label { font-size:.83rem; font-weight:600; }
+.af-toggle-desc  { font-size:.73rem; color:var(--text-dim); }
+.af-switch { position:relative; display:inline-block; width:42px; height:24px; flex-shrink:0; }
+.af-switch input { opacity:0; width:0; height:0; }
+.af-switch-slider {
+  position:absolute; inset:0; background:var(--border); border-radius:99px; cursor:pointer; transition:.25s;
+}
+.af-switch-slider::after {
+  content:''; position:absolute; width:18px; height:18px; top:3px; left:3px;
+  background:#fff; border-radius:50%; transition:.25s;
+}
+.af-switch input:checked ~ .af-switch-slider { background:var(--primary); }
+.af-switch input:checked ~ .af-switch-slider::after { left:21px; }
+
+/* ── Prévisualisation ────────────────────────────────────────────────────────── */
+.af-preview {
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden;
+}
+.af-preview-img {
+  width:100%; aspect-ratio:16/7; background:var(--surface-d);
+  display:flex; align-items:center; justify-content:center; font-size:3rem; overflow:hidden;
+  position:relative;
+}
+.af-preview-img img { width:100%; height:100%; object-fit:cover; display:none; }
+.af-preview-body { padding:1rem; }
+.af-preview-cat  { font-size:.72rem; font-weight:700; margin-bottom:.4rem; }
+.af-preview-title{ font-size:1rem; font-weight:800; line-height:1.35; margin-bottom:.35rem; }
+.af-preview-summary { font-size:.78rem; color:var(--text-m); line-height:1.5; margin-bottom:.5rem; }
+.af-preview-meta { font-size:.72rem; color:var(--text-dim); }
+
+/* ── Sidebar stats (edit) ────────────────────────────────────────────────────── */
+.af-stat-row { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.82rem; }
+.af-stat-row:last-child { border-bottom:0; }
+.af-stat-row .k { color:var(--text-dim); font-size:.73rem; }
+.af-stat-row .v { font-weight:700; }
+</style>
+
+<%
+  const art = article || {};
+  const isNew = !isEdit;
+  const catList = [
+    { key:'news',   emoji:'📰', label:'News' },
+    { key:'promo',  emoji:'🎁', label:'Promo' },
+    { key:'update', emoji:'🔄', label:'Mise à jour' },
+    { key:'tip',    emoji:'💡', label:'Conseil' },
+    { key:'alert',  emoji:'🚨', label:'Alerte' },
+  ];
+  const selCat = art.category || 'news';
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+  }
+%>
+
+<div class="topbar">
+  <div>
+    <h2><%= isNew ? '📰 Nouvel article' : '✏️ Modifier l\'article' %></h2>
+    <% if(!isNew) { %><small><%= art.title %></small><% } %>
+  </div>
+  <a href="/admin/actualites" class="btn btn-outline btn-sm">← Retour</a>
+</div>
+
+<% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
+<% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
+
+<form method="POST" action="/admin/actualites<%= isNew ? '' : '/'+art.id+'/edit' %>" id="af-form">
+<div class="af-grid">
+
+  <!-- ── Colonne gauche : formulaire ── -->
+  <div>
+
+    <!-- Titre -->
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+      <div class="af-field">
+        <label>Titre <span style="color:var(--error)">*</span> <span class="af-counter" id="cnt-title">0/120</span></label>
+        <input class="input" type="text" name="title" id="inp-title" value="<%= art.title||'' %>"
+          placeholder="Ex : Grosse cote du week-end 🔥"
+          oninput="updateCounter('inp-title','cnt-title',120);updatePreview()" required>
+      </div>
+      <div class="af-field" style="margin-bottom:0">
+        <label>Résumé (affiché dans la liste) <span class="af-counter" id="cnt-summary">0/250</span></label>
+        <textarea class="input" name="summary" id="inp-summary" rows="2"
+          placeholder="Une ou deux phrases résumant l'article…"
+          oninput="updateCounter('inp-summary','cnt-summary',250);updatePreview()"><%= art.summary||'' %></textarea>
+      </div>
+    </div>
+
+    <!-- Contenu -->
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+      <div class="af-field" style="margin-bottom:0">
+        <label>Contenu complet <span class="af-counter" id="cnt-content">0/5000</span></label>
+        <textarea class="input" name="content" id="inp-content" rows="12"
+          placeholder="Contenu de l'article… Vous pouvez utiliser du HTML basique : &lt;b&gt;, &lt;i&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;a href=&quot;…&quot;&gt;…"
+          oninput="updateCounter('inp-content','cnt-content',5000)"><%= art.content||'' %></textarea>
+        <div class="hint">HTML basique supporté. Évitez les scripts.</div>
+      </div>
+    </div>
+
+    <!-- Catégorie -->
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+      <div class="af-field" style="margin-bottom:0">
+        <label>Catégorie</label>
+        <input type="hidden" name="category" id="inp-cat" value="<%= selCat %>">
+        <div class="af-cat-pills">
+          <% catList.forEach(c => { %>
+          <div class="af-cat-pill <%= c.key===selCat?'active':'' %>"
+            onclick="selectCat('<%= c.key %>')" data-cat="<%= c.key %>">
+            <%= c.emoji %> <%= c.label %>
+          </div>
+          <% }) %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Image -->
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+      <div class="af-field" style="margin-bottom:0">
+        <label>URL de l'image d'en-tête</label>
+        <input class="input" type="url" name="imageUrl" id="inp-img"
+          value="<%= art.imageUrl||'' %>"
+          placeholder="https://exemple.com/image.jpg"
+          oninput="updateImg()">
+        <div class="hint">Format recommandé : 1200 × 525 px (ratio 16:7)</div>
+      </div>
+    </div>
+
+    <!-- Options -->
+    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+      <div style="font-size:.78rem;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.7rem">Options</div>
+
+      <div class="af-toggle-row">
+        <div>
+          <div class="af-toggle-label">✅ Publier immédiatement</div>
+          <div class="af-toggle-desc">L'article sera visible par les utilisateurs</div>
+        </div>
+        <label class="af-switch">
+          <input type="checkbox" name="isPublished" id="tog-published" value="1" <%= (art.isPublished)?'checked':'' %>>
+          <span class="af-switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="af-toggle-row">
+        <div>
+          <div class="af-toggle-label">📌 Épingler en haut</div>
+          <div class="af-toggle-desc">Apparaît en premier dans la liste</div>
+        </div>
+        <label class="af-switch">
+          <input type="checkbox" name="isPinned" id="tog-pinned" value="1" <%= (art.isPinned)?'checked':'' %>>
+          <span class="af-switch-slider"></span>
+        </label>
+      </div>
+
+      <div class="af-toggle-row">
+        <div>
+          <div class="af-toggle-label">👑 Réservé Premium</div>
+          <div class="af-toggle-desc">Visible uniquement pour les abonnés Premium</div>
+        </div>
+        <label class="af-switch">
+          <input type="checkbox" name="isPremiumOnly" id="tog-premium" value="1" <%= (art.isPremiumOnly)?'checked':'' %>>
+          <span class="af-switch-slider"></span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+      <button type="submit" class="btn btn-primary"><%= isNew ? '🚀 Créer l\'article' : '💾 Enregistrer' %></button>
+      <a href="/admin/actualites" class="btn btn-outline">Annuler</a>
+      <% if(isEdit && hasPerm('actualites','write')) { %>
+      <form method="POST" action="/admin/actualites/<%= art.id %>/publish" style="margin:0">
+        <button class="btn btn-outline" type="submit">
+          <%= art.isPublished ? '🔒 Dépublier' : '✅ Publier' %>
+        </button>
+      </form>
+      <% } %>
+      <% if(isEdit && hasPerm('actualites','delete')) { %>
+      <button type="button" class="btn btn-danger" style="margin-left:auto"
+        data-id="<%= art.id %>"
+        data-title="<%= art.title.replace(/"/g,'&quot;') %>"
+        onclick="delArt(this.dataset.id, this.dataset.title)">🗑️ Supprimer</button>
+      <form method="POST" action="/admin/actualites/<%= art.id %>/delete" id="del-<%= art.id %>" style="display:none"></form>
+      <% } %>
+    </div>
+
+  </div><!-- /col gauche -->
+
+  <!-- ── Colonne droite : prévisualisation + stats ── -->
+  <div>
+
+    <!-- Prévisualisation -->
+    <div class="af-preview" style="margin-bottom:1rem">
+      <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em">
+        Prévisualisation
+      </div>
+      <div class="af-preview-img" id="prev-img-wrap">
+        <img id="prev-img" src="" alt="">
+        <span id="prev-emoji">📰</span>
+      </div>
+      <div class="af-preview-body">
+        <div class="af-preview-cat" id="prev-cat">📰 News</div>
+        <div class="af-preview-title" id="prev-title">Titre de l'article</div>
+        <div class="af-preview-summary" id="prev-summary" style="display:none"></div>
+        <div class="af-preview-meta">
+          ✍️ <%= adminName %> · 👁 0 vues
+          <span id="prev-badges" style="display:inline-flex;gap:.35rem;margin-left:.4rem"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats (edit seulement) -->
+    <% if(isEdit) { %>
+    <div class="card" style="padding:1.1rem">
+      <div style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.7rem">Informations</div>
+      <div class="af-stat-row"><span class="k">Vues</span><span class="v" style="color:var(--primary)"><%= (art.viewCount||0).toLocaleString() %></span></div>
+      <div class="af-stat-row"><span class="k">Likes</span><span class="v" style="color:var(--error)">❤️ <%= art.likeCount||0 %></span></div>
+      <div class="af-stat-row"><span class="k">Auteur</span><span class="v"><%= art.authorName||'Admin' %></span></div>
+      <div class="af-stat-row"><span class="k">Créé le</span><span class="v"><%= fmtDate(art.createdAt) %></span></div>
+      <div class="af-stat-row"><span class="k">Modifié le</span><span class="v"><%= fmtDate(art.updatedAt) %></span></div>
+      <div class="af-stat-row"><span class="k">Publié le</span><span class="v"><%= art.publishedAt ? fmtDate(art.publishedAt) : '—' %></span></div>
+      <div class="af-stat-row"><span class="k">Slug</span><span class="v" style="font-family:monospace;font-size:.72rem;color:var(--text-dim)">/actualites/<%= art.slug||'' %></span></div>
+    </div>
+    <% } %>
+
+  </div><!-- /col droite -->
+
+</div><!-- /af-grid -->
+</form>
+
+<script>
+/* ── Catégorie ── */
+const CAT_CFG = {
+  news:   { emoji:'📰', label:'News',        cls:'cat-news'   },
+  promo:  { emoji:'🎁', label:'Promo',       cls:'cat-promo'  },
+  update: { emoji:'🔄', label:'Mise à jour', cls:'cat-update' },
+  tip:    { emoji:'💡', label:'Conseil',     cls:'cat-tip'    },
+  alert:  { emoji:'🚨', label:'Alerte',      cls:'cat-alert'  },
+};
+function selectCat(key) {
+  document.getElementById('inp-cat').value = key;
+  document.querySelectorAll('.af-cat-pill').forEach(p => p.classList.toggle('active', p.dataset.cat === key));
+  updatePreview();
+}
+
+/* ── Prévisualisation ── */
+function updatePreview() {
+  const title   = document.getElementById('inp-title')?.value   || 'Titre de l\'article';
+  const summary = document.getElementById('inp-summary')?.value || '';
+  const cat     = document.getElementById('inp-cat')?.value     || 'news';
+  const cfg     = CAT_CFG[cat] || CAT_CFG.news;
+
+  document.getElementById('prev-title').textContent   = title   || 'Titre de l\'article';
+  const sumEl = document.getElementById('prev-summary');
+  if (summary) { sumEl.textContent = summary; sumEl.style.display = ''; }
+  else { sumEl.style.display = 'none'; }
+  document.getElementById('prev-cat').textContent = cfg.emoji + ' ' + cfg.label;
+  document.getElementById('prev-emoji').textContent  = cfg.emoji;
+
+  // Badges
+  const badgesEl = document.getElementById('prev-badges');
+  const badges = [];
+  if (document.getElementById('tog-published')?.checked)  badges.push('<span class="badge badge-ok" style="font-size:.65rem">✅ Publié</span>');
+  if (document.getElementById('tog-premium')?.checked)    badges.push('<span class="badge badge-warn" style="font-size:.65rem">👑 Premium</span>');
+  if (document.getElementById('tog-pinned')?.checked)     badges.push('<span>📌</span>');
+  badgesEl.innerHTML = badges.join('');
+}
+
+function updateImg() {
+  const url = document.getElementById('inp-img')?.value || '';
+  const img  = document.getElementById('prev-img');
+  const emoji= document.getElementById('prev-emoji');
+  if (url) {
+    img.src = url;
+    img.style.display = '';
+    emoji.style.display = 'none';
+    img.onerror = () => { img.style.display = 'none'; emoji.style.display = ''; };
+  } else {
+    img.style.display = 'none';
+    emoji.style.display = '';
+  }
+}
+
+/* ── Compteur caractères ── */
+function updateCounter(inputId, counterId, max) {
+  const el   = document.getElementById(inputId);
+  const cnt  = document.getElementById(counterId);
+  if (!el || !cnt) return;
+  const len = el.value.length;
+  cnt.textContent = len + '/' + max;
+  cnt.className   = 'af-counter' + (len > max ? ' over' : len > max * .9 ? ' warn' : '');
+}
+
+/* ── Supprimer ── */
+function delArt(id, title) {
+  askConfirm({
+    icon:'🗑️', title:'Supprimer cet article',
+    msg:'Supprimer <strong>' + title + '</strong> ? Cette action est irréversible.',
+    btnLabel:'Supprimer', btnClass:'btn-danger',
+    onConfirm: () => document.getElementById('del-' + id).submit(),
+  });
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', function() {
+  // Conteurs
+  updateCounter('inp-title',   'cnt-title',   120);
+  updateCounter('inp-summary', 'cnt-summary', 250);
+  updateCounter('inp-content', 'cnt-content', 5000);
+  // Image si déjà une URL
+  updateImg();
+  // Preview initiale
+  updatePreview();
+  // Réactualiser la preview quand les toggles changent
+  ['tog-published','tog-pinned','tog-premium'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('change', updatePreview);
+  });
+  // Toasts
+  document.querySelectorAll('.alert-success,.alert-error').forEach(el => {
+    if (el.textContent.trim()) showToast(el.textContent.trim(), el.classList.contains('alert-success') ? 'success' : 'error');
+  });
+});
+</script>
+
+<%- include('layout_bottom') %>

@@ -1,0 +1,315 @@
+<%- include('layout_top', {page:'transactions'}) %>
+
+<style>
+/* ── Cards transaction ───────────────────────────────────────────────────── */
+.tx-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); overflow: hidden;
+  transition: box-shadow var(--transition), border-color var(--transition);
+}
+.tx-card:hover { box-shadow: var(--shadow-lg); }
+.tx-card.deposit  { border-left: 3px solid var(--success); }
+.tx-card.withdrawal { border-left: 3px solid var(--warning); }
+
+.tx-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: .85rem 1.25rem; border-bottom: 1px solid var(--border);
+  gap: .75rem; flex-wrap: wrap;
+}
+.tx-user { display: flex; align-items: center; gap: .75rem; }
+.tx-avatar {
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(59,130,246,.12); display: flex; align-items: center;
+  justify-content: center; font-weight: 800; font-size: .95rem;
+  color: var(--info); flex-shrink: 0;
+}
+.tx-user-info .name  { font-weight: 700; font-size: .9rem; }
+.tx-user-info .phone { font-size: .75rem; color: var(--text-dim); margin-top: .1rem; }
+.tx-amount {
+  font-size: 1.5rem; font-weight: 800; line-height: 1;
+  color: var(--text);
+}
+.tx-amount.deposit    { color: var(--success); }
+.tx-amount.withdrawal { color: var(--warning); }
+
+.tx-body {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr));
+  gap: 0; padding: 0;
+}
+.tx-field {
+  padding: .75rem 1.25rem; border-right: 1px solid var(--border);
+  min-width: 0;
+}
+.tx-field:last-child { border-right: 0; }
+.tx-field-lbl { font-size: .7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; margin-bottom: .3rem; }
+.tx-field-val { font-size: .85rem; font-weight: 600; color: var(--text); word-break: break-all; }
+.tx-field-val.accent { color: var(--primary); }
+.tx-field-val.muted  { color: var(--text-m); font-weight: 400; }
+
+.tx-actions {
+  display: flex; align-items: flex-start; gap: .75rem;
+  padding: .85rem 1.25rem; border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.tx-note {
+  flex: 1; min-width: 180px;
+}
+.tx-note textarea {
+  width: 100%; background: var(--surface-d); border: 1px solid var(--border);
+  border-radius: var(--radius-s); padding: .5rem .7rem; color: var(--text);
+  font-size: .82rem; font-family: inherit; resize: vertical; min-height: 54px;
+  outline: none; transition: border-color .15s;
+}
+.tx-note textarea:focus { border-color: var(--primary); }
+.tx-btns { display: flex; flex-direction: column; gap: .4rem; flex-shrink: 0; }
+
+/* ── Filtre ──────────────────────────────────────────────────────────────── */
+.tx-filter-row { display: flex; gap: .5rem; flex-wrap: wrap; align-items: center; }
+.tx-filter-row input, .tx-filter-row select {
+  background: var(--surface-d); border: 1px solid var(--border);
+  border-radius: var(--radius-s); padding: .45rem .75rem;
+  color: var(--text); font-size: .83rem; font-family: inherit; outline: none;
+  transition: border-color .15s;
+}
+.tx-filter-row input:focus, .tx-filter-row select:focus { border-color: var(--primary); }
+.tx-filter-row input { flex: 1; min-width: 160px; }
+
+/* ── Stats cards ─────────────────────────────────────────────────────────── */
+.tx-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: .75rem; margin-bottom: 1.25rem; }
+.tx-stat  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-s); padding: .85rem 1rem; }
+.tx-stat .val  { font-size: 1.35rem; font-weight: 800; line-height: 1; margin-bottom: .2rem; }
+.tx-stat .lbl  { font-size: .72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
+.tx-stat.green .val { color: var(--success); }
+.tx-stat.orange .val { color: var(--warning); }
+.tx-stat.red .val   { color: var(--error); }
+.tx-stat.blue .val  { color: var(--info); }
+
+/* ── Instructions box ────────────────────────────────────────────────────── */
+.tx-instr {
+  background: var(--surface-d); border-radius: var(--radius-s);
+  padding: .6rem .85rem; font-size: .8rem; line-height: 1.7;
+  color: var(--text-m); border: 1px solid var(--border);
+}
+.tx-instr strong { color: var(--text); }
+.tx-instr .hi    { color: var(--primary); font-weight: 700; }
+
+@media (max-width: 640px) {
+  .tx-body { grid-template-columns: 1fr 1fr; }
+  .tx-field { border-right: 0; border-bottom: 1px solid var(--border); }
+}
+</style>
+
+<%
+  const _items = data.data ?? [];
+  const _total = data.total ?? 0;
+  const _ls    = localStats;
+  function _fq(obj) {
+    return Object.entries(obj).filter(([,v])=>v).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join('&');
+  }
+%>
+
+<div class="topbar">
+  <div>
+    <h2>💰 Transactions en attente</h2>
+    <small id="tx-count"><%= _total %> demande<%= _total!==1?'s':'' %> en attente</small>
+  </div>
+  <div style="display:flex;gap:.5rem">
+    <a href="/admin/historique" class="btn btn-outline btn-sm">📋 Historique complet</a>
+  </div>
+</div>
+
+<% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
+<% if (error)   { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
+
+<!-- ── Stats rapides ─────────────────────────────────────────────────────── -->
+<div class="tx-stats">
+  <div class="tx-stat blue">
+    <div class="val"><%= _total %></div>
+    <div class="lbl">En attente</div>
+  </div>
+  <div class="tx-stat green">
+    <div class="val"><%= _ls.deposits %></div>
+    <div class="lbl">Dépôts</div>
+  </div>
+  <div class="tx-stat orange">
+    <div class="val"><%= _ls.withdrawals %></div>
+    <div class="lbl">Retraits</div>
+  </div>
+  <div class="tx-stat blue">
+    <div class="val"><%= _ls.totalAmount.toLocaleString() %></div>
+    <div class="lbl">Total FCFA</div>
+  </div>
+</div>
+
+<!-- ── Filtres ───────────────────────────────────────────────────────────── -->
+<div class="card" style="padding:.85rem 1.25rem;margin-bottom:1rem">
+  <form method="GET" action="/admin/transactions" class="tx-filter-row">
+    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, 1xBet ID…">
+    <select name="type">
+      <option value="">Tous types</option>
+      <option value="deposit"    <%= type==='deposit'    ?'selected':'' %>>⬇️ Dépôt</option>
+      <option value="withdrawal" <%= type==='withdrawal' ?'selected':'' %>>⬆️ Retrait</option>
+    </select>
+    <select name="method">
+      <option value="">Toutes méthodes</option>
+      <option value="orange_money"  <%= method==='orange_money'  ?'selected':'' %>>Orange Money</option>
+      <option value="mtn_momo"      <%= method==='mtn_momo'      ?'selected':'' %>>MTN MoMo</option>
+      <option value="wave"          <%= method==='wave'          ?'selected':'' %>>Wave</option>
+      <option value="moov_money"    <%= method==='moov_money'    ?'selected':'' %>>Moov Money</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+    <% if (search || type || method) { %>
+    <a href="/admin/transactions" class="btn btn-outline btn-sm">✕ Reset</a>
+    <% } %>
+  </form>
+</div>
+
+<!-- ── Liste des transactions ────────────────────────────────────────────── -->
+<% if (_items.length === 0) { %>
+<div class="empty-state card">
+  <div style="font-size:2.5rem;margin-bottom:.5rem"><%= (search||type||method) ? '🔍' : '✅' %></div>
+  <p><%= (search||type||method) ? 'Aucune transaction ne correspond aux filtres.' : 'Aucune demande en attente. Tout est à jour !' %></p>
+  <% if (search||type||method) { %>
+  <a href="/admin/transactions" class="btn btn-outline" style="margin-top:.75rem">Voir toutes les transactions</a>
+  <% } %>
+</div>
+<% } else { %>
+
+<div style="display:flex;flex-direction:column;gap:.75rem">
+<% _items.forEach((tx, idx) => {
+     const isDeposit = tx.type === 'deposit';
+     const initials  = (tx.user?.pseudo ?? '?')[0].toUpperCase();
+     const method    = (tx.paymentMethod ?? '').replace(/_/g,' ');
+%>
+<div class="tx-card <%= isDeposit ? 'deposit' : 'withdrawal' %>" id="tx-<%= tx.id %>">
+
+  <!-- En-tête -->
+  <div class="tx-header">
+    <div class="tx-user">
+      <div class="tx-avatar"><%= initials %></div>
+      <div class="tx-user-info">
+        <div class="name">
+          <a href="/admin/users/<%= tx.user?.id ?? '' %>" style="color:var(--text);text-decoration:none">
+            <%= tx.user?.pseudo ?? '—' %>
+          </a>
+        </div>
+        <div class="phone"><%= tx.user?.phoneNumber ?? '—' %></div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+      <span class="badge <%= isDeposit ? 'badge-ok' : 'badge-warn' %>"><%= isDeposit ? '⬇️ Dépôt' : '⬆️ Retrait' %></span>
+      <div class="tx-amount <%= isDeposit ? 'deposit' : 'withdrawal' %>">
+        <%= (tx.amount ?? 0).toLocaleString() %> <span style="font-size:.9rem;font-weight:600">FCFA</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Détails -->
+  <div class="tx-body">
+    <div class="tx-field">
+      <div class="tx-field-lbl">Méthode</div>
+      <div class="tx-field-val"><%= method.toUpperCase() || '—' %></div>
+    </div>
+    <div class="tx-field">
+      <div class="tx-field-lbl">N° envoyeur</div>
+      <div class="tx-field-val"><%= tx.senderPhone ?? '—' %></div>
+    </div>
+    <div class="tx-field">
+      <div class="tx-field-lbl">ID 1xBet</div>
+      <div class="tx-field-val accent"><%= tx.xbetId ?? '⚠️ Non renseigné' %></div>
+    </div>
+    <div class="tx-field">
+      <div class="tx-field-lbl">Date demande</div>
+      <div class="tx-field-val muted"><%= new Date(tx.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) %></div>
+    </div>
+    <div class="tx-field" style="grid-column: span 2">
+      <div class="tx-field-lbl">Instructions</div>
+      <div class="tx-instr">
+        <% if (isDeposit) { %>
+          Vérifier réception de <strong><%= (tx.amount??0).toLocaleString() %> FCFA</strong>
+          via <strong><%= method %></strong>
+          depuis le <strong><%= tx.senderPhone ?? '—' %></strong>
+          → compte 1xBet <span class="hi"><%= tx.xbetId ?? '⚠️' %></span>
+        <% } else { %>
+          Envoyer <strong><%= (tx.amount??0).toLocaleString() %> FCFA</strong>
+          via <strong><%= method %></strong>
+          sur le <strong><%= tx.senderPhone ?? '—' %></strong>
+          (compte 1xBet <span class="hi"><%= tx.xbetId ?? '⚠️' %></span>)
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <% if (hasPerm('transactions', 'write')) { %>
+  <div class="tx-actions">
+    <form method="POST" action="/admin/transactions/<%= tx.id %>" id="form-<%= tx.id %>" style="display:contents">
+      <div class="tx-note">
+        <textarea name="admin_note" placeholder="Note admin (optionnelle)…" rows="2"></textarea>
+      </div>
+      <div class="tx-btns">
+        <button type="button" class="btn btn-success btn-sm"
+          onclick="askConfirm({
+            icon:'✅',
+            title:'Confirmer la transaction',
+            msg:'Valider <strong><%= (tx.amount??0).toLocaleString() %> FCFA</strong> pour <strong><%= tx.user?.pseudo ?? tx.id %></strong> ?',
+            btnLabel:'Confirmer',
+            btnClass:'btn-success',
+            onConfirm: () => submitTx('<%= tx.id %>', 'completed')
+          })">✅ Approuver</button>
+        <button type="button" class="btn btn-danger btn-sm"
+          onclick="askConfirm({
+            icon:'❌',
+            title:'Rejeter la transaction',
+            msg:'Rejeter la demande de <strong><%= tx.user?.pseudo ?? tx.id %></strong> ?',
+            btnLabel:'Rejeter',
+            btnClass:'btn-danger',
+            onConfirm: () => submitTx('<%= tx.id %>', 'rejected')
+          })">❌ Rejeter</button>
+      </div>
+      <input type="hidden" name="status" id="status-<%= tx.id %>">
+    </form>
+  </div>
+  <% } %>
+
+</div>
+<% }) %>
+</div>
+
+<!-- Pagination -->
+<% if (totalPages > 1) { %>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:14px 0;margin-top:8px">
+  <p style="color:var(--text-m);font-size:.78rem">Page <%= page %> / <%= totalPages %></p>
+  <div style="display:flex;gap:.4rem">
+    <% if (page > 1) { %>
+    <a href="/admin/transactions?<%= _fq({search,type,method,page:page-1}) %>" class="btn btn-sm btn-outline">← Préc.</a>
+    <% } %>
+    <% if (page < totalPages) { %>
+    <a href="/admin/transactions?<%= _fq({search,type,method,page:page+1}) %>" class="btn btn-sm btn-outline">Suiv. →</a>
+    <% } %>
+  </div>
+</div>
+<% } %>
+
+<% } %>
+
+<script>
+function submitTx(id, status) {
+  document.getElementById('status-' + id).value = status;
+  document.getElementById('form-' + id).submit();
+}
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.alert-success,.alert-error').forEach(function(el) {
+    var txt = el.textContent.trim();
+    if (txt && typeof showToast === 'function') showToast(txt, el.classList.contains('alert-success') ? 'success' : 'error');
+  });
+});
+// SSE : rafraîchir le badge si une TX est validée depuis un autre onglet
+window.addEventListener('sseAction', function(e) {
+  if (['transaction_approved','transaction_rejected'].includes(e.detail?.type)) {
+    showToast('Une transaction vient d\'être traitée — pensez à actualiser.', 'info');
+  }
+});
+</script>
+
+<%- include('layout_bottom') %>

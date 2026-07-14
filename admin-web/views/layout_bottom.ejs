@@ -1,0 +1,815 @@
+</main>
+</div><!-- /.layout -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   SIDEBAR MOBILE
+═══════════════════════════════════════════════════════════════ */
+function toggleSidebar() {
+  const s = document.getElementById('sidebar');
+  const o = document.getElementById('sidebar-overlay');
+  const open = s.classList.toggle('open');
+  o.classList.toggle('open', open);
+  document.body.style.overflow = open ? 'hidden' : '';
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.remove('open');
+  document.getElementById('sidebar-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+// Fermer la sidebar sur resize > 900px
+window.addEventListener('resize', () => {
+  if (window.innerWidth > 900) closeSidebar();
+});
+
+/* ── Swipe pour fermer la sidebar (mobile) ── */
+(function initSwipe() {
+  let startX = 0, startY = 0, dragging = false;
+  const THRESHOLD = 60; // pixels minimum pour déclencher
+
+  document.addEventListener('touchstart', function(e) {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    dragging = true;
+  }, { passive: true });
+
+  document.addEventListener('touchend', function(e) {
+    if (!dragging) return;
+    dragging = false;
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = e.changedTouches[0].clientY - startY;
+    // Swipe horizontal seulement (ignore si trop vertical)
+    if (Math.abs(dx) < THRESHOLD || Math.abs(dy) > Math.abs(dx) * 0.8) return;
+    const sidebar = document.getElementById('sidebar');
+    if (dx < 0 && sidebar?.classList.contains('open')) {
+      // Swipe gauche → fermer sidebar
+      closeSidebar();
+    } else if (dx > 0 && startX < 24 && !(sidebar?.classList.contains('open'))) {
+      // Swipe droite depuis le bord gauche → ouvrir sidebar
+      toggleSidebar();
+    }
+  }, { passive: true });
+})();
+
+/* ── data-label automatique sur les <td> pour le responsive mobile ── */
+(function labelTableCells() {
+  document.querySelectorAll('table').forEach(function(table) {
+    const headers = Array.from(table.querySelectorAll('thead th')).map(function(th) {
+      return th.textContent.trim().replace(/[▲▼]/g, '').trim();
+    });
+    table.querySelectorAll('tbody tr').forEach(function(row) {
+      Array.from(row.querySelectorAll('td')).forEach(function(td, i) {
+        if (headers[i] && !td.hasAttribute('data-label')) {
+          td.setAttribute('data-label', headers[i]);
+        }
+      });
+    });
+  });
+})();
+
+/* ── Bottom nav badge sync ── */
+function _syncBottomNavBadge(id, count) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  if (count > 0) { el.textContent = count > 99 ? '99+' : count; el.classList.add('visible'); }
+  else           { el.classList.remove('visible'); }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TOASTS
+═══════════════════════════════════════════════════════════════ */
+function showToast(msg, type = 'info', duration = 4000) {
+  const container = document.getElementById('toast-container');
+  const icons = { success: '✅', error: '❌', info: 'ℹ️' };
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.innerHTML = `<span>${icons[type] || 'ℹ️'}</span><span>${msg}</span>`;
+  container.appendChild(toast);
+  setTimeout(() => {
+    toast.classList.add('out');
+    setTimeout(() => toast.remove(), 250);
+  }, duration);
+}
+// Afficher les alertes de page en toast au chargement
+window.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.alert').forEach(el => {
+    const type = el.classList.contains('alert-success') ? 'success'
+               : el.classList.contains('alert-error')   ? 'error' : 'info';
+    showToast(el.textContent.trim(), type);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   CONFIRM DIALOG
+═══════════════════════════════════════════════════════════════ */
+let _confirmCallback = null;
+
+function askConfirm({ icon = '⚠️', title = 'Confirmer', msg = 'Êtes-vous sûr ?', btnLabel = 'Confirmer', btnClass = 'btn-primary', onConfirm }) {
+  document.getElementById('confirm-icon').textContent  = icon;
+  document.getElementById('confirm-title').textContent = title;
+  document.getElementById('confirm-msg').textContent   = msg;
+  const btn = document.getElementById('confirm-ok-btn');
+  btn.textContent = btnLabel;
+  btn.className   = `btn ${btnClass}`;
+  _confirmCallback = onConfirm;
+  document.getElementById('confirm-overlay').classList.add('open');
+}
+function closeConfirm() {
+  document.getElementById('confirm-overlay').classList.remove('open');
+  _confirmCallback = null;
+}
+function submitConfirm() {
+  closeConfirm();
+  if (_confirmCallback) _confirmCallback();
+}
+// Fermer sur Escape
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') closeConfirm();
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   FETCH WRAPPER — gestion d'erreurs centralisée
+═══════════════════════════════════════════════════════════════ */
+async function apiFetch(url, opts = {}) {
+  const controller = new AbortController();
+  const timer      = setTimeout(() => controller.abort(), 12000);
+  try {
+    const r = await fetch(url, { ...opts, signal: controller.signal });
+    clearTimeout(timer);
+    if (r.status === 401) { window.location.href = '/admin/login?expired=1'; return null; }
+    if (!r.ok) {
+      const data = await r.json().catch(() => ({}));
+      throw new Error(data.message ?? data.error ?? `Erreur ${r.status}`);
+    }
+    return await r.json();
+  } catch (e) {
+    clearTimeout(timer);
+    if (e.name === 'AbortError') throw new Error('Délai dépassé — le serveur ne répond pas.');
+    throw e;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SKELETON LOADERS
+═══════════════════════════════════════════════════════════════ */
+function skeletonRows(n = 5) {
+  return Array.from({ length: n }, () => `
+    <div class="skeleton-row">
+      <div class="skeleton skeleton-avatar"></div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:.4rem">
+        <div class="skeleton skeleton-line"></div>
+        <div class="skeleton skeleton-line sm"></div>
+      </div>
+      <div class="skeleton skeleton-line xs"></div>
+    </div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   API OFFLINE DETECTION
+═══════════════════════════════════════════════════════════════ */
+(function detectOffline() {
+  let _shown = false;
+  window.addEventListener('offline', () => {
+    if (!_shown) {
+      _shown = true;
+      showToast('⚠️ Connexion internet perdue.', 'error', 0);
+    }
+  });
+  window.addEventListener('online', () => {
+    _shown = false;
+    showToast('✅ Connexion rétablie.', 'success');
+  });
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   VALIDATION DE FORMULAIRE CLIENT
+═══════════════════════════════════════════════════════════════ */
+function validateForm(formEl) {
+  let valid = true;
+  formEl.querySelectorAll('[data-validate]').forEach(input => {
+    const rules   = input.dataset.validate.split('|');
+    const val     = input.value.trim();
+    const errEl   = input.parentElement.querySelector('.field-error');
+    let   errMsg  = '';
+
+    for (const rule of rules) {
+      if (rule === 'required' && !val)        { errMsg = 'Ce champ est obligatoire.'; break; }
+      if (rule.startsWith('min:')) {
+        const min = parseInt(rule.slice(4));
+        if (val.length < min) { errMsg = `Minimum ${min} caractères.`; break; }
+      }
+      if (rule.startsWith('max:')) {
+        const max = parseInt(rule.slice(4));
+        if (val.length > max) { errMsg = `Maximum ${max} caractères.`; break; }
+      }
+      if (rule === 'email' && val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+        errMsg = 'Adresse email invalide.'; break;
+      }
+    }
+
+    if (errMsg) {
+      valid = false;
+      input.classList.add('invalid');
+      input.classList.remove('valid');
+      if (errEl) { errEl.textContent = errMsg; errEl.classList.add('visible'); }
+    } else {
+      input.classList.remove('invalid');
+      if (val) input.classList.add('valid');
+      if (errEl) errEl.classList.remove('visible');
+    }
+  });
+  return valid;
+}
+
+// Nettoyer les erreurs en temps réel
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[data-validate]').forEach(input => {
+    input.addEventListener('input', () => {
+      input.classList.remove('invalid');
+      const errEl = input.parentElement.querySelector('.field-error');
+      if (errEl) errEl.classList.remove('visible');
+    });
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   SESSION TIMEOUT
+═══════════════════════════════════════════════════════════════ */
+(function() {
+  const TIMEOUT_MS = 30 * 60 * 1000;   // 30 min d'inactivité → déco
+  const WARN_MS    =  2 * 60 * 1000;   // warning 2 min avant
+  let   _warnTimer = null;
+  let   _decoTimer = null;
+  let   _countTimer = null;
+  let   _warnShown  = false;
+
+  function getCookieLastActive() {
+    const m = document.cookie.match(/admin_last_active=(\d+)/);
+    return m ? parseInt(m[1]) : null;
+  }
+
+  function resetTimers() {
+    clearTimeout(_warnTimer);
+    clearTimeout(_decoTimer);
+    if (_warnShown) hideWarn();
+
+    const idleMs = TIMEOUT_MS;
+    _warnTimer = setTimeout(showWarn, idleMs - WARN_MS);
+    _decoTimer = setTimeout(forceLogout, idleMs);
+  }
+
+  function showWarn() {
+    _warnShown = true;
+    document.getElementById('session-overlay').classList.add('open');
+    let secs = Math.round(WARN_MS / 1000);
+    updateCountdown(secs);
+    _countTimer = setInterval(() => {
+      secs--;
+      if (secs <= 0) { clearInterval(_countTimer); return; }
+      updateCountdown(secs);
+    }, 1000);
+  }
+
+  function hideWarn() {
+    _warnShown = false;
+    document.getElementById('session-overlay').classList.remove('open');
+    clearInterval(_countTimer);
+  }
+
+  function updateCountdown(secs) {
+    const m = String(Math.floor(secs / 60)).padStart(2, '0');
+    const s = String(secs % 60).padStart(2, '0');
+    const el = document.getElementById('session-countdown');
+    if (el) el.textContent = `${m}:${s}`;
+  }
+
+  function forceLogout() {
+    window.location.href = '/admin/logout?expired=1';
+  }
+
+  window.extendSession = function() {
+    // Touche l'API badges pour rafraîchir le cookie côté serveur
+    fetch('/admin/api/badges').catch(() => {});
+    resetTimers();
+    hideWarn();
+  };
+
+  // Détecter l'activité utilisateur
+  const ACTIVITY_EVENTS = ['mousemove','mousedown','keydown','scroll','touchstart','click'];
+  let _lastActivity = Date.now();
+
+  function onActivity() {
+    const now = Date.now();
+    if (now - _lastActivity > 10000) {  // throttle : au plus 1 reset / 10s
+      _lastActivity = now;
+      resetTimers();
+    }
+  }
+
+  ACTIVITY_EVENTS.forEach(ev => document.addEventListener(ev, onActivity, { passive: true }));
+
+  // Synchronisation entre onglets via localStorage
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'admin_activity') resetTimers();
+  });
+
+  function broadcastActivity() {
+    try { localStorage.setItem('admin_activity', Date.now()); } catch {}
+  }
+  document.addEventListener('click', broadcastActivity, { passive: true });
+
+  // Démarrer
+  resetTimers();
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   TRI DE TABLEAUX (sortable columns)
+═══════════════════════════════════════════════════════════════ */
+function sortBy(col) {
+  const url    = new URL(window.location.href);
+  const curCol = url.searchParams.get('sort_by')  ?? '';
+  const curDir = url.searchParams.get('sort_dir') ?? 'desc';
+  const newDir = curCol === col ? (curDir === 'asc' ? 'desc' : 'asc') : 'desc';
+  url.searchParams.set('sort_by',  col);
+  url.searchParams.set('sort_dir', newDir);
+  url.searchParams.set('page', '1');
+  window.location.href = url.toString();
+}
+
+// Initialiser les indicateurs visuels sur les <th data-sort>
+document.addEventListener('DOMContentLoaded', () => {
+  const url    = new URL(window.location.href);
+  const curCol = url.searchParams.get('sort_by')  ?? '';
+  const curDir = url.searchParams.get('sort_dir') ?? 'desc';
+  document.querySelectorAll('th[data-sort]').forEach(th => {
+    th.style.cursor = 'pointer';
+    th.classList.add('sortable-th');
+    const col = th.dataset.sort;
+    const ind = document.createElement('span');
+    ind.className = 'sort-indicator';
+    if (col === curCol) {
+      ind.textContent = curDir === 'asc' ? ' ▲' : ' ▼';
+      ind.style.color = 'var(--primary)';
+      th.style.color  = 'var(--text)';
+    } else {
+      ind.textContent = ' ⇅';
+      ind.style.color = 'var(--text-dim)';
+    }
+    th.appendChild(ind);
+    th.addEventListener('click', () => sortBy(col));
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   RECHERCHE GLOBALE (Ctrl+K / /)
+═══════════════════════════════════════════════════════════════ */
+(function initSearch() {
+  const RECENT_KEY  = 'pw_search_recent';
+  const RECENT_MAX  = 6;
+  let _searchTimer  = null;
+  let _lastQuery    = '';
+
+  // ── Helpers ──────────────────────────────────────────────────
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+
+  /** Entoure les occurrences de q dans s d'un <mark> */
+  function highlight(s, q) {
+    if (!q || !s) return esc(s);
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return esc(s).replace(new RegExp('(' + escaped.replace(/&amp;|&lt;|&gt;/g,'') + ')', 'gi'),
+      '<mark style="background:rgba(var(--primary-rgb),.25);color:var(--primary);border-radius:2px;padding:0 1px">$1</mark>');
+  }
+
+  // ── Recherches récentes (localStorage) ───────────────────────
+  function getRecent() {
+    try { return JSON.parse(localStorage.getItem(RECENT_KEY) ?? '[]'); } catch { return []; }
+  }
+  function addRecent(q) {
+    if (!q || q.length < 2) return;
+    const list = [q, ...getRecent().filter(r => r !== q)].slice(0, RECENT_MAX);
+    localStorage.setItem(RECENT_KEY, JSON.stringify(list));
+  }
+  function clearRecent() {
+    localStorage.removeItem(RECENT_KEY);
+    renderIdle();
+  }
+
+  // ── Overlay open / close ──────────────────────────────────────
+  window.openSearch = function() {
+    document.getElementById('search-overlay').classList.add('open');
+    setTimeout(() => document.getElementById('search-input').focus(), 50);
+    renderIdle();
+  };
+  window.closeSearch = function() {
+    document.getElementById('search-overlay').classList.remove('open');
+    const inp = document.getElementById('search-input');
+    if (inp) inp.value = '';
+    _lastQuery = '';
+    renderIdle();
+  };
+
+  // ── Raccourcis clavier ────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    const overlay = document.getElementById('search-overlay');
+    const isOpen  = overlay?.classList.contains('open');
+    // Ctrl+K / Cmd+K
+    if ((e.ctrlKey || e.metaKey) && e.key === 'k') { e.preventDefault(); isOpen ? closeSearch() : openSearch(); return; }
+    // "/" hors d'un input → ouvre
+    if (e.key === '/' && !isOpen && !['INPUT','TEXTAREA','SELECT'].includes(document.activeElement?.tagName)) {
+      e.preventDefault(); openSearch(); return;
+    }
+    if (e.key === 'Escape' && isOpen) { closeSearch(); return; }
+  });
+
+  // ── Input avec debounce 280ms ─────────────────────────────────
+  document.getElementById('search-input')?.addEventListener('input', function() {
+    const q = this.value.trim();
+    clearTimeout(_searchTimer);
+    if (q.length < 2) { _lastQuery = ''; renderIdle(); return; }
+    if (q === _lastQuery) return;
+    document.getElementById('search-results').innerHTML =
+      '<div class="search-loading"><span class="search-spinner"></span> Recherche…</div>';
+    _searchTimer = setTimeout(() => { _lastQuery = q; doSearch(q); }, 280);
+  });
+
+  // ── Navigation clavier (↑↓ Enter) ────────────────────────────
+  document.getElementById('search-input')?.addEventListener('keydown', function(e) {
+    const items = [...document.querySelectorAll('.search-result-item')];
+    if (!items.length) return;
+    const active = document.querySelector('.search-result-item.focused');
+    let idx = active ? items.indexOf(active) : -1;
+    if      (e.key === 'ArrowDown')              { e.preventDefault(); idx = Math.min(idx + 1, items.length - 1); }
+    else if (e.key === 'ArrowUp')                { e.preventDefault(); idx = Math.max(idx - 1, 0); }
+    else if (e.key === 'Enter' && active)        { addRecent(this.value.trim()); active.click(); return; }
+    else return;
+    items.forEach(i => i.classList.remove('focused'));
+    items[idx]?.classList.add('focused');
+    items[idx]?.scrollIntoView({ block: 'nearest' });
+  });
+
+  // ── Clic sur résultat → sauvegarde dans récents ───────────────
+  document.getElementById('search-results')?.addEventListener('click', function(e) {
+    const item = e.target.closest('.search-result-item');
+    if (item) addRecent(document.getElementById('search-input')?.value.trim() ?? '');
+  });
+
+  // ── Fetch ─────────────────────────────────────────────────────
+  async function doSearch(q) {
+    try {
+      const r    = await fetch('/admin/api/search?q=' + encodeURIComponent(q));
+      const data = await r.json();
+      renderResults(data, q);
+    } catch {
+      document.getElementById('search-results').innerHTML =
+        '<div class="search-empty" style="color:var(--error)">⚠️ Erreur de connexion.</div>';
+    }
+  }
+
+  // ── Rendu état vide (hint + récents) ─────────────────────────
+  function renderIdle() {
+    const el     = document.getElementById('search-results');
+    if (!el) return;
+    const recent = getRecent();
+    if (!recent.length) {
+      el.innerHTML = `<div class="search-hint">
+        <span>👥 Utilisateurs</span><span>💳 Transactions</span><span>⚽ Pronostics</span><span>🚫 Bans</span>
+      </div>
+      <div class="search-shortcuts">
+        <span><kbd>↑↓</kbd> Naviguer</span><span><kbd>↵</kbd> Ouvrir</span><span><kbd>Esc</kbd> Fermer</span><span><kbd>/</kbd> Ouvrir</span>
+      </div>`;
+      return;
+    }
+    el.innerHTML = `<div class="search-section" style="display:flex;justify-content:space-between;align-items:center">
+        <span>🕐 Recherches récentes</span>
+        <button onclick="event.stopPropagation();clearRecent()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:.72rem;padding:0">Effacer</button>
+      </div>
+      ${recent.map(r => `<a class="search-result-item search-recent" href="#" onclick="event.preventDefault();document.getElementById('search-input').value='${esc(r)}';document.getElementById('search-input').dispatchEvent(new Event('input'))">
+        <div class="sri-icon" style="background:var(--surface-d);color:var(--text-dim);font-size:.9rem">🕐</div>
+        <div class="sri-info"><div class="sri-title">${esc(r)}</div></div>
+        <div class="sri-arrow" style="font-size:.8rem">↗</div>
+      </a>`).join('')}
+      <div class="search-shortcuts">
+        <span><kbd>↑↓</kbd> Naviguer</span><span><kbd>↵</kbd> Ouvrir</span><span><kbd>Esc</kbd> Fermer</span>
+      </div>`;
+  }
+
+  // ── Rendu résultats ───────────────────────────────────────────
+  function renderResults(data, q) {
+    const el    = document.getElementById('search-results');
+    if (!el) return;
+    const users = data.users       ?? [];
+    const txs   = data.transactions ?? [];
+    const pros  = data.pronostics  ?? [];
+    const bans  = data.bans        ?? [];
+    const total = users.length + txs.length + pros.length + bans.length;
+
+    if (total === 0) {
+      el.innerHTML = `<div class="search-empty">
+        <div style="font-size:1.8rem;margin-bottom:.5rem">🔍</div>
+        Aucun résultat pour <strong>« ${esc(q)} »</strong>
+        <div style="font-size:.78rem;margin-top:.4rem;color:var(--text-dim)">Essayez un pseudo, téléphone, montant…</div>
+      </div>`;
+      return;
+    }
+
+    let html = `<div class="search-total">${total} résultat${total>1?'s':''} pour « ${esc(q)} »</div>`;
+
+    if (users.length) {
+      html += `<div class="search-section">👥 Utilisateurs <span class="search-count">${users.length}</span></div>`;
+      users.forEach(u => {
+        const banned = data._bannedIds?.includes(String(u.id)) ? ' 🚫' : '';
+        html += `<a class="search-result-item" href="/admin/users/${u.id}">
+          <div class="sri-icon" style="background:rgba(59,130,246,.15);color:#3B82F6">${esc((u.pseudo||'?')[0].toUpperCase())}</div>
+          <div class="sri-info">
+            <div class="sri-title">${highlight(u.pseudo, q)}${u.is_premium ? ' <span style="color:var(--warning);font-size:.75rem">👑</span>' : ''}${banned}</div>
+            <div class="sri-sub">${highlight(u.phoneNumber ?? '', q)} ${u.email ? '· ' + highlight(u.email, q) : ''}</div>
+          </div>
+          <div class="sri-arrow">→</div>
+        </a>`;
+      });
+    }
+
+    if (txs.length) {
+      html += `<div class="search-section">💳 Transactions <span class="search-count">${txs.length}</span></div>`;
+      txs.forEach(tx => {
+        const isDeposit = tx.type === 'deposit';
+        html += `<a class="search-result-item" href="/admin/historique?search=${encodeURIComponent(q)}">
+          <div class="sri-icon" style="background:rgba(${isDeposit?'34,197,94':'245,158,11'},.12);color:${isDeposit?'var(--success)':'var(--warning)'}">
+            ${isDeposit ? '⬇️' : '⬆️'}
+          </div>
+          <div class="sri-info">
+            <div class="sri-title">${highlight(tx.user?.pseudo ?? '—', q)} · <strong>${(tx.amount??0).toLocaleString()} FCFA</strong></div>
+            <div class="sri-sub">${isDeposit ? 'Dépôt' : 'Retrait'} · ${esc(tx.status ?? '')} · ${esc(tx.paymentMethod?.replace(/_/g,' ') ?? '')}</div>
+          </div>
+          <div class="sri-arrow">→</div>
+        </a>`;
+      });
+    }
+
+    if (pros.length) {
+      html += `<div class="search-section">⚽ Pronostics <span class="search-count">${pros.length}</span></div>`;
+      pros.forEach(m => {
+        html += `<a class="search-result-item" href="/admin/pronostics/edit/${m.id ?? m.match_id}">
+          <div class="sri-icon" style="background:rgba(245,166,35,.12);color:var(--primary)">⚽</div>
+          <div class="sri-info">
+            <div class="sri-title">${highlight(m.homeTeam ?? '', q)} vs ${highlight(m.awayTeam ?? '', q)}</div>
+            <div class="sri-sub">${esc(m.competition ?? '')} · ${m.matchDate ? new Date(m.matchDate).toLocaleDateString('fr-FR') : ''}</div>
+          </div>
+          <div class="sri-arrow">→</div>
+        </a>`;
+      });
+    }
+
+    if (bans.length) {
+      html += `<div class="search-section">🚫 Bannissements <span class="search-count">${bans.length}</span></div>`;
+      bans.forEach(b => {
+        html += `<a class="search-result-item" href="/admin/bans?search=${encodeURIComponent(q)}">
+          <div class="sri-icon" style="background:rgba(239,68,68,.12);color:var(--error)">${esc((b.pseudo||'?')[0].toUpperCase())}</div>
+          <div class="sri-info">
+            <div class="sri-title">${highlight(b.pseudo, q)} <span style="font-size:.72rem;color:var(--error)">${b.active ? '🚫 Actif' : '✅ Levé'}</span></div>
+            <div class="sri-sub">${highlight(b.reason ?? '', q)}</div>
+          </div>
+          <div class="sri-arrow">→</div>
+        </a>`;
+      });
+    }
+
+    el.innerHTML = html;
+  }
+
+  // Exposer clearRecent au scope global (utilisé dans le HTML inline)
+  window.clearRecent = clearRecent;
+})();
+
+/* ── Export CSV : feedback visuel sur le bouton ── */
+function exportBtnFeedback(btn) {
+  const original = btn.innerHTML;
+  btn.innerHTML  = '⏳ Génération…';
+  btn.style.pointerEvents = 'none';
+  btn.style.opacity = '.7';
+  // Remettre le bouton à l'état normal après 4s (le téléchargement a eu le temps de démarrer)
+  setTimeout(() => {
+    btn.innerHTML = original;
+    btn.style.pointerEvents = '';
+    btn.style.opacity = '';
+  }, 4000);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BADGES LIVE (polling 30s + SSE temps réel)
+═══════════════════════════════════════════════════════════════ */
+const _badgePrev = {};   // garde le count précédent par id
+
+async function refreshBadges() {
+  try {
+    const r = await fetch('/admin/api/badges');
+    if (!r.ok) return;
+    const data = await r.json();
+    setBadge('badge-tx',     data.transactions);
+    setBadge('badge-proofs', data.proofs);
+  } catch (_) {}
+}
+
+function setBadge(id, count) {
+  const el = document.getElementById(id);
+  if (!el) return;
+
+  const prev = _badgePrev[id] ?? 0;
+  const increased = count > prev;
+  _badgePrev[id] = count;
+
+  if (count > 0) {
+    el.textContent = count > 99 ? '99+' : count;
+    el.classList.add('visible');
+
+    if (increased) {
+      // Animation pop + halo
+      el.classList.remove('pulse', 'new-alert');
+      void el.offsetWidth; // force reflow
+      el.classList.add('new-alert');
+      setTimeout(() => el.classList.remove('new-alert'), 5000);
+
+      // Toast d'alerte si l'augmentation vient d'un refresh (pas du chargement initial)
+      if (prev > 0 || _badgeInitDone) {
+        const labels = { 'badge-tx': '💰 Nouveau dépôt en attente', 'badge-proofs': '👑 Nouvelle preuve Premium' };
+        const diff   = count - prev;
+        const msg    = diff > 1
+          ? `${labels[id] || '📌 Nouveau'} (+${diff})`
+          : (labels[id] || '📌 Nouvelle action en attente');
+        showToast(msg, 'info', 6000);
+      }
+
+      // Titre de l'onglet
+      _updatePageTitle();
+    }
+  } else {
+    el.classList.remove('visible', 'pulse', 'new-alert');
+    _updatePageTitle();
+  }
+
+  // Synchroniser le badge de la bottom nav
+  if (id === 'badge-tx') _syncBottomNavBadge('bnav-badge-tx', count);
+}
+
+// Mettre à jour le <title> avec le total des badges en attente
+function _updatePageTitle() {
+  const txCount     = _badgePrev['badge-tx']     ?? 0;
+  const proofsCount = _badgePrev['badge-proofs'] ?? 0;
+  const total       = txCount + proofsCount;
+  const base        = document.title.replace(/^\(\d+\)\s*/, '');
+  document.title    = total > 0 ? `(${total}) ${base}` : base;
+}
+
+// Marquer que l'init est terminée (pour ne pas toaster au premier load)
+let _badgeInitDone = false;
+
+// Premier chargement + polling 30s (fallback si SSE indisponible)
+refreshBadges().then(() => { _badgeInitDone = true; });
+setInterval(refreshBadges, 30000);
+
+/* ═══════════════════════════════════════════════════════════════
+   SSE — TEMPS RÉEL
+═══════════════════════════════════════════════════════════════ */
+(function initSSE() {
+  if (!window.EventSource) return; // navigateur non compatible
+
+  let es, reconnectTimer;
+  const RECONNECT_DELAY = 5000; // 5s avant de retenter
+
+  function connect() {
+    if (es) { try { es.close(); } catch {} }
+
+    es = new EventSource('/admin/api/live');
+
+    es.addEventListener('connected', function() {
+      console.log('[SSE] Connecté au flux temps réel');
+      // Indicateur visuel : pastille verte dans le titre de la page
+      _sseSetStatus(true);
+    });
+
+    // Mise à jour des KPIs en direct
+    es.addEventListener('kpis', function(e) {
+      try {
+        const data = JSON.parse(e.data);
+        _sseUpdateKPIs(data);
+      } catch {}
+    });
+
+    // Broadcast d'une action admin (autre onglet / autre admin)
+    es.addEventListener('action', function(e) {
+      try {
+        const data = JSON.parse(e.data);
+        _sseOnAction(data);
+      } catch {}
+    });
+
+    es.onerror = function() {
+      _sseSetStatus(false);
+      es.close();
+      // Reconnexion automatique
+      clearTimeout(reconnectTimer);
+      reconnectTimer = setTimeout(connect, RECONNECT_DELAY);
+    };
+  }
+
+  // Met à jour les badges de la sidebar (tx + preuves)
+  function _sseUpdateKPIs(data) {
+    if (data.tx_pending     != null) setBadge('badge-tx',     data.tx_pending);
+    if (data.proofs_pending != null) setBadge('badge-proofs', data.proofs_pending);
+    _updatePageTitle();
+
+    // Déclencher un événement custom pour que les pages puissent écouter
+    window.dispatchEvent(new CustomEvent('sseKpis', { detail: data }));
+  }
+
+  // Réaction aux actions des autres admins
+  function _sseOnAction(data) {
+    const labels = {
+      transaction_approved: '✅ Dépôt approuvé',
+      transaction_rejected: '❌ Dépôt rejeté',
+      proof_approved:       '👑 Preuve Premium approuvée',
+      proof_rejected:       '🚫 Preuve Premium rejetée',
+    };
+    const label = labels[data.type];
+    if (label) {
+      showToast(`${label} par ${data.adminName}`, 'info', 5000);
+    }
+    // Rafraîchir les badges aussi
+    refreshBadges();
+    window.dispatchEvent(new CustomEvent('sseAction', { detail: data }));
+  }
+
+  // Indicateur visuel SSE dans la page (petite pastille dans le footer sidebar)
+  function _sseSetStatus(online) {
+    let dot = document.getElementById('sse-status-dot');
+    if (!dot) {
+      dot = document.createElement('span');
+      dot.id = 'sse-status-dot';
+      dot.title = online ? 'Temps réel actif' : 'Temps réel déconnecté';
+      dot.style.cssText = 'display:inline-block;width:7px;height:7px;border-radius:50%;margin-left:6px;vertical-align:middle;flex-shrink:0;';
+      // Coller à côté du nom dans le sidebar-footer
+      const nameEl = document.querySelector('.sidebar-footer .nav-item div div:first-child');
+      if (nameEl) nameEl.appendChild(dot);
+    }
+    dot.style.background = online ? 'var(--success)' : 'var(--error)';
+    dot.title = online ? 'Temps réel actif' : 'Temps réel déconnecté — reconnexion…';
+  }
+
+  connect();
+  window._sseReconnect = connect; // exposer pour debug
+})();
+
+/* ═══════════════════════════════════════════════════════════════
+   THÈME : Mode sombre/clair + couleur d'accent
+═══════════════════════════════════════════════════════════════ */
+function setMode(mode) {
+  const html = document.documentElement;
+  // Transition douce
+  html.classList.add('theme-transitioning');
+  setTimeout(() => html.classList.remove('theme-transitioning'), 400);
+
+  if (mode === 'light') {
+    html.classList.add('light');
+  } else {
+    html.classList.remove('light');
+  }
+  localStorage.setItem('pw_mode', mode);
+  _updateModeUI(mode);
+
+  // Mettre à jour theme-color pour la barre de statut mobile
+  const themeColor = mode === 'light' ? '#F1F4FB' : '#141926';
+  let tc = document.querySelector('meta[name="theme-color"]');
+  if (tc) tc.setAttribute('content', themeColor);
+}
+
+function setAccent(key) {
+  const html = document.documentElement;
+  html.setAttribute('data-accent', key);
+  localStorage.setItem('pw_accent', key);
+  _updateAccentUI(key);
+}
+
+function _updateModeUI(mode) {
+  document.querySelectorAll('.mode-btn').forEach(btn => btn.classList.remove('active'));
+  const active = document.getElementById('mode-' + mode);
+  if (active) active.classList.add('active');
+}
+
+function _updateAccentUI(key) {
+  document.querySelectorAll('.accent-dot').forEach(dot => dot.classList.remove('active'));
+  const active = document.getElementById('accent-' + key);
+  if (active) active.classList.add('active');
+}
+
+// Init : lire localStorage et marquer les boutons actifs
+document.addEventListener('DOMContentLoaded', function() {
+  var mode   = localStorage.getItem('pw_mode')   || 'dark';
+  var accent = localStorage.getItem('pw_accent') || 'orange';
+  _updateModeUI(mode);
+  _updateAccentUI(accent);
+});
+</script>
+</body>
+</html>

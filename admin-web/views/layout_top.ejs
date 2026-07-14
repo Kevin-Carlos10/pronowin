@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#141926">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>PronoWin Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/style.css">
+  <!-- Anti-flash : appliquer le thème AVANT le rendu -->
+  <script>
+    (function() {
+      var mode   = localStorage.getItem('pw_mode')   || 'dark';
+      var accent = localStorage.getItem('pw_accent') || 'orange';
+      if (mode === 'light') document.documentElement.classList.add('light');
+      document.documentElement.setAttribute('data-accent', accent);
+    })();
+  </script>
+</head>
+<body>
+
+<!-- ── Overlay mobile sidebar ── -->
+<div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<!-- ── Confirm dialog ── -->
+<div class="confirm-overlay" id="confirm-overlay">
+  <div class="confirm-box">
+    <div class="confirm-icon" id="confirm-icon">⚠️</div>
+    <h3 id="confirm-title">Confirmer l'action</h3>
+    <p id="confirm-msg">Êtes-vous sûr de vouloir effectuer cette action ?</p>
+    <div class="confirm-actions">
+      <button class="btn btn-outline" onclick="closeConfirm()">Annuler</button>
+      <button class="btn btn-primary" id="confirm-ok-btn">Confirmer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Toast container ── -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ── Session timeout warning ── -->
+<div class="session-overlay" id="session-overlay">
+  <div class="session-box">
+    <div style="font-size:2.5rem;margin-bottom:.75rem">⏰</div>
+    <h3>Session sur le point d'expirer</h3>
+    <p>Vous avez été inactif pendant un moment.<br>Votre session se fermera dans <strong id="session-countdown">02:00</strong>.</p>
+    <div style="display:flex;gap:.75rem;justify-content:center;margin-top:1.5rem">
+      <button class="btn btn-primary" onclick="extendSession()">✅ Rester connecté</button>
+      <a href="/admin/logout" class="btn btn-outline">🚪 Se déconnecter</a>
+    </div>
+  </div>
+</div>
+
+<!-- ── Recherche globale (Ctrl+K) ── -->
+<div class="search-overlay" id="search-overlay" onclick="if(event.target===this)closeSearch()">
+  <div class="search-box">
+    <div class="search-input-wrap">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-input" placeholder="Rechercher un utilisateur, transaction, match…" autocomplete="off">
+      <kbd class="search-esc" onclick="closeSearch()">Esc</kbd>
+    </div>
+    <div class="search-results" id="search-results">
+      <div class="search-hint">
+        <span>👥 Utilisateurs</span><span>💳 Transactions</span><span>⚽ Pronostics</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="layout">
+
+<!-- ── Sidebar ── -->
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-logo">
+    <h1>Prono<span>Win</span></h1>
+    <small>Administration</small>
+  </div>
+
+  <!-- Bouton recherche sidebar -->
+  <div style="padding:0 12px 12px">
+    <button class="sidebar-search-btn" onclick="openSearch()" title="Ctrl+K ou /">
+      <span>🔍</span> <span>Rechercher…</span> <kbd>/</kbd>
+    </button>
+  </div>
+
+  <nav>
+    <a href="/admin/dashboard" class="nav-item <%= page==='dashboard' ?'active':'' %>"><span class="icon">📊</span> Dashboard</a>
+
+    <% if (hasPerm('statistiques')) { %>
+    <a href="/admin/statistiques" class="nav-item <%= page==='statistiques' ?'active':'' %>"><span class="icon">📈</span> Statistiques</a>
+    <% } %>
+
+    <% if (hasPerm('users')) { %>
+    <a href="/admin/users" class="nav-item <%= page==='users' ?'active':'' %>"><span class="icon">👥</span> Utilisateurs</a>
+    <% } %>
+
+    <% if (hasPerm('pronostics')) { %>
+    <a href="/admin/pronostics" class="nav-item <%= page==='pronostics' ?'active':'' %>"><span class="icon">⚽</span> Pronostics</a>
+    <% } %>
+
+    <% if (hasPerm('transactions') || hasPerm('historique') || hasPerm('abonnements')) { %>
+    <div class="sidebar-section">Finances</div>
+    <% } %>
+
+    <% if (hasPerm('transactions')) { %>
+    <a href="/admin/transactions" class="nav-item <%= page==='transactions' ?'active':'' %>">
+      <span class="icon">💰</span> Dépôts en attente
+      <span class="nav-badge" id="badge-tx"></span>
+    </a>
+    <% } %>
+
+    <% if (hasPerm('historique')) { %>
+    <a href="/admin/historique" class="nav-item <%= page==='historique' ?'active':'' %>"><span class="icon">📋</span> Historique</a>
+    <% } %>
+
+    <% if (hasPerm('abonnements')) { %>
+    <a href="/admin/abonnements" class="nav-item <%= page==='abonnements' ?'active':'' %>">
+      <span class="icon">👑</span> Abonnements
+      <span class="nav-badge" id="badge-proofs"></span>
+    </a>
+    <% } %>
+
+    <% if (hasPerm('tutoriels') || hasPerm('notifications') || hasPerm('actualites')) { %>
+    <div class="sidebar-section">Contenu</div>
+    <% } %>
+
+    <% if (hasPerm('actualites')) { %>
+    <a href="/admin/actualites" class="nav-item <%= page==='actualites' ?'active':'' %>"><span class="icon">📰</span> Actualités</a>
+    <% } %>
+
+    <% if (hasPerm('tutoriels')) { %>
+    <a href="/admin/tutoriels" class="nav-item <%= page==='tutoriels' ?'active':'' %>"><span class="icon">📚</span> Tutoriels</a>
+    <% } %>
+
+    <% if (hasPerm('notifications')) { %>
+    <a href="/admin/notifications" class="nav-item <%= page==='notifications' ?'active':'' %>"><span class="icon">📣</span> Notifications</a>
+    <% } %>
+
+    <% if (isMain) { %>
+    <div class="sidebar-section">Administration</div>
+    <a href="/admin/sub-admins" class="nav-item <%= page==='sub-admins' ?'active':'' %>"><span class="icon">🔐</span> Sous-admins</a>
+    <a href="/admin/bans"       class="nav-item <%= page==='bans'       ?'active':'' %>"><span class="icon">🚫</span> Bannissements</a>
+    <a href="/admin/audit"      class="nav-item <%= page==='audit'      ?'active':'' %>"><span class="icon">📋</span> Journal d'activité</a>
+    <a href="/admin/settings"   class="nav-item <%= page==='settings'   ?'active':'' %>"><span class="icon">⚙️</span> Paramètres</a>
+    <% } %>
+  </nav>
+
+  <div class="sidebar-spacer"></div>
+
+  <!-- ── Panneau thème ── -->
+  <div class="theme-panel">
+    <div class="theme-panel-row">
+      <span class="theme-panel-lbl">Thème</span>
+      <div class="mode-toggle">
+        <button class="mode-btn" id="mode-dark"  onclick="setMode('dark')"  title="Mode sombre">🌙</button>
+        <button class="mode-btn" id="mode-light" onclick="setMode('light')" title="Mode clair">☀️</button>
+      </div>
+    </div>
+    <div class="theme-panel-row" style="margin-bottom:0">
+      <span class="theme-panel-lbl">Couleur</span>
+      <div class="accent-dots">
+        <div class="accent-dot" id="accent-orange" style="background:#E8541A" onclick="setAccent('orange')" title="Orange"></div>
+        <div class="accent-dot" id="accent-blue"   style="background:#2563EB" onclick="setAccent('blue')"   title="Bleu"></div>
+        <div class="accent-dot" id="accent-green"  style="background:#059669" onclick="setAccent('green')"  title="Vert"></div>
+        <div class="accent-dot" id="accent-purple" style="background:#7C3AED" onclick="setAccent('purple')" title="Violet"></div>
+        <div class="accent-dot" id="accent-pink"   style="background:#DB2777" onclick="setAccent('pink')"   title="Rose"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar-footer">
+    <a href="/admin/profile" class="nav-item <%= page==='profile' ?'active':'' %>" style="padding:.6rem 1rem;margin-bottom:.1rem">
+      <div style="width:30px;height:30px;border-radius:50%;background:<%= adminRole==='sub'?'rgba(245,158,11,.15)':'rgba(34,197,94,.15)' %>;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;color:<%= adminRole==='sub'?'var(--warning)':'var(--success)' %>">
+        <%= adminName[0]?.toUpperCase() ?? '?' %>
+      </div>
+      <div style="min-width:0">
+        <div style="font-weight:600;font-size:.82rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><%= adminName %></div>
+        <div style="font-size:.7rem;color:<%= adminRole==='sub'?'var(--warning)':'var(--success)' %>"><%= adminRole==='sub'?'Sous-admin':'Admin principal' %></div>
+      </div>
+    </a>
+    <a href="/admin/logout" class="nav-item nav-logout"><span class="icon">🚪</span> Déconnexion</a>
+  </div>
+</aside>
+
+<!-- ── Bottom Navigation Bar (mobile) ── -->
+<nav class="bottom-nav" id="bottom-nav" aria-label="Navigation mobile">
+  <div class="bottom-nav-items">
+    <a href="/admin/dashboard" class="bottom-nav-item <%= page==='dashboard'?'active':'' %>" aria-label="Dashboard">
+      <span class="bottom-nav-icon">📊</span>
+      <span>Dashboard</span>
+    </a>
+    <% if (hasPerm('users')) { %>
+    <a href="/admin/users" class="bottom-nav-item <%= page==='users'?'active':'' %>" aria-label="Utilisateurs">
+      <span class="bottom-nav-icon">👥</span>
+      <span>Utilisateurs</span>
+    </a>
+    <% } else { %>
+    <a href="/admin/statistiques" class="bottom-nav-item <%= page==='statistiques'?'active':'' %>" aria-label="Stats">
+      <span class="bottom-nav-icon">📈</span>
+      <span>Stats</span>
+    </a>
+    <% } %>
+    <!-- Bouton FAB central : recherche rapide -->
+    <button class="bottom-nav-fab" onclick="openSearch()" aria-label="Rechercher">
+      <div class="bottom-nav-fab-circle">🔍</div>
+      <span class="bottom-nav-fab-lbl">Chercher</span>
+    </button>
+    <a href="/admin/transactions" class="bottom-nav-item <%= page==='transactions'?'active':'' %>" aria-label="Transactions">
+      <span class="bottom-nav-icon">💰</span>
+      <span>Dépôts</span>
+      <span class="bottom-nav-badge" id="bnav-badge-tx"></span>
+    </a>
+    <a href="/admin/profile" class="bottom-nav-item <%= page==='profile'?'active':'' %>" aria-label="Profil">
+      <span class="bottom-nav-icon">👤</span>
+      <span>Profil</span>
+    </a>
+  </div>
+</nav>
+
+<!-- ── Main ── -->
+<main class="main">
+
+<!-- Barre mobile (hamburger) -->
+<div class="mobile-bar">
+  <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+  <span class="mobile-bar-title">Prono<span>Win</span> Admin</span>
+  <button class="search-trigger-btn" onclick="openSearch()" title="Recherche (Ctrl+K)">🔍</button>
+</div>
+
+<%
+  const _s = locals.settings || {};
+  const _announceBg   = { info: 'rgba(59,130,246,.12)', warning: 'rgba(245,158,11,.12)', danger: 'rgba(239,68,68,.12)' };
+  const _announceColor= { info: 'var(--info)', warning: 'var(--warning)', danger: 'var(--error)' };
+  const _announceIcon = { info: 'ℹ️', warning: '⚠️', danger: '🚨' };
+%>
+<% if (_s.announcementEnabled && _s.announcementText) { %>
+<div style="background:<%= _announceBg[_s.announcementType]||_announceBg.info %>;border-bottom:1px solid <%= _announceColor[_s.announcementType]||'var(--info)' %>20;padding:.6rem 1.25rem;display:flex;align-items:center;gap:.6rem;font-size:.83rem;color:<%= _announceColor[_s.announcementType]||'var(--info)' %>;margin-bottom:0" id="global-announcement">
+  <span><%= _announceIcon[_s.announcementType]||'ℹ️' %></span>
+  <span style="flex:1"><%= _s.announcementText %></span>
+  <button onclick="this.parentElement.style.display='none'" style="background:none;border:none;cursor:pointer;color:inherit;font-size:1rem;opacity:.6;padding:0;line-height:1">×</button>
+</div>
+<% } %>
+
+<% if (_s.maintenanceMode) { %>
+<div style="background:rgba(245,158,11,.15);border-bottom:1px solid rgba(245,158,11,.3);padding:.6rem 1.25rem;display:flex;align-items:center;gap:.6rem;font-size:.83rem;color:var(--warning)">
+  <span>🔧</span>
+  <span style="flex:1"><strong>Mode maintenance actif</strong> — <%= _s.maintenanceMessage || 'Le panel est en maintenance.' %></span>
+  <% if (isMain) { %>
+  <a href="/admin/settings" style="color:var(--warning);font-weight:600;font-size:.78rem;text-decoration:underline">Désactiver →</a>
+  <% } %>
+</div>
+<% } %>

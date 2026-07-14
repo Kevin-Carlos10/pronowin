@@ -1,0 +1,280 @@
+<%- include('layout_top', {page:'users'}) %>
+
+<%
+  const _dateFrom  = locals.date_from  ?? '';
+  const _dateTo    = locals.date_to    ?? '';
+  const _minTx     = locals.min_tx     ?? '';
+  const _hasAdv    = _dateFrom || _dateTo || _minTx;
+  const _hasAny    = search || plan || status || _hasAdv;
+
+  // Construction de l'URL de base des filtres actifs (sans page)
+  function qParam(obj) {
+    return Object.entries(obj).filter(([,v])=>v).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join('&');
+  }
+  const _filterQs = qParam({ search, plan, status, date_from:_dateFrom, date_to:_dateTo, min_tx:_minTx, sort_by:sortBy });
+%>
+
+<div class="topbar">
+  <div>
+    <h2>👥 Utilisateurs</h2>
+    <small id="result-count"><%= total %> résultat<%= total>1?'s':'' %></small>
+  </div>
+  <div style="display:flex;gap:8px">
+    <a href="/admin/users/export?<%= _filterQs %>" class="btn btn-outline" title="Exporter les résultats filtrés">
+      ⬇️ Export CSV
+    </a>
+  </div>
+</div>
+
+<!-- Stats rapides -->
+<div class="stats-grid" style="margin-bottom:16px">
+  <div class="stat-card"><div class="dot" style="background:#3B82F6"></div><div class="val"><%= stats.total %></div><div class="lbl">Total</div></div>
+  <div class="stat-card"><div class="dot" style="background:#F5A623"></div><div class="val"><%= stats.premium %></div><div class="lbl">Premium actifs</div></div>
+  <div class="stat-card"><div class="dot" style="background:#22C55E"></div><div class="val"><%= stats.newToday %></div><div class="lbl">Nouveaux (auj.)</div></div>
+  <div class="stat-card"><div class="dot" style="background:#A78BFA"></div><div class="val"><%= stats.newWeek %></div><div class="lbl">Cette semaine</div></div>
+  <div class="stat-card"><div class="dot" style="background:#EF4444"></div><div class="val"><%= stats.suspended %></div><div class="lbl">Suspendus</div></div>
+  <div class="stat-card"><div class="dot" style="background:#10B981"></div><div class="val"><%= stats.conversion_rate %>%</div><div class="lbl">Taux conversion</div></div>
+</div>
+
+<!-- ── Bloc filtres avancés ─────────────────────────────────────────── -->
+<div class="filter-block card" id="filter-block">
+  <form method="GET" action="/admin/users" id="filter-form">
+
+    <!-- Ligne principale -->
+    <div class="filter-main-row">
+      <input type="text" name="search" id="f-search" value="<%= search %>"
+        placeholder="🔍 Rechercher pseudo, téléphone, email, ID 1xBet…" class="filter-search-input">
+
+      <select name="plan" id="f-plan">
+        <option value="">Tous les plans</option>
+        <option value="free"    <%= plan==='free'    ?'selected':'' %>>Gratuit</option>
+        <option value="premium" <%= plan==='premium' ?'selected':'' %>>Premium</option>
+      </select>
+
+      <select name="status" id="f-status">
+        <option value="">Tous statuts</option>
+        <option value="active"    <%= status==='active'    ?'selected':'' %>>Actifs</option>
+        <option value="suspended" <%= status==='suspended' ?'selected':'' %>>Suspendus</option>
+      </select>
+
+      <select name="sort_by" id="f-sort">
+        <option value="createdAt"        <%= sortBy==='createdAt'        ?'selected':'' %>>Date inscription</option>
+        <option value="pseudo"           <%= sortBy==='pseudo'           ?'selected':'' %>>Pseudo A-Z</option>
+        <option value="lastLoginAt"      <%= sortBy==='lastLoginAt'      ?'selected':'' %>>Dernière connexion</option>
+        <option value="subscriptionPlan" <%= sortBy==='subscriptionPlan' ?'selected':'' %>>Plan</option>
+        <option value="transaction_count"<%= sortBy==='transaction_count'?'selected':'' %>>Nb transactions</option>
+      </select>
+
+      <div class="filter-actions-row">
+        <button type="submit" class="btn btn-primary">Filtrer</button>
+        <button type="button" class="btn btn-outline" onclick="toggleAdvanced()" id="adv-toggle-btn">
+          ⚙️ Avancé <% if(_hasAdv){ %><span class="filter-adv-badge">!</span><% } %>
+        </button>
+        <% if(_hasAny){ %>
+        <a href="/admin/users" class="btn btn-outline">✕ Tout effacer</a>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Panneau avancé (collapsible) -->
+    <div class="filter-advanced-panel" id="adv-panel" style="<%= _hasAdv ? '' : 'display:none' %>">
+      <div class="filter-advanced-grid">
+        <div class="filter-field">
+          <label>Inscrit après</label>
+          <input type="date" name="date_from" id="f-date-from" value="<%= _dateFrom %>">
+        </div>
+        <div class="filter-field">
+          <label>Inscrit avant</label>
+          <input type="date" name="date_to" id="f-date-to" value="<%= _dateTo %>">
+        </div>
+        <div class="filter-field">
+          <label>Transactions min.</label>
+          <input type="number" name="min_tx" id="f-min-tx" value="<%= _minTx %>" min="0" placeholder="ex: 3">
+        </div>
+      </div>
+
+      <!-- Presets sauvegardés -->
+      <div class="filter-presets" id="presets-zone">
+        <span class="filter-presets-lbl">Presets :</span>
+        <div id="presets-list" style="display:inline-flex;gap:6px;flex-wrap:wrap"></div>
+        <button type="button" class="btn btn-sm btn-outline" onclick="savePreset()">💾 Sauvegarder</button>
+      </div>
+    </div>
+
+  </form>
+
+  <!-- Tags filtres actifs -->
+  <% if(_hasAny){ %>
+  <div class="filter-tags" id="filter-tags">
+    <span style="font-size:.75rem;color:var(--text-dim);margin-right:4px">Filtres actifs :</span>
+    <% if(search){ %><span class="filter-tag">Recherche: <em><%= search %></em> <a href="/admin/users?<%= qParam({plan,status,date_from:_dateFrom,date_to:_dateTo,min_tx:_minTx,sort_by:sortBy}) %>">×</a></span><% } %>
+    <% if(plan){ %><span class="filter-tag">Plan: <em><%= plan %></em> <a href="/admin/users?<%= qParam({search,status,date_from:_dateFrom,date_to:_dateTo,min_tx:_minTx,sort_by:sortBy}) %>">×</a></span><% } %>
+    <% if(status){ %><span class="filter-tag">Statut: <em><%= status %></em> <a href="/admin/users?<%= qParam({search,plan,date_from:_dateFrom,date_to:_dateTo,min_tx:_minTx,sort_by:sortBy}) %>">×</a></span><% } %>
+    <% if(_dateFrom){ %><span class="filter-tag">Après: <em><%= _dateFrom %></em> <a href="/admin/users?<%= qParam({search,plan,status,date_to:_dateTo,min_tx:_minTx,sort_by:sortBy}) %>">×</a></span><% } %>
+    <% if(_dateTo){ %><span class="filter-tag">Avant: <em><%= _dateTo %></em> <a href="/admin/users?<%= qParam({search,plan,status,date_from:_dateFrom,min_tx:_minTx,sort_by:sortBy}) %>">×</a></span><% } %>
+    <% if(_minTx){ %><span class="filter-tag">Min TX: <em><%= _minTx %></em> <a href="/admin/users?<%= qParam({search,plan,status,date_from:_dateFrom,date_to:_dateTo,sort_by:sortBy}) %>">×</a></span><% } %>
+  </div>
+  <% } %>
+</div>
+
+<!-- Alertes -->
+<% if(typeof success !== 'undefined' && success){ %>
+  <div class="alert alert-success" style="margin-bottom:12px">✅ <%= success %></div>
+<% } %>
+<% if(typeof error !== 'undefined' && error){ %>
+  <div class="alert alert-error" style="margin-bottom:12px">❌ <%= error %></div>
+<% } %>
+
+<!-- Table utilisateurs -->
+<div class="card" style="padding:0;overflow:hidden">
+  <% if(!data || data.length === 0){ %>
+    <div class="empty-state" style="padding:40px">
+      <div style="font-size:2rem;margin-bottom:.5rem">🔍</div>
+      <p>Aucun utilisateur trouvé pour ces filtres.</p>
+      <% if(_hasAny){ %><a href="/admin/users" class="btn btn-outline" style="margin-top:12px">Effacer les filtres</a><% } %>
+    </div>
+  <% } else { %>
+  <div class="table-wrap"><table>
+    <thead>
+      <tr>
+        <th data-sort="pseudo">Utilisateur</th>
+        <th>Téléphone</th>
+        <th>1xBet ID</th>
+        <th data-sort="subscriptionPlan">Plan</th>
+        <th data-sort="createdAt">Inscrit le</th>
+        <th data-sort="transaction_count" style="text-align:center">TX</th>
+        <th data-sort="isActive">Statut</th>
+        <th style="text-align:right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    <% data.forEach(u => { %>
+    <tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:50%;background:<%= u.is_premium ? 'rgba(245,166,35,.15)' : 'var(--surface-d)' %>;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:<%= u.is_premium ? '#F5A623' : 'var(--text-dim)' %>;flex-shrink:0">
+            <%= u.pseudo[0].toUpperCase() %>
+          </div>
+          <div>
+            <p style="font-weight:600;color:var(--text)"><%= u.pseudo %></p>
+            <% if(u.email){ %><p style="font-size:11px;color:var(--text-dim)"><%= u.email %></p><% } %>
+          </div>
+        </div>
+      </td>
+      <td style="color:var(--text-m);font-size:13px"><%= u.phoneNumber %></td>
+      <td>
+        <% if(u.xbetId){ %>
+          <span style="color:var(--btn-primary);font-weight:600;font-size:12px"><%= u.xbetId %></span>
+        <% } else { %>
+          <span style="color:var(--border);font-size:12px">—</span>
+        <% } %>
+      </td>
+      <td>
+        <% if(u.is_premium){ %>
+          <div><span class="badge badge-warn">👑 Premium</span>
+          <p style="font-size:10px;color:var(--text-dim);margin-top:2px"><%= u.days_left %>j restants</p></div>
+        <% } else { %>
+          <span class="badge" style="background:var(--surface-d);color:var(--text-dim)">Gratuit</span>
+        <% } %>
+      </td>
+      <td style="color:var(--text-m);font-size:12px">
+        <%= new Date(u.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'2-digit'}) %>
+        <% if(u.lastLoginAt){ %>
+          <br><span style="font-size:10px;color:var(--text-dim)">Dern. co. <%= new Date(u.lastLoginAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) %></span>
+        <% } %>
+      </td>
+      <td style="text-align:center">
+        <span style="color:var(--text);font-weight:600"><%= u.transaction_count %></span>
+      </td>
+      <td>
+        <span class="badge <%= u.isActive ? 'badge-ok' : 'badge-err' %>">
+          <%= u.isActive ? '✓ Actif' : '✗ Suspendu' %>
+        </span>
+        <% const _bid = (activeBanIds||[]).includes(String(u.id)); if(_bid){ %>
+        <span class="badge badge-err" style="margin-left:4px;font-size:.68rem">🚫</span>
+        <% } %>
+      </td>
+      <td style="text-align:right">
+        <a href="/admin/users/<%= u.id %>" class="btn btn-sm btn-outline">Voir →</a>
+      </td>
+    </tr>
+    <% }) %>
+    </tbody>
+  </table></div>
+
+  <!-- Pagination -->
+  <% if(totalPages > 1){ %>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-top:1px solid var(--border)">
+    <p style="color:var(--text-m);font-size:12px">
+      <%= ((page-1)*perPage)+1 %>–<%= Math.min(page*perPage, total) %> sur <%= total %> utilisateurs
+    </p>
+    <div style="display:flex;gap:6px;align-items:center">
+      <% if(page > 1){ %>
+        <a href="/admin/users?page=<%= page-1 %>&<%= _filterQs %>" class="btn btn-sm btn-outline">← Préc.</a>
+      <% } %>
+      <span style="padding:5px 12px;background:var(--surface-d);border-radius:6px;font-size:12px;color:var(--text)">
+        Page <%= page %> / <%= totalPages %>
+      </span>
+      <% if(page < totalPages){ %>
+        <a href="/admin/users?page=<%= page+1 %>&<%= _filterQs %>" class="btn btn-sm btn-outline">Suiv. →</a>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+  <% } %>
+</div>
+
+<script>
+const PRESET_KEY = 'pw_presets_users';
+
+function toggleAdvanced() {
+  const panel = document.getElementById('adv-panel');
+  const open  = panel.style.display === 'none';
+  panel.style.display = open ? '' : 'none';
+  document.getElementById('adv-toggle-btn').textContent = open ? '⚙️ Masquer ▲' : '⚙️ Avancé ▼';
+}
+
+/* ── Presets ── */
+function loadPresets() {
+  try { return JSON.parse(localStorage.getItem(PRESET_KEY) ?? '[]'); } catch { return []; }
+}
+function savePreset() {
+  const name = prompt('Nom du preset :');
+  if (!name?.trim()) return;
+  const params = new URLSearchParams(new FormData(document.getElementById('filter-form')));
+  const presets = loadPresets();
+  presets.unshift({ name: name.trim(), qs: params.toString(), ts: Date.now() });
+  localStorage.setItem(PRESET_KEY, JSON.stringify(presets.slice(0, 10)));
+  renderPresets();
+  showToast('Preset "' + name.trim() + '" sauvegardé', 'success');
+}
+function applyPreset(qs) {
+  window.location.href = '/admin/users?' + qs;
+}
+function deletePreset(idx) {
+  const p = loadPresets(); p.splice(idx, 1);
+  localStorage.setItem(PRESET_KEY, JSON.stringify(p));
+  renderPresets();
+}
+function renderPresets() {
+  const list = document.getElementById('presets-list');
+  if (!list) return;
+  const presets = loadPresets();
+  if (!presets.length) { list.innerHTML = '<span style="font-size:.75rem;color:var(--text-dim)">Aucun preset</span>'; return; }
+  list.innerHTML = presets.map((p, i) =>
+    `<span class="filter-tag" style="cursor:pointer" onclick="applyPreset('${p.qs.replace(/'/g,"\\'")}')">
+      ${p.name} <span onclick="event.stopPropagation();deletePreset(${i})" style="opacity:.5;margin-left:2px">×</span>
+    </span>`
+  ).join('');
+}
+
+/* ── Init panneau avancé si filtres actifs ── */
+document.addEventListener('DOMContentLoaded', function() {
+  renderPresets();
+  <% if(_hasAdv){ %>
+  document.getElementById('adv-toggle-btn').textContent = '⚙️ Masquer ▲';
+  <% } %>
+});
+</script>
+
+<%- include('layout_bottom') %>

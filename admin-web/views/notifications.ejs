@@ -1,0 +1,436 @@
+<%- include('layout_top', {page:'notifications'}) %>
+
+<style>
+/* ── Layout ──────────────────────────────────────────────────────────────────── */
+.notif-grid { display:grid; grid-template-columns:1fr 360px; gap:1rem; align-items:start; }
+@media(max-width:1024px) { .notif-grid { grid-template-columns:1fr; } }
+
+/* ── Stats ───────────────────────────────────────────────────────────────────── */
+.nf-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:.65rem; margin-bottom:1rem; }
+@media(max-width:700px) { .nf-stats { grid-template-columns:repeat(2,1fr); } }
+.nf-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.75rem .9rem; }
+.nf-stat .v { font-size:1.3rem; font-weight:800; line-height:1; margin-bottom:.15rem; }
+.nf-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+
+/* ── Segments ────────────────────────────────────────────────────────────────── */
+.seg-grid { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-top:.5rem; }
+@media(max-width:580px) { .seg-grid { grid-template-columns:1fr; } }
+.seg-card {
+  border:2px solid var(--border); border-radius:var(--radius-s); padding:.75rem 1rem;
+  cursor:pointer; transition:all var(--transition); position:relative;
+  background:var(--surface);
+}
+.seg-card:hover { border-color:var(--primary); background:var(--surface-h); }
+.seg-card.selected { border-color:var(--primary); background:rgba(var(--primary-rgb),.06); }
+.seg-card input[type=radio] { position:absolute; opacity:0; width:0; height:0; }
+.seg-icon  { font-size:1.3rem; margin-bottom:.25rem; }
+.seg-label { font-size:.82rem; font-weight:600; color:var(--text); }
+.seg-desc  { font-size:.72rem; color:var(--text-dim); margin-top:.1rem; }
+.seg-count { position:absolute; top:.5rem; right:.6rem; font-size:.72rem; font-weight:700; color:var(--primary); }
+
+/* ── Ciblage utilisateur spécifique ─────────────────────────────────────────── */
+.seg-card-user {
+  border:2px dashed var(--border); border-radius:var(--radius-s); padding:.75rem 1rem;
+  cursor:pointer; transition:all var(--transition);
+  background:var(--surface); margin-top:.5rem;
+}
+.seg-card-user:hover  { border-color:var(--primary); }
+.seg-card-user.active { border-color:var(--primary); background:rgba(var(--primary-rgb),.06); }
+
+/* ── Phone mock ──────────────────────────────────────────────────────────────── */
+.phone-mock {
+  width:220px;
+  background:var(--surface-d);
+  border-radius:32px; padding:12px;
+  border:6px solid var(--border);
+  box-shadow:0 20px 60px rgba(0,0,0,.35);
+  margin:0 auto;
+}
+.phone-notch { width:60px; height:6px; background:var(--border); border-radius:99px; margin:0 auto 12px; }
+.phone-screen { background:var(--surface); border-radius:22px; padding:16px 12px; min-height:160px; }
+.notif-preview {
+  background:var(--surface-d); border-radius:14px; padding:12px 14px;
+  border:1px solid var(--border);
+}
+.notif-preview-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.notif-app-icon { width:22px; height:22px; background:var(--primary); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:12px; flex-shrink:0; }
+.notif-app-name { font-size:11px; color:var(--text-dim); font-weight:600; letter-spacing:.3px; }
+.notif-time     { font-size:10px; color:var(--text-dim); margin-left:auto; }
+.notif-title-prev { font-size:13px; font-weight:700; color:var(--text); margin-bottom:4px; line-height:1.3; }
+.notif-body-prev  { font-size:11px; color:var(--text-m); line-height:1.5; }
+
+/* ── Char counter ────────────────────────────────────────────────────────────── */
+.char-counter { font-size:.72rem; text-align:right; margin-top:.25rem; color:var(--text-dim); transition:color .2s; }
+.char-counter.warn { color:var(--warning); }
+.char-counter.over { color:var(--error); font-weight:700; }
+
+/* ── Historique ──────────────────────────────────────────────────────────────── */
+.hist-row { display:flex; align-items:flex-start; gap:.75rem; padding:.85rem 0; border-bottom:1px solid var(--border); }
+.hist-row:last-child { border-bottom:0; }
+.h-seg-badge { display:inline-flex; align-items:center; gap:.25rem; font-size:.72rem; padding:.18rem .5rem; border-radius:99px; background:var(--surface-d); color:var(--text-m); white-space:nowrap; }
+.h-sent-count { font-size:.78rem; font-weight:700; color:var(--success); }
+</style>
+
+<%
+  function relT(iso) {
+    const diff = Math.floor((Date.now() - new Date(iso).getTime()) / 1000);
+    if (diff < 60)       return 'À l\'instant';
+    if (diff < 3600)     return 'Il y a ' + Math.floor(diff/60) + 'min';
+    if (diff < 86400)    return 'Il y a ' + Math.floor(diff/3600) + 'h';
+    if (diff < 2592000)  return 'Il y a ' + Math.floor(diff/86400) + 'j';
+    return new Date(iso).toLocaleDateString('fr-FR',{day:'2-digit',month:'short'});
+  }
+%>
+
+<div class="topbar">
+  <div>
+    <h2>📣 Notifications push</h2>
+    <small>Envoyez des notifications à vos utilisateurs</small>
+  </div>
+</div>
+
+<% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
+<% if (error)   { %><div class="alert alert-error"   style="display:none"><%= error %></div><% } %>
+
+<!-- ── Stats ──────────────────────────────────────────────────────────────────── -->
+<div class="nf-stats">
+  <div class="nf-stat"><div class="v" style="color:var(--primary)"><%= histStats.total %></div><div class="l">Campagnes</div></div>
+  <div class="nf-stat"><div class="v" style="color:var(--success)"><%= histStats.totalSent.toLocaleString('fr-FR') %></div><div class="l">Envois total</div></div>
+  <div class="nf-stat"><div class="v" style="color:var(--info)"><%= histStats.thisWeek %></div><div class="l">Cette semaine</div></div>
+  <div class="nf-stat"><div class="v" style="color:var(--warning)"><%= histStats.thisMonth %></div><div class="l">Ce mois</div></div>
+</div>
+
+<div class="notif-grid">
+
+  <!-- ── Colonne principale ── -->
+  <div>
+    <form method="POST" action="/admin/notifications/send" id="notif-form">
+
+      <!-- Ciblage -->
+      <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+        <h3 style="font-size:.95rem;font-weight:700;margin-bottom:.75rem">🎯 Cible de l'envoi</h3>
+        <div class="seg-grid" id="seg-grid">
+          <% SEGMENTS.forEach((seg, i) => { %>
+          <label class="seg-card <%= i===0?'selected':'' %>" id="seg-<%= seg.key %>">
+            <input type="radio" name="segment" value="<%= seg.key %>" <%= i===0?'checked':'' %> onchange="onSegChange('<%= seg.key %>')">
+            <div class="seg-icon"><%= seg.icon %></div>
+            <div class="seg-label"><%= seg.label %></div>
+            <div class="seg-desc"><%= seg.desc %></div>
+            <span class="seg-count" id="count-<%= seg.key %>">…</span>
+          </label>
+          <% }); %>
+        </div>
+
+        <!-- Utilisateur spécifique -->
+        <div class="seg-card-user" id="seg-user-wrap" onclick="toggleUserTarget()">
+          <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer">
+            <input type="radio" name="segment" value="user" id="seg-user-radio" onchange="onSegChange('user')">
+            <div style="flex:1">
+              <div style="font-size:.82rem;font-weight:700">👤 Utilisateur spécifique</div>
+              <div style="font-size:.72rem;color:var(--text-dim)">Cibler un seul utilisateur par téléphone ou pseudo</div>
+            </div>
+            <span style="font-size:.75rem;color:var(--primary);font-weight:700" id="user-seg-arrow">▼</span>
+          </label>
+          <div id="user-target-panel" style="display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)">
+            <input class="input" type="text" name="target_user" id="inp-target-user"
+              placeholder="Pseudo ou numéro de téléphone"
+              onclick="event.stopPropagation()"
+              oninput="updateDestDisplay()">
+          </div>
+        </div>
+
+        <div style="margin-top:.75rem;font-size:.82rem;color:var(--text-dim)">
+          Destinataires estimés : <strong id="total-count" style="color:var(--primary);font-size:1rem">…</strong>
+        </div>
+      </div>
+
+      <!-- Contenu -->
+      <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+        <h3 style="font-size:.95rem;font-weight:700;margin-bottom:.75rem">✍️ Contenu</h3>
+
+        <div class="form-group" style="margin-bottom:1rem">
+          <label style="display:block;font-size:.82rem;font-weight:700;color:var(--text-m);margin-bottom:.4rem">
+            Titre <span style="color:var(--text-dim);font-weight:400">(max 100 car.)</span>
+          </label>
+          <input class="input" type="text" name="title" id="notif-title" maxlength="100" required
+            placeholder="Ex : 🎯 Nouveau pronostic disponible !"
+            oninput="updatePreview();countChars('notif-title','title-counter',100)">
+          <div class="char-counter" id="title-counter">0 / 100</div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:1rem">
+          <label style="display:block;font-size:.82rem;font-weight:700;color:var(--text-m);margin-bottom:.4rem">
+            Message <span style="color:var(--text-dim);font-weight:400">(max 300 car.)</span>
+          </label>
+          <textarea class="input" name="body" id="notif-body" maxlength="300" rows="3" required
+            placeholder="Ex : Un pronostic Premium vient d'être publié. Connectez-vous pour le consulter !"
+            oninput="updatePreview();countChars('notif-body','body-counter',300)"
+            style="resize:vertical;min-height:80px"></textarea>
+          <div class="char-counter" id="body-counter">0 / 300</div>
+        </div>
+
+        <details>
+          <summary style="font-size:.82rem;color:var(--text-dim);cursor:pointer;user-select:none">⚙️ Options avancées</summary>
+          <div style="margin-top:.75rem;display:flex;flex-direction:column;gap:.75rem">
+            <div>
+              <label style="display:block;font-size:.82rem;font-weight:700;color:var(--text-m);margin-bottom:.35rem">URL de redirection (optionnel)</label>
+              <input class="input" type="url" name="data_url" placeholder="https://… ou pronowin://screen/pronostics">
+            </div>
+            <div>
+              <label style="display:block;font-size:.82rem;font-weight:700;color:var(--text-m);margin-bottom:.35rem">Image URL (optionnel)</label>
+              <input class="input" type="url" name="image_url" id="notif-img" placeholder="https://…/image.jpg" oninput="updatePreview()">
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- Bouton envoi -->
+      <button type="button" class="btn btn-primary" style="width:100%;justify-content:center;padding:.85rem;font-size:1rem"
+        onclick="confirmSend()">
+        📣 Envoyer la notification
+      </button>
+    </form>
+
+    <!-- ── Historique ── -->
+    <div class="card" style="padding:0;overflow:hidden;margin-top:1rem">
+      <div style="padding:.85rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
+        <h3 style="font-size:.95rem;font-weight:700;margin:0;flex:1">🕐 Historique des envois</h3>
+        <form method="GET" action="/admin/notifications" style="display:flex;gap:.4rem">
+          <input class="input" type="text" name="search_history" value="<%= searchH %>"
+            placeholder="Rechercher…" style="font-size:.8rem;padding:.35rem .65rem;width:160px">
+          <button type="submit" class="btn btn-outline btn-sm">🔍</button>
+          <% if(searchH){ %><a href="/admin/notifications" class="btn btn-outline btn-sm">✕</a><% } %>
+        </form>
+      </div>
+
+      <% if (history.length === 0) { %>
+      <div style="padding:2.5rem;text-align:center;color:var(--text-dim)">
+        <div style="font-size:2rem;margin-bottom:.5rem">📭</div>
+        <p><%= searchH ? 'Aucun résultat pour « '+searchH+' ».' : 'Aucune notification envoyée pour l\'instant.' %></p>
+      </div>
+      <% } else { %>
+      <div style="padding:0 1.25rem">
+        <% history.slice(0,30).forEach((h, i) => { %>
+        <div class="hist-row">
+          <div style="font-size:1.4rem;flex-shrink:0;padding-top:.1rem">📣</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:.875rem;margin-bottom:.15rem"><%= h.title %></div>
+            <div style="font-size:.78rem;color:var(--text-dim);margin-bottom:.4rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><%= h.body %></div>
+            <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
+              <span class="h-seg-badge"><%= SEGMENTS.find(s=>s.key===h.segment)?.icon ?? '👤' %> <%= h.segLabel ?? h.segment %></span>
+              <span class="h-sent-count">→ <%= (h.sent ?? 0).toLocaleString('fr-FR') %> envois</span>
+              <% if(h.adminName) { %><span style="font-size:.72rem;color:var(--text-dim)">par <%= h.adminName %></span><% } %>
+              <span style="font-size:.72rem;color:var(--text-dim);margin-left:auto" title="<%= new Date(h.sentAt).toLocaleString('fr-FR') %>"><%= relT(h.sentAt) %></span>
+            </div>
+          </div>
+          <% if(hasPerm('notifications','write')) { %>
+          <form method="POST" action="/admin/notifications/history/<%= i %>/delete" style="margin:0;flex-shrink:0">
+            <button type="button" class="btn btn-sm" style="color:var(--text-dim);background:transparent;border:none;padding:.25rem .4rem;cursor:pointer"
+              data-idx="<%= i %>" data-title="<%= h.title.replace(/"/g,'&quot;') %>"
+              onclick="delHist(this.dataset.idx, this.dataset.title)"
+              title="Supprimer de l'historique">🗑</button>
+            <span id="del-form-<%= i %>" style="display:none">
+              <button type="submit" id="del-submit-<%= i %>"></button>
+            </span>
+          </form>
+          <% } %>
+        </div>
+        <% }); %>
+      </div>
+      <% if(history.length > 30) { %>
+      <div style="padding:.75rem 1.25rem;border-top:1px solid var(--border);font-size:.78rem;color:var(--text-dim);text-align:center">
+        Affichage des 30 derniers sur <%= history.length %> envois
+      </div>
+      <% } %>
+      <% } %>
+    </div>
+  </div>
+
+  <!-- ── Colonne droite : aperçu + conseils + templates ── -->
+  <div style="position:sticky;top:1.5rem;display:flex;flex-direction:column;gap:1rem">
+
+    <!-- Phone preview -->
+    <div class="card" style="padding:1.25rem;text-align:center">
+      <h3 style="font-size:.9rem;font-weight:700;margin-bottom:1.1rem;text-align:left">📱 Aperçu en direct</h3>
+      <div class="phone-mock">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px;text-align:center">9:41</div>
+          <div class="notif-preview">
+            <div class="notif-preview-header">
+              <div class="notif-app-icon">🏆</div>
+              <span class="notif-app-name">PRONOWIN</span>
+              <span class="notif-time">maintenant</span>
+            </div>
+            <div class="notif-title-prev" id="prev-title">Titre de votre notification</div>
+            <div class="notif-body-prev"  id="prev-body">Le contenu de votre message apparaîtra ici…</div>
+            <div id="prev-img-wrap" style="display:none;margin-top:.5rem">
+              <img id="prev-img" src="" alt="" style="width:100%;border-radius:8px;max-height:80px;object-fit:cover">
+            </div>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:1rem;padding:.65rem;background:var(--surface-d);border-radius:var(--radius-s);font-size:.78rem;color:var(--text-dim);text-align:left">
+        <strong style="color:var(--text-m);display:block;margin-bottom:.35rem">💡 Conseils</strong>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:.3rem">
+          <li>🎯 Titre concis et accrocheur</li>
+          <li>⏰ Privilégiez 10h–12h ou 18h–20h</li>
+          <li>🔁 Max 1–2 notifs par jour</li>
+          <li>😀 Un emoji en tête de titre booste l'ouverture</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- Templates rapides -->
+    <div class="card" style="padding:1.25rem">
+      <h3 style="font-size:.9rem;font-weight:700;margin-bottom:.75rem">⚡ Templates rapides</h3>
+      <div style="display:flex;flex-direction:column;gap:.4rem">
+        <% [
+          ['⚽ Pronostic', '🎯 Nouveau pronostic disponible !', 'Un pronostic Premium vient d\'être publié. Connectez-vous pour ne pas le manquer !'],
+          ['👑 Promo Premium', '👑 Offre Premium disponible !', 'Accédez à tous nos pronostics exclusifs avec Premium. Profitez de l\'offre dès maintenant !'],
+          ['💰 Dépôt validé', '💰 Dépôt confirmé ✅', 'Votre dépôt a bien été validé. Votre solde a été mis à jour.'],
+          ['🏆 Pronostic gagnant', '🏆 Pronostic gagnant !', 'Félicitations ! Le pronostic d\'aujourd\'hui était gagnant. Consultez les résultats.'],
+          ['😴 Réengagement', '👋 On vous a manqué ?', 'Revenez découvrir les derniers pronostics et offres disponibles sur PronoWin !'],
+          ['📰 Nouvel article', '📰 Nouvelle actualité !', 'Un nouvel article vient d\'être publié. Découvrez les dernières infos PronoWin.'],
+        ].forEach(([label, t, b]) => { %>
+        <button class="btn btn-outline btn-sm" style="text-align:left;justify-content:flex-start" type="button"
+          data-t="<%= t.replace(/"/g,'&quot;') %>"
+          data-b="<%= b.replace(/"/g,'&quot;') %>"
+          onclick="fillTemplate(this.dataset.t, this.dataset.b)">
+          <%= label %>
+        </button>
+        <% }); %>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const SEGMENTS_DATA = <%- JSON.stringify(SEGMENTS) %>;
+
+/* ── Preview ── */
+function updatePreview() {
+  const t = document.getElementById('notif-title').value || 'Titre de votre notification';
+  const b = document.getElementById('notif-body').value  || 'Le contenu de votre message apparaîtra ici…';
+  const img = document.getElementById('notif-img')?.value || '';
+  document.getElementById('prev-title').textContent = t;
+  document.getElementById('prev-body').textContent  = b;
+  const imgWrap = document.getElementById('prev-img-wrap');
+  const imgEl   = document.getElementById('prev-img');
+  if (img) { imgEl.src = img; imgWrap.style.display = ''; }
+  else { imgWrap.style.display = 'none'; }
+}
+
+/* ── Char counter ── */
+function countChars(inputId, counterId, max) {
+  const len = document.getElementById(inputId).value.length;
+  const el  = document.getElementById(counterId);
+  el.textContent = len + ' / ' + max;
+  el.className   = 'char-counter' + (len > max ? ' over' : len > max * .8 ? ' warn' : '');
+}
+
+/* ── Segment sélection ── */
+function onSegChange(key) {
+  document.querySelectorAll('.seg-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('seg-' + key)?.classList.add('selected');
+  document.getElementById('seg-user-wrap')?.classList.toggle('active', key === 'user');
+  document.getElementById('user-target-panel').style.display = key === 'user' ? '' : 'none';
+  if (key !== 'user') loadCount(key);
+  else document.getElementById('total-count').textContent = '1';
+}
+
+function toggleUserTarget() {
+  const radio = document.getElementById('seg-user-radio');
+  radio.checked = true;
+  onSegChange('user');
+}
+
+function updateDestDisplay() {
+  const val = document.getElementById('inp-target-user')?.value || '';
+  document.getElementById('total-count').textContent = val ? '1 utilisateur' : '—';
+}
+
+async function loadCount(key) {
+  document.getElementById('total-count').textContent = '…';
+  try {
+    const r = await fetch('/admin/api/notifications/preview?segment=' + key);
+    const d = await r.json();
+    const n = typeof d.count === 'number' ? d.count.toLocaleString('fr-FR') : d.count;
+    document.getElementById('total-count').textContent = n + (d.estimated ? ' (estimé)' : '');
+    const cntEl = document.getElementById('count-' + key);
+    if (cntEl) cntEl.textContent = n;
+  } catch { document.getElementById('total-count').textContent = '—'; }
+}
+
+/* ── Templates ── */
+function fillTemplate(title, body) {
+  document.getElementById('notif-title').value = title;
+  document.getElementById('notif-body').value  = body;
+  updatePreview();
+  countChars('notif-title','title-counter',100);
+  countChars('notif-body','body-counter',300);
+  document.getElementById('notif-title').focus();
+}
+
+/* ── Confirmation envoi ── */
+function confirmSend() {
+  const title   = document.getElementById('notif-title').value.trim();
+  const body    = document.getElementById('notif-body').value.trim();
+  const segKey  = document.querySelector('input[name=segment]:checked')?.value ?? 'all';
+  const segMeta = SEGMENTS_DATA.find(s => s.key === segKey) ?? { label: segKey, icon: '📣' };
+  const count   = document.getElementById('total-count').textContent;
+
+  if (!title || !body) { showToast('Remplissez le titre et le message.', 'error'); return; }
+
+  const dest = segKey === 'user'
+    ? '1 utilisateur spécifique'
+    : count + ' utilisateurs (' + segMeta.icon + ' ' + segMeta.label + ')';
+
+  askConfirm({
+    icon:'📣', title:'Confirmer l\'envoi',
+    msg:'Vous allez envoyer <strong>"' + title + '"</strong> à <strong>' + dest + '</strong>. Cette action est irréversible.',
+    btnLabel:'Envoyer', btnClass:'btn-primary',
+    onConfirm: () => document.getElementById('notif-form').submit(),
+  });
+}
+
+/* ── Supprimer historique ── */
+function delHist(idx, title) {
+  askConfirm({
+    icon:'🗑️', title:'Supprimer cette entrée',
+    msg:'Supprimer l\'entrée <strong>"' + title + '"</strong> de l\'historique ?',
+    btnLabel:'Supprimer', btnClass:'btn-danger',
+    onConfirm: () => {
+      // submit le form de la ligne
+      const btn = document.querySelector('[id="del-submit-' + idx + '"]');
+      if (btn) btn.closest('form').submit();
+    },
+  });
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', function() {
+  const checkedSeg = document.querySelector('input[name=segment]:checked')?.value ?? 'all';
+  loadCount(checkedSeg);
+  // Charger tous les comptes en arrière-plan
+  setTimeout(() => {
+    SEGMENTS_DATA.forEach(s => {
+      if (s.key !== checkedSeg) {
+        fetch('/admin/api/notifications/preview?segment=' + s.key)
+          .then(r => r.json())
+          .then(d => {
+            const el = document.getElementById('count-' + s.key);
+            if (el) el.textContent = typeof d.count === 'number' ? d.count.toLocaleString('fr-FR') : d.count;
+          }).catch(() => {});
+      }
+    });
+  }, 400);
+
+  document.querySelectorAll('.alert-success,.alert-error').forEach(el => {
+    if (el.textContent.trim()) showToast(el.textContent.trim(), el.classList.contains('alert-success') ? 'success' : 'error');
+  });
+});
+</script>
+
+<%- include('layout_bottom') %>

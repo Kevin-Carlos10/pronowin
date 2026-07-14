@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="fr" id="login-html">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#141926">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Connexion — PronoWin Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Anti-flash thème -->
+  <script>
+    (function() {
+      var m = localStorage.getItem('pw_mode') || 'dark';
+      var a = localStorage.getItem('pw_accent') || 'orange';
+      if (m === 'light') document.getElementById('login-html').classList.add('light');
+      document.getElementById('login-html').setAttribute('data-accent', a);
+    })();
+  </script>
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    /* ── Reset page ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ── Fond animé ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 20% 10%,  rgba(var(--primary-rgb), .12) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 80% 90%,  rgba(var(--primary-rgb), .08) 0%, transparent 60%);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* ── Particules décoratives ── */
+    .login-particle {
+      position: fixed; border-radius: 50%;
+      background: var(--primary); opacity: .04;
+      pointer-events: none; z-index: 0;
+      animation: float linear infinite;
+    }
+    @keyframes float {
+      0%   { transform: translateY(100vh) scale(.5); opacity: 0; }
+      10%  { opacity: .06; }
+      90%  { opacity: .04; }
+      100% { transform: translateY(-20vh) scale(1.2); opacity: 0; }
+    }
+
+    /* ── Card ── */
+    .login-card {
+      position: relative; z-index: 1;
+      width: min(100%, 420px);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2.25rem 2rem;
+      box-shadow: 0 20px 60px rgba(0,0,0,.35), 0 0 0 1px rgba(var(--primary-rgb),.06);
+      animation: slideUp .4s cubic-bezier(.16,1,.3,1);
+    }
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px) scale(.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    .login-card.shake {
+      animation: shake .4s cubic-bezier(.36,.07,.19,.97);
+    }
+    @keyframes shake {
+      10%, 90% { transform: translateX(-3px); }
+      20%, 80% { transform: translateX(4px); }
+      30%, 50%, 70% { transform: translateX(-4px); }
+      40%, 60% { transform: translateX(4px); }
+    }
+
+    /* ── Logo ── */
+    .login-logo {
+      display: flex; align-items: center; gap: .6rem;
+      margin-bottom: 1.6rem;
+    }
+    .login-logo-icon {
+      width: 44px; height: 44px; border-radius: 12px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark, var(--primary)));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.3rem; box-shadow: 0 4px 16px rgba(var(--primary-rgb),.4);
+      flex-shrink: 0;
+    }
+    .login-logo-text h1 { font-size: 1.3rem; font-weight: 800; line-height: 1.1; }
+    .login-logo-text h1 span { color: var(--primary); }
+    .login-logo-text p { font-size: .72rem; color: var(--text-dim); margin-top: .1rem; letter-spacing: .04em; text-transform: uppercase; font-weight: 600; }
+
+    /* ── Alertes ── */
+    .login-alert {
+      border-radius: 10px; padding: .75rem 1rem;
+      font-size: .83rem; margin-bottom: 1.25rem;
+      display: flex; align-items: flex-start; gap: .5rem; line-height: 1.45;
+    }
+    .login-alert-icon { font-size: 1rem; flex-shrink: 0; margin-top: .05rem; }
+    .login-alert.error   { background: rgba(239,68,68,.1);  border: 1px solid rgba(239,68,68,.2);  color: #FCA5A5; }
+    .login-alert.warning { background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.2); color: #FCD34D; }
+    .login-alert.info    { background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.2); color: #93C5FD; }
+    .login-alert.locked  { background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.25); color: #FCA5A5; }
+
+    /* ── Compteur tentatives ── */
+    .attempts-bar {
+      margin-bottom: 1.25rem; padding: .7rem .9rem;
+      background: var(--surface-d); border-radius: 10px;
+      border: 1px solid var(--border);
+    }
+    .attempts-label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: .75rem; color: var(--text-m); margin-bottom: .45rem;
+    }
+    .attempts-label strong { color: var(--warning); font-weight: 700; }
+    .attempts-track {
+      height: 4px; background: var(--surface-h); border-radius: 99px; overflow: hidden;
+    }
+    .attempts-fill {
+      height: 100%; border-radius: 99px;
+      background: linear-gradient(90deg, var(--success), var(--warning));
+      transition: width .4s ease, background .4s;
+    }
+    .attempts-fill.danger { background: linear-gradient(90deg, var(--warning), var(--error)); }
+
+    /* ── Countdown blocage ── */
+    .lock-countdown {
+      text-align: center; padding: 1.5rem 1rem;
+      color: var(--text-dim);
+    }
+    .lock-icon { font-size: 2.5rem; margin-bottom: .5rem; }
+    .lock-timer { font-size: 2rem; font-weight: 800; color: var(--error); letter-spacing: .04em; margin: .5rem 0; font-variant-numeric: tabular-nums; }
+    .lock-msg   { font-size: .82rem; line-height: 1.5; }
+
+    /* ── Champs ── */
+    .field { margin-bottom: 1rem; }
+    .field label {
+      display: block; font-size: .74rem; font-weight: 600;
+      color: var(--text-m); letter-spacing: .04em; text-transform: uppercase; margin-bottom: .4rem;
+    }
+    .field-inner { position: relative; }
+    .field input {
+      width: 100%; padding: .75rem 1rem;
+      background: var(--surface-d); border: 1px solid var(--border);
+      border-radius: 10px; color: var(--text);
+      font-size: .95rem; font-family: inherit;
+      outline: none; transition: border-color .2s, box-shadow .2s;
+    }
+    .field input:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(var(--primary-rgb), .15);
+    }
+    .field input.has-icon { padding-right: 2.75rem; }
+    .field input::placeholder { color: var(--text-dim); }
+    .field-icon {
+      position: absolute; right: .85rem; top: 50%; transform: translateY(-50%);
+      color: var(--text-dim); cursor: pointer; font-size: .9rem;
+      background: none; border: none; padding: 0; line-height: 1;
+      transition: color .15s;
+    }
+    .field-icon:hover { color: var(--primary); }
+
+    /* ── Options ligne ── */
+    .login-options {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1.25rem; font-size: .8rem;
+    }
+    .remember-wrap { display: flex; align-items: center; gap: .4rem; cursor: pointer; color: var(--text-m); user-select: none; }
+    .remember-wrap input[type="checkbox"] { accent-color: var(--primary); width: 14px; height: 14px; cursor: pointer; }
+
+    /* ── Bouton ── */
+    .login-btn {
+      width: 100%; padding: .85rem;
+      background: var(--btn-primary); color: #fff;
+      border: none; border-radius: 11px; cursor: pointer;
+      font-size: .95rem; font-weight: 700; font-family: inherit;
+      transition: opacity .15s, transform .1s, box-shadow .15s;
+      box-shadow: 0 4px 16px rgba(var(--primary-rgb), .3);
+      display: flex; align-items: center; justify-content: center; gap: .5rem;
+    }
+    .login-btn:hover:not(:disabled) { opacity: .9; box-shadow: 0 6px 20px rgba(var(--primary-rgb), .4); }
+    .login-btn:active:not(:disabled) { transform: scale(.98); }
+    .login-btn:disabled { opacity: .6; cursor: not-allowed; }
+    .login-btn-spinner {
+      width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff; border-radius: 50%;
+      animation: spin .6s linear infinite; display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Footer ── */
+    .login-footer {
+      margin-top: 1.5rem; padding-top: 1rem;
+      border-top: 1px solid var(--border);
+      text-align: center; font-size: .75rem; color: var(--text-dim);
+      display: flex; align-items: center; justify-content: center; gap: .35rem; flex-wrap: wrap;
+    }
+    .login-footer-dot { color: var(--border); }
+
+    /* ── Mode toggle (coin) ── */
+    .login-theme-row {
+      position: absolute; top: 1rem; right: 1rem;
+      display: flex; gap: .3rem;
+    }
+    .login-theme-btn {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: var(--surface-d); border: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; font-size: .85rem; transition: background .15s;
+    }
+    .login-theme-btn:hover { background: var(--surface-h); }
+    .login-theme-btn.active { border-color: var(--primary); background: rgba(var(--primary-rgb),.1); }
+  </style>
+</head>
+<body>
+
+<!-- Particules de fond -->
+<div class="login-particle" style="left:10%;width:180px;height:180px;animation-duration:18s;animation-delay:0s"></div>
+<div class="login-particle" style="left:55%;width:120px;height:120px;animation-duration:22s;animation-delay:5s"></div>
+<div class="login-particle" style="left:80%;width:80px; height:80px; animation-duration:15s;animation-delay:9s"></div>
+<div class="login-particle" style="left:30%;width:60px; height:60px; animation-duration:20s;animation-delay:3s"></div>
+
+<div class="login-card" id="login-card">
+
+  <!-- Boutons thème -->
+  <div class="login-theme-row">
+    <button class="login-theme-btn" id="lt-dark"  onclick="setLoginMode('dark')"  title="Mode sombre">🌙</button>
+    <button class="login-theme-btn" id="lt-light" onclick="setLoginMode('light')" title="Mode clair">☀️</button>
+  </div>
+
+  <!-- Logo -->
+  <div class="login-logo">
+    <div class="login-logo-icon">⚽</div>
+    <div class="login-logo-text">
+      <h1>Prono<span>Win</span></h1>
+      <p>Panel d'administration</p>
+    </div>
+  </div>
+
+  <%
+    const _remaining      = typeof remaining !== 'undefined' ? remaining : 5;
+    const _maxAttempts    = 5;
+    const _blockedUntilMs = typeof blockedUntilMs !== 'undefined' ? blockedUntilMs : null;
+    const _isLocked       = !!locked || !!_blockedUntilMs;
+    const _isExpired      = typeof expired !== 'undefined' && expired;
+    const _username       = typeof username !== 'undefined' ? username : '';
+  %>
+
+  <!-- Alerte session expirée -->
+  <% if (_isExpired && !_isLocked && !error) { %>
+  <div class="login-alert info">
+    <span class="login-alert-icon">⏰</span>
+    <span>Votre session a expiré. Reconnectez-vous pour continuer.</span>
+  </div>
+  <% } %>
+
+  <!-- Alerte erreur identifiants -->
+  <% if (error && !_isLocked) { %>
+  <div class="login-alert error" id="login-error-box">
+    <span class="login-alert-icon">⚠️</span>
+    <div>
+      <%= error %>
+      <% if (_remaining > 0 && _remaining <= 3) { %>
+      <div style="margin-top:.3rem;font-size:.78rem;opacity:.85">
+        ⚡ Il vous reste <strong><%= _remaining %> tentative<%= _remaining > 1 ? 's' : '' %></strong> avant blocage temporaire.
+      </div>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+
+  <!-- Barre visuelle des tentatives (si < max et erreur) -->
+  <% if (error && !_isLocked && _remaining <= 3 && _remaining > 0) { %>
+  <div class="attempts-bar">
+    <div class="attempts-label">
+      <span>Tentatives restantes</span>
+      <strong><%= _remaining %> / <%= _maxAttempts %></strong>
+    </div>
+    <div class="attempts-track">
+      <div class="attempts-fill <%= _remaining <= 1 ? 'danger' : '' %>"
+           style="width:<%= Math.round((_remaining / _maxAttempts) * 100) %>%"></div>
+    </div>
+  </div>
+  <% } %>
+
+  <!-- État bloqué : countdown -->
+  <% if (_isLocked) { %>
+  <div class="login-alert locked">
+    <span class="login-alert-icon">🔒</span>
+    <div>Trop de tentatives échouées. Accès temporairement bloqué.</div>
+  </div>
+  <div class="lock-countdown">
+    <div class="lock-icon">🔐</div>
+    <div class="lock-timer" id="lock-timer">—:——</div>
+    <div class="lock-msg">Réessayez une fois le compte débloqué.<br><small style="opacity:.7">Le blocage se lève automatiquement.</small></div>
+  </div>
+  <% } %>
+
+  <!-- Formulaire (masqué si bloqué) -->
+  <% if (!_isLocked) { %>
+  <form method="POST" action="/admin/login" id="login-form" autocomplete="on">
+
+    <div class="field">
+      <label for="username">Identifiant</label>
+      <div class="field-inner">
+        <input type="text" id="username" name="username"
+               value="<%= _username %>"
+               placeholder="admin ou sous-admin"
+               required autofocus autocomplete="username"
+               class="has-icon">
+        <span class="field-icon">👤</span>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="password">Mot de passe</label>
+      <div class="field-inner">
+        <input type="password" id="password" name="password"
+               placeholder="••••••••"
+               required autocomplete="current-password"
+               class="has-icon">
+        <button type="button" class="field-icon" id="pwd-toggle" title="Afficher / masquer" onclick="togglePwd()" tabindex="-1">
+          👁
+        </button>
+      </div>
+    </div>
+
+    <div class="login-options">
+      <label class="remember-wrap">
+        <input type="checkbox" name="remember" value="1"> Se souvenir de moi (30 j)
+      </label>
+    </div>
+
+    <button type="submit" class="login-btn" id="submit-btn">
+      <span class="login-btn-spinner" id="btn-spinner"></span>
+      <span id="btn-label">Se connecter →</span>
+    </button>
+
+  </form>
+  <% } %>
+
+  <div class="login-footer">
+    <span>PronoWin Admin</span>
+    <span class="login-footer-dot">·</span>
+    <span>Accès réservé</span>
+    <span class="login-footer-dot">·</span>
+    <span id="footer-time"></span>
+  </div>
+</div>
+
+<script>
+/* ── Thème ── */
+function setLoginMode(mode) {
+  const h = document.getElementById('login-html');
+  if (mode === 'light') h.classList.add('light'); else h.classList.remove('light');
+  localStorage.setItem('pw_mode', mode);
+  _updateModeBtn(mode);
+}
+function _updateModeBtn(mode) {
+  document.getElementById('lt-dark') ?.classList.toggle('active', mode === 'dark');
+  document.getElementById('lt-light')?.classList.toggle('active', mode === 'light');
+}
+_updateModeBtn(localStorage.getItem('pw_mode') || 'dark');
+
+/* ── Toggle mot de passe ── */
+function togglePwd() {
+  const inp = document.getElementById('password');
+  const btn = document.getElementById('pwd-toggle');
+  if (!inp) return;
+  const shown = inp.type === 'text';
+  inp.type = shown ? 'password' : 'text';
+  btn.textContent = shown ? '👁' : '🙈';
+}
+
+/* ── Soumission avec feedback ── */
+const form      = document.getElementById('login-form');
+const submitBtn = document.getElementById('submit-btn');
+const spinner   = document.getElementById('btn-spinner');
+const btnLabel  = document.getElementById('btn-label');
+if (form) {
+  form.addEventListener('submit', function() {
+    if (submitBtn) {
+      submitBtn.disabled    = true;
+      spinner.style.display = 'block';
+      btnLabel.textContent  = 'Connexion…';
+    }
+  });
+}
+
+/* ── Shake sur erreur ── */
+<% if (error && !_isLocked) { %>
+(function() {
+  const card = document.getElementById('login-card');
+  if (card) {
+    card.classList.add('shake');
+    card.addEventListener('animationend', () => card.classList.remove('shake'), { once: true });
+  }
+})();
+<% } %>
+
+/* ── Countdown blocage ── */
+<% if (_isLocked && _blockedUntilMs) { %>
+(function() {
+  const el  = document.getElementById('lock-timer');
+  const end = <%= _blockedUntilMs %>;
+  function tick() {
+    const left = Math.max(0, end - Date.now());
+    if (left === 0) { if (el) el.textContent = '00:00'; setTimeout(() => location.reload(), 800); return; }
+    const m = String(Math.floor(left / 60000)).padStart(2, '0');
+    const s = String(Math.floor((left % 60000) / 1000)).padStart(2, '0');
+    if (el) el.textContent = m + ':' + s;
+    setTimeout(tick, 1000);
+  }
+  tick();
+})();
+<% } else if (_isLocked) { %>
+(function() {
+  const el = document.getElementById('lock-timer');
+  if (el) el.textContent = '15:00';
+})();
+<% } %>
+
+/* ── Horloge footer ── */
+(function() {
+  const el = document.getElementById('footer-time');
+  function tick() {
+    if (el) el.textContent = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+    setTimeout(tick, 1000);
+  }
+  tick();
+})();
+</script>
+</body>
+</html>

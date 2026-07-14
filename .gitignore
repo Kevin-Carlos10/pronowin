@@ -1,0 +1,66 @@
+# ── Secrets — NE JAMAIS COMMITTER ────────────────────────────────────────────
+.env
+.env.local
+.env.*.local
+backend/.env
+admin-web/.env
+mobile_new/.env
+*.pem
+*.key
+*.p12
+*.jks
+*.keystore
+google-services.json
+GoogleService-Info.plist
+mobile_new/android/app/google-services.json
+mobile_new/ios/Runner/GoogleService-Info.plist
+
+# ── Node ──────────────────────────────────────────────────────────────────────
+node_modules/
+backend/node_modules/
+admin-web/node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ── Build / Generated ────────────────────────────────────────────────────────
+backend/dist/
+admin-web/dist/
+backend/generated/
+backend/prisma/migrations/
+
+# ── Flutter ───────────────────────────────────────────────────────────────────
+mobile_new/.dart_tool/
+mobile_new/.flutter-plugins
+mobile_new/.flutter-plugins-dependencies
+mobile_new/build/
+mobile_new/.packages
+mobile_new/pubspec.lock
+mobile_new/ios/Pods/
+mobile_new/ios/.symlinks/
+mobile_new/ios/Flutter/Flutter.framework
+mobile_new/ios/Flutter/Flutter.podspec
+mobile_new/android/.gradle/
+mobile_new/android/app/debug/
+mobile_new/android/app/release/
+mobile_new/android/app/profile/
+mobile_new/android/local.properties
+mobile_new/android/key.properties
+
+# ── Data sensibles (admin local) ─────────────────────────────────────────────
+admin-web/data/sub_admins.json
+admin-web/data/bans.json
+admin-web/data/logs/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+desktop.ini
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.swp
+*.swo

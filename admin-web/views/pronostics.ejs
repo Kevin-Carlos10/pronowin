@@ -1,0 +1,314 @@
+<%- include('layout_top', {page:'pronostics'}) %>
+
+<style>
+/* ── Stats ─────────────────────────────────────────────────────────────────── */
+.pro-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:.7rem; margin-bottom:1.1rem; }
+.pro-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.8rem 1rem; }
+.pro-stat .v  { font-size:1.4rem; font-weight:800; line-height:1; margin-bottom:.2rem; }
+.pro-stat .l  { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+.pro-stat.blue   .v { color:var(--info); }
+.pro-stat.green  .v { color:var(--success); }
+.pro-stat.orange .v { color:var(--warning); }
+.pro-stat.dim    .v { color:var(--text-m); }
+
+/* ── Filtre bar ─────────────────────────────────────────────────────────────── */
+.pro-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.pro-filter select, .pro-filter input {
+  background:var(--surface-d); border:1px solid var(--border);
+  border-radius:var(--radius-s); padding:.45rem .75rem;
+  color:var(--text); font-size:.83rem; font-family:inherit;
+  outline:none; transition:border-color .15s;
+}
+.pro-filter select:focus, .pro-filter input:focus { border-color:var(--primary); }
+
+/* ── Match cards ─────────────────────────────────────────────────────────────── */
+.pro-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:.9rem; }
+@media(max-width:680px){ .pro-grid { grid-template-columns:1fr; } }
+
+.pro-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); overflow:hidden;
+  transition:box-shadow var(--transition), border-color var(--transition);
+  display:flex; flex-direction:column;
+}
+.pro-card:hover { box-shadow:var(--shadow-lg); border-color:var(--primary); }
+.pro-card.published  { border-left:3px solid var(--success); }
+.pro-card.draft      { border-left:3px solid var(--warning); }
+.pro-card.none       { border-left:3px solid var(--border); }
+.pro-card.live-match { border:1.5px solid var(--error); box-shadow:0 0 0 2px color-mix(in srgb,var(--error) 12%,transparent); }
+
+.pro-card-head {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.6rem .9rem; border-bottom:1px solid var(--border);
+  gap:.5rem;
+}
+.pro-league { display:flex; align-items:center; gap:.35rem; font-size:.72rem; color:var(--text-m); font-weight:600; }
+.pro-league img { width:16px; height:16px; object-fit:contain; }
+.pro-date { font-size:.72rem; color:var(--text-dim); white-space:nowrap; }
+
+.pro-card-body { padding:.85rem .9rem; flex:1; }
+.pro-vs {
+  display:flex; align-items:center; justify-content:center;
+  gap:.75rem; text-align:center;
+}
+.pro-team { flex:1; display:flex; flex-direction:column; align-items:center; gap:.35rem; }
+.pro-team img { width:40px; height:40px; border-radius:50%; object-fit:contain; background:var(--surface-d); }
+.pro-team .team-initial {
+  width:40px; height:40px; border-radius:50%; background:var(--surface-d);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:800; font-size:1rem; color:var(--text-m);
+}
+.pro-team .name { font-size:.8rem; font-weight:700; line-height:1.2; }
+.pro-vs-sep { font-size:1rem; font-weight:800; color:var(--text-dim); flex-shrink:0; }
+
+.pro-tip { margin-top:.75rem; padding:.5rem .7rem; background:var(--surface-d); border-radius:var(--radius-s); font-size:.78rem; }
+.pro-tip .label { color:var(--text-dim); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; margin-bottom:.2rem; }
+.pro-tip .val { font-weight:700; color:var(--text); }
+.pro-tip .conf { float:right; color:var(--warning); letter-spacing:.05em; }
+
+.pro-card-foot {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.6rem .9rem; border-top:1px solid var(--border);
+  gap:.5rem; flex-wrap:wrap;
+}
+
+/* ── Countdown badge ────────────────────────────────────────────────────────── */
+.pro-countdown { font-size:.7rem; color:var(--text-dim); }
+.pro-countdown.soon { color:var(--warning); font-weight:700; }
+.pro-countdown.live { color:var(--error); font-weight:700; animation:pulse-live 1.5s ease-in-out infinite; }
+</style>
+
+<%
+  const _total     = matches.length;
+  const _published = matches.filter(m => m.is_published).length;
+  const _drafts    = matches.filter(m => m.has_pronostic && !m.is_published).length;
+  const _none      = matches.filter(m => !m.has_pronostic).length;
+
+  // statusFilter est injecté par le serveur depuis req.query.status
+  const _statusFilter = (typeof statusFilter !== 'undefined' ? statusFilter : '') || '';
+  function matchesStatus(m) {
+    if (!_statusFilter) return true;
+    if (_statusFilter === 'published') return m.is_published;
+    if (_statusFilter === 'draft')     return m.has_pronostic && !m.is_published;
+    if (_statusFilter === 'none')      return !m.has_pronostic;
+    return true;
+  }
+  const visibleMatches = matches.filter(matchesStatus);
+%>
+
+<div class="topbar">
+  <div>
+    <h2>⚽ Pronostics</h2>
+    <small><%= _total %> match<%= _total!==1?'s':'' %> · Football-Data.org</small>
+  </div>
+  <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+    <a href="/admin/pronostics/export<%= competition ? '?competition='+competition : '' %>"
+       class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)">⬇️ Export CSV</a>
+  </div>
+</div>
+
+<% if(typeof success !== 'undefined' && success){ %>
+<div class="alert alert-success" style="display:none" id="flash-success">✅ Pronostic publié avec succès !</div>
+<% } %>
+<% if(typeof error !== 'undefined' && error){ %>
+<div class="alert alert-error">
+  <strong>❌ Erreur Football-Data.org</strong> — <%= error %>
+  <% if(error.includes('email') || error.includes('vérifié')){ %>
+  <br><small>👉 Vérifiez l'email reçu de football-data.org et cliquez sur le lien de confirmation.</small>
+  <% } else if(error.includes('clé') || error.includes('API')){ %>
+  <br><small>👉 Vérifiez <code>FOOTBALL_DATA_API_KEY</code> dans le fichier <code>.env</code>.</small>
+  <% } %>
+</div>
+<% } %>
+
+<!-- ── Stats ─────────────────────────────────────────────────────────────────── -->
+<div class="pro-stats">
+  <div class="pro-stat blue"><div class="v"><%= _total %></div><div class="l">Matchs</div></div>
+  <div class="pro-stat green"><div class="v"><%= _published %></div><div class="l">Publiés</div></div>
+  <div class="pro-stat orange"><div class="v"><%= _drafts %></div><div class="l">Brouillons</div></div>
+  <div class="pro-stat dim"><div class="v"><%= _none %></div><div class="l">Sans prono</div></div>
+</div>
+
+<!-- ── Filtres ────────────────────────────────────────────────────────────────── -->
+<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem">
+  <form method="GET" action="/admin/pronostics" class="pro-filter">
+    <select name="competition" onchange="this.form.submit()">
+      <option value="">🌐 Toutes les ligues</option>
+      <option value="WC"  <%= competition==='WC'  ?'selected':'' %>>🌍 Coupe du Monde 2026</option>
+      <option value="PL"  <%= competition==='PL'  ?'selected':'' %>>🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</option>
+      <option value="FL1" <%= competition==='FL1' ?'selected':'' %>>🇫🇷 Ligue 1</option>
+      <option value="PD"  <%= competition==='PD'  ?'selected':'' %>>🇪🇸 La Liga</option>
+      <option value="SA"  <%= competition==='SA'  ?'selected':'' %>>🇮🇹 Serie A</option>
+      <option value="BL1" <%= competition==='BL1' ?'selected':'' %>>🇩🇪 Bundesliga</option>
+      <option value="CL"  <%= competition==='CL'  ?'selected':'' %>>🌍 Champions League</option>
+    </select>
+    <select name="status" onchange="this.form.submit()">
+      <option value="">Tous statuts</option>
+      <option value="published" <%= _statusFilter==='published'?'selected':'' %>>✅ Publiés</option>
+      <option value="draft"     <%= _statusFilter==='draft'    ?'selected':'' %>>✏️ Brouillons</option>
+      <option value="none"      <%= _statusFilter==='none'     ?'selected':'' %>>— Sans prono</option>
+    </select>
+    <% if(competition || _statusFilter) { %>
+    <a href="/admin/pronostics" class="btn btn-outline btn-sm">✕ Reset</a>
+    <% } %>
+    <span style="margin-left:auto;font-size:.78rem;color:var(--text-dim)"><%= visibleMatches.length %> affiché<%= visibleMatches.length!==1?'s':'' %></span>
+  </form>
+</div>
+
+<!-- ── Grille des matchs ──────────────────────────────────────────────────────── -->
+<% if(visibleMatches.length === 0) { %>
+<div class="empty-state card">
+  <div style="font-size:2.5rem;margin-bottom:.5rem"><%= _total === 0 ? '⏳' : '🔍' %></div>
+  <p><%= _total === 0 ? 'Aucun match programmé cette semaine pour cette ligue.' : 'Aucun match ne correspond aux filtres.' %></p>
+  <% if(competition || _statusFilter) { %>
+  <a href="/admin/pronostics" class="btn btn-outline" style="margin-top:.75rem">Voir tous les matchs</a>
+  <% } %>
+</div>
+<% } else { %>
+<div class="pro-grid">
+<% visibleMatches.forEach(m => {
+     const d = new Date(m.matchDate);
+     const now = Date.now();
+     const diffMin = Math.floor((d.getTime() - now) / 60000);
+     const dateStr = d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}) + ' · ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+     const isLive = m.status === 'LIVE' || (diffMin < 0 && diffMin > -120);
+     const cardClass = (isLive ? 'live-match ' : '') + (m.is_published ? 'published' : m.has_pronostic ? 'draft' : 'none');
+     const homeInitial = (m.homeTeam||'?')[0].toUpperCase();
+     const awayInitial = (m.awayTeam||'?')[0].toUpperCase();
+     const stars = m.pronostic?.confidence_score ?? 0;
+     const starsStr = '★'.repeat(stars) + '☆'.repeat(5-stars);
+     let countdownClass = 'pro-countdown', countdownStr = dateStr;
+     if (isLive) { countdownClass += ' live'; countdownStr = '🔴 EN DIRECT'; }
+     else if (diffMin >= 0 && diffMin < 120) { countdownClass += ' soon'; countdownStr = `⚡ Dans ${diffMin}min`; }
+%>
+<div class="pro-card <%= cardClass %>">
+
+  <!-- Head : ligue + date -->
+  <div class="pro-card-head">
+    <div class="pro-league">
+      <% if(m.leagueLogo){ %><img src="<%= m.leagueLogo %>" onerror="this.style.display='none'"><% } %>
+      <span class="badge badge-info" style="font-size:.65rem"><%= m.league %></span>
+    </div>
+    <div class="<%= countdownClass %>"><%= countdownStr %></div>
+  </div>
+
+  <!-- Corps : équipes -->
+  <div class="pro-card-body">
+    <div class="pro-vs">
+      <div class="pro-team">
+        <% if(m.homeTeamLogo) { %>
+          <img src="<%= m.homeTeamLogo %>" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="team-initial" style="display:none"><%= homeInitial %></div>
+        <% } else { %>
+          <div class="team-initial"><%= homeInitial %></div>
+        <% } %>
+        <span class="name"><%= m.homeTeam %></span>
+      </div>
+      <div class="pro-vs-sep">
+        <% if(isLive && m.homeScore != null && m.awayScore != null) { %>
+          <span style="color:var(--error);font-size:1.1rem;font-weight:900"><%= m.homeScore %> - <%= m.awayScore %></span>
+        <% } else { %>VS<% } %>
+      </div>
+      <div class="pro-team">
+        <% if(m.awayTeamLogo) { %>
+          <img src="<%= m.awayTeamLogo %>" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="team-initial" style="display:none"><%= awayInitial %></div>
+        <% } else { %>
+          <div class="team-initial"><%= awayInitial %></div>
+        <% } %>
+        <span class="name"><%= m.awayTeam %></span>
+      </div>
+    </div>
+
+    <!-- Tip si existant -->
+    <% if(m.has_pronostic && m.pronostic) { %>
+    <div class="pro-tip">
+      <div class="label">Pronostic <% if(m.pronostic.is_premium){ %><span style="color:var(--warning)">👑 VIP</span><% } %>
+        <span class="conf" title="Confiance"><%= starsStr %></span>
+      </div>
+      <div class="val"><%= m.pronostic.prediction_label || m.pronostic.tip || '—' %></div>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- Pied : statut + boutons -->
+  <div class="pro-card-foot">
+    <% if(m.is_published) { %>
+      <span class="badge badge-ok">✅ Publié</span>
+    <% } else if(m.has_pronostic) { %>
+      <span class="badge badge-warn">✏️ Brouillon</span>
+    <% } else { %>
+      <span class="badge" style="background:var(--surface-d);color:var(--text-dim)">— Sans prono</span>
+    <% } %>
+    <div style="display:flex;gap:.35rem;align-items:center;margin-left:auto">
+      <% if(m.has_pronostic && m.pronostic) { %>
+        <button class="btn btn-sm force-result-btn"
+          style="background:color-mix(in srgb,var(--success) 15%,transparent);color:var(--success);border:1px solid color-mix(in srgb,var(--success) 35%,transparent);font-size:.72rem;padding:.3rem .6rem"
+          data-id="<%= m.pronostic.id %>" data-result="WIN"
+          title="Forcer le résultat à GAGNANT">✅ WIN</button>
+        <button class="btn btn-sm force-result-btn"
+          style="background:color-mix(in srgb,var(--error) 15%,transparent);color:var(--error);border:1px solid color-mix(in srgb,var(--error) 35%,transparent);font-size:.72rem;padding:.3rem .6rem"
+          data-id="<%= m.pronostic.id %>" data-result="LOSS"
+          title="Forcer le résultat à PERDANT">❌ LOSS</button>
+      <% } %>
+      <a href="/admin/pronostics/edit/<%= m.id %>" class="btn btn-primary btn-sm">
+        <%= m.has_pronostic ? '✏️ Modifier' : '+ Créer' %>
+      </a>
+    </div>
+  </div>
+</div>
+<% }) %>
+</div>
+<% } %>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  const flash = document.getElementById('flash-success');
+  if (flash && typeof showToast === 'function') {
+    showToast('✅ Pronostic publié avec succès !', 'success');
+  }
+
+  // ── Forcer le résultat WIN / LOSS ──────────────────────────────────────────
+  document.querySelectorAll('.force-result-btn').forEach(btn => {
+    btn.addEventListener('click', async function() {
+      const id     = this.dataset.id;
+      const result = this.dataset.result;
+      const label  = result === 'WIN' ? '✅ GAGNANT' : '❌ PERDANT';
+      if (!confirm(`Forcer ce pronostic comme ${label} ?\n\nTous les paris en attente seront réglés automatiquement.`)) return;
+
+      this.disabled = true;
+      this.textContent = '⏳';
+      try {
+        const res = await fetch(`/admin/pronostics/force-result/${id}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({ result }),
+        });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.message || `Erreur ${res.status}`);
+        }
+        if (typeof showToast === 'function') {
+          showToast(`Pronostic forcé ${label} — paris réglés.`, 'success');
+        } else {
+          alert(`Pronostic forcé ${label} — paris réglés.`);
+        }
+        // Mettre à jour visuellement le bouton
+        this.textContent = result === 'WIN' ? '✅ WIN' : '❌ LOSS';
+        this.disabled = false;
+      } catch(e) {
+        if (typeof showToast === 'function') {
+          showToast('Erreur : ' + e.message, 'error');
+        } else {
+          alert('Erreur : ' + e.message);
+        }
+        this.textContent = result === 'WIN' ? '✅ WIN' : '❌ LOSS';
+        this.disabled = false;
+      }
+    });
+  });
+});
+</script>
+
+<%- include('layout_bottom') %>

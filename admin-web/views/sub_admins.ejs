@@ -1,0 +1,472 @@
+<%- include('layout_top', { page: 'sub-admins' }) %>
+
+<style>
+/* ── Stats ─────────────────────────────────────────────────────────────────── */
+.sa-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:.7rem; margin-bottom:1.1rem; }
+.sa-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.8rem 1rem; }
+.sa-stat .v { font-size:1.35rem; font-weight:800; line-height:1; margin-bottom:.2rem; }
+.sa-stat .l { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+.sa-stat.green  .v { color:var(--success); }
+.sa-stat.red    .v { color:var(--error); }
+.sa-stat.blue   .v { color:var(--info); }
+
+/* ── Cards ──────────────────────────────────────────────────────────────────── */
+.sa-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:1rem; margin-bottom:1.25rem; }
+@media(max-width:700px){ .sa-grid { grid-template-columns:1fr; } }
+
+.sa-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; transition:box-shadow var(--transition); }
+.sa-card:hover { box-shadow:var(--shadow-lg); }
+.sa-card.inactive { opacity:.7; border-style:dashed; }
+
+.sa-card-head { display:flex; align-items:center; gap:.85rem; padding:.9rem 1rem; border-bottom:1px solid var(--border); }
+.sa-avatar { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:800; flex-shrink:0; }
+.sa-avatar.active   { background:rgba(59,130,246,.12); color:var(--info); }
+.sa-avatar.inactive { background:var(--surface-d); color:var(--text-dim); }
+.sa-head-info { flex:1; min-width:0; }
+.sa-name     { font-size:.95rem; font-weight:700; }
+.sa-username { font-size:.75rem; color:var(--text-m); font-family:monospace; margin-top:.1rem; }
+.sa-status   { display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; margin-top:.35rem; }
+
+.sa-card-body { padding:.9rem 1rem; }
+.sa-section-title { font-size:.68rem; text-transform:uppercase; letter-spacing:.07em; color:var(--text-dim); font-weight:700; margin-bottom:.5rem; }
+
+/* ── Permissions badges ──────────────────────────────────────────────────────── */
+.perm-badge       { display:inline-flex; align-items:center; gap:.25rem; font-size:.68rem; padding:.15rem .45rem; border-radius:99px; font-weight:600; margin:.1rem; }
+.perm-badge.read  { background:rgba(59,130,246,.12); color:var(--info); }
+.perm-badge.write { background:rgba(245,158,11,.12);  color:var(--warning); }
+.perm-badge.delete{ background:rgba(239,68,68,.12);   color:var(--error); }
+.perm-badge-none  { color:var(--text-dim); font-style:italic; font-size:.8rem; }
+
+/* ── Activité mini timeline ──────────────────────────────────────────────────── */
+.sa-timeline { display:flex; flex-direction:column; gap:.35rem; }
+.sa-tl-item  { display:flex; align-items:flex-start; gap:.5rem; font-size:.75rem; }
+.sa-tl-dot   { width:6px; height:6px; border-radius:50%; background:var(--border); flex-shrink:0; margin-top:5px; }
+.sa-tl-item.recent .sa-tl-dot { background:var(--primary); }
+.sa-tl-text  { color:var(--text-m); line-height:1.4; }
+.sa-tl-time  { color:var(--text-dim); font-size:.68rem; white-space:nowrap; margin-left:auto; padding-left:.4rem; }
+
+.sa-last-login { font-size:.75rem; color:var(--text-dim); margin-top:.35rem; }
+.sa-last-login.recent { color:var(--success); }
+.sa-last-login.old    { color:var(--warning); }
+
+/* ── Actions ──────────────────────────────────────────────────────────────────── */
+.sa-card-foot { display:flex; flex-wrap:wrap; gap:.4rem; padding:.75rem 1rem; border-top:1px solid var(--border); background:var(--surface-d); }
+
+/* ── Grille permissions 3 niveaux ── */
+.perm-table-wrap  { overflow-x:auto; margin-top:.75rem; }
+.perm-table       { width:100%; border-collapse:collapse; }
+.perm-table th    { padding:.5rem .75rem; font-size:.7rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.05em; font-weight:700; border-bottom:1px solid var(--border); text-align:center; }
+.perm-table th:first-child { text-align:left; }
+.perm-table td    { padding:.55rem .75rem; border-bottom:1px solid var(--border); font-size:.85rem; vertical-align:middle; }
+.perm-table tr:last-child td { border-bottom:none; }
+.perm-table tr:hover td { background:var(--surface-d); }
+.perm-table td:not(:first-child) { text-align:center; }
+.perm-key-label   { font-weight:600; color:var(--text); }
+.perm-key-desc    { font-size:.72rem; color:var(--text-dim); margin-top:1px; }
+.perm-cb          { width:17px; height:17px; accent-color:var(--btn-primary); cursor:pointer; }
+.perm-cb:disabled { opacity:.3; cursor:not-allowed; }
+.perm-level-head  { min-width:90px; }
+.lvl-read   { color:var(--info); }
+.lvl-write  { color:var(--warning); }
+.lvl-delete { color:var(--error); }
+.perm-quick-btn   { font-size:.65rem; padding:.15rem .4rem; border-radius:4px; border:1px solid var(--border); background:none; color:var(--text-dim); cursor:pointer; }
+.perm-quick-btn:hover { background:var(--surface-h); color:var(--text); }
+
+/* ── Modal ──────────────────────────────────────────────────────────────────── */
+.modal-overlay  { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); z-index:300; align-items:center; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal-box      { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.75rem; width:min(96vw,640px); max-height:90vh; overflow-y:auto; animation:confirmIn .2s ease; }
+.modal-box h3   { font-size:1.05rem; font-weight:700; margin-bottom:1.25rem; }
+.modal-actions  { display:flex; gap:.75rem; justify-content:flex-end; margin-top:1.5rem; }
+
+/* ── Formulaire création ──────────────────────────────────────────────────────── */
+.sa-create { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.5rem; margin-bottom:1.25rem; }
+.sa-create h2 { font-size:1rem; font-weight:700; margin-bottom:1.1rem; }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+@media(max-width:560px){ .form-row { grid-template-columns:1fr; } }
+
+/* ── Pwd strength ──────────────────────────────────────────────────────────────── */
+.pwd-strength { height:4px; border-radius:2px; margin-top:.4rem; background:var(--border); overflow:hidden; }
+.pwd-strength-bar { height:100%; border-radius:2px; width:0; transition:width .3s, background .3s; }
+.pwd-strength-label { font-size:.68rem; color:var(--text-dim); margin-top:.25rem; }
+</style>
+
+<%
+  const _total    = subs.length;
+  const _active   = subs.filter(s => s.isActive).length;
+  const _inactive = _total - _active;
+
+  function relTime(isoStr) {
+    if (!isoStr) return null;
+    const diff = Date.now() - new Date(isoStr).getTime();
+    const m = Math.floor(diff / 60000);
+    if (m < 2)    return 'À l\'instant';
+    if (m < 60)   return `Il y a ${m} min`;
+    const h = Math.floor(m / 60);
+    if (h < 24)   return `Il y a ${h}h`;
+    const d = Math.floor(h / 24);
+    if (d < 30)   return `Il y a ${d}j`;
+    return new Date(isoStr).toLocaleDateString('fr-FR', {day:'numeric', month:'short'});
+  }
+
+  function getLevelFromArray(perms, key) {
+    for (const p of perms || []) {
+      if (typeof p !== 'string') continue;
+      const [k, l] = p.split(':');
+      if (k === key && ['read','write','delete'].includes(l)) return l;
+    }
+    if ((perms||[]).includes(key)) return 'write';
+    return null;
+  }
+
+  const ACTION_LABELS = {
+    login:'🔐 Connexion', sub_admin_created:'👤 Sous-admin créé', sub_admin_perms_updated:'✏️ Perms modifiées',
+    sub_admin_pwd_changed:'🔑 MDP changé', sub_admin_toggled:'⏯ Statut modifié', sub_admin_deleted:'🗑 Suppression',
+    user_banned:'🚫 Bannissement', user_unbanned:'🔓 Débannissement', pronostic_published:'⚽ Pronostic publié',
+    transaction_approved:'✅ TX approuvée', transaction_rejected:'❌ TX rejetée',
+  };
+%>
+
+<div class="topbar">
+  <div>
+    <h2>🔐 Sous-administrateurs</h2>
+    <small>Comptes avec permissions granulaires (Lire · Écrire · Supprimer)</small>
+  </div>
+  <button class="btn btn-primary btn-sm" onclick="document.getElementById('create-section').scrollIntoView({behavior:'smooth'})">
+    ➕ Nouveau sous-admin
+  </button>
+</div>
+
+<% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
+<% if (error)   { %><div class="alert alert-error"   style="display:none"><%= error %></div><% } %>
+
+<!-- ── Stats ────────────────────────────────────────────────────────────────── -->
+<div class="sa-stats">
+  <div class="sa-stat blue"><div class="v"><%= _total %></div><div class="l">Total</div></div>
+  <div class="sa-stat green"><div class="v"><%= _active %></div><div class="l">Actifs</div></div>
+  <div class="sa-stat red"><div class="v"><%= _inactive %></div><div class="l">Inactifs</div></div>
+  <div class="sa-stat"><div class="v" style="color:var(--primary)"><%= PERMISSIONS.length %></div><div class="l">Modules</div></div>
+</div>
+
+<!-- ── Grille sous-admins ────────────────────────────────────────────────────── -->
+<% if (subs.length > 0) { %>
+<div class="sa-grid">
+<% subs.forEach(sub => {
+     const perms = sub.permissions || [];
+     const hasAny = PERMISSIONS.some(p => getLevelFromArray(perms, p.key));
+     const initial = (sub.name || '?')[0].toUpperCase();
+     const isActive = sub.isActive;
+     const lastLogin = relTime(sub.lastLoginAt);
+     const loginAge = sub.lastLoginAt ? (Date.now() - new Date(sub.lastLoginAt).getTime()) : Infinity;
+     const loginClass = loginAge < 3600000*24 ? 'recent' : loginAge < 3600000*24*7 ? '' : 'old';
+     const subLogs = (typeof recentLogsBySub !== 'undefined' && recentLogsBySub[sub.name]) ? recentLogsBySub[sub.name] : [];
+%>
+<div class="sa-card <%= isActive ? '' : 'inactive' %>">
+
+  <!-- Head -->
+  <div class="sa-card-head">
+    <div class="sa-avatar <%= isActive ? 'active' : 'inactive' %>"><%= initial %></div>
+    <div class="sa-head-info">
+      <div class="sa-name"><%= sub.name %></div>
+      <div class="sa-username">@<%= sub.username %></div>
+      <div class="sa-status">
+        <% if (isActive) { %>
+        <span class="badge badge-ok">✓ Actif</span>
+        <% } else { %>
+        <span class="badge badge-err">✗ Inactif</span>
+        <% } %>
+        <% if (sub.createdAt) { %>
+        <span style="font-size:.68rem;color:var(--text-dim)">Créé <%= relTime(sub.createdAt) %></span>
+        <% } %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Corps -->
+  <div class="sa-card-body">
+
+    <!-- Permissions -->
+    <div class="sa-section-title">Permissions</div>
+    <div style="margin-bottom:.85rem">
+      <% if (!hasAny) { %>
+      <span class="perm-badge-none">Aucune permission accordée</span>
+      <% } else { %>
+      <% PERMISSIONS.forEach(p => {
+           const lvl = getLevelFromArray(perms, p.key);
+           if (!lvl) return;
+           const icon = lvl==='delete'?'🗑':lvl==='write'?'✏️':'👁';
+      %><span class="perm-badge <%= lvl %>"><%= icon %> <%= p.label.replace(/^\S+\s/,'') %></span><% }); %>
+      <% } %>
+    </div>
+
+    <!-- Dernière connexion -->
+    <div class="sa-last-login <%= loginClass %>">
+      🕐 <%= lastLogin ? 'Dernière connexion : ' + lastLogin : 'Jamais connecté' %>
+    </div>
+
+    <!-- Activité récente -->
+    <% if (subLogs.length > 0) { %>
+    <div style="margin-top:.75rem">
+      <div class="sa-section-title">Activité récente</div>
+      <div class="sa-timeline">
+      <% subLogs.forEach((log, i) => { %>
+        <div class="sa-tl-item <%= i === 0 ? 'recent' : '' %>">
+          <div class="sa-tl-dot"></div>
+          <div class="sa-tl-text"><%= ACTION_LABELS[log.action] || log.action %><% if(log.target){%> · <em style="color:var(--text-dim)"><%= log.target.length>24 ? log.target.slice(0,24)+'…' : log.target %></em><% } %></div>
+          <div class="sa-tl-time"><%= relTime(log.timestamp) %></div>
+        </div>
+      <% }) %>
+      </div>
+    </div>
+    <% } %>
+
+  </div>
+
+  <!-- Actions -->
+  <div class="sa-card-foot">
+    <button class="btn btn-sm btn-outline" onclick="openEditPerms('<%= sub.id %>','<%= sub.name %>')" title="Modifier les permissions">✏️ Permissions</button>
+    <button class="btn btn-sm btn-outline" onclick="openChangePwd('<%= sub.id %>','<%= sub.name %>')" title="Changer le mot de passe">🔑 Mot de passe</button>
+    <form method="POST" action="/admin/sub-admins/<%= sub.id %>/toggle" style="margin:0;">
+      <button class="btn btn-sm <%= isActive ? 'btn-warning' : 'btn-success' %>" type="submit">
+        <%= isActive ? '⏸ Désactiver' : '▶️ Activer' %>
+      </button>
+    </form>
+    <button class="btn btn-sm btn-danger" onclick="confirmDelete('<%= sub.id %>','<%= sub.name %>')" style="margin-left:auto">🗑</button>
+  </div>
+
+</div>
+<% }) %>
+</div>
+<% } else { %>
+<div class="empty-state card" style="margin-bottom:1.25rem">
+  <div style="font-size:2.5rem;margin-bottom:.5rem">👤</div>
+  <p>Aucun sous-admin créé pour l'instant.</p>
+</div>
+<% } %>
+
+<!-- ── Formulaire de création ────────────────────────────────────────────────── -->
+<div class="sa-create" id="create-section">
+  <h2>➕ Nouveau sous-admin</h2>
+  <form method="POST" action="/admin/sub-admins" id="create-form">
+    <div class="form-row" style="margin-bottom:.85rem">
+      <div class="form-group" style="margin:0">
+        <label>Nom affiché</label>
+        <input class="input" type="text" name="name" placeholder="Ex : Jean Martin" required maxlength="60">
+      </div>
+      <div class="form-group" style="margin:0">
+        <label>Identifiant de connexion</label>
+        <input class="input" type="text" name="username" placeholder="jean_martin" required maxlength="40" pattern="[a-zA-Z0-9_\-]+">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Mot de passe</label>
+      <input class="input" type="password" name="password" id="create-pwd" placeholder="Min. 6 caractères" required minlength="6">
+      <div class="pwd-strength"><div class="pwd-strength-bar" id="create-pwd-bar"></div></div>
+      <div class="pwd-strength-label" id="create-pwd-label"></div>
+    </div>
+
+    <label style="font-size:.85rem;color:var(--text-m);font-weight:600;display:flex;align-items:center;gap:.5rem;margin-bottom:.5rem">
+      Permissions accordées
+      <span style="font-size:.72rem;color:var(--text-dim);font-weight:400">Cochez les niveaux pour chaque section</span>
+    </label>
+    <%- include('_perm_table', { formId: 'create', existingPerms: [] }) %>
+
+    <div style="margin-top:1.1rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
+      <button class="btn btn-primary" type="submit">Créer le sous-admin</button>
+      <button class="btn btn-outline" type="button" onclick="document.getElementById('create-form').reset();pwdStrength('create-pwd','create-pwd-bar','create-pwd-label')">Réinitialiser</button>
+      <div style="display:flex;gap:.4rem;margin-left:auto">
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('create','write')">✏️ Tout Écriture</button>
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('create','read')">👁 Tout Lecture</button>
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('create',null)">✕ Effacer</button>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- ── Modal : modifier permissions ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-perms">
+  <div class="modal-box">
+    <h3>✏️ Permissions — <span id="modal-perms-name"></span></h3>
+    <form method="POST" id="perms-form">
+      <div id="perms-grid-container">
+        <%- include('_perm_table', { formId: 'modal', existingPerms: [] }) %>
+      </div>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.75rem">
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('modal','write')">✏️ Tout Écriture</button>
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('modal','read')">👁 Tout Lecture</button>
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('modal',null)">✕ Effacer</button>
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" type="button" onclick="closeModal('modal-perms')">Annuler</button>
+        <button class="btn btn-primary" type="submit">💾 Enregistrer</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ── Modal : changer mot de passe ─────────────────────────────────────────── -->
+<div class="modal-overlay" id="modal-pwd">
+  <div class="modal-box">
+    <h3>🔑 Nouveau mot de passe — <span id="modal-pwd-name"></span></h3>
+    <form method="POST" id="pwd-form">
+      <div class="form-group">
+        <label>Nouveau mot de passe</label>
+        <input class="input" type="password" name="password" id="pwd-input" placeholder="Min. 6 caractères" required minlength="6">
+        <div class="pwd-strength"><div class="pwd-strength-bar" id="modal-pwd-bar"></div></div>
+        <div class="pwd-strength-label" id="modal-pwd-label"></div>
+      </div>
+      <div class="form-group">
+        <label>Confirmer le mot de passe</label>
+        <input class="input" type="password" id="pwd-confirm" placeholder="Répéter le mot de passe">
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" type="button" onclick="closeModal('modal-pwd')">Annuler</button>
+        <button class="btn btn-primary" type="submit">Modifier</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Formulaire suppression (caché) -->
+<form method="POST" id="delete-form" style="display:none;"></form>
+
+<script>
+const SUBS_DATA   = <%- JSON.stringify(subs.map(s => ({ id: s.id, name: s.name, permissions: s.permissions || [] }))) %>;
+const PERM_KEYS   = <%- JSON.stringify(PERMISSIONS.map(p => p.key)) %>;
+const PERM_LEVELS = ['read', 'write', 'delete'];
+
+/* ── Niveau de permission ── */
+function getLevelFromArray(perms, key) {
+  for (const p of perms) {
+    if (typeof p !== 'string') continue;
+    const [k, l] = p.split(':');
+    if (k === key && PERM_LEVELS.includes(l)) return l;
+  }
+  if (perms.includes(key)) return 'write';
+  return null;
+}
+
+/* ── Fermer modals ── */
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(el => {
+  el.addEventListener('click', e => { if (e.target === el) el.classList.remove('open'); });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.querySelectorAll('.modal-overlay.open').forEach(m => m.classList.remove('open'));
+});
+
+/* ── Sélection rapide ── */
+function setAllPerms(formId, level) {
+  const prefix = formId === 'create' ? 'cp' : 'mp';
+  PERM_KEYS.forEach(key => {
+    PERM_LEVELS.forEach(lvl => {
+      const cb = document.getElementById(`${prefix}-${key}-${lvl}`);
+      if (cb) cb.checked = (level !== null && PERM_LEVELS.indexOf(lvl) <= PERM_LEVELS.indexOf(level));
+    });
+  });
+}
+
+/* ── Cascade checkboxes ── */
+function onPermChange(prefix, key, changedLevel) {
+  const levelIdx = PERM_LEVELS.indexOf(changedLevel);
+  const cb = document.getElementById(`${prefix}-${key}-${changedLevel}`);
+  if (cb.checked) {
+    for (let i = 0; i < levelIdx; i++) {
+      const lower = document.getElementById(`${prefix}-${key}-${PERM_LEVELS[i]}`);
+      if (lower) lower.checked = true;
+    }
+  } else {
+    for (let i = levelIdx + 1; i < PERM_LEVELS.length; i++) {
+      const higher = document.getElementById(`${prefix}-${key}-${PERM_LEVELS[i]}`);
+      if (higher) higher.checked = false;
+    }
+  }
+}
+
+/* ── Ouvrir modal permissions ── */
+function openEditPerms(id, name) {
+  document.getElementById('modal-perms-name').textContent = name;
+  document.getElementById('perms-form').action = `/admin/sub-admins/${id}/permissions`;
+  const sub = SUBS_DATA.find(s => s.id === id);
+  const perms = sub ? sub.permissions : [];
+  PERM_KEYS.forEach(key => {
+    const granted = getLevelFromArray(perms, key);
+    PERM_LEVELS.forEach(lvl => {
+      const cb = document.getElementById(`mp-${key}-${lvl}`);
+      if (cb) cb.checked = granted ? PERM_LEVELS.indexOf(lvl) <= PERM_LEVELS.indexOf(granted) : false;
+    });
+  });
+  document.getElementById('modal-perms').classList.add('open');
+}
+
+/* ── Ouvrir modal mot de passe ── */
+function openChangePwd(id, name) {
+  document.getElementById('modal-pwd-name').textContent = name;
+  document.getElementById('pwd-form').action = `/admin/sub-admins/${id}/password`;
+  document.getElementById('pwd-input').value   = '';
+  document.getElementById('pwd-confirm').value = '';
+  pwdStrength('pwd-input', 'modal-pwd-bar', 'modal-pwd-label');
+  document.getElementById('modal-pwd').classList.add('open');
+  setTimeout(() => document.getElementById('pwd-input').focus(), 100);
+}
+
+/* ── Validation confirmation MDP ── */
+document.getElementById('pwd-form').addEventListener('submit', e => {
+  if (document.getElementById('pwd-input').value !== document.getElementById('pwd-confirm').value) {
+    e.preventDefault();
+    showToast('Les mots de passe ne correspondent pas.', 'error');
+  }
+});
+
+/* ── Confirmation suppression ── */
+function confirmDelete(id, name) {
+  askConfirm({
+    icon:'🗑️', title:'Supprimer ce sous-admin',
+    msg:`Êtes-vous sûr de vouloir supprimer <strong>${name}</strong> ? Cette action est irréversible.`,
+    btnLabel:'Supprimer', btnClass:'btn-danger',
+    onConfirm: () => {
+      const form = document.getElementById('delete-form');
+      form.action = `/admin/sub-admins/${id}/delete`;
+      form.submit();
+    },
+  });
+}
+
+/* ── Indicateur force MDP ── */
+function pwdStrength(inputId, barId, labelId) {
+  const v   = (document.getElementById(inputId)?.value) || '';
+  const bar = document.getElementById(barId);
+  const lbl = document.getElementById(labelId);
+  if (!bar || !lbl) return;
+  let score = 0;
+  if (v.length >= 6)  score++;
+  if (v.length >= 10) score++;
+  if (/[A-Z]/.test(v)) score++;
+  if (/[0-9]/.test(v)) score++;
+  if (/[^a-zA-Z0-9]/.test(v)) score++;
+  const configs = [
+    { pct:0,   color:'var(--border)',   label:'' },
+    { pct:20,  color:'var(--error)',    label:'Très faible' },
+    { pct:40,  color:'var(--error)',    label:'Faible' },
+    { pct:60,  color:'var(--warning)',  label:'Moyen' },
+    { pct:80,  color:'var(--success)',  label:'Bon' },
+    { pct:100, color:'var(--success)',  label:'Excellent' },
+  ];
+  const c = configs[score] || configs[0];
+  bar.style.width     = c.pct + '%';
+  bar.style.background = c.color;
+  lbl.textContent     = c.label;
+  lbl.style.color     = c.color;
+}
+document.getElementById('create-pwd')?.addEventListener('input', () => pwdStrength('create-pwd','create-pwd-bar','create-pwd-label'));
+document.getElementById('pwd-input')?.addEventListener('input',  () => pwdStrength('pwd-input','modal-pwd-bar','modal-pwd-label'));
+
+/* ── Toasts flash ── */
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.alert-success,.alert-error').forEach(el => {
+    if (el.textContent.trim()) showToast(el.textContent.trim(), el.classList.contains('alert-success') ? 'success' : 'error');
+  });
+});
+</script>
+
+<%- include('layout_bottom') %>

@@ -1,0 +1,368 @@
+<%- include('layout_top', {page:'audit'}) %>
+
+<style>
+/* ── Stats ─────────────────────────────────────────────────────────────────── */
+.au-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:.7rem; margin-bottom:1rem; }
+.au-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.8rem 1rem; }
+.au-stat .v { font-size:1.35rem; font-weight:800; line-height:1; margin-bottom:.2rem; }
+.au-stat .l { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+
+/* ── Chart + cat breakdown ────────────────────────────────────────────────── */
+.au-overview { display:grid; grid-template-columns:1fr 260px; gap:1rem; margin-bottom:1rem; }
+@media(max-width:860px){ .au-overview { grid-template-columns:1fr; } }
+.au-chart-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.25rem; }
+.au-chart-title { font-size:.8rem; font-weight:700; color:var(--text-m); margin-bottom:.75rem; }
+.au-chart-canvas { width:100%; height:120px; }
+
+/* ── Catégories breakdown ─────────────────────────────────────────────────── */
+.au-cats { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.25rem; }
+.au-cat-row { display:flex; align-items:center; gap:.6rem; padding:.35rem 0; border-bottom:1px solid var(--border); }
+.au-cat-row:last-child { border-bottom:0; }
+.au-cat-bar-wrap { flex:1; height:6px; background:var(--surface-d); border-radius:3px; overflow:hidden; }
+.au-cat-bar { height:100%; border-radius:3px; transition:width .4s ease; }
+.au-cat-count { font-size:.75rem; font-weight:700; color:var(--text); min-width:28px; text-align:right; }
+
+/* ── Cat badge ────────────────────────────────────────────────────────────── */
+.cat-badge { display:inline-flex;align-items:center;gap:.25rem;font-size:.72rem;padding:.2rem .55rem;border-radius:99px;font-weight:600;white-space:nowrap; }
+.cat-auth       { background:rgba(59,130,246,.12);  color:var(--info); }
+.cat-finance    { background:rgba(34,197,94,.12);   color:var(--success); }
+.cat-user       { background:rgba(167,139,250,.12); color:#A78BFA; }
+.cat-abonnement { background:rgba(245,158,11,.12);  color:var(--warning); }
+.cat-pronostic  { background:rgba(245,166,35,.12);  color:var(--primary); }
+.cat-tutoriel   { background:rgba(20,184,166,.12);  color:#14B8A6; }
+.cat-admin      { background:rgba(239,68,68,.12);   color:var(--error); }
+
+/* ── Filtres ──────────────────────────────────────────────────────────────── */
+.filter-row { display:flex; gap:.6rem; flex-wrap:wrap; align-items:flex-end; }
+.filter-row .fg { display:flex;flex-direction:column;gap:.28rem; }
+.filter-row label { font-size:.69rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700; }
+.filter-row select, .filter-row input {
+  background:var(--surface-d);border:1px solid var(--border);border-radius:var(--radius-s);
+  padding:.42rem .65rem;color:var(--text);font-size:.82rem;outline:none;font-family:inherit;
+  transition:border-color .15s;
+}
+.filter-row select:focus, .filter-row input:focus { border-color:var(--primary); }
+.filter-row input[type=text]  { width:150px; }
+.filter-row input[type=date]  { width:148px; }
+
+/* ── Table ────────────────────────────────────────────────────────────────── */
+.audit-table  { width:100%; border-collapse:collapse; }
+.audit-table th { text-align:left;padding:.55rem 1rem;font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--border);white-space:nowrap; }
+.audit-table td { padding:.6rem 1rem;border-bottom:1px solid var(--border);font-size:.82rem;vertical-align:middle; }
+.audit-table tr:last-child td { border-bottom:0; }
+.audit-table tr:hover td { background:var(--surface-d); }
+.audit-table tr.expandable { cursor:pointer; }
+.audit-table tr.expandable:hover td { background:rgba(var(--primary-rgb),.04); }
+
+/* ── Détails expandables ──────────────────────────────────────────────────── */
+.au-detail-row td { padding:.4rem 1rem .75rem; background:var(--surface-d); font-size:.75rem; }
+.au-detail-pre { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.5rem .75rem; font-family:monospace; white-space:pre-wrap; word-break:break-all; color:var(--text-m); max-height:200px; overflow-y:auto; }
+
+/* ── Pagination ───────────────────────────────────────────────────────────── */
+.au-pager { display:flex;justify-content:space-between;align-items:center;padding:.9rem 1.25rem;border-top:1px solid var(--border); }
+.au-pager-nums { display:flex;gap:.35rem;align-items:center; }
+</style>
+
+<%
+  const _catConfig = {
+    auth:       { label:'Auth',        icon:'🔑', color:'var(--info)' },
+    finance:    { label:'Finance',     icon:'💰', color:'var(--success)' },
+    user:       { label:'Utilisateurs',icon:'👥', color:'#A78BFA' },
+    abonnement: { label:'Abonnements', icon:'👑', color:'var(--warning)' },
+    pronostic:  { label:'Pronostics',  icon:'⚽', color:'var(--primary)' },
+    tutoriel:   { label:'Tutoriels',   icon:'📚', color:'#14B8A6' },
+    admin:      { label:'Admins',      icon:'🔐', color:'var(--error)' },
+  };
+  const _maxCat = Math.max(1, ...Object.values(catCounts || {}));
+  const _hasFilter = !!(filters.cat || filters.admin || filters.date || filters.action);
+%>
+
+<div class="topbar">
+  <div>
+    <h2>📋 Journal d'activité</h2>
+    <small><%= totalAll %> entrée<%= totalAll > 1 ? 's' : '' %> au total<%= _hasFilter ? ' · ' + total + ' filtrée' + (total>1?'s':'') : '' %></small>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <a href="/admin/audit/export?<%= [filters.cat?'cat='+filters.cat:'', filters.admin?'admin='+filters.admin:'', filters.date?'date='+filters.date:'', filters.action?'action='+filters.action:''].filter(Boolean).join('&') %>"
+       class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)">⬇️ Export CSV</a>
+    <button class="btn btn-danger btn-sm"
+      onclick="askConfirm({icon:'🗑️',title:'Vider le journal',msg:'Cette action est <strong>irréversible</strong>. Toutes les entrées seront supprimées.',btnLabel:'Vider',btnClass:'btn-danger',onConfirm:()=>document.getElementById('clear-form').submit()})">
+      🗑 Vider
+    </button>
+  </div>
+</div>
+
+<% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
+<form id="clear-form" method="POST" action="/admin/audit/clear" style="display:none"></form>
+
+<!-- ── Stats rapides ──────────────────────────────────────────────────────── -->
+<div class="au-stats">
+  <div class="au-stat">
+    <div class="v" style="color:var(--primary)"><%= totalAll %></div>
+    <div class="l">Entrées totales</div>
+  </div>
+  <% const _today = new Date().toISOString().slice(0,10); %>
+  <div class="au-stat">
+    <div class="v" style="color:var(--info)"><%= (typeof chartDays!=='undefined' && chartCounts && chartDays.includes(_today)) ? chartCounts[chartDays.indexOf(_today)] : 0 %></div>
+    <div class="l">Aujourd'hui</div>
+  </div>
+  <div class="au-stat">
+    <div class="v" style="color:var(--success)"><%= Object.keys(adminCounts||{}).length %></div>
+    <div class="l">Admins actifs</div>
+  </div>
+  <div class="au-stat">
+    <div class="v" style="color:var(--warning)"><%= (typeof chartCounts!=='undefined') ? chartCounts.reduce((a,b)=>a+b,0) : 0 %></div>
+    <div class="l">7 derniers jours</div>
+  </div>
+</div>
+
+<!-- ── Overview : graphique + catégories ─────────────────────────────────── -->
+<div class="au-overview">
+
+  <!-- Graphique 7 jours -->
+  <div class="au-chart-wrap">
+    <div class="au-chart-title">📈 Activité — 7 derniers jours</div>
+    <canvas id="audit-chart" class="au-chart-canvas"></canvas>
+  </div>
+
+  <!-- Breakdown par catégorie -->
+  <div class="au-cats">
+    <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.6rem">Par catégorie</div>
+    <% Object.entries(_catConfig).forEach(([key, cfg]) => {
+         const count = (catCounts && catCounts[key]) || 0;
+         if (!count) return;
+         const pct = Math.round((count / _maxCat) * 100);
+    %><div class="au-cat-row">
+      <span style="font-size:.78rem;min-width:90px;color:var(--text-m)"><%= cfg.icon %> <%= cfg.label %></span>
+      <div class="au-cat-bar-wrap">
+        <div class="au-cat-bar" style="width:<%= pct %>%;background:<%= cfg.color %>"></div>
+      </div>
+      <span class="au-cat-count"><%= count %></span>
+    </div><% }); %>
+    <% if (!Object.values(catCounts||{}).some(v=>v>0)) { %>
+    <div style="color:var(--text-dim);font-size:.8rem">Aucune donnée</div>
+    <% } %>
+  </div>
+</div>
+
+<!-- ── Filtres ────────────────────────────────────────────────────────────── -->
+<div class="card" style="padding:.85rem 1.1rem;margin-bottom:1rem">
+  <form method="GET" action="/admin/audit">
+    <div class="filter-row">
+      <div class="fg">
+        <label>Catégorie</label>
+        <select name="cat">
+          <option value="">Toutes</option>
+          <% Object.entries(_catConfig).forEach(([key, cfg]) => { %>
+          <option value="<%= key %>" <%=filters.cat===key?'selected':''%>><%= cfg.icon %> <%= cfg.label %></option>
+          <% }); %>
+        </select>
+      </div>
+      <div class="fg">
+        <label>Admin</label>
+        <% if (adminList && adminList.length > 1) { %>
+        <select name="admin">
+          <option value="">Tous</option>
+          <% (adminList||[]).forEach(a => { %>
+          <option value="<%= a %>" <%=filters.admin===a?'selected':''%>><%= a %></option>
+          <% }); %>
+        </select>
+        <% } else { %>
+        <input type="text" name="admin" value="<%= filters.admin %>" placeholder="Nom de l'admin…">
+        <% } %>
+      </div>
+      <div class="fg">
+        <label>Date</label>
+        <input type="date" name="date" value="<%= filters.date %>">
+      </div>
+      <div style="display:flex;gap:.4rem;align-items:flex-end">
+        <button class="btn btn-primary btn-sm" type="submit">Filtrer</button>
+        <% if (_hasFilter) { %><a href="/admin/audit" class="btn btn-outline btn-sm">✕ Reset</a><% } %>
+      </div>
+    </div>
+  </form>
+</div>
+
+<!-- ── Tableau des logs ───────────────────────────────────────────────────── -->
+<div class="card" style="padding:0;overflow:hidden">
+  <% if (data.length === 0) { %>
+  <div style="padding:3.5rem;text-align:center;color:var(--text-dim)">
+    <div style="font-size:2.5rem;margin-bottom:.6rem">📋</div>
+    <p>Aucune entrée<%= _hasFilter ? ' pour ces filtres' : ' dans le journal' %>.</p>
+    <% if (_hasFilter) { %><a href="/admin/audit" class="btn btn-outline btn-sm" style="margin-top:.75rem">Voir tous les logs</a><% } %>
+  </div>
+  <% } else { %>
+  <div class="table-wrap">
+    <table class="audit-table">
+      <thead>
+        <tr>
+          <th>Date / Heure</th>
+          <th>Admin</th>
+          <th>Action</th>
+          <th>Cible</th>
+          <th>IP</th>
+          <th style="width:32px"></th>
+        </tr>
+      </thead>
+      <tbody id="audit-tbody">
+      <% data.forEach((log, idx) => {
+           const meta = ACTION_LABELS[log.action] ?? { label: log.action, icon: '•', cat: '' };
+           const ts   = new Date(log.timestamp);
+           const hasDetails = log.details && Object.keys(log.details).length > 0;
+           const detailStr  = hasDetails ? JSON.stringify(log.details, null, 2) : null;
+      %>
+      <tr class="<%= hasDetails ? 'expandable' : '' %>" onclick="<%= hasDetails ? 'toggleDetail('+idx+')' : '' %>" id="row-<%= idx %>">
+        <td style="white-space:nowrap">
+          <div style="font-size:.8rem;color:var(--text)"><%= ts.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit'}) %></div>
+          <div style="font-size:.72rem;color:var(--text-dim)"><%= ts.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit',second:'2-digit'}) %></div>
+        </td>
+        <td>
+          <div style="font-weight:600;font-size:.82rem"><%= log.adminName %></div>
+          <div style="font-size:.7rem;color:var(--text-dim)"><%= log.adminRole === 'sub' ? '🔸 Sous-admin' : '🔷 Principal' %></div>
+        </td>
+        <td>
+          <span class="cat-badge cat-<%= meta.cat %>"><%= meta.icon %> <%= meta.label %></span>
+        </td>
+        <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-m);font-size:.8rem">
+          <%= log.target || '—' %>
+        </td>
+        <td style="font-family:monospace;font-size:.72rem;color:var(--text-dim)"><%= log.ip %></td>
+        <td style="text-align:center;color:var(--text-dim);font-size:.75rem">
+          <% if (hasDetails) { %><span id="chevron-<%= idx %>">▸</span><% } %>
+        </td>
+      </tr>
+      <% if (hasDetails) { %>
+      <tr class="au-detail-row" id="detail-<%= idx %>" style="display:none">
+        <td colspan="6">
+          <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.05em;font-weight:700">Détails</div>
+          <div class="au-detail-pre"><%= detailStr %></div>
+        </td>
+      </tr>
+      <% } %>
+      <% }); %>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  <% if (totalPages > 1) { %>
+  <%
+    function pageUrl(p) {
+      const q = [
+        filters.cat    ? 'cat='+filters.cat    : '',
+        filters.admin  ? 'admin='+encodeURIComponent(filters.admin) : '',
+        filters.date   ? 'date='+filters.date  : '',
+        filters.action ? 'action='+filters.action : '',
+        'page='+p,
+      ].filter(Boolean).join('&');
+      return '/admin/audit?' + q;
+    }
+  %>
+  <div class="au-pager">
+    <span style="color:var(--text-dim);font-size:.8rem">
+      <%= ((page-1)*perPage)+1 %>–<%= Math.min(page*perPage, total) %> sur <%= total %>
+    </span>
+    <div class="au-pager-nums">
+      <% if (page > 1) { %>
+      <a href="<%= pageUrl(1) %>" class="btn btn-sm btn-outline">«</a>
+      <a href="<%= pageUrl(page-1) %>" class="btn btn-sm btn-outline">‹ Préc.</a>
+      <% } %>
+      <span style="padding:.35rem .75rem;background:var(--surface-d);border-radius:var(--radius-s);font-size:.8rem;font-weight:700"><%= page %> / <%= totalPages %></span>
+      <% if (page < totalPages) { %>
+      <a href="<%= pageUrl(page+1) %>" class="btn btn-sm btn-outline">Suiv. ›</a>
+      <a href="<%= pageUrl(totalPages) %>" class="btn btn-sm btn-outline">»</a>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+  <% } %>
+</div>
+
+<script>
+/* ── Détails expandables ── */
+function toggleDetail(idx) {
+  const row     = document.getElementById('detail-' + idx);
+  const chevron = document.getElementById('chevron-' + idx);
+  if (!row) return;
+  const open = row.style.display === 'none' || !row.style.display;
+  row.style.display = open ? 'table-row' : 'none';
+  if (chevron) chevron.textContent = open ? '▾' : '▸';
+}
+
+/* ── Graphique 7 jours ── */
+(function initAuditChart() {
+  const ctx = document.getElementById('audit-chart');
+  if (!ctx || typeof Chart === 'undefined') return;
+
+  const days   = <%- JSON.stringify(typeof chartDays  !=='undefined' ? chartDays  : []) %>;
+  const counts = <%- JSON.stringify(typeof chartCounts!=='undefined' ? chartCounts: []) %>;
+
+  function cssVar(name) {
+    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  }
+
+  const labels = days.map(d => {
+    const dt = new Date(d + 'T12:00:00');
+    return dt.toLocaleDateString('fr-FR', { weekday:'short', day:'numeric' });
+  });
+
+  let chart;
+  function buildChart() {
+    if (chart) chart.destroy();
+    const primaryRgb = cssVar('--primary-rgb') || '99,102,241';
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels,
+        datasets: [{
+          data: counts,
+          backgroundColor: `rgba(${primaryRgb},.25)`,
+          borderColor:     `rgba(${primaryRgb},.8)`,
+          borderWidth: 1.5,
+          borderRadius: 4,
+          hoverBackgroundColor: `rgba(${primaryRgb},.5)`,
+        }],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: items => items[0]?.label || '',
+              label: item => ` ${item.raw} action${item.raw !== 1 ? 's' : ''}`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid:  { color: cssVar('--border') || '#1e2a42' },
+            ticks: { color: cssVar('--text-dim') || '#64748b', font:{ size:11 } },
+          },
+          y: {
+            grid:  { color: cssVar('--border') || '#1e2a42' },
+            ticks: { color: cssVar('--text-dim') || '#64748b', font:{ size:11 }, precision:0 },
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+  }
+
+  buildChart();
+
+  // Rebuild on theme/accent change
+  const obs = new MutationObserver(() => buildChart());
+  obs.observe(document.documentElement, { attributes:true, attributeFilter:['class','data-accent'] });
+})();
+
+/* ── Flash toasts ── */
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.alert-success,.alert-error').forEach(el => {
+    if (el.textContent.trim()) showToast(el.textContent.trim(), el.classList.contains('alert-success') ? 'success' : 'error');
+  });
+});
+</script>
+
+<%- include('layout_bottom') %>

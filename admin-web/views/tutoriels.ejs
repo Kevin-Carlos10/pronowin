@@ -1,0 +1,250 @@
+<%- include('layout_top', {page:'tutoriels'}) %>
+
+<style>
+/* ── Stats ─────────────────────────────────────────────────────────────────── */
+.tut-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:.65rem; margin-bottom:1rem; }
+.tut-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.75rem .9rem; }
+.tut-stat .v { font-size:1.3rem; font-weight:800; line-height:1; margin-bottom:.15rem; }
+.tut-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+
+/* ── Filtre ─────────────────────────────────────────────────────────────────── */
+.tut-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.tut-filter input, .tut-filter select {
+  background:var(--surface-d); border:1px solid var(--border);
+  border-radius:var(--radius-s); padding:.44rem .7rem;
+  color:var(--text); font-size:.83rem; font-family:inherit;
+  outline:none; transition:border-color .15s;
+}
+.tut-filter input:focus, .tut-filter select:focus { border-color:var(--primary); }
+.tut-filter input { flex:1; min-width:180px; }
+
+/* ── Grille cards ───────────────────────────────────────────────────────────── */
+.tut-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(300px,1fr)); gap:.9rem; }
+@media(max-width:660px){ .tut-grid { grid-template-columns:1fr; } }
+
+.tut-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); overflow:hidden;
+  transition:box-shadow var(--transition), border-color var(--transition);
+  display:flex; flex-direction:column;
+}
+.tut-card:hover { box-shadow:var(--shadow-lg); border-color:var(--primary); }
+.tut-card.premium { border-top:2px solid var(--warning); }
+.tut-card.free    { border-top:2px solid var(--success); }
+
+/* ── Thumbnail ─────────────────────────────────────────────────────────────── */
+.tut-thumb {
+  position:relative; aspect-ratio:16/7; overflow:hidden;
+  background:var(--surface-d);
+}
+.tut-thumb img { width:100%; height:100%; object-fit:cover; }
+.tut-thumb .tut-no-thumb {
+  width:100%; height:100%; display:flex; align-items:center;
+  justify-content:center; font-size:2.5rem; color:var(--text-dim);
+}
+.tut-thumb .tut-premium-badge {
+  position:absolute; top:.5rem; right:.5rem;
+}
+.tut-thumb .tut-views-badge {
+  position:absolute; bottom:.5rem; left:.5rem;
+  background:rgba(0,0,0,.65); backdrop-filter:blur(4px);
+  color:#fff; font-size:.7rem; padding:.2rem .5rem;
+  border-radius:99px; font-weight:600;
+}
+
+/* ── Card body ─────────────────────────────────────────────────────────────── */
+.tut-card-body { padding:.85rem .9rem; flex:1; }
+.tut-card-meta { display:flex; align-items:center; gap:.4rem; margin-bottom:.45rem; flex-wrap:wrap; }
+.tut-title { font-size:.9rem; font-weight:700; line-height:1.35; margin-bottom:.3rem; }
+.tut-author { font-size:.75rem; color:var(--text-dim); margin-bottom:.55rem; }
+.tut-row { display:flex; align-items:center; gap:.75rem; font-size:.75rem; color:var(--text-m); flex-wrap:wrap; }
+
+/* ── Level badge ───────────────────────────────────────────────────────────── */
+.lvl-beginner     { background:rgba(34,197,94,.12);  color:var(--success); padding:.15rem .5rem; border-radius:99px; font-size:.68rem; font-weight:700; }
+.lvl-intermediate { background:rgba(245,158,11,.12); color:var(--warning); padding:.15rem .5rem; border-radius:99px; font-size:.68rem; font-weight:700; }
+.lvl-advanced     { background:rgba(239,68,68,.12);  color:var(--error);   padding:.15rem .5rem; border-radius:99px; font-size:.68rem; font-weight:700; }
+
+/* ── Card foot ─────────────────────────────────────────────────────────────── */
+.tut-card-foot {
+  display:flex; align-items:center; gap:.4rem;
+  padding:.65rem .9rem; border-top:1px solid var(--border);
+  background:var(--surface-d);
+}
+</style>
+
+<%
+  const _catCfg = {
+    valuebet:'🎯', bankroll:'💰', analyse:'📊', strategie:'♟️', psychologie:'🧠'
+  };
+  const _lvlCfg = {
+    beginner:     { label:'Débutant',      cls:'lvl-beginner' },
+    intermediate: { label:'Intermédiaire', cls:'lvl-intermediate' },
+    advanced:     { label:'Avancé',        cls:'lvl-advanced' },
+  };
+  function durStr(sec) {
+    const m = Math.floor((sec||0)/60);
+    if (!m) return '—';
+    return m < 60 ? m+'min' : Math.floor(m/60)+'h'+(m%60 ? String(m%60).padStart(2,'0') : '');
+  }
+  const _totalViews = (data||[]).reduce((s,t)=>s+(t.viewCount||0),0);
+  const _hasFilter  = !!(search || category || level);
+%>
+
+<div class="topbar">
+  <div>
+    <h2>📚 Tutoriels</h2>
+    <small><%= stats.total %> tutoriel<%= stats.total!==1?'s':'' %> · <%= stats.premium %> Premium · <%= stats.free %> Gratuit<%= stats.free!==1?'s':'' %></small>
+  </div>
+  <div style="display:flex;gap:.5rem">
+    <% if(hasPerm('tutoriels','write')) { %>
+    <form method="POST" action="/admin/tutoriels/seed" style="display:inline">
+      <button type="submit" class="btn btn-outline btn-sm" title="Insérer les tutoriels par défaut si la liste est vide">🌱 Seed</button>
+    </form>
+    <a href="/admin/tutoriels/new" class="btn btn-primary btn-sm">+ Nouveau</a>
+    <% } %>
+  </div>
+</div>
+
+<% if(typeof success !== 'undefined' && success){ %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
+<% if(typeof error   !== 'undefined' && error  ){ %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
+
+<!-- ── Stats ─────────────────────────────────────────────────────────────────── -->
+<div class="tut-stats">
+  <div class="tut-stat"><div class="v" style="color:var(--info)"><%= stats.total %></div><div class="l">Total</div></div>
+  <div class="tut-stat"><div class="v" style="color:var(--warning)"><%= stats.premium %></div><div class="l">Premium</div></div>
+  <div class="tut-stat"><div class="v" style="color:var(--success)"><%= stats.free %></div><div class="l">Gratuits</div></div>
+  <div class="tut-stat"><div class="v" style="color:#A78BFA"><%= stats.beginner %></div><div class="l">Débutant</div></div>
+  <div class="tut-stat"><div class="v" style="color:var(--warning)"><%= stats.intermediate %></div><div class="l">Interm.</div></div>
+  <div class="tut-stat"><div class="v" style="color:var(--error)"><%= stats.advanced %></div><div class="l">Avancé</div></div>
+  <div class="tut-stat"><div class="v" style="color:var(--primary)"><%= _totalViews.toLocaleString() %></div><div class="l">Vues total</div></div>
+</div>
+
+<!-- ── Filtres ────────────────────────────────────────────────────────────────── -->
+<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem">
+  <form method="GET" action="/admin/tutoriels" class="tut-filter">
+    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Titre, description, auteur…">
+    <select name="category" onchange="this.form.submit()">
+      <option value="">Toutes catégories</option>
+      <option value="valuebet"    <%= category==='valuebet'    ?'selected':'' %>>🎯 Value Bet</option>
+      <option value="bankroll"    <%= category==='bankroll'    ?'selected':'' %>>💰 Bankroll</option>
+      <option value="analyse"     <%= category==='analyse'     ?'selected':'' %>>📊 Analyse</option>
+      <option value="strategie"   <%= category==='strategie'   ?'selected':'' %>>♟️ Stratégie</option>
+      <option value="psychologie" <%= category==='psychologie' ?'selected':'' %>>🧠 Psychologie</option>
+    </select>
+    <select name="level" onchange="this.form.submit()">
+      <option value="">Tous niveaux</option>
+      <option value="beginner"     <%= level==='beginner'     ?'selected':'' %>>🟢 Débutant</option>
+      <option value="intermediate" <%= level==='intermediate' ?'selected':'' %>>🟡 Intermédiaire</option>
+      <option value="advanced"     <%= level==='advanced'     ?'selected':'' %>>🔴 Avancé</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+    <% if(_hasFilter){ %><a href="/admin/tutoriels" class="btn btn-outline btn-sm">✕ Reset</a><% } %>
+    <span style="margin-left:auto;font-size:.78rem;color:var(--text-dim)"><%= total %> résultat<%= total!==1?'s':'' %></span>
+  </form>
+</div>
+
+<!-- ── Grille ────────────────────────────────────────────────────────────────── -->
+<% if(!data || data.length === 0) { %>
+<div class="empty-state card">
+  <div style="font-size:2.5rem;margin-bottom:.5rem"><%= _hasFilter ? '🔍' : '📚' %></div>
+  <p><%= _hasFilter ? 'Aucun tutoriel ne correspond aux filtres.' : 'Aucun tutoriel créé.' %></p>
+  <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.75rem;flex-wrap:wrap">
+    <% if(_hasFilter){ %><a href="/admin/tutoriels" class="btn btn-outline btn-sm">Voir tous</a><% } %>
+    <% if(hasPerm('tutoriels','write')) { %><a href="/admin/tutoriels/new" class="btn btn-primary btn-sm">+ Créer</a><% } %>
+  </div>
+</div>
+<% } else { %>
+<div class="tut-grid">
+<% (data||[]).forEach(t => {
+     const catEmoji = _catCfg[t.category] || '📚';
+     const lvl      = _lvlCfg[t.level] || { label: t.level||'—', cls: '' };
+     const dur      = durStr(t.durationSeconds);
+     const rating   = (t.rating||0).toFixed(1);
+     const views    = (t.viewCount||0).toLocaleString();
+%>
+<div class="tut-card <%= t.isPremium ? 'premium' : 'free' %>">
+
+  <!-- Thumbnail -->
+  <div class="tut-thumb">
+    <% if(t.thumbnailUrl) { %>
+    <img src="<%= t.thumbnailUrl %>" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<div class=tut-no-thumb><%= catEmoji %></div>'">
+    <% } else { %>
+    <div class="tut-no-thumb"><%= catEmoji %></div>
+    <% } %>
+    <% if(t.isPremium) { %><span class="tut-premium-badge badge badge-warn">👑 Premium</span><% } %>
+    <% if(t.viewCount > 0) { %><span class="tut-views-badge">👁 <%= views %></span><% } %>
+  </div>
+
+  <!-- Corps -->
+  <div class="tut-card-body">
+    <div class="tut-card-meta">
+      <span style="font-size:.85rem"><%= catEmoji %></span>
+      <span class="<%= lvl.cls %>"><%= lvl.label %></span>
+      <% if(t.videoUrl) { %><span style="font-size:.68rem;color:var(--info);background:rgba(59,130,246,.1);padding:.1rem .4rem;border-radius:4px">▶ Vidéo</span><% } %>
+    </div>
+    <div class="tut-title"><%= t.title %></div>
+    <div class="tut-author">par <%= t.authorName || 'Expert PronoWin' %></div>
+    <div class="tut-row">
+      <% if(dur!=='—') { %><span>⏱ <%= dur %></span><% } %>
+      <span>⭐ <%= rating %></span>
+      <% if(!t.isPremium) { %><span style="color:var(--success)">✓ Gratuit</span><% } %>
+    </div>
+  </div>
+
+  <!-- Actions -->
+  <div class="tut-card-foot">
+    <% if(hasPerm('tutoriels','write')) { %>
+    <a href="/admin/tutoriels/<%= t.id %>/edit" class="btn btn-sm btn-outline">✏️ Modifier</a>
+    <form method="POST" action="/admin/tutoriels/<%= t.id %>/premium" style="margin:0">
+      <button type="submit" class="btn btn-sm btn-outline" title="<%= t.isPremium ? 'Passer Gratuit' : 'Passer Premium' %>">
+        <%= t.isPremium ? '🔓 Gratuit' : '👑 Premium' %>
+      </button>
+    </form>
+    <% } %>
+    <% if(hasPerm('tutoriels','delete')) { %>
+    <button class="btn btn-sm btn-danger" style="margin-left:auto"
+      data-id="<%= t.id %>" data-title="<%= t.title.replace(/"/g,'&quot;') %>"
+      onclick="delTut(this.dataset.id, this.dataset.title)">🗑️</button>
+    <form method="POST" action="/admin/tutoriels/<%= t.id %>/delete" id="del-<%= t.id %>" style="display:none"></form>
+    <% } %>
+  </div>
+
+</div>
+<% }) %>
+</div>
+
+<!-- Pagination -->
+<% if(totalPages > 1) { %>
+<%
+  function tpUrl(p) {
+    return '/admin/tutoriels?page='+p + (search?'&search='+encodeURIComponent(search):'') + (category?'&category='+category:'') + (level?'&level='+level:'');
+  }
+%>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:.9rem 0;margin-top:.5rem">
+  <span style="font-size:.78rem;color:var(--text-dim)">Page <%= page %> / <%= totalPages %> · <%= total %> tutoriel<%= total!==1?'s':'' %></span>
+  <div style="display:flex;gap:.4rem">
+    <% if(page>1) { %><a href="<%= tpUrl(1) %>" class="btn btn-sm btn-outline">«</a><a href="<%= tpUrl(page-1) %>" class="btn btn-sm btn-outline">‹</a><% } %>
+    <span style="padding:.35rem .75rem;background:var(--surface-d);border-radius:var(--radius-s);font-size:.8rem;font-weight:700"><%= page %></span>
+    <% if(page<totalPages) { %><a href="<%= tpUrl(page+1) %>" class="btn btn-sm btn-outline">›</a><a href="<%= tpUrl(totalPages) %>" class="btn btn-sm btn-outline">»</a><% } %>
+  </div>
+</div>
+<% } %>
+<% } %>
+
+<script>
+function delTut(id, title) {
+  askConfirm({
+    icon:'🗑️', title:'Supprimer ce tutoriel',
+    msg: 'Supprimer <strong>' + title + '</strong> ? Cette action est irréversible.',
+    btnLabel:'Supprimer', btnClass:'btn-danger',
+    onConfirm: () => document.getElementById('del-' + id).submit(),
+  });
+}
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.alert-success,.alert-error').forEach(el => {
+    if (el.textContent.trim()) showToast(el.textContent.trim(), el.classList.contains('alert-success') ? 'success' : 'error');
+  });
+});
+</script>
+
+<%- include('layout_bottom') %>

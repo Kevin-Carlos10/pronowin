@@ -1,0 +1,235 @@
+<%- include('layout_top', {page:'actualites'}) %>
+
+<style>
+/* ── Stats ──────────────────────────────────────────────────────────────────── */
+.ac-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:.65rem; margin-bottom:1rem; }
+.ac-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.75rem .9rem; }
+.ac-stat .v { font-size:1.3rem; font-weight:800; line-height:1; margin-bottom:.15rem; }
+.ac-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+
+/* ── Filtres ─────────────────────────────────────────────────────────────────── */
+.ac-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.ac-filter input, .ac-filter select {
+  background:var(--surface-d); border:1px solid var(--border);
+  border-radius:var(--radius-s); padding:.44rem .7rem;
+  color:var(--text); font-size:.83rem; font-family:inherit;
+  outline:none; transition:border-color .15s;
+}
+.ac-filter input:focus, .ac-filter select:focus { border-color:var(--primary); }
+.ac-filter input { flex:1; min-width:180px; }
+
+/* ── Grille ──────────────────────────────────────────────────────────────────── */
+.ac-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(310px,1fr)); gap:.9rem; }
+@media(max-width:680px) { .ac-grid { grid-template-columns:1fr; } }
+
+.ac-card {
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); overflow:hidden;
+  display:flex; flex-direction:column;
+  transition:box-shadow var(--transition), border-color var(--transition);
+}
+.ac-card:hover { box-shadow:var(--shadow-lg); border-color:var(--primary); }
+.ac-card.draft   { border-left:3px solid var(--text-dim); opacity:.85; }
+.ac-card.pinned  { border-left:3px solid var(--warning); }
+.ac-card.published { border-left:3px solid var(--success); }
+
+/* ── Image header ────────────────────────────────────────────────────────────── */
+.ac-img {
+  position:relative; aspect-ratio:16/7; background:var(--surface-d);
+  overflow:hidden; display:flex; align-items:center; justify-content:center; font-size:2.5rem;
+}
+.ac-img img { width:100%; height:100%; object-fit:cover; }
+.ac-img .ac-cat-badge { position:absolute; top:.5rem; left:.5rem; }
+.ac-img .ac-pin-badge { position:absolute; top:.5rem; right:.5rem; }
+
+/* ── Corps ───────────────────────────────────────────────────────────────────── */
+.ac-body { padding:.8rem .9rem; flex:1; }
+.ac-title { font-size:.9rem; font-weight:700; line-height:1.35; margin-bottom:.3rem; }
+.ac-summary { font-size:.78rem; color:var(--text-m); line-height:1.5; margin-bottom:.55rem; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+.ac-meta { display:flex; align-items:center; gap:.6rem; flex-wrap:wrap; font-size:.72rem; color:var(--text-dim); }
+
+/* ── Pied ────────────────────────────────────────────────────────────────────── */
+.ac-foot { display:flex; align-items:center; gap:.4rem; padding:.6rem .9rem; border-top:1px solid var(--border); background:var(--surface-d); flex-wrap:wrap; }
+
+/* ── Category styles ─────────────────────────────────────────────────────────── */
+.cat-news    { background:rgba(59,130,246,.12); color:var(--info); }
+.cat-promo   { background:rgba(245,158,11,.12); color:var(--warning); }
+.cat-update  { background:rgba(99,102,241,.12); color:var(--primary); }
+.cat-tip     { background:rgba(34,197,94,.12);  color:var(--success); }
+.cat-alert   { background:rgba(239,68,68,.12);  color:var(--error); }
+</style>
+
+<%
+  const _catCfg = {
+    news:   { emoji:'📰', label:'News',      cls:'cat-news' },
+    promo:  { emoji:'🎁', label:'Promo',     cls:'cat-promo' },
+    update: { emoji:'🔄', label:'Mise à jour',cls:'cat-update' },
+    tip:    { emoji:'💡', label:'Conseil',   cls:'cat-tip' },
+    alert:  { emoji:'🚨', label:'Alerte',    cls:'cat-alert' },
+  };
+  const _hasFilter = !!(search || category || status);
+
+  function acPageUrl(p) {
+    const parts = [];
+    if (search)   parts.push('search='   + encodeURIComponent(search));
+    if (category) parts.push('category=' + category);
+    if (status)   parts.push('status='   + status);
+    parts.push('page=' + p);
+    return '/admin/actualites?' + parts.join('&');
+  }
+
+  function relDate(iso) {
+    if (!iso) return '—';
+    const d = new Date(iso);
+    return d.toLocaleDateString('fr-FR', {day:'2-digit',month:'short',year:'numeric'});
+  }
+%>
+
+<div class="topbar">
+  <div>
+    <h2>📰 Actualités</h2>
+    <small><%= stats.total %> article<%= stats.total!==1?'s':'' %> · <%= stats.published %> publié<%= stats.published!==1?'s':'' %></small>
+  </div>
+  <% if(hasPerm('actualites','write')) { %>
+  <a href="/admin/actualites/new" class="btn btn-primary btn-sm">+ Nouvel article</a>
+  <% } %>
+</div>
+
+<% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
+<% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
+
+<!-- ── Stats ──────────────────────────────────────────────────────────────────── -->
+<div class="ac-stats">
+  <div class="ac-stat"><div class="v" style="color:var(--info)"><%= stats.total %></div><div class="l">Total</div></div>
+  <div class="ac-stat"><div class="v" style="color:var(--success)"><%= stats.published %></div><div class="l">Publiés</div></div>
+  <div class="ac-stat"><div class="v" style="color:var(--text-dim)"><%= stats.draft %></div><div class="l">Brouillons</div></div>
+  <div class="ac-stat"><div class="v" style="color:var(--warning)"><%= stats.pinned %></div><div class="l">Épinglés</div></div>
+  <div class="ac-stat"><div class="v" style="color:#A78BFA"><%= stats.premium %></div><div class="l">Premium only</div></div>
+  <div class="ac-stat"><div class="v" style="color:var(--primary)"><%= stats.totalViews.toLocaleString() %></div><div class="l">Vues totales</div></div>
+</div>
+
+<!-- ── Filtres ─────────────────────────────────────────────────────────────────── -->
+<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem">
+  <form method="GET" action="/admin/actualites" class="ac-filter">
+    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Titre, résumé…">
+    <select name="category" onchange="this.form.submit()">
+      <option value="">Toutes catégories</option>
+      <option value="news"   <%= category==='news'   ?'selected':'' %>>📰 News</option>
+      <option value="promo"  <%= category==='promo'  ?'selected':'' %>>🎁 Promo</option>
+      <option value="update" <%= category==='update' ?'selected':'' %>>🔄 Mise à jour</option>
+      <option value="tip"    <%= category==='tip'    ?'selected':'' %>>💡 Conseil</option>
+      <option value="alert"  <%= category==='alert'  ?'selected':'' %>>🚨 Alerte</option>
+    </select>
+    <select name="status" onchange="this.form.submit()">
+      <option value="">Tous statuts</option>
+      <option value="published" <%= status==='published' ?'selected':'' %>>✅ Publiés</option>
+      <option value="draft"     <%= status==='draft'     ?'selected':'' %>>📝 Brouillons</option>
+      <option value="pinned"    <%= status==='pinned'    ?'selected':'' %>>📌 Épinglés</option>
+    </select>
+    <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+    <% if(_hasFilter){ %><a href="/admin/actualites" class="btn btn-outline btn-sm">✕ Reset</a><% } %>
+    <span style="margin-left:auto;font-size:.78rem;color:var(--text-dim)"><%= total %> résultat<%= total!==1?'s':'' %></span>
+  </form>
+</div>
+
+<!-- ── Grille ──────────────────────────────────────────────────────────────────── -->
+<% if(!data || data.length === 0) { %>
+<div class="empty-state card">
+  <div style="font-size:2.5rem;margin-bottom:.5rem"><%= _hasFilter ? '🔍' : '📰' %></div>
+  <p><%= _hasFilter ? 'Aucun article ne correspond aux filtres.' : 'Aucun article créé.' %></p>
+  <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.75rem;flex-wrap:wrap">
+    <% if(_hasFilter){ %><a href="/admin/actualites" class="btn btn-outline btn-sm">Voir tous</a><% } %>
+    <% if(hasPerm('actualites','write')) { %><a href="/admin/actualites/new" class="btn btn-primary btn-sm">+ Créer</a><% } %>
+  </div>
+</div>
+<% } else { %>
+<div class="ac-grid">
+<% (data||[]).forEach(art => {
+     const cat = _catCfg[art.category] || { emoji:'📰', label:art.category, cls:'cat-news' };
+     const cardCls = art.isPinned ? 'pinned' : art.isPublished ? 'published' : 'draft';
+%>
+<div class="ac-card <%= cardCls %>">
+
+  <!-- Image header -->
+  <div class="ac-img">
+    <% if(art.imageUrl) { %>
+    <img src="<%= art.imageUrl %>" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<span style=font-size:2.5rem><%= cat.emoji %></span>'">
+    <% } else { %><%= cat.emoji %><% } %>
+    <span class="ac-cat-badge badge <%= cat.cls %>"><%= cat.emoji %> <%= cat.label %></span>
+    <% if(art.isPinned) { %><span class="ac-pin-badge">📌</span><% } %>
+  </div>
+
+  <!-- Corps -->
+  <div class="ac-body">
+    <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem;flex-wrap:wrap">
+      <% if(art.isPublished) { %><span class="badge badge-ok" style="font-size:.65rem">✅ Publié</span><% } else { %><span class="badge" style="font-size:.65rem;background:var(--surface-d);color:var(--text-dim)">📝 Brouillon</span><% } %>
+      <% if(art.isPremiumOnly) { %><span class="badge badge-warn" style="font-size:.65rem">👑 Premium</span><% } %>
+    </div>
+    <div class="ac-title"><%= art.title %></div>
+    <% if(art.summary) { %><div class="ac-summary"><%= art.summary %></div><% } %>
+    <div class="ac-meta">
+      <span>✍️ <%= art.authorName || 'Admin' %></span>
+      <span>👁 <%= (art.viewCount||0).toLocaleString() %></span>
+      <span>❤️ <%= art.likeCount||0 %></span>
+      <span>🗓 <%= relDate(art.createdAt) %></span>
+    </div>
+  </div>
+
+  <!-- Pied -->
+  <div class="ac-foot">
+    <% if(hasPerm('actualites','write')) { %>
+    <a href="/admin/actualites/<%= art.id %>/edit" class="btn btn-sm btn-outline">✏️ Modifier</a>
+    <form method="POST" action="/admin/actualites/<%= art.id %>/publish" style="margin:0">
+      <button class="btn btn-sm btn-outline" title="<%= art.isPublished ? 'Dépublier' : 'Publier' %>">
+        <%= art.isPublished ? '🔒 Dépublier' : '✅ Publier' %>
+      </button>
+    </form>
+    <form method="POST" action="/admin/actualites/<%= art.id %>/pin" style="margin:0">
+      <button class="btn btn-sm btn-outline" title="<%= art.isPinned ? 'Désépingler' : 'Épingler' %>">
+        <%= art.isPinned ? '📌 Désép.' : '📌 Épingler' %>
+      </button>
+    </form>
+    <% } %>
+    <% if(hasPerm('actualites','delete')) { %>
+    <button class="btn btn-sm btn-danger" style="margin-left:auto"
+      data-id="<%= art.id %>"
+      data-title="<%= art.title.replace(/"/g,'&quot;') %>"
+      onclick="delArt(this.dataset.id, this.dataset.title)">🗑️</button>
+    <form method="POST" action="/admin/actualites/<%= art.id %>/delete" id="del-<%= art.id %>" style="display:none"></form>
+    <% } %>
+  </div>
+
+</div>
+<% }) %>
+</div>
+
+<!-- Pagination -->
+<% if(totalPages > 1) { %>
+<div style="display:flex;justify-content:space-between;align-items:center;padding:.9rem 0;margin-top:.5rem">
+  <span style="font-size:.78rem;color:var(--text-dim)">Page <%= page %> / <%= totalPages %> · <%= total %> article<%= total!==1?'s':'' %></span>
+  <div style="display:flex;gap:.4rem">
+    <% if(page>1) { %><a href="<%= acPageUrl(1) %>" class="btn btn-sm btn-outline">«</a><a href="<%= acPageUrl(page-1) %>" class="btn btn-sm btn-outline">‹</a><% } %>
+    <span style="padding:.35rem .75rem;background:var(--surface-d);border-radius:var(--radius-s);font-size:.8rem;font-weight:700"><%= page %></span>
+    <% if(page<totalPages) { %><a href="<%= acPageUrl(page+1) %>" class="btn btn-sm btn-outline">›</a><a href="<%= acPageUrl(totalPages) %>" class="btn btn-sm btn-outline">»</a><% } %>
+  </div>
+</div>
+<% } %>
+<% } %>
+
+<script>
+function delArt(id, title) {
+  askConfirm({
+    icon:'🗑️', title:'Supprimer cet article',
+    msg: 'Supprimer <strong>' + title + '</strong> ? Cette action est irréversible.',
+    btnLabel:'Supprimer', btnClass:'btn-danger',
+    onConfirm: () => document.getElementById('del-' + id).submit(),
+  });
+}
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.alert-success,.alert-error').forEach(el => {
+    if (el.textContent.trim()) showToast(el.textContent.trim(), el.classList.contains('alert-success') ? 'success' : 'error');
+  });
+});
+</script>
+
+<%- include('layout_bottom') %>

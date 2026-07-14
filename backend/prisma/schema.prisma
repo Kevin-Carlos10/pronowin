@@ -1,0 +1,377 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                    String              @id @default(uuid())
+  phoneNumber           String?             @unique @map("phone_number")
+  email                 String?             @unique
+  passwordHash          String?             @map("password_hash")
+  pseudo                String
+  avatarUrl             String?             @map("avatar_url")
+  countryCode           String              @default("BF") @map("country_code")
+  subscriptionPlan      SubscriptionPlan    @default(free) @map("subscription_plan")
+  subscriptionExpiresAt DateTime?           @map("subscription_expires_at")
+  referralCode          String              @unique @map("referral_code")
+  referredBy            String?             @map("referred_by")
+  referralEarnings      Float               @default(0) @map("referral_earnings")
+  isActive              Boolean             @default(true) @map("is_active")
+  createdAt             DateTime            @default(now()) @map("created_at")
+  updatedAt             DateTime            @updatedAt @map("updated_at")
+  lastLoginAt           DateTime?           @map("last_login_at")
+  fcmToken              String?             @map("fcm_token")
+  xbetId                String?             @map("xbet_id")
+  birthDate             DateTime?           @map("birth_date")
+  firstName             String?             @map("first_name")
+  lastName              String?             @map("last_name")
+  acceptedTermsAt       DateTime?           @map("accepted_terms_at")
+  termsVersion          Int                 @default(1) @map("terms_version")
+  phoneVerified         Boolean             @default(false) @map("phone_verified")
+  emailVerified         Boolean             @default(false) @map("email_verified")
+  deletedAt             DateTime?           @map("deleted_at")
+  streakDays            Int                 @default(0) @map("streak_days")
+  streakLastDate        DateTime?           @map("streak_last_date")
+  xpTotal               Int                 @default(0) @map("xp_total")
+  notifications         Notification[]
+  otpCodes              OtpCode[]
+  referredUsers         Referral[]          @relation("ReferredRelation")
+  referrals             Referral[]          @relation("ReferrerRelation")
+  refreshTokens         RefreshToken[]
+  proofSubmissions      SubscriptionProof[]
+  subscriptions         Subscription[]
+  transactions          Transaction[]
+  tutorialProgress      TutorialProgress[]
+  bankroll              UserBankroll?
+  favoriteMatches       UserFavoriteMatch[]
+
+  @@index([createdAt])
+  @@map("users")
+}
+
+model UserBankroll {
+  id             String        @id @default(uuid())
+  userId         String        @unique @map("user_id")
+  totalBudget    Float         @map("total_budget")
+  currentBalance Float         @map("current_balance")
+  currency       String        @default("XOF")
+  lastResetAt    DateTime?     @map("last_reset_at")
+  createdAt      DateTime      @default(now()) @map("created_at")
+  updatedAt      DateTime      @updatedAt @map("updated_at")
+  bets           BankrollBet[]
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_bankrolls")
+}
+
+model BankrollBet {
+  id              String       @id @default(uuid())
+  bankrollId      String       @map("bankroll_id")
+  pronosticId     String       @map("pronostic_id")
+  stakedAmount    Float        @map("staked_amount")
+  suggestedAmount Float        @map("suggested_amount")
+  oddsUsed        Float        @map("odds_used")
+  potentialGain   Float        @map("potential_gain")
+  result          String?
+  profit          Float?
+  settledAt       DateTime?    @map("settled_at")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  bankroll        UserBankroll @relation(fields: [bankrollId], references: [id], onDelete: Cascade)
+  pronostic       Pronostic    @relation(fields: [pronosticId], references: [id], onDelete: Cascade)
+
+  @@unique([bankrollId, pronosticId])
+  @@index([pronosticId])
+  @@map("bankroll_bets")
+}
+
+model UserFavoriteMatch {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  matchId   String   @map("match_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, matchId])
+  @@index([matchId])
+  @@map("user_favorite_matches")
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  title     String
+  body      String
+  type      String   @default("system")
+  deepLink  String?  @map("deep_link")
+  isRead    Boolean  @default(false) @map("is_read")
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("notifications")
+}
+
+model OtpCode {
+  id          String   @id @default(uuid())
+  userId      String?  @map("user_id")
+  phoneNumber String   @map("phone_number")
+  code        String
+  expiresAt   DateTime @map("expires_at")
+  used        Boolean  @default(false)
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User?    @relation(fields: [userId], references: [id])
+
+  @@map("otp_codes")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  token     String   @unique
+  expiresAt DateTime @map("expires_at")
+  createdAt DateTime @default(now()) @map("created_at")
+  used      Boolean  @default(false) @map("used")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
+}
+
+model Admin {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String      @map("password_hash")
+  name         String
+  role         AdminRole   @default(analyst)
+  isActive     Boolean     @default(true) @map("is_active")
+  createdAt    DateTime    @default(now()) @map("created_at")
+  lastLoginAt  DateTime?   @map("last_login_at")
+  pronostics   Pronostic[]
+
+  @@map("admins")
+}
+
+model Match {
+  id             String              @id @default(uuid())
+  externalId     Int                 @unique @map("external_id")
+  league         String
+  leagueCode     String              @map("league_code")
+  leagueLogo     String?             @map("league_logo")
+  homeTeam       String              @map("home_team")
+  homeTeamFull   String?             @map("home_team_full")
+  homeTeamLogo   String?             @map("home_team_logo")
+  awayTeam       String              @map("away_team")
+  awayTeamFull   String?             @map("away_team_full")
+  awayTeamLogo   String?             @map("away_team_logo")
+  matchDate      DateTime            @map("match_date")
+  status         MatchStatus         @default(SCHEDULED)
+  homeScore      Int?                @map("home_score")
+  awayScore      Int?                @map("away_score")
+  homeFormPoints Int                 @default(0) @map("home_form_points")
+  awayFormPoints Int                 @default(0) @map("away_form_points")
+  fetchedAt      DateTime            @default(now()) @map("fetched_at")
+  alertSent      Boolean             @default(false) @map("alert_sent")
+  pronostic      Pronostic?
+  favoritedBy    UserFavoriteMatch[]
+
+  @@index([matchDate])
+  @@index([status])
+  @@map("matches")
+}
+
+model Pronostic {
+  id              String         @id @default(uuid())
+  matchId         String         @unique @map("match_id")
+  analystId       String         @map("analyst_id")
+  predictionType  PredictionType @map("prediction_type")
+  predictionLabel String         @map("prediction_label")
+  oddsHome        Float          @default(0) @map("odds_home")
+  oddsDraw        Float          @default(0) @map("odds_draw")
+  oddsAway        Float          @default(0) @map("odds_away")
+  oddsRecommended Float          @map("odds_recommended")
+  confidenceScore Int            @map("confidence_score")
+  analystNote     String?        @map("analyst_note")
+  isPremium       Boolean        @default(false) @map("is_premium")
+  isPublished     Boolean        @default(false) @map("is_published")
+  result          String?
+  publishedAt     DateTime?      @map("published_at")
+  createdAt       DateTime       @default(now()) @map("created_at")
+  updatedAt       DateTime       @updatedAt @map("updated_at")
+  aiExplanation   String?        @map("ai_explanation")
+  aiProbability   Float?         @map("ai_probability")
+  bankrollBets    BankrollBet[]
+  analyst         Admin          @relation(fields: [analystId], references: [id])
+  match           Match          @relation(fields: [matchId], references: [id])
+
+  @@map("pronostics")
+}
+
+model Transaction {
+  id            String            @id @default(uuid())
+  userId        String            @map("user_id")
+  type          TransactionType
+  amount        Float
+  currency      String            @default("XOF")
+  paymentMethod String            @map("payment_method")
+  status        TransactionStatus @default(pending)
+  metadata      Json?
+  createdAt     DateTime          @default(now()) @map("created_at")
+  updatedAt     DateTime          @updatedAt @map("updated_at")
+  adminNote     String?           @map("admin_note")
+  processedAt   DateTime?         @map("processed_at")
+  processedBy   String?           @map("processed_by")
+  senderPhone   String?           @map("sender_phone")
+  xbetId        String?           @map("xbet_id")
+  user          User              @relation(fields: [userId], references: [id])
+
+  @@index([status])
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("transactions")
+}
+
+model Subscription {
+  id            String             @id @default(uuid())
+  userId        String             @map("user_id")
+  plan          SubscriptionPlan
+  amountPaid    Float              @map("amount_paid")
+  paymentMethod String             @map("payment_method")
+  promoCodeUsed String?            @map("promo_code_used")
+  startDate     DateTime           @map("start_date")
+  endDate       DateTime           @map("end_date")
+  autoRenew     Boolean            @default(false) @map("auto_renew")
+  createdAt     DateTime           @default(now()) @map("created_at")
+  proof         SubscriptionProof?
+  user          User               @relation(fields: [userId], references: [id])
+
+  @@map("subscriptions")
+}
+
+model SubscriptionProof {
+  id             String                @id @default(uuid())
+  userId         String                @map("user_id")
+  subscriptionId String?               @unique @map("subscription_id")
+  type           SubscriptionProofType
+  screenshotUrl  String                @map("screenshot_url")
+  xbetId         String?               @map("xbet_id")
+  amount         Float?
+  senderPhone    String?               @map("sender_phone")
+  status         ProofStatus           @default(pending)
+  adminNote      String?               @map("admin_note")
+  reviewedBy     String?               @map("reviewed_by")
+  reviewedAt     DateTime?             @map("reviewed_at")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  subscription   Subscription?         @relation(fields: [subscriptionId], references: [id])
+  user           User                  @relation(fields: [userId], references: [id])
+
+  @@map("subscription_proofs")
+}
+
+model Referral {
+  id               String   @id @default(uuid())
+  referrerId       String   @map("referrer_id")
+  referredId       String   @map("referred_id")
+  level            Int      @default(1)
+  commissionAmount Float    @default(0) @map("commission_amount")
+  isPaid           Boolean  @default(false) @map("is_paid")
+  createdAt        DateTime @default(now()) @map("created_at")
+  referred         User     @relation("ReferredRelation", fields: [referredId], references: [id])
+  referrer         User     @relation("ReferrerRelation", fields: [referrerId], references: [id])
+
+  @@unique([referrerId, referredId])
+  @@map("referrals")
+}
+
+model Tutorial {
+  id              String             @id
+  title           String
+  description     String
+  level           String             @default("beginner")
+  category        String
+  thumbnailUrl    String?            @map("thumbnail_url")
+  videoUrl        String?            @map("video_url")
+  durationSeconds Int                @default(0) @map("duration_seconds")
+  isPremium       Boolean            @default(false) @map("is_premium")
+  hasVideo        Boolean            @default(false) @map("has_video")
+  viewCount       Int                @default(0) @map("view_count")
+  rating          Float              @default(0)
+  authorName      String?            @map("author_name")
+  publishedAt     DateTime?          @map("published_at")
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+  articleContent  String?            @map("article_content")
+  progress        TutorialProgress[]
+
+  @@map("tutorials")
+}
+
+model TutorialProgress {
+  id             String    @id @default(uuid())
+  userId         String    @map("user_id")
+  tutorialId     String    @map("tutorial_id")
+  watchedSeconds Int       @default(0) @map("watched_seconds")
+  isCompleted    Boolean   @default(false) @map("is_completed")
+  completedAt    DateTime? @map("completed_at")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+  tutorial       Tutorial  @relation(fields: [tutorialId], references: [id], onDelete: Cascade)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tutorialId])
+  @@map("tutorial_progress")
+}
+
+enum SubscriptionPlan {
+  free
+  premium
+}
+
+enum TransactionType {
+  deposit
+  withdrawal
+}
+
+enum TransactionStatus {
+  pending
+  processing
+  completed
+  rejected
+}
+
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  POSTPONED
+  SUSPENDED
+}
+
+enum PredictionType {
+  win1
+  draw
+  win2
+  btts
+  over25
+  under25
+  over35
+  under35
+}
+
+enum SubscriptionProofType {
+  payment_screenshot
+  xbet_account_screenshot
+}
+
+enum ProofStatus {
+  pending
+  approved
+  rejected
+}
+
+enum AdminRole {
+  super_admin
+  analyst
+}

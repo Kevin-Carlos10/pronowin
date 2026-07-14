@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+	<dict>
+		<key>CADisableMinimumFrameDurationOnPhone</key>
+		<true/>
+		<!-- ── Identité de l'app ──────────────────────────────────────────────── -->
+		<key>CFBundleDisplayName</key>
+		<string>PronoWin</string>
+		<key>CFBundleName</key>
+		<string>PronoWin</string>
+		<key>CFBundleDevelopmentRegion</key>
+		<string>$(DEVELOPMENT_LANGUAGE)</string>
+		<key>CFBundleExecutable</key>
+		<string>$(EXECUTABLE_NAME)</string>
+		<key>CFBundleIdentifier</key>
+		<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+		<key>CFBundleInfoDictionaryVersion</key>
+		<string>6.0</string>
+		<key>CFBundlePackageType</key>
+		<string>APPL</string>
+		<key>CFBundleShortVersionString</key>
+		<string>$(FLUTTER_BUILD_NAME)</string>
+		<key>CFBundleSignature</key>
+		<string>????</string>
+		<key>CFBundleVersion</key>
+		<string>$(FLUTTER_BUILD_NUMBER)</string>
+		<!-- ── Schéma URL custom pour deep links (pronowin://app/pronostics/ID) ── -->
+		<!-- Universal Links (https://pronowin.app/...) sont gérés via Runner.entitlements -->
+		<key>CFBundleURLTypes</key>
+		<array>
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>com.pronowin.app</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>pronowin</string>
+				</array>
+			</dict>
+		</array>
+		<!-- ── App Transport Security ────────────────────────────────────────────
+	     En prod, supprimer NSAllowsArbitraryLoads et ne garder que
+	     l'exception pour le domaine de production si nécessaire.
+	     En dev, autorise le serveur local HTTP. -->
+		<key>NSAppTransportSecurity</key>
+		<dict>
+			<key>NSAllowsArbitraryLoads</key>
+			<false/>
+			<!-- Exception pour le serveur de développement local -->
+			<key>NSExceptionDomains</key>
+			<dict>
+				<key>192.168.11.111</key>
+				<dict>
+					<key>NSExceptionAllowsInsecureHTTPLoads</key>
+					<true/>
+					<key>NSIncludesSubdomains</key>
+					<false/>
+				</dict>
+				<key>localhost</key>
+				<dict>
+					<key>NSExceptionAllowsInsecureHTTPLoads</key>
+					<true/>
+				</dict>
+			</dict>
+		</dict>
+		<!-- ── Permissions ───────────────────────────────────────────────────── -->
+		<!-- Biométrie (Face ID / Touch ID) -->
+		<key>NSFaceIDUsageDescription</key>
+		<string>PronoWin utilise Face ID pour sécuriser l'accès à votre compte.</string>
+		<!-- Galerie photos (upload preuve de paiement) -->
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>Sélectionnez une capture d'écran de votre paiement pour activer le Premium.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>Prenez une photo de votre confirmation de paiement pour activer le Premium.</string>
+		<!-- ── Orientation : portrait uniquement ─────────────────────────────── -->
+		<key>UISupportedInterfaceOrientations</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+		</array>
+		<key>UISupportedInterfaceOrientations~ipad</key>
+		<array>
+			<string>UIInterfaceOrientationPortrait</string>
+			<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		</array>
+		<!-- ── UI ────────────────────────────────────────────────────────────── -->
+		<key>LSRequiresIPhoneOS</key>
+		<true/>
+		<key>UIApplicationSupportsIndirectInputEvents</key>
+		<true/>
+		<key>UILaunchStoryboardName</key>
+		<string>LaunchScreen</string>
+		<key>UIMainStoryboardFile</key>
+		<string>Main</string>
+		<key>UIStatusBarHidden</key>
+		<false/>
+		<key>UIViewControllerBasedStatusBarAppearance</key>
+		<false/>
+		<!-- ── Background modes : notifications push ─────────────────────────── -->
+		<key>UIBackgroundModes</key>
+		<array>
+			<string>remote-notification</string>
+			<string>fetch</string>
+		</array>
+		<!-- ── Flutter / Firebase ────────────────────────────────────────────── -->
+		<key>UIApplicationSceneManifest</key>
+		<dict>
+			<key>UIApplicationSupportsMultipleScenes</key>
+			<false/>
+			<key>UISceneConfigurations</key>
+			<dict/>
+		</dict>
+	</dict>
+</plist>

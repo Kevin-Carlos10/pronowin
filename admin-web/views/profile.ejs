@@ -1,0 +1,377 @@
+<%- include('layout_top', {page:'profile'}) %>
+
+<style>
+/* ── Layout ─────────────────────────────────────────────────────────────────── */
+.pf-layout { display:grid; grid-template-columns:300px 1fr; gap:1rem; align-items:start; }
+@media(max-width:900px){ .pf-layout { grid-template-columns:1fr; } }
+
+/* ── Avatar card ─────────────────────────────────────────────────────────────── */
+.pf-avatar-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.75rem; text-align:center; }
+.pf-avatar { width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.75rem; font-weight:800; margin:0 auto .9rem; }
+.pf-avatar.main { background:rgba(34,197,94,.12); color:var(--success); }
+.pf-avatar.sub  { background:rgba(245,158,11,.12); color:var(--warning); }
+.pf-name  { font-size:1.15rem; font-weight:800; margin-bottom:.25rem; }
+.pf-role  { display:inline-block; font-size:.75rem; padding:.2rem .7rem; border-radius:99px; font-weight:600; margin-bottom:1.25rem; }
+.pf-role.main { background:rgba(34,197,94,.12); color:var(--success); }
+.pf-role.sub  { background:rgba(245,158,11,.12); color:var(--warning); }
+
+/* ── Info rows ───────────────────────────────────────────────────────────────── */
+.pf-row { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.82rem; gap:.5rem; }
+.pf-row:last-child { border-bottom:0; }
+.pf-lbl { color:var(--text-dim); font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; font-weight:700; flex-shrink:0; }
+.pf-val { color:var(--text); font-weight:500; text-align:right; }
+
+/* ── Mini stats ──────────────────────────────────────────────────────────────── */
+.pf-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:.5rem; margin-top:1rem; }
+.pf-stat  { background:var(--surface-d); border-radius:var(--radius-s); padding:.6rem .5rem; text-align:center; }
+.pf-stat .v { font-size:1.1rem; font-weight:800; line-height:1; }
+.pf-stat .l { font-size:.65rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.04em; margin-top:.2rem; }
+
+/* ── Permission tags ─────────────────────────────────────────────────────────── */
+.perm-tags { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.6rem; }
+.perm-tag  { font-size:.68rem; padding:.18rem .5rem; border-radius:99px; font-weight:600; }
+.perm-tag.read   { background:rgba(59,130,246,.12); color:var(--info); }
+.perm-tag.write  { background:rgba(245,158,11,.12);  color:var(--warning); }
+.perm-tag.delete { background:rgba(239,68,68,.12);   color:var(--error); }
+
+/* ── Connexions history ──────────────────────────────────────────────────────── */
+.pf-login-item { display:flex; align-items:center; gap:.6rem; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.8rem; }
+.pf-login-item:last-child { border-bottom:0; }
+.pf-login-dot  { width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+
+/* ── Timeline activité ───────────────────────────────────────────────────────── */
+.pf-tl { display:flex; flex-direction:column; gap:.45rem; }
+.pf-tl-item { display:flex; align-items:flex-start; gap:.6rem; font-size:.8rem; }
+.pf-tl-dot  { width:6px; height:6px; border-radius:50%; background:var(--primary); flex-shrink:0; margin-top:5px; }
+.pf-tl-text { color:var(--text-m); flex:1; line-height:1.4; }
+.pf-tl-time { color:var(--text-dim); font-size:.72rem; white-space:nowrap; }
+
+/* ── Cartes sections ─────────────────────────────────────────────────────────── */
+.pf-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.35rem 1.5rem; margin-bottom:1rem; }
+.pf-card:last-child { margin-bottom:0; }
+.pf-card-title { font-size:.9rem; font-weight:700; margin-bottom:1.1rem; display:flex; align-items:center; gap:.5rem; }
+
+/* ── Indicateur force MDP ────────────────────────────────────────────────────── */
+.strength-bar  { height:4px; border-radius:99px; background:var(--surface-d); margin-top:.4rem; overflow:hidden; }
+.strength-fill { height:4px; border-radius:99px; transition:width .3s, background .3s; }
+
+/* ── Préférences visuelles ───────────────────────────────────────────────────── */
+.pf-theme-btns { display:flex; gap:.5rem; }
+.pf-theme-btn  { flex:1; padding:.55rem; border:1px solid var(--border); border-radius:var(--radius-s); background:var(--surface-d); cursor:pointer; font-size:.78rem; font-weight:600; color:var(--text-m); transition:all .15s; text-align:center; }
+.pf-theme-btn:hover, .pf-theme-btn.active { border-color:var(--primary); color:var(--primary); background:rgba(var(--primary-rgb),.08); }
+.accent-dots { display:flex; gap:.5rem; flex-wrap:wrap; }
+.accent-dot  { width:28px; height:28px; border-radius:50%; cursor:pointer; transition:transform .15s, box-shadow .15s; border:2px solid transparent; }
+.accent-dot:hover   { transform:scale(1.15); }
+.accent-dot.active  { border-color:var(--text); box-shadow:0 0 0 2px var(--surface), 0 0 0 4px currentColor; }
+
+/* ── Copy btn ────────────────────────────────────────────────────────────────── */
+.pf-copy { background:none; border:none; cursor:pointer; color:var(--text-dim); font-size:.75rem; padding:.1rem .3rem; border-radius:4px; transition:all .15s; }
+.pf-copy:hover { background:var(--surface-h); color:var(--primary); }
+</style>
+
+<%
+  function relTime(iso) {
+    if (!iso) return null;
+    const d = Date.now() - new Date(iso).getTime();
+    const m = Math.floor(d/60000);
+    if (m < 2) return 'À l\'instant';
+    if (m < 60) return `Il y a ${m}min`;
+    const h = Math.floor(m/60);
+    if (h < 24) return `Il y a ${h}h`;
+    return `Il y a ${Math.floor(h/24)}j`;
+  }
+  const _initial = (adminName||'?')[0].toUpperCase();
+%>
+
+<div class="topbar">
+  <div>
+    <h2>👤 Mon profil</h2>
+    <small>Informations, sécurité et préférences</small>
+  </div>
+  <a href="/admin/logout" class="btn btn-outline btn-sm">🚪 Déconnexion</a>
+</div>
+
+<% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
+<% if (error)   { %><div class="alert alert-error"   style="display:none"><%= error %></div><% } %>
+
+<div class="pf-layout">
+
+  <!-- ── Colonne gauche ─────────────────────────────────────────────────────────── -->
+  <div>
+
+    <!-- Avatar + infos -->
+    <div class="pf-avatar-card" style="margin-bottom:1rem">
+      <div class="pf-avatar <%= isMain ? 'main' : 'sub' %>"><%= _initial %></div>
+      <div class="pf-name"><%= adminName %></div>
+      <div class="pf-role <%= isMain ? 'main' : 'sub' %>">
+        <%= isMain ? '🔷 Admin principal' : '🔸 Sous-admin' %>
+      </div>
+
+      <!-- Infos compte -->
+      <div style="text-align:left">
+        <% if (sub) { %>
+        <div class="pf-row">
+          <span class="pf-lbl">Identifiant</span>
+          <div style="display:flex;align-items:center;gap:.3rem">
+            <code style="font-size:.78rem;background:var(--surface-d);padding:.12rem .4rem;border-radius:4px;color:var(--primary)" id="pf-username"><%= sub.username %></code>
+            <button class="pf-copy" onclick="copyText('<%= sub.username %>','pf-username-check')" title="Copier">📋</button>
+            <span id="pf-username-check" style="font-size:.68rem;color:var(--success);display:none">✓</span>
+          </div>
+        </div>
+        <div class="pf-row">
+          <span class="pf-lbl">Créé le</span>
+          <span class="pf-val" style="font-size:.78rem"><%= sub.createdAt ? new Date(sub.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) : '—' %></span>
+        </div>
+        <div class="pf-row">
+          <span class="pf-lbl">Dernière connexion</span>
+          <span class="pf-val" style="font-size:.75rem"><%= sub.lastLoginAt ? new Date(sub.lastLoginAt).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'Jamais' %></span>
+        </div>
+        <% } else { %>
+        <div class="pf-row">
+          <span class="pf-lbl">Rôle</span>
+          <span class="pf-val" style="color:var(--success)">Administrateur principal</span>
+        </div>
+        <div class="pf-row">
+          <span class="pf-lbl">Accès</span>
+          <span class="pf-val">Illimité — tous modules</span>
+        </div>
+        <div class="pf-row">
+          <span class="pf-lbl">IP actuelle</span>
+          <span class="pf-val" style="font-family:monospace;font-size:.78rem"><%= currentIp %></span>
+        </div>
+        <% } %>
+      </div>
+
+      <!-- Mes stats personnelles -->
+      <div class="pf-stats">
+        <div class="pf-stat"><div class="v" style="color:var(--primary)"><%= statsMe.total %></div><div class="l">Actions</div></div>
+        <div class="pf-stat"><div class="v" style="color:var(--info)"><%= statsMe.week %></div><div class="l">Ce mois</div></div>
+        <div class="pf-stat"><div class="v" style="color:var(--success)"><%= statsMe.today %></div><div class="l">Auj.</div></div>
+      </div>
+
+      <!-- Permissions sous-admin -->
+      <% if (!isMain) { %>
+      <div style="margin-top:1.1rem;text-align:left">
+        <div style="font-size:.7rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:.45rem">Mes permissions</div>
+        <%
+          function _myLevel(key) {
+            for (const p of adminPerms) {
+              if (typeof p !== 'string') continue;
+              const [k, l] = p.split(':');
+              if (k === key && ['read','write','delete'].includes(l)) return l;
+            }
+            if (adminPerms.includes(key)) return 'write';
+            return null;
+          }
+          const _hasAnyPerm = PERMISSIONS.some(p => _myLevel(p.key));
+        %>
+        <div class="perm-tags">
+          <% PERMISSIONS.forEach(p => {
+               const lvl = _myLevel(p.key);
+               if (!lvl) return;
+               const icon = lvl==='delete'?'🗑':lvl==='write'?'✏️':'👁';
+          %>
+          <span class="perm-tag <%= lvl %>"><%= icon %> <%= p.label.split(' ').slice(1).join(' ') %></span>
+          <% }); %>
+          <% if (!_hasAnyPerm) { %><span style="color:var(--text-dim);font-size:.78rem;font-style:italic">Aucune permission</span><% } %>
+        </div>
+      </div>
+      <% } %>
+    </div>
+
+    <!-- Historique connexions -->
+    <div class="pf-card">
+      <div class="pf-card-title">🕐 Connexions récentes</div>
+      <% if (lastLogins.length === 0) { %>
+      <p style="color:var(--text-dim);font-size:.82rem;font-style:italic">Aucune connexion enregistrée.</p>
+      <% } else { lastLogins.forEach((log, i) => { %>
+      <div class="pf-login-item">
+        <div class="pf-login-dot" style="background:<%= i===0?'var(--success)':'var(--text-dim)' %>"></div>
+        <div style="flex:1">
+          <div style="font-size:.8rem"><%= new Date(log.timestamp).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',year:'numeric'}) %></div>
+          <div style="font-size:.72rem;color:var(--text-dim)"><%= new Date(log.timestamp).toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'}) %> · <%= i===0?'Session actuelle':relTime(log.timestamp) %></div>
+        </div>
+        <span style="font-family:monospace;font-size:.72rem;color:var(--text-dim)"><%= log.ip %></span>
+      </div>
+      <% }); } %>
+    </div>
+
+  </div>
+
+  <!-- ── Colonne droite ─────────────────────────────────────────────────────────── -->
+  <div>
+
+    <!-- Activité récente -->
+    <% if (recentActivity && recentActivity.length > 0) { %>
+    <div class="pf-card">
+      <div class="pf-card-title">⚡ Activité récente</div>
+      <div class="pf-tl">
+        <% recentActivity.forEach(log => {
+             const meta = (typeof ACTION_LABELS !== 'undefined' && ACTION_LABELS[log.action]) || { label: log.action, icon: '•' };
+        %><div class="pf-tl-item">
+          <div class="pf-tl-dot"></div>
+          <div class="pf-tl-text"><%= meta.icon %> <%= meta.label %><% if(log.target){ %> · <em style="color:var(--text-dim)"><%= log.target.length>30?log.target.slice(0,30)+'…':log.target %></em><% } %></div>
+          <div class="pf-tl-time"><%= relTime(log.timestamp) %></div>
+        </div><% }); %>
+      </div>
+      <a href="/admin/audit?admin=<%= encodeURIComponent(adminName) %>" class="btn btn-outline btn-sm" style="margin-top:.85rem;width:100%;justify-content:center">Voir tout l'historique →</a>
+    </div>
+    <% } %>
+
+    <!-- Changer mot de passe -->
+    <div class="pf-card">
+      <div class="pf-card-title">🔑 Changer mon mot de passe</div>
+      <form method="POST" action="/admin/profile/password" id="pwd-form">
+        <div class="form-group" style="margin-bottom:.9rem">
+          <label>Mot de passe actuel</label>
+          <input class="input" type="password" name="current_password" required placeholder="Votre mot de passe actuel" autocomplete="current-password">
+        </div>
+        <div class="form-group" style="margin-bottom:.9rem">
+          <label>Nouveau mot de passe</label>
+          <input class="input" type="password" name="new_password" id="new-pwd" required placeholder="Min. 6 caractères" autocomplete="new-password" minlength="6">
+          <div class="strength-bar"><div class="strength-fill" id="strength-fill" style="width:0%"></div></div>
+          <div id="strength-label" style="font-size:.72rem;margin-top:.25rem;color:var(--text-dim)"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:1.1rem">
+          <label>Confirmer le nouveau mot de passe</label>
+          <input class="input" type="password" name="confirm_password" id="confirm-pwd" required placeholder="Répéter le nouveau mot de passe" autocomplete="new-password">
+          <div id="match-label" style="font-size:.72rem;margin-top:.25rem"></div>
+        </div>
+        <button class="btn btn-primary" type="submit" style="width:100%">Modifier le mot de passe</button>
+      </form>
+    </div>
+
+    <!-- Préférences visuelles -->
+    <div class="pf-card">
+      <div class="pf-card-title">🎨 Préférences visuelles</div>
+
+      <div style="margin-bottom:1rem">
+        <div style="font-size:.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:.55rem">Thème</div>
+        <div class="pf-theme-btns">
+          <button class="pf-theme-btn" id="btn-dark"  onclick="applyTheme('dark')">🌙 Sombre</button>
+          <button class="pf-theme-btn" id="btn-light" onclick="applyTheme('light')">☀️ Clair</button>
+        </div>
+      </div>
+
+      <div>
+        <div style="font-size:.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:.55rem">Couleur d'accent</div>
+        <div class="accent-dots">
+          <div class="accent-dot" id="ad-orange" style="background:#E8541A" onclick="applyAccent('orange')" title="Orange (défaut)"></div>
+          <div class="accent-dot" id="ad-blue"   style="background:#2563EB" onclick="applyAccent('blue')"   title="Bleu"></div>
+          <div class="accent-dot" id="ad-green"  style="background:#059669" onclick="applyAccent('green')"  title="Vert"></div>
+          <div class="accent-dot" id="ad-purple" style="background:#7C3AED" onclick="applyAccent('purple')" title="Violet"></div>
+          <div class="accent-dot" id="ad-pink"   style="background:#DB2777" onclick="applyAccent('pink')"   title="Rose"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Session + sécurité -->
+    <div class="pf-card">
+      <div class="pf-card-title">📡 Session &amp; Sécurité</div>
+      <div class="pf-row"><span class="pf-lbl">Statut</span><span style="color:var(--success);font-weight:600">🟢 Connecté</span></div>
+      <div class="pf-row"><span class="pf-lbl">IP actuelle</span><span class="pf-val" style="font-family:monospace;font-size:.78rem"><%= currentIp %></span></div>
+      <div class="pf-row"><span class="pf-lbl">Timeout inactivité</span><span class="pf-val">30 min</span></div>
+      <div class="pf-row" style="border-bottom:0"><span class="pf-lbl">Durée max.</span><span class="pf-val">8 h (30 j si "Se souvenir")</span></div>
+
+      <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+        <div style="font-size:.78rem;color:var(--text-m);line-height:1.7;display:flex;flex-direction:column;gap:.35rem">
+          <div>✅ Utilisez un mot de passe de <strong>12+ caractères</strong> avec chiffres et symboles</div>
+          <div>✅ Ne réutilisez pas ce mot de passe ailleurs</div>
+          <div>⚠️ Après <strong style="color:var(--warning)">5 tentatives</strong> échouées, l'IP est bloquée 15 min</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ── Copy ── */
+function copyText(text, confirmId) {
+  navigator.clipboard?.writeText(text).catch(() => {
+    const el = document.createElement('textarea');
+    el.value = text; document.body.appendChild(el); el.select(); document.execCommand('copy'); document.body.removeChild(el);
+  }).finally ? undefined : null;
+  navigator.clipboard?.writeText(text);
+  const c = document.getElementById(confirmId);
+  if (c) { c.style.display = 'inline'; setTimeout(() => c.style.display = 'none', 2000); }
+}
+
+/* ── Force MDP ── */
+document.getElementById('new-pwd').addEventListener('input', function() {
+  const v = this.value;
+  let s = 0;
+  if (v.length >= 6) s++;
+  if (v.length >= 10) s++;
+  if (/[A-Z]/.test(v)) s++;
+  if (/[0-9]/.test(v)) s++;
+  if (/[^A-Za-z0-9]/.test(v)) s++;
+  const lvls = [
+    { pct:'20%', c:'var(--error)',   t:'Très faible' },
+    { pct:'40%', c:'var(--error)',   t:'Faible' },
+    { pct:'60%', c:'var(--warning)', t:'Moyen' },
+    { pct:'80%', c:'var(--primary)', t:'Fort' },
+    { pct:'100%',c:'var(--success)', t:'Très fort' },
+  ];
+  const l = lvls[Math.min(s, 4)];
+  const fill  = document.getElementById('strength-fill');
+  const label = document.getElementById('strength-label');
+  fill.style.width      = v.length ? l.pct : '0%';
+  fill.style.background = l.c;
+  label.textContent     = v.length ? l.t : '';
+  label.style.color     = l.c;
+});
+
+/* ── Match confirmation ── */
+document.getElementById('confirm-pwd').addEventListener('input', function() {
+  const ml = document.getElementById('match-label');
+  if (!this.value) { ml.textContent = ''; return; }
+  const match = this.value === document.getElementById('new-pwd').value;
+  ml.textContent = match ? '✅ Les mots de passe correspondent' : '❌ Ne correspondent pas';
+  ml.style.color = match ? 'var(--success)' : 'var(--error)';
+});
+document.getElementById('pwd-form').addEventListener('submit', function(e) {
+  if (document.getElementById('new-pwd').value !== document.getElementById('confirm-pwd').value) {
+    e.preventDefault();
+    showToast('Les mots de passe ne correspondent pas.', 'error');
+  }
+});
+
+/* ── Thème ── */
+function applyTheme(t) {
+  if (t === 'light') document.documentElement.classList.add('light');
+  else               document.documentElement.classList.remove('light');
+  localStorage.setItem('pw_theme', t);
+  document.getElementById('btn-dark').classList.toggle('active', t === 'dark');
+  document.getElementById('btn-light').classList.toggle('active', t === 'light');
+}
+
+/* ── Accent ── */
+const _accentColors = { orange:'#E8541A', blue:'#2563EB', green:'#059669', purple:'#7C3AED', pink:'#DB2777' };
+function applyAccent(a) {
+  document.documentElement.setAttribute('data-accent', a);
+  localStorage.setItem('pw_accent', a);
+  document.querySelectorAll('.accent-dot').forEach(d => d.classList.remove('active'));
+  const el = document.getElementById('ad-' + a);
+  if (el) el.classList.add('active');
+}
+
+/* ── Init état thème/accent ── */
+(function() {
+  const t = localStorage.getItem('pw_theme') || 'dark';
+  const a = localStorage.getItem('pw_accent') || 'orange';
+  document.getElementById('btn-dark').classList.toggle('active', t === 'dark');
+  document.getElementById('btn-light').classList.toggle('active', t === 'light');
+  const adEl = document.getElementById('ad-' + a);
+  if (adEl) adEl.classList.add('active');
+})();
+
+/* ── Toasts flash ── */
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.alert-success,.alert-error').forEach(el => {
+    if (el.textContent.trim()) showToast(el.textContent.trim(), el.classList.contains('alert-success') ? 'success' : 'error');
+  });
+});
+</script>
+
+<%- include('layout_bottom') %>

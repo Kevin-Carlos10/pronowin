@@ -1,0 +1,390 @@
+<%- include('layout_top', { page: 'bans' }) %>
+
+<style>
+/* ── Stats ── */
+.bans-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:.65rem; margin-bottom:1rem; }
+.ban-stat { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.75rem 1rem; }
+.ban-stat .bs-val { font-size:1.6rem; font-weight:800; line-height:1; margin-bottom:.2rem; }
+.ban-stat .bs-lbl { font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-dim); font-weight:700; }
+
+/* ── Filter tabs ── */
+.bans-bar { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
+.filter-tabs { display:flex; gap:.3rem; background:var(--surface-d); border-radius:var(--radius-s); padding:.25rem; }
+.filter-tab { padding:.3rem .85rem; border-radius:calc(var(--radius-s) - 2px); font-size:.78rem; font-weight:600; color:var(--text-dim); text-decoration:none; border:none; background:none; cursor:pointer; transition:all .15s; }
+.filter-tab.active { background:var(--surface); color:var(--text); box-shadow:0 1px 3px rgba(0,0,0,.2); }
+
+/* ── Row styles ── */
+.ban-row-active  { border-left:3px solid var(--error); }
+.ban-row-expired { border-left:3px solid var(--border); opacity:.75; }
+.ban-row-soon    { border-left:3px solid var(--warning); }
+.ban-pseudo { font-weight:700; color:var(--text); }
+.ban-uid    { font-size:.72rem; color:var(--text-dim); font-family:monospace; }
+
+/* ── Pills ── */
+.dur-pill { display:inline-flex; align-items:center; gap:.3rem; font-size:.75rem; font-weight:700; padding:.2rem .6rem; border-radius:99px; }
+.dur-perm { background:rgba(239,68,68,.12); color:var(--error); }
+.dur-temp { background:rgba(245,158,11,.12); color:var(--warning); }
+.dur-done { background:var(--surface-d); color:var(--text-dim); }
+.st-pill  { display:inline-flex; align-items:center; gap:.3rem; font-size:.72rem; font-weight:700; padding:.2rem .55rem; border-radius:99px; }
+.st-active  { background:rgba(239,68,68,.1);  color:var(--error); }
+.st-expired { background:var(--surface-d); color:var(--text-dim); }
+.st-soon    { background:rgba(245,158,11,.1); color:var(--warning); }
+
+/* ── Quick ban card ── */
+.quick-ban-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.1rem 1.25rem; margin-bottom:1rem; display:none; }
+.quick-ban-card.open { display:block; }
+
+/* ── Raison cell ── */
+.reason-cell { max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+
+/* ── Expiration progress ── */
+.exp-bar  { height:4px; background:var(--surface-d); border-radius:99px; margin-top:.3rem; overflow:hidden; }
+.exp-fill { height:100%; border-radius:99px; transition:width .3s; }
+</style>
+
+<%
+  function fmtD(iso) {
+    if (!iso) return '—';
+    return new Date(iso).toLocaleDateString('fr-FR', { day:'2-digit', month:'2-digit', year:'numeric' });
+  }
+  function relT(iso) {
+    if (!iso) return '—';
+    const d = Date.now() - new Date(iso).getTime();
+    const s = Math.floor(d / 1000);
+    if (s < 60)   return "à l'instant";
+    const m = Math.floor(s / 60);
+    if (m < 60)   return 'il y a ' + m + 'min';
+    const h = Math.floor(m / 60);
+    if (h < 24)   return 'il y a ' + h + 'h';
+    const dy = Math.floor(h / 24);
+    if (dy < 30)  return 'il y a ' + dy + 'j';
+    return fmtD(iso);
+  }
+  function expireIn(iso) {
+    if (!iso) return null;
+    const ms = new Date(iso).getTime() - Date.now();
+    if (ms <= 0) return 'Expiré';
+    const d = Math.floor(ms / 86400000);
+    const h = Math.floor((ms % 86400000) / 3600000);
+    if (d > 0) return 'dans ' + d + 'j' + (h > 0 ? ' ' + h + 'h' : '');
+    return 'dans ' + h + 'h';
+  }
+  function expPct(bannedAt, expiresAt) {
+    if (!expiresAt || !bannedAt) return 100;
+    var total   = new Date(expiresAt).getTime() - new Date(bannedAt).getTime();
+    var elapsed = Date.now() - new Date(bannedAt).getTime();
+    return Math.min(100, Math.max(0, Math.round(elapsed / total * 100)));
+  }
+%>
+
+<!-- ── Header ── -->
+<div class="topbar">
+  <div>
+    <h2>🚫 Bannissements</h2>
+    <small>
+      <% if (filter === 'active') { %><%= stats.active %> ban<%= stats.active!==1?'s':'' %> actif<%= stats.active!==1?'s':'' %>
+      <% } else if (filter === 'expired') { %><%= total %> entrée<%= total!==1?'s':'' %> levées/expirées
+      <% } else { %><%= stats.total %> ban<%= stats.total!==1?'s':'' %> au total<% } %>
+    </small>
+  </div>
+  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+    <button class="btn btn-outline btn-sm" onclick="toggleQuickBan()">➕ Bannir un utilisateur</button>
+    <a href="/admin/bans/export" class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)">⬇️ Export CSV</a>
+  </div>
+</div>
+
+<% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
+<% if (error)   { %><div class="alert alert-error"   style="display:none"><%= error %></div><% } %>
+
+<!-- ── Stats ── -->
+<div class="bans-stats">
+  <div class="ban-stat">
+    <div class="bs-val" style="color:var(--error)"><%= stats.active %></div>
+    <div class="bs-lbl">🚫 Actifs</div>
+  </div>
+  <div class="ban-stat">
+    <div class="bs-val" style="color:var(--error)"><%= stats.permanent %></div>
+    <div class="bs-lbl">♾️ Permanents</div>
+  </div>
+  <div class="ban-stat">
+    <div class="bs-val" style="color:var(--warning)"><%= stats.temporary %></div>
+    <div class="bs-lbl">⏳ Temporaires</div>
+  </div>
+  <div class="ban-stat">
+    <div class="bs-val" style="color:var(--warning)"><%= stats.expiringSoon %></div>
+    <div class="bs-lbl">🔔 Expirent ≤ 7j</div>
+  </div>
+  <div class="ban-stat">
+    <div class="bs-val" style="color:var(--text-dim)"><%= stats.today %></div>
+    <div class="bs-lbl">📅 Aujourd'hui</div>
+  </div>
+  <div class="ban-stat">
+    <div class="bs-val" style="color:var(--text-m)"><%= stats.total %></div>
+    <div class="bs-lbl">📋 Total historique</div>
+  </div>
+</div>
+
+<!-- ── Formulaire ban rapide ── -->
+<div class="quick-ban-card" id="quick-ban-card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem">
+    <h3 style="font-size:.9rem;font-weight:700;margin:0">➕ Bannir un utilisateur</h3>
+    <button onclick="toggleQuickBan()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:1.2rem;line-height:1;padding:0">×</button>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
+    <div>
+      <label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem">
+        ID utilisateur <span style="color:var(--error)">*</span>
+      </label>
+      <input class="input" type="text" id="qb-userid" placeholder="ID numérique de l'utilisateur" required>
+      <div style="font-size:.68rem;color:var(--text-dim);margin-top:.2rem">Trouvez l'ID sur la page utilisateur</div>
+    </div>
+    <div>
+      <label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem">
+        Pseudo (affiché)
+      </label>
+      <input class="input" type="text" id="qb-pseudo" placeholder="Pseudo de l'utilisateur">
+    </div>
+    <div>
+      <label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem">
+        Raison <span style="color:var(--error)">*</span>
+      </label>
+      <input class="input" type="text" id="qb-reason" placeholder="Ex: Comportement abusif, fraude…" maxlength="500" required>
+    </div>
+    <div>
+      <label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem">
+        Durée
+      </label>
+      <select class="input" id="qb-duration">
+        <option value="1">1 jour</option>
+        <option value="3">3 jours</option>
+        <option value="7" selected>7 jours</option>
+        <option value="14">14 jours</option>
+        <option value="30">30 jours</option>
+        <option value="90">90 jours</option>
+        <option value="0">Permanent ♾️</option>
+      </select>
+    </div>
+    <div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:.5rem">
+      <button class="btn btn-outline" onclick="toggleQuickBan()">Annuler</button>
+      <button class="btn btn-danger"
+        onclick="askConfirm({icon:'🚫',title:'Confirmer le bannissement',msg:'Bannir cet utilisateur ?',btnLabel:'Bannir',btnClass:'btn-danger',onConfirm:submitQuickBan})">
+        🚫 Bannir
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Filtres + Recherche ── -->
+<div class="bans-bar">
+  <div class="filter-tabs">
+    <a href="/admin/bans?filter=active<%= search ? '&search='+encodeURIComponent(search) : '' %>"
+      class="filter-tab <%= filter==='active'?'active':'' %>">🚫 Actifs <span style="font-size:.7rem;opacity:.7">(<%= stats.active %>)</span></a>
+    <a href="/admin/bans?filter=expired<%= search ? '&search='+encodeURIComponent(search) : '' %>"
+      class="filter-tab <%= filter==='expired'?'active':'' %>">✅ Levés/Expirés</a>
+    <a href="/admin/bans?filter=all<%= search ? '&search='+encodeURIComponent(search) : '' %>"
+      class="filter-tab <%= filter==='all'?'active':'' %>">📋 Tous (<%= stats.total %>)</a>
+  </div>
+
+  <form method="GET" action="/admin/bans" style="display:flex;gap:.4rem;flex:1;max-width:340px">
+    <input type="hidden" name="filter" value="<%= filter %>">
+    <input class="input" type="search" name="search" value="<%= search %>"
+      placeholder="Pseudo, raison, admin…" style="flex:1">
+    <button class="btn btn-primary btn-sm" type="submit">🔍</button>
+    <% if (search) { %>
+    <a href="/admin/bans?filter=<%= filter %>" class="btn btn-outline btn-sm">✕</a>
+    <% } %>
+  </form>
+</div>
+
+<!-- ── Empty state ── -->
+<% if (bans.length === 0) { %>
+<div style="text-align:center;padding:3.5rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
+  <div style="font-size:3rem;margin-bottom:.75rem">
+    <%= filter==='active' ? '✅' : filter==='expired' ? '📂' : '🚫' %>
+  </div>
+  <h3 style="font-weight:700;margin-bottom:.4rem;font-size:1rem">
+    <% if (filter==='active') { %>Aucun ban actif
+    <% } else if (search) { %>Aucun résultat pour « <%= search %> »
+    <% } else { %>Aucun bannissement<% } %>
+  </h3>
+  <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1rem">
+    <% if (filter==='active') { %>Aucun utilisateur n'est actuellement banni.
+    <% } else if (search) { %>Essayez un autre terme de recherche.
+    <% } else { %>L'historique des bannissements apparaîtra ici.<% } %>
+  </p>
+  <% if (search) { %>
+  <a href="/admin/bans?filter=<%= filter %>" class="btn btn-outline btn-sm">Voir tous les bans</a>
+  <% } %>
+</div>
+
+<% } else { %>
+<!-- ── Tableau ── -->
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Utilisateur</th>
+        <th>Raison</th>
+        <th>Durée</th>
+        <th>Banni le</th>
+        <th>Expire le</th>
+        <th>Par</th>
+        <th>Statut</th>
+        <th style="text-align:right">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    <% bans.forEach(function(b) {
+      var now2      = Date.now();
+      var isExpired = !b.active || (b.expiresAt && new Date(b.expiresAt).getTime() <= now2);
+      var isSoon    = b.active && b.expiresAt && (new Date(b.expiresAt).getTime() - now2) <= 7 * 86400000 && !isExpired;
+      var rowClass  = isExpired ? 'ban-row-expired' : isSoon ? 'ban-row-soon' : 'ban-row-active';
+      var pct       = expPct(b.bannedAt, b.expiresAt);
+    %>
+    <tr class="<%= rowClass %>">
+
+      <!-- Utilisateur -->
+      <td>
+        <div class="ban-pseudo">
+          <%= b.pseudo || '—' %>
+          <% if (isSoon) { %><span style="font-size:.65rem;color:var(--warning);margin-left:.3rem">⚠️</span><% } %>
+        </div>
+        <div class="ban-uid">ID&nbsp;<%= b.userId %></div>
+      </td>
+
+      <!-- Raison -->
+      <td>
+        <div class="reason-cell" title="<%= b.reason %>"><%= b.reason || '—' %></div>
+        <% if (b.unbanReason) { %>
+        <div style="font-size:.7rem;color:var(--success);margin-top:.2rem">✅ Note : <%= b.unbanReason %></div>
+        <% } %>
+      </td>
+
+      <!-- Durée -->
+      <td>
+        <% if (!b.durationDays || b.durationDays === 0) { %>
+          <span class="dur-pill <%= isExpired ? 'dur-done' : 'dur-perm' %>">♾️ Permanent</span>
+        <% } else { %>
+          <span class="dur-pill <%= isExpired ? 'dur-done' : 'dur-temp' %>">⏳ <%= b.durationDays %>j</span>
+        <% } %>
+      </td>
+
+      <!-- Banni le -->
+      <td>
+        <div style="font-size:.82rem"><%= fmtD(b.bannedAt) %></div>
+        <div style="font-size:.7rem;color:var(--text-dim)"><%= relT(b.bannedAt) %></div>
+      </td>
+
+      <!-- Expire le -->
+      <td>
+        <% if (!b.expiresAt) { %>
+          <span style="font-size:.8rem;color:var(--text-dim)">Jamais</span>
+        <% } else { %>
+          <div style="font-size:.82rem"><%= fmtD(b.expiresAt) %></div>
+          <% if (!isExpired) { %>
+          <div style="font-size:.7rem;color:<%= isSoon ? 'var(--warning)' : 'var(--text-dim)' %>"><%= expireIn(b.expiresAt) %></div>
+          <div class="exp-bar">
+            <div class="exp-fill" style="width:<%= pct %>%;background:<%= pct>=90?'var(--error)':pct>=65?'var(--warning)':'var(--success)' %>"></div>
+          </div>
+          <% } else { %>
+          <div style="font-size:.7rem;color:var(--text-dim)">Expiré</div>
+          <% } %>
+        <% } %>
+      </td>
+
+      <!-- Par -->
+      <td>
+        <div style="font-size:.82rem"><%= b.bannedBy || '—' %></div>
+        <% if (b.unbannedBy) { %>
+        <div style="font-size:.7rem;color:var(--success)">Levé par <%= b.unbannedBy %></div>
+        <% } %>
+      </td>
+
+      <!-- Statut -->
+      <td>
+        <% if (!b.active && b.unbannedAt) { %>
+          <span class="st-pill st-expired">✅ Levé</span>
+        <% } else if (isExpired) { %>
+          <span class="st-pill st-expired">⏰ Expiré</span>
+        <% } else if (isSoon) { %>
+          <span class="st-pill st-soon">⚠️ Expire bientôt</span>
+        <% } else { %>
+          <span class="st-pill st-active">🚫 Actif</span>
+        <% } %>
+      </td>
+
+      <!-- Actions -->
+      <td style="text-align:right;white-space:nowrap">
+        <div style="display:flex;gap:.4rem;justify-content:flex-end">
+          <a href="/admin/users/<%= b.userId %>" class="btn btn-outline btn-xs" title="Voir le profil">👤</a>
+          <% if (b.active && !isExpired) { %>
+          <form method="POST" action="/admin/users/<%= b.userId %>/unban" style="display:inline">
+            <input type="hidden" name="pseudo" value="<%= b.pseudo %>">
+            <input type="hidden" name="redirect_to" value="/admin/bans?filter=<%= filter %><%= search ? '&search='+encodeURIComponent(search) : '' %>">
+            <button type="button" class="btn btn-outline btn-xs"
+              style="color:var(--success);border-color:var(--success)"
+              data-pseudo="<%= b.pseudo %>"
+              onclick="(function(btn){askConfirm({icon:'✅',title:'Lever le bannissement',msg:'Lever le ban de <strong>'+btn.dataset.pseudo+'</strong> ?',btnLabel:'Lever le ban',btnClass:'btn-outline',onConfirm:function(){btn.closest('form').submit()}})})(this)">
+              ✅ Lever
+            </button>
+          </form>
+          <% } %>
+        </div>
+      </td>
+    </tr>
+    <% }); %>
+    </tbody>
+  </table>
+</div>
+
+<!-- ── Pagination ── -->
+<% if (totalPages > 1) { %>
+<div class="pagination" style="margin-top:1rem;display:flex;align-items:center;gap:.4rem">
+  <a href="/admin/bans?filter=<%= filter %><%= search?'&search='+encodeURIComponent(search):'' %>&page=1"
+    class="btn btn-outline btn-sm <%= page<=1?'disabled':'' %>">«</a>
+  <a href="/admin/bans?filter=<%= filter %><%= search?'&search='+encodeURIComponent(search):'' %>&page=<%= page-1 %>"
+    class="btn btn-outline btn-sm <%= page<=1?'disabled':'' %>">‹</a>
+  <span style="font-size:.82rem;color:var(--text-dim);padding:0 .5rem">
+    Page <strong style="color:var(--text)"><%= page %></strong> / <%= totalPages %>
+    · <span><%= total %> résultat<%= total!==1?'s':'' %></span>
+  </span>
+  <a href="/admin/bans?filter=<%= filter %><%= search?'&search='+encodeURIComponent(search):'' %>&page=<%= page+1 %>"
+    class="btn btn-outline btn-sm <%= page>=totalPages?'disabled':'' %>">›</a>
+  <a href="/admin/bans?filter=<%= filter %><%= search?'&search='+encodeURIComponent(search):'' %>&page=<%= totalPages %>"
+    class="btn btn-outline btn-sm <%= page>=totalPages?'disabled':'' %>">»</a>
+</div>
+<% } %>
+<% } %>
+
+<script>
+function toggleQuickBan() {
+  const card = document.getElementById('quick-ban-card');
+  card.classList.toggle('open');
+  if (card.classList.contains('open')) {
+    setTimeout(() => document.getElementById('qb-userid').focus(), 50);
+  }
+}
+
+function submitQuickBan() {
+  const userId   = document.getElementById('qb-userid').value.trim();
+  const pseudo   = document.getElementById('qb-pseudo').value.trim() || userId;
+  const reason   = document.getElementById('qb-reason').value.trim();
+  const duration = document.getElementById('qb-duration').value;
+
+  if (!userId) { showToast('L\'ID utilisateur est obligatoire.', 'error'); return; }
+  if (!reason) { showToast('La raison est obligatoire.', 'error'); return; }
+
+  const f = document.createElement('form');
+  f.method = 'POST';
+  f.action = '/admin/users/' + encodeURIComponent(userId) + '/ban';
+  [['reason', reason], ['duration_days', duration], ['pseudo', pseudo], ['redirect_to', '/admin/bans']].forEach(function(pair) {
+    const i = document.createElement('input');
+    i.type = 'hidden'; i.name = pair[0]; i.value = pair[1];
+    f.appendChild(i);
+  });
+  document.body.appendChild(f);
+  f.submit();
+}
+</script>
+
+<%- include('layout_bottom') %>

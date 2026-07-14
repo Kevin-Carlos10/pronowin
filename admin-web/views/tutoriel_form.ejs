@@ -1,0 +1,352 @@
+<%- include('layout_top', {page:'tutoriels'}) %>
+
+<style>
+/* ── Layout ─────────────────────────────────────────────────────────────────── */
+.tf-layout { display:grid; grid-template-columns:1fr 300px; gap:1rem; align-items:start; }
+@media(max-width:900px){ .tf-layout { grid-template-columns:1fr; } }
+
+/* ── Toggle switch ───────────────────────────────────────────────────────────── */
+.tf-toggle-wrap {
+  display:flex; align-items:center; justify-content:space-between;
+  padding:.9rem 1.1rem; background:var(--surface-d);
+  border:1px solid var(--border); border-radius:var(--radius-s);
+  cursor:pointer; transition:border-color .15s;
+}
+.tf-toggle-wrap:hover { border-color:var(--warning); }
+.tf-toggle-wrap.on { border-color:var(--warning); background:rgba(245,158,11,.06); }
+.tf-toggle-info .t { font-size:.88rem; font-weight:700; }
+.tf-toggle-info .s { font-size:.75rem; color:var(--text-dim); margin-top:.1rem; }
+.tf-switch {
+  position:relative; width:48px; height:26px; flex-shrink:0;
+}
+.tf-switch input { opacity:0; width:0; height:0; position:absolute; }
+.tf-slider {
+  position:absolute; inset:0; border-radius:13px;
+  background:var(--border); transition:background .25s;
+}
+.tf-slider::after {
+  content:''; position:absolute; left:2px; top:2px;
+  width:22px; height:22px; border-radius:50%;
+  background:#fff; transition:transform .25s;
+}
+.tf-switch input:checked ~ .tf-slider { background:var(--warning); }
+.tf-switch input:checked ~ .tf-slider::after { transform:translateX(22px); }
+
+/* ── Preview card ────────────────────────────────────────────────────────────── */
+.tf-preview {
+  background:var(--surface-d); border:1px solid var(--border);
+  border-radius:var(--radius-s); overflow:hidden;
+}
+.tf-preview-thumb {
+  aspect-ratio:16/7; background:var(--surface); display:flex;
+  align-items:center; justify-content:center; font-size:3rem;
+  color:var(--text-dim); overflow:hidden;
+}
+.tf-preview-thumb img { width:100%; height:100%; object-fit:cover; display:none; }
+.tf-preview-body { padding:.85rem .9rem; }
+.tf-preview-meta { display:flex; gap:.4rem; margin-bottom:.4rem; flex-wrap:wrap; }
+.tf-preview-title { font-size:.88rem; font-weight:700; line-height:1.35; margin-bottom:.25rem; min-height:1.2em; }
+.tf-preview-author { font-size:.72rem; color:var(--text-dim); margin-bottom:.45rem; }
+.tf-preview-row { display:flex; align-items:center; gap:.6rem; font-size:.72rem; color:var(--text-m); }
+
+/* ── Char counter ────────────────────────────────────────────────────────────── */
+.char-counter { font-size:.7rem; color:var(--text-dim); text-align:right; margin-top:.25rem; }
+.char-counter.warn { color:var(--warning); }
+.char-counter.over { color:var(--error); font-weight:700; }
+
+/* ── Video preview ───────────────────────────────────────────────────────────── */
+.tf-yt-preview { margin-top:.5rem; border-radius:var(--radius-s); overflow:hidden; display:none; }
+.tf-yt-preview iframe { width:100%; height:150px; border:0; display:block; }
+
+/* ── Stats sidebar ───────────────────────────────────────────────────────────── */
+.tf-stat-row { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.82rem; }
+.tf-stat-row:last-child { border-bottom:0; }
+.tf-stat-lbl { color:var(--text-m); }
+.tf-stat-val { font-weight:700; }
+</style>
+
+<% const isEdit = !!tutorial; %>
+
+<div class="topbar">
+  <div>
+    <a href="/admin/tutoriels" style="color:var(--text-dim);font-size:.82rem;text-decoration:none">← Tutoriels</a>
+    <h2 style="margin-top:4px"><%= isEdit ? '✏️ Modifier le tutoriel' : '+ Nouveau tutoriel' %></h2>
+  </div>
+  <% if(isEdit) { %>
+  <div style="display:flex;gap:.5rem">
+    <span class="badge <%= tutorial.isPremium ? 'badge-warn' : 'badge-ok' %>"><%= tutorial.isPremium ? '👑 Premium' : '✓ Gratuit' %></span>
+  </div>
+  <% } %>
+</div>
+
+<% if(typeof error !== 'undefined' && error){ %><div class="alert alert-error" style="display:none" id="flash-err"><%= error %></div><% } %>
+
+<div class="tf-layout">
+
+  <!-- ── Formulaire ────────────────────────────────────────────────────────────── -->
+  <div>
+    <form method="POST" action="<%= isEdit ? '/admin/tutoriels/'+tutorial.id+'/edit' : '/admin/tutoriels' %>" id="tut-form">
+
+      <!-- Contenu -->
+      <div class="card" style="margin-bottom:1rem">
+        <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.9rem">📝 Contenu</div>
+
+        <div class="form-group">
+          <label>Titre <span style="color:var(--error)">*</span></label>
+          <input class="input" type="text" name="title" id="tf-title"
+            value="<%= isEdit ? tutorial.title : '' %>"
+            required placeholder="Ex : Comprendre le Value Bet en 10 minutes…"
+            style="font-size:.95rem;font-weight:600">
+        </div>
+
+        <div class="form-group">
+          <label>Description <span style="color:var(--error)">*</span></label>
+          <textarea class="input" name="description" id="tf-desc" rows="5" required maxlength="1000"
+            placeholder="Description détaillée visible par les utilisateurs…"><%= isEdit ? tutorial.description : '' %></textarea>
+          <div class="char-counter" id="desc-counter">0 / 1000</div>
+        </div>
+
+        <div class="form-group">
+          <label>Auteur</label>
+          <input class="input" type="text" name="author_name" id="tf-author"
+            value="<%= isEdit ? (tutorial.authorName || '') : 'Expert PronoWin' %>"
+            placeholder="Expert PronoWin">
+        </div>
+
+        <div class="form-group">
+          <label>URL Vidéo <span style="font-size:.72rem;color:var(--text-dim);font-weight:400">(YouTube, Vimeo ou direct)</span></label>
+          <input class="input" type="url" name="video_url" id="tf-video"
+            value="<%= isEdit ? (tutorial.videoUrl || '') : '' %>"
+            placeholder="https://youtube.com/watch?v=…">
+          <div class="tf-yt-preview" id="yt-preview">
+            <iframe id="yt-frame" src="" allowfullscreen title="Aperçu vidéo"></iframe>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:0">
+          <label>URL Miniature <span style="font-size:.72rem;color:var(--text-dim);font-weight:400">(optionnel)</span></label>
+          <input class="input" type="url" name="thumbnail_url" id="tf-thumb"
+            value="<%= isEdit ? (tutorial.thumbnailUrl || '') : '' %>"
+            placeholder="https://…/image.jpg">
+        </div>
+      </div>
+
+      <!-- Paramètres -->
+      <div class="card" style="margin-bottom:1rem">
+        <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.9rem">⚙️ Paramètres</div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:.85rem">
+          <div class="form-group" style="margin:0">
+            <label>Catégorie <span style="color:var(--error)">*</span></label>
+            <select class="input" name="category" id="tf-cat" required>
+              <option value="">Choisir…</option>
+              <option value="valuebet"    <%= isEdit && tutorial.category==='valuebet'    ?'selected':'' %>>🎯 Value Bet</option>
+              <option value="bankroll"    <%= isEdit && tutorial.category==='bankroll'    ?'selected':'' %>>💰 Bankroll</option>
+              <option value="analyse"     <%= isEdit && tutorial.category==='analyse'     ?'selected':'' %>>📊 Analyse</option>
+              <option value="strategie"   <%= isEdit && tutorial.category==='strategie'   ?'selected':'' %>>♟️ Stratégie</option>
+              <option value="psychologie" <%= isEdit && tutorial.category==='psychologie' ?'selected':'' %>>🧠 Psychologie</option>
+            </select>
+          </div>
+          <div class="form-group" style="margin:0">
+            <label>Niveau <span style="color:var(--error)">*</span></label>
+            <select class="input" name="level" id="tf-level" required>
+              <option value="">Choisir…</option>
+              <option value="beginner"     <%= isEdit && tutorial.level==='beginner'     ?'selected':'' %>>🟢 Débutant</option>
+              <option value="intermediate" <%= isEdit && tutorial.level==='intermediate' ?'selected':'' %>>🟡 Intermédiaire</option>
+              <option value="advanced"     <%= isEdit && tutorial.level==='advanced'     ?'selected':'' %>>🔴 Avancé</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom:1rem">
+          <label>Durée <span style="font-size:.72rem;color:var(--text-dim);font-weight:400">(en minutes)</span></label>
+          <input class="input" type="number" name="duration_seconds" id="tf-dur"
+            value="<%= isEdit ? Math.floor((tutorial.durationSeconds||0)/60) : '' %>"
+            min="0" max="300" placeholder="Ex : 15">
+          <div style="font-size:.72rem;color:var(--text-dim);margin-top:.25rem">Sera converti en secondes automatiquement</div>
+        </div>
+
+        <!-- Toggle Premium -->
+        <div class="tf-toggle-wrap <%= (isEdit && tutorial.isPremium) ? 'on' : '' %>" id="tf-toggle-wrap" onclick="togglePremium()">
+          <div class="tf-toggle-info">
+            <div class="t">👑 Contenu Premium</div>
+            <div class="s">Réservé aux abonnés Premium uniquement</div>
+          </div>
+          <label class="tf-switch" onclick="event.stopPropagation()">
+            <input type="checkbox" name="is_premium" value="true" id="tf-premium"
+              <%= (isEdit && tutorial.isPremium) ? 'checked' : '' %>
+              onchange="document.getElementById('tf-toggle-wrap').classList.toggle('on',this.checked)">
+            <span class="tf-slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Boutons -->
+      <div style="display:flex;gap:.75rem;flex-wrap:wrap">
+        <a href="/admin/tutoriels" class="btn btn-outline">Annuler</a>
+        <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center">
+          <%= isEdit ? '💾 Enregistrer les modifications' : '✅ Créer le tutoriel' %>
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ── Colonne droite ─────────────────────────────────────────────────────────── -->
+  <div>
+
+    <!-- Aperçu live -->
+    <div class="card" style="margin-bottom:.85rem">
+      <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.85rem">👁 Aperçu carte</div>
+      <div class="tf-preview">
+        <div class="tf-preview-thumb" id="pv-thumb">
+          <img id="pv-img" src="" alt="">
+          <span id="pv-emoji">📚</span>
+        </div>
+        <div class="tf-preview-body">
+          <div class="tf-preview-meta">
+            <span id="pv-level" class="lvl-beginner" style="display:none"></span>
+            <% if(isEdit && tutorial.videoUrl) { %><span style="font-size:.65rem;color:var(--info);background:rgba(59,130,246,.1);padding:.1rem .35rem;border-radius:4px" id="pv-video-badge">▶ Vidéo</span><% } else { %><span style="font-size:.65rem;color:var(--info);background:rgba(59,130,246,.1);padding:.1rem .35rem;border-radius:4px" id="pv-video-badge" style="display:none"></span><% } %>
+          </div>
+          <div class="tf-preview-title" id="pv-title"><%= isEdit ? tutorial.title : 'Titre du tutoriel' %></div>
+          <div class="tf-preview-author" id="pv-author">par <%= isEdit ? (tutorial.authorName||'Expert PronoWin') : 'Expert PronoWin' %></div>
+          <div class="tf-preview-row">
+            <span id="pv-dur"><%= isEdit && tutorial.durationSeconds ? Math.floor(tutorial.durationSeconds/60)+'min' : '— min' %></span>
+            <span>⭐ <%= isEdit ? (tutorial.rating||0).toFixed(1) : '0.0' %></span>
+            <span id="pv-type" style="color:<%= (isEdit&&tutorial.isPremium)?'var(--warning)':'var(--success)' %>"><%= (isEdit&&tutorial.isPremium)?'👑 Premium':'✓ Gratuit' %></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats (mode édition) -->
+    <% if(isEdit) { %>
+    <div class="card">
+      <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.7rem">📊 Statistiques</div>
+      <div class="tf-stat-row"><span class="tf-stat-lbl">👁 Vues</span><span class="tf-stat-val"><%= (tutorial.viewCount||0).toLocaleString() %></span></div>
+      <div class="tf-stat-row"><span class="tf-stat-lbl">⭐ Note</span><span class="tf-stat-val" style="color:var(--warning)"><%= (tutorial.rating||0).toFixed(1) %> / 5</span></div>
+      <div class="tf-stat-row"><span class="tf-stat-lbl">💬 Avis</span><span class="tf-stat-val"><%= tutorial.ratingCount || 0 %></span></div>
+      <div class="tf-stat-row"><span class="tf-stat-lbl">📅 Créé</span><span class="tf-stat-val" style="font-weight:400;font-size:.78rem;color:var(--text-m)"><%= tutorial.createdAt ? new Date(tutorial.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '—' %></span></div>
+      <div class="tf-stat-row"><span class="tf-stat-lbl">🔄 Modifié</span><span class="tf-stat-val" style="font-weight:400;font-size:.78rem;color:var(--text-m)"><%= tutorial.updatedAt ? new Date(tutorial.updatedAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '—' %></span></div>
+    </div>
+    <% } %>
+
+  </div>
+</div>
+
+<script>
+const catEmojis   = { valuebet:'🎯', bankroll:'💰', analyse:'📊', strategie:'♟️', psychologie:'🧠' };
+const levelLabels = { beginner:'🟢 Débutant', intermediate:'🟡 Interm.', advanced:'🔴 Avancé' };
+const levelCls    = { beginner:'lvl-beginner', intermediate:'lvl-intermediate', advanced:'lvl-advanced' };
+
+/* ── Toggle Premium ── */
+function togglePremium() {
+  const cb = document.getElementById('tf-premium');
+  cb.checked = !cb.checked;
+  document.getElementById('tf-toggle-wrap').classList.toggle('on', cb.checked);
+  document.getElementById('pv-type').textContent  = cb.checked ? '👑 Premium' : '✓ Gratuit';
+  document.getElementById('pv-type').style.color  = cb.checked ? 'var(--warning)' : 'var(--success)';
+}
+
+/* ── Aperçu titre ── */
+document.getElementById('tf-title').addEventListener('input', function() {
+  document.getElementById('pv-title').textContent = this.value || 'Titre du tutoriel';
+});
+
+/* ── Aperçu auteur ── */
+document.getElementById('tf-author').addEventListener('input', function() {
+  document.getElementById('pv-author').textContent = 'par ' + (this.value || 'Expert PronoWin');
+});
+
+/* ── Aperçu catégorie ── */
+document.getElementById('tf-cat').addEventListener('change', function() {
+  document.getElementById('pv-emoji').textContent = catEmojis[this.value] || '📚';
+});
+
+/* ── Aperçu niveau ── */
+document.getElementById('tf-level').addEventListener('change', function() {
+  const el = document.getElementById('pv-level');
+  if (this.value) {
+    el.textContent  = levelLabels[this.value] || this.value;
+    el.className    = levelCls[this.value] || '';
+    el.style.display = '';
+  } else {
+    el.style.display = 'none';
+  }
+});
+
+/* ── Aperçu durée ── */
+document.getElementById('tf-dur').addEventListener('input', function() {
+  const m = parseInt(this.value) || 0;
+  document.getElementById('pv-dur').textContent = m ? m+'min' : '— min';
+});
+
+/* ── Compteur description ── */
+(function() {
+  const ta  = document.getElementById('tf-desc');
+  const ctr = document.getElementById('desc-counter');
+  function update() {
+    const len = ta.value.length;
+    ctr.textContent = len + ' / 1000';
+    ctr.className = 'char-counter' + (len > 900 ? ' warn' : '') + (len >= 1000 ? ' over' : '');
+  }
+  ta.addEventListener('input', update);
+  update();
+})();
+
+/* ── Miniature live ── */
+document.getElementById('tf-thumb').addEventListener('input', function() {
+  const img  = document.getElementById('pv-img');
+  const emoji = document.getElementById('pv-emoji');
+  if (this.value) {
+    img.src = this.value;
+    img.style.display = 'block';
+    emoji.style.display = 'none';
+    img.onerror = () => { img.style.display='none'; emoji.style.display=''; };
+  } else {
+    img.style.display = 'none';
+    emoji.style.display = '';
+  }
+});
+
+/* ── Aperçu YouTube ── */
+document.getElementById('tf-video').addEventListener('change', function() {
+  const url = this.value.trim();
+  const badge = document.getElementById('pv-video-badge');
+  const preview = document.getElementById('yt-preview');
+  const frame   = document.getElementById('yt-frame');
+  badge.style.display = url ? '' : 'none';
+  // Extraire l'ID YouTube
+  const ytMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([A-Za-z0-9_\-]{11})/);
+  if (ytMatch) {
+    frame.src = 'https://www.youtube.com/embed/' + ytMatch[1];
+    preview.style.display = 'block';
+  } else {
+    preview.style.display = 'none';
+  }
+});
+
+/* ── Init état ── */
+(function() {
+  // Init niveau aperçu
+  const lvlEl = document.getElementById('tf-level');
+  if (lvlEl.value) {
+    const el = document.getElementById('pv-level');
+    el.textContent  = levelLabels[lvlEl.value] || lvlEl.value;
+    el.className    = levelCls[lvlEl.value] || '';
+    el.style.display = '';
+  }
+  // Init miniature
+  const thumbEl = document.getElementById('tf-thumb');
+  if (thumbEl.value) thumbEl.dispatchEvent(new Event('input'));
+  // Init vidéo
+  const videoEl = document.getElementById('tf-video');
+  if (videoEl.value) videoEl.dispatchEvent(new Event('change'));
+  // Flash erreur
+  const errEl = document.getElementById('flash-err');
+  if (errEl && errEl.textContent.trim() && typeof showToast === 'function') {
+    showToast(errEl.textContent.trim(), 'error');
+  }
+})();
+</script>
+
+<%- include('layout_bottom') %>
