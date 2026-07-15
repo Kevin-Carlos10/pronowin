@@ -5,6 +5,7 @@ class CrashlyticsService {
   static final _c = FirebaseCrashlytics.instance;
 
   static Future<void> init() async {
+    if (kIsWeb) return; // Crashlytics non supporté sur le web
     await _c.setCrashlyticsCollectionEnabled(!kDebugMode);
   }
 

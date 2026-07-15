@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -33,13 +34,15 @@ void main() async {
   await BackgroundSyncService.init();
 
   // Capturer les erreurs Flutter (widgets, layout, etc.)
-  FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
+  if (!kIsWeb) {
+    FlutterError.onError = FirebaseCrashlytics.instance.recordFlutterFatalError;
 
-  // Capturer les erreurs async hors Flutter (isolates, futures non catchées)
-  PlatformDispatcher.instance.onError = (error, stack) {
-    FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
-    return true;
-  };
+    // Capturer les erreurs async hors Flutter (isolates, futures non catchées)
+    PlatformDispatcher.instance.onError = (error, stack) {
+      FirebaseCrashlytics.instance.recordError(error, stack, fatal: true);
+      return true;
+    };
+  }
 
   final prefs          = await SharedPreferences.getInstance();
   bool  onboardingDone = prefs.getBool('onboarding_done') ?? false;
