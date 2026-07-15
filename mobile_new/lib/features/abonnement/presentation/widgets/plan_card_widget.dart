@@ -107,7 +107,7 @@ class PlanCardWidget extends StatelessWidget {
               child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                 Icon(Icons.check_circle_rounded, color: AppColors.success, size: 16),
                 SizedBox(width: 6),
-                Text('Votre plan actuel', style: TextStyle(
+                Text('Ton plan actuel', style: TextStyle(
                   color: AppColors.success, fontSize: 13, fontWeight: FontWeight.w600)),
               ]),
             ),

@@ -8,11 +8,11 @@ class ServerFailure extends Failure {
 }
 
 class NetworkFailure extends Failure {
-  const NetworkFailure([super.message = 'Pas de connexion internet. Vérifiez votre réseau.']);
+  const NetworkFailure([super.message = 'Pas de connexion internet. Vérifie ton réseau.']);
 }
 
 class UnauthorizedFailure extends Failure {
-  const UnauthorizedFailure() : super('Session expirée. Veuillez vous reconnecter.');
+  const UnauthorizedFailure() : super('Session expirée. Veuillez te reconnecter.');
 }
 
 class ValidationFailure extends Failure {

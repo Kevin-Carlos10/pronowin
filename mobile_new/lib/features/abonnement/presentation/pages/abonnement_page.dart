@@ -205,8 +205,8 @@ class _RenewBanner extends StatelessWidget {
             style: TextStyle(color: color, fontSize: 13, fontWeight: FontWeight.w600)),
           Text(
             isUrgent
-              ? 'Plus que $daysLeft jour${daysLeft > 1 ? 's' : ''} — ne perdez pas vos accès Premium.'
-              : 'Ajoutez 30 jours dès maintenant pour ne jamais être interrompu.',
+              ? 'Plus que $daysLeft jour${daysLeft > 1 ? 's' : ''} — ne perdez pas tes accès Premium.'
+              : 'Ajoute 30 jours dès maintenant pour ne jamais être interrompu.',
             style: TextStyle(color: context.cl.textS, fontSize: 11, height: 1.4)),
         ])),
         const SizedBox(width: 8),
@@ -229,13 +229,13 @@ class _FaqSection extends StatelessWidget {
     children: [
       const _SectionLabel('FAQ'),
       _FaqItem('Comment payer ?',
-        'Envoyez 5 000 FCFA sur notre numéro MobCash, prenez une capture d\'écran et soumettez-la.'),
+        'Envoie 5 000 FCFA sur notre numéro MobCash, prends une capture d\'écran et soumets-la.'),
       _FaqItem("C'est quoi le code promo 1xBet ?",
-        'Créez votre compte 1xBet avec le code $promoCode, prenez une capture de votre profil et soumettez-la.'),
+        'Crée ton compte 1xBet avec le code $promoCode, prends une capture de ton profil et soumets-la.'),
       const _FaqItem('Délai d\'activation ?',
         'Paiement direct : 30 minutes. Code 1xBet : 2 heures ouvrables.'),
       const _FaqItem('Renouvellement automatique ?',
-        'Non. Vous recevez une notification 3 jours avant l\'expiration.'),
+        'Non. Tu reçois une notification 3 jours avant l\'expiration.'),
     ],
   );
 }

@@ -35,7 +35,7 @@ class _PromoCodeWidgetState extends ConsumerState<PromoCodeWidget> {
           Text('Code Promo / 1xBet', style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w600)),
         ]),
         SizedBox(height: 4),
-        Text('Entrez votre code partenaire pour accéder à Premium gratuitement.', style: TextStyle(color: context.cl.textS, fontSize: 12)),
+        Text('Entrez ton code partenaire pour accéder à Premium gratuitement.', style: TextStyle(color: context.cl.textS, fontSize: 12)),
         const SizedBox(height: 14),
         Row(children: [
           Expanded(

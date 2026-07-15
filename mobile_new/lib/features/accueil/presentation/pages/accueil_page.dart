@@ -128,6 +128,12 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
                     .slideY(begin: 0.08, end: 0, duration: 350.ms,
                         curve: Curves.easeOutCubic),
 
+                  // ─── NUDGE PSEUDO ─────────────────────────────────────────
+                  // Invite à personnaliser le pseudo auto-généré (Parieur_XXX).
+                  _PseudoNudge(user: user)
+                    .animate()
+                    .fadeIn(duration: 400.ms, delay: 140.ms),
+
                   // ─── STATS RAPIDES ────────────────────────────────────────
                   _QuickStats(isPremium: isPremium)
                     .animate()
@@ -135,19 +141,6 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
                     .slideY(begin: 0.1, end: 0, duration: 400.ms,
                         curve: Curves.easeOutCubic),
                   const SizedBox(height: 20),
-
-                  // ─── BANNIÈRE PREMIUM ─────────────────────────────────────
-                  if (!isPremium) ...[
-                    _PremiumBanner(
-                      onTap: () => subAsync.whenData(
-                          (sub) => goToPremium(context, ref, extra: sub)),
-                    )
-                      .animate()
-                      .fadeIn(duration: 500.ms, delay: 200.ms)
-                      .slideY(begin: 0.08, end: 0, duration: 400.ms,
-                          curve: Curves.easeOutCubic),
-                    const SizedBox(height: 24),
-                  ],
 
                   // ─── MATCHS EN LIVE ───────────────────────────────────────
                   pronostics.when(
@@ -197,16 +190,39 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
                       if (candidates.isEmpty) return const SizedBox.shrink();
                       final top = candidates.first;
                       final isLocked = (top['is_premium'] as bool? ?? false) && !isPremium;
-                      if (isLocked) return const SizedBox.shrink();
+                      // Verrouillé : on montre le match en teaser (équipes +
+                      // confiance) au lieu de le cacher — le tap mène à Premium.
                       return Column(children: [
                         const _SectionHeader(title: 'Top prono du jour'),
                         const SizedBox(height: 12),
-                        _HeroPronoCard(prono: top, onTap: () =>
-                            context.push('/pronostics/${top['id']}', extra: null)),
+                        _HeroPronoCard(
+                          prono: top,
+                          locked: isLocked,
+                          onTap: isLocked
+                              ? () => subAsync.whenData(
+                                  (sub) => goToPremium(context, ref, extra: sub))
+                              : () => context.push('/pronostics/${top['id']}',
+                                  extra: null),
+                        ),
                         const SizedBox(height: 24),
                       ]);
                     },
                   ),
+
+                  // ─── BANNIÈRE PREMIUM ─────────────────────────────────────
+                  // Placée après le contenu (top prono) : l'app montre d'abord
+                  // sa valeur avant de proposer l'abonnement.
+                  if (!isPremium) ...[
+                    _PremiumBanner(
+                      onTap: () => subAsync.whenData(
+                          (sub) => goToPremium(context, ref, extra: sub)),
+                    )
+                      .animate()
+                      .fadeIn(duration: 500.ms, delay: 200.ms)
+                      .slideY(begin: 0.08, end: 0, duration: 400.ms,
+                          curve: Curves.easeOutCubic),
+                    const SizedBox(height: 24),
+                  ],
 
                   // ─── PRONOSTICS DU JOUR (filtrés + triés) ────────────────
                   pronostics.when(
@@ -317,7 +333,7 @@ class _SliverHeader extends ConsumerWidget {
             : 'Bonsoir';
 
     return SliverAppBar(
-      expandedHeight: 150,
+      expandedHeight: 164,
       floating: true,
       pinned: false,
       snap: true,
@@ -354,52 +370,42 @@ class _SliverHeader extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      GestureDetector(
-                        onTap: () => context.push('/notifications'),
-                        child: Stack(
-                          clipBehavior: Clip.none,
-                          children: [
-                            Container(
-                              width: 38, height: 38,
-                              decoration: BoxDecoration(
-                                color: context.cl.surface,
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: context.cl.border, width: 0.5),
-                              ),
-                              child: Icon(Icons.notifications_rounded,
-                                  color: context.cl.textS, size: 20),
-                            ),
-                            if (unreadCount > 0)
-                              Positioned(
-                                top: -4, right: -4,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.error,
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: context.cl.bg, width: 1.5),
-                                  ),
-                                  child: Text(
-                                    unreadCount > 9 ? '9+' : '$unreadCount',
-                                    style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 8,
-                                        fontWeight: FontWeight.w800),
-                                  ),
-                                ),
-                              ),
-                          ],
+                  GestureDetector(
+                    onTap: () => context.push('/notifications'),
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 38, height: 38,
+                          decoration: BoxDecoration(
+                            color: context.cl.surface,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: context.cl.border, width: 0.5),
+                          ),
+                          child: Icon(Icons.notifications_rounded,
+                              color: context.cl.textS, size: 20),
                         ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        DateFormat('dd MMM', 'fr_FR').format(now),
-                        style: TextStyle(color: context.cl.textM, fontSize: 9),
-                      ),
-                    ],
+                        if (unreadCount > 0)
+                          Positioned(
+                            top: -4, right: -4,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppColors.error,
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: context.cl.bg, width: 1.5),
+                              ),
+                              child: Text(
+                                unreadCount > 9 ? '9+' : '$unreadCount',
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 8,
+                                    fontWeight: FontWeight.w800),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -521,6 +527,85 @@ class _AvatarInitials extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════'
+// NUDGE PSEUDO — invite à remplacer le pseudo auto-généré
+// ══════════════════════════════════════════════════════════════════════════════'
+class _PseudoNudge extends StatefulWidget {
+  final dynamic user;
+  const _PseudoNudge({required this.user});
+
+  @override
+  State<_PseudoNudge> createState() => _PseudoNudgeState();
+}
+
+class _PseudoNudgeState extends State<_PseudoNudge> {
+  static const _prefKey = 'pseudo_nudge_dismissed';
+  bool _dismissed = true; // caché tant que la préférence n'est pas lue
+
+  @override
+  void initState() {
+    super.initState();
+    SharedPreferences.getInstance().then((p) {
+      if (mounted) setState(() => _dismissed = p.getBool(_prefKey) ?? false);
+    });
+  }
+
+  void _dismiss() {
+    setState(() => _dismissed = true);
+    SharedPreferences.getInstance().then((p) => p.setBool(_prefKey, true));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final pseudo = widget.user?.displayName as String? ?? '';
+    final isAutoGenerated = pseudo.startsWith('Parieur_') || pseudo == 'Parieur';
+    if (_dismissed || !isAutoGenerated) return const SizedBox.shrink();
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: AppColors.info.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.info.withValues(alpha: 0.25), width: 0.5),
+      ),
+      child: Row(
+        children: [
+          const Text('🎯', style: TextStyle(fontSize: 20)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: GestureDetector(
+              onTap: () => context.push('/compte/edit'),
+              behavior: HitTestBehavior.opaque,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Choisis ton pseudo',
+                      style: TextStyle(
+                          color: context.cl.textP,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text('Personnalise ton profil — plus sympa pour tes parrainages !',
+                      style: TextStyle(color: context.cl.textM, fontSize: 11)),
+                ],
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: _dismiss,
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.all(4),
+              child: Icon(Icons.close_rounded, color: context.cl.textM, size: 18),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════'
 // STATS RAPIDES
 // ══════════════════════════════════════════════════════════════════════════════'
 class _QuickStats extends ConsumerWidget {
@@ -543,6 +628,12 @@ class _QuickStats extends ConsumerWidget {
         final streak       = stats['streak']       as int? ?? 0;
         final upcoming     = stats['upcoming']     as int? ?? 0;
         final totalFinished = stats['totalFinished'] as int? ?? 0;
+
+        // Nouvel utilisateur sans aucune donnée : ne rien afficher plutôt
+        // que trois tuiles « — » qui n'apportent rien.
+        if (streak == 0 && totalFinished < 3 && upcoming == 0) {
+          return const SizedBox.shrink();
+        }
 
         return Row(children: [
           _StatChip(
@@ -1178,7 +1269,10 @@ class _ScoreBox extends StatelessWidget {
 class _HeroPronoCard extends StatelessWidget {
   final Map<String, dynamic> prono;
   final VoidCallback onTap;
-  const _HeroPronoCard({required this.prono, required this.onTap});
+  /// Mode teaser pour les non-Premium : le match et la confiance restent
+  /// visibles, le pronostic et la cote sont masqués — le tap mène à Premium.
+  final bool locked;
+  const _HeroPronoCard({required this.prono, required this.onTap, this.locked = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1375,13 +1469,24 @@ class _HeroPronoCard extends StatelessWidget {
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.8)),
                         const SizedBox(height: 4),
-                        Text(
-                          prono['prediction_label'] as String? ?? '',
-                          style: const TextStyle(
-                              color: AppColors.primary,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w800),
-                        ),
+                        locked
+                            ? const Row(mainAxisSize: MainAxisSize.min, children: [
+                                Icon(Icons.lock_rounded,
+                                    color: Color(0xFFFFD700), size: 15),
+                                SizedBox(width: 5),
+                                Text('Réservé VIP',
+                                    style: TextStyle(
+                                        color: Color(0xFFFFD700),
+                                        fontSize: 15,
+                                        fontWeight: FontWeight.w800)),
+                              ])
+                            : Text(
+                                prono['prediction_label'] as String? ?? '',
+                                style: const TextStyle(
+                                    color: AppColors.primary,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800),
+                              ),
                       ],
                     ),
                   ),
@@ -1395,11 +1500,15 @@ class _HeroPronoCard extends StatelessWidget {
                               letterSpacing: 0.8)),
                       const SizedBox(height: 4),
                       Text(
-                        prono['odds_recommended']
-                                ?.toStringAsFixed(2) ??
-                            '',
-                        style: const TextStyle(
-                            color: AppColors.success,
+                        locked
+                            ? '?.??'
+                            : prono['odds_recommended']
+                                    ?.toStringAsFixed(2) ??
+                                '',
+                        style: TextStyle(
+                            color: locked
+                                ? AppColors.textMuted
+                                : AppColors.success,
                             fontSize: 22,
                             fontWeight: FontWeight.w900),
                       ),
@@ -2981,6 +3090,10 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
   @override
   Widget build(BuildContext context) {
     final nextAsync = ref.watch(nextPronosticProvider);
+    final authState = ref.watch(authProvider);
+    final userIsPremium = authState is AuthAuthenticated
+        ? (authState.user.isPremium)
+        : false;
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
@@ -3006,11 +3119,19 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
           final oddsRec        = (prono['odds_recommended'] as num?)?.toDouble();
           final confidenceScore = prono['confidence_score'] as int? ?? 0;
           final isPremium      = prono['is_premium'] as bool? ?? false;
+          // Prono premium + utilisateur gratuit → teaser verrouillé :
+          // on garde le match et la confiance visibles, on masque le
+          // pronostic et la cote, et le tap mène vers Premium.
+          final isLocked       = isPremium && !userIsPremium;
 
           return GestureDetector(
-            onTap: matchId == null ? null : () {
+            onTap: () {
               HapticFeedback.lightImpact();
-              context.push('/pronostics/$matchId');
+              if (isLocked) {
+                goToPremium(context, ref);
+              } else if (matchId != null) {
+                context.push('/pronostics/$matchId');
+              }
             },
             child: Container(
               padding: const EdgeInsets.all(18),
@@ -3133,12 +3254,15 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(color: AppColors.primary.withValues(alpha: 0.12), width: 0.5)),
                     child: Row(children: [
-                      // Prono label
+                      // Prono label (masqué si verrouillé)
                       Expanded(child: Row(children: [
-                        const Icon(Icons.trending_up_rounded, color: AppColors.primary, size: 14),
+                        Icon(isLocked ? Icons.lock_rounded : Icons.trending_up_rounded,
+                          color: isLocked ? const Color(0xFFFFD700) : AppColors.primary, size: 14),
                         const SizedBox(width: 6),
-                        Flexible(child: Text(predLabel,
-                          style: const TextStyle(color: AppColors.textPrimary,
+                        Flexible(child: Text(
+                          isLocked ? 'Réservé VIP' : predLabel,
+                          style: TextStyle(
+                            color: isLocked ? const Color(0xFFFFD700) : AppColors.textPrimary,
                             fontSize: 13, fontWeight: FontWeight.w800),
                           overflow: TextOverflow.ellipsis)),
                       ])),
@@ -3155,16 +3279,19 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                             shape: BoxShape.circle),
                         ))),
                       ],
-                      // Cote
+                      // Cote (masquée si verrouillé)
                       if (oddsRec != null) ...[
                         const SizedBox(width: 10),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.success.withValues(alpha: 0.15),
+                            color: (isLocked ? context.cl.textM : AppColors.success)
+                                .withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(8)),
-                          child: Text('x${oddsRec.toStringAsFixed(2)}',
-                            style: const TextStyle(color: AppColors.success,
+                          child: Text(
+                            isLocked ? 'x?.??' : 'x${oddsRec.toStringAsFixed(2)}',
+                            style: TextStyle(
+                              color: isLocked ? context.cl.textM : AppColors.success,
                               fontSize: 12, fontWeight: FontWeight.w800)),
                         ),
                       ],
@@ -3186,12 +3313,13 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                         blurRadius: 12, offset: const Offset(0, 4)),
                     ],
                   ),
-                  child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                    Text('Voir le pronostic',
-                      style: TextStyle(color: Colors.white, fontSize: 13,
+                  child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    Text(isLocked ? 'Débloquer avec Premium' : 'Voir le pronostic',
+                      style: const TextStyle(color: Colors.white, fontSize: 13,
                         fontWeight: FontWeight.w800)),
-                    SizedBox(width: 6),
-                    Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 15),
+                    const SizedBox(width: 6),
+                    Icon(isLocked ? Icons.lock_open_rounded : Icons.arrow_forward_rounded,
+                      color: Colors.white, size: 15),
                   ]),
                 ),
               ]),
@@ -3835,7 +3963,7 @@ class _StreakBanner extends ConsumerWidget {
                         Text(
                           streak.todayClaimed
                               ? '+${streak.xpEarnedToday} XP gagné aujourd\'hui'
-                              : 'Connectez-vous demain pour continuer',
+                              : 'Connecte-toi demain pour continuer',
                           style: TextStyle(
                             color: streak.todayClaimed
                                 ? AppColors.success

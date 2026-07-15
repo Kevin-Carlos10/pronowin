@@ -138,7 +138,7 @@ class _DepotRetraitPageState extends ConsumerState<DepotRetraitPage> {
             const SizedBox(height: 16),
 
             // ─── ID 1xBet ─────────────────────────────────────────────
-            _sectionLabel(context, 'Votre ID 1xBet'),
+            _sectionLabel(context, 'Ton ID 1xBet'),
             TextFormField(
               controller: _xbetCtrl,
               style: Theme.of(context).textTheme.bodyLarge,
@@ -150,13 +150,13 @@ class _DepotRetraitPageState extends ConsumerState<DepotRetraitPage> {
             ),
             const SizedBox(height: 4),
             Text(
-              'Votre ID se trouve dans Profil Mon compte sur 1xBet',
+              'Ton ID se trouve dans Profil Mon compte sur 1xBet',
               style: TextStyle(color: context.cl.textM, fontSize: 11),
             ),
             const SizedBox(height: 16),
 
             // ─── Numéro Mobile Money envoyeur ──────────────────────────
-            _sectionLabel(context, 'Votre numéro Mobile Money'),
+            _sectionLabel(context, 'Ton numéro Mobile Money'),
             TextFormField(
               controller: _phoneCtrl,
               keyboardType: TextInputType.phone,
@@ -252,8 +252,8 @@ class _DepotRetraitPageState extends ConsumerState<DepotRetraitPage> {
                     const SizedBox(height: 3),
                     Text(
                       _opType == TransactionType.deposit
-                        ? 'Après votre demande, envoyez le montant sur le numéro MobCash affiché. Votre dépôt sera confirmé sous 30 min ouvrables.'
-                        : 'Votre demande sera traitée sous 30 min ouvrables. Le montant sera envoyé sur votre numéro Mobile Money.',
+                        ? 'Après ta demande, envoie le montant sur le numéro MobCash affiché. Ton dépôt sera confirmé sous 30 min ouvrables.'
+                        : 'Ta demande sera traitée sous 30 min ouvrables. Le montant sera envoyé sur ton numéro Mobile Money.',
                       style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.5),
                     ),
                   ])),
@@ -429,7 +429,7 @@ class _WalletCard extends StatelessWidget {
                 Text(
                   hasXbet
                       ? 'ID 1xBet : ${walletData['xbet_id']}'
-                      : 'Liez votre ID 1xBet ci-dessous',
+                      : 'Liez ton ID 1xBet ci-dessous',
                   style: TextStyle(
                     color: hasXbet ? const Color(0xFFE2E8F0) : const Color(0xFF8892AA),
                     fontSize: 13, fontWeight: FontWeight.w600),
@@ -546,7 +546,7 @@ class _MobCashNumberCard extends StatelessWidget {
         Row(children: [
           const Icon(Icons.send_rounded, color: AppColors.primary, size: 16),
           const SizedBox(width: 8),
-          Text('Envoyez sur ce numéro $label :', style: TextStyle(color: context.cl.textS, fontSize: 12)),
+          Text('Envoie sur ce numéro $label :', style: TextStyle(color: context.cl.textS, fontSize: 12)),
         ]),
         const SizedBox(height: 10),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -819,8 +819,8 @@ class _SuccessSheetState extends State<_SuccessSheet> with SingleTickerProviderS
             const SizedBox(height: 8),
             Text(
               isDeposit
-                ? 'Votre demande a bien été enregistrée.\nEnvoyez maintenant le montant sur le numéro ci-dessous.'
-                : 'Votre demande a bien été enregistrée.\nNous allons traiter votre retrait sous peu.',
+                ? 'Ta demande a bien été enregistrée.\nEnvoie maintenant le montant sur le numéro ci-dessous.'
+                : 'Ta demande a bien été enregistrée.\nNous allons traiter ton retrait sous peu.',
               style: TextStyle(color: cl.textS, fontSize: 13, height: 1.5),
               textAlign: TextAlign.center,
             ),

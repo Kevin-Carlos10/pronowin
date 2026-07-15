@@ -129,7 +129,7 @@ class _PaymentConfirmationPageState extends ConsumerState<PaymentConfirmationPag
             color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w700,
           ), textAlign: TextAlign.center),
           SizedBox(height: 8),
-          Text('Votre transaction a été traitée avec succès.',
+          Text('Ta transaction a été traitée avec succès.',
             style: TextStyle(color: context.cl.textS, fontSize: 13),
             textAlign: TextAlign.center),
           const SizedBox(height: 20),
@@ -210,8 +210,8 @@ class _UssdInstructions extends StatelessWidget {
         )),
       ]),
       const SizedBox(height: 16),
-      _Step(num: '1', text: 'Ouvrez votre application Mobile Money'),
-      _Step(num: '2', text: 'Sélectionnez "Payer un marchand"'),
+      _Step(num: '1', text: 'Ouvrez ton application Mobile Money'),
+      _Step(num: '2', text: 'Sélectionne "Payer un marchand"'),
       _Step(num: '3', text: 'Composez le code USSD suivant :'),
       const SizedBox(height: 8),
       GestureDetector(
@@ -243,7 +243,7 @@ class _UssdInstructions extends StatelessWidget {
           ),
         ),
       ),
-      _Step(num: '4', text: 'Confirmez avec votre PIN Mobile Money'),
+      _Step(num: '4', text: 'Confirmez avec ton PIN Mobile Money'),
     ]),
   );
 }
@@ -288,7 +288,7 @@ class _CryptoInstructions extends StatelessWidget {
         ]),
       ),
       SizedBox(height: 12),
-      Text('Envoyez exactement le montant indiqué à cette adresse.',
+      Text('Envoie exactement le montant indiqué à cette adresse.',
         style: TextStyle(color: context.cl.textS, fontSize: 12), textAlign: TextAlign.center),
       Text('3 confirmations réseau requises.',
         style: TextStyle(color: context.cl.textM, fontSize: 11), textAlign: TextAlign.center),
@@ -365,7 +365,7 @@ class _HelpSection extends StatelessWidget {
       Icon(Icons.info_outline_rounded, color: AppColors.info, size: 18),
       SizedBox(width: 10),
       Expanded(child: Text(
-        'En cas de problème, contactez notre support avec votre référence de transaction. Le remboursement est traité sous 248h.',
+        'En cas de problème, contacte notre support avec ta référence de transaction. Le remboursement est traité sous 248h.',
         style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.5),
       )),
     ]),

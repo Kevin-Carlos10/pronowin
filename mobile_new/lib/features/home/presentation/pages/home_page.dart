@@ -178,7 +178,7 @@ class _AdBanner extends StatelessWidget {
       const SizedBox(width: 10),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('PUB', style: TextStyle(color: context.cl.textM, fontSize: 9, letterSpacing: 1)),
-        Text('1xBet Bonus 200% sur votre 1er dépôt', style: TextStyle(color: context.cl.textS, fontSize: 12)),
+        Text('1xBet Bonus 200% sur ton 1er dépôt', style: TextStyle(color: context.cl.textS, fontSize: 12)),
       ])),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -297,7 +297,7 @@ class _ReferralMini extends StatelessWidget {
         const Icon(Icons.people_rounded, color: Color(0xFFA78BFA), size: 22),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Votre code parrainage', style: TextStyle(color: context.cl.textS, fontSize: 11)),
+          Text('Ton code parrainage', style: TextStyle(color: context.cl.textS, fontSize: 11)),
           Text(code, style: const TextStyle(color: AppColors.primaryLight, fontSize: 18, fontWeight: FontWeight.w800, letterSpacing: 2)),
         ])),
         GestureDetector(

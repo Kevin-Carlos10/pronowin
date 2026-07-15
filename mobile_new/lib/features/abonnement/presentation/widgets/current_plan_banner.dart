@@ -182,7 +182,7 @@ class _ExpiredBanner extends StatelessWidget {
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Premium expiré', style: TextStyle(
             color: Color(0xFFE2E8F0), fontSize: 15, fontWeight: FontWeight.w700)),
-          const Text('Votre accès Premium a expiré',
+          const Text('Ton accès Premium a expiré',
             style: TextStyle(color: AppColors.error, fontSize: 12)),
         ])),
         Container(

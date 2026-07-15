@@ -10,16 +10,16 @@ Failure handleDioException(DioException e, {String? context}) {
 
   switch (e.type) {
     case DioExceptionType.connectionTimeout:
-      failure = const NetworkFailure('Connexion trop lente. Vérifiez votre réseau.');
+      failure = const NetworkFailure('Connexion trop lente. Vérifie ton réseau.');
       break;
     case DioExceptionType.receiveTimeout:
       failure = const NetworkFailure('Le serveur met trop de temps à répondre.');
       break;
     case DioExceptionType.sendTimeout:
-      failure = const NetworkFailure('Envoi de données trop lent. Vérifiez votre connexion.');
+      failure = const NetworkFailure('Envoi de données trop lent. Vérifie ta connexion.');
       break;
     case DioExceptionType.connectionError:
-      failure = const NetworkFailure('Impossible de joindre le serveur. Vérifiez votre réseau.');
+      failure = const NetworkFailure('Impossible de joindre le serveur. Vérifie ton réseau.');
       break;
     case DioExceptionType.badResponse:
       final status  = e.response?.statusCode;
@@ -31,9 +31,9 @@ Failure handleDioException(DioException e, {String? context}) {
       } else if (status == 404) {
         failure = const ServerFailure('Ressource introuvable.');
       } else if (status == 429) {
-        failure = const ServerFailure('Trop de requêtes. Réessayez dans quelques secondes.');
+        failure = const ServerFailure('Trop de requêtes. Réessaie dans quelques secondes.');
       } else if (status != null && status >= 500) {
-        failure = ServerFailure('Erreur serveur ($status). Réessayez plus tard.');
+        failure = ServerFailure('Erreur serveur ($status). Réessaie plus tard.');
         CrashlyticsService.recordError(e, e.stackTrace,
             context: 'HTTP $status${context != null ? " · $context" : ""}');
       } else {

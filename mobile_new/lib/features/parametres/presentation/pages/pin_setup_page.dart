@@ -90,7 +90,7 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
 
         // Titre
         Text(
-          _step2 ? 'Confirmez votre code PIN' : 'Choisissez un code PIN à 4 chiffres',
+          _step2 ? 'Confirmez ton code PIN' : 'Choisis un code PIN à 4 chiffres',
           style: TextStyle(color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w600),
           textAlign: TextAlign.center,
         ),

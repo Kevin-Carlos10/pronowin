@@ -11,7 +11,7 @@ import '../../domain/usecases/send_otp_usecase.dart';
 import '../../domain/usecases/verify_otp_usecase.dart';
 import '../../../../core/cache/cache_service.dart';
 
-// ... (Gardez vos classes AuthState et AuthNotifier identiques)
+// ... (Gardez tes classes AuthState et AuthNotifier identiques)
 
 // ─── Dependency Injection ────────────────────────────────────────────────────
 final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) =>
