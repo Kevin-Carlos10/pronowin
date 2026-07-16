@@ -1326,7 +1326,7 @@ class _FavoritesEmpty extends StatelessWidget {
         const SizedBox(height: 10),
 
         Text(
-          'Épinglez vos matchs avec 🔖 ou vos ligues préférées avec 📌 pour les retrouver ici.',
+          'Épinglez tes matchs avec 🔖 ou tes ligues préférées avec 📌 pour les retrouver ici.',
           style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
           textAlign: TextAlign.center)
           .animate(delay: 230.ms).fadeIn(duration: 300.ms),

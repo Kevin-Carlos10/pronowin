@@ -95,11 +95,11 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
           Text('Ajouter une image', style: TextStyle(
             color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
           SizedBox(height: 6),
-          Text('Choisissez votre capture d\'écran', style: TextStyle(color: context.cl.textM, fontSize: 12)),
+          Text('Choisis ta capture d\'écran', style: TextStyle(color: context.cl.textM, fontSize: 12)),
           const SizedBox(height: 12),
           _PickerOption(
             icon: Icons.photo_library_rounded, color: AppColors.primary,
-            title: 'Galerie photo', subtitle: 'Choisir depuis vos photos',
+            title: 'Galerie photo', subtitle: 'Choisir depuis tes photos',
             onTap: () async {
               Navigator.pop(context);
               final f = await _pickFrom(ImageSource.gallery);
@@ -147,7 +147,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
             decoration: BoxDecoration(color: context.cl.borderSoft, borderRadius: BorderRadius.circular(2))),
           Padding(
             padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text('Choisissez votre pays', style: TextStyle(
+            child: Text('Choisis ton pays', style: TextStyle(
               color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
           ),
           SizedBox(height: 8),
@@ -247,7 +247,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
           decoration: InputDecoration(
             hintText: '$price',
             prefixIcon: Icon(Icons.payments_rounded, size: 20, color: context.cl.textM),
-            helperText: 'Montant exact que vous avez envoyé',
+            helperText: 'Montant exact que tu as envoyé',
             helperStyle: TextStyle(color: context.cl.textM, fontSize: 11),
           ),
         ),
@@ -256,7 +256,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         // 2. Numéro qui a effectué le transfert
         _FieldLabel('2. Numéro Mobile Money utilisé pour le transfert'),
         Text(
-          'Entrez le numéro depuis lequel vous avez envoyé l\'argent',
+          'Entrez le numéro depuis lequel tu as envoyé l\'argent',
           style: TextStyle(color: context.cl.textM, fontSize: 11),
         ),
         const SizedBox(height: 8),
@@ -371,12 +371,12 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
           child: Column(children: [
             const _XbetLogo(size: 32),
             const SizedBox(height: 12),
-            Text('Rejoignez 1xBet', style: TextStyle(
+            Text('Rejoins 1xBet', style: TextStyle(
               color: context.cl.textP, fontSize: 17,
               fontWeight: FontWeight.w800, letterSpacing: -0.3)),
             const SizedBox(height: 6),
             Text(
-              'Créez votre compte avec notre code promo et obtenez l\'accès Premium gratuitement.',
+              'Crée ton compte avec notre code promo et obtenez l\'accès Premium gratuitement.',
               style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.5),
               textAlign: TextAlign.center),
           ]),
@@ -396,7 +396,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
 
         const SizedBox(height: 24),
 
-        // ── Séparateur "Votre soumission" ─────────────────────────
+        // ── Séparateur "Ta soumission" ─────────────────────────
         Row(children: [
           Expanded(child: Divider(color: context.cl.border, height: 1)),
           Padding(
@@ -437,7 +437,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
                   color: context.cl.textP, fontSize: 16,
                   fontWeight: FontWeight.w600, letterSpacing: 1),
                 decoration: InputDecoration(
-                  hintText: 'Votre ID 1xBet',
+                  hintText: 'Ton ID 1xBet',
                   hintStyle: TextStyle(color: context.cl.textM,
                     fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0),
                   border: InputBorder.none,
@@ -463,7 +463,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         const SizedBox(height: 20),
 
         // ── Zone upload capture ────────────────────────────────────
-        Text('Capture de votre profil 1xBet', style: TextStyle(
+        Text('Capture de ton profil 1xBet', style: TextStyle(
           color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600)),
         const SizedBox(height: 8),
         _ImagePickerWidget(image: _imageXbet, onTap: () => _showImagePicker(false)),
@@ -574,7 +574,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
             textAlign: TextAlign.center),
           const SizedBox(height: 10),
           Text(
-            'Votre demande est en cours de vérification.',
+            'Ta demande est en cours de vérification.',
             style: TextStyle(color: context.cl.textS, fontSize: 14),
             textAlign: TextAlign.center),
           const SizedBox(height: 16),
@@ -604,7 +604,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
               const Icon(Icons.notifications_rounded, color: AppColors.info, size: 16),
               const SizedBox(width: 8),
               Expanded(child: Text(
-                'Vous recevrez une notification push dès que votre Premium est activé.',
+                'Vous recevrez une notification push dès que ton Premium est activé.',
                 style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.4))),
             ]),
           ),
@@ -685,7 +685,7 @@ class _PaymentRecipientCard extends StatelessWidget {
       Row(children: [
         const Icon(Icons.send_to_mobile_rounded, color: AppColors.primary, size: 16),
         const SizedBox(width: 8),
-        Text('Envoyez $price FCFA à ce numéro',
+        Text('Envoie $price FCFA à ce numéro',
           style: const TextStyle(
             color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w700)),
       ]),
@@ -751,7 +751,7 @@ class _RecapCard extends StatelessWidget {
       const Row(children: [
         Icon(Icons.fact_check_rounded, color: AppColors.success, size: 16),
         SizedBox(width: 8),
-        Text('Récapitulatif de votre demande', style: TextStyle(
+        Text('Récapitulatif de ta demande', style: TextStyle(
           color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600)),
       ]),
       const SizedBox(height: 10),
@@ -994,10 +994,10 @@ class _XbetSteps extends StatelessWidget {
 
   static const _steps = [
     (Icons.language_rounded,      'Rendez-vous sur 1xBet',        "Ouvrez 1xbet.com ou l'app mobile"),
-    (Icons.person_add_rounded,    'Créez votre compte',           "Entrez le code promo lors de l'inscription"),
-    (Icons.account_balance_wallet_rounded, 'Effectuez un dépôt', 'Un dépôt initial est obligatoire pour valider votre compte 1xBet'),
-    (Icons.photo_camera_rounded,  'Prenez une capture de profil', 'Votre ID 1xBet doit être visible'),
-    (Icons.upload_rounded,        'Soumettez ci-dessous',         'ID + capture → validation sous 24h'),
+    (Icons.person_add_rounded,    'Crée ton compte',           "Entrez le code promo lors de l'inscription"),
+    (Icons.account_balance_wallet_rounded, 'Effectuez un dépôt', 'Un dépôt initial est obligatoire pour valider ton compte 1xBet'),
+    (Icons.photo_camera_rounded,  'Prends une capture de profil', 'Ton ID 1xBet doit être visible'),
+    (Icons.upload_rounded,        'Soumets ci-dessous',         'ID + capture → validation sous 24h'),
   ];
 
   @override
@@ -1243,7 +1243,7 @@ class _PaywallPage extends StatelessWidget {
         ).animate(delay: 80.ms).fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
         const SizedBox(height: 10),
         const Text(
-          'Gérez vos pronostics avec les analyses\nVIP et le suivi bankroll professionnel.',
+          'Gérez tes pronostics avec les analyses\nVIP et le suivi bankroll professionnel.',
           style: TextStyle(color: Colors.white60, fontSize: 14, height: 1.5),
           textAlign: TextAlign.center,
         ).animate(delay: 140.ms).fadeIn(duration: 350.ms),
@@ -1435,7 +1435,7 @@ class _XbetCard extends StatelessWidget {
                   color: Color(0xFFA78BFA), fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.8))),
             ]),
             const SizedBox(height: 4),
-            const Text("Inscrivez-vous sur 1xBet avec notre code", style: TextStyle(
+            const Text("Inscris-toi sur 1xBet avec notre code", style: TextStyle(
               color: Colors.white54, fontSize: 12)),
           ])),
           const SizedBox(width: 12),

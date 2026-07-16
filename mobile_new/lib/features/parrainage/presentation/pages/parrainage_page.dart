@@ -273,7 +273,7 @@ class _ReferralCodeCard extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 10),
-      Text('Appuyez pour copier · Partagez avec vos amis',
+      Text('Appuyez pour copier · Partagez avec tes amis',
         style: TextStyle(color: context.cl.textM, fontSize: 11)),
       const SizedBox(height: 12),
       SizedBox(
@@ -399,7 +399,7 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
     ref.listen<ApplyCodeState>(applyCodeProvider, (_, s) {
       if (s is ApplyCodeSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('✅ ${s.referrerPseudo} est votre parrain !'),
+          content: Text('✅ ${s.referrerPseudo} est ton parrain !'),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ));
@@ -442,7 +442,7 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('Vous avez un code parrain ?', style: TextStyle(
                   color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w500)),
-                Text('Entrez-le pour lier votre parrain', style: TextStyle(
+                Text('Entrez-le pour lier ton parrain', style: TextStyle(
                   color: context.cl.textM, fontSize: 11)),
               ])),
               Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
@@ -510,11 +510,11 @@ class _HowItWorksCard extends StatelessWidget {
         fontWeight: FontWeight.w600, letterSpacing: 1)),
       const SizedBox(height: 14),
       _Step(num: '1', color: AppColors.primary,
-        text: 'Partagez votre code avec vos amis'),
+        text: 'Partagez ton code avec tes amis'),
       _Step(num: '2', color: const Color(0xFFA78BFA),
         text: 'Ils s\'inscrivent sur PronoWin'),
       _Step(num: '3', color: AppColors.success,
-        text: 'Quand ils s\'abonnent Premium → +$commL1 FCFA pour vous'),
+        text: 'Quand ils s\'abonnent Premium → +$commL1 FCFA pour toi'),
       _Step(num: '4', color: AppColors.info,
         text: 'Leurs filleuls Premium → +$commL2 FCFA supplémentaires'),
     ]),
@@ -672,7 +672,7 @@ class _EmptyState extends StatelessWidget {
       Text('Aucun filleul pour l\'instant', style: TextStyle(
         color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
-      Text('Partagez votre code pour commencer\nà gagner des commissions',
+      Text('Partagez ton code pour commencer\nà gagner des commissions',
         style: TextStyle(color: context.cl.textS, fontSize: 13),
         textAlign: TextAlign.center),
     ]),

@@ -38,7 +38,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
       if (!canCheck || !isAvailable) return;
 
       final authenticated = await _auth.authenticate(
-        localizedReason: 'Déverrouillez PronoWin avec votre empreinte',
+        localizedReason: 'Déverrouillez PronoWin avec ton empreinte',
         options: const AuthenticationOptions(
           biometricOnly: false,
           stickyAuth:    true,
@@ -76,7 +76,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
       setState(() {
         _attempts++;
         _error = _attempts >= _maxAttempts
-          ? 'Trop de tentatives. Reconnectez-vous.'
+          ? 'Trop de tentatives. Reconnecte-toi.'
           : 'Code incorrect. ${_maxAttempts - _attempts} essai(s) restant(s).';
         _pin = '';
       });
@@ -119,7 +119,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
               ],
             )),
             SizedBox(height: 8),
-            Text('Entrez votre code PIN', style: TextStyle(
+            Text('Entrez ton code PIN', style: TextStyle(
               color: context.cl.textS, fontSize: 14)),
             const SizedBox(height: 40),
 
@@ -207,7 +207,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
       Text('Compte verrouillé', style: TextStyle(
         color: AppColors.error, fontSize: 18, fontWeight: FontWeight.w700)),
       SizedBox(height: 8),
-      Text('Trop de tentatives incorrectes.\nReconnectez-vous pour continuer.',
+      Text('Trop de tentatives incorrectes.\nReconnecte-toi pour continuer.',
         style: TextStyle(color: context.cl.textS, fontSize: 13),
         textAlign: TextAlign.center),
       const SizedBox(height: 24),

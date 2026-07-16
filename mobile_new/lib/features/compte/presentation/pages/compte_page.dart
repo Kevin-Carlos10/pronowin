@@ -57,7 +57,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                 style: TextStyle(color: context.cl.textP,
                   fontSize: 17, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
-              Text('Impossible de charger votre profil.\nVérifiez votre connexion.',
+              Text('Impossible de charger ton profil.\nVérifie ta connexion.',
                 style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
                 textAlign: TextAlign.center),
               const SizedBox(height: 24),
@@ -264,7 +264,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
           Text('Déconnexion ?', style: TextStyle(
             color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text('Vous devrez vous reconnecter avec votre numéro de téléphone.',
+          Text('Vous devrez te reconnecter avec ton numéro de téléphone.',
             style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
             textAlign: TextAlign.center),
           const SizedBox(height: 24),
@@ -1102,8 +1102,10 @@ class _ActionCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(10)),
           child: Icon(icon, color: color, size: 18)),
         const SizedBox(height: 6),
-        Text(label, style: TextStyle(color: context.cl.textS, fontSize: 10),
-          textAlign: TextAlign.center),
+        // FittedBox : réduit la taille plutôt que couper un mot long (« Abonnement »)
+        FittedBox(fit: BoxFit.scaleDown,
+          child: Text(label, style: TextStyle(color: context.cl.textS, fontSize: 10),
+            textAlign: TextAlign.center)),
       ])));
 }
 
@@ -1444,7 +1446,7 @@ class _StreakCard extends ConsumerWidget {
                     Text(
                       streak.todayClaimed
                           ? '✅ Streak du jour validé'
-                          : '⏳ Connectez-vous demain pour continuer',
+                          : '⏳ Connecte-toi demain pour continuer',
                       style: TextStyle(
                         color: streak.todayClaimed
                             ? AppColors.success

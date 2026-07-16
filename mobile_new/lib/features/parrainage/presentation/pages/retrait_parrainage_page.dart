@@ -201,7 +201,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
               color: AppColors.primaryLight, fontSize: 28, fontWeight: FontWeight.w800)),
           ),
           const SizedBox(height: 6),
-          Text('pour vos $earnings FCFA de gains', style: const TextStyle(
+          Text('pour tes $earnings FCFA de gains', style: const TextStyle(
             color: Color(0xFFCBD5E1), fontSize: 14)),
           const SizedBox(height: 8),
           const Text('(1 000 FCFA = 6 jours Premium)', style: TextStyle(
@@ -222,7 +222,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
             color: AppColors.success, fontSize: 13, fontWeight: FontWeight.w600)),
           SizedBox(height: 8),
           Text('• Activation immédiate, sans attente\n'
-               '• Ajouté à votre abonnement existant\n'
+               '• Ajouté à ton abonnement existant\n'
                '• Pas de frais de traitement',
             style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.6)),
         ]),
@@ -251,7 +251,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
       builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 40, height: 4, margin: EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(color: context.cl.borderS, borderRadius: BorderRadius.circular(2))),
-        Text('Choisissez votre pays', style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
+        Text('Choisis ton pays', style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
         SizedBox(height: 8),
         ..._countries.map((c) => ListTile(
           leading: Text(c['flag'] as String, style: TextStyle(fontSize: 24)),

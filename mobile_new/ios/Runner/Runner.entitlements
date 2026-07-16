@@ -2,17 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Universal Links : https://pronowin.app/pronostics/ID ouvre l'app directement -->
-	<!-- Requiert un fichier apple-app-site-association sur https://pronowin.app/.well-known/ -->
-	<key>com.apple.developer.associated-domains</key>
-	<array>
-		<string>applinks:pronowin.app</string>
-		<string>webcredentials:pronowin.app</string>
-	</array>
-
-	<!-- APNs (Push Notifications) -->
-	<!-- Changer en "production" avant le build App Store -->
-	<key>aps-environment</key>
-	<string>development</string>
+	<!-- Capabilities retirées pour les tests locaux : un compte Apple gratuit (Personal Team)
+	     ne supporte ni Associated Domains ni Push Notifications.
+	     À restaurer avant un build App Store (voir l'historique git) :
+	     - com.apple.developer.associated-domains : applinks:pronowin.app, webcredentials:pronowin.app
+	     - aps-environment : development -->
 </dict>
 </plist>

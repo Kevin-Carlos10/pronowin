@@ -66,7 +66,7 @@ const _slides = [
   _Slide(
     emoji: '📚',
     title: 'Formation & Tutoriels',
-    subtitle: 'Apprenez à parier intelligemment avec nos guides',
+    subtitle: 'Apprends à parier intelligemment avec nos guides',
     bullets: [
       'Value Bet, Bankroll, Stratégie...',
       'Tutoriels vidéo et articles complets',
@@ -90,7 +90,7 @@ const _slides = [
   _Slide(
     emoji: '🚀',
     title: 'Prêt à commencer ?',
-    subtitle: 'Rejoignez des milliers de parieurs qui gagnent avec PronoWin',
+    subtitle: 'Rejoins des milliers de parieurs qui gagnent avec PronoWin',
     bullets: [
       'Accès gratuit à tous les pronostics du jour',
       'Premium pour les analyses exclusives',

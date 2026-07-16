@@ -21,7 +21,10 @@ class _PhonePageState extends ConsumerState<PhonePage>
   final _phoneCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   String _countryCode = '+226';
-  int    _tab         = 0; // 0 = Téléphone, 1 = Email
+  // Email par défaut tant que l'envoi WhatsApp (Meta Cloud API) n'est pas
+  // opérationnel — l'email offre un accès instantané sans dépendance externe.
+  int    _tab         = 1; // 0 = Téléphone (WhatsApp), 1 = Email
+  bool   _countrySheetOpen = false;
 
   late AnimationController _bgCtrl;
   late Animation<double> _bgAnim;
@@ -183,7 +186,11 @@ class _PhonePageState extends ConsumerState<PhonePage>
                     // ─── TAB SWITCHER ──────────────────────────────────────
                     _AuthTabSwitcher(
                       selected: _tab,
-                      onChanged: (i) => setState(() { _tab = i; _formKey.currentState?.reset(); }),
+                      onChanged: (i) {
+                        // Fermer le sélecteur de pays s'il est resté ouvert
+                        if (_countrySheetOpen) Navigator.of(context).pop();
+                        setState(() { _tab = i; _formKey.currentState?.reset(); });
+                      },
                     ).animate().fadeIn(duration: 400.ms, delay: 160.ms),
 
                     const SizedBox(height: 20),
@@ -264,7 +271,7 @@ class _PhonePageState extends ConsumerState<PhonePage>
                         text: TextSpan(
                           style: TextStyle(color: context.cl.textM, fontSize: 11),
                           children: [
-                            const TextSpan(text: 'En continuant, vous acceptez nos '),
+                            const TextSpan(text: 'En continuant, tu acceptes nos '),
                             TextSpan(
                               text: 'conditions d\'utilisation',
                               style: const TextStyle(
@@ -291,8 +298,10 @@ class _PhonePageState extends ConsumerState<PhonePage>
   }
 
   void _showCountryPicker(BuildContext context) {
+    _countrySheetOpen = true;
     showModalBottomSheet(
       context: context,
+      isDismissible: true,
       backgroundColor: context.cl.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -357,7 +366,7 @@ class _PhonePageState extends ConsumerState<PhonePage>
           const SizedBox(height: 20),
         ],
       ),
-    );
+    ).whenComplete(() => _countrySheetOpen = false);
   }
 }
 

@@ -270,7 +270,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 controller: _firstNameCtrl,
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
-                  hintText: 'Votre prénom',
+                  hintText: 'Ton prénom',
                   prefixIcon: Icon(Icons.badge_rounded,
                     size: 20, color: context.cl.textM)),
               ),
@@ -282,7 +282,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 controller: _lastNameCtrl,
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
-                  hintText: 'Votre nom',
+                  hintText: 'Ton nom',
                   prefixIcon: Icon(Icons.badge_outlined,
                     size: 20, color: context.cl.textM)),
               ),
@@ -307,7 +307,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     ? '${_birthDate!.day.toString().padLeft(2,'0')}/'
                       '${_birthDate!.month.toString().padLeft(2,'0')}/'
                       '${_birthDate!.year}'
-                    : 'Sélectionner votre date de naissance',
+                    : 'Sélectionner ta date de naissance',
                   style: TextStyle(
                     color: _birthDate != null
                       ? context.cl.textP : context.cl.textM,
@@ -337,7 +337,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
             onChanged: (_) => setState(() {}),
             textCapitalization: TextCapitalization.words,
             decoration: InputDecoration(
-              hintText: 'Votre pseudo',
+              hintText: 'Ton pseudo',
               prefixIcon: Icon(Icons.person_rounded,
                 size: 20, color: context.cl.textM),
               helperText: 'Minimum 3 caractères',
@@ -350,7 +350,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
             controller: _emailCtrl,
             keyboardType: TextInputType.emailAddress,
             decoration: InputDecoration(
-              hintText: 'votre@email.com',
+              hintText: 'exemple@email.com',
               prefixIcon: Icon(Icons.email_rounded,
                 size: 20, color: context.cl.textM)),
           ),

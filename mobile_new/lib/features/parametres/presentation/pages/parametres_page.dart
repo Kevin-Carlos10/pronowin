@@ -175,7 +175,7 @@ class ParametresPage extends ConsumerWidget {
               _NavTile(
                 icon: Icons.edit_rounded, iconColor: AppColors.info,
                 title: 'Changer le code PIN',
-                subtitle: 'Modifier votre code de sécurité',
+                subtitle: 'Modifier ton code de sécurité',
                 onTap: () => context.push('/parametres/pin'),
               ),
               const _Divider(),
@@ -184,7 +184,7 @@ class ParametresPage extends ConsumerWidget {
             _NavTile(
               icon: Icons.devices_rounded, iconColor: AppColors.info,
               title: 'Sessions actives',
-              subtitle: 'Voir et gérer vos connexions',
+              subtitle: 'Voir et gérer tes connexions',
               onTap: () => _showSessionsSheet(context),
             ),
           ]).animate(delay: 180.ms).fadeIn(duration: 300.ms)
@@ -262,7 +262,7 @@ class ParametresPage extends ConsumerWidget {
         icon: Icons.lock_reset_rounded,
         iconColor: AppColors.warning,
         title: 'Désactiver le PIN ?',
-        body: 'L\'application ne sera plus protégée par un code PIN.\nVotre sécurité sera réduite.',
+        body: 'L\'application ne sera plus protégée par un code PIN.\nTa sécurité sera réduite.',
         confirmLabel: 'Désactiver',
         confirmColor: AppColors.warning,
         onConfirm: () async {
@@ -360,7 +360,7 @@ class ParametresPage extends ConsumerWidget {
         icon: Icons.storage_rounded,
         iconColor: context.cl.textS,
         title: 'Vider le cache ?',
-        body: 'Les données temporaires seront supprimées.\nVos paramètres et votre session seront conservés.',
+        body: 'Les données temporaires seront supprimées.\nTes paramètres et ta session seront conservés.',
         confirmLabel: 'Vider le cache',
         confirmColor: AppColors.primary,
         onConfirm: () async {
@@ -432,7 +432,7 @@ class ParametresPage extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            'Pour sécuriser votre compte, déconnectez-vous si vous reconnaissez une session suspecte.',
+            'Pour sécuriser ton compte, déconnecte-toi si tu reconnais une session suspecte.',
             style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.5),
             textAlign: TextAlign.center),
           const SizedBox(height: 20),
@@ -570,7 +570,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
         color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
       const SizedBox(height: 8),
       Text(
-        'Cette action est irréversible. Toutes vos données, votre historique et votre abonnement seront définitivement supprimés.',
+        'Cette action est irréversible. Toutes tes données, ton historique et ton abonnement seront définitivement supprimés.',
         style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
         textAlign: TextAlign.center),
       const SizedBox(height: 20),
@@ -582,11 +582,11 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.error.withValues(alpha: 0.2))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _DeleteWarning('Votre abonnement Premium sera annulé'),
+          _DeleteWarning('Ton abonnement Premium sera annulé'),
           const SizedBox(height: 6),
-          _DeleteWarning('Vos gains de parrainage seront perdus'),
+          _DeleteWarning('Tes gains de parrainage seront perdus'),
           const SizedBox(height: 6),
-          _DeleteWarning('Votre historique sera effacé définitivement'),
+          _DeleteWarning('Ton historique sera effacé définitivement'),
         ]),
       ),
       const SizedBox(height: 20),

@@ -928,7 +928,7 @@ class _ErrorState extends StatelessWidget {
               Text('Connexion impossible',
                   style: TextStyle(color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
-              Text('Vérifiez votre connexion internet\net réessayez.',
+              Text('Vérifie ta connexion internet\net réessaie.',
                   style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
                   textAlign: TextAlign.center),
               const SizedBox(height: 24),

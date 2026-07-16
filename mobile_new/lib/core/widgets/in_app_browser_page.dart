@@ -106,7 +106,7 @@ class _InAppBrowserPageState extends State<InAppBrowserPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Vérifiez votre connexion ou ouvrez dans le navigateur.',
+                      'Vérifie ta connexion ou ouvrez dans le navigateur.',
                       style: TextStyle(fontSize: 13, color: Colors.white54),
                       textAlign: TextAlign.center,
                     ),
