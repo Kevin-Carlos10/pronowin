@@ -123,16 +123,16 @@ class _FloatingNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(16, 0, 16, bottomPadding + 12),
+      padding: EdgeInsets.fromLTRB(12, 0, 12, bottomPadding + 4),
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(22),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
             height: 64,
             decoration: BoxDecoration(
               color: context.cl.surface.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(28),
+              borderRadius: BorderRadius.circular(22),
               border: Border.all(
                 color: context.cl.border.withValues(alpha: 0.6),
                 width: 0.5,
