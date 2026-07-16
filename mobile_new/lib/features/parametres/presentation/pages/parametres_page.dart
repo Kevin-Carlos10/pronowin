@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -413,10 +414,10 @@ class ParametresPage extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: AppColors.success.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10)),
-                child: const Icon(Icons.phone_android_rounded, color: AppColors.success, size: 20)),
+                child: Icon(Platform.isIOS ? Icons.phone_iphone_rounded : Icons.phone_android_rounded, color: AppColors.success, size: 20)),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Android · Cet appareil', style: TextStyle(
+                Text('${Platform.isIOS ? 'iPhone' : 'Android'} · Cet appareil', style: TextStyle(
                   color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
                 Text('Connecté maintenant', style: TextStyle(
                   color: context.cl.textM, fontSize: 11)),
