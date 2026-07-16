@@ -23,7 +23,7 @@ class _PhonePageState extends ConsumerState<PhonePage>
   String _countryCode = '+226';
   // Email par défaut tant que l'envoi WhatsApp (Meta Cloud API) n'est pas
   // opérationnel — l'email offre un accès instantané sans dépendance externe.
-  int    _tab         = 1; // 0 = Téléphone (WhatsApp), 1 = Email
+  int    _tab         = 0; // 0 = Email, 1 = Téléphone
   bool   _countrySheetOpen = false;
 
   late AnimationController _bgCtrl;
@@ -71,10 +71,10 @@ class _PhonePageState extends ConsumerState<PhonePage>
   void _submit() {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_tab == 0) {
+      ref.read(authProvider.notifier).quickRegister(email: _emailCtrl.text.trim());
+    } else {
       final fullNumber = '$_countryCode${_phoneCtrl.text.trim()}';
       ref.read(authProvider.notifier).quickRegister(phoneNumber: fullNumber);
-    } else {
-      ref.read(authProvider.notifier).quickRegister(email: _emailCtrl.text.trim());
     }
   }
 
@@ -197,6 +197,20 @@ class _PhonePageState extends ConsumerState<PhonePage>
 
                     // ─── CONTENU SELON TAB ─────────────────────────────────
                     if (_tab == 0) ...[
+                      _FieldLabel('Adresse email').animate().fadeIn(duration: 300.ms, delay: 180.ms),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _emailCtrl,
+                        keyboardType: TextInputType.emailAddress,
+                        style: TextStyle(color: context.cl.textP, fontSize: 15),
+                        decoration: const InputDecoration(hintText: 'exemple@email.com'),
+                        validator: (v) {
+                          if (v == null || v.isEmpty) return 'Email requis';
+                          if (!v.contains('@')) return 'Email invalide';
+                          return null;
+                        },
+                      ).animate().fadeIn(duration: 300.ms, delay: 180.ms),
+                    ] else ...[
                       _FieldLabel('Pays').animate().fadeIn(duration: 400.ms, delay: 180.ms),
                       const SizedBox(height: 8),
                       _CountrySelector(
@@ -231,26 +245,7 @@ class _PhonePageState extends ConsumerState<PhonePage>
                           ),
                         ),
                       ]).animate().fadeIn(duration: 400.ms, delay: 240.ms),
-                    ] else ...[
-                      _FieldLabel('Adresse email').animate().fadeIn(duration: 300.ms, delay: 180.ms),
-                      const SizedBox(height: 8),
-                      TextFormField(
-                        controller: _emailCtrl,
-                        keyboardType: TextInputType.emailAddress,
-                        style: TextStyle(color: context.cl.textP, fontSize: 15),
-                        decoration: const InputDecoration(hintText: 'exemple@email.com'),
-                        validator: (v) {
-                          if (v == null || v.isEmpty) return 'Email requis';
-                          if (!v.contains('@')) return 'Email invalide';
-                          return null;
-                        },
-                      ).animate().fadeIn(duration: 300.ms, delay: 180.ms),
                     ],
-
-                    const SizedBox(height: 12),
-
-                    // Bannière "pas de vérification"
-                    _NoBotherBanner().animate().fadeIn(duration: 400.ms, delay: 260.ms),
 
                     const SizedBox(height: 28),
 
@@ -523,9 +518,9 @@ class _AuthTabSwitcher extends StatelessWidget {
       border: Border.all(color: context.cl.borderS, width: 0.5),
     ),
     child: Row(children: [
-      _Tab(label: 'WhatsApp', icon: Icons.chat_outlined,  selected: selected == 0, onTap: () => onChanged(0)),
+      _Tab(label: 'Email',      icon: Icons.email_outlined, selected: selected == 0, onTap: () => onChanged(0)),
       const SizedBox(width: 4),
-      _Tab(label: 'Email',     icon: Icons.email_outlined, selected: selected == 1, onTap: () => onChanged(1)),
+      _Tab(label: 'Téléphone', icon: Icons.phone_outlined,  selected: selected == 1, onTap: () => onChanged(1)),
     ]),
   );
 }
