@@ -1,7 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/bankroll_provider.dart';
@@ -56,9 +58,12 @@ class _MiserSheet extends ConsumerStatefulWidget {
 }
 
 class _MiserSheetState extends ConsumerState<_MiserSheet> {
-  bool    _loading = false;
+  bool    _loading    = false;
   String? _error;
   bool    _alreadyBet = false;
+  bool    _confirmed  = false;
+  double? _confirmedStake;
+  String? _confirmedCurrency;
 
   // confidenceScore = 1-5 (étoiles choisies par l'admin à la publication)
   String get _ruleLabel {
@@ -79,7 +84,15 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
     return '${widget.confidenceScore}/5';
   }
 
-  Future<void> _submit(double stake) async {
+  Future<void> _launch1xBet() async {
+    const url = 'https://1xbet.com';
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+
+  Future<void> _submit(double stake, String currency) async {
     setState(() { _loading = true; _error = null; });
     try {
       await ref.read(dioProvider).post('/bankroll/bet', data: {
@@ -87,7 +100,13 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
         'staked_amount': stake,
       });
       ref.invalidate(bankrollProvider);
-      if (mounted) Navigator.pop(context, true);
+      HapticFeedback.mediumImpact();
+      if (mounted) setState(() {
+        _confirmed        = true;
+        _confirmedStake   = stake;
+        _confirmedCurrency = currency;
+        _loading          = false;
+      });
     } catch (e) {
       String msg;
       if (e is DioException) {
@@ -111,6 +130,98 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
   @override
   Widget build(BuildContext context) {
     final suggestAsync = ref.watch(suggestedStakeProvider(widget.confidenceScore));
+
+    // ── Vue post-confirmation ────────────────────────────────────────────────
+    if (_confirmed && _confirmedStake != null) {
+      return Container(
+        decoration: BoxDecoration(
+          color: context.cl.surface,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24))),
+        padding: EdgeInsets.fromLTRB(20, 20, 20,
+            MediaQuery.of(context).viewInsets.bottom + 28),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(width: 40, height: 4,
+            margin: const EdgeInsets.only(bottom: 24),
+            decoration: BoxDecoration(
+              color: context.cl.border, borderRadius: BorderRadius.circular(2))),
+
+          // Succès
+          Container(
+            width: 64, height: 64,
+            decoration: BoxDecoration(
+              color: AppColors.success.withValues(alpha: 0.12),
+              shape: BoxShape.circle),
+            child: const Icon(Icons.check_circle_rounded,
+                color: AppColors.success, size: 34)),
+          const SizedBox(height: 14),
+          Text('Mise enregistrée !', style: TextStyle(
+            color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text(
+            '${_formatAmount(_confirmedStake!)} ${_confirmedCurrency ?? ''} · ${widget.homeTeam} – ${widget.awayTeam}',
+            style: TextStyle(color: context.cl.textM, fontSize: 12),
+            textAlign: TextAlign.center),
+
+          const SizedBox(height: 20),
+
+          // Alerte discipline
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: AppColors.warning.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: AppColors.warning.withValues(alpha: 0.3), width: 0.8)),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Icon(Icons.shield_rounded, color: AppColors.warning, size: 18),
+              const SizedBox(width: 10),
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text('Rappel de discipline', style: TextStyle(
+                  color: AppColors.warning, fontSize: 13, fontWeight: FontWeight.w700)),
+                const SizedBox(height: 4),
+                Text(
+                  'Mise exactement ${_formatAmount(_confirmedStake!)} ${_confirmedCurrency ?? ''} sur le bookmaker. Ne dépasse jamais ce montant, même si tu te sens confiant.',
+                  style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.45)),
+              ])),
+            ]),
+          ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),
+
+          const SizedBox(height: 16),
+
+          // Bouton 1xBet
+          GestureDetector(
+            onTap: _launch1xBet,
+            child: Container(
+              width: double.infinity, height: 52,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  colors: [Color(0xFF1A73E8), Color(0xFF1557B0)]),
+                borderRadius: BorderRadius.circular(14),
+                boxShadow: [BoxShadow(
+                  color: const Color(0xFF1A73E8).withValues(alpha: 0.35),
+                  blurRadius: 12, offset: const Offset(0, 5))]),
+              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                Text('Aller miser sur', style: TextStyle(
+                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                SizedBox(width: 6),
+                Text('1xBet', style: TextStyle(
+                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5)),
+                SizedBox(width: 6),
+                Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+              ]),
+            ),
+          ).animate(delay: 80.ms).fadeIn(duration: 300.ms),
+
+          const SizedBox(height: 10),
+
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: Text('Fermer', style: TextStyle(
+              color: context.cl.textM, fontSize: 13))),
+        ]),
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(
@@ -290,7 +401,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
 
             // Bouton confirmer
             GestureDetector(
-              onTap: (_loading || _alreadyBet) ? null : () => _submit(stake),
+              onTap: (_loading || _alreadyBet) ? null : () => _submit(stake, currency),
               child: AnimatedContainer(
                 duration: 200.ms,
                 width: double.infinity, height: 54,
