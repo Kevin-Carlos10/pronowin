@@ -11,6 +11,72 @@ export const FCM_TOPICS = {
   all:      'all_users',
 };
 
+/** Catégories exposées comme interrupteurs dans l'écran Paramètres du mobile. */
+export const NOTIF_CATEGORIES = ['match', 'promo', 'referral', 'premium'] as const;
+export type NotifCategory = (typeof NOTIF_CATEGORIES)[number];
+
+/**
+ * Modèle opt-out : une clé absente vaut « activé ». Un nouvel utilisateur a
+ * `notificationPrefs` à null et reçoit donc tout, ce qui correspond aux valeurs
+ * par défaut du mobile.
+ */
+export function isNotifEnabled(prefs: unknown, category: NotifCategory): boolean {
+  if (prefs === null || typeof prefs !== 'object') return true;
+  return (prefs as Record<string, unknown>)[category] !== false;
+}
+
+// ─── Segments de campagne ─────────────────────────────────────────────────────
+
+/** Une campagne admin est du marketing : elle relève de l'interrupteur « Offres & Promotions ». */
+const CAMPAIGN_CATEGORY: NotifCategory = 'promo';
+
+/** Codes FCM signalant un jeton définitivement mort (à purger). */
+const DEAD_TOKEN_CODES = new Set([
+  'messaging/registration-token-not-registered',
+  'messaging/invalid-registration-token',
+  'messaging/invalid-argument',
+]);
+
+export const CAMPAIGN_SEGMENTS = [
+  'all', 'premium', 'free', 'active_30', 'inactive_30', 'new_7',
+] as const;
+
+const days = (n: number) => new Date(Date.now() - n * 86400000);
+
+/**
+ * Traduit un segment de la page admin en clause Prisma.
+ *
+ * Deux pièges :
+ *  - `subscriptionPlan` n'est jamais remis à `free` à l'expiration (seule une
+ *    action admin le fait), donc « Premium » se définit par la date, pas par le
+ *    drapeau — sinon on ciblerait des abonnements périmés.
+ *  - l'activité se mesure sur `lastSeenAt` autant que sur `lastLoginAt` : la
+ *    session survivant des semaines, un utilisateur quotidien peut n'avoir
+ *    aucune connexion récente.
+ */
+export function segmentWhere(segment: string): Record<string, any> {
+  const base = { isActive: true, deletedAt: null };
+  const isPremium = {
+    subscriptionPlan: 'premium' as const,
+    subscriptionExpiresAt: { gt: new Date() },
+  };
+  const seenSince = (d: Date) => ({
+    OR: [{ lastSeenAt: { gte: d } }, { lastLoginAt: { gte: d } }],
+  });
+
+  switch (segment) {
+    case 'premium':     return { ...base, ...isPremium };
+    case 'free':        return { ...base, NOT: isPremium };
+    case 'active_30':   return { ...base, ...seenSince(days(30)) };
+    case 'inactive_30': return { ...base, NOT: seenSince(days(30)) };
+    case 'new_7':       return { ...base, createdAt: { gte: days(7) } };
+    case 'all':         return base;
+    default:
+      throw new Error(
+        `Segment inconnu : « ${segment} ». Attendu : ${CAMPAIGN_SEGMENTS.join(', ')}.`);
+  }
+}
+
 let admin: any = null;
 async function getAdmin() {
   if (admin) return admin;
@@ -90,12 +156,22 @@ export class NotificationService {
     } catch (_) { /* non bloquant */ }
   }
 
-  /** Envoyer à un utilisateur via son token (ciblé) */
+  /**
+   * Envoyer à un utilisateur via son token (ciblé).
+   *
+   * `category` permet de respecter les interrupteurs de l'écran Paramètres.
+   * Les topics FCM ne couvraient que les envois de masse : une notification
+   * personnelle part par token, donc se désabonner du topic « referral_alerts »
+   * ne la coupait pas — l'interrupteur ne servait à rien.
+   *
+   * Une notification refusée est quand même enregistrée en base : couper la
+   * push ne doit pas effacer la trace dans la liste in-app.
+   */
   async sendToUser(userId: string, payload: {
     title: string; body: string; data?: Record<string, string>;
-  }) {
+  }, category?: NotifCategory) {
     const user = await prisma.user.findUnique({
-      where: { id: userId }, select: { fcmToken: true },
+      where: { id: userId }, select: { fcmToken: true, notificationPrefs: true },
     });
     // Toujours sauvegarder en base pour l'historique
     await this._saveNotification(userId, {
@@ -104,6 +180,10 @@ export class NotificationService {
       type:     payload.data?.['type'],
       deepLink: payload.data?.['deep_link'],
     });
+    if (category && !isNotifEnabled(user?.notificationPrefs, category)) {
+      console.log(`[FCM] user ${userId} a coupé « ${category} » — push non envoyée`);
+      return { success: false, reason: 'muted' };
+    }
     if (!user?.fcmToken) {
       console.log(`[FCM] Pas de token pour user ${userId} — notif sauvegardée en base`);
       return { success: false, reason: 'no_token' };
@@ -168,6 +248,114 @@ export class NotificationService {
     }
   }
 
+  // ─── Campagnes par segment (page « Notifications » de l'admin) ────────────
+
+  /**
+   * Nombre de destinataires réellement joignables pour un segment.
+   *
+   * L'admin affichait une estimation issue de `/admin/users/stats` parce que
+   * cet endpoint n'existait pas — le chiffre ignorait donc les comptes sans
+   * token FCM et ceux ayant coupé la catégorie.
+   */
+  async previewSegment(segment: string) {
+    const matching = await prisma.user.count({ where: segmentWhere(segment) });
+    const reachable = await this._reachableUsers(segment);
+    return { segment, total: matching, count: reachable.length };
+  }
+
+  /**
+   * Envoi d'une campagne à un segment.
+   *
+   * Par token et non par topic : un topic FCM est un canal, il ne sait pas
+   * exprimer « uniquement les Premium » ni « inactifs depuis 30 jours ». C'est
+   * aussi ce qui permet de respecter l'interrupteur « Offres & Promotions ».
+   */
+  async sendToSegment(segment: string, payload: {
+    title: string; body: string; deepLink?: string; imageUrl?: string;
+  }) {
+    const users = await this._reachableUsers(segment);
+    if (users.length === 0) return { segment, sent: 0, failed: 0, pruned: 0 };
+
+    // Archivage in-app en une requête plutôt qu'une par destinataire.
+    await prisma.notification.createMany({
+      data: users.map(u => ({
+        userId:   u.id,
+        title:    payload.title,
+        body:     payload.body,
+        type:     CAMPAIGN_CATEGORY,
+        deepLink: payload.deepLink ?? null,
+      })),
+    });
+
+    const fa = await getAdmin();
+    if (!fa) {
+      console.log(`\n📢 [FCM Segment "${segment}" — ${users.length} destinataires] ${payload.title}\n   ${payload.body}\n`);
+      return { segment, sent: users.length, failed: 0, pruned: 0, simulated: true };
+    }
+
+    let sent = 0, failed = 0;
+    const dead: string[] = [];
+
+    // FCM plafonne le multicast à 500 jetons par appel.
+    for (let i = 0; i < users.length; i += 500) {
+      const batch  = users.slice(i, i + 500);
+      const tokens = batch.map(u => u.fcmToken!);
+      try {
+        const r = await fa.messaging().sendEachForMulticast({
+          tokens,
+          notification: {
+            title: payload.title,
+            body:  payload.body,
+            ...(payload.imageUrl ? { imageUrl: payload.imageUrl } : {}),
+          },
+          data: {
+            type: CAMPAIGN_CATEGORY,
+            ...(payload.deepLink ? { deep_link: payload.deepLink } : {}),
+          },
+          android: {
+            priority: 'high',
+            notification: { channelId: 'pronowin_high', sound: 'default', clickAction: 'FLUTTER_NOTIFICATION_CLICK' },
+          },
+          apns: { payload: { aps: { sound: 'default', badge: 1 } } },
+        });
+        sent   += r.successCount;
+        failed += r.failureCount;
+        r.responses.forEach((resp: any, k: number) => {
+          if (!resp.success && DEAD_TOKEN_CODES.has(resp.error?.code)) dead.push(tokens[k]);
+        });
+      } catch (e: any) {
+        console.error('[FCM] Erreur lot segment:', e.message);
+        failed += tokens.length;
+      }
+    }
+
+    // Sans ce nettoyage, les jetons morts s'accumulent et le compteur
+    // d'audience surestime de plus en plus la portée réelle.
+    if (dead.length > 0) {
+      await prisma.user.updateMany({
+        where: { fcmToken: { in: dead } }, data: { fcmToken: null },
+      });
+      console.warn(`[FCM] ${dead.length} token(s) invalide(s) purgé(s)`);
+    }
+
+    console.log(`[FCM] Segment "${segment}" — ${sent} envoyée(s), ${failed} échec(s)`);
+    return { segment, sent, failed, pruned: dead.length };
+  }
+
+  /**
+   * Destinataires d'un segment ayant un token ET n'ayant pas coupé la
+   * catégorie. Le filtre sur les préférences se fait en mémoire : la colonne
+   * est un Json et le modèle est opt-out (clé absente = activé), ce qu'une
+   * clause Prisma sur `path` exprime mal.
+   */
+  private async _reachableUsers(segment: string) {
+    const users = await prisma.user.findMany({
+      where:  { ...segmentWhere(segment), fcmToken: { not: null } },
+      select: { id: true, fcmToken: true, notificationPrefs: true },
+    });
+    return users.filter(u => isNotifEnabled(u.notificationPrefs, CAMPAIGN_CATEGORY));
+  }
+
   // ─── Notifications automatiques ───────────────────────────────────────────
 
   /** Notif paiement → token direct (données privées) */
@@ -185,7 +373,7 @@ export class NotificationService {
       title: '🎉 Premium activé !',
       body:  `Accès Premium actif pour ${durationDays} jours. Profitez des pronostics VIP !`,
       data:  { deep_link: '/pronostics', type: 'system' },
-    });
+    }, 'premium');
   }
 
   /** Notif parrainage → token direct (données privées) */
@@ -194,7 +382,7 @@ export class NotificationService {
       title: '💰 Parrainage récompensé !',
       body:  `${pseudo} s'est abonné Premium ! +${commission} FCFA crédités.`,
       data:  { deep_link: '/compte', type: 'referral' },
-    });
+    }, 'referral');
   }
 
   /** Notif match → topic global + topic par match (favoris) */
@@ -243,14 +431,16 @@ export class NotificationService {
     awayTeam:    string;
     homeScore:   number;
     awayScore:   number;
-    result:      'WIN' | 'LOSS';
+    result:      'WIN' | 'LOSS' | 'PUSH';
     pronosticId: string;
   }) {
-    const won    = params.result === 'WIN';
-    const emoji  = won ? '✅' : '❌';
+    const emoji = params.result === 'WIN' ? '✅' : params.result === 'PUSH' ? '🔄' : '❌';
+    const label = params.result === 'WIN' ? 'Pronostic gagnant !'
+                : params.result === 'PUSH' ? 'Pronostic remboursé'
+                : 'Pronostic perdant';
     const score  = `${params.homeScore}-${params.awayScore}`;
     return this.sendToTopic(FCM_TOPICS.match, {
-      title: `${emoji} Résultat : ${won ? 'Pronostic gagnant !' : 'Pronostic perdant'}`,
+      title: `${emoji} Résultat : ${label}`,
       body:  `${params.homeTeam} vs ${params.awayTeam} — Score final : ${score}`,
       data:  {
         deep_link: `/pronostics/${params.pronosticId}`,

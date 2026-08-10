@@ -13,28 +13,127 @@ async function getS3() {
 }
 
 const notifSvc = new NotificationService();
-const referralSvc = new ReferralService();
 
-export const PREMIUM_PRICE_FCFA = parseInt(process.env.PREMIUM_PRICE_FCFA ?? '5000');
+// Import circulaire assumé : referral.service importe `PREMIUM_PRICE_FCFA_MONTHLY`
+// d'ici, et on a besoin de son service. Instancier au chargement du module
+// échouait (`ReferralService is not a constructor`) dès que referral.service
+// était chargé en premier — l'app ne démarrait que grâce à l'ordre d'import
+// des routes. On diffère l'instanciation au premier appel, quand les deux
+// modules sont entièrement évalués.
+let _referralSvc: ReferralService | null = null;
+const referralSvc = () => _referralSvc ??= new ReferralService();
+
+// Prix affichés à l'utilisateur (USD) — la conversion FCFA n'apparaît que sur l'écran de paiement Mobile Money
+export const PREMIUM_PRICE_USD_MONTHLY  = parseFloat(process.env.PREMIUM_PRICE_USD_MONTHLY  ?? '10');
+export const PREMIUM_PRICE_USD_ANNUAL   = parseFloat(process.env.PREMIUM_PRICE_USD_ANNUAL   ?? '90');
+// Montants réellement collectés en FCFA via Mobile Money (Orange Money / Wave / MTN / Moov)
+export const PREMIUM_PRICE_FCFA_MONTHLY = parseInt(process.env.PREMIUM_PRICE_FCFA_MONTHLY ?? '6000');
+export const PREMIUM_PRICE_FCFA_ANNUAL  = parseInt(process.env.PREMIUM_PRICE_FCFA_ANNUAL  ?? '54000');
+
+// Tarif réduit (-30%) pour les utilisateurs qui créent un compte sur une plateforme
+// partenaire avec notre code promo — paiement toujours requis, juste moins cher.
+export const PREMIUM_PRICE_USD_CODE_MONTHLY  = parseFloat(process.env.PREMIUM_PRICE_USD_CODE_MONTHLY  ?? '7');
+export const PREMIUM_PRICE_USD_CODE_ANNUAL   = parseFloat(process.env.PREMIUM_PRICE_USD_CODE_ANNUAL   ?? '63');
+export const PREMIUM_PRICE_FCFA_CODE_MONTHLY = parseInt(process.env.PREMIUM_PRICE_FCFA_CODE_MONTHLY ?? '4200');
+export const PREMIUM_PRICE_FCFA_CODE_ANNUAL  = parseInt(process.env.PREMIUM_PRICE_FCFA_CODE_ANNUAL  ?? '37800');
+
+// Tarif des builds publiés sur l'App Store / Google Play (+50 %).
+//
+// Apple et Google prélèvent 30 % (15 % au-delà d'un an d'ancienneté de
+// l'abonné) : à 10 $ il ne resterait que 7 $, soit exactement le tarif code
+// promo. Le canal Mobile Money ne paie aucune commission et garde donc les
+// prix ci-dessus.
+//
+// ⚠️ Ces valeurs ne FIXENT pas le prix facturé : c'est le montant saisi dans
+// App Store Connect et la Play Console qui fait foi, et l'écran d'achat
+// affiche celui que le store renvoie (déjà localisé et taxé). Elles ne servent
+// qu'aux écrans d'accroche (« à partir de X »), qui doivent rester cohérents.
+export const PREMIUM_PRICE_USD_STORE_MONTHLY = parseFloat(process.env.PREMIUM_PRICE_USD_STORE_MONTHLY ?? '15');
+export const PREMIUM_PRICE_USD_STORE_ANNUAL  = parseFloat(process.env.PREMIUM_PRICE_USD_STORE_ANNUAL  ?? '135');
+
 export const XBET_PROMO_CODE    = process.env.XBET_PROMO_CODE ?? 'PRONOWIN2025';
+export const BETTING_PLATFORMS  = ['1xbet', 'melbet', 'betwinner'] as const;
+export type BettingPlatform = typeof BETTING_PLATFORMS[number];
+
+/** Jours avant expiration où l'on prévient l'abonné. */
+const EXPIRY_REMINDER_DAYS = [7, 3, 1];
 
 export class SubscriptionService {
+
+  /**
+   * Prévenir les abonnés dont le Premium expire bientôt.
+   *
+   * L'interrupteur « Abonnement Premium — Expiration et renouvellement » des
+   * Paramètres promettait cette notification, mais rien ne l'envoyait : aucun
+   * job ne regardait `subscriptionExpiresAt`. Appelé une fois par jour depuis
+   * index.ts.
+   *
+   * L'idempotence repose sur les paliers : on ne notifie que le jour où il
+   * reste exactement 7, 3 ou 1 jour(s), donc au plus une fois par palier tant
+   * que le job ne tourne qu'une fois par jour.
+   */
+  async notifyExpiringSubscriptions() {
+    const now = new Date();
+    let notified = 0;
+
+    for (const days of EXPIRY_REMINDER_DAYS) {
+      // Fenêtre = le jour calendaire situé `days` jours plus tard.
+      const from = new Date(now.getTime() + days * 86400000);
+      from.setHours(0, 0, 0, 0);
+      const to = new Date(from.getTime() + 86400000);
+
+      const users = await prisma.user.findMany({
+        where: {
+          subscriptionPlan:      'premium',
+          isActive:              true,
+          subscriptionExpiresAt: { gte: from, lt: to },
+        },
+        select: { id: true },
+      });
+
+      for (const u of users) {
+        await notifSvc.sendToUser(u.id, {
+          title: days === 1
+            ? '⏳ Ton Premium expire demain'
+            : `⏳ Ton Premium expire dans ${days} jours`,
+          body: days === 1
+            ? 'Renouvelle maintenant pour ne pas perdre l\'accès aux pronostics VIP.'
+            : 'Renouvelle depuis Compte › Abonnement pour rester couvert sans interruption.',
+          data: { deep_link: '/compte', type: 'premium' },
+        }, 'premium').catch(() => {});
+        notified++;
+      }
+    }
+
+    return { notified };
+  }
 
   getPlans() {
     return [
       {
         id: 'free', type: 'free', name: 'Plan Gratuit',
         description: 'Pour découvrir PronoWin',
-        price: 0, currency: 'FCFA', duration_days: 0, is_popular: false,
+        price_usd: 0, duration_days: 0, is_popular: false,
         features:        ['3 pronostics par jour', 'Tutoriels basiques', 'Notifications matchs'],
         locked_features: ['Pronostics VIP illimités', 'Statistiques avancées', 'Sans publicité'],
       },
       {
-        id: 'premium', type: 'premium', name: 'Plan Premium',
+        id: 'premium_monthly', type: 'premium', name: 'Premium Mensuel',
         description: 'Accès total à tous les pronostics VIP',
-        price:           PREMIUM_PRICE_FCFA,
-        currency:        'FCFA',
+        price_usd:       PREMIUM_PRICE_USD_MONTHLY,
+        price_fcfa:      PREMIUM_PRICE_FCFA_MONTHLY,
         duration_days:   30,
+        is_popular:      false,
+        features:        ['Pronostics VIP illimités', 'Tous les tutoriels', 'Statistiques avancées', 'Sans publicité', 'Support prioritaire'],
+        locked_features: [],
+        xbet_promo_code: XBET_PROMO_CODE,
+      },
+      {
+        id: 'premium_annual', type: 'premium', name: 'Premium Annuel',
+        description: 'Accès total à tous les pronostics VIP — 2 mois offerts',
+        price_usd:       PREMIUM_PRICE_USD_ANNUAL,
+        price_fcfa:      PREMIUM_PRICE_FCFA_ANNUAL,
+        duration_days:   365,
         is_popular:      true,
         features:        ['Pronostics VIP illimités', 'Tous les tutoriels', 'Statistiques avancées', 'Sans publicité', 'Support prioritaire'],
         locked_features: [],
@@ -78,7 +177,18 @@ export class SubscriptionService {
         days_left:     Math.max(0, daysLeft),    // toujours un int >= 0
         xbet_id:       user.xbetId ?? null,
         promo_code:    XBET_PROMO_CODE,
-        premium_price: PREMIUM_PRICE_FCFA,       // toujours un int
+        betting_platforms: BETTING_PLATFORMS,
+        premium_price_monthly_usd:  PREMIUM_PRICE_USD_MONTHLY,
+        premium_price_annual_usd:   PREMIUM_PRICE_USD_ANNUAL,
+        premium_price_monthly_fcfa: PREMIUM_PRICE_FCFA_MONTHLY,
+        premium_price_annual_fcfa:  PREMIUM_PRICE_FCFA_ANNUAL,
+        premium_price_monthly_code_usd:  PREMIUM_PRICE_USD_CODE_MONTHLY,
+        premium_price_annual_code_usd:   PREMIUM_PRICE_USD_CODE_ANNUAL,
+        premium_price_monthly_code_fcfa: PREMIUM_PRICE_FCFA_CODE_MONTHLY,
+        premium_price_annual_code_fcfa:  PREMIUM_PRICE_FCFA_CODE_ANNUAL,
+        // Tarif des builds store (commission Apple/Google incluse).
+        premium_price_monthly_store_usd: PREMIUM_PRICE_USD_STORE_MONTHLY,
+        premium_price_annual_store_usd:  PREMIUM_PRICE_USD_STORE_ANNUAL,
         pending_proof: pendingProof ? {
           id:         pendingProof.id,
           type:       pendingProof.type,
@@ -95,7 +205,18 @@ export class SubscriptionService {
         days_left:     0,
         xbet_id:       null,
         promo_code:    XBET_PROMO_CODE,
-        premium_price: PREMIUM_PRICE_FCFA,
+        betting_platforms: BETTING_PLATFORMS,
+        premium_price_monthly_usd:  PREMIUM_PRICE_USD_MONTHLY,
+        premium_price_annual_usd:   PREMIUM_PRICE_USD_ANNUAL,
+        premium_price_monthly_fcfa: PREMIUM_PRICE_FCFA_MONTHLY,
+        premium_price_annual_fcfa:  PREMIUM_PRICE_FCFA_ANNUAL,
+        premium_price_monthly_code_usd:  PREMIUM_PRICE_USD_CODE_MONTHLY,
+        premium_price_annual_code_usd:   PREMIUM_PRICE_USD_CODE_ANNUAL,
+        premium_price_monthly_code_fcfa: PREMIUM_PRICE_FCFA_CODE_MONTHLY,
+        premium_price_annual_code_fcfa:  PREMIUM_PRICE_FCFA_CODE_ANNUAL,
+        // Tarif des builds store (commission Apple/Google incluse).
+        premium_price_monthly_store_usd: PREMIUM_PRICE_USD_STORE_MONTHLY,
+        premium_price_annual_store_usd:  PREMIUM_PRICE_USD_STORE_ANNUAL,
         pending_proof: null,
         error:         e.message,
       };
@@ -127,16 +248,20 @@ export class SubscriptionService {
   }
 
   async submitProof(params: {
-    userId:         string;
-    type:           'payment_screenshot' | 'xbet_account_screenshot';
-    imageBase64?:   string;
-    screenshotUrl?: string;
-    xbetId?:        string;
-    amount?:        number;
-    senderPhone?:   string;
+    userId:              string;
+    type:                'payment_screenshot' | 'xbet_account_screenshot';
+    imageBase64?:        string;
+    screenshotUrl?:      string;
+    paymentImageBase64?: string;
+    xbetId?:             string;
+    platform?:           string;
+    amount?:             number;
+    senderPhone?:        string;
+    planId?:             string;
   }) {
-    const { userId, type, imageBase64, xbetId, amount, senderPhone } = params;
-    let screenshotUrl = params.screenshotUrl;
+    const { userId, type, imageBase64, paymentImageBase64, xbetId, platform, amount, senderPhone, planId } = params;
+    let screenshotUrl        = params.screenshotUrl;
+    let paymentScreenshotUrl: string | undefined;
 
     // Vérifier preuve en attente
     try {
@@ -149,9 +274,10 @@ export class SubscriptionService {
       // Table pas encore créée → continuer
     }
 
-    // Upload S3 si base64 fourni
+    const s3 = await getS3();
+
+    // Upload S3 si base64 fourni (image principale — paiement direct, ou compte partenaire pour le code)
     if (imageBase64 && !screenshotUrl) {
-      const s3 = await getS3();
       if (s3) {
         try {
           screenshotUrl = await s3.uploadImage({ base64: imageBase64, folder: 'proofs', userId });
@@ -164,20 +290,51 @@ export class SubscriptionService {
         console.warn('[Subscription] S3 non configuré, URL placeholder utilisée');
       }
     }
-
     if (!screenshotUrl) throw new Error('Image requise.');
 
+    // Chemin "code promo" : une 2e image est requise (preuve de paiement Mobile Money,
+    // distincte de la capture du compte partenaire ci-dessus)
+    if (type === 'xbet_account_screenshot') {
+      if (!paymentImageBase64) throw new Error('Capture de la preuve de paiement requise.');
+      if (s3) {
+        try {
+          paymentScreenshotUrl = await s3.uploadImage({ base64: paymentImageBase64, folder: 'proofs', userId });
+        } catch (e: any) {
+          throw new Error(`Erreur upload image: ${e.message}`);
+        }
+      } else {
+        paymentScreenshotUrl = `dev://proof/${userId}/${Date.now()}-payment`;
+        console.warn('[Subscription] S3 non configuré, URL placeholder utilisée');
+      }
+    }
+
     if (type === 'payment_screenshot') {
-      if (!amount || amount < PREMIUM_PRICE_FCFA)
-        throw new Error(`Le montant doit être d'au moins ${PREMIUM_PRICE_FCFA} FCFA.`);
+      const expectedFcfa = planId === 'premium_annual' ? PREMIUM_PRICE_FCFA_ANNUAL : PREMIUM_PRICE_FCFA_MONTHLY;
+      if (!amount || amount < expectedFcfa)
+        throw new Error(`Le montant doit être d'au moins ${expectedFcfa} FCFA.`);
       if (!senderPhone) throw new Error('Numéro Mobile Money requis.');
     }
     if (type === 'xbet_account_screenshot') {
-      if (!xbetId?.trim()) throw new Error('ID 1xBet requis.');
+      if (!xbetId?.trim()) throw new Error('ID de compte requis.');
+      if (!platform || !BETTING_PLATFORMS.includes(platform as BettingPlatform))
+        throw new Error('Plateforme partenaire invalide.');
+      const expectedFcfa = planId === 'premium_annual' ? PREMIUM_PRICE_FCFA_CODE_ANNUAL : PREMIUM_PRICE_FCFA_CODE_MONTHLY;
+      if (!amount || amount < expectedFcfa)
+        throw new Error(`Le montant doit être d'au moins ${expectedFcfa} FCFA.`);
+      if (!senderPhone) throw new Error('Numéro Mobile Money requis.');
     }
 
     const proof = await prisma.subscriptionProof.create({
-      data: { userId, type, screenshotUrl, xbetId: xbetId?.trim() ?? null, amount: amount ?? null, senderPhone: senderPhone ?? null, status: 'pending' },
+      data: {
+        userId, type, screenshotUrl,
+        paymentScreenshotUrl: paymentScreenshotUrl ?? null,
+        xbetId:      xbetId?.trim() ?? null,
+        platform:    type === 'xbet_account_screenshot' ? (platform ?? null) : null,
+        planId:      planId ?? null,
+        amount:      amount ?? null,
+        senderPhone: senderPhone ?? null,
+        status:      'pending',
+      },
     });
 
     if (xbetId) {
@@ -190,7 +347,7 @@ export class SubscriptionService {
       estimated_review: type === 'payment_screenshot' ? '30 minutes ouvrables' : '2 heures ouvrables',
       message:          type === 'payment_screenshot'
         ? 'Preuve de paiement soumise. Validation sous 30 minutes.'
-        : 'Preuve de compte 1xBet soumise. Validation sous 2 heures.',
+        : 'Preuve de paiement et de compte partenaire soumise. Validation sous 2 heures.',
     };
   }
 
@@ -203,8 +360,71 @@ export class SubscriptionService {
         }),
         prisma.subscriptionProof.count({ where: { status: 'pending' } }),
       ]);
-      return { data: items, total, page };
-    } catch (_) { return { data: [], total: 0, page }; }
+      return { data: items, total, page, promo_code: XBET_PROMO_CODE };
+    } catch (_) { return { data: [], total: 0, page, promo_code: XBET_PROMO_CODE }; }
+  }
+
+  /**
+   * Accorder (ou prolonger) le Premium. Point d'entrée unique.
+   *
+   * Extrait de `reviewProof` pour que l'achat intégré emprunte exactement le
+   * même chemin : sans ça, un abonnement acheté sur l'App Store ne
+   * déclencherait pas les commissions de parrainage et n'apparaîtrait pas dans
+   * l'historique `Subscription`.
+   *
+   * `expiresAt` permet à l'IAP d'imposer la date du store plutôt que de
+   * calculer une durée : c'est Apple/Google qui font foi sur l'échéance.
+   */
+  async grantPremium(params: {
+    userId:        string;
+    durationDays?: number;
+    expiresAt?:    Date;
+    amountPaid?:   number;
+    paymentMethod: string;
+    promoCodeUsed?: string | null;
+    notify?:       boolean;
+  }) {
+    const { userId, durationDays = 30, expiresAt, amountPaid = 0,
+            paymentMethod, promoCodeUsed = null, notify = true } = params;
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId }, select: { subscriptionExpiresAt: true },
+    });
+    if (!user) throw new Error('Utilisateur introuvable.');
+
+    const startDate = new Date();
+    // Prolonge depuis la date d'expiration en cours si l'abonnement est encore
+    // actif, au lieu d'écraser les jours déjà payés et non consommés.
+    const endDate = expiresAt ?? new Date(
+      Math.max(Date.now(), user.subscriptionExpiresAt?.getTime() ?? Date.now()) +
+      durationDays * 86400000
+    );
+
+    await Promise.all([
+      prisma.subscription.create({ data: {
+        userId, plan: 'premium', amountPaid, paymentMethod, promoCodeUsed,
+        startDate, endDate,
+      } }),
+      prisma.user.update({ where: { id: userId }, data: {
+        subscriptionPlan: 'premium', subscriptionExpiresAt: endDate,
+      } }),
+    ]);
+
+    // ── DÉCLENCHER LES COMMISSIONS DE PARRAINAGE ────────────────────────────
+    await referralSvc().triggerCommissions(userId).catch(e =>
+      console.error('[Parrainage] Erreur triggerCommissions:', e.message)
+    );
+
+    if (notify) {
+      const days = Math.max(1, Math.ceil((endDate.getTime() - Date.now()) / 86400000));
+      await notifSvc.sendToUser(userId, {
+        title: '🎉 Bienvenue Premium !',
+        body:  `Votre accès Premium est activé pour ${days} jours !`,
+        data:  { deep_link: '/pronostics', type: 'system' },
+      }, 'premium').catch(() => {});
+    }
+
+    return { endDate };
   }
 
   async reviewProof(params: { proofId: string; adminId: string; approved: boolean; adminNote?: string; durationDays?: number }) {
@@ -214,23 +434,21 @@ export class SubscriptionService {
     if (proof.status !== 'pending') throw new Error('Preuve déjà traitée.');
 
     if (approved) {
-      const startDate = new Date();
-      const endDate   = new Date(startDate.getTime() + durationDays * 86400000);
-      const [sub] = await Promise.all([
-        prisma.subscription.create({ data: { userId: proof.userId, plan: 'premium', amountPaid: proof.amount ?? 0, paymentMethod: proof.type === 'payment_screenshot' ? 'manual_mobcash' : 'xbet_promo', promoCodeUsed: proof.type === 'xbet_account_screenshot' ? XBET_PROMO_CODE : null, startDate, endDate } }),
-        prisma.user.update({ where: { id: proof.userId }, data: { subscriptionPlan: 'premium', subscriptionExpiresAt: endDate } }),
+      await Promise.all([
+        this.grantPremium({
+          userId:        proof.userId,
+          durationDays,
+          amountPaid:    proof.amount ?? 0,
+          paymentMethod: proof.type === 'payment_screenshot'
+            ? 'manual_mobcash'
+            : `promo_${proof.platform ?? 'code'}`,
+          promoCodeUsed: proof.type === 'xbet_account_screenshot' ? XBET_PROMO_CODE : null,
+        }),
         prisma.subscriptionProof.update({ where: { id: proofId }, data: { status: 'approved', adminNote, reviewedBy: adminId, reviewedAt: new Date() } }),
       ]);
-
-      // ── DÉCLENCHER LES COMMISSIONS DE PARRAINAGE ──────────────────────────
-      await referralSvc.triggerCommissions(proof.userId).catch(e =>
-        console.error('[Parrainage] Erreur triggerCommissions:', e.message)
-      );
-      
-      await notifSvc.sendToUser(proof.userId, { title: '🎉 Bienvenue Premium !', body: `Votre accès Premium est activé pour ${durationDays} jours !`, data: { deep_link: '/pronostics', type: 'system' } }).catch(() => {});
     } else {
       await prisma.subscriptionProof.update({ where: { id: proofId }, data: { status: 'rejected', adminNote, reviewedBy: adminId, reviewedAt: new Date() } });
-      await notifSvc.sendToUser(proof.userId, { title: '❌ Preuve refusée', body: adminNote ?? 'Votre preuve n\'a pas pu être validée.', data: { deep_link: '/compte', type: 'system' } }).catch(() => {});
+      await notifSvc.sendToUser(proof.userId, { title: '❌ Preuve refusée', body: adminNote ?? 'Votre preuve n\'a pas pu être validée.', data: { deep_link: '/compte', type: 'system' } }, 'premium').catch(() => {});
     }
     return { success: true, approved };
   }

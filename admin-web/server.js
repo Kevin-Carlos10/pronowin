@@ -11,6 +11,10 @@ const app     = express();
 const PORT    = process.env.ADMIN_PORT ?? 4000;
 const API_URL = process.env.API_URL    ?? 'http://localhost:3000/api/v1';
 const PERM_HMAC_SECRET = process.env.ADMIN_PERM_SECRET ?? process.env.ADMIN_SECRET ?? 'pronowin_perm_hmac_2025';
+if (!process.env.ADMIN_PERM_SECRET && !process.env.ADMIN_SECRET) {
+  console.warn('⚠️  ADMIN_PERM_SECRET non défini — utilisation d\'un secret par défaut connu publiquement. ' +
+    'Les cookies de permissions sous-admin peuvent être forgés. Définissez ADMIN_PERM_SECRET dans admin-web/.env.');
+}
 
 // ─── SOUS-ADMINS : stockage local ────────────────────────────────────────────
 const DATA_DIR = path.join(__dirname, 'data');
@@ -153,6 +157,11 @@ if (!fs.existsSync(NEWS_FILE)) fs.writeFileSync(NEWS_FILE, '[]');
 
 function loadNews()     { try { return JSON.parse(fs.readFileSync(NEWS_FILE, 'utf8')); } catch { return []; } }
 function saveNews(data) { try { fs.writeFileSync(NEWS_FILE, JSON.stringify(data, null, 2)); } catch {} }
+const NEWS_DEFAULT_CATEGORIES = ['news', 'promo', 'update', 'tip', 'alert'];
+function getNewsCategories() {
+  const used = loadNews().map(n => n.category).filter(Boolean);
+  return [...new Set([...NEWS_DEFAULT_CATEGORIES, ...used])].sort();
+}
 function slugify(str)   { return str.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,80); }
 
 // ─── AUDIT LOG ───────────────────────────────────────────────────────────────
@@ -259,6 +268,10 @@ const PERMISSIONS = [
   {
     key: 'abonnements', label: '👑 Abonnements', desc: 'Valider les preuves Premium',
     levels: { read: 'Voir les preuves', write: 'Approuver / rejeter', delete: null },
+  },
+  {
+    key: 'bankroll', label: '🎯 Bankroll', desc: 'Suivi des budgets et paris utilisateurs',
+    levels: { read: 'Voir les bankrolls', write: null, delete: null },
   },
   {
     key: 'tutoriels', label: '📚 Tutoriels', desc: 'Créer et gérer',
@@ -394,12 +407,19 @@ app.use((req, res, next) => {
 
   if (origin  && !origin.startsWith(allowed))  return res.status(403).send('Requête inter-origines refusée.');
   if (!origin && referer && !referer.startsWith(allowed)) return res.status(403).send('Requête inter-origines refusée.');
+  // Fail-closed : si Origin ET Referer sont tous les deux absents, on ne peut pas
+  // vérifier la provenance de la requête — on la refuse plutôt que de la laisser passer.
+  if (!origin && !referer) return res.status(403).send('Requête refusée (origine indéterminable).');
   next();
 });
 
 // Données communes injectées dans tous les templates via res.locals
 app.use((req, res, next) => {
-  const role  = req.cookies?.admin_role ?? 'main';
+  // Le rôle par défaut est le moins privilégié : seul un cookie admin_role
+  // valant explicitement 'main' donne les pleins pouvoirs. Un cookie absent,
+  // supprimé ou altéré (ex: via les DevTools) retombe sur 'sub' sans permission,
+  // au lieu de devenir admin principal par défaut.
+  const role  = req.cookies?.admin_role === 'main' ? 'main' : 'sub';
   let   perms = [];
   if (role === 'sub') {
     perms = verifyPerms(req.cookies?.admin_perms);
@@ -466,8 +486,8 @@ function requireMain(req, res, next) {
 }
 
 // ─── RATE LIMITING (login) ───────────────────────────────────────────────────
-const LOGIN_MAX_ATTEMPTS = 5;
-const LOGIN_WINDOW_MS    = 15 * 60 * 1000;   // 15 minutes de blocage
+function getLoginMaxAttempts() { return loadSettings().loginMaxAttempts ?? 5; }
+function getLoginWindowMs()    { return (loadSettings().loginBlockMinutes ?? 15) * 60000; }
 const loginAttempts      = new Map();          // ip → { count, blockedUntil }
 
 // Nettoyer les entrées expirées toutes les heures
@@ -496,8 +516,8 @@ function recordFailedAttempt(ip) {
   const now   = Date.now();
   const entry = loginAttempts.get(ip) ?? { count: 0, blockedUntil: null };
   entry.count += 1;
-  if (entry.count >= LOGIN_MAX_ATTEMPTS) {
-    entry.blockedUntil = now + LOGIN_WINDOW_MS;
+  if (entry.count >= getLoginMaxAttempts()) {
+    entry.blockedUntil = now + getLoginWindowMs();
     entry.count        = 0;
   }
   loginAttempts.set(ip, entry);
@@ -509,13 +529,12 @@ function clearAttempts(ip) {
 }
 
 // ─── SESSION REFRESH (activité) ──────────────────────────────────────────────
-const SESSION_TIMEOUT_MS = (parseInt(process.env.SESSION_TIMEOUT_MIN ?? '30')) * 60000;
-
 app.use((req, res, next) => {
   // Rafraîchir le cookie d'activité sur chaque requête authentifiée (hors API badges/search)
   if (req.cookies?.admin_token && !req.path.startsWith('/admin/api/')) {
+    const sessionTimeoutMs = (loadSettings().sessionTimeoutMin ?? 30) * 60000;
     res.cookie('admin_last_active', Date.now().toString(), {
-      maxAge: SESSION_TIMEOUT_MS + 120000,
+      maxAge: sessionTimeoutMs + 120000,
       sameSite: 'lax',
       httpOnly: false,   // lisible par le JS client pour le countdown
     });
@@ -528,7 +547,7 @@ app.get('/admin/login', (req, res) => {
   if (req.cookies?.admin_token) return res.redirect('/admin/dashboard');
   res.render('login', {
     error: null, expired: req.query.expired === '1',
-    locked: null, remaining: LOGIN_MAX_ATTEMPTS, blockedUntilMs: null, username: '',
+    locked: null, remaining: getLoginMaxAttempts(), blockedUntilMs: null, username: '',
   });
 });
 
@@ -582,7 +601,7 @@ app.post('/admin/login', async (req, res) => {
   const inactiveSub = subs.find(s => s.username === username && s.isActive === false);
   if (inactiveSub) {
     recordFailedAttempt(ip);
-    return res.render('login', { error: 'Ce compte est désactivé. Contactez l\'administrateur principal.', expired: false, locked: null, remaining: LOGIN_MAX_ATTEMPTS, blockedUntilMs: null, username });
+    return res.render('login', { error: 'Ce compte est désactivé. Contactez l\'administrateur principal.', expired: false, locked: null, remaining: getLoginMaxAttempts(), blockedUntilMs: null, username });
   }
 
   // ── 2. Admin principal via l'API backend ──
@@ -601,7 +620,7 @@ app.post('/admin/login', async (req, res) => {
     res.redirect('/admin/dashboard');
   } catch (e) {
     const entry     = recordFailedAttempt(ip);
-    const remaining = Math.max(0, LOGIN_MAX_ATTEMPTS - (entry.count ?? 0));
+    const remaining = Math.max(0, getLoginMaxAttempts() - (entry.count ?? 0));
     const errMsg    = e.response?.data?.message ?? 'Identifiants incorrects.';
     req.cookies = { ...req.cookies, admin_name: username, admin_role: 'unknown' };
     logAction(req, 'login_failed', `Identifiant: ${username}`, { ip });
@@ -628,26 +647,29 @@ app.get('/admin/logout', (req, res) => {
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 app.get('/admin/dashboard', requireAuth, async (req, res) => {
   const a = api(req.cookies.admin_token);
-  const [statsRes, pendingRes, proofsRes] = await Promise.allSettled([
+  const [statsRes, pendingRes, proofsRes, onlineRes] = await Promise.allSettled([
     a.get('/pronostics/admin/stats'),
     a.get('/payments/admin/pending?page=1'),
     a.get('/subscriptions/admin/proofs?page=1'),
+    a.get('/admin/stats/online'),  // non caché — toujours frais
   ]);
   if ([statsRes, pendingRes, proofsRes].some(r => r.status === 'rejected' && r.reason?.response?.status === 401)) {
     res.clearCookie('admin_token'); return res.redirect('/admin/login?expired=1');
   }
 
-  // Données locales : bans actifs + activité récente
   const now        = Date.now();
   const allBans    = loadBans();
   const activeBans = allBans.filter(b => b.active && (!b.expiresAt || new Date(b.expiresAt).getTime() > now));
-  const recentLogs = loadLogs().slice(0, 8); // 8 dernières actions
+  const recentLogs = loadLogs().slice(0, 8);
+
+  const baseStats  = statsRes.status === 'fulfilled' ? statsRes.value.data : { totalUsers:0, premiumUsers:0, pendingTx:0, publishedToday:0 };
+  const activeUsers = onlineRes.status === 'fulfilled' ? (onlineRes.value.data.count ?? 0) : 0;
 
   res.render('dashboard', {
     adminName: req.cookies.admin_name ?? 'Admin',
-    stats:   statsRes.status  === 'fulfilled' ? statsRes.value.data   : { totalUsers:0,premiumUsers:0,pendingTx:0,publishedToday:0 },
-    pending: pendingRes.status === 'fulfilled' ? pendingRes.value.data : { data:[],total:0 },
-    proofs:  proofsRes.status  === 'fulfilled' ? proofsRes.value.data  : { data:[],total:0 },
+    stats:   { ...baseStats, activeUsers },
+    pending: pendingRes.status === 'fulfilled' ? pendingRes.value.data : { data:[], total:0 },
+    proofs:  proofsRes.status  === 'fulfilled' ? proofsRes.value.data  : { data:[], total:0 },
     activeBansCount: activeBans.length,
     recentBans:      activeBans.slice(0, 3),
     recentLogs,
@@ -793,12 +815,27 @@ app.get('/admin/pronostics', requireAuth, requirePerm('pronostics'), async (req,
   const a = api(req.cookies.admin_token);
   const competition   = req.query.competition ?? '';
   const statusFilter  = req.query.status ?? '';
+  const q             = (req.query.q ?? '').trim();
+  const date          = req.query.date ?? '';
+  const mine          = req.query.mine === '1';
+  const live          = req.query.live === '1';
   try {
-    const r = await a.get('/pronostics/admin/upcoming' + (competition ? '?competition=' + competition : ''));
-    res.render('pronostics', { adminName: req.cookies.admin_name ?? 'Admin', matches: r.data ?? [], competition, statusFilter, success: req.query.success === '1', error: null });
+    const [r, leaguesRes] = await Promise.all([
+      a.get('/pronostics/admin/upcoming', { params: {
+        ...(competition ? { competition } : {}),
+        ...(q            ? { search: q }   : {}),
+        ...(live         ? { live: '1' }   : mine ? { mine: '1' } : date ? { date } : {}),
+      }}),
+      // Raccourcis de ligue dans le filtre = les compétitions activées dans
+      // /admin/leagues (liste blanche du flux public), plutôt qu'une liste
+      // figée dans le template — reste à jour automatiquement.
+      a.get('/pronostics/admin/leagues').catch(() => ({ data: [] })),
+    ]);
+    const visibleLeagues = (leaguesRes.data ?? []).filter(l => l.isVisible);
+    res.render('pronostics', { adminName: req.cookies.admin_name ?? 'Admin', matches: r.data ?? [], visibleLeagues, competition, statusFilter, q, date, mine, live, success: req.query.success === '1', error: null });
   } catch (e) {
     if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-    res.render('pronostics', { adminName: req.cookies.admin_name ?? 'Admin', matches: [], competition, statusFilter, success: false, error: e.response?.data?.message ?? e.message });
+    res.render('pronostics', { adminName: req.cookies.admin_name ?? 'Admin', matches: [], visibleLeagues: [], competition, statusFilter, q, date, mine, live, success: false, error: e.response?.data?.message ?? e.message });
   }
 });
 
@@ -878,11 +915,76 @@ app.post('/admin/pronostics/force-result/:pronosticId', requireAuth, requirePerm
   const a = api(req.cookies.admin_token);
   try {
     const result = req.body.result === 'null' ? null : req.body.result;
-    if (result !== 'WIN' && result !== 'LOSS' && result !== null) {
-      return res.status(400).json({ ok: false, message: 'result doit être WIN, LOSS ou null.' });
+    if (result !== 'WIN' && result !== 'LOSS' && result !== 'PUSH' && result !== null) {
+      return res.status(400).json({ ok: false, message: 'result doit être WIN, LOSS, PUSH ou null.' });
     }
     await a.patch('/pronostics/admin/pronostic/' + req.params.pronosticId + '/result', { result });
     logAction(req, 'pronostic_result_force', `Pronostic #${req.params.pronosticId}`, { result });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(e.response?.status ?? 500).json({ ok: false, message: e.response?.data?.message ?? e.message });
+  }
+});
+
+// ─── BANKROLL (suivi des budgets/paris utilisateurs) ──────────────────────────
+app.get('/admin/bankroll', requireAuth, requirePerm('bankroll'), async (req, res) => {
+  const a = api(req.cookies.admin_token);
+  const search  = (req.query.search  ?? '').trim();
+  const sortBy  = req.query.sort_by  ?? 'currentBalance';
+  const sortDir = req.query.sort_dir ?? 'desc';
+  const page    = Math.max(1, parseInt(req.query.page ?? '1') || 1);
+  try {
+    const r = await a.get('/bankroll/admin/list', { params: {
+      page, per_page: 20,
+      ...(search ? { search } : {}),
+      sort_by: sortBy, sort_dir: sortDir,
+    }});
+    res.render('bankroll', {
+      adminName: req.cookies.admin_name ?? 'Admin',
+      ...r.data, search, sortBy, sortDir, error: null,
+    });
+  } catch (e) {
+    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+    res.render('bankroll', {
+      adminName: req.cookies.admin_name ?? 'Admin',
+      data: [], total: 0, page: 1, per_page: 20, total_pages: 0,
+      search, sortBy, sortDir, error: e.response?.data?.message ?? e.friendlyMessage ?? e.message,
+    });
+  }
+});
+
+app.get('/admin/bankroll/:userId', requireAuth, requirePerm('bankroll'), async (req, res) => {
+  const a = api(req.cookies.admin_token);
+  try {
+    const r = await a.get('/bankroll/admin/' + req.params.userId);
+    res.render('bankroll_detail', { adminName: req.cookies.admin_name ?? 'Admin', ...r.data, error: null });
+  } catch (e) {
+    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+    if (e.response?.status === 404) return res.status(404).render('error', { message: 'Utilisateur introuvable.' });
+    res.redirect('/admin/bankroll?error=' + encodeURIComponent(e.response?.data?.message ?? e.friendlyMessage ?? e.message));
+  }
+});
+
+// ─── LIGUES (liste blanche du flux public) ────────────────────────────────────
+app.get('/admin/leagues', requireAuth, requirePerm('pronostics'), async (req, res) => {
+  const a = api(req.cookies.admin_token);
+  try {
+    const r = await a.get('/pronostics/admin/leagues');
+    res.render('leagues', { adminName: req.cookies.admin_name ?? 'Admin', leagues: r.data ?? [], error: null });
+  } catch (e) {
+    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+    res.render('leagues', { adminName: req.cookies.admin_name ?? 'Admin', leagues: [], error: e.response?.data?.message ?? e.friendlyMessage ?? e.message });
+  }
+});
+
+// Route AJAX — bascule la visibilité d'une ligue dans le flux public
+app.post('/admin/leagues/:code/toggle', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
+  const a = api(req.cookies.admin_token);
+  try {
+    const league  = req.body.league;
+    const visible = req.body.visible === true || req.body.visible === 'true';
+    await a.post('/pronostics/admin/leagues/' + encodeURIComponent(req.params.code), { league, visible });
+    logAction(req, 'league_visibility_toggle', `${league} (${req.params.code})`, { visible });
     res.json({ ok: true });
   } catch (e) {
     res.status(e.response?.status ?? 500).json({ ok: false, message: e.response?.data?.message ?? e.message });
@@ -894,26 +996,25 @@ app.get('/admin/transactions', requireAuth, requirePerm('transactions'), async (
   const a = api(req.cookies.admin_token);
   const { search = '', method = '', type = '', page = '1' } = req.query;
   try {
-    const [pendingRes, statsRes] = await Promise.allSettled([
+    const [pendingRes, methodsRes] = await Promise.allSettled([
       a.get('/payments/admin/pending', { params: { search, method, type, page, per_page: 20 } }),
-      a.get('/payments/admin/stats').catch(() => ({ data: null })),
+      a.get('/payments/admin/methods').catch(() => ({ data: [] })),
     ]);
     if (pendingRes.status === 'rejected' && pendingRes.reason?.response?.status === 401)
       return res.redirect('/admin/login?expired=1');
 
-    const raw   = pendingRes.status === 'fulfilled' ? pendingRes.value.data : { data: [], total: 0 };
-    const stats = statsRes.status  === 'fulfilled' ? statsRes.value.data   : null;
+    const raw     = pendingRes.status === 'fulfilled' ? pendingRes.value.data : { data: [], total: 0 };
+    const methods = methodsRes.status === 'fulfilled' ? methodsRes.value.data : [];
 
-    // Stats calculées localement si l'API ne les fournit pas
+    // Stats calculées localement (pas d'endpoint de stats globales côté /payments)
     const items       = raw.data ?? [];
     const totalAmount = items.reduce((s, tx) => s + (tx.amount ?? 0), 0);
     const deposits    = items.filter(tx => tx.type === 'deposit').length;
     const withdrawals = items.filter(tx => tx.type === 'withdrawal').length;
 
     res.render('transactions', {
-      data: raw, search, method, type,
+      data: raw, search, method, type, methods,
       page: parseInt(page), totalPages: Math.max(1, Math.ceil((raw.total ?? 0) / 20)),
-      apiStats: stats,
       localStats: { totalAmount, deposits, withdrawals, total: raw.total ?? 0 },
       success: req.query.success ?? null,
       error:   req.query.error   ?? null,
@@ -921,8 +1022,8 @@ app.get('/admin/transactions', requireAuth, requirePerm('transactions'), async (
   } catch (e) {
     if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
     res.render('transactions', {
-      data: { data: [], total: 0 }, search, method, type, page: 1, totalPages: 1,
-      apiStats: null, localStats: { totalAmount:0, deposits:0, withdrawals:0, total:0 },
+      data: { data: [], total: 0 }, search, method, type, methods: [], page: 1, totalPages: 1,
+      localStats: { totalAmount:0, deposits:0, withdrawals:0, total:0 },
       success: null, error: e.response?.data?.message ?? e.message,
     });
   }
@@ -945,13 +1046,14 @@ app.get('/admin/historique', requireAuth, requirePerm('historique'), async (req,
   const { search='', type='', status='', method='', date_from='', date_to='', page='1',
           amount_min='', amount_max='' } = req.query;
   try {
-    const [histRes, statsRes] = await Promise.all([
+    const [histRes, statsRes, methodsRes] = await Promise.all([
       a.get('/admin/history', { params: { search, type, status, method, date_from, date_to, page, per_page: 20, amount_min, amount_max } }),
       a.get('/admin/history/stats'),
+      a.get('/payments/admin/methods').catch(() => ({ data: [] })),
     ]);
     res.render('historique', {
       adminName: req.cookies.admin_name ?? 'Admin',
-      data: histRes.data.data, stats: statsRes.data, total: histRes.data.total,
+      data: histRes.data.data, stats: statsRes.data, total: histRes.data.total, methods: methodsRes.data,
       page: parseInt(page), perPage: 20, totalPages: histRes.data.total_pages,
       search, type, status, method, dateFrom: date_from, dateTo: date_to, amount_min, amount_max,
       sortBy: req.query.sort_by ?? '',
@@ -962,7 +1064,7 @@ app.get('/admin/historique', requireAuth, requirePerm('historique'), async (req,
     res.render('historique', {
       adminName: req.cookies.admin_name ?? 'Admin',
       data: [], stats: { volume_deposits:0,volume_withdrawals:0,completed_deposits:0,completed_withdrawals:0,pending_count:0,today_deposits:0,today_withdrawals:0,monthly_volume:0 },
-      total:0, page:1, perPage:20, totalPages:1,
+      total:0, page:1, perPage:20, totalPages:1, methods: [],
       search, type, status, method, dateFrom: date_from, dateTo: date_to, amount_min, amount_max, sortBy: '',
       success: null, error: e.response?.data?.message ?? e.message,
     });
@@ -1063,19 +1165,38 @@ app.post('/admin/abonnements/:id', requireAuth, requirePerm('abonnements', 'writ
 });
 
 // ─── TUTORIELS ────────────────────────────────────────────────────────────────
+async function fetchTutorialCategories(a) {
+  try {
+    const r = await a.get('/admin/tutorials/categories');
+    return r.data;
+  } catch (_) {
+    return ['valuebet', 'bankroll', 'analyse', 'strategie', 'psychologie'];
+  }
+}
+async function fetchTutorialLevels(a) {
+  try {
+    const r = await a.get('/admin/tutorials/levels');
+    return r.data;
+  } catch (_) {
+    return ['beginner', 'intermediate', 'advanced'];
+  }
+}
+
 app.get('/admin/tutoriels', requireAuth, requirePerm('tutoriels'), async (req, res) => {
   const a = api(req.cookies.admin_token);
   const { search='', category='', level='', page='1' } = req.query;
   try {
-    const [listRes, statsRes] = await Promise.all([
+    const [listRes, statsRes, categories, levels] = await Promise.all([
       a.get('/admin/tutorials', { params: { search, category, level, page, per_page: 20 } }),
       a.get('/admin/tutorials/stats'),
+      fetchTutorialCategories(a),
+      fetchTutorialLevels(a),
     ]);
     res.render('tutoriels', {
       adminName: req.cookies.admin_name ?? 'Admin',
       data: listRes.data.data, stats: statsRes.data, total: listRes.data.total,
       page: parseInt(page), totalPages: listRes.data.total_pages,
-      search, category, level,
+      search, category, level, categories, levels,
       success: req.query.success ?? null, error: req.query.error ?? null,
     });
   } catch (e) {
@@ -1083,7 +1204,7 @@ app.get('/admin/tutoriels', requireAuth, requirePerm('tutoriels'), async (req, r
     res.render('tutoriels', {
       adminName: req.cookies.admin_name ?? 'Admin',
       data: [], stats: { total:0,premium:0,free:0,beginner:0,intermediate:0,advanced:0 },
-      total:0, page:1, totalPages:1, search, category, level,
+      total:0, page:1, totalPages:1, search, category, level, categories: [], levels: [],
       success: null, error: e.response?.data?.message ?? e.message,
     });
   }
@@ -1097,8 +1218,12 @@ app.post('/admin/tutoriels/seed',        requireAuth, requirePerm('tutoriels', '
   } catch (e) { res.redirect('/admin/tutoriels?error=' + encodeURIComponent(e.response?.data?.message ?? 'Erreur')); }
 });
 
-app.get('/admin/tutoriels/new',          requireAuth, requirePerm('tutoriels', 'write'), (req, res) => {
-  res.render('tutoriel_form', { adminName: req.cookies.admin_name ?? 'Admin', tutorial: null, error: null });
+app.get('/admin/tutoriels/new',          requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
+  const a = api(req.cookies.admin_token);
+  res.render('tutoriel_form', {
+    adminName: req.cookies.admin_name ?? 'Admin', tutorial: null, error: null,
+    categories: await fetchTutorialCategories(a), levels: await fetchTutorialLevels(a),
+  });
 });
 
 app.post('/admin/tutoriels',             requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
@@ -1109,15 +1234,22 @@ app.post('/admin/tutoriels',             requireAuth, requirePerm('tutoriels', '
     logAction(req, 'tutorial_created', req.body.title ?? 'Sans titre', { title: req.body.title });
     res.redirect('/admin/tutoriels?success=' + encodeURIComponent('Tutoriel créé avec succès !'));
   } catch (e) {
-    res.render('tutoriel_form', { adminName: req.cookies.admin_name ?? 'Admin', tutorial: null, error: e.response?.data?.message ?? 'Erreur.' });
+    res.render('tutoriel_form', {
+      adminName: req.cookies.admin_name ?? 'Admin', tutorial: null, error: e.response?.data?.message ?? 'Erreur.',
+      categories: await fetchTutorialCategories(a), levels: await fetchTutorialLevels(a),
+    });
   }
 });
 
 app.get('/admin/tutoriels/:id/edit',     requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
   const a = api(req.cookies.admin_token);
   try {
-    const r = await a.get('/admin/tutorials/' + req.params.id);
-    res.render('tutoriel_form', { adminName: req.cookies.admin_name ?? 'Admin', tutorial: r.data, error: null });
+    const [r, categories, levels] = await Promise.all([
+      a.get('/admin/tutorials/' + req.params.id),
+      fetchTutorialCategories(a),
+      fetchTutorialLevels(a),
+    ]);
+    res.render('tutoriel_form', { adminName: req.cookies.admin_name ?? 'Admin', tutorial: r.data, error: null, categories, levels });
   } catch (e) { res.redirect('/admin/tutoriels?error=' + encodeURIComponent('Tutoriel introuvable.')); }
 });
 
@@ -1130,8 +1262,12 @@ app.post('/admin/tutoriels/:id/edit',    requireAuth, requirePerm('tutoriels', '
     res.redirect('/admin/tutoriels?success=' + encodeURIComponent('Tutoriel modifié !'));
   } catch (e) {
     try {
-      const r2 = await a.get('/admin/tutorials/' + req.params.id);
-      res.render('tutoriel_form', { adminName: req.cookies.admin_name ?? 'Admin', tutorial: r2.data, error: e.response?.data?.message ?? 'Erreur.' });
+      const [r2, categories, levels] = await Promise.all([
+        a.get('/admin/tutorials/' + req.params.id),
+        fetchTutorialCategories(a),
+        fetchTutorialLevels(a),
+      ]);
+      res.render('tutoriel_form', { adminName: req.cookies.admin_name ?? 'Admin', tutorial: r2.data, error: e.response?.data?.message ?? 'Erreur.', categories, levels });
     } catch { res.redirect('/admin/tutoriels'); }
   }
 });
@@ -1196,7 +1332,7 @@ app.get('/admin/actualites', requireAuth, requirePerm('actualites'), (req, res) 
     adminRole: req.cookies.admin_role ?? 'sub',
     adminUsername: req.cookies.admin_username ?? '',
     data, stats: statsObj, total, page, perPage: NEWS_PER_PAGE, totalPages,
-    search, category, status,
+    search, category, status, categories: getNewsCategories(),
     success: req.query.success ?? null,
     error:   req.query.error   ?? null,
   });
@@ -1207,7 +1343,7 @@ app.get('/admin/actualites/new', requireAuth, requirePerm('actualites', 'write')
     adminName: req.cookies.admin_name ?? 'Admin',
     adminRole: req.cookies.admin_role ?? 'sub',
     adminUsername: req.cookies.admin_username ?? '',
-    article: null, isEdit: false,
+    article: null, isEdit: false, categories: getNewsCategories(),
     success: null, error: req.query.error ?? null,
   });
 });
@@ -1251,7 +1387,7 @@ app.get('/admin/actualites/:id/edit', requireAuth, requirePerm('actualites', 'wr
     adminName: req.cookies.admin_name ?? 'Admin',
     adminRole: req.cookies.admin_role ?? 'sub',
     adminUsername: req.cookies.admin_username ?? '',
-    article, isEdit: true,
+    article, isEdit: true, categories: getNewsCategories(),
     success: req.query.success ?? null, error: req.query.error ?? null,
   });
 });
@@ -1508,6 +1644,14 @@ app.get('/admin/statistiques', requireAuth, requirePerm('statistiques'), (req, r
   res.render('statistiques', { adminName: req.cookies.admin_name ?? 'Admin' });
 });
 
+app.get('/admin/api/users/online', requireAuth, async (req, res) => {
+  const a = api(req.cookies.admin_token);
+  try {
+    const r = await a.get('/admin/users/online');
+    res.json(r.data);
+  } catch (e) { res.status(500).json({ users: [], total: 0 }); }
+});
+
 app.get('/admin/api/stats/:endpoint', requireAuth, requirePerm('statistiques'), async (req, res) => {
   const a = api(req.cookies.admin_token);
   try {
@@ -1644,8 +1788,11 @@ app.get('/admin/profile', requireAuth, (req, res) => {
 app.post('/admin/profile/password', requireAuth, async (req, res) => {
   const { current_password, new_password, confirm_password } = req.body;
 
-  if (!new_password || new_password.length < 6) {
-    return res.redirect('/admin/profile?error=' + encodeURIComponent('Le nouveau mot de passe doit faire au moins 6 caractères.'));
+  // 8 caractères : même seuil que le backend (admin_auth.service.changePassword).
+  // À 6 ici, un mot de passe de 7 passait ce contrôle puis se faisait refuser
+  // par l'API avec un message différent.
+  if (!new_password || new_password.length < 8) {
+    return res.redirect('/admin/profile?error=' + encodeURIComponent('Le nouveau mot de passe doit faire au moins 8 caractères.'));
   }
   if (new_password !== confirm_password) {
     return res.redirect('/admin/profile?error=' + encodeURIComponent('Les mots de passe ne correspondent pas.'));
@@ -1682,10 +1829,10 @@ app.post('/admin/profile/password', requireAuth, async (req, res) => {
 // ─── NOTIFICATIONS PUSH EN MASSE ─────────────────────────────────────────────
 const SEGMENTS = [
   { key: 'all',            label: 'Tous les utilisateurs',       icon: '👥', desc: 'Tout le monde' },
-  { key: 'premium',        label: 'Membres Premium uniquement',  icon: '👑', desc: 'Abonnés actifs' },
+  { key: 'premium',        label: 'Membres Premium uniquement',  icon: '👑', desc: 'Abonnement non expiré' },
   { key: 'free',           label: 'Membres Gratuits uniquement', icon: '🆓', desc: 'Non-abonnés' },
-  { key: 'active_30',      label: 'Actifs ce mois',              icon: '🟢', desc: 'Connexion < 30j' },
-  { key: 'inactive_30',    label: 'Inactifs (> 30 jours)',       icon: '😴', desc: 'Connexion > 30j' },
+  { key: 'active_30',      label: 'Actifs ce mois',              icon: '🟢', desc: 'Vus < 30j' },
+  { key: 'inactive_30',    label: 'Inactifs (> 30 jours)',       icon: '😴', desc: 'Vus > 30j' },
   { key: 'new_7',          label: 'Nouveaux inscrits (7j)',       icon: '🆕', desc: 'Inscription < 7j' },
 ];
 
@@ -1892,7 +2039,7 @@ app.post('/admin/users/:id/ban', requireAuth, requirePerm('users', 'write'), asy
   // Notifier le backend (suspension du compte)
   try {
     const a = api(req.cookies.admin_token);
-    await a.patch('/admin/users/' + req.params.id + '/suspend', { suspended: true });
+    await a.patch('/admin/users/' + req.params.id + '/suspend', { suspend: true, reason });
   } catch { /* le backend peut ne pas avoir cette route */ }
   logAction(req, 'user_banned', `User #${req.params.id} (${pseudo})`, { reason, durationDays: dur, banId: ban.id });
   sseBroadcast('ban_update', { type: 'banned', userId: req.params.id, pseudo, ts: Date.now() });
@@ -1907,7 +2054,7 @@ app.post('/admin/users/:id/unban', requireAuth, requirePerm('users', 'write'), a
   // Réactiver le compte côté backend
   try {
     const a = api(req.cookies.admin_token);
-    await a.patch('/admin/users/' + req.params.id + '/suspend', { suspended: false });
+    await a.patch('/admin/users/' + req.params.id + '/suspend', { suspend: false });
   } catch {}
   logAction(req, 'user_unbanned', `User #${req.params.id} (${pseudo})`, { reason: unban_reason });
   sseBroadcast('ban_update', { type: 'unbanned', userId: req.params.id, pseudo, ts: Date.now() });

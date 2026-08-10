@@ -12,12 +12,14 @@ import axios from 'axios';
 
 import authRoutes            from './routes/auth.routes';
 import { PronosticsService } from './services/pronostics.service';
+import { SubscriptionService } from './services/subscription.service';
 import pronosticsRoutes      from './routes/pronostics.routes';
 import paymentRoutes         from './routes/payment.routes';
 import subscriptionRoutes    from './routes/subscription.routes';
 import referralRoutes        from './routes/referral.routes';
 import tutorialRoutes        from './routes/tutorial.routes';
 import notificationRoutes    from './routes/notification.routes';
+import notificationAdminRoutes    from './routes/notification_admin.routes';
 import profileRoutes         from './routes/profile.routes';
 import adminRoutes           from './routes/admin.routes';
 import usersAdminRoutes      from './routes/users_admin.routes';
@@ -28,6 +30,7 @@ import newsRoutes            from './routes/news.routes';
 import configRoutes          from './routes/config.routes';
 import favoritesRoutes       from './routes/favorites.routes';
 import bankrollRoutes        from './routes/bankroll.routes';
+import commentsRoutes        from './routes/comments.routes';
 import leaderboardRoutes     from './routes/leaderboard.routes';
 
 const app  = express();
@@ -64,7 +67,7 @@ const keyGenerator = (req: express.Request) => {
 };
 
 const globalLim = rateLimit({
-  windowMs: 900000, max: 200,
+  windowMs: 900000, max: 1000,
   keyGenerator,
   message: { message: 'Trop de requêtes.' },
 });
@@ -72,6 +75,13 @@ const otpLim = rateLimit({
   windowMs: 600000, max: 3,
   keyGenerator,
   message: { message: 'Trop de demandes OTP.' },
+});
+// login/register n'ont aucune protection anti brute-force applicative (contrairement
+// aux flux OTP qui ont déjà _checkOtpBrute côté contrôleur) — limite dédiée par IP.
+const authLim = rateLimit({
+  windowMs: 900000, max: 10,
+  keyGenerator,
+  message: { message: 'Trop de tentatives. Réessayez plus tard.' },
 });
 const payLim = rateLimit({
   windowMs: 60000, max: 10,
@@ -148,15 +158,19 @@ app.get('/api/img', async (req, res) => {
 
 const v1 = '/api/v1';
 app.use(`${v1}/auth/send-otp`,       otpLim);
+app.use(`${v1}/auth/login`,          authLim);
+app.use(`${v1}/auth/register`,       authLim);
 app.use(`${v1}/auth`,                authRoutes);
 app.use(`${v1}/profile`,             profileRoutes);
 app.use(`${v1}/admin`,               adminRoutes);
 app.use(`${v1}/pronostics`,          pronosticsRoutes);
+app.use(`${v1}/comments`,            commentsRoutes);
 app.use(`${v1}/payments`,            payLim, paymentRoutes);
 app.use(`${v1}/subscriptions`,       subscriptionRoutes);
 app.use(`${v1}/referral`,            referralRoutes);
 app.use(`${v1}/tutorials`,           tutorialRoutes);
 app.use(`${v1}/notifications`,       notificationRoutes);
+app.use(`${v1}/admin/notifications`, notificationAdminRoutes);
 app.use(`${v1}/admin/users`,         usersAdminRoutes);
 app.use(`${v1}/admin/history`,       paymentHistoryRoutes);
 app.use(`${v1}/admin/stats`,       statsRoutes);
@@ -180,20 +194,21 @@ app.listen(PORT, () => {
   // ─── SYNC AUTOMATIQUE DES SCORES ──────────────────────────────────────────
   // Lance une 1ère sync immédiate au démarrage, puis toutes les 5 minutes.
   // Ne tourne que si la clé API est configurée.
-  if (process.env.FOOTBALL_DATA_API_KEY) {
+  if (process.env.API_FOOTBALL_KEY) {
     const pronoSvc = new PronosticsService();
 
-    // Sync intelligente : 60s si matchs LIVE, 5min sinon
+    // Sync intelligente : 30s si matchs LIVE, 2min sinon — 24h/24. Des matchs
+    // (Amériques, Asie...) sont live en dehors de la plage 5h-23h UTC qu'on
+    // excluait avant ; avec la marge de quota dégagée par le throttle du
+    // filet de sécurité, plus besoin de ce blackout.
     const runSync = async () => {
-      const hour = new Date().getUTCHours();
-      if (hour < 5 || hour > 23) return;
       pronoSvc.syncMatchScores().catch((err: Error) =>
         logger.error('[ScoreSync] Erreur', { message: err.message }));
     };
 
     const scheduleLiveSync = async () => {
       const liveCount = await prisma.match.count({ where: { status: 'LIVE' } }).catch(() => 0);
-      return liveCount > 0 ? 60_000 : 5 * 60 * 1000;
+      return liveCount > 0 ? 30_000 : 2 * 60 * 1000;
     };
 
     // Boucle adaptative : re-planifie selon présence de matchs LIVE
@@ -204,7 +219,7 @@ app.listen(PORT, () => {
     };
 
     setTimeout(adaptiveSync, 30_000);
-    logger.info('Score sync actif — 60s si LIVE, 5min sinon (5h–23h UTC)');
+    logger.info('Score sync actif — 30s si LIVE, 2min sinon (24h/24)');
 
     const runMatchSoon = () => {
       const hour = new Date().getUTCHours();
@@ -216,6 +231,20 @@ app.listen(PORT, () => {
     setTimeout(runMatchSoon, 60_000);
     setInterval(runMatchSoon, 15 * 60 * 1000);
     logger.info('Notif "match bientôt" actif — toutes les 15 min');
+
+    // Rappel d'expiration Premium (J-7, J-3, J-1). L'interrupteur
+    // « Abonnement Premium » des Paramètres annonçait cette notification alors
+    // qu'aucun job ne la produisait. Une fois par jour : l'idempotence des
+    // paliers suppose exactement une exécution quotidienne.
+    const subSvc = new SubscriptionService();
+    const runExpiryReminder = () => {
+      subSvc.notifyExpiringSubscriptions().then(({ notified }) => {
+        if (notified > 0) logger.info(`[PremiumExpiry] ${notified} rappel(s) envoyé(s)`);
+      }).catch(err => logger.error('[PremiumExpiry] Erreur', { message: err.message }));
+    };
+    setTimeout(runExpiryReminder, 120_000);
+    setInterval(runExpiryReminder, 24 * 60 * 60 * 1000);
+    logger.info('Rappel expiration Premium actif — 1×/jour (J-7, J-3, J-1)');
   } else {
     logger.warn('FOOTBALL_DATA_API_KEY manquante — score sync désactivé');
   }
