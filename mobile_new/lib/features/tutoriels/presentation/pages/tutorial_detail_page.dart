@@ -4,10 +4,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../../../shared/utils/premium_nav.dart';
 import '../../domain/entities/tutorial_entity.dart';
 import '../providers/tutorial_provider.dart';
+import '../../../abonnement/presentation/providers/iap_provider.dart';
 
 class TutorialDetailPage extends ConsumerStatefulWidget {
   final String          tutorialId;
@@ -98,6 +101,11 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
         children: [
           // ── CONTENU PRINCIPAL ────────────────────────────────────────────
           CustomScrollView(
+            // Le lecteur vidéo intègre une WebView native (platform view) qui
+            // ne se recompose pas correctement pendant le rebond élastique du
+            // scroll (tirer au-delà du haut/bas) — désactiver l'overscroll
+            // évite le décalage visuel de la vidéo par rapport à son cadre.
+            physics: const ClampingScrollPhysics(),
             slivers: [
               // ─── HEADER SLIVER ─────────────────────────────────────────
               _HeroHeader(tutorial: t, catColor: catColor),
@@ -191,13 +199,6 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
                           .animate().fadeIn(duration: 300.ms, delay: 160.ms),
                     ],
 
-                    // Auteur
-                    if (t.authorName != null) ...[
-                      const SizedBox(height: 8),
-                      _AuthorCard(name: t.authorName!)
-                        .animate().fadeIn(duration: 300.ms, delay: 200.ms),
-                    ],
-
                     const SizedBox(height: 16),
                   ]),
                 ),
@@ -221,17 +222,18 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
     );
   }
 
-  Color _categoryColor(TutorialCategory c) => switch (c) {
-    TutorialCategory.valuebet    => AppColors.info,
-    TutorialCategory.bankroll    => AppColors.success,
-    TutorialCategory.strategie   => AppColors.primary,
-    TutorialCategory.analyse     => AppColors.info,
-    TutorialCategory.psychologie ||
-    TutorialCategory.psychology  => const Color(0xFFA78BFA),
-    TutorialCategory.martingale  => AppColors.warning,
-    TutorialCategory.trading     => AppColors.error,
-    TutorialCategory.statistics  => AppColors.primaryLight,
+  static const Map<String, Color> _categoryColors = {
+    'valuebet':    AppColors.info,
+    'bankroll':    AppColors.success,
+    'strategie':   AppColors.primary,
+    'analyse':     AppColors.info,
+    'psychologie': Color(0xFFA78BFA),
+    'psychology':  Color(0xFFA78BFA),
+    'martingale':  AppColors.warning,
+    'trading':     AppColors.error,
+    'statistics':  AppColors.primaryLight,
   };
+  Color _categoryColor(String c) => _categoryColors[c.toLowerCase()] ?? AppColors.primaryLight;
 
   Color _levelColor(TutorialLevel l) => switch (l) {
     TutorialLevel.beginner     => AppColors.success,
@@ -270,15 +272,10 @@ class _HeroHeader extends StatelessWidget {
       flexibleSpace: FlexibleSpaceBar(
         collapseMode: CollapseMode.parallax,
         background: Stack(children: [
-          // Fond : thumbnail réseau ou gradient de couleur
+          // Fond : dégradé de couleur — la vraie miniature est déjà affichée
+          // par le lecteur vidéo plus bas, pas besoin de la dupliquer ici.
           Positioned.fill(
-            child: tutorial.thumbnailUrl != null
-              ? Image.network(
-                  tutorial.thumbnailUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _HeaderGradient(catColor: catColor, bgColor: context.cl.bg),
-                )
-              : _HeaderGradient(catColor: catColor, bgColor: context.cl.bg),
+            child: _HeaderGradient(catColor: catColor, bgColor: context.cl.bg),
           ),
 
           // Overlay dégradé bas pour lisibilité du texte
@@ -308,7 +305,7 @@ class _HeroHeader extends StatelessWidget {
                         border: Border.all(
                             color: Colors.white.withValues(alpha: 0.3), width: 0.8)),
                       child: Center(child: Text(
-                        tutorial.category.emoji,
+                        tutorial.categoryEmoji,
                         style: const TextStyle(fontSize: 32))),
                     ),
                   ).animate()
@@ -361,16 +358,20 @@ class _MetaRow extends StatelessWidget {
               icon: Icons.access_time_rounded,
               label: tutorial.durationText,
               color: AppColors.info),
-          const SizedBox(width: 8),
-          _MetaChip(
-              icon: Icons.visibility_rounded,
-              label: '${tutorial.viewCount} vues',
-              color: context.cl.textM),
-          const SizedBox(width: 8),
-          _MetaChip(
-              icon: Icons.star_rounded,
-              label: tutorial.rating.toStringAsFixed(1),
-              color: AppColors.warning),
+          if (tutorial.viewCount > 0) ...[
+            const SizedBox(width: 8),
+            _MetaChip(
+                icon: Icons.visibility_rounded,
+                label: '${tutorial.viewCount} vues',
+                color: context.cl.textM),
+          ],
+          if (tutorial.rating > 0) ...[
+            const SizedBox(width: 8),
+            _MetaChip(
+                icon: Icons.star_rounded,
+                label: tutorial.rating.toStringAsFixed(1),
+                color: AppColors.warning),
+          ],
         ],
       );
 }
@@ -665,112 +666,83 @@ class _InlineRichText extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 // SECTION VIDÉO
 // ══════════════════════════════════════════════════════════════════════════════
-class _VideoSection extends StatelessWidget {
+class _VideoSection extends StatefulWidget {
   final String url, duration;
   const _VideoSection({required this.url, required this.duration});
 
   @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _SectionDivider(label: 'Vidéo'),
-          const SizedBox(height: 14),
-          Container(
-            height: 210,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  const Color(0xFF0A0E1A),
-                  const Color(0xFF1C2545),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.25),
-                  width: 0.8),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.10),
-                  blurRadius: 20,
-                  offset: const Offset(0, 6)),
-              ],
-            ),
-            child: Stack(children: [
-              // Fond décoratif
-              Positioned.fill(
-                child: CustomPaint(painter: _CircleBgPainter()),
-              ),
-              // Contenu centré
-              Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Container(
-                    width: 72, height: 72,
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.2),
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                          color: AppColors.primary.withValues(alpha: 0.4),
-                          width: 1.5)),
-                    child: const Icon(Icons.play_arrow_rounded,
-                        color: Colors.white, size: 40))
-                    .animate(onPlay: (c) => c.repeat(reverse: true))
-                    .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.09, 1.09),
-                      duration: 1100.ms, curve: Curves.easeInOut),
-                  const SizedBox(height: 12),
-                  const Text('Lire la vidéo',
-                      style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 4),
-                  Text(duration,
-                      style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontSize: 12)),
-                ],
-              ),
-              // Badge durée haut droite
-              Positioned(
-                top: 12, right: 12,
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.5),
-                    borderRadius: BorderRadius.circular(8)),
-                  child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.videocam_rounded,
-                        color: Colors.white70, size: 12),
-                    const SizedBox(width: 4),
-                    Text(duration,
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600)),
-                  ]),
-                ),
-              ),
-            ]),
-          ),
-        ],
-      );
+  State<_VideoSection> createState() => _VideoSectionState();
 }
 
-class _CircleBgPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = AppColors.primary.withValues(alpha: 0.05)
-      ..style = PaintingStyle.fill;
-    canvas.drawCircle(Offset(size.width * 0.8, size.height * 0.2),
-        80, paint);
-    canvas.drawCircle(Offset(size.width * 0.1, size.height * 0.8),
-        60, paint);
+class _VideoSectionState extends State<_VideoSection> {
+  YoutubePlayerController? _controller;
+
+  String? get _youtubeId {
+    final uri = Uri.tryParse(widget.url);
+    if (uri == null) return null;
+    if (uri.host.contains('youtu.be')) {
+      return uri.pathSegments.isNotEmpty ? uri.pathSegments.first : null;
+    }
+    return uri.queryParameters['v'];
   }
-  @override bool shouldRepaint(_) => false;
+
+  @override
+  void initState() {
+    super.initState();
+    final id = _youtubeId;
+    if (id != null) {
+      _controller = YoutubePlayerController.fromVideoId(
+        videoId: id,
+        autoPlay: false,
+        params: const YoutubePlayerParams(showControls: true, showFullscreenButton: true),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller?.close();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final controller = _controller;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _SectionDivider(label: 'Vidéo'),
+        const SizedBox(height: 14),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.25), width: 0.8),
+            boxShadow: [
+              BoxShadow(
+                color: AppColors.primary.withValues(alpha: 0.10),
+                blurRadius: 20,
+                offset: const Offset(0, 6)),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: controller == null
+                ? AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Container(
+                      color: const Color(0xFF0A0E1A),
+                      alignment: Alignment.center,
+                      child: Text('Vidéo indisponible',
+                          style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
+                    ),
+                  )
+                : YoutubePlayer(controller: controller, aspectRatio: 16 / 9),
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -781,7 +753,11 @@ class _PremiumLock extends ConsumerWidget {
   const _PremiumLock({required this.catColor});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) => Column(
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sub = ref.watch(currentSubscriptionProvider).valueOrNull ?? const {};
+    // Idem : le prix affiché doit correspondre au canal de distribution.
+    final priceLabel = '${premiumMonthlyPriceLabel(ref, sub)}/mois';
+    return Column(
         children: [
           // Aperçu flou du contenu
           Stack(
@@ -882,15 +858,15 @@ class _PremiumLock extends ConsumerWidget {
                                       .withValues(alpha: 0.3),
                                   blurRadius: 10,
                                   offset: const Offset(0, 4))]),
-                              child: const Row(
+                              child: Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.workspace_premium_rounded,
+                                  const Icon(Icons.workspace_premium_rounded,
                                       color: Colors.white, size: 18),
-                                  SizedBox(width: 8),
-                                  Text('Activer Premium — 5 000 FCFA',
-                                      style: TextStyle(
+                                  const SizedBox(width: 8),
+                                  Text('Activer Premium — $priceLabel',
+                                      style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 14,
                                           fontWeight: FontWeight.w800)),
@@ -908,6 +884,7 @@ class _PremiumLock extends ConsumerWidget {
           ),
         ],
       );
+  }
 
   Widget _fakeTextLine(BuildContext context, double width) => Container(
         height: 12, width: width,
@@ -943,61 +920,6 @@ class _PlaceholderContent extends StatelessWidget {
           Text('Ce tutoriel sera bientôt disponible.',
               style: TextStyle(color: context.cl.textS, fontSize: 13),
               textAlign: TextAlign.center),
-        ]),
-      );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// AUTEUR
-// ══════════════════════════════════════════════════════════════════════════════
-class _AuthorCard extends StatelessWidget {
-  final String name;
-  const _AuthorCard({required this.name});
-
-  @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: context.cl.surface,
-          borderRadius: BorderRadius.circular(14),
-          border:
-              Border.all(color: context.cl.border, width: 0.5)),
-        child: Row(children: [
-          Container(
-            width: 42, height: 42,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryLight],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight),
-              shape: BoxShape.circle),
-            child: const Icon(Icons.person_rounded,
-                color: Colors.white, size: 22)),
-          const SizedBox(width: 12),
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Rédigé par',
-                  style: TextStyle(
-                      color: context.cl.textM, fontSize: 11)),
-              const SizedBox(height: 2),
-              Text(name,
-                  style: TextStyle(
-                      color: context.cl.textP,
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700)),
-            ])),
-          Container(
-            padding: const EdgeInsets.symmetric(
-                horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.10),
-              borderRadius: BorderRadius.circular(20)),
-            child: const Text('Expert',
-                style: TextStyle(
-                    color: AppColors.primary,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600))),
         ]),
       );
 }

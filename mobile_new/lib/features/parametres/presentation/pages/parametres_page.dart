@@ -5,10 +5,15 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:in_app_review/in_app_review.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/security_provider.dart';
+
+/// L'année du copyright était figée à 2026 dans deux textes distincts.
+final _copyrightYear = DateTime.now().year;
 
 class ParametresPage extends ConsumerWidget {
   const ParametresPage({super.key});
@@ -17,6 +22,9 @@ class ParametresPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings     = ref.watch(settingsProvider);
     final bioAvailable = ref.watch(bioAvailableProvider);
+    // La version était écrite en dur à trois endroits (ligne « À propos »,
+    // pied de page, feuille À propos) : trois vérités à maintenir en phase.
+    final appVersion   = ref.watch(appVersionProvider).value ?? '';
 
     return Scaffold(
       appBar: AppBar(
@@ -75,14 +83,7 @@ class ParametresPage extends ConsumerWidget {
             ),
             const _Divider(),
             _SwitchTile(
-              icon: Icons.account_balance_wallet_rounded, iconColor: AppColors.warning,
-              title: 'Paiements', subtitle: 'Dépôts et retraits',
-              value: settings.notifPayment,
-              onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('payment'),
-            ),
-            const _Divider(),
-            _SwitchTile(
-              icon: Icons.workspace_premium_rounded, iconColor: AppColors.info,
+              icon: Icons.workspace_premium_rounded, iconColor: AppColors.warning,
               title: 'Abonnement Premium', subtitle: 'Expiration et renouvellement',
               value: settings.notifPremium,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('premium'),
@@ -125,6 +126,7 @@ class ParametresPage extends ConsumerWidget {
                       : 'Déverrouiller avec empreinte / Face ID')
                   : 'Non disponible sur cet appareil',
                 value: settings.bioEnabled && available,
+                unavailable: !available,
                 onChanged: available ? (v) async {
                   if (v) {
                     final auth = LocalAuthentication();
@@ -166,7 +168,7 @@ class ParametresPage extends ConsumerWidget {
               error: (_, _) => _SwitchTile(
                 icon: Icons.fingerprint_rounded, iconColor: context.cl.textM,
                 title: 'Biométrie', subtitle: 'Non disponible sur cet appareil',
-                value: false, onChanged: null,
+                value: false, onChanged: null, unavailable: true,
               ),
             ),
             const _Divider(),
@@ -235,19 +237,37 @@ class ParametresPage extends ConsumerWidget {
             const _Divider(),
             _NavTile(
               icon: Icons.info_outline_rounded, iconColor: context.cl.textM,
-              title: 'À propos', trailing: 'v1.0.0',
-              onTap: () => _showAboutSheet(context),
+              title: 'À propos', trailing: appVersion,
+              onTap: () => _showAboutSheet(context, appVersion),
             ),
           ]).animate(delay: 280.ms).fadeIn(duration: 300.ms)
             .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
-          const SizedBox(height: 8),
+          const SizedBox(height: 20),
+
+          // ─── ZONE DE DANGER ───────────────────────────────────────────
+          // La suppression de compte était entièrement codée (feuille de
+          // confirmation, provider, endpoint) mais n'apparaissait nulle part
+          // dans l'app. Apple (5.1.1(v)) et Google Play l'exigent dès lors
+          // qu'on permet la création d'un compte.
+          _SectionHeader('Zone de danger')
+            .animate().fadeIn(duration: 300.ms, delay: 300.ms),
+          _SettingsCard(children: [
+            _DangerNavTile(
+              icon: Icons.delete_forever_rounded,
+              subtitle: 'Effacer définitivement tes données',
+              onTap: () => _showDeleteAccountSheet(context, ref),
+            ),
+          ]).animate(delay: 320.ms).fadeIn(duration: 300.ms)
+            .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
+          const SizedBox(height: 12),
+
           Center(
             child: Text(
-              'PronoWin v1.0.0\n© 2026 PronoWin. Tous droits réservés.',
+              '© $_copyrightYear PronoWin. Tous droits réservés.',
               style: TextStyle(color: context.cl.textM, fontSize: 11),
               textAlign: TextAlign.center,
             ),
-          ).animate(delay: 330.ms).fadeIn(duration: 400.ms),
+          ).animate(delay: 360.ms).fadeIn(duration: 400.ms),
         ],
       ),
     );
@@ -455,7 +475,7 @@ class ParametresPage extends ConsumerWidget {
   }
 
   // ─── Bottom sheet : À propos ──────────────────────────────────────────────────
-  void _showAboutSheet(BuildContext context) {
+  void _showAboutSheet(BuildContext context, String version) {
     showModalBottomSheet(
       context: context,
       backgroundColor: context.cl.surface,
@@ -488,17 +508,38 @@ class ParametresPage extends ConsumerWidget {
             ],
           )),
           const SizedBox(height: 6),
-          Text('Version 1.0.0', style: TextStyle(color: context.cl.textS, fontSize: 13)),
+          Text('Version ${version.replaceFirst('v', '')}',
+            style: TextStyle(color: context.cl.textS, fontSize: 13)),
           const SizedBox(height: 4),
-          Text('© 2026 PronoWin. Tous droits réservés.',
+          Text('© $_copyrightYear PronoWin. Tous droits réservés.',
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
           const SizedBox(height: 20),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            _AboutChip(icon: Icons.sports_soccer_rounded, label: 'Pronostics', color: AppColors.success),
-            const SizedBox(width: 8),
-            _AboutChip(icon: Icons.workspace_premium_rounded, label: 'Premium', color: AppColors.warning),
-            const SizedBox(width: 8),
-            _AboutChip(icon: Icons.people_rounded, label: 'Parrainage', color: const Color(0xFFA78BFA)),
+          Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 8, children: [
+            _AboutChip(
+              icon: Icons.star_rounded, label: 'Noter l\'application', color: AppColors.warning,
+              onTap: () => InAppReview.instance.openStoreListing().catchError((_) {}),
+            ),
+            _AboutChip(
+              icon: Icons.mail_outline_rounded, label: 'Nous contacter', color: AppColors.info,
+              onTap: () => launchUrl(Uri.parse('mailto:pronowin2026@gmail.com')),
+            ),
+            _AboutChip(
+              icon: Icons.send_rounded, label: 'Telegram', color: const Color(0xFF29A9EA),
+              onTap: () => launchUrl(Uri.parse('https://t.me/carlospronost'),
+                  mode: LaunchMode.externalApplication),
+            ),
+            _AboutChip(
+              icon: Icons.chat_rounded, label: 'WhatsApp', color: const Color(0xFF25D366),
+              onTap: () => launchUrl(
+                  Uri.parse('https://whatsapp.com/channel/0029Vb88L8BKAwEppGPhXQ1T'),
+                  mode: LaunchMode.externalApplication),
+            ),
+            _AboutChip(
+              icon: Icons.facebook_rounded, label: 'Facebook', color: const Color(0xFF1877F2),
+              onTap: () => launchUrl(
+                  Uri.parse('https://www.facebook.com/Carlospronos11/'),
+                  mode: LaunchMode.externalApplication),
+            ),
           ]),
           const SizedBox(height: 20),
           SizedBox(
@@ -798,20 +839,25 @@ class _AboutChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
-  const _AboutChip({required this.icon, required this.label, required this.color});
+  final VoidCallback? onTap;
+  const _AboutChip({required this.icon, required this.label, required this.color, this.onTap});
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: color.withValues(alpha: 0.25))),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, color: color, size: 13),
-      const SizedBox(width: 5),
-      Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.25))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: color, size: 13),
+        const SizedBox(width: 5),
+        Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+      ]),
+    );
+    if (onTap == null) return chip;
+    return GestureDetector(onTap: onTap, child: chip);
+  }
 }
 
 // ─── Widgets ─────────────────────────────────────────────────────────────────
@@ -851,10 +897,32 @@ class _SwitchTile extends StatelessWidget {
   final IconData icon; final Color iconColor;
   final String title; final String? subtitle;
   final bool value; final ValueChanged<bool>? onChanged;
+  /// Rend l'interrupteur non pertinent (fonction indisponible sur l'appareil) :
+  /// on affiche un tiret plutôt qu'un switch mort, qu'on confondait avec un
+  /// simple « éteint ».
+  final bool unavailable;
   const _SwitchTile({required this.icon, required this.iconColor,
-    required this.title, this.subtitle, required this.value, required this.onChanged});
+    required this.title, this.subtitle, required this.value,
+    required this.onChanged, this.unavailable = false});
+
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context) {
+    // Toute la ligne est cliquable, comme sur _NavTile : les deux se
+    // ressemblent trait pour trait, mais seul l'interrupteur répondait ici —
+    // une cible de ~50×30 px sur une ligne large de 350.
+    final row = _buildRow(context);
+    if (onChanged == null) return row;
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onChanged!(!value);
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: row,
+    );
+  }
+
+  Widget _buildRow(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     child: Row(children: [
       Container(width: 38, height: 38,
@@ -875,23 +943,29 @@ class _SwitchTile extends StatelessWidget {
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ),
       ])),
-      Switch(
-        value: value,
-        onChanged: onChanged == null ? null : (v) {
-          HapticFeedback.selectionClick();
-          onChanged!(v);
-        },
-        thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return Colors.white;
-          return context.cl.textM;
-        }),
-        trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.disabled)) return context.cl.borderS.withValues(alpha: 0.4);
-          if (states.contains(WidgetState.selected)) return AppColors.primary;
-          return context.cl.borderS;
-        }),
-        trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
-      ),
+      if (unavailable)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Icon(Icons.do_not_disturb_on_outlined,
+            color: context.cl.textM.withValues(alpha: 0.5), size: 20))
+      else
+        Switch(
+          value: value,
+          onChanged: onChanged == null ? null : (v) {
+            HapticFeedback.selectionClick();
+            onChanged!(v);
+          },
+          thumbColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return Colors.white;
+            return context.cl.textM;
+          }),
+          trackColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) return context.cl.borderS.withValues(alpha: 0.4);
+            if (states.contains(WidgetState.selected)) return AppColors.primary;
+            return context.cl.borderS;
+          }),
+          trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+        ),
     ]),
   );
 }
@@ -927,10 +1001,11 @@ class _NavTile extends StatelessWidget {
 
 class _DangerNavTile extends StatelessWidget {
   final IconData icon;
-  final String title; final String? subtitle;
+  final String? subtitle;
   final VoidCallback onTap;
-  const _DangerNavTile({required this.icon, required this.title,
-    this.subtitle, required this.onTap});
+  // Le paramètre `title` a été retiré : il était requis mais jamais lu, le
+  // libellé étant écrit en dur plus bas.
+  const _DangerNavTile({required this.icon, this.subtitle, required this.onTap});
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap, borderRadius: BorderRadius.circular(16),
