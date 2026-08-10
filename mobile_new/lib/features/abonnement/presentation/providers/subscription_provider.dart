@@ -3,7 +3,15 @@ import 'package:dio/dio.dart';
 import '../../../../core/cache/cache_service.dart';
 import '../../../../core/network/dio_client.dart';
 
-const _kSubFallback = {'plan': 'free', 'days_left': 0, 'premium_price': 5000, 'promo_code': 'PRONOWIN2025'};
+const _kSubFallback = {
+  'plan': 'free', 'days_left': 0, 'promo_code': 'PRONOWIN2025',
+  'betting_platforms': ['1xbet', 'melbet', 'betwinner'],
+  'premium_price_monthly_usd': 10, 'premium_price_annual_usd': 90,
+  'premium_price_monthly_fcfa': 6000, 'premium_price_annual_fcfa': 54000,
+  'premium_price_monthly_code_usd': 7, 'premium_price_annual_code_usd': 63,
+  'premium_price_monthly_code_fcfa': 4200, 'premium_price_annual_code_fcfa': 37800,
+  'premium_price_monthly_store_usd': 15, 'premium_price_annual_store_usd': 135,
+};
 
 // ─── Abonnement actuel ────────────────────────────────────────────────────────
 final currentSubscriptionProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
@@ -48,20 +56,26 @@ class SubmitProofNotifier extends StateNotifier<SubmitProofState> {
   Future<void> submit({
     required String type,
     required String imageBase64,
+    String?  paymentImageBase64,
     String?  xbetId,
+    String?  platform,
     double?  amount,
     String?  senderPhone,
+    String?  planId,
   }) async {
     state = ProofLoading();
     try {
       final r = await _dio.post(
         '/subscriptions/submit-proof',
         data: {
-          'type':          type,
-          'image_base64':  imageBase64,
-          'xbet_id':      xbetId,
-          'amount':        amount,
-          'sender_phone':  senderPhone,
+          'type':                 type,
+          'image_base64':         imageBase64,
+          'payment_image_base64': paymentImageBase64,
+          'xbet_id':              xbetId,
+          'platform':             platform,
+          'amount':               amount,
+          'sender_phone':         senderPhone,
+          'plan_id':              planId,
         },
         options: Options(
           sendTimeout:    const Duration(seconds: 60), // Image peut être lourde
@@ -82,83 +96,3 @@ final submitProofProvider = StateNotifierProvider<SubmitProofNotifier, SubmitPro
   (ref) => SubmitProofNotifier(ref.read(dioProvider)));
 
 // ─── Validation code promo ─────────────────────────────────────────────────────
-abstract class PromoState {}
-class PromoIdle    extends PromoState {}
-class PromoLoading extends PromoState {}
-class PromoValid   extends PromoState {
-  final PromoCode code;
-  PromoValid(this.code);
-}
-class PromoInvalid extends PromoState {
-  final String message;
-  PromoInvalid(this.message);
-}
-
-class PromoCode {
-  final String code, description;
-  final int durationDays;
-  const PromoCode({required this.code, required this.description, required this.durationDays});
-}
-
-class PromoNotifier extends StateNotifier<PromoState> {
-  final Dio _dio;
-  PromoNotifier(this._dio) : super(PromoIdle());
-
-  Future<void> validate(String code) async {
-    if (code.trim().isEmpty) return;
-    state = PromoLoading();
-    try {
-      final r = await _dio.post('/subscriptions/validate-promo', data: {'code': code.trim()});
-      final data = r.data as Map<String, dynamic>;
-      if (data['valid'] == true) {
-        state = PromoValid(PromoCode(
-          code: code.trim(),
-          description: data['description'] as String? ?? 'Code valide',
-          durationDays: (data['duration_days'] as num?)?.toInt() ?? 30,
-        ));
-      } else {
-        state = PromoInvalid(data['message'] as String? ?? 'Code invalide');
-      }
-    } catch (_) {
-      state = PromoInvalid('Code invalide ou expiré');
-    }
-  }
-
-  void reset() => state = PromoIdle();
-}
-
-final promoProvider = StateNotifierProvider<PromoNotifier, PromoState>(
-  (ref) => PromoNotifier(ref.read(dioProvider)));
-
-// ─── Abonnement via code promo ─────────────────────────────────────────────────
-abstract class SubscribeState {}
-class SubscribeIdle    extends SubscribeState {}
-class SubscribeLoading extends SubscribeState {}
-class SubscribeSuccess extends SubscribeState {}
-class SubscribeError   extends SubscribeState {
-  final String message;
-  SubscribeError(this.message);
-}
-
-class SubscribeNotifier extends StateNotifier<SubscribeState> {
-  final Dio _dio;
-  SubscribeNotifier(this._dio) : super(SubscribeIdle());
-
-  Future<void> subscribe({required String planId, required String paymentMethod, String? promoCode}) async {
-    state = SubscribeLoading();
-    try {
-      await _dio.post('/subscriptions/subscribe', data: {
-        'plan_id': planId, 'payment_method': paymentMethod,
-        'promo_code': promoCode,
-      });
-      state = SubscribeSuccess();
-    } catch (e) {
-      state = SubscribeError('Erreur lors de la souscription');
-    }
-  }
-
-  void reset() => state = SubscribeIdle();
-}
-
-final subscribeProvider = StateNotifierProvider<SubscribeNotifier, SubscribeState>(
-  (ref) => SubscribeNotifier(ref.read(dioProvider)));

@@ -1,28 +1,25 @@
-﻿import 'dart:convert';
+﻿import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
+import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/country_pill_selector.dart';
 import '../providers/subscription_provider.dart';
+import '../providers/iap_provider.dart';
+import '../../../../core/config/distribution_channel.dart';
+import '../../data/iap_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
 // Numéro de réception des paiements mobiles
 const _paymentPhone    = '0757123456';
 const _paymentOperator = 'Orange Money / Wave';
-
-// Indicatifs par pays
-const _countries = [
-  {'flag': '🇧🇫', 'name': 'Burkina Faso', 'code': '+226', 'digits': 8},
-  {'flag': '🇨🇮', 'name': "Côte d'Ivoire", 'code': '+225', 'digits': 10},
-  {'flag': '🇸🇳', 'name': 'Sénégal',      'code': '+221', 'digits': 9},
-  {'flag': '🇲🇱', 'name': 'Mali',          'code': '+223', 'digits': 8},
-  {'flag': '🇬🇳', 'name': 'Guinée',        'code': '+224', 'digits': 9},
-  {'flag': '🇫🇷', 'name': 'France',        'code': '+33',  'digits': 9},
-];
 
 class ActiverPremiumPage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? subData;
@@ -37,52 +34,90 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   late TabController _tab;
   final _picker = ImagePicker();
 
-  // Paywall state
-  bool   _showPaywall   = true;
-  String _selectedPlan  = 'mensuel'; // 'mensuel' | 'xbet'
+  // Paywall state — deux axes indépendants : durée × méthode de paiement
+  bool   _showPaywall = true;
+  String _duration    = 'mensuel'; // 'mensuel' | 'annuel'
+  String _method      = 'direct';  // 'direct' | 'code'
 
-  // Onglet 1 Paiement direct
+  // Achat intégré : verrou pendant qu'une transaction est en cours.
+  bool _iapBusy = false;
+  StreamSubscription<IapResult>? _iapSub;
+
+  // Champs partagés (preuve de paiement Mobile Money) — utilisés par les 2 onglets
   final _amountCtrl = TextEditingController();
   final _phoneCtrl  = TextEditingController();
   File?   _imagePayment;
-  Map<String, dynamic> _selectedCountry = _countries[0]; // BF par défaut
+  Country _selectedCountry = deviceDefaultCountry();
 
-  // Onglet 2 Code 1xBet
-  final _xbetCtrl2 = TextEditingController();
-  File?  _imageXbet;
+  // Onglet "Code Promo" — spécifique au compte partenaire
+  final _accountIdCtrl = TextEditingController();
+  File?  _imageAccount;
+  String _platform = '1xbet';
+
+  // Prix FCFA à collecter selon durée × méthode — c'est le SEUL endroit de
+  // l'app où le FCFA est affiché à l'utilisateur.
+  int get _fcfaAmountForSelectedPlan {
+    final directMonthly = (widget.subData?['premium_price_monthly_fcfa'] as num?)?.toInt() ?? 6000;
+    final directAnnual  = (widget.subData?['premium_price_annual_fcfa']  as num?)?.toInt() ?? 54000;
+    final codeMonthly   = (widget.subData?['premium_price_monthly_code_fcfa'] as num?)?.toInt() ?? 4200;
+    final codeAnnual    = (widget.subData?['premium_price_annual_code_fcfa']  as num?)?.toInt() ?? 37800;
+    if (_method == 'code') return _duration == 'annuel' ? codeAnnual : codeMonthly;
+    return _duration == 'annuel' ? directAnnual : directMonthly;
+  }
+
+  String get _planIdForSelectedPlan =>
+    _duration == 'annuel' ? 'premium_annual' : 'premium_monthly';
 
   @override
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
-    _amountCtrl.text = (widget.subData?['premium_price'] ?? 5000).toString();
+    _amountCtrl.text = _fcfaAmountForSelectedPlan.toString();
+    _tab.addListener(_onTabChanged);
+    if (ref.read(isStoreBuildProvider)) {
+      _iapSub = ref.read(iapServiceProvider).results.listen(_onIapResult);
+    }
     // Rediriger si le profil est incomplet (filet de sécurité)
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final authState = ref.read(authProvider);
       if (authState is AuthAuthenticated && !authState.user.isProfileComplete) {
-        context.replace('/compte/completer-profil');
+        context.replace('/compte/completer-profil', extra: '/compte/activer-premium');
       }
     });
   }
 
+  // Garde `_method` synchronisé quand l'utilisateur change d'onglet (tap ou swipe)
+  void _onTabChanged() {
+    if (_tab.indexIsChanging) return;
+    final newMethod = _tab.index == 1 ? 'code' : 'direct';
+    if (newMethod != _method) {
+      setState(() {
+        _method = newMethod;
+        _amountCtrl.text = _fcfaAmountForSelectedPlan.toString();
+      });
+    }
+  }
+
   @override
   void dispose() {
+    _iapSub?.cancel();
+    _tab.removeListener(_onTabChanged);
     _tab.dispose();
     _amountCtrl.dispose(); _phoneCtrl.dispose();
-    _xbetCtrl2.dispose();
+    _accountIdCtrl.dispose();
     super.dispose();
   }
 
-  void _goToForm(String plan) {
+  void _goToForm() {
     setState(() {
-      _selectedPlan = plan;
-      _showPaywall  = false;
-      _tab.index    = plan == 'xbet' ? 1 : 0;
+      _showPaywall      = false;
+      _tab.index        = _method == 'code' ? 1 : 0;
+      _amountCtrl.text  = _fcfaAmountForSelectedPlan.toString();
     });
   }
 
   // ─── Sélectionner image ───────────────────────────────────────────────────
-  Future<void> _showImagePicker(bool isPayment) async {
+  Future<void> _showImagePicker(ValueChanged<File> onPicked) async {
     showModalBottomSheet(
       context: context,
       backgroundColor: context.cl.surface,
@@ -103,7 +138,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
             onTap: () async {
               Navigator.pop(context);
               final f = await _pickFrom(ImageSource.gallery);
-              if (f != null) setState(() => isPayment ? _imagePayment = f : _imageXbet = f);
+              if (f != null) setState(() => onPicked(f));
             },
           ),
           _PickerOption(
@@ -112,7 +147,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
             onTap: () async {
               Navigator.pop(context);
               final f = await _pickFrom(ImageSource.camera);
-              if (f != null) setState(() => isPayment ? _imagePayment = f : _imageXbet = f);
+              if (f != null) setState(() => onPicked(f));
             },
           ),
           const SizedBox(height: 12),
@@ -133,43 +168,6 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     } catch (_) { return null; }
   }
 
-  // ─── Sélecteur de pays ────────────────────────────────────────────────────
-  void _showCountryPicker() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: context.cl.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(width: 40, height: 4, margin: EdgeInsets.symmetric(vertical: 12),
-            decoration: BoxDecoration(color: context.cl.borderSoft, borderRadius: BorderRadius.circular(2))),
-          Padding(
-            padding: EdgeInsets.symmetric(horizontal: 20),
-            child: Text('Choisis ton pays', style: TextStyle(
-              color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
-          ),
-          SizedBox(height: 8),
-          ..._countries.map((c) => ListTile(
-            leading: Text(c['flag'] as String, style: TextStyle(fontSize: 24)),
-            title: Text(c['name'] as String, style: TextStyle(color: context.cl.textP)),
-            trailing: Text(c['code'] as String, style: const TextStyle(
-              color: AppColors.primary, fontWeight: FontWeight.w600)),
-            onTap: () {
-              setState(() {
-                _selectedCountry = c;
-                _phoneCtrl.clear();
-              });
-              Navigator.pop(context);
-            },
-          )),
-          const SizedBox(height: 12),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
     final submitState = ref.watch(submitProofProvider);
@@ -187,7 +185,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => setState(() => _showPaywall = true),
         ),
-        title: Text(_selectedPlan == 'xbet' ? 'Activation Code 1xBet' : 'Paiement Mobile'),
+        title: Text(_method == 'code' ? 'Activation Code Promo' : 'Paiement Mobile'),
         bottom: TabBar(
           controller: _tab,
           indicatorColor: AppColors.primary,
@@ -195,8 +193,8 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
           unselectedLabelColor: context.cl.textS,
           labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           tabs: const [
-            Tab(icon: Icon(Icons.phone_android_rounded, size: 16), text: 'Paiement Mobile'),
-            Tab(icon: Icon(Icons.confirmation_number_rounded, size: 16), text: 'Code 1xBet'),
+            Tab(icon: Icon(Icons.phone_android_rounded, size: 16), text: 'Paiement Direct'),
+            Tab(icon: Icon(Icons.confirmation_number_rounded, size: 16), text: 'Code Promo'),
           ],
         ),
       ),
@@ -214,121 +212,197 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   // PAGE PAYWALL (landing d'activation premium)
   // ══════════════════════════════════════════════════════
   Widget _buildPaywallPage() {
-    final price = widget.subData?['premium_price'] ?? 5000;
+    final monthlyUsd     = (widget.subData?['premium_price_monthly_usd']      as num?)?.toDouble() ?? 10;
+    final annualUsd      = (widget.subData?['premium_price_annual_usd']       as num?)?.toDouble() ?? 90;
+    final monthlyCodeUsd = (widget.subData?['premium_price_monthly_code_usd'] as num?)?.toDouble() ?? 7;
+    final annualCodeUsd  = (widget.subData?['premium_price_annual_code_usd']  as num?)?.toDouble() ?? 63;
+
+    // Sur un build store, Apple (3.1.1) et Google imposent l'achat intégré
+    // pour déverrouiller du contenu numérique — et interdisent d'afficher un
+    // moyen de paiement externe à côté. Les deux chemins ne coexistent donc
+    // jamais sur le même écran.
+    final isStore = ref.watch(isStoreBuildProvider);
+    final iapReady = isStore ? (ref.watch(iapReadyProvider).value ?? false) : false;
+
     return _PaywallPage(
-      price:          price,
-      selectedPlan:   _selectedPlan,
-      onSelectPlan:   (p) => setState(() => _selectedPlan = p),
-      onConfirm:      () => _goToForm(_selectedPlan),
-      onClose:        () => context.pop(),
+      monthlyPrice:     monthlyUsd,
+      annualPrice:      annualUsd,
+      monthlyCodePrice: monthlyCodeUsd,
+      annualCodePrice:  annualCodeUsd,
+      promoCode:        widget.subData?['promo_code'] as String? ?? 'PRONOWIN2025',
+      duration:         _duration,
+      method:           _method,
+      onSelectDuration: (d) => setState(() => _duration = d),
+      onSelectMethod:   (m) => setState(() => _method = m),
+      onConfirm:        _goToForm,
+      onClose:          () => context.pop(),
+      iapMode:          isStore,
+      iapLoading:       isStore && ref.watch(iapReadyProvider).isLoading,
+      iapUnavailable:   isStore && !iapReady,
+      iapProduct:       iapReady ? _iapProductForDuration() : null,
+      iapBusy:          _iapBusy,
+      onIapBuy:         _startIapPurchase,
+      onIapRestore:     _restoreIap,
     );
   }
 
+  // ─── Achat intégré ────────────────────────────────────────────────────────
+  ProductDetails? _iapProductForDuration() {
+    final id = _duration == 'annuel'
+      ? 'com.pronowin.premium.annual'
+      : 'com.pronowin.premium.monthly';
+    return ref.read(iapServiceProvider).productFor(id);
+  }
+
+  Future<void> _startIapPurchase() async {
+    final product = _iapProductForDuration();
+    if (product == null) {
+      _showSnack('Ce forfait n\'est pas disponible sur le store.', isError: true);
+      return;
+    }
+    setState(() => _iapBusy = true);
+    try {
+      await ref.read(iapServiceProvider).buy(product);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _iapBusy = false);
+        _showSnack('Achat impossible : $e', isError: true);
+      }
+    }
+  }
+
+  Future<void> _restoreIap() async {
+    setState(() => _iapBusy = true);
+    try {
+      await ref.read(iapServiceProvider).restore();
+    } catch (e) {
+      if (mounted) _showSnack('Restauration impossible : $e', isError: true);
+    }
+    // Le résultat arrive par le flux ; si rien ne vient, on relâche le verrou.
+    await Future<void>.delayed(const Duration(seconds: 4));
+    if (mounted && _iapBusy) {
+      setState(() => _iapBusy = false);
+      _showSnack('Aucun achat à restaurer sur ce compte.');
+    }
+  }
+
+  void _onIapResult(IapResult r) {
+    if (!mounted) return;
+    setState(() => _iapBusy = false);
+    switch (r) {
+      case IapSuccess():
+        // Rafraîchir le profil : c'est lui qui porte subscriptionExpiresAt et
+        // qui déverrouille le reste de l'app.
+        ref.read(authProvider.notifier).refreshUser();
+        ref.invalidate(currentSubscriptionProvider);
+        _showSuccessDialog('immédiate');
+      case IapCancelled():
+        break; // L'utilisateur a annulé : pas de message d'erreur.
+      case IapFailure(:final message):
+        _showSnack(message, isError: true);
+    }
+  }
+
   // ══════════════════════════════════════════════════════'
-  // ONGLET PAIEMENT
+  // CHAMPS PARTAGÉS — preuve de paiement Mobile Money (utilisés par les 2 onglets)
+  // ══════════════════════════════════════════════════════'
+  List<Widget> _buildPaymentFieldsSection({required bool isCode, required int stepOffset}) {
+    final price = _fcfaAmountForSelectedPlan;
+    final planLabel = (_duration == 'annuel' ? 'Plan Annuel' : 'Plan Mensuel') +
+      (isCode ? ' · Tarif réduit' : '');
+    return [
+      _PaymentRecipientCard(price: price, planLabel: planLabel),
+      const SizedBox(height: 20),
+
+      _FieldLabel('$stepOffset. Montant envoyé (FCFA)'),
+      TextField(
+        controller: _amountCtrl,
+        keyboardType: TextInputType.number,
+        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+        style: Theme.of(context).textTheme.bodyLarge,
+        decoration: InputDecoration(
+          hintText: '$price',
+          prefixIcon: Icon(Icons.payments_rounded, size: 20, color: context.cl.textM),
+          helperText: 'Montant exact que vous avez envoyé',
+          helperStyle: TextStyle(color: context.cl.textM, fontSize: 11),
+        ),
+      ),
+      const SizedBox(height: 20),
+
+      _FieldLabel('${stepOffset + 1}. Numéro Mobile Money utilisé pour le transfert'),
+      Text(
+        'Entrez le numéro depuis lequel vous avez envoyé l\'argent',
+        style: TextStyle(color: context.cl.textM, fontSize: 11),
+      ),
+      const SizedBox(height: 8),
+      Row(children: [
+        // Sélecteur pays — liste exhaustive avec recherche
+        CountryPillSelector(
+          country: _selectedCountry,
+          onSelect: (c) => setState(() {
+            _selectedCountry = c;
+            _phoneCtrl.clear();
+          }),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: TextField(
+            controller: _phoneCtrl,
+            keyboardType: TextInputType.phone,
+            inputFormatters: [
+              FilteringTextInputFormatter.digitsOnly,
+              LengthLimitingTextInputFormatter(15), // max E.164
+            ],
+            style: Theme.of(context).textTheme.bodyLarge,
+            decoration: InputDecoration(
+              hintText: '70 00 00 00',
+              helperText: 'Sans l\'indicatif',
+              helperStyle: TextStyle(color: context.cl.textM, fontSize: 11),
+            ),
+          ),
+        ),
+      ]),
+
+      // Aperçu du numéro complet
+      ValueListenableBuilder(
+        valueListenable: _phoneCtrl,
+        builder: (_, val, _) {
+          if (val.text.isEmpty) return const SizedBox.shrink();
+          return Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(children: [
+              const Icon(Icons.check_circle_outline_rounded, color: AppColors.success, size: 14),
+              const SizedBox(width: 6),
+              Text(
+                'Numéro complet : +${_selectedCountry.phoneCode}${val.text}',
+                style: const TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w500),
+              ),
+            ]),
+          );
+        },
+      ),
+      const SizedBox(height: 20),
+
+      _FieldLabel('${stepOffset + 2}. Capture d\'écran de la confirmation de paiement'),
+      _ImagePickerWidget(image: _imagePayment, onTap: () => _showImagePicker((f) => _imagePayment = f)),
+    ];
+  }
+
+  // ══════════════════════════════════════════════════════'
+  // ONGLET PAIEMENT DIRECT
   // ══════════════════════════════════════════════════════'
   Widget _buildPaymentTab(SubmitProofState submitState) {
-    final price = widget.subData?['premium_price'] ?? 5000;
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-
-        // Numéro de destination — copiable
-        _PaymentRecipientCard(price: price),
-        const SizedBox(height: 20),
-
-        // 1. Montant
-        _FieldLabel('1. Montant envoyé (FCFA)'),
-        TextField(
-          controller: _amountCtrl,
-          keyboardType: TextInputType.number,
-          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-          style: Theme.of(context).textTheme.bodyLarge,
-          decoration: InputDecoration(
-            hintText: '$price',
-            prefixIcon: Icon(Icons.payments_rounded, size: 20, color: context.cl.textM),
-            helperText: 'Montant exact que tu as envoyé',
-            helperStyle: TextStyle(color: context.cl.textM, fontSize: 11),
-          ),
-        ),
-        const SizedBox(height: 20),
-
-        // 2. Numéro qui a effectué le transfert
-        _FieldLabel('2. Numéro Mobile Money utilisé pour le transfert'),
-        Text(
-          'Entrez le numéro depuis lequel tu as envoyé l\'argent',
-          style: TextStyle(color: context.cl.textM, fontSize: 11),
-        ),
-        const SizedBox(height: 8),
-        Row(children: [
-          // Sélecteur pays
-          GestureDetector(
-            onTap: _showCountryPicker,
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 12, vertical: 15),
-              decoration: BoxDecoration(
-                color: context.cl.surfaceDeep,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: context.cl.borderSoft, width: 0.5)),
-              child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text(_selectedCountry['flag'] as String, style: const TextStyle(fontSize: 20)),
-                SizedBox(width: 6),
-                Text(_selectedCountry['code'] as String, style: TextStyle(
-                  color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 15)),
-                SizedBox(width: 4),
-                Icon(Icons.arrow_drop_down_rounded, color: context.cl.textM, size: 18),
-              ]),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: TextField(
-              controller: _phoneCtrl,
-              keyboardType: TextInputType.phone,
-              inputFormatters: [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(_selectedCountry['digits'] as int),
-              ],
-              style: Theme.of(context).textTheme.bodyLarge,
-              decoration: InputDecoration(
-                hintText: '70 00 00 00',
-                helperText: '${_selectedCountry['digits']} chiffres',
-                helperStyle: TextStyle(color: context.cl.textM, fontSize: 11),
-              ),
-            ),
-          ),
-        ]),
-
-        // Aperçu du numéro complet
-        ValueListenableBuilder(
-          valueListenable: _phoneCtrl,
-          builder: (_, val, _) {
-            if (val.text.isEmpty) return const SizedBox.shrink();
-            return Padding(
-              padding: const EdgeInsets.only(top: 8),
-              child: Row(children: [
-                const Icon(Icons.check_circle_outline_rounded, color: AppColors.success, size: 14),
-                const SizedBox(width: 6),
-                Text(
-                  'Numéro complet : ${_selectedCountry['code']}${val.text}',
-                  style: const TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w500),
-                ),
-              ]),
-            );
-          },
-        ),
-        const SizedBox(height: 20),
-
-        // 3. Capture d'écran
-        _FieldLabel('3. Capture d\'écran de la confirmation'),
-        _ImagePickerWidget(image: _imagePayment, onTap: () => _showImagePicker(true)),
+        ..._buildPaymentFieldsSection(isCode: false, stepOffset: 1),
         const SizedBox(height: 16),
 
         // Récapitulatif avant envoi
         if (_imagePayment != null && _phoneCtrl.text.isNotEmpty)
           _RecapCard(
             amount:  double.tryParse(_amountCtrl.text) ?? 0,
-            phone:   '${_selectedCountry['code']}${_phoneCtrl.text}',
+            phone:   '+${_selectedCountry.phoneCode}${_phoneCtrl.text}',
             xbetId:  '',
           ),
         const SizedBox(height: 20),
@@ -342,15 +416,26 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
                      _phoneCtrl.text.length >= 7,
           onTap:     _submitPayment,
         ),
+        if (_imagePayment == null || _phoneCtrl.text.length < 7) ...[
+          const SizedBox(height: 8),
+          Text(
+            _imagePayment == null
+                ? 'Ajoutez une capture d\'écran pour continuer'
+                : 'Entrez un numéro de téléphone valide pour continuer',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: context.cl.textM, fontSize: 12)),
+        ],
       ],
     );
   }
 
   // ══════════════════════════════════════════════════════
-  // ONGLET CODE 1xBET
+  // ONGLET CODE PROMO
   // ══════════════════════════════════════════════════════
   Widget _buildXbetTab(SubmitProofState submitState) {
     final promoCode = widget.subData?['promo_code'] ?? 'PRONOWIN2025';
+    final platforms = (widget.subData?['betting_platforms'] as List?)?.cast<String>()
+      ?? const ['1xbet', 'melbet', 'betwinner'];
     const purple    = Color(0xFFA78BFA);
     const purpleDark = Color(0xFF7C3AED);
 
@@ -369,18 +454,33 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
             borderRadius: BorderRadius.circular(20),
             border: Border.all(color: purple.withValues(alpha: 0.25), width: 0.8)),
           child: Column(children: [
-            const _XbetLogo(size: 32),
+            Container(
+              width: 56, height: 56,
+              decoration: BoxDecoration(
+                color: purple.withValues(alpha: 0.15),
+                shape: BoxShape.circle),
+              child: const Icon(Icons.diversity_3_rounded, color: purple, size: 28)),
             const SizedBox(height: 12),
-            Text('Rejoins 1xBet', style: TextStyle(
+            Text('Rejoins un partenaire', style: TextStyle(
               color: context.cl.textP, fontSize: 17,
               fontWeight: FontWeight.w800, letterSpacing: -0.3)),
             const SizedBox(height: 6),
             Text(
-              'Crée ton compte avec notre code promo et obtenez l\'accès Premium gratuitement.',
+              'Crée un compte sur 1xBet, Melbet ou Betwinner avec notre code et profite de -30% sur ton abonnement.',
               style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.5),
               textAlign: TextAlign.center),
           ]),
         ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.05, end: 0),
+
+        const SizedBox(height: 20),
+
+        // ── Sélecteur de plateforme ─────────────────────────────
+        _FieldLabel('Plateforme partenaire'),
+        _PlatformSelector(
+          platforms: platforms,
+          selected: _platform,
+          onSelect: (p) => setState(() => _platform = p),
+        ).animate(delay: 60.ms).fadeIn(duration: 300.ms),
 
         const SizedBox(height: 20),
 
@@ -391,7 +491,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         const SizedBox(height: 20),
 
         // ── Timeline des étapes ───────────────────────────────────
-        _XbetSteps()
+        _XbetSteps(monthlyCodePrice: _codeMonthlyUsd)
           .animate(delay: 140.ms).fadeIn(duration: 300.ms),
 
         const SizedBox(height: 24),
@@ -409,16 +509,17 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
 
         const SizedBox(height: 20),
 
-        // ── Champ ID 1xBet stylisé ────────────────────────────────
+        // ── Champ ID de compte stylisé ────────────────────────────
+        _FieldLabel('1. ID de ton compte'),
         Container(
           decoration: BoxDecoration(
             color: context.cl.surface,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: _xbetCtrl2.text.isNotEmpty
+              color: _accountIdCtrl.text.isNotEmpty
                 ? purple.withValues(alpha: 0.5)
                 : context.cl.border,
-              width: _xbetCtrl2.text.isNotEmpty ? 1.5 : 0.5)),
+              width: _accountIdCtrl.text.isNotEmpty ? 1.5 : 0.5)),
           child: Row(children: [
             Container(
               width: 48, height: 56,
@@ -430,21 +531,21 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
               child: const Icon(Icons.badge_rounded, color: purple, size: 22)),
             Expanded(
               child: TextField(
-                controller: _xbetCtrl2,
+                controller: _accountIdCtrl,
                 keyboardType: TextInputType.number,
                 onChanged: (_) => setState(() {}),
                 style: TextStyle(
                   color: context.cl.textP, fontSize: 16,
                   fontWeight: FontWeight.w600, letterSpacing: 1),
                 decoration: InputDecoration(
-                  hintText: 'Ton ID 1xBet',
+                  hintText: 'Ton ID de compte',
                   hintStyle: TextStyle(color: context.cl.textM,
                     fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0),
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16)),
               ),
             ),
-            if (_xbetCtrl2.text.isNotEmpty)
+            if (_accountIdCtrl.text.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.only(right: 14),
                 child: const Icon(Icons.check_circle_rounded,
@@ -457,32 +558,55 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
 
         Padding(
           padding: const EdgeInsets.only(top: 6, left: 4),
-          child: Text('Visible dans Profil → Mon compte sur 1xBet',
+          child: Text('Visible dans Profil → Mon compte sur la plateforme choisie',
             style: TextStyle(color: context.cl.textM, fontSize: 11))),
 
         const SizedBox(height: 20),
 
-        // ── Zone upload capture ────────────────────────────────────
-        Text('Capture de ton profil 1xBet', style: TextStyle(
-          color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 8),
-        _ImagePickerWidget(image: _imageXbet, onTap: () => _showImagePicker(false)),
+        // ── Zone upload capture du compte ───────────────────────────
+        _FieldLabel('2. Capture de ton profil (ID visible)'),
+        _ImagePickerWidget(image: _imageAccount, onTap: () => _showImagePicker((f) => _imageAccount = f)),
 
         const SizedBox(height: 28),
+
+        // ── Preuve de paiement (tarif réduit) ───────────────────────
+        ..._buildPaymentFieldsSection(isCode: true, stepOffset: 3),
+
+        const SizedBox(height: 20),
 
         // ── Bouton soumettre ──────────────────────────────────────
         _XbetSubmitButton(
           isLoading: submitState is ProofLoading,
-          enabled:   _imageXbet != null && _xbetCtrl2.text.isNotEmpty,
-          onTap:     _submitXbet,
+          enabled:   _imageAccount != null && _accountIdCtrl.text.isNotEmpty &&
+                     _imagePayment != null && _phoneCtrl.text.length >= 7,
+          onTap:     _submitCode,
         ).animate(delay: 240.ms).fadeIn(duration: 300.ms).slideY(begin: 0.06, end: 0),
+        if (_accountIdCtrl.text.isEmpty ||
+            _imageAccount == null ||
+            _imagePayment == null ||
+            _phoneCtrl.text.length < 7) ...[
+          const SizedBox(height: 8),
+          Text(
+            _accountIdCtrl.text.isEmpty
+                ? 'Entrez l\'ID de ton compte partenaire pour continuer'
+                : _imageAccount == null
+                    ? 'Ajoutez une capture de ton profil pour continuer'
+                    : _imagePayment == null
+                        ? 'Ajoutez une capture d\'écran du paiement pour continuer'
+                        : 'Entrez un numéro de téléphone valide pour continuer',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: context.cl.textM, fontSize: 12)),
+        ],
       ],
     );
   }
 
+  double get _codeMonthlyUsd =>
+    (widget.subData?['premium_price_monthly_code_usd'] as num?)?.toDouble() ?? 7;
+
   // ─── Actions ─────────────────────────────────────────────────────────────
   Future<void> _submitPayment() async {
-    final phone = '${_selectedCountry['code']}${_phoneCtrl.text.trim()}';
+    final phone = '+${_selectedCountry.phoneCode}${_phoneCtrl.text.trim()}';
     if (_phoneCtrl.text.trim().length < 7) {
       _showSnack('Numéro de téléphone trop court.', isError: true); return;
     }
@@ -492,21 +616,33 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       type:        'payment_screenshot',
       imageBase64: base64,
       xbetId:      '',
-      amount:      double.tryParse(_amountCtrl.text) ?? 5000,
+      amount:      double.tryParse(_amountCtrl.text) ?? _fcfaAmountForSelectedPlan.toDouble(),
       senderPhone: phone,
+      planId:      _planIdForSelectedPlan,
     );
   }
 
-  Future<void> _submitXbet() async {
-    if (_xbetCtrl2.text.trim().isEmpty) {
-      _showSnack('ID 1xBet requis.', isError: true); return;
+  Future<void> _submitCode() async {
+    if (_accountIdCtrl.text.trim().isEmpty) {
+      _showSnack('ID de compte requis.', isError: true); return;
     }
-    final base64 = await _toBase64(_imageXbet!);
-    if (base64 == null) return;
+    final phone = '+${_selectedCountry.phoneCode}${_phoneCtrl.text.trim()}';
+    if (_phoneCtrl.text.trim().length < 7) {
+      _showSnack('Numéro de téléphone trop court.', isError: true); return;
+    }
+    final accountBase64 = await _toBase64(_imageAccount!);
+    if (accountBase64 == null) return;
+    final paymentBase64 = await _toBase64(_imagePayment!);
+    if (paymentBase64 == null) return;
     ref.read(submitProofProvider.notifier).submit(
-      type:        'xbet_account_screenshot',
-      imageBase64: base64,
-      xbetId:      _xbetCtrl2.text.trim(),
+      type:               'xbet_account_screenshot',
+      imageBase64:        accountBase64,
+      paymentImageBase64: paymentBase64,
+      xbetId:             _accountIdCtrl.text.trim(),
+      platform:           _platform,
+      amount:             double.tryParse(_amountCtrl.text) ?? _fcfaAmountForSelectedPlan.toDouble(),
+      senderPhone:        phone,
+      planId:             _planIdForSelectedPlan,
     );
   }
 
@@ -639,35 +775,55 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
 
 // ─── WIDGETS ─────────────────────────────────────────────────────────────────
 
-// Logo 1xBet textuel — "1X" blanc + "BET" bleu, italique bold
-class _XbetLogo extends StatelessWidget {
-  final double size;
-  const _XbetLogo({required this.size});
+// ─── Sélecteur de plateforme partenaire ────────────────────────────────────────
+class _PlatformSelector extends StatelessWidget {
+  final List<String> platforms;
+  final String selected;
+  final ValueChanged<String> onSelect;
+  const _PlatformSelector({required this.platforms, required this.selected, required this.onSelect});
+
+  static const _labels = {'1xbet': '1xBet', 'melbet': 'Melbet', 'betwinner': 'Betwinner'};
+
+  static String _labelFor(String id) =>
+    _labels[id] ?? (id.isEmpty ? id : '${id[0].toUpperCase()}${id.substring(1)}');
 
   @override
-  Widget build(BuildContext context) => Transform(
-    transform: Matrix4.skewX(-0.08),
-    child: RichText(
-      text: TextSpan(
-        style: TextStyle(
-          fontSize: size,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.5,
-          height: 1,
+  Widget build(BuildContext context) {
+    const purple = Color(0xFFA78BFA);
+    return Row(children: platforms.map((id) {
+      final label = _labelFor(id);
+      final isSelected = selected == id;
+      final isLast = id == platforms.last;
+      return Expanded(
+        child: Padding(
+          padding: EdgeInsets.only(right: isLast ? 0 : 8),
+          child: GestureDetector(
+            onTap: () { HapticFeedback.selectionClick(); onSelect(id); },
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                color: isSelected ? purple.withValues(alpha: 0.15) : context.cl.surface,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: isSelected ? purple : context.cl.border,
+                  width: isSelected ? 1.5 : 0.5)),
+              child: Text(label, textAlign: TextAlign.center, style: TextStyle(
+                color: isSelected ? purple : context.cl.textS,
+                fontSize: 13, fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500)),
+            ),
+          ),
         ),
-        children: const [
-          TextSpan(text: '1X', style: TextStyle(color: Colors.white)),
-          TextSpan(text: 'BET', style: TextStyle(color: Color(0xFF4B8FE2))),
-        ],
-      ),
-    ),
-  );
+      );
+    }).toList());
+  }
 }
 
 // ─── Carte numéro de réception ────────────────────────────────────────────────
 class _PaymentRecipientCard extends StatelessWidget {
   final dynamic price;
-  const _PaymentRecipientCard({required this.price});
+  final String  planLabel;
+  const _PaymentRecipientCard({required this.price, required this.planLabel});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -685,9 +841,9 @@ class _PaymentRecipientCard extends StatelessWidget {
       Row(children: [
         const Icon(Icons.send_to_mobile_rounded, color: AppColors.primary, size: 16),
         const SizedBox(width: 8),
-        Text('Envoie $price FCFA à ce numéro',
+        Expanded(child: Text('Envoie $price FCFA à ce numéro ($planLabel)',
           style: const TextStyle(
-            color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w700)),
+            color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w700))),
       ]),
       const SizedBox(height: 10),
       Container(
@@ -788,23 +944,6 @@ class _PickerOption extends StatelessWidget {
     title: Text(title, style: TextStyle(color: context.cl.textP, fontSize: 14)),
     subtitle: Text(subtitle, style: TextStyle(color: context.cl.textM, fontSize: 11)),
     onTap: onTap,
-  );
-}
-
-class _InfoCard extends StatelessWidget {
-  final IconData icon; final Color color; final String text;
-  const _InfoCard({required this.icon, required this.color, required this.text});
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(14),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: color.withValues(alpha: 0.2), width: 0.5)),
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Icon(icon, color: color, size: 18),
-      const SizedBox(width: 10),
-      Expanded(child: Text(text, style: TextStyle(color: color.withValues(alpha: 0.9), fontSize: 13, height: 1.5))),
-    ]),
   );
 }
 
@@ -959,7 +1098,7 @@ class _PromoCodeCardState extends State<_PromoCodeCard>
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20)),
-              child: const Text('CODE PROMO 1xBET', style: TextStyle(
+              child: const Text('CODE PROMO PARTENAIRE', style: TextStyle(
                 color: Colors.white70, fontSize: 10,
                 letterSpacing: 1.5, fontWeight: FontWeight.w700)),
             ),
@@ -988,16 +1127,18 @@ class _PromoCodeCardState extends State<_PromoCodeCard>
   );
 }
 
-// ─── ÉTAPES 1xBET ─────────────────────────────────────────────────────────────
+// ─── ÉTAPES CODE PROMO ────────────────────────────────────────────────────────
 class _XbetSteps extends StatelessWidget {
-  const _XbetSteps();
+  final double monthlyCodePrice;
+  const _XbetSteps({required this.monthlyCodePrice});
 
-  static const _steps = [
-    (Icons.language_rounded,      'Rendez-vous sur 1xBet',        "Ouvrez 1xbet.com ou l'app mobile"),
-    (Icons.person_add_rounded,    'Crée ton compte',           "Entrez le code promo lors de l'inscription"),
-    (Icons.account_balance_wallet_rounded, 'Effectuez un dépôt', 'Un dépôt initial est obligatoire pour valider ton compte 1xBet'),
-    (Icons.photo_camera_rounded,  'Prends une capture de profil', 'Ton ID 1xBet doit être visible'),
-    (Icons.upload_rounded,        'Soumets ci-dessous',         'ID + capture → validation sous 24h'),
+  List<(IconData, String, String)> get _steps => [
+    (Icons.language_rounded,      'Choisis une plateforme',       'Rendez-vous sur 1xBet, Melbet ou Betwinner'),
+    (Icons.person_add_rounded,    'Crée ton compte',              "Entrez le code promo lors de l'inscription"),
+    (Icons.account_balance_wallet_rounded, 'Effectue un dépôt',   'Un dépôt initial est obligatoire pour valider ton compte'),
+    (Icons.photo_camera_rounded,  'Capture ton profil',           'Ton ID de compte doit être visible'),
+    (Icons.send_to_mobile_rounded, 'Envoie ton paiement',         'Tarif réduit à partir de \$${monthlyCodePrice.toStringAsFixed(0)}/mois sur notre numéro Mobile Money'),
+    (Icons.upload_rounded,        'Soumets ci-dessous',           'ID + 2 captures → validation sous 2h'),
   ];
 
   @override
@@ -1119,31 +1260,55 @@ class _XbetSubmitButton extends StatelessWidget {
 // PAYWALL PAGE
 // ══════════════════════════════════════════════════════════════════════════════
 class _PaywallPage extends StatelessWidget {
-  final int price;
-  final String selectedPlan;
-  final void Function(String) onSelectPlan;
+  final double monthlyPrice;
+  final double annualPrice;
+  final double monthlyCodePrice;
+  final double annualCodePrice;
+  final String promoCode;
+  final String duration; // 'mensuel' | 'annuel'
+  final String method;   // 'direct' | 'code'
+  final void Function(String) onSelectDuration;
+  final void Function(String) onSelectMethod;
   final VoidCallback onConfirm;
   final VoidCallback onClose;
 
+  // ── Achat intégré ──────────────────────────────────────────────────────────
+  /// Build publié sur un store : l'achat intégré remplace intégralement le
+  /// Mobile Money. Les deux ne s'affichent jamais ensemble (Apple 3.1.1).
+  final bool iapMode;
+  final bool iapLoading;
+  final bool iapUnavailable;
+  final ProductDetails? iapProduct;
+  final bool iapBusy;
+  final VoidCallback onIapBuy;
+  final VoidCallback onIapRestore;
+
   const _PaywallPage({
-    required this.price,
-    required this.selectedPlan,
-    required this.onSelectPlan,
+    required this.monthlyPrice,
+    required this.annualPrice,
+    required this.monthlyCodePrice,
+    required this.annualCodePrice,
+    required this.promoCode,
+    required this.duration,
+    this.iapMode        = false,
+    this.iapLoading     = false,
+    this.iapUnavailable = false,
+    this.iapProduct,
+    this.iapBusy        = false,
+    required this.onIapBuy,
+    required this.onIapRestore,
+    required this.method,
+    required this.onSelectDuration,
+    required this.onSelectMethod,
     required this.onConfirm,
     required this.onClose,
   });
 
   static const _features = [
     (Icons.star_rounded,          'Pronostics VIP illimités'),
-    (Icons.psychology_rounded,    'Analyse IA par match'),
+    (Icons.query_stats_rounded,    'Analyse statistique par match'),
     (Icons.leaderboard_rounded,   'Classement & statistiques'),
     (Icons.account_balance_wallet_rounded, 'Suivi bankroll avancé'),
-  ];
-
-  static const _testimonials = [
-    ("Grâce à PronoWin, j'ai doublé ma bankroll en 3 semaines !", 'Moussa K.', 'Dakar'),
-    ("Les analyses IA sont vraiment précises, je recommande.", 'Adjoua F.', 'Abidjan'),
-    ("Interface claire, pronostics de qualité, excellent service.", 'Seydou B.', 'Bamako'),
   ];
 
   @override
@@ -1164,23 +1329,61 @@ class _PaywallPage extends StatelessWidget {
                   const SizedBox(height: 24),
                   _buildPlanLabel(),
                   const SizedBox(height: 12),
-                  _MensuelCard(
-                    price: price, isSelected: selectedPlan == 'mensuel',
-                    onTap: () => onSelectPlan('mensuel')),
-                  const SizedBox(height: 10),
-                  _XbetCard(
-                    isSelected: selectedPlan == 'xbet',
-                    onTap: () => onSelectPlan('xbet')),
-                  const SizedBox(height: 20),
-                  _TestimonialCarousel(items: _testimonials),
-                  const SizedBox(height: 24),
-                  _PaywallCTA(selectedPlan: selectedPlan, price: price, onTap: onConfirm),
+                  _DurationToggle(duration: duration, onChanged: onSelectDuration),
                   const SizedBox(height: 14),
-                  const Text(
-                    'Activation vérifiée par notre équipe sous 24h.',
-                    style: TextStyle(color: Colors.white38, fontSize: 11),
+                  if (iapMode)
+                    _IapSection(
+                      duration:    duration,
+                      loading:     iapLoading,
+                      unavailable: iapUnavailable,
+                      product:     iapProduct,
+                      busy:        iapBusy,
+                      onBuy:       onIapBuy,
+                      onRestore:   onIapRestore,
+                    )
+                  else ...[
+                    _MethodCard(
+                      title:      'Paiement Direct',
+                      subtitle:   'Orange Money  ·  Wave  ·  MTN  ·  Moov',
+                      price:      duration == 'annuel' ? annualPrice : monthlyPrice,
+                      period:     duration == 'annuel' ? '/an' : '/mois',
+                      badge:      duration == 'annuel' ? '2 MOIS OFFERTS' : null,
+                      color:      const Color(0xFFF59E0B),
+                      isSelected: method == 'direct',
+                      onTap:      () => onSelectMethod('direct'),
+                    ),
+                    const SizedBox(height: 10),
+                    _MethodCard(
+                      title:      'Avec Code Promo',
+                      subtitle:   'Crée un compte partenaire (1xBet, Melbet, Betwinner)',
+                      price:      duration == 'annuel' ? annualCodePrice : monthlyCodePrice,
+                      period:     duration == 'annuel' ? '/an' : '/mois',
+                      badge:      '-30%',
+                      color:      const Color(0xFF7C3AED),
+                      isSelected: method == 'code',
+                      onTap:      () => onSelectMethod('code'),
+                    ),
+                    const SizedBox(height: 24),
+                    _PaywallCTA(duration: duration, method: method, onTap: onConfirm),
+                  ],
+                  const SizedBox(height: 14),
+                  Text(
+                    // Le backend renvoie « 30 minutes ouvrables » pour un
+                    // paiement direct et « 2 heures ouvrables » pour le code
+                    // promo (subscription.service.ts, estimated_review).
+                    // Le « sous 24h » qui était écrit ici contredisait l'écran
+                    // suivant, qui affiche le vrai délai. En achat intégré il
+                    // n'y a aucune validation manuelle : c'est immédiat.
+                    iapMode
+                      ? 'Accès Premium activé immédiatement après le paiement.'
+                      : method == 'code'
+                        ? 'Activation vérifiée par notre équipe sous 2 h ouvrables.'
+                        : 'Activation vérifiée par notre équipe sous 30 min ouvrables.',
+                    style: const TextStyle(color: Colors.white38, fontSize: 11),
                     textAlign: TextAlign.center),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 26),
+                  _PaywallFaq(promoCode: promoCode, iapMode: iapMode),
+                  const SizedBox(height: 18),
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
                     Text('CGU', style: TextStyle(color: Colors.white30, fontSize: 10)),
                     Padding(padding: EdgeInsets.symmetric(horizontal: 8),
@@ -1320,12 +1523,315 @@ class _PaywallPage extends StatelessWidget {
   }
 }
 
-// ─── PLAN MENSUEL ─────────────────────────────────────────────────────────────
-class _MensuelCard extends StatelessWidget {
-  final int price;
+// ─── TOGGLE DURÉE (MENSUEL / ANNUEL) ──────────────────────────────────────────
+// ── Achat intégré ─────────────────────────────────────────────────────────────
+/// Bloc d'achat pour les builds store.
+///
+/// Le prix affiché vient du store, jamais de notre backend : il est déjà
+/// converti dans la devise du compte et inclut les taxes locales. Afficher
+/// notre prix en dollars ici mentirait à l'utilisateur au moment de payer.
+class _IapSection extends StatelessWidget {
+  final String duration;
+  final bool loading, unavailable, busy;
+  final ProductDetails? product;
+  final VoidCallback onBuy, onRestore;
+
+  const _IapSection({
+    required this.duration, required this.loading, required this.unavailable,
+    required this.product, required this.busy,
+    required this.onBuy, required this.onRestore,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 40),
+        child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
+    if (unavailable || product == null) {
+      return Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.warning.withValues(alpha: 0.08),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.warning.withValues(alpha: 0.25))),
+        child: Row(children: [
+          const Icon(Icons.storefront_outlined, color: AppColors.warning, size: 20),
+          const SizedBox(width: 12),
+          const Expanded(child: Text(
+            'Les achats ne sont pas disponibles sur cet appareil pour le moment. '
+            'Vérifie ta connexion et que ton compte store est bien configuré.',
+            style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.5))),
+        ]),
+      );
+    }
+
+    final p = product!;
+    final isAnnual = duration == 'annuel';
+
+    return Column(children: [
+      Container(
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF1A1206), Color(0xFF2D1F0A)],
+            begin: Alignment.topLeft, end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.45), width: 1.2)),
+        child: Column(children: [
+          Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(isAnnual ? 'Premium Annuel' : 'Premium Mensuel',
+                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 2),
+              Text(isAnnual ? 'Facturé une fois par an' : 'Facturé chaque mois',
+                style: const TextStyle(color: Colors.white54, fontSize: 11)),
+            ])),
+            if (isAnnual) Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(6)),
+              child: const Text('2 MOIS OFFERTS', style: TextStyle(
+                color: AppColors.success, fontSize: 9, fontWeight: FontWeight.w800))),
+          ]),
+          const SizedBox(height: 14),
+          // `p.price` est déjà formaté et localisé par le store.
+          Text(p.price, style: const TextStyle(
+            color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800, height: 1)),
+        ]),
+      ),
+      const SizedBox(height: 18),
+
+      SizedBox(
+        width: double.infinity, height: 54,
+        child: ElevatedButton(
+          onPressed: busy ? null : onBuy,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+          child: busy
+            ? const SizedBox(width: 20, height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : Text('S\'abonner — ${p.price}', style: const TextStyle(
+                fontSize: 15, fontWeight: FontWeight.w700)),
+        ),
+      ),
+      const SizedBox(height: 10),
+
+      // Apple exige un moyen explicite de restaurer un achat déjà effectué.
+      TextButton(
+        onPressed: busy ? null : onRestore,
+        style: TextButton.styleFrom(foregroundColor: Colors.white60),
+        child: const Text('Restaurer mes achats', style: TextStyle(fontSize: 13)),
+      ),
+
+      const SizedBox(height: 4),
+      const Text(
+        'Renouvellement automatique. Résiliable à tout moment depuis les '
+        'réglages de ton compte store, au moins 24 h avant la fin de la période.',
+        style: TextStyle(color: Colors.white38, fontSize: 11, height: 1.5),
+        textAlign: TextAlign.center),
+    ]);
+  }
+}
+
+// ── FAQ du paywall ────────────────────────────────────────────────────────────
+/// Le tunnel d'achat n'expliquait nulle part comment on paie, ce qu'implique
+/// l'option code promo, ni ce qui se passe à l'expiration. Ces quatre questions
+/// sont exactement les objections qui arrêtent l'utilisateur devant le CTA.
+class _PaywallFaq extends StatelessWidget {
+  final String promoCode;
+  /// En achat intégré, la FAQ Mobile Money serait fausse — et mentionner un
+  /// moyen de paiement externe dans une app store est précisément ce qu'Apple
+  /// interdit (3.1.1).
+  final bool iapMode;
+  const _PaywallFaq({required this.promoCode, this.iapMode = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final items = iapMode
+      ? const <(String, String)>[
+          (
+            'Comment se passe le paiement ?',
+            "Le paiement est traité par ton compte App Store ou Google Play, "
+            "avec le moyen de paiement qui y est déjà enregistré. Nous ne "
+            "voyons jamais tes coordonnées bancaires.",
+          ),
+          (
+            "Quand mon accès est-il activé ?",
+            "Immédiatement. Il n'y a aucune validation manuelle : dès que le "
+            "store confirme le paiement, le Premium est débloqué.",
+          ),
+          (
+            "Comment résilier ?",
+            "Depuis les réglages de ton compte store, au moins 24 h avant la "
+            "fin de la période en cours. Ton accès reste actif jusqu'à cette "
+            "échéance, et rien n'est prélevé ensuite.",
+          ),
+          (
+            "J'ai déjà payé mais je n'ai pas l'accès",
+            "Touche « Restaurer mes achats » ci-dessus. Si ton abonnement est "
+            "actif sur ce compte store, il sera réappliqué aussitôt.",
+          ),
+        ]
+      : <(String, String)>[
+      (
+        'Comment se passe le paiement ?',
+        "Choisis ta formule, envoie le montant sur le numéro Mobile Money "
+        "affiché à l'étape suivante (Orange Money, Wave, MTN, Moov), puis "
+        "soumets la capture d'écran de la transaction.",
+      ),
+      (
+        "C'est quoi l'option « Code Promo » ?",
+        "Tu crées un compte sur une plateforme partenaire (1xBet, Melbet, "
+        "Betwinner) avec le code $promoCode : l'abonnement te revient 30 % "
+        "moins cher. Il faut alors envoyer deux captures — ton compte "
+        "partenaire et ton paiement.",
+      ),
+      (
+        "En combien de temps mon compte est activé ?",
+        "Paiement direct : 30 minutes ouvrables. Avec code promo : 2 heures "
+        "ouvrables, le temps de vérifier le compte partenaire.",
+      ),
+      (
+        "Suis-je prélevé automatiquement ensuite ?",
+        "Non. Il n'y a aucune reconduction : à la fin de la période ton compte "
+        "repasse simplement en Gratuit. Tu renouvelles quand tu veux depuis "
+        "Compte › Abonnement.",
+      ),
+    ];
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('QUESTIONS FRÉQUENTES', style: TextStyle(
+        color: Colors.white38, fontSize: 10,
+        fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+      const SizedBox(height: 12),
+      for (final (q, a) in items) _PaywallFaqItem(question: q, answer: a),
+    ]);
+  }
+}
+
+class _PaywallFaqItem extends StatefulWidget {
+  final String question, answer;
+  const _PaywallFaqItem({required this.question, required this.answer});
+  @override State<_PaywallFaqItem> createState() => _PaywallFaqItemState();
+}
+
+class _PaywallFaqItemState extends State<_PaywallFaqItem> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button:   true,
+      expanded: _open,
+      child: GestureDetector(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          setState(() => _open = !_open);
+        },
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.08))),
+          child: AnimatedSize(
+            duration: const Duration(milliseconds: 220),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: Column(children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(14, 13, 12, 13),
+                child: Row(children: [
+                  Expanded(child: Text(widget.question, style: const TextStyle(
+                    color: Colors.white70, fontSize: 13,
+                    fontWeight: FontWeight.w600, height: 1.3))),
+                  const SizedBox(width: 8),
+                  Icon(
+                    _open ? Icons.expand_less_rounded : Icons.expand_more_rounded,
+                    color: Colors.white38, size: 20),
+                ]),
+              ),
+              if (_open) Container(
+                width: double.infinity,
+                padding: const EdgeInsets.fromLTRB(14, 0, 14, 13),
+                child: Text(widget.answer, style: const TextStyle(
+                  color: Colors.white54, fontSize: 12, height: 1.55)),
+              ),
+            ]),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DurationToggle extends StatelessWidget {
+  final String duration;
+  final ValueChanged<String> onChanged;
+  const _DurationToggle({required this.duration, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(4),
+    decoration: BoxDecoration(
+      color: Colors.white.withValues(alpha: 0.05),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: Colors.white12, width: 0.5)),
+    child: Row(children: [
+      _DurationTab(label: 'Mensuel', selected: duration == 'mensuel',
+        onTap: () => onChanged('mensuel')),
+      _DurationTab(label: 'Annuel · 2 mois offerts', selected: duration == 'annuel',
+        onTap: () => onChanged('annuel')),
+    ]),
+  );
+}
+
+class _DurationTab extends StatelessWidget {
+  final String label; final bool selected; final VoidCallback onTap;
+  const _DurationTab({required this.label, required this.selected, required this.onTap});
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: GestureDetector(
+      onTap: () { HapticFeedback.selectionClick(); onTap(); },
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFFF59E0B) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          boxShadow: selected ? [BoxShadow(
+            color: const Color(0xFFF59E0B).withValues(alpha: 0.3),
+            blurRadius: 8, offset: const Offset(0, 3))] : null),
+        child: Text(label, textAlign: TextAlign.center, style: TextStyle(
+          color: selected ? Colors.white : Colors.white54,
+          fontSize: 13, fontWeight: selected ? FontWeight.w700 : FontWeight.w500)),
+      ),
+    ),
+  );
+}
+
+// ─── CARTE MÉTHODE DE PAIEMENT (direct ou code promo) ─────────────────────────
+class _MethodCard extends StatelessWidget {
+  final String title, subtitle;
+  final double price;
+  final String period;
+  final String? badge;
+  final Color color;
   final bool isSelected;
   final VoidCallback onTap;
-  const _MensuelCard({required this.price, required this.isSelected, required this.onTap});
+  const _MethodCard({
+    required this.title, required this.subtitle, required this.price,
+    required this.period, this.badge, required this.color,
+    required this.isSelected, required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1335,38 +1841,38 @@ class _MensuelCard extends StatelessWidget {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isSelected
-            ? const Color(0xFFF59E0B).withValues(alpha: 0.08)
-            : Colors.white.withValues(alpha: 0.05),
+          color: isSelected ? color.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.05),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: isSelected ? const Color(0xFFF59E0B) : Colors.white12,
+            color: isSelected ? color : Colors.white12,
             width: isSelected ? 2 : 0.5),
           boxShadow: isSelected ? [BoxShadow(
-            color: const Color(0xFFF59E0B).withValues(alpha: 0.15),
+            color: color.withValues(alpha: 0.15),
             blurRadius: 16, offset: const Offset(0, 4))] : null),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                const Text('Mensuel', style: TextStyle(
+                Text(title, style: const TextStyle(
                   color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
-                const SizedBox(width: 10),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFF059669),
-                    borderRadius: BorderRadius.circular(6)),
-                  child: const Text('LE PLUS POPULAIRE', style: TextStyle(
-                    color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.8))),
+                if (badge != null) ...[
+                  const SizedBox(width: 10),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: color,
+                      borderRadius: BorderRadius.circular(6)),
+                    child: Text(badge!, style: const TextStyle(
+                      color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.8))),
+                ],
               ]),
               const SizedBox(height: 4),
-              const Text('Paiement Mobile Money', style: TextStyle(color: Colors.white54, fontSize: 12)),
+              Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 12)),
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('$price FCFA', style: const TextStyle(
-                color: Color(0xFFF59E0B), fontSize: 22, fontWeight: FontWeight.w900)),
-              const Text('/mois', style: TextStyle(color: Colors.white38, fontSize: 11)),
+              Text('\$${price.toStringAsFixed(0)}', style: TextStyle(
+                color: color, fontSize: 22, fontWeight: FontWeight.w900)),
+              Text(period, style: const TextStyle(color: Colors.white38, fontSize: 11)),
             ]),
           ]),
           const SizedBox(height: 10),
@@ -1377,80 +1883,19 @@ class _MensuelCard extends StatelessWidget {
               duration: const Duration(milliseconds: 200),
               width: 20, height: 20,
               decoration: BoxDecoration(
-                color: isSelected ? const Color(0xFFF59E0B) : Colors.transparent,
+                color: isSelected ? color : Colors.transparent,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected ? const Color(0xFFF59E0B) : Colors.white24,
+                  color: isSelected ? color : Colors.white24,
                   width: 1.5)),
               child: isSelected
                 ? const Icon(Icons.check_rounded, color: Colors.white, size: 13)
                 : null),
             const SizedBox(width: 10),
-            const Expanded(child: Text(
-              'Orange Money  ·  Wave  ·  MTN  ·  Moov',
-              style: TextStyle(color: Colors.white54, fontSize: 11))),
+            Expanded(child: Text(
+              isSelected ? 'Sélectionné' : 'Appuyer pour sélectionner',
+              style: const TextStyle(color: Colors.white54, fontSize: 11))),
           ]),
-        ]),
-      ),
-    );
-  }
-}
-
-// ─── PLAN CODE 1xBET ──────────────────────────────────────────────────────────
-class _XbetCard extends StatelessWidget {
-  final bool isSelected;
-  final VoidCallback onTap;
-  const _XbetCard({required this.isSelected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    const purple = Color(0xFF7C3AED);
-    return GestureDetector(
-      onTap: () { HapticFeedback.selectionClick(); onTap(); },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isSelected ? purple.withValues(alpha: 0.08) : Colors.white.withValues(alpha: 0.05),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isSelected ? purple : Colors.white12,
-            width: isSelected ? 2 : 0.5),
-          boxShadow: isSelected ? [BoxShadow(
-            color: purple.withValues(alpha: 0.2),
-            blurRadius: 16, offset: const Offset(0, 4))] : null),
-        child: Row(children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              const Text('Code 1xBet', style: TextStyle(
-                color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
-              const SizedBox(width: 10),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: purple.withValues(alpha: 0.25),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: purple.withValues(alpha: 0.5), width: 0.5)),
-                child: const Text('GRATUIT', style: TextStyle(
-                  color: Color(0xFFA78BFA), fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.8))),
-            ]),
-            const SizedBox(height: 4),
-            const Text("Inscris-toi sur 1xBet avec notre code", style: TextStyle(
-              color: Colors.white54, fontSize: 12)),
-          ])),
-          const SizedBox(width: 12),
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 22, height: 22,
-            decoration: BoxDecoration(
-              color: isSelected ? purple : Colors.transparent,
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: isSelected ? purple : Colors.white24,
-                width: 1.5)),
-            child: isSelected
-              ? const Icon(Icons.check_rounded, color: Colors.white, size: 14)
-              : null),
         ]),
       ),
     );
@@ -1458,99 +1903,38 @@ class _XbetCard extends StatelessWidget {
 }
 
 // ─── TESTIMONIAL CAROUSEL ─────────────────────────────────────────────────────
-class _TestimonialCarousel extends StatefulWidget {
-  final List<(String, String, String)> items;
-  const _TestimonialCarousel({required this.items});
-  @override State<_TestimonialCarousel> createState() => _TestimonialCarouselState();
-}
-class _TestimonialCarouselState extends State<_TestimonialCarousel> {
-  int _idx = 0;
-
-  @override
-  Widget build(BuildContext context) {
-    final (quote, name, city) = widget.items[_idx];
-    return Column(children: [
-      AnimatedSwitcher(
-        duration: const Duration(milliseconds: 300),
-        transitionBuilder: (child, anim) => FadeTransition(
-          opacity: anim, child: SlideTransition(
-            position: Tween(begin: const Offset(0.05, 0), end: Offset.zero).animate(anim),
-            child: child)),
-        child: Container(
-          key: ValueKey(_idx),
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 0.5)),
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Icon(Icons.format_quote_rounded, color: Color(0xFFF59E0B), size: 22),
-            const SizedBox(height: 8),
-            Text(quote, style: const TextStyle(
-              color: Colors.white70, fontSize: 13, height: 1.5,
-              fontStyle: FontStyle.italic)),
-            const SizedBox(height: 10),
-            Row(children: [
-              Container(
-                width: 28, height: 28,
-                decoration: const BoxDecoration(
-                  color: Color(0xFF1E293B), shape: BoxShape.circle),
-                child: const Center(child: Text('⭐', style: TextStyle(fontSize: 14)))),
-              const SizedBox(width: 8),
-              Text(name, style: const TextStyle(
-                color: Color(0xFFF59E0B), fontSize: 12, fontWeight: FontWeight.w700)),
-              const Text(' · ', style: TextStyle(color: Colors.white24)),
-              Text(city, style: const TextStyle(color: Colors.white38, fontSize: 12)),
-            ]),
-          ]),
-        ),
-      ),
-      const SizedBox(height: 10),
-      Row(mainAxisAlignment: MainAxisAlignment.center,
-        children: List.generate(widget.items.length, (i) => GestureDetector(
-          onTap: () => setState(() => _idx = i),
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            margin: const EdgeInsets.symmetric(horizontal: 3),
-            width: i == _idx ? 20 : 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: i == _idx ? const Color(0xFFF59E0B) : Colors.white24,
-              borderRadius: BorderRadius.circular(3))))),
-      ),
-    ]);
-  }
-}
-
 // ─── CTA PAYWALL ──────────────────────────────────────────────────────────────
 class _PaywallCTA extends StatelessWidget {
-  final String selectedPlan;
-  final int price;
+  final String duration;
+  final String method;
   final VoidCallback onTap;
-  const _PaywallCTA({required this.selectedPlan, required this.price, required this.onTap});
+  const _PaywallCTA({required this.duration, required this.method, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final isXbet = selectedPlan == 'xbet';
+    final isCode   = method == 'code';
+    final isAnnuel = duration == 'annuel';
+    final color    = isCode ? const Color(0xFF7C3AED) : const Color(0xFFF59E0B);
+    final label    = isCode
+      ? 'Continuer avec le code (${isAnnuel ? 'annuel' : 'mensuel'})'
+      : (isAnnuel ? 'Passer à l\'annuel' : 'Passer au mensuel');
     return GestureDetector(
       onTap: () { HapticFeedback.mediumImpact(); onTap(); },
       child: Container(
         width: double.infinity, height: 58,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: isXbet
+            colors: isCode
               ? [const Color(0xFF4C1D95), const Color(0xFF7C3AED)]
               : [const Color(0xFFB45309), const Color(0xFFF59E0B)],
             begin: Alignment.centerLeft, end: Alignment.centerRight),
           borderRadius: BorderRadius.circular(18),
           boxShadow: [BoxShadow(
-            color: (isXbet ? const Color(0xFF7C3AED) : const Color(0xFFF59E0B))
-              .withValues(alpha: 0.4),
+            color: color.withValues(alpha: 0.4),
             blurRadius: 20, offset: const Offset(0, 6))]),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Text(
-            isXbet ? 'Activer avec Code 1xBet' : 'Passer au mensuel',
+            label,
             style: const TextStyle(
               color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
           const SizedBox(width: 8),

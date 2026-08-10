@@ -3,10 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/bankroll_provider.dart';
+import '../../../../core/config/distribution_channel.dart';
 
 Future<bool> showMiserDialog(
   BuildContext context, {
@@ -188,32 +190,39 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
 
           const SizedBox(height: 16),
 
-          // Bouton 1xBet
-          GestureDetector(
-            onTap: _launch1xBet,
-            child: Container(
-              width: double.infinity, height: 52,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1A73E8), Color(0xFF1557B0)]),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [BoxShadow(
-                  color: const Color(0xFF1A73E8).withValues(alpha: 0.35),
-                  blurRadius: 12, offset: const Offset(0, 5))]),
-              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text('Aller miser sur', style: TextStyle(
-                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-                SizedBox(width: 6),
-                Text('1xBet', style: TextStyle(
-                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5)),
-                SizedBox(width: 6),
-                Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
-              ]),
-            ),
-          ).animate(delay: 80.ms).fadeIn(duration: 300.ms),
-
-          const SizedBox(height: 10),
+          // Renvoi vers le bookmaker — masqué sur les builds publiés en store.
+          //
+          // Un lien sortant vers un opérateur de paris fait basculer l'app dans
+          // la politique « jeux d'argent réel » d'Apple et de Google : licence
+          // exigée par pays, diffusion restreinte, et le plus souvent un rejet
+          // au review. Sur les builds APK distribués en direct, le renvoi reste
+          // en place — c'est un modèle d'affiliation légitime hors des stores.
+          if (!ref.watch(isStoreBuildProvider)) ...[
+            GestureDetector(
+              onTap: _launch1xBet,
+              child: Container(
+                width: double.infinity, height: 52,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1A73E8), Color(0xFF1557B0)]),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [BoxShadow(
+                    color: const Color(0xFF1A73E8).withValues(alpha: 0.35),
+                    blurRadius: 12, offset: const Offset(0, 5))]),
+                child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text('Aller miser sur', style: TextStyle(
+                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                  SizedBox(width: 6),
+                  Text('1xBet', style: TextStyle(
+                    color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5)),
+                  SizedBox(width: 6),
+                  Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                ]),
+              ),
+            ).animate(delay: 80.ms).fadeIn(duration: 300.ms),
+            const SizedBox(height: 10),
+          ],
 
           TextButton(
             onPressed: () => Navigator.pop(context, true),
@@ -231,10 +240,13 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
         20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 28),
       child: suggestAsync.when(
         loading: () => const _LoadingSkeleton(),
+        // On se fie au code HTTP, pas au texte de l'exception : le backend
+        // répond 404 « Pas de bankroll configurée. » et l'ancien test
+        // `contains('Configure')` ne matchait pas ce libellé (« configurée »),
+        // si bien qu'un simple budget non configuré affichait « Impossible de
+        // calculer la mise. », message sans issue.
         error: (e, _) => _ErrorView(
-          message: e.toString().contains('Configure')
-              ? 'Configure ton budget bankroll d\'abord.'
-              : 'Impossible de calculer la mise.'),
+          noBankroll: e is DioException && e.response?.statusCode == 404),
         data: (s) {
           final stake    = (s['suggested_amount'] as num).toDouble();
           final balance  = (s['current_balance']  as num).toDouble();
@@ -264,7 +276,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                   color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
                 Text('${widget.homeTeam} – ${widget.awayTeam}',
                   style: TextStyle(color: context.cl.textM, fontSize: 11),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
               ])),
             ]),
 
@@ -487,19 +499,54 @@ class _LoadingSkeleton extends StatelessWidget {
 
 // ─── Vue erreur ───────────────────────────────────────────────────────────────
 class _ErrorView extends StatelessWidget {
-  final String message;
-  const _ErrorView({required this.message});
+  /// true = budget jamais configuré (404). L'utilisateur n'a alors rien à
+  /// « réessayer » : on l'envoie configurer son bankroll.
+  final bool noBankroll;
+  const _ErrorView({required this.noBankroll});
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 40),
+    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 8),
     child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.account_balance_wallet_outlined,
+      Icon(
+        noBankroll
+          ? Icons.account_balance_wallet_outlined
+          : Icons.cloud_off_rounded,
         color: AppColors.warning, size: 40),
-      const SizedBox(height: 12),
-      Text(message, style: TextStyle(color: context.cl.textS, fontSize: 14),
+      const SizedBox(height: 14),
+      Text(
+        noBankroll
+          ? 'Configure ton budget d\'abord'
+          : 'Impossible de calculer la mise',
+        style: TextStyle(
+          color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w700),
+        textAlign: TextAlign.center),
+      const SizedBox(height: 6),
+      Text(
+        noBankroll
+          ? 'Ta bankroll n\'est pas encore paramétrée. Définis ton budget pour que l\'app calcule une mise adaptée à chaque pronostic.'
+          : 'Vérifie ta connexion et réessaie.',
+        style: TextStyle(color: context.cl.textM, fontSize: 12.5, height: 1.4),
         textAlign: TextAlign.center),
       const SizedBox(height: 20),
+      if (noBankroll)
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.success,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12))),
+            onPressed: () {
+              Navigator.pop(context, false);
+              context.push('/bankroll');
+            },
+            child: const Text('Configurer mon budget',
+              style: TextStyle(
+                color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+          ),
+        ),
       TextButton(
         onPressed: () => Navigator.pop(context, false),
         child: const Text('Fermer')),
