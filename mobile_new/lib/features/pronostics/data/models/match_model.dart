@@ -16,6 +16,7 @@ class MatchModel extends MatchEntity {
     super.hasPronostic = true,
     required super.predictionType,
     required super.predictionLabel,
+    super.isLocked,
     required super.oddsRecommended,
     required super.oddsHome,
     required super.oddsDraw,
@@ -27,6 +28,7 @@ class MatchModel extends MatchEntity {
     required super.awayFormPoints,
     super.aiProbability,
     super.aiExplanation,
+    super.result,
   });
 
   factory MatchModel.fromJson(Map<String, dynamic> j) => MatchModel(
@@ -44,6 +46,7 @@ class MatchModel extends MatchEntity {
     hasPronostic:    j['has_pronostic'] as bool? ?? true,
     predictionType:  _parsePrediction(j['prediction_type'] as String?),
     predictionLabel: j['prediction_label'] as String? ?? '',
+    isLocked: j['locked'] as bool? ?? false,
     oddsRecommended: (j['odds_recommended'] as num?)?.toDouble() ?? 0.0,
     oddsHome:        (j['odds_home'] as num?)?.toDouble() ?? 0.0,
     oddsDraw:        (j['odds_draw'] as num?)?.toDouble() ?? 0.0,
@@ -55,6 +58,7 @@ class MatchModel extends MatchEntity {
     awayFormPoints:  j['away_form_points'] as int? ?? 0,
     aiProbability:   (j['ai_probability'] as num?)?.toDouble(),
     aiExplanation:   j['ai_explanation'] as String?,
+    result:          _parseResult(j['result'] as String?),
   );
 
   Map<String, dynamic> toJson() => {
@@ -72,6 +76,7 @@ class MatchModel extends MatchEntity {
     'has_pronostic':    hasPronostic,
     'prediction_type':  predictionType.name,
     'prediction_label': predictionLabel,
+    'locked': isLocked,
     'odds_recommended': oddsRecommended,
     'odds_home':        oddsHome,
     'odds_draw':        oddsDraw,
@@ -81,6 +86,12 @@ class MatchModel extends MatchEntity {
     'analyst_note':     analystNote,
     'home_form_points': homeFormPoints,
     'away_form_points': awayFormPoints,
+    'result':           switch (result) {
+      PronosticResult.win  => 'WIN',
+      PronosticResult.loss => 'LOSS',
+      PronosticResult.push => 'PUSH',
+      null                 => null,
+    },
   };
 
   static MatchStatus _parseStatus(String? s) => switch (s) {
@@ -90,6 +101,7 @@ class MatchModel extends MatchEntity {
   };
 
   static PredictionType _parsePrediction(String? s) => switch (s) {
+    'win1'    => PredictionType.win1,
     'draw'    => PredictionType.draw,
     'win2'    => PredictionType.win2,
     'btts'    => PredictionType.btts,
@@ -97,6 +109,14 @@ class MatchModel extends MatchEntity {
     'under25' => PredictionType.under25,
     'over35'  => PredictionType.over35,
     'under35' => PredictionType.under35,
-    _         => PredictionType.win1,
+    'other'   => PredictionType.other,
+    _         => PredictionType.other,
+  };
+
+  static PronosticResult? _parseResult(String? s) => switch (s) {
+    'WIN'  => PronosticResult.win,
+    'LOSS' => PronosticResult.loss,
+    'PUSH' => PronosticResult.push,
+    _      => null,
   };
 }

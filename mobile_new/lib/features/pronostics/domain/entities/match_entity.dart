@@ -1,8 +1,11 @@
 import 'package:equatable/equatable.dart';
 
-enum PredictionType  { win1, draw, win2, btts, over25, under25, over35, under35 }
+enum PredictionType  { win1, draw, win2, btts, over25, under25, over35, under35, other }
 enum MatchStatus     { upcoming, live, finished }
 enum ConfidenceLevel { low, medium, high, veryHigh }
+/// Résultat réglé côté backend (moteur de règlement — cf. pronostics.service.ts).
+/// PUSH = marché remboursé (ex. handicap asiatique sur ligne ronde) : ni gain ni perte.
+enum PronosticResult { win, loss, push }
 
 class MatchEntity extends Equatable {
   final String id;
@@ -18,6 +21,12 @@ class MatchEntity extends Equatable {
   final int? awayScore;
   final PredictionType predictionType;
   final String predictionLabel;
+
+  /// Le serveur a retiré le pronostic de la réponse (contenu premium hors
+  /// abonnement). Distingue « pas encore de pronostic » de « pronostic
+  /// existant mais masqué » — sans ça, un abonnement expiré côté serveur
+  /// mais encore valide dans l'état local afficherait une carte vide.
+  final bool isLocked;
   final double oddsRecommended;
   final double oddsHome;
   final double oddsDraw;
@@ -31,6 +40,9 @@ class MatchEntity extends Equatable {
   final String? aiExplanation;
   /// false = match en base sans pronostic publié
   final bool hasPronostic;
+  /// Résultat réglé côté backend — source de vérité (moteur de règlement
+  /// couvrant tous les marchés, pas seulement les 8 types de base).
+  final PronosticResult? result;
 
   const MatchEntity({
     required this.id,
@@ -58,6 +70,8 @@ class MatchEntity extends Equatable {
     this.aiProbability,
     this.aiExplanation,
     this.hasPronostic = true,
+    this.isLocked = false,
+    this.result,
   });
 
   ConfidenceLevel get confidence {
@@ -66,6 +80,19 @@ class MatchEntity extends Equatable {
     if (confidenceScore >= 3) return ConfidenceLevel.medium;
     return ConfidenceLevel.low;
   }
+
+  /// Score de confiance (1-5, fixé par l'admin) exprimé en pourcentage rond,
+  /// plus lisible et plus "data" que des étoiles. Plafonné à 95% (jamais 100%) :
+  /// aucun résultat sportif n'est certain, un "100%" affiché sonnerait comme
+  /// une garantie absolue plutôt qu'une estimation de confiance.
+  int get confidencePercent => percentForConfidence(confidenceScore);
+
+  static const Map<int, int> _confidencePercentByScore = {1: 60, 2: 70, 3: 80, 4: 90, 5: 95};
+
+  /// Même conversion que [confidencePercent], utilisable sans instance de
+  /// [MatchEntity] (ex: un score lu depuis une Map brute d'API).
+  static int percentForConfidence(int score) =>
+      _confidencePercentByScore[score.clamp(1, 5)]!;
 
   bool get isToday {
     final now = DateTime.now();
@@ -77,22 +104,33 @@ class MatchEntity extends Equatable {
     return matchDate.year == t.year && matchDate.month == t.month && matchDate.day == t.day;
   }
 
-  /// null si match non terminé, true si pronostic correct, false sinon
-  bool? get predictionWon {
-    if (status != MatchStatus.finished) return null;
-    final h = homeScore ?? 0;
-    final a = awayScore ?? 0;
-    return switch (predictionType) {
-      PredictionType.win1    => h > a,
-      PredictionType.draw    => h == a,
-      PredictionType.win2    => a > h,
-      PredictionType.btts    => h > 0 && a > 0,
-      PredictionType.over25  => (h + a) > 2,
-      PredictionType.under25 => (h + a) < 3,
-      PredictionType.over35  => (h + a) > 3,
-      PredictionType.under35 => (h + a) < 4,
-    };
-  }
+  /// Raccourci booléen pour le résultat — true/false pour WIN/LOSS, null si
+  /// non résolu OU remboursé (PUSH, ni gain ni perte). Les widgets qui
+  /// doivent distinguer le remboursement du "pas encore résolu" doivent lire
+  /// [result] directement plutôt que ce raccourci.
+  bool? get predictionWon => switch (result) {
+    PronosticResult.win  => true,
+    PronosticResult.loss => false,
+    PronosticResult.push => null,
+    null                 => null,
+  };
+
+  static final _domicileRe  = RegExp(r'\bDomicile\b');
+  static final _exterieurRe = RegExp(r'\bExtérieur\b');
+
+  /// Remplace les camps génériques "Domicile"/"Extérieur" par le nom réel de
+  /// l'équipe dans un libellé de pronostic — filet de sécurité pour les
+  /// pronostics publiés avant que le formulaire admin ne compose déjà le
+  /// libellé avec le nom de l'équipe (marchés issus de l'accordéon 1xBet,
+  /// ex. "Vainqueur du match : Domicile"). Statique et réutilisable par les
+  /// widgets qui travaillent sur les réponses API brutes (`Map<String,dynamic>`)
+  /// plutôt que sur un MatchEntity (ex. cartes de la page Accueil).
+  static String applyTeamNames(String label, {required String homeTeam, required String awayTeam}) =>
+      label.replaceAll(_domicileRe, homeTeam).replaceAll(_exterieurRe, awayTeam);
+
+  /// [predictionLabel] avec les camps génériques substitués — voir [applyTeamNames].
+  String get displayPredictionLabel =>
+      MatchEntity.applyTeamNames(predictionLabel, homeTeam: homeTeam, awayTeam: awayTeam);
 
   @override
   List<Object?> get props => [id, hasPronostic];
