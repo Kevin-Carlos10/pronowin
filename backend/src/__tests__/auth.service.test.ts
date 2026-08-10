@@ -6,7 +6,11 @@ jest.mock('@prisma/client', () => {
   const mockOtpUpdate     = jest.fn().mockResolvedValue({});
   const mockUserFindUnique = jest.fn();
   const mockUserCreate     = jest.fn();
-  const mockUserUpdate     = jest.fn().mockResolvedValue({});
+  // Renvoie l'objet mis à jour plutôt qu'un {} vide : le service réassigne
+  // `user` au retour de update() dans la branche « marquer comme vérifié »,
+  // et un mock qui rend {} faisait perdre l'utilisateur en silence.
+  const mockUserUpdate     = jest.fn().mockImplementation(
+    ({ where, data }: any) => Promise.resolve({ id: where?.id, ...data }));
   const mockRefreshCreate  = jest.fn().mockResolvedValue({});
   const mockRefreshFindUnique = jest.fn();
   const mockRefreshUpdate  = jest.fn().mockResolvedValue({});
@@ -19,7 +23,7 @@ jest.mock('@prisma/client', () => {
     refreshToken: { create: mockRefreshCreate, findUnique: mockRefreshFindUnique, update: mockRefreshUpdate, delete: mockRefreshDelete, deleteMany: mockRefreshDeleteMany },
   }));
 
-  return { PrismaClient, _mocks: { mockOtpFindFirst, mockUserFindUnique, mockUserCreate, mockRefreshFindUnique } };
+  return { PrismaClient, _mocks: { mockOtpFindFirst, mockUserFindUnique, mockUserCreate, mockUserUpdate, mockRefreshFindUnique } };
 });
 
 jest.mock('../services/sms.service', () => ({
@@ -70,7 +74,7 @@ describe('AuthService', () => {
     });
 
     it('connecte un utilisateur existant sans le recréer', async () => {
-      const existingUser = { id: 'user-existing', phoneNumber: '+22670000000', pseudo: 'Parieur_A', referralCode: 'XYZ123' };
+      const existingUser = { id: 'user-existing', phoneNumber: '+22670000000', pseudo: 'Parieur_A', referralCode: 'XYZ123', phoneVerified: true };
       _mocks.mockOtpFindFirst.mockResolvedValueOnce({ id: 'otp-1', used: false, expiresAt: new Date(Date.now() + 60000) });
       _mocks.mockUserFindUnique.mockResolvedValueOnce(existingUser);
 
@@ -78,6 +82,22 @@ describe('AuthService', () => {
 
       expect(_mocks.mockUserCreate).not.toHaveBeenCalled();
       expect(result.user).toMatchObject({ id: 'user-existing' });
+    });
+
+    it('marque comme vérifié un compte existant non encore vérifié', async () => {
+      _mocks.mockOtpFindFirst.mockResolvedValueOnce({ id: 'otp-1', used: false, expiresAt: new Date(Date.now() + 60000) });
+      _mocks.mockUserFindUnique.mockResolvedValueOnce({
+        id: 'user-unverified', phoneNumber: '+22670000000', pseudo: 'Parieur_B',
+        referralCode: 'ABC123', phoneVerified: false,
+      });
+
+      const result = await service.verifyOtp('+22670000000', '123456');
+
+      expect(_mocks.mockUserCreate).not.toHaveBeenCalled();
+      expect(_mocks.mockUserUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { phoneVerified: true } }));
+      // L'utilisateur ne doit pas être perdu au passage dans cette branche.
+      expect(result.user).toMatchObject({ id: 'user-unverified', phoneVerified: true });
     });
 
     it('détecte le code pays Burkina Faso (+226)', async () => {
