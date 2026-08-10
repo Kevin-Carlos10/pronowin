@@ -14,7 +14,11 @@ model User {
   passwordHash          String?             @map("password_hash")
   pseudo                String
   avatarUrl             String?             @map("avatar_url")
-  countryCode           String              @default("BF") @map("country_code")
+  // Nullable et sans défaut : l'ancien `@default("BF")` enregistrait tout le
+  // monde comme burkinabè, y compris les utilisateurs qui n'avaient jamais
+  // renseigné leur pays — une valeur fausse, indiscernable d'un vrai choix, et
+  // qui faussait aussi les statistiques admin. « Non renseigné » se dit null.
+  countryCode           String?             @map("country_code")
   subscriptionPlan      SubscriptionPlan    @default(free) @map("subscription_plan")
   subscriptionExpiresAt DateTime?           @map("subscription_expires_at")
   referralCode          String              @unique @map("referral_code")
@@ -24,7 +28,13 @@ model User {
   createdAt             DateTime            @default(now()) @map("created_at")
   updatedAt             DateTime            @updatedAt @map("updated_at")
   lastLoginAt           DateTime?           @map("last_login_at")
+  lastSeenAt            DateTime?           @map("last_seen_at")
   fcmToken              String?             @map("fcm_token")
+  // Préférences de notification par catégorie : { match, promo, referral, premium }.
+  // Les topics FCM ne suffisaient pas — les notifs personnelles (parrainage,
+  // premium) partent par token, donc se désabonner d'un topic ne les coupait
+  // pas. Une clé absente vaut « activé » (modèle opt-out).
+  notificationPrefs     Json?               @map("notification_prefs")
   xbetId                String?             @map("xbet_id")
   birthDate             DateTime?           @map("birth_date")
   firstName             String?             @map("first_name")
@@ -37,6 +47,7 @@ model User {
   streakDays            Int                 @default(0) @map("streak_days")
   streakLastDate        DateTime?           @map("streak_last_date")
   xpTotal               Int                 @default(0) @map("xp_total")
+  iapPurchases          IapPurchase[]
   notifications         Notification[]
   otpCodes              OtpCode[]
   referredUsers         Referral[]          @relation("ReferredRelation")
@@ -48,6 +59,8 @@ model User {
   tutorialProgress      TutorialProgress[]
   bankroll              UserBankroll?
   favoriteMatches       UserFavoriteMatch[]
+  comments              Comment[]
+  pronosticVotes        PronosticVote[]
 
   @@index([createdAt])
   @@map("users")
@@ -85,6 +98,7 @@ model BankrollBet {
 
   @@unique([bankrollId, pronosticId])
   @@index([pronosticId])
+  @@index([result, createdAt])
   @@map("bankroll_bets")
 }
 
@@ -157,7 +171,8 @@ model Admin {
 
 model Match {
   id             String              @id @default(uuid())
-  externalId     Int                 @unique @map("external_id")
+  externalId     Int                 @map("external_id")
+  source         MatchSource         @default(FOOTBALL_DATA)
   league         String
   leagueCode     String              @map("league_code")
   leagueLogo     String?             @map("league_logo")
@@ -171,16 +186,56 @@ model Match {
   status         MatchStatus         @default(SCHEDULED)
   homeScore      Int?                @map("home_score")
   awayScore      Int?                @map("away_score")
+  homeScoreHT    Int?                @map("home_score_ht")
+  awayScoreHT    Int?                @map("away_score_ht")
   homeFormPoints Int                 @default(0) @map("home_form_points")
   awayFormPoints Int                 @default(0) @map("away_form_points")
   fetchedAt      DateTime            @default(now()) @map("fetched_at")
   alertSent      Boolean             @default(false) @map("alert_sent")
+  // Copie dénormalisée de pronostic.isPublished — un orderBy Prisma à travers
+  // une relation 1-1 optionnelle ne gère pas correctement le placement des
+  // NULL (matchs sans pronostic), ce qui empêchait de trier "prono d'abord"
+  // au niveau de la requête (donc de la pagination). Tenue à jour dans
+  // upsertPronostic()/togglePublish() (pronostics.service.ts).
+  hasPublishedPronostic Boolean      @default(false) @map("has_published_pronostic")
+  // Rang dénormalisé du statut (LIVE=0, SCHEDULED=1, FINISHED=2, autre=3) —
+  // même limite Prisma que hasPublishedPronostic : trier par heure seule
+  // laissait les matchs LIVE hors des premières pages de pagination. Tenu à
+  // jour dans matchStatusPriority() (api_football.service.ts), utilisé à
+  // chaque écriture de `status` (découverte admin + syncMatchScores).
+  statusPriority Int                 @default(1) @map("status_priority")
   pronostic      Pronostic?
   favoritedBy    UserFavoriteMatch[]
 
+  @@unique([externalId, source])
   @@index([matchDate])
   @@index([status])
+  @@index([hasPublishedPronostic])
+  @@index([statusPriority])
   @@map("matches")
+}
+
+/// Liste blanche des compétitions autorisées à apparaître dans le flux
+/// public "Tous les matchs" — un match dont la ligue n'est pas ici (ou y est
+/// avec isVisible=false) reste exclu de getAllMatches/getDaySummary, sauf
+/// s'il a lui-même un pronostic publié (décision éditoriale déjà prise par
+/// l'admin en le publiant). N'affecte pas la découverte admin, qui doit
+/// pouvoir trouver n'importe quel match pour y créer un pronostic.
+model LeagueVisibility {
+  leagueCode String   @id @map("league_code")
+  league     String
+  isVisible  Boolean  @default(false) @map("is_visible")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([isVisible])
+  @@map("league_visibility")
+}
+
+/// Fournisseur d'origine d'un match — les deux API ont leur propre
+/// numérotation, externalId seul ne suffit pas à les distinguer.
+enum MatchSource {
+  FOOTBALL_DATA
+  API_FOOTBALL
 }
 
 model Pronostic {
@@ -189,6 +244,11 @@ model Pronostic {
   analystId       String         @map("analyst_id")
   predictionType  PredictionType @map("prediction_type")
   predictionLabel String         @map("prediction_label")
+  // Marché/valeur bruts 1xBet quand le pronostic ne correspond à aucun des 8
+  // types connus (predictionType = 'other') — ex. "Asian Handicap" / "Home +0".
+  // Le résultat WIN/LOSS de ces pronostics doit être forcé manuellement.
+  marketName      String?        @map("market_name")
+  marketValue     String?        @map("market_value")
   oddsHome        Float          @default(0) @map("odds_home")
   oddsDraw        Float          @default(0) @map("odds_draw")
   oddsAway        Float          @default(0) @map("odds_away")
@@ -197,6 +257,7 @@ model Pronostic {
   analystNote     String?        @map("analyst_note")
   isPremium       Boolean        @default(false) @map("is_premium")
   isPublished     Boolean        @default(false) @map("is_published")
+  isDailyFree     Boolean        @default(false) @map("is_daily_free")
   result          String?
   publishedAt     DateTime?      @map("published_at")
   createdAt       DateTime       @default(now()) @map("created_at")
@@ -204,6 +265,8 @@ model Pronostic {
   aiExplanation   String?        @map("ai_explanation")
   aiProbability   Float?         @map("ai_probability")
   bankrollBets    BankrollBet[]
+  comments        Comment[]
+  votes           PronosticVote[]
   analyst         Admin          @relation(fields: [analystId], references: [id])
   match           Match          @relation(fields: [matchId], references: [id])
 
@@ -250,23 +313,65 @@ model Subscription {
   @@map("subscriptions")
 }
 
-model SubscriptionProof {
-  id             String                @id @default(uuid())
-  userId         String                @map("user_id")
-  subscriptionId String?               @unique @map("subscription_id")
-  type           SubscriptionProofType
-  screenshotUrl  String                @map("screenshot_url")
-  xbetId         String?               @map("xbet_id")
-  amount         Float?
-  senderPhone    String?               @map("sender_phone")
-  status         ProofStatus           @default(pending)
-  adminNote      String?               @map("admin_note")
-  reviewedBy     String?               @map("reviewed_by")
-  reviewedAt     DateTime?             @map("reviewed_at")
-  createdAt      DateTime              @default(now()) @map("created_at")
-  subscription   Subscription?         @relation(fields: [subscriptionId], references: [id])
-  user           User                  @relation(fields: [userId], references: [id])
+enum IapStore {
+  apple
+  google
+}
 
+/// Achats via l'App Store / Google Play.
+///
+/// La source de vérité reste le store : on ne fait que projeter son état sur
+/// `User.subscriptionExpiresAt`. `transactionId` est unique — c'est ce qui rend
+/// la vérification idempotente, le mobile pouvant rejouer le même reçu
+/// (restauration, relance après un crash, notification serveur en doublon).
+model IapPurchase {
+  id                    String   @id @default(uuid())
+  userId                String   @map("user_id")
+  store                 IapStore
+  productId             String   @map("product_id")
+  /// Identifiant de LA transaction (un renouvellement en crée une nouvelle).
+  transactionId         String   @unique @map("transaction_id")
+  /// Identifiant de l'ABONNEMENT, stable à travers les renouvellements.
+  /// Apple : originalTransactionId. Google : le purchaseToken d'origine.
+  originalTransactionId String   @map("original_transaction_id")
+  expiresAt             DateTime @map("expires_at")
+  /// Reflète l'état renvoyé par le store : active, expired, canceled, refunded…
+  status                String   @default("active")
+  /// « Sandbox » ou « Production » — un reçu de test ne doit jamais créditer
+  /// un compte en production.
+  environment           String   @default("Production")
+  /// Réponse brute du store, conservée pour pouvoir rejouer un diagnostic.
+  payload               Json?
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, expiresAt(sort: Desc)])
+  @@index([originalTransactionId])
+  @@map("iap_purchases")
+}
+
+model SubscriptionProof {
+  id                   String                @id @default(uuid())
+  userId               String                @map("user_id")
+  subscriptionId       String?               @unique @map("subscription_id")
+  type                 SubscriptionProofType
+  screenshotUrl        String                @map("screenshot_url")
+  paymentScreenshotUrl String?               @map("payment_screenshot_url")
+  xbetId               String?               @map("xbet_id")
+  platform             String?               @map("platform")
+  planId               String?               @map("plan_id")
+  amount               Float?
+  senderPhone          String?               @map("sender_phone")
+  status               ProofStatus           @default(pending)
+  adminNote            String?               @map("admin_note")
+  reviewedBy           String?               @map("reviewed_by")
+  reviewedAt           DateTime?             @map("reviewed_at")
+  createdAt            DateTime              @default(now()) @map("created_at")
+  subscription         Subscription?         @relation(fields: [subscriptionId], references: [id])
+  user                 User                  @relation(fields: [userId], references: [id])
+
+  @@index([status, createdAt])
   @@map("subscription_proofs")
 }
 
@@ -282,6 +387,7 @@ model Referral {
   referrer         User     @relation("ReferrerRelation", fields: [referrerId], references: [id])
 
   @@unique([referrerId, referredId])
+  @@index([referredId])
   @@map("referrals")
 }
 
@@ -358,6 +464,9 @@ enum PredictionType {
   under25
   over35
   under35
+  // Marché 1xBet quelconque hors des 7 ci-dessus (handicap asiatique, mi-temps,
+  // score exact, etc.) — voir Pronostic.marketName/marketValue pour le détail.
+  other
 }
 
 enum SubscriptionProofType {
@@ -374,4 +483,37 @@ enum ProofStatus {
 enum AdminRole {
   super_admin
   analyst
+}
+
+model Comment {
+  id          String    @id @default(uuid())
+  pronosticId String    @map("pronostic_id")
+  userId      String    @map("user_id")
+  content     String
+  isExpert    Boolean   @default(false) @map("is_expert")
+  parentId    String?   @map("parent_id")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  pronostic   Pronostic @relation(fields: [pronosticId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent      Comment?  @relation("replies", fields: [parentId], references: [id])
+  replies     Comment[] @relation("replies")
+
+  @@index([pronosticId, createdAt])
+  @@index([userId])
+  @@map("comments")
+}
+
+model PronosticVote {
+  id          String    @id @default(uuid())
+  pronosticId String    @map("pronostic_id")
+  userId      String    @map("user_id")
+  type        String    // "AGREE" | "DISAGREE"
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  pronostic   Pronostic @relation(fields: [pronosticId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pronosticId, userId])
+  @@map("pronostic_votes")
 }
