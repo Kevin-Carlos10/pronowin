@@ -26,7 +26,7 @@ class PronoShareCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final won = match.predictionWon;
+    final result = match.result;
 
     return SizedBox(
       width:  360,
@@ -213,41 +213,42 @@ class PronoShareCard extends StatelessWidget {
               const SizedBox(height: 24),
 
               // ── Badge résultat (si terminé) ──────────────────────────────────
-              if (won != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: won
-                        ? AppColors.success.withValues(alpha: 0.15)
-                        : AppColors.error.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: won
-                          ? AppColors.success.withValues(alpha: 0.5)
-                          : AppColors.error.withValues(alpha: 0.5),
+              if (result != null)
+                Builder(builder: (_) {
+                  final color = switch (result) {
+                    PronosticResult.win  => AppColors.success,
+                    PronosticResult.loss => AppColors.error,
+                    PronosticResult.push => AppColors.info,
+                  };
+                  final icon = switch (result) {
+                    PronosticResult.win  => Icons.check_circle_rounded,
+                    PronosticResult.loss => Icons.cancel_rounded,
+                    PronosticResult.push => Icons.replay_rounded,
+                  };
+                  final label = switch (result) {
+                    PronosticResult.win  => 'Pronostic GAGNANT ✅',
+                    PronosticResult.loss => 'Pronostic PERDU',
+                    PronosticResult.push => 'Pronostic REMBOURSÉ 🔄',
+                  };
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: color.withValues(alpha: 0.5)),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        won ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                        color: won ? AppColors.success : AppColors.error,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        won ? 'Pronostic GAGNANT ✅' : 'Pronostic PERDU',
-                        style: TextStyle(
-                          color: won ? AppColors.success : AppColors.error,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icon, color: color, size: 18),
+                        const SizedBox(width: 8),
+                        Text(label, style: TextStyle(
+                          color: color, fontSize: 14, fontWeight: FontWeight.w800)),
+                      ],
+                    ),
+                  );
+                }),
 
               // ── Bloc pronostic ────────────────────────────────────────────────
               Container(
@@ -280,7 +281,7 @@ class PronoShareCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    match.predictionLabel,
+                    match.displayPredictionLabel,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,

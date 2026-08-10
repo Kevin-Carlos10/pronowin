@@ -4,6 +4,18 @@ import { UsersAdminService } from '../services/users_admin.service';
 
 const svc = new UsersAdminService();
 
+export const getOnlineUsers = async (_req: AdminRequest, res: Response) => {
+  try {
+    const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000);
+    const users = await (await import('../lib/prisma')).prisma.user.findMany({
+      where:   { isActive: true, lastSeenAt: { gte: twoMinAgo } },
+      orderBy: { lastSeenAt: 'desc' },
+      select:  { id: true, pseudo: true, phoneNumber: true, email: true, subscriptionPlan: true, lastSeenAt: true, countryCode: true },
+    });
+    res.json({ total: users.length, users });
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
 export const getUsers = async (req: AdminRequest, res: Response) => {
   try {
     const result = await svc.getUsers({
@@ -57,11 +69,17 @@ export const updatePseudo = async (req: AdminRequest, res: Response) => {
 
 export const exportCsv = async (req: AdminRequest, res: Response) => {
   try {
-    const csv = await svc.exportCsv(req.query.plan as string);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="pronowin_users_${new Date().toISOString().split('T')[0]}.csv"`);
-    res.send('\uFEFF' + csv); // BOM pour Excel
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+    res.write('\uFEFF' + svc.exportCsvHeader() + '\n'); // BOM pour Excel
+    for await (const row of svc.exportCsvRows(req.query.plan as string)) {
+      res.write(row + '\n');
+    }
+    res.end();
+  } catch (e: any) {
+    if (res.headersSent) res.end();
+    else res.status(500).json({ message: e.message });
+  }
 };
 
 export const getStats = async (_req: AdminRequest, res: Response) => {

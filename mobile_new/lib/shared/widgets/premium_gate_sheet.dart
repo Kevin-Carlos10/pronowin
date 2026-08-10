@@ -24,8 +24,8 @@ class _PremiumGateSheet extends ConsumerWidget {
   const _PremiumGateSheet({this.matchLabel});
 
   static const _benefits = [
-    (Icons.analytics_rounded,       'Pronostics VIP exclusifs',      'Accès à tous les pronostics d\'experts, y compris les analyses IA détaillées'),
-    (Icons.show_chart_rounded,      'Cotes & probabilités complètes', 'Cotes H/N/A, probabilité IA, historique H2H et forme des équipes'),
+    (Icons.analytics_rounded,       'Pronostics VIP exclusifs',      'Accès à tous les pronostics d\'experts, y compris les analyses statistiques détaillées'),
+    (Icons.show_chart_rounded,      'Cotes & probabilités complètes', 'Cotes H/N/A, probabilité estimée, historique H2H et forme des équipes'),
     (Icons.workspace_premium_rounded,'Taux de réussite supérieur',    'Nos pronostics Premium affichent +68% de réussite sur les 30 derniers jours'),
     (Icons.notifications_active_rounded, 'Alertes match prioritaires','Notifications 1h avant le coup d\'envoi pour ne jamais rater une opportunité'),
   ];
@@ -153,7 +153,7 @@ class _PremiumGateSheet extends ConsumerWidget {
                 if (profileComplete) {
                   context.push('/compte/activer-premium');
                 } else {
-                  context.push('/compte/completer-profil');
+                  context.push('/compte/completer-profil', extra: '/compte/activer-premium');
                 }
               },
               child: Container(

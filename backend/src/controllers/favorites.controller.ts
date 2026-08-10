@@ -17,8 +17,12 @@ export const getFavorites = async (req: AuthRequest, res: Response) => {
                    : rawStatus === 'finished' ? 'finished'
                    : 'upcoming';
       return {
-        // Identifiants
+        // Identifiants — `id` sert à la navigation vers le détail (le
+        // backend résout aussi bien un id de pronostic que de match), tandis
+        // que `match_id` est nécessaire pour l'action de retrait des favoris
+        // (endpoint strict sur l'id du match).
         id:               p?.id ?? f.matchId,
+        match_id:         f.matchId,
         // Match
         league:           f.match.league,
         league_country:   f.match.leagueCode ?? '',
@@ -53,11 +57,29 @@ export const getFavorites = async (req: AuthRequest, res: Response) => {
   }
 };
 
+/**
+ * Le paramètre reçu est tantôt un id de match, tantôt un id de pronostic :
+ * la liste de l'Accueil sérialise `id: pronostic.id` alors que la liste des
+ * matchs sérialise `id: match.id`, et la page détail relaie l'un ou l'autre.
+ * Sans cette résolution, le bouton favori de la page détail échouait en 404
+ * lorsqu'on y arrivait depuis l'Accueil.
+ */
+async function resolveMatchId(idOrPronosticId: string): Promise<string | null> {
+  const match = await prisma.match.findUnique({
+    where: { id: idOrPronosticId }, select: { id: true },
+  });
+  if (match) return match.id;
+
+  const prono = await prisma.pronostic.findUnique({
+    where: { id: idOrPronosticId }, select: { matchId: true },
+  });
+  return prono?.matchId ?? null;
+}
+
 export const addFavorite = async (req: AuthRequest, res: Response) => {
   try {
-    const matchId = req.params.id;
-    const match = await prisma.match.findUnique({ where: { id: matchId } });
-    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+    const matchId = await resolveMatchId(req.params.id);
+    if (!matchId) { res.status(404).json({ message: 'Match introuvable.' }); return; }
 
     await prisma.userFavoriteMatch.upsert({
       where:  { userId_matchId: { userId: req.userId!, matchId } },
@@ -72,8 +94,11 @@ export const addFavorite = async (req: AuthRequest, res: Response) => {
 
 export const removeFavorite = async (req: AuthRequest, res: Response) => {
   try {
+    // Symétrique de addFavorite : sans résolution, retirer un favori depuis
+    // l'Accueil ne supprimait rien (deleteMany sur un id inexistant, silencieux).
+    const matchId = await resolveMatchId(req.params.id);
     await prisma.userFavoriteMatch.deleteMany({
-      where: { userId: req.userId!, matchId: req.params.id },
+      where: { userId: req.userId!, matchId: matchId ?? req.params.id },
     });
     res.json({ success: true });
   } catch (e: any) {

@@ -194,37 +194,54 @@ export class UsersAdminService {
     return prisma.user.update({ where: { id: userId }, data: { pseudo: newPseudo.trim() } });
   }
 
-  /** Exporter CSV */
-  async exportCsv(plan?: string) {
+  /** En-tête CSV (utilisateurs) */
+  exportCsvHeader() {
+    return 'ID,Pseudo,Prénom,Nom,Téléphone,Email,Pays,1xBet ID,Date naissance,Plan,Expire le,Code parrainage,Gains parrainage,Actif,Inscrit le,Dernière connexion';
+  }
+
+  /**
+   * Exporter CSV en flux, page par page (cursor sur id), plutôt que de charger
+   * toute la table users en mémoire et construire la chaîne CSV d'un bloc —
+   * la table n'a pas de limite naturelle de croissance.
+   */
+  async *exportCsvRows(plan?: string, pageSize = 1000): AsyncGenerator<string> {
     const where: any = {};
     if (plan) where.subscriptionPlan = plan;
 
-    const users = await prisma.user.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true, pseudo: true, firstName: true, lastName: true,
-        phoneNumber: true, email: true, countryCode: true, xbetId: true,
-        birthDate: true, subscriptionPlan: true, subscriptionExpiresAt: true,
-        referralCode: true, referralEarnings: true, isActive: true,
-        createdAt: true, lastLoginAt: true, 
-      },
-    });
+    let cursor: string | undefined;
+    while (true) {
+      const users = await prisma.user.findMany({
+        where,
+        orderBy: { id: 'asc' },
+        take: pageSize,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+        select: {
+          id: true, pseudo: true, firstName: true, lastName: true,
+          phoneNumber: true, email: true, countryCode: true, xbetId: true,
+          birthDate: true, subscriptionPlan: true, subscriptionExpiresAt: true,
+          referralCode: true, referralEarnings: true, isActive: true,
+          createdAt: true, lastLoginAt: true,
+        },
+      });
+      if (users.length === 0) return;
 
-    const header = 'ID,Pseudo,Prénom,Nom,Téléphone,Email,Pays,1xBet ID,Date naissance,Plan,Expire le,Code parrainage,Gains parrainage,Actif,Inscrit le,Dernière connexion';
-    const rows   = users.map(u => [
-      u.id, u.pseudo, u.firstName ?? '', u.lastName ?? '',
-      u.phoneNumber, u.email ?? '', u.countryCode, u.xbetId ?? '',
-      (u.birthDate as Date)?.toISOString().split('T')[0] ?? '',
-      u.subscriptionPlan,
-      u.subscriptionExpiresAt?.toISOString().split('T')[0] ?? '',
-      u.referralCode, u.referralEarnings,
-      u.isActive ? 'Oui' : 'Non',
-      u.createdAt.toISOString().split('T')[0],
-      u.lastLoginAt?.toISOString().split('T')[0] ?? '',
-    ].map(v => `"${v}"`).join(','));
+      for (const u of users) {
+        yield [
+          u.id, u.pseudo, u.firstName ?? '', u.lastName ?? '',
+          u.phoneNumber, u.email ?? '', u.countryCode, u.xbetId ?? '',
+          (u.birthDate as Date)?.toISOString().split('T')[0] ?? '',
+          u.subscriptionPlan,
+          u.subscriptionExpiresAt?.toISOString().split('T')[0] ?? '',
+          u.referralCode, u.referralEarnings,
+          u.isActive ? 'Oui' : 'Non',
+          u.createdAt.toISOString().split('T')[0],
+          u.lastLoginAt?.toISOString().split('T')[0] ?? '',
+        ].map(v => `"${v}"`).join(',');
+      }
 
-    return [header, ...rows].join('\n');
+      cursor = users[users.length - 1].id;
+      if (users.length < pageSize) return;
+    }
   }
 
   /** Stats globales */

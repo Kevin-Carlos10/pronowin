@@ -10,7 +10,8 @@ abstract class AuthRemoteDataSource {
   Future<Map<String, dynamic>> verifyOtp({required String phoneNumber, required String otp});
   Future<Map<String, dynamic>> registerEmail({required String email, required String password, required String pseudo});
   Future<Map<String, dynamic>> loginEmail({required String email, required String password});
-  Future<void> sendEmailOtp(String email);
+  /// Retourne `true` si l'email ne correspond à aucun compte existant.
+  Future<bool> sendEmailOtp(String email);
   Future<Map<String, dynamic>> verifyEmailOtp({required String email, required String otp});
   Future<UserModel> getProfile();
   Future<void> logout();
@@ -79,9 +80,10 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<void> sendEmailOtp(String email) async {
+  Future<bool> sendEmailOtp(String email) async {
     try {
-      await _dio.post(ApiEndpoints.sendEmailOtp, data: {'email': email});
+      final response = await _dio.post(ApiEndpoints.sendEmailOtp, data: {'email': email});
+      return (response.data as Map<String, dynamic>)['isNewUser'] as bool? ?? false;
     } on DioException catch (e) { throw _handleError(e); }
   }
 

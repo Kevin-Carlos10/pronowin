@@ -36,6 +36,8 @@ export async function authMiddleware(
     }
 
     req.userId = payload.userId;
+    // Fire-and-forget — ne bloque pas la réponse
+    prisma.user.update({ where: { id: payload.userId }, data: { lastSeenAt: new Date() } }).catch(() => {});
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
@@ -44,6 +46,33 @@ export async function authMiddleware(
       res.status(401).json({ message: 'Token invalide.' });
     }
   }
+}
+
+/**
+ * Auth optionnelle : attache req.userId si un Bearer token valide est fourni,
+ * mais laisse passer les requêtes anonymes (pas de 401).
+ * Utilisé sur les endpoints de navigation ouverts aux invités (liste des
+ * pronostics, tutoriels, classement) qui personnalisent juste leur réponse
+ * quand un utilisateur est connecté.
+ */
+export async function optionalAuthMiddleware(
+  req: AuthRequest, _res: Response, next: NextFunction,
+): Promise<void> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) { next(); return; }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    if (user && !(user as any).deletedAt && user.isActive) {
+      req.userId = payload.userId;
+      prisma.user.update({ where: { id: payload.userId }, data: { lastSeenAt: new Date() } }).catch(() => {});
+    }
+  } catch {
+    // Token invalide/expiré → on continue en anonyme plutôt que de bloquer.
+  }
+  next();
 }
 
 /** Middleware de validation Premium */

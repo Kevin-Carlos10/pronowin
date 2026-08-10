@@ -60,12 +60,12 @@
   <div class="search-box">
     <div class="search-input-wrap">
       <span class="search-icon">🔍</span>
-      <input type="text" id="search-input" placeholder="Rechercher un utilisateur, transaction, match…" autocomplete="off">
+      <input type="text" id="search-input" placeholder="Rechercher un utilisateur, pronostic, actualité…" autocomplete="off">
       <kbd class="search-esc" onclick="closeSearch()">Esc</kbd>
     </div>
     <div class="search-results" id="search-results">
       <div class="search-hint">
-        <span>👥 Utilisateurs</span><span>💳 Transactions</span><span>⚽ Pronostics</span>
+        <span>👥 Utilisateurs</span><span>⚽ Pronostics</span><span>📰 Actualités</span>
       </div>
     </div>
   </div>
@@ -79,6 +79,10 @@
     <h1>Prono<span>Win</span></h1>
     <small>Administration</small>
   </div>
+  <style>
+  /* ── Sidebar logo glow ── */
+  .sidebar-logo h1 span { text-shadow: 0 0 18px rgba(var(--primary-rgb),.4); }
+  </style>
 
   <!-- Bouton recherche sidebar -->
   <div style="padding:0 12px 12px">
@@ -100,21 +104,11 @@
 
     <% if (hasPerm('pronostics')) { %>
     <a href="/admin/pronostics" class="nav-item <%= page==='pronostics' ?'active':'' %>"><span class="icon">⚽</span> Pronostics</a>
+    <a href="/admin/leagues" class="nav-item <%= page==='leagues' ?'active':'' %>"><span class="icon">🏆</span> Ligues</a>
     <% } %>
 
-    <% if (hasPerm('transactions') || hasPerm('historique') || hasPerm('abonnements')) { %>
+    <% if (hasPerm('abonnements')) { %>
     <div class="sidebar-section">Finances</div>
-    <% } %>
-
-    <% if (hasPerm('transactions')) { %>
-    <a href="/admin/transactions" class="nav-item <%= page==='transactions' ?'active':'' %>">
-      <span class="icon">💰</span> Dépôts en attente
-      <span class="nav-badge" id="badge-tx"></span>
-    </a>
-    <% } %>
-
-    <% if (hasPerm('historique')) { %>
-    <a href="/admin/historique" class="nav-item <%= page==='historique' ?'active':'' %>"><span class="icon">📋</span> Historique</a>
     <% } %>
 
     <% if (hasPerm('abonnements')) { %>
@@ -122,6 +116,10 @@
       <span class="icon">👑</span> Abonnements
       <span class="nav-badge" id="badge-proofs"></span>
     </a>
+    <% } %>
+
+    <% if (hasPerm('bankroll')) { %>
+    <a href="/admin/bankroll" class="nav-item <%= page==='bankroll' ?'active':'' %>"><span class="icon">🎯</span> Bankroll</a>
     <% } %>
 
     <% if (hasPerm('tutoriels') || hasPerm('notifications') || hasPerm('actualites')) { %>
@@ -158,16 +156,6 @@
       <div class="mode-toggle">
         <button class="mode-btn" id="mode-dark"  onclick="setMode('dark')"  title="Mode sombre">🌙</button>
         <button class="mode-btn" id="mode-light" onclick="setMode('light')" title="Mode clair">☀️</button>
-      </div>
-    </div>
-    <div class="theme-panel-row" style="margin-bottom:0">
-      <span class="theme-panel-lbl">Couleur</span>
-      <div class="accent-dots">
-        <div class="accent-dot" id="accent-orange" style="background:#E8541A" onclick="setAccent('orange')" title="Orange"></div>
-        <div class="accent-dot" id="accent-blue"   style="background:#2563EB" onclick="setAccent('blue')"   title="Bleu"></div>
-        <div class="accent-dot" id="accent-green"  style="background:#059669" onclick="setAccent('green')"  title="Vert"></div>
-        <div class="accent-dot" id="accent-purple" style="background:#7C3AED" onclick="setAccent('purple')" title="Violet"></div>
-        <div class="accent-dot" id="accent-pink"   style="background:#DB2777" onclick="setAccent('pink')"   title="Rose"></div>
       </div>
     </div>
   </div>
@@ -209,11 +197,6 @@
       <div class="bottom-nav-fab-circle">🔍</div>
       <span class="bottom-nav-fab-lbl">Chercher</span>
     </button>
-    <a href="/admin/transactions" class="bottom-nav-item <%= page==='transactions'?'active':'' %>" aria-label="Transactions">
-      <span class="bottom-nav-icon">💰</span>
-      <span>Dépôts</span>
-      <span class="bottom-nav-badge" id="bnav-badge-tx"></span>
-    </a>
     <a href="/admin/profile" class="bottom-nav-item <%= page==='profile'?'active':'' %>" aria-label="Profil">
       <span class="bottom-nav-icon">👤</span>
       <span>Profil</span>

@@ -7,13 +7,14 @@
 
 /* ── Stats état ──────────────────────────────────────────────────────────────── */
 .st-states { display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:.65rem; margin-bottom:1rem; }
-.st-state  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.75rem 1rem; display:flex; align-items:center; gap:.75rem; }
+.st-state  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.85rem 1.1rem; display:flex; align-items:center; gap:.75rem; transition:transform .2s,box-shadow .2s; }
+.st-state:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
 .st-state-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
-.st-state .lbl { font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; font-weight:700; color:var(--text-dim); }
-.st-state .val { font-size:.85rem; font-weight:700; }
+.st-state .lbl { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; font-weight:700; color:var(--text-dim); }
+.st-state .val { font-size:.88rem; font-weight:700; }
 
 /* ── Cards ───────────────────────────────────────────────────────────────────── */
-.st-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.4rem; }
+.st-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.4rem; margin-bottom:0; }
 .st-card h2 { font-size:.95rem; font-weight:700; margin-bottom:.2rem; display:flex; align-items:center; gap:.5rem; }
 .st-card .desc { font-size:.78rem; color:var(--text-dim); margin-bottom:1.1rem; }
 

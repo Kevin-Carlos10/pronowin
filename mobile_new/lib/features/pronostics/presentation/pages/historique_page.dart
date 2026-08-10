@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../core/cache/cache_service.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../domain/entities/match_entity.dart' show MatchEntity;
 
 // ─── Filtres ──────────────────────────────────────────────────────────────────
 enum _ResultFilter { all, win, loss, pending }
@@ -124,7 +125,8 @@ class HistoriquePage extends ConsumerWidget {
       final home   = match['homeTeam']  as String? ?? '';
       final away   = match['awayTeam']  as String? ?? '';
       final league = match['league']    as String? ?? '';
-      final pred   = e['predictionLabel'] as String? ?? '';
+      final pred   = MatchEntity.applyTeamNames(
+          e['predictionLabel'] as String? ?? '', homeTeam: home, awayTeam: away);
       final odds   = (e['oddsRecommended'] as num?)?.toStringAsFixed(2) ?? '';
       final result = e['result'] as String? ?? 'EN ATTENTE';
       buf.writeln('"$date","$home vs $away","$league","$pred",$odds,$result');
@@ -576,7 +578,8 @@ class _EntryCard extends StatelessWidget {
     final league     = match['league']    as String? ?? '';
     final date       = DateTime.tryParse(match['matchDate'] as String? ?? '');
     final dateStr    = date != null ? DateFormat('dd/MM', 'fr_FR').format(date) : '';
-    final pred       = entry['predictionLabel'] as String? ?? '';
+    final pred       = MatchEntity.applyTeamNames(
+        entry['predictionLabel'] as String? ?? '', homeTeam: homeTeam, awayTeam: awayTeam);
     final odds       = (entry['oddsRecommended'] as num?)?.toDouble() ?? 0.0;
 
     final resultColor = isPending ? AppColors.warning

@@ -7,10 +7,9 @@ import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../constants/app_constants.dart';
-import '../router/navigation_keys.dart';
 import '../services/crashlytics_service.dart';
 import '../storage/secure_storage.dart';
 import 'cache_interceptor.dart';
@@ -18,18 +17,33 @@ import 'performance_interceptor.dart';
 
 final dioProvider = Provider<Dio>((ref) {
   final storage = ref.read(secureStorageProvider);
-  return DioClient(storage).dio;
+  return DioClient(storage, ref).dio;
 });
 
 class DioClient {
   late final Dio dio;
   final SecureStorageService _storage;
+  final Ref _ref;
 
   // ── Protection contre les refreshs concurrents ───────────────────────────
   bool _isRefreshing = false;
   Completer<bool>? _refreshCompleter;
 
-  DioClient(this._storage) {
+  // Endpoints publics, appelés sans session existante — un 401 dessus est
+  // toujours une erreur métier (mauvais code, mauvais mot de passe...),
+  // jamais un token expiré. Ne doit jamais déclencher _doRefresh().
+  static const _publicAuthEndpoints = <String>{
+    ApiEndpoints.quickRegister,
+    ApiEndpoints.sendOtp,
+    ApiEndpoints.verifyOtp,
+    ApiEndpoints.registerEmail,
+    ApiEndpoints.loginEmail,
+    ApiEndpoints.sendEmailOtp,
+    ApiEndpoints.verifyEmailOtp,
+    ApiEndpoints.refreshToken,
+  };
+
+  DioClient(this._storage, this._ref) {
     dio = Dio(
       BaseOptions(
         baseUrl:        AppConstants.baseUrl,
@@ -147,11 +161,16 @@ class DioClient {
           return handler.next(options);
         },
         onError: (error, handler) async {
-          // Ne pas tenter de refresh sur l'endpoint de refresh lui-même
-          final isRefreshEndpoint =
-              error.requestOptions.path.contains(ApiEndpoints.refreshToken);
+          // Un 401 sur ces endpoints publics (pas encore de session) est une
+          // erreur métier normale (mauvais code/identifiants) — pas un signe
+          // que le token d'accès a été rejeté. Tenter un refresh dessus n'a
+          // aucun sens (pas de refresh token) et déclenchait une réinitialisation
+          // globale de authProvider en pleine course avec le catch de l'appelant
+          // (ex: "Code OTP invalide" pendant la vérification email → crash).
+          final isPublicAuthEndpoint = _publicAuthEndpoints
+              .any((p) => error.requestOptions.path.contains(p));
 
-          if (error.response?.statusCode == 401 && !isRefreshEndpoint) {
+          if (error.response?.statusCode == 401 && !isPublicAuthEndpoint) {
             final refreshed = await _doRefresh();
             if (refreshed) {
               // Rejouer la requête originale avec le nouveau token
@@ -238,15 +257,22 @@ class DioClient {
     }
   }
 
-  /// Redirige vers la page de connexion quand le refresh échoue.
+  /// Rétrograde silencieusement en mode invité quand le refresh échoue —
+  /// ne force plus la navigation vers l'écran de connexion. Le router
+  /// (qui écoute authProvider/isLoggedInProvider) redirigera de lui-même
+  /// vers /auth/email UNIQUEMENT si l'écran courant l'exige ; sinon
+  /// l'utilisateur continue de naviguer normalement en invité.
   void _onRefreshFailed() {
-    // Ajouter au prochain frame pour éviter les navigations pendant un build
+    // Différé pour éviter de modifier le provider tree pendant un build.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final ctx = rootNavigatorKey.currentContext;
-      if (ctx != null && ctx.mounted) {
-        debugPrint('[DioClient] Session expirée → redirection /auth/phone');
-        ctx.go('/auth/phone');
-      }
+      // Déjà invité (AuthInitial) — ne rien faire. Éviter de notifier pour
+      // rien évite une cascade de rebuild/redirection au démarrage, quand
+      // un simple appel anonyme (ex. FCM) échoue en 401 alors qu'aucune
+      // session n'a jamais existé.
+      if (_ref.read(authProvider) is AuthInitial) return;
+      debugPrint('[DioClient] Session expirée → retour en mode invité');
+      _ref.read(authProvider.notifier).reset();
+      _ref.invalidate(isLoggedInProvider);
     });
   }
 }

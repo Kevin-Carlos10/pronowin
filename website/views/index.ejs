@@ -1,0 +1,314 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= site.name %> — <%= site.tagline %></title>
+  <meta name="description" content="PronoWin : pronostics sportifs quotidiens, abonnements VIP, dépôt et retrait Mobile Money. Football, basketball, tennis.">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <header class="navbar">
+    <div class="container">
+      <a href="/" class="brand">
+        <span class="brand-mark">P</span>
+        Prono<span>Win</span>
+      </a>
+      <nav class="nav-links">
+        <a href="#fonctionnalites">Aperçu</a>
+        <a href="#tarifs">Tarifs</a>
+        <a href="#comparer">Comparer</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <div class="nav-actions">
+        <a href="#" class="nav-login">Se connecter</a>
+        <a href="#telecharger" class="nav-cta">Télécharger</a>
+        <button class="nav-toggle" aria-label="Menu" aria-expanded="false">
+          <%- include('partials/icon', { name: 'menu', size: 22 }) %>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="mobile-nav">
+    <a href="#fonctionnalites">Aperçu</a>
+    <a href="#tarifs">Tarifs</a>
+    <a href="#comparer">Comparer</a>
+    <a href="#faq">FAQ</a>
+    <a href="#">Se connecter</a>
+    <a href="#telecharger" class="btn btn-primary">Télécharger l'app</a>
+  </div>
+
+  <!-- Hero -->
+  <section class="hero">
+    <video class="hero-bg-video" autoplay muted loop playsinline poster="/images/hero-poster.svg">
+      <source src="/videos/hero-loop.mp4" type="video/mp4">
+    </video>
+    <div class="hero-bg-overlay"></div>
+    <div class="container hero-content">
+      <div class="hero-eyebrow">PronoWin</div>
+      <h1 class="hero-title">Des pronostics gagnants.<br>Des gains grandissants.</h1>
+      <p class="hero-subtitle">Football. Basketball. Tennis. Des analyses expertes chaque jour, gratuites ou en accès VIP — avec dépôt et retrait par Mobile Money.</p>
+      <div class="hero-cta">
+        <a href="#telecharger" class="btn btn-primary">Télécharger l'app</a>
+        <a href="#fonctionnalites" class="btn-link">En savoir plus <%- include('partials/icon', { name: 'arrow', size: 14 }) %></a>
+      </div>
+    </div>
+    <div class="hero-showcase">
+      <img class="hero-app-shot" src="/images/app-screenshot-hero.jpg" alt="Aperçu de l'application PronoWin : prochain match, compte à rebours et match en direct">
+    </div>
+  </section>
+
+  <!-- Mega number chapter -->
+  <section class="chapter chapter--white chapter--mega">
+    <div class="container">
+      <span class="eyebrow">Performance</span>
+      <div class="mega-number"><%= stats[1].value %><%= stats[1].suffix %></div>
+      <p class="headline-sub" style="margin-top:24px">de taux de réussite sur les pronostics VIP, mesuré sur les 30 derniers jours.</p>
+    </div>
+  </section>
+
+  <!-- Demo video chapter -->
+  <section class="chapter chapter--black">
+    <div class="container">
+      <span class="eyebrow">Démo</span>
+      <h2 class="headline">L'application en action.</h2>
+      <p class="headline-sub">Pronostics, cotes, abonnement VIP et retrait de gains — un aperçu de l'expérience PronoWin.</p>
+      <div class="video-frame">
+        <video autoplay muted loop playsinline poster="/images/demo-poster.svg">
+          <source src="/videos/demo-loop.mp4" type="video/mp4">
+        </video>
+      </div>
+    </div>
+  </section>
+
+  <!-- Feature chapters -->
+  <div id="fonctionnalites">
+  <% productBlocks.forEach(function(block){ %>
+    <section class="chapter chapter--<%= block.bg %>">
+      <div class="container">
+        <span class="eyebrow"><%= block.eyebrow %></span>
+        <h2 class="headline"><%- block.title.split('\n').join('<br>') %></h2>
+        <p class="headline-sub"><%= block.text %></p>
+        <div class="chapter-stats">
+          <% block.stats.forEach(function(s){ %>
+            <div>
+              <div class="chapter-stat-value"><%= s.value %></div>
+              <div class="chapter-stat-label"><%= s.label %></div>
+            </div>
+          <% }) %>
+        </div>
+        <div class="feature-visual">
+          <% if (block.photo) { %>
+            <div class="feature-photo">
+              <img src="<%= block.photo %>" alt="<%= block.title.replace(/\n/g, ' ') %>" loading="lazy">
+            </div>
+          <% } %>
+          <div class="feature-card">
+            <% if (block.icon === 'chart') { %>
+              <div class="feature-row"><span class="icon-badge icon-badge--green"><%- include('partials/icon', {name:'ball', size:18}) %></span><div><div class="feature-row-title">Real Madrid vs Barcelone</div><div class="feature-row-sub">Confiance : Élevée · Cote 1.72</div></div></div>
+              <div class="feature-row"><span class="icon-badge icon-badge--green"><%- include('partials/icon', {name:'ball', size:18}) %></span><div><div class="feature-row-title">Bayern vs Dortmund</div><div class="feature-row-sub">Confiance : Moyenne · Cote 2.10</div></div></div>
+              <div class="feature-row"><span class="icon-badge icon-badge--green"><%- include('partials/icon', {name:'ball', size:18}) %></span><div><div class="feature-row-title">Juventus vs Milan</div><div class="feature-row-sub">Confiance : Élevée · Cote 1.95</div></div></div>
+            <% } else if (block.icon === 'crown') { %>
+              <div class="feature-row"><span class="icon-badge icon-badge--gold"><%- include('partials/icon', {name:'crown', size:18}) %></span><div><div class="feature-row-title">Combiné VIP du jour</div><div class="feature-row-sub">3 sélections · Cote totale 6.40</div></div></div>
+              <div class="feature-row"><span class="icon-badge icon-badge--gold"><%- include('partials/icon', {name:'trophy', size:18}) %></span><div><div class="feature-row-title">Taux de réussite VIP</div><div class="feature-row-sub">87% sur les 30 derniers jours</div></div></div>
+              <div class="feature-row"><span class="icon-badge icon-badge--dark"><%- include('partials/icon', {name:'shield', size:18}) %></span><div><div class="feature-row-title">Analyse vérifiée</div><div class="feature-row-sub">Par notre équipe d'experts</div></div></div>
+            <% } else if (block.icon === 'wallet') { %>
+              <div class="feature-row"><span class="icon-badge icon-badge--green"><%- include('partials/icon', {name:'wallet', size:18}) %></span><div><div class="feature-row-title">Dépôt Orange Money</div><div class="feature-row-sub">Confirmé en 2 minutes</div></div></div>
+              <div class="feature-row"><span class="icon-badge icon-badge--green"><%- include('partials/icon', {name:'coins', size:18}) %></span><div><div class="feature-row-title">Retrait de gains</div><div class="feature-row-sub">Vers Moov Money · 15 000 FCFA</div></div></div>
+              <div class="feature-row"><span class="icon-badge icon-badge--dark"><%- include('partials/icon', {name:'shield', size:18}) %></span><div><div class="feature-row-title">Paiement sécurisé</div><div class="feature-row-sub">Suivi en temps réel</div></div></div>
+            <% } else { %>
+              <div class="feature-row"><span class="icon-badge icon-badge--green"><%- include('partials/icon', {name:'users', size:18}) %></span><div><div class="feature-row-title">Code de parrainage</div><div class="feature-row-sub">PWIN-4F82</div></div></div>
+              <div class="feature-row"><span class="icon-badge icon-badge--gold"><%- include('partials/icon', {name:'crown', size:18}) %></span><div><div class="feature-row-title">Récompense</div><div class="feature-row-sub">7 jours VIP offerts / filleul</div></div></div>
+              <div class="feature-row"><span class="icon-badge icon-badge--dark"><%- include('partials/icon', {name:'users', size:18}) %></span><div><div class="feature-row-title">4 filleuls actifs</div><div class="feature-row-sub">28 jours VIP cumulés</div></div></div>
+            <% } %>
+          </div>
+        </div>
+      </div>
+    </section>
+  <% }) %>
+  </div>
+
+  <!-- Big stats -->
+  <section class="chapter chapter--white chapter--tight">
+    <div class="container">
+      <div class="chapter-stats">
+        <% bigStats.forEach(function(bs){ %>
+          <div>
+            <div class="chapter-stat-value"><%= bs.value %></div>
+            <div class="chapter-stat-label"><%= bs.label %></div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+
+  <!-- Quote chapter -->
+  <section id="temoignages" class="chapter chapter--black quote-chapter">
+    <div class="container-narrow">
+      <span class="eyebrow">Ils parlent de nous</span>
+      <div class="quote-slides">
+        <% testimonials.forEach(function(t, i){ %>
+          <div class="quote-slide"<% if (i !== 0) { %> style="display:none"<% } %>>
+            <p class="quote-text">&ldquo;<%= t.text %>&rdquo;</p>
+            <p class="quote-attribution"><%= t.author %> — <%= t.role %></p>
+          </div>
+        <% }) %>
+      </div>
+      <div class="quote-nav">
+        <% testimonials.forEach(function(t, i){ %>
+          <button class="quote-dot<%= i === 0 ? ' is-active' : '' %>" data-index="<%= i %>" aria-label="Témoignage <%= i + 1 %>"></button>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+
+  <!-- Pricing -->
+  <section id="tarifs" class="chapter chapter--gray">
+    <div class="container">
+      <span class="eyebrow">Tarifs</span>
+      <h2 class="headline">Choisissez votre forfait.</h2>
+      <p class="headline-sub">Commencez gratuitement, passez VIP quand vous êtes prêt. Paiement 100% Mobile Money.</p>
+      <div class="pricing-grid">
+        <% pricingPlans.forEach(function(plan){ %>
+          <div class="pricing-card <%= plan.highlight ? 'pricing-card--highlight' : '' %>">
+            <% if (plan.badge) { %><span class="pricing-badge"><%= plan.badge %></span><% } %>
+            <div class="pricing-name"><%= plan.name %></div>
+            <div class="pricing-price"><%= plan.price %> <span>FCFA</span></div>
+            <div class="pricing-period"><%= plan.period %></div>
+            <ul class="pricing-features">
+              <% plan.features.forEach(function(f){ %>
+                <li><%- include('partials/icon', { name: 'check', size: 15 }) %> <span><%= f %></span></li>
+              <% }) %>
+            </ul>
+            <a href="#telecharger" class="btn <%= plan.highlight ? 'btn-inverse' : 'btn-primary' %> btn-sm">Choisir <%= plan.name %></a>
+          </div>
+        <% }) %>
+      </div>
+      <p class="pricing-note">Les abonnements ne sont pas reconduits automatiquement. Résiliables à tout moment depuis l'application.</p>
+    </div>
+  </section>
+
+  <!-- Comparison table -->
+  <section id="comparer" class="chapter chapter--white">
+    <div class="container">
+      <span class="eyebrow">Comparatif</span>
+      <h2 class="headline">Comparer les forfaits.</h2>
+      <div class="compare-wrap">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th></th>
+              <% pricingPlans.forEach(function(plan){ %>
+                <th><%= plan.name %></th>
+              <% }) %>
+            </tr>
+          </thead>
+          <tbody>
+            <% comparisonRows.forEach(function(row){ %>
+              <tr>
+                <td><%= row.label %></td>
+                <% row.values.forEach(function(v){ %>
+                  <td><% if (v) { %><%- include('partials/icon', { name: 'check', size: 16 }) %><% } else { %><span class="dash">—</span><% } %></td>
+                <% }) %>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="chapter chapter--gray">
+    <div class="container">
+      <span class="eyebrow">Besoin d'aide ?</span>
+      <h2 class="headline">Questions fréquentes.</h2>
+      <div class="faq-list">
+        <% faqs.forEach(function(item){ %>
+          <div class="faq-item">
+            <button class="faq-question" type="button">
+              <span><%= item.q %></span>
+              <%- include('partials/icon', { name: 'plus', size: 18 }) %>
+            </button>
+            <div class="faq-answer"><div class="faq-answer-inner"><%= item.a %></div></div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section id="telecharger" class="chapter chapter--black">
+    <div class="container">
+      <span class="eyebrow">Prêt ?</span>
+      <h2 class="headline">Prêt à parier plus intelligemment ?</h2>
+      <p class="headline-sub">Téléchargez PronoWin, activez vos pronostics gratuits du jour, et passez VIP quand vous êtes prêt à aller plus loin.</p>
+      <div class="store-badges">
+        <a href="#" class="store-badge">
+          <%- include('partials/icon', { name: 'apple', size: 20 }) %>
+          <span class="store-badge-text"><small>Télécharger sur l'</small><strong>App Store</strong></span>
+        </a>
+        <a href="#" class="store-badge">
+          <%- include('partials/icon', { name: 'android', size: 20 }) %>
+          <span class="store-badge-text"><small>Disponible sur</small><strong>Google Play</strong></span>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <a href="/" class="brand">
+            <span class="brand-mark">P</span>
+            Prono<span>Win</span>
+          </a>
+          <p class="footer-tagline"><%= site.tagline %>.</p>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">Pronostics</div>
+          <ul>
+            <li><a href="#fonctionnalites">Pronostics gratuits</a></li>
+            <li><a href="#fonctionnalites">Pronostics VIP</a></li>
+            <li><a href="#tarifs">Abonnements</a></li>
+            <li><a href="#fonctionnalites">Parrainage</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">Compte</div>
+          <ul>
+            <li><a href="#">Se connecter</a></li>
+            <li><a href="#telecharger">Télécharger l'app</a></li>
+            <li><a href="#comparer">Comparer les forfaits</a></li>
+            <li><a href="#faq">Support</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">PronoWin</div>
+          <ul>
+            <li><a href="#faq">FAQ</a></li>
+            <li><a href="#temoignages">Témoignages</a></li>
+            <li><a href="/mentions-legales">Mentions légales</a></li>
+            <li><a href="#">Nous contacter</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-legal">© <%= site.year %> <%= site.name %>. Tous droits réservés. Le pronostic et le pari sportif comportent des risques de perte financière. Service réservé aux personnes majeures — jouez de manière responsable.</p>
+        <div class="footer-socials">
+          <a href="#" aria-label="Facebook"><%- include('partials/icon', { name: 'facebook', size: 14 }) %></a>
+          <a href="#" aria-label="Instagram"><%- include('partials/icon', { name: 'instagram', size: 14 }) %></a>
+          <a href="#" aria-label="WhatsApp"><%- include('partials/icon', { name: 'whatsapp', size: 14 }) %></a>
+        </div>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/main.js"></script>
+</body>
+</html>

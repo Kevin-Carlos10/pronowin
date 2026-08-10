@@ -8,9 +8,10 @@
 /* ── Stats ───────────────────────────────────────────────────────────────────── */
 .nf-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:.65rem; margin-bottom:1rem; }
 @media(max-width:700px) { .nf-stats { grid-template-columns:repeat(2,1fr); } }
-.nf-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.75rem .9rem; }
-.nf-stat .v { font-size:1.3rem; font-weight:800; line-height:1; margin-bottom:.15rem; }
-.nf-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+.nf-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1.1rem; transition:transform .2s,box-shadow .2s; }
+.nf-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.nf-stat .v { font-size:1.6rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
+.nf-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
 
 /* ── Segments ────────────────────────────────────────────────────────────────── */
 .seg-grid { display:grid; grid-template-columns:1fr 1fr; gap:.5rem; margin-top:.5rem; }
@@ -288,7 +289,6 @@
         <% [
           ['⚽ Pronostic', '🎯 Nouveau pronostic disponible !', 'Un pronostic Premium vient d\'être publié. Connectez-vous pour ne pas le manquer !'],
           ['👑 Promo Premium', '👑 Offre Premium disponible !', 'Accédez à tous nos pronostics exclusifs avec Premium. Profitez de l\'offre dès maintenant !'],
-          ['💰 Dépôt validé', '💰 Dépôt confirmé ✅', 'Votre dépôt a bien été validé. Votre solde a été mis à jour.'],
           ['🏆 Pronostic gagnant', '🏆 Pronostic gagnant !', 'Félicitations ! Le pronostic d\'aujourd\'hui était gagnant. Consultez les résultats.'],
           ['😴 Réengagement', '👋 On vous a manqué ?', 'Revenez découvrir les derniers pronostics et offres disponibles sur PronoWin !'],
           ['📰 Nouvel article', '📰 Nouvelle actualité !', 'Un nouvel article vient d\'être publié. Découvrez les dernières infos PronoWin.'],

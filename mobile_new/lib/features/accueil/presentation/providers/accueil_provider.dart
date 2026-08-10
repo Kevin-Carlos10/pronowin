@@ -102,7 +102,12 @@ final pronosticsJourProvider =
     cacheKey: key,
     fetchFn:  () async {
       final r = await ref.read(dioProvider).get('/pronostics', queryParameters: {
-        'date_filter': 'today', 'page': 1, 'per_page': 5,
+        // Fetch généreux (limite max autorisée côté backend) — cette liste
+        // alimente aussi les sections "En direct" et "Top prono du jour" qui
+        // ont besoin de voir TOUS les pronos publiés du jour pour choisir
+        // correctement (pas seulement les 5 affichés dans la liste "Pronostics
+        // du jour" elle-même, qui applique son propre .take(5) à l'affichage).
+        'date_filter': 'today', 'limit': 50,
       });
       return (r.data['data'] as List<dynamic>?) ?? [];
     },
@@ -174,7 +179,9 @@ final nextPronosticProvider =
     cacheKey: key,
     fetchFn:  () async {
       final r = await ref.read(dioProvider).get('/pronostics', queryParameters: {
-        'date_filter': 'week', 'page': 1, 'per_page': 20,
+        // Idem pronosticsJourProvider ci-dessus : page/per_page sont ignorés
+        // par le backend (pagination par curseur), seul `limit` compte.
+        'date_filter': 'week', 'limit': 50,
       });
       return (r.data['data'] as List<dynamic>?) ?? [];
     },

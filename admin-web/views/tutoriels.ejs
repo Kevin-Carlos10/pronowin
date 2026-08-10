@@ -3,9 +3,10 @@
 <style>
 /* ── Stats ─────────────────────────────────────────────────────────────────── */
 .tut-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:.65rem; margin-bottom:1rem; }
-.tut-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.75rem .9rem; }
-.tut-stat .v { font-size:1.3rem; font-weight:800; line-height:1; margin-bottom:.15rem; }
-.tut-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+.tut-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1rem; transition:transform .2s,box-shadow .2s; }
+.tut-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.tut-stat .v { font-size:1.6rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
+.tut-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
 
 /* ── Filtre ─────────────────────────────────────────────────────────────────── */
 .tut-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
@@ -24,11 +25,11 @@
 
 .tut-card {
   background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius); overflow:hidden;
-  transition:box-shadow var(--transition), border-color var(--transition);
+  border-radius:16px; overflow:hidden;
+  transition:box-shadow .2s, border-color .2s, transform .2s;
   display:flex; flex-direction:column;
 }
-.tut-card:hover { box-shadow:var(--shadow-lg); border-color:var(--primary); }
+.tut-card:hover { box-shadow:0 10px 32px rgba(0,0,0,.22); border-color:var(--primary); transform:translateY(-2px); }
 .tut-card.premium { border-top:2px solid var(--warning); }
 .tut-card.free    { border-top:2px solid var(--success); }
 
@@ -76,6 +77,14 @@
   const _catCfg = {
     valuebet:'🎯', bankroll:'💰', analyse:'📊', strategie:'♟️', psychologie:'🧠'
   };
+  const _catLabels = {
+    valuebet:'Value Bet', bankroll:'Bankroll', analyse:'Analyse',
+    strategie:'Stratégie', psychologie:'Psychologie',
+  };
+  function catLabel(c) {
+    if (_catLabels[c]) return _catLabels[c];
+    return c.replace(/[_-]/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase());
+  }
   const _lvlCfg = {
     beginner:     { label:'Débutant',      cls:'lvl-beginner' },
     intermediate: { label:'Intermédiaire', cls:'lvl-intermediate' },
@@ -125,17 +134,16 @@
     <input type="text" name="search" value="<%= search %>" placeholder="🔍 Titre, description, auteur…">
     <select name="category" onchange="this.form.submit()">
       <option value="">Toutes catégories</option>
-      <option value="valuebet"    <%= category==='valuebet'    ?'selected':'' %>>🎯 Value Bet</option>
-      <option value="bankroll"    <%= category==='bankroll'    ?'selected':'' %>>💰 Bankroll</option>
-      <option value="analyse"     <%= category==='analyse'     ?'selected':'' %>>📊 Analyse</option>
-      <option value="strategie"   <%= category==='strategie'   ?'selected':'' %>>♟️ Stratégie</option>
-      <option value="psychologie" <%= category==='psychologie' ?'selected':'' %>>🧠 Psychologie</option>
+      <% (categories||[]).forEach(c => { %>
+        <option value="<%= c %>" <%= category===c ?'selected':'' %>><%= _catCfg[c] || '📚' %> <%= catLabel(c) %></option>
+      <% }) %>
     </select>
     <select name="level" onchange="this.form.submit()">
       <option value="">Tous niveaux</option>
-      <option value="beginner"     <%= level==='beginner'     ?'selected':'' %>>🟢 Débutant</option>
-      <option value="intermediate" <%= level==='intermediate' ?'selected':'' %>>🟡 Intermédiaire</option>
-      <option value="advanced"     <%= level==='advanced'     ?'selected':'' %>>🔴 Avancé</option>
+      <% const _lvlEmoji = { beginner:'🟢', intermediate:'🟡', advanced:'🔴' }; %>
+      <% (levels||[]).forEach(l => { %>
+        <option value="<%= l %>" <%= level===l ?'selected':'' %>><%= _lvlEmoji[l] || '📊' %> <%= (_lvlCfg[l]||{}).label || l %></option>
+      <% }) %>
     </select>
     <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
     <% if(_hasFilter){ %><a href="/admin/tutoriels" class="btn btn-outline btn-sm">✕ Reset</a><% } %>

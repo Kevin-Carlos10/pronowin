@@ -207,8 +207,8 @@ export async function sendEmailOtp(req: Request, res: Response): Promise<void> {
   const bruteCheck = _checkOtpBrute(req.body.email);
   if (bruteCheck.blocked) { res.status(429).json({ message: bruteCheck.message }); return; }
   try {
-    await authService.sendEmailOtp(req.body.email);
-    res.json({ message: 'Code OTP envoyé par email.' });
+    const { isNewUser } = await authService.sendEmailOtp(req.body.email);
+    res.json({ message: 'Code OTP envoyé par email.', isNewUser });
   } catch (e: any) {
     res.status(500).json({ message: e.message ?? 'Erreur lors de l\'envoi.' });
   }
@@ -232,6 +232,55 @@ export async function verifyEmailOtp(req: Request, res: Response): Promise<void>
   } catch (e: any) {
     _recordOtpFailure(req.body.email);
     res.status(401).json({ message: e.message ?? 'Vérification OTP échouée.' });
+  }
+}
+
+// ─── Liaison de compte ────────────────────────────────────────────────────────
+
+export async function linkPhone(req: AuthRequest, res: Response): Promise<void> {
+  const { phone_number, otp } = req.body;
+  if (!phone_number || !otp) {
+    res.status(422).json({ message: 'Numéro de téléphone et code OTP requis.' }); return;
+  }
+  const bruteCheck = _checkOtpBrute(phone_number);
+  if (bruteCheck.blocked) { res.status(429).json({ message: bruteCheck.message }); return; }
+  try {
+    const result = await authService.linkPhone(req.userId!, phone_number, otp);
+    _clearOtpAttempts(phone_number);
+    res.json({ message: 'Numéro de téléphone lié avec succès.', user: _formatUser(result.user) });
+  } catch (e: any) {
+    _recordOtpFailure(phone_number);
+    res.status(e.message.includes('déjà') ? 409 : 401).json({ message: e.message });
+  }
+}
+
+export async function linkEmail(req: AuthRequest, res: Response): Promise<void> {
+  const { email, otp } = req.body;
+  if (!email || !otp) {
+    res.status(422).json({ message: 'Email et code OTP requis.' }); return;
+  }
+  const bruteCheck = _checkOtpBrute(email);
+  if (bruteCheck.blocked) { res.status(429).json({ message: bruteCheck.message }); return; }
+  try {
+    const result = await authService.linkEmail(req.userId!, email, otp);
+    _clearOtpAttempts(email);
+    res.json({ message: 'Email lié avec succès.', user: _formatUser(result.user) });
+  } catch (e: any) {
+    _recordOtpFailure(email);
+    res.status(e.message.includes('déjà') ? 409 : 401).json({ message: e.message });
+  }
+}
+
+export async function setPassword(req: AuthRequest, res: Response): Promise<void> {
+  const { password } = req.body;
+  if (!password || password.length < 8) {
+    res.status(422).json({ message: 'Mot de passe minimum 8 caractères.' }); return;
+  }
+  try {
+    await authService.setPassword(req.userId!, password);
+    res.json({ message: 'Mot de passe défini avec succès.' });
+  } catch (e: any) {
+    res.status(500).json({ message: e.message });
   }
 }
 
@@ -277,6 +326,7 @@ function _formatUser(user: any) {
     pseudo:                 user.pseudo,
     first_name:             user.firstName ?? null,
     last_name:              user.lastName  ?? null,
+    birth_date:             user.birthDate ?? null,
     avatar_url:             user.avatarUrl,
     country_code:           user.countryCode,
     subscription_plan:      user.subscriptionPlan,

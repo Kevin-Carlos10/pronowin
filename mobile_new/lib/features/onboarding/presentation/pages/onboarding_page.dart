@@ -33,7 +33,7 @@ const _slides = [
     subtitle: 'L\'appli de pronostics sportifs N°1 en Afrique de l\'Ouest',
     bullets: [
       'Pronostics d\'experts chaque jour',
-      'Analyses IA exclusives',
+      'Analyses statistiques exclusives',
       'Communauté de parieurs sérieux',
     ],
     color: Color(0xFF6366F1),
@@ -53,7 +53,7 @@ const _slides = [
   ),
   _Slide(
     emoji: '🤖',
-    title: 'Analyse IA Intégrée',
+    title: 'Analyse statistique intégrée',
     subtitle: 'Notre algorithme calcule les probabilités pour chaque match',
     bullets: [
       'Score de probabilité basé sur l\'historique H2H',

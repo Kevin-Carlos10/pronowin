@@ -11,16 +11,20 @@ class BetDetailPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPending = bet.result == null;
     final isWin     = bet.result == 'WIN';
+    final isPush    = bet.result == 'PUSH';
     final cl        = context.cl;
 
     final statusColor = isPending ? AppColors.warning
                       : isWin    ? AppColors.success
+                      : isPush   ? AppColors.info
                       :             AppColors.error;
     final statusLabel = isPending ? 'En attente'
                       : isWin    ? 'Gagné'
+                      : isPush   ? 'Remboursé'
                       :             'Perdu';
     final statusIcon  = isPending ? Icons.hourglass_empty_rounded
                       : isWin    ? Icons.emoji_events_rounded
+                      : isPush   ? Icons.replay_rounded
                       :             Icons.close_rounded;
 
     return Scaffold(
@@ -98,7 +102,7 @@ class BetDetailPage extends StatelessWidget {
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               _RowLabel(icon: Icons.auto_awesome_rounded, label: 'Pronostic choisi'),
               const SizedBox(height: 10),
-              Text(bet.predictionLabel,
+              Text(bet.displayPredictionLabel,
                 style: TextStyle(color: cl.textP, fontSize: 15, fontWeight: FontWeight.w700)),
               const SizedBox(height: 10),
               Row(children: [
@@ -124,51 +128,49 @@ class BetDetailPage extends StatelessWidget {
               Row(children: [
                 Expanded(child: _FinanceStat(
                   label: 'Mise',
-                  value: '${_formatAmount(bet.stakedAmount)} XOF',
+                  value: '${_formatAmount(bet.stakedAmount)} ${bet.currency}',
                   valueColor: cl.textP,
                 )),
                 Container(width: 1, height: 40, color: cl.border),
                 Expanded(child: _FinanceStat(
                   label: 'Gain potentiel',
-                  value: '+${_formatAmount(bet.potentialGain)} XOF',
+                  value: '+${_formatAmount(bet.potentialGain)} ${bet.currency}',
                   valueColor: AppColors.primary,
                 )),
               ]),
               if (bet.profit != null) ...[
                 const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: (bet.profit! >= 0 ? AppColors.success : AppColors.error)
-                        .withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(
-                      color: (bet.profit! >= 0 ? AppColors.success : AppColors.error)
-                          .withValues(alpha: 0.25),
+                Builder(builder: (_) {
+                  final profitColor = isPush ? AppColors.info
+                    : bet.profit! >= 0 ? AppColors.success : AppColors.error;
+                  final profitIcon = isPush ? Icons.replay_rounded
+                    : bet.profit! >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded;
+                  final profitText = isPush
+                    ? 'Mise remboursée'
+                    : '${bet.profit! >= 0 ? '+' : ''}${_formatAmount(bet.profit!)} ${bet.currency}';
+                  return Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: profitColor.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: profitColor.withValues(alpha: 0.25)),
                     ),
-                  ),
-                  child: Row(children: [
-                    Icon(
-                      bet.profit! >= 0
-                          ? Icons.trending_up_rounded
-                          : Icons.trending_down_rounded,
-                      color: bet.profit! >= 0 ? AppColors.success : AppColors.error,
-                      size: 20,
-                    ),
-                    const SizedBox(width: 10),
-                    Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      Text('Résultat net',
-                        style: TextStyle(color: cl.textM, fontSize: 11)),
-                      Text(
-                        '${bet.profit! >= 0 ? '+' : ''}${_formatAmount(bet.profit!)} XOF',
-                        style: TextStyle(
-                          color: bet.profit! >= 0 ? AppColors.success : AppColors.error,
-                          fontSize: 16, fontWeight: FontWeight.w800,
+                    child: Row(children: [
+                      Icon(profitIcon, color: profitColor, size: 20),
+                      const SizedBox(width: 10),
+                      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                        Text('Résultat net',
+                          style: TextStyle(color: cl.textM, fontSize: 11)),
+                        Text(profitText,
+                          style: TextStyle(
+                            color: profitColor,
+                            fontSize: 16, fontWeight: FontWeight.w800,
+                          ),
                         ),
-                      ),
+                      ]),
                     ]),
-                  ]),
-                ),
+                  );
+                }),
               ],
             ]),
           ).animate().fadeIn(duration: 350.ms, delay: 260.ms).slideY(begin: 0.05, end: 0),

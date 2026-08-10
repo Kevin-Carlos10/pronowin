@@ -50,6 +50,10 @@ export const getPending = async (req: AdminRequest, res: Response) => {
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };
 
+export const getPaymentMethods = async (_req: AdminRequest, res: Response) => {
+  res.json(Object.keys(MOBCASH_NUMBERS));
+};
+
 export const processRequest = async (req: AdminRequest, res: Response) => {
   const { status, admin_note } = req.body;
   if (!['completed', 'rejected'].includes(status)) {

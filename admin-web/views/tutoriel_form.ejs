@@ -138,14 +138,13 @@
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:.85rem">
           <div class="form-group" style="margin:0">
             <label>Catégorie <span style="color:var(--error)">*</span></label>
-            <select class="input" name="category" id="tf-cat" required>
-              <option value="">Choisir…</option>
-              <option value="valuebet"    <%= isEdit && tutorial.category==='valuebet'    ?'selected':'' %>>🎯 Value Bet</option>
-              <option value="bankroll"    <%= isEdit && tutorial.category==='bankroll'    ?'selected':'' %>>💰 Bankroll</option>
-              <option value="analyse"     <%= isEdit && tutorial.category==='analyse'     ?'selected':'' %>>📊 Analyse</option>
-              <option value="strategie"   <%= isEdit && tutorial.category==='strategie'   ?'selected':'' %>>♟️ Stratégie</option>
-              <option value="psychologie" <%= isEdit && tutorial.category==='psychologie' ?'selected':'' %>>🧠 Psychologie</option>
-            </select>
+            <input class="input" type="text" name="category" id="tf-cat" list="tf-cat-list" required
+              value="<%= isEdit ? tutorial.category : '' %>"
+              placeholder="Ex : valuebet, bankroll, paris-en-direct…">
+            <datalist id="tf-cat-list">
+              <% (categories||[]).forEach(c => { %><option value="<%= c %>"><% }) %>
+            </datalist>
+            <div style="font-size:.72rem;color:var(--text-dim);margin-top:.25rem">Réutilise une catégorie existante ou tape-en une nouvelle</div>
           </div>
           <div class="form-group" style="margin:0">
             <label>Niveau <span style="color:var(--error)">*</span></label>
@@ -258,7 +257,7 @@ document.getElementById('tf-author').addEventListener('input', function() {
 });
 
 /* ── Aperçu catégorie ── */
-document.getElementById('tf-cat').addEventListener('change', function() {
+document.getElementById('tf-cat').addEventListener('input', function() {
   document.getElementById('pv-emoji').textContent = catEmojis[this.value] || '📚';
 });
 

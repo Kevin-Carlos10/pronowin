@@ -1,15 +1,85 @@
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosError, AxiosInstance } from 'axios';
+import type { H2HResult, H2HMatch } from './football_data.service';
 
-// Mapping Football-Data.org codes → API-Football league IDs + saison
+// Mapping Football-Data.org codes → API-Football league IDs + saison.
+// ⚠️ season = année de DÉBUT de la saison (ex. 2025 = saison 2025-2026), pas
+// l'année civile en cours. À vérifier/incrémenter à chaque nouvelle saison
+// (~août) via GET /leagues?id=<id> → seasons[].current.
 const LEAGUE_MAP: Record<string, { id: number; season: number }> = {
-  WC:  { id: 1,   season: 2026 },
-  PL:  { id: 39,  season: 2024 },
-  BL1: { id: 78,  season: 2024 },
-  SA:  { id: 135, season: 2024 },
-  PD:  { id: 140, season: 2024 },
-  FL1: { id: 61,  season: 2024 },
-  CL:  { id: 2,   season: 2024 },
+  WC:       { id: 1,   season: 2026 },
+  PL:       { id: 39,  season: 2025 },
+  BL1:      { id: 78,  season: 2025 },
+  SA:       { id: 135, season: 2025 },
+  PD:       { id: 140, season: 2025 },
+  FL1:      { id: 61,  season: 2025 },
+  CL:       { id: 2,   season: 2025 },
+  // "World - Friendlies" — absent de football-data.org, disponible uniquement
+  // via API-Football. Season = année civile en cours (convention API-Football
+  // pour les compétitions sans saison fixe).
+  FRIENDLY: { id: 10,  season: new Date().getFullYear() },
 };
+
+/** Noms lisibles des compétitions suivies par défaut (dropdown admin/mobile). */
+const LEAGUE_NAMES: Record<string, string> = {
+  WC:       'Coupe du Monde',
+  PL:       'Premier League',
+  BL1:      'Bundesliga',
+  SA:       'Serie A',
+  PD:       'La Liga',
+  FL1:      'Ligue 1',
+  CL:       'Champions League',
+  FRIENDLY: 'Matchs amicaux',
+};
+
+// ─── Amicaux (fixtures) ─────────────────────────────────────────────────────
+
+export interface AFFixture {
+  fixture: { id: number; date: string; status: { short: string } };
+  league:  { id: number; name: string; logo: string | null };
+  teams: {
+    home: { id: number; name: string; logo: string | null };
+    away: { id: number; name: string; logo: string | null };
+  };
+  goals: { home: number | null; away: number | null };
+  // Score à la mi-temps — nécessaire pour régler les marchés "1ère/2ème MT"
+  // (Vainqueur 1ère MT, HT/FT, Handicap/Total par mi-temps...). Absent tant
+  // que la mi-temps n'a pas été atteinte.
+  score?: { halftime: { home: number | null; away: number | null } };
+}
+
+/** Statuts courts API-Football → statut interne unifié avec mapFDStatus(). */
+export function mapAFStatus(afStatus: string): 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED' | 'SUSPENDED' {
+  switch (afStatus) {
+    case 'TBD':
+    case 'NS':                        return 'SCHEDULED';
+    case '1H': case 'HT': case '2H':
+    case 'ET': case 'BT': case 'P':
+    case 'INT':                       return 'LIVE';
+    case 'FT': case 'AET': case 'PEN':
+    case 'AWD': case 'WO':            return 'FINISHED';
+    case 'PST':                       return 'POSTPONED';
+    case 'SUSP': case 'CANC': case 'ABD': return 'SUSPENDED';
+    default:                          return 'SCHEDULED';
+  }
+}
+
+/**
+ * Rang de tri dénormalisé (Match.statusPriority) — LIVE avant SCHEDULED avant
+ * FINISHED, pour que la pagination `getAllMatches` fasse remonter les matchs
+ * en direct tôt même quand ils ne sont pas les premiers par heure de coup
+ * d'envoi (un match LIVE parmi 300 matchs du jour peut sinon rester hors des
+ * premières pages tant que l'utilisateur n'a pas beaucoup scrollé).
+ */
+export function matchStatusPriority(
+  status: 'SCHEDULED' | 'LIVE' | 'FINISHED' | 'POSTPONED' | 'SUSPENDED',
+): number {
+  switch (status) {
+    case 'LIVE':      return 0;
+    case 'SCHEDULED': return 1;
+    case 'FINISHED':  return 2;
+    default:          return 3;
+  }
+}
 
 export interface MatchEvent {
   minute:   number;
@@ -39,6 +109,116 @@ export interface MatchStatsResult {
 const statsCache = new Map<string, { data: MatchStatsResult; ts: number }>();
 const CACHE_TTL = 24 * 60 * 60 * 1000; // 24h pour les matchs terminés
 
+// Cache des fixtures par date — partagé par la découverte de matchs ET la sync
+// des scores en direct. TTL calé juste sous l'intervalle de sync live (30s,
+// cf. index.ts) : un TTL plus long annulerait le bénéfice de l'intervalle
+// resserré en resservant la même donnée déjà vue à chaque tick.
+const friendliesCache = new Map<string, { data: AFFixture[]; ts: number }>();
+const FRIENDLIES_CACHE_TTL = 25 * 1000; // 25 secondes
+
+// ─── Compositions d'équipe ──────────────────────────────────────────────────
+
+export interface LineupPlayer {
+  id:     number | null; // photo : https://media.api-sports.io/football/players/{id}.png
+  name:   string;
+  number: number | null;
+  pos:    string | null; // G, D, M, F
+  /** Position sur le terrain, "ligne:colonne" (ex. "1:1" gardien, "2:3"). null
+   *  pour les remplaçants, que l'API ne place pas. */
+  grid:   string | null;
+}
+
+export interface TeamLineup {
+  formation:   string | null;
+  coach:       string | null;
+  startXI:     LineupPlayer[];
+  substitutes: LineupPlayer[];
+}
+
+export interface LineupsResult {
+  /** false tant que les clubs n'ont pas encore publié leurs compositions. */
+  available: boolean;
+  home: TeamLineup | null;
+  away: TeamLineup | null;
+}
+
+// Compositions publiées peu avant le coup d'envoi — cache court pour rester à jour.
+const lineupsCache = new Map<string, { data: LineupsResult; ts: number }>();
+const LINEUPS_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+// ─── Blessures / suspensions ────────────────────────────────────────────────
+
+export interface InjuredPlayer {
+  name:   string;
+  team:   'home' | 'away';
+  type:   string; // "Injured", "Suspended", "Missing Fixture"...
+  reason: string;
+}
+
+const injuriesCache = new Map<string, { data: InjuredPlayer[]; ts: number }>();
+const INJURIES_CACHE_TTL = 30 * 60 * 1000; // 30 minutes — évolue peu dans la journée
+
+// ─── Cotes (1xBet) ───────────────────────────────────────────────────────────
+
+/** ID bookmaker "1xBet" sur API-Football — cf. GET /odds/bookmakers. */
+const XBET_BOOKMAKER_ID = 11;
+
+export type KnownPredictionType =
+  'win1' | 'draw' | 'win2' | 'btts' | 'over25' | 'under25' | 'over35' | 'under35';
+
+export interface OddsOption {
+  type:  KnownPredictionType;
+  label: string;
+  odd:   number;
+}
+
+export interface OddsMarketValue {
+  value: string;                  // valeur brute 1xBet, ex. "Home +0"
+  odd:   number;
+  type?: KnownPredictionType;      // renseigné si cette valeur correspond à un des 8 types connus
+}
+
+export interface OddsMarket {
+  name:   string;                 // marché brut 1xBet, ex. "Asian Handicap"
+  values: OddsMarketValue[];
+}
+
+export interface MatchOddsResult {
+  source:  string;         // '1xBet'
+  options: OddsOption[];   // raccourci vers les 8 types connus — alimente les pills rapides
+  markets: OddsMarket[];   // les ~31 marchés bruts (tous, y compris les 8 ci-dessus)
+}
+
+// (marché, valeur) 1xBet → type de pronostic interne connu, pour les marchés
+// que l'app sait exploiter nativement (auto-calcul WIN/LOSS inclus).
+const KNOWN_TYPE_MAP: Record<string, Record<string, KnownPredictionType>> = {
+  'Match Winner':       { Home: 'win1', Draw: 'draw', Away: 'win2' },
+  'Both Teams Score':   { Yes: 'btts' },
+  'Goals Over/Under':   { 'Over 2.5': 'over25', 'Under 2.5': 'under25', 'Over 3.5': 'over35', 'Under 3.5': 'under35' },
+};
+
+// Les cotes évoluent en continu jusqu'au coup d'envoi — cache court.
+const oddsCache = new Map<string, { data: MatchOddsResult; ts: number }>();
+const ODDS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+// ─── Classement ──────────────────────────────────────────────────────────────
+
+export interface StandingRow {
+  rank:        number;
+  teamName:    string;
+  teamLogo:    string | null;
+  played:      number;
+  win:         number;
+  draw:        number;
+  lose:        number;
+  goalsDiff:   number;
+  points:      number;
+  form:        string | null; // ex. "WWDLW"
+}
+
+const standingsCache = new Map<string, { data: StandingRow[]; ts: number }>();
+const STANDINGS_CACHE_TTL = 2 * 60 * 60 * 1000; // 2h — un classement ne bouge pas vite, mais autant refléter les matchs de la journée assez tôt
+
 export class ApiFootballService {
   private client: AxiosInstance;
 
@@ -52,6 +232,30 @@ export class ApiFootballService {
     });
   }
 
+  private static _normalizeTeamName(s: string): string {
+    return s.toLowerCase()
+      .replace(/[.\-_]/g, ' ')           // Bosnia-H. → bosnia h
+      .replace(/\s+/g, ' ').trim();
+  }
+
+  /** Recherche souple d'une fixture par équipes + date (fonctionne sur toutes les ligues, plan gratuit inclus). */
+  private async _findFixtureByTeams(homeTeam: string, awayTeam: string, matchDate: string): Promise<any | null> {
+    const fixtureRes = await this.client.get('/fixtures', { params: { date: matchDate } });
+    const fixtures: any[] = fixtureRes.data?.response ?? [];
+
+    const h = ApiFootballService._normalizeTeamName(homeTeam);
+    const a = ApiFootballService._normalizeTeamName(awayTeam);
+    const matchTeam = (api: string, db: string) =>
+      api.includes(db) || db.includes(api) ||
+      api.startsWith(db.split(' ')[0]) || db.startsWith(api.split(' ')[0]);
+
+    return fixtures.find(f => {
+      const home = ApiFootballService._normalizeTeamName(f.teams?.home?.name ?? '');
+      const away = ApiFootballService._normalizeTeamName(f.teams?.away?.name ?? '');
+      return matchTeam(home, h) && matchTeam(away, a);
+    }) ?? null;
+  }
+
   async getMatchStats(
     leagueCode: string,
     homeTeam: string,
@@ -62,44 +266,15 @@ export class ApiFootballService {
     const cached = statsCache.get(cacheKey);
     if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
-    if (!process.env.API_FOOTBALL_KEY || process.env.API_FOOTBALL_KEY === 'VOTRE_CLE_ICI') {
+    if (!this._hasKey()) {
       console.warn('[ApiFootball] Clé API_FOOTBALL_KEY manquante dans .env');
       return null;
     }
 
-    const league = LEAGUE_MAP[leagueCode];
-    if (!league) {
-      console.warn(`[ApiFootball] Ligue inconnue: ${leagueCode}`);
-      return null;
-    }
-
     try {
-      // 1 — Trouver le fixture_id
-      // On cherche par date uniquement (league+season filtre trop sur le plan gratuit)
-      const fixtureRes = await this.client.get('/fixtures', {
-        params: { date: matchDate },
-      });
-
-      const fixtures: any[] = fixtureRes.data?.response ?? [];
-
-      // Trouver le bon match par nom d'équipe (matching souple)
-      const normalize = (s: string) =>
-        s.toLowerCase()
-         .replace(/[.\-_]/g, ' ')           // Bosnia-H. → bosnia h
-         .replace(/\s+/g, ' ').trim();
-
-      const fixture = fixtures.find(f => {
-        const home = normalize(f.teams?.home?.name ?? '');
-        const away = normalize(f.teams?.away?.name ?? '');
-        const h    = normalize(homeTeam);
-        const a    = normalize(awayTeam);
-        // Match si l'un contient l'autre, ou si le 1er mot correspond
-        const matchTeam = (api: string, db: string) =>
-          api.includes(db) || db.includes(api) ||
-          api.startsWith(db.split(' ')[0]) || db.startsWith(api.split(' ')[0]);
-        return matchTeam(home, h) && matchTeam(away, a);
-      });
-
+      // On cherche par date uniquement (league+season filtre trop sur le plan gratuit) —
+      // fonctionne pour n'importe quelle ligue, pas besoin de la connaître à l'avance.
+      const fixture = await this._findFixtureByTeams(homeTeam, awayTeam, matchDate);
       if (!fixture) return null;
 
       const fixtureId = fixture.fixture?.id;
@@ -145,6 +320,480 @@ export class ApiFootballService {
 
     } catch (err: any) {
       console.error('[ApiFootball] Erreur:', err.response?.data ?? err.message);
+      return null;
+    }
+  }
+
+  // ── Amicaux ("World - Friendlies", league id 10) ───────────────────────────
+
+  private _hasKey(): boolean {
+    return !!process.env.API_FOOTBALL_KEY && process.env.API_FOOTBALL_KEY !== 'VOTRE_CLE_ICI';
+  }
+
+  /**
+   * Récupère TOUTES les fixtures d'un jour donné, toutes ligues confondues
+   * (le filtrage — amicaux seuls, toutes ligues, etc. — se fait à l'appelant).
+   *
+   * ⚠️ Ne JAMAIS combiner `league` + `season` dans les params de `/fixtures` :
+   * le plan gratuit API-Football renvoie une erreur ("Free plans do not have
+   * access to this season") dès qu'on filtre par saison courante — seule la
+   * recherche par `date` seule fonctionne sur le plan gratuit (même
+   * contournement déjà utilisé dans getMatchStats()).
+   */
+  private async _fetchFixturesByDate(date: string): Promise<AFFixture[]> {
+    const cacheKey = `date_${date}`;
+    const cached = friendliesCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < FRIENDLIES_CACHE_TTL) return cached.data;
+
+    const r = await this.client.get('/fixtures', { params: { date } });
+    const all: AFFixture[] = r.data?.response ?? [];
+
+    friendliesCache.set(cacheKey, { data: all, ts: Date.now() });
+    return all;
+  }
+
+  /** Boucle sur une plage de jours, fixture-par-fixture, en tolérant les erreurs/rate-limit. */
+  private async _fetchFixturesOverDays(days: string[]): Promise<AFFixture[]> {
+    const all: AFFixture[] = [];
+    for (const day of days) {
+      try {
+        all.push(...await this._fetchFixturesByDate(day));
+      } catch (err) {
+        const e = err as AxiosError;
+        if (e.response?.status === 429) {
+          console.warn('[ApiFootball] Rate limit atteint');
+          break;
+        }
+        console.error(`[ApiFootball] Erreur fixtures ${day}:`, (e.response?.data as any) ?? e.message);
+      }
+    }
+    return all;
+  }
+
+  private static _upcomingDays(): string[] {
+    const fmt = (d: Date) => d.toISOString().split('T')[0];
+    return Array.from({ length: 7 }, (_, i) => fmt(new Date(Date.now() + i * 86400000)));
+  }
+
+  private static _recentDays(): string[] {
+    const fmt = (d: Date) => d.toISOString().split('T')[0];
+    return [fmt(new Date(Date.now() - 86400000)), fmt(new Date())];
+  }
+
+  /**
+   * Tous les matchs à venir (7 prochains jours) + ceux déjà en direct,
+   * absolument toutes compétitions confondues (grandes ligues, amicaux,
+   * tout le reste) — source unique désormais qu'API-Football remplace
+   * football-data.org. Le tri par ligue (majors / amicaux / tout) se fait
+   * chez l'appelant.
+   *
+   * Inclure les matchs LIVE ici (pas seulement via le merge liveFromDb côté
+   * admin) est nécessaire pour qu'un match déjà en direct au tout premier
+   * scan (jamais vu en NS avant) entre quand même en base et devienne
+   * sélectionnable pour créer un pronostic.
+   */
+  async getAllUpcomingFixtures(): Promise<AFFixture[]> {
+    if (!this._hasKey()) return [];
+    const fixtures = await this._fetchFixturesOverDays(ApiFootballService._upcomingDays());
+    return fixtures.filter(f => {
+      const s = f.fixture.status.short;
+      return s === 'NS' || mapAFStatus(s) === 'LIVE';
+    });
+  }
+
+  /**
+   * Recherche ciblée d'une fixture précise par son id — utilisé en filet de
+   * sécurité pour les matchs restés bloqués LIVE/SCHEDULED en base au-delà de
+   * la fenêtre de scan habituelle (2 derniers jours), plutôt que de rescanner
+   * toutes les fixtures par date.
+   */
+  async getFixtureById(fixtureId: number): Promise<AFFixture | null> {
+    if (!this._hasKey()) return null;
+    try {
+      const r = await this.client.get('/fixtures', { params: { id: fixtureId } });
+      return (r.data?.response ?? [])[0] ?? null;
+    } catch (err) {
+      const e = err as AxiosError;
+      console.error('[ApiFootball] Erreur getFixtureById:', (e.response?.data as any) ?? e.message);
+      return null;
+    }
+  }
+
+  /** Équivalent live/récent de getAllUpcomingFixtures(), pour la sync des scores. */
+  async getAllLiveAndRecentFixtures(): Promise<AFFixture[]> {
+    if (!this._hasKey()) return [];
+    const fixtures = await this._fetchFixturesOverDays(ApiFootballService._recentDays());
+    return fixtures.filter(f => mapAFStatus(f.fixture.status.short) !== 'SCHEDULED');
+  }
+
+  /** Codes courts (WC, PL, ...) des grandes ligues suivies + amicaux — pour le filtre "vue par défaut". */
+  static majorLeagueCodes(): string[] {
+    return Object.keys(LEAGUE_MAP);
+  }
+
+  /** Liste { code, name } des compétitions suivies — pour le filtre mobile/admin. */
+  async getCompetitions() {
+    return Object.entries(LEAGUE_NAMES).map(([code, name]) => ({ code, name }));
+  }
+
+  /** Retrouve le code court (WC, PL, FRIENDLY...) correspondant à un id de ligue API-Football. */
+  private static _leagueCodeFor(leagueId: number): string | null {
+    const entry = Object.entries(LEAGUE_MAP).find(([, v]) => v.id === leagueId);
+    return entry ? entry[0] : null;
+  }
+
+  /** Normalise une fixture API-Football au même format que FootballDataService.formatForPronostic(). */
+  formatFixtureForPronostic(f: AFFixture) {
+    return {
+      external_id:    f.fixture.id,
+      league:         f.league.name,
+      // Code court réutilisé pour les ligues connues (WC, PL, SA...) — garde
+      // le filtre admin/mobile fonctionnel quel que soit le fournisseur.
+      // Sinon un code dérivé de l'id API-Football pour tout le reste.
+      league_code:    ApiFootballService._leagueCodeFor(f.league.id) ?? `AF_${f.league.id}`,
+      league_logo:    f.league.logo,
+      home_team:      f.teams.home.name,
+      home_team_full: f.teams.home.name,
+      home_team_logo: f.teams.home.logo,
+      away_team:      f.teams.away.name,
+      away_team_full: f.teams.away.name,
+      away_team_logo: f.teams.away.logo,
+      match_date:     f.fixture.date,
+      status:         f.fixture.status.short,
+      home_score:     f.goals.home,
+      away_score:     f.goals.away,
+    };
+  }
+
+  // ── Head-to-head ─────────────────────────────────────────────────────────
+
+  /**
+   * Historique des confrontations directes entre les deux équipes d'un match.
+   * API-Football identifie les équipes par ID (pas par nom) — on retrouve
+   * d'abord la fixture du match courant (recherche par date + noms, comme
+   * getMatchStats) pour en extraire les IDs d'équipe, puis on interroge
+   * /fixtures/headtohead.
+   */
+  async getH2H(
+    homeTeam: string,
+    awayTeam: string,
+    matchDate: string, // YYYY-MM-DD
+    limit = 10,
+  ): Promise<H2HResult | null> {
+    if (!this._hasKey()) return null;
+
+    try {
+      const fixture = await this._findFixtureByTeams(homeTeam, awayTeam, matchDate);
+      const homeTeamId = fixture?.teams?.home?.id;
+      const awayTeamId = fixture?.teams?.away?.id;
+      if (!homeTeamId || !awayTeamId) return null;
+
+      const r = await this.client.get('/fixtures/headtohead', {
+        params: { h2h: `${homeTeamId}-${awayTeamId}`, last: limit },
+      });
+      const fixtures: AFFixture[] = r.data?.response ?? [];
+
+      let homeWins = 0, awayWins = 0, draws = 0;
+      const matches: H2HMatch[] = fixtures.map(f => {
+        const hGoals = f.goals.home;
+        const aGoals = f.goals.away;
+        const fixtureHomeIsHomeTeam = f.teams.home.id === homeTeamId;
+        let winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null = null;
+
+        if (hGoals != null && aGoals != null) {
+          if (hGoals === aGoals) {
+            winner = 'DRAW'; draws++;
+          } else {
+            const fixtureHomeWon = hGoals > aGoals;
+            const homeTeamWon = fixtureHomeIsHomeTeam ? fixtureHomeWon : !fixtureHomeWon;
+            if (homeTeamWon) { winner = 'HOME_TEAM'; homeWins++; }
+            else              { winner = 'AWAY_TEAM'; awayWins++; }
+          }
+        }
+
+        return {
+          id:          f.fixture.id,
+          utcDate:     f.fixture.date,
+          status:      mapAFStatus(f.fixture.status.short),
+          competition: { name: f.league.name, code: ApiFootballService._leagueCodeFor(f.league.id) ?? `AF_${f.league.id}` },
+          homeTeam:    { id: f.teams.home.id, name: f.teams.home.name, shortName: f.teams.home.name },
+          awayTeam:    { id: f.teams.away.id, name: f.teams.away.name, shortName: f.teams.away.name },
+          score:       { winner, fullTime: { home: hGoals, away: aGoals } },
+        };
+      });
+
+      return {
+        aggregates: {
+          numberOfMatches: fixtures.length,
+          homeTeam: { id: homeTeamId, name: fixture.teams.home.name, wins: homeWins, draws, losses: awayWins },
+          awayTeam: { id: awayTeamId, name: fixture.teams.away.name, wins: awayWins, draws, losses: homeWins },
+        },
+        matches,
+      };
+    } catch (err) {
+      const e = err as AxiosError;
+      console.error('[ApiFootball] Erreur H2H:', (e.response?.data as any) ?? e.message);
+      return null;
+    }
+  }
+
+  // ── Compositions d'équipe ───────────────────────────────────────────────────
+
+  /**
+   * Compositions officielles (onze de départ, remplaçants, entraîneur,
+   * formation). Publiées par les clubs ~30-60 min avant le coup d'envoi —
+   * `available: false` tant qu'elles ne sont pas encore sorties.
+   */
+  async getLineups(homeTeam: string, awayTeam: string, matchDate: string): Promise<LineupsResult | null> {
+    if (!this._hasKey()) return null;
+
+    const cacheKey = `lineups_${homeTeam}_${awayTeam}_${matchDate}`;
+    const cached = lineupsCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < LINEUPS_CACHE_TTL) return cached.data;
+
+    try {
+      const fixture = await this._findFixtureByTeams(homeTeam, awayTeam, matchDate);
+      if (!fixture) return null;
+
+      const r = await this.client.get('/fixtures/lineups', {
+        params: { fixture: fixture.fixture.id },
+      });
+      const raw: any[] = r.data?.response ?? [];
+
+      if (raw.length < 2) {
+        const result: LineupsResult = { available: false, home: null, away: null };
+        lineupsCache.set(cacheKey, { data: result, ts: Date.now() });
+        return result;
+      }
+
+      const format = (side: any): TeamLineup => ({
+        formation: side.formation ?? null,
+        coach:     side.coach?.name ?? null,
+        startXI:   (side.startXI ?? []).map((p: any) => ({
+          id:     p.player?.id ?? null,
+          name:   p.player?.name ?? '',
+          number: p.player?.number ?? null,
+          pos:    p.player?.pos ?? null,
+          grid:   p.player?.grid ?? null,
+        })),
+        substitutes: (side.substitutes ?? []).map((p: any) => ({
+          id:     p.player?.id ?? null,
+          name:   p.player?.name ?? '',
+          number: p.player?.number ?? null,
+          pos:    p.player?.pos ?? null,
+          grid:   p.player?.grid ?? null,
+        })),
+      });
+
+      // L'API ne garantit pas l'ordre home/away — on recale sur l'id d'équipe.
+      const homeSide = raw.find(s => s.team?.id === fixture.teams?.home?.id) ?? raw[0];
+      const awaySide = raw.find(s => s.team?.id === fixture.teams?.away?.id) ?? raw[1];
+
+      const result: LineupsResult = {
+        available: true,
+        home: format(homeSide),
+        away: format(awaySide),
+      };
+      lineupsCache.set(cacheKey, { data: result, ts: Date.now() });
+      return result;
+    } catch (err) {
+      const e = err as AxiosError;
+      console.error('[ApiFootball] Erreur lineups:', (e.response?.data as any) ?? e.message);
+      return null;
+    }
+  }
+
+  // ── Blessures / suspensions ─────────────────────────────────────────────────
+
+  /** Joueurs indisponibles (blessure, suspension) pour les deux équipes d'un match. */
+  async getInjuries(homeTeam: string, awayTeam: string, matchDate: string): Promise<InjuredPlayer[] | null> {
+    if (!this._hasKey()) return null;
+
+    const cacheKey = `injuries_${homeTeam}_${awayTeam}_${matchDate}`;
+    const cached = injuriesCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < INJURIES_CACHE_TTL) return cached.data;
+
+    try {
+      const fixture = await this._findFixtureByTeams(homeTeam, awayTeam, matchDate);
+      if (!fixture) return null;
+
+      const r = await this.client.get('/injuries', {
+        params: { fixture: fixture.fixture.id },
+      });
+      const raw: any[] = r.data?.response ?? [];
+
+      const mapped: InjuredPlayer[] = raw.map(item => ({
+        name:   item.player?.name ?? '',
+        team:   item.team?.id === fixture.teams?.home?.id ? 'home' : 'away',
+        type:   item.player?.type ?? 'Injured',
+        reason: item.player?.reason ?? '',
+      }));
+
+      // L'API renvoie parfois plusieurs fois la même absence pour un joueur
+      // (une ligne par source/compétition couvrant la même rencontre), ce qui
+      // affichait la liste en double côté mobile.
+      const seen = new Set<string>();
+      const result = mapped.filter(p => {
+        const key = `${p.team}|${p.name}|${p.type}|${p.reason}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+
+      injuriesCache.set(cacheKey, { data: result, ts: Date.now() });
+      return result;
+    } catch (err) {
+      const e = err as AxiosError;
+      console.error('[ApiFootball] Erreur injuries:', (e.response?.data as any) ?? e.message);
+      return null;
+    }
+  }
+
+  // ── Cotes 1xBet ────────────────────────────────────────────────────────────
+
+  /**
+   * Cotes complètes pour un match, en priorité chez 1xBet, avec repli
+   * automatique sur un autre bookmaker si 1xBet n'a rien coté (marché
+   * suspendu, match en direct, ligue peu couverte...) : les ~31 marchés
+   * bruts proposés (handicaps, mi-temps, score exact...) plus un raccourci
+   * `options` vers les 8 types que l'app sait exploiter nativement
+   * (auto-calcul WIN/LOSS inclus). Les autres marchés servent au choix
+   * manuel de l'admin — leur résultat doit être forcé à la main une fois
+   * le match terminé. `result.source` indique le bookmaker réellement
+   * utilisé (ex. "1xBet" ou "Bet365 (1xBet indisponible)").
+   */
+  async getOdds1xBet(homeTeam: string, awayTeam: string, matchDate: string, fixtureId?: number): Promise<MatchOddsResult | null> {
+    if (!this._hasKey()) return null;
+
+    const cacheKey = `odds_${homeTeam}_${awayTeam}_${matchDate}`;
+    const cached = oddsCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < ODDS_CACHE_TTL) return cached.data;
+
+    try {
+      // Si on connaît déjà l'ID de la fixture (match suivi en base), on l'utilise
+      // directement plutôt que la recherche souple équipes+date — celle-ci échoue
+      // si le match a été replanifié par la source après notre dernier scan (la
+      // date stockée en base ne correspond alors plus à la date réelle côté API).
+      const fixture = fixtureId
+        ? { fixture: { id: fixtureId } }
+        : await this._findFixtureByTeams(homeTeam, awayTeam, matchDate);
+      if (!fixture) return null;
+
+      const hasBets = (bm: any) => Array.isArray(bm?.bets) && bm.bets.length > 0;
+
+      // 1. Essayer 1xBet en priorité.
+      const r1 = await this.client.get('/odds', {
+        params: { fixture: fixture.fixture.id, bookmaker: XBET_BOOKMAKER_ID },
+      });
+      let bookmaker = (r1.data?.response ?? [])[0]?.bookmakers?.[0];
+      let source = '1xBet';
+
+      // 2. Repli : n'importe quel bookmaker ayant coté ce match, si 1xBet n'a rien.
+      if (!hasBets(bookmaker)) {
+        const r2 = await this.client.get('/odds', {
+          params: { fixture: fixture.fixture.id },
+        });
+        const allBookmakers: any[] = (r2.data?.response ?? [])[0]?.bookmakers ?? [];
+        const fallback = allBookmakers.find(hasBets);
+        if (fallback) {
+          bookmaker = fallback;
+          source = `${fallback.name} (1xBet indisponible)`;
+        }
+      }
+
+      const result: MatchOddsResult = { source, options: [], markets: [] };
+      if (!hasBets(bookmaker)) {
+        oddsCache.set(cacheKey, { data: result, ts: Date.now() });
+        return result;
+      }
+
+      const bets: any[] = bookmaker.bets ?? [];
+
+      // Tous les marchés bruts, avec tag du type interne connu si applicable.
+      result.markets = bets
+        .filter(b => Array.isArray(b.values) && b.values.length > 0)
+        .map(b => ({
+          name: b.name as string,
+          values: (b.values as any[]).map(v => {
+            const odd = parseFloat(v.odd);
+            const type = KNOWN_TYPE_MAP[b.name]?.[v.value];
+            return { value: v.value as string, odd, ...(type ? { type } : {}) };
+          }).filter(v => !isNaN(v.odd)),
+        }));
+
+      // Raccourci vers les 8 types connus — alimente les pills rapides existantes.
+      const findOdd = (betName: string, valueName: string): number | null => {
+        const bet = bets.find(b => b.name === betName);
+        const v   = bet?.values?.find((x: any) => x.value === valueName);
+        return v ? parseFloat(v.odd) : null;
+      };
+      const push = (type: KnownPredictionType, label: string, odd: number | null) => {
+        if (odd != null && !isNaN(odd)) result.options.push({ type, label, odd });
+      };
+
+      push('win1',    `${homeTeam} gagne`,        findOdd('Match Winner', 'Home'));
+      push('draw',    'Match nul',                 findOdd('Match Winner', 'Draw'));
+      push('win2',    `${awayTeam} gagne`,         findOdd('Match Winner', 'Away'));
+      push('btts',    'Les deux équipes marquent', findOdd('Both Teams Score', 'Yes'));
+      push('over25',  '+2.5 buts',                 findOdd('Goals Over/Under', 'Over 2.5'));
+      push('under25', '-2.5 buts',                 findOdd('Goals Over/Under', 'Under 2.5'));
+      push('over35',  '+3.5 buts',                 findOdd('Goals Over/Under', 'Over 3.5'));
+      push('under35', '-3.5 buts',                 findOdd('Goals Over/Under', 'Under 3.5'));
+
+      oddsCache.set(cacheKey, { data: result, ts: Date.now() });
+      return result;
+    } catch (err) {
+      const e = err as AxiosError;
+      console.error('[ApiFootball] Erreur odds:', (e.response?.data as any) ?? e.message);
+      return null;
+    }
+  }
+
+  // ── Classement ───────────────────────────────────────────────────────────────
+
+  /**
+   * Classement d'une ligue suivie (WC/PL/BL1/SA/PD/FL1/CL — pas les amicaux,
+   * qui n'ont pas de tableau). ⚠️ Combine league+season, donc bloqué sur le
+   * plan gratuit ("Free plans do not have access to this season") tant que
+   * l'abonnement payant n'est pas actif — retourne null proprement dans ce cas.
+   */
+  async getStandings(leagueCode: string): Promise<StandingRow[] | null> {
+    if (!this._hasKey()) return null;
+    const league = LEAGUE_MAP[leagueCode];
+    if (!league || leagueCode === 'FRIENDLY') return null;
+
+    const cacheKey = `standings_${leagueCode}`;
+    const cached = standingsCache.get(cacheKey);
+    if (cached && Date.now() - cached.ts < STANDINGS_CACHE_TTL) return cached.data;
+
+    try {
+      const r = await this.client.get('/standings', {
+        params: { league: league.id, season: league.season },
+      });
+      if (r.data?.errors && Object.keys(r.data.errors).length > 0) {
+        console.warn('[ApiFootball] Classement indisponible (plan) :', JSON.stringify(r.data.errors));
+        return null;
+      }
+
+      const table: any[] = r.data?.response?.[0]?.league?.standings?.[0] ?? [];
+      const result: StandingRow[] = table.map(row => ({
+        rank:      row.rank,
+        teamName:  row.team?.name ?? '',
+        teamLogo:  row.team?.logo ?? null,
+        played:    row.all?.played ?? 0,
+        win:       row.all?.win ?? 0,
+        draw:      row.all?.draw ?? 0,
+        lose:      row.all?.lose ?? 0,
+        goalsDiff: row.goalsDiff ?? 0,
+        points:    row.points ?? 0,
+        form:      row.form ?? null,
+      }));
+
+      standingsCache.set(cacheKey, { data: result, ts: Date.now() });
+      return result;
+    } catch (err) {
+      const e = err as AxiosError;
+      console.error('[ApiFootball] Erreur standings:', (e.response?.data as any) ?? e.message);
       return null;
     }
   }

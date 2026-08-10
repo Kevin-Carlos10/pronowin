@@ -3,9 +3,10 @@
 <style>
 /* ── Stats ── */
 .bans-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:.65rem; margin-bottom:1rem; }
-.ban-stat { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.75rem 1rem; }
-.ban-stat .bs-val { font-size:1.6rem; font-weight:800; line-height:1; margin-bottom:.2rem; }
-.ban-stat .bs-lbl { font-size:.72rem; text-transform:uppercase; letter-spacing:.04em; color:var(--text-dim); font-weight:700; }
+.ban-stat { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1.1rem; transition:transform .2s,box-shadow .2s; }
+.ban-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.ban-stat .bs-val { font-size:1.7rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
+.ban-stat .bs-lbl { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); font-weight:700; margin-bottom:2px; }
 
 /* ── Filter tabs ── */
 .bans-bar { display:flex; gap:.6rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem; }
@@ -98,29 +99,29 @@
 
 <!-- ── Stats ── -->
 <div class="bans-stats">
-  <div class="ban-stat">
-    <div class="bs-val" style="color:var(--error)"><%= stats.active %></div>
+  <div class="ban-stat" style="border-left-color:var(--error)">
     <div class="bs-lbl">🚫 Actifs</div>
+    <div class="bs-val" style="color:var(--error)"><%= stats.active %></div>
   </div>
-  <div class="ban-stat">
-    <div class="bs-val" style="color:var(--error)"><%= stats.permanent %></div>
+  <div class="ban-stat" style="border-left-color:var(--error)">
     <div class="bs-lbl">♾️ Permanents</div>
+    <div class="bs-val" style="color:var(--error)"><%= stats.permanent %></div>
   </div>
-  <div class="ban-stat">
-    <div class="bs-val" style="color:var(--warning)"><%= stats.temporary %></div>
+  <div class="ban-stat" style="border-left-color:var(--warning)">
     <div class="bs-lbl">⏳ Temporaires</div>
+    <div class="bs-val" style="color:var(--warning)"><%= stats.temporary %></div>
   </div>
-  <div class="ban-stat">
-    <div class="bs-val" style="color:var(--warning)"><%= stats.expiringSoon %></div>
+  <div class="ban-stat" style="border-left-color:var(--warning)">
     <div class="bs-lbl">🔔 Expirent ≤ 7j</div>
+    <div class="bs-val" style="color:var(--warning)"><%= stats.expiringSoon %></div>
   </div>
   <div class="ban-stat">
-    <div class="bs-val" style="color:var(--text-dim)"><%= stats.today %></div>
     <div class="bs-lbl">📅 Aujourd'hui</div>
+    <div class="bs-val" style="color:var(--text-dim)"><%= stats.today %></div>
   </div>
   <div class="ban-stat">
-    <div class="bs-val" style="color:var(--text-m)"><%= stats.total %></div>
     <div class="bs-lbl">📋 Total historique</div>
+    <div class="bs-val"><%= stats.total %></div>
   </div>
 </div>
 

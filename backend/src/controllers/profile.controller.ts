@@ -2,6 +2,112 @@
 import { AuthRequest } from '../middleware/auth.middleware';
 
 import { prisma } from '../lib/prisma';
+import { NOTIF_CATEGORIES } from '../services/notification.service';
+
+/**
+ * PATCH /profile/notification-prefs
+ *
+ * Le mobile s'abonnait uniquement à des topics FCM, ce qui ne pouvait pas
+ * filtrer les notifications personnelles (envoyées par token). Les préférences
+ * sont désormais aussi stockées côté serveur, et `sendToUser` les respecte.
+ */
+export const updateNotificationPrefs = async (req: AuthRequest, res: Response) => {
+  try {
+    const body = req.body as Record<string, unknown>;
+    const prefs: Record<string, boolean> = {};
+    for (const key of NOTIF_CATEGORIES) {
+      const v = body[key];
+      if (typeof v === 'boolean') prefs[key] = v;
+    }
+    if (Object.keys(prefs).length === 0) {
+      res.status(400).json({
+        message: `Aucune préférence valide. Attendu : ${NOTIF_CATEGORIES.join(', ')} (booléens).`,
+      });
+      return;
+    }
+
+    // Fusion avec l'existant : le mobile n'envoie que la clé modifiée.
+    const current = await prisma.user.findUnique({
+      where: { id: req.userId! }, select: { notificationPrefs: true },
+    });
+    const merged = {
+      ...(current?.notificationPrefs as Record<string, boolean> | null ?? {}),
+      ...prefs,
+    };
+
+    await prisma.user.update({
+      where: { id: req.userId! },
+      data:  { notificationPrefs: merged },
+    });
+    res.json({ success: true, notification_prefs: merged });
+  } catch (e: any) {
+    res.status(500).json({ message: e.message });
+  }
+};
+
+// Import S3 différé : le module lit les credentials AWS à son chargement, et
+// on doit pouvoir démarrer sans eux.
+let s3Svc: any = null;
+async function getS3() {
+  if (!s3Svc && process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
+    const { S3Service } = await import('../services/s3.service');
+    s3Svc = new S3Service();
+  }
+  return s3Svc;
+}
+
+/**
+ * PATCH /profile/avatar
+ *
+ * La photo de profil était envoyée par le mobile depuis toujours ; l'endpoint
+ * n'existait pas et l'upload échouait systématiquement en 404.
+ *
+ * Format base64, comme les preuves d'abonnement : c'est le seul chemin
+ * d'upload déjà éprouvé du projet, et il évite d'ajouter du multipart.
+ */
+export const updateAvatar = async (req: AuthRequest, res: Response) => {
+  const { image_base64 } = req.body as { image_base64?: string };
+  if (!image_base64?.startsWith('data:image/')) {
+    res.status(422).json({
+      message: 'image_base64 requis, au format « data:image/jpeg;base64,... ».',
+    });
+    return;
+  }
+
+  const s3 = await getS3();
+  if (!s3) {
+    res.status(503).json({
+      message: 'Stockage d\'images non configuré. Ajoutez AWS_ACCESS_KEY_ID dans .env',
+    });
+    return;
+  }
+
+  try {
+    const previous = await prisma.user.findUnique({
+      where: { id: req.userId! }, select: { avatarUrl: true },
+    });
+
+    const url = await s3.uploadImage({
+      base64: image_base64, folder: 'avatars', userId: req.userId!,
+    });
+    await prisma.user.update({
+      where: { id: req.userId! }, data: { avatarUrl: url },
+    });
+
+    // Supprimer l'ancienne image : sans ça, chaque changement de photo laisse
+    // un fichier orphelin facturé indéfiniment.
+    if (previous?.avatarUrl) {
+      await s3.deleteImage(previous.avatarUrl).catch((e: any) =>
+        console.warn('[Avatar] Ancienne image non supprimée :', e.message));
+    }
+
+    res.json({ success: true, avatar_url: url });
+  } catch (e: any) {
+    // uploadImage lève sur un format invalide ou une image > 5 Mo : ce sont
+    // des erreurs d'entrée, pas des pannes serveur.
+    res.status(422).json({ message: e.message });
+  }
+};
 
 /** GET /profile */
 export const getProfile = async (req: AuthRequest, res: Response) => {
@@ -45,7 +151,7 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
 
 /** PATCH /profile */
 export const updateProfile = async (req: AuthRequest, res: Response) => {
-  const { pseudo, email, first_name, last_name, birth_date, country_code } = req.body;
+  const { pseudo, email, phone_number, first_name, last_name, birth_date, country_code } = req.body;
 
   // Validations
   const PSEUDO_REGEX = /^[a-zA-Z0-9_\-À-ÿ]{3,20}$/;
@@ -106,15 +212,28 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
       if (existingEmail) { res.status(400).json({ message: 'Cet email est déjà utilisé par un autre compte.' }); return; }
     }
 
+    // Vérifier unicité du numéro de téléphone
+    const phoneTrimmed = phone_number?.trim() || null;
+    if (phoneTrimmed) {
+      if (!/^\+?[1-9]\d{7,14}$/.test(phoneTrimmed)) {
+        res.status(422).json({ message: 'Format de numéro de téléphone invalide.' }); return;
+      }
+      const existingPhone = await prisma.user.findFirst({
+        where: { phoneNumber: phoneTrimmed, NOT: { id: req.userId! } },
+      });
+      if (existingPhone) { res.status(400).json({ message: 'Ce numéro est déjà utilisé par un autre compte.' }); return; }
+    }
+
     const updated = await prisma.user.update({
       where: { id: req.userId! },
       data:  {
-        ...(pseudo       ? { pseudo:      pseudo.trim()                    } : {}),
-        ...(emailTrimmed ? { email:       emailTrimmed                     } : {}),
-        ...(first_name   ? { firstName:   first_name.trim()                } : {}),
-        ...(last_name    ? { lastName:    last_name.trim()                 } : {}),
-        ...(birth_date   ? { birthDate:   new Date(birth_date)             } : {}),
-        ...(country_code ? { countryCode: country_code                     } : {}),
+        ...(pseudo       ? { pseudo:       pseudo.trim()    } : {}),
+        ...(emailTrimmed ? { email:        emailTrimmed     } : {}),
+        ...(phoneTrimmed ? { phoneNumber:  phoneTrimmed     } : {}),
+        ...(first_name   ? { firstName:    first_name.trim()  } : {}),
+        ...(last_name    ? { lastName:     last_name.trim()   } : {}),
+        ...(birth_date   ? { birthDate:    new Date(birth_date) } : {}),
+        ...(country_code ? { countryCode:  country_code     } : {}),
       },
       select: {
         id: true, phoneNumber: true, email: true, pseudo: true,
@@ -195,24 +314,29 @@ export const getStats = async (req: AuthRequest, res: Response) => {
       }),
     ]);
 
-    const settled = bets.filter(b => b.result !== null);
-    const wins    = settled.filter(b => b.result === 'WIN');
-    const losses  = settled.filter(b => b.result === 'LOSS');
-    const taux    = settled.length > 0 ? Math.round((wins.length / settled.length) * 100) : 0;
+    const settled  = bets.filter(b => b.result !== null);
+    const wins     = settled.filter(b => b.result === 'WIN');
+    const losses   = settled.filter(b => b.result === 'LOSS');
+    // Un remboursé (PUSH) n'est ni une victoire ni une défaite — exclu du taux de réussite.
+    const decisive = wins.length + losses.length;
+    const taux     = decisive > 0 ? Math.round((wins.length / decisive) * 100) : 0;
 
-    // Série gagnante en cours
+    // Série gagnante en cours (un PUSH est neutre, il n'interrompt pas la série)
     let serie = 0;
-    for (const b of settled) { if (b.result === 'WIN') serie++; else break; }
+    for (const b of settled) {
+      if (b.result === 'WIN') serie++;
+      else if (b.result === 'LOSS') break;
+    }
 
     // Meilleure série historique
     let bestSerie = 0, cur = 0;
     for (const b of [...settled].reverse()) {
       if (b.result === 'WIN') { cur++; if (cur > bestSerie) bestSerie = cur; }
-      else cur = 0;
+      else if (b.result === 'LOSS') cur = 0;
     }
 
-    // ROI & profit net
-    const totalStaked = settled.reduce((s, b) => s + b.stakedAmount, 0);
+    // ROI & profit net — la mise remboursée (PUSH) n'a jamais été réellement à risque
+    const totalStaked = settled.filter(b => b.result !== 'PUSH').reduce((s, b) => s + b.stakedAmount, 0);
     const totalProfit = settled.reduce((s, b) => s + (b.profit ?? 0), 0);
     const roi = totalStaked > 0 ? Math.round((totalProfit / totalStaked) * 100 * 10) / 10 : 0;
 

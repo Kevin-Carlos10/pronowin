@@ -198,7 +198,12 @@ export class FootballDataService {
   }
 
   async getCompetitions() {
-    return Object.entries(SUPPORTED_COMPETITIONS).map(([code, name]) => ({ code, name }));
+    return [
+      ...Object.entries(SUPPORTED_COMPETITIONS).map(([code, name]) => ({ code, name })),
+      // Amicaux — sourcés via API-Football (voir api_football.service.ts),
+      // absents du catalogue football-data.org.
+      { code: 'FRIENDLY', name: 'Matchs amicaux' },
+    ];
   }
 
   formatForPronostic(m: FDMatch) {

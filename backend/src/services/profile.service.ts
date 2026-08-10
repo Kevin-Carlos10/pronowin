@@ -14,7 +14,9 @@ export class ProfileService {
     });
     const wins      = betStats.find(r => r.result === 'WIN')?._count._all  ?? 0;
     const losses    = betStats.find(r => r.result === 'LOSS')?._count._all ?? 0;
-    const totalBets = wins + losses + (betStats.find(r => r.result === null)?._count._all ?? 0);
+    const pushes    = betStats.find(r => r.result === 'PUSH')?._count._all ?? 0;
+    const totalBets = wins + losses + pushes + (betStats.find(r => r.result === null)?._count._all ?? 0);
+    // Un remboursé (PUSH) n'est ni une victoire ni une défaite — exclu du taux de réussite.
     const winRate   = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : 0;
 
     return {

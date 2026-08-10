@@ -79,7 +79,22 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
         await dio.post('/bankroll/reset');
         ref.invalidate(bankrollProvider);
         ref.invalidate(bankrollStatsProvider);
-      } catch (_) {}
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Solde réinitialisé ✅'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Échec de la réinitialisation. Vérifie ta connexion et réessaie.'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+      }
     }
   }
 }
@@ -113,7 +128,9 @@ class _BankrollView extends StatelessWidget {
   Widget build(BuildContext context) {
     final settled  = bankroll.bets.where((b) => b.result != null).toList();
     final wins     = settled.where((b) => b.result == 'WIN').length;
-    final winRate  = settled.isNotEmpty ? wins / settled.length * 100 : 0.0;
+    // Un remboursé (PUSH) n'est ni une victoire ni une défaite — exclu du taux.
+    final decisive = settled.where((b) => b.result != 'PUSH').length;
+    final winRate  = decisive > 0 ? wins / decisive * 100 : 0.0;
     final profit   = bankroll.currentBalance - bankroll.totalBudget;
     final pending  = bankroll.bets.where((b) => b.result == null).toList();
     final filtered = _filtered;
@@ -426,10 +443,11 @@ class _WeeklySummary extends StatelessWidget {
 
     if (weekly.isEmpty) return const SizedBox.shrink();
 
-    final wins    = weekly.where((b) => b.result == 'WIN').length;
-    final profit  = weekly.fold<double>(0, (sum, b) => sum + (b.profit ?? 0));
-    final isGain  = profit >= 0;
-    final rate    = weekly.isNotEmpty ? (wins / weekly.length * 100).toStringAsFixed(0) : '0';
+    final wins     = weekly.where((b) => b.result == 'WIN').length;
+    final decisive = weekly.where((b) => b.result != 'PUSH').length;
+    final profit   = weekly.fold<double>(0, (sum, b) => sum + (b.profit ?? 0));
+    final isGain   = profit >= 0;
+    final rate     = decisive > 0 ? (wins / decisive * 100).toStringAsFixed(0) : '0';
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -523,7 +541,7 @@ class _FilterRow extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: sel ? color.withValues(alpha: 0.15) : context.cl.surface,
               borderRadius: BorderRadius.circular(20),
@@ -692,11 +710,14 @@ class _BetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPending = bet.result == null;
     final isWin     = bet.result == 'WIN';
+    final isPush    = bet.result == 'PUSH';
     final color     = isPending ? AppColors.warning
                     : isWin    ? AppColors.success
+                    : isPush   ? AppColors.info
                     :             AppColors.error;
     final icon      = isPending ? Icons.hourglass_empty_rounded
                     : isWin    ? Icons.check_circle_rounded
+                    : isPush   ? Icons.replay_rounded
                     :             Icons.cancel_rounded;
 
     return GestureDetector(
@@ -723,7 +744,7 @@ class _BetCard extends StatelessWidget {
                   fontWeight: FontWeight.w600),
               maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 3),
-            Text(bet.predictionLabel,
+            Text(bet.displayPredictionLabel,
               style: TextStyle(color: context.cl.textM, fontSize: 11)),
           ])),
           const SizedBox(width: 8),
@@ -934,7 +955,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color:  _currency == c
                     ? AppColors.success.withValues(alpha: 0.15)
@@ -985,7 +1006,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
         Wrap(spacing: 8, runSpacing: 6, children: _presets.map((p) => GestureDetector(
           onTap: () => setState(() => _ctrl.text = '$p'),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color:  AppColors.success.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),

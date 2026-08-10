@@ -212,7 +212,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
         textAlign: TextAlign.center),
       const SizedBox(height: 24),
       ElevatedButton(
-        onPressed: () => context.go('/auth/phone'),
+        onPressed: () => context.go('/auth/email'),
         style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
         child: const Text('Se reconnecter'),
       ),

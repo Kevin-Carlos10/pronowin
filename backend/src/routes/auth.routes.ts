@@ -30,10 +30,17 @@ router.post('/admin/create', (req, res, next) => {
 }, AuthController.createAdmin);
 */
 
-// Routes protégées
+// Routes protégées — profil & session
 router.get  ('/profile',      authMiddleware, AuthController.getProfile);
 router.get  ('/streak',       authMiddleware, AuthController.getStreakHandler);
 router.post ('/logout',       authMiddleware, AuthController.logout);
 router.patch('/accept-terms', authMiddleware, AuthController.acceptTerms);
+
+// Routes protégées — liaison de compte (phone ↔ email → même compte)
+// Étape 1 : envoyer l'OTP (réutilise les endpoints publics send-otp / send-email-otp)
+// Étape 2 : vérifier et lier
+router.post('/link-phone',    authMiddleware, AuthController.linkPhone);
+router.post('/link-email',    authMiddleware, AuthController.linkEmail);
+router.post('/set-password',  authMiddleware, AuthController.setPassword);
 
 export default router;

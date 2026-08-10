@@ -13,7 +13,7 @@ class MatchesPage {
 }
 
 abstract class PronosticsRemoteDataSource {
-  Future<MatchesPage>       getMatches({String? leagueId, String? dateFilter, String? sport, String? cursor, int limit});
+  Future<MatchesPage>       getMatches({String? leagueId, String? dateFilter, String? sport, String? status, bool? hasPronostic, String? cursor, int limit});
   Future<MatchModel>        getMatchDetail(String matchId);
   Future<List<LeagueModel>> getLeagues();
 }
@@ -27,6 +27,8 @@ class PronosticsRemoteDataSourceImpl implements PronosticsRemoteDataSource {
     String? leagueId,
     String? dateFilter,
     String? sport,
+    String? status,
+    bool?   hasPronostic,
     String? cursor,
     int     limit = 20,
   }) async {
@@ -34,10 +36,12 @@ class PronosticsRemoteDataSourceImpl implements PronosticsRemoteDataSource {
       final response = await _dio.get(
         ApiEndpoints.pronostics,
         queryParameters: {
-          if (leagueId   != null) 'league_id':   leagueId,
-          if (dateFilter != null) 'date_filter': dateFilter,
-          if (sport      != null) 'sport':       sport,
-          if (cursor     != null) 'cursor':      cursor,
+          'league_id':   ?leagueId,
+          'date_filter': ?dateFilter,
+          'sport':       ?sport,
+          'status':      ?status,
+          if (hasPronostic == true) 'has_pronostic': 'true',
+          'cursor':      ?cursor,
           'limit':       limit,
           'include_all': 'true',
         },

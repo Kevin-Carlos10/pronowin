@@ -3,9 +3,10 @@
 <style>
 /* ── Stats ─────────────────────────────────────────────────────────────────── */
 .hi-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.7rem; margin-bottom:1rem; }
-.hi-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.8rem 1rem; }
-.hi-stat .v { font-size:1.3rem; font-weight:800; line-height:1; margin-bottom:.15rem; }
-.hi-stat .l { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+.hi-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1.1rem; transition:transform .2s,box-shadow .2s; }
+.hi-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.hi-stat .v { font-size:1.7rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
+.hi-stat .l { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
 
 /* ── Filter bar ─────────────────────────────────────────────────────────────── */
 .hi-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
@@ -62,6 +63,14 @@
   const _hasAdv    = !!(dateFrom || dateTo || amount_min || amount_max);
 
   function pageUrl(p) { return '/admin/historique?' + _hq({ search, type, status, method, date_from:dateFrom, date_to:dateTo, amount_min, amount_max, page:String(p) }); }
+
+  const _methodCfg = {
+    orange_money: { emoji:'🟠', label:'Orange Money' },
+    moov_money:   { emoji:'🔵', label:'Moov Money' },
+    mtn_momo:     { emoji:'🟡', label:'MTN MoMo' },
+    wave:         { emoji:'🌊', label:'Wave' },
+  };
+  function _methodLabel(m) { const c = _methodCfg[m] || { emoji:'💳', label:m }; return c.emoji + ' ' + c.label; }
 %>
 
 <div class="topbar">
@@ -135,10 +144,9 @@
 
       <select name="method" onchange="this.form.submit()">
         <option value="">Toutes méthodes</option>
-        <option value="orange_money" <%= method==='orange_money' ?'selected':'' %>>🟠 Orange Money</option>
-        <option value="moov_money"   <%= method==='moov_money'   ?'selected':'' %>>🔵 Moov Money</option>
-        <option value="mtn_momo"     <%= method==='mtn_momo'     ?'selected':'' %>>🟡 MTN MoMo</option>
-        <option value="wave"         <%= method==='wave'         ?'selected':'' %>>🌊 Wave</option>
+        <% (typeof methods !== 'undefined' ? methods : []).forEach(m => { %>
+        <option value="<%= m %>" <%= method===m ?'selected':'' %>><%= _methodLabel(m) %></option>
+        <% }) %>
       </select>
 
       <button type="button" class="btn btn-outline btn-sm" onclick="toggleAdv()" id="adv-btn">

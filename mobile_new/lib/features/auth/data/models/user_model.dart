@@ -8,6 +8,7 @@ class UserModel extends UserEntity {
     required super.pseudo,
     super.firstName,
     super.lastName,
+    super.birthDate,
     super.avatarUrl,
     required super.countryCode,
     required super.subscriptionPlan,
@@ -27,6 +28,9 @@ class UserModel extends UserEntity {
     pseudo:        json['pseudo'] as String? ?? 'Utilisateur',
     firstName:     json['first_name'] as String?,
     lastName:      json['last_name'] as String?,
+    birthDate:     json['birth_date'] != null
+        ? DateTime.tryParse(json['birth_date'] as String)
+        : null,
     avatarUrl:     json['avatar_url'] as String?,
     countryCode:   json['country_code'] as String? ?? 'BF',
     subscriptionPlan: json['subscription_plan'] == 'premium'

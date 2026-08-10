@@ -1,0 +1,113 @@
+<%- include('layout_top', {page:'bankroll'}) %>
+
+<%
+  // Substitue "Domicile"/"Extérieur" par le vrai nom d'équipe dans le libellé
+  // du pronostic — même filet de sécurité que côté mobile, pour les paris
+  // placés sur un marché composé via l'accordéon 1xBet.
+  function teamLabel(bet) {
+    const label = bet.prediction_label || '';
+    return label
+      .replace(/\bDomicile\b/g, bet.match.home_team)
+      .replace(/\bExtérieur\b/g, bet.match.away_team);
+  }
+%>
+
+<div class="topbar">
+  <div>
+    <h2>🎯 Bankroll de <%= user.pseudo %></h2>
+    <small><a href="/admin/bankroll" style="color:var(--text-dim)">← Retour à la liste</a></small>
+  </div>
+  <a href="/admin/users/<%= user.id %>" class="btn btn-outline">👤 Voir le profil</a>
+</div>
+
+<% if(error){ %>
+  <div class="alert alert-error" style="margin-bottom:12px">❌ <%= error %></div>
+<% } %>
+
+<% if(!bankroll){ %>
+  <div class="card">
+    <div class="empty-state" style="padding:40px">
+      <div style="font-size:2rem;margin-bottom:.5rem">🎯</div>
+      <p>Cet utilisateur n'a pas encore configuré de budget bankroll.</p>
+    </div>
+  </div>
+<% } else { %>
+
+<!-- Stats -->
+<div class="stats-grid" style="margin-bottom:16px">
+  <div class="stat-card s-blue"><div class="lbl">Solde actuel</div><div class="val"><%= Math.round(stats.currentBalance).toLocaleString('fr-FR') %> <%= stats.currency %></div></div>
+  <div class="stat-card s-purple"><div class="lbl">Budget total</div><div class="val"><%= Math.round(stats.totalBudget).toLocaleString('fr-FR') %> <%= stats.currency %></div></div>
+  <div class="stat-card <%= stats.totalProfit >= 0 ? 's-green' : 's-red' %>"><div class="lbl">Profit total</div><div class="val"><%= stats.totalProfit >= 0 ? '+' : '' %><%= Math.round(stats.totalProfit).toLocaleString('fr-FR') %></div></div>
+  <div class="stat-card <%= stats.roi >= 0 ? 's-green' : 's-red' %>"><div class="lbl">ROI</div><div class="val"><%= stats.roi >= 0 ? '+' : '' %><%= stats.roi %>%</div></div>
+  <div class="stat-card s-orange"><div class="lbl">Taux de réussite</div><div class="val"><%= stats.totalBets > 0 ? stats.winRate.toFixed(0) + '%' : '—' %></div></div>
+  <div class="stat-card s-teal"><div class="lbl">Total paris</div><div class="val"><%= stats.totalBets %></div></div>
+</div>
+
+<% if(bankroll.last_reset_at){ %>
+<p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">
+  🔄 Dernier reset le <%= new Date(bankroll.last_reset_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) %>
+</p>
+<% } %>
+
+<!-- Historique des paris -->
+<div class="card" style="padding:0;overflow:hidden">
+  <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+    <h3 style="font-size:.95rem;font-weight:700">📋 Historique des paris (<%= bankroll.bets.length %> derniers)</h3>
+  </div>
+  <% if(bankroll.bets.length === 0){ %>
+    <div class="empty-state" style="padding:32px">
+      <p>Aucun pari placé pour le moment.</p>
+    </div>
+  <% } else { %>
+  <div class="table-wrap"><table>
+    <thead>
+      <tr>
+        <th>Match</th>
+        <th>Pronostic</th>
+        <th>Mise</th>
+        <th>Cote</th>
+        <th>Gain potentiel</th>
+        <th>Résultat</th>
+        <th>Date</th>
+      </tr>
+    </thead>
+    <tbody>
+    <% bankroll.bets.forEach(bet => { %>
+    <tr>
+      <td>
+        <p style="font-weight:600;color:var(--text);font-size:13px"><%= bet.match.home_team %> vs <%= bet.match.away_team %></p>
+        <p style="font-size:11px;color:var(--text-dim)"><%= bet.match.league %></p>
+      </td>
+      <td style="font-size:12px;color:var(--btn-primary);font-weight:600"><%= teamLabel(bet) %></td>
+      <td style="font-size:13px"><%= Math.round(bet.staked_amount).toLocaleString('fr-FR') %> <%= bankroll.currency %></td>
+      <td style="font-size:13px"><%= bet.odds_used.toFixed(2) %></td>
+      <td style="font-size:13px;color:var(--text-m)"><%= Math.round(bet.potential_gain).toLocaleString('fr-FR') %></td>
+      <td>
+        <% if(bet.result === 'WIN'){ %>
+          <span class="badge badge-ok">✅ Gagné</span>
+        <% } else if(bet.result === 'LOSS'){ %>
+          <span class="badge badge-err">❌ Perdu</span>
+        <% } else if(bet.result === 'PUSH'){ %>
+          <span class="badge badge-info">🔄 Remboursé</span>
+        <% } else { %>
+          <span class="badge" style="background:var(--surface-d);color:var(--text-dim)">⏳ En attente</span>
+        <% } %>
+        <% if(bet.profit !== null){ %>
+          <p style="font-size:10px;margin-top:2px;color:<%= bet.profit >= 0 ? 'var(--success)' : 'var(--error)' %>">
+            <%= bet.profit >= 0 ? '+' : '' %><%= Math.round(bet.profit).toLocaleString('fr-FR') %>
+          </p>
+        <% } %>
+      </td>
+      <td style="font-size:12px;color:var(--text-m)">
+        <%= new Date(bet.created_at).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'2-digit'}) %>
+      </td>
+    </tr>
+    <% }) %>
+    </tbody>
+  </table></div>
+  <% } %>
+</div>
+
+<% } %>
+
+<%- include('layout_bottom') %>

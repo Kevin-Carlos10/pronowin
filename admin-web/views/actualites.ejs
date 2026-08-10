@@ -3,9 +3,10 @@
 <style>
 /* ── Stats ──────────────────────────────────────────────────────────────────── */
 .ac-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:.65rem; margin-bottom:1rem; }
-.ac-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.75rem .9rem; }
-.ac-stat .v { font-size:1.3rem; font-weight:800; line-height:1; margin-bottom:.15rem; }
-.ac-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+.ac-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1rem; transition:transform .2s,box-shadow .2s; }
+.ac-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.ac-stat .v { font-size:1.6rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
+.ac-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
 
 /* ── Filtres ─────────────────────────────────────────────────────────────────── */
 .ac-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
@@ -24,11 +25,11 @@
 
 .ac-card {
   background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius); overflow:hidden;
+  border-radius:16px; overflow:hidden;
   display:flex; flex-direction:column;
-  transition:box-shadow var(--transition), border-color var(--transition);
+  transition:box-shadow .2s, border-color .2s, transform .2s;
 }
-.ac-card:hover { box-shadow:var(--shadow-lg); border-color:var(--primary); }
+.ac-card:hover { box-shadow:0 10px 32px rgba(0,0,0,.22); border-color:var(--primary); transform:translateY(-2px); }
 .ac-card.draft   { border-left:3px solid var(--text-dim); opacity:.85; }
 .ac-card.pinned  { border-left:3px solid var(--warning); }
 .ac-card.published { border-left:3px solid var(--success); }
@@ -114,11 +115,9 @@
     <input type="text" name="search" value="<%= search %>" placeholder="🔍 Titre, résumé…">
     <select name="category" onchange="this.form.submit()">
       <option value="">Toutes catégories</option>
-      <option value="news"   <%= category==='news'   ?'selected':'' %>>📰 News</option>
-      <option value="promo"  <%= category==='promo'  ?'selected':'' %>>🎁 Promo</option>
-      <option value="update" <%= category==='update' ?'selected':'' %>>🔄 Mise à jour</option>
-      <option value="tip"    <%= category==='tip'    ?'selected':'' %>>💡 Conseil</option>
-      <option value="alert"  <%= category==='alert'  ?'selected':'' %>>🚨 Alerte</option>
+      <% (typeof categories !== 'undefined' ? categories : []).forEach(c => { const cfg = _catCfg[c] || { emoji:'📰', label:c }; %>
+      <option value="<%= c %>" <%= category===c ?'selected':'' %>><%= cfg.emoji %> <%= cfg.label %></option>
+      <% }) %>
     </select>
     <select name="status" onchange="this.form.submit()">
       <option value="">Tous statuts</option>

@@ -15,7 +15,8 @@ abstract class AuthRepository {
   Future<UserEntity> quickRegister({String? phoneNumber, String? email});
   Future<UserEntity> registerEmail({required String email, required String password, required String pseudo});
   Future<UserEntity> loginEmail({required String email, required String password});
-  Future<void> sendEmailOtp(String email);
+  /// Retourne `true` si l'email ne correspond à aucun compte existant.
+  Future<bool> sendEmailOtp(String email);
   Future<UserEntity> verifyEmailOtp({required String email, required String otp});
 
   /// Récupère le profil utilisateur courant.

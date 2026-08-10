@@ -1,22 +1,54 @@
 ﻿
 import { prisma } from '../lib/prisma';
 
-// ── ML probability model ──────────────────────────────────────────────────────
+// ── Modèle statistique ────────────────────────────────────────────────────────
+//
+// Aucun modèle génératif n'intervient ici. La probabilité est une combinaison
+// pondérée de deux signaux mesurés : la cote du bookmaker et, uniquement quand
+// c'est pertinent, l'écart de forme entre les deux équipes. L'explication
+// produite décrit ce calcul — elle n'affirme jamais un fait que le modèle n'a
+// pas réellement mesuré (cf. `explainPrediction`).
 
+/** Probabilité implicite d'une cote. Inclut la marge du bookmaker, elle
+ *  surestime donc légèrement et de façon systématique. */
 function oddsToImpliedProb(odds: number): number {
   if (odds <= 0) return 0;
   return Math.min(0.99, Math.max(0.01, 1 / odds));
 }
 
-function formToProb(homeFormPoints: number, awayFormPoints: number): number {
-  const total = homeFormPoints + awayFormPoints;
-  if (total === 0) return 0.5;
-  return Math.min(0.95, Math.max(0.05, homeFormPoints / total));
-}
-
-export interface AIPrediction {
+export interface StatPrediction {
   probability: number;
   explanation: string;
+}
+
+/**
+ * Signal de forme, orienté selon le marché — `null` quand la forme n'apporte
+ * rien d'exploitable.
+ *
+ * L'écart de forme domicile/extérieur ne renseigne que sur *qui* gagne, pas
+ * sur le nombre de buts : l'appliquer à un marché de totaux (over/under, BTTS)
+ * ou à un marché personnalisé revient à injecter du bruit. Ces marchés se
+ * reposent donc sur la seule cote.
+ */
+function formSignal(
+  predictionType: string,
+  homeFormPoints: number,
+  awayFormPoints: number,
+): number | null {
+  const total = homeFormPoints + awayFormPoints;
+  if (total === 0) return null; // aucune donnée de forme
+
+  const homeShare = homeFormPoints / total;
+  switch (predictionType) {
+    case 'win1': return homeShare;
+    // Corrigé : la part de forme du *domicile* était utilisée telle quelle pour
+    // une victoire extérieure, si bien qu'un domicile en pleine forme
+    // augmentait la probabilité prédite de la victoire de son adversaire.
+    case 'win2': return 1 - homeShare;
+    // Un nul est d'autant plus plausible que les deux formes sont proches.
+    case 'draw': return 1 - 2 * Math.abs(homeShare - 0.5);
+    default:     return null;
+  }
 }
 
 export function computeProbability(
@@ -36,119 +68,87 @@ export function computeProbability(
     default:        oddsProb = oddsToImpliedProb(oddsRecommended); break;
   }
 
-  const formProb      = formToProb(homeFormPoints, awayFormPoints);
-  const homeAdvantage = predictionType === 'win1' ? 0.55 : predictionType === 'win2' ? 0.45 : 0.5;
-  const blended       = oddsProb * 0.45 + formProb * 0.35 + homeAdvantage * 0.20;
+  // L'ancien terme constant « avantage du terrain » a été retiré : cet effet
+  // est déjà intégré par le bookmaker dans la cote, l'ajouter le comptait deux
+  // fois tout en rapprochant mécaniquement toutes les prédictions de 50 %.
+  const form    = formSignal(predictionType, homeFormPoints, awayFormPoints);
+  const blended = form === null ? oddsProb : oddsProb * 0.65 + form * 0.35;
 
-  return Math.round(Math.min(97, Math.max(30, blended * 100)));
+  // Bornes volontairement larges : ramener une cote à 5.00 (20 % implicite) à
+  // un plancher de 30 % gonflait artificiellement les pronostics risqués.
+  return Math.round(Math.min(95, Math.max(15, blended * 100)));
 }
 
-// ── Générateur d'explications intelligent (sans API externe) ──────────────────
+// ── Explication ──────────────────────────────────────────────
 
-function pick<T>(arr: T[]): T {
-  return arr[Math.floor(Math.random() * arr.length)];
-}
-
-function generateExplanation(params: {
+/**
+ * Décrit le calcul réellement effectué, avec ses chiffres.
+ *
+ * La version précédente tirait au sort des phrases de commentaire sportif qui
+ * affirmaient des faits jamais mesurés — « défenses perméables », « historique
+ * prolifique en buts » — alors qu'aucune statistique défensive ni aucun
+ * historique de buts n'est consulté ici. Sur une fonctionnalité payante, cela
+ * revenait à vendre des affirmations inventées.
+ *
+ * Cette version est déterministe (mêmes entrées → même texte) et ne mentionne
+ * que des grandeurs effectivement utilisées par `computeProbability`.
+ */
+export function explainPrediction(params: {
   homeTeam:        string;
   awayTeam:        string;
   predictionType:  string;
-  predictionLabel: string;
   probability:     number;
   homeFormPoints:  number;
   awayFormPoints:  number;
   oddsRecommended: number;
-  league:          string;
 }): string {
   const { homeTeam, awayTeam, predictionType, probability,
           homeFormPoints, awayFormPoints, oddsRecommended } = params;
 
-  const probLevel = probability >= 75 ? 'high' : probability >= 60 ? 'medium' : 'low';
-  const homeForm  = homeFormPoints >= 10 ? 'excellent' : homeFormPoints >= 6 ? 'correct' : 'faible';
-  const awayForm  = awayFormPoints >= 10 ? 'excellent' : awayFormPoints >= 6 ? 'correct' : 'faible';
-  const oddsLow   = oddsRecommended < 1.7;
-  const oddsMed   = oddsRecommended >= 1.7 && oddsRecommended < 2.5;
+  const parts: string[] = [];
 
-  // ─ Phrases selon le type de pronostic ─
-  const phrase1Map: Record<string, string[]> = {
-    win1: [
-      `${homeTeam} joue à domicile avec une forme ${homeForm}, un avantage décisif face à ${awayTeam}.`,
-      `L'avantage du terrain profite à ${homeTeam}, dont la dynamique est ${homeForm} sur les derniers matchs.`,
-      `${homeTeam} s'appuie sur sa solidité à domicile pour l'emporter face à des visiteurs en forme ${awayForm}.`,
-      `La forme ${homeForm} de ${homeTeam} et l'avantage du terrain penchent clairement en leur faveur.`,
-    ],
-    win2: [
-      `${awayTeam} démontre une forme ${awayForm} qui leur permet d'aller chercher des points à l'extérieur.`,
-      `Malgré le déplacement, ${awayTeam} affiche une régularité ${awayForm} qui leur donne confiance.`,
-      `${awayTeam} en forme ${awayForm} face à ${homeTeam} qui peine — les visiteurs partent favoris.`,
-      `La forme déclinante de ${homeTeam} ouvre la porte à ${awayTeam}, solide en déplacement.`,
-    ],
-    draw: [
-      `${homeTeam} et ${awayTeam} présentent des niveaux de forme proches, favorisant un partage des points.`,
-      `L'équilibre entre les deux équipes et les cotes du marché pointent vers un résultat serré.`,
-      `Avec des formes comparables, ${homeTeam} et ${awayTeam} devraient se neutraliser.`,
-      `Le rapport de forces est équilibré — les bookmakers confirment cette tendance au nul.`,
-    ],
-    btts: [
-      `${homeTeam} et ${awayTeam} ont toutes deux des défenses perméables — les buts des deux côtés sont attendus.`,
-      `Les deux équipes marquent régulièrement — le BTTS s'appuie sur leurs attaques efficaces.`,
-      `Offensivement actives, ${homeTeam} et ${awayTeam} devraient toutes deux trouver le chemin des filets.`,
-    ],
-    over25: [
-      `Les deux équipes privilégient le jeu offensif — plus de 2,5 buts est l'issue la plus probable.`,
-      `Avec des défenses exposées et des attaques en feu, plus de 2 buts au total est attendu.`,
-      `L'historique récent des deux équipes montre des rencontres prolifiques en buts.`,
-    ],
-    under25: [
-      `Les deux équipes misent sur la solidité défensive — moins de 3 buts est l'issue attendue.`,
-      `Un match fermé est anticipé, avec des défenses organisées limitant les occasions.`,
-      `Les statistiques défensives récentes des deux équipes orientent vers un faible nombre de buts.`,
-    ],
-    over35: [
-      `Un match très ouvert est prévu — plus de 3,5 buts reflète les tendances offensives des deux côtés.`,
-      `Les récents matchs de ces équipes sont marqués par de nombreux buts — la tendance devrait se confirmer.`,
-    ],
-    under35: [
-      `Un match tactique est attendu — moins de 4 buts est cohérent avec les stats défensives des deux équipes.`,
-      `Les deux équipes jouent bas et compact — peu de buts sont anticipés dans cette rencontre.`,
-    ],
-  };
+  // 1. Ce que dit le marché.
+  if (oddsRecommended > 0) {
+    const implied = Math.round(oddsToImpliedProb(oddsRecommended) * 100);
+    parts.push(
+      `La cote de ${oddsRecommended.toFixed(2)} correspond à une probabilité implicite ` +
+      `de ${implied}% (marge du bookmaker incluse).`);
+  }
 
-  const phrase2Map: Record<string, string[]> = {
-    high: [
-      `Notre modèle accorde ${probability}% de probabilité à ce scénario, soutenu par les cotes à ${oddsRecommended.toFixed(2)}.`,
-      `Avec ${probability}% de confiance, c'est l'un de nos pronostics les mieux cotés du jour.`,
-      `La convergence des signaux statistiques donne ${probability}% de fiabilité à cette prédiction.`,
-    ],
-    medium: [
-      `Notre algorithme estime la probabilité de succès à ${probability}% — un pari à valeur intéressante.`,
-      `À ${probability}% de probabilité calculée, ce pronostic offre un bon rapport risque/rendement.`,
-      `Les données de forme et de marché convergent vers ${probability}% — une opportunité solide.`,
-    ],
-    low: [
-      `Probabilité estimée à ${probability}% — un pari à risque modéré mais avec une cote attractive de ${oddsRecommended.toFixed(2)}.`,
-      `Notre modèle donne ${probability}% à ce scénario — à jouer avec prudence et mise raisonnée.`,
-      `À ${probability}%, ce pronostic est moins évident mais la cote de ${oddsRecommended.toFixed(2)} compense le risque.`,
-    ],
-  };
+  // 2. Ce que dit la forme — et, si elle n'est pas utilisée, pourquoi.
+  const form = formSignal(predictionType, homeFormPoints, awayFormPoints);
+  if (form === null && homeFormPoints + awayFormPoints === 0) {
+    parts.push(
+      `Aucune donnée de forme récente n'est disponible pour ces équipes : ` +
+      `l'estimation repose uniquement sur la cote.`);
+  } else if (form === null) {
+    parts.push(
+      `Ce marché ne dépend pas de l'écart de forme entre les deux équipes ` +
+      `(celui-ci indique qui gagne, pas le nombre de buts) : l'estimation ` +
+      `repose uniquement sur la cote.`);
+  } else {
+    const leader = homeFormPoints === awayFormPoints
+      ? null
+      : (homeFormPoints > awayFormPoints ? homeTeam : awayTeam);
+    parts.push(
+      `Sur la forme récente, ${homeTeam} totalise ${homeFormPoints} points ` +
+      `contre ${awayFormPoints} à ${awayTeam}` +
+      (leader === null
+        ? `, soit un équilibre parfait.`
+        : ` — avantage ${leader}.`));
+  }
 
-  // Bonus : mention des cotes si très basses (signe de favori fort)
-  const oddsComment = oddsLow
-    ? ` La faible cote (${oddsRecommended.toFixed(2)}) confirme le statut de favori.`
-    : oddsMed
-    ? ` La cote de ${oddsRecommended.toFixed(2)} reflète un scénario probable mais pas certain.`
-    : '';
+  // 3. Le résultat, sans surinterprétation.
+  parts.push(
+    `En combinant ces signaux, le modèle retient ${probability}% de probabilité ` +
+    `de réussite pour ce pronostic.`);
 
-  const type = predictionType in phrase1Map ? predictionType : 'win1';
-  const p1   = pick(phrase1Map[type] || phrase1Map['win1']);
-  const p2   = pick(phrase2Map[probLevel]) + oddsComment;
-
-  return `${p1} ${p2}`;
+  return parts.join(' ');
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export async function analyzePronostic(id: string): Promise<AIPrediction> {
+export async function analyzePronostic(id: string): Promise<StatPrediction> {
   // Accepte un pronostic UUID ou un match UUID (selon l'endpoint appelant)
   let prono = await prisma.pronostic.findUnique({ where: { id }, include: { match: true } });
   if (!prono) prono = await prisma.pronostic.findUnique({ where: { matchId: id }, include: { match: true } });
@@ -159,12 +159,12 @@ export async function analyzePronostic(id: string): Promise<AIPrediction> {
     if (!match) throw new Error('Pronostic not found');
     const probability = computeProbability('win1', 2, 3, 2, 2,
       match.homeFormPoints ?? 0, match.awayFormPoints ?? 0);
-    const explanation = generateExplanation({
+    const explanation = explainPrediction({
       homeTeam: match.homeTeam, awayTeam: match.awayTeam,
-      predictionType: 'win1', predictionLabel: `Victoire ${match.homeTeam}`,
+      predictionType: 'win1',
       probability, homeFormPoints: match.homeFormPoints ?? 0,
       awayFormPoints: match.awayFormPoints ?? 0,
-      oddsRecommended: 2, league: match.league,
+      oddsRecommended: 2,
     });
     return { probability, explanation };
   }
@@ -187,16 +187,14 @@ export async function analyzePronostic(id: string): Promise<AIPrediction> {
     prono.match.awayFormPoints ?? 0,
   );
 
-  const explanation = generateExplanation({
+  const explanation = explainPrediction({
     homeTeam:        prono.match.homeTeam,
     awayTeam:        prono.match.awayTeam,
     predictionType:  prono.predictionType,
-    predictionLabel: prono.predictionLabel,
     probability,
     homeFormPoints:  prono.match.homeFormPoints ?? 0,
     awayFormPoints:  prono.match.awayFormPoints ?? 0,
     oddsRecommended: prono.oddsRecommended,
-    league:          prono.match.league,
   });
 
   // Mise en cache en DB

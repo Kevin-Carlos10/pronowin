@@ -3,19 +3,19 @@
 <style>
 /* ── KPI avancés ── */
 .kpi-row       { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px,1fr)); gap: .9rem; margin-bottom: 1.25rem; }
-.kpi-box       { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; position: relative; overflow: hidden; transition: transform var(--transition), box-shadow var(--transition); }
-.kpi-box:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
-.kpi-box::after{ content:''; position:absolute; bottom:0;left:0;right:0; height:2px; }
-.kpi-box.c-blue::after   { background:var(--info); }
-.kpi-box.c-orange::after { background:var(--primary); }
-.kpi-box.c-green::after  { background:var(--success); }
-.kpi-box.c-red::after    { background:var(--error); }
-.kpi-box.c-purple::after { background:var(--purple); }
-.kpi-box.c-teal::after   { background:#14B8A6; }
-.kpi-emoji  { font-size: 1.3rem; margin-bottom: .35rem; }
-.kpi-v      { font-size: 1.75rem; font-weight: 800; line-height: 1; letter-spacing: -.5px; }
-.kpi-l      { font-size: .72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; margin-top: .25rem; }
-.kpi-delta  { font-size: .75rem; margin-top: .4rem; font-weight: 500; }
+.kpi-box       { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.15rem 1.3rem; position: relative; overflow: hidden; transition: transform .2s, box-shadow .2s; }
+.kpi-box:hover { transform: translateY(-3px); box-shadow: 0 10px 32px rgba(0,0,0,.25); }
+.kpi-box::before { content:''; position:absolute; left:0;top:0;bottom:0; width:3px; border-radius:14px 0 0 14px; }
+.kpi-box.c-blue::before   { background:var(--info); box-shadow:0 0 10px var(--info); }
+.kpi-box.c-orange::before { background:var(--primary); box-shadow:0 0 10px rgba(var(--primary-rgb),.4); }
+.kpi-box.c-green::before  { background:var(--success); box-shadow:0 0 10px var(--success); }
+.kpi-box.c-red::before    { background:var(--error); box-shadow:0 0 10px var(--error); }
+.kpi-box.c-purple::before { background:var(--purple); }
+.kpi-box.c-teal::before   { background:#14B8A6; }
+.kpi-emoji  { font-size: 1.2rem; position:absolute; top:1rem; right:1rem; opacity:.6; }
+.kpi-v      { font-size: 2rem; font-weight: 900; line-height: 1; letter-spacing: -.04em; margin-top:.15rem; }
+.kpi-l      { font-size: .7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-bottom:2px; }
+.kpi-delta  { font-size: .75rem; margin-top: .45rem; font-weight: 500; }
 .delta-up   { color: var(--success); }
 .delta-down { color: var(--error); }
 .delta-neu  { color: var(--text-dim); }
@@ -24,7 +24,7 @@
 .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
 .g3 { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem; }
 .g3b{ display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1rem; }
-.ch-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
+.ch-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.3rem 1.4rem; }
 .ch-card h3 { font-size: .9rem; font-weight: 700; margin-bottom: .9rem; display:flex;align-items:center;justify-content:space-between; }
 .ch-card h3 small { font-weight: 400; color: var(--text-dim); font-size: .75rem; }
 
@@ -86,18 +86,6 @@
     <div class="kpi-l">Premium actifs</div>
     <div class="kpi-delta delta-neu" id="k-conv">—</div>
   </div>
-  <div class="kpi-box c-red">
-    <div class="kpi-emoji">💰</div>
-    <div class="kpi-v" id="k-revenue">—</div>
-    <div class="kpi-l">Revenus FCFA</div>
-    <div class="kpi-delta delta-neu" id="k-revenue-d">—</div>
-  </div>
-  <div class="kpi-box c-teal">
-    <div class="kpi-emoji">📤</div>
-    <div class="kpi-v" id="k-withdrawals">—</div>
-    <div class="kpi-l">Retraits FCFA</div>
-    <div class="kpi-delta delta-neu" id="k-net">—</div>
-  </div>
   <div class="kpi-box c-purple">
     <div class="kpi-emoji">🎯</div>
     <div class="kpi-v" id="k-winrate">—</div>
@@ -106,28 +94,10 @@
   </div>
 </div>
 
-<!-- ── Revenus + Inscriptions (grands graphiques) ──────────────────────────── -->
-<div class="g2">
-  <div class="ch-card">
-    <h3>💰 Revenus par jour <small id="rev-total-lbl"></small></h3>
-    <div style="height:200px"><canvas id="c-revenue"></canvas></div>
-  </div>
-  <div class="ch-card">
-    <h3>👥 Inscriptions par jour <small id="users-total-lbl"></small></h3>
-    <div style="height:200px"><canvas id="c-signups"></canvas></div>
-  </div>
-</div>
-
-<!-- ── Répartition revenus + méthodes ─────────────────────────────────────── -->
-<div class="g3">
-  <div class="ch-card">
-    <h3>📊 Flux financiers par méthode de paiement</h3>
-    <div style="height:200px"><canvas id="c-methods"></canvas></div>
-  </div>
-  <div class="ch-card">
-    <h3>💳 Sources de revenus</h3>
-    <div style="height:200px;display:flex;align-items:center;justify-content:center"><canvas id="c-sources" style="max-height:190px"></canvas></div>
-  </div>
+<!-- ── Inscriptions ────────────────────────────────────────────────────────── -->
+<div class="ch-card" style="margin-bottom:1rem">
+  <h3>👥 Inscriptions par jour <small id="users-total-lbl"></small></h3>
+  <div style="height:200px"><canvas id="c-signups"></canvas></div>
 </div>
 
 <!-- ── Pronostics + Répartition users ─────────────────────────────────────── -->
@@ -148,25 +118,6 @@
   <div style="height:200px"><canvas id="c-monthly"></canvas></div>
 </div>
 
-<!-- ── Top utilisateurs ───────────────────────────────────────────────────── -->
-<div class="ch-card" style="margin-bottom:1rem;padding:0;overflow:hidden">
-  <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border)">
-    <h3 style="margin:0;font-size:.95rem;">🏆 Top 10 utilisateurs — dépôts</h3>
-  </div>
-  <div class="table-wrap">
-    <table class="top-table">
-      <thead>
-        <tr>
-          <th>#</th><th>Utilisateur</th><th>Téléphone</th><th>Plan</th>
-          <th style="text-align:right">Nb dépôts</th><th style="text-align:right">Total FCFA</th>
-        </tr>
-      </thead>
-      <tbody id="top-body">
-        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">Chargement…</td></tr>
-      </tbody>
-    </table>
-  </div>
-</div>
 
 <!-- ── Chart.js ────────────────────────────────────────────────────────────── -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
@@ -287,13 +238,10 @@ async function loadStats(days){
   const qs = days>0 ? `days=${days}` : 'all=1';
 
   try {
-    const [dash, revSeries, userSeries, methods, monthly, topUsers, pronos] = await Promise.allSettled([
+    const [dash, userSeries, monthly, pronos] = await Promise.allSettled([
       fetch(`/admin/api/stats/dashboard?${qs}`).then(r=>r.json()),
-      fetch(`/admin/api/stats/revenue?${qs}`).then(r=>r.json()),
       fetch(`/admin/api/stats/signups?${qs}`).then(r=>r.json()),
-      fetch(`/admin/api/stats/methods?${qs}`).then(r=>r.json()),
       fetch('/admin/api/stats/monthly').then(r=>r.json()),
-      fetch('/admin/api/stats/top-users').then(r=>r.json()),
       fetch('/admin/api/stats/pronostics').then(r=>r.json()),
     ]);
 
@@ -305,9 +253,6 @@ async function loadStats(days){
       setKpi('k-users',   fmt(d.users?.total ?? 0),   'k-users-d',  d.users?.new>0?`+${fmt(d.users.new)} nouveaux`:null, true);
       setKpi('k-new',     `+${fmt(d.users?.new ?? 0)}`,'k-new-d',   d.users?.growth_pct!=null?(d.users.growth_pct>=0?'+':'')+d.users.growth_pct+'% vs période préc.':null, d.users?.growth_pct>=0);
       setKpi('k-premium', fmt(d.users?.premium ?? 0),  'k-conv',    d.users?.conversion_rate!=null?`Taux : ${d.users.conversion_rate}%`:null, null);
-      setKpi('k-revenue', fmtK(d.revenue?.deposits ?? 0) + ' F', 'k-revenue-d', d.revenue?.net!=null?`Net : ${fmtK(d.revenue.net)} F`:null, (d.revenue?.net??0)>=0);
-      setKpi('k-withdrawals', fmtK(d.revenue?.withdrawals ?? 0) + ' F', 'k-net', null, null);
-      document.getElementById('rev-total-lbl').textContent   = fmt(d.revenue?.deposits ?? 0) + ' FCFA total';
       document.getElementById('users-total-lbl').textContent = fmt(d.users?.new ?? 0) + ' nouveaux';
 
       /* Répartition users */
@@ -321,29 +266,6 @@ async function loadStats(days){
           <span style="color:var(--primary);font-weight:700">${d.users?.conversion_rate ?? 0}%</span>
         </div>`;
 
-      /* Sources revenus doughnut */
-      const src = d.revenue ?? {};
-      doughnutChart('c-sources',
-        ['Dépôts','Abonnements','Commissions'],
-        [src.deposits??0, src.subscriptions??0, src.commissions??0],
-        [COLORS.red, COLORS.orange, COLORS.purple]
-      );
-    }
-
-    /* ── Graphique revenus ── */
-    if(revSeries.status==='fulfilled'){
-      const s = revSeries.value;
-      const labels = (s.labels ?? s).map ? (s.labels ?? s.map(d=>d.label??d.date)) : [];
-      const values = s.values ?? s.map?.(d=>d.amount??d.value) ?? [];
-      const ctx    = document.getElementById('c-revenue').getContext('2d');
-      const grad   = ctx.createLinearGradient(0,0,0,200);
-      grad.addColorStop(0, rgba(COLORS.red,.4));
-      grad.addColorStop(1, rgba(COLORS.red,.02));
-      lineChart('c-revenue', labels, [{
-        label:'Revenus FCFA', data: values,
-        borderColor: COLORS.red, backgroundColor: grad,
-        fill:true, tension:.4, pointRadius:2, pointBackgroundColor:COLORS.red,
-      }]);
     }
 
     /* ── Graphique inscriptions ── */
@@ -359,18 +281,6 @@ async function loadStats(days){
       lineChart('c-signups', labels, [
         { label:'Total', data:total, borderColor:COLORS.blue, backgroundColor:gU, fill:true, tension:.4, pointRadius:2 },
         ...(premium.some(v=>v>0) ? [{ label:'→ Premium', data:premium, borderColor:COLORS.orange, backgroundColor:'transparent', tension:.4, pointRadius:2, borderDash:[4,3] }] : [])
-      ]);
-    }
-
-    /* ── Méthodes de paiement ── */
-    if(methods.status==='fulfilled'){
-      const m = methods.value;
-      const methLabels  = m.map?.(x=>x.method?.replace(/_/g,' ')??x.label??'?') ?? [];
-      const methDeposits = m.map?.(x=>x.deposits??x.amount??0) ?? [];
-      const methWith     = m.map?.(x=>x.withdrawals??0) ?? [];
-      barChart('c-methods', methLabels, [
-        { label:'Dépôts',   data:methDeposits, backgroundColor:rgba(COLORS.green,.55), borderColor:COLORS.green, borderWidth:1.5, borderRadius:5 },
-        ...(methWith.some(v=>v>0)?[{ label:'Retraits', data:methWith, backgroundColor:rgba(COLORS.red,.45), borderColor:COLORS.red, borderWidth:1.5, borderRadius:5 }]:[]),
       ]);
     }
 
@@ -394,47 +304,9 @@ async function loadStats(days){
       const m = monthly.value;
       const mlabels = m.map?.(x=>x.month??x.label??'') ?? [];
       const musers  = m.map?.(x=>x.new_users??x.users??0) ?? [];
-      const mrev    = m.map?.(x=>x.revenue??x.amount??0) ?? [];
-      // Double axe Y
-      charts['c-monthly']?.destroy();
-      const ctxM = document.getElementById('c-monthly').getContext('2d');
-      charts['c-monthly'] = new Chart(ctxM, {
-        data:{
-          labels: mlabels,
-          datasets:[
-            { type:'bar',  label:'Inscriptions', data:musers, backgroundColor:rgba(COLORS.blue,.4), borderColor:COLORS.blue, borderWidth:1.5, borderRadius:4, yAxisID:'yU' },
-            { type:'line', label:'Revenus (FCFA)', data:mrev, borderColor:COLORS.orange, backgroundColor:rgba(COLORS.orange,.1), fill:true, tension:.4, pointRadius:3, yAxisID:'yR' },
-          ]
-        },
-        options:{
-          responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{ display:true, position:'top' } },
-          scales:{
-            x:{ grid:{display:false} },
-            yU:{ position:'left',  beginAtZero:true, ticks:{precision:0}, grid:{color:'#1E2A42'} },
-            yR:{ position:'right', beginAtZero:true, ticks:{callback:v=>fmtK(v)}, grid:{display:false} },
-          }
-        }
-      });
-    }
-
-    /* ── Top utilisateurs ── */
-    if(topUsers.status==='fulfilled'){
-      const list = topUsers.value ?? [];
-      const colors = ['#F5A623','#8892AA','#CD7F32'];
-      document.getElementById('top-body').innerHTML = list.length===0
-        ? '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">Aucune transaction</td></tr>'
-        : list.map((u,i)=>{
-          const color = i<3?colors[i]:'var(--text-dim)';
-          return `<tr>
-            <td><span class="rank-badge" style="background:${rgba(color,.15)};color:${color}">${i+1}</span></td>
-            <td><strong>${u.user?.pseudo??'—'}</strong>${u.user?.email?`<div style="font-size:.72rem;color:var(--text-dim)">${u.user.email}</div>`:''}</td>
-            <td style="color:var(--text-dim);font-size:.8rem">${u.user?.phoneNumber??'—'}</td>
-            <td><span class="badge ${u.user?.subscriptionPlan==='premium'?'badge-warn':'badge-info'}">${u.user?.subscriptionPlan??'free'}</span></td>
-            <td style="text-align:right;font-weight:600">${u.deposit_count??0}</td>
-            <td style="text-align:right;color:var(--success);font-weight:700">${fmt(u.total_deposits??0)} F</td>
-          </tr>`;
-        }).join('');
+      barChart('c-monthly', mlabels, [
+        { label:'Inscriptions', data:musers, backgroundColor:rgba(COLORS.blue,.4), borderColor:COLORS.blue, borderWidth:1.5, borderRadius:4 },
+      ]);
     }
 
   } catch(e){ console.error('Stats error:', e); }

@@ -28,12 +28,12 @@
 
 <!-- Stats rapides -->
 <div class="stats-grid" style="margin-bottom:16px">
-  <div class="stat-card"><div class="dot" style="background:#3B82F6"></div><div class="val"><%= stats.total %></div><div class="lbl">Total</div></div>
-  <div class="stat-card"><div class="dot" style="background:#F5A623"></div><div class="val"><%= stats.premium %></div><div class="lbl">Premium actifs</div></div>
-  <div class="stat-card"><div class="dot" style="background:#22C55E"></div><div class="val"><%= stats.newToday %></div><div class="lbl">Nouveaux (auj.)</div></div>
-  <div class="stat-card"><div class="dot" style="background:#A78BFA"></div><div class="val"><%= stats.newWeek %></div><div class="lbl">Cette semaine</div></div>
-  <div class="stat-card"><div class="dot" style="background:#EF4444"></div><div class="val"><%= stats.suspended %></div><div class="lbl">Suspendus</div></div>
-  <div class="stat-card"><div class="dot" style="background:#10B981"></div><div class="val"><%= stats.conversion_rate %>%</div><div class="lbl">Taux conversion</div></div>
+  <div class="stat-card s-blue"><div class="lbl">Total</div><div class="val"><%= stats.total %></div></div>
+  <div class="stat-card s-orange"><div class="lbl">Premium actifs</div><div class="val"><%= stats.premium %></div></div>
+  <div class="stat-card s-green"><div class="lbl">Nouveaux (auj.)</div><div class="val"><%= stats.newToday %></div></div>
+  <div class="stat-card s-purple"><div class="lbl">Cette semaine</div><div class="val"><%= stats.newWeek %></div></div>
+  <div class="stat-card s-red"><div class="lbl">Suspendus</div><div class="val"><%= stats.suspended %></div></div>
+  <div class="stat-card s-teal"><div class="lbl">Taux conversion</div><div class="val"><%= stats.conversion_rate %>%</div></div>
 </div>
 
 <!-- ── Bloc filtres avancés ─────────────────────────────────────────── -->
@@ -62,7 +62,6 @@
         <option value="pseudo"           <%= sortBy==='pseudo'           ?'selected':'' %>>Pseudo A-Z</option>
         <option value="lastLoginAt"      <%= sortBy==='lastLoginAt'      ?'selected':'' %>>Dernière connexion</option>
         <option value="subscriptionPlan" <%= sortBy==='subscriptionPlan' ?'selected':'' %>>Plan</option>
-        <option value="transaction_count"<%= sortBy==='transaction_count'?'selected':'' %>>Nb transactions</option>
       </select>
 
       <div class="filter-actions-row">
@@ -87,10 +86,6 @@
           <label>Inscrit avant</label>
           <input type="date" name="date_to" id="f-date-to" value="<%= _dateTo %>">
         </div>
-        <div class="filter-field">
-          <label>Transactions min.</label>
-          <input type="number" name="min_tx" id="f-min-tx" value="<%= _minTx %>" min="0" placeholder="ex: 3">
-        </div>
       </div>
 
       <!-- Presets sauvegardés -->
@@ -112,7 +107,6 @@
     <% if(status){ %><span class="filter-tag">Statut: <em><%= status %></em> <a href="/admin/users?<%= qParam({search,plan,date_from:_dateFrom,date_to:_dateTo,min_tx:_minTx,sort_by:sortBy}) %>">×</a></span><% } %>
     <% if(_dateFrom){ %><span class="filter-tag">Après: <em><%= _dateFrom %></em> <a href="/admin/users?<%= qParam({search,plan,status,date_to:_dateTo,min_tx:_minTx,sort_by:sortBy}) %>">×</a></span><% } %>
     <% if(_dateTo){ %><span class="filter-tag">Avant: <em><%= _dateTo %></em> <a href="/admin/users?<%= qParam({search,plan,status,date_from:_dateFrom,min_tx:_minTx,sort_by:sortBy}) %>">×</a></span><% } %>
-    <% if(_minTx){ %><span class="filter-tag">Min TX: <em><%= _minTx %></em> <a href="/admin/users?<%= qParam({search,plan,status,date_from:_dateFrom,date_to:_dateTo,sort_by:sortBy}) %>">×</a></span><% } %>
   </div>
   <% } %>
 </div>
@@ -142,7 +136,6 @@
         <th>1xBet ID</th>
         <th data-sort="subscriptionPlan">Plan</th>
         <th data-sort="createdAt">Inscrit le</th>
-        <th data-sort="transaction_count" style="text-align:center">TX</th>
         <th data-sort="isActive">Statut</th>
         <th style="text-align:right">Actions</th>
       </tr>
@@ -182,9 +175,6 @@
         <% if(u.lastLoginAt){ %>
           <br><span style="font-size:10px;color:var(--text-dim)">Dern. co. <%= new Date(u.lastLoginAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) %></span>
         <% } %>
-      </td>
-      <td style="text-align:center">
-        <span style="color:var(--text);font-weight:600"><%= u.transaction_count %></span>
       </td>
       <td>
         <span class="badge <%= u.isActive ? 'badge-ok' : 'badge-err' %>">

@@ -3,7 +3,7 @@
 <style>
 /* ── Modals ──────────────────────────────────────────────────────────────── */
 .ud-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); z-index:200; align-items:center; justify-content:center; }
-.ud-modal-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.75rem; width:min(96vw,480px); animation:slideUp .25s ease; }
+.ud-modal-box { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.75rem; width:min(96vw,480px); animation:slideUp .25s ease; }
 @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
 .ud-modal-title { font-size:1rem; font-weight:700; margin-bottom:1.1rem; }
 
@@ -170,10 +170,6 @@
         <!-- Stats rapides -->
         <div class="ud-stats" style="min-width:200px">
           <div class="ud-stat">
-            <div class="v"><%= transactions ? transactions.length : 0 %></div>
-            <div class="l">TX</div>
-          </div>
-          <div class="ud-stat">
             <div class="v" style="color:var(--warning)"><%= (user.days_left&&user.is_premium) ? user.days_left+'j' : '—' %></div>
             <div class="l">Premium</div>
           </div>
@@ -187,7 +183,6 @@
       <!-- Onglets -->
       <div class="ud-tabs">
         <button class="ud-tab active" onclick="switchTab('tab-info', this)">👤 Informations</button>
-        <button class="ud-tab" onclick="switchTab('tab-tx', this)">💰 Transactions (<%= transactions ? transactions.length : 0 %>)</button>
         <% if(subscriptions && subscriptions.length > 0) { %>
         <button class="ud-tab" onclick="switchTab('tab-subs', this)">👑 Abonnements (<%= subscriptions.length %>)</button>
         <% } %>
@@ -221,30 +216,6 @@
         <% row('Inscrit le', new Date(user.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})) %>
         <% row('Dernière connexion', user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : 'Jamais') %>
         <% row('Token FCM', user.fcmToken ? '✓ Enregistré' : '✗ Absent', user.fcmToken ? 'success' : 'error') %>
-      </div>
-
-      <!-- Onglet : Transactions -->
-      <div class="ud-panel" id="tab-tx">
-        <% if(!transactions || transactions.length === 0) { %>
-        <p class="empty" style="padding:1.5rem 0">Aucune transaction enregistrée.</p>
-        <% } else { %>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Type</th><th>Montant</th><th>Méthode</th><th>Statut</th><th>Date</th></tr></thead>
-            <tbody>
-            <% transactions.forEach(tx => { %>
-            <tr>
-              <td><span class="badge <%= tx.type==='deposit'?'badge-ok':'badge-warn' %>"><%= tx.type==='deposit'?'⬇️ Dépôt':'⬆️ Retrait' %></span></td>
-              <td style="font-weight:700"><%= (tx.amount||0).toLocaleString() %> FCFA</td>
-              <td style="color:var(--text-m);font-size:.78rem"><%= (tx.paymentMethod||'').replace(/_/g,' ') || '—' %></td>
-              <td><span class="badge <%= tx.status==='completed'?'badge-ok':tx.status==='rejected'?'badge-err':'badge-warn' %>"><%= tx.status %></span></td>
-              <td style="color:var(--text-dim);font-size:.78rem"><%= new Date(tx.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) %></td>
-            </tr>
-            <% }) %>
-            </tbody>
-          </table>
-        </div>
-        <% } %>
       </div>
 
       <!-- Onglet : Abonnements -->
@@ -307,9 +278,10 @@
         <div class="ud-premium-box">
           Premium actif — <%= user.days_left %> jour<%= user.days_left > 1 ? 's' : '' %> restant<%= user.days_left > 1 ? 's' : '' %>
         </div>
-        <form method="POST" action="/admin/users/<%= user.id %>/revoke-premium">
-          <button type="submit" class="btn btn-danger btn-sm" style="width:100%"
-            onclick="return confirm('Révoquer le Premium de <%= user.pseudo %> ?')">✗ Révoquer le Premium</button>
+        <form method="POST" action="/admin/users/<%= user.id %>/revoke-premium" id="form-revoke-premium">
+          <button type="button" class="btn btn-danger btn-sm" style="width:100%"
+            data-pseudo="<%= user.pseudo %>"
+            onclick="askConfirm({icon:'✗',title:'Révoquer le Premium',msg:'Révoquer le Premium de '+this.dataset.pseudo+' ?',btnLabel:'Révoquer',btnClass:'btn-danger',onConfirm:function(){document.getElementById('form-revoke-premium').submit()}})">✗ Révoquer le Premium</button>
         </form>
         <% } else { %>
         <form method="POST" action="/admin/users/<%= user.id %>/premium" style="display:flex;gap:.5rem;align-items:flex-end">
@@ -367,6 +339,9 @@
           <button onclick="openModal('modal-notif')" class="btn btn-outline btn-sm" style="justify-content:flex-start">📱 Envoyer une notification</button>
           <button onclick="openModal('modal-pseudo')" class="btn btn-outline btn-sm" style="justify-content:flex-start">✏️ Modifier le pseudo</button>
           <a href="/admin/historique?search=<%= encodeURIComponent(user.phoneNumber||user.pseudo) %>" class="btn btn-outline btn-sm" style="justify-content:flex-start">📋 Voir l'historique</a>
+          <% if (hasPerm('bankroll')) { %>
+          <a href="/admin/bankroll/<%= user.id %>" class="btn btn-outline btn-sm" style="justify-content:flex-start">🎯 Voir la bankroll</a>
+          <% } %>
           <% if(isMain) { %>
           <a href="/admin/bans?search=<%= encodeURIComponent(user.pseudo) %>" class="btn btn-outline btn-sm" style="justify-content:flex-start">🚫 Historique bans</a>
           <% } %>

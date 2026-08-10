@@ -7,17 +7,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:pronowin/core/widgets/in_app_browser_page.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../../../shared/utils/premium_nav.dart';
+import '../../../../shared/widgets/premium_gate_sheet.dart';
 import '../../../../features/notifications/presentation/providers/notification_service.dart';
 import '../../../../core/network/connectivity_provider.dart';
+import '../../../pronostics/domain/entities/match_entity.dart' show MatchEntity;
 import '../providers/accueil_provider.dart';
 import '../providers/streak_provider.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
+
+/// Libellé de pronostic (réponse API brute) avec "Domicile"/"Extérieur"
+/// remplacés par le nom réel de l'équipe — voir [MatchEntity.applyTeamNames].
+String _teamLabel(Map<String, dynamic> p) => MatchEntity.applyTeamNames(
+      p['prediction_label'] as String? ?? '',
+      homeTeam: p['home_team'] as String? ?? '',
+      awayTeam: p['away_team'] as String? ?? '',
+    );
 
 class AccueilPage extends ConsumerStatefulWidget {
   const AccueilPage({super.key});
@@ -251,6 +260,15 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
                           ? allSorted
                           : allSorted.where((p) => p['league'] == _selectedLeague).toList();
 
+                      // Teaser d'accueil : 5 max en vue par défaut ("Voir tout"
+                      // renvoie vers l'onglet Pronos pour le reste). Une fois
+                      // qu'une ligue précise est sélectionnée via les chips,
+                      // on montre tous ses matchs — l'utilisateur a explicitement
+                      // demandé à en voir plus.
+                      final displayed = _selectedLeague == null
+                          ? filtered.take(5).toList()
+                          : filtered;
+
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -269,7 +287,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
                           const SizedBox(height: 12),
 
                           // ── Liste triée ────────────────────────────────────
-                          ...filtered.asMap().entries.map((e) {
+                          ...displayed.asMap().entries.map((e) {
                             final p = e.value;
                             return _PronosticCard(
                               prono: p,
@@ -788,7 +806,7 @@ class _PremiumBanner extends ConsumerWidget {
         ? '${winRate.toStringAsFixed(0)}% de réussite cette semaine'
         : vipProno != null
             ? 'Accède au pronostic VIP du jour'
-            : 'Analyses IA · Cotes exclusives · VIP';
+            : 'Analyses détaillées · Cotes exclusives · VIP';
 
     return GestureDetector(
       onTap: onTap,
@@ -895,7 +913,9 @@ class _LockedPronoPreview extends StatelessWidget {
     final awayTeam     = prono['away_team'] as String? ?? '';
     final homeLogoUrl  = prono['home_team_logo'] as String?;
     final awayLogoUrl  = prono['away_team_logo'] as String?;
-    final predLabel    = prono['prediction_label'] as String? ?? '???';
+    final predLabel    = (prono['prediction_label'] as String? ?? '').isEmpty
+        ? '???'
+        : _teamLabel(prono);
     final oddsRec      = (prono['odds_recommended'] as num?)?.toDouble();
 
     return Stack(
@@ -997,7 +1017,7 @@ class _PremiumIllustration extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const tiles = [
-      (Icons.psychology_rounded,     'Analyses IA',       Color(0xFF8B5CF6)),
+      (Icons.query_stats_rounded,    'Analyses stats',    Color(0xFF8B5CF6)),
       (Icons.show_chart_rounded,     'Cotes exclusives',  Color(0xFF10B981)),
       (Icons.workspace_premium_rounded, 'Pronos VIP',     Color(0xFFFFD700)),
     ];
@@ -1088,7 +1108,18 @@ class _LiveMatchCardState extends State<_LiveMatchCard>
   @override
   Widget build(BuildContext context) {
     final m = widget.match;
-    return Container(
+    final matchId = m['id'] as String?;
+    return GestureDetector(
+      onTap: matchId == null ? null : () {
+        HapticFeedback.lightImpact();
+        if (widget.isLocked) {
+          showPremiumGateSheet(context,
+            matchLabel: '${m['home_team'] ?? ''} vs ${m['away_team'] ?? ''}');
+        } else {
+          context.push('/pronostics/$matchId');
+        }
+      },
+      child: Container(
       width: double.infinity,
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
       decoration: BoxDecoration(
@@ -1225,7 +1256,7 @@ class _LiveMatchCardState extends State<_LiveMatchCard>
                 border: Border.all(color: AppColors.primary.withValues(alpha: 0.3)),
               ),
               child: Text(
-                'Prono : ${m['prediction_label']}',
+                'Prono : ${_teamLabel(m)}',
                 style: const TextStyle(
                     color: AppColors.primary,
                     fontSize: 11,
@@ -1235,7 +1266,7 @@ class _LiveMatchCardState extends State<_LiveMatchCard>
           ],
         ],
       ),
-    );
+    ));
   }
 }
 
@@ -1481,7 +1512,7 @@ class _HeroPronoCard extends StatelessWidget {
                                         fontWeight: FontWeight.w800)),
                               ])
                             : Text(
-                                prono['prediction_label'] as String? ?? '',
+                                _teamLabel(prono),
                                 style: const TextStyle(
                                     color: AppColors.primary,
                                     fontSize: 16,
@@ -1525,24 +1556,15 @@ class _HeroPronoCard extends StatelessWidget {
                               letterSpacing: 0.5)),
                       const SizedBox(height: 6),
                       TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0, end: conf.toDouble()),
+                        tween: Tween(begin: 0, end: MatchEntity.percentForConfidence(conf).toDouble()),
                         duration: const Duration(milliseconds: 700),
                         curve: Curves.easeOutBack,
-                        builder: (_, val, _) => Row(
-                          children: List.generate(5, (i) {
-                            final fill = (val - i).clamp(0.0, 1.0);
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 1),
-                              child: Icon(
-                                fill > 0.5
-                                    ? Icons.star_rounded
-                                    : Icons.star_outline_rounded,
-                                color: fill > 0.5
-                                    ? AppColors.warning.withValues(alpha: fill)
-                                    : AppColors.borderSoft,
-                                size: 16),
-                            );
-                          }),
+                        builder: (_, val, _) => Text(
+                          '${val.clamp(0, 100).round()}%',
+                          style: const TextStyle(
+                              color: AppColors.warning,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w900),
                         ),
                       ),
                     ],
@@ -1792,7 +1814,7 @@ class _PronosticCard extends ConsumerWidget {
                               width: 0.5),
                         ),
                         child: Text(
-                          prono['prediction_label'] as String? ?? '',
+                          _teamLabel(prono),
                           style: const TextStyle(
                               color: AppColors.primary,
                               fontSize: 11,
@@ -1869,7 +1891,7 @@ class _PronosticCard extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        'Prono : ${prono['prediction_label']}',
+                        'Prono : ${_teamLabel(prono)}',
                         style: TextStyle(
                           color: result == 'WIN'
                               ? AppColors.success
@@ -2739,12 +2761,10 @@ class _NewsDetailSheet extends StatelessWidget {
                       width: double.infinity,
                       child: GestureDetector(
                         onTap: () {
-                          Navigator.of(context).push(MaterialPageRoute(
-                            builder: (_) => InAppBrowserPage(
-                              url:   sourceUrl!,
-                              title: news['titre'] as String? ?? '',
-                            ),
-                          ));
+                          context.push('/navigateur', extra: {
+                            'url':   sourceUrl!,
+                            'title': news['titre'] as String? ?? '',
+                          });
                         },
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 14),
@@ -3115,7 +3135,8 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
           final seconds = diff.inSeconds.remainder(60);
 
           final matchId        = prono['id'] as String?;
-          final predLabel      = prono['prediction_label'] as String?;
+          final rawPredLabel   = prono['prediction_label'] as String?;
+          final predLabel      = (rawPredLabel?.isNotEmpty ?? false) ? _teamLabel(prono) : null;
           final oddsRec        = (prono['odds_recommended'] as num?)?.toDouble();
           final confidenceScore = prono['confidence_score'] as int? ?? 0;
           final isPremium      = prono['is_premium'] as bool? ?? false;
@@ -3557,7 +3578,10 @@ class _FavoriteTile extends ConsumerWidget {
     final homeScore = fav['home_score'];
     final awayScore = fav['away_score'];
     final hasScore  = homeScore != null && awayScore != null;
-    final pronoId   = fav['prono_id'] as String?;
+    // Le backend renvoie soit l'id du pronostic soit celui du match (résolu
+    // côté serveur pour la navigation détail) — `prono_id` n'a jamais existé
+    // dans la réponse, ce qui empêchait tout tap sur une tuile favori.
+    final pronoId   = fav['id'] as String?;
     final matchId   = fav['match_id'] as String? ?? '';
 
     Color borderColor = context.cl.border;

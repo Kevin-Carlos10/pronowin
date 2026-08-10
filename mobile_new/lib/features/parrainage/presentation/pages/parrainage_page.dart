@@ -15,7 +15,17 @@ class ParrainagePage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        // Page atteinte par `push` depuis le Compte : sans flèche de retour
+        // (et avec `automaticallyImplyLeading: false`), elle était un
+        // cul-de-sac dès qu'on y arrivait.
         automaticallyImplyLeading: false,
+        leading: context.canPop()
+          ? IconButton(
+              icon: Icon(Icons.arrow_back_ios_new_rounded,
+                size: 20, color: context.cl.textS),
+              onPressed: () => context.pop(),
+            )
+          : null,
         title: Row(children: [
           Container(width: 32, height: 32,
             decoration: BoxDecoration(

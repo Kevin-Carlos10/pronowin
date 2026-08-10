@@ -3,9 +3,10 @@
 <style>
 /* ── Stats ─────────────────────────────────────────────────────────────────── */
 .au-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:.7rem; margin-bottom:1rem; }
-.au-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.8rem 1rem; }
-.au-stat .v { font-size:1.35rem; font-weight:800; line-height:1; margin-bottom:.2rem; }
-.au-stat .l { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+.au-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1.1rem; transition:transform .2s,box-shadow .2s; }
+.au-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.au-stat .v { font-size:1.7rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
+.au-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
 
 /* ── Chart + cat breakdown ────────────────────────────────────────────────── */
 .au-overview { display:grid; grid-template-columns:1fr 260px; gap:1rem; margin-bottom:1rem; }
@@ -97,22 +98,22 @@
 
 <!-- ── Stats rapides ──────────────────────────────────────────────────────── -->
 <div class="au-stats">
-  <div class="au-stat">
-    <div class="v" style="color:var(--primary)"><%= totalAll %></div>
+  <div class="au-stat" style="border-left-color:var(--primary)">
     <div class="l">Entrées totales</div>
+    <div class="v" style="color:var(--primary)"><%= totalAll %></div>
   </div>
   <% const _today = new Date().toISOString().slice(0,10); %>
-  <div class="au-stat">
-    <div class="v" style="color:var(--info)"><%= (typeof chartDays!=='undefined' && chartCounts && chartDays.includes(_today)) ? chartCounts[chartDays.indexOf(_today)] : 0 %></div>
+  <div class="au-stat" style="border-left-color:var(--info)">
     <div class="l">Aujourd'hui</div>
+    <div class="v" style="color:var(--info)"><%= (typeof chartDays!=='undefined' && chartCounts && chartDays.includes(_today)) ? chartCounts[chartDays.indexOf(_today)] : 0 %></div>
   </div>
-  <div class="au-stat">
-    <div class="v" style="color:var(--success)"><%= Object.keys(adminCounts||{}).length %></div>
+  <div class="au-stat" style="border-left-color:var(--success)">
     <div class="l">Admins actifs</div>
+    <div class="v" style="color:var(--success)"><%= Object.keys(adminCounts||{}).length %></div>
   </div>
-  <div class="au-stat">
-    <div class="v" style="color:var(--warning)"><%= (typeof chartCounts!=='undefined') ? chartCounts.reduce((a,b)=>a+b,0) : 0 %></div>
+  <div class="au-stat" style="border-left-color:var(--warning)">
     <div class="l">7 derniers jours</div>
+    <div class="v" style="color:var(--warning)"><%= (typeof chartCounts!=='undefined') ? chartCounts.reduce((a,b)=>a+b,0) : 0 %></div>
   </div>
 </div>
 

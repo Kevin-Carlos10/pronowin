@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma';
 
 /**
  * Bloque l'accès si le profil n'est pas complet pour le premium.
- * Conditions : au moins un canal vérifié + firstName + lastName + birthDate.
+ * Conditions : au moins un canal vérifié + firstName + lastName + birthDate + phoneNumber.
  */
 export async function requireProfileComplete(
   req: AuthRequest,
@@ -13,16 +13,17 @@ export async function requireProfileComplete(
 ): Promise<void> {
   const user = await prisma.user.findUnique({
     where:  { id: req.userId! },
-    select: { phoneVerified: true, emailVerified: true, firstName: true, lastName: true, birthDate: true },
+    select: { phoneVerified: true, emailVerified: true, firstName: true, lastName: true, birthDate: true, phoneNumber: true },
   });
 
   if (!user) { res.status(404).json({ message: 'Utilisateur introuvable.' }); return; }
 
   const missingFields: string[] = [];
   if (!user.phoneVerified && !user.emailVerified) missingFields.push('contact_verified');
-  if (!user.firstName) missingFields.push('first_name');
-  if (!user.lastName)  missingFields.push('last_name');
-  if (!user.birthDate) missingFields.push('birth_date');
+  if (!user.firstName)   missingFields.push('first_name');
+  if (!user.lastName)    missingFields.push('last_name');
+  if (!user.birthDate)   missingFields.push('birth_date');
+  if (!user.phoneNumber) missingFields.push('phone_number');
 
   if (missingFields.length > 0) {
     res.status(403).json({

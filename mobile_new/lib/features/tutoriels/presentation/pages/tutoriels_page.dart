@@ -8,17 +8,24 @@ import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../providers/tutoriels_provider.dart';
 import '../../domain/entities/tutorial_entity.dart';
 
+// Couleurs par catégorie connue — repli neutre pour toute catégorie créée
+// librement par l'admin et non reconnue de ce code.
+const Map<String, Color> _tutorialCategoryColors = {
+  'valuebet':    AppColors.info,
+  'bankroll':    AppColors.success,
+  'strategie':   AppColors.primary,
+  'analyse':     AppColors.info,
+  'psychologie': Color(0xFFA78BFA),
+  'psychology':  Color(0xFFA78BFA),
+  'martingale':  AppColors.warning,
+  'trading':     AppColors.error,
+  'statistics':  AppColors.primaryLight,
+};
+Color _colorForCategory(String category) =>
+    _tutorialCategoryColors[category.toLowerCase()] ?? AppColors.primaryLight;
+
 class TutorielsPage extends ConsumerWidget {
   const TutorielsPage({super.key});
-
-  static const _categories = [
-    (null,                           'Tous',         '🎯'),
-    (TutorialCategory.valuebet,      'Value Bet',    '🎯'),
-    (TutorialCategory.bankroll,      'Bankroll',     '💰'),
-    (TutorialCategory.strategie,     'Stratégie',    '♟️'),
-    (TutorialCategory.analyse,       'Analyse',      '📊'),
-    (TutorialCategory.psychologie,   'Psychologie',  '🧠'),
-  ];
 
   static const _levels = [
     (null,                        'Tous'),
@@ -42,6 +49,11 @@ class TutorielsPage extends ConsumerWidget {
         error:   (e, _) => _ErrorState(
             onRetry: () => ref.invalidate(tutorielsProvider)),
         data: (tutos) {
+          // Catégories disponibles — dérivées des tutoriels réellement présents,
+          // pas d'une liste figée : toute nouvelle catégorie créée côté admin
+          // apparaît ici automatiquement.
+          final categoryOptions = <String>{for (final t in tutos) t.category}.toList()..sort();
+
           // Filtrer
           var filtered = tutos;
           if (selectedCat != null) {
@@ -64,6 +76,15 @@ class TutorielsPage extends ConsumerWidget {
                     ..sort((a, b) => b.rating.compareTo(a.rating)))
                     .first
               : null;
+
+          // La carte "À la une" n'est affichée que sans filtre actif — dans ce
+          // cas, on retire ce tutoriel de la liste en dessous pour éviter de
+          // l'afficher deux fois.
+          final showFeatured = featured != null &&
+              selectedCat == null && selectedLvl == null && searchQuery.isEmpty;
+          if (showFeatured) {
+            filtered = filtered.where((t) => t.id != featured.id).toList();
+          }
 
           return RefreshIndicator(
             color: AppColors.info,
@@ -171,11 +192,15 @@ class TutorielsPage extends ConsumerWidget {
 
                   // ─── FILTRES CATÉGORIE ────────────────────────────────
                   SizedBox(
-                    height: 36,
+                    height: 44,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 14),
-                      children: _categories.map((entry) {
+                      children: [
+                        (null, 'Tous', '🎯'),
+                        for (final c in categoryOptions)
+                          (c, TutorialCategoryInfo.labelFor(c), TutorialCategoryInfo.emojiFor(c)),
+                      ].map((entry) {
                         final (cat, label, emoji) = entry;
                         final sel = selectedCat == cat;
                         return GestureDetector(
@@ -209,7 +234,7 @@ class TutorielsPage extends ConsumerWidget {
                   // ─── FILTRE NIVEAU ─────────────────────────────────────
                   const SizedBox(height: 8),
                   SizedBox(
-                    height: 34,
+                    height: 44,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -493,17 +518,7 @@ class _FeaturedCardState extends State<_FeaturedCard>
   TutorialEntity get tuto => widget.tuto;
   bool get isPremium => widget.isPremium;
 
-  Color get _catColor => switch (tuto.category) {
-    TutorialCategory.valuebet    => AppColors.info,
-    TutorialCategory.bankroll    => AppColors.success,
-    TutorialCategory.strategie   => AppColors.primary,
-    TutorialCategory.analyse     => AppColors.info,
-    TutorialCategory.psychologie ||
-    TutorialCategory.psychology  => const Color(0xFFA78BFA),
-    TutorialCategory.martingale  => AppColors.warning,
-    TutorialCategory.trading     => AppColors.error,
-    TutorialCategory.statistics  => AppColors.primaryLight,
-  };
+  Color get _catColor => _colorForCategory(tuto.category);
 
   @override
   Widget build(BuildContext context) {
@@ -600,10 +615,12 @@ class _FeaturedCardState extends State<_FeaturedCard>
                     Icon(Icons.access_time_rounded, size: 12, color: Colors.white70),
                     const SizedBox(width: 3),
                     Text(tuto.durationText, style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.star_rounded, size: 12, color: AppColors.warning),
-                    Text(' ${tuto.rating.toStringAsFixed(1)}', style: const TextStyle(
-                      color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.w700)),
+                    if (tuto.rating > 0) ...[
+                      const SizedBox(width: 8),
+                      const Icon(Icons.star_rounded, size: 12, color: AppColors.warning),
+                      Text(' ${tuto.rating.toStringAsFixed(1)}', style: const TextStyle(
+                        color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.w700)),
+                    ],
                     const Spacer(),
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
@@ -652,109 +669,124 @@ class _GradientBg extends StatelessWidget {
 class _TutoCard extends StatelessWidget {
   final TutorialEntity tuto;
   final bool isPremium;
-  final VoidCallback onTap;
-  const _TutoCard({required this.tuto, required this.isPremium, required this.onTap});
+  const _TutoCard({required this.tuto, required this.isPremium});
 
-  Color get _catColor => switch (tuto.category) {
-    TutorialCategory.valuebet    => AppColors.info,
-    TutorialCategory.bankroll    => AppColors.success,
-    TutorialCategory.strategie   => AppColors.primary,
-    TutorialCategory.analyse     => AppColors.info,
-    TutorialCategory.psychologie ||
-    TutorialCategory.psychology  => const Color(0xFFA78BFA),
-    TutorialCategory.martingale  => AppColors.warning,
-    TutorialCategory.trading     => AppColors.error,
-    TutorialCategory.statistics  => AppColors.primaryLight,
-  };
+  Color get _catColor => _colorForCategory(tuto.category);
 
   @override
   Widget build(BuildContext context) {
     final isLocked = tuto.isPremium && !isPremium;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: context.cl.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: isLocked
-                ? context.cl.border
-                : tuto.isCompleted
-                    ? AppColors.success.withValues(alpha: 0.3)
-                    : tuto.isPremium
-                        ? AppColors.warning.withValues(alpha: 0.25)
-                        : context.cl.border,
-            width: (tuto.isCompleted || tuto.isPremium) ? 0.8 : 0.5),
-        ),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Bande gauche colorée
-            Container(
-              width: 3, height: 52,
-              margin: const EdgeInsets.only(right: 12),
-              decoration: BoxDecoration(
-                color: tuto.isCompleted ? AppColors.success : _catColor,
-                borderRadius: BorderRadius.circular(2))),
-
-            // Icône : thumbnail si dispo, sinon emoji
-            ClipRRect(
-              borderRadius: BorderRadius.circular(12),
-              child: SizedBox(
-                width: 48, height: 48,
-                child: tuto.thumbnailUrl != null
+    return Container(
+      decoration: BoxDecoration(
+        color: context.cl.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: isLocked
+              ? context.cl.border
+              : tuto.isCompleted
+                  ? AppColors.success.withValues(alpha: 0.3)
+                  : tuto.isPremium
+                      ? AppColors.warning.withValues(alpha: 0.25)
+                      : context.cl.border,
+          width: (tuto.isCompleted || tuto.isPremium) ? 0.8 : 0.5),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Miniature pleine largeur (style flux vidéo)
+          AspectRatio(
+            aspectRatio: 16 / 9,
+            child: Stack(fit: StackFit.expand, children: [
+              tuto.thumbnailUrl != null
                   ? Image.network(
                       tuto.thumbnailUrl!,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => _EmojiIcon(tuto: tuto, catColor: _catColor),
+                      errorBuilder: (_, _, _) =>
+                          _EmojiIcon(tuto: tuto, catColor: _catColor, emojiSize: 40),
                     )
-                  : _EmojiIcon(tuto: tuto, catColor: _catColor),
+                  : _EmojiIcon(tuto: tuto, catColor: _catColor, emojiSize: 40),
+
+              // Badge durée (bas droite, comme sur une miniature vidéo)
+              Positioned(
+                right: 8, bottom: 8,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.75),
+                    borderRadius: BorderRadius.circular(4)),
+                  child: Text(tuto.durationText, style: const TextStyle(
+                    color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                ),
               ),
-            ),
-            const SizedBox(width: 12),
 
-            // Texte
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(tuto.title,
-                    style: TextStyle(
-                        color: context.cl.textP, fontSize: 13,
-                        fontWeight: FontWeight.w600, height: 1.3),
-                    maxLines: 2, overflow: TextOverflow.ellipsis),
-                const SizedBox(height: 5),
-                Row(children: [
-                  _LevelBadge(level: tuto.level),
-                  const SizedBox(width: 6),
-                  Icon(Icons.access_time_rounded, size: 11, color: context.cl.textM),
-                  const SizedBox(width: 2),
-                  Text(tuto.durationText, style: TextStyle(color: context.cl.textM, fontSize: 10)),
-                  const SizedBox(width: 6),
-                  const Icon(Icons.star_rounded, size: 11, color: AppColors.warning),
+              // Badge terminé / premium (haut gauche)
+              if (tuto.isCompleted)
+                _ThumbBadge(icon: Icons.check_rounded, label: 'Terminé', color: AppColors.success)
+              else if (tuto.isPremium)
+                _ThumbBadge(icon: Icons.workspace_premium_rounded, label: 'Premium', color: AppColors.warning),
+
+              // Voile + cadenas si contenu verrouillé
+              if (isLocked)
+                Positioned.fill(child: Container(
+                  color: Colors.black.withValues(alpha: 0.45),
+                  child: const Center(
+                    child: Icon(Icons.lock_rounded, color: Colors.white, size: 30)),
+                )),
+            ]),
+          ),
+
+          // Texte
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 14),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tuto.title,
+                  style: TextStyle(
+                      color: context.cl.textP, fontSize: 15,
+                      fontWeight: FontWeight.w700, height: 1.3),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 6),
+              Row(children: [
+                _LevelBadge(level: tuto.level),
+                const SizedBox(width: 8),
+                Icon(Icons.access_time_rounded, size: 12, color: context.cl.textM),
+                const SizedBox(width: 3),
+                Text(tuto.durationText, style: TextStyle(color: context.cl.textM, fontSize: 12)),
+                if (tuto.rating > 0) ...[
+                  const SizedBox(width: 8),
+                  const Icon(Icons.star_rounded, size: 12, color: AppColors.warning),
                   Text(' ${tuto.rating.toStringAsFixed(1)}', style: const TextStyle(
-                    color: AppColors.warning, fontSize: 10, fontWeight: FontWeight.w600)),
-                ]),
-              ])),
-
-            const SizedBox(width: 8),
-            // Droite : icône lock/premium/chevron
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (tuto.isPremium)
-                  Icon(
-                    isLocked ? Icons.lock_rounded : Icons.workspace_premium_rounded,
-                    color: isLocked ? context.cl.textM : AppColors.warning, size: 16),
-                const SizedBox(height: 4),
-                Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 18),
-              ],
-            ),
-          ],
-        ),
+                    color: AppColors.warning, fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ]),
+            ]),
+          ),
+        ],
       ),
     );
   }
+}
+
+class _ThumbBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+  const _ThumbBadge({required this.icon, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Positioned(
+    left: 8, top: 8,
+    child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(6)),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, color: Colors.white, size: 12),
+        const SizedBox(width: 3),
+        Text(label, style: const TextStyle(
+          color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+      ]),
+    ),
+  );
 }
 
 // ── Pressable wrapper pour _TutoCard ──────────────────────────────────────────
@@ -793,7 +825,7 @@ class _PressableTutoCardState extends State<_PressableTutoCard>
     onTapUp: (_) { _ctrl.reverse(); widget.onTap(); },
     onTapCancel: () => _ctrl.reverse(),
     child: ScaleTransition(scale: _scale, child: _TutoCard(
-      tuto: widget.tuto, isPremium: widget.isPremium, onTap: () {})),
+      tuto: widget.tuto, isPremium: widget.isPremium)),
   );
 }
 
@@ -801,12 +833,13 @@ class _PressableTutoCardState extends State<_PressableTutoCard>
 class _EmojiIcon extends StatelessWidget {
   final TutorialEntity tuto;
   final Color catColor;
-  const _EmojiIcon({required this.tuto, required this.catColor});
+  final double emojiSize;
+  const _EmojiIcon({required this.tuto, required this.catColor, this.emojiSize = 22});
   @override
   Widget build(BuildContext context) => Container(
     color: catColor.withValues(alpha: 0.10),
     child: Stack(children: [
-      Center(child: Text(tuto.category.emoji, style: const TextStyle(fontSize: 22))),
+      Center(child: Text(tuto.categoryEmoji, style: TextStyle(fontSize: emojiSize))),
       if (tuto.isCompleted)
         Positioned(right: -2, bottom: -2,
           child: Container(

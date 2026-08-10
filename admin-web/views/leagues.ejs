@@ -1,0 +1,227 @@
+<%- include('layout_top', {page:'leagues'}) %>
+<div class="topbar">
+  <div>
+    <h2>🏆 Ligues</h2>
+    <small>Contrôle ce qui apparaît dans le flux "Tous les matchs" de l'app — un match avec un pronostic publié reste toujours visible, quelle que soit sa ligue</small>
+  </div>
+</div>
+
+<% if(error){ %>
+  <div class="alert alert-error">❌ <%= error %></div>
+<% } %>
+
+<style>
+/* ── Toggle switch (repris de settings.ejs) ─────────────────────────────────── */
+.tog-sw  { position:relative; width:44px; height:24px; flex-shrink:0; }
+.tog-sw input { opacity:0; width:0; height:0; }
+.tog-slider { position:absolute; inset:0; background:var(--border); border-radius:99px; cursor:pointer; transition:background .2s; }
+.tog-slider::before { content:''; position:absolute; width:18px; height:18px; left:3px; top:3px; background:#fff; border-radius:50%; transition:transform .2s; }
+.tog-sw input:checked + .tog-slider { background:var(--primary); }
+.tog-sw input:checked + .tog-slider::before { transform:translateX(20px); }
+
+/* ── Stats ─────────────────────────────────────────────────────────────────── */
+.lg-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:.65rem; margin-bottom:1rem; }
+.lg-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1rem; transition:transform .2s,box-shadow .2s; }
+.lg-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.lg-stat.on  { border-left-color:var(--success); }
+.lg-stat.off { border-left-color:var(--text-dim); }
+.lg-stat .v { font-size:1.6rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
+.lg-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
+
+/* ── Recherche ─────────────────────────────────────────────────────────────── */
+.lg-search { position:relative; margin-bottom:1.1rem; max-width:420px; }
+.lg-search input {
+  width:100%; padding-left:2.3rem; padding-right:2.2rem;
+  background:var(--surface-d); border:1px solid var(--border);
+  border-radius:var(--radius-s); color:var(--text); font-size:.86rem; font-family:inherit;
+  outline:none; transition:border-color .15s;
+}
+.lg-search input:focus { border-color:var(--primary); }
+.lg-search .lg-search-icon {
+  position:absolute; left:.75rem; top:50%; transform:translateY(-50%);
+  font-size:.9rem; opacity:.55; pointer-events:none;
+}
+.lg-search .lg-search-clear {
+  position:absolute; right:.5rem; top:50%; transform:translateY(-50%);
+  width:22px; height:22px; border:none; background:var(--surface-h);
+  color:var(--text-dim); border-radius:50%; cursor:pointer; font-size:.75rem;
+  display:none; align-items:center; justify-content:center; line-height:1;
+}
+.lg-search .lg-search-clear:hover { background:var(--border); color:var(--text); }
+.lg-search.has-query .lg-search-clear { display:flex; }
+#lg-no-match { display:none; }
+
+/* ── Cartes de section ─────────────────────────────────────────────────────── */
+.lg-section-card { padding:0; overflow:hidden; margin-bottom:1rem; }
+.lg-section-head {
+  display:flex; align-items:center; gap:.5rem;
+  padding:.85rem 1.1rem; border-bottom:1px solid var(--border);
+  background:var(--surface-d);
+}
+.lg-section-head .dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.lg-section-head.on  .dot { background:var(--success); box-shadow:0 0 0 3px rgba(34,197,94,.15); }
+.lg-section-head.off .dot { background:var(--text-dim); }
+.lg-section-head .t { font-size:.78rem; font-weight:700; text-transform:uppercase; letter-spacing:.05em; color:var(--text); }
+.lg-section-head .t .n { color:var(--text-dim); font-weight:600; text-transform:none; letter-spacing:0; }
+
+.lg-row {
+  display:flex; align-items:center; justify-content:space-between; gap:1rem;
+  padding:.8rem 1.1rem; border-bottom:1px solid var(--border);
+  border-left:3px solid transparent;
+  transition:background .15s, border-left-color .15s;
+}
+.lg-row:hover { background:var(--surface-d); }
+.lg-row:last-child { border-bottom:none; }
+.lg-row.on  { border-left-color:rgba(34,197,94,.4); }
+.lg-name { font-size:.875rem; font-weight:600; color:var(--text); }
+.lg-code { font-size:.68rem; font-family:monospace; color:var(--text-dim); background:var(--surface-h); padding:.15rem .45rem; border-radius:5px; margin-left:.5rem; letter-spacing:.02em; }
+.lg-empty { padding:1rem 0; font-size:.82rem; color:var(--text-dim); }
+</style>
+
+<div class="lg-stats">
+  <div class="lg-stat">
+    <div class="l">Total compétitions</div>
+    <div class="v"><%= leagues.length %></div>
+  </div>
+  <div class="lg-stat on">
+    <div class="l">Visibles dans l'app</div>
+    <div class="v" style="color:var(--success)"><%= leagues.filter(l => l.isVisible).length %></div>
+  </div>
+  <div class="lg-stat off">
+    <div class="l">Masquées</div>
+    <div class="v" style="color:var(--text-dim)"><%= leagues.filter(l => !l.isVisible).length %></div>
+  </div>
+</div>
+
+<div class="lg-search" id="lg-search-wrap">
+  <span class="lg-search-icon">🔍</span>
+  <input class="input" type="text" id="lg-search-input" placeholder="Rechercher une compétition…" oninput="lgFilter()">
+  <button type="button" class="lg-search-clear" onclick="lgClearSearch()" title="Effacer">✕</button>
+</div>
+
+<div class="card lg-section-card">
+  <div class="lg-section-head on">
+    <span class="dot"></span>
+    <span class="t">Visibles dans l'app <span class="n">(<span id="lg-count-visible"><%= leagues.filter(l => l.isVisible).length %></span>)</span></span>
+  </div>
+  <div id="lg-list-visible">
+    <% leagues.filter(l => l.isVisible).forEach(l => { %>
+      <div class="lg-row on" data-lg-name="<%= l.league.toLowerCase() %>" data-lg-code="<%= l.leagueCode.toLowerCase() %>">
+        <div>
+          <span class="lg-name"><%= l.league %></span>
+          <span class="lg-code"><%= l.leagueCode %></span>
+        </div>
+        <label class="tog-sw">
+          <input type="checkbox" checked
+            onchange="lgToggle('<%= l.leagueCode %>', '<%= l.league.replace(/'/g, "\\'") %>', this)">
+          <span class="tog-slider"></span>
+        </label>
+      </div>
+    <% }) %>
+    <% if (!leagues.some(l => l.isVisible)) { %>
+      <div class="empty-state">
+        <div class="empty-state-icon">🙈</div>
+        <div class="empty-state-title">Aucune ligue visible</div>
+        <div class="empty-state-desc">Activez une compétition ci-dessous pour qu'elle apparaisse dans le flux public.</div>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<div class="card lg-section-card">
+  <div class="lg-section-head off">
+    <span class="dot"></span>
+    <span class="t">Masquées <span class="n">(<span id="lg-count-hidden"><%= leagues.filter(l => !l.isVisible).length %></span>)</span></span>
+  </div>
+  <div id="lg-list-hidden">
+    <% leagues.filter(l => !l.isVisible).forEach(l => { %>
+      <div class="lg-row" data-lg-name="<%= l.league.toLowerCase() %>" data-lg-code="<%= l.leagueCode.toLowerCase() %>">
+        <div>
+          <span class="lg-name"><%= l.league %></span>
+          <span class="lg-code"><%= l.leagueCode %></span>
+        </div>
+        <label class="tog-sw">
+          <input type="checkbox"
+            onchange="lgToggle('<%= l.leagueCode %>', '<%= l.league.replace(/'/g, "\\'") %>', this)">
+          <span class="tog-slider"></span>
+        </label>
+      </div>
+    <% }) %>
+    <% if (!leagues.some(l => !l.isVisible)) { %>
+      <div class="empty-state">
+        <div class="empty-state-icon">✅</div>
+        <div class="empty-state-title">Aucune ligue masquée</div>
+        <div class="empty-state-desc">Toutes les compétitions synchronisées sont actuellement visibles.</div>
+      </div>
+    <% } %>
+  </div>
+</div>
+
+<% if (leagues.length === 0) { %>
+  <div class="card">
+    <div class="empty-state">
+      <div class="empty-state-icon">🏆</div>
+      <div class="empty-state-title">Aucune compétition trouvée</div>
+      <div class="empty-state-desc">Les ligues apparaissent ici dès qu'un match est synchronisé depuis API-Football.</div>
+    </div>
+  </div>
+<% } %>
+
+<div class="card lg-empty" id="lg-no-match" style="text-align:center">🔍 Aucune compétition ne correspond à « <span id="lg-no-match-q"></span> ».</div>
+
+<script>
+function lgFilter() {
+  const input = document.getElementById('lg-search-input');
+  const q = input.value.trim().toLowerCase();
+  document.getElementById('lg-search-wrap').classList.toggle('has-query', !!input.value);
+
+  let visibleCount = 0;
+  document.querySelectorAll('.lg-row').forEach(row => {
+    const match = !q || row.dataset.lgName.includes(q) || row.dataset.lgCode.includes(q);
+    row.style.display = match ? '' : 'none';
+    if (match) visibleCount++;
+  });
+
+  const noMatch = document.getElementById('lg-no-match');
+  if (q && visibleCount === 0) {
+    document.getElementById('lg-no-match-q').textContent = input.value.trim();
+    noMatch.style.display = 'block';
+  } else {
+    noMatch.style.display = 'none';
+  }
+}
+
+function lgClearSearch() {
+  const input = document.getElementById('lg-search-input');
+  input.value = '';
+  lgFilter();
+  input.focus();
+}
+
+async function lgToggle(code, league, checkbox) {
+  const visible = checkbox.checked;
+  checkbox.disabled = true;
+  try {
+    const res = await fetch(`/admin/leagues/${encodeURIComponent(code)}/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ league, visible }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Erreur ${res.status}`);
+    }
+    showToast(`${league} ${visible ? 'activée' : 'masquée'} dans le flux public.`, 'success');
+    // Déplace visuellement la ligne entre les deux sections au prochain chargement —
+    // simple rechargement pour garder les compteurs et sections cohérents.
+    setTimeout(() => window.location.reload(), 500);
+  } catch (e) {
+    checkbox.checked = !visible;
+    checkbox.disabled = false;
+    showToast('Erreur : ' + e.message, 'error');
+  }
+}
+</script>
+
+<%- include('layout_bottom') %>

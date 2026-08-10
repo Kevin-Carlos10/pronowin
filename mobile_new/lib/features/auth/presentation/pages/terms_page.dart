@@ -7,7 +7,8 @@ import '../../../../core/theme/app_theme.dart';
 import '../providers/auth_provider.dart';
 
 class TermsPage extends ConsumerStatefulWidget {
-  const TermsPage({super.key});
+  final String? from;
+  const TermsPage({super.key, this.from});
 
   @override
   ConsumerState<TermsPage> createState() => _TermsPageState();
@@ -45,7 +46,13 @@ class _TermsPageState extends ConsumerState<TermsPage> {
     final authState = ref.watch(authProvider);
 
     ref.listen<AuthState>(authProvider, (_, state) {
-      if (state is TermsAccepted) context.go('/home');
+      if (state is TermsAccepted) {
+        if (!state.user.isProfileComplete) {
+          context.go('/compte/completer-profil', extra: widget.from);
+        } else {
+          context.go(widget.from ?? '/home');
+        }
+      }
       if (state is AuthError) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(state.message),
@@ -240,7 +247,7 @@ class CguContent extends StatelessWidget {
       _Section('3. Pronostics — caractère informatif',
         'Les analyses publiées sur PronoWin sont fournies à titre indicatif uniquement. Elles ne constituent en aucun cas des garanties de résultats. Tout pari effectué reste sous votre entière responsabilité.'),
       _Section('4. Abonnement Premium',
-        'L\'accès Premium débloque les pronostics VIP et les analyses IA. L\'abonnement est mensuel et non remboursable une fois activé. PronoWin se réserve le droit de modifier les tarifs avec un préavis de 30 jours.'),
+        'L\'accès Premium débloque les pronostics VIP et les analyses statistiques. L\'abonnement est mensuel et non remboursable une fois activé. PronoWin se réserve le droit de modifier les tarifs avec un préavis de 30 jours.'),
       _Section('5. Code 1xBet',
         'L\'activation via code 1xBet est gratuite. Elle est soumise à vérification par notre équipe sous 24h ouvrées. Tout abus (faux comptes, captures falsifiées) entraînera la suspension définitive du compte.'),
       _Section('6. Données personnelles',
@@ -248,13 +255,13 @@ class CguContent extends StatelessWidget {
       _Section('7. Jeu responsable',
         'PronoWin encourage le jeu responsable. Ne misez jamais plus que ce que vous pouvez vous permettre de perdre. Si vous pensez souffrir d\'une dépendance aux jeux d\'argent, contactez une ligne d\'aide spécialisée dans votre pays.'),
       _Section('8. Propriété intellectuelle',
-        'L\'ensemble du contenu de PronoWin (analyses, design, algorithmes IA, logo) est la propriété exclusive de PronoWin. Toute reproduction ou diffusion sans autorisation est interdite.'),
+        'L\'ensemble du contenu de PronoWin (analyses, design, algorithmes, logo) est la propriété exclusive de PronoWin. Toute reproduction ou diffusion sans autorisation est interdite.'),
       _Section('9. Limitation de responsabilité',
         'PronoWin ne peut être tenu responsable des pertes financières résultant de l\'utilisation de ses pronostics. L\'application est fournie "telle quelle" sans garantie de disponibilité permanente.'),
       _Section('10. Modification des CGU',
         'Ces conditions peuvent être mises à jour. En cas de modification substantielle, vous serez invité à les relire et les accepter à nouveau lors de votre prochaine connexion.'),
       _Section('11. Contact',
-        'Pour toute question ou réclamation : support@pronowin.app'),
+        'Pour toute question ou réclamation : pronowin2026@gmail.com'),
       const SizedBox(height: 8),
       Text('Dernière mise à jour : Juin 2026',
         style: TextStyle(color: context.cl.textM, fontSize: 11,

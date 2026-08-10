@@ -1,5 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
+import { AdminRequest } from '../middleware/admin.middleware';
+import { prisma } from '../lib/prisma';
 import * as svc from '../services/bankroll.service';
 
 export const getBankroll = async (req: AuthRequest, res: Response) => {
@@ -90,6 +92,70 @@ export const getSuggestedStake = async (req: AuthRequest, res: Response) => {
       suggested_amount: suggested,
       current_balance:  bankroll.currentBalance,
       currency:         bankroll.currency,
+    });
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+// ── ADMIN ──────────────────────────────────────────────────────────────────────
+/** GET /bankroll/admin/list — vue d'ensemble de toutes les bankrolls utilisateur */
+export const adminListBankrolls = async (req: AdminRequest, res: Response) => {
+  try {
+    const result = await svc.listBankrolls({
+      page:    parseInt(req.query.page as string ?? '1'),
+      perPage: parseInt(req.query.per_page as string ?? '20'),
+      search:  req.query.search as string,
+      sortBy:  req.query.sort_by as any,
+      sortDir: (req.query.sort_dir as 'asc' | 'desc') ?? 'desc',
+    });
+    res.json(result);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+/** GET /bankroll/admin/:userId — détail complet de la bankroll d'un utilisateur */
+export const adminGetBankrollDetail = async (req: AdminRequest, res: Response) => {
+  try {
+    const user = await prisma.user.findUnique({
+      where:  { id: req.params.userId },
+      select: { id: true, pseudo: true, phoneNumber: true, email: true, avatarUrl: true, createdAt: true },
+    });
+    if (!user) { res.status(404).json({ message: 'Utilisateur introuvable.' }); return; }
+
+    const [bankroll, stats] = await Promise.all([
+      svc.getBankroll(req.params.userId),
+      svc.getBankrollStats(req.params.userId),
+    ]);
+
+    res.json({
+      user,
+      bankroll: bankroll ? {
+        id:              bankroll.id,
+        total_budget:    bankroll.totalBudget,
+        current_balance: bankroll.currentBalance,
+        currency:        bankroll.currency,
+        last_reset_at:   bankroll.lastResetAt,
+        created_at:      bankroll.createdAt,
+        bets: bankroll.bets.map(b => ({
+          id:               b.id,
+          staked_amount:    b.stakedAmount,
+          suggested_amount: b.suggestedAmount,
+          odds_used:        b.oddsUsed,
+          potential_gain:   b.potentialGain,
+          result:           b.result,
+          profit:           b.profit,
+          settled_at:       b.settledAt,
+          created_at:       b.createdAt,
+          match: {
+            id:         b.pronostic.match.id,
+            home_team:  b.pronostic.match.homeTeam,
+            away_team:  b.pronostic.match.awayTeam,
+            match_date: b.pronostic.match.matchDate,
+            league:     b.pronostic.match.league,
+          },
+          prediction_label: b.pronostic.predictionLabel,
+          confidence_score: b.pronostic.confidenceScore,
+        })),
+      } : null,
+      stats,
     });
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };

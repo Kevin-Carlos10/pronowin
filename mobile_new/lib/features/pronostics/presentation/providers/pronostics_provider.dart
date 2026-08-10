@@ -52,8 +52,12 @@ final pronosticsFilterProvider = StateProvider<PronosticsFilter>(
   (_) => PronosticsFilter(dateFilter: _todayStr()),
 );
 
-/// Filtre statut côté client : null=tous, upcoming, live, finished
+/// Filtre statut côté serveur : null=tous, upcoming, live, finished
 final statusFilterProvider = StateProvider<MatchStatus?>((ref) => null);
+
+/// Filtre "avec pronostic uniquement" côté serveur : false = tous les matchs
+/// (avec ou sans pronostic, y compris "analyse en cours")
+final hasPronosticFilterProvider = StateProvider<bool>((ref) => false);
 
 /// Filtre ligue côté client : null = toutes
 final leagueFilterProvider = StateProvider<String?>((ref) => null);
@@ -100,11 +104,20 @@ class MatchesPaginatedState {
   );
 }
 
+String? _statusParam(MatchStatus? status) => switch (status) {
+  MatchStatus.upcoming => 'upcoming',
+  MatchStatus.live     => 'live',
+  MatchStatus.finished => 'finished',
+  null                 => null,
+};
+
 class MatchesPaginatedNotifier extends StateNotifier<MatchesPaginatedState> {
   final GetMatchesUseCase _usecase;
   PronosticsFilter        _filter;
+  final MatchStatus?      _status;
+  final bool              _hasPronostic;
 
-  MatchesPaginatedNotifier(this._usecase, this._filter)
+  MatchesPaginatedNotifier(this._usecase, this._filter, this._status, this._hasPronostic)
       : super(const MatchesPaginatedState()) {
     _loadInitial();
   }
@@ -120,14 +133,16 @@ class MatchesPaginatedNotifier extends StateNotifier<MatchesPaginatedState> {
       clearError:       true,
     );
 
-    final cacheKey = 'matches_${_filter.sport}_${_filter.dateFilter}_${_filter.leagueId ?? "all"}';
+    final cacheKey = 'matches_${_filter.sport}_${_filter.dateFilter}_${_filter.leagueId ?? "all"}_${_statusParam(_status) ?? "all"}_$_hasPronostic';
 
     try {
       final result = await _usecase(GetMatchesParams(
-        sport:      _filter.sport == 'all' ? null : _filter.sport,
-        dateFilter: _filter.dateFilter,
-        leagueId:   _filter.leagueId,
-        limit:      _limit,
+        sport:        _filter.sport == 'all' ? null : _filter.sport,
+        dateFilter:   _filter.dateFilter,
+        leagueId:     _filter.leagueId,
+        status:       _statusParam(_status),
+        hasPronostic: _hasPronostic,
+        limit:        _limit,
       ));
 
       result.fold(
@@ -173,11 +188,13 @@ class MatchesPaginatedNotifier extends StateNotifier<MatchesPaginatedState> {
 
     try {
       final result = await _usecase(GetMatchesParams(
-        sport:      _filter.sport == 'all' ? null : _filter.sport,
-        dateFilter: _filter.dateFilter,
-        leagueId:   _filter.leagueId,
-        cursor:     state.nextCursor,
-        limit:      _limit,
+        sport:        _filter.sport == 'all' ? null : _filter.sport,
+        dateFilter:   _filter.dateFilter,
+        leagueId:     _filter.leagueId,
+        status:       _statusParam(_status),
+        hasPronostic: _hasPronostic,
+        cursor:       state.nextCursor,
+        limit:        _limit,
       ));
 
       result.fold(
@@ -204,9 +221,11 @@ class MatchesPaginatedNotifier extends StateNotifier<MatchesPaginatedState> {
 
 final matchesPaginatedProvider =
     StateNotifierProvider.autoDispose<MatchesPaginatedNotifier, MatchesPaginatedState>((ref) {
-  final filter  = ref.watch(pronosticsFilterProvider);
-  final usecase = GetMatchesUseCase(ref.read(pronosticsRepoProvider));
-  return MatchesPaginatedNotifier(usecase, filter);
+  final filter       = ref.watch(pronosticsFilterProvider);
+  final status       = ref.watch(statusFilterProvider);
+  final hasPronostic = ref.watch(hasPronosticFilterProvider);
+  final usecase      = GetMatchesUseCase(ref.read(pronosticsRepoProvider));
+  return MatchesPaginatedNotifier(usecase, filter, status, hasPronostic);
 });
 
 // ─── Détail d'un match ────────────────────────────────────────────────────────
@@ -327,6 +346,148 @@ final h2hProvider = FutureProvider.autoDispose.family<H2HData, String>((ref, id)
   );
 });
 
+// ─── Compositions d'équipe ─────────────────────────────────────────────────────
+class LineupPlayer {
+  final int?    id;
+  final String  name;
+  final int?    number;
+  final String? pos;
+  /// Position sur le terrain renvoyée par API-Football, "ligne:colonne"
+  /// (ex. "1:1" = gardien). null pour les remplaçants.
+  final String? grid;
+  const LineupPlayer({required this.name, this.id, this.number, this.pos, this.grid});
+
+  factory LineupPlayer.fromJson(Map<String, dynamic> j) => LineupPlayer(
+    id:     (j['id'] as num?)?.toInt(),
+    name:   j['name'] as String? ?? '',
+    number: (j['number'] as num?)?.toInt(),
+    pos:    j['pos'] as String?,
+    grid:   j['grid'] as String?,
+  );
+
+  /// Ligne du joueur sur le terrain (1 = gardien), null si non placé.
+  int? get gridRow => _gridPart(0);
+  /// Colonne du joueur dans sa ligne, null si non placé.
+  int? get gridCol => _gridPart(1);
+
+  int? _gridPart(int i) {
+    final parts = grid?.split(':');
+    if (parts == null || parts.length != 2) return null;
+    return int.tryParse(parts[i]);
+  }
+
+  /// Photo officielle API-Football, null si le joueur n'a pas d'id.
+  String? get photoUrl =>
+    id == null ? null : 'https://media.api-sports.io/football/players/$id.png';
+
+  /// "M. Kovář" — nom compact pour tenir sous une pastille du terrain.
+  String get shortName {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length < 2) return name;
+    return '${parts.first[0]}. ${parts.sublist(1).join(' ')}';
+  }
+}
+
+class TeamLineup {
+  final String? formation;
+  final String? coach;
+  final List<LineupPlayer> startXI;
+  final List<LineupPlayer> substitutes;
+  const TeamLineup({
+    this.formation, this.coach,
+    required this.startXI, required this.substitutes,
+  });
+
+  factory TeamLineup.fromJson(Map<String, dynamic> j) => TeamLineup(
+    formation:   j['formation'] as String?,
+    coach:       j['coach'] as String?,
+    startXI:     (j['startXI'] as List? ?? [])
+      .map((p) => LineupPlayer.fromJson(p as Map<String, dynamic>)).toList(),
+    substitutes: (j['substitutes'] as List? ?? [])
+      .map((p) => LineupPlayer.fromJson(p as Map<String, dynamic>)).toList(),
+  );
+}
+
+class LineupsData {
+  final bool available;
+  final TeamLineup? home;
+  final TeamLineup? away;
+  const LineupsData({required this.available, this.home, this.away});
+}
+
+final lineupsProvider = FutureProvider.autoDispose.family<LineupsData, String>((ref, id) async {
+  final dio = ref.read(dioProvider);
+  final r   = await dio.get('/pronostics/$id/lineups');
+  final d   = r.data as Map<String, dynamic>;
+  return LineupsData(
+    available: d['available'] as bool? ?? false,
+    home: d['home'] != null ? TeamLineup.fromJson(d['home'] as Map<String, dynamic>) : null,
+    away: d['away'] != null ? TeamLineup.fromJson(d['away'] as Map<String, dynamic>) : null,
+  );
+});
+
+// ─── Blessures / suspensions ───────────────────────────────────────────────────
+class InjuredPlayer {
+  final String name;
+  final bool   isHome;
+  final String type;
+  final String reason;
+  const InjuredPlayer({
+    required this.name, required this.isHome,
+    required this.type, required this.reason,
+  });
+
+  factory InjuredPlayer.fromJson(Map<String, dynamic> j) => InjuredPlayer(
+    name:   j['name'] as String? ?? '',
+    isHome: j['team'] == 'home',
+    type:   j['type'] as String? ?? 'Injured',
+    reason: j['reason'] as String? ?? '',
+  );
+}
+
+final injuriesProvider = FutureProvider.autoDispose.family<List<InjuredPlayer>, String>((ref, id) async {
+  final dio = ref.read(dioProvider);
+  final r   = await dio.get('/pronostics/$id/injuries');
+  return (r.data as List)
+    .map((e) => InjuredPlayer.fromJson(e as Map<String, dynamic>))
+    .toList();
+});
+
+// ─── Classement ─────────────────────────────────────────────────────────────────
+class StandingRow {
+  final int    rank;
+  final String teamName;
+  final String? teamLogo;
+  final int    played, win, draw, lose, goalsDiff, points;
+  final String? form;
+  const StandingRow({
+    required this.rank, required this.teamName, this.teamLogo,
+    required this.played, required this.win, required this.draw, required this.lose,
+    required this.goalsDiff, required this.points, this.form,
+  });
+
+  factory StandingRow.fromJson(Map<String, dynamic> j) => StandingRow(
+    rank:      (j['rank'] as num).toInt(),
+    teamName:  j['teamName'] as String? ?? '',
+    teamLogo:  j['teamLogo'] as String?,
+    played:    (j['played'] as num?)?.toInt() ?? 0,
+    win:       (j['win'] as num?)?.toInt() ?? 0,
+    draw:      (j['draw'] as num?)?.toInt() ?? 0,
+    lose:      (j['lose'] as num?)?.toInt() ?? 0,
+    goalsDiff: (j['goalsDiff'] as num?)?.toInt() ?? 0,
+    points:    (j['points'] as num?)?.toInt() ?? 0,
+    form:      j['form'] as String?,
+  );
+}
+
+final standingsProvider = FutureProvider.autoDispose.family<List<StandingRow>, String>((ref, id) async {
+  final dio = ref.read(dioProvider);
+  final r   = await dio.get('/pronostics/$id/standings');
+  return (r.data as List)
+    .map((e) => StandingRow.fromJson(e as Map<String, dynamic>))
+    .toList();
+});
+
 // ─── Statistiques match terminé (API-Football) ───────────────────────────────
 class MatchEvent {
   final int    minute;
@@ -392,6 +553,160 @@ final matchStatsProvider = FutureProvider.autoDispose.family<MatchStatsData?, St
     );
   } catch (_) {
     return null;
+  }
+});
+
+// ─── Prono gratuit du jour ────────────────────────────────────────────────────
+final dailyPronoProvider = FutureProvider<MatchEntity?>((ref) async {
+  final dio = ref.read(dioProvider);
+  try {
+    final r = await dio.get('/pronostics/daily');
+    if (r.data == null) return null;
+    return MatchModel.fromJson(r.data as Map<String, dynamic>);
+  } catch (_) {
+    return null;
+  }
+});
+
+// ─── Pronostics IA personnalisés ──────────────────────────────────────────────
+class ForYouRec {
+  final int            score;
+  final List<String>   reasons;
+  final ForYouProno    pronostic;
+  const ForYouRec({required this.score, required this.reasons, required this.pronostic});
+
+  factory ForYouRec.fromJson(Map<String, dynamic> j) => ForYouRec(
+    score:     (j['score'] as num).toInt(),
+    reasons:   List<String>.from(j['reasons'] as List),
+    pronostic: ForYouProno.fromJson(j['pronostic'] as Map<String, dynamic>),
+  );
+}
+
+class ForYouProno {
+  final String  id, league, leagueCode, homeTeam, awayTeam;
+  final String  predictionType, predictionLabel;
+  final double  oddsRecommended;
+  final int     confidenceScore, aiProbability;
+  final String? analystNote, analystName;
+  final bool    isPremium;
+  final DateTime matchDate;
+  const ForYouProno({
+    required this.id, required this.league, required this.leagueCode,
+    required this.homeTeam, required this.awayTeam,
+    required this.predictionType, required this.predictionLabel,
+    required this.oddsRecommended, required this.confidenceScore,
+    required this.aiProbability, required this.matchDate,
+    this.analystNote, this.analystName, this.isPremium = false,
+  });
+  factory ForYouProno.fromJson(Map<String, dynamic> j) => ForYouProno(
+    id:               j['id'] as String,
+    league:           j['league'] as String,
+    leagueCode:       j['league_code'] as String,
+    homeTeam:         j['home_team'] as String,
+    awayTeam:         j['away_team'] as String,
+    predictionType:   j['prediction_type'] as String,
+    predictionLabel:  j['prediction_label'] as String,
+    oddsRecommended:  (j['odds_recommended'] as num).toDouble(),
+    confidenceScore:  (j['confidence_score'] as num).toInt(),
+    aiProbability:    (j['ai_probability'] as num).toInt(),
+    matchDate:        DateTime.parse(j['match_date'] as String),
+    analystNote:      j['analyst_note'] as String?,
+    analystName:      j['analyst_name'] as String?,
+    isPremium:        (j['is_premium'] as bool?) ?? false,
+  );
+}
+
+class ForYouProfile {
+  final int      totalBets, winRate;
+  final List<String> topLeagues, topBetTypes;
+  final double   oddsSweetMin, oddsSweetMax;
+  final bool     isNewUser;
+  const ForYouProfile({
+    required this.totalBets, required this.winRate,
+    required this.topLeagues, required this.topBetTypes,
+    required this.oddsSweetMin, required this.oddsSweetMax,
+    required this.isNewUser,
+  });
+  factory ForYouProfile.fromJson(Map<String, dynamic> j) => ForYouProfile(
+    totalBets:    (j['total_bets']     as num).toInt(),
+    winRate:      (j['win_rate']       as num).toInt(),
+    topLeagues:   List<String>.from(j['top_leagues'] as List),
+    topBetTypes:  List<String>.from(j['top_bet_types'] as List),
+    oddsSweetMin: (j['odds_sweet_min'] as num).toDouble(),
+    oddsSweetMax: (j['odds_sweet_max'] as num).toDouble(),
+    isNewUser:    (j['is_new_user']    as bool?) ?? true,
+  );
+}
+
+class ForYouData {
+  final ForYouProfile      profile;
+  final List<ForYouRec>    recommendations;
+  const ForYouData({required this.profile, required this.recommendations});
+}
+
+final forYouProvider = FutureProvider.autoDispose<ForYouData>((ref) async {
+  final dio = ref.read(dioProvider);
+  final r   = await dio.get('/pronostics/for-you');
+  final d   = r.data as Map<String, dynamic>;
+  return ForYouData(
+    profile:         ForYouProfile.fromJson(d['profile'] as Map<String, dynamic>),
+    recommendations: (d['recommendations'] as List)
+        .map((e) => ForYouRec.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+});
+
+// ─── Comptage de matchs par jour (sélecteur de dates) ──────────────────────────
+// Fenêtre complète (30j passés + 7j à venir) indépendante du jour sélectionné —
+// contrairement à matchesPaginatedProvider qui ne charge que le jour en cours.
+final dayCountsProvider = FutureProvider.autoDispose<Map<String, int>>((ref) async {
+  const cacheKey = 'pronostics_day_counts';
+  try {
+    final r    = await ref.read(dioProvider).get('/pronostics/counts-by-day');
+    final data = (r.data as Map<String, dynamic>).map((k, v) => MapEntry(k, v as int));
+    await CacheService.save(cacheKey, data);
+    return data;
+  } catch (_) {
+    return await CacheService.loadStale<Map<String, int>>(
+      cacheKey, (d) => (d as Map<String, dynamic>).map((k, v) => MapEntry(k, v as int))) ?? {};
+  }
+});
+
+// ─── Totaux réels du jour (barre de stats) ─────────────────────────────────────
+// Indépendant de matchesPaginatedProvider, qui ne reflète que la page déjà
+// chargée : sans ça, "0 prono" ne veut souvent rien dire (les premiers matchs
+// du jour, triés par heure, n'ont pas encore de pronostic publié).
+class DaySummary {
+  final int total;
+  final int withPronostic;
+  final int live;
+  const DaySummary({required this.total, required this.withPronostic, required this.live});
+
+  factory DaySummary.fromJson(Map<String, dynamic> j) => DaySummary(
+    total:         j['total']         as int? ?? 0,
+    withPronostic: j['withPronostic'] as int? ?? 0,
+    live:          j['live']          as int? ?? 0,
+  );
+
+  Map<String, dynamic> toJson() =>
+      {'total': total, 'withPronostic': withPronostic, 'live': live};
+}
+
+final daySummaryProvider =
+    FutureProvider.autoDispose.family<DaySummary, String>((ref, dateFilter) async {
+  final cacheKey = 'pronostics_day_summary_$dateFilter';
+  try {
+    final r = await ref.read(dioProvider).get(
+      '/pronostics/day-summary',
+      queryParameters: {'date_filter': dateFilter},
+    );
+    final summary = DaySummary.fromJson(r.data as Map<String, dynamic>);
+    await CacheService.save(cacheKey, summary.toJson());
+    return summary;
+  } catch (_) {
+    return await CacheService.loadStale<DaySummary>(
+        cacheKey, (d) => DaySummary.fromJson(d as Map<String, dynamic>)) ??
+        const DaySummary(total: 0, withPronostic: 0, live: 0);
   }
 });
 

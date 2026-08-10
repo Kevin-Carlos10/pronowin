@@ -5,6 +5,7 @@ import * as C from '../controllers/users_admin.controller';
 const r = Router();
 r.use(adminMiddleware);
 
+r.get ('/online',        C.getOnlineUsers);
 r.get ('/',              C.getUsers);
 r.get ('/stats',         C.getStats);
 r.get ('/export/csv',    C.exportCsv);

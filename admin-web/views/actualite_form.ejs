@@ -140,6 +140,16 @@ input[name=category] { display:none; }
           </div>
           <% }) %>
         </div>
+        <div class="af-field" style="margin-top:.6rem;margin-bottom:0">
+          <label style="font-weight:400;font-size:.75rem">Ou catégorie personnalisée</label>
+          <input class="input" type="text" id="inp-cat-custom" list="cat-datalist"
+            placeholder="Ex : partenariat"
+            value="<%= catList.some(c => c.key===selCat) ? '' : selCat %>"
+            oninput="selectCat(this.value.trim().toLowerCase())">
+          <datalist id="cat-datalist">
+            <% (typeof categories !== 'undefined' ? categories : []).forEach(c => { %><option value="<%= c %>"><% }) %>
+          </datalist>
+        </div>
       </div>
     </div>
 
@@ -267,8 +277,13 @@ const CAT_CFG = {
   alert:  { emoji:'🚨', label:'Alerte',      cls:'cat-alert'  },
 };
 function selectCat(key) {
+  if (!key) return;
   document.getElementById('inp-cat').value = key;
   document.querySelectorAll('.af-cat-pill').forEach(p => p.classList.toggle('active', p.dataset.cat === key));
+  const customInput = document.getElementById('inp-cat-custom');
+  if (customInput && document.activeElement !== customInput) {
+    customInput.value = CAT_CFG[key] ? '' : key;
+  }
   updatePreview();
 }
 
@@ -277,7 +292,7 @@ function updatePreview() {
   const title   = document.getElementById('inp-title')?.value   || 'Titre de l\'article';
   const summary = document.getElementById('inp-summary')?.value || '';
   const cat     = document.getElementById('inp-cat')?.value     || 'news';
-  const cfg     = CAT_CFG[cat] || CAT_CFG.news;
+  const cfg     = CAT_CFG[cat] || { emoji:'🏷️', label:cat, cls:'cat-news' };
 
   document.getElementById('prev-title').textContent   = title   || 'Titre de l\'article';
   const sumEl = document.getElementById('prev-summary');

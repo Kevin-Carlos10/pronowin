@@ -81,7 +81,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<void> sendEmailOtp(String email) => _remote.sendEmailOtp(email);
+  Future<bool> sendEmailOtp(String email) => _remote.sendEmailOtp(email);
 
   @override
   Future<UserEntity> verifyEmailOtp({required String email, required String otp}) async {

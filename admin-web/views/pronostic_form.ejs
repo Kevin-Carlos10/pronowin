@@ -43,6 +43,34 @@
   cursor:pointer; transition:all .15s; white-space:nowrap;
 }
 .type-pill:hover, .type-pill.active { background:rgba(var(--primary-rgb),.12); border-color:var(--primary); color:var(--primary); }
+.pill-odd { margin-left:.35rem; font-weight:800; }
+
+/* ── Tous les marchés (accordéon) ─────────────────────────────────────────────── */
+.market-group {
+  border:1px solid var(--border); border-radius:8px; margin-bottom:.5rem; overflow:hidden;
+}
+.market-group summary {
+  padding:.55rem .75rem; font-size:.8rem; font-weight:700; cursor:pointer;
+  background:var(--surface-d); list-style:none; display:flex; align-items:center; justify-content:space-between;
+}
+.market-group summary::-webkit-details-marker { display:none; }
+.market-group summary::after { content:'▾'; color:var(--text-dim); transition:transform .15s; }
+.market-group[open] summary::after { transform:rotate(180deg); }
+.market-chips { display:flex; flex-wrap:wrap; gap:.4rem; padding:.6rem .75rem; }
+.market-value-chip {
+  padding:.3rem .65rem; border-radius:14px; font-size:.75rem; font-weight:600;
+  background:var(--surface); border:1px solid var(--border); color:var(--text-m);
+  cursor:pointer; transition:all .15s; white-space:nowrap;
+}
+.market-value-chip:hover { border-color:var(--primary); color:var(--primary); }
+.market-value-chip.active { background:rgba(var(--primary-rgb),.15); border-color:var(--primary); color:var(--primary); }
+.custom-pick-banner {
+  display:none; align-items:center; gap:.6rem; padding:.6rem .8rem; margin-top:.6rem;
+  background:rgba(var(--primary-rgb),.08); border:1px solid var(--primary); border-radius:8px; font-size:.8rem;
+}
+.custom-pick-banner button {
+  margin-left:auto; background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:.9rem;
+}
 
 /* ── Premium toggle ────────────────────────────────────────────────────────────── */
 .vip-toggle {
@@ -74,6 +102,10 @@
   const dateStr     = matchDate.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const timeStr     = matchDate.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   const isEdit      = !!pro.id;
+  // Même heuristique que la liste (pronostics.ejs) : le statut LIVE en base
+  // peut avoir jusqu'à 2 minutes de retard (fréquence du cron de sync).
+  const _diffMin    = Math.floor((matchDate.getTime() - Date.now()) / 60000);
+  const isLive      = match.status === 'LIVE' || (_diffMin < 0 && _diffMin > -120);
 %>
 
 <div class="topbar">
@@ -99,7 +131,16 @@
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.85rem">
         <% if(match.leagueLogo){ %><img src="<%= match.leagueLogo %>" style="width:18px;height:18px;object-fit:contain" onerror="this.style.display='none'"><% } %>
         <span class="badge badge-info" style="font-size:.7rem"><%= match.league %></span>
+        <% if(isLive){ %>
+        <span class="badge" style="font-size:.7rem;background:color-mix(in srgb,var(--error) 15%,transparent);color:var(--error)">🔴 EN DIRECT</span>
+        <% } %>
       </div>
+
+      <% if(isLive){ %>
+      <div style="font-size:.72rem;color:var(--text-dim);margin-bottom:.6rem;padding:.5rem .6rem;background:color-mix(in srgb,var(--error) 6%,transparent);border:1px solid color-mix(in srgb,var(--error) 20%,transparent);border-radius:8px">
+        ⚠️ Match en cours — les cotes pré-match peuvent être suspendues ou obsolètes chez certains bookmakers.
+      </div>
+      <% } %>
 
       <div class="match-preview">
         <div class="mp-team">
@@ -160,10 +201,29 @@
           ]; %>
           <% types.forEach(t => { %>
           <div class="type-pill <%= (pro.prediction_type||'win1')===t.v?'active':'' %>"
-               data-val="<%= t.v %>" onclick="setType('<%= t.v %>')"><%= t.l %></div>
+               data-val="<%= t.v %>" onclick="setType('<%= t.v %>')"><%= t.l %><span class="pill-odd" id="odd-<%= t.v %>"></span></div>
           <% }) %>
         </div>
         <input type="hidden" name="prediction_type" id="type-input" value="<%= pro.prediction_type||'win1' %>">
+        <input type="hidden" name="market_name" id="market-name-input" value="<%= pro.market_name||'' %>">
+        <input type="hidden" name="market_value" id="market-value-input" value="<%= pro.market_value||'' %>">
+        <p style="font-size:.72rem;color:var(--text-dim);margin-top:.4rem">
+          💡 Clique « Charger les cotes 1xBet » ci-dessous pour voir la cote réelle de chaque option et choisir directement.
+        </p>
+
+        <div class="custom-pick-banner" id="custom-pick-banner"
+             style="<%= pro.prediction_type==='other' ? 'display:flex' : '' %>">
+          🎯 Marché personnalisé : <strong id="custom-pick-text"></strong>
+          <button type="button" onclick="clearCustomPick()">✕</button>
+        </div>
+
+        <div class="form-group" style="margin-top:.9rem;display:none" id="all-markets-section">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
+            <label style="margin:0;font-size:.78rem">Tous les marchés 1xBet</label>
+            <span style="font-size:.7rem;color:var(--text-dim)" id="markets-count"></span>
+          </div>
+          <div id="markets-accordion"></div>
+        </div>
       </div>
 
       <!-- Label affiché -->
@@ -182,7 +242,7 @@
             style="display:flex;align-items:center;gap:.4rem;padding:.3rem .75rem;font-size:.78rem;
                    background:rgba(var(--primary-rgb),.12);border:1px solid var(--primary);
                    color:var(--primary);border-radius:8px;cursor:pointer;font-weight:600;transition:all .15s">
-            <span id="odds-btn-icon">⚡</span> Récupérer les cotes
+            <span id="odds-btn-icon">⚡</span> Charger les cotes 1xBet
           </button>
         </div>
         <div id="odds-msg" style="display:none;font-size:.75rem;margin-bottom:.4rem;padding:.35rem .6rem;border-radius:6px"></div>
@@ -292,15 +352,149 @@ function setType(v) {
     lbl.value = typeLabels[v] || '';
   }
   document.getElementById('type-input')._prev = v;
-  // Auto-fill cote recommandée selon type
+  // Un pill standard désélectionne le marché personnalisé éventuel
+  clearCustomPick({ keepType: true });
+  // Cote recommandée : priorité à la cote 1xBet live si chargée, sinon repli sur odds_home/draw/away
   const rec = document.getElementById('odds-rec');
-  const map = { win1:'odds_home', win2:'odds_away', draw:'odds_draw' };
-  if (map[v]) {
-    const src = document.querySelector('[name="' + map[v] + '"]');
-    if (src && src.value) rec.value = src.value;
+  if (window._xbetOdds && window._xbetOdds[v] != null) {
+    rec.value = window._xbetOdds[v].toFixed(2);
+  } else {
+    const map = { win1:'odds_home', win2:'odds_away', draw:'odds_draw' };
+    if (map[v]) {
+      const src = document.querySelector('[name="' + map[v] + '"]');
+      if (src && src.value) rec.value = src.value;
+    }
   }
 }
 document.getElementById('type-input')._prev = document.getElementById('type-input').value;
+
+/* ── Traduction des marchés/valeurs brutes 1xBet (anglais) → français ──
+   Le nom brut anglais reste stocké en base (market_name/market_value —
+   cohérence avec l'API pour un futur rapprochement), seul l'affichage
+   (accordéon, bannière) ET le libellé public prediction_label (visible par
+   l'utilisateur final dans l'app mobile) sont traduits. */
+const MARKET_NAME_FR = {
+  'Match Winner':                      'Vainqueur du match',
+  'First Half Winner':                 'Vainqueur 1ère mi-temps',
+  'Second Half Winner':                'Vainqueur 2ème mi-temps',
+  'Asian Handicap':                    'Handicap asiatique',
+  'Asian Handicap First Half':         'Handicap asiatique — 1ère MT',
+  'Asian Handicap (2nd Half)':         'Handicap asiatique — 2ème MT',
+  'Goals Over/Under':                  'Total buts +/-',
+  'Goals Over/Under First Half':       'Total buts +/- — 1ère MT',
+  'Goals Over/Under - Second Half':    'Total buts +/- — 2ème MT',
+  'HT/FT Double':                      'Double mi-temps / fin de match',
+  'Both Teams Score':                  'Les deux équipes marquent',
+  'Both Teams Score - First Half':     'Les deux équipes marquent — 1ère MT',
+  'Both Teams To Score - Second Half': 'Les deux équipes marquent — 2ème MT',
+  'Exact Score':                       'Score exact',
+  'Highest Scoring Half':              'Mi-temps la plus prolifique',
+  'Correct Score - First Half':        'Score exact — 1ère MT',
+  'Correct Score - Second Half':       'Score exact — 2ème MT',
+  'Double Chance':                     'Double chance',
+  'Double Chance - First Half':        'Double chance — 1ère MT',
+  'Double Chance - Second Half':       'Double chance — 2ème MT',
+  'Total - Home':                      'Total buts domicile',
+  'Total - Away':                      'Total buts extérieur',
+  'Odd/Even':                          'Pair/Impair',
+  'Odd/Even - First Half':             'Pair/Impair — 1ère MT',
+  'Odd/Even - Second Half':            'Pair/Impair — 2ème MT',
+  'Home Odd/Even':                     'Pair/Impair domicile',
+  'Away Odd/Even':                     'Pair/Impair extérieur',
+  'To Qualify':                        'Qualification',
+  'Home Team Total Goals(1st Half)':   'Total buts domicile (1ère MT)',
+  'Away Team Total Goals(1st Half)':   'Total buts extérieur (1ère MT)',
+  'Home Team Total Goals(2nd Half)':   'Total buts domicile (2ème MT)',
+  'Away Team Total Goals(2nd Half)':   'Total buts extérieur (2ème MT)',
+};
+function translateMarketName(name) {
+  return MARKET_NAME_FR[name] || name;
+}
+// Noms réels des équipes — utilisés à la place de "Domicile"/"Extérieur"
+// pour que le libellé public (et l'aperçu des cotes ci-dessous) dise
+// directement "Bayern München" plutôt qu'un camp générique.
+const HOME_TEAM = <%- JSON.stringify(match.homeTeam) %>;
+const AWAY_TEAM = <%- JSON.stringify(match.awayTeam) %>;
+function translateMarketValue(value) {
+  return String(value)
+    .replace(/\b1st Half\b/gi, '1ère MT')
+    .replace(/\b2nd Half\b/gi, '2ème MT')
+    .replace(/\bHome\b/g,  HOME_TEAM)
+    .replace(/\bAway\b/g,  AWAY_TEAM)
+    .replace(/\bDraw\b/g,  'Nul')
+    .replace(/\bOver\b/g,  'Plus de')
+    .replace(/\bUnder\b/g, 'Moins de')
+    .replace(/\bYes\b/g,   'Oui')
+    .replace(/\bNo\b/g,    'Non')
+    .replace(/\bOdd\b/g,   'Impair')
+    .replace(/\bEven\b/g,  'Pair');
+}
+// Bannière "marché personnalisé" pré-remplie au chargement (édition d'un
+// pronostic existant) — traduite depuis les champs cachés déjà renseignés
+// côté serveur avec les valeurs brutes 1xBet.
+(function initCustomPickBanner() {
+  const rawName  = document.getElementById('market-name-input').value;
+  const rawValue = document.getElementById('market-value-input').value;
+  if (rawName && rawValue) {
+    document.getElementById('custom-pick-text').textContent =
+      translateMarketName(rawName) + ' — ' + translateMarketValue(rawValue);
+  }
+})();
+
+/* ── Marché personnalisé (hors des 8 types connus) ── */
+function selectCustomMarket(marketName, valueName, odd, chipEl) {
+  document.getElementById('type-input').value = 'other';
+  document.getElementById('market-name-input').value = marketName;
+  document.getElementById('market-value-input').value = valueName;
+  document.getElementById('pred-label').value =
+    translateMarketName(marketName) + ' : ' + translateMarketValue(valueName);
+  document.getElementById('odds-rec').value = odd.toFixed(2);
+
+  document.querySelectorAll('.type-pill').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.market-value-chip').forEach(c => c.classList.remove('active'));
+  if (chipEl) chipEl.classList.add('active');
+
+  const banner = document.getElementById('custom-pick-banner');
+  banner.style.display = 'flex';
+  document.getElementById('custom-pick-text').textContent =
+    translateMarketName(marketName) + ' — ' + translateMarketValue(valueName) + ' (' + odd.toFixed(2) + ')';
+}
+
+function clearCustomPick(opts) {
+  document.getElementById('market-name-input').value = '';
+  document.getElementById('market-value-input').value = '';
+  document.getElementById('custom-pick-banner').style.display = 'none';
+  document.querySelectorAll('.market-value-chip').forEach(c => c.classList.remove('active'));
+  if (!opts || !opts.keepType) setType('win1');
+}
+
+/* ── Accordéon des 31 marchés 1xBet ── */
+function renderMarketsAccordion(markets) {
+  const container = document.getElementById('markets-accordion');
+  container.innerHTML = '';
+  (markets || []).forEach(m => {
+    const details = document.createElement('details');
+    details.className = 'market-group';
+    const summary = document.createElement('summary');
+    summary.textContent = translateMarketName(m.name) + ' (' + m.values.length + ')';
+    details.appendChild(summary);
+
+    const chipsWrap = document.createElement('div');
+    chipsWrap.className = 'market-chips';
+    m.values.forEach(v => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'market-value-chip';
+      chip.textContent = translateMarketValue(v.value) + ' · ' + v.odd.toFixed(2);
+      chip.onclick = () => selectCustomMarket(m.name, v.value, v.odd, chip);
+      chipsWrap.appendChild(chip);
+    });
+    details.appendChild(chipsWrap);
+    container.appendChild(details);
+  });
+  document.getElementById('markets-count').textContent = (markets || []).length + ' marchés';
+  document.getElementById('all-markets-section').style.display = markets && markets.length ? 'block' : 'none';
+}
 
 /* ── VIP toggle ── */
 function toggleVip() {
@@ -312,7 +506,7 @@ function toggleVip() {
   chk.textContent = cb.checked ? '✅' : '○';
 }
 
-/* ── Récupérer les cotes depuis The Odds API ── */
+/* ── Charger les cotes 1xBet (toutes les options en un clic) ── */
 async function fetchOdds() {
   const btn  = document.getElementById('btn-fetch-odds');
   const icon = document.getElementById('odds-btn-icon');
@@ -331,23 +525,45 @@ async function fetchOdds() {
 
     if (!r.ok) throw new Error(data.message || 'Erreur inconnue');
 
-    // Remplir les 3 champs (pas la cote recommandée)
-    document.querySelector('[name="odds_home"]').value = data.home.toFixed(2);
-    document.querySelector('[name="odds_draw"]').value = data.draw.toFixed(2);
-    document.querySelector('[name="odds_away"]').value = data.away.toFixed(2);
+    // Stocker les cotes pour que setType() les réutilise au clic sur une pill
+    window._xbetOdds = {};
+    (data.options || []).forEach(o => { window._xbetOdds[o.type] = o.odd; });
 
-    // Auto-fill cote recommandée selon le type sélectionné
-    const type = document.getElementById('type-input').value;
-    const map  = { win1: data.home, win2: data.away, draw: data.draw };
-    if (map[type]) document.getElementById('odds-rec').value = map[type].toFixed(2);
+    // Afficher la cote directement sur chaque pill
+    document.querySelectorAll('.type-pill').forEach(p => {
+      const badge = document.getElementById('odd-' + p.dataset.val);
+      const odd   = window._xbetOdds[p.dataset.val];
+      if (badge) badge.textContent = odd != null ? '· ' + odd.toFixed(2) : '';
+    });
 
-    msg.style.cssText = 'display:block;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3)';
-    msg.textContent = `✅ Cotes récupérées — ${data.source}`;
+    // Remplir le tableau 1X2 (affiché dans l'app) depuis le marché Match Winner
+    if (window._xbetOdds.win1 != null) document.querySelector('[name="odds_home"]').value = window._xbetOdds.win1.toFixed(2);
+    if (window._xbetOdds.draw != null) document.querySelector('[name="odds_draw"]').value = window._xbetOdds.draw.toFixed(2);
+    if (window._xbetOdds.win2 != null) document.querySelector('[name="odds_away"]').value = window._xbetOdds.win2.toFixed(2);
+
+    // Rafraîchir la cote recommandée si le type déjà sélectionné a une cote 1xBet
+    const currentType = document.getElementById('type-input').value;
+    if (window._xbetOdds[currentType] != null) {
+      document.getElementById('odds-rec').value = window._xbetOdds[currentType].toFixed(2);
+    }
+
+    // Afficher tous les marchés (accordéon) pour le choix libre
+    renderMarketsAccordion(data.markets);
+
+    if (!data.markets || data.markets.length === 0) {
+      msg.style.cssText = 'display:block;background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.3)';
+      msg.textContent = '⚠️ Aucune cote disponible pour ce match pour le moment (marchés suspendus ou pas encore ouverts chez aucun bookmaker).';
+    } else {
+      msg.style.cssText = 'display:block;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3)';
+      const sourceNote = data.source && data.source !== '1xBet' ? ` — ${data.source}` : ' — 1xBet';
+      msg.textContent = `✅ ${data.markets.length} marché(s) chargé(s)${sourceNote} — clique une pill ou un marché ci-dessus pour choisir.`;
+    }
     icon.textContent = '✅';
   } catch(e) {
     msg.style.cssText = 'display:block;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3)';
     msg.textContent = `❌ ${e.message}`;
     icon.textContent = '⚡';
+  } finally {
     btn.disabled = false;
   }
 }
@@ -376,6 +592,8 @@ function depublish() {
       <span class="badge badge-ok" style="margin-left:auto;font-size:.82rem;padding:.3rem .75rem">✅ WIN</span>
     <% } else if(pro.result === 'LOSS') { %>
       <span class="badge badge-error" style="margin-left:auto;font-size:.82rem;padding:.3rem .75rem">❌ LOSS</span>
+    <% } else if(pro.result === 'PUSH') { %>
+      <span class="badge" style="margin-left:auto;background:color-mix(in srgb,var(--info) 15%,transparent);color:var(--info);font-size:.82rem;padding:.3rem .75rem">🔄 Remboursé</span>
     <% } else { %>
       <span class="badge" style="margin-left:auto;background:var(--surface-d);color:var(--text-dim);font-size:.82rem;padding:.3rem .75rem">— Non défini</span>
     <% } %>
@@ -401,6 +619,13 @@ function depublish() {
       <input type="hidden" name="result" value="LOSS">
       <button type="submit" class="btn" style="background:#dc2626;color:#fff;border:none;padding:.5rem 1.25rem;border-radius:var(--radius-s);font-weight:700;cursor:pointer">
         ❌ Forcer LOSS
+      </button>
+    </form>
+    <form method="POST" action="/admin/pronostics/result/<%= pro.id %>" style="display:contents">
+      <input type="hidden" name="match_id" value="<%= match.id %>">
+      <input type="hidden" name="result" value="PUSH">
+      <button type="submit" class="btn" style="background:#0284c7;color:#fff;border:none;padding:.5rem 1.25rem;border-radius:var(--radius-s);font-weight:700;cursor:pointer" title="Ni gain ni perte — la mise est remboursée">
+        🔄 Forcer Remboursé
       </button>
     </form>
     <% if(pro.result) { %>

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui';
+import 'package:country_picker/country_picker.dart' show CountryLocalizations;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -20,6 +21,7 @@ import 'core/services/review_service.dart';
 import 'core/services/version_service.dart';
 import 'core/services/background_sync_service.dart';
 import 'core/storage/secure_storage.dart';
+import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/notifications/presentation/providers/fcm_service.dart';
 import 'features/parametres/presentation/providers/settings_provider.dart';
 
@@ -70,13 +72,21 @@ void main() async {
     statusBarIconBrightness: Brightness.light,
   ));
 
-  // Retirer le splash natif → l'app Flutter prend le relais
-  FlutterNativeSplash.remove();
-
-  runApp(ProviderScope(
+  // Créer le container tôt pour restaurer la session (token stocké) AVANT
+  // le premier frame — évite qu'un démarrage à froid (app tuée puis
+  // rouverte) affiche l'écran invité alors qu'une session valide existe.
+  final container = ProviderContainer(
     overrides: [
       onboardingDoneProvider.overrideWith((ref) => onboardingDone),
     ],
+  );
+  await container.read(authProvider.notifier).restoreSession();
+
+  // Retirer le splash natif → l'app Flutter prend le relais
+  FlutterNativeSplash.remove();
+
+  runApp(UncontrolledProviderScope(
+    container: container,
     child: const SplashScreen(child: PronoWinApp()),
   ));
 }
@@ -221,6 +231,9 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
+        // Sans ce délégué, les noms de pays du sélecteur d'indicatif restent
+        // en anglais (« Senegal », « Algeria ») au milieu d'une app française.
+        CountryLocalizations.delegate,
       ],
       supportedLocales: const [
         Locale('fr', 'FR'),

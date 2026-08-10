@@ -12,6 +12,7 @@ r.get ('/transactions', authMiddleware, C.getTransactions);
 
 // ── Routes ADMIN ──────────────────────────────────────────────────────────────
 r.get ('/admin/pending', adminMiddleware, C.getPending);
+r.get ('/admin/methods', adminMiddleware, C.getPaymentMethods);
 r.patch('/admin/:id',    adminMiddleware, C.processRequest);
 
 export default r;
