@@ -64,3 +64,9 @@ desktop.ini
 .idea/
 *.swp
 *.swo
+
+# Données d'exécution de l'admin-web (journal d'audit, réglages en cours).
+# Ce sont des états, pas du code : les suivre génère un conflit à chaque
+# déploiement. sub_admins.json était déjà ignoré pour la même raison.
+admin-web/data/audit_log.json
+admin-web/data/settings.json
