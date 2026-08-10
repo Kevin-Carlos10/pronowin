@@ -47,7 +47,7 @@
 .pf-tl-time { color:var(--text-dim); font-size:.72rem; white-space:nowrap; }
 
 /* ── Cartes sections ─────────────────────────────────────────────────────────── */
-.pf-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.35rem 1.5rem; margin-bottom:1rem; }
+.pf-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.35rem 1.5rem; margin-bottom:1rem; }
 .pf-card:last-child { margin-bottom:0; }
 .pf-card-title { font-size:.9rem; font-weight:700; margin-bottom:1.1rem; display:flex; align-items:center; gap:.5rem; }
 
@@ -228,7 +228,7 @@
         </div>
         <div class="form-group" style="margin-bottom:.9rem">
           <label>Nouveau mot de passe</label>
-          <input class="input" type="password" name="new_password" id="new-pwd" required placeholder="Min. 6 caractères" autocomplete="new-password" minlength="6">
+          <input class="input" type="password" name="new_password" id="new-pwd" required placeholder="Min. 8 caractères" autocomplete="new-password" minlength="8">
           <div class="strength-bar"><div class="strength-fill" id="strength-fill" style="width:0%"></div></div>
           <div id="strength-label" style="font-size:.72rem;margin-top:.25rem;color:var(--text-dim)"></div>
         </div>

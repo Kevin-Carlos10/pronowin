@@ -28,20 +28,22 @@ class ApiEndpoints {
   static const String verifyEmailOtp= '/auth/verify-email-otp';
   static const String refreshToken  = '/auth/refresh';
   static const String logout        = '/auth/logout';
-  static const String deleteAccount = '/auth/delete-account';
+  // Le backend expose la suppression sur DELETE /profile (droit à l'oubli
+  // RGPD, profile.routes.ts). '/auth/delete-account' n'a jamais existé : la
+  // suppression aurait échoué en 404 — invisible jusqu'ici, l'écran qui
+  // l'appelle n'ayant jamais été branché.
+  static const String deleteAccount = '/profile';
   static const String profile       = '/auth/profile';
   static const String acceptTerms   = '/auth/accept-terms';
 
   static const String pronostics   = '/pronostics';
-  static const String initPayment  = '/payments/init';
-  static const String paymentStatus = '/payments/status';
-  static const String transactions = '/payments/transactions';
-  static const String wallet        = '/payments/wallet';
-  static const String plans        = '/subscriptions/plans';
-  static const String subscribe    = '/subscriptions/subscribe';
-  static const String promoCode    = '/subscriptions/promo';
+  // `subscribe`, `plans` et `promoCode` retirés : jamais référencés, et
+  // /subscriptions/subscribe comme /subscriptions/promo n'existent pas côté
+  // backend. Le paiement passe par /subscriptions/submit-proof.
   static const String referral     = '/referral';
   static const String tutorials    = '/tutorials';
-  static const String leagues = '/leagues';
+  // Les ligues sont servies sous le préfixe /pronostics — '/leagues' seul
+  // renvoyait 404, donc le filtre par championnat n'a jamais rien chargé.
+  static const String leagues = '/pronostics/leagues';
   static const String notifications = '/notifications';
 }
