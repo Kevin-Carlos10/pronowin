@@ -168,6 +168,58 @@ module.exports = (app, ctx) => {
     }
   });
 
+  /**
+   * Désigner le pronostic gratuit du jour.
+   *
+   * La capacité existait de bout en bout — colonne `isDailyFree`, endpoint
+   * `set-daily`, route publique `/pronostics/daily` consommée par l'app — mais
+   * aucun écran ne l'exposait. Résultat mesuré : 0 pronostic marqué sur 43, et
+   * l'application retombait en permanence sur son repli, « le premier
+   * pronostic gratuit du jour par ordre d'heure ». La vitrine gratuite, celle
+   * qui décide si un visiteur s'abonne, était donc choisie par un tri.
+   *
+   * L'API bascule le drapeau et retire celui des autres : un seul à la fois.
+   */
+  app.post('/admin/pronostics/daily/:pronosticId', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
+    const a = api(req.cookies.admin_token);
+    const retour = req.body.retour ?? '/admin/pronostics';
+    try {
+      await a.patch('/pronostics/admin/pronostic/' + req.params.pronosticId + '/set-daily');
+      logAction(req, 'pronostic_daily_set', `Pronostic #${req.params.pronosticId}`, { pronosticId: req.params.pronosticId });
+      sseBroadcast('action', { type: 'pronostic_daily_set', adminName: req.cookies.admin_name ?? 'Admin', ts: Date.now() });
+      res.redirect(retour + (retour.includes('?') ? '&' : '?') + 'success='
+        + encodeURIComponent('Pronostic gratuit du jour mis à jour — il est désormais visible par tous.'));
+    } catch (e) {
+      res.redirect(retour + (retour.includes('?') ? '&' : '?') + 'error='
+        + encodeURIComponent(e.response?.data?.message ?? e.message));
+    }
+  });
+
+  /**
+   * Relancer la synchronisation des scores.
+   *
+   * `POST /pronostics/admin/sync-scores` existait sans aucun bouton. Or le
+   * service porte deja un « filet de securite anti-blocage » pour les matchs
+   * coinces en LIVE : le probleme est connu, mais l'administrateur n'avait
+   * aucun recours depuis l'interface — il fallait attendre le cron.
+   */
+  app.post('/admin/pronostics/sync-scores', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
+    const a = api(req.cookies.admin_token);
+    const retour = req.body.retour ?? '/admin/pronostics';
+    try {
+      const r = await a.post('/pronostics/admin/sync-scores');
+      const n = r.data?.updated ?? r.data?.count ?? null;
+      logAction(req, 'scores_synced', n !== null ? `${n} match(s)` : 'manuel', { updated: n });
+      const msg = n !== null
+        ? `Synchronisation terminée — ${n} match${n !== 1 ? 's' : ''} mis à jour.`
+        : 'Synchronisation des scores lancée.';
+      res.redirect(retour + (retour.includes('?') ? '&' : '?') + 'success=' + encodeURIComponent(msg));
+    } catch (e) {
+      res.redirect(retour + (retour.includes('?') ? '&' : '?') + 'error='
+        + encodeURIComponent('Synchronisation impossible : ' + (e.response?.data?.message ?? e.friendlyMessage ?? e.message)));
+    }
+  });
+
   // Route AJAX pour forcer le résultat depuis la liste des pronostics
 
   app.post('/admin/pronostics/force-result/:pronosticId', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {

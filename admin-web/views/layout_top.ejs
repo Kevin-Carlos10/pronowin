@@ -113,6 +113,14 @@
     <div class="sidebar-section">Finances</div>
     <% } %>
 
+    <%# Revenus en tete du groupe Finances : c'est le chiffre qu'on vient
+        chercher en premier sur une activite par abonnement. %>
+    <% if (hasPerm('statistiques')) { %>
+    <a href="/admin/revenus" class="nav-item <%= page==='revenus' ?'active':'' %>">
+      <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg></span> Revenus
+    </a>
+    <% } %>
+
     <% if (hasPerm('abonnements')) { %>
     <a href="/admin/abonnements" class="nav-item <%= page==='abonnements' ?'active':'' %>">
       <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> Abonnements

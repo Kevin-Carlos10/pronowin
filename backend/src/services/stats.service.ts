@@ -130,8 +130,12 @@ export class StatsService {
         label: new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
         amount: Math.round(amount),
       }));
-    } catch (_) {
-      return [];
+    } catch (e: any) {
+      // Renvoyer un tableau vide en silence ferait passer une panne de base
+      // pour un chiffre d'affaires nul — la pire confusion possible sur un
+      // écran de revenus. L'erreur remonte, l'appelant décidera quoi afficher.
+      console.error('[stats] getRevenueTimeSeries :', e.message);
+      throw e;
     }
   }
 

@@ -1,6 +1,9 @@
 <%- include('layout_top', {page:'pronostics'}) %>
 
 <style>
+.pro-daily-actif { background:rgba(245,166,35,.14); color:#F5A623; border:1px solid rgba(245,166,35,.35);
+                   cursor:default; font-weight:700; }
+
 /* ── Stats ─────────────────────────────────────────────────────────────────── */
 .pro-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:.7rem; margin-bottom:1.1rem; }
 .pro-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1.1rem; transition:transform .2s,box-shadow .2s; }
@@ -30,6 +33,9 @@
   const _total     = matches.length;
   const _published = matches.filter(m => m.is_published).length;
   const _drafts    = matches.filter(m => m.has_pronostic && !m.is_published).length;
+  // Le pronostic gratuit du jour : sans repere visible, l'administrateur ne
+  // sait pas ce que voient les visiteurs non abonnes.
+  const _vitrine = matches.find(m => m.pronostic && m.pronostic.is_daily_free) ?? null;
   const _none      = matches.filter(m => !m.has_pronostic).length;
 
   // statusFilter est injecté par le serveur depuis req.query.status
@@ -61,6 +67,17 @@
     </small>
   </div>
   <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+    <%# Recours manuel : le cron peut echouer ou un match rester coince en LIVE.
+        L'endpoint existait, aucun bouton ne l'appelait. %>
+    <% if (hasPerm('pronostics', 'write')) { %>
+    <form method="POST" action="/admin/pronostics/sync-scores" style="display:inline">
+      <input type="hidden" name="retour" value="/admin/pronostics">
+      <button type="submit" class="btn btn-outline btn-sm"
+              title="Relancer la récupération des scores depuis la source de données">
+        <svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Resynchroniser les scores
+      </button>
+    </form>
+    <% } %>
     <a href="/admin/pronostics/export<%= competition ? '?competition='+competition : '' %>"
        class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV</a>
   </div>
@@ -101,7 +118,27 @@
 <div class="pro-stats">
   <div class="pro-stat blue"><div class="l">Matchs</div><div class="v"><%= _total %></div></div>
   <div class="pro-stat green"><div class="l">Publiés</div><div class="v"><%= _published %></div></div>
-  <div class="pro-stat orange"><div class="l">Brouillons</div><div class="v"><%= _drafts %></div></div>
+  <div class="pro-stat" style="border-left-color:#F5A623"><div class="l">Vitrine du jour</div><div class="v" style="font-size:1.15rem;color:#F5A623"><%= _vitrine ? "1" : "—" %></div></div>
+  <div class="pro-stat orange"><div class="l">Brouillons</div>
+
+<%# Ce que voit un visiteur non abonne. Sans ce bandeau, rien n'indique quel
+    pronostic sert de vitrine, ni meme que ce reglage existe. %>
+<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;border-left:3px solid #F5A623">
+  <svg class="ic ic-lg" aria-hidden="true" style="color:#F5A623;flex-shrink:0"><use href="#ic-star"/></svg>
+  <div style="flex:1;min-width:220px">
+    <div style="font-size:.8rem;font-weight:800;margin-bottom:.15rem">Pronostic gratuit du jour</div>
+    <div style="font-size:.79rem;color:var(--text-m);line-height:1.55">
+      <% if (_vitrine) { %>
+        <strong><%= _vitrine.homeTeam %> – <%= _vitrine.awayTeam %></strong>
+        — visible par tous les visiteurs, abonnés ou non.
+      <% } else { %>
+        Aucun choisi. L'application affiche alors le premier pronostic gratuit du jour
+        par ordre d'heure de match — c'est le tri qui décide de votre vitrine, pas vous.
+        Utilisez l'étoile dans la colonne Actions.
+      <% } %>
+    </div>
+  </div>
+</div><div class="v"><%= _drafts %></div></div>
   <div class="pro-stat dim"><div class="l">Sans prono</div><div class="v"><%= _none %></div></div>
 </div>
 
@@ -285,6 +322,25 @@
                 <button class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="WIN"  title="Forcer le résultat à GAGNANT"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg></button>
                 <button class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="LOSS" title="Forcer le résultat à PERDANT"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
                 <button class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="PUSH" title="Forcer le résultat à REMBOURSÉ"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg></button>
+              <% } %>
+              <%# Vitrine gratuite : un seul pronostic a la fois. Propose uniquement
+                  sur un pronostic publie et non termine — designer un match fini
+                  n'aurait aucun effet visible pour les visiteurs. %>
+              <% if (m.is_published && !isFinished && m.pronostic) { %>
+                <% if (m.pronostic.is_daily_free) { %>
+                  <span class="btn btn-sm pro-daily-actif" title="Ce pronostic est la vitrine gratuite du jour">
+                    <svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg> Vitrine
+                  </span>
+                <% } else { %>
+                  <form method="POST" action="/admin/pronostics/daily/<%= m.pronostic.id %>" style="display:inline">
+                    <input type="hidden" name="retour" value="/admin/pronostics">
+                    <button type="submit" class="btn btn-sm btn-outline"
+                            title="Mettre ce pronostic en vitrine gratuite du jour"
+                            aria-label="Mettre « <%= m.homeTeam %> – <%= m.awayTeam %> » en vitrine gratuite">
+                      <svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg>
+                    </button>
+                  </form>
+                <% } %>
               <% } %>
               <a href="/admin/pronostics/edit/<%= m.id %>" class="btn btn-primary btn-sm"><%= m.has_pronostic ? '' : '+ Créer' %></a>
             </div>

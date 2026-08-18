@@ -25,6 +25,8 @@ const ACTION_LABELS = {
   user_notified:             { label: 'Notification envoyée',    icon: 'megaphone', cat: 'user' },
   user_pseudo_changed:       { label: 'Pseudo modifié',          icon: 'edit', cat: 'user' },
   pronostic_published:       { label: 'Pronostic publié',        icon: 'ball', cat: 'pronostic' },
+  pronostic_daily_set:       { label: 'Prono gratuit du jour',   icon: 'star', cat: 'pronostic' },
+  scores_synced:             { label: 'Scores resynchronisés',  icon: 'refresh', cat: 'pronostic' },
   tutorial_created:          { label: 'Tutoriel créé',           icon: 'book', cat: 'tutoriel' },
   tutorial_updated:          { label: 'Tutoriel modifié',        icon: 'edit', cat: 'tutoriel' },
   tutorial_deleted:          { label: 'Tutoriel supprimé',       icon: 'trash', cat: 'tutoriel' },

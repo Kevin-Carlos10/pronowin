@@ -201,6 +201,20 @@ const views = [
       { leagueCode: 'PL',      league: 'Premier League', leagueCountry: 'England', isVisible: true },
     ],
   }],
+  // Vitrine gratuite du jour : les deux etats. La capacite existait de bout en
+  // bout mais n'avait aucun ecran — mesure a l'audit : 0 pronostic marque sur 43.
+  ['pronostics (vitrine designee)', 'pronostics', {
+    ...base, page: 'pronostics',
+    matches: [{ ...fakePro, is_published: true, status: 'SCHEDULED',
+                pronostic: { ...fakePro.pronostic, is_daily_free: true } }],
+    statusFilter: '', competition: '', totalMatchs: 12,
+  }],
+  ['pronostics (aucune vitrine)', 'pronostics', {
+    ...base, page: 'pronostics',
+    matches: [{ ...fakePro, is_published: true, status: 'SCHEDULED',
+                pronostic: { ...fakePro.pronostic, is_daily_free: false } }],
+    statusFilter: '', competition: '', totalMatchs: 12,
+  }],
   ['pronostics (vide)', 'pronostics', {
     ...base, page: 'pronostics',
     matches: [], statusFilter: 'published',
@@ -389,6 +403,36 @@ const views = [
       { action:'proof_approved',    target:'Preuve #42',  timestamp:new Date().toISOString() },
       { action:'action_inconnue_x', target:'',            timestamp:new Date().toISOString() },
     ] },
+  }],
+
+  // ── Revenus ──
+  // Deux statistiques sur huit n'etaient rendues nulle part : « revenue » et
+  // « users ». Pour une activite par abonnement, c'est le chiffre principal.
+  ['revenus (30 jours)', 'revenus', {
+    ...base, page: 'revenus', jours: 30, erreur: null,
+    serie: Array.from({ length: 30 }, (_, i) => ({
+      date:  new Date(Date.now() - (29 - i) * 86400e3).toISOString().slice(0, 10),
+      label: new Date(Date.now() - (29 - i) * 86400e3).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
+      amount: [0, 0, 5000, 0, 12000, 3500, 0, 8000][i % 8],
+    })),
+    mensuel: [
+      { month: '2026-01', label: 'janv. 26', revenue: 18000, new_users: 12 },
+      { month: '2026-02', label: 'févr. 26', revenue: 24500, new_users: 15 },
+      { month: '2026-03', label: 'mars 26', revenue: 31000, new_users: 21 },
+      { month: '2026-04', label: 'avr. 26', revenue: 27500, new_users: 17 },
+    ],
+  }],
+  ['revenus (aucun encaissement)', 'revenus', {
+    ...base, page: 'revenus', jours: 7, erreur: null,
+    serie: Array.from({ length: 7 }, (_, i) => ({
+      date: '2026-08-0' + (i + 1), label: (i + 1) + ' août', amount: 0,
+    })),
+    mensuel: [],
+  }],
+  // Une lecture en echec ne doit pas se lire « 0 FCFA ».
+  ['revenus (lecture impossible)', 'revenus', {
+    ...base, page: 'revenus', jours: 30, serie: [], mensuel: [],
+    erreur: "L'API backend ne répond pas (timeout).",
   }],
 
   // ── Audit ──

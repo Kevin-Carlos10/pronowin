@@ -354,6 +354,10 @@ export class PronosticsService {
         id: true, matchId: true, isPublished: true, isPremium: true,
         predictionLabel: true, confidenceScore: true, oddsRecommended: true,
         result: true, createdAt: true,
+        // Le pronostic « gratuit du jour » : l'administrateur doit voir lequel
+        // est en vitrine, sinon il ne peut pas le choisir en connaissance de
+        // cause. La colonne existait, elle n'était exposée nulle part.
+        isDailyFree: true,
       },
     });
     const pronoMap = new Map(existing.map(p => [p.matchId, p]));
@@ -390,6 +394,7 @@ export class PronosticsService {
             published:         prono.isPublished,
             result:            prono.result,
             createdAt:         prono.createdAt,
+            is_daily_free:     prono.isDailyFree,
           } : null,
         };
       });

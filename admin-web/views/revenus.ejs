@@ -1,0 +1,188 @@
+<%- include('layout_top', {page:'revenus'}) %>
+
+<style>
+/* ── Cartes de synthèse ───────────────────────────────────────────────────── */
+.rv-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(170px,1fr)); gap:.75rem; margin-bottom:1.25rem; }
+.rv-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s);
+            border-radius:14px; padding:.9rem 1.1rem; transition:transform .2s, box-shadow .2s; }
+.rv-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.rv-stat .l { font-size:.68rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; font-weight:700; }
+.rv-stat .v { font-size:1.55rem; font-weight:900; line-height:1.1; letter-spacing:-.03em; margin-top:.2rem; }
+.rv-stat .s { font-size:.68rem; color:var(--text-dim); margin-top:.25rem; }
+.rv-stat.or   { border-left-color:var(--warning); } .rv-stat.or   .v { color:var(--warning); }
+.rv-stat.vert { border-left-color:var(--success); } .rv-stat.vert .v { color:var(--success); }
+.rv-stat.bleu { border-left-color:var(--info);    } .rv-stat.bleu .v { color:var(--info); }
+
+/* ── Histogramme, rendu côté serveur ──────────────────────────────────────── */
+.rv-graph   { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.1rem 1.25rem 1rem; margin-bottom:1.25rem; }
+.rv-titre   { font-size:.82rem; font-weight:700; color:var(--text-m); margin-bottom:.9rem; display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
+.rv-barres  { display:flex; align-items:flex-end; gap:2px; height:200px; padding-top:.3rem; }
+.rv-col     { flex:1; min-width:0; height:100%; display:flex; flex-direction:column; justify-content:flex-end; }
+.rv-piste   { width:100%; display:flex; align-items:flex-end; height:100%; }
+.rv-remplie { width:100%; border-radius:3px 3px 0 0; background:linear-gradient(180deg,
+              rgba(var(--primary-rgb,99,102,241),.9), rgba(var(--primary-rgb,99,102,241),.30)); transition:filter .15s; }
+.rv-remplie.nulle { background:var(--border); }
+.rv-col:hover .rv-remplie { filter:brightness(1.35); }
+.rv-axe     { display:flex; justify-content:space-between; font-size:.66rem; color:var(--text-dim); margin-top:.5rem; }
+.rv-vide    { height:200px; display:flex; align-items:center; justify-content:center; text-align:center;
+              color:var(--text-dim); font-size:.84rem; line-height:1.65; padding:0 1.5rem; }
+
+/* ── Tableau mensuel ──────────────────────────────────────────────────────── */
+.rv-mois     { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+.rv-ligne    { display:grid; grid-template-columns:1.2fr 1fr 1fr 1.6fr; gap:.75rem; align-items:center;
+               padding:.7rem 1.1rem; border-bottom:1px solid var(--border); font-size:.85rem; }
+.rv-ligne:last-child { border-bottom:0; }
+.rv-ligne:hover      { background:var(--surface-d); }
+.rv-entete   { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:800;
+               color:var(--text-dim); background:var(--surface-d); }
+.rv-jauge    { height:6px; border-radius:99px; background:var(--surface-d); overflow:hidden; }
+.rv-jauge > div { height:100%; border-radius:99px; background:var(--primary); }
+@media (max-width:760px){ .rv-ligne { grid-template-columns:1fr 1fr; } .rv-entete { display:none; } }
+
+/* ── Période ──────────────────────────────────────────────────────────────── */
+.rv-periodes { display:flex; gap:.35rem; flex-wrap:wrap; }
+.rv-periode  { padding:.35rem .75rem; border-radius:99px; font-size:.78rem; font-weight:700;
+               border:1px solid var(--border); color:var(--text-m); text-decoration:none; }
+.rv-periode:hover { background:var(--surface-d); color:var(--text); }
+.rv-periode.on    { background:var(--primary); border-color:var(--primary); color:#fff; }
+</style>
+
+<%
+  const _serie   = Array.isArray(serie)   ? serie   : [];
+  const _mensuel = Array.isArray(mensuel) ? mensuel : [];
+  const _jours   = typeof jours !== 'undefined' ? jours : 30;
+  const _err     = typeof erreur !== 'undefined' ? erreur : null;
+
+  const _total   = _serie.reduce((n, p) => n + (p.amount ?? 0), 0);
+  const _pic     = Math.max(1, ..._serie.map(p => p.amount ?? 0));
+  const _jourMax = _serie.find(p => (p.amount ?? 0) === _pic);
+  const _actifs  = _serie.filter(p => (p.amount ?? 0) > 0).length;
+  const _moyenne = _serie.length ? Math.round(_total / _serie.length) : 0;
+
+  // Comparaison à la période précédente de même longueur, quand elle existe.
+  const _moitie  = Math.floor(_serie.length / 2);
+  const _recent  = _serie.slice(_moitie).reduce((n, p) => n + (p.amount ?? 0), 0);
+  const _ancien  = _serie.slice(0, _moitie).reduce((n, p) => n + (p.amount ?? 0), 0);
+  const _evol    = _ancien > 0 ? Math.round(((_recent - _ancien) / _ancien) * 100) : null;
+
+  const _picMois = Math.max(1, ..._mensuel.map(m => m.revenue ?? 0));
+  const _fcfa    = n => (n ?? 0).toLocaleString('fr-FR');
+%>
+
+<div class="topbar">
+  <div>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Revenus</h2>
+    <small>Encaissements d'abonnements — <%= _jours %> derniers jours</small>
+  </div>
+  <div class="rv-periodes">
+    <% [[7,'7 jours'],[30,'30 jours'],[90,'90 jours'],[365,'1 an']].forEach(([n, lib]) => { %>
+    <a class="rv-periode <%= _jours === n ? 'on' : '' %>" href="/admin/revenus?jours=<%= n %>"
+       <%= _jours === n ? 'aria-current="page"' : '' %>><%= lib %></a>
+    <% }) %>
+  </div>
+</div>
+
+<% if (_err) { %>
+<%# Un écran de revenus vide serait lu comme « zéro encaissé ». Une panne doit
+    se distinguer d'un chiffre d'affaires nul. %>
+<div class="alert alert-error">
+  <strong><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Chiffres indisponibles</strong>
+  <%# Le message d'erreur porte souvent deja sa ponctuation finale. %>
+  — impossible de lire les revenus : <%= String(_err).replace(/[.\s]+$/, '') %>.
+  Ce n'est pas un chiffre d'affaires nul, c'est une lecture qui a échoué.
+</div>
+<% } else { %>
+
+<!-- ── Synthèse ─────────────────────────────────────────────────────────── -->
+<div class="rv-stats">
+  <div class="rv-stat vert">
+    <div class="l">Encaissé sur la période</div>
+    <div class="v"><%= _fcfa(_total) %> <span style="font-size:.72rem;font-weight:700">FCFA</span></div>
+    <% if (_evol !== null) { %>
+    <div class="s" style="color:var(--<%= _evol >= 0 ? 'success' : 'error' %>)">
+      <%= _evol >= 0 ? '+' : '' %><%= _evol %> % vs la première moitié de la période
+    </div>
+    <% } %>
+  </div>
+  <div class="rv-stat bleu">
+    <div class="l">Moyenne par jour</div>
+    <div class="v"><%= _fcfa(_moyenne) %></div>
+    <div class="s"><%= _actifs %> jour<%= _actifs !== 1 ? 's' : '' %> avec au moins un encaissement</div>
+  </div>
+  <div class="rv-stat or">
+    <div class="l">Meilleure journée</div>
+    <div class="v" style="font-size:1.2rem"><%= _pic > 0 ? _fcfa(_pic) : '—' %></div>
+    <div class="s"><%= _pic > 0 && _jourMax ? _jourMax.label : 'aucun encaissement' %></div>
+  </div>
+  <div class="rv-stat">
+    <div class="l">Mois couverts</div>
+    <div class="v" style="color:var(--primary)"><%= _mensuel.length %></div>
+    <div class="s">historique mensuel disponible</div>
+  </div>
+</div>
+
+<!-- ── Histogramme quotidien ────────────────────────────────────────────── -->
+<%# Rendu côté serveur, sans bibliothèque : la page Journal chargeait un
+    graphique qui n'existait pas, et le cadre restait vide en silence. %>
+<div class="rv-graph">
+  <div class="rv-titre">
+    <svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg>
+    Encaissements par jour
+    <span style="font-weight:400;color:var(--text-dim)">— pic à <%= _fcfa(_pic) %> FCFA</span>
+  </div>
+  <% if (_total === 0) { %>
+    <div class="rv-vide">
+      Aucun encaissement sur les <%= _jours %> derniers jours.<br>
+      Un revenu n'apparaît ici qu'à l'approbation d'une preuve Premium ou à un achat via les stores.
+    </div>
+  <% } else { %>
+    <div class="rv-barres" role="img"
+         aria-label="Revenus quotidiens sur <%= _jours %> jours, total <%= _fcfa(_total) %> FCFA">
+      <% _serie.forEach(p => { const m = p.amount ?? 0; %>
+      <div class="rv-col" title="<%= p.label %> — <%= _fcfa(m) %> FCFA">
+        <div class="rv-piste">
+          <div class="rv-remplie <%= m === 0 ? 'nulle' : '' %>"
+               style="height:<%= m === 0 ? 2 : Math.max(3, Math.round((m / _pic) * 100)) %>%"></div>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+    <div class="rv-axe">
+      <span><%= _serie[0] ? _serie[0].label : '' %></span>
+      <span><%= _serie[_serie.length - 1] ? _serie[_serie.length - 1].label : '' %></span>
+    </div>
+  <% } %>
+</div>
+
+<!-- ── Historique mensuel ───────────────────────────────────────────────── -->
+<div class="rv-mois">
+  <div class="rv-ligne rv-entete">
+    <div>Mois</div><div>Revenu</div><div>Nouveaux inscrits</div><div>Part du meilleur mois</div>
+  </div>
+  <% if (!_mensuel.length) { %>
+    <div style="padding:2rem 1rem;text-align:center;color:var(--text-dim);font-size:.84rem">
+      Aucun historique mensuel. Il se construit au fil des abonnements enregistrés.
+    </div>
+  <% } %>
+  <% _mensuel.slice().reverse().forEach(m => { %>
+  <div class="rv-ligne">
+    <div style="font-weight:700"><%= m.label ?? m.month ?? '—' %></div>
+    <div style="font-weight:800;color:var(--success)"><%= _fcfa(m.revenue) %> F</div>
+    <div><%= m.new_users ?? 0 %></div>
+    <div>
+      <div class="rv-jauge"><div style="width:<%= Math.round(((m.revenue ?? 0) / _picMois) * 100) %>%"></div></div>
+    </div>
+  </div>
+  <% }) %>
+</div>
+
+<p style="font-size:.75rem;color:var(--text-dim);margin-top:.9rem;line-height:1.6">
+  Source : les abonnements enregistrés (<code>Subscription.amountPaid</code>) — un revenu est compté
+  au moment où l'abonnement est accordé, c'est-à-dire à l'approbation de la preuve ou à la validation
+  d'un achat par un store. Les demandes de versement de parrainage ne sont pas déduites ici ;
+  elles figurent dans <a href="/admin/historique" style="color:var(--primary)">Historique</a>.
+</p>
+
+<% } %>
+
+<%- include('layout_bottom') %>
