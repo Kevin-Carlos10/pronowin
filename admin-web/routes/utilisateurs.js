@@ -21,6 +21,7 @@ module.exports = (app, ctx) => {
     STATS_ENDPOINTS, NEWS_DEFAULT_CATEGORIES,
     fs, path, slugify, sanitize, clampInt, sseBroadcast,
     banUser, unbanUser, getActiveBan, ACTION_LABELS,
+    bansARestaurer, reconcilierBansExpires,
     SA_FILE, BANS_FILE, NEWS_FILE, LOG_FILE, NOTIF_FILE, SETTINGS_FILE,
   } = ctx;
 
@@ -190,7 +191,11 @@ module.exports = (app, ctx) => {
 
   // ─── PRONOSTICS ───────────────────────────────────────────────────────────────
 
-  app.get('/admin/api/users/online', requireAuth, async (req, res) => {
+  // Cet endpoint listait les utilisateurs connectes a tout admin authentifie,
+  // sans egard pour la permission « users » : un sous-admin limite aux
+  // tutoriels y accedait. Le panneau protegeait les pages, pas le JSON qui les
+  // alimente.
+  app.get('/admin/api/users/online', requireAuth, requirePerm('users'), async (req, res) => {
     const a = api(req.cookies.admin_token);
     try {
       const r = await a.get('/admin/users/online');
@@ -204,8 +209,15 @@ module.exports = (app, ctx) => {
   // permission « statistiques » atteignait des données qu'il n'a pas le droit
   // de voir. Seuls les endpoints réellement exposés sont acceptés.
 
-  app.get('/admin/bans', requireAuth, requirePerm('users'), (req, res) => {
+  app.get('/admin/bans', requireAuth, requirePerm('users'), async (req, res) => {
     const { filter = 'active', search = '', page = '1' } = req.query;
+
+    // Un ban expiré ne rendait pas l'accès au compte : la minuterie ne touche
+    // que le fichier local, faute de jeton. On rattrape ici, avec celui de
+    // l'administrateur qui consulte la page.
+    const restauration = await reconcilierBansExpires(req.cookies.admin_token)
+      .catch(() => ({ restaures: [], echecs: bansARestaurer().length }));
+
     let bans = loadBans();
     const now = Date.now();
 
@@ -248,6 +260,7 @@ module.exports = (app, ctx) => {
         today:        allBans.filter(b => b.bannedAt && (now - new Date(b.bannedAt).getTime()) < 86400000).length,
       },
       settings: loadSettings(),
+      restauration,
       success: req.query.success ?? null,
       error:   req.query.error   ?? null,
     });

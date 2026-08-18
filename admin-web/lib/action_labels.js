@@ -53,4 +53,26 @@ const ACTION_LABELS = {
   league_visibility_toggle:  { label: 'Ligue affichée/masquée',   icon: 'trophy', cat: 'pronostic' },
   league_visibility_bulk:    { label: 'Ligues modifiées en lot',  icon: 'trophy', cat: 'pronostic' },
 };
-module.exports = { ACTION_LABELS };
+/**
+ * Catégories, avec leur libellé d'affichage.
+ *
+ * `audit.ejs` en tenait une liste de 7 en dur, sur les 9 réellement produites :
+ * les entrées « news » et « notification » n'apparaissaient nulle part dans la
+ * répartition, qui totalisait donc moins que le nombre d'entrées annoncé. Les
+ * icônes y étaient de surcroît des emojis injectés dans `href="#ic-…"`, une
+ * référence de sprite qui n'existe pas — elles ne s'affichaient pas.
+ */
+const CATEGORIES = {
+  auth:         { label: 'Auth',          icon: 'key',       color: 'var(--info)' },
+  finance:      { label: 'Finance',       icon: 'money',     color: 'var(--success)' },
+  user:         { label: 'Utilisateurs',  icon: 'users',     color: '#A78BFA' },
+  abonnement:   { label: 'Abonnements',   icon: 'crown',     color: 'var(--warning)' },
+  pronostic:    { label: 'Pronostics',    icon: 'ball',      color: 'var(--primary)' },
+  tutoriel:     { label: 'Tutoriels',     icon: 'book',      color: '#14B8A6' },
+  admin:        { label: 'Admins',        icon: 'lock',      color: 'var(--error)' },
+  news:         { label: 'Actualités',    icon: 'news',      color: '#38BDF8' },
+  notification: { label: 'Notifications', icon: 'megaphone', color: '#F472B6' },
+  autre:        { label: 'Autre',         icon: 'dot',       color: 'var(--text-dim)' },
+};
+
+module.exports = { ACTION_LABELS, CATEGORIES };

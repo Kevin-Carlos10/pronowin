@@ -97,6 +97,28 @@
 <% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
 <% if (error)   { %><div class="alert alert-error"   style="display:none"><%= error %></div><% } %>
 
+<%# Un ban expiré ne rendait pas l'accès au compte : la tâche de fond ne
+    dispose d'aucun jeton, elle ne mettait donc à jour que le fichier local.
+    La réconciliation se fait à l'ouverture de cette page ; on dit ce qui a
+    été fait plutôt que de le faire en silence. %>
+<% const _r = typeof restauration !== 'undefined' && restauration ? restauration : null; %>
+<% if (_r && _r.restaures && _r.restaures.length) { %>
+<div class="alert alert-success" data-toast="skip">
+  <svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg>
+  <strong><%= _r.restaures.length %> compte<%= _r.restaures.length !== 1 ? 's' : '' %></strong>
+  dont le ban a expiré <%= _r.restaures.length !== 1 ? 'ont' : 'a' %> retrouvé l'accès :
+  <%= _r.restaures.map(b => b.pseudo).join(', ') %>.
+</div>
+<% } %>
+<% if (_r && _r.echecs > 0) { %>
+<div class="alert alert-warning" data-toast="skip">
+  <svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg>
+  <strong><%= _r.echecs %> compte<%= _r.echecs !== 1 ? 's' : '' %></strong>
+  dont le ban a expiré <%= _r.echecs !== 1 ? 'restent' : 'reste' %> suspendu<%= _r.echecs !== 1 ? 's' : '' %> :
+  l'API n'a pas pu être jointe. Rechargez cette page une fois le backend disponible.
+</div>
+<% } %>
+
 <!-- ── Stats ── -->
 <div class="bans-stats">
   <div class="ban-stat" style="border-left-color:var(--error)">
@@ -200,21 +222,69 @@
 <!-- ── Empty state ── -->
 <% if (bans.length === 0) { %>
 <div style="text-align:center;padding:3.5rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
-  <div style="font-size:3rem;margin-bottom:.75rem">
-    <%= filter==='active' ? '✓' : filter==='expired' ? '' : '' %>
+  <%# L'ecran ne disait pas ce qu'un ban fait reellement, ni ou il se declenche.
+      Un administrateur arrivant ici pour sanctionner quelqu'un repartait sans
+      savoir qu'il faut passer par la fiche de l'utilisateur. %>
+  <div style="width:62px;height:62px;border-radius:50%;margin:0 auto .9rem;
+              background:rgba(34,197,94,.10);color:var(--success);
+              display:flex;align-items:center;justify-content:center">
+    <svg class="ic ic-xl" aria-hidden="true"><use href="#ic-<%= filter==='active' ? 'check-circle' : 'clipboard' %>"/></svg>
   </div>
-  <h3 style="font-weight:700;margin-bottom:.4rem;font-size:1rem">
-    <% if (filter==='active') { %>Aucun ban actif
-    <% } else if (search) { %>Aucun résultat pour « <%= search %> »
+  <h3 style="font-weight:800;margin-bottom:.4rem;font-size:1.1rem">
+    <% if (search) { %>Aucun résultat pour « <%= search %> »
+    <% } else if (filter==='active') { %>Aucun ban actif
     <% } else { %>Aucun bannissement<% } %>
   </h3>
-  <p style="color:var(--text-dim);font-size:.85rem;margin-bottom:1rem">
-    <% if (filter==='active') { %>Aucun utilisateur n'est actuellement banni.
-    <% } else if (search) { %>Essayez un autre terme de recherche.
-    <% } else { %>L'historique des bannissements apparaîtra ici.<% } %>
+  <p style="color:var(--text-m);font-size:.86rem;margin:0 auto 1rem;max-width:52ch;line-height:1.65">
+    <% if (search) { %>
+      La recherche porte sur le pseudo, la raison et l'administrateur.
+    <% } else if (filter==='active') { %>
+      Personne n'est banni actuellement.
+      <% if (stats.total > 0) { %>
+        <strong><%= stats.total %></strong> bannissement<%= stats.total !== 1 ? 's' : '' %>
+        figure<%= stats.total !== 1 ? 'nt' : '' %> à l'historique.
+      <% } %>
+    <% } else { %>
+      Aucun bannissement n'a encore été prononcé.
+    <% } %>
   </p>
+
+  <% if (!search && filter==='active') { %>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:.8rem;
+              max-width:640px;margin:1.4rem auto 0;text-align:left">
+    <div style="background:var(--surface-d);border:1px solid var(--border);border-radius:12px;padding:.85rem .9rem">
+      <div style="font-size:.8rem;font-weight:700;margin-bottom:.25rem">Où bannir</div>
+      <div style="font-size:.74rem;color:var(--text-dim);line-height:1.5">
+        Depuis la fiche d'un utilisateur, section <em>Modération</em>. Une raison est obligatoire.
+      </div>
+    </div>
+    <div style="background:var(--surface-d);border:1px solid var(--border);border-radius:12px;padding:.85rem .9rem">
+      <div style="font-size:.8rem;font-weight:700;margin-bottom:.25rem">Ce que ça fait</div>
+      <div style="font-size:.74rem;color:var(--text-dim);line-height:1.5">
+        Le compte est suspendu : plus de connexion à l'application tant que le ban court.
+      </div>
+    </div>
+    <div style="background:var(--surface-d);border:1px solid var(--border);border-radius:12px;padding:.85rem .9rem">
+      <div style="font-size:.8rem;font-weight:700;margin-bottom:.25rem">Durée</div>
+      <div style="font-size:.74rem;color:var(--text-dim);line-height:1.5">
+        Un ban temporaire rend l'accès automatiquement à son échéance. Un ban permanent se lève à la main.
+      </div>
+    </div>
+  </div>
+  <div style="margin-top:1.3rem;display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
+    <a href="/admin/users" class="btn btn-outline btn-sm">
+      <svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Aller aux utilisateurs
+    </a>
+    <% if (stats.total > 0) { %>
+    <a href="/admin/bans?filter=all" class="btn btn-outline btn-sm">
+      <svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Voir l'historique
+    </a>
+    <% } %>
+  </div>
+  <% } %>
+
   <% if (search) { %>
-  <a href="/admin/bans?filter=<%= filter %>" class="btn btn-outline btn-sm">Voir tous les bans</a>
+  <a href="/admin/bans?filter=<%= filter %>" class="btn btn-outline btn-sm" style="margin-top:.4rem">Voir tous les bans</a>
   <% } %>
 </div>
 

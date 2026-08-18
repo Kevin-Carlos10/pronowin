@@ -29,12 +29,23 @@ const SEGMENTS = [
 // de clé `icon`, si bien que neuf libellés sur dix n'étaient jamais rendus.
 const { PERMISSIONS } = require('./lib/permissions');
 
-const { ACTION_LABELS } = require('./lib/action_labels');
+const { ACTION_LABELS, CATEGORIES } = require('./lib/action_labels');
 
 const TUT_CATEGORIES = ['bases', 'valuebet', 'bankroll', 'strategie'];
 const TUT_LEVELS     = ['beginner', 'intermediate', 'advanced'];
 
 const now = new Date().toISOString();
+
+/** Fenêtre de 7 jours au format ISO, comme la route la construit. */
+function _septDerniersJours() {
+  const j = [];
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    j.push(d.toISOString().slice(0, 10));
+  }
+  return j;
+}
 
 const fakeUser = {
   id: 'u1', pseudo: 'JohnDoe', phoneNumber: '0701234567', email: 'john@ex.com',
@@ -381,22 +392,41 @@ const views = [
   }],
 
   // ── Audit ──
+  // Le graphique 7 jours etait trace par Chart.js, que cette page ne chargeait
+  // pas : le cadre restait vide en silence. Rendu cote serveur desormais, donc
+  // testable — y compris le cas « aucune activite recente ».
   ['audit (avec données)', 'audit', {
     ...base, page: 'audit',
     data: [fakeLog], total: 1, page: 1, perPage: 30, totalPages: 1,
-    ACTION_LABELS,
+    ACTION_LABELS, CATEGORIES,
     filters: { action: '', admin: '', cat: '', date: '' },
-    chartDays: ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'],
+    // La route produit des dates ISO et des clés de CATÉGORIE. Le jeu d'essai
+    // fournissait des noms de jours et des clés d'ACTION : rien ne
+    // correspondait, et le bloc « par catégorie » ne rendait donc jamais.
+    chartDays:   _septDerniersJours(),
     chartCounts: [3, 5, 2, 8, 1, 4, 6],
-    catCounts: { user_banned: 2, notification_sent: 1 },
-    adminCounts: { Carlos: 3 },
-    adminList: ['Carlos'],
-    totalAll: 10,
+    catCounts:   { auth: 12, user: 2, notification: 1, news: 3, pronostic: 7 },
+    adminCounts: { Carlos: 3, Inconnu: 1 },
+    adminList:   ['Carlos'],
+    totalAll:    25,
+  }],
+  // Semaine sans activité : le graphique doit le dire, pas rester muet.
+  ['audit (semaine vide)', 'audit', {
+    ...base, page: 'audit',
+    data: [fakeLog], total: 1, page: 1, perPage: 30, totalPages: 1,
+    ACTION_LABELS, CATEGORIES,
+    filters: { action: '', admin: '', cat: '', date: '' },
+    chartDays:   _septDerniersJours(),
+    chartCounts: [0, 0, 0, 0, 0, 0, 0],
+    catCounts:   { auth: 358 },
+    adminCounts: { Admin: 358 },
+    adminList:   ['Admin'],
+    totalAll:    358,
   }],
   ['audit (filtré)', 'audit', {
     ...base, page: 'audit',
     data: [], total: 0, page: 1, perPage: 30, totalPages: 0,
-    ACTION_LABELS,
+    ACTION_LABELS, CATEGORIES,
     filters: { action: 'user_banned', admin: 'Carlos', cat: 'users', date: '2024-01-01' },
     chartDays: [], chartCounts: [],
     catCounts: {}, adminCounts: {}, adminList: ['Carlos'], totalAll: 0,
@@ -584,6 +614,26 @@ const views = [
     total: 1, page: 1, perPage: 20, totalPages: 1,
     filter: 'expired', search: '',
     stats: { active: 2, permanent: 1, temporary: 1, total: 5, expiringSoon: 1, today: 1 },
+  }],
+  // Réactivation des comptes dont le ban a expiré : la bannière doit dire ce
+  // qui a été fait, et signaler ce qui n'a pas pu l'être.
+  ['bans (comptes réactivés)', 'bans', {
+    ...base, page: 'bans',
+    bans: [], total: 0, page: 1, perPage: 20, totalPages: 1,
+    filter: 'active', search: '',
+    stats: { active:0, permanent:0, temporary:0, total:3, expiringSoon:0, today:0 },
+    settings: {},
+    restauration: { restaures: [{ pseudo: 'Parieur_NV8VJ' }, { pseudo: 'Testeur' }], echecs: 0 },
+    success: null, error: null,
+  }],
+  ['bans (réactivation impossible)', 'bans', {
+    ...base, page: 'bans',
+    bans: [], total: 0, page: 1, perPage: 20, totalPages: 1,
+    filter: 'active', search: '',
+    stats: { active:0, permanent:0, temporary:0, total:2, expiringSoon:0, today:0 },
+    settings: {},
+    restauration: { restaures: [], echecs: 2 },
+    success: null, error: null,
   }],
   ['bans (vide + recherche)', 'bans', {
     ...base, page: 'bans',

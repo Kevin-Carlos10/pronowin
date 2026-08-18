@@ -9,6 +9,24 @@
 .au-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
 
 /* ── Chart + cat breakdown ────────────────────────────────────────────────── */
+.au-bars       { display:flex; align-items:flex-end; gap:.5rem; height:190px; padding:.4rem .2rem 0; }
+.au-bar-col    { flex:1; display:flex; flex-direction:column; align-items:center; height:100%; min-width:0; }
+.au-bar-val    { font-size:.72rem; font-weight:800; color:var(--text-m); height:1.1em; margin-bottom:.25rem; }
+.au-bar-piste  { flex:1; width:100%; max-width:46px; display:flex; align-items:flex-end;
+                 background:var(--surface-d); border-radius:6px 6px 3px 3px; overflow:hidden; }
+.au-bar-rempli { width:100%; border-radius:6px 6px 3px 3px;
+                 background:linear-gradient(180deg, rgba(var(--primary-rgb,99,102,241),.85),
+                                                     rgba(var(--primary-rgb,99,102,241),.35));
+                 transition:height .3s ease; }
+.au-bar-rempli.nul { background:var(--border); }
+.au-bar-col:hover .au-bar-rempli { filter:brightness(1.25); }
+.au-bar-jour   { font-size:.68rem; color:var(--text-dim); text-align:center; margin-top:.4rem;
+                 line-height:1.25; text-transform:capitalize; }
+.au-bar-jour span { font-weight:700; color:var(--text-m); }
+.au-chart-vide { height:190px; display:flex; align-items:center; justify-content:center;
+                 text-align:center; font-size:.82rem; color:var(--text-dim);
+                 padding:0 1.5rem; line-height:1.6; }
+
 .au-overview { display:grid; grid-template-columns:1fr 260px; gap:1rem; margin-bottom:1rem; }
 @media(max-width:860px){ .au-overview { grid-template-columns:1fr; } }
 .au-chart-wrap { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1rem 1.25rem; }
@@ -65,15 +83,17 @@
 </style>
 
 <%
-  const _catConfig = {
-    auth:       { label:'Auth',        icon:'🔑', color:'var(--info)' },
-    finance:    { label:'Finance',     icon:'💰', color:'var(--success)' },
-    user:       { label:'Utilisateurs',icon:'👥', color:'#A78BFA' },
-    abonnement: { label:'Abonnements', icon:'👑', color:'var(--warning)' },
-    pronostic:  { label:'Pronostics',  icon:'⚽', color:'var(--primary)' },
-    tutoriel:   { label:'Tutoriels',   icon:'📚', color:'#14B8A6' },
-    admin:      { label:'Admins',      icon:'🔐', color:'var(--error)' },
-  };
+  // Les categories viennent du catalogue partage : la liste en dur ici en
+  // omettait deux (« news », « notification »), dont les entrees disparaissaient
+  // de la repartition — qui totalisait donc moins que le nombre annonce.
+  const _catCatalogue = typeof CATEGORIES !== 'undefined' && CATEGORIES ? CATEGORIES : {};
+  // Repli : si le catalogue n'arrive pas, on affiche quand meme les categories
+  // presentes dans les donnees, sous leur cle brute. Un panneau vide alors que
+  // le journal compte des centaines d'entrees serait un mensonge.
+  const _catConfig = { ..._catCatalogue };
+  Object.keys(catCounts || {}).forEach(k => {
+    if (!_catConfig[k]) _catConfig[k] = { label: k, icon: 'dot', color: 'var(--text-dim)' };
+  });
   const _maxCat = Math.max(1, ...Object.values(catCounts || {}));
   const _hasFilter = !!(filters.cat || filters.admin || filters.date || filters.action);
 %>
@@ -108,8 +128,12 @@
     <div class="v" style="color:var(--info)"><%= (typeof chartDays!=='undefined' && chartCounts && chartDays.includes(_today)) ? chartCounts[chartDays.indexOf(_today)] : 0 %></div>
   </div>
   <div class="au-stat" style="border-left-color:var(--success)">
-    <div class="l">Admins actifs</div>
+    <%# « Admins actifs » comptait les identites distinctes apparues dans tout
+        l'historique — « Inconnu », « test », d'anciennes adresses comprises.
+        Rien a voir avec les comptes actifs aujourd'hui. %>
+    <div class="l">Auteurs au journal</div>
     <div class="v" style="color:var(--success)"><%= Object.keys(adminCounts||{}).length %></div>
+    <div style="font-size:.62rem;color:var(--text-dim);margin-top:2px">identités distinctes</div>
   </div>
   <div class="au-stat" style="border-left-color:var(--warning)">
     <div class="l">7 derniers jours</div>
@@ -121,9 +145,47 @@
 <div class="au-overview">
 
   <!-- Graphique 7 jours -->
+  <%# Rendu en SVG plutot qu'avec Chart.js : la page ne chargeait pas la
+      bibliotheque (contrairement a dashboard.ejs et statistiques.ejs), et le
+      code de trace abandonnait en silence sur `typeof Chart === "undefined"`.
+      Le cadre restait vide sans que rien ne le signale. Sept barres ne
+      justifient pas 200 Ko de dependance, ni un appel reseau. %>
   <div class="au-chart-wrap">
     <div class="au-chart-title"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg> Activité — 7 derniers jours</div>
-    <canvas id="audit-chart" class="au-chart-canvas"></canvas>
+    <%
+      const _jours  = (typeof chartDays   !== 'undefined' && chartDays)   ? chartDays   : [];
+      const _cptes  = (typeof chartCounts !== 'undefined' && chartCounts) ? chartCounts : [];
+      const _pic    = Math.max(1, ..._cptes);
+      const _sommeJ = _cptes.reduce((a, b) => a + b, 0);
+      const _jourFr = iso => {
+        const d = new Date(iso + 'T12:00:00');
+        return { court: d.toLocaleDateString('fr-FR', { weekday: 'short' }).replace('.', ''),
+                 num:   d.getDate(),
+                 long:  d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) };
+      };
+    %>
+    <% if (_sommeJ === 0) { %>
+      <div class="au-chart-vide">
+        Aucune activité sur les 7 derniers jours.
+        <% if (typeof totalAll !== 'undefined' && totalAll > 0) { %>
+          Le journal compte <%= totalAll %> entrées plus anciennes.
+        <% } %>
+      </div>
+    <% } else { %>
+      <div class="au-bars" role="img"
+           aria-label="Activité des 7 derniers jours : <%= _jours.map((j, i) => _jourFr(j).long + ' ' + _cptes[i]).join(', ') %>">
+        <% _jours.forEach((j, i) => { const n = _cptes[i] || 0; const f = _jourFr(j); %>
+        <div class="au-bar-col" title="<%= f.long %> — <%= n %> entrée<%= n !== 1 ? 's' : '' %>">
+          <div class="au-bar-val"><%= n || '' %></div>
+          <div class="au-bar-piste">
+            <div class="au-bar-rempli <%= n === 0 ? 'nul' : '' %>"
+                 style="height:<%= n === 0 ? 2 : Math.round((n / _pic) * 100) %>%"></div>
+          </div>
+          <div class="au-bar-jour"><%= f.court %><br><span><%= f.num %></span></div>
+        </div>
+        <% }) %>
+      </div>
+    <% } %>
   </div>
 
   <!-- Breakdown par catégorie -->
@@ -290,73 +352,7 @@ function toggleDetail(idx) {
   if (chevron) chevron.textContent = open ? '▾' : '▸';
 }
 
-/* ── Graphique 7 jours ── */
-(function initAuditChart() {
-  const ctx = document.getElementById('audit-chart');
-  if (!ctx || typeof Chart === 'undefined') return;
-
-  const days   = <%- JSON.stringify(typeof chartDays  !=='undefined' ? chartDays  : []) %>;
-  const counts = <%- JSON.stringify(typeof chartCounts!=='undefined' ? chartCounts: []) %>;
-
-  function cssVar(name) {
-    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
-  }
-
-  const labels = days.map(d => {
-    const dt = new Date(d + 'T12:00:00');
-    return dt.toLocaleDateString('fr-FR', { weekday:'short', day:'numeric' });
-  });
-
-  let chart;
-  function buildChart() {
-    if (chart) chart.destroy();
-    const primaryRgb = cssVar('--primary-rgb') || '99,102,241';
-    chart = new Chart(ctx, {
-      type: 'bar',
-      data: {
-        labels,
-        datasets: [{
-          data: counts,
-          backgroundColor: `rgba(${primaryRgb},.25)`,
-          borderColor:     `rgba(${primaryRgb},.8)`,
-          borderWidth: 1.5,
-          borderRadius: 4,
-          hoverBackgroundColor: `rgba(${primaryRgb},.5)`,
-        }],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            callbacks: {
-              title: items => items[0]?.label || '',
-              label: item => ` ${item.raw} action${item.raw !== 1 ? 's' : ''}`,
-            },
-          },
-        },
-        scales: {
-          x: {
-            grid:  { color: cssVar('--border') || '#1e2a42' },
-            ticks: { color: cssVar('--text-dim') || '#64748b', font:{ size:11 } },
-          },
-          y: {
-            grid:  { color: cssVar('--border') || '#1e2a42' },
-            ticks: { color: cssVar('--text-dim') || '#64748b', font:{ size:11 }, precision:0 },
-            beginAtZero: true,
-          },
-        },
-      },
-    });
-  }
-
-  buildChart();
-
-  // Rebuild on theme/accent change
-  const obs = new MutationObserver(() => buildChart());
-  obs.observe(document.documentElement, { attributes:true, attributeFilter:['class','data-accent'] });
-})();
+/* Le trace du graphique est desormais rendu cote serveur, en SVG. */
 
 /* ── Flash toasts ── */
 document.addEventListener('DOMContentLoaded', function() {

@@ -8,12 +8,12 @@
 /* ── Avatar card ─────────────────────────────────────────────────────────────── */
 .pf-avatar-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.75rem; text-align:center; }
 .pf-avatar { width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.75rem; font-weight:800; margin:0 auto .9rem; }
-.pf-avatar.main { background:rgba(34,197,94,.12); color:var(--success); }
-.pf-avatar.sub  { background:rgba(245,158,11,.12); color:var(--warning); }
+.pf-avatar.pf-principal { background:rgba(34,197,94,.12); color:var(--success); }
+.pf-avatar.pf-adjoint  { background:rgba(245,158,11,.12); color:var(--warning); }
 .pf-name  { font-size:1.15rem; font-weight:800; margin-bottom:.25rem; }
 .pf-role  { display:inline-block; font-size:.75rem; padding:.2rem .7rem; border-radius:99px; font-weight:600; margin-bottom:1.25rem; }
-.pf-role.main { background:rgba(34,197,94,.12); color:var(--success); }
-.pf-role.sub  { background:rgba(245,158,11,.12); color:var(--warning); }
+.pf-role.pf-principal { background:rgba(34,197,94,.12); color:var(--success); }
+.pf-role.pf-adjoint  { background:rgba(245,158,11,.12); color:var(--warning); }
 
 /* ── Info rows ───────────────────────────────────────────────────────────────── */
 .pf-row { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.82rem; gap:.5rem; }
@@ -101,9 +101,12 @@
 
     <!-- Avatar + infos -->
     <div class="pf-avatar-card" style="margin-bottom:1rem">
-      <div class="pf-avatar <%= isMain ? 'main' : 'sub' %>"><%= _initial %></div>
+      <%# Modificateur prefixe : « main » tout court est la classe de la zone de
+          contenu du gabarit, qui porte min-height:100vh. L'avatar s'etirait
+          alors sur toute la hauteur de la colonne. %>
+      <div class="pf-avatar <%= isMain ? 'pf-principal' : 'pf-adjoint' %>"><%= _initial %></div>
       <div class="pf-name"><%= adminName %></div>
-      <div class="pf-role <%= isMain ? 'main' : 'sub' %>">
+      <div class="pf-role <%= isMain ? 'pf-principal' : 'pf-adjoint' %>">
         <%= isMain ? '🔷 Admin principal' : '🔸 Sous-admin' %>
       </div>
 
@@ -210,7 +213,9 @@
       <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-zap"/></svg> Activité récente</div>
       <div class="pf-tl">
         <% recentActivity.forEach(log => {
-             const meta = (typeof ACTION_LABELS !== 'undefined' && ACTION_LABELS[log.action]) || { label: log.action, icon: '•' };
+             // Repli : « • » etait injecte dans href="#ic-•", une reference de sprite
+             // inexistante. `dot` existe et s'affiche.
+             const meta = (typeof ACTION_LABELS !== 'undefined' && ACTION_LABELS[log.action]) || { label: log.action, icon: 'dot' };
         %><div class="pf-tl-item">
           <div class="pf-tl-dot"></div>
           <div class="pf-tl-text"><%- (meta.icon) ? '<svg class="ic" aria-hidden="true"><use href="#ic-' + (meta.icon) + '"/></svg>' : '' %> <%= meta.label %><% if(log.target){ %> · <em style="color:var(--text-dim)"><%= log.target.length>30?log.target.slice(0,30)+'…':log.target %></em><% } %></div>

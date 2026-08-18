@@ -177,8 +177,24 @@ function unbanUser(userId, adminName, unbanReason = '') {
   return found;
 }
 
-// Vérification auto-expiration des bans (toutes les 5 minutes)
-setInterval(() => {
+/**
+ * Expiration des bans — deux moitiés, longtemps réduites à une seule.
+ *
+ * Bannir fait deux choses : écrire le ban dans `bans.json`, et suspendre le
+ * compte côté API. À l'expiration, seule la première était défaite. Le panneau
+ * affichait « Levé/Expiré » et `getActiveBan` renvoyait null, mais le compte
+ * restait `suspended` en base — indéfiniment. Autrement dit tout ban temporaire
+ * devenait permanent, sans que personne ne puisse le voir.
+ *
+ * La minuterie ne peut pas appeler l'API : elle n'a pas de jeton, et il
+ * n'existe pas d'identifiant machine. Elle se limite donc à l'état local, et la
+ * réactivation du compte est réconciliée à la première requête d'un
+ * administrateur — qui, lui, porte un jeton valide. `accountRestoredAt`
+ * enregistre ce qui a effectivement été fait, pour ne pas le refaire ni le
+ * supposer.
+ */
+let _banAlerte = false;
+setInterval(async () => {
   const bans = loadBans();
   const now  = Date.now();
   let changed = false;
@@ -194,7 +210,73 @@ setInterval(() => {
     saveBans(bans);
     sseBroadcast('ban_expired', { ts: Date.now() });
   }
+
+  // Rendre l'accès aux comptes concernés. Cette moitié manquait : la minuterie
+  // marquait le ban inactif localement mais laissait le compte suspendu en
+  // base, ce qui rendait permanent tout ban temporaire. Elle attendait
+  // jusqu'ici la visite d'un administrateur ; le compte de service permet de
+  // le faire sans personne.
+  const aRestaurer = bansARestaurer();
+  if (aRestaurer.length) {
+    const token = await jetonService();
+    if (token) {
+      const { restaures } = await reconcilierBansExpires(token);
+      if (restaures.length) {
+        console.log(`Bans expirés : ${restaures.length} compte(s) réactivé(s).`);
+        sseBroadcast('ban_expired', { ts: Date.now(), restaures: restaures.length });
+      }
+    } else if (!_banAlerte) {
+      _banAlerte = true;
+      console.warn(`⚠️  ${aRestaurer.length} compte(s) dont le ban a expiré restent suspendus :`
+                 + ' aucun compte de service configuré. Ils seront réactivés à la prochaine'
+                 + ' ouverture de la page Bannissements par un administrateur.');
+    }
+  }
 }, 5 * 60 * 1000);
+
+/** Bans expirés dont le compte n'a pas encore été réactivé côté API. */
+function bansARestaurer() {
+  const now = Date.now();
+  return loadBans().filter(b =>
+    !b.active &&
+    b.expiresAt &&
+    new Date(b.expiresAt).getTime() <= now &&
+    !b.accountRestoredAt &&
+    // Un déban manuel a déjà rappelé l'API ; seule l'expiration laisse le
+    // compte en suspens.
+    b.unbannedBy === 'Système (expiration automatique)'
+  );
+}
+
+/**
+ * Rend l'accès aux comptes dont le ban a expiré.
+ * Retourne { restaures, echecs } — jamais une promesse rejetée : un backend
+ * injoignable ne doit pas empêcher la page de s'afficher.
+ */
+async function reconcilierBansExpires(token) {
+  const enAttente = bansARestaurer();
+  if (!enAttente.length || !token) return { restaures: [], echecs: enAttente.length ? enAttente.length : 0 };
+
+  const a = api(token);
+  const restaures = [];
+  let echecs = 0;
+
+  for (const b of enAttente) {
+    try {
+      await a.patch('/admin/users/' + b.userId + '/suspend', { suspend: false });
+      restaures.push(b);
+    } catch { echecs++; }
+  }
+
+  if (restaures.length) {
+    const bans = loadBans();
+    const ids  = new Set(restaures.map(b => b.id));
+    const quand = new Date().toISOString();
+    bans.forEach(b => { if (ids.has(b.id)) b.accountRestoredAt = quand; });
+    saveBans(bans);
+  }
+  return { restaures, echecs };
+}
 
 // ─── PARAMÈTRES GÉNÉRAUX ─────────────────────────────────────────────────────
 const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
@@ -356,11 +438,44 @@ function sendCSV(res, filename, headers, rows) {
 
 // ─── SSE CLIENTS (déclaré tôt pour être accessible dans toutes les routes) ───
 const sseClients = new Set();
-function sseBroadcast(event, data) {
-  const msg = `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
-  for (const res of sseClients) {
-    try { res.write(msg); } catch { sseClients.delete(res); }
+/**
+ * Diffusion SSE, filtrable par destinataire.
+ *
+ * La charge etait identique pour tout le monde : un sous-admin sans permission
+ * « transactions » recevait quand meme `tx_pending` par ce canal, ce qui
+ * annulait le filtrage applique sur /admin/api/badges. `adapter` recoit les
+ * permissions du client et renvoie la charge qui lui revient.
+ */
+function sseBroadcast(event, data, adapter = null) {
+  const brut = `event: ${event}
+data: ${JSON.stringify(data)}
+
+`;
+  for (const client of sseClients) {
+    const res = client.res ?? client;
+    let msg = brut;
+    if (adapter) {
+      const propre = adapter(client.perms ?? null);
+      if (propre === null) continue;
+      msg = `event: ${event}
+data: ${JSON.stringify(propre)}
+
+`;
+    }
+    try { res.write(msg); } catch { sseClients.delete(client); }
   }
+}
+
+/** Ne garde d'un lot de KPI que ce que ces permissions autorisent. */
+function kpisPour(perms, kpis) {
+  const peut = cle => perms === null
+    || perms.some(p => typeof p === 'string' && p.split(':')[0] === cle);
+  return {
+    users_total:    peut('users')        ? kpis.users_total    : null,
+    tx_pending:     peut('transactions') ? kpis.tx_pending     : null,
+    proofs_pending: peut('abonnements')  ? kpis.proofs_pending : null,
+    ts: kpis.ts,
+  };
 }
 
 // ─── EXPRESS SETUP ───────────────────────────────────────────────────────────
@@ -591,6 +706,7 @@ app.post('/admin/login', async (req, res) => {
   }
 
   // ── 1. Sous-admins locaux ──
+  const empSubs = empreinteSubs();
   const subs = loadSubs();
   const sub  = subs.find(s => s.username === username && s.isActive !== false && checkPwd(password, s.passwordHash));
   if (sub) {
@@ -608,7 +724,9 @@ app.post('/admin/login', async (req, res) => {
 
     const perms    = JSON.stringify(sub.permissions ?? []);
     sub.lastLoginAt = new Date().toISOString();
-    saveSubs(subs);
+    // Ecriture gardee : sans empreinte, l'enregistrement de la date de
+    // connexion ecrasait une modification de permissions faite entre-temps.
+    saveSubsSi(subs, empSubs);
     res.cookie('admin_token',   apiToken,                              { httpOnly: true,  maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
     res.cookie('admin_name',    sub.name,                              { httpOnly: true,  maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
     res.cookie('admin_role',    'sub',                                 { httpOnly: true,  maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
@@ -742,20 +860,28 @@ app.get('/admin/api/search', requireAuth, async (req, res) => {
     transactions: txRes.status  === 'fulfilled' ? (txRes.value.data.data                                  ?? []).slice(0, 5) : [],
     pronostics:   proRes.status === 'fulfilled' ? (Array.isArray(proRes.value.data) ? proRes.value.data    : []).slice(0, 5) : [],
     bans,
-    _bannedIds: [...activeBanSet],
+    // Le reste de la reponse est filtre par permission ; cette liste ne l'etait
+    // pas et divulguait tous les identifiants bannis.
+    _bannedIds: canU ? [...activeBanSet] : [],
   });
 });
 
 // ─── BADGES LIVE ──────────────────────────────────────────────────────────────
 app.get('/admin/api/badges', requireAuth, async (req, res) => {
-  const a = api(req.cookies.admin_token);
+  // Ces compteurs renseignaient sur les versements et les preuves en attente
+  // quelles que soient les permissions : un sous-admin cantonne aux tutoriels
+  // apprenait combien d'argent attendait d'etre verse. On ne compte desormais
+  // que ce qu'il a le droit de consulter.
+  const a       = api(req.cookies.admin_token);
+  const voitTx  = res.locals.hasPerm('transactions');
+  const voitAbo = res.locals.hasPerm('abonnements');
   const [txRes, proofsRes] = await Promise.allSettled([
-    a.get('/payments/admin/pending?page=1&per_page=1'),
-    a.get('/subscriptions/admin/proofs?page=1&per_page=1'),
+    voitTx  ? a.get('/payments/admin/pending?page=1&per_page=1')     : Promise.resolve(null),
+    voitAbo ? a.get('/subscriptions/admin/proofs?page=1&per_page=1') : Promise.resolve(null),
   ]);
   res.json({
-    transactions: txRes.status     === 'fulfilled' ? (txRes.value.data.total     ?? 0) : 0,
-    proofs:       proofsRes.status === 'fulfilled' ? (proofsRes.value.data.total ?? 0) : 0,
+    transactions: (voitTx  && txRes.status     === 'fulfilled' && txRes.value)     ? (txRes.value.data.total     ?? 0) : 0,
+    proofs:       (voitAbo && proofsRes.status === 'fulfilled' && proofsRes.value) ? (proofsRes.value.data.total ?? 0) : 0,
   });
 });
 
@@ -771,11 +897,16 @@ app.get('/admin/api/live', requireAuth, (req, res) => {
   res.setHeader('X-Accel-Buffering', 'no');
   res.flushHeaders();
   res.write('event: connected\ndata: {"ok":true}\n\n');
-  sseClients.add(res);
+  // Les permissions accompagnent le client : la diffusion doit pouvoir filtrer.
+  const client = { res, perms: res.locals.isMain ? null : (res.locals.adminPerms ?? []) };
+  sseClients.add(client);
   fetchLiveKPIs(req.cookies.admin_token).then(kpis => {
-    if (kpis) { try { res.write(`event: kpis\ndata: ${JSON.stringify(kpis)}\n\n`); } catch {} }
+    if (kpis) { try { res.write(`event: kpis
+data: ${JSON.stringify(kpisPour(client.perms, kpis))}
+
+`); } catch {} }
   });
-  req.on('close', () => sseClients.delete(res));
+  req.on('close', () => sseClients.delete(client));
 });
 
 // ─── GESTIONNAIRE D'ERREURS GLOBAL ────────────────────────────────────────────
@@ -822,21 +953,110 @@ async function fetchLiveKPIs(token) {
   } catch { return null; }
 }
 
+/**
+ * Jeton d'API pour les tâches de fond.
+ *
+ * Les tâches périodiques n'ont pas de requête, donc pas de session : elles
+ * lisaient `ADMIN_API_TOKEN`, une variable qui n'est pas définie. Le jeton
+ * partait donc vide, l'API répondait 401, et comme les appels sont groupés dans
+ * un `Promise.allSettled`, l'échec devenait un objet rempli de `null` diffusé
+ * toutes les dix secondes. Les compteurs du tableau de bord ne se sont jamais
+ * rafraîchis, sans le moindre message.
+ *
+ * Le compte de service existe pourtant déjà : `ADMIN_SERVICE_EMAIL` et
+ * `ADMIN_SERVICE_PASSWORD` servent à la connexion des sous-admins. On s'en sert
+ * ici aussi, avec un cache — se reconnecter toutes les dix secondes serait
+ * absurde — et un repli sur `ADMIN_API_TOKEN` s'il est renseigné.
+ */
+let _jetonService  = null;
+let _jetonExpireLe = 0;
+
+async function jetonService({ forcer = false } = {}) {
+  if (!forcer && _jetonService && Date.now() < _jetonExpireLe) return _jetonService;
+
+  const email = process.env.ADMIN_SERVICE_EMAIL;
+  const pass  = process.env.ADMIN_SERVICE_PASSWORD;
+  if (email && pass) {
+    try {
+      const r = await axios.post(`${API_URL}/admin/login`, { email, password: pass }, { timeout: 5000 });
+      if (r.data?.token) {
+        _jetonService  = r.data.token;
+        // Renouvellement bien avant l'expiration réelle du jeton.
+        _jetonExpireLe = Date.now() + 30 * 60 * 1000;
+        return _jetonService;
+      }
+    } catch { /* on retombe sur la variable d'environnement ci-dessous */ }
+  }
+  const repli = process.env.ADMIN_API_TOKEN ?? '';
+  return repli || null;
+}
+
+/** Vrai si aucune identité de service n'est configurée. */
+function serviceConfigure() {
+  return !!((process.env.ADMIN_SERVICE_EMAIL && process.env.ADMIN_SERVICE_PASSWORD)
+            || process.env.ADMIN_API_TOKEN);
+}
+
+/**
+ * Contrôle du compte de service au démarrage.
+ *
+ * Ce compte conditionne trois choses : les KPI temps réel, la réactivation des
+ * bans expirés, et le jeton d'API remis aux sous-admins à la connexion. Quand
+ * il échoue, tout cela cesse en silence — un sous-admin reçoit un jeton vide et
+ * chacune de ses pages se solde par un 401, sans que rien n'explique pourquoi.
+ * On le vérifie donc une fois au démarrage, et on le dit franchement.
+ */
+setTimeout(async () => {
+  if (!serviceConfigure()) {
+    console.warn('\n  Aucun compte de service configure (ADMIN_SERVICE_EMAIL / ADMIN_SERVICE_PASSWORD).');
+    console.warn('   Consequences : KPI temps reel inactifs, bans expires non leves cote API,');
+    console.warn('   et les sous-admins recoivent un jeton vide : leurs pages de donnees seront vides.\n');
+    return;
+  }
+  const t = await jetonService({ forcer: true });
+  if (t) {
+    console.log('Compte de service operationnel : KPI temps reel et levee des bans actifs.');
+  } else {
+    console.warn('\n  Le compte de service est configure mais l\'authentification echoue.');
+    console.warn(`   Verifiez ADMIN_SERVICE_EMAIL (${process.env.ADMIN_SERVICE_EMAIL}) : il doit`);
+    console.warn('   correspondre a un compte admin existant et actif cote API.');
+    console.warn('   Sans cela : pas de KPI temps reel, les bans expires restent suspendus,');
+    console.warn('   et les sous-admins n\'auront aucune donnee.\n');
+  }
+}, 3000);
+
 // Timer interne : push KPIs toutes les 10 secondes si au moins 1 client connecté
 // On utilise le token de l'admin principal (ADMIN_API_TOKEN) pour les appels périodiques
+let _kpiAlerte = false;
 setInterval(async () => {
   if (sseClients.size === 0) return;
-  const token = process.env.ADMIN_API_TOKEN ?? '';
-  const kpis  = await fetchLiveKPIs(token);
-  if (kpis) sseBroadcast('kpis', kpis);
+  const token = await jetonService();
+  if (!token) {
+    if (!_kpiAlerte) {
+      _kpiAlerte = true;
+      console.warn('⚠️  KPI temps réel désactivés : ni ADMIN_SERVICE_EMAIL/PASSWORD ni ADMIN_API_TOKEN.');
+    }
+    return;
+  }
+  let kpis = await fetchLiveKPIs(token);
+  // Tout à null = jeton refusé. On le renouvelle une fois avant d'abandonner,
+  // plutôt que de diffuser des valeurs vides comme avant.
+  if (kpis && kpis.users_total === null && kpis.tx_pending === null && kpis.proofs_pending === null) {
+    const frais = await jetonService({ forcer: true });
+    kpis = frais ? await fetchLiveKPIs(frais) : null;
+  }
+  if (kpis && (kpis.users_total !== null || kpis.tx_pending !== null || kpis.proofs_pending !== null)) {
+    sseBroadcast('kpis', kpis, perms => kpisPour(perms, kpis));
+  }
 }, 10000);
 
 // Ping SSE toutes les 30s pour garder la connexion vivante (anti-timeout proxy)
 setInterval(() => {
   if (sseClients.size === 0) return;
   const msg = ': ping\n\n';
-  for (const res of sseClients) {
-    try { res.write(msg); } catch { sseClients.delete(res); }
+  for (const client of sseClients) {
+    const res = client.res ?? client;
+    try { res.write(msg); } catch { sseClients.delete(client); }
   }
 }, 30000);
 
@@ -913,6 +1133,7 @@ const contexteRoutes = {
   STATS_ENDPOINTS, NEWS_DEFAULT_CATEGORIES,
   fs, path, slugify, sanitize, clampInt, sseBroadcast,
   banUser, unbanUser, getActiveBan, ACTION_LABELS,
+  bansARestaurer, reconcilierBansExpires,
   SA_FILE, BANS_FILE, NEWS_FILE, LOG_FILE, NOTIF_FILE, SETTINGS_FILE,
   SEGMENTS, back, fetchTutorialCategories, fetchTutorialLevels,
 };
