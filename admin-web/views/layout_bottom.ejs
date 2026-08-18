@@ -440,7 +440,7 @@ function sortBy(col) {
   window.location.href = url.toString();
 }
 
-// Initialiser les indicateurs visuels sur les <th data-sort>
+// Initialiser les indicateurs visuels sur les <th scope="col" data-sort>
 document.addEventListener('DOMContentLoaded', () => {
   const url    = new URL(window.location.href);
   const curCol = url.searchParams.get('sort_by')  ?? '';

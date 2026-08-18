@@ -131,14 +131,14 @@
 <!-- ── Filtres ────────────────────────────────────────────────────────────────── -->
 <div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem">
   <form method="GET" action="/admin/tutoriels" class="tut-filter">
-    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Titre, description, auteur…">
-    <select name="category" onchange="this.form.submit()">
+    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Titre, description, auteur…" aria-label="Rechercher">
+    <select name="category" onchange="this.form.submit()" aria-label="Catégorie">
       <option value="">Toutes catégories</option>
       <% (locals.categories||[]).forEach(c => { %>
         <option value="<%= c %>" <%= category===c ?'selected':'' %>><%= _catCfg[c] || '📚' %> <%= catLabel(c) %></option>
       <% }) %>
     </select>
-    <select name="level" onchange="this.form.submit()">
+    <select name="level" onchange="this.form.submit()" aria-label="Niveau">
       <option value="">Tous niveaux</option>
       <% const _lvlEmoji = { beginner:'🟢', intermediate:'🟡', advanced:'🔴' }; %>
       <% (levels||[]).forEach(l => { %>

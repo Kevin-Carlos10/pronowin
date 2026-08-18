@@ -96,13 +96,13 @@
           <input class="input" type="text" name="title" id="tf-title"
             value="<%= isEdit ? tutorial.title : '' %>"
             required placeholder="Ex : Comprendre le Value Bet en 10 minutes…"
-            style="font-size:.95rem;font-weight:600">
+            style="font-size:.95rem;font-weight:600" aria-label="Titre">
         </div>
 
         <div class="form-group">
           <label>Description <span style="color:var(--error)">*</span></label>
           <textarea class="input" name="description" id="tf-desc" rows="5" required maxlength="1000"
-            placeholder="Description détaillée visible par les utilisateurs…"><%= isEdit ? tutorial.description : '' %></textarea>
+            placeholder="Description détaillée visible par les utilisateurs…" aria-label="Description détaillée visible par les utilisateurs"><%= isEdit ? tutorial.description : '' %></textarea>
           <div class="char-counter" id="desc-counter">0 / 1000</div>
         </div>
 
@@ -110,14 +110,14 @@
           <label>Auteur</label>
           <input class="input" type="text" name="author_name" id="tf-author"
             value="<%= isEdit ? (tutorial.authorName || '') : 'Expert PronoWin' %>"
-            placeholder="Expert PronoWin">
+            placeholder="Expert PronoWin" aria-label="Auteur">
         </div>
 
         <div class="form-group">
           <label>URL Vidéo <span style="font-size:.72rem;color:var(--text-dim);font-weight:400">(YouTube, Vimeo ou direct)</span></label>
           <input class="input" type="url" name="video_url" id="tf-video"
             value="<%= isEdit ? (tutorial.videoUrl || '') : '' %>"
-            placeholder="https://youtube.com/watch?v=…">
+            placeholder="https://youtube.com/watch?v=…" aria-label="Lien de la vidéo">
           <div class="tf-yt-preview" id="yt-preview">
             <iframe id="yt-frame" src="" allowfullscreen title="Aperçu vidéo"></iframe>
           </div>
@@ -127,7 +127,7 @@
           <label>URL Miniature <span style="font-size:.72rem;color:var(--text-dim);font-weight:400">(optionnel)</span></label>
           <input class="input" type="url" name="thumbnail_url" id="tf-thumb"
             value="<%= isEdit ? (tutorial.thumbnailUrl || '') : '' %>"
-            placeholder="https://…/image.jpg">
+            placeholder="https://…/image.jpg" aria-label="thumbnail_url">
         </div>
       </div>
 
@@ -140,7 +140,7 @@
             <label>Catégorie <span style="color:var(--error)">*</span></label>
             <input class="input" type="text" name="category" id="tf-cat" list="tf-cat-list" required
               value="<%= isEdit ? tutorial.category : '' %>"
-              placeholder="Ex : valuebet, bankroll, paris-en-direct…">
+              placeholder="Ex : valuebet, bankroll, paris-en-direct…" aria-label="Catégorie">
             <datalist id="tf-cat-list">
               <% (locals.categories||[]).forEach(c => { %><option value="<%= c %>"><% }) %>
             </datalist>
@@ -148,7 +148,7 @@
           </div>
           <div class="form-group" style="margin:0">
             <label>Niveau <span style="color:var(--error)">*</span></label>
-            <select class="input" name="level" id="tf-level" required>
+            <select class="input" name="level" id="tf-level" required aria-label="Niveau">
               <option value="">Choisir…</option>
               <option value="beginner"     <%= isEdit && tutorial.level==='beginner'     ?'selected':'' %>>🟢 Débutant</option>
               <option value="intermediate" <%= isEdit && tutorial.level==='intermediate' ?'selected':'' %>>🟡 Intermédiaire</option>
@@ -161,7 +161,7 @@
           <label>Durée <span style="font-size:.72rem;color:var(--text-dim);font-weight:400">(en minutes)</span></label>
           <input class="input" type="number" name="duration_seconds" id="tf-dur"
             value="<%= isEdit ? Math.floor((tutorial.durationSeconds||0)/60) : '' %>"
-            min="0" max="300" placeholder="Ex : 15">
+            min="0" max="300" placeholder="Ex : 15" aria-label="duration_seconds">
           <div style="font-size:.72rem;color:var(--text-dim);margin-top:.25rem">Sera converti en secondes automatiquement</div>
         </div>
 

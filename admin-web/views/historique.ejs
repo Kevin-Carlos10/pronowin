@@ -120,10 +120,10 @@
 
     <!-- Ligne principale -->
     <div class="hi-filter" style="margin-bottom:<%= _hasAdv ? '.75rem' : '0' %>">
-      <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, ID 1xBet…">
+      <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, ID 1xBet…" aria-label="Rechercher">
 
 
-      <select name="status" onchange="this.form.submit()">
+      <select name="status" onchange="this.form.submit()" aria-label="Statut">
         <option value="">Tous statuts</option>
         <option value="pending"    <%= status==='pending'    ?'selected':'' %>>⏳ En attente</option>
         <option value="processing" <%= status==='processing' ?'selected':'' %>>🔄 En cours</option>
@@ -131,7 +131,7 @@
         <option value="rejected"   <%= status==='rejected'   ?'selected':'' %>>❌ Rejeté</option>
       </select>
 
-      <select name="method" onchange="this.form.submit()">
+      <select name="method" onchange="this.form.submit()" aria-label="Méthode">
         <option value="">Toutes méthodes</option>
         <% (typeof methods !== 'undefined' ? methods : []).forEach(m => { %>
         <option value="<%= m %>" <%= method===m ?'selected':'' %>><%= _methodLabel(m) %></option>
@@ -150,19 +150,19 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.6rem;margin-bottom:.6rem">
         <div>
           <div style="font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:.3rem">Du</div>
-          <input type="date" name="date_from" value="<%= dateFrom %>">
+          <input type="date" name="date_from" value="<%= dateFrom %>" aria-label="Date de début">
         </div>
         <div>
           <div style="font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:.3rem">Au</div>
-          <input type="date" name="date_to" value="<%= dateTo %>">
+          <input type="date" name="date_to" value="<%= dateTo %>" aria-label="Date de fin">
         </div>
         <div>
           <div style="font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:.3rem">Montant min</div>
-          <input type="number" name="amount_min" value="<%= amount_min %>" min="0" placeholder="5 000">
+          <input type="number" name="amount_min" value="<%= amount_min %>" min="0" placeholder="5 000" aria-label="Montant minimum">
         </div>
         <div>
           <div style="font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:.3rem">Montant max</div>
-          <input type="number" name="amount_max" value="<%= amount_max %>" min="0" placeholder="100 000">
+          <input type="number" name="amount_max" value="<%= amount_max %>" min="0" placeholder="100 000" aria-label="Montant maximum">
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
@@ -202,15 +202,15 @@
     <table class="hi-table">
       <thead>
         <tr>
-          <th>Utilisateur</th>
-          <th>Type</th>
-          <th>Montant</th>
-          <th>Méthode</th>
-          <th>ID 1xBet</th>
-          <th>N° Envoyeur</th>
-          <th>Statut</th>
-          <th>Date</th>
-          <% if(hasPerm('historique','write')) { %><th style="width:40px"></th><% } %>
+          <th scope="col">Utilisateur</th>
+          <th scope="col">Type</th>
+          <th scope="col">Montant</th>
+          <th scope="col">Méthode</th>
+          <th scope="col">ID 1xBet</th>
+          <th scope="col">N° Envoyeur</th>
+          <th scope="col">Statut</th>
+          <th scope="col">Date</th>
+          <% if(hasPerm('historique','write')) { %><th scope="col" style="width:40px"></th><% } %>
         </tr>
       </thead>
       <tbody>
@@ -282,7 +282,7 @@
     <form id="edit-form" method="POST">
       <div class="form-group" style="margin-bottom:.9rem">
         <label>Statut</label>
-        <select class="input" name="status" id="edit-status">
+        <select class="input" name="status" id="edit-status" aria-label="Statut">
           <option value="pending">⏳ En attente</option>
           <option value="processing">🔄 En cours</option>
           <option value="completed">✅ Confirmé</option>
@@ -291,7 +291,7 @@
       </div>
       <div class="form-group" style="margin-bottom:1.25rem">
         <label>Note admin</label>
-        <textarea class="input" name="admin_note" id="edit-note" rows="3" placeholder="Note visible dans l'historique…"></textarea>
+        <textarea class="input" name="admin_note" id="edit-note" rows="3" placeholder="Note visible dans l'historique…" aria-label="Note administrateur"></textarea>
       </div>
       <div style="display:flex;gap:.75rem">
         <button type="button" class="btn btn-outline" onclick="closeEditModal()" style="flex:1">Annuler</button>

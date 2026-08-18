@@ -80,21 +80,21 @@
     <!-- Ligne principale -->
     <div class="filter-main-row">
       <input type="text" name="search" id="f-search" value="<%= search %>"
-        placeholder="🔍 Rechercher pseudo, téléphone, email, ID 1xBet…" class="filter-search-input">
+        placeholder="🔍 Rechercher pseudo, téléphone, email, ID 1xBet…" class="filter-search-input" aria-label="Rechercher">
 
-      <select name="plan" id="f-plan">
+      <select name="plan" id="f-plan" aria-label="Plan">
         <option value="">Tous les plans</option>
         <option value="free"    <%= plan==='free'    ?'selected':'' %>>Gratuit</option>
         <option value="premium" <%= plan==='premium' ?'selected':'' %>>Premium</option>
       </select>
 
-      <select name="status" id="f-status">
+      <select name="status" id="f-status" aria-label="Statut">
         <option value="">Tous statuts</option>
         <option value="active"    <%= status==='active'    ?'selected':'' %>>Actifs</option>
         <option value="suspended" <%= status==='suspended' ?'selected':'' %>>Suspendus</option>
       </select>
 
-      <select name="sort_by" id="f-sort">
+      <select name="sort_by" id="f-sort" aria-label="Trier par">
         <option value="createdAt"        <%= sortBy==='createdAt'        ?'selected':'' %>>Date inscription</option>
         <option value="pseudo"           <%= sortBy==='pseudo'           ?'selected':'' %>>Pseudo A-Z</option>
         <option value="lastLoginAt"      <%= sortBy==='lastLoginAt'      ?'selected':'' %>>Dernière connexion</option>
@@ -185,14 +185,14 @@
   <div class="table-wrap"><table>
     <thead>
       <tr>
-        <th style="width:34px"><input type="checkbox" id="u-check-all" onchange="uToggleAll(this)" aria-label="Tout sélectionner"></th>
-        <th data-sort="pseudo">Utilisateur</th>
-        <th>Téléphone</th>
-        <th>1xBet ID</th>
-        <th data-sort="subscriptionPlan">Plan</th>
-        <th data-sort="createdAt">Inscrit le</th>
-        <th data-sort="isActive">Statut</th>
-        <th style="text-align:right">Actions</th>
+        <th scope="col" style="width:34px"><input type="checkbox" id="u-check-all" onchange="uToggleAll(this)" aria-label="Tout sélectionner"></th>
+        <th scope="col" data-sort="pseudo">Utilisateur</th>
+        <th scope="col">Téléphone</th>
+        <th scope="col">1xBet ID</th>
+        <th scope="col" data-sort="subscriptionPlan">Plan</th>
+        <th scope="col" data-sort="createdAt">Inscrit le</th>
+        <th scope="col" data-sort="isActive">Statut</th>
+        <th scope="col" style="text-align:right">Actions</th>
       </tr>
     </thead>
     <tbody id="users-body">

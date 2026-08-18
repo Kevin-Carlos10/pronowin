@@ -214,7 +214,7 @@
     <div class="filter-row">
       <div class="fg">
         <label>Catégorie</label>
-        <select name="cat">
+        <select name="cat" aria-label="Catégorie">
           <option value="">Toutes</option>
           <% Object.entries(_catConfig).forEach(([key, cfg]) => { %>
           <option value="<%= key %>" <%=filters.cat===key?'selected':''%>><%= cfg.icon %> <%= cfg.label %></option>
@@ -224,19 +224,19 @@
       <div class="fg">
         <label>Admin</label>
         <% if (adminList && adminList.length > 1) { %>
-        <select name="admin">
+        <select name="admin" aria-label="Administrateur">
           <option value="">Tous</option>
           <% (adminList||[]).forEach(a => { %>
           <option value="<%= a %>" <%=filters.admin===a?'selected':''%>><%= a %></option>
           <% }); %>
         </select>
         <% } else { %>
-        <input type="text" name="admin" value="<%= filters.admin %>" placeholder="Nom de l'admin…">
+        <input type="text" name="admin" value="<%= filters.admin %>" placeholder="Nom de l'admin…" aria-label="Administrateur">
         <% } %>
       </div>
       <div class="fg">
         <label>Date</label>
-        <input type="date" name="date" value="<%= filters.date %>">
+        <input type="date" name="date" value="<%= filters.date %>" aria-label="Date">
       </div>
       <div style="display:flex;gap:.4rem;align-items:flex-end">
         <button class="btn btn-primary btn-sm" type="submit">Filtrer</button>
@@ -259,12 +259,12 @@
     <table class="audit-table">
       <thead>
         <tr>
-          <th>Date / Heure</th>
-          <th>Admin</th>
-          <th>Action</th>
-          <th>Cible</th>
-          <th>IP</th>
-          <th style="width:32px"></th>
+          <th scope="col">Date / Heure</th>
+          <th scope="col">Admin</th>
+          <th scope="col">Action</th>
+          <th scope="col">Cible</th>
+          <th scope="col">IP</th>
+          <th scope="col" style="width:32px"></th>
         </tr>
       </thead>
       <tbody id="audit-tbody">

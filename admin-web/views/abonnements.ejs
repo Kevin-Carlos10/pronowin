@@ -498,7 +498,7 @@
                  for="dd-<%= p.id %>">Durée Premium (jours)</label>
           <input type="number" id="dd-<%= p.id %>" name="duration_days"
             value="<%= p.planId === 'premium_annual' ? 365 : 30 %>" min="1" max="365"
-            style="width:100%;margin-top:4px">
+            style="width:100%;margin-top:4px" aria-label="Durée en jours">
           <% if(p.planId){ %>
             <p style="font-size:10px;color:#8892AA;margin-top:3px"><svg class="ic" aria-hidden="true"><use href="#ic-bulb"/></svg> Plan <%= p.planId === 'premium_annual' ? 'annuel (365j)' : 'mensuel (30j)' %> déclaré à la souscription</p>
           <% } %>
@@ -508,7 +508,7 @@
           <label style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px"
                  for="an-<%= p.id %>">Note pour l'utilisateur (optionnel)</label>
           <textarea id="an-<%= p.id %>" name="admin_note" rows="2" style="width:100%;margin-top:4px;font-size:12px"
-            placeholder="Message envoyé par notification..."></textarea>
+            placeholder="Message envoyé par notification..." aria-label="Note administrateur"></textarea>
         </div>
 
         <div style="display:flex;gap:8px">

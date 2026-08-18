@@ -79,11 +79,11 @@
       <input type="hidden" name="pseudo" value="<%= user.pseudo %>">
       <div class="form-group" style="margin-bottom:.9rem">
         <label>Raison <span style="color:var(--error)">*</span></label>
-        <textarea class="input" name="reason" rows="3" placeholder="Ex : Arnaque, comportement abusif, fraude…" required></textarea>
+        <textarea class="input" name="reason" rows="3" placeholder="Ex : Arnaque, comportement abusif, fraude…" required aria-label="Raison"></textarea>
       </div>
       <div class="form-group" style="margin-bottom:1.25rem">
         <label>Durée</label>
-        <select class="input" name="duration_days">
+        <select class="input" name="duration_days" aria-label="Durée en jours">
           <option value="1">1 jour</option>
           <option value="3">3 jours</option>
           <option value="7" selected>7 jours</option>
@@ -105,8 +105,8 @@
   <div class="ud-modal-box">
     <div class="ud-modal-title"><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg> Envoyer une notification</div>
     <form method="POST" action="/admin/users/<%= user.id %>/notify">
-      <div class="form-group" style="margin-bottom:.9rem"><label>Titre</label><input class="input" type="text" name="title" required placeholder="Ex : Votre dépôt a été validé"></div>
-      <div class="form-group" style="margin-bottom:1.25rem"><label>Message</label><textarea class="input" name="body" rows="3" required placeholder="Contenu de la notification…"></textarea></div>
+      <div class="form-group" style="margin-bottom:.9rem"><label>Titre</label><input class="input" type="text" name="title" required placeholder="Ex : Votre dépôt a été validé" aria-label="Titre"></div>
+      <div class="form-group" style="margin-bottom:1.25rem"><label>Message</label><textarea class="input" name="body" rows="3" required placeholder="Contenu de la notification…" aria-label="Message"></textarea></div>
       <div style="display:flex;gap:.6rem;justify-content:flex-end">
         <button type="button" class="btn btn-outline" onclick="closeModal('modal-notif')">Annuler</button>
         <button type="submit" class="btn btn-primary"><svg class="ic" aria-hidden="true"><use href="#ic-upload"/></svg> Envoyer</button>
@@ -119,7 +119,7 @@
   <div class="ud-modal-box">
     <div class="ud-modal-title"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier le pseudo</div>
     <form method="POST" action="/admin/users/<%= user.id %>/pseudo">
-      <div class="form-group" style="margin-bottom:1.25rem"><label>Nouveau pseudo</label><input class="input" type="text" name="pseudo" value="<%= user.pseudo %>" required minlength="3"></div>
+      <div class="form-group" style="margin-bottom:1.25rem"><label>Nouveau pseudo</label><input class="input" type="text" name="pseudo" value="<%= user.pseudo %>" required minlength="3" aria-label="Pseudo"></div>
       <div style="display:flex;gap:.6rem;justify-content:flex-end">
         <button type="button" class="btn btn-outline" onclick="closeModal('modal-pseudo')">Annuler</button>
         <button type="submit" class="btn btn-primary">Sauvegarder</button>
@@ -223,8 +223,13 @@
       <div class="ud-panel" id="tab-subs">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Plan</th><th>Statut</th><th>Début</th><th>Fin</th><th>Source</th></tr></thead>
+            <thead><tr><th scope="col">Plan</th><th scope="col">Statut</th><th scope="col">Début</th><th scope="col">Fin</th><th scope="col">Source</th></tr></thead>
             <tbody>
+            <% if (!subscriptions.length) { %>
+            <tr><td colspan="5" style="text-align:center;padding:1.6rem 1rem;color:var(--text-dim);font-size:.84rem">
+              Aucun abonnement. Cet utilisateur n'a jamais activé le Premium.
+            </td></tr>
+            <% } %>
             <% subscriptions.forEach(sub => { %>
             <tr>
               <td><span class="badge badge-warn"><%= sub.plan || sub.subscriptionPlan || 'Premium' %></span></td>
@@ -245,8 +250,13 @@
       <div class="ud-panel" id="tab-refs">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Filleul</th><th>Téléphone</th><th>Plan</th><th>Niveau</th><th>Commission</th></tr></thead>
+            <thead><tr><th scope="col">Filleul</th><th scope="col">Téléphone</th><th scope="col">Plan</th><th scope="col">Niveau</th><th scope="col">Commission</th></tr></thead>
             <tbody>
+            <% if (!referrals.length) { %>
+            <tr><td colspan="5" style="text-align:center;padding:1.6rem 1rem;color:var(--text-dim);font-size:.84rem">
+              Aucun filleul. Personne ne s'est encore inscrit avec son code de parrainage.
+            </td></tr>
+            <% } %>
             <% referrals.forEach(r => { %>
             <tr>
               <td>
@@ -287,7 +297,7 @@
         <form method="POST" action="/admin/users/<%= user.id %>/premium" style="display:flex;gap:.5rem;align-items:flex-end">
           <div style="flex:1">
             <label style="font-size:.72rem;color:var(--text-dim);display:block;margin-bottom:.3rem">Durée (jours)</label>
-            <input class="input" type="number" name="duration_days" value="30" min="1" max="365">
+            <input class="input" type="number" name="duration_days" value="30" min="1" max="365" aria-label="Durée en jours">
           </div>
           <button type="submit" class="btn btn-primary btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Activer</button>
         </form>
@@ -300,7 +310,7 @@
         <form method="POST" action="/admin/users/<%= user.id %>/suspend">
           <input type="hidden" name="suspend" value="<%= user.isActive ? 'true' : 'false' %>">
           <% if(user.isActive) { %>
-          <input class="input" type="text" name="reason" placeholder="Raison (optionnelle)…" style="margin-bottom:.5rem;font-size:.82rem">
+          <input class="input" type="text" name="reason" placeholder="Raison (optionnelle)…" style="margin-bottom:.5rem;font-size:.82rem" aria-label="Raison">
           <% } %>
           <button type="submit" class="btn <%= user.isActive ? 'btn-danger' : 'btn-success' %> btn-sm" style="width:100%"
             onclick="return confirm('<%= user.isActive ? 'Suspendre' : 'Réactiver' %> ce compte ?')">
@@ -323,7 +333,7 @@
         </div>
         <form method="POST" action="/admin/users/<%= user.id %>/unban">
           <input type="hidden" name="pseudo" value="<%= user.pseudo %>">
-          <input class="input" type="text" name="unban_reason" placeholder="Raison du débannissement…" style="margin-bottom:.5rem;font-size:.82rem">
+          <input class="input" type="text" name="unban_reason" placeholder="Raison du débannissement…" style="margin-bottom:.5rem;font-size:.82rem" aria-label="Raison de la levée">
           <button type="submit" class="btn btn-success btn-sm" style="width:100%"><svg class="ic" aria-hidden="true"><use href="#ic-unlock"/></svg> Débannir</button>
         </form>
         <% } else { %>

@@ -122,13 +122,13 @@
     <svg class="ic" aria-hidden="true" style="color:var(--text-m)"><use href="#ic-search"/></svg>
     <input type="search" name="search" value="<%= search %>"
            aria-label="Rechercher un article" placeholder="Titre, résumé…">
-    <select name="category" onchange="this.form.submit()">
+    <select name="category" onchange="this.form.submit()" aria-label="Catégorie">
       <option value="">Toutes catégories</option>
       <% (typeof categories !== 'undefined' ? categories : []).forEach(c => { const cfg = _catCfg[c] || { emoji:'📰', label:c }; %>
       <option value="<%= c %>" <%= category===c ?'selected':'' %>><%= cfg.emoji %> <%= cfg.label %></option>
       <% }) %>
     </select>
-    <select name="status" onchange="this.form.submit()">
+    <select name="status" onchange="this.form.submit()" aria-label="Statut">
       <option value="">Tous statuts</option>
       <option value="published" <%= status==='published' ?'selected':'' %>>✅ Publiés</option>
       <option value="draft"     <%= status==='draft'     ?'selected':'' %>>📝 Brouillons</option>

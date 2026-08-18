@@ -416,7 +416,7 @@
             <div class="s">Réservé aux abonnés Premium uniquement</div>
           </div>
           <div class="checkmark" id="vip-check"><%= (pro.is_premium)?'✓':'○' %></div>
-          <input type="checkbox" name="is_premium" id="is-premium" <%= (pro.is_premium)?'checked':'' %>>
+          <input type="checkbox" name="is_premium" id="is-premium" <%= (pro.is_premium)?'checked':'' %> aria-label="Réservé aux abonnés Premium">
         </div>
       </div>
 

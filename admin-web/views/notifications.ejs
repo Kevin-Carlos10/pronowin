@@ -136,7 +136,7 @@
             <input class="input" type="text" name="target_user" id="inp-target-user"
               placeholder="Pseudo ou numéro de téléphone"
               onclick="event.stopPropagation()"
-              oninput="updateDestDisplay()">
+              oninput="updateDestDisplay()" aria-label="Destinataire">
           </div>
         </div>
 
@@ -155,7 +155,7 @@
           </label>
           <input class="input" type="text" name="title" id="notif-title" maxlength="100" required
             placeholder="Ex : 🎯 Nouveau pronostic disponible !"
-            oninput="updatePreview();countChars('notif-title','title-counter',100)">
+            oninput="updatePreview();countChars('notif-title','title-counter',100)" aria-label="Titre">
           <div class="char-counter" id="title-counter">0 / 100</div>
         </div>
 
@@ -166,7 +166,7 @@
           <textarea class="input" name="body" id="notif-body" maxlength="300" rows="3" required
             placeholder="Ex : Un pronostic Premium vient d'être publié. Connectez-vous pour le consulter !"
             oninput="updatePreview();countChars('notif-body','body-counter',300)"
-            style="resize:vertical;min-height:80px"></textarea>
+            style="resize:vertical;min-height:80px" aria-label="Message"></textarea>
           <div class="char-counter" id="body-counter">0 / 300</div>
         </div>
 
@@ -175,11 +175,11 @@
           <div style="margin-top:.75rem;display:flex;flex-direction:column;gap:.75rem">
             <div>
               <label style="display:block;font-size:.82rem;font-weight:700;color:var(--text-m);margin-bottom:.35rem">URL de redirection (optionnel)</label>
-              <input class="input" type="url" name="data_url" placeholder="https://… ou pronowin://screen/pronostics">
+              <input class="input" type="url" name="data_url" placeholder="https://… ou pronowin://screen/pronostics" aria-label="Lien associé">
             </div>
             <div>
               <label style="display:block;font-size:.82rem;font-weight:700;color:var(--text-m);margin-bottom:.35rem">Image URL (optionnel)</label>
-              <input class="input" type="url" name="image_url" id="notif-img" placeholder="https://…/image.jpg" oninput="updatePreview()">
+              <input class="input" type="url" name="image_url" id="notif-img" placeholder="https://…/image.jpg" oninput="updatePreview()" aria-label="Lien de l'image">
             </div>
           </div>
         </details>
@@ -198,7 +198,7 @@
         <h3 style="font-size:.95rem;font-weight:700;margin:0;flex:1"><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg> Historique des envois</h3>
         <form method="GET" action="/admin/notifications" style="display:flex;gap:.4rem">
           <input class="input" type="text" name="search_history" value="<%= searchH %>"
-            placeholder="Rechercher…" style="font-size:.8rem;padding:.35rem .65rem;width:160px">
+            placeholder="Rechercher…" style="font-size:.8rem;padding:.35rem .65rem;width:160px" aria-label="Rechercher">
           <button type="submit" class="btn btn-outline btn-sm" aria-label="Rechercher"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></button>
           <% if(searchH){ %><a href="/admin/notifications" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></a><% } %>
         </form>
@@ -231,7 +231,8 @@
               onclick="delHist(this.dataset.idx, this.dataset.title)"
               title="Supprimer de l'historique"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg></button>
             <span id="del-form-<%= i %>" style="display:none">
-              <button type="submit" id="del-submit-<%= i %>"></button>
+              <%# Declencheur cache, actionne par le bouton visible au-dessus. %>
+              <button type="submit" id="del-submit-<%= i %>" aria-label="Confirmer la suppression" hidden></button>
             </span>
           </form>
           <% } %>

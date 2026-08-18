@@ -194,11 +194,11 @@
           </div>
           <div class="form-group" style="margin-bottom:.7rem">
             <label style="font-size:.75rem;font-weight:700;color:var(--text-m)">Version minimale<%- src('APP_MIN_VERSION') %></label>
-            <input class="input" type="text" name="APP_MIN_VERSION" value="<%= v.APP_MIN_VERSION %>" placeholder="1.0.0" style="margin-top:.3rem">
+            <input class="input" type="text" name="APP_MIN_VERSION" value="<%= v.APP_MIN_VERSION %>" placeholder="1.0.0" style="margin-top:.3rem" aria-label="APP_MIN_VERSION">
           </div>
           <div class="form-group" style="margin-bottom:.7rem">
             <label style="font-size:.75rem;font-weight:700;color:var(--text-m)">Dernière version<%- src('APP_LATEST_VERSION') %></label>
-            <input class="input" type="text" name="APP_LATEST_VERSION" value="<%= v.APP_LATEST_VERSION %>" placeholder="1.0.0" style="margin-top:.3rem">
+            <input class="input" type="text" name="APP_LATEST_VERSION" value="<%= v.APP_LATEST_VERSION %>" placeholder="1.0.0" style="margin-top:.3rem" aria-label="APP_LATEST_VERSION">
           </div>
           <div class="tog-row">
             <div>
@@ -219,11 +219,11 @@
           </div>
           <div class="form-group" style="margin-bottom:.7rem">
             <label style="font-size:.75rem;font-weight:700;color:var(--text-m)">Version minimale<%- src('APK_MIN_VERSION') %></label>
-            <input class="input" type="text" name="APK_MIN_VERSION" value="<%= v.APK_MIN_VERSION %>" placeholder="1.0.0" style="margin-top:.3rem">
+            <input class="input" type="text" name="APK_MIN_VERSION" value="<%= v.APK_MIN_VERSION %>" placeholder="1.0.0" style="margin-top:.3rem" aria-label="APK_MIN_VERSION">
           </div>
           <div class="form-group" style="margin-bottom:.7rem">
             <label style="font-size:.75rem;font-weight:700;color:var(--text-m)">Dernière version<%- src('APK_LATEST_VERSION') %></label>
-            <input class="input" type="text" name="APK_LATEST_VERSION" value="<%= v.APK_LATEST_VERSION %>" placeholder="1.0.0" style="margin-top:.3rem">
+            <input class="input" type="text" name="APK_LATEST_VERSION" value="<%= v.APK_LATEST_VERSION %>" placeholder="1.0.0" style="margin-top:.3rem" aria-label="APK_LATEST_VERSION">
           </div>
           <div class="tog-row">
             <div>
@@ -241,7 +241,7 @@
       <div class="form-group" style="margin-top:1rem;margin-bottom:.7rem">
         <label style="font-size:.75rem;font-weight:700;color:var(--text-m)">URL de téléchargement de l'APK<%- src('APK_URL') %></label>
         <input class="input" type="url" name="APK_URL" value="<%= v.APK_URL %>"
-               placeholder="https://pronowin.com/telecharger/pronowin.apk" style="margin-top:.3rem">
+               placeholder="https://pronowin.com/telecharger/pronowin.apk" style="margin-top:.3rem" aria-label="APK_URL">
         <div style="font-size:.71rem;color:var(--text-dim);margin-top:.25rem">
           Laissé vide, aucune invitation à mettre à jour n'est affichée aux utilisateurs de l'APK —
           plutôt qu'un bouton menant à un lien mort.
@@ -250,7 +250,7 @@
 
       <div class="form-group" style="margin-bottom:1rem">
         <label style="font-size:.75rem;font-weight:700;color:var(--text-m)">Message affiché<%- src('APP_UPDATE_MESSAGE') %></label>
-        <textarea class="input" name="APP_UPDATE_MESSAGE" rows="2" maxlength="300" style="margin-top:.3rem"><%= v.APP_UPDATE_MESSAGE %></textarea>
+        <textarea class="input" name="APP_UPDATE_MESSAGE" rows="2" maxlength="300" style="margin-top:.3rem" aria-label="APP_UPDATE_MESSAGE"><%= v.APP_UPDATE_MESSAGE %></textarea>
         <div style="font-size:.71rem;color:var(--text-dim);margin-top:.25rem">Commun aux deux canaux. Max 300 caractères.</div>
       </div>
 
@@ -282,7 +282,7 @@
         <label style="font-size:.78rem;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.04em">Message affiché</label>
         <textarea class="input" name="maintenanceMessage" rows="3" maxlength="500"
           style="margin-top:.35rem"
-          placeholder="Ex : Le panel est en cours de maintenance…"><%= settings.maintenanceMessage %></textarea>
+          placeholder="Ex : Le panel est en cours de maintenance…" aria-label="maintenanceMessage"><%= settings.maintenanceMessage %></textarea>
         <div style="font-size:.71rem;color:var(--text-dim);margin-top:.25rem">Max 500 caractères</div>
       </div>
 
@@ -335,7 +335,7 @@
         </label>
         <textarea class="input" name="announcementText" id="ann-text" rows="2" maxlength="300"
           placeholder="Ex : Mise à jour ce soir à 23h…"
-          oninput="updateAnnPreview()"><%= settings.announcementText %></textarea>
+          oninput="updateAnnPreview()" aria-label="announcementText"><%= settings.announcementText %></textarea>
         <div class="ann-preview <%= settings.announcementType||'info' %>" id="ann-preview" style="<%= settings.announcementText ? '' : 'display:none' %>">
           <span id="ann-preview-ico"><%= settings.announcementType==='warning'?'⚠':settings.announcementType==='danger'?'⚠':'ℹ' %></span>
           <span id="ann-preview-txt"><%= settings.announcementText %></span>
@@ -356,13 +356,13 @@
 
       <div class="form-group" style="margin-bottom:.9rem">
         <label style="font-size:.78rem;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.35rem">Titre du panel</label>
-        <input class="input" type="text" name="panelTitle" value="<%= settings.panelTitle %>" maxlength="60" placeholder="PronoWin Admin">
+        <input class="input" type="text" name="panelTitle" value="<%= settings.panelTitle %>" maxlength="60" placeholder="PronoWin Admin" aria-label="PronoWin Admin">
         <div style="font-size:.71rem;color:var(--text-dim);margin-top:.25rem">Affiché dans l'onglet du navigateur</div>
       </div>
 
       <div class="form-group" style="margin-bottom:.9rem">
         <label style="font-size:.78rem;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.35rem">Fuseau horaire</label>
-        <select class="input" name="timezone">
+        <select class="input" name="timezone" aria-label="timezone">
           <% ['Europe/Paris','Africa/Abidjan','Africa/Dakar','Africa/Douala','Africa/Lagos','Africa/Nairobi','America/New_York','America/Los_Angeles','Asia/Dubai','UTC'].forEach(tz => { %>
           <option value="<%= tz %>" <%= settings.timezone===tz?'selected':'' %>><%= tz %></option>
           <% }); %>
@@ -375,17 +375,17 @@
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:.75rem">
           <div>
             <label style="font-size:.72rem;color:var(--text-dim);display:block;margin-bottom:.3rem">Session (min)</label>
-            <input class="input" type="number" name="sessionTimeoutMin" min="5" max="480" value="<%= settings.sessionTimeoutMin %>">
+            <input class="input" type="number" name="sessionTimeoutMin" min="5" max="480" value="<%= settings.sessionTimeoutMin %>" aria-label="sessionTimeoutMin">
             <div style="font-size:.68rem;color:var(--text-dim);margin-top:.2rem">5–480</div>
           </div>
           <div>
             <label style="font-size:.72rem;color:var(--text-dim);display:block;margin-bottom:.3rem">Max tentatives</label>
-            <input class="input" type="number" name="loginMaxAttempts" min="1" max="20" value="<%= settings.loginMaxAttempts %>">
+            <input class="input" type="number" name="loginMaxAttempts" min="1" max="20" value="<%= settings.loginMaxAttempts %>" aria-label="loginMaxAttempts">
             <div style="font-size:.68rem;color:var(--text-dim);margin-top:.2rem">1–20</div>
           </div>
           <div>
             <label style="font-size:.72rem;color:var(--text-dim);display:block;margin-bottom:.3rem">Blocage (min)</label>
-            <input class="input" type="number" name="loginBlockMinutes" min="1" max="120" value="<%= settings.loginBlockMinutes %>">
+            <input class="input" type="number" name="loginBlockMinutes" min="1" max="120" value="<%= settings.loginBlockMinutes %>" aria-label="loginBlockMinutes">
             <div style="font-size:.68rem;color:var(--text-dim);margin-top:.2rem">1–120</div>
           </div>
         </div>
@@ -425,8 +425,8 @@
           Glisser ou <span style="color:var(--primary);font-weight:600">cliquer</span> pour choisir un <code>.json</code>
         </p>
       </div>
-      <input type="file" id="bk-file" accept=".json" style="display:none" onchange="loadBkFile(this)">
-      <textarea name="backup_json" id="bk-json" style="display:none"></textarea>
+      <input type="file" id="bk-file" accept=".json" style="display:none" aria-label="Fichier de sauvegarde à restaurer" onchange="loadBkFile(this)">
+      <textarea name="backup_json" id="bk-json" style="display:none" aria-label="backup_json"></textarea>
       <div style="display:flex;gap:.75rem;align-items:center">
         <button class="btn btn-outline" type="button" id="restore-btn" disabled
           data-msg="Cette action va écraser les données actuelles (sous-admins, paramètres, logs). Êtes-vous sûr ?"

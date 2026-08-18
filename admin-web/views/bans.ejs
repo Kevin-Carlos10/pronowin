@@ -158,26 +158,26 @@
       <label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem">
         ID utilisateur <span style="color:var(--error)">*</span>
       </label>
-      <input class="input" type="text" id="qb-userid" placeholder="ID numérique de l'utilisateur" required>
+      <input class="input" type="text" id="qb-userid" placeholder="ID numérique de l'utilisateur" required aria-label="ID numérique de l'utilisateur">
       <div style="font-size:.68rem;color:var(--text-dim);margin-top:.2rem">Trouvez l'ID sur la page utilisateur</div>
     </div>
     <div>
       <label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem">
         Pseudo (affiché)
       </label>
-      <input class="input" type="text" id="qb-pseudo" placeholder="Pseudo de l'utilisateur">
+      <input class="input" type="text" id="qb-pseudo" placeholder="Pseudo de l'utilisateur" aria-label="Pseudo de l'utilisateur">
     </div>
     <div>
       <label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem">
         Raison <span style="color:var(--error)">*</span>
       </label>
-      <input class="input" type="text" id="qb-reason" placeholder="Ex: Comportement abusif, fraude…" maxlength="500" required>
+      <input class="input" type="text" id="qb-reason" aria-label="Raison du bannissement" placeholder="Ex: Comportement abusif, fraude…" maxlength="500" required>
     </div>
     <div>
       <label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem">
         Durée
       </label>
-      <select class="input" id="qb-duration">
+      <select class="input" id="qb-duration" aria-label="Durée du bannissement">
         <option value="1">1 jour</option>
         <option value="3">3 jours</option>
         <option value="7" selected>7 jours</option>
@@ -211,7 +211,7 @@
   <form method="GET" action="/admin/bans" style="display:flex;gap:.4rem;flex:1;max-width:340px">
     <input type="hidden" name="filter" value="<%= filter %>">
     <input class="input" type="search" name="search" value="<%= search %>"
-      placeholder="Pseudo, raison, admin…" style="flex:1">
+      placeholder="Pseudo, raison, admin…" style="flex:1" aria-label="Rechercher">
     <button class="btn btn-primary btn-sm" type="submit" aria-label="Lancer la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></button>
     <% if (search) { %>
     <a href="/admin/bans?filter=<%= filter %>" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></a>
@@ -294,14 +294,14 @@
   <table>
     <thead>
       <tr>
-        <th>Utilisateur</th>
-        <th>Raison</th>
-        <th>Durée</th>
-        <th>Banni le</th>
-        <th>Expire le</th>
-        <th>Par</th>
-        <th>Statut</th>
-        <th style="text-align:right">Actions</th>
+        <th scope="col">Utilisateur</th>
+        <th scope="col">Raison</th>
+        <th scope="col">Durée</th>
+        <th scope="col">Banni le</th>
+        <th scope="col">Expire le</th>
+        <th scope="col">Par</th>
+        <th scope="col">Statut</th>
+        <th scope="col" style="text-align:right">Actions</th>
       </tr>
     </thead>
     <tbody>

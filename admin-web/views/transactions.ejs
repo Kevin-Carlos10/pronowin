@@ -180,9 +180,9 @@
 <!-- ── Filtres ───────────────────────────────────────────────────────────── -->
 <div class="card" style="padding:.85rem 1.25rem;margin-bottom:1rem">
   <form method="GET" action="/admin/transactions" class="tx-filter-row">
-    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, 1xBet ID…">
+    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, 1xBet ID…" aria-label="Rechercher">
 
-    <select name="method">
+    <select name="method" aria-label="Méthode">
       <option value="">Toutes méthodes</option>
       <% (typeof methods !== 'undefined' ? methods : []).forEach(m => { %>
       <option value="<%= m %>" <%= method===m ?'selected':'' %>><%= _methodLabel(m) %></option>
@@ -341,7 +341,7 @@
   <div class="tx-actions">
     <form method="POST" action="/admin/transactions/<%= tx.id %>" id="form-<%= tx.id %>" style="display:contents">
       <div class="tx-note">
-        <textarea name="admin_note" placeholder="Note admin (optionnelle)…" rows="2"></textarea>
+        <textarea name="admin_note" placeholder="Note admin (optionnelle)…" rows="2" aria-label="Note administrateur"></textarea>
       </div>
       <div class="tx-btns">
         <button type="button" class="btn btn-success btn-sm"

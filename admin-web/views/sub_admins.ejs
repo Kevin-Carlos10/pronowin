@@ -314,20 +314,20 @@
     <div class="form-row" style="margin-bottom:.85rem">
       <div class="form-group" style="margin:0">
         <label>Nom affiché</label>
-        <input class="input" type="text" name="name" placeholder="Ex : Jean Martin" required maxlength="60">
+        <input class="input" type="text" name="name" placeholder="Ex : Jean Martin" required maxlength="60" aria-label="Nom affiché">
       </div>
       <div class="form-group" style="margin:0">
         <label>Identifiant de connexion</label>
         <%# Le navigateur pre-remplissait ce champ avec l'identifiant d'un compte
             deja enregistre : on cree un compte, on n'en rouvre pas un. %>
         <input class="input" type="text" name="username" placeholder="jean_martin" required maxlength="40"
-               pattern="[a-zA-Z0-9_\-]+" autocomplete="off">
+               pattern="[a-zA-Z0-9_\-]+" autocomplete="off" aria-label="Identifiant de connexion">
       </div>
     </div>
     <div class="form-group">
       <label>Mot de passe</label>
       <input class="input" type="password" name="password" id="create-pwd" placeholder="Min. 8 caractères"
-             required minlength="8" autocomplete="new-password">
+             required minlength="8" autocomplete="new-password" aria-label="Mot de passe">
       <div class="pwd-strength"><div class="pwd-strength-bar" id="create-pwd-bar"></div></div>
       <div class="pwd-strength-label" id="create-pwd-label"></div>
     </div>
@@ -379,14 +379,14 @@
       <div class="form-group">
         <label>Nouveau mot de passe</label>
         <input class="input" type="password" name="password" id="pwd-input" placeholder="Min. 8 caractères"
-               required minlength="8" autocomplete="new-password">
+               required minlength="8" autocomplete="new-password" aria-label="Mot de passe">
         <div class="pwd-strength"><div class="pwd-strength-bar" id="modal-pwd-bar"></div></div>
         <div class="pwd-strength-label" id="modal-pwd-label"></div>
       </div>
       <div class="form-group">
         <label>Confirmer le mot de passe</label>
         <input class="input" type="password" id="pwd-confirm" placeholder="Répéter le mot de passe"
-               autocomplete="new-password">
+               autocomplete="new-password" aria-label="Répéter le mot de passe">
       </div>
       <div class="modal-actions">
         <button class="btn btn-outline" type="button" onclick="closeModal('modal-pwd')">Annuler</button>

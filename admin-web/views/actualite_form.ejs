@@ -106,13 +106,13 @@ input[name=category] { display:none; }
         <label>Titre <span style="color:var(--error)">*</span> <span class="af-counter" id="cnt-title">0/120</span></label>
         <input class="input" type="text" name="title" id="inp-title" value="<%= art.title||'' %>"
           placeholder="Ex : Grosse cote du week-end 🔥"
-          oninput="updateCounter('inp-title','cnt-title',120);updatePreview()" required>
+          oninput="updateCounter('inp-title','cnt-title',120);updatePreview()" required aria-label="Titre">
       </div>
       <div class="af-field" style="margin-bottom:0">
         <label>Résumé (affiché dans la liste) <span class="af-counter" id="cnt-summary">0/250</span></label>
         <textarea class="input" name="summary" id="inp-summary" rows="2"
           placeholder="Une ou deux phrases résumant l'article…"
-          oninput="updateCounter('inp-summary','cnt-summary',250);updatePreview()"><%= art.summary||'' %></textarea>
+          oninput="updateCounter('inp-summary','cnt-summary',250);updatePreview()" aria-label="Résumé"><%= art.summary||'' %></textarea>
       </div>
     </div>
 
@@ -122,7 +122,7 @@ input[name=category] { display:none; }
         <label>Contenu complet <span class="af-counter" id="cnt-content">0/5000</span></label>
         <textarea class="input" name="content" id="inp-content" rows="12"
           placeholder="Contenu de l'article… Vous pouvez utiliser du HTML basique : &lt;b&gt;, &lt;i&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;a href=&quot;…&quot;&gt;…"
-          oninput="updateCounter('inp-content','cnt-content',5000)"><%= art.content||'' %></textarea>
+          oninput="updateCounter('inp-content','cnt-content',5000)" aria-label="Contenu"><%= art.content||'' %></textarea>
         <div class="hint">HTML basique supporté. Évitez les scripts.</div>
       </div>
     </div>
@@ -142,7 +142,7 @@ input[name=category] { display:none; }
         </div>
         <div class="af-field" style="margin-top:.6rem;margin-bottom:0">
           <label style="font-weight:400;font-size:.75rem">Ou catégorie personnalisée</label>
-          <input class="input" type="text" id="inp-cat-custom" list="cat-datalist"
+          <input class="input" type="text" id="inp-cat-custom" list="cat-datalist" aria-label="Nouvelle catégorie"
             placeholder="Ex : partenariat"
             value="<%= catList.some(c => c.key===selCat) ? '' : selCat %>"
             oninput="selectCat(this.value.trim().toLowerCase())">
@@ -160,7 +160,7 @@ input[name=category] { display:none; }
         <input class="input" type="url" name="imageUrl" id="inp-img"
           value="<%= art.imageUrl||'' %>"
           placeholder="https://exemple.com/image.jpg"
-          oninput="updateImg()">
+          oninput="updateImg()" aria-label="Lien de l'image">
         <div class="hint">Format recommandé : 1200 × 525 px (ratio 16:7)</div>
       </div>
     </div>

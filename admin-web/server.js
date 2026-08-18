@@ -371,7 +371,12 @@ function logAction(req, action, target = '', details = {}) {
     });
     if (logs.length > LOG_MAX) logs.splice(LOG_MAX);
     saveLogs(logs);
-  } catch {}
+  } catch (e) {
+    // Le journal est la trace de responsabilite du panneau : une entree perdue
+    // en silence, c'est une action administrative sans preuve. On ne peut pas
+    // interrompre l'action pour autant, mais on le signale.
+    console.error("[admin] Échec d'écriture du journal d'audit :", e.message);
+  }
 }
 
 // ─── SYSTÈME DE PERMISSIONS GRANULAIRES ─────────────────────────────────────
@@ -901,10 +906,7 @@ app.get('/admin/api/live', requireAuth, (req, res) => {
   const client = { res, perms: res.locals.isMain ? null : (res.locals.adminPerms ?? []) };
   sseClients.add(client);
   fetchLiveKPIs(req.cookies.admin_token).then(kpis => {
-    if (kpis) { try { res.write(`event: kpis
-data: ${JSON.stringify(kpisPour(client.perms, kpis))}
-
-`); } catch {} }
+    if (kpis) { try { res.write(`event: kpis\ndata: ${JSON.stringify(kpisPour(client.perms, kpis))}\n\n`); } catch {} }
   });
   req.on('close', () => sseClients.delete(client));
 });

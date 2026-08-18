@@ -308,15 +308,28 @@ module.exports = (app, ctx) => {
       adminName:   req.cookies?.admin_name ?? 'Admin',
       adminIp:     getClientIP(req),
     });
-    // Notifier le backend (suspension du compte)
+    // Suspendre le compte côté API. L'échec était avalé en silence et l'écran
+    // annonçait quand même « banni avec succès » : le ban n'existait alors que
+    // dans le fichier local et l'utilisateur continuait à se connecter.
+    let suspendu = true;
     try {
       const a = api(req.cookies.admin_token);
       await a.patch('/admin/users/' + req.params.id + '/suspend', { suspend: true, reason });
-    } catch { /* le backend peut ne pas avoir cette route */ }
-    logAction(req, 'user_banned', `User #${req.params.id} (${pseudo})`, { reason, durationDays: dur, banId: ban.id });
+    } catch (e) {
+      suspendu = false;
+      console.warn(`Bannissement de ${pseudo} : suspension du compte refusée par l'API —`,
+                   e.response?.status ?? e.code ?? e.message);
+    }
+    logAction(req, 'user_banned', `User #${req.params.id} (${pseudo})`,
+              { reason, durationDays: dur, banId: ban.id, compteSuspendu: suspendu });
     sseBroadcast('ban_update', { type: 'banned', userId: req.params.id, pseudo, ts: Date.now() });
     const redir = req.body.redirect_to ?? `/admin/users/${req.params.id}`;
-    res.redirect(redir + (redir.includes('?') ? '&' : '?') + 'success=' + encodeURIComponent(`Utilisateur « ${pseudo} » banni avec succès.`));
+    const cle   = suspendu ? 'success' : 'error';
+    const texte = suspendu
+      ? `Utilisateur « ${pseudo} » banni avec succès.`
+      : `Bannissement de « ${pseudo} » enregistré, mais le compte n'a PAS pu être suspendu `
+      + `(API injoignable ou refus). L'utilisateur peut encore se connecter — réessayez.`;
+    res.redirect(redir + (redir.includes('?') ? '&' : '?') + cle + '=' + encodeURIComponent(texte));
   });
 
   // Débannir un utilisateur
@@ -324,15 +337,27 @@ module.exports = (app, ctx) => {
   app.post('/admin/users/:id/unban', requireAuth, requirePerm('users', 'write'), async (req, res) => {
     const { pseudo, unban_reason } = req.body;
     unbanUser(req.params.id, req.cookies?.admin_name ?? 'Admin', sanitize(unban_reason ?? '', 500));
-    // Réactiver le compte côté backend
+    // Symétrique du bannissement : si l'API refuse, le compte reste suspendu
+    // alors que l'écran annonçait un déban réussi.
+    let reactive = true;
     try {
       const a = api(req.cookies.admin_token);
       await a.patch('/admin/users/' + req.params.id + '/suspend', { suspend: false });
-    } catch {}
-    logAction(req, 'user_unbanned', `User #${req.params.id} (${pseudo})`, { reason: unban_reason });
+    } catch (e) {
+      reactive = false;
+      console.warn(`Débannissement de ${pseudo} : réactivation refusée par l'API —`,
+                   e.response?.status ?? e.code ?? e.message);
+    }
+    logAction(req, 'user_unbanned', `User #${req.params.id} (${pseudo})`,
+              { reason: unban_reason, compteReactive: reactive });
     sseBroadcast('ban_update', { type: 'unbanned', userId: req.params.id, pseudo, ts: Date.now() });
     const redir = req.body.redirect_to ?? `/admin/users/${req.params.id}`;
-    res.redirect(redir + (redir.includes('?') ? '&' : '?') + 'success=' + encodeURIComponent(`Utilisateur « ${pseudo} » débanni.`));
+    const cle   = reactive ? 'success' : 'error';
+    const texte = reactive
+      ? `Utilisateur « ${pseudo} » débanni.`
+      : `Bannissement de « ${pseudo} » levé localement, mais le compte n'a PAS pu être `
+      + `réactivé (API injoignable ou refus). Il reste bloqué — réessayez.`;
+    res.redirect(redir + (redir.includes('?') ? '&' : '?') + cle + '=' + encodeURIComponent(texte));
   });
 
   // Helper redirect avec erreur

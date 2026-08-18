@@ -124,20 +124,20 @@
         ? `${l.league} · ${l.leagueCountry || l.leagueCode}`
         : l.league;
     %>
-    <select name="competition" onchange="this.form.submit()">
+    <select name="competition" onchange="this.form.submit()" aria-label="Compétition">
       <option value="">🌐 Tout</option>
       <option value="MAJORS" <%= competition==='MAJORS' ?'selected':'' %>>⭐ Ligues principales + amicaux</option>
       <% _ligues.forEach(l => { %>
         <option value="<%= l.leagueCode %>" <%= competition===l.leagueCode ?'selected':'' %>><%= _libelle(l) %></option>
       <% }) %>
     </select>
-    <select name="status" onchange="this.form.submit()">
+    <select name="status" onchange="this.form.submit()" aria-label="Statut">
       <option value="">Tous statuts</option>
       <option value="published" <%= _statusFilter==='published'?'selected':'' %>>✅ Publiés</option>
       <option value="draft"     <%= _statusFilter==='draft'    ?'selected':'' %>>✏️ Brouillons</option>
       <option value="none"      <%= _statusFilter==='none'     ?'selected':'' %>>— Sans prono</option>
     </select>
-    <input type="text" name="q" placeholder="🔍 Équipe ou ligue..." value="<%= typeof q !== 'undefined' ? q : '' %>">
+    <input type="text" name="q" placeholder="🔍 Équipe ou ligue..." value="<%= typeof q !== 'undefined' ? q : '' %>" aria-label="Rechercher">
     <% if((typeof mine === 'undefined' || !mine) && (typeof live === 'undefined' || !live)) { %>
     <input type="date" name="date" title="Voir les matchs d'une date précise (passée ou à venir)" value="<%= typeof date !== 'undefined' ? date : '' %>">
     <% } %>
@@ -195,15 +195,15 @@
     <table class="dt">
       <thead>
         <tr>
-          <th class="col-check"><input type="checkbox" id="pro-all" aria-label="Tout sélectionner"></th>
-          <th>Coup d'envoi</th>
-          <% if(!_isGrouped) { %><th>Compétition</th><% } %>
-          <th>Match</th>
-          <th>Pronostic</th>
-          <th class="num">Cote</th>
-          <th class="num">Conf.</th>
-          <th>Statut</th>
-          <th class="col-act">Actions</th>
+          <th scope="col" class="col-check"><input type="checkbox" id="pro-all" aria-label="Tout sélectionner"></th>
+          <th scope="col">Coup d'envoi</th>
+          <% if(!_isGrouped) { %><th scope="col">Compétition</th><% } %>
+          <th scope="col">Match</th>
+          <th scope="col">Pronostic</th>
+          <th scope="col" class="num">Cote</th>
+          <th scope="col" class="num">Conf.</th>
+          <th scope="col">Statut</th>
+          <th scope="col" class="col-act">Actions</th>
         </tr>
       </thead>
       <tbody>
