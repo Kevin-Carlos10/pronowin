@@ -83,17 +83,27 @@ export const previewSegment = async (req: AdminRequest, res: Response) => {
  * (« Erreur lors de l'envoi »), aucune campagne n'ayant jamais pu partir.
  */
 export const sendSegment = async (req: AdminRequest, res: Response) => {
-  const { title, body, segment = 'all', data, image } = req.body;
+  const { title, body, segment = 'all', data, image, target_user } = req.body;
   if (!title?.trim() || !body?.trim()) {
     res.status(422).json({ message: 'title et body requis.' }); return;
   }
+
+  const charge = {
+    title:    title.trim(),
+    body:     body.trim(),
+    deepLink: data?.url,
+    imageUrl: image,
+  };
+
   try {
-    res.json(await svc.sendToSegment(segment, {
-      title:    title.trim(),
-      body:     body.trim(),
-      deepLink: data?.url,
-      imageUrl: image,
-    }));
+    // Cible unique : le formulaire admin propose ce mode pour tester un message
+    // avant diffusion. `target_user` n'était pas transmis et « user » n'existe
+    // pas comme segment — l'envoi échouait systématiquement.
+    if (segment === 'user') {
+      res.json(await svc.sendToHandle(String(target_user ?? ''), charge));
+      return;
+    }
+    res.json(await svc.sendToSegment(segment, charge));
   } catch (e: any) { res.status(422).json({ message: e.message }); }
 };
 

@@ -3,6 +3,9 @@ import { prisma } from '../lib/prisma';
 import { ApiFootballService, apiFootballService, mapAFStatus, matchStatusPriority } from './api_football.service';
 import { NotificationService } from './notification.service';
 import { settleBets } from './bankroll.service';
+// Moteur de règlement — extrait dans son propre module pour être testable
+// sans base de données (cf. settlement.ts).
+import { _resolvePronosticResult, type ScoreLine } from './settlement';
 
 const notifSvc  = new NotificationService();
 
@@ -16,262 +19,6 @@ const notifSvc  = new NotificationService();
 // principal tourne 24h/24 au lieu de 18h/24 avec blackout.
 const staleRetryBackoff = new Map<number, number>(); // externalId → dernier essai (ms)
 const STALE_RETRY_INTERVAL = 45 * 60 * 1000; // 45 min entre deux tentatives sur le même match
-
-// Calcule WIN ou LOSS selon le type de pronostic et le score final
-function _computeResult(
-  type: string,
-  home: number,
-  away: number,
-): 'WIN' | 'LOSS' | null {
-  const total = home + away;
-  const correct = (() => {
-    switch (type.toLowerCase()) {
-      case 'win1':    return home > away;
-      case 'draw':    return home === away;
-      case 'win2':    return away > home;
-      case 'btts':    return home > 0 && away > 0;
-      case 'over25':  return total > 2;
-      case 'under25': return total < 3;
-      case 'over35':  return total > 3;
-      case 'under35': return total < 4;
-      default:        return null;
-    }
-  })();
-  if (correct === null) return null;
-  return correct ? 'WIN' : 'LOSS';
-}
-
-// ─── Règlement des marchés "personnalisés" (predictionType === 'other') ──────
-// marketName/marketValue sont stockés en anglais brut (cohérence avec l'API
-// — cf. pronostic_form.ejs), c'est donc sur ce format qu'on parse ici.
-
-type ScoreLine = { home: number; away: number };
-
-function _winner(s: ScoreLine): 'Home' | 'Draw' | 'Away' {
-  if (s.home > s.away) return 'Home';
-  if (s.away > s.home) return 'Away';
-  return 'Draw';
-}
-
-function _secondHalf(ft: ScoreLine, fh: ScoreLine): ScoreLine {
-  return { home: ft.home - fh.home, away: ft.away - fh.away };
-}
-
-function _parseOverUnder(value: string): { over: boolean; line: number } | null {
-  const m = value.match(/^(Over|Under)\s+(\d+(?:\.\d+)?)$/);
-  if (!m) return null;
-  return { over: m[1] === 'Over', line: parseFloat(m[2]) };
-}
-
-function _overUnderResult(over: boolean, line: number, total: number): 'WIN' | 'LOSS' | 'PUSH' {
-  if (total === line) return 'PUSH'; // seulement possible sur une ligne ronde (Over 2.0, Over 3.0...)
-  return (total > line) === over ? 'WIN' : 'LOSS';
-}
-
-function _parseExactScore(value: string): ScoreLine | null {
-  const m = value.match(/^(\d+):(\d+)$/);
-  if (!m) return null;
-  return { home: parseInt(m[1], 10), away: parseInt(m[2], 10) };
-}
-
-function _parseCombo(value: string): [string, string] | null {
-  const parts = value.split('/');
-  return parts.length === 2 ? [parts[0], parts[1]] : null;
-}
-
-function _parseHandicapValue(value: string): { side: 'Home' | 'Away'; line: number } | null {
-  const m = value.match(/^(Home|Away)\s*([+-]?\d+(?:\.\d+)?)$/);
-  if (!m) return null;
-  return { side: m[1] as 'Home' | 'Away', line: parseFloat(m[2]) };
-}
-
-/** Résultat d'un handicap sur une ligne entière ou demi-entière (push possible uniquement sur ligne entière). */
-function _handicapOutcome(side: 'Home' | 'Away', line: number, s: ScoreLine): 'WIN' | 'LOSS' | 'PUSH' {
-  const teamScore = side === 'Home' ? s.home : s.away;
-  const oppScore  = side === 'Home' ? s.away : s.home;
-  const adjusted  = teamScore + line;
-  if (adjusted > oppScore) return 'WIN';
-  if (adjusted < oppScore) return 'LOSS';
-  return 'PUSH';
-}
-
-/**
- * Handicap asiatique complet, y compris les lignes à quart (-0.25, -0.75...)
- * qui n'existent pas en pari classique : elles scindent virtuellement la
- * mise en deux moitiés sur les deux lignes demi-entières adjacentes.
- * Notre système n'a que 3 états (pas de "demi-victoire") : gagné+remboursé
- * devient WIN net, perdu+remboursé devient LOSS net — c'est la convention
- * standard des calculateurs de handicap asiatique.
- */
-function _asianHandicapResult(side: 'Home' | 'Away', line: number, s: ScoreLine): 'WIN' | 'LOSS' | 'PUSH' {
-  const quarterUnits  = Math.round(line * 4);
-  const isQuarterLine = Math.abs(line * 4 - quarterUnits) < 1e-9 && quarterUnits % 2 !== 0;
-  if (!isQuarterLine) return _handicapOutcome(side, line, s);
-
-  const lower = Math.floor(line * 2) / 2;
-  const upper = lower + 0.5;
-  const outcomes = [_handicapOutcome(side, lower, s), _handicapOutcome(side, upper, s)];
-  if (outcomes.every(o => o === 'WIN'))  return 'WIN';
-  if (outcomes.every(o => o === 'LOSS')) return 'LOSS';
-  return outcomes.includes('WIN') ? 'WIN' : 'LOSS'; // moitié gagnée/remboursée ou perdue/remboursée
-}
-
-/**
- * Règle un pronostic "marché personnalisé" à partir du marketName/marketValue
- * bruts 1xBet. Couvre la quasi-totalité des ~31 marchés proposés dans
- * l'admin ; retourne null pour les cas non couverts ("To Qualify", qui n'a
- * pas de sens sur un match simple — concept aller-retour) ou quand une
- * donnée nécessaire manque (score mi-temps absent pour un marché "MT").
- */
-function _computeCustomMarketResult(
-  marketName: string,
-  marketValue: string,
-  ft: ScoreLine,
-  fh: ScoreLine | null,
-): 'WIN' | 'LOSS' | 'PUSH' | null {
-  const sh = fh ? _secondHalf(ft, fh) : null;
-  const isWDA = (v: string) => v === 'Home' || v === 'Draw' || v === 'Away';
-
-  switch (marketName) {
-    case 'Match Winner':
-      return isWDA(marketValue) ? (_winner(ft) === marketValue ? 'WIN' : 'LOSS') : null;
-    case 'First Half Winner':
-      return fh && isWDA(marketValue) ? (_winner(fh) === marketValue ? 'WIN' : 'LOSS') : null;
-    case 'Second Half Winner':
-      return sh && isWDA(marketValue) ? (_winner(sh) === marketValue ? 'WIN' : 'LOSS') : null;
-
-    case 'Both Teams Score':
-      return marketValue === 'Yes' || marketValue === 'No'
-        ? ((ft.home > 0 && ft.away > 0) === (marketValue === 'Yes') ? 'WIN' : 'LOSS') : null;
-    case 'Both Teams Score - First Half':
-      return fh && (marketValue === 'Yes' || marketValue === 'No')
-        ? ((fh.home > 0 && fh.away > 0) === (marketValue === 'Yes') ? 'WIN' : 'LOSS') : null;
-    case 'Both Teams To Score - Second Half':
-      return sh && (marketValue === 'Yes' || marketValue === 'No')
-        ? ((sh.home > 0 && sh.away > 0) === (marketValue === 'Yes') ? 'WIN' : 'LOSS') : null;
-
-    case 'Goals Over/Under': {
-      const ou = _parseOverUnder(marketValue);
-      return ou ? _overUnderResult(ou.over, ou.line, ft.home + ft.away) : null;
-    }
-    case 'Goals Over/Under First Half': {
-      const ou = fh && _parseOverUnder(marketValue);
-      return fh && ou ? _overUnderResult(ou.over, ou.line, fh.home + fh.away) : null;
-    }
-    case 'Goals Over/Under - Second Half': {
-      const ou = sh && _parseOverUnder(marketValue);
-      return sh && ou ? _overUnderResult(ou.over, ou.line, sh.home + sh.away) : null;
-    }
-    case 'Total - Home': {
-      const ou = _parseOverUnder(marketValue);
-      return ou ? _overUnderResult(ou.over, ou.line, ft.home) : null;
-    }
-    case 'Total - Away': {
-      const ou = _parseOverUnder(marketValue);
-      return ou ? _overUnderResult(ou.over, ou.line, ft.away) : null;
-    }
-    case 'Home Team Total Goals(1st Half)': {
-      const ou = fh && _parseOverUnder(marketValue);
-      return fh && ou ? _overUnderResult(ou.over, ou.line, fh.home) : null;
-    }
-    case 'Away Team Total Goals(1st Half)': {
-      const ou = fh && _parseOverUnder(marketValue);
-      return fh && ou ? _overUnderResult(ou.over, ou.line, fh.away) : null;
-    }
-    case 'Home Team Total Goals(2nd Half)': {
-      const ou = sh && _parseOverUnder(marketValue);
-      return sh && ou ? _overUnderResult(ou.over, ou.line, sh.home) : null;
-    }
-    case 'Away Team Total Goals(2nd Half)': {
-      const ou = sh && _parseOverUnder(marketValue);
-      return sh && ou ? _overUnderResult(ou.over, ou.line, sh.away) : null;
-    }
-
-    case 'Exact Score': {
-      const s = _parseExactScore(marketValue);
-      return s ? (s.home === ft.home && s.away === ft.away ? 'WIN' : 'LOSS') : null;
-    }
-    case 'Correct Score - First Half': {
-      const s = fh && _parseExactScore(marketValue);
-      return fh && s ? (s.home === fh.home && s.away === fh.away ? 'WIN' : 'LOSS') : null;
-    }
-    case 'Correct Score - Second Half': {
-      const s = sh && _parseExactScore(marketValue);
-      return sh && s ? (s.home === sh.home && s.away === sh.away ? 'WIN' : 'LOSS') : null;
-    }
-
-    case 'Highest Scoring Half': {
-      if (!fh || !sh) return null;
-      const fhTotal = fh.home + fh.away, shTotal = sh.home + sh.away;
-      const actual = fhTotal > shTotal ? '1st Half' : fhTotal < shTotal ? '2nd Half' : 'Draw';
-      return actual === marketValue ? 'WIN' : 'LOSS';
-    }
-
-    case 'HT/FT Double': {
-      const combo = fh && _parseCombo(marketValue);
-      return fh && combo ? (_winner(fh) === combo[0] && _winner(ft) === combo[1] ? 'WIN' : 'LOSS') : null;
-    }
-    case 'Double Chance': {
-      const combo = _parseCombo(marketValue);
-      return combo ? (combo.includes(_winner(ft)) ? 'WIN' : 'LOSS') : null;
-    }
-    case 'Double Chance - First Half': {
-      const combo = fh && _parseCombo(marketValue);
-      return fh && combo ? (combo.includes(_winner(fh)) ? 'WIN' : 'LOSS') : null;
-    }
-    case 'Double Chance - Second Half': {
-      const combo = sh && _parseCombo(marketValue);
-      return sh && combo ? (combo.includes(_winner(sh)) ? 'WIN' : 'LOSS') : null;
-    }
-
-    case 'Odd/Even':
-      return marketValue === 'Odd' || marketValue === 'Even'
-        ? (((ft.home + ft.away) % 2 === 1) === (marketValue === 'Odd') ? 'WIN' : 'LOSS') : null;
-    case 'Odd/Even - First Half':
-      return fh && (marketValue === 'Odd' || marketValue === 'Even')
-        ? (((fh.home + fh.away) % 2 === 1) === (marketValue === 'Odd') ? 'WIN' : 'LOSS') : null;
-    case 'Odd/Even - Second Half':
-      return sh && (marketValue === 'Odd' || marketValue === 'Even')
-        ? (((sh.home + sh.away) % 2 === 1) === (marketValue === 'Odd') ? 'WIN' : 'LOSS') : null;
-    case 'Home Odd/Even':
-      return marketValue === 'Odd' || marketValue === 'Even'
-        ? ((ft.home % 2 === 1) === (marketValue === 'Odd') ? 'WIN' : 'LOSS') : null;
-    case 'Away Odd/Even':
-      return marketValue === 'Odd' || marketValue === 'Even'
-        ? ((ft.away % 2 === 1) === (marketValue === 'Odd') ? 'WIN' : 'LOSS') : null;
-
-    case 'Asian Handicap': {
-      const h = _parseHandicapValue(marketValue);
-      return h ? _asianHandicapResult(h.side, h.line, ft) : null;
-    }
-    case 'Asian Handicap First Half': {
-      const h = fh && _parseHandicapValue(marketValue);
-      return fh && h ? _asianHandicapResult(h.side, h.line, fh) : null;
-    }
-    case 'Asian Handicap (2nd Half)': {
-      const h = sh && _parseHandicapValue(marketValue);
-      return sh && h ? _asianHandicapResult(h.side, h.line, sh) : null;
-    }
-
-    // "To Qualify" (concept aller-retour) et tout marché non reconnu restent
-    // en résolution manuelle via les boutons WIN/LOSS/Remboursé de l'admin.
-    default:
-      return null;
-  }
-}
-
-/** Point d'entrée unique de règlement — dispatche vers les 8 types connus ou le moteur de marchés personnalisés. */
-function _resolvePronosticResult(
-  prono: { predictionType: string; marketName: string | null; marketValue: string | null },
-  ft: ScoreLine,
-  fh: ScoreLine | null,
-): 'WIN' | 'LOSS' | 'PUSH' | null {
-  if (prono.predictionType === 'other') {
-    if (!prono.marketName || !prono.marketValue) return null;
-    return _computeCustomMarketResult(prono.marketName, prono.marketValue, ft, fh);
-  }
-  return _computeResult(prono.predictionType, ft.home, ft.away);
-}
 
 export class PronosticsService {
 
@@ -315,22 +62,111 @@ export class PronosticsService {
 
 
   // 鈹€鈹€鈹€ ADMIN 鈥?R茅cup茅rer les matchs depuis Football-Data.org 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-  async fetchUpcomingMatchesForAdmin(competitionCode?: string, search?: string, date?: string, mine?: boolean, live?: boolean) {
+  /**
+   * Filtre de compétition du panneau admin.
+   *
+   * La valeur vide signifiait « grandes ligues + amicaux » et il fallait
+   * choisir « ALL » pour tout voir — alors que l'appel API ramène de toute
+   * façon l'intégralité des matchs (7 requêtes par jour, quel que soit le
+   * filtre) et que le tri se fait ensuite en mémoire. Le défaut jetait donc
+   * 90 % de ce qui était déjà payé.
+   *
+   * Désormais : vide (ou 'ALL', conservé pour les liens existants) = tout,
+   * 'MAJORS' = les grandes ligues et les amicaux, sinon la ligue demandée.
+   */
+  private static readonly MAJORS = 'MAJORS';
+
+  /** Nombre maximum de matchs rendus par la liste admin. */
+  private static readonly PLAFOND_LISTE = 400;
+
+  /**
+   * Ordre d'importance des compétitions dans la vue « Tout ».
+   *
+   * Triée par date seule, la liste ouvrait sur l'AFC Women's Champions League
+   * et la 3. Division norvégienne — ce sont simplement les premiers coups
+   * d'envoi de la journée. Les rencontres qu'on pronostique se trouvaient
+   * plusieurs centaines de lignes plus bas, hors du plafond d'affichage.
+   *
+   * Quatre rangs, aucun palmarès inventé dans le code :
+   *   1. les compétitions cartographiées (LEAGUE_MAP), dans l'ordre ci-dessous ;
+   *   2. celles que l'administrateur a activées dans /admin/leagues — sa
+   *      propre déclaration de ce qui compte, qu'il peut changer sans toucher
+   *      au code ;
+   *   3. les amicaux : ils ont leur place dans le catalogue mais aucun enjeu
+   *      sportif, donc derrière tout ce qui a été explicitement retenu ;
+   *   4. le reste.
+   *
+   * À rang égal, l'ordre chronologique reprend la main.
+   */
+  private static readonly ORDRE_MAJEURES = [
+    'WC',        // Coupe du monde
+    'CL',        // Ligue des champions
+    'PL', 'PD', 'SA', 'BL1', 'FL1',   // les cinq grands championnats
+  ];
+
+  private static readonly RANG_ACTIVEE = 100;
+  private static readonly RANG_AMICAL  = 150;
+  private static readonly RANG_AUTRE   = 200;
+
+  /** Codes des compétitions activées pour le flux public. */
+  private async _codesActives(): Promise<Set<string>> {
+    try {
+      const rows = await prisma.leagueVisibility.findMany({
+        where:  { isVisible: true },
+        select: { leagueCode: true },
+      });
+      return new Set(rows.map(r => r.leagueCode));
+    } catch {
+      return new Set();
+    }
+  }
+
+  private static _rangLigue(code: string, actives: Set<string>): number {
+    const i = PronosticsService.ORDRE_MAJEURES.indexOf(code);
+    if (i >= 0) return i;
+    if (actives.has(code))    return PronosticsService.RANG_ACTIVEE;
+    if (code === 'FRIENDLY')  return PronosticsService.RANG_AMICAL;
+    return PronosticsService.RANG_AUTRE;
+  }
+
+  /** Clause Prisma correspondant au filtre — pour les vues lues en base. */
+  private static _clauseLigue(code?: string): Prisma.MatchWhereInput {
+    if (code === PronosticsService.MAJORS) {
+      return { leagueCode: { in: ApiFootballService.majorLeagueCodes() } };
+    }
+    if (code && code !== 'ALL') return { leagueCode: code };
+    return {};
+  }
+
+  /** Même filtre, en prédicat — pour les fixtures encore en mémoire. */
+  private static _gardeLigue(code?: string): (leagueCode: string) => boolean {
+    if (code === PronosticsService.MAJORS) {
+      const majors = ApiFootballService.majorLeagueCodes();
+      return c => majors.includes(c);
+    }
+    if (code && code !== 'ALL') return c => c === code;
+    return () => true;
+  }
+
+  async fetchUpcomingMatchesForAdmin(
+    competitionCode?: string, search?: string, date?: string,
+    mine?: boolean, live?: boolean, limite?: number,
+  ) {
     // "Match en direct" → uniquement les matchs actuellement en cours,
     // lecture DB pure (statut tenu à jour par le cron de sync).
-    if (live) return this._liveMatches(competitionCode, search);
+    if (live) return this._liveMatches(competitionCode, search, limite);
 
     // "Mes pronostics" → tous les matchs déjà pronostiqués, toutes dates et
     // tous statuts confondus (y compris terminés). Sans ça, un match qui se
     // termine sort de toutes les vues (l'API ne renvoie que les matchs à
     // venir) et devient introuvable sans deviner sa date exacte.
-    if (mine) return this._myPronostics(competitionCode, search);
+    if (mine) return this._myPronostics(competitionCode, search, limite);
 
     // Une date précise → on regarde ce qu'on a déjà en base (passé, en cours
     // ou à venir, terminé y compris) plutôt que d'interroger l'API, qui ne
     // renvoie que les matchs pas-encore-commencés des 7 prochains jours.
     // Couvre le besoin "revoir les pronostics déjà publiés avec leur résultat".
-    if (date) return this._matchesForDate(date, competitionCode, search);
+    if (date) return this._matchesForDate(date, competitionCode, search, limite);
 
     // Source unique : API-Football couvre à la fois les grandes ligues, les
     // amicaux et tout le reste — un seul fetch, filtré ensuite selon le mode
@@ -342,6 +178,7 @@ export class PronosticsService {
       source:          MatchSource;
       league:          string;
       league_code:     string;
+      league_country:  string | null;
       league_logo:     string | null;
       home_team:       string;
       home_team_full:  string | null;
@@ -355,52 +192,86 @@ export class PronosticsService {
       away_score:      number | null;
     }
 
-    const majorCodes = ApiFootballService.majorLeagueCodes();
+    const garde = PronosticsService._gardeLigue(competitionCode);
     const normalized: NormalizedMatch[] = fixtures
       .map(f => ({ ...apiFootballService.formatFixtureForPronostic(f), source: MatchSource.API_FOOTBALL }))
-      .filter(data => {
-        if (competitionCode === 'ALL') return true;
-        if (competitionCode)           return data.league_code === competitionCode;
-        // Pas de filtre → vue par défaut : grandes ligues suivies + amicaux uniquement
-        return majorCodes.includes(data.league_code);
-      });
+      .filter(data => garde(data.league_code));
 
-    // Upsert chaque match en base avec mapping des statuts
     const validMatches = normalized.filter(data => data.home_team && data.away_team);
 
-    const saved = await Promise.all(
-      validMatches.map(async (data) => {
-        const mappedStatus = mapAFStatus(data.status);
+    // Écriture groupée.
+    //
+    // Un `upsert` par match, c'était un aller-retour par ligne : acceptable
+    // sur la cinquantaine de matchs de la vue restreinte, intenable dès qu'on
+    // affiche tout (plusieurs milliers de rencontres à venir). On lit l'existant
+    // en une requête, on insère les nouveaux en une seule, et on ne met à jour
+    // que les lignes dont le score ou le statut a réellement changé — en
+    // pratique une poignée.
+    const idsExternes = validMatches.map(d => d.external_id);
+    const dejaEnBase  = await prisma.match.findMany({
+      where: { externalId: { in: idsExternes }, source: MatchSource.API_FOOTBALL },
+    });
+    const parId = new Map(dejaEnBase.map(m => [m.externalId, m]));
 
-        return prisma.match.upsert({
-          where: {
-            externalId_source: { externalId: data.external_id, source: data.source },
-          },
-          update: {
-            status:         mappedStatus,
-            statusPriority: matchStatusPriority(mappedStatus),
-            homeScore:      data.home_score,
-            awayScore:      data.away_score,
-          },
-          create: {
-            externalId:     data.external_id,
-            source:         data.source,
-            league:         data.league,
-            leagueCode:     data.league_code,
-            leagueLogo:     data.league_logo ?? null,
-            homeTeam:       data.home_team,
-            homeTeamFull:   data.home_team_full ?? data.home_team,
-            homeTeamLogo:   data.home_team_logo ?? null,
-            awayTeam:       data.away_team,
-            awayTeamFull:   data.away_team_full ?? data.away_team,
-            awayTeamLogo:   data.away_team_logo ?? null,
-            matchDate:      new Date(data.match_date),
-            status:         mappedStatus,
-            statusPriority: matchStatusPriority(mappedStatus),
-          },
-        });
-      })
-    );
+    const aCreer = validMatches
+      .filter(d => !parId.has(d.external_id))
+      .map(d => {
+        const st = mapAFStatus(d.status);
+        return {
+          externalId:     d.external_id,
+          source:         d.source,
+          league:         d.league,
+          leagueCode:     d.league_code,
+          leagueCountry:  d.league_country ?? null,
+          leagueLogo:     d.league_logo ?? null,
+          homeTeam:       d.home_team,
+          homeTeamFull:   d.home_team_full ?? d.home_team,
+          homeTeamLogo:   d.home_team_logo ?? null,
+          awayTeam:       d.away_team,
+          awayTeamFull:   d.away_team_full ?? d.away_team,
+          awayTeamLogo:   d.away_team_logo ?? null,
+          matchDate:      new Date(d.match_date),
+          status:         st,
+          statusPriority: matchStatusPriority(st),
+          homeScore:      d.home_score,
+          awayScore:      d.away_score,
+        };
+      });
+
+    if (aCreer.length) {
+      // `skipDuplicates` : deux onglets ouverts simultanément insèrent le même
+      // match sans que l'un fasse échouer l'autre.
+      await prisma.match.createMany({ data: aCreer, skipDuplicates: true });
+    }
+
+    const aMettreAJour = validMatches.filter(d => {
+      const actuel = parId.get(d.external_id);
+      if (!actuel) return false;
+      const st = mapAFStatus(d.status);
+      return actuel.status    !== st
+          || actuel.homeScore !== d.home_score
+          || actuel.awayScore !== d.away_score
+          || (actuel.leagueCountry == null && d.league_country != null);
+    });
+
+    await Promise.all(aMettreAJour.map(d => {
+      const st = mapAFStatus(d.status);
+      return prisma.match.update({
+        where: { externalId_source: { externalId: d.external_id, source: d.source } },
+        data: {
+          status:         st,
+          statusPriority: matchStatusPriority(st),
+          homeScore:      d.home_score,
+          awayScore:      d.away_score,
+          ...(d.league_country ? { leagueCountry: d.league_country } : {}),
+        },
+      });
+    }));
+
+    // Relecture en une requête : les créations n'ont pas rendu leurs lignes.
+    const saved = await prisma.match.findMany({
+      where: { externalId: { in: idsExternes }, source: MatchSource.API_FOOTBALL },
+    });
 
     // Inclure aussi les matchs LIVE déjà en DB (synchronisés par le cron) —
     // en respectant le même filtre de ligue que la liste principale, sinon
@@ -409,35 +280,28 @@ export class PronosticsService {
     const liveFromDb = await prisma.match.findMany({
       where: {
         status: 'LIVE',
-        ...(competitionCode === 'ALL'
-          ? {}
-          : competitionCode
-            ? { leagueCode: competitionCode }
-            : { leagueCode: { in: majorCodes } }),
+        ...PronosticsService._clauseLigue(competitionCode),
       },
     });
     const liveOnly = liveFromDb.filter(m => !savedIds.has(m.id));
 
     const allMatches = [...saved, ...liveOnly];
-    return this._attachPronosticsAndFilter(allMatches, search);
+    return this._attachPronosticsAndFilter(allMatches, search, 'asc', limite, true);
   }
 
   /** Matchs d'une date précise déjà en base (tous statuts confondus) — pour revoir les pronostics passés/terminés. */
-  private async _matchesForDate(date: string, competitionCode?: string, search?: string) {
+  private async _matchesForDate(date: string, competitionCode?: string, search?: string, limite?: number) {
     const dayStart = new Date(`${date}T00:00:00.000Z`);
     const dayEnd   = new Date(`${date}T23:59:59.999Z`);
 
-    const majorCodes = ApiFootballService.majorLeagueCodes();
     const matches = await prisma.match.findMany({
       where: {
         matchDate: { gte: dayStart, lte: dayEnd },
-        ...(competitionCode === 'ALL' ? {}
-          : competitionCode ? { leagueCode: competitionCode }
-          : { leagueCode: { in: majorCodes } }),
+        ...PronosticsService._clauseLigue(competitionCode),
       },
     });
 
-    return this._attachPronosticsAndFilter(matches, search);
+    return this._attachPronosticsAndFilter(matches, search, 'asc', limite);
   }
 
   /**
@@ -446,18 +310,15 @@ export class PronosticsService {
    * de sécurité anti-blocage). Même respect du filtre de ligue que les
    * autres vues admin.
    */
-  private async _liveMatches(competitionCode?: string, search?: string) {
-    const majorCodes = ApiFootballService.majorLeagueCodes();
+  private async _liveMatches(competitionCode?: string, search?: string, limite?: number) {
     const matches = await prisma.match.findMany({
       where: {
         status: 'LIVE',
-        ...(competitionCode === 'ALL' ? {}
-          : competitionCode ? { leagueCode: competitionCode }
-          : { leagueCode: { in: majorCodes } }),
+        ...PronosticsService._clauseLigue(competitionCode),
       },
     });
 
-    return this._attachPronosticsAndFilter(matches, search);
+    return this._attachPronosticsAndFilter(matches, search, 'asc', limite);
   }
 
   /**
@@ -466,11 +327,11 @@ export class PronosticsService {
    * admin retrouve un match qu'il a pronostiqué même une fois celui-ci terminé
    * et sorti de la fenêtre "7 prochains jours" de l'API.
    */
-  private async _myPronostics(competitionCode?: string, search?: string) {
+  private async _myPronostics(competitionCode?: string, search?: string, limite?: number) {
     const matches = await prisma.match.findMany({
       where: {
         pronostic: { isNot: null },
-        ...(competitionCode && competitionCode !== 'ALL' ? { leagueCode: competitionCode } : {}),
+        ...PronosticsService._clauseLigue(competitionCode),
       },
       orderBy: { matchDate: 'desc' },
       take: 200,
@@ -478,11 +339,14 @@ export class PronosticsService {
 
     // desc : review des pronostics passés — le plus récent (souvent déjà
     // joué) en premier, plutôt que trié par ancienneté croissante.
-    return this._attachPronosticsAndFilter(matches, search, 'desc');
+    return this._attachPronosticsAndFilter(matches, search, 'desc', limite);
   }
 
   /** Attache à chaque match les infos du pronostic associé (résultat, cote, confiance...) + filtre texte. */
-  private async _attachPronosticsAndFilter(matches: Match[], search?: string, sortOrder: 'asc' | 'desc' = 'asc') {
+  private async _attachPronosticsAndFilter(
+    matches: Match[], search?: string, sortOrder: 'asc' | 'desc' = 'asc',
+    limite?: number, classerParLigue = false,
+  ) {
     const matchIds = matches.map(m => m.id);
     const existing = await prisma.pronostic.findMany({
       where:  { matchId: { in: matchIds } },
@@ -494,10 +358,22 @@ export class PronosticsService {
     });
     const pronoMap = new Map(existing.map(p => [p.matchId, p]));
 
+    // Le classement par compétition doit précéder le plafond : trier après
+    // aurait seulement réordonné les 400 premiers matchs par date, c'est-à-dire
+    // exactement ceux qu'on cherche à ne plus voir en tête.
+    const actives = classerParLigue ? await this._codesActives() : new Set<string>();
+
     const result = matches
-      .sort((a, b) => sortOrder === 'desc'
-        ? b.matchDate.getTime() - a.matchDate.getTime()
-        : a.matchDate.getTime() - b.matchDate.getTime())
+      .sort((a, b) => {
+        if (classerParLigue) {
+          const ra = PronosticsService._rangLigue(a.leagueCode, actives);
+          const rb = PronosticsService._rangLigue(b.leagueCode, actives);
+          if (ra !== rb) return ra - rb;
+        }
+        return sortOrder === 'desc'
+          ? b.matchDate.getTime() - a.matchDate.getTime()
+          : a.matchDate.getTime() - b.matchDate.getTime();
+      })
       .map(m => {
         const prono = pronoMap.get(m.id);
         return {
@@ -518,13 +394,28 @@ export class PronosticsService {
         };
       });
 
-    if (!search?.trim()) return result;
-    const q = search.trim().toLowerCase();
-    return result.filter(m =>
-      m.homeTeam.toLowerCase().includes(q) ||
-      m.awayTeam.toLowerCase().includes(q) ||
-      m.league.toLowerCase().includes(q)
-    );
+    const filtres = !search?.trim() ? result : (() => {
+      const q = search.trim().toLowerCase();
+      return result.filter(m =>
+        m.homeTeam.toLowerCase().includes(q) ||
+        m.awayTeam.toLowerCase().includes(q) ||
+        m.league.toLowerCase().includes(q)
+      );
+    })();
+
+    // Plafond d'affichage, appliqué seulement si l'appelant en demande un.
+    //
+    // Avec « Tout » par défaut, la fenêtre de 7 jours dépasse le millier de
+    // rencontres : la page de liste en demande 400. L'export CSV et la
+    // recherche globale, eux, n'en passent aucun — les plafonner aurait
+    // tronqué un export en silence, exactement ce qu'on veut éviter.
+    //
+    // Le total réel voyage à part : posé sur un tableau, il disparaîtrait à la
+    // sérialisation JSON.
+    return {
+      items: limite && filtres.length > limite ? filtres.slice(0, limite) : filtres,
+      total: filtres.length,
+    };
   }
 
   // 鈹€鈹€鈹€ SYNC AUTOMATIQUE DES SCORES 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
@@ -549,6 +440,7 @@ export class PronosticsService {
       awayScore:   f.goals.away ?? null,
       homeScoreHT: f.score?.halftime.home ?? null,
       awayScoreHT: f.score?.halftime.away ?? null,
+      elapsed:     f.fixture.status.elapsed ?? null,
     }));
 
     // 1bis. Filet de sécurité : tout match encore LIVE (ou SCHEDULED depuis
@@ -597,6 +489,7 @@ export class PronosticsService {
         awayScore:   fixture.goals.away ?? null,
         homeScoreHT: fixture.score?.halftime.home ?? null,
         awayScoreHT: fixture.score?.halftime.away ?? null,
+        elapsed:     fixture.fixture.status.elapsed ?? null,
       });
       coveredIds.add(m.externalId);
     }
@@ -612,6 +505,9 @@ export class PronosticsService {
       // renvoie plus la mi-temps une fois le match terminé sur certains scans).
       const homeScoreHT  = m.homeScoreHT;
       const awayScoreHT  = m.awayScoreHT;
+      // La minute n'a de sens que pendant le match : on la remet à null dès
+      // qu'il est terminé, sinon un match fini resterait figé « 90' ».
+      const elapsed      = mappedStatus === 'LIVE' ? m.elapsed : null;
       const externalKey  = { externalId: m.externalId, source: m.source };
 
       const match = await prisma.match.findUnique({ where: { externalId_source: externalKey } });
@@ -630,6 +526,10 @@ export class PronosticsService {
         match.awayScore === awayScore &&
         match.homeScoreHT === nextHomeScoreHT &&
         match.awayScoreHT === nextAwayScoreHT &&
+        // La minute change à chaque cycle sur un direct : sans elle dans la
+        // comparaison, le raccourci « rien n'a changé » aurait gelé le
+        // chronomètre tant que le score restait identique.
+        match.elapsedMinutes === elapsed &&
         !dateChanged;
       if (unchanged) continue;
 
@@ -642,6 +542,7 @@ export class PronosticsService {
           statusPriority: matchStatusPriority(mappedStatus),
           homeScore, awayScore,
           homeScoreHT: nextHomeScoreHT, awayScoreHT: nextAwayScoreHT,
+          elapsedMinutes: elapsed,
           matchDate:   m.matchDate,
         },
       });
@@ -849,21 +750,55 @@ export class PronosticsService {
   }
 
   // 鈹€鈹€鈹€ Helper : filtre de date 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
-  private buildDateWhere(dateFilter?: string): Prisma.MatchWhereInput {
+  /**
+   * Fenêtre de dates d'une requête.
+   *
+   * `tzOffsetMin` est le décalage du **client**, tel que le renvoie
+   * `DateTime.now().timeZoneOffset.inMinutes` côté Flutter (60 pour UTC+1).
+   * Sans lui, le serveur découpait les journées dans *son* fuseau et le mobile
+   * dans celui de l'appareil : un match à 00h30 heure locale se retrouvait
+   * compté la veille par le serveur et le jour même par l'application. C'est
+   * ce qui faisait diverger le compteur du bandeau et le nombre de cartes
+   * réellement affichées dans la section « En direct ».
+   *
+   * Absent, on retombe sur l'ancien comportement — le fuseau du serveur — pour
+   * ne pas casser les appels qui ne le transmettent pas encore.
+   */
+  private buildDateWhere(dateFilter?: string, tzOffsetMin?: number): Prisma.MatchWhereInput {
+    const decalage = Number.isFinite(tzOffsetMin as number)
+      ? (tzOffsetMin as number) * 60000
+      : null;
+
+    /** Minuit du jour de l'utilisateur contenant `instant`, exprimé en UTC. */
+    const minuitLocal = (instant: Date): Date => {
+      if (decalage === null) {
+        return new Date(instant.getFullYear(), instant.getMonth(), instant.getDate());
+      }
+      const local = new Date(instant.getTime() + decalage);
+      const jour  = Date.UTC(
+        local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate());
+      return new Date(jour - decalage);
+    };
+
     const now      = new Date();
-    const today    = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const today    = minuitLocal(now);
     const tomorrow = new Date(today.getTime() + 86400000);
     const week     = new Date(today.getTime() + 7 * 86400000);
     const past30   = new Date(today.getTime() - 30 * 86400000);
 
+    const yesterday = new Date(today.getTime() - 86400000);
+
+    if (dateFilter === 'yesterday') return { matchDate: { gte: yesterday, lt: today } };
     if (dateFilter === 'today')    return { matchDate: { gte: today,    lt: tomorrow } };
     if (dateFilter === 'tomorrow') return { matchDate: { gte: tomorrow, lt: new Date(tomorrow.getTime() + 86400000) } };
     if (dateFilter === 'past30')   return { matchDate: { gte: past30,   lt: tomorrow } };
     if (dateFilter === 'week')     return { matchDate: { gte: today,    lt: week } };
 
-    // Format YYYY-MM-DD 鈥?jour sp茅cifique
+    // Format YYYY-MM-DD — jour spécifique, lui aussi dans le fuseau du client.
     if (dateFilter && /^\d{4}-\d{2}-\d{2}$/.test(dateFilter)) {
-      const d   = new Date(dateFilter + 'T00:00:00');
+      const d = decalage === null
+        ? new Date(dateFilter + 'T00:00:00')
+        : new Date(new Date(dateFilter + 'T00:00:00.000Z').getTime() - decalage);
       const end = new Date(d.getTime() + 86400000);
       return { matchDate: { gte: d, lt: end } };
     }
@@ -876,6 +811,8 @@ export class PronosticsService {
   async getPublishedPronostics(params: {
     userId?:     string;
     dateFilter?: string;
+    /** Décalage UTC du client en minutes — voir buildDateWhere(). */
+    tzOffsetMin?: number;
     sport?:      string;
     leagueCode?: string;
     cursor?:     string;
@@ -887,7 +824,7 @@ export class PronosticsService {
     const isPremium = user?.subscriptionPlan === 'premium' &&
       (user.subscriptionExpiresAt ? user.subscriptionExpiresAt > new Date() : false);
 
-    const dateWhere = this.buildDateWhere(params.dateFilter);
+    const dateWhere = this.buildDateWhere(params.dateFilter, params.tzOffsetMin);
 
     const pronostics = await prisma.pronostic.findMany({
       where: {
@@ -936,6 +873,8 @@ export class PronosticsService {
                       : 'upcoming',
       home_score:       p.match.homeScore,
       away_score:       p.match.awayScore,
+      // Minute de jeu, null hors direct.
+      elapsed:          p.match.elapsedMinutes,
       // Le pronostic premium était servi en clair à tout le monde : seule
       // `analyst_note` était masquée. Le mobile floutait la carte côté client,
       // mais un simple appel à /pronostics sans jeton rendait tous les picks
@@ -1016,6 +955,8 @@ export class PronosticsService {
                       : 'upcoming',
       home_score:       p.match.homeScore,
       away_score:       p.match.awayScore,
+      // Minute de jeu, null hors direct.
+      elapsed:          p.match.elapsedMinutes,
       prediction_type:  p.predictionType,
       prediction_label: p.predictionLabel,
       odds_recommended: p.oddsRecommended,
@@ -1054,33 +995,77 @@ export class PronosticsService {
     };
   }
 
-  /** ADMIN — Compétitions vues récemment (60j), fusionnées avec l'état de visibilité configuré. */
+  /**
+   * ADMIN — Compétitions vues récemment (60j), fusionnées avec l'état de
+   * visibilité configuré.
+   *
+   * Le panneau admin liste plusieurs centaines de compétitions ; le nom seul
+   * ne permet pas de décider laquelle mérite d'être publiée. On joint donc le
+   * volume de matchs sur la fenêtre et le nombre de rencontres encore à venir
+   * — une ligue à fort historique mais sans match futur est hors saison, et
+   * l'activer n'apporterait rien au flux.
+   */
   async listLeagueVisibility() {
+    const now    = new Date();
     const cutoff = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000);
-    const [recent, configured] = await Promise.all([
+
+    const [recent, configured, totals, upcoming] = await Promise.all([
       prisma.match.findMany({
         distinct: ['leagueCode'],
         where:    { matchDate: { gte: cutoff } },
-        select:   { leagueCode: true, league: true },
+        // Trié du plus récent au plus ancien : `distinct` conserve la première
+        // ligne rencontrée, donc le logo et le libellé les plus à jour.
+        select:   { leagueCode: true, league: true, leagueLogo: true, leagueCountry: true },
         orderBy:  { matchDate: 'desc' },
       }),
       prisma.leagueVisibility.findMany(),
+      prisma.match.groupBy({
+        by:     ['leagueCode'],
+        where:  { matchDate: { gte: cutoff } },
+        _count: { _all: true },
+      }),
+      prisma.match.groupBy({
+        by:     ['leagueCode'],
+        where:  { matchDate: { gte: now } },
+        _count: { _all: true },
+      }),
     ]);
 
-    const visMap = new Map(configured.map(c => [c.leagueCode, c]));
+    const visMap   = new Map(configured.map(c => [c.leagueCode, c]));
+    const totalMap = new Map(totals.map(t   => [t.leagueCode, t._count._all]));
+    const nextMap  = new Map(upcoming.map(u => [u.leagueCode, u._count._all]));
+
+    type Row = {
+      leagueCode: string; league: string; leagueLogo: string | null;
+      leagueCountry: string | null;
+      isVisible: boolean; matchCount: number; upcomingCount: number;
+    };
+
     // Fusionne : une ligue déjà configurée mais sans match dans la fenêtre de
     // 60j (ex. hors saison) ne doit pas disparaître du panneau admin.
-    const merged = new Map<string, { leagueCode: string; league: string; isVisible: boolean }>();
+    const merged = new Map<string, Row>();
     for (const m of recent) {
       merged.set(m.leagueCode, {
-        leagueCode: m.leagueCode,
-        league:     m.league,
-        isVisible:  visMap.get(m.leagueCode)?.isVisible ?? false,
+        leagueCode:    m.leagueCode,
+        league:        m.league,
+        leagueCountry: m.leagueCountry ?? null,
+        leagueLogo:    m.leagueLogo ?? null,
+        isVisible:     visMap.get(m.leagueCode)?.isVisible ?? false,
+        matchCount:    totalMap.get(m.leagueCode) ?? 0,
+        upcomingCount: nextMap.get(m.leagueCode)  ?? 0,
       });
     }
     for (const c of configured) {
       if (!merged.has(c.leagueCode)) {
-        merged.set(c.leagueCode, { leagueCode: c.leagueCode, league: c.league, isVisible: c.isVisible });
+        merged.set(c.leagueCode, {
+          leagueCode:    c.leagueCode,
+          league:        c.league,
+          leagueCountry: null,
+          leagueLogo:    null,
+          isVisible:     c.isVisible,
+          matchCount:    totalMap.get(c.leagueCode) ?? 0,
+          upcomingCount: nextMap.get(c.leagueCode)  ?? 0,
+        });
       }
     }
     return [...merged.values()].sort((a, b) => a.league.localeCompare(b.league));
@@ -1095,10 +1080,41 @@ export class PronosticsService {
     });
   }
 
+  /**
+   * ADMIN — Même bascule, appliquée à un lot de compétitions.
+   *
+   * Ouvrir le flux à une vingtaine de ligues se faisait bascule par bascule,
+   * soit autant d'allers-retours HTTP. La transaction garantit en plus qu'on
+   * ne se retrouve pas avec une sélection à moitié appliquée.
+   */
+  async setLeagueVisibilityBulk(
+    items: { leagueCode: string; league: string }[],
+    isVisible: boolean,
+  ) {
+    // Dédoublonne : deux entrées sur le même code feraient échouer la
+    // transaction (deux écritures concurrentes sur la même clé primaire).
+    const uniq = new Map(items
+      .filter(i => typeof i?.leagueCode === 'string' && i.leagueCode.trim())
+      .map(i => [i.leagueCode, { leagueCode: i.leagueCode, league: String(i.league ?? i.leagueCode) }]));
+
+    if (uniq.size === 0) throw new Error('Aucune compétition valide fournie.');
+
+    await prisma.$transaction([...uniq.values()].map(({ leagueCode, league }) =>
+      prisma.leagueVisibility.upsert({
+        where:  { leagueCode },
+        update: { isVisible, league },
+        create: { leagueCode, league, isVisible },
+      })));
+
+    return { updated: uniq.size, isVisible };
+  }
+
   // 鈹€鈹€鈹€ Tous les matchs (avec ou sans pronostic publi茅) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
   async getAllMatches(params: {
     userId?:       string;
     dateFilter?:   string;
+    /** Décalage UTC du client en minutes — voir buildDateWhere(). */
+    tzOffsetMin?:  number;
     sport?:        string;
     leagueCode?:   string;
     status?:       string; // 'upcoming' | 'live' | 'finished' — filtre serveur, cohérent avec la pagination
@@ -1112,7 +1128,7 @@ export class PronosticsService {
     const isPremium = user?.subscriptionPlan === 'premium' &&
       (user.subscriptionExpiresAt ? user.subscriptionExpiresAt > new Date() : false);
 
-    const dateWhere = this.buildDateWhere(params.dateFilter);
+    const dateWhere = this.buildDateWhere(params.dateFilter, params.tzOffsetMin);
     const statusWhere = params.status === 'upcoming' ? 'SCHEDULED'
                        : params.status === 'live'     ? 'LIVE'
                        : params.status === 'finished' ? 'FINISHED'
@@ -1197,8 +1213,11 @@ export class PronosticsService {
    * pronostics faux car basé sur les seuls matchs déjà chargés (souvent 0 si
    * les premiers matchs du jour, triés par heure, n'ont pas encore de prono).
    */
-  async getDaySummary(dateFilter?: string): Promise<{ total: number; withPronostic: number; live: number }> {
-    const dateWhere = this.buildDateWhere(dateFilter);
+  async getDaySummary(
+    dateFilter?: string,
+    tzOffsetMin?: number,
+  ): Promise<{ total: number; withPronostic: number; live: number }> {
+    const dateWhere = this.buildDateWhere(dateFilter, tzOffsetMin);
     const visibleLeaguesFilter = await this._visibleLeaguesFilter();
     const baseWhere: Prisma.MatchWhereInput = {
       ...dateWhere, ...visibleLeaguesFilter,

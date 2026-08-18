@@ -1,5 +1,6 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import type { H2HResult, H2HMatch } from './football_data.service';
+import { ApiFootballInsights } from './api_football_insights.service';
 
 // Mapping Football-Data.org codes → API-Football league IDs + saison.
 // ⚠️ season = année de DÉBUT de la saison (ex. 2025 = saison 2025-2026), pas
@@ -19,6 +20,15 @@ const LEAGUE_MAP: Record<string, { id: number; season: number }> = {
   FRIENDLY: { id: 10,  season: new Date().getFullYear() },
 };
 
+/**
+ * Identifiant et saison API-Football d'un code de compétition interne.
+ *
+ * `LEAGUE_MAP` est privé au module ; ce lecteur l'expose sans rendre la table
+ * modifiable de l'extérieur.
+ */
+export const LEAGUE_INFO = (code: string): { id: number; season: number } | null =>
+  LEAGUE_MAP[code] ?? null;
+
 /** Noms lisibles des compétitions suivies par défaut (dropdown admin/mobile). */
 const LEAGUE_NAMES: Record<string, string> = {
   WC:       'Coupe du Monde',
@@ -34,8 +44,11 @@ const LEAGUE_NAMES: Record<string, string> = {
 // ─── Amicaux (fixtures) ─────────────────────────────────────────────────────
 
 export interface AFFixture {
-  fixture: { id: number; date: string; status: { short: string } };
-  league:  { id: number; name: string; logo: string | null };
+  // `elapsed` : minute de jeu, renvoyée uniquement pendant un match en cours.
+  // C'est l'information n°1 d'un direct — un 0-0 à la 10e et un 0-0 à la 85e
+  // ne valent pas la même chose pour un parieur.
+  fixture: { id: number; date: string; status: { short: string; elapsed?: number | null } };
+  league:  { id: number; name: string; logo: string | null; country?: string | null };
   teams: {
     home: { id: number; name: string; logo: string | null };
     away: { id: number; name: string; logo: string | null };
@@ -221,6 +234,10 @@ const STANDINGS_CACHE_TTL = 2 * 60 * 60 * 1000; // 2h — un classement ne bouge
 
 export class ApiFootballService {
   private client: AxiosInstance;
+
+  /** Exposé pour `ApiFootballInsights`, qui partage la même clé et le même quota. */
+  get httpClient(): AxiosInstance { return this.client; }
+  get hasApiKey(): boolean { return this._hasKey(); }
 
   constructor() {
     this.client = axios.create({
@@ -452,6 +469,7 @@ export class ApiFootballService {
       // Sinon un code dérivé de l'id API-Football pour tout le reste.
       league_code:    ApiFootballService._leagueCodeFor(f.league.id) ?? `AF_${f.league.id}`,
       league_logo:    f.league.logo,
+      league_country: f.league.country ?? null,
       home_team:      f.teams.home.name,
       home_team_full: f.teams.home.name,
       home_team_logo: f.teams.home.logo,
@@ -494,13 +512,25 @@ export class ApiFootballService {
       const fixtures: AFFixture[] = r.data?.response ?? [];
 
       let homeWins = 0, awayWins = 0, draws = 0;
+      // Nombre de rencontres réellement comptabilisées, à ne pas confondre avec
+      // `fixtures.length` : voir plus bas.
+      let joues = 0;
+
       const matches: H2HMatch[] = fixtures.map(f => {
         const hGoals = f.goals.home;
         const aGoals = f.goals.away;
         const fixtureHomeIsHomeTeam = f.teams.home.id === homeTeamId;
         let winner: 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW' | null = null;
 
-        if (hGoals != null && aGoals != null) {
+        // API-Football renvoie aussi la rencontre en cours ou à venir dans
+        // l'historique. Un match en direct à 0-0 était donc compté comme un nul,
+        // et l'écran affichait « 2 nuls » au-dessus d'une liste n'en contenant
+        // qu'un — le contrôleur filtrant la liste sur FINISHED sans toucher aux
+        // agrégats. Un match non terminé n'a pas de résultat : il ne compte pas.
+        const termine = mapAFStatus(f.fixture.status.short) === 'FINISHED';
+
+        if (termine && hGoals != null && aGoals != null) {
+          joues++;
           if (hGoals === aGoals) {
             winner = 'DRAW'; draws++;
           } else {
@@ -524,7 +554,9 @@ export class ApiFootballService {
 
       return {
         aggregates: {
-          numberOfMatches: fixtures.length,
+          // `joues` et non `fixtures.length` : les deux divergeaient dès qu'une
+          // rencontre non terminée figurait dans l'historique renvoyé.
+          numberOfMatches: joues,
           homeTeam: { id: homeTeamId, name: fixture.teams.home.name, wins: homeWins, draws, losses: awayWins },
           awayTeam: { id: awayTeamId, name: fixture.teams.away.name, wins: awayWins, draws, losses: homeWins },
         },
@@ -800,3 +832,14 @@ export class ApiFootballService {
 }
 
 export const apiFootballService = new ApiFootballService();
+
+/**
+ * Volet « enrichissement » du même compte API-Football (plan Pro).
+ *
+ * Construit sur le client Axios de `apiFootballService` : une seule clé, un
+ * seul point de configuration, et les quotas restent comptés au même endroit.
+ */
+export const apiFootballInsights = new ApiFootballInsights(
+  apiFootballService.httpClient,
+  () => apiFootballService.hasApiKey,
+);

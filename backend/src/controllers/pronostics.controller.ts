@@ -9,7 +9,8 @@ import { cache, CACHE_KEYS, CACHE_TTL } from '../services/cache.service';
 import { analyzePronostic } from '../services/ai_prediction.service';
 import { buildUserProfile, getPersonalizedPronostics } from '../services/personalized_ai.service';
 import { settleBets }      from '../services/bankroll.service';
-import { apiFootballService } from '../services/api_football.service';
+import { apiFootballService, apiFootballInsights } from '../services/api_football.service';
+import { LEAGUE_INFO } from '../services/api_football.service';
 
 const svc      = new PronosticsService();
 const fdSvc    = new FootballDataService();
@@ -30,6 +31,23 @@ async function isUserPremium(userId: string): Promise<boolean> {
 }
 
 // ── PUBLIC / UTILISATEUR ──────────────────────────────────────────────────────
+/**
+ * Décalage UTC du client, en minutes (`tz_offset`), tel que l'envoie le mobile.
+ *
+ * Le serveur découpait les journées dans son propre fuseau, le mobile dans
+ * celui de l'appareil : un match de fin de soirée tombait alors d'un côté pour
+ * l'un et de l'autre pour l'autre, ce qui faisait diverger le compteur du
+ * bandeau et le nombre de cartes affichées.
+ *
+ * Borné à ±14 h, l'amplitude réelle des fuseaux : au-delà, la valeur est
+ * ignorée plutôt que d'ouvrir une fenêtre de dates arbitraire depuis l'URL.
+ */
+const lireDecalage = (req: AuthRequest): number | undefined => {
+  const brut = parseInt(req.query.tz_offset as string, 10);
+  if (!Number.isFinite(brut) || Math.abs(brut) > 14 * 60) return undefined;
+  return brut;
+};
+
 export const getPronostics = async (req: AuthRequest, res: Response) => {
   try {
     const includeAll = req.query.include_all === 'true';
@@ -39,6 +57,7 @@ export const getPronostics = async (req: AuthRequest, res: Response) => {
     const params = {
       userId:        req.userId,
       dateFilter:    req.query.date_filter as string,
+      tzOffsetMin:   lireDecalage(req),
       sport:         req.query.sport as string,
       leagueCode:    req.query.league_code as string,
       status:        req.query.status as string,
@@ -90,11 +109,15 @@ export const getCountsByDay = async (_req: AuthRequest, res: Response) => {
 export const getDaySummary = async (req: AuthRequest, res: Response) => {
   try {
     const dateFilter = (req.query.date_filter as string) ?? '';
-    const cacheKey = CACHE_KEYS.daySummary(dateFilter);
+    const decalage   = lireDecalage(req);
+    // Le décalage entre dans la clé : deux utilisateurs de fuseaux différents
+    // n'ont pas le même « aujourd'hui », et se serviraient l'un à l'autre une
+    // réponse fausse.
+    const cacheKey = CACHE_KEYS.daySummary(`${dateFilter}:${decalage ?? ''}`);
     const cached = cache.get<any>(cacheKey);
     if (cached) { res.json(cached); return; }
 
-    const summary = await svc.getDaySummary(req.query.date_filter as string);
+    const summary = await svc.getDaySummary(dateFilter, decalage);
     cache.set(cacheKey, summary, CACHE_TTL.daySummary);
     res.json(summary);
   } catch (e: any) { res.status(500).json({ message: e.message }); }
@@ -327,6 +350,9 @@ export const getPronosticScore = async (req: AuthRequest, res: Response) => {
       homeScore: prono.match.homeScore,
       awayScore: prono.match.awayScore,
       status:    prono.match.status,
+      // Minute de jeu — l'écran de direct affichait un score sans jamais dire
+      // où on en était dans le match.
+      elapsed:   prono.match.elapsedMinutes,
     });
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };
@@ -350,7 +376,16 @@ export const fetchUpcoming = async (req: AdminRequest, res: Response) => {
       return;
     }
 
-    const data = await svc.fetchUpcomingMatchesForAdmin(competition, search, date, mine, live);
+    // La page de liste demande un plafond, l'export CSV et la recherche
+    // globale n'en passent aucun : les plafonner tronquerait un export sans
+    // rien dire. Le total avant troncature part en en-tête, le corps reste un
+    // tableau — trois appelants s'appuient sur cette forme.
+    const brut   = req.query.limit as string | undefined;
+    const limite = brut && /^\d+$/.test(brut) ? Math.min(parseInt(brut, 10), 2000) : undefined;
+    const { items, total } = await svc.fetchUpcomingMatchesForAdmin(
+      competition, search, date, mine, live, limite);
+    res.setHeader('X-Total-Count', String(total));
+    const data = items;
     res.json(data);
 
   } catch (e: any) {
@@ -454,6 +489,20 @@ export const setLeagueVisibility = async (req: AdminRequest, res: Response) => {
     // pour que le changement soit immédiat.
     cache.del('pronostics:');
     res.json(row);
+  } catch (e: any) { res.status(400).json({ message: e.message }); }
+};
+
+/** POST /pronostics/admin/leagues-bulk — bascule un lot de compétitions d'un coup */
+export const setLeagueVisibilityBulk = async (req: AdminRequest, res: Response) => {
+  try {
+    const { leagues, visible } = req.body;
+    if (!Array.isArray(leagues) || leagues.length === 0) {
+      res.status(400).json({ message: 'leagues doit être un tableau non vide.' }); return;
+    }
+    const isVisible = visible === true || visible === 'true';
+    const result = await svc.setLeagueVisibilityBulk(leagues, isVisible);
+    cache.del('pronostics:');
+    res.json(result);
   } catch (e: any) { res.status(400).json({ message: e.message }); }
 };
 
@@ -569,6 +618,167 @@ async function findPronoByIdOrMatchId(id: string) {
   if (byProno) return byProno;
   return prisma.pronostic.findUnique({ where: { matchId: id }, include: { match: true } });
 }
+
+
+// ─── Enrichissements API-Football (plan Pro) ─────────────────────────────────
+//
+// Tous ces endpoints sont *optionnels* : ils enrichissent un match, ils ne le
+// définissent pas. Une panne côté fournisseur doit se traduire par un 503 que
+// le mobile masque, jamais par une page de match cassée.
+
+/** Un match n'a d'enrichissement que s'il vient d'API-Football avec un id. */
+function fixtureIdDe(match: { source: string; externalId: number | null }): number | null {
+  return match.source === 'API_FOOTBALL' && match.externalId ? match.externalId : null;
+}
+
+/**
+ * GET /pronostics/:id/insights — « Pourquoi ce pronostic ».
+ *
+ * Réunit le modèle statistique du fournisseur (probabilités 1X2, sept axes de
+ * comparaison) et le profil de buts par tranche horaire des deux équipes.
+ * Deux à trois requêtes API au premier appel, puis cache 6 h / 24 h.
+ */
+export const getMatchInsights = async (req: AuthRequest, res: Response) => {
+  try {
+    const prono = await findPronoByIdOrMatchId(req.params.id);
+    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+
+    const fixtureId = fixtureIdDe(prono.match);
+    if (!fixtureId) { res.status(404).json({ message: 'Données détaillées indisponibles pour ce match.' }); return; }
+
+    const prediction = await apiFootballInsights.getPrediction(fixtureId);
+    if (!prediction) { res.status(503).json({ message: 'Analyse indisponible.' }); return; }
+
+    // Les statistiques de saison n'ont de sens qu'en championnat : sur un tour
+    // de coupe, la « saison » de la compétition n'a pas de tableau de buts.
+    const [statsHome, statsAway] = prediction.leagueId && prediction.season
+      ? await Promise.all([
+          prediction.homeTeamId
+            ? apiFootballInsights.getTeamSeasonStats(
+                prediction.leagueId, prediction.season, prediction.homeTeamId)
+            : null,
+          prediction.awayTeamId
+            ? apiFootballInsights.getTeamSeasonStats(
+                prediction.leagueId, prediction.season, prediction.awayTeamId)
+            : null,
+        ])
+      : [null, null];
+
+    res.json({
+      advice:         prediction.advice,
+      winner_name:    prediction.winnerName,
+      winner_comment: prediction.winnerComment,
+      percent: {
+        home: prediction.percentHome,
+        draw: prediction.percentDraw,
+        away: prediction.percentAway,
+      },
+      under_over:  prediction.underOver,
+      comparisons: prediction.comparisons,
+      form: { home: prediction.formHome, away: prediction.formAway },
+      clean_sheet:      { home: prediction.cleanSheetHome,    away: prediction.cleanSheetAway },
+      failed_to_score:  { home: prediction.failedToScoreHome, away: prediction.failedToScoreAway },
+      goals_by_minute: {
+        home: statsHome?.goalsForByMinute ?? null,
+        away: statsAway?.goalsForByMinute ?? null,
+      },
+      goals_average: {
+        home: statsHome?.goalsForAverage ?? null,
+        away: statsAway?.goalsForAverage ?? null,
+      },
+      home_team: prono.match.homeTeam,
+      away_team: prono.match.awayTeam,
+    });
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+/**
+ * GET /pronostics/:id/live-odds — cotes qui suivent le match.
+ *
+ * Le service ne filtre jamais `/odds/live` par fixture : un seul appel couvre
+ * tous les matchs en cours, et le cache de 2 minutes est partagé.
+ */
+export const getLiveOdds = async (req: AuthRequest, res: Response) => {
+  try {
+    const prono = await findPronoByIdOrMatchId(req.params.id);
+    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+    if (prono.match.status !== 'LIVE') {
+      res.status(400).json({ message: 'Cotes en direct réservées aux matchs en cours.' });
+      return;
+    }
+
+    const fixtureId = fixtureIdDe(prono.match);
+    if (!fixtureId) { res.status(404).json({ message: 'Données détaillées indisponibles pour ce match.' }); return; }
+
+    const odds = await apiFootballInsights.getLiveOdds(fixtureId);
+    if (!odds) { res.status(503).json({ message: 'Cotes en direct indisponibles.' }); return; }
+
+    res.json({
+      elapsed: odds.elapsed,
+      markets: odds.markets,
+      // Cote d'ouverture du pronostic, pour situer la variation.
+      opening_odd: prono.oddsRecommended,
+    });
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+/** GET /pronostics/:id/ratings — notes des joueurs d'un match terminé. */
+export const getPlayerRatings = async (req: AuthRequest, res: Response) => {
+  try {
+    const prono = await findPronoByIdOrMatchId(req.params.id);
+    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+    if (prono.match.status !== 'FINISHED') {
+      res.status(400).json({ message: 'Notes disponibles après le coup de sifflet final.' });
+      return;
+    }
+
+    const fixtureId = fixtureIdDe(prono.match);
+    if (!fixtureId) { res.status(404).json({ message: 'Données détaillées indisponibles pour ce match.' }); return; }
+
+    const ratings = await apiFootballInsights.getPlayerRatings(fixtureId);
+    if (!ratings?.length) { res.status(503).json({ message: 'Notes indisponibles.' }); return; }
+
+    res.json({
+      home_team: prono.match.homeTeam,
+      away_team: prono.match.awayTeam,
+      players:   ratings,
+    });
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+/** GET /pronostics/top-scorers?league=PL — meilleurs buteurs d'une compétition. */
+export const getTopScorers = async (req: AuthRequest, res: Response) => {
+  try {
+    const code = (req.query.league as string) ?? '';
+    const info = LEAGUE_INFO(code);
+    if (!info) { res.status(400).json({ message: 'Compétition inconnue.' }); return; }
+
+    const scorers = await apiFootballInsights.getTopScorers(info.id, info.season);
+    if (!scorers) { res.status(503).json({ message: 'Classement des buteurs indisponible.' }); return; }
+    res.json(scorers);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+/**
+ * GET /pronostics/admin/match/:matchId/prediction — avis du modèle, côté admin.
+ *
+ * Sert à orienter le choix du marché dans le formulaire, à côté des cotes
+ * 1xBet. C'est une aide à la décision, pas une automatisation : la publication
+ * reste un geste humain.
+ */
+export const getAdminPrediction = async (req: AdminRequest, res: Response) => {
+  try {
+    const match = await prisma.match.findUnique({ where: { id: req.params.matchId } });
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+
+    const fixtureId = fixtureIdDe(match);
+    if (!fixtureId) { res.status(404).json({ message: 'Données détaillées indisponibles pour ce match.' }); return; }
+
+    const prediction = await apiFootballInsights.getPrediction(fixtureId);
+    if (!prediction) { res.status(503).json({ message: 'Avis du modèle indisponible.' }); return; }
+    res.json(prediction);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
 
 export const getH2H = async (req: AuthRequest, res: Response) => {
   try {

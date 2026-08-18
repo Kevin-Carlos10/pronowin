@@ -1,5 +1,6 @@
 ﻿import 'dart:async';
 import 'dart:convert';
+import '../../../../core/utils/motion.dart';
 import 'dart:io';
 import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
@@ -17,9 +18,12 @@ import '../../../../core/config/distribution_channel.dart';
 import '../../data/iap_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
-// Numéro de réception des paiements mobiles
-const _paymentPhone    = '0757123456';
-const _paymentOperator = 'Orange Money / Wave';
+// Repli quand le serveur ne renvoie aucune méthode de paiement — première
+// installation, hors ligne au premier lancement, base vide. Les vrais numéros
+// viennent de `subData['payment_methods']`, gérés depuis l'administration :
+// en ajouter un ne demande plus de recompiler l'application.
+const _paymentPhone    = '22645568158';
+const _paymentOperator = 'Orange Money';
 
 class ActiverPremiumPage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? subData;
@@ -306,12 +310,25 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   // ══════════════════════════════════════════════════════'
   // CHAMPS PARTAGÉS — preuve de paiement Mobile Money (utilisés par les 2 onglets)
   // ══════════════════════════════════════════════════════'
+  /// Méthodes de paiement servies par l'API, filtrées de tout ce qui serait
+  /// inexploitable (numéro vide) plutôt que d'afficher une ligne creuse.
+  List<Map<String, dynamic>> get _methodesPaiement {
+    final brut = widget.subData?['payment_methods'];
+    if (brut is! List) return const [];
+    return brut
+        .whereType<Map>()
+        .map((m) => Map<String, dynamic>.from(m))
+        .where((m) => (m['phone'] ?? '').toString().trim().isNotEmpty)
+        .toList();
+  }
+
   List<Widget> _buildPaymentFieldsSection({required bool isCode, required int stepOffset}) {
     final price = _fcfaAmountForSelectedPlan;
     final planLabel = (_duration == 'annuel' ? 'Plan Annuel' : 'Plan Mensuel') +
       (isCode ? ' · Tarif réduit' : '');
     return [
-      _PaymentRecipientCard(price: price, planLabel: planLabel),
+      _PaymentRecipientCard(
+        price: price, planLabel: planLabel, methodes: _methodesPaiement),
       const SizedBox(height: 20),
 
       _FieldLabel('$stepOffset. Montant envoyé (FCFA)'),
@@ -820,10 +837,51 @@ class _PlatformSelector extends StatelessWidget {
 }
 
 // ─── Carte numéro de réception ────────────────────────────────────────────────
-class _PaymentRecipientCard extends StatelessWidget {
+/// Carte « envoie l'argent à ce numéro ».
+///
+/// Affichait un numéro compilé dans le binaire. Elle reçoit désormais la liste
+/// servie par l'API : un seul opérateur se comporte comme avant, plusieurs font
+/// apparaître un sélecteur, aucun retombe sur la constante de repli.
+class _PaymentRecipientCard extends StatefulWidget {
   final dynamic price;
   final String  planLabel;
-  const _PaymentRecipientCard({required this.price, required this.planLabel});
+  final List<Map<String, dynamic>> methodes;
+  const _PaymentRecipientCard({
+    required this.price, required this.planLabel, required this.methodes});
+
+  @override
+  State<_PaymentRecipientCard> createState() => _PaymentRecipientCardState();
+}
+
+class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
+  int _choix = 0;
+
+  @override
+  void didUpdateWidget(covariant _PaymentRecipientCard old) {
+    super.didUpdateWidget(old);
+    // La liste peut rétrécir entre deux chargements : garder un index périmé
+    // ferait planter l'accès.
+    if (_choix >= widget.methodes.length) _choix = 0;
+  }
+
+  String get _numero => widget.methodes.isEmpty
+      ? _paymentPhone
+      : (widget.methodes[_choix]['phone'] ?? _paymentPhone).toString();
+
+  String get _operateur => widget.methodes.isEmpty
+      ? _paymentOperator
+      : (widget.methodes[_choix]['label'] ?? _paymentOperator).toString();
+
+  void _copier() {
+    Clipboard.setData(ClipboardData(text: _numero));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('Numéro $_operateur copié !'),
+      backgroundColor: AppColors.success,
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 2),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+    ));
+  }
 
   @override
   Widget build(BuildContext context) => Container(
@@ -835,16 +893,51 @@ class _PaymentRecipientCard extends StatelessWidget {
           AppColors.primary.withValues(alpha: 0.04),
         ],
         begin: Alignment.topLeft, end: Alignment.bottomRight),
-      borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 1)),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+    ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Row(children: [
         const Icon(Icons.send_to_mobile_rounded, color: AppColors.primary, size: 16),
         const SizedBox(width: 8),
-        Expanded(child: Text('Envoie $price FCFA à ce numéro ($planLabel)',
+        Expanded(child: Text(
+          'Envoie ${widget.price} FCFA à ce numéro (${widget.planLabel})',
           style: const TextStyle(
             color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w700))),
       ]),
+
+      // Sélecteur affiché seulement s'il y a un choix à faire.
+      if (widget.methodes.length > 1) ...[
+        const SizedBox(height: 12),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (var i = 0; i < widget.methodes.length; i++)
+            GestureDetector(
+              onTap: () => setState(() => _choix = i),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 160),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: i == _choix
+                    ? AppColors.primary
+                    : AppColors.primary.withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(
+                    color: i == _choix
+                      ? AppColors.primary
+                      : AppColors.primary.withValues(alpha: 0.25)),
+                ),
+                child: Text(
+                  (widget.methodes[i]['label'] ?? '').toString(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: i == _choix ? Colors.white : context.cl.textP),
+                ),
+              ),
+            ),
+        ]),
+      ],
+
       const SizedBox(height: 10),
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -853,23 +946,14 @@ class _PaymentRecipientCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(10)),
         child: Row(children: [
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_paymentPhone, style: const TextStyle(
+            Text(_numero, style: const TextStyle(
               fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
             const SizedBox(height: 2),
-            Text(_paymentOperator, style: TextStyle(
+            Text(_operateur, style: TextStyle(
               fontSize: 11, color: context.cl.textS)),
           ])),
           GestureDetector(
-            onTap: () {
-              Clipboard.setData(const ClipboardData(text: _paymentPhone));
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: const Text('Numéro copié !'),
-                backgroundColor: AppColors.success,
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 2),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ));
-            },
+            onTap: _copier,
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
               decoration: BoxDecoration(
@@ -886,7 +970,7 @@ class _PaymentRecipientCard extends StatelessWidget {
         ]),
       ),
       const SizedBox(height: 8),
-      Text('Puis remplissez le formulaire ci-dessous et joignez la capture d\'écran.',
+      Text("Puis remplissez le formulaire ci-dessous et joignez la capture d'écran.",
         style: TextStyle(color: context.cl.textS, fontSize: 11, height: 1.4)),
     ]),
   );
@@ -1941,7 +2025,7 @@ class _PaywallCTA extends StatelessWidget {
           const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
         ]),
       ),
-    ).animate(onPlay: (c) => c.repeat(reverse: true))
+    ).animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(reverse: true); })
       .shimmer(duration: 2200.ms, color: Colors.white10, delay: 1200.ms);
   }
 }

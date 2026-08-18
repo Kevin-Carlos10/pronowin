@@ -80,15 +80,15 @@
 
 <div class="topbar">
   <div>
-    <h2>📋 Journal d'activité</h2>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Journal d'activité</h2>
     <small><%= totalAll %> entrée<%= totalAll > 1 ? 's' : '' %> au total<%= _hasFilter ? ' · ' + total + ' filtrée' + (total>1?'s':'') : '' %></small>
   </div>
   <div style="display:flex;gap:.5rem;flex-wrap:wrap">
     <a href="/admin/audit/export?<%= [filters.cat?'cat='+filters.cat:'', filters.admin?'admin='+filters.admin:'', filters.date?'date='+filters.date:'', filters.action?'action='+filters.action:''].filter(Boolean).join('&') %>"
-       class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)">⬇️ Export CSV</a>
+       class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV</a>
     <button class="btn btn-danger btn-sm"
-      onclick="askConfirm({icon:'🗑️',title:'Vider le journal',msg:'Cette action est <strong>irréversible</strong>. Toutes les entrées seront supprimées.',btnLabel:'Vider',btnClass:'btn-danger',onConfirm:()=>document.getElementById('clear-form').submit()})">
-      🗑 Vider
+      onclick="askConfirm({icon:'trash',title:'Vider le journal',msg:'Cette action est <strong>irréversible</strong>. Toutes les entrées seront supprimées.',btnLabel:'Vider',btnClass:'btn-danger',onConfirm:()=>document.getElementById('clear-form').submit()})">
+      <svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Vider
     </button>
   </div>
 </div>
@@ -122,7 +122,7 @@
 
   <!-- Graphique 7 jours -->
   <div class="au-chart-wrap">
-    <div class="au-chart-title">📈 Activité — 7 derniers jours</div>
+    <div class="au-chart-title"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg> Activité — 7 derniers jours</div>
     <canvas id="audit-chart" class="au-chart-canvas"></canvas>
   </div>
 
@@ -134,7 +134,7 @@
          if (!count) return;
          const pct = Math.round((count / _maxCat) * 100);
     %><div class="au-cat-row">
-      <span style="font-size:.78rem;min-width:90px;color:var(--text-m)"><%= cfg.icon %> <%= cfg.label %></span>
+      <span style="font-size:.78rem;min-width:90px;color:var(--text-m)"><%- (cfg.icon) ? '<svg class="ic" aria-hidden="true"><use href="#ic-' + (cfg.icon) + '"/></svg>' : '' %> <%= cfg.label %></span>
       <div class="au-cat-bar-wrap">
         <div class="au-cat-bar" style="width:<%= pct %>%;background:<%= cfg.color %>"></div>
       </div>
@@ -178,7 +178,7 @@
       </div>
       <div style="display:flex;gap:.4rem;align-items:flex-end">
         <button class="btn btn-primary btn-sm" type="submit">Filtrer</button>
-        <% if (_hasFilter) { %><a href="/admin/audit" class="btn btn-outline btn-sm">✕ Reset</a><% } %>
+        <% if (_hasFilter) { %><a href="/admin/audit" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a><% } %>
       </div>
     </div>
   </form>
@@ -188,7 +188,7 @@
 <div class="card" style="padding:0;overflow:hidden">
   <% if (data.length === 0) { %>
   <div style="padding:3.5rem;text-align:center;color:var(--text-dim)">
-    <div style="font-size:2.5rem;margin-bottom:.6rem">📋</div>
+    <div style="font-size:2.5rem;margin-bottom:.6rem"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg></div>
     <p>Aucune entrée<%= _hasFilter ? ' pour ces filtres' : ' dans le journal' %>.</p>
     <% if (_hasFilter) { %><a href="/admin/audit" class="btn btn-outline btn-sm" style="margin-top:.75rem">Voir tous les logs</a><% } %>
   </div>
@@ -222,7 +222,7 @@
           <div style="font-size:.7rem;color:var(--text-dim)"><%= log.adminRole === 'sub' ? '🔸 Sous-admin' : '🔷 Principal' %></div>
         </td>
         <td>
-          <span class="cat-badge cat-<%= meta.cat %>"><%= meta.icon %> <%= meta.label %></span>
+          <span class="cat-badge cat-<%= meta.cat %>"><%- (meta.icon) ? '<svg class="ic" aria-hidden="true"><use href="#ic-' + (meta.icon) + '"/></svg>' : '' %> <%= meta.label %></span>
         </td>
         <td style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text-m);font-size:.8rem">
           <%= log.target || '—' %>

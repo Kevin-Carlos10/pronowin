@@ -1,6 +1,7 @@
 import 'package:country_picker/country_picker.dart'
     show CountryService, CountryLocalizations;
 import 'package:flutter/material.dart';
+import '../../../../core/utils/motion.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -510,14 +511,14 @@ class _ApercuTab extends ConsumerWidget {
 
   String _formatDate(String iso) {
     try {
-      final d = DateTime.parse(iso);
+      final d = DateTime.parse(iso).toLocal();
       return '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
     } catch (_) { return iso; }
   }
 
   String _formatBirthDate(String iso) {
     try {
-      final d   = DateTime.parse(iso);
+      final d   = DateTime.parse(iso).toLocal();
       final age = ((DateTime.now().difference(d).inDays) / 365.25).floor();
       return '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year} ($age ans)';
     } catch (_) { return iso; }
@@ -686,7 +687,7 @@ class _FreeState extends ConsumerWidget {
                 const SizedBox(width: 8),
                 const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
               ]),
-            ).animate(onPlay: (c) => c.repeat(reverse: true))
+            ).animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(reverse: true); })
               .shimmer(duration: 2000.ms, color: Colors.white10, delay: 800.ms),
           ]),
         ),
@@ -1397,9 +1398,17 @@ class _PremiumBadgeState extends State<_PremiumBadge>
   void initState() {
     super.initState();
     _ctrl = AnimationController(
-        vsync: this, duration: const Duration(seconds: 2))..repeat();
+        vsync: this, duration: const Duration(seconds: 2));
     _shimmer = Tween<double>(begin: -1.5, end: 2.5)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Boucle infinie : coupée si l'utilisateur a réduit les animations.
+    // Ce hook est aussi rappelé quand le réglage système change.
+    context.boucler(_ctrl);
   }
 
   @override

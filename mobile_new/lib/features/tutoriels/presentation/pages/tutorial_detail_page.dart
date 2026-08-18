@@ -1,4 +1,6 @@
 import 'dart:ui';
+import '../../../../core/utils/motion.dart';
+import '../widgets/tutorial_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -123,10 +125,12 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
                       _Tag(label: t.categoryLabel,
                           color: catColor),
                       if (t.isPremium)
-                        _Tag(label: '👑 Premium',
+                        _Tag(label: 'Premium',
+                            icon: Icons.workspace_premium_rounded,
                             color: AppColors.warning),
                       if (_completed)
-                        _Tag(label: '✓ Terminé',
+                        _Tag(label: 'Terminé',
+                            icon: Icons.check_circle_rounded,
                             color: AppColors.success),
                     ]).animate().fadeIn(duration: 300.ms, delay: 50.ms),
 
@@ -255,6 +259,10 @@ class _HeroHeader extends StatelessWidget {
     return SliverAppBar(
       expandedHeight: 200,
       pinned: true,
+      // Le titre n'apparaît qu'une fois la barre repliée : déplié, l'en-tête
+      // est une illustration ; le vrai titre est celui du corps de page.
+      title: _TitreReplie(titre: tutorial.title),
+      titleSpacing: 0,
       backgroundColor: context.cl.bg,
       elevation: 0,
       leading: Padding(
@@ -304,9 +312,9 @@ class _HeroHeader extends StatelessWidget {
                         borderRadius: BorderRadius.circular(18),
                         border: Border.all(
                             color: Colors.white.withValues(alpha: 0.3), width: 0.8)),
-                      child: Center(child: Text(
-                        tutorial.categoryEmoji,
-                        style: const TextStyle(fontSize: 32))),
+                      child: Center(
+                          child: Icon(tutorialCategoryIcon(tutorial.category),
+                              size: 32, color: Colors.white)),
                     ),
                   ).animate()
                     .scale(begin: const Offset(0.55, 0.55), end: const Offset(1, 1),
@@ -314,11 +322,14 @@ class _HeroHeader extends StatelessWidget {
                     .fadeIn(duration: 400.ms),
                   const SizedBox(height: 12),
                   Text(
-                    tutorial.title,
+                    tutorial.categoryLabel.toUpperCase(),
                     style: const TextStyle(
-                        color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700,
+                        color: Colors.white70,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 1.2,
                         shadows: [Shadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 2))]),
-                    maxLines: 2, overflow: TextOverflow.ellipsis,
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
                   ).animate(delay: 120.ms)
                     .fadeIn(duration: 350.ms)
                     .slideY(begin: 0.12, end: 0, curve: Curves.easeOutCubic),
@@ -871,7 +882,7 @@ class _PremiumLock extends ConsumerWidget {
                                           fontSize: 14,
                                           fontWeight: FontWeight.w800)),
                                 ]),
-                            ).animate(onPlay: (c) => c.repeat())
+                            ).animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
                               .shimmer(duration: 2200.ms, delay: 800.ms, color: Colors.white24),
                           ),
                         ]),
@@ -1034,10 +1045,51 @@ class _BottomBarState extends State<_BottomBar>
 }
 
 // ─── Tag ─────────────────────────────────────────────────────────────────────
+/// Titre qui n'apparaît que lorsque la barre est repliée.
+///
+/// `FlexibleSpaceBar` ne sait pas masquer un titre à l'état déplié : on calcule
+/// donc l'opacité à partir de la hauteur restante de la barre.
+class _TitreReplie extends StatelessWidget {
+  final String titre;
+  const _TitreReplie({required this.titre});
+
+  @override
+  Widget build(BuildContext context) {
+    final settings =
+        context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
+    final double t = settings == null
+        ? 1
+        : ((settings.maxExtent - settings.currentExtent) /
+                (settings.maxExtent - settings.minExtent))
+            .clamp(0.0, 1.0);
+    // Ne devient visible que sur le dernier tiers du repli.
+    final opacite = ((t - 0.65) / 0.35).clamp(0.0, 1.0);
+
+    return IgnorePointer(
+      child: Opacity(
+        opacity: opacite,
+        child: Text(titre,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+                color: context.cl.textP,
+                fontSize: 15,
+                fontWeight: FontWeight.w700)),
+      ),
+    );
+  }
+}
+
 class _Tag extends StatelessWidget {
   final String label;
   final Color  color;
-  const _Tag({required this.label, required this.color});
+
+  /// Optionnelle : les pastilles Premium et Terminé portaient un 👑 et un ✓
+  /// collés dans leur libellé. Une icône prend la couleur de la pastille,
+  /// l'emoji gardait la sienne.
+  final IconData? icon;
+
+  const _Tag({required this.label, required this.color, this.icon});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -1048,9 +1100,18 @@ class _Tag extends StatelessWidget {
           borderRadius: BorderRadius.circular(6),
           border: Border.all(
               color: color.withValues(alpha: 0.3), width: 0.5)),
-        child: Text(label,
-            style: TextStyle(
-                color: color,
-                fontSize: 11,
-                fontWeight: FontWeight.w600)));
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 12, color: color),
+              const SizedBox(width: 4),
+            ],
+            Text(label,
+                style: TextStyle(
+                    color: color,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600)),
+          ],
+        ));
 }

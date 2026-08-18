@@ -85,7 +85,7 @@
 
 <div class="topbar">
   <div>
-    <h2>📣 Notifications push</h2>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> Notifications push</h2>
     <small>Envoyez des notifications à vos utilisateurs</small>
   </div>
 </div>
@@ -109,12 +109,12 @@
 
       <!-- Ciblage -->
       <div class="card" style="padding:1.25rem;margin-bottom:1rem">
-        <h3 style="font-size:.95rem;font-weight:700;margin-bottom:.75rem">🎯 Cible de l'envoi</h3>
+        <h3 style="font-size:.95rem;font-weight:700;margin-bottom:.75rem"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Cible de l'envoi</h3>
         <div class="seg-grid" id="seg-grid">
           <% SEGMENTS.forEach((seg, i) => { %>
           <label class="seg-card <%= i===0?'selected':'' %>" id="seg-<%= seg.key %>">
             <input type="radio" name="segment" value="<%= seg.key %>" <%= i===0?'checked':'' %> onchange="onSegChange('<%= seg.key %>')">
-            <div class="seg-icon"><%= seg.icon %></div>
+            <div class="seg-icon"><%- (seg.icon) ? '<svg class="ic" aria-hidden="true"><use href="#ic-' + (seg.icon) + '"/></svg>' : '' %></div>
             <div class="seg-label"><%= seg.label %></div>
             <div class="seg-desc"><%= seg.desc %></div>
             <span class="seg-count" id="count-<%= seg.key %>">…</span>
@@ -127,8 +127,8 @@
           <label style="display:flex;align-items:center;gap:.6rem;cursor:pointer">
             <input type="radio" name="segment" value="user" id="seg-user-radio" onchange="onSegChange('user')">
             <div style="flex:1">
-              <div style="font-size:.82rem;font-weight:700">👤 Utilisateur spécifique</div>
-              <div style="font-size:.72rem;color:var(--text-dim)">Cibler un seul utilisateur par téléphone ou pseudo</div>
+              <div style="font-size:.82rem;font-weight:700"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> Utilisateur spécifique</div>
+              <div style="font-size:.72rem;color:var(--text-m)">Cibler un seul compte — le moyen de tester un message avant de l'envoyer à tous</div>
             </div>
             <span style="font-size:.75rem;color:var(--primary);font-weight:700" id="user-seg-arrow">▼</span>
           </label>
@@ -147,7 +147,7 @@
 
       <!-- Contenu -->
       <div class="card" style="padding:1.25rem;margin-bottom:1rem">
-        <h3 style="font-size:.95rem;font-weight:700;margin-bottom:.75rem">✍️ Contenu</h3>
+        <h3 style="font-size:.95rem;font-weight:700;margin-bottom:.75rem"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Contenu</h3>
 
         <div class="form-group" style="margin-bottom:1rem">
           <label style="display:block;font-size:.82rem;font-weight:700;color:var(--text-m);margin-bottom:.4rem">
@@ -171,7 +171,7 @@
         </div>
 
         <details>
-          <summary style="font-size:.82rem;color:var(--text-dim);cursor:pointer;user-select:none">⚙️ Options avancées</summary>
+          <summary style="font-size:.82rem;color:var(--text-dim);cursor:pointer;user-select:none"><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Options avancées</summary>
           <div style="margin-top:.75rem;display:flex;flex-direction:column;gap:.75rem">
             <div>
               <label style="display:block;font-size:.82rem;font-weight:700;color:var(--text-m);margin-bottom:.35rem">URL de redirection (optionnel)</label>
@@ -188,37 +188,37 @@
       <!-- Bouton envoi -->
       <button type="button" class="btn btn-primary" style="width:100%;justify-content:center;padding:.85rem;font-size:1rem"
         onclick="confirmSend()">
-        📣 Envoyer la notification
+        <svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> Envoyer la notification
       </button>
     </form>
 
     <!-- ── Historique ── -->
     <div class="card" style="padding:0;overflow:hidden;margin-top:1rem">
       <div style="padding:.85rem 1.25rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
-        <h3 style="font-size:.95rem;font-weight:700;margin:0;flex:1">🕐 Historique des envois</h3>
+        <h3 style="font-size:.95rem;font-weight:700;margin:0;flex:1"><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg> Historique des envois</h3>
         <form method="GET" action="/admin/notifications" style="display:flex;gap:.4rem">
           <input class="input" type="text" name="search_history" value="<%= searchH %>"
             placeholder="Rechercher…" style="font-size:.8rem;padding:.35rem .65rem;width:160px">
-          <button type="submit" class="btn btn-outline btn-sm">🔍</button>
-          <% if(searchH){ %><a href="/admin/notifications" class="btn btn-outline btn-sm">✕</a><% } %>
+          <button type="submit" class="btn btn-outline btn-sm" aria-label="Rechercher"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></button>
+          <% if(searchH){ %><a href="/admin/notifications" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></a><% } %>
         </form>
       </div>
 
       <% if (history.length === 0) { %>
       <div style="padding:2.5rem;text-align:center;color:var(--text-dim)">
-        <div style="font-size:2rem;margin-bottom:.5rem">📭</div>
+        <div style="font-size:2rem;margin-bottom:.5rem"><svg class="ic" aria-hidden="true"><use href="#ic-inbox"/></svg></div>
         <p><%= searchH ? 'Aucun résultat pour « '+searchH+' ».' : 'Aucune notification envoyée pour l\'instant.' %></p>
       </div>
       <% } else { %>
       <div style="padding:0 1.25rem">
         <% history.slice(0,30).forEach((h, i) => { %>
         <div class="hist-row">
-          <div style="font-size:1.4rem;flex-shrink:0;padding-top:.1rem">📣</div>
+          <div style="font-size:1.4rem;flex-shrink:0;padding-top:.1rem"><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg></div>
           <div style="flex:1;min-width:0">
             <div style="font-weight:700;font-size:.875rem;margin-bottom:.15rem"><%= h.title %></div>
             <div style="font-size:.78rem;color:var(--text-dim);margin-bottom:.4rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><%= h.body %></div>
             <div style="display:flex;gap:.4rem;flex-wrap:wrap;align-items:center">
-              <span class="h-seg-badge"><%= SEGMENTS.find(s=>s.key===h.segment)?.icon ?? '👤' %> <%= h.segLabel ?? h.segment %></span>
+              <span class="h-seg-badge"><%- (SEGMENTS.find(s=>s.key===h.segment)?.icon) ? '<svg class="ic" aria-hidden="true"><use href="#ic-' + (SEGMENTS.find(s=>s.key===h.segment)?.icon) + '"/></svg>' : '' %> <%= h.segLabel ?? h.segment %></span>
               <span class="h-sent-count">→ <%= (h.sent ?? 0).toLocaleString('fr-FR') %> envois</span>
               <% if(h.adminName) { %><span style="font-size:.72rem;color:var(--text-dim)">par <%= h.adminName %></span><% } %>
               <span style="font-size:.72rem;color:var(--text-dim);margin-left:auto" title="<%= new Date(h.sentAt).toLocaleString('fr-FR') %>"><%= relT(h.sentAt) %></span>
@@ -229,7 +229,7 @@
             <button type="button" class="btn btn-sm" style="color:var(--text-dim);background:transparent;border:none;padding:.25rem .4rem;cursor:pointer"
               data-idx="<%= i %>" data-title="<%= h.title.replace(/"/g,'&quot;') %>"
               onclick="delHist(this.dataset.idx, this.dataset.title)"
-              title="Supprimer de l'historique">🗑</button>
+              title="Supprimer de l'historique"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg></button>
             <span id="del-form-<%= i %>" style="display:none">
               <button type="submit" id="del-submit-<%= i %>"></button>
             </span>
@@ -252,14 +252,14 @@
 
     <!-- Phone preview -->
     <div class="card" style="padding:1.25rem;text-align:center">
-      <h3 style="font-size:.9rem;font-weight:700;margin-bottom:1.1rem;text-align:left">📱 Aperçu en direct</h3>
+      <h3 style="font-size:.9rem;font-weight:700;margin-bottom:1.1rem;text-align:left"><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg> Aperçu en direct</h3>
       <div class="phone-mock">
         <div class="phone-notch"></div>
         <div class="phone-screen">
           <div style="font-size:10px;color:var(--text-dim);margin-bottom:12px;text-align:center">9:41</div>
           <div class="notif-preview">
             <div class="notif-preview-header">
-              <div class="notif-app-icon">🏆</div>
+              <div class="notif-app-icon"><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg></div>
               <span class="notif-app-name">PRONOWIN</span>
               <span class="notif-time">maintenant</span>
             </div>
@@ -272,11 +272,11 @@
         </div>
       </div>
       <div style="margin-top:1rem;padding:.65rem;background:var(--surface-d);border-radius:var(--radius-s);font-size:.78rem;color:var(--text-dim);text-align:left">
-        <strong style="color:var(--text-m);display:block;margin-bottom:.35rem">💡 Conseils</strong>
+        <strong style="color:var(--text-m);display:block;margin-bottom:.35rem"><svg class="ic" aria-hidden="true"><use href="#ic-bulb"/></svg> Conseils</strong>
         <ul style="list-style:none;display:flex;flex-direction:column;gap:.3rem">
-          <li>🎯 Titre concis et accrocheur</li>
+          <li><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Titre concis et accrocheur</li>
           <li>⏰ Privilégiez 10h–12h ou 18h–20h</li>
-          <li>🔁 Max 1–2 notifs par jour</li>
+          <li><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Max 1–2 notifs par jour</li>
           <li>😀 Un emoji en tête de titre booste l'ouverture</li>
         </ul>
       </div>
@@ -284,13 +284,13 @@
 
     <!-- Templates rapides -->
     <div class="card" style="padding:1.25rem">
-      <h3 style="font-size:.9rem;font-weight:700;margin-bottom:.75rem">⚡ Templates rapides</h3>
+      <h3 style="font-size:.9rem;font-weight:700;margin-bottom:.75rem"><svg class="ic" aria-hidden="true"><use href="#ic-zap"/></svg> Modèles rapides</h3>
       <div style="display:flex;flex-direction:column;gap:.4rem">
         <% [
           ['⚽ Pronostic', '🎯 Nouveau pronostic disponible !', 'Un pronostic Premium vient d\'être publié. Connectez-vous pour ne pas le manquer !'],
           ['👑 Promo Premium', '👑 Offre Premium disponible !', 'Accédez à tous nos pronostics exclusifs avec Premium. Profitez de l\'offre dès maintenant !'],
           ['🏆 Pronostic gagnant', '🏆 Pronostic gagnant !', 'Félicitations ! Le pronostic d\'aujourd\'hui était gagnant. Consultez les résultats.'],
-          ['😴 Réengagement', '👋 On vous a manqué ?', 'Revenez découvrir les derniers pronostics et offres disponibles sur PronoWin !'],
+          [' Réengagement', '👋 On vous a manqué ?', 'Revenez découvrir les derniers pronostics et offres disponibles sur PronoWin !'],
           ['📰 Nouvel article', '📰 Nouvelle actualité !', 'Un nouvel article vient d\'être publié. Découvrez les dernières infos PronoWin.'],
         ].forEach(([label, t, b]) => { %>
         <button class="btn btn-outline btn-sm" style="text-align:left;justify-content:flex-start" type="button"
@@ -385,11 +385,11 @@ function confirmSend() {
 
   const dest = segKey === 'user'
     ? '1 utilisateur spécifique'
-    : count + ' utilisateurs (' + segMeta.icon + ' ' + segMeta.label + ')';
+    : count + ' utilisateurs (' + segMeta.label + ')';
 
   askConfirm({
-    icon:'📣', title:'Confirmer l\'envoi',
-    msg:'Vous allez envoyer <strong>"' + title + '"</strong> à <strong>' + dest + '</strong>. Cette action est irréversible.',
+    icon:'megaphone', title:'Confirmer l\'envoi',
+    msg:'Vous allez envoyer "' + title + '" à ' + dest + '. Cette action est irréversible.',
     btnLabel:'Envoyer', btnClass:'btn-primary',
     onConfirm: () => document.getElementById('notif-form').submit(),
   });
@@ -398,8 +398,8 @@ function confirmSend() {
 /* ── Supprimer historique ── */
 function delHist(idx, title) {
   askConfirm({
-    icon:'🗑️', title:'Supprimer cette entrée',
-    msg:'Supprimer l\'entrée <strong>"' + title + '"</strong> de l\'historique ?',
+    icon:'trash', title:'Supprimer cette entrée',
+    msg:'Supprimer l\'entrée "' + title + '" de l\'historique ?',
     btnLabel:'Supprimer', btnClass:'btn-danger',
     onConfirm: () => {
       // submit le form de la ligne

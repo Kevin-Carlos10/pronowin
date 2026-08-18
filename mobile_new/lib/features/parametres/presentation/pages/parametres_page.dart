@@ -62,28 +62,28 @@ class ParametresPage extends ConsumerWidget {
             .animate().fadeIn(duration: 300.ms, delay: 100.ms),
           _SettingsCard(children: [
             _SwitchTile(
-              icon: Icons.sports_soccer_rounded, iconColor: AppColors.success,
+              icon: Icons.sports_soccer_rounded, iconColor: AppColors.info,
               title: 'Alertes matchs', subtitle: '1h avant chaque pronostic',
               value: settings.notifMatch,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('match'),
             ),
             const _Divider(),
             _SwitchTile(
-              icon: Icons.local_offer_rounded, iconColor: AppColors.primaryLight,
+              icon: Icons.local_offer_rounded, iconColor: AppColors.primary,
               title: 'Offres & Promotions', subtitle: 'Codes promo et offres spéciales',
               value: settings.notifPromo,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('promo'),
             ),
             const _Divider(),
             _SwitchTile(
-              icon: Icons.people_rounded, iconColor: const Color(0xFFA78BFA),
+              icon: Icons.people_rounded, iconColor: AppColors.primary,
               title: 'Parrainage', subtitle: 'Quand un filleul s\'abonne',
               value: settings.notifReferral,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('referral'),
             ),
             const _Divider(),
             _SwitchTile(
-              icon: Icons.workspace_premium_rounded, iconColor: AppColors.warning,
+              icon: Icons.workspace_premium_rounded, iconColor: AppColors.primary,
               title: 'Abonnement Premium', subtitle: 'Expiration et renouvellement',
               value: settings.notifPremium,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('premium'),
@@ -99,7 +99,7 @@ class ParametresPage extends ConsumerWidget {
 
             // Code PIN
             _SwitchTile(
-              icon: Icons.pin_rounded, iconColor: AppColors.warning,
+              icon: Icons.pin_rounded, iconColor: AppColors.success,
               title: 'Code PIN',
               subtitle: settings.pinEnabled
                 ? 'Actif — l\'app se verrouille à la fermeture'
@@ -140,7 +140,7 @@ class ParametresPage extends ConsumerWidget {
                         await ref.read(settingsProvider.notifier).setBioEnabled(true);
                         if (context.mounted) {
                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                            content: Text('✅ Biométrie activée !'),
+                            content: Text('Biométrie activée'),
                             backgroundColor: AppColors.success,
                             behavior: SnackBarBehavior.floating,
                           ));
@@ -389,7 +389,7 @@ class ParametresPage extends ConsumerWidget {
           if (context.mounted) {
             Navigator.pop(context);
             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Cache vidé ✅'),
+              content: Text('Cache vidé'),
               backgroundColor: AppColors.success,
               behavior: SnackBarBehavior.floating,
             ));

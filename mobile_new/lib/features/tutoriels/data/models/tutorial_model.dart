@@ -28,7 +28,7 @@ class TutorialModel extends TutorialEntity {
     isCompleted:     j['is_completed'] as bool? ?? false,
     authorName:      j['author_name'] as String? ?? 'Expert PronoWin',
     authorAvatar:    j['author_avatar'] as String?,
-    publishedAt:     DateTime.parse(j['published_at'] as String? ?? DateTime.now().toIso8601String()),
+    publishedAt:     DateTime.parse(j['published_at'] as String? ?? DateTime.now().toIso8601String()).toLocal(),
   );
 
   static TutorialLevel _parseLevel(String? s) => switch (s) {

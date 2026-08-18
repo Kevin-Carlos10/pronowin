@@ -101,13 +101,13 @@
 
 <div class="topbar">
   <div>
-    <h2>📚 Tutoriels</h2>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-book"/></svg> Tutoriels</h2>
     <small><%= stats.total %> tutoriel<%= stats.total!==1?'s':'' %> · <%= stats.premium %> Premium · <%= stats.free %> Gratuit<%= stats.free!==1?'s':'' %></small>
   </div>
   <div style="display:flex;gap:.5rem">
     <% if(hasPerm('tutoriels','write')) { %>
     <form method="POST" action="/admin/tutoriels/seed" style="display:inline">
-      <button type="submit" class="btn btn-outline btn-sm" title="Insérer les tutoriels par défaut si la liste est vide">🌱 Seed</button>
+      <button type="submit" class="btn btn-outline btn-sm" title="Insérer les tutoriels par défaut si la liste est vide"><svg class="ic" aria-hidden="true"><use href="#ic-sprout"/></svg> Seed</button>
     </form>
     <a href="/admin/tutoriels/new" class="btn btn-primary btn-sm">+ Nouveau</a>
     <% } %>
@@ -134,7 +134,7 @@
     <input type="text" name="search" value="<%= search %>" placeholder="🔍 Titre, description, auteur…">
     <select name="category" onchange="this.form.submit()">
       <option value="">Toutes catégories</option>
-      <% (categories||[]).forEach(c => { %>
+      <% (locals.categories||[]).forEach(c => { %>
         <option value="<%= c %>" <%= category===c ?'selected':'' %>><%= _catCfg[c] || '📚' %> <%= catLabel(c) %></option>
       <% }) %>
     </select>
@@ -146,7 +146,7 @@
       <% }) %>
     </select>
     <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
-    <% if(_hasFilter){ %><a href="/admin/tutoriels" class="btn btn-outline btn-sm">✕ Reset</a><% } %>
+    <% if(_hasFilter){ %><a href="/admin/tutoriels" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a><% } %>
     <span style="margin-left:auto;font-size:.78rem;color:var(--text-dim)"><%= total %> résultat<%= total!==1?'s':'' %></span>
   </form>
 </div>
@@ -179,8 +179,8 @@
     <% } else { %>
     <div class="tut-no-thumb"><%= catEmoji %></div>
     <% } %>
-    <% if(t.isPremium) { %><span class="tut-premium-badge badge badge-warn">👑 Premium</span><% } %>
-    <% if(t.viewCount > 0) { %><span class="tut-views-badge">👁 <%= views %></span><% } %>
+    <% if(t.isPremium) { %><span class="tut-premium-badge badge badge-warn"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span><% } %>
+    <% if(t.viewCount > 0) { %><span class="tut-views-badge"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> <%= views %></span><% } %>
   </div>
 
   <!-- Corps -->
@@ -194,15 +194,15 @@
     <div class="tut-author">par <%= t.authorName || 'Expert PronoWin' %></div>
     <div class="tut-row">
       <% if(dur!=='—') { %><span>⏱ <%= dur %></span><% } %>
-      <span>⭐ <%= rating %></span>
-      <% if(!t.isPremium) { %><span style="color:var(--success)">✓ Gratuit</span><% } %>
+      <span><svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg> <%= rating %></span>
+      <% if(!t.isPremium) { %><span style="color:var(--success)"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Gratuit</span><% } %>
     </div>
   </div>
 
   <!-- Actions -->
   <div class="tut-card-foot">
     <% if(hasPerm('tutoriels','write')) { %>
-    <a href="/admin/tutoriels/<%= t.id %>/edit" class="btn btn-sm btn-outline">✏️ Modifier</a>
+    <a href="/admin/tutoriels/<%= t.id %>/edit" class="btn btn-sm btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier</a>
     <form method="POST" action="/admin/tutoriels/<%= t.id %>/premium" style="margin:0">
       <button type="submit" class="btn btn-sm btn-outline" title="<%= t.isPremium ? 'Passer Gratuit' : 'Passer Premium' %>">
         <%= t.isPremium ? '🔓 Gratuit' : '👑 Premium' %>
@@ -212,7 +212,7 @@
     <% if(hasPerm('tutoriels','delete')) { %>
     <button class="btn btn-sm btn-danger" style="margin-left:auto"
       data-id="<%= t.id %>" data-title="<%= t.title.replace(/"/g,'&quot;') %>"
-      onclick="delTut(this.dataset.id, this.dataset.title)">🗑️</button>
+      onclick="delTut(this.dataset.id, this.dataset.title)"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg></button>
     <form method="POST" action="/admin/tutoriels/<%= t.id %>/delete" id="del-<%= t.id %>" style="display:none"></form>
     <% } %>
   </div>

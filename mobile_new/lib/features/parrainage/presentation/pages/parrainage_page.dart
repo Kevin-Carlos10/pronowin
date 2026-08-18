@@ -178,24 +178,40 @@ class _EarningsBanner extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: const Color(0xFFA78BFA).withValues(alpha: 0.3), width: 1)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('MES GAINS PARRAINAGE', style: TextStyle(
-        color: Color(0xFFA78BFA), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1)),
-      const SizedBox(height: 8),
-      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        TweenAnimationBuilder<int>(
-          tween: IntTween(begin: 0, end: earnings),
-          duration: const Duration(milliseconds: 900),
-          curve: Curves.easeOutCubic,
-          builder: (_, v, _) => Text(
-            v.toLocaleString(),
-            style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.only(left: 6, bottom: 6),
-          child: Text('FCFA', style: TextStyle(color: Color(0xFFA78BFA), fontSize: 14, fontWeight: FontWeight.w600)),
-        ),
-      ]),
+      // Le compteur monte de 0 jusqu'au montant : lu tel quel, il annonçait
+      // une suite de nombres. Et le seuil de retrait n'était rattaché à rien.
+      // L'exclusion s'arrête ici — le bouton « Retirer » plus bas doit rester
+      // atteignable au lecteur d'écran.
+      Semantics(
+        label: 'Mes gains de parrainage : $earnings FCFA. '
+               '${canWithdraw
+                  ? "Montant retirable."
+                  : "Retrait possible à partir de $minWithdraw FCFA."}',
+        excludeSemantics: true,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('MES GAINS PARRAINAGE', style: TextStyle(
+            color: Color(0xFFA78BFA), fontSize: 11,
+            fontWeight: FontWeight.w600, letterSpacing: 1)),
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            TweenAnimationBuilder<int>(
+              tween: IntTween(begin: 0, end: earnings),
+              duration: const Duration(milliseconds: 900),
+              curve: Curves.easeOutCubic,
+              builder: (_, v, _) => Text(
+                v.toLocaleString(),
+                style: const TextStyle(
+                  color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(left: 6, bottom: 6),
+              child: Text('FCFA', style: TextStyle(
+                color: Color(0xFFA78BFA), fontSize: 14, fontWeight: FontWeight.w600)),
+            ),
+          ]),
+        ]),
+      ),
       const SizedBox(height: 12),
       Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -569,7 +585,10 @@ class _StatChip extends StatelessWidget {
   const _StatChip({required this.label, required this.value, required this.sub, required this.color});
   @override
   Widget build(BuildContext context) => Expanded(
-    child: Container(
+    child: Semantics(
+      label: '$label : $value $sub',
+      excludeSemantics: true,
+      child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(14),
@@ -585,7 +604,7 @@ class _StatChip extends StatelessWidget {
         ),
         Text(sub, style: TextStyle(color: context.cl.textM, fontSize: 10)),
       ]),
-    ),
+    )),
   );
 }
 

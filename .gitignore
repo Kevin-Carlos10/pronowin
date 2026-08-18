@@ -70,3 +70,9 @@ desktop.ini
 # déploiement. sub_admins.json était déjà ignoré pour la même raison.
 admin-web/data/audit_log.json
 admin-web/data/settings.json
+
+# ── Sauvegardes locales avant modification destructive ───────────────────────
+# Copies datées prises avant un changement risqué. Ce sont des doublons du code
+# déjà présent : les versionner ferait cohabiter deux exemplaires d'un même
+# fichier, et on finirait par éditer le mauvais.
+sauvegarde_*/

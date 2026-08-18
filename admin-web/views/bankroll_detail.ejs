@@ -14,20 +14,20 @@
 
 <div class="topbar">
   <div>
-    <h2>🎯 Bankroll de <%= user.pseudo %></h2>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Bankroll de <%= user.pseudo %></h2>
     <small><a href="/admin/bankroll" style="color:var(--text-dim)">← Retour à la liste</a></small>
   </div>
-  <a href="/admin/users/<%= user.id %>" class="btn btn-outline">👤 Voir le profil</a>
+  <a href="/admin/users/<%= user.id %>" class="btn btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> Voir le profil</a>
 </div>
 
 <% if(error){ %>
-  <div class="alert alert-error" style="margin-bottom:12px">❌ <%= error %></div>
+  <div class="alert alert-error" style="margin-bottom:12px"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= error %></div>
 <% } %>
 
 <% if(!bankroll){ %>
   <div class="card">
     <div class="empty-state" style="padding:40px">
-      <div style="font-size:2rem;margin-bottom:.5rem">🎯</div>
+      <div style="font-size:2rem;margin-bottom:.5rem"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg></div>
       <p>Cet utilisateur n'a pas encore configuré de budget bankroll.</p>
     </div>
   </div>
@@ -45,14 +45,14 @@
 
 <% if(bankroll.last_reset_at){ %>
 <p style="font-size:12px;color:var(--text-dim);margin-bottom:12px">
-  🔄 Dernier reset le <%= new Date(bankroll.last_reset_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) %>
+  <svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Dernier reset le <%= new Date(bankroll.last_reset_at).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'}) %>
 </p>
 <% } %>
 
 <!-- Historique des paris -->
 <div class="card" style="padding:0;overflow:hidden">
   <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
-    <h3 style="font-size:.95rem;font-weight:700">📋 Historique des paris (<%= bankroll.bets.length %> derniers)</h3>
+    <h3 style="font-size:.95rem;font-weight:700"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Historique des paris (<%= bankroll.bets.length %> derniers)</h3>
   </div>
   <% if(bankroll.bets.length === 0){ %>
     <div class="empty-state" style="padding:32px">
@@ -84,11 +84,11 @@
       <td style="font-size:13px;color:var(--text-m)"><%= Math.round(bet.potential_gain).toLocaleString('fr-FR') %></td>
       <td>
         <% if(bet.result === 'WIN'){ %>
-          <span class="badge badge-ok">✅ Gagné</span>
+          <span class="badge badge-ok"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Gagné</span>
         <% } else if(bet.result === 'LOSS'){ %>
-          <span class="badge badge-err">❌ Perdu</span>
+          <span class="badge badge-err"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Perdu</span>
         <% } else if(bet.result === 'PUSH'){ %>
-          <span class="badge badge-info">🔄 Remboursé</span>
+          <span class="badge badge-info"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Remboursé</span>
         <% } else { %>
           <span class="badge" style="background:var(--surface-d);color:var(--text-dim)">⏳ En attente</span>
         <% } %>

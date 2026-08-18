@@ -30,14 +30,11 @@ class DioClient {
   Completer<bool>? _refreshCompleter;
 
   // Endpoints publics, appelés sans session existante — un 401 dessus est
-  // toujours une erreur métier (mauvais code, mauvais mot de passe...),
-  // jamais un token expiré. Ne doit jamais déclencher _doRefresh().
+  // toujours une erreur métier (code invalide ou expiré), jamais un jeton
+  // périmé. Ne doit jamais déclencher _doRefresh().
   static const _publicAuthEndpoints = <String>{
-    ApiEndpoints.quickRegister,
     ApiEndpoints.sendOtp,
     ApiEndpoints.verifyOtp,
-    ApiEndpoints.registerEmail,
-    ApiEndpoints.loginEmail,
     ApiEndpoints.sendEmailOtp,
     ApiEndpoints.verifyEmailOtp,
     ApiEndpoints.refreshToken,
@@ -276,3 +273,12 @@ class DioClient {
     });
   }
 }
+
+/// Décalage UTC de l'appareil, en minutes (60 pour UTC+1).
+///
+/// Transmis au serveur sur les requêtes filtrées par jour : sans lui, le
+/// backend découpe les journées dans *son* fuseau et le mobile dans celui de
+/// l'utilisateur. Un match de fin de soirée tombait alors du mauvais côté de
+/// minuit pour l'un des deux, et le compteur du bandeau ne correspondait plus
+/// aux cartes affichées en dessous.
+int decalageUtcMinutes() => DateTime.now().timeZoneOffset.inMinutes;

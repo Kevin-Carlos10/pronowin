@@ -1,4 +1,5 @@
 import 'dart:ui';
+import '../../../../core/utils/motion.dart';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -42,7 +43,7 @@ class PronosticComment {
     content:    j['content'] as String,
     isExpert:   j['isExpert'] as bool? ?? false,
     parentId:   j['parentId'] as String?,
-    createdAt:  DateTime.parse(j['createdAt'] as String),
+    createdAt:  DateTime.parse(j['createdAt'] as String).toLocal(),
     userPseudo: (j['user'] as Map<String, dynamic>)['pseudo'] as String,
     userAvatar: (j['user'] as Map<String, dynamic>)['avatarUrl'] as String?,
     replies:    (j['replies'] as List? ?? [])
@@ -646,7 +647,7 @@ class _CommentsLoading extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.cl.surfaceD,
         borderRadius: BorderRadius.circular(8)),
-    ).animate(onPlay: (c) => c.repeat())
+    ).animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
      .shimmer(duration: 1400.ms, color: context.cl.borderSoft))),
   );
 }
@@ -769,7 +770,7 @@ class _CommentsPremiumLockedState extends State<_CommentsPremiumLocked>
                         fontSize: 12,
                         fontWeight: FontWeight.w800)),
                   ]),
-                ).animate(onPlay: (c) => c.repeat())
+                ).animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
                  .shimmer(duration: 2200.ms, delay: 700.ms, color: Colors.white70),
               ]),
             ),
@@ -907,7 +908,7 @@ class _VoteBarSkeleton extends StatelessWidget {
     decoration: BoxDecoration(
       color: context.cl.surfaceD,
       borderRadius: BorderRadius.circular(10)),
-  ).animate(onPlay: (c) => c.repeat())
+  ).animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
    .shimmer(duration: 1400.ms, color: context.cl.borderSoft);
 }
 
@@ -920,34 +921,40 @@ class _CommentsGuestLocked extends StatelessWidget {
   const _CommentsGuestLocked({required this.onTap});
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-    child: Column(children: [
-      Icon(Icons.forum_outlined, color: context.cl.textM, size: 30),
-      const SizedBox(height: 12),
-      Text('Rejoins la discussion',
-        style: TextStyle(color: context.cl.textP, fontSize: 15,
-          fontWeight: FontWeight.w700)),
-      const SizedBox(height: 6),
-      Text(
-        'Crée un compte gratuit pour lire les commentaires et échanger avec '
-        'les autres parieurs.',
-        style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.5),
-        textAlign: TextAlign.center),
-      const SizedBox(height: 16),
-      SizedBox(
-        width: double.infinity, height: 46,
-        child: ElevatedButton(
-          onPressed: onTap,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12))),
-          child: const Text('Créer un compte gratuit',
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-        ),
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    label: 'Rejoins la discussion. Crée un compte gratuit pour lire les '
+           'commentaires et échanger avec les autres parieurs.',
+    excludeSemantics: true,
+    child: InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      // Discret, et non un second gros bouton plein.
+      //
+      // La carte Analyse juste au-dessus porte déjà un appel à l'inscription
+      // pour un invité : deux boutons pleins empilés, de deux couleurs
+      // différentes, pour un seul et même geste, faisaient lire la page comme
+      // une insistance commerciale plutôt que comme du contenu.
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 18, 16, 20),
+        child: Column(children: [
+          Icon(Icons.forum_outlined, color: context.cl.textM, size: 26),
+          const SizedBox(height: 10),
+          Text('Rejoins la discussion',
+            style: TextStyle(color: context.cl.textP, fontSize: 14,
+              fontWeight: FontWeight.w700)),
+          const SizedBox(height: 5),
+          Text.rich(
+            TextSpan(children: [
+              const TextSpan(text: 'Les commentaires sont réservés aux membres. '),
+              TextSpan(text: 'Créer un compte gratuit',
+                style: const TextStyle(
+                  color: AppColors.primary, fontWeight: FontWeight.w700)),
+            ]),
+            style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.5),
+            textAlign: TextAlign.center),
+        ]),
       ),
-    ]),
+    ),
   );
 }

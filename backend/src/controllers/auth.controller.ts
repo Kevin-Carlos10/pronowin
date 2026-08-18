@@ -44,39 +44,7 @@ function _clearOtpAttempts(phone: string): void {
 }
 
 
-
-
 // ─── Validateurs ─────────────────────────────────────────────────────────────
-// ─── Quick Register (sans vérification) ──────────────────────────────────────
-export const quickRegisterValidators = [
-  body('phone_number').optional().matches(/^\+?[1-9]\d{7,14}$/).withMessage('Format numéro invalide.'),
-  body('email').optional().isEmail().withMessage('Email invalide.'),
-];
-
-export async function quickRegister(req: Request, res: Response): Promise<void> {
-  const err = validationResult(req);
-  if (!err.isEmpty()) { res.status(422).json({ message: err.array()[0].msg }); return; }
-
-  const { phone_number, email } = req.body;
-  if (!phone_number && !email) {
-    res.status(422).json({ message: 'Numéro de téléphone ou email requis.' });
-    return;
-  }
-
-  try {
-    const result = await authService.quickRegister({ phoneNumber: phone_number, email });
-    const streakResult = await updateStreak(result.user.id).catch(() => null);
-    res.status(201).json({
-      access_token:  result.access_token,
-      refresh_token: result.refresh_token,
-      user:          _formatUser(result.user),
-      streak:        streakResult ?? undefined,
-    });
-  } catch (e: any) {
-    res.status(400).json({ message: e.message });
-  }
-}
-
 export const sendOtpValidators = [
   body('phone_number')
     .notEmpty().withMessage('Numéro de téléphone requis.')
@@ -86,17 +54,6 @@ export const sendOtpValidators = [
 export const verifyOtpValidators = [
   body('phone_number').notEmpty().withMessage('Numéro requis.'),
   body('otp').isLength({ min: 6, max: 6 }).withMessage('OTP invalide (6 chiffres).'),
-];
-
-export const registerEmailValidators = [
-  body('email').isEmail().withMessage('Email invalide.'),
-  body('password').isLength({ min: 8 }).withMessage('Mot de passe minimum 8 caractères.'),
-  body('pseudo').isLength({ min: 3, max: 30 }).withMessage('Pseudo entre 3 et 30 caractères.'),
-];
-
-export const loginEmailValidators = [
-  body('email').isEmail().withMessage('Email invalide.'),
-  body('password').notEmpty().withMessage('Mot de passe requis.'),
 ];
 
 export const emailOtpValidators = [
@@ -164,43 +121,6 @@ export async function verifyOtp(req: Request, res: Response): Promise<void> {
   }
 }
 
-export async function registerEmail(req: Request, res: Response): Promise<void> {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) { res.status(422).json({ message: errors.array()[0].msg }); return; }
-  try {
-    const { email, password, pseudo } = req.body;
-    const result = await authService.registerEmail(email, password, pseudo);
-    const streakResult = await updateStreak(result.user.id).catch(() => null);
-    res.status(201).json({
-      user:          _formatUser(result.user),
-      access_token:  result.access_token,
-      refresh_token: result.refresh_token,
-      streak:        streakResult,
-    });
-  } catch (e: any) {
-    const isDuplicate = e.message?.includes('existe déjà');
-    res.status(isDuplicate ? 409 : 500).json({ message: e.message });
-  }
-}
-
-export async function loginEmail(req: Request, res: Response): Promise<void> {
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) { res.status(422).json({ message: errors.array()[0].msg }); return; }
-  try {
-    const { email, password } = req.body;
-    const result = await authService.loginEmail(email, password);
-    const streakResult = await updateStreak(result.user.id).catch(() => null);
-    res.json({
-      user:          _formatUser(result.user),
-      access_token:  result.access_token,
-      refresh_token: result.refresh_token,
-      streak:        streakResult,
-    });
-  } catch (e: any) {
-    res.status(401).json({ message: e.message });
-  }
-}
-
 export async function sendEmailOtp(req: Request, res: Response): Promise<void> {
   const errors = validationResult(req);
   if (!errors.isEmpty()) { res.status(422).json({ message: errors.array()[0].msg }); return; }
@@ -232,6 +152,35 @@ export async function verifyEmailOtp(req: Request, res: Response): Promise<void>
   } catch (e: any) {
     _recordOtpFailure(req.body.email);
     res.status(401).json({ message: e.message ?? 'Vérification OTP échouée.' });
+  }
+}
+
+// ─── Connexion Google ────────────────────────────────────────────────────────
+
+export const googleLoginValidators = [
+  body('id_token').isString().notEmpty().withMessage('Jeton Google requis.'),
+];
+
+export async function googleLogin(req: Request, res: Response): Promise<void> {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    res.status(422).json({ message: errors.array()[0].msg });
+    return;
+  }
+
+  try {
+    // Même contrat de réponse que verifyEmailOtp : le client ne fait aucune
+    // différence entre les deux chemins d'authentification.
+    const result = await authService.loginWithGoogle(req.body.id_token);
+    const streakResult = await updateStreak(result.user.id).catch(() => null);
+    res.json({
+      user:          _formatUser(result.user),
+      access_token:  result.access_token,
+      refresh_token: result.refresh_token,
+      streak:        streakResult,
+    });
+  } catch (e: any) {
+    res.status(401).json({ message: e.message ?? 'Connexion Google échouée.' });
   }
 }
 
@@ -270,20 +219,6 @@ export async function linkEmail(req: AuthRequest, res: Response): Promise<void> 
     res.status(e.message.includes('déjà') ? 409 : 401).json({ message: e.message });
   }
 }
-
-export async function setPassword(req: AuthRequest, res: Response): Promise<void> {
-  const { password } = req.body;
-  if (!password || password.length < 8) {
-    res.status(422).json({ message: 'Mot de passe minimum 8 caractères.' }); return;
-  }
-  try {
-    await authService.setPassword(req.userId!, password);
-    res.json({ message: 'Mot de passe défini avec succès.' });
-  } catch (e: any) {
-    res.status(500).json({ message: e.message });
-  }
-}
-
 export async function refreshToken(req: Request, res: Response): Promise<void> {
   const { refresh_token } = req.body;
   if (!refresh_token) {

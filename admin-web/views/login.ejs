@@ -3,556 +3,775 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0D1117">
+  <meta name="theme-color" content="#0A0E1A">
   <meta name="robots" content="noindex, nofollow">
   <title>Connexion — PronoWin Admin</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
   <script>
-    (function() {
+    (function () {
       var m = localStorage.getItem('pw_mode') || 'dark';
       if (m === 'light') document.getElementById('login-html').classList.add('light');
     })();
   </script>
   <link rel="stylesheet" href="/style.css">
   <style>
+    /* ═══════════════════════════════════════════════════════════════════════
+       CONNEXION — PronoWin Admin
+
+       Le panneau de marque reste sombre dans les deux thèmes. C'est un choix,
+       pas un oubli : la version précédente déclarait des variables claires pour
+       ce panneau puis les écrasait en dur, si bien que le thème clair ne
+       produisait qu'un contraste bancal entre une colonne sombre et une colonne
+       blanche. Une identité stable à gauche, l'interface qui suit le thème à
+       droite — c'est plus lisible et c'est ce que fait tout panneau sérieux.
+    ═══════════════════════════════════════════════════════════════════════ */
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    :root {
-      --login-brand: #E8541A;
-      --login-brand-rgb: 232,84,26;
-      --login-dark: #0D1117;
-      --login-dark2: #161B22;
-      --login-border: rgba(255,255,255,.08);
-    }
-    html.light {
-      --login-dark: #F0F4FF;
-      --login-dark2: #E2E8F0;
-      --login-border: rgba(0,0,0,.08);
+    #login-html {
+      --brand:      #E8541A;
+      --brand-lo:   #C43F0D;
+      --brand-hi:   #FF7A3D;
+      --brand-rgb:  232, 84, 26;
+
+      --ink:        #0A0E1A;   /* fond du panneau de marque */
+      --ink-2:      #10182B;
+      --on-ink:     #FFFFFF;
+      --on-ink-m:   rgba(255, 255, 255, .58);
+      --on-ink-d:   rgba(255, 255, 255, .34);
+      --ink-line:   rgba(255, 255, 255, .09);
+
+      --ease:       cubic-bezier(.16, 1, .3, 1);
     }
 
     body {
-      font-family: 'Inter', sans-serif;
-      min-height: 100vh;
-      display: flex;
+      font-family: 'Inter', system-ui, sans-serif;
       background: var(--bg);
       color: var(--text);
-      overflow: hidden;
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
     }
 
-    /* ══════════════════════════════════════════
-       PANNEAU GAUCHE — Branding
-    ══════════════════════════════════════════ */
-    .login-left {
-      flex: 1;
-      background: var(--login-dark);
+    .auth {
+      min-height: 100vh;
+      min-height: 100dvh;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) clamp(26rem, 33vw, 34rem);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       PANNEAU DE MARQUE
+    ═══════════════════════════════════════════════════════════════════════ */
+    .brand {
       position: relative;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-      padding: 2.5rem;
+      isolation: isolate;
       overflow: hidden;
+      background: var(--ink);
+      color: var(--on-ink);
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 2rem;
+      padding: clamp(1.75rem, 3.2vw, 3.25rem);
     }
-    html.light .login-left { background: #0D1117; }
 
-    /* Grille décorative */
-    .login-left::before {
+    /* Dégradé de fond — la base sur laquelle tout le reste se pose. */
+    .brand::before {
       content: '';
-      position: absolute; inset: 0;
+      position: absolute; inset: 0; z-index: -3;
+      background:
+        radial-gradient(120% 90% at 8% 0%,   rgba(var(--brand-rgb), .20), transparent 55%),
+        radial-gradient(90%  80% at 95% 100%, rgba(120, 60, 220, .16),    transparent 60%),
+        linear-gradient(160deg, var(--ink-2) 0%, var(--ink) 60%);
+    }
+
+    /* Grille technique, atténuée vers les bords pour ne pas concurrencer le
+       texte : elle donne l'échelle sans devenir un motif. */
+    .brand::after {
+      content: '';
+      position: absolute; inset: 0; z-index: -2;
       background-image:
-        linear-gradient(rgba(232,84,26,.06) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(232,84,26,.06) 1px, transparent 1px);
-      background-size: 40px 40px;
-      mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%);
+        linear-gradient(rgba(255, 255, 255, .045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, .045) 1px, transparent 1px);
+      background-size: 56px 56px;
+      mask-image: radial-gradient(ellipse 70% 65% at 30% 45%, #000 15%, transparent 78%);
+      -webkit-mask-image: radial-gradient(ellipse 70% 65% at 30% 45%, #000 15%, transparent 78%);
     }
 
-    /* Lueur centrale */
-    .login-left::after {
-      content: '';
-      position: absolute;
-      top: -20%; left: -20%;
-      width: 140%; height: 140%;
-      background: radial-gradient(ellipse 60% 50% at 40% 40%, rgba(232,84,26,.18) 0%, transparent 65%);
-      pointer-events: none;
+    /* Deux voiles colorés en dérive lente : la profondeur vient du mouvement
+       différentiel, pas d'une ombre portée. */
+    .aurora { position: absolute; inset: -25%; z-index: -2; pointer-events: none; filter: blur(90px); opacity: .55; }
+    .aurora i {
+      position: absolute; display: block; border-radius: 50%;
+    }
+    .aurora i:nth-child(1) {
+      width: 46%; height: 46%; left: 6%; top: 12%;
+      background: radial-gradient(circle, rgba(var(--brand-rgb), .55), transparent 68%);
+      animation: drift-a 22s var(--ease) infinite alternate;
+    }
+    .aurora i:nth-child(2) {
+      width: 40%; height: 40%; right: 10%; bottom: 10%;
+      background: radial-gradient(circle, rgba(150, 90, 255, .42), transparent 68%);
+      animation: drift-b 27s var(--ease) infinite alternate;
+    }
+    @keyframes drift-a { to { transform: translate3d(14%, 10%, 0) scale(1.16); } }
+    @keyframes drift-b { to { transform: translate3d(-12%, -9%, 0) scale(1.1); } }
+
+    /* Halo suivant le pointeur — activé en JS seulement sur pointeur fin et
+       hors mode « animations réduites ». */
+    .spotlight {
+      position: absolute; inset: 0; z-index: -1; pointer-events: none;
+      opacity: 0; transition: opacity .5s ease;
+      background: radial-gradient(26rem circle at var(--sx, 50%) var(--sy, 40%),
+                                  rgba(var(--brand-rgb), .17), transparent 62%);
     }
 
-    .left-top { position: relative; z-index: 1; }
-    .left-logo {
-      display: flex; align-items: center; gap: .75rem;
+    /* ── Logo ── */
+    .brand-head { position: relative; display: flex; align-items: center; gap: .85rem; }
+    .mark {
+      width: 52px; height: 52px; border-radius: 16px; flex-shrink: 0;
+      display: grid; place-items: center;
+      font-size: 1.5rem; color: #fff;
+      background: linear-gradient(145deg, var(--brand-hi), var(--brand) 45%, var(--brand-lo));
+      box-shadow:
+        0 10px 30px -6px rgba(var(--brand-rgb), .55),
+        inset 0 1px 0 rgba(255, 255, 255, .35),
+        inset 0 -1px 0 rgba(0, 0, 0, .2);
     }
-    .left-logo-icon {
-      width: 48px; height: 48px; border-radius: 14px;
-      background: linear-gradient(135deg, #E8541A, #C43F0D);
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.4rem;
-      box-shadow: 0 8px 24px rgba(232,84,26,.4), 0 0 0 1px rgba(232,84,26,.2);
-    }
-    .left-logo-name { font-size: 1.4rem; font-weight: 800; color: #fff; }
-    .left-logo-name span { color: var(--login-brand); }
-    .left-logo-sub { font-size: .72rem; color: rgba(255,255,255,.4); text-transform: uppercase; letter-spacing: .08em; margin-top: .1rem; font-weight: 500; }
-
-    /* Hero texte */
-    .left-hero { position: relative; z-index: 1; margin-top: 4rem; }
-    .left-hero-badge {
-      display: inline-flex; align-items: center; gap: .4rem;
-      background: rgba(232,84,26,.12); border: 1px solid rgba(232,84,26,.25);
-      border-radius: 99px; padding: .3rem .75rem;
-      font-size: .72rem; font-weight: 600; color: #F97316;
-      letter-spacing: .04em; margin-bottom: 1.25rem;
-    }
-    .left-hero-badge::before {
-      content: '';
-      width: 6px; height: 6px; border-radius: 50%;
-      background: #F97316;
-      animation: pulse-dot 2s ease-in-out infinite;
-    }
-    @keyframes pulse-dot {
-      0%,100% { opacity: 1; transform: scale(1); }
-      50%      { opacity: .5; transform: scale(.7); }
-    }
-    .left-hero h2 {
-      font-size: 2.5rem; font-weight: 900; line-height: 1.15;
-      color: #fff; letter-spacing: -.03em;
-    }
-    .left-hero h2 em { font-style: normal; color: var(--login-brand); }
-    .left-hero p {
-      margin-top: 1rem; font-size: .92rem; color: rgba(255,255,255,.45);
-      line-height: 1.65; max-width: 340px;
+    .mark-name { font-size: 1.32rem; font-weight: 800; letter-spacing: -.02em; line-height: 1.1; }
+    .mark-name b { color: var(--brand-hi); font-weight: 800; }
+    .mark-sub {
+      font-size: .68rem; font-weight: 600; letter-spacing: .16em;
+      text-transform: uppercase; color: var(--on-ink-d); margin-top: .2rem;
     }
 
-    /* Features */
-    .left-features { position: relative; z-index: 1; display: flex; flex-direction: column; gap: .65rem; margin-top: 2.5rem; }
-    .feature-item {
-      display: flex; align-items: center; gap: .75rem;
-      font-size: .83rem; color: rgba(255,255,255,.55);
+    /* ── Bloc central ── */
+    .brand-body { align-self: center; max-width: 32rem; position: relative; }
+
+    .pill {
+      display: inline-flex; align-items: center; gap: .5rem;
+      padding: .32rem .8rem .32rem .6rem; border-radius: 99px;
+      font-size: .7rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--brand-hi);
+      background: rgba(var(--brand-rgb), .1);
+      border: 1px solid rgba(var(--brand-rgb), .28);
+      margin-bottom: 1.5rem;
     }
-    .feature-icon {
-      width: 30px; height: 30px; border-radius: 8px; flex-shrink: 0;
-      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.07);
-      display: flex; align-items: center; justify-content: center; font-size: .9rem;
+    .pill-dot {
+      width: 7px; height: 7px; border-radius: 50%; background: var(--brand-hi);
+      box-shadow: 0 0 0 0 rgba(var(--brand-rgb), .7);
+      animation: ping 2.4s ease-out infinite;
+    }
+    @keyframes ping {
+      0%   { box-shadow: 0 0 0 0   rgba(var(--brand-rgb), .55); }
+      70%  { box-shadow: 0 0 0 9px rgba(var(--brand-rgb), 0); }
+      100% { box-shadow: 0 0 0 0   rgba(var(--brand-rgb), 0); }
     }
 
-    /* Stats bottom */
-    .left-stats { position: relative; z-index: 1; }
-    .left-stats-grid { display: flex; gap: 1.5rem; }
-    .stat-item { }
-    .stat-val { font-size: 1.5rem; font-weight: 800; color: #fff; line-height: 1; }
-    .stat-lbl { font-size: .72rem; color: rgba(255,255,255,.4); margin-top: .2rem; }
+    .brand-title {
+      font-size: clamp(2.1rem, 3.6vw, 3.4rem);
+      font-weight: 900; line-height: 1.05; letter-spacing: -.035em;
+      text-wrap: balance;
+    }
+    .brand-title em {
+      font-style: normal;
+      background: linear-gradient(100deg, var(--brand-hi), var(--brand) 55%, #FFB088);
+      -webkit-background-clip: text; background-clip: text; color: transparent;
+    }
+    .brand-lede {
+      margin-top: 1.15rem; max-width: 27rem;
+      font-size: .95rem; line-height: 1.7; color: var(--on-ink-m);
+    }
 
-    /* ══════════════════════════════════════════
-       PANNEAU DROIT — Formulaire
-    ══════════════════════════════════════════ */
-    .login-right {
-      width: min(480px, 100%);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      padding: 3rem 2.5rem;
-      background: var(--surface);
+    .caps { margin-top: 2.4rem; display: grid; gap: .5rem; max-width: 27rem; }
+    .cap {
+      display: flex; align-items: center; gap: .8rem;
+      padding: .7rem .9rem; border-radius: 12px;
+      font-size: .86rem; font-weight: 500; color: rgba(255, 255, 255, .78);
+      background: rgba(255, 255, 255, .03);
+      border: 1px solid var(--ink-line);
+      transition: background .25s ease, border-color .25s ease, transform .25s var(--ease);
+    }
+    .cap:hover { background: rgba(255, 255, 255, .055); border-color: rgba(var(--brand-rgb), .3); transform: translateX(3px); }
+    .cap-ic {
+      width: 32px; height: 32px; border-radius: 9px; flex-shrink: 0;
+      display: grid; place-items: center; font-size: .95rem;
+      color: var(--brand-hi);
+      background: rgba(var(--brand-rgb), .12);
+      border: 1px solid rgba(var(--brand-rgb), .2);
+    }
+
+    /* ── Bandeau du bas ──
+       Les anciens chiffres (« 99 % de disponibilité ») n'étaient mesurés par
+       personne. À la place, trois garanties que le code applique réellement :
+       journal d'audit, expiration de session, limitation des tentatives. */
+    .brand-foot {
       position: relative;
-      overflow-y: auto;
+      display: flex; flex-wrap: wrap; gap: .5rem 1.6rem;
+      padding-top: 1.4rem; border-top: 1px solid var(--ink-line);
     }
+    .assur {
+      display: inline-flex; align-items: center; gap: .5rem;
+      font-size: .76rem; color: var(--on-ink-d); font-weight: 500;
+    }
+    .assur .ic { color: rgba(var(--brand-rgb), .75); }
 
-    /* Mode toggle */
-    .theme-row {
-      position: absolute; top: 1.25rem; right: 1.25rem;
-      display: flex; gap: .35rem;
-    }
-    .theme-btn {
-      width: 32px; height: 32px; border-radius: 9px;
-      background: var(--surface-d); border: 1px solid var(--border);
-      display: flex; align-items: center; justify-content: center;
-      cursor: pointer; font-size: .9rem; transition: all .15s;
-      color: var(--text-dim);
-    }
-    .theme-btn:hover { background: var(--surface-h); }
-    .theme-btn.active { border-color: var(--primary); background: rgba(var(--primary-rgb),.1); }
-
-    /* Header formulaire */
-    .form-header { margin-bottom: 2rem; }
-    .form-header h3 {
-      font-size: 1.65rem; font-weight: 800; line-height: 1.2;
-      letter-spacing: -.02em; color: var(--text);
-    }
-    .form-header p { font-size: .85rem; color: var(--text-dim); margin-top: .4rem; }
-
-    /* Alertes */
-    .login-alert {
-      border-radius: 10px; padding: .8rem 1rem;
-      font-size: .83rem; margin-bottom: 1.25rem;
-      display: flex; align-items: flex-start; gap: .5rem; line-height: 1.5;
-    }
-    .login-alert.error   { background: rgba(239,68,68,.08);  border: 1px solid rgba(239,68,68,.18);  color: #FCA5A5; }
-    .login-alert.warning { background: rgba(245,158,11,.08); border: 1px solid rgba(245,158,11,.18); color: #FCD34D; }
-    .login-alert.info    { background: rgba(59,130,246,.08); border: 1px solid rgba(59,130,246,.18); color: #93C5FD; }
-    .login-alert.locked  { background: rgba(239,68,68,.1);   border: 1px solid rgba(239,68,68,.22);  color: #FCA5A5; }
-
-    /* Barre tentatives */
-    .attempts-bar {
-      margin-bottom: 1.25rem; padding: .75rem .9rem;
-      background: var(--surface-d); border-radius: 10px; border: 1px solid var(--border);
-    }
-    .attempts-label { display: flex; justify-content: space-between; align-items: center; font-size: .75rem; color: var(--text-dim); margin-bottom: .45rem; }
-    .attempts-label strong { color: #F97316; font-weight: 700; }
-    .attempts-track { height: 4px; background: var(--surface-h); border-radius: 99px; overflow: hidden; }
-    .attempts-fill { height: 100%; border-radius: 99px; background: linear-gradient(90deg, #22C55E, #F97316); transition: width .4s ease; }
-    .attempts-fill.danger { background: linear-gradient(90deg, #F97316, #EF4444); }
-
-    /* Countdown blocage */
-    .lock-box {
-      text-align: center; padding: 2.5rem 1.5rem;
-      background: var(--surface-d); border: 1px solid var(--border);
-      border-radius: 16px; margin-bottom: 1.5rem;
-    }
-    .lock-icon { font-size: 3rem; margin-bottom: .75rem; }
-    .lock-timer { font-size: 2.5rem; font-weight: 900; color: #EF4444; letter-spacing: .05em; margin: .5rem 0; font-variant-numeric: tabular-nums; }
-    .lock-msg   { font-size: .82rem; color: var(--text-dim); line-height: 1.6; }
-
-    /* Champs */
-    .field { margin-bottom: 1.1rem; }
-    .field label {
-      display: block; font-size: .72rem; font-weight: 700;
-      color: var(--text-dim); letter-spacing: .06em; text-transform: uppercase; margin-bottom: .45rem;
-    }
-    .field-inner { position: relative; }
-    .field input {
-      width: 100%; padding: .8rem 1rem;
-      background: var(--surface-d); border: 1.5px solid var(--border);
-      border-radius: 11px; color: var(--text);
-      font-size: .95rem; font-family: inherit;
-      outline: none; transition: border-color .2s, box-shadow .2s;
-    }
-    .field input:focus {
-      border-color: var(--primary);
-      box-shadow: 0 0 0 3px rgba(var(--primary-rgb), .12);
+    /* ═══════════════════════════════════════════════════════════════════════
+       PANNEAU DE CONNEXION
+    ═══════════════════════════════════════════════════════════════════════ */
+    .panel {
+      position: relative;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      gap: 1.5rem;
+      padding: 1.25rem clamp(1.5rem, 2.6vw, 3rem) 1.75rem;
       background: var(--surface);
+      overflow-y: auto;
+      box-shadow: -1px 0 0 var(--border), -24px 0 60px -30px rgba(0, 0, 0, .6);
     }
-    .field input.has-icon { padding-right: 2.85rem; }
-    .field input::placeholder { color: var(--text-dim); opacity: .6; }
-    .field-icon {
-      position: absolute; right: .9rem; top: 50%; transform: translateY(-50%);
-      color: var(--text-dim); cursor: pointer; font-size: .9rem;
-      background: none; border: none; padding: 0; line-height: 1;
-      transition: color .15s;
-    }
-    .field-icon:hover { color: var(--primary); }
 
-    /* Checkbox remember */
-    .remember-wrap {
+    .panel-top { display: flex; justify-content: flex-end; }
+
+    .mode-btn {
+      width: 38px; height: 38px; border-radius: 11px;
+      display: grid; place-items: center;
+      background: var(--surface-d); border: 1px solid var(--border);
+      color: var(--text-m); cursor: pointer; font-size: 1rem;
+      transition: color .18s, border-color .18s, background .18s, transform .18s var(--ease);
+    }
+    .mode-btn:hover { color: var(--text); border-color: var(--border-s); transform: rotate(-12deg); }
+    .mode-btn .ic-sun { display: none; }
+    html.light .mode-btn .ic-sun  { display: block; }
+    html.light .mode-btn .ic-moon { display: none; }
+
+    .form-wrap { align-self: center; width: 100%; max-width: 24rem; margin-inline: auto; }
+
+    .form-head { margin-bottom: 1.75rem; }
+    .form-head h1 {
+      font-size: 1.75rem; font-weight: 800; letter-spacing: -.025em; line-height: 1.15;
       display: flex; align-items: center; gap: .5rem;
-      font-size: .82rem; color: var(--text-dim);
-      cursor: pointer; user-select: none; margin-bottom: 1.5rem;
     }
-    .remember-wrap input { accent-color: var(--primary); width: 15px; height: 15px; cursor: pointer; }
+    .wave { display: inline-block; transform-origin: 70% 70%; animation: wave 3s ease-in-out 1s infinite; }
+    @keyframes wave {
+      0%, 60%, 100% { transform: rotate(0); }
+      10%, 30%      { transform: rotate(14deg); }
+      20%, 40%      { transform: rotate(-8deg); }
+    }
+    .form-head p { margin-top: .45rem; font-size: .875rem; color: var(--text-m); line-height: 1.55; }
 
-    /* Bouton */
-    .login-btn {
-      width: 100%; padding: .9rem;
-      background: linear-gradient(135deg, #E8541A, #C43F0D);
-      color: #fff; border: none; border-radius: 11px; cursor: pointer;
-      font-size: .95rem; font-weight: 700; font-family: inherit;
-      transition: opacity .15s, transform .1s, box-shadow .15s;
-      box-shadow: 0 4px 20px rgba(232,84,26,.35);
-      display: flex; align-items: center; justify-content: center; gap: .5rem;
-      letter-spacing: .01em;
+    /* ── Messages ── */
+    .note {
+      display: flex; gap: .65rem; align-items: flex-start;
+      padding: .8rem .95rem; border-radius: 12px;
+      font-size: .84rem; line-height: 1.5; margin-bottom: 1.15rem;
     }
-    .login-btn:hover:not(:disabled) { opacity: .9; box-shadow: 0 6px 24px rgba(232,84,26,.45); transform: translateY(-1px); }
-    .login-btn:active:not(:disabled) { transform: scale(.98) translateY(0); }
-    .login-btn:disabled { opacity: .55; cursor: not-allowed; }
-    .login-btn-spinner {
-      width: 16px; height: 16px; border: 2px solid rgba(255,255,255,.3);
-      border-top-color: #fff; border-radius: 50%;
-      animation: spin .6s linear infinite; display: none;
+    .note .ic { margin-top: .12em; flex-shrink: 0; }
+    .note-err  { background: rgba(239, 68, 68, .09);  border: 1px solid rgba(239, 68, 68, .22);  color: var(--t-red, #FCA5A5); }
+    .note-info { background: rgba(59, 130, 246, .09); border: 1px solid rgba(59, 130, 246, .22); color: var(--t-blue, #93C5FD); }
+
+    /* ── Jauge de tentatives ── */
+    .gauge {
+      margin-bottom: 1.15rem; padding: .8rem .95rem;
+      background: var(--surface-d); border: 1px solid var(--border); border-radius: 12px;
+    }
+    .gauge-top {
+      display: flex; justify-content: space-between; align-items: baseline;
+      font-size: .76rem; color: var(--text-m); margin-bottom: .5rem;
+    }
+    .gauge-top b { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--warning); }
+    .gauge-top b.hot { color: var(--error); }
+    .gauge-track { height: 5px; border-radius: 99px; background: var(--surface-h); overflow: hidden; }
+    .gauge-fill {
+      height: 100%; border-radius: 99px;
+      background: linear-gradient(90deg, var(--success), var(--warning));
+      transition: width .5s var(--ease);
+    }
+    .gauge-fill.hot { background: linear-gradient(90deg, var(--warning), var(--error)); }
+
+    /* ── Verrouillage ── */
+    .lock {
+      text-align: center; padding: 2rem 1.5rem; margin-bottom: 1.25rem;
+      background: var(--surface-d); border: 1px solid rgba(239, 68, 68, .25); border-radius: 16px;
+    }
+    .lock-ic {
+      width: 56px; height: 56px; margin: 0 auto .9rem; border-radius: 16px;
+      display: grid; place-items: center; font-size: 1.5rem;
+      color: var(--error); background: rgba(239, 68, 68, .1); border: 1px solid rgba(239, 68, 68, .22);
+    }
+    .lock-timer {
+      font-size: 2.6rem; font-weight: 900; color: var(--error);
+      letter-spacing: .04em; font-variant-numeric: tabular-nums; line-height: 1.1;
+    }
+    .lock-msg { margin-top: .6rem; font-size: .82rem; color: var(--text-m); line-height: 1.6; }
+
+    /* ── Champs ── */
+    .field { margin-bottom: 1rem; }
+    .field > label {
+      display: block; margin-bottom: .45rem;
+      font-size: .7rem; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: var(--text-m);
+    }
+    .control { position: relative; display: flex; align-items: center; }
+    .control > .lead {
+      position: absolute; left: .95rem; color: var(--text-dim);
+      font-size: .95rem; pointer-events: none; transition: color .18s;
+    }
+    .control input {
+      width: 100%; height: 48px;
+      padding: 0 1rem 0 2.85rem;
+      font-family: inherit; font-size: .94rem; color: var(--text);
+      background: var(--surface-d); border: 1.5px solid var(--border);
+      border-radius: 12px; outline: none;
+      transition: border-color .18s, box-shadow .18s, background .18s;
+    }
+    .control input::placeholder { color: var(--text-dim); }
+    .control input:hover { border-color: var(--border-s); }
+    .control input:focus {
+      background: var(--surface);
+      border-color: var(--btn-primary);
+      box-shadow: 0 0 0 4px rgba(var(--brand-rgb), .13);
+    }
+    .control:focus-within > .lead { color: var(--btn-primary); }
+    .control input.with-action { padding-right: 3rem; }
+
+    .action {
+      position: absolute; right: .45rem;
+      width: 34px; height: 34px; border-radius: 9px;
+      display: grid; place-items: center;
+      background: none; border: none; cursor: pointer;
+      color: var(--text-dim); font-size: .95rem;
+      transition: color .15s, background .15s;
+    }
+    .action:hover { color: var(--text); background: var(--surface-h); }
+
+    .capslock {
+      display: none; align-items: center; gap: .4rem;
+      margin-top: .5rem; font-size: .76rem; color: var(--warning);
+    }
+    .capslock.on { display: flex; }
+
+    /* ── Se souvenir ── */
+    .remember {
+      display: flex; align-items: center; gap: .6rem; cursor: pointer; user-select: none;
+      margin: 1.15rem 0 1.4rem; font-size: .84rem; color: var(--text-m);
+    }
+    .remember input { position: absolute; opacity: 0; width: 0; height: 0; }
+    .box {
+      width: 19px; height: 19px; border-radius: 6px; flex-shrink: 0;
+      border: 1.5px solid var(--border-s); background: var(--surface-d);
+      display: grid; place-items: center; color: #fff; font-size: .7rem;
+      transition: background .18s, border-color .18s;
+    }
+    .box .ic { opacity: 0; transform: scale(.5); transition: opacity .18s, transform .18s var(--ease); }
+    .remember input:checked + .box { background: var(--btn-primary); border-color: var(--btn-primary); }
+    .remember input:checked + .box .ic { opacity: 1; transform: scale(1); }
+    .remember:hover .box { border-color: var(--btn-primary); }
+
+    /* ── Bouton ── */
+    .submit {
+      position: relative; overflow: hidden;
+      width: 100%; height: 50px;
+      display: flex; align-items: center; justify-content: center; gap: .55rem;
+      font-family: inherit; font-size: .95rem; font-weight: 700; color: #fff;
+      background: linear-gradient(135deg, var(--brand-hi) -20%, var(--brand) 40%, var(--brand-lo));
+      border: none; border-radius: 12px; cursor: pointer;
+      box-shadow: 0 8px 24px -8px rgba(var(--brand-rgb), .65);
+      transition: box-shadow .2s, transform .12s var(--ease), filter .2s;
+    }
+    .submit:hover:not(:disabled) { box-shadow: 0 12px 30px -8px rgba(var(--brand-rgb), .8); transform: translateY(-2px); }
+    .submit:active:not(:disabled) { transform: translateY(0) scale(.985); }
+    .submit:disabled { filter: saturate(.55) brightness(.85); cursor: progress; box-shadow: none; }
+    /* Reflet qui traverse le bouton au survol. */
+    .submit::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, .3) 50%, transparent 65%);
+      transform: translateX(-120%);
+      transition: transform .7s var(--ease);
+    }
+    .submit:hover:not(:disabled)::after { transform: translateX(120%); }
+    .submit .arrow { transition: transform .25s var(--ease); }
+    .submit:hover:not(:disabled) .arrow { transform: translateX(4px); }
+
+    .spinner {
+      width: 17px; height: 17px; border-radius: 50%;
+      border: 2px solid rgba(255, 255, 255, .3); border-top-color: #fff;
+      animation: spin .65s linear infinite; display: none;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* Séparateur */
-    .form-divider {
-      display: flex; align-items: center; gap: .75rem;
-      margin: 1.5rem 0; color: var(--text-dim); font-size: .75rem;
-    }
-    .form-divider::before, .form-divider::after {
-      content: ''; flex: 1; height: 1px; background: var(--border);
-    }
-
-    /* Footer */
-    .login-footer {
-      margin-top: 2rem; padding-top: 1.25rem;
-      border-top: 1px solid var(--border);
-      text-align: center; font-size: .75rem; color: var(--text-dim);
+    /* ── Pied ── */
+    .panel-foot {
       display: flex; align-items: center; justify-content: center; gap: .5rem;
+      padding-top: 1.1rem; border-top: 1px solid var(--border);
+      font-size: .74rem; color: var(--text-dim);
     }
-    .login-footer-dot { opacity: .3; }
+    .sep { opacity: .4; }
+    #clock { font-variant-numeric: tabular-nums; }
 
-    /* Shake */
-    .login-right.shake { animation: shake .4s cubic-bezier(.36,.07,.19,.97); }
+    /* ── Focus visible homogène ── */
+    .mode-btn:focus-visible, .action:focus-visible, .submit:focus-visible,
+    .remember input:focus-visible + .box {
+      outline: 2px solid var(--btn-primary); outline-offset: 2px;
+    }
+
+    /* ── Entrée en scène ── */
+    .rise { animation: rise .75s var(--ease) backwards; animation-delay: var(--d, 0s); }
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } }
+
+    .shake { animation: shake .45s cubic-bezier(.36, .07, .19, .97); }
     @keyframes shake {
-      10%,90% { transform: translateX(-4px); }
-      20%,80% { transform: translateX(5px); }
-      30%,50%,70% { transform: translateX(-5px); }
-      40%,60% { transform: translateX(5px); }
+      10%, 90% { transform: translateX(-4px); }
+      20%, 80% { transform: translateX(5px); }
+      30%, 50%, 70% { transform: translateX(-5px); }
+      40%, 60% { transform: translateX(5px); }
     }
 
-    /* ── Responsive : mobile = pile ── */
-    @media (max-width: 768px) {
-      body { flex-direction: column; overflow: auto; }
-      .login-left { display: none; }
-      .login-right { width: 100%; min-height: 100vh; padding: 2rem 1.5rem; }
+    /* ═══ Adaptatif ═══ */
+    @media (max-width: 1180px) {
+      .auth { grid-template-columns: minmax(0, 1fr) clamp(23rem, 40vw, 27rem); }
+      .caps { display: none; }
     }
-    @media (max-width: 1100px) {
-      .login-left { flex: none; width: 45%; }
+    @media (max-width: 900px) {
+      .auth { grid-template-columns: 1fr; }
+      .brand { display: none; }
+      .panel { box-shadow: none; min-height: 100dvh; }
+    }
+    @media (max-height: 700px) {
+      .caps { display: none; }
+      .brand-lede { display: none; }
+    }
+
+    /* ═══ Animations réduites ═══
+       Même règle que dans l'application mobile : l'entrée en scène, la dérive
+       des voiles et le halo se taisent, le contenu reste intégralement lisible. */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: .001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: .001ms !important;
+      }
+      .spotlight { display: none; }
     }
   </style>
 </head>
 <body>
 
-<!-- ══ PANNEAU GAUCHE ══ -->
-<div class="login-left">
-  <div class="left-top">
-    <div class="left-logo">
-      <div class="left-logo-icon">⚽</div>
+<%- include('_icons') %>
+
+<%
+  const _maxAttempts    = typeof maxAttempts !== 'undefined' && maxAttempts ? maxAttempts : 5;
+  const _remaining      = typeof remaining   !== 'undefined' ? remaining : _maxAttempts;
+  const _blockedUntilMs = typeof blockedUntilMs !== 'undefined' ? blockedUntilMs : null;
+  const _locked         = typeof locked !== 'undefined' ? locked : null;
+  const _isLocked       = !!_locked || !!_blockedUntilMs;
+  const _isExpired      = typeof expired !== 'undefined' && expired;
+  const _username       = typeof username !== 'undefined' ? username : '';
+  const _showGauge      = !!error && !_isLocked && _remaining > 0 && _remaining <= 3;
+%>
+
+<main class="auth">
+
+  <!-- ══════════ PANNEAU DE MARQUE ══════════ -->
+  <section class="brand" id="brand" aria-hidden="true">
+    <div class="aurora"><i></i><i></i></div>
+    <div class="spotlight" id="spotlight"></div>
+
+    <header class="brand-head rise" style="--d:.05s">
+      <div class="mark"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></div>
       <div>
-        <div class="left-logo-name">Prono<span>Win</span></div>
-        <div class="left-logo-sub">Administration</div>
+        <div class="mark-name">Prono<b>Win</b></div>
+        <div class="mark-sub">Administration</div>
+      </div>
+    </header>
+
+    <div class="brand-body">
+      <div class="pill rise" style="--d:.12s"><span class="pill-dot"></span>En direct</div>
+
+      <p class="brand-title rise" style="--d:.18s">Pilotez vos pronostics<br><em>en temps réel</em></p>
+      <p class="brand-lede rise" style="--d:.24s">
+        Le poste de commande de PronoWin : publication des pronostics, suivi des
+        abonnements premium, règlement des paris et santé de la plateforme.
+      </p>
+
+      <div class="caps">
+        <div class="cap rise" style="--d:.30s">
+          <span class="cap-ic"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg></span>
+          Statistiques et analyses avancées
+        </div>
+        <div class="cap rise" style="--d:.36s">
+          <span class="cap-ic"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span>
+          Gestion des comptes et des abonnements
+        </div>
+        <div class="cap rise" style="--d:.42s">
+          <span class="cap-ic"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></span>
+          Publication et règlement des pronostics
+        </div>
+        <div class="cap rise" style="--d:.48s">
+          <span class="cap-ic"><svg class="ic" aria-hidden="true"><use href="#ic-key"/></svg></span>
+          Accès multi-admins à permissions fines
+        </div>
       </div>
     </div>
-  </div>
 
-  <div class="left-hero">
-    <div class="left-hero-badge">LIVE</div>
-    <h2>Gérez vos<br>pronostics<br><em>en temps réel</em></h2>
-    <p>Tableau de bord complet pour piloter les pronostics, les utilisateurs premium et les performances de PronoWin.</p>
-    <div class="left-features">
-      <div class="feature-item">
-        <div class="feature-icon">📊</div>
-        Statistiques et analytics avancées
-      </div>
-      <div class="feature-item">
-        <div class="feature-icon">👥</div>
-        Gestion des utilisateurs & abonnements
-      </div>
-      <div class="feature-item">
-        <div class="feature-icon">⚽</div>
-        Publication & suivi des pronostics IA
-      </div>
-      <div class="feature-item">
-        <div class="feature-icon">🔒</div>
-        Accès sécurisé multi-admins
-      </div>
+    <footer class="brand-foot rise" style="--d:.56s">
+      <span class="assur"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Actions journalisées</span>
+      <span class="assur"><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg> Session à expiration</span>
+      <span class="assur"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Tentatives limitées</span>
+    </footer>
+  </section>
+
+  <!-- ══════════ PANNEAU DE CONNEXION ══════════ -->
+  <section class="panel" id="panel">
+
+    <div class="panel-top">
+      <button type="button" class="mode-btn" id="mode-btn" onclick="basculerTheme()"
+              aria-pressed="false" aria-label="Basculer entre le thème sombre et le thème clair">
+        <svg class="ic ic-moon" aria-hidden="true"><use href="#ic-moon"/></svg>
+        <svg class="ic ic-sun"  aria-hidden="true"><use href="#ic-sun"/></svg>
+      </button>
     </div>
-  </div>
 
-  <div class="left-stats">
-    <div class="left-stats-grid">
-      <div class="stat-item">
-        <div class="stat-val">99%</div>
-        <div class="stat-lbl">Disponibilité</div>
+    <div class="form-wrap">
+
+      <div class="form-head rise" style="--d:.1s">
+        <h1>Bon retour <span class="wave" aria-hidden="true">👋</span></h1>
+        <p>Connectez-vous pour accéder au panneau d'administration.</p>
       </div>
-      <div class="stat-item">
-        <div class="stat-val">IA</div>
-        <div class="stat-lbl">Pronostics assistés</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-val">Live</div>
-        <div class="stat-lbl">Données en direct</div>
-      </div>
-    </div>
-  </div>
-</div>
 
-<!-- ══ PANNEAU DROIT ══ -->
-<div class="login-right" id="login-right">
-
-  <!-- Mode toggle -->
-  <div class="theme-row">
-    <button class="theme-btn" id="lt-dark"  onclick="setLoginMode('dark')"  title="Mode sombre">🌙</button>
-    <button class="theme-btn" id="lt-light" onclick="setLoginMode('light')" title="Mode clair">☀️</button>
-  </div>
-
-  <!-- Header -->
-  <div class="form-header">
-    <h3>Bon retour 👋</h3>
-    <p>Connectez-vous pour accéder au panel d'administration.</p>
-  </div>
-
-  <%
-    const _remaining      = typeof remaining !== 'undefined' ? remaining : 5;
-    const _maxAttempts    = 5;
-    const _blockedUntilMs = typeof blockedUntilMs !== 'undefined' ? blockedUntilMs : null;
-    const _isLocked       = !!locked || !!_blockedUntilMs;
-    const _isExpired      = typeof expired !== 'undefined' && expired;
-    const _username       = typeof username !== 'undefined' ? username : '';
-  %>
-
-  <% if (_isExpired && !_isLocked && !error) { %>
-  <div class="login-alert info">
-    <span>⏰</span>
-    <span>Votre session a expiré. Reconnectez-vous pour continuer.</span>
-  </div>
-  <% } %>
-
-  <% if (error && !_isLocked) { %>
-  <div class="login-alert error">
-    <span>⚠️</span>
-    <div>
-      <%= error %>
-      <% if (_remaining > 0 && _remaining <= 3) { %>
-      <div style="margin-top:.3rem;font-size:.78rem;opacity:.85">
-        Il vous reste <strong><%= _remaining %> tentative<%= _remaining > 1 ? 's' : '' %></strong> avant blocage.
+      <% if (_isExpired && !_isLocked && !error) { %>
+      <div class="note note-info rise" style="--d:.16s" role="status">
+        <svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg>
+        <span>Votre session a expiré. Reconnectez-vous pour continuer.</span>
       </div>
       <% } %>
-    </div>
-  </div>
-  <% } %>
 
-  <% if (error && !_isLocked && _remaining <= 3 && _remaining > 0) { %>
-  <div class="attempts-bar">
-    <div class="attempts-label">
-      <span>Tentatives restantes</span>
-      <strong><%= _remaining %> / <%= _maxAttempts %></strong>
+      <% if (error && !_isLocked) { %>
+      <div class="note note-err rise" style="--d:.16s" role="alert">
+        <svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg>
+        <div>
+          <%= error %>
+          <% if (_remaining > 0 && _remaining <= 3) { %>
+          <div style="margin-top:.3rem;opacity:.85">
+            Il vous reste <strong><%= _remaining %> tentative<%= _remaining > 1 ? 's' : '' %></strong> avant blocage.
+          </div>
+          <% } %>
+        </div>
+      </div>
+      <% } %>
+
+      <% if (_showGauge) { %>
+      <%# Le maximum vient du serveur (settings.json → loginMaxAttempts). La
+          version précédente l'écrivait « 5 » en dur : dès qu'un administrateur
+          changeait le réglage, la jauge affichait un rapport faux. %>
+      <div class="gauge rise" style="--d:.22s">
+        <div class="gauge-top">
+          <span>Tentatives restantes</span>
+          <b class="<%= _remaining <= 1 ? 'hot' : '' %>"><%= _remaining %> / <%= _maxAttempts %></b>
+        </div>
+        <div class="gauge-track">
+          <div class="gauge-fill <%= _remaining <= 1 ? 'hot' : '' %>"
+               style="width:<%= Math.round((_remaining / _maxAttempts) * 100) %>%"></div>
+        </div>
+      </div>
+      <% } %>
+
+      <% if (_isLocked) { %>
+      <div class="lock rise" style="--d:.16s" role="alert">
+        <div class="lock-ic"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg></div>
+        <div class="lock-timer" id="lock-timer">—:——</div>
+        <p class="lock-msg">
+          <%# Le serveur calcule un message avec le délai réel ; l'ancienne vue
+              le recevait puis l'ignorait au profit d'un texte figé. %>
+          <%= _locked || 'Trop de tentatives échouées.' %><br>L'accès se débloque automatiquement.
+        </p>
+      </div>
+      <% } %>
+
+      <% if (!_isLocked) { %>
+      <form method="POST" action="/admin/login" id="login-form" autocomplete="on">
+
+        <div class="field rise" style="--d:<%= _showGauge ? '.28s' : '.22s' %>">
+          <label for="username">Identifiant</label>
+          <div class="control">
+            <span class="lead"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg></span>
+            <input type="text" id="username" name="username" value="<%= _username %>"
+                   placeholder="admin ou sous-admin" required autocomplete="username"
+                   <%= _username ? '' : 'autofocus' %>>
+          </div>
+        </div>
+
+        <div class="field rise" style="--d:<%= _showGauge ? '.34s' : '.28s' %>">
+          <label for="password">Mot de passe</label>
+          <div class="control">
+            <span class="lead"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg></span>
+            <input type="password" id="password" name="password" class="with-action"
+                   placeholder="Votre mot de passe" required autocomplete="current-password"
+                   <%= _username ? 'autofocus' : '' %>>
+            <button type="button" class="action" id="pwd-toggle" onclick="basculerMotDePasse()"
+                    aria-pressed="false" aria-label="Afficher le mot de passe">
+              <svg class="ic" aria-hidden="true"><use href="#ic-eye" id="pwd-icon"/></svg>
+            </button>
+          </div>
+          <p class="capslock" id="capslock" role="status">
+            <svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Verrouillage majuscules activé
+          </p>
+        </div>
+
+        <label class="remember rise" style="--d:<%= _showGauge ? '.40s' : '.34s' %>">
+          <input type="checkbox" name="remember" value="1">
+          <span class="box"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg></span>
+          Se souvenir de moi pendant 30 jours
+        </label>
+
+        <button type="submit" class="submit rise" id="submit-btn" style="--d:<%= _showGauge ? '.46s' : '.40s' %>">
+          <span class="spinner" id="spinner"></span>
+          <span id="btn-label">Se connecter</span>
+          <svg class="ic arrow" id="btn-arrow" aria-hidden="true"><use href="#ic-arrow-right"/></svg>
+        </button>
+
+      </form>
+      <% } %>
     </div>
-    <div class="attempts-track">
-      <div class="attempts-fill <%= _remaining <= 1 ? 'danger' : '' %>"
-           style="width:<%= Math.round((_remaining / _maxAttempts) * 100) %>%"></div>
-    </div>
-  </div>
+
+    <footer class="panel-foot">
+      <span>PronoWin Admin</span>
+      <span class="sep">·</span>
+      <span>Accès réservé</span>
+      <span class="sep">·</span>
+      <span id="clock"></span>
+    </footer>
+  </section>
+</main>
+
+<script>
+(function () {
+  'use strict';
+
+  const reduit = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  /* ── Thème ──────────────────────────────────────────────────────────────
+     Un seul bouton à deux états plutôt que deux boutons dont un seul est
+     pertinent à la fois : l'état courant se lit dans `aria-pressed`, et le
+     libellé annonce l'action à venir. */
+  const racine  = document.getElementById('login-html');
+  const modeBtn = document.getElementById('mode-btn');
+
+  function appliquerTheme(mode) {
+    racine.classList.toggle('light', mode === 'light');
+    modeBtn.setAttribute('aria-pressed', String(mode === 'light'));
+    modeBtn.setAttribute('aria-label',
+      mode === 'light' ? 'Passer au thème sombre' : 'Passer au thème clair');
+    document.querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', mode === 'light' ? '#F1F4FB' : '#0A0E1A');
+  }
+  window.basculerTheme = function () {
+    const suivant = racine.classList.contains('light') ? 'dark' : 'light';
+    localStorage.setItem('pw_mode', suivant);
+    appliquerTheme(suivant);
+  };
+  appliquerTheme(localStorage.getItem('pw_mode') || 'dark');
+
+  /* ── Afficher / masquer le mot de passe ─────────────────────────────────
+     L'ancienne version faisait `btn.textContent = '👁'`, ce qui remplaçait le
+     SVG du bouton par du texte : après le premier clic, l'icône n'existait
+     plus. On change la cible du <use>, le bouton reste intact. */
+  const champMdp = document.getElementById('password');
+  window.basculerMotDePasse = function () {
+    if (!champMdp) return;
+    const bouton  = document.getElementById('pwd-toggle');
+    const icone   = document.getElementById('pwd-icon');
+    const visible = champMdp.type === 'text';
+    champMdp.type = visible ? 'password' : 'text';
+    icone.setAttribute('href', visible ? '#ic-eye' : '#ic-eye-off');
+    bouton.setAttribute('aria-pressed', String(!visible));
+    bouton.setAttribute('aria-label', visible ? 'Afficher le mot de passe' : 'Masquer le mot de passe');
+    champMdp.focus({ preventScroll: true });
+  };
+
+  /* ── Verrouillage majuscules ────────────────────────────────────────────
+     La cause n°1 d'un « identifiants incorrects » sur un mot de passe pourtant
+     connu. Le signaler évite d'user les tentatives avant blocage. */
+  const alerteCaps = document.getElementById('capslock');
+  if (champMdp && alerteCaps) {
+    const verifier = e => {
+      if (typeof e.getModifierState !== 'function') return;
+      alerteCaps.classList.toggle('on', e.getModifierState('CapsLock'));
+    };
+    champMdp.addEventListener('keydown', verifier);
+    champMdp.addEventListener('keyup', verifier);
+    champMdp.addEventListener('blur', () => alerteCaps.classList.remove('on'));
+  }
+
+  /* ── Soumission ─────────────────────────────────────────────────────────
+     Le bouton se verrouille pour empêcher le double envoi ; la flèche cède la
+     place au rouet. */
+  const form = document.getElementById('login-form');
+  if (form) {
+    form.addEventListener('submit', function () {
+      const btn = document.getElementById('submit-btn');
+      if (!btn || btn.disabled) return;
+      btn.disabled = true;
+      document.getElementById('spinner').style.display = 'block';
+      document.getElementById('btn-arrow').style.display = 'none';
+      document.getElementById('btn-label').textContent = 'Connexion…';
+    });
+  }
+
+  /* ── Halo suivant le pointeur ───────────────────────────────────────────
+     Décoratif : réservé aux pointeurs fins et désactivé si l'utilisateur a
+     demandé moins d'animations. */
+  const brand = document.getElementById('brand');
+  const halo  = document.getElementById('spotlight');
+  if (brand && halo && !reduit && window.matchMedia('(pointer: fine)').matches) {
+    brand.addEventListener('pointermove', function (e) {
+      const r = brand.getBoundingClientRect();
+      halo.style.setProperty('--sx', ((e.clientX - r.left) / r.width * 100) + '%');
+      halo.style.setProperty('--sy', ((e.clientY - r.top) / r.height * 100) + '%');
+      halo.style.opacity = '1';
+    });
+    brand.addEventListener('pointerleave', () => { halo.style.opacity = '0'; });
+  }
+
+  /* ── Horloge ────────────────────────────────────────────────────────────
+     `setTimeout` recalé sur la seconde suivante plutôt qu'un intervalle fixe,
+     qui dérive et fait sauter des secondes. */
+  const horloge = document.getElementById('clock');
+  (function tic() {
+    if (horloge) {
+      horloge.textContent = new Date().toLocaleTimeString('fr-FR',
+        { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    }
+    setTimeout(tic, 1000 - (Date.now() % 1000));
+  })();
+
+  <% if (error && !_isLocked) { %>
+  /* ── Secousse sur erreur ── */
+  (function () {
+    const el = document.getElementById('panel');
+    if (!el || reduit) return;
+    el.classList.add('shake');
+    el.addEventListener('animationend', () => el.classList.remove('shake'), { once: true });
+  })();
   <% } %>
 
   <% if (_isLocked) { %>
-  <div class="lock-box">
-    <div class="lock-icon">🔐</div>
-    <div class="lock-timer" id="lock-timer">—:——</div>
-    <div class="lock-msg">Trop de tentatives échouées.<br>L'accès se débloque automatiquement.</div>
-  </div>
+  /* ── Compte à rebours du blocage ── */
+  (function () {
+    const el  = document.getElementById('lock-timer');
+    const fin = <%= _blockedUntilMs || 'null' %>;
+    if (!el) return;
+    if (!fin) { el.textContent = '--:--'; return; }
+    (function tic() {
+      const reste = Math.max(0, fin - Date.now());
+      if (reste === 0) { el.textContent = '00:00'; setTimeout(() => location.reload(), 800); return; }
+      const m = String(Math.floor(reste / 60000)).padStart(2, '0');
+      const s = String(Math.floor((reste % 60000) / 1000)).padStart(2, '0');
+      el.textContent = m + ':' + s;
+      setTimeout(tic, 1000 - (Date.now() % 1000));
+    })();
+  })();
   <% } %>
-
-  <% if (!_isLocked) { %>
-  <form method="POST" action="/admin/login" id="login-form" autocomplete="on">
-
-    <div class="field">
-      <label for="username">Identifiant</label>
-      <div class="field-inner">
-        <input type="text" id="username" name="username"
-               value="<%= _username %>"
-               placeholder="admin ou sous-admin"
-               required autofocus autocomplete="username"
-               class="has-icon">
-        <span class="field-icon">👤</span>
-      </div>
-    </div>
-
-    <div class="field">
-      <label for="password">Mot de passe</label>
-      <div class="field-inner">
-        <input type="password" id="password" name="password"
-               placeholder="••••••••"
-               required autocomplete="current-password"
-               class="has-icon">
-        <button type="button" class="field-icon" id="pwd-toggle" onclick="togglePwd()" tabindex="-1" title="Afficher / masquer">👁</button>
-      </div>
-    </div>
-
-    <label class="remember-wrap">
-      <input type="checkbox" name="remember" value="1"> Se souvenir de moi (30 jours)
-    </label>
-
-    <button type="submit" class="login-btn" id="submit-btn">
-      <span class="login-btn-spinner" id="btn-spinner"></span>
-      <span id="btn-label">Se connecter →</span>
-    </button>
-
-  </form>
-  <% } %>
-
-  <div class="login-footer">
-    <span>PronoWin Admin</span>
-    <span class="login-footer-dot">·</span>
-    <span>Accès réservé</span>
-    <span class="login-footer-dot">·</span>
-    <span id="footer-time"></span>
-  </div>
-</div>
-
-<script>
-/* ── Thème ── */
-function setLoginMode(mode) {
-  const h = document.getElementById('login-html');
-  if (mode === 'light') h.classList.add('light'); else h.classList.remove('light');
-  localStorage.setItem('pw_mode', mode);
-  _updateModeBtn(mode);
-}
-function _updateModeBtn(mode) {
-  document.getElementById('lt-dark') ?.classList.toggle('active', mode === 'dark');
-  document.getElementById('lt-light')?.classList.toggle('active', mode === 'light');
-}
-_updateModeBtn(localStorage.getItem('pw_mode') || 'dark');
-
-/* ── Toggle mot de passe ── */
-function togglePwd() {
-  const inp = document.getElementById('password');
-  const btn = document.getElementById('pwd-toggle');
-  if (!inp) return;
-  const shown = inp.type === 'text';
-  inp.type = shown ? 'password' : 'text';
-  btn.textContent = shown ? '👁' : '🙈';
-}
-
-/* ── Soumission ── */
-const form      = document.getElementById('login-form');
-const submitBtn = document.getElementById('submit-btn');
-const spinner   = document.getElementById('btn-spinner');
-const btnLabel  = document.getElementById('btn-label');
-if (form) {
-  form.addEventListener('submit', function() {
-    if (submitBtn) {
-      submitBtn.disabled    = true;
-      spinner.style.display = 'block';
-      btnLabel.textContent  = 'Connexion…';
-    }
-  });
-}
-
-/* ── Shake sur erreur ── */
-<% if (error && !_isLocked) { %>
-(function() {
-  const el = document.getElementById('login-right');
-  if (el) {
-    el.classList.add('shake');
-    el.addEventListener('animationend', () => el.classList.remove('shake'), { once: true });
-  }
-})();
-<% } %>
-
-/* ── Countdown blocage ── */
-<% if (_isLocked && _blockedUntilMs) { %>
-(function() {
-  const el  = document.getElementById('lock-timer');
-  const end = <%= _blockedUntilMs %>;
-  function tick() {
-    const left = Math.max(0, end - Date.now());
-    if (left === 0) { if (el) el.textContent = '00:00'; setTimeout(() => location.reload(), 800); return; }
-    const m = String(Math.floor(left / 60000)).padStart(2, '0');
-    const s = String(Math.floor((left % 60000) / 1000)).padStart(2, '0');
-    if (el) el.textContent = m + ':' + s;
-    setTimeout(tick, 1000);
-  }
-  tick();
-})();
-<% } else if (_isLocked) { %>
-(function() {
-  const el = document.getElementById('lock-timer');
-  if (el) el.textContent = '15:00';
-})();
-<% } %>
-
-/* ── Horloge footer ── */
-(function() {
-  const el = document.getElementById('footer-time');
-  function tick() {
-    if (el) el.textContent = new Date().toLocaleTimeString('fr-FR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
-    setTimeout(tick, 1000);
-  }
-  tick();
 })();
 </script>
 </body>

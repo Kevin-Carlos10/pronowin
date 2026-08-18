@@ -39,7 +39,13 @@ class MatchModel extends MatchEntity {
     awayTeam:        j['away_team'] as String,
     homeTeamLogo:    j['home_team_logo'] as String?,
     awayTeamLogo:    j['away_team_logo'] as String?,
-    matchDate:       DateTime.parse(j['match_date'] as String),
+    // `.toLocal()` est indispensable, pas cosmétique : l'API sérialise en Zulu
+    // ("2026-08-11T09:30:00.000Z"), et `DateTime.parse` rend alors un DateTime
+    // dont `isUtc` vaut true. Tous ses getters (.hour, .day) et `DateFormat`
+    // renvoient donc les composantes UTC. Sans cette conversion, l'app affichait
+    // partout l'heure du serveur au lieu de celle du parieur — y compris dans le
+    // message de partage envoyé à ses contacts.
+    matchDate:       DateTime.parse(j['match_date'] as String).toLocal(),
     status:          _parseStatus(j['status'] as String?),
     homeScore:       j['home_score'] as int?,
     awayScore:       j['away_score'] as int?,

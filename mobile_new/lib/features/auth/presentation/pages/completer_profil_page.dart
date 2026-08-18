@@ -143,16 +143,17 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        // Arrivée obligatoire après inscription (go/replace) → rien à empiler
-        // en arrière, pas de flèche. Arrivée depuis premium_gate_sheet (push)
-        // → un écran précédent existe, l'utilisateur doit pouvoir annuler.
+        // Cet écran n'est plus un passage obligé de l'inscription : on n'y
+        // arrive que depuis le Premium, qui a besoin de ces informations.
+        // Il doit donc toujours offrir une sortie — `replace` depuis le
+        // paywall peut laisser la pile vide, auquel cas `pop()` ne mène nulle
+        // part et l'utilisateur se retrouvait enfermé.
         automaticallyImplyLeading: false,
-        leading: context.canPop()
-          ? IconButton(
-              icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.cl.textS),
-              onPressed: () => context.pop(),
-            )
-          : null,
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.cl.textS),
+          tooltip: 'Retour',
+          onPressed: () => context.canPop() ? context.pop() : context.go('/compte'),
+        ),
         title: Text(
           'Compléter mon profil',
           style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700),

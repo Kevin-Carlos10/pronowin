@@ -246,7 +246,8 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
         // si bien qu'un simple budget non configuré affichait « Impossible de
         // calculer la mise. », message sans issue.
         error: (e, _) => _ErrorView(
-          noBankroll: e is DioException && e.response?.statusCode == 404),
+          noBankroll:  e is DioException && e.response?.statusCode == 404,
+          nonConnecte: e is DioException && e.response?.statusCode == 401),
         data: (s) {
           final stake    = (s['suggested_amount'] as num).toDouble();
           final balance  = (s['current_balance']  as num).toDouble();
@@ -502,34 +503,45 @@ class _ErrorView extends StatelessWidget {
   /// true = budget jamais configuré (404). L'utilisateur n'a alors rien à
   /// « réessayer » : on l'envoie configurer son bankroll.
   final bool noBankroll;
-  const _ErrorView({required this.noBankroll});
+
+  /// true = requête refusée faute de session (401). Sans ce cas, un invité
+  /// lisait « Vérifie ta connexion » alors que sa connexion allait très bien.
+  final bool nonConnecte;
+
+  const _ErrorView({required this.noBankroll, this.nonConnecte = false});
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 8),
     child: Column(mainAxisSize: MainAxisSize.min, children: [
       Icon(
-        noBankroll
-          ? Icons.account_balance_wallet_outlined
-          : Icons.cloud_off_rounded,
+        nonConnecte
+          ? Icons.lock_outline_rounded
+          : noBankroll
+            ? Icons.account_balance_wallet_outlined
+            : Icons.cloud_off_rounded,
         color: AppColors.warning, size: 40),
       const SizedBox(height: 14),
       Text(
-        noBankroll
-          ? 'Configure ton budget d\'abord'
-          : 'Impossible de calculer la mise',
+        nonConnecte
+          ? 'Connecte-toi pour suivre tes mises'
+          : noBankroll
+            ? 'Configure ton budget d\'abord'
+            : 'Impossible de calculer la mise',
         style: TextStyle(
           color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w700),
         textAlign: TextAlign.center),
       const SizedBox(height: 6),
       Text(
-        noBankroll
-          ? 'Ta bankroll n\'est pas encore paramétrée. Définis ton budget pour que l\'app calcule une mise adaptée à chaque pronostic.'
-          : 'Vérifie ta connexion et réessaie.',
+        nonConnecte
+          ? 'La mise conseillée dépend de ton budget, donc de ton compte. Connecte-toi pour l\'obtenir.'
+          : noBankroll
+            ? 'Ta bankroll n\'est pas encore paramétrée. Définis ton budget pour que l\'app calcule une mise adaptée à chaque pronostic.'
+            : 'Vérifie ta connexion et réessaie.',
         style: TextStyle(color: context.cl.textM, fontSize: 12.5, height: 1.4),
         textAlign: TextAlign.center),
       const SizedBox(height: 20),
-      if (noBankroll)
+      if (noBankroll || nonConnecte)
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
@@ -540,10 +552,11 @@ class _ErrorView extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12))),
             onPressed: () {
               Navigator.pop(context, false);
-              context.push('/bankroll');
+              context.push(nonConnecte ? '/auth' : '/bankroll');
             },
-            child: const Text('Configurer mon budget',
-              style: TextStyle(
+            child: Text(
+              nonConnecte ? 'Me connecter' : 'Configurer mon budget',
+              style: const TextStyle(
                 color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
           ),
         ),

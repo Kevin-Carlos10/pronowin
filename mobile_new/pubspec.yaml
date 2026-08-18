@@ -73,11 +73,11 @@ dependencies:
   crypto: ^3.0.3
   share_plus: ^10.1.4
   path_provider: ^2.1.5
-  confetti: ^0.7.0
   webview_flutter: ^4.10.0
   country_picker: ^2.0.28
   youtube_player_iframe: ^6.0.2
   in_app_purchase: ^3.3.0
+  google_sign_in: ^7.2.0
 
 
 flutter_launcher_icons:

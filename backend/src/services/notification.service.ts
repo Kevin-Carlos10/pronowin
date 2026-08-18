@@ -258,6 +258,8 @@ export class NotificationService {
    * token FCM et ceux ayant coupé la catégorie.
    */
   async previewSegment(segment: string) {
+    // Cible unique : ce n'est pas un segment, il n'y a rien à compter.
+    if (segment === 'user') return { segment, total: 1, count: 1 };
     const matching = await prisma.user.count({ where: segmentWhere(segment) });
     const reachable = await this._reachableUsers(segment);
     return { segment, total: matching, count: reachable.length };
@@ -348,6 +350,68 @@ export class NotificationService {
    * est un Json et le modèle est opt-out (clé absente = activé), ce qu'une
    * clause Prisma sur `path` exprime mal.
    */
+  /**
+   * Campagne adressée à un seul compte, désigné par son pseudo ou son numéro.
+   *
+   * L'interface propose ce mode depuis toujours — « le moyen de tester un
+   * message avant de l'envoyer à tous » — mais il n'a jamais fonctionné :
+   * `segment: 'user'` n'existe pas dans `segmentWhere`, qui levait
+   * « Segment inconnu ». Ce n'est d'ailleurs pas un segment mais une cible
+   * unique, d'où une méthode distincte plutôt qu'une septième branche.
+   *
+   * Les échecs sont explicites : un « 0 envoyé » silencieux laisserait croire
+   * à un problème de serveur alors que le pseudo est simplement mal orthographié.
+   */
+  async sendToHandle(handle: string, payload: {
+    title: string; body: string; deepLink?: string; imageUrl?: string;
+  }) {
+    const recherche = handle.trim();
+    if (!recherche) throw new Error('Indiquez le pseudo ou le numéro du destinataire.');
+
+    const user = await prisma.user.findFirst({
+      where: {
+        deletedAt: null,
+        OR: [
+          { pseudo:      { equals: recherche, mode: 'insensitive' } },
+          { phoneNumber: recherche },
+          { email:       { equals: recherche, mode: 'insensitive' } },
+        ],
+      },
+      select: { id: true, pseudo: true, fcmToken: true, notificationPrefs: true },
+    });
+
+    if (!user) throw new Error(`Aucun compte ne correspond à « ${recherche} ».`);
+
+    if (!isNotifEnabled(user.notificationPrefs, CAMPAIGN_CATEGORY)) {
+      throw new Error(
+        `${user.pseudo} a désactivé les notifications « Offres & Promotions ». ` +
+        'Le message est enregistré dans son application mais aucune push ne part.');
+    }
+    if (!user.fcmToken) {
+      throw new Error(
+        `${user.pseudo} n'a pas de jeton de notification : l'application n'a ` +
+        'jamais été ouverte sur cet appareil, ou les notifications y sont refusées.');
+    }
+
+    const r = await this.sendToUser(user.id, {
+      title: payload.title,
+      body:  payload.body,
+      data:  {
+        type: CAMPAIGN_CATEGORY,
+        ...(payload.deepLink ? { deep_link: payload.deepLink } : {}),
+      },
+    }, CAMPAIGN_CATEGORY);
+
+    const envoye = (r as any)?.success !== false;
+    return {
+      segment: 'user',
+      target:  user.pseudo,
+      sent:    envoye ? 1 : 0,
+      failed:  envoye ? 0 : 1,
+      pruned:  0,
+    };
+  }
+
   private async _reachableUsers(segment: string) {
     const users = await prisma.user.findMany({
       where:  { ...segmentWhere(segment), fcmToken: { not: null } },
@@ -357,15 +421,6 @@ export class NotificationService {
   }
 
   // ─── Notifications automatiques ───────────────────────────────────────────
-
-  /** Notif paiement → token direct (données privées) */
-  async notifyPaymentSuccess(userId: string, amount: number, type: 'deposit' | 'withdrawal') {
-    return this.sendToUser(userId, {
-      title: type === 'deposit' ? '✅ Dépôt confirmé !' : '✅ Retrait effectué !',
-      body:  `${amount.toLocaleString()} FCFA ${type === 'deposit' ? 'crédité' : 'envoyé'} avec succès.`,
-      data:  { deep_link: '/depot-retrait', type: 'payment' },
-    });
-  }
 
   /** Notif premium → token direct (données privées) */
   async notifyPremiumActivated(userId: string, durationDays: number) {
@@ -395,11 +450,6 @@ export class NotificationService {
     const sends = [this.sendToTopic(FCM_TOPICS.match, payload)];
     if (matchId) sends.push(this.sendToTopic(`match_${matchId}`, payload));
     return Promise.all(sends);
-  }
-
-  /** Notif promo → topic (tous ceux qui ont activé les promos) */
-  async notifyPromo(title: string, body: string) {
-    return this.sendToTopic(FCM_TOPICS.promo, { title, body, data: { type: 'promo' } });
   }
 
   /** Notif nouveau pronostic publié → topic match (tous abonnés aux alertes matchs) */

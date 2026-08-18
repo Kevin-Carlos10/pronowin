@@ -158,8 +158,10 @@ app.get('/api/img', async (req, res) => {
 
 const v1 = '/api/v1';
 app.use(`${v1}/auth/send-otp`,       otpLim);
-app.use(`${v1}/auth/login`,          authLim);
-app.use(`${v1}/auth/register`,       authLim);
+// `/login` et `/register` ont été supprimées ; le code par e-mail est le seul
+// chemin d'entrée et il passe déjà par `otpLim` côté envoi et par le
+// compteur anti-force-brute côté vérification.
+app.use(`${v1}/auth/verify-email-otp`, authLim);
 app.use(`${v1}/auth`,                authRoutes);
 app.use(`${v1}/profile`,             profileRoutes);
 app.use(`${v1}/admin`,               adminRoutes);

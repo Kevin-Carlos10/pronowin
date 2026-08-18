@@ -4,41 +4,78 @@
   const _dateFrom  = locals.date_from  ?? '';
   const _dateTo    = locals.date_to    ?? '';
   const _minTx     = locals.min_tx     ?? '';
+  const _sortDir   = locals.sortDir    ?? 'desc';
   const _hasAdv    = _dateFrom || _dateTo || _minTx;
   const _hasAny    = search || plan || status || _hasAdv;
 
-  // Construction de l'URL de base des filtres actifs (sans page)
+  // Construction de l'URL de base des filtres actifs (sans page).
+  // `sort_dir` en fait partie : sans lui, cliquer « page suivante » après un
+  // tri ascendant repassait silencieusement en ordre décroissant.
   function qParam(obj) {
     return Object.entries(obj).filter(([,v])=>v).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join('&');
   }
-  const _filterQs = qParam({ search, plan, status, date_from:_dateFrom, date_to:_dateTo, min_tx:_minTx, sort_by:sortBy });
+  const _sortQs   = { sort_by: sortBy, sort_dir: _sortDir };
+  const _filterQs = qParam({ search, plan, status, date_from:_dateFrom, date_to:_dateTo, min_tx:_minTx, ..._sortQs });
 %>
 
 <div class="topbar">
   <div>
-    <h2>👥 Utilisateurs</h2>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Utilisateurs</h2>
     <small id="result-count"><%= total %> résultat<%= total>1?'s':'' %></small>
   </div>
   <div style="display:flex;gap:8px">
     <a href="/admin/users/export?<%= _filterQs %>" class="btn btn-outline" title="Exporter les résultats filtrés">
-      ⬇️ Export CSV
+      <svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV
     </a>
   </div>
 </div>
 
-<!-- Stats rapides -->
+<style>
+/* Les cartes de stats énonçaient exactement les filtres qu'on veut appliquer
+   (« Suspendus », « Premium actifs »…) sans être cliquables. Celles qui
+   correspondent à un filtre deviennent des liens ; les autres restent inertes.
+
+   `input, select { width:100% }` (règle globale) écrasait le `display:flex` de
+   .filter-main-row : les 4 contrôles s'empilaient sur 4 lignes. Même correctif
+   que .filterbar dans le socle. */
+.stat-link { display:block; text-decoration:none; color:inherit; transition:border-color .15s, transform .15s; }
+.stat-link:hover { transform:translateY(-2px); border-color:var(--primary); }
+.stat-link[aria-current="true"] { border-color:var(--primary); box-shadow:0 0 0 1px var(--primary) inset; }
+.filter-main-row > select,
+.filter-main-row > input:not(.filter-search-input) { width:auto; min-width:150px; }
+</style>
+
+<!-- Stats rapides — celles qui correspondent à un filtre sont cliquables -->
+<%
+  const _todayIso = new Date().toISOString().slice(0,10);
+  const _weekIso  = new Date(Date.now() - 6*86400000).toISOString().slice(0,10);
+  // Un filtre est « actif » si la page reflète déjà exactement ce périmètre.
+  const _isPremium   = plan === 'premium' && !status && !_dateFrom;
+  const _isSuspended = status === 'suspended' && !plan && !_dateFrom;
+  const _isToday     = _dateFrom === _todayIso && !plan && !status;
+  const _isWeek      = _dateFrom === _weekIso  && !plan && !status;
+%>
 <div class="stats-grid" style="margin-bottom:16px">
-  <div class="stat-card s-blue"><div class="lbl">Total</div><div class="val"><%= stats.total %></div></div>
-  <div class="stat-card s-orange"><div class="lbl">Premium actifs</div><div class="val"><%= stats.premium %></div></div>
-  <div class="stat-card s-green"><div class="lbl">Nouveaux (auj.)</div><div class="val"><%= stats.newToday %></div></div>
-  <div class="stat-card s-purple"><div class="lbl">Cette semaine</div><div class="val"><%= stats.newWeek %></div></div>
-  <div class="stat-card s-red"><div class="lbl">Suspendus</div><div class="val"><%= stats.suspended %></div></div>
+  <a href="/admin/users" class="stat-card s-blue stat-link" aria-current="<%= !_hasAny ? 'true':'false' %>">
+    <div class="lbl">Total</div><div class="val"><%= stats.total %></div></a>
+  <a href="/admin/users?plan=premium" class="stat-card s-orange stat-link" aria-current="<%= _isPremium ? 'true':'false' %>">
+    <div class="lbl">Premium actifs</div><div class="val"><%= stats.premium %></div></a>
+  <a href="/admin/users?date_from=<%= _todayIso %>" class="stat-card s-green stat-link" aria-current="<%= _isToday ? 'true':'false' %>">
+    <div class="lbl">Nouveaux (auj.)</div><div class="val"><%= stats.newToday %></div></a>
+  <a href="/admin/users?date_from=<%= _weekIso %>" class="stat-card s-purple stat-link" aria-current="<%= _isWeek ? 'true':'false' %>">
+    <div class="lbl">Cette semaine</div><div class="val"><%= stats.newWeek %></div></a>
+  <a href="/admin/users?status=suspended" class="stat-card s-red stat-link" aria-current="<%= _isSuspended ? 'true':'false' %>">
+    <div class="lbl">Suspendus</div><div class="val"><%= stats.suspended %></div></a>
+  <%# Le taux de conversion n'est pas un sous-ensemble de la liste : rien à filtrer. %>
   <div class="stat-card s-teal"><div class="lbl">Taux conversion</div><div class="val"><%= stats.conversion_rate %>%</div></div>
 </div>
 
 <!-- ── Bloc filtres avancés ─────────────────────────────────────────── -->
 <div class="filter-block card" id="filter-block">
   <form method="GET" action="/admin/users" id="filter-form">
+    <%# Le sens de tri se choisit en cliquant un en-tête de colonne ; il doit
+        survivre à une soumission du formulaire de filtres. %>
+    <input type="hidden" name="sort_dir" value="<%= _sortDir %>">
 
     <!-- Ligne principale -->
     <div class="filter-main-row">
@@ -67,10 +104,10 @@
       <div class="filter-actions-row">
         <button type="submit" class="btn btn-primary">Filtrer</button>
         <button type="button" class="btn btn-outline" onclick="toggleAdvanced()" id="adv-toggle-btn">
-          ⚙️ Avancé <% if(_hasAdv){ %><span class="filter-adv-badge">!</span><% } %>
+          <svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Avancé <% if(_hasAdv){ %><span class="filter-adv-badge">!</span><% } %>
         </button>
         <% if(_hasAny){ %>
-        <a href="/admin/users" class="btn btn-outline">✕ Tout effacer</a>
+        <a href="/admin/users" class="btn btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Tout effacer</a>
         <% } %>
       </div>
     </div>
@@ -79,12 +116,19 @@
     <div class="filter-advanced-panel" id="adv-panel" style="<%= _hasAdv ? '' : 'display:none' %>">
       <div class="filter-advanced-grid">
         <div class="filter-field">
-          <label>Inscrit après</label>
+          <label for="f-date-from">Inscrit après</label>
           <input type="date" name="date_from" id="f-date-from" value="<%= _dateFrom %>">
         </div>
         <div class="filter-field">
-          <label>Inscrit avant</label>
+          <label for="f-date-to">Inscrit avant</label>
           <input type="date" name="date_to" id="f-date-to" value="<%= _dateTo %>">
+        </div>
+        <div class="filter-field">
+          <%# `min_tx` circulait déjà dans l'URL et les tags de filtres actifs,
+              sans aucun champ pour le saisir ni de lecture côté backend. %>
+          <label for="f-min-tx">Transactions (min.)</label>
+          <input type="number" name="min_tx" id="f-min-tx" min="1" step="1"
+                 placeholder="ex. 3" value="<%= _minTx %>">
         </div>
       </div>
 
@@ -92,7 +136,7 @@
       <div class="filter-presets" id="presets-zone">
         <span class="filter-presets-lbl">Presets :</span>
         <div id="presets-list" style="display:inline-flex;gap:6px;flex-wrap:wrap"></div>
-        <button type="button" class="btn btn-sm btn-outline" onclick="savePreset()">💾 Sauvegarder</button>
+        <button type="button" class="btn btn-sm btn-outline" onclick="savePreset()"><svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> Sauvegarder</button>
       </div>
     </div>
 
@@ -102,35 +146,46 @@
   <% if(_hasAny){ %>
   <div class="filter-tags" id="filter-tags">
     <span style="font-size:.75rem;color:var(--text-dim);margin-right:4px">Filtres actifs :</span>
-    <% if(search){ %><span class="filter-tag">Recherche: <em><%= search %></em> <a href="/admin/users?<%= qParam({plan,status,date_from:_dateFrom,date_to:_dateTo,min_tx:_minTx,sort_by:sortBy}) %>">×</a></span><% } %>
-    <% if(plan){ %><span class="filter-tag">Plan: <em><%= plan %></em> <a href="/admin/users?<%= qParam({search,status,date_from:_dateFrom,date_to:_dateTo,min_tx:_minTx,sort_by:sortBy}) %>">×</a></span><% } %>
-    <% if(status){ %><span class="filter-tag">Statut: <em><%= status %></em> <a href="/admin/users?<%= qParam({search,plan,date_from:_dateFrom,date_to:_dateTo,min_tx:_minTx,sort_by:sortBy}) %>">×</a></span><% } %>
-    <% if(_dateFrom){ %><span class="filter-tag">Après: <em><%= _dateFrom %></em> <a href="/admin/users?<%= qParam({search,plan,status,date_to:_dateTo,min_tx:_minTx,sort_by:sortBy}) %>">×</a></span><% } %>
-    <% if(_dateTo){ %><span class="filter-tag">Avant: <em><%= _dateTo %></em> <a href="/admin/users?<%= qParam({search,plan,status,date_from:_dateFrom,min_tx:_minTx,sort_by:sortBy}) %>">×</a></span><% } %>
+    <% if(search){ %><span class="filter-tag">Recherche: <em><%= search %></em> <a href="/admin/users?<%= qParam({plan,status,date_from:_dateFrom,date_to:_dateTo,min_tx:_minTx,..._sortQs}) %>">×</a></span><% } %>
+    <% if(plan){ %><span class="filter-tag">Plan: <em><%= plan %></em> <a href="/admin/users?<%= qParam({search,status,date_from:_dateFrom,date_to:_dateTo,min_tx:_minTx,..._sortQs}) %>">×</a></span><% } %>
+    <% if(status){ %><span class="filter-tag">Statut: <em><%= status %></em> <a href="/admin/users?<%= qParam({search,plan,date_from:_dateFrom,date_to:_dateTo,min_tx:_minTx,..._sortQs}) %>">×</a></span><% } %>
+    <% if(_dateFrom){ %><span class="filter-tag">Après: <em><%= _dateFrom %></em> <a href="/admin/users?<%= qParam({search,plan,status,date_to:_dateTo,min_tx:_minTx,..._sortQs}) %>">×</a></span><% } %>
+    <% if(_dateTo){ %><span class="filter-tag">Avant: <em><%= _dateTo %></em> <a href="/admin/users?<%= qParam({search,plan,status,date_from:_dateFrom,min_tx:_minTx,..._sortQs}) %>">×</a></span><% } %>
+    <% if(_minTx){ %><span class="filter-tag">≥ <em><%= _minTx %></em> transaction(s) <a href="/admin/users?<%= qParam({search,plan,status,date_from:_dateFrom,date_to:_dateTo,..._sortQs}) %>">×</a></span><% } %>
   </div>
   <% } %>
 </div>
 
 <!-- Alertes -->
 <% if(typeof success !== 'undefined' && success){ %>
-  <div class="alert alert-success" style="margin-bottom:12px">✅ <%= success %></div>
+  <div class="alert alert-success" style="margin-bottom:12px"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> <%= success %></div>
 <% } %>
 <% if(typeof error !== 'undefined' && error){ %>
-  <div class="alert alert-error" style="margin-bottom:12px">❌ <%= error %></div>
+  <div class="alert alert-error" style="margin-bottom:12px"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= error %></div>
 <% } %>
 
 <!-- Table utilisateurs -->
 <div class="card" style="padding:0;overflow:hidden">
   <% if(!data || data.length === 0){ %>
     <div class="empty-state" style="padding:40px">
-      <div style="font-size:2rem;margin-bottom:.5rem">🔍</div>
+      <div style="font-size:2rem;margin-bottom:.5rem"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></div>
       <p>Aucun utilisateur trouvé pour ces filtres.</p>
       <% if(_hasAny){ %><a href="/admin/users" class="btn btn-outline" style="margin-top:12px">Effacer les filtres</a><% } %>
     </div>
   <% } else { %>
+  <div class="bulkbar" id="u-bulkbar">
+    <span><span class="count" id="u-sel-count">0</span> compte(s) sélectionné(s)</span>
+    <span class="spacer"></span>
+    <button type="button" class="btn btn-sm btn-outline" onclick="uBulkNotify()"><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> Notifier</button>
+    <button type="button" class="btn btn-sm btn-outline" onclick="uBulkSuspend(false)"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg> Réactiver</button>
+    <button type="button" class="btn btn-sm btn-danger"  onclick="uBulkSuspend(true)"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-danger)"><use href="#ic-dot"/></svg> Suspendre</button>
+    <button type="button" class="btn btn-sm btn-outline" onclick="uClearSelection()">Annuler</button>
+  </div>
+
   <div class="table-wrap"><table>
     <thead>
       <tr>
+        <th style="width:34px"><input type="checkbox" id="u-check-all" onchange="uToggleAll(this)" aria-label="Tout sélectionner"></th>
         <th data-sort="pseudo">Utilisateur</th>
         <th>Téléphone</th>
         <th>1xBet ID</th>
@@ -140,9 +195,11 @@
         <th style="text-align:right">Actions</th>
       </tr>
     </thead>
-    <tbody>
+    <tbody id="users-body">
     <% data.forEach(u => { %>
-    <tr>
+    <tr data-uid="<%= u.id %>" data-pseudo="<%= u.pseudo %>">
+      <td><input type="checkbox" class="u-check" onchange="uSelChanged()"
+                 aria-label="Sélectionner <%= u.pseudo %>"></td>
       <td>
         <div style="display:flex;align-items:center;gap:10px">
           <div style="width:36px;height:36px;border-radius:50%;background:<%= u.is_premium ? 'rgba(245,166,35,.15)' : 'var(--surface-d)' %>;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:<%= u.is_premium ? '#F5A623' : 'var(--text-dim)' %>;flex-shrink:0">
@@ -154,7 +211,9 @@
           </div>
         </div>
       </td>
-      <td style="color:var(--text-m);font-size:13px"><%= u.phoneNumber %></td>
+      <td style="color:var(--text-m);font-size:13px">
+        <%= u.phoneNumber || '—' %>
+      </td>
       <td>
         <% if(u.xbetId){ %>
           <span style="color:var(--btn-primary);font-weight:600;font-size:12px"><%= u.xbetId %></span>
@@ -164,7 +223,7 @@
       </td>
       <td>
         <% if(u.is_premium){ %>
-          <div><span class="badge badge-warn">👑 Premium</span>
+          <div><span class="badge badge-warn"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span>
           <p style="font-size:10px;color:var(--text-dim);margin-top:2px"><%= u.days_left %>j restants</p></div>
         <% } else { %>
           <span class="badge" style="background:var(--surface-d);color:var(--text-dim)">Gratuit</span>
@@ -178,10 +237,10 @@
       </td>
       <td>
         <span class="badge <%= u.isActive ? 'badge-ok' : 'badge-err' %>">
-          <%= u.isActive ? '✓ Actif' : '✗ Suspendu' %>
+          <%= u.isActive ? '✓ Actif' : '✕ Suspendu' %>
         </span>
         <% const _bid = (activeBanIds||[]).includes(String(u.id)); if(_bid){ %>
-        <span class="badge badge-err" style="margin-left:4px;font-size:.68rem">🚫</span>
+        <span class="badge badge-err" style="margin-left:4px;font-size:.68rem"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg></span>
         <% } %>
       </td>
       <td style="text-align:right">
@@ -256,6 +315,98 @@ function renderPresets() {
       ${p.name} <span onclick="event.stopPropagation();deletePreset(${i})" style="opacity:.5;margin-left:2px">×</span>
     </span>`
   ).join('');
+}
+
+/* ── Sélection multiple ──
+   La modération se faisait compte par compte, en ouvrant chaque fiche.
+   La sélection ne porte que sur la page courante : agir sur les 20 lignes
+   visibles est explicite, agir sur un filtre entier ne l'est pas. */
+function uSelectedRows() {
+  return [...document.querySelectorAll('#users-body tr')]
+    .filter(tr => tr.querySelector('.u-check')?.checked);
+}
+
+function uSelChanged() {
+  const rows = uSelectedRows();
+  document.getElementById('u-sel-count').textContent = rows.length;
+  document.getElementById('u-bulkbar').toggleAttribute('data-on', rows.length > 0);
+  const all = document.querySelectorAll('#users-body .u-check');
+  const box = document.getElementById('u-check-all');
+  box.checked       = all.length > 0 && rows.length === all.length;
+  box.indeterminate = rows.length > 0 && rows.length < all.length;
+}
+
+function uToggleAll(master) {
+  document.querySelectorAll('#users-body .u-check').forEach(c => { c.checked = master.checked; });
+  uSelChanged();
+}
+
+function uClearSelection() {
+  document.querySelectorAll('#users-body .u-check').forEach(c => { c.checked = false; });
+  uSelChanged();
+}
+
+function uBulkBtns(disabled) {
+  document.querySelectorAll('#u-bulkbar button').forEach(b => { b.disabled = disabled; });
+}
+
+async function uBulkCall(url, method, payload, onOk) {
+  uBulkBtns(true);
+  try {
+    const res = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || `Erreur ${res.status}`);
+    onOk(data);
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+  } finally {
+    uBulkBtns(false);
+  }
+}
+
+function uBulkSuspend(suspend) {
+  const rows = uSelectedRows();
+  if (!rows.length) return;
+  const ids = rows.map(tr => tr.dataset.uid);
+
+  askConfirm({
+    icon:  suspend ? '🔴' : '🟢',
+    title: suspend ? 'Suspendre les comptes' : 'Réactiver les comptes',
+    msg:   `${ids.length} compte(s) vont être ${suspend ? 'suspendus' : 'réactivés'}.`,
+    btnLabel: suspend ? 'Suspendre' : 'Réactiver',
+    btnClass: suspend ? 'btn-danger' : 'btn-primary',
+    onConfirm: () => uBulkCall('/admin/users/bulk/suspend', 'PATCH',
+      { user_ids: ids, suspend }, (d) => {
+        showToast(`${d.updated} compte(s) ${suspend ? 'suspendu(s)' : 'réactivé(s)'}.`, 'success');
+        // Le statut affiché vient du serveur : on recharge pour rester honnête.
+        setTimeout(() => window.location.reload(), 600);
+      }),
+  });
+}
+
+function uBulkNotify() {
+  const rows = uSelectedRows();
+  if (!rows.length) return;
+  const ids = rows.map(tr => tr.dataset.uid);
+
+  const title = prompt(`Titre de la notification (${ids.length} destinataire(s)) :`);
+  if (!title?.trim()) return;
+  const body = prompt('Message :');
+  if (!body?.trim()) return;
+
+  uBulkCall('/admin/users/bulk/notify', 'POST',
+    { user_ids: ids, title: title.trim(), body: body.trim() }, (d) => {
+      // On distingue explicitement les comptes sans token FCM : sans cela,
+      // « envoyé » laisserait croire que tout le monde a reçu le message.
+      const parts = [`${d.sent} envoyée(s)`];
+      if (d.failed)  parts.push(`${d.failed} en échec`);
+      if (d.skipped) parts.push(`${d.skipped} sans appli installée`);
+      showToast(parts.join(' · '), d.sent ? 'success' : 'error');
+      uClearSelection();
+    });
 }
 
 /* ── Init panneau avancé si filtres actifs ── */

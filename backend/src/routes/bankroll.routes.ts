@@ -14,6 +14,9 @@ r.get   ('/suggest',   authMiddleware, C.getSuggestedStake);
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 r.get   ('/admin/list',      adminMiddleware, C.adminListBankrolls);
+// Avant `/admin/:userId` : sans cela « stats » serait capté comme un
+// identifiant d'utilisateur par la route paramétrée.
+r.get   ('/admin/stats',     adminMiddleware, C.adminBankrollStats);
 r.get   ('/admin/:userId',   adminMiddleware, C.adminGetBankrollDetail);
 
 export default r;

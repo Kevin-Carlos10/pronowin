@@ -74,7 +74,7 @@
 <!-- ── Modals ───────────────────────────────────────────────────────────── -->
 <div class="ud-modal" id="modal-ban">
   <div class="ud-modal-box">
-    <div class="ud-modal-title" style="color:var(--error)">🚫 Bannir <%= user.pseudo %></div>
+    <div class="ud-modal-title" style="color:var(--error)"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir <%= user.pseudo %></div>
     <form method="POST" action="/admin/users/<%= user.id %>/ban">
       <input type="hidden" name="pseudo" value="<%= user.pseudo %>">
       <div class="form-group" style="margin-bottom:.9rem">
@@ -95,7 +95,7 @@
       </div>
       <div style="display:flex;gap:.6rem;justify-content:flex-end">
         <button type="button" class="btn btn-outline" onclick="closeModal('modal-ban')">Annuler</button>
-        <button type="submit" class="btn btn-danger">🚫 Bannir</button>
+        <button type="submit" class="btn btn-danger"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir</button>
       </div>
     </form>
   </div>
@@ -103,13 +103,13 @@
 
 <div class="ud-modal" id="modal-notif">
   <div class="ud-modal-box">
-    <div class="ud-modal-title">📱 Envoyer une notification</div>
+    <div class="ud-modal-title"><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg> Envoyer une notification</div>
     <form method="POST" action="/admin/users/<%= user.id %>/notify">
       <div class="form-group" style="margin-bottom:.9rem"><label>Titre</label><input class="input" type="text" name="title" required placeholder="Ex : Votre dépôt a été validé"></div>
       <div class="form-group" style="margin-bottom:1.25rem"><label>Message</label><textarea class="input" name="body" rows="3" required placeholder="Contenu de la notification…"></textarea></div>
       <div style="display:flex;gap:.6rem;justify-content:flex-end">
         <button type="button" class="btn btn-outline" onclick="closeModal('modal-notif')">Annuler</button>
-        <button type="submit" class="btn btn-primary">📤 Envoyer</button>
+        <button type="submit" class="btn btn-primary"><svg class="ic" aria-hidden="true"><use href="#ic-upload"/></svg> Envoyer</button>
       </div>
     </form>
   </div>
@@ -117,7 +117,7 @@
 
 <div class="ud-modal" id="modal-pseudo">
   <div class="ud-modal-box">
-    <div class="ud-modal-title">✏️ Modifier le pseudo</div>
+    <div class="ud-modal-title"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier le pseudo</div>
     <form method="POST" action="/admin/users/<%= user.id %>/pseudo">
       <div class="form-group" style="margin-bottom:1.25rem"><label>Nouveau pseudo</label><input class="input" type="text" name="pseudo" value="<%= user.pseudo %>" required minlength="3"></div>
       <div style="display:flex;gap:.6rem;justify-content:flex-end">
@@ -134,11 +134,11 @@
     <a href="/admin/users" style="color:var(--text-dim);font-size:.82rem;text-decoration:none">← Utilisateurs</a>
     <span style="color:var(--border)">/</span>
     <h2 style="margin:0"><%= user.full_name || user.pseudo %></h2>
-    <span class="badge <%= user.isActive ? 'badge-ok' : 'badge-err' %>"><%= user.isActive ? '✓ Actif' : '✗ Suspendu' %></span>
-    <% if(user.is_premium) { %><span class="badge badge-warn">👑 Premium</span><% } %>
-    <% if(typeof activeBan !== 'undefined' && activeBan) { %><span class="badge badge-err">🚫 Banni</span><% } %>
+    <span class="badge <%= user.isActive ? 'badge-ok' : 'badge-err' %>"><%= user.isActive ? '✓ Actif' : '✕ Suspendu' %></span>
+    <% if(user.is_premium) { %><span class="badge badge-warn"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span><% } %>
+    <% if(typeof activeBan !== 'undefined' && activeBan) { %><span class="badge badge-err"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Banni</span><% } %>
   </div>
-  <a href="/admin/users/<%= user.id %>" class="btn btn-outline btn-sm" title="Recharger">🔄</a>
+  <a href="/admin/users/<%= user.id %>" class="btn btn-outline btn-sm" title="Recharger"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg></a>
 </div>
 
 <!-- ── Layout ───────────────────────────────────────────────────────────── -->
@@ -163,8 +163,8 @@
           <% if(user.full_name) { %><div class="ud-handle">@<%= user.pseudo %></div><% } %>
           <div class="ud-id-row">
             <span class="ud-id" id="user-id-display"><%= user.id %></span>
-            <button class="ud-copy-btn" onclick="copyId()" title="Copier l'ID">📋</button>
-            <span id="copy-confirm" style="font-size:.7rem;color:var(--success);display:none">✓ Copié</span>
+            <button class="ud-copy-btn" onclick="copyId()" title="Copier l'ID" aria-label="Copier l'identifiant"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg></button>
+            <span id="copy-confirm" style="font-size:.7rem;color:var(--success);display:none"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Copié</span>
           </div>
         </div>
         <!-- Stats rapides -->
@@ -182,12 +182,12 @@
 
       <!-- Onglets -->
       <div class="ud-tabs">
-        <button class="ud-tab active" onclick="switchTab('tab-info', this)">👤 Informations</button>
+        <button class="ud-tab active" onclick="switchTab('tab-info', this)"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> Informations</button>
         <% if(subscriptions && subscriptions.length > 0) { %>
-        <button class="ud-tab" onclick="switchTab('tab-subs', this)">👑 Abonnements (<%= subscriptions.length %>)</button>
+        <button class="ud-tab" onclick="switchTab('tab-subs', this)"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Abonnements (<%= subscriptions.length %>)</button>
         <% } %>
         <% if(referrals && referrals.length > 0) { %>
-        <button class="ud-tab" onclick="switchTab('tab-refs', this)">👥 Filleuls (<%= referrals.length %>)</button>
+        <button class="ud-tab" onclick="switchTab('tab-refs', this)"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Filleuls (<%= referrals.length %>)</button>
         <% } %>
       </div>
 
@@ -215,7 +215,7 @@
         <% row('Gains parrainage', (user.referralEarnings||0).toLocaleString()+' FCFA', 'success') %>
         <% row('Inscrit le', new Date(user.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})) %>
         <% row('Dernière connexion', user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : 'Jamais') %>
-        <% row('Token FCM', user.fcmToken ? '✓ Enregistré' : '✗ Absent', user.fcmToken ? 'success' : 'error') %>
+        <% row('Token FCM', user.fcmToken ? '✓ Enregistré' : '✕ Absent', user.fcmToken ? 'success' : 'error') %>
       </div>
 
       <!-- Onglet : Abonnements -->
@@ -273,7 +273,7 @@
 
       <!-- Premium -->
       <div class="ud-action-section">
-        <div class="ud-action-title">👑 Abonnement Premium</div>
+        <div class="ud-action-title"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Abonnement Premium</div>
         <% if(user.is_premium) { %>
         <div class="ud-premium-box">
           Premium actif — <%= user.days_left %> jour<%= user.days_left > 1 ? 's' : '' %> restant<%= user.days_left > 1 ? 's' : '' %>
@@ -281,7 +281,7 @@
         <form method="POST" action="/admin/users/<%= user.id %>/revoke-premium" id="form-revoke-premium">
           <button type="button" class="btn btn-danger btn-sm" style="width:100%"
             data-pseudo="<%= user.pseudo %>"
-            onclick="askConfirm({icon:'✗',title:'Révoquer le Premium',msg:'Révoquer le Premium de '+this.dataset.pseudo+' ?',btnLabel:'Révoquer',btnClass:'btn-danger',onConfirm:function(){document.getElementById('form-revoke-premium').submit()}})">✗ Révoquer le Premium</button>
+            onclick="askConfirm({icon:'x',title:'Révoquer le Premium',msg:'Révoquer le Premium de '+this.dataset.pseudo+' ?',btnLabel:'Révoquer',btnClass:'btn-danger',onConfirm:function(){document.getElementById('form-revoke-premium').submit()}})"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Révoquer le Premium</button>
         </form>
         <% } else { %>
         <form method="POST" action="/admin/users/<%= user.id %>/premium" style="display:flex;gap:.5rem;align-items:flex-end">
@@ -289,7 +289,7 @@
             <label style="font-size:.72rem;color:var(--text-dim);display:block;margin-bottom:.3rem">Durée (jours)</label>
             <input class="input" type="number" name="duration_days" value="30" min="1" max="365">
           </div>
-          <button type="submit" class="btn btn-primary btn-sm">👑 Activer</button>
+          <button type="submit" class="btn btn-primary btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Activer</button>
         </form>
         <% } %>
       </div>
@@ -312,7 +312,7 @@
       <!-- Bannissement -->
       <% if(hasPerm('users','write')) { %>
       <div class="ud-action-section">
-        <div class="ud-action-title">🚫 Bannissement</div>
+        <div class="ud-action-title"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannissement</div>
         <% if(typeof activeBan !== 'undefined' && activeBan) { %>
         <div class="ud-ban-box">
           <div class="reason">« <%= activeBan.reason %> »</div>
@@ -324,26 +324,26 @@
         <form method="POST" action="/admin/users/<%= user.id %>/unban">
           <input type="hidden" name="pseudo" value="<%= user.pseudo %>">
           <input class="input" type="text" name="unban_reason" placeholder="Raison du débannissement…" style="margin-bottom:.5rem;font-size:.82rem">
-          <button type="submit" class="btn btn-success btn-sm" style="width:100%">🔓 Débannir</button>
+          <button type="submit" class="btn btn-success btn-sm" style="width:100%"><svg class="ic" aria-hidden="true"><use href="#ic-unlock"/></svg> Débannir</button>
         </form>
         <% } else { %>
-        <button onclick="openModal('modal-ban')" class="btn btn-danger btn-sm" style="width:100%">🚫 Bannir cet utilisateur</button>
+        <button onclick="openModal('modal-ban')" class="btn btn-danger btn-sm" style="width:100%"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir cet utilisateur</button>
         <% } %>
       </div>
       <% } %>
 
       <!-- Actions rapides -->
       <div class="ud-action-section">
-        <div class="ud-action-title">⚡ Actions rapides</div>
+        <div class="ud-action-title"><svg class="ic" aria-hidden="true"><use href="#ic-zap"/></svg> Actions rapides</div>
         <div class="ud-action-btns">
-          <button onclick="openModal('modal-notif')" class="btn btn-outline btn-sm" style="justify-content:flex-start">📱 Envoyer une notification</button>
-          <button onclick="openModal('modal-pseudo')" class="btn btn-outline btn-sm" style="justify-content:flex-start">✏️ Modifier le pseudo</button>
-          <a href="/admin/historique?search=<%= encodeURIComponent(user.phoneNumber||user.pseudo) %>" class="btn btn-outline btn-sm" style="justify-content:flex-start">📋 Voir l'historique</a>
+          <button onclick="openModal('modal-notif')" class="btn btn-outline btn-sm" style="justify-content:flex-start"><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg> Envoyer une notification</button>
+          <button onclick="openModal('modal-pseudo')" class="btn btn-outline btn-sm" style="justify-content:flex-start"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier le pseudo</button>
+          <a href="/admin/historique?search=<%= encodeURIComponent(user.phoneNumber||user.pseudo) %>" class="btn btn-outline btn-sm" style="justify-content:flex-start"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Voir l'historique</a>
           <% if (hasPerm('bankroll')) { %>
-          <a href="/admin/bankroll/<%= user.id %>" class="btn btn-outline btn-sm" style="justify-content:flex-start">🎯 Voir la bankroll</a>
+          <a href="/admin/bankroll/<%= user.id %>" class="btn btn-outline btn-sm" style="justify-content:flex-start"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Voir la bankroll</a>
           <% } %>
           <% if(isMain) { %>
-          <a href="/admin/bans?search=<%= encodeURIComponent(user.pseudo) %>" class="btn btn-outline btn-sm" style="justify-content:flex-start">🚫 Historique bans</a>
+          <a href="/admin/bans?search=<%= encodeURIComponent(user.pseudo) %>" class="btn btn-outline btn-sm" style="justify-content:flex-start"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Historique bans</a>
           <% } %>
         </div>
       </div>

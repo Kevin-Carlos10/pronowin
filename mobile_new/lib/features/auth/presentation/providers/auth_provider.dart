@@ -5,6 +5,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/failures.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
+import '../../data/datasources/google_auth_service.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -156,36 +157,24 @@ class AuthNotifier extends StateNotifier<AuthState> {
     emailVerified:        u.emailVerified,
   );
 
-  Future<void> quickRegister({String? phoneNumber, String? email}) async {
+  /// Connexion Google. Retourne `false` si l'utilisateur a fermé le sélecteur
+  /// de compte — ce n'est pas une erreur, l'écran ne doit rien afficher.
+  Future<bool> loginWithGoogle() async {
     state = AuthLoading();
     try {
-      final data = await _repository.quickRegister(phoneNumber: phoneNumber, email: email);
+      final idToken = await GoogleAuthService.obtenirIdToken();
+      if (idToken == null) {
+        // Annulation : on revient à l'état initial, pas à une erreur.
+        state = AuthInitial();
+        return false;
+      }
+      final data = await _repository.googleLogin(idToken);
       await CacheService.clearAll();
       state = AuthAuthenticated(data);
+      return true;
     } catch (e) {
       state = AuthError(e.toString().replaceFirst('Exception: ', ''));
-    }
-  }
-
-  Future<void> loginWithEmail({required String email, required String password}) async {
-    state = AuthLoading();
-    try {
-      final data = await _repository.loginEmail(email: email, password: password);
-      await CacheService.clearAll();
-      state = AuthAuthenticated(data);
-    } catch (e) {
-      state = AuthError(e.toString().replaceFirst('Exception: ', ''));
-    }
-  }
-
-  Future<void> registerWithEmail({required String email, required String password, required String pseudo}) async {
-    state = AuthLoading();
-    try {
-      final data = await _repository.registerEmail(email: email, password: password, pseudo: pseudo);
-      await CacheService.clearAll();
-      state = AuthAuthenticated(data);
-    } catch (e) {
-      state = AuthError(e.toString().replaceFirst('Exception: ', ''));
+      return false;
     }
   }
 

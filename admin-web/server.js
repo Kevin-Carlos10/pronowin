@@ -22,8 +22,81 @@ const SA_FILE  = path.join(DATA_DIR, 'sub_admins.json');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(SA_FILE))  fs.writeFileSync(SA_FILE, '[]');
 
+/**
+ * Écrit un fichier JSON de façon atomique, et **rend le résultat**.
+ *
+ * Deux défauts corrigés d'un coup :
+ *
+ * 1. `saveSubs` n'avait aucun try/catch — un disque plein remontait en
+ *    exception non gérée, donc en 500 avec trace d'appels ;
+ * 2. les autres écrivains avalaient l'erreur dans un `catch {}` vide, si bien
+ *    que l'admin lisait « enregistré avec succès » alors que rien n'était
+ *    écrit. Annoncer un succès sans jamais regarder le résultat de l'écriture,
+ *    c'est le pire des deux mondes.
+ *
+ * L'écriture passe par un fichier temporaire puis un renommage : sur la
+ * plupart des systèmes de fichiers, `rename` est atomique. Une coupure en
+ * plein milieu laisse donc l'ancien fichier intact plutôt qu'un JSON tronqué —
+ * ce qui, pour `sub_admins.json`, signifierait perdre tous les comptes.
+ */
+function ecrireJson(fichier, donnees, espacement = 2) {
+  const tmp = fichier + '.tmp';
+  try {
+    fs.writeFileSync(tmp, JSON.stringify(donnees, null, espacement));
+    fs.renameSync(tmp, fichier);
+    return { ok: true };
+  } catch (e) {
+    // Nettoyage du temporaire : le laisser traîner masquerait la prochaine erreur.
+    try { if (fs.existsSync(tmp)) fs.unlinkSync(tmp); } catch {}
+    console.error(`[admin] Échec d'écriture de ${path.basename(fichier)}:`, e.message);
+    return { ok: false, erreur: e.message };
+  }
+}
+
+/**
+ * Empreinte d'un fichier au moment de sa lecture : date de dernière
+ * modification en millisecondes, ou 0 s'il n'existe pas encore.
+ */
+function empreinte(fichier) {
+  try { return fs.statSync(fichier).mtimeMs; } catch { return 0; }
+}
+
+/**
+ * Écrit un fichier JSON **seulement s'il n'a pas bougé depuis la lecture**.
+ *
+ * Le motif `charger() → modifier → enregistrer()` est partout dans ce fichier,
+ * et sur des fichiers JSON il n'y a pas de transaction : deux administrateurs
+ * qui modifient les permissions dans la même minute produisaient une écriture
+ * où le second écrasait le premier, sans avertissement et sans trace.
+ *
+ * Comparer la date de modification n'est pas un verrou — deux écritures
+ * séparées d'une milliseconde peuvent encore se croiser. C'est une détection :
+ * elle transforme une perte silencieuse en un message que l'admin peut lire et
+ * auquel il peut réagir, ce qui est exactement ce qui manquait.
+ */
+function ecrireSiInchange(fichier, donnees, empreinteLue, espacement = 2) {
+  if (empreinte(fichier) !== empreinteLue) {
+    return { ok: false, conflit: true };
+  }
+  return ecrireJson(fichier, donnees, espacement);
+}
+
+/** Message d'erreur uniforme, à afficher à l'admin quand une écriture échoue. */
+const ERR_ECRITURE = 'Enregistrement impossible : le serveur n\'a pas pu écrire ' +
+  'le fichier. Rien n\'a été modifié. Vérifie l\'espace disque et les droits.';
+
+/** Modification concurrente détectée — l'admin doit recharger et refaire. */
+const ERR_CONFLIT = 'Un autre administrateur a modifié ces données pendant ' +
+  'que tu les éditais. Tes changements n\'ont pas été enregistrés pour ne pas ' +
+  'écraser les siens. Recharge la page et recommence.';
+
 function loadSubs()       { try { return JSON.parse(fs.readFileSync(SA_FILE, 'utf8')); } catch { return []; } }
-function saveSubs(data)   { fs.writeFileSync(SA_FILE, JSON.stringify(data, null, 2)); }
+function saveSubs(data)   { return ecrireJson(SA_FILE, data); }
+
+/** Empreinte du fichier des sous-admins, à capturer juste avant `loadSubs()`. */
+function empreinteSubs()  { return empreinte(SA_FILE); }
+/** Enregistre les sous-admins si personne d'autre ne les a touchés entre-temps. */
+function saveSubsSi(data, emp) { return ecrireSiInchange(SA_FILE, data, emp); }
 function hashPwd(pwd)     { return bcrypt.hashSync(pwd, 12); }
 function checkPwd(pwd, hash) { return bcrypt.compareSync(pwd, hash); }
 // Signer les permissions avec HMAC pour empêcher la falsification côté client
@@ -47,7 +120,7 @@ const BANS_FILE = path.join(DATA_DIR, 'bans.json');
 if (!fs.existsSync(BANS_FILE)) fs.writeFileSync(BANS_FILE, '[]');
 
 function loadBans()      { try { return JSON.parse(fs.readFileSync(BANS_FILE, 'utf8')); } catch { return []; } }
-function saveBans(data)  { try { fs.writeFileSync(BANS_FILE, JSON.stringify(data, null, 2)); } catch {} }
+function saveBans(data)  { return ecrireJson(BANS_FILE, data); }
 
 /** Retourne le ban actif d'un userId (null si pas banni ou ban expiré) */
 function getActiveBan(userId) {
@@ -143,20 +216,27 @@ const DEFAULT_SETTINGS = {
 
 if (!fs.existsSync(SETTINGS_FILE)) fs.writeFileSync(SETTINGS_FILE, JSON.stringify(DEFAULT_SETTINGS, null, 2));
 
+/** Entier borné, avec repli si la saisie n'est pas un nombre exploitable. */
+function clampInt(raw, min, max, fallback) {
+  const n = parseInt(raw, 10);
+  return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+}
+
 function loadSettings() {
   try { return { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) }; }
   catch { return { ...DEFAULT_SETTINGS }; }
 }
-function saveSettings(s) {
-  try { fs.writeFileSync(SETTINGS_FILE, JSON.stringify(s, null, 2)); } catch {}
-}
+function saveSettings(s) { return ecrireJson(SETTINGS_FILE, s); }
+
+function empreinteSettings()      { return empreinte(SETTINGS_FILE); }
+function saveSettingsSi(s, emp)   { return ecrireSiInchange(SETTINGS_FILE, s, emp); }
 
 // ─── ACTUALITÉS : stockage local ─────────────────────────────────────────────
 const NEWS_FILE = path.join(DATA_DIR, 'actualites.json');
 if (!fs.existsSync(NEWS_FILE)) fs.writeFileSync(NEWS_FILE, '[]');
 
 function loadNews()     { try { return JSON.parse(fs.readFileSync(NEWS_FILE, 'utf8')); } catch { return []; } }
-function saveNews(data) { try { fs.writeFileSync(NEWS_FILE, JSON.stringify(data, null, 2)); } catch {} }
+function saveNews(data) { return ecrireJson(NEWS_FILE, data); }
 const NEWS_DEFAULT_CATEGORIES = ['news', 'promo', 'update', 'tip', 'alert'];
 function getNewsCategories() {
   const used = loadNews().map(n => n.category).filter(Boolean);
@@ -167,57 +247,32 @@ function slugify(str)   { return str.toLowerCase().normalize('NFD').replace(/[̀
 // ─── AUDIT LOG ───────────────────────────────────────────────────────────────
 const LOG_FILE    = path.join(DATA_DIR, 'audit_log.json');
 const LOG_MAX     = 5000;   // garder les 5000 dernières entrées
+
+/**
+ * `secure` sur les cookies de session.
+ *
+ * Sans lui, `admin_token` part en clair dès que le panneau est servi en HTTP :
+ * sur un réseau partagé, le jeton d'administration est lisible au passage.
+ * Conditionné à la production pour ne pas casser le développement en
+ * http://localhost, où le navigateur refuserait un cookie `secure`.
+ */
+const COOKIE_SECURE = process.env.NODE_ENV === 'production';
 if (!fs.existsSync(LOG_FILE)) fs.writeFileSync(LOG_FILE, '[]');
 
 function loadLogs()  { try { return JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch { return []; } }
-function saveLogs(l) { try { fs.writeFileSync(LOG_FILE, JSON.stringify(l)); } catch {} }
+function saveLogs(l) { return ecrireJson(LOG_FILE, l, 0); }
 
 // ─── NOTIFICATIONS : historique local ────────────────────────────────────────
 const NOTIF_FILE = path.join(DATA_DIR, 'notifications_history.json');
 if (!fs.existsSync(NOTIF_FILE)) fs.writeFileSync(NOTIF_FILE, '[]');
 function loadNotifHistory()   { try { return JSON.parse(fs.readFileSync(NOTIF_FILE, 'utf8')); } catch { return []; } }
-function saveNotifHistory(d)  { try { fs.writeFileSync(NOTIF_FILE, JSON.stringify(d.slice(0, 200))); } catch {} }
+function saveNotifHistory(d)  { return ecrireJson(NOTIF_FILE, d.slice(0, 200), 0); }
 
 // Catégories lisibles
-const ACTION_LABELS = {
-  login:                     { label: 'Connexion',               icon: '🔑', cat: 'auth' },
-  logout:                    { label: 'Déconnexion',             icon: '🚪', cat: 'auth' },
-  login_failed:              { label: 'Tentative échouée',       icon: '⚠️', cat: 'auth' },
-  notification_sent:         { label: 'Notification envoyée',    icon: '📣', cat: 'notification' },
-  transaction_approved:      { label: 'Dépôt approuvé',         icon: '✅', cat: 'finance' },
-  transaction_rejected:      { label: 'Dépôt rejeté',           icon: '❌', cat: 'finance' },
-  history_updated:           { label: 'Transaction modifiée',    icon: '📋', cat: 'finance' },
-  proof_approved:            { label: 'Preuve Premium approuvée',icon: '👑', cat: 'abonnement' },
-  proof_rejected:            { label: 'Preuve Premium rejetée',  icon: '🚫', cat: 'abonnement' },
-  user_suspended:            { label: 'Compte suspendu',         icon: '🔴', cat: 'user' },
-  user_activated:            { label: 'Compte réactivé',         icon: '🟢', cat: 'user' },
-  user_premium_added:        { label: 'Premium accordé',         icon: '⭐', cat: 'user' },
-  user_premium_revoked:      { label: 'Premium révoqué',         icon: '❌', cat: 'user' },
-  user_notified:             { label: 'Notification envoyée',    icon: '📣', cat: 'user' },
-  user_pseudo_changed:       { label: 'Pseudo modifié',          icon: '✏️', cat: 'user' },
-  pronostic_published:       { label: 'Pronostic publié',        icon: '⚽', cat: 'pronostic' },
-  tutorial_created:          { label: 'Tutoriel créé',           icon: '📚', cat: 'tutoriel' },
-  tutorial_updated:          { label: 'Tutoriel modifié',        icon: '✏️', cat: 'tutoriel' },
-  tutorial_deleted:          { label: 'Tutoriel supprimé',       icon: '🗑️', cat: 'tutoriel' },
-  tutorial_premium_toggled:  { label: 'Tutoriel Premium togglé', icon: '👑', cat: 'tutoriel' },
-  sub_admin_created:         { label: 'Sous-admin créé',         icon: '👤', cat: 'admin' },
-  sub_admin_deleted:         { label: 'Sous-admin supprimé',     icon: '🗑️', cat: 'admin' },
-  sub_admin_toggled:         { label: 'Sous-admin activé/désactivé', icon: '🔄', cat: 'admin' },
-  sub_admin_perms_updated:   { label: 'Permissions modifiées',   icon: '🔐', cat: 'admin' },
-  sub_admin_pwd_changed:     { label: 'Mot de passe sous-admin', icon: '🔑', cat: 'admin' },
-  settings_changed:          { label: 'Paramètres modifiés',     icon: '⚙️', cat: 'admin' },
-  user_banned:               { label: 'Utilisateur banni',        icon: '🚫', cat: 'user' },
-  user_unbanned:             { label: 'Utilisateur débanni',      icon: '✅', cat: 'user' },
-  pronostic_result_override: { label: 'Résultat corrigé',         icon: '✏️', cat: 'pronostic' },
-  pronostic_result_force:    { label: 'Résultat forcé (WIN/LOSS)',icon: '⚡', cat: 'pronostic' },
-  news_created:              { label: 'Actualité créée',          icon: '📰', cat: 'news' },
-  news_updated:              { label: 'Actualité modifiée',       icon: '✏️', cat: 'news' },
-  news_published:            { label: 'Actualité publiée',        icon: '🟢', cat: 'news' },
-  news_unpublished:          { label: 'Actualité dépubliée',      icon: '🔴', cat: 'news' },
-  news_pinned:               { label: 'Actualité épinglée',       icon: '📌', cat: 'news' },
-  news_unpinned:             { label: 'Actualité désépinglée',    icon: '📌', cat: 'news' },
-  news_deleted:              { label: 'Actualité supprimée',      icon: '🗑️', cat: 'news' },
-};
+// `icon` porte un identifiant du sprite SVG (views/_icons.ejs), pas un emoji :
+// les vues rendent <svg><use href="#ic-…"/></svg>, donc la teinte suit le thème.
+const { ACTION_LABELS } = require('./lib/action_labels');
+
 
 function logAction(req, action, target = '', details = {}) {
   try {
@@ -238,54 +293,10 @@ function logAction(req, action, target = '', details = {}) {
 }
 
 // ─── SYSTÈME DE PERMISSIONS GRANULAIRES ─────────────────────────────────────
-// Niveaux : 'read' < 'write' < 'delete'
-// Stockage : tableau de strings "key:level" ex: ["users:write","transactions:read"]
-// Rétrocompat : ancienne clé simple "users" → traité comme "users:write"
-
-const PERM_LEVELS = ['read', 'write', 'delete'];
-
-const PERMISSIONS = [
-  {
-    key: 'statistiques', label: '📈 Statistiques', desc: 'Graphiques et KPIs',
-    levels: { read: 'Voir les stats', write: null, delete: null },
-  },
-  {
-    key: 'users', label: '👥 Utilisateurs', desc: 'Gérer les comptes',
-    levels: { read: 'Voir les comptes', write: 'Suspendre / accorder Premium', delete: 'Supprimer des comptes' },
-  },
-  {
-    key: 'pronostics', label: '⚽ Pronostics', desc: 'Créer et publier',
-    levels: { read: 'Voir les pronostics', write: 'Créer / publier', delete: 'Supprimer' },
-  },
-  {
-    key: 'transactions', label: '💰 Dépôts', desc: 'Valider les dépôts',
-    levels: { read: 'Voir les dépôts', write: 'Approuver / rejeter', delete: null },
-  },
-  {
-    key: 'historique', label: '📋 Historique', desc: 'Historique transactions',
-    levels: { read: 'Voir l\'historique', write: 'Modifier le statut', delete: null },
-  },
-  {
-    key: 'abonnements', label: '👑 Abonnements', desc: 'Valider les preuves Premium',
-    levels: { read: 'Voir les preuves', write: 'Approuver / rejeter', delete: null },
-  },
-  {
-    key: 'bankroll', label: '🎯 Bankroll', desc: 'Suivi des budgets et paris utilisateurs',
-    levels: { read: 'Voir les bankrolls', write: null, delete: null },
-  },
-  {
-    key: 'tutoriels', label: '📚 Tutoriels', desc: 'Créer et gérer',
-    levels: { read: 'Voir les tutoriels', write: 'Créer / modifier', delete: 'Supprimer' },
-  },
-  {
-    key: 'notifications', label: '📣 Notifications', desc: 'Notifications push',
-    levels: { read: 'Voir l\'historique', write: 'Envoyer des notifications', delete: null },
-  },
-  {
-    key: 'actualites', label: '📰 Actualités', desc: 'Créer et publier des articles',
-    levels: { read: 'Voir les articles', write: 'Créer / modifier / publier', delete: 'Supprimer' },
-  },
-];
+// Le catalogue vit dans lib/permissions.js : le banc d'essai des vues en
+// gardait sa propre copie, réduite à une entrée sans icône, et rendait donc
+// « 42/42 vues OK » en n'exerçant qu'un libellé sur dix.
+const { PERM_LEVELS, PERMISSIONS } = require('./lib/permissions');
 
 /**
  * Retourne le niveau accordé pour une clé de permission dans un tableau de perms.
@@ -359,6 +370,15 @@ app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'public')));
+
+// Chart.js servi localement plutôt que depuis un CDN : hors ligne ou CDN
+// bloqué, `Chart` restait indéfini et toute la page Statistiques était vide.
+// Servi depuis node_modules et non recopié dans public/ : la version reste
+// celle de package.json, sans risque de dérive.
+app.use('/vendor/chart.js', express.static(
+  path.join(__dirname, 'node_modules/chart.js/dist'), { maxAge: '30d', immutable: true }));
+app.use('/admin/vendor/chart.js', express.static(
+  path.join(__dirname, 'node_modules/chart.js/dist'), { maxAge: '30d', immutable: true }));
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
 function api(token) {
@@ -535,6 +555,7 @@ app.use((req, res, next) => {
     const sessionTimeoutMs = (loadSettings().sessionTimeoutMin ?? 30) * 60000;
     res.cookie('admin_last_active', Date.now().toString(), {
       maxAge: sessionTimeoutMs + 120000,
+      secure: COOKIE_SECURE,
       sameSite: 'lax',
       httpOnly: false,   // lisible par le JS client pour le countdown
     });
@@ -545,9 +566,11 @@ app.use((req, res, next) => {
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 app.get('/admin/login', (req, res) => {
   if (req.cookies?.admin_token) return res.redirect('/admin/dashboard');
+  // Une seule lecture : `getLoginMaxAttempts` relit settings.json à chaque appel.
+  const maxTentatives = getLoginMaxAttempts();
   res.render('login', {
     error: null, expired: req.query.expired === '1',
-    locked: null, remaining: getLoginMaxAttempts(), blockedUntilMs: null, username: '',
+    locked: null, remaining: maxTentatives, maxAttempts: maxTentatives, blockedUntilMs: null, username: '',
   });
 });
 
@@ -563,7 +586,7 @@ app.post('/admin/login', async (req, res) => {
       error: null, expired: false,
       locked: `Trop de tentatives. Réessayez dans ${rl.remainMin} minute${rl.remainMin > 1 ? 's' : ''}.`,
       blockedUntilMs: loginAttempts.get(ip)?.blockedUntil ?? null,
-      remaining: 0, username: username ?? '',
+      remaining: 0, maxAttempts: getLoginMaxAttempts(), username: username ?? '',
     });
   }
 
@@ -586,12 +609,12 @@ app.post('/admin/login', async (req, res) => {
     const perms    = JSON.stringify(sub.permissions ?? []);
     sub.lastLoginAt = new Date().toISOString();
     saveSubs(subs);
-    res.cookie('admin_token',   apiToken,                              { httpOnly: true,  maxAge: cookieMaxAge, sameSite: 'lax' });
-    res.cookie('admin_name',    sub.name,                              { httpOnly: true,  maxAge: cookieMaxAge, sameSite: 'lax' });
-    res.cookie('admin_role',    'sub',                                 { httpOnly: true,  maxAge: cookieMaxAge, sameSite: 'lax' });
-    res.cookie('admin_perms',   signPerms(sub.permissions ?? []),       { maxAge: cookieMaxAge, sameSite: 'lax' });
-    res.cookie('admin_sub_id',  sub.id,                                { maxAge: cookieMaxAge, sameSite: 'lax' });
-    res.cookie('admin_last_active', Date.now().toString(),             { maxAge: cookieMaxAge, sameSite: 'lax', httpOnly: false });
+    res.cookie('admin_token',   apiToken,                              { httpOnly: true,  maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
+    res.cookie('admin_name',    sub.name,                              { httpOnly: true,  maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
+    res.cookie('admin_role',    'sub',                                 { httpOnly: true,  maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
+    res.cookie('admin_perms',   signPerms(sub.permissions ?? []),       { maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
+    res.cookie('admin_sub_id',  sub.id,                                { maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
+    res.cookie('admin_last_active', Date.now().toString(),             { maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax', httpOnly: false });
     req.cookies = { ...req.cookies, admin_name: sub.name, admin_role: 'sub' };
     logAction(req, 'login', `Sous-admin: ${sub.name}`, { username: sub.username });
     return res.redirect('/admin/dashboard');
@@ -601,7 +624,7 @@ app.post('/admin/login', async (req, res) => {
   const inactiveSub = subs.find(s => s.username === username && s.isActive === false);
   if (inactiveSub) {
     recordFailedAttempt(ip);
-    return res.render('login', { error: 'Ce compte est désactivé. Contactez l\'administrateur principal.', expired: false, locked: null, remaining: getLoginMaxAttempts(), blockedUntilMs: null, username });
+    return res.render('login', { error: 'Ce compte est désactivé. Contactez l\'administrateur principal.', expired: false, locked: null, remaining: getLoginMaxAttempts(), maxAttempts: getLoginMaxAttempts(), blockedUntilMs: null, username });
   }
 
   // ── 2. Admin principal via l'API backend ──
@@ -609,10 +632,10 @@ app.post('/admin/login', async (req, res) => {
     // Le formulaire envoie "username", l'API attend "email"
     const r = await axios.post(`${API_URL}/admin/login`, { email: username, password }, { timeout: 10000 });
     clearAttempts(ip);
-    res.cookie('admin_token',   r.data.token,      { httpOnly: true, maxAge: cookieMaxAge, sameSite: 'lax' });
-    res.cookie('admin_name',    r.data.admin.name, { httpOnly: true, maxAge: cookieMaxAge, sameSite: 'lax' });
-    res.cookie('admin_role',    'main',            { httpOnly: true, maxAge: cookieMaxAge, sameSite: 'lax' });
-    res.cookie('admin_last_active', Date.now().toString(), { maxAge: cookieMaxAge, sameSite: 'lax', httpOnly: false });
+    res.cookie('admin_token',   r.data.token,      { httpOnly: true, maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
+    res.cookie('admin_name',    r.data.admin.name, { httpOnly: true, maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
+    res.cookie('admin_role',    'main',            { httpOnly: true, maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
+    res.cookie('admin_last_active', Date.now().toString(), { maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax', httpOnly: false });
     res.clearCookie('admin_perms');
     res.clearCookie('admin_sub_id');
     req.cookies = { ...req.cookies, admin_name: r.data.admin.name, admin_role: 'main' };
@@ -631,10 +654,10 @@ app.post('/admin/login', async (req, res) => {
         error: null, expired: false,
         locked: `Trop de tentatives. Réessayez dans ${nowBlocked.remainMin} minute${nowBlocked.remainMin > 1 ? 's' : ''}.`,
         blockedUntilMs: loginAttempts.get(ip)?.blockedUntil ?? null,
-        remaining: 0, username,
+        remaining: 0, maxAttempts: getLoginMaxAttempts(), username,
       });
     }
-    res.render('login', { error: errMsg, expired: false, locked: null, remaining, blockedUntilMs: null, username });
+    res.render('login', { error: errMsg, expired: false, locked: null, remaining, maxAttempts: getLoginMaxAttempts(), blockedUntilMs: null, username });
   }
 });
 
@@ -677,909 +700,6 @@ app.get('/admin/dashboard', requireAuth, async (req, res) => {
 });
 
 // ─── UTILISATEURS ─────────────────────────────────────────────────────────────
-app.get('/admin/users', requireAuth, requirePerm('users'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  const { search='', plan='', status='', sort_by='createdAt', sort_dir='desc', page='1',
-          date_from='', date_to='', min_tx='' } = req.query;
-  try {
-    const [usersRes, statsRes] = await Promise.all([
-      a.get('/admin/users', { params: { search, plan, status, sort_by, sort_dir, page, per_page: 20, date_from, date_to, min_tx } }),
-      a.get('/admin/users/stats'),
-    ]);
-    const now = Date.now();
-    const activeBanIds = new Set(
-      loadBans().filter(b => b.active && (!b.expiresAt || new Date(b.expiresAt).getTime() > now)).map(b => b.userId)
-    );
-    res.render('users', {
-      adminName: req.cookies.admin_name ?? 'Admin',
-      data: usersRes.data.data, stats: statsRes.data, total: usersRes.data.total,
-      page: parseInt(page), perPage: 20, totalPages: usersRes.data.total_pages,
-      search, plan, status, sortBy: sort_by, date_from, date_to, min_tx,
-      activeBanIds: [...activeBanIds],
-      success: req.query.success ?? null, error: req.query.error ?? null,
-    });
-  } catch (e) {
-    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-    res.render('users', {
-      adminName: req.cookies.admin_name ?? 'Admin',
-      data: [], stats: { total:0,premium:0,active:0,suspended:0,newToday:0,newWeek:0,newMonth:0,conversion_rate:0 },
-      total:0, page:1, perPage:20, totalPages:1,
-      search, plan, status, sortBy: sort_by, date_from, date_to, min_tx,
-      activeBanIds: [],
-      success: null, error: e.response?.data?.message ?? e.message,
-    });
-  }
-});
-
-app.get('/admin/users/export', requireAuth, requirePerm('users'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    // Essayer d'abord la route export dédiée de l'API
-    try {
-      const r = await a.get('/admin/users/export/csv', { params: req.query, responseType: 'text' });
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', r.headers['content-disposition'] ?? 'attachment; filename="users_export.csv"');
-      return res.send(r.data);
-    } catch (apiErr) {
-      if (apiErr.response?.status !== 404) throw apiErr; // erreur autre que "route inexistante"
-    }
-    // Fallback : récupérer les données et générer le CSV nous-mêmes
-    const { search='', plan='', status='', sort_by='createdAt', sort_dir='desc',
-            date_from='', date_to='', min_tx='' } = req.query;
-    const r = await a.get('/admin/users', { params: {
-      search, plan, status, sort_by, sort_dir, date_from, date_to, min_tx,
-      page: 1, per_page: 5000,
-    }});
-    const users = r.data.data ?? [];
-    const date  = new Date().toISOString().slice(0,10);
-    const headers = ['ID','Pseudo','Téléphone','Email','ID 1xBet','Plan','Statut','Inscrit le','Dernière connexion','Transactions','Jours Premium restants'];
-    const rows = users.map(u => [
-      u.id, u.pseudo, u.phoneNumber, u.email ?? '', u.xbetId ?? '',
-      u.is_premium ? 'Premium' : 'Gratuit',
-      u.isActive ? 'Actif' : 'Suspendu',
-      u.createdAt ? new Date(u.createdAt).toLocaleDateString('fr-FR') : '',
-      u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString('fr-FR') : '',
-      u.transaction_count ?? 0,
-      u.days_left ?? 0,
-    ]);
-    sendCSV(res, `users_${date}.csv`, headers, rows);
-  } catch (e) { res.redirect('/admin/users?error=' + encodeURIComponent('Erreur export CSV : ' + (e.friendlyMessage ?? e.message))); }
-});
-
-app.get('/admin/users/:id', requireAuth, requirePerm('users'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const r = await a.get('/admin/users/' + req.params.id);
-    res.render('user_detail', {
-      adminName: req.cookies.admin_name ?? 'Admin',
-      user: r.data.user, transactions: r.data.transactions,
-      subscriptions: r.data.subscriptions, proofs: r.data.proofs, referrals: r.data.referrals,
-      activeBan: getActiveBan(req.params.id),
-      success: req.query.success ?? null, error: req.query.error ?? null,
-    });
-  } catch (e) {
-    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-    res.redirect('/admin/users?error=' + encodeURIComponent(e.response?.data?.message ?? e.message));
-  }
-});
-
-app.post('/admin/users/:id/suspend',        requireAuth, requirePerm('users', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    await a.patch('/admin/users/' + req.params.id + '/suspend', req.body);
-    const isSuspend = req.body.suspend === 'true';
-    logAction(req, isSuspend ? 'user_suspended' : 'user_activated', `User #${req.params.id}`, { userId: req.params.id });
-    const msg = isSuspend ? 'Compte suspendu.' : 'Compte réactivé.';
-    res.redirect('/admin/users/' + req.params.id + '?success=' + encodeURIComponent(msg));
-  } catch (e) { res.redirect('/admin/users/' + req.params.id + '?error=' + encodeURIComponent(e.response?.data?.message ?? e.message)); }
-});
-
-app.post('/admin/users/:id/premium',        requireAuth, requirePerm('users', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    await a.post('/admin/users/' + req.params.id + '/premium', req.body);
-    logAction(req, 'user_premium_added', `User #${req.params.id}`, { userId: req.params.id, days: req.body.duration_days });
-    res.redirect('/admin/users/' + req.params.id + '?success=' + encodeURIComponent('Premium activé !'));
-  } catch (e) { res.redirect('/admin/users/' + req.params.id + '?error=' + encodeURIComponent(e.response?.data?.message ?? e.message)); }
-});
-
-app.post('/admin/users/:id/revoke-premium', requireAuth, requirePerm('users', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    await a.delete('/admin/users/' + req.params.id + '/premium');
-    logAction(req, 'user_premium_revoked', `User #${req.params.id}`, { userId: req.params.id });
-    res.redirect('/admin/users/' + req.params.id + '?success=' + encodeURIComponent('Premium révoqué.'));
-  } catch (e) { res.redirect('/admin/users/' + req.params.id + '?error=' + encodeURIComponent(e.response?.data?.message ?? e.message)); }
-});
-
-app.post('/admin/users/:id/notify', requireAuth, requirePerm('users', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    await a.post('/admin/users/' + req.params.id + '/notify', req.body);
-    logAction(req, 'user_notified', `User #${req.params.id}`, { userId: req.params.id, title: req.body.title });
-    res.redirect('/admin/users/' + req.params.id + '?success=' + encodeURIComponent('Notification envoyée !'));
-  } catch (e) { res.redirect('/admin/users/' + req.params.id + '?error=' + encodeURIComponent(e.response?.data?.message ?? e.message)); }
-});
-
-app.post('/admin/users/:id/pseudo', requireAuth, requirePerm('users', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    await a.patch('/admin/users/' + req.params.id + '/pseudo', req.body);
-    logAction(req, 'user_pseudo_changed', `User #${req.params.id} → ${req.body.pseudo}`, { userId: req.params.id, pseudo: req.body.pseudo });
-    res.redirect('/admin/users/' + req.params.id + '?success=' + encodeURIComponent('Pseudo modifié.'));
-  } catch (e) { res.redirect('/admin/users/' + req.params.id + '?error=' + encodeURIComponent(e.response?.data?.message ?? e.message)); }
-});
-
-// ─── PRONOSTICS ───────────────────────────────────────────────────────────────
-app.get('/admin/pronostics', requireAuth, requirePerm('pronostics'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  const competition   = req.query.competition ?? '';
-  const statusFilter  = req.query.status ?? '';
-  const q             = (req.query.q ?? '').trim();
-  const date          = req.query.date ?? '';
-  const mine          = req.query.mine === '1';
-  const live          = req.query.live === '1';
-  try {
-    const [r, leaguesRes] = await Promise.all([
-      a.get('/pronostics/admin/upcoming', { params: {
-        ...(competition ? { competition } : {}),
-        ...(q            ? { search: q }   : {}),
-        ...(live         ? { live: '1' }   : mine ? { mine: '1' } : date ? { date } : {}),
-      }}),
-      // Raccourcis de ligue dans le filtre = les compétitions activées dans
-      // /admin/leagues (liste blanche du flux public), plutôt qu'une liste
-      // figée dans le template — reste à jour automatiquement.
-      a.get('/pronostics/admin/leagues').catch(() => ({ data: [] })),
-    ]);
-    const visibleLeagues = (leaguesRes.data ?? []).filter(l => l.isVisible);
-    res.render('pronostics', { adminName: req.cookies.admin_name ?? 'Admin', matches: r.data ?? [], visibleLeagues, competition, statusFilter, q, date, mine, live, success: req.query.success === '1', error: null });
-  } catch (e) {
-    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-    res.render('pronostics', { adminName: req.cookies.admin_name ?? 'Admin', matches: [], visibleLeagues: [], competition, statusFilter, q, date, mine, live, success: false, error: e.response?.data?.message ?? e.message });
-  }
-});
-
-app.get('/admin/pronostics/export', requireAuth, requirePerm('pronostics'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const competition = req.query.competition ?? '';
-    const r = await a.get('/pronostics/admin/upcoming' + (competition ? '?competition=' + competition : ''));
-    const matches = r.data ?? [];
-    const date    = new Date().toISOString().slice(0,10);
-    const headers = ['ID Match','Compétition','Équipe Domicile','Équipe Extérieur','Date match','Tip','Côte','Is Premium','Publié','Créé le'];
-    const rows = matches.map(m => [
-      m.id, m.competition ?? '',
-      m.homeTeam ?? '', m.awayTeam ?? '',
-      m.matchDate ? new Date(m.matchDate).toLocaleString('fr-FR') : '',
-      m.pronostic?.tip ?? '', m.pronostic?.odds ?? '',
-      m.pronostic?.is_premium ? 'Oui' : 'Non',
-      m.pronostic?.published  ? 'Oui' : 'Non',
-      m.pronostic?.createdAt  ? new Date(m.pronostic.createdAt).toLocaleString('fr-FR') : '',
-    ]);
-    sendCSV(res, `pronostics_${date}.csv`, headers, rows);
-  } catch (e) { res.redirect('/admin/pronostics?error=' + encodeURIComponent('Erreur export : ' + (e.friendlyMessage ?? e.message))); }
-});
-
-// Proxy cotes → The Odds API (via backend, avec auth admin)
-app.get('/admin/pronostics/edit/:matchId/odds', requireAuth, requirePerm('pronostics'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const r = await a.get('/pronostics/admin/match/' + req.params.matchId + '/odds');
-    res.json(r.data);
-  } catch (e) {
-    res.status(e.response?.status ?? 500).json({ message: e.response?.data?.message ?? e.message });
-  }
-});
-
-app.get('/admin/pronostics/edit/:matchId', requireAuth, requirePerm('pronostics'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const r = await a.get('/pronostics/admin/match/' + req.params.matchId);
-    res.render('pronostic_form', { adminName: req.cookies.admin_name ?? 'Admin', match: r.data, error: null, query: req.query });
-  } catch (e) {
-    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-    res.redirect('/admin/pronostics');
-  }
-});
-
-app.post('/admin/pronostics/edit/:matchId', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    await a.post('/pronostics/admin/pronostic', { ...req.body, match_id: req.params.matchId, is_premium: req.body.is_premium === 'on', publish: req.body.publish === 'true' });
-    logAction(req, 'pronostic_published', `Match #${req.params.matchId}`, { matchId: req.params.matchId, tip: req.body.tip, published: req.body.publish === 'true' });
-    res.redirect('/admin/pronostics?success=1');
-  } catch (e) {
-    try {
-      const r2 = await a.get('/pronostics/admin/match/' + req.params.matchId);
-      res.render('pronostic_form', { adminName: req.cookies.admin_name ?? 'Admin', match: r2.data, error: e.response?.data?.message ?? 'Erreur', query: {} });
-    } catch { res.redirect('/admin/pronostics'); }
-  }
-});
-
-// Forcer le résultat WIN/LOSS/reset manuellement sur un pronostic
-app.post('/admin/pronostics/result/:pronosticId', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  const matchId = req.body.match_id;
-  try {
-    const result = req.body.result === 'null' ? null : req.body.result;
-    await a.patch('/pronostics/admin/pronostic/' + req.params.pronosticId + '/result', { result });
-    logAction(req, 'pronostic_result_override', `Pronostic #${req.params.pronosticId}`, { result });
-    res.redirect('/admin/pronostics/edit/' + matchId + '?result_success=1');
-  } catch (e) {
-    res.redirect('/admin/pronostics/edit/' + matchId + '?result_error=' + encodeURIComponent(e.response?.data?.message ?? e.message));
-  }
-});
-
-// Route AJAX pour forcer le résultat depuis la liste des pronostics
-app.post('/admin/pronostics/force-result/:pronosticId', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const result = req.body.result === 'null' ? null : req.body.result;
-    if (result !== 'WIN' && result !== 'LOSS' && result !== 'PUSH' && result !== null) {
-      return res.status(400).json({ ok: false, message: 'result doit être WIN, LOSS, PUSH ou null.' });
-    }
-    await a.patch('/pronostics/admin/pronostic/' + req.params.pronosticId + '/result', { result });
-    logAction(req, 'pronostic_result_force', `Pronostic #${req.params.pronosticId}`, { result });
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(e.response?.status ?? 500).json({ ok: false, message: e.response?.data?.message ?? e.message });
-  }
-});
-
-// ─── BANKROLL (suivi des budgets/paris utilisateurs) ──────────────────────────
-app.get('/admin/bankroll', requireAuth, requirePerm('bankroll'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  const search  = (req.query.search  ?? '').trim();
-  const sortBy  = req.query.sort_by  ?? 'currentBalance';
-  const sortDir = req.query.sort_dir ?? 'desc';
-  const page    = Math.max(1, parseInt(req.query.page ?? '1') || 1);
-  try {
-    const r = await a.get('/bankroll/admin/list', { params: {
-      page, per_page: 20,
-      ...(search ? { search } : {}),
-      sort_by: sortBy, sort_dir: sortDir,
-    }});
-    res.render('bankroll', {
-      adminName: req.cookies.admin_name ?? 'Admin',
-      ...r.data, search, sortBy, sortDir, error: null,
-    });
-  } catch (e) {
-    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-    res.render('bankroll', {
-      adminName: req.cookies.admin_name ?? 'Admin',
-      data: [], total: 0, page: 1, per_page: 20, total_pages: 0,
-      search, sortBy, sortDir, error: e.response?.data?.message ?? e.friendlyMessage ?? e.message,
-    });
-  }
-});
-
-app.get('/admin/bankroll/:userId', requireAuth, requirePerm('bankroll'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const r = await a.get('/bankroll/admin/' + req.params.userId);
-    res.render('bankroll_detail', { adminName: req.cookies.admin_name ?? 'Admin', ...r.data, error: null });
-  } catch (e) {
-    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-    if (e.response?.status === 404) return res.status(404).render('error', { message: 'Utilisateur introuvable.' });
-    res.redirect('/admin/bankroll?error=' + encodeURIComponent(e.response?.data?.message ?? e.friendlyMessage ?? e.message));
-  }
-});
-
-// ─── LIGUES (liste blanche du flux public) ────────────────────────────────────
-app.get('/admin/leagues', requireAuth, requirePerm('pronostics'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const r = await a.get('/pronostics/admin/leagues');
-    res.render('leagues', { adminName: req.cookies.admin_name ?? 'Admin', leagues: r.data ?? [], error: null });
-  } catch (e) {
-    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-    res.render('leagues', { adminName: req.cookies.admin_name ?? 'Admin', leagues: [], error: e.response?.data?.message ?? e.friendlyMessage ?? e.message });
-  }
-});
-
-// Route AJAX — bascule la visibilité d'une ligue dans le flux public
-app.post('/admin/leagues/:code/toggle', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const league  = req.body.league;
-    const visible = req.body.visible === true || req.body.visible === 'true';
-    await a.post('/pronostics/admin/leagues/' + encodeURIComponent(req.params.code), { league, visible });
-    logAction(req, 'league_visibility_toggle', `${league} (${req.params.code})`, { visible });
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(e.response?.status ?? 500).json({ ok: false, message: e.response?.data?.message ?? e.message });
-  }
-});
-
-// ─── TRANSACTIONS ─────────────────────────────────────────────────────────────
-app.get('/admin/transactions', requireAuth, requirePerm('transactions'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  const { search = '', method = '', type = '', page = '1' } = req.query;
-  try {
-    const [pendingRes, methodsRes] = await Promise.allSettled([
-      a.get('/payments/admin/pending', { params: { search, method, type, page, per_page: 20 } }),
-      a.get('/payments/admin/methods').catch(() => ({ data: [] })),
-    ]);
-    if (pendingRes.status === 'rejected' && pendingRes.reason?.response?.status === 401)
-      return res.redirect('/admin/login?expired=1');
-
-    const raw     = pendingRes.status === 'fulfilled' ? pendingRes.value.data : { data: [], total: 0 };
-    const methods = methodsRes.status === 'fulfilled' ? methodsRes.value.data : [];
-
-    // Stats calculées localement (pas d'endpoint de stats globales côté /payments)
-    const items       = raw.data ?? [];
-    const totalAmount = items.reduce((s, tx) => s + (tx.amount ?? 0), 0);
-    const deposits    = items.filter(tx => tx.type === 'deposit').length;
-    const withdrawals = items.filter(tx => tx.type === 'withdrawal').length;
-
-    res.render('transactions', {
-      data: raw, search, method, type, methods,
-      page: parseInt(page), totalPages: Math.max(1, Math.ceil((raw.total ?? 0) / 20)),
-      localStats: { totalAmount, deposits, withdrawals, total: raw.total ?? 0 },
-      success: req.query.success ?? null,
-      error:   req.query.error   ?? null,
-    });
-  } catch (e) {
-    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-    res.render('transactions', {
-      data: { data: [], total: 0 }, search, method, type, methods: [], page: 1, totalPages: 1,
-      localStats: { totalAmount:0, deposits:0, withdrawals:0, total:0 },
-      success: null, error: e.response?.data?.message ?? e.message,
-    });
-  }
-});
-
-app.post('/admin/transactions/:id', requireAuth, requirePerm('transactions', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    await a.patch('/payments/admin/' + req.params.id, { status: req.body.status, admin_note: req.body.admin_note ?? null });
-    const action = req.body.status === 'completed' ? 'transaction_approved' : 'transaction_rejected';
-    logAction(req, action, `Transaction #${req.params.id}`, { txId: req.params.id, status: req.body.status, note: req.body.admin_note });
-    sseBroadcast('action', { type: action, adminName: req.cookies.admin_name ?? 'Admin', ts: Date.now() });
-    res.redirect('/admin/transactions?success=1');
-  } catch (e) { res.redirect('/admin/transactions?error=' + encodeURIComponent(e.response?.data?.message ?? 'Erreur')); }
-});
-
-// ─── HISTORIQUE ───────────────────────────────────────────────────────────────
-app.get('/admin/historique', requireAuth, requirePerm('historique'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  const { search='', type='', status='', method='', date_from='', date_to='', page='1',
-          amount_min='', amount_max='' } = req.query;
-  try {
-    const [histRes, statsRes, methodsRes] = await Promise.all([
-      a.get('/admin/history', { params: { search, type, status, method, date_from, date_to, page, per_page: 20, amount_min, amount_max } }),
-      a.get('/admin/history/stats'),
-      a.get('/payments/admin/methods').catch(() => ({ data: [] })),
-    ]);
-    res.render('historique', {
-      adminName: req.cookies.admin_name ?? 'Admin',
-      data: histRes.data.data, stats: statsRes.data, total: histRes.data.total, methods: methodsRes.data,
-      page: parseInt(page), perPage: 20, totalPages: histRes.data.total_pages,
-      search, type, status, method, dateFrom: date_from, dateTo: date_to, amount_min, amount_max,
-      sortBy: req.query.sort_by ?? '',
-      success: req.query.success ?? null, error: req.query.error ?? null,
-    });
-  } catch (e) {
-    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-    res.render('historique', {
-      adminName: req.cookies.admin_name ?? 'Admin',
-      data: [], stats: { volume_deposits:0,volume_withdrawals:0,completed_deposits:0,completed_withdrawals:0,pending_count:0,today_deposits:0,today_withdrawals:0,monthly_volume:0 },
-      total:0, page:1, perPage:20, totalPages:1, methods: [],
-      search, type, status, method, dateFrom: date_from, dateTo: date_to, amount_min, amount_max, sortBy: '',
-      success: null, error: e.response?.data?.message ?? e.message,
-    });
-  }
-});
-
-app.post('/admin/historique/:id', requireAuth, requirePerm('historique', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    await a.patch('/admin/history/' + req.params.id, { status: req.body.status, admin_note: req.body.admin_note });
-    logAction(req, 'history_updated', `Transaction #${req.params.id}`, { txId: req.params.id, status: req.body.status });
-    res.redirect('/admin/historique?success=' + encodeURIComponent('Transaction mise à jour.'));
-  } catch (e) { res.redirect('/admin/historique?error=' + encodeURIComponent(e.response?.data?.message ?? e.message)); }
-});
-
-app.get('/admin/historique/export', requireAuth, requirePerm('historique'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    try {
-      const r = await a.get('/admin/history/export/csv', { params: req.query, responseType: 'text' });
-      res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-      res.setHeader('Content-Disposition', r.headers['content-disposition'] ?? 'attachment; filename="historique_export.csv"');
-      return res.send(r.data);
-    } catch (apiErr) {
-      if (apiErr.response?.status !== 404) throw apiErr;
-    }
-    // Fallback : générer localement
-    const { search='', type='', status='', method='', date_from='', date_to='',
-            amount_min='', amount_max='' } = req.query;
-    const r = await a.get('/admin/history', { params: {
-      search, type, status, method, date_from, date_to, amount_min, amount_max,
-      page: 1, per_page: 5000,
-    }});
-    const txs  = r.data.data ?? [];
-    const date = new Date().toISOString().slice(0,10);
-    const headers = ['ID','Utilisateur','Téléphone','Type','Montant (FCFA)','Méthode','Statut','ID 1xBet','N° Envoyeur','Note admin','Date création','Date traitement'];
-    const rows = txs.map(tx => [
-      tx.id,
-      tx.user?.pseudo ?? '',
-      tx.user?.phoneNumber ?? '',
-      tx.type === 'deposit' ? 'Dépôt' : 'Retrait',
-      tx.amount ?? 0,
-      tx.paymentMethod ?? '',
-      tx.status ?? '',
-      tx.xbetId ?? '',
-      tx.senderPhone ?? '',
-      tx.adminNote ?? '',
-      tx.createdAt   ? new Date(tx.createdAt).toLocaleString('fr-FR')   : '',
-      tx.processedAt ? new Date(tx.processedAt).toLocaleString('fr-FR') : '',
-    ]);
-    sendCSV(res, `historique_${date}.csv`, headers, rows);
-  } catch (e) { res.redirect('/admin/historique?error=' + encodeURIComponent('Erreur export : ' + (e.friendlyMessage ?? e.message))); }
-});
-
-// ─── ABONNEMENTS ──────────────────────────────────────────────────────────────
-app.get('/admin/abonnements', requireAuth, requirePerm('abonnements'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const r = await a.get('/subscriptions/admin/proofs');
-    res.render('abonnements', { adminName: req.cookies.admin_name ?? 'Admin', data: r.data, success: req.query.success === '1', error: req.query.error ?? null });
-  } catch (e) {
-    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-    res.render('abonnements', { adminName: req.cookies.admin_name ?? 'Admin', data: { data:[],total:0 }, success: false, error: e.response?.data?.message ?? e.message });
-  }
-});
-
-app.get('/admin/abonnements/export', requireAuth, requirePerm('abonnements'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const r    = await a.get('/subscriptions/admin/proofs', { params: { page: 1, per_page: 5000 } });
-    const data = r.data.data ?? [];
-    const date = new Date().toISOString().slice(0,10);
-    const headers = ['ID Preuve','Utilisateur','Téléphone','Statut','Durée (jours)','Date soumission','Date traitement','Note admin'];
-    const rows = data.map(p => [
-      p.id,
-      p.user?.pseudo ?? '',
-      p.user?.phoneNumber ?? '',
-      p.status ?? '',
-      p.duration_days ?? '',
-      p.createdAt   ? new Date(p.createdAt).toLocaleString('fr-FR')   : '',
-      p.processedAt ? new Date(p.processedAt).toLocaleString('fr-FR') : '',
-      p.adminNote ?? '',
-    ]);
-    sendCSV(res, `abonnements_${date}.csv`, headers, rows);
-  } catch (e) { res.redirect('/admin/abonnements?error=' + encodeURIComponent('Erreur export : ' + (e.friendlyMessage ?? e.message))); }
-});
-
-app.post('/admin/abonnements/:id', requireAuth, requirePerm('abonnements', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const approved = req.body.action === 'approve';
-    await a.patch('/subscriptions/admin/proofs/' + req.params.id, { approved, admin_note: req.body.admin_note ?? null, duration_days: parseInt(req.body.duration_days ?? '30') });
-    const proofAction = approved ? 'proof_approved' : 'proof_rejected';
-    logAction(req, proofAction, `Preuve #${req.params.id}`, { proofId: req.params.id, days: req.body.duration_days });
-    sseBroadcast('action', { type: proofAction, adminName: req.cookies.admin_name ?? 'Admin', ts: Date.now() });
-    res.redirect('/admin/abonnements?success=1');
-  } catch (e) { res.redirect('/admin/abonnements?error=' + encodeURIComponent(e.response?.data?.message ?? 'Erreur')); }
-});
-
-// ─── TUTORIELS ────────────────────────────────────────────────────────────────
-async function fetchTutorialCategories(a) {
-  try {
-    const r = await a.get('/admin/tutorials/categories');
-    return r.data;
-  } catch (_) {
-    return ['valuebet', 'bankroll', 'analyse', 'strategie', 'psychologie'];
-  }
-}
-async function fetchTutorialLevels(a) {
-  try {
-    const r = await a.get('/admin/tutorials/levels');
-    return r.data;
-  } catch (_) {
-    return ['beginner', 'intermediate', 'advanced'];
-  }
-}
-
-app.get('/admin/tutoriels', requireAuth, requirePerm('tutoriels'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  const { search='', category='', level='', page='1' } = req.query;
-  try {
-    const [listRes, statsRes, categories, levels] = await Promise.all([
-      a.get('/admin/tutorials', { params: { search, category, level, page, per_page: 20 } }),
-      a.get('/admin/tutorials/stats'),
-      fetchTutorialCategories(a),
-      fetchTutorialLevels(a),
-    ]);
-    res.render('tutoriels', {
-      adminName: req.cookies.admin_name ?? 'Admin',
-      data: listRes.data.data, stats: statsRes.data, total: listRes.data.total,
-      page: parseInt(page), totalPages: listRes.data.total_pages,
-      search, category, level, categories, levels,
-      success: req.query.success ?? null, error: req.query.error ?? null,
-    });
-  } catch (e) {
-    if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-    res.render('tutoriels', {
-      adminName: req.cookies.admin_name ?? 'Admin',
-      data: [], stats: { total:0,premium:0,free:0,beginner:0,intermediate:0,advanced:0 },
-      total:0, page:1, totalPages:1, search, category, level, categories: [], levels: [],
-      success: null, error: e.response?.data?.message ?? e.message,
-    });
-  }
-});
-
-app.post('/admin/tutoriels/seed',        requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const r = await a.post('/admin/tutorials/seed');
-    res.redirect('/admin/tutoriels?success=' + encodeURIComponent(r.data.message));
-  } catch (e) { res.redirect('/admin/tutoriels?error=' + encodeURIComponent(e.response?.data?.message ?? 'Erreur')); }
-});
-
-app.get('/admin/tutoriels/new',          requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  res.render('tutoriel_form', {
-    adminName: req.cookies.admin_name ?? 'Admin', tutorial: null, error: null,
-    categories: await fetchTutorialCategories(a), levels: await fetchTutorialLevels(a),
-  });
-});
-
-app.post('/admin/tutoriels',             requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    if (req.body.duration_seconds) req.body.duration_seconds = parseInt(req.body.duration_seconds) * 60;
-    await a.post('/admin/tutorials', req.body);
-    logAction(req, 'tutorial_created', req.body.title ?? 'Sans titre', { title: req.body.title });
-    res.redirect('/admin/tutoriels?success=' + encodeURIComponent('Tutoriel créé avec succès !'));
-  } catch (e) {
-    res.render('tutoriel_form', {
-      adminName: req.cookies.admin_name ?? 'Admin', tutorial: null, error: e.response?.data?.message ?? 'Erreur.',
-      categories: await fetchTutorialCategories(a), levels: await fetchTutorialLevels(a),
-    });
-  }
-});
-
-app.get('/admin/tutoriels/:id/edit',     requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const [r, categories, levels] = await Promise.all([
-      a.get('/admin/tutorials/' + req.params.id),
-      fetchTutorialCategories(a),
-      fetchTutorialLevels(a),
-    ]);
-    res.render('tutoriel_form', { adminName: req.cookies.admin_name ?? 'Admin', tutorial: r.data, error: null, categories, levels });
-  } catch (e) { res.redirect('/admin/tutoriels?error=' + encodeURIComponent('Tutoriel introuvable.')); }
-});
-
-app.post('/admin/tutoriels/:id/edit',    requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    if (req.body.duration_seconds) req.body.duration_seconds = parseInt(req.body.duration_seconds) * 60;
-    await a.patch('/admin/tutorials/' + req.params.id, req.body);
-    logAction(req, 'tutorial_updated', req.body.title ?? `#${req.params.id}`, { id: req.params.id });
-    res.redirect('/admin/tutoriels?success=' + encodeURIComponent('Tutoriel modifié !'));
-  } catch (e) {
-    try {
-      const [r2, categories, levels] = await Promise.all([
-        a.get('/admin/tutorials/' + req.params.id),
-        fetchTutorialCategories(a),
-        fetchTutorialLevels(a),
-      ]);
-      res.render('tutoriel_form', { adminName: req.cookies.admin_name ?? 'Admin', tutorial: r2.data, error: e.response?.data?.message ?? 'Erreur.', categories, levels });
-    } catch { res.redirect('/admin/tutoriels'); }
-  }
-});
-
-app.post('/admin/tutoriels/:id/premium', requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    await a.patch('/admin/tutorials/' + req.params.id + '/premium');
-    logAction(req, 'tutorial_premium_toggled', `Tutoriel #${req.params.id}`, { id: req.params.id });
-    res.redirect('/admin/tutoriels?success=' + encodeURIComponent('Statut Premium modifié.'));
-  } catch (e) { res.redirect('/admin/tutoriels?error=' + encodeURIComponent(e.response?.data?.message ?? 'Erreur')); }
-});
-
-app.post('/admin/tutoriels/:id/delete',  requireAuth, requirePerm('tutoriels', 'delete'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    await a.delete('/admin/tutorials/' + req.params.id);
-    logAction(req, 'tutorial_deleted', `Tutoriel #${req.params.id}`, { id: req.params.id });
-    res.redirect('/admin/tutoriels?success=' + encodeURIComponent('Tutoriel supprimé.'));
-  } catch (e) { res.redirect('/admin/tutoriels?error=' + encodeURIComponent(e.response?.data?.message ?? 'Erreur')); }
-});
-
-// ─── ACTUALITÉS ───────────────────────────────────────────────────────────────
-const NEWS_PER_PAGE = 12;
-
-app.get('/admin/actualites', requireAuth, requirePerm('actualites'), (req, res) => {
-  let all = loadNews();
-  const search   = (req.query.search   ?? '').trim();
-  const category = req.query.category ?? '';
-  const status   = req.query.status   ?? '';
-  const page     = Math.max(1, parseInt(req.query.page) || 1);
-
-  // Stats
-  const statsObj = {
-    total:     all.length,
-    published: all.filter(n => n.isPublished).length,
-    draft:     all.filter(n => !n.isPublished).length,
-    pinned:    all.filter(n => n.isPinned).length,
-    premium:   all.filter(n => n.isPremiumOnly).length,
-    totalViews:all.reduce((s,n)=>s+(n.viewCount||0),0),
-  };
-
-  // Filtres
-  if (search) all = all.filter(n => n.title.toLowerCase().includes(search.toLowerCase()) || (n.summary||'').toLowerCase().includes(search.toLowerCase()));
-  if (category) all = all.filter(n => n.category === category);
-  if (status === 'published') all = all.filter(n =>  n.isPublished);
-  if (status === 'draft')     all = all.filter(n => !n.isPublished);
-  if (status === 'pinned')    all = all.filter(n =>  n.isPinned);
-
-  // Tri : épinglés d'abord, puis par date
-  all = all.slice().sort((a, b) => {
-    if (b.isPinned !== a.isPinned) return b.isPinned ? 1 : -1;
-    return new Date(b.createdAt) - new Date(a.createdAt);
-  });
-
-  const total      = all.length;
-  const totalPages = Math.max(1, Math.ceil(total / NEWS_PER_PAGE));
-  const data       = all.slice((page-1)*NEWS_PER_PAGE, page*NEWS_PER_PAGE);
-
-  res.render('actualites', {
-    adminName: req.cookies.admin_name ?? 'Admin',
-    adminRole: req.cookies.admin_role ?? 'sub',
-    adminUsername: req.cookies.admin_username ?? '',
-    data, stats: statsObj, total, page, perPage: NEWS_PER_PAGE, totalPages,
-    search, category, status, categories: getNewsCategories(),
-    success: req.query.success ?? null,
-    error:   req.query.error   ?? null,
-  });
-});
-
-app.get('/admin/actualites/new', requireAuth, requirePerm('actualites', 'write'), (req, res) => {
-  res.render('actualite_form', {
-    adminName: req.cookies.admin_name ?? 'Admin',
-    adminRole: req.cookies.admin_role ?? 'sub',
-    adminUsername: req.cookies.admin_username ?? '',
-    article: null, isEdit: false, categories: getNewsCategories(),
-    success: null, error: req.query.error ?? null,
-  });
-});
-
-app.post('/admin/actualites', requireAuth, requirePerm('actualites', 'write'), (req, res) => {
-  const { title, summary, content, category, imageUrl, sourceUrl, isPremiumOnly, isPinned } = req.body;
-  if (!title?.trim()) return res.redirect('/admin/actualites/new?error=' + encodeURIComponent('Le titre est obligatoire.'));
-
-  const now = new Date().toISOString();
-  const all = loadNews();
-  const article = {
-    id:           uid(),
-    title:        title.trim(),
-    slug:         slugify(title),
-    summary:      (summary || '').trim(),
-    content:      (content || '').trim(),
-    category:     category || 'news',
-    imageUrl:     (imageUrl || '').trim(),
-    sourceUrl:    (sourceUrl || '').trim(),
-    isPublished:  !!req.body.isPublished,
-    isPinned:     !!isPinned,
-    isPremiumOnly:!!isPremiumOnly,
-    authorName:   req.cookies.admin_name ?? 'Admin',
-    viewCount:    0,
-    likeCount:    0,
-    createdAt:    now,
-    updatedAt:    now,
-    publishedAt:  req.body.isPublished ? now : null,
-  };
-  all.unshift(article);
-  saveNews(all);
-  logAction(req, 'news_created', article.title, { id: article.id, category: article.category });
-  res.redirect('/admin/actualites?success=' + encodeURIComponent(`Article « ${article.title} » créé.`));
-});
-
-app.get('/admin/actualites/:id/edit', requireAuth, requirePerm('actualites', 'write'), (req, res) => {
-  const all     = loadNews();
-  const article = all.find(n => n.id === req.params.id);
-  if (!article) return res.redirect('/admin/actualites?error=' + encodeURIComponent('Article introuvable.'));
-  res.render('actualite_form', {
-    adminName: req.cookies.admin_name ?? 'Admin',
-    adminRole: req.cookies.admin_role ?? 'sub',
-    adminUsername: req.cookies.admin_username ?? '',
-    article, isEdit: true, categories: getNewsCategories(),
-    success: req.query.success ?? null, error: req.query.error ?? null,
-  });
-});
-
-app.post('/admin/actualites/:id/edit', requireAuth, requirePerm('actualites', 'write'), (req, res) => {
-  const all = loadNews();
-  const idx = all.findIndex(n => n.id === req.params.id);
-  if (idx === -1) return res.redirect('/admin/actualites?error=' + encodeURIComponent('Article introuvable.'));
-  const old = all[idx];
-  const wasPublished = old.isPublished;
-  const nowPublished = !!req.body.isPublished;
-  const now = new Date().toISOString();
-  all[idx] = {
-    ...old,
-    title:        (req.body.title || old.title).trim(),
-    slug:         slugify(req.body.title || old.title),
-    summary:      (req.body.summary || '').trim(),
-    content:      (req.body.content || '').trim(),
-    category:     req.body.category || old.category,
-    imageUrl:     (req.body.imageUrl || '').trim(),
-    isPublished:  nowPublished,
-    isPinned:     !!req.body.isPinned,
-    isPremiumOnly:!!req.body.isPremiumOnly,
-    updatedAt:    now,
-    publishedAt:  nowPublished ? (old.publishedAt ?? now) : null,
-  };
-  saveNews(all);
-  logAction(req, 'news_updated', all[idx].title, { id: old.id });
-  res.redirect('/admin/actualites/' + old.id + '/edit?success=' + encodeURIComponent('Article mis à jour.'));
-});
-
-app.post('/admin/actualites/:id/publish', requireAuth, requirePerm('actualites', 'write'), (req, res) => {
-  const all = loadNews();
-  const idx = all.findIndex(n => n.id === req.params.id);
-  if (idx === -1) return res.redirect('/admin/actualites?error=' + encodeURIComponent('Article introuvable.'));
-  const now = new Date().toISOString();
-  all[idx].isPublished = !all[idx].isPublished;
-  all[idx].publishedAt = all[idx].isPublished ? now : null;
-  all[idx].updatedAt   = now;
-  saveNews(all);
-  logAction(req, all[idx].isPublished ? 'news_published' : 'news_unpublished', all[idx].title, { id: all[idx].id });
-  res.redirect('/admin/actualites?success=' + encodeURIComponent(all[idx].isPublished ? 'Article publié.' : 'Article dépublié.'));
-});
-
-app.post('/admin/actualites/:id/pin', requireAuth, requirePerm('actualites', 'write'), (req, res) => {
-  const all = loadNews();
-  const idx = all.findIndex(n => n.id === req.params.id);
-  if (idx === -1) return res.redirect('/admin/actualites?error=' + encodeURIComponent('Article introuvable.'));
-  all[idx].isPinned  = !all[idx].isPinned;
-  all[idx].updatedAt = new Date().toISOString();
-  saveNews(all);
-  logAction(req, all[idx].isPinned ? 'news_pinned' : 'news_unpinned', all[idx].title, { id: all[idx].id });
-  res.redirect('/admin/actualites?success=' + encodeURIComponent(all[idx].isPinned ? 'Article épinglé.' : 'Article désépinglé.'));
-});
-
-app.post('/admin/actualites/:id/delete', requireAuth, requirePerm('actualites', 'delete'), (req, res) => {
-  let all = loadNews();
-  const article = all.find(n => n.id === req.params.id);
-  if (!article) return res.redirect('/admin/actualites?error=' + encodeURIComponent('Article introuvable.'));
-  all = all.filter(n => n.id !== req.params.id);
-  saveNews(all);
-  logAction(req, 'news_deleted', article.title, { id: article.id });
-  res.redirect('/admin/actualites?success=' + encodeURIComponent('Article supprimé.'));
-});
-
-// ─── SOUS-ADMINS (réservé à l'admin principal) ────────────────────────────────
-app.get('/admin/sub-admins', requireAuth, requireMain, (req, res) => {
-  const subs = loadSubs().map(s => ({ ...s, passwordHash: undefined }));
-  // Dernières actions par sous-admin (groupées par adminName)
-  const allLogs = loadLogs();
-  const recentLogsBySub = {};
-  for (const sub of subs) {
-    recentLogsBySub[sub.name] = allLogs.filter(l => l.adminName === sub.name).slice(0, 5);
-  }
-  res.render('sub_admins', {
-    adminName: req.cookies.admin_name ?? 'Admin',
-    subs, PERMISSIONS, recentLogsBySub,
-    success: req.query.success ?? null,
-    error:   req.query.error   ?? null,
-  });
-});
-
-// Créer un sous-admin
-app.post('/admin/sub-admins', requireAuth, requireMain, (req, res) => {
-  const { name, username, password, permissions } = req.body;
-  if (!name || !username || !password) {
-    return res.redirect('/admin/sub-admins?error=' + encodeURIComponent('Nom, identifiant et mot de passe requis.'));
-  }
-  const subs = loadSubs();
-  if (subs.find(s => s.username === username)) {
-    return res.redirect('/admin/sub-admins?error=' + encodeURIComponent(`L'identifiant « ${username} » est déjà utilisé.`));
-  }
-  const perms = Array.isArray(permissions) ? permissions : (permissions ? [permissions] : []);
-  const newSub = {
-    id:           uid(),
-    name:         name.trim(),
-    username:     username.trim().toLowerCase(),
-    passwordHash: hashPwd(password),
-    permissions:  perms,
-    isActive:     true,
-    createdAt:    new Date().toISOString(),
-    lastLoginAt:  null,
-  };
-  subs.push(newSub);
-  saveSubs(subs);
-  logAction(req, 'sub_admin_created', `${name} (${username})`, { name, username, permissions: perms });
-  res.redirect('/admin/sub-admins?success=' + encodeURIComponent(`Sous-admin « ${name} » créé avec succès.`));
-});
-
-// Modifier les permissions
-app.post('/admin/sub-admins/:id/permissions', requireAuth, requireMain, (req, res) => {
-  const subs = loadSubs();
-  const sub  = subs.find(s => s.id === req.params.id);
-  if (!sub) return res.redirect('/admin/sub-admins?error=' + encodeURIComponent('Sous-admin introuvable.'));
-  const perms = Array.isArray(req.body.permissions) ? req.body.permissions : (req.body.permissions ? [req.body.permissions] : []);
-  sub.permissions = perms;
-  saveSubs(subs);
-  logAction(req, 'sub_admin_perms_updated', sub.name, { id: sub.id, permissions: perms });
-  res.redirect('/admin/sub-admins?success=' + encodeURIComponent(`Permissions de « ${sub.name} » mises à jour.`));
-});
-
-// Changer le mot de passe
-app.post('/admin/sub-admins/:id/password', requireAuth, requireMain, (req, res) => {
-  const subs = loadSubs();
-  const sub  = subs.find(s => s.id === req.params.id);
-  if (!sub) return res.redirect('/admin/sub-admins?error=' + encodeURIComponent('Sous-admin introuvable.'));
-  if (!req.body.password || req.body.password.length < 6) {
-    return res.redirect('/admin/sub-admins?error=' + encodeURIComponent('Le mot de passe doit faire au moins 6 caractères.'));
-  }
-  sub.passwordHash = hashPwd(req.body.password);
-  saveSubs(subs);
-  logAction(req, 'sub_admin_pwd_changed', sub.name, { id: sub.id });
-  res.redirect('/admin/sub-admins?success=' + encodeURIComponent(`Mot de passe de « ${sub.name} » modifié.`));
-});
-
-// Activer / désactiver
-app.post('/admin/sub-admins/:id/toggle', requireAuth, requireMain, (req, res) => {
-  const subs = loadSubs();
-  const sub  = subs.find(s => s.id === req.params.id);
-  if (!sub) return res.redirect('/admin/sub-admins?error=' + encodeURIComponent('Sous-admin introuvable.'));
-  sub.isActive = !sub.isActive;
-  saveSubs(subs);
-  logAction(req, 'sub_admin_toggled', sub.name, { id: sub.id, isActive: sub.isActive });
-  const state = sub.isActive ? 'activé' : 'désactivé';
-  res.redirect('/admin/sub-admins?success=' + encodeURIComponent(`« ${sub.name} » ${state}.`));
-});
-
-// Supprimer
-app.post('/admin/sub-admins/:id/delete', requireAuth, requireMain, (req, res) => {
-  let subs = loadSubs();
-  const sub = subs.find(s => s.id === req.params.id);
-  if (!sub) return res.redirect('/admin/sub-admins?error=' + encodeURIComponent('Sous-admin introuvable.'));
-  subs = subs.filter(s => s.id !== req.params.id);
-  saveSubs(subs);
-  logAction(req, 'sub_admin_deleted', sub.name, { id: sub.id, username: sub.username });
-  res.redirect('/admin/sub-admins?success=' + encodeURIComponent(`« ${sub.name} » supprimé.`));
-});
-
-// ─── API PUBLIQUE — Actualités (pour l'app mobile) ────────────────────────────
-// Pas de requireAuth : endpoint consommé par l'app Flutter
-app.get('/api/v1/actualites', (req, res) => {
-  const all = loadNews();
-  const published = all
-    .filter(a => a.isPublished)
-    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
-    .slice(0, 10)
-    .map(a => ({
-      id:         a.id,
-      titre:      a.title,
-      resume:     a.summary?.slice(0, 200) ?? a.content?.slice(0, 200) ?? '',
-      categorie:  a.category ?? 'news',
-      emoji:      a.emoji ?? '📰',
-      image_url:  a.imageUrl ?? null,
-      date:       _relTimeShort(new Date(a.createdAt)),
-      created_at: a.createdAt,
-    }));
-  res.json(published);
-});
-
-function _relTimeShort(d) {
-  const diff = Date.now() - d.getTime();
-  const m = Math.floor(diff / 60000);
-  if (m < 60)   return m <= 1 ? "À l'instant" : `Il y a ${m} min`;
-  const h = Math.floor(m / 60);
-  if (h < 24)   return h === 1 ? 'Il y a 1h' : `Il y a ${h}h`;
-  const days = Math.floor(h / 24);
-  if (days === 1) return 'Hier';
-  if (days < 7)  return `Il y a ${days}j`;
-  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
-}
-
-// ─── RECHERCHE GLOBALE ────────────────────────────────────────────────────────
 app.get('/admin/api/search', requireAuth, async (req, res) => {
   const q = (req.query.q ?? '').trim();
   if (q.length < 2) return res.json({ users: [], transactions: [], pronostics: [], bans: [] });
@@ -1640,576 +760,10 @@ app.get('/admin/api/badges', requireAuth, async (req, res) => {
 });
 
 // ─── STATISTIQUES ─────────────────────────────────────────────────────────────
-app.get('/admin/statistiques', requireAuth, requirePerm('statistiques'), (req, res) => {
-  res.render('statistiques', { adminName: req.cookies.admin_name ?? 'Admin' });
-});
-
-app.get('/admin/api/users/online', requireAuth, async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const r = await a.get('/admin/users/online');
-    res.json(r.data);
-  } catch (e) { res.status(500).json({ users: [], total: 0 }); }
-});
-
-app.get('/admin/api/stats/:endpoint', requireAuth, requirePerm('statistiques'), async (req, res) => {
-  const a = api(req.cookies.admin_token);
-  try {
-    const r = await a.get('/admin/stats/' + req.params.endpoint, { params: req.query });
-    res.json(r.data);
-  } catch (e) {
-    if (e.response?.status === 401) return res.status(401).json({ error: 'Non autorisé' });
-    res.status(500).json({ error: e.response?.data?.message ?? e.message });
-  }
-});
-
-// ─── AUDIT LOG ────────────────────────────────────────────────────────────────
-app.get('/admin/audit', requireAuth, requireMain, (req, res) => {
-  const { action = '', admin = '', cat = '', date = '', page = '1' } = req.query;
-  const perPage = 50;
-  const allLogs = loadLogs();
-
-  // Stats globales (sur tous les logs, pas filtrés)
-  const catCounts   = {};
-  const adminCounts = {};
-  const dayCounts   = {};  // 7 derniers jours
-  const now         = new Date();
-  for (let i = 6; i >= 0; i--) {
-    const d = new Date(now); d.setDate(d.getDate() - i);
-    dayCounts[d.toISOString().slice(0, 10)] = 0;
-  }
-  for (const l of allLogs) {
-    const c = ACTION_LABELS[l.action]?.cat ?? 'autre';
-    catCounts[c]   = (catCounts[c]   || 0) + 1;
-    adminCounts[l.adminName ?? '?'] = (adminCounts[l.adminName ?? '?'] || 0) + 1;
-    const day = l.timestamp?.slice(0, 10);
-    if (day && dayCounts[day] !== undefined) dayCounts[day]++;
-  }
-
-  let logs = [...allLogs];
-  // Filtres
-  if (action) logs = logs.filter(l => l.action === action);
-  if (admin)  logs = logs.filter(l => l.adminName?.toLowerCase().includes(admin.toLowerCase()));
-  if (cat)    logs = logs.filter(l => (ACTION_LABELS[l.action]?.cat ?? '') === cat);
-  if (date)   logs = logs.filter(l => l.timestamp?.startsWith(date));
-
-  const total      = logs.length;
-  const totalPages = Math.max(1, Math.ceil(total / perPage));
-  const pageNum    = Math.min(Math.max(1, parseInt(page)), totalPages);
-  const data       = logs.slice((pageNum - 1) * perPage, pageNum * perPage);
-
-  // Admins uniques pour le filtre
-  const adminList = [...new Set(allLogs.map(l => l.adminName).filter(Boolean))];
-
-  res.render('audit', {
-    data, total, page: pageNum, totalPages, perPage,
-    ACTION_LABELS,
-    filters: { action, admin, cat, date },
-    success: req.query.success ?? null,
-    // Stats pour le graphique
-    chartDays:    Object.keys(dayCounts),
-    chartCounts:  Object.values(dayCounts),
-    catCounts, adminCounts, adminList,
-    totalAll: allLogs.length,
-  });
-});
-
-// Export CSV
-app.get('/admin/audit/export', requireAuth, requireMain, (req, res) => {
-  let logs = loadLogs();
-  // Appliquer les mêmes filtres que la page audit
-  const { cat='', admin='', date_from='', date_to='' } = req.query;
-  if (cat)       logs = logs.filter(l => (ACTION_LABELS[l.action]?.cat ?? '') === cat);
-  if (admin)     logs = logs.filter(l => l.adminName?.toLowerCase().includes(admin.toLowerCase()));
-  if (date_from) logs = logs.filter(l => l.timestamp >= date_from);
-  if (date_to)   logs = logs.filter(l => l.timestamp <= date_to + 'T23:59:59');
-  const date    = new Date().toISOString().slice(0,10);
-  const headers = ['Date/Heure','Admin','Rôle','Catégorie','Action','Cible','IP','Détails'];
-  const rows    = logs.map(l => [
-    l.timestamp ? new Date(l.timestamp).toLocaleString('fr-FR') : '',
-    l.adminName ?? '',
-    l.adminRole ?? '',
-    ACTION_LABELS[l.action]?.cat ?? '',
-    ACTION_LABELS[l.action]?.label ?? l.action,
-    l.target ?? '',
-    l.ip ?? '',
-    l.details ? JSON.stringify(l.details) : '',
-  ]);
-  sendCSV(res, `audit_log_${date}.csv`, headers, rows);
-});
-
-// Vider le journal (admin principal uniquement)
-app.post('/admin/audit/clear', requireAuth, requireMain, (req, res) => {
-  saveLogs([]);
-  logAction(req, 'login', 'Journal d\'activité vidé', {});  // ironique mais utile
-  res.redirect('/admin/audit?success=' + encodeURIComponent('Journal vidé.'));
-});
-
-// ─── PROFIL ADMIN ─────────────────────────────────────────────────────────────
-app.get('/admin/profile', requireAuth, (req, res) => {
-  const role      = res.locals.adminRole;
-  const subId     = req.cookies?.admin_sub_id ?? null;
-  const sub       = subId ? loadSubs().find(s => s.id === subId) : null;
-  const adminName = req.cookies?.admin_name ?? '';
-
-  const allMyLogs  = loadLogs().filter(l => l.adminName === adminName);
-  const lastLogins = allMyLogs.filter(l => l.action === 'login').slice(0, 10);
-  const recentActivity = allMyLogs.filter(l => l.action !== 'login').slice(0, 8);
-
-  // Stats personnelles
-  const now       = Date.now();
-  const today     = new Date().toISOString().slice(0, 10);
-  const weekAgo   = new Date(now - 7 * 86400000).toISOString();
-  const statsMe   = {
-    total:   allMyLogs.length,
-    today:   allMyLogs.filter(l => l.timestamp?.startsWith(today)).length,
-    week:    allMyLogs.filter(l => l.timestamp >= weekAgo).length,
-    logins:  lastLogins.length,
-  };
-
-  res.render('profile', {
-    adminName,
-    adminRole: role,
-    adminPerms: res.locals.adminPerms,
-    isMain: res.locals.isMain,
-    sub: sub ? { ...sub, passwordHash: undefined } : null,
-    lastLogins,
-    recentActivity,
-    statsMe,
-    currentIp: getClientIP(req),
-    PERMISSIONS,
-    ACTION_LABELS,
-    success: req.query.success ?? null,
-    error:   req.query.error   ?? null,
-  });
-});
-
-// Changer son propre mot de passe
-app.post('/admin/profile/password', requireAuth, async (req, res) => {
-  const { current_password, new_password, confirm_password } = req.body;
-
-  // 8 caractères : même seuil que le backend (admin_auth.service.changePassword).
-  // À 6 ici, un mot de passe de 7 passait ce contrôle puis se faisait refuser
-  // par l'API avec un message différent.
-  if (!new_password || new_password.length < 8) {
-    return res.redirect('/admin/profile?error=' + encodeURIComponent('Le nouveau mot de passe doit faire au moins 8 caractères.'));
-  }
-  if (new_password !== confirm_password) {
-    return res.redirect('/admin/profile?error=' + encodeURIComponent('Les mots de passe ne correspondent pas.'));
-  }
-
-  const role  = res.locals.adminRole;
-  const subId = req.cookies?.admin_sub_id ?? null;
-
-  if (role === 'sub' && subId) {
-    // Sous-admin : vérifier l'ancien mot de passe localement
-    const subs = loadSubs();
-    const sub  = subs.find(s => s.id === subId);
-    if (!sub) return res.redirect('/admin/profile?error=' + encodeURIComponent('Compte introuvable.'));
-    if (!checkPwd(current_password, sub.passwordHash)) {
-      return res.redirect('/admin/profile?error=' + encodeURIComponent('Mot de passe actuel incorrect.'));
-    }
-    sub.passwordHash = hashPwd(new_password);
-    saveSubs(subs);
-    logAction(req, 'sub_admin_pwd_changed', `Autoprofil: ${sub.name}`, { id: sub.id });
-    return res.redirect('/admin/profile?success=' + encodeURIComponent('Mot de passe modifié avec succès.'));
-  }
-
-  // Admin principal : passer par l'API backend
-  try {
-    const a = api(req.cookies.admin_token);
-    await a.patch('/admin/profile/password', { current_password, new_password });
-    logAction(req, 'sub_admin_pwd_changed', 'Autoprofil admin principal', {});
-    res.redirect('/admin/profile?success=' + encodeURIComponent('Mot de passe modifié avec succès.'));
-  } catch (e) {
-    res.redirect('/admin/profile?error=' + encodeURIComponent(e.response?.data?.message ?? 'Erreur lors du changement de mot de passe.'));
-  }
-});
-
-// ─── NOTIFICATIONS PUSH EN MASSE ─────────────────────────────────────────────
-const SEGMENTS = [
-  { key: 'all',            label: 'Tous les utilisateurs',       icon: '👥', desc: 'Tout le monde' },
-  { key: 'premium',        label: 'Membres Premium uniquement',  icon: '👑', desc: 'Abonnement non expiré' },
-  { key: 'free',           label: 'Membres Gratuits uniquement', icon: '🆓', desc: 'Non-abonnés' },
-  { key: 'active_30',      label: 'Actifs ce mois',              icon: '🟢', desc: 'Vus < 30j' },
-  { key: 'inactive_30',    label: 'Inactifs (> 30 jours)',       icon: '😴', desc: 'Vus > 30j' },
-  { key: 'new_7',          label: 'Nouveaux inscrits (7j)',       icon: '🆕', desc: 'Inscription < 7j' },
-];
-
-app.get('/admin/notifications', requireAuth, requirePerm('notifications'), (req, res) => {
-  const allHistory = loadNotifHistory();
-  const searchH    = (req.query.search_history ?? '').trim().toLowerCase();
-  const history    = searchH
-    ? allHistory.filter(h => h.title.toLowerCase().includes(searchH) || h.body.toLowerCase().includes(searchH))
-    : allHistory;
-
-  const now       = Date.now();
-  const msWeek    = 7  * 24 * 3600 * 1000;
-  const msMonth   = 30 * 24 * 3600 * 1000;
-  const histStats = {
-    total:      allHistory.length,
-    totalSent:  allHistory.reduce((s, h) => s + (h.sent ?? 0), 0),
-    thisWeek:   allHistory.filter(h => now - new Date(h.sentAt).getTime() < msWeek).length,
-    thisMonth:  allHistory.filter(h => now - new Date(h.sentAt).getTime() < msMonth).length,
-  };
-
-  res.render('notifications', {
-    SEGMENTS, history, histStats, searchH,
-    success: req.query.success ?? null,
-    error:   req.query.error   ?? null,
-  });
-});
-
-// Supprimer une entrée de l'historique
-app.post('/admin/notifications/history/:idx/delete', requireAuth, requirePerm('notifications', 'write'), (req, res) => {
-  const idx  = parseInt(req.params.idx);
-  const hist = loadNotifHistory();
-  if (idx >= 0 && idx < hist.length) hist.splice(idx, 1);
-  saveNotifHistory(hist);
-  res.redirect('/admin/notifications?success=' + encodeURIComponent('Entrée supprimée.'));
-});
-
-// Aperçu : compter les destinataires avant envoi
-app.get('/admin/api/notifications/preview', requireAuth, requirePerm('notifications'), async (req, res) => {
-  const segment = req.query.segment ?? 'all';
-  const a = api(req.cookies.admin_token);
-  try {
-    const r = await a.get('/admin/notifications/preview', { params: { segment } });
-    res.json({ count: r.data.count ?? r.data.total ?? 0 });
-  } catch {
-    // Fallback : estimer depuis les stats users
-    try {
-      const s = await a.get('/admin/users/stats');
-      const d = s.data;
-      const estimates = {
-        all:         d.total         ?? '—',
-        premium:     d.premium       ?? '—',
-        free:        (d.total - d.premium) || '—',
-        active_30:   d.active        ?? '—',
-        inactive_30: '—',
-        new_7:       d.newWeek       ?? '—',
-      };
-      res.json({ count: estimates[segment] ?? '—', estimated: true });
-    } catch { res.json({ count: '—', estimated: true }); }
-  }
-});
-
-// Envoi
-app.post('/admin/notifications/send', requireAuth, requirePerm('notifications', 'write'), async (req, res) => {
-  const { title, body, segment = 'all', data_url = '', image_url = '' } = req.body;
-
-  if (!title?.trim() || !body?.trim()) {
-    return res.redirect('/admin/notifications?error=' + encodeURIComponent('Le titre et le message sont obligatoires.'));
-  }
-  if (title.length > 100) {
-    return res.redirect('/admin/notifications?error=' + encodeURIComponent('Le titre ne doit pas dépasser 100 caractères.'));
-  }
-  if (body.length > 300) {
-    return res.redirect('/admin/notifications?error=' + encodeURIComponent('Le message ne doit pas dépasser 300 caractères.'));
-  }
-
-  const a = api(req.cookies.admin_token);
-  try {
-    const r = await a.post('/admin/notifications/send', {
-      title: title.trim(),
-      body:  body.trim(),
-      segment,
-      ...(data_url  ? { data: { url: data_url } }  : {}),
-      ...(image_url ? { image: image_url }          : {}),
-    });
-
-    const sent    = r.data.sent ?? r.data.count ?? 0;
-    const segMeta = SEGMENTS.find(s => s.key === segment) ?? { label: segment };
-
-    // Historique local
-    const history = loadNotifHistory();
-    history.unshift({
-      id:        uid(),
-      title:     title.trim(),
-      body:      body.trim(),
-      segment,
-      segLabel:  segMeta.label,
-      sent,
-      adminName: req.cookies?.admin_name ?? 'Admin',
-      sentAt:    new Date().toISOString(),
-    });
-    saveNotifHistory(history);
-
-    logAction(req, 'notification_sent', `"${title.trim()}" → ${segMeta.label}`, { title, segment, sent });
-
-    res.redirect('/admin/notifications?success=' + encodeURIComponent(`✅ Notification envoyée à ${sent.toLocaleString('fr-FR')} utilisateurs.`));
-  } catch (e) {
-    res.redirect('/admin/notifications?error=' + encodeURIComponent(e.response?.data?.message ?? 'Erreur lors de l\'envoi.'));
-  }
-});
-
-// ─── REDIRECTIONS ─────────────────────────────────────────────────────────────
 app.get('/',      (req, res) => res.redirect('/admin/dashboard'));
 app.get('/admin', (req, res) => res.redirect('/admin/dashboard'));
 
 // ─── BANS ─────────────────────────────────────────────────────────────────────
-app.get('/admin/bans', requireAuth, requirePerm('users'), (req, res) => {
-  const { filter = 'active', search = '', page = '1' } = req.query;
-  let bans = loadBans();
-  const now = Date.now();
-
-  // Filtrer
-  if (filter === 'active') {
-    bans = bans.filter(b => b.active && (b.expiresAt === null || new Date(b.expiresAt).getTime() > now));
-  } else if (filter === 'expired') {
-    bans = bans.filter(b => !b.active || (b.expiresAt && new Date(b.expiresAt).getTime() <= now));
-  }
-  if (search) {
-    const q = search.toLowerCase();
-    bans = bans.filter(b =>
-      b.pseudo?.toLowerCase().includes(q) ||
-      b.reason?.toLowerCase().includes(q) ||
-      b.bannedBy?.toLowerCase().includes(q)
-    );
-  }
-
-  // Pagination
-  const perPage    = 20;
-  const total      = bans.length;
-  const totalPages = Math.max(1, Math.ceil(total / perPage));
-  const pg         = Math.min(Math.max(1, parseInt(page)), totalPages);
-  const paginated  = bans.slice((pg - 1) * perPage, pg * perPage);
-
-  // Stats
-  const allBans    = loadBans();
-  const activeBans = allBans.filter(b => b.active && (b.expiresAt === null || new Date(b.expiresAt).getTime() > now));
-
-  const in7days = now + 7 * 24 * 60 * 60 * 1000;
-  res.render('bans', {
-    bans: paginated, total, page: pg, perPage, totalPages,
-    filter, search,
-    stats: {
-      active:       activeBans.length,
-      permanent:    activeBans.filter(b => b.expiresAt === null).length,
-      temporary:    activeBans.filter(b => b.expiresAt !== null).length,
-      total:        allBans.length,
-      expiringSoon: activeBans.filter(b => b.expiresAt && new Date(b.expiresAt).getTime() <= in7days).length,
-      today:        allBans.filter(b => b.bannedAt && (now - new Date(b.bannedAt).getTime()) < 86400000).length,
-    },
-    settings: loadSettings(),
-    success: req.query.success ?? null,
-    error:   req.query.error   ?? null,
-  });
-});
-
-// Export CSV bans
-app.get('/admin/bans/export', requireAuth, requirePerm('users'), (req, res) => {
-  const bans = loadBans();
-  const headers = ['ID', 'UserId', 'Pseudo', 'Raison', 'Durée (jours)', 'Banni le', 'Expire le', 'Statut', 'Banni par', 'Débanni le', 'Débanni par', 'Note débannissement'];
-  const rows = bans.map(b => [
-    b.id, b.userId, b.pseudo, b.reason,
-    b.durationDays ?? 'Permanent',
-    b.bannedAt ? new Date(b.bannedAt).toLocaleString('fr-FR') : '',
-    b.expiresAt ? new Date(b.expiresAt).toLocaleString('fr-FR') : 'Permanent',
-    b.active ? 'Actif' : 'Levé/Expiré',
-    b.bannedBy ?? '',
-    b.unbannedAt ? new Date(b.unbannedAt).toLocaleString('fr-FR') : '',
-    b.unbannedBy ?? '',
-    b.unbanReason ?? '',
-  ]);
-  sendCSV(res, `bans_${new Date().toISOString().slice(0,10)}.csv`, headers, rows);
-});
-
-// API : vérifier si un user est banni (utilisé par la fiche user)
-app.get('/admin/api/bans/:userId', requireAuth, requirePerm('users'), (req, res) => {
-  const ban = getActiveBan(req.params.userId);
-  res.json({ banned: !!ban, ban: ban ?? null });
-});
-
-// Bannir un utilisateur
-app.post('/admin/users/:id/ban', requireAuth, requirePerm('users', 'write'), async (req, res) => {
-  const { reason, duration_days, pseudo } = req.body;
-  if (!reason?.trim()) {
-    return res.redirect(back(req, 'Une raison est obligatoire pour bannir un utilisateur.', true));
-  }
-  const dur = parseInt(duration_days ?? '7');
-  const ban = banUser({
-    userId:      req.params.id,
-    pseudo:      sanitize(pseudo ?? req.params.id, 60),
-    reason:      sanitize(reason, 500),
-    durationDays: isNaN(dur) ? 7 : dur,
-    adminName:   req.cookies?.admin_name ?? 'Admin',
-    adminIp:     getClientIP(req),
-  });
-  // Notifier le backend (suspension du compte)
-  try {
-    const a = api(req.cookies.admin_token);
-    await a.patch('/admin/users/' + req.params.id + '/suspend', { suspend: true, reason });
-  } catch { /* le backend peut ne pas avoir cette route */ }
-  logAction(req, 'user_banned', `User #${req.params.id} (${pseudo})`, { reason, durationDays: dur, banId: ban.id });
-  sseBroadcast('ban_update', { type: 'banned', userId: req.params.id, pseudo, ts: Date.now() });
-  const redir = req.body.redirect_to ?? `/admin/users/${req.params.id}`;
-  res.redirect(redir + (redir.includes('?') ? '&' : '?') + 'success=' + encodeURIComponent(`Utilisateur « ${pseudo} » banni avec succès.`));
-});
-
-// Débannir un utilisateur
-app.post('/admin/users/:id/unban', requireAuth, requirePerm('users', 'write'), async (req, res) => {
-  const { pseudo, unban_reason } = req.body;
-  unbanUser(req.params.id, req.cookies?.admin_name ?? 'Admin', sanitize(unban_reason ?? '', 500));
-  // Réactiver le compte côté backend
-  try {
-    const a = api(req.cookies.admin_token);
-    await a.patch('/admin/users/' + req.params.id + '/suspend', { suspend: false });
-  } catch {}
-  logAction(req, 'user_unbanned', `User #${req.params.id} (${pseudo})`, { reason: unban_reason });
-  sseBroadcast('ban_update', { type: 'unbanned', userId: req.params.id, pseudo, ts: Date.now() });
-  const redir = req.body.redirect_to ?? `/admin/users/${req.params.id}`;
-  res.redirect(redir + (redir.includes('?') ? '&' : '?') + 'success=' + encodeURIComponent(`Utilisateur « ${pseudo} » débanni.`));
-});
-
-// Helper redirect avec erreur
-function back(req, msg, isError = false) {
-  const ref = req.headers.referer ?? '/admin/dashboard';
-  return ref + (ref.includes('?') ? '&' : '?') + (isError ? 'error' : 'success') + '=' + encodeURIComponent(msg);
-}
-
-// ─── PARAMÈTRES GÉNÉRAUX ──────────────────────────────────────────────────────
-app.get('/admin/settings', requireAuth, requireMain, (req, res) => {
-  // Infos système pour l'affichage
-  const dataFiles = [
-    { key: 'sub_admins',     file: SA_FILE,       label: 'Sous-admins' },
-    { key: 'audit_log',      file: LOG_FILE,       label: 'Journal d\'audit' },
-    { key: 'notifications',  file: NOTIF_FILE,     label: 'Notifs historique' },
-    { key: 'bans',           file: BANS_FILE,      label: 'Bannissements' },
-    { key: 'actualites',     file: NEWS_FILE,      label: 'Actualités' },
-    { key: 'settings',       file: SETTINGS_FILE,  label: 'Paramètres' },
-  ].map(f => {
-    try {
-      const stat = fs.statSync(f.file);
-      const data = JSON.parse(fs.readFileSync(f.file, 'utf8'));
-      const count = Array.isArray(data) ? data.length : null;
-      return { ...f, size: (stat.size / 1024).toFixed(1) + ' Ko', count, exists: true };
-    } catch { return { ...f, size: '—', count: null, exists: false }; }
-  });
-
-  const sysInfo = {
-    nodeVersion:  process.version,
-    uptime:       Math.floor(process.uptime() / 60) + ' min',
-    memMb:        (process.memoryUsage().rss / 1024 / 1024).toFixed(1) + ' Mo',
-    port:         process.env.ADMIN_PORT ?? 4000,
-    env:          process.env.NODE_ENV ?? 'development',
-  };
-
-  res.render('settings', {
-    settings: loadSettings(),
-    dataFiles, sysInfo,
-    success:  req.query.success ?? null,
-    error:    req.query.error   ?? null,
-  });
-});
-
-// Sauvegarder la section maintenance
-app.post('/admin/settings/maintenance', requireAuth, requireMain, (req, res) => {
-  const s = loadSettings();
-  s.maintenanceMode    = req.body.maintenanceMode === '1';
-  s.maintenanceMessage = sanitize(req.body.maintenanceMessage ?? '', 500);
-  s.updatedAt = new Date().toISOString();
-  s.updatedBy = req.cookies?.admin_name ?? 'Admin';
-  saveSettings(s);
-  logAction(req, 'settings_changed', 'maintenance', { mode: s.maintenanceMode });
-  res.redirect('/admin/settings?success=' + encodeURIComponent('Paramètres de maintenance sauvegardés.'));
-});
-
-// Sauvegarder l'annonce globale
-app.post('/admin/settings/announcement', requireAuth, requireMain, (req, res) => {
-  const s = loadSettings();
-  s.announcementEnabled = req.body.announcementEnabled === '1';
-  s.announcementText    = sanitize(req.body.announcementText ?? '', 300);
-  s.announcementType    = ['info','warning','danger'].includes(req.body.announcementType) ? req.body.announcementType : 'info';
-  s.updatedAt = new Date().toISOString();
-  s.updatedBy = req.cookies?.admin_name ?? 'Admin';
-  saveSettings(s);
-  logAction(req, 'settings_changed', 'announcement', { enabled: s.announcementEnabled, text: s.announcementText });
-  res.redirect('/admin/settings?success=' + encodeURIComponent('Annonce globale mise à jour.'));
-});
-
-// Sauvegarder apparence + sécurité
-app.post('/admin/settings/general', requireAuth, requireMain, (req, res) => {
-  const s = loadSettings();
-  s.panelTitle        = sanitize(req.body.panelTitle ?? 'PronoWin Admin', 60);
-  s.timezone          = sanitize(req.body.timezone   ?? 'Europe/Paris',   50);
-  s.sessionTimeoutMin = Math.min(480, Math.max(5,  parseInt(req.body.sessionTimeoutMin ?? '30')));
-  s.loginMaxAttempts  = Math.min(20,  Math.max(1,  parseInt(req.body.loginMaxAttempts  ?? '5')));
-  s.loginBlockMinutes = Math.min(120, Math.max(1,  parseInt(req.body.loginBlockMinutes ?? '15')));
-  s.updatedAt = new Date().toISOString();
-  s.updatedBy = req.cookies?.admin_name ?? 'Admin';
-  saveSettings(s);
-  logAction(req, 'settings_changed', 'general', { panelTitle: s.panelTitle });
-  res.redirect('/admin/settings?success=' + encodeURIComponent('Paramètres généraux sauvegardés.'));
-});
-
-// Télécharger une sauvegarde ZIP des données admin
-app.get('/admin/settings/backup', requireAuth, requireMain, (req, res) => {
-  try {
-    const files = [SA_FILE, LOG_FILE, NOTIF_FILE, SETTINGS_FILE, BANS_FILE, NEWS_FILE];
-    const date  = new Date().toISOString().slice(0, 10);
-    // Archive ZIP manuelle (format ZIP minimal sans dépendance)
-    // On génère un tar.json : un objet JSON avec les fichiers encodés en base64
-    const backup = {};
-    for (const f of files) {
-      if (fs.existsSync(f)) {
-        backup[path.basename(f)] = fs.readFileSync(f, 'utf8');
-      }
-    }
-    backup._meta = { createdAt: new Date().toISOString(), version: '1.0', files: Object.keys(backup) };
-    const json = JSON.stringify(backup, null, 2);
-    res.setHeader('Content-Type', 'application/json');
-    res.setHeader('Content-Disposition', `attachment; filename="pronowin_admin_backup_${date}.json"`);
-    res.send(json);
-    logAction(req, 'settings_changed', 'backup_downloaded', {});
-  } catch (e) {
-    res.redirect('/admin/settings?error=' + encodeURIComponent('Erreur lors de la sauvegarde : ' + e.message));
-  }
-});
-
-// Restaurer depuis un fichier backup JSON
-app.post('/admin/settings/restore', requireAuth, requireMain, (req, res) => {
-  try {
-    const raw = req.body.backup_json;
-    if (!raw) return res.redirect('/admin/settings?error=' + encodeURIComponent('Aucun fichier fourni.'));
-    const backup = JSON.parse(raw);
-    const allowed = ['sub_admins.json', 'audit_log.json', 'notifications_history.json', 'settings.json', 'bans.json', 'actualites.json'];
-    let restored  = 0;
-    for (const [filename, content] of Object.entries(backup)) {
-      if (!allowed.includes(filename)) continue;
-      // Valider que c'est bien du JSON valide
-      JSON.parse(content);
-      fs.writeFileSync(path.join(DATA_DIR, filename), content, 'utf8');
-      restored++;
-    }
-    logAction(req, 'settings_changed', 'restore', { files: restored });
-    res.redirect('/admin/settings?success=' + encodeURIComponent(`Restauration réussie : ${restored} fichier(s) restauré(s). Rechargez le serveur si nécessaire.`));
-  } catch (e) {
-    res.redirect('/admin/settings?error=' + encodeURIComponent('Erreur lors de la restauration : ' + e.message));
-  }
-});
-
-// ─── DANGER ZONE ──────────────────────────────────────────────────────────────
-app.post('/admin/settings/clear-logs', requireAuth, requireMain, (req, res) => {
-  saveLogs([]);
-  logAction(req, 'settings_changed', 'clear_logs', {});
-  res.redirect('/admin/settings?success=' + encodeURIComponent('Journal d\'audit effacé.'));
-});
-
-app.post('/admin/settings/clear-notifs', requireAuth, requireMain, (req, res) => {
-  saveNotifHistory([]);
-  logAction(req, 'settings_changed', 'clear_notifs', {});
-  res.redirect('/admin/settings?success=' + encodeURIComponent('Historique notifications effacé.'));
-});
-
-app.post('/admin/settings/clear-actualites', requireAuth, requireMain, (req, res) => {
-  saveNews([]);
-  logAction(req, 'settings_changed', 'clear_actualites', {});
-  res.redirect('/admin/settings?success=' + encodeURIComponent('Toutes les actualités supprimées.'));
-});
-
-// ─── SSE — doit être AVANT le handler 404 ─────────────────────────────────────
-// Endpoint SSE — maintient la connexion ouverte
 app.get('/admin/api/live', requireAuth, (req, res) => {
   res.setHeader('Content-Type',  'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -2222,19 +776,6 @@ app.get('/admin/api/live', requireAuth, (req, res) => {
     if (kpis) { try { res.write(`event: kpis\ndata: ${JSON.stringify(kpis)}\n\n`); } catch {} }
   });
   req.on('close', () => sseClients.delete(res));
-});
-
-// ─── 404 ──────────────────────────────────────────────────────────────────────
-app.use((req, res) => {
-  const isApi = req.path.startsWith('/admin/api/');
-  if (isApi) return res.status(404).json({ error: 'Route introuvable.' });
-  res.status(404).render('error', {
-    status:  404,
-    title:   'Page introuvable',
-    message: `La page « ${req.path} » n'existe pas.`,
-    hint:    'Vérifiez l\'URL ou revenez au dashboard.',
-    back:    '/admin/dashboard',
-  });
 });
 
 // ─── GESTIONNAIRE D'ERREURS GLOBAL ────────────────────────────────────────────
@@ -2303,6 +844,98 @@ setInterval(() => {
 app.locals.sseBroadcast = sseBroadcast;
 
 // ─── DÉMARRAGE ────────────────────────────────────────────────────────────────
+
+// ─── Éléments partagés entre modules de routes ───────────────────────────────
+// Remontés ici parce qu'ils traversent les frontières de modules : les
+// dupliquer aurait laissé deux versions vivre côte à côte, dont deux listes
+// blanches de sécurité (STATS_ENDPOINTS) susceptibles de diverger.
+
+const STATS_ENDPOINTS = new Set([
+  'dashboard', 'revenue', 'users', 'top-users', 'signups', 'pronostics',
+  'online', 'monthly', 'leagues',
+]);
+
+function back(req, msg, isError = false) {
+  const ref = req.headers.referer ?? '/admin/dashboard';
+  return ref + (ref.includes('?') ? '&' : '?') + (isError ? 'error' : 'success') + '=' + encodeURIComponent(msg);
+}
+
+const SEGMENTS = [
+  { key: 'all',            label: 'Tous les utilisateurs',       icon: 'users', desc: 'Tout le monde' },
+  { key: 'premium',        label: 'Membres Premium uniquement',  icon: 'crown', desc: 'Abonnement non expiré' },
+  { key: 'free',           label: 'Membres Gratuits uniquement', icon: 'user', desc: 'Non-abonnés' },
+  { key: 'active_30',      label: 'Actifs ce mois',              icon: 'dot', desc: 'Vus < 30j' },
+  { key: 'inactive_30',    label: 'Inactifs (> 30 jours)',       icon: 'sleep', desc: 'Vus > 30j' },
+  { key: 'new_7',          label: 'Nouveaux inscrits (7j)',       icon: 'sparkle', desc: 'Inscription < 7j' },
+];
+
+async function fetchTutorialCategories(a) {
+  try {
+    const r = await a.get('/admin/tutorials/categories');
+    return r.data;
+  } catch (_) {
+    return ['valuebet', 'bankroll', 'analyse', 'strategie', 'psychologie'];
+  }
+}
+
+async function fetchTutorialLevels(a) {
+  try {
+    const r = await a.get('/admin/tutorials/levels');
+    return r.data;
+  } catch (_) {
+    return ['beginner', 'intermediate', 'advanced'];
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// MONTAGE DES MODULES DE ROUTES
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Ce fichier faisait 2 586 lignes pour 89 routes. Les 80 routes métier vivent
+// désormais dans `routes/`, regroupées par domaine — on cherche un écran, pas
+// un verbe HTTP. Restent ici : la configuration, les middlewares, les
+// helpers partagés, et les 9 routes de tronc (connexion, tableau de bord,
+// recherche globale, badges).
+//
+// Le contexte est passé explicitement plutôt que réimporté par chaque module :
+// il n'y a qu'une configuration, qu'un client Axios et qu'un jeu de fichiers
+// de données. Les dupliquer aurait créé autant d'occasions de les faire
+// diverger — à commencer par STATS_ENDPOINTS, qui est une liste blanche de
+// sécurité.
+const contexteRoutes = {
+  api, requireAuth, requireMain, requirePerm, logAction, sendCSV,
+  loadSubs, saveSubs, empreinteSubs, saveSubsSi,
+  loadSettings, saveSettings, empreinteSettings, saveSettingsSi,
+  loadNews, saveNews, loadBans, saveBans, loadLogs, saveLogs,
+  loadNotifHistory, saveNotifHistory, getNewsCategories,
+  uid, hashPwd, checkPwd, getClientIP, ecrireJson,
+  ERR_ECRITURE, ERR_CONFLIT, PERMISSIONS, DATA_DIR, LOG_MAX,
+  STATS_ENDPOINTS, NEWS_DEFAULT_CATEGORIES,
+  fs, path, slugify, sanitize, clampInt, sseBroadcast,
+  banUser, unbanUser, getActiveBan, ACTION_LABELS,
+  SA_FILE, BANS_FILE, NEWS_FILE, LOG_FILE, NOTIF_FILE, SETTINGS_FILE,
+  SEGMENTS, back, fetchTutorialCategories, fetchTutorialLevels,
+};
+
+for (const domaine of ['utilisateurs', 'catalogue', 'contenu', 'finance', 'exploitation']) {
+  require('./routes/' + domaine)(app, contexteRoutes);
+}
+
+// Le 404 doit rester déclaré APRÈS toutes les routes, sinon il les intercepte.
+
+// ─── 404 ──────────────────────────────────────────────────────────────────────
+app.use((req, res) => {
+  const isApi = req.path.startsWith('/admin/api/');
+  if (isApi) return res.status(404).json({ error: 'Route introuvable.' });
+  res.status(404).render('error', {
+    status:  404,
+    title:   'Page introuvable',
+    message: `La page « ${req.path} » n'existe pas.`,
+    hint:    'Vérifiez l\'URL ou revenez au dashboard.',
+    back:    '/admin/dashboard',
+  });
+});
+
 app.listen(PORT, () => {
   console.log(`\n🖥️  PronoWin Admin — http://localhost:${PORT}/admin`);
   console.log(`📡 dashboard | users | pronostics | transactions | historique | abonnements | tutoriels | sub-admins | audit | notifications\n`);

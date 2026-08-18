@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/pages/email_auth_page.dart';
 import '../../features/auth/presentation/pages/email_otp_page.dart';
-import '../../features/auth/presentation/pages/terms_page.dart';
 import '../../features/auth/presentation/pages/completer_profil_page.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/pronostics/presentation/pages/match_detail_page.dart';
@@ -137,12 +136,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           );
         },
       ),
-      GoRoute(
-        path: '/auth/terms',
-        pageBuilder: (_, s) => slideRightPage(
-          state: s, child: TermsPage(from: s.extra as String?)),
-      ),
-
       // ── Lock screen (fade rapide) ──────────────────────────────────────────
       GoRoute(
         path: '/lock',

@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { AdminAuthService } from '../services/admin_auth.service';
 import { adminMiddleware, AdminRequest } from '../middleware/admin.middleware';
+import { lireConfig, ecrireConfig } from '../services/app_config.service';
+import * as Methodes from '../services/payment_method.service';
 const r   = Router();
 const svc = new AdminAuthService();
 
@@ -17,6 +19,67 @@ r.patch('/profile/password', adminMiddleware, async (req: AdminRequest, res) => 
       req.adminId!, req.body.current_password, req.body.new_password));
   } catch (e: any) { res.status(422).json({ message: e.message }); }
 });
+/**
+ * GET /admin/app-config — réglages de version et de mise à jour.
+ *
+ * Renvoie aussi l'origine de chaque valeur (`base` ou `env`) : sans ça,
+ * l'administrateur ne peut pas distinguer un réglage qu'il a enregistré d'une
+ * valeur héritée du serveur, et croit modifier ce qu'il ne modifie pas.
+ */
+r.get('/app-config', adminMiddleware, async (_req: AdminRequest, res) => {
+  try {
+    res.json(await lireConfig());
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+});
+
+/** PUT /admin/app-config — enregistre les clés reconnues, ignore les autres. */
+r.put('/app-config', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    const ecrites = await ecrireConfig(req.body ?? {}, req.adminId);
+    const { valeurs, origine } = await lireConfig();
+    res.json({ updated: ecrites, valeurs, origine });
+  } catch (e: any) { res.status(422).json({ message: e.message }); }
+});
+
+// ─── Méthodes de paiement Mobile Money ───────────────────────────────────────
+//
+// La clé (`key`) n'est jamais modifiable après création : elle est stockée
+// telle quelle dans Transaction.paymentMethod et dans les preuves d'abonnement.
+// La renommer rendrait l'historique illisible.
+
+r.get('/payment-methods', adminMiddleware, async (_req: AdminRequest, res) => {
+  try { res.json(await Methodes.listerToutes()); }
+  catch (e: any) { res.status(500).json({ message: e.message }); }
+});
+
+r.post('/payment-methods', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    res.status(201).json(await Methodes.creer({
+      key:       req.body.key,
+      label:     String(req.body.label ?? ''),
+      phone:     String(req.body.phone ?? ''),
+      isActive:  req.body.is_active !== false,
+      sortOrder: Number(req.body.sort_order ?? 0),
+    }));
+  } catch (e: any) { res.status(422).json({ message: e.message }); }
+});
+
+r.put('/payment-methods/:id', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    res.json(await Methodes.modifier(req.params.id, {
+      label:     req.body.label !== undefined ? String(req.body.label) : undefined,
+      phone:     req.body.phone !== undefined ? String(req.body.phone) : undefined,
+      isActive:  req.body.is_active !== undefined ? req.body.is_active === true || req.body.is_active === 'true' : undefined,
+      sortOrder: req.body.sort_order !== undefined ? Number(req.body.sort_order) : undefined,
+    }));
+  } catch (e: any) { res.status(422).json({ message: e.message }); }
+});
+
+r.delete('/payment-methods/:id', adminMiddleware, async (req: AdminRequest, res) => {
+  try { res.json(await Methodes.supprimer(req.params.id)); }
+  catch (e: any) { res.status(422).json({ message: e.message }); }
+});
+
 r.post('/login',  async (req, res) => {
   try { res.json(await svc.login(req.body.email, req.body.password)); }
   catch (e: any) { res.status(401).json({ message: e.message }); }

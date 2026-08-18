@@ -68,8 +68,20 @@ export const submitProof = async (req: AuthRequest, res: Response) => {
 // ── ADMIN ─────────────────────────────────────────────────────────────────────
 export const getPendingProofs = async (req: AdminRequest, res: Response) => {
   try {
-    const page = parseInt((req.query.page as string) ?? '1');
-    res.json(await svc.getPendingProofs(page));
+    // `per_page` etait ignore : le service retombait sur son defaut de 20,
+    // quelle que soit la valeur envoyee. Le panneau admin en demandait 5000
+    // pour que sa recherche couvre toute la file — la valeur etait jetee ici,
+    // et une preuve au-dela de la 20e ressortait « introuvable ».
+    const page    = parseInt((req.query.page as string)     ?? '1') || 1;
+    const perPage = parseInt((req.query.per_page as string) ?? '20') || 20;
+    const statutQ = (req.query.status as string) ?? 'pending';
+    const statut  = (['pending', 'approved', 'rejected', 'all'].includes(statutQ)
+                      ? statutQ : 'pending') as 'pending' | 'approved' | 'rejected' | 'all';
+
+    res.json(await svc.listProofs({
+      page, perPage, statut,
+      recherche: (req.query.search as string) ?? '',
+    }));
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };
 

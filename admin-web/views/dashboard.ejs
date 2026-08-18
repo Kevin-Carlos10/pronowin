@@ -75,14 +75,9 @@
    ALERTES
 ══════════════════════════════════════════════════════════ */
 .alerts-list { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.25rem; }
-.dash-alert  { display: flex; align-items: center; gap: .75rem; padding: .75rem 1rem; border-radius: 12px; font-size: .83rem; border: 1px solid; }
-.dash-alert-icon { font-size: 1.1rem; flex-shrink: 0; }
-.dash-alert-text { flex: 1; line-height: 1.4; }
-.dash-alert a    { color: inherit; font-weight: 600; text-decoration: underline; }
-.dash-alert.danger  { background: rgba(239,68,68,.07);  border-color: rgba(239,68,68,.18);  color: #FCA5A5; }
-.dash-alert.warning { background: rgba(245,158,11,.07); border-color: rgba(245,158,11,.18); color: #FCD34D; }
-.dash-alert.info    { background: rgba(59,130,246,.07); border-color: rgba(59,130,246,.18); color: #93C5FD; }
-.dash-alert.success { background: rgba(34,197,94,.07);  border-color: rgba(34,197,94,.18);  color: #86EFAC; }
+/* Alertes : voir .alert dans style.css (socle partagé). Les couleurs pastel
+   qui étaient écrites ici tombaient à 1,2–1,7:1 en thème clair, soit sous le
+   seuil WCAG AA de 4,5:1 — elles étaient purement et simplement illisibles. */
 
 /* ══════════════════════════════════════════════════════════
    GRILLE CHARTS
@@ -185,7 +180,7 @@
     <span id="live-indicator" style="font-size:.75rem;color:var(--success);font-weight:600;display:flex;align-items:center;gap:.3rem">
       <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse-live 2s ease-in-out infinite"></span> LIVE
     </span>
-    <button class="btn btn-outline btn-sm" onclick="refreshAll()" id="refresh-btn">🔄 Actualiser</button>
+    <button class="btn btn-outline btn-sm" onclick="refreshAll()" id="refresh-btn"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Actualiser</button>
   </div>
 </div>
 
@@ -194,16 +189,16 @@
   const _alerts = [];
   const _pendingTotal = pending.total ?? 0;
   const _proofsTotal  = proofs.total  ?? 0;
-  if (_proofsTotal >= 5)  _alerts.push({ type:'warning', icon:'👑', msg:`<strong>${_proofsTotal} preuves Premium</strong> en attente de vérification.`, link:'/admin/abonnements', linkTxt:'Vérifier →' });
-  if (activeBansCount > 0) _alerts.push({ type:'info',    icon:'🚫', msg:`<strong>${activeBansCount} utilisateur${activeBansCount>1?'s':''}</strong> actuellement banni${activeBansCount>1?'s':''}.`, link:'/admin/bans', linkTxt:'Voir les bans →' });
-  if (locals.settings?.maintenanceMode) _alerts.push({ type:'danger', icon:'🔧', msg:'<strong>Mode maintenance actif</strong> — ceci n\'est qu\'un avertissement interne aux admins, ça ne bloque pas les utilisateurs (géré séparément via Firebase Remote Config).', link:'/admin/settings', linkTxt:'Désactiver →' });
+  if (_proofsTotal >= 5)  _alerts.push({ type:'warning', icon:'crown', msg:`<strong>${_proofsTotal} preuves Premium</strong> en attente de vérification.`, link:'/admin/abonnements', linkTxt:'Vérifier →' });
+  if (activeBansCount > 0) _alerts.push({ type:'info',    icon:'ban', msg:`<strong>${activeBansCount} utilisateur${activeBansCount>1?'s':''}</strong> actuellement banni${activeBansCount>1?'s':''}.`, link:'/admin/bans', linkTxt:'Voir les bans →' });
+  if (locals.settings?.maintenanceMode) _alerts.push({ type:'danger', icon:'settings', msg:'<strong>Mode maintenance actif</strong> — ceci n\'est qu\'un avertissement interne aux admins, ça ne bloque pas les utilisateurs (géré séparément via Firebase Remote Config).', link:'/admin/settings', linkTxt:'Désactiver →' });
 %>
 <% if (_alerts.length) { %>
 <div class="alerts-list">
   <% _alerts.forEach(al => { %>
-  <div class="dash-alert <%= al.type %>">
-    <span class="dash-alert-icon"><%= al.icon %></span>
-    <span class="dash-alert-text"><%- al.msg %></span>
+  <div class="alert <%= al.type %>">
+    <span class="alert-icon"><%- (al.icon) ? '<svg class="ic" aria-hidden="true"><use href="#ic-' + (al.icon) + '"/></svg>' : '' %></span>
+    <span class="alert-text"><%- al.msg %></span>
     <a href="<%= al.link %>" class="btn btn-sm btn-outline" style="flex-shrink:0"><%= al.linkTxt %></a>
   </div>
   <% }) %>
@@ -213,25 +208,25 @@
 <!-- ── KPIs ───────────────────────────────────────────────────────────────── -->
 <div class="kpi-grid">
   <a href="/admin/users" class="kpi-card blue">
-    <span class="kpi-icon-badge">👥</span>
+    <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span>
     <div class="kpi-lbl">Utilisateurs totaux</div>
     <div class="kpi-val" id="kpi-users"><%= stats.totalUsers ?? 0 %></div>
     <div class="kpi-delta neu" id="kpi-users-delta">— cette semaine</div>
   </a>
   <a href="/admin/users?plan=premium" class="kpi-card orange">
-    <span class="kpi-icon-badge">👑</span>
+    <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span>
     <div class="kpi-lbl">Membres Premium</div>
     <div class="kpi-val" id="kpi-premium"><%= stats.premiumUsers ?? 0 %></div>
     <div class="kpi-delta neu" id="kpi-conv-rate">— taux de conversion</div>
   </a>
   <a href="/admin/pronostics" class="kpi-card green">
-    <span class="kpi-icon-badge">⚽</span>
+    <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></span>
     <div class="kpi-lbl">Pronostics publiés auj.</div>
     <div class="kpi-val" id="kpi-prono"><%= stats.publishedToday ?? 0 %></div>
     <div class="kpi-delta neu" id="kpi-prono-delta">— taux de succès</div>
   </a>
   <div class="kpi-card teal" id="kpi-active-card" style="cursor:pointer" title="Voir les utilisateurs connectés">
-    <span class="kpi-icon-badge"><span class="kpi-pulse-dot">🟢</span></span>
+    <span class="kpi-icon-badge"><span class="kpi-pulse-dot"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg></span></span>
     <div class="kpi-lbl">Connectés maintenant</div>
     <div class="kpi-val" id="kpi-active"><%= stats.activeUsers ?? 0 %></div>
     <div class="kpi-delta neu">ces 2 dernières minutes</div>
@@ -242,14 +237,14 @@
 <div class="charts-main">
   <div class="chart-card">
     <div class="chart-card-header">
-      <div class="chart-card-title">📈 Inscriptions <span class="chart-card-sub">— 14 derniers jours</span></div>
+      <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg> Inscriptions <span class="chart-card-sub">— 14 derniers jours</span></div>
       <span class="chart-stat-badge" id="badge-signups">…</span>
     </div>
     <div class="chart-wrap" style="height:200px"><canvas id="chart-signups"></canvas></div>
   </div>
   <div class="chart-card">
     <div class="chart-card-header">
-      <div class="chart-card-title">🎯 Conversion</div>
+      <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Conversion</div>
       <span class="chart-stat-badge" id="badge-conv">…</span>
     </div>
     <div class="chart-wrap" style="height:200px;display:flex;align-items:center;justify-content:center">
@@ -261,7 +256,7 @@
 <div class="charts-row">
   <div class="chart-card">
     <div class="chart-card-header">
-      <div class="chart-card-title">⚽ Taux de succès pronostics</div>
+      <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Taux de succès pronostics</div>
       <span class="chart-stat-badge" id="badge-pronos">…</span>
     </div>
     <div class="chart-wrap" style="height:180px;display:flex;align-items:center;justify-content:center">
@@ -270,13 +265,13 @@
   </div>
   <div class="chart-card">
     <div class="chart-card-header">
-      <div class="chart-card-title">📊 Répartition membres</div>
+      <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg> Répartition membres</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:.6rem;justify-content:center;height:180px;padding:.5rem 0">
       <% const _total = (stats.totalUsers||0); const _prem = (stats.premiumUsers||0); const _free = _total - _prem; const _rate = _total > 0 ? Math.round(_prem/_total*100) : 0; %>
       <div>
         <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.3rem">
-          <span style="color:var(--text-dim)">👑 Premium</span><span style="font-weight:700"><%= _prem %> (<%= _rate %>%)</span>
+          <span style="color:var(--text-dim)"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span><span style="font-weight:700"><%= _prem %> (<%= _rate %>%)</span>
         </div>
         <div style="height:7px;border-radius:4px;background:var(--border);overflow:hidden">
           <div style="height:100%;width:<%= _rate %>%;background:var(--primary);border-radius:4px;transition:width .6s ease"></div>
@@ -305,7 +300,7 @@
   <!-- Activité récente -->
   <div class="card" style="padding:0;overflow:hidden">
     <div class="card-header">
-      <h3>📋 Activité récente</h3>
+      <h3><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Activité récente</h3>
       <a href="/admin/audit" class="btn btn-sm btn-outline">Journal →</a>
     </div>
     <% if(recentLogs && recentLogs.length > 0){ %>
@@ -338,22 +333,22 @@
   <div style="display:flex;flex-direction:column;gap:1rem">
     <!-- Accès rapides -->
     <div class="card">
-      <h3 style="margin-bottom:.75rem;font-size:.9rem">⚡ Accès rapides</h3>
+      <h3 style="margin-bottom:.75rem;font-size:.9rem"><svg class="ic" aria-hidden="true"><use href="#ic-zap"/></svg> Accès rapides</h3>
       <div class="quick-actions">
         <% if(hasPerm('users','write')) { %>
-        <a href="/admin/users" class="qa-btn"><span class="qa-icon-wrap">👥</span> Gérer les utilisateurs</a>
+        <a href="/admin/users" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span> Gérer les utilisateurs</a>
         <% } %>
         <% if(hasPerm('abonnements','write')) { %>
-        <a href="/admin/abonnements" class="qa-btn"><span class="qa-icon-wrap">👑</span> Vérifier preuves Premium <% if((proofs.total??0)>0){ %><span class="badge badge-warn" style="margin-left:auto;font-size:.7rem"><%= proofs.total %></span><% } %></a>
+        <a href="/admin/abonnements" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> Vérifier preuves Premium <% if((proofs.total??0)>0){ %><span class="badge badge-warn" style="margin-left:auto;font-size:.7rem"><%= proofs.total %></span><% } %></a>
         <% } %>
         <% if(hasPerm('pronostics','write')) { %>
-        <a href="/admin/pronostics" class="qa-btn"><span class="qa-icon-wrap">⚽</span> Publier un pronostic</a>
+        <a href="/admin/pronostics" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></span> Publier un pronostic</a>
         <% } %>
         <% if(hasPerm('notifications','write')) { %>
-        <a href="/admin/notifications" class="qa-btn"><span class="qa-icon-wrap">📣</span> Envoyer une notification</a>
+        <a href="/admin/notifications" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg></span> Envoyer une notification</a>
         <% } %>
         <% if(isMain) { %>
-        <a href="/admin/bans" class="qa-btn"><span class="qa-icon-wrap">🚫</span> Bannissements <% if(activeBansCount>0){ %><span class="badge badge-err" style="margin-left:auto;font-size:.7rem"><%= activeBansCount %></span><% } %></a>
+        <a href="/admin/bans" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg></span> Bannissements <% if(activeBansCount>0){ %><span class="badge badge-err" style="margin-left:auto;font-size:.7rem"><%= activeBansCount %></span><% } %></a>
         <% } %>
       </div>
     </div>
@@ -362,7 +357,7 @@
     <% if(activeBansCount > 0 && recentBans && recentBans.length > 0){ %>
     <div class="card" style="padding:0;overflow:hidden">
       <div class="card-header">
-        <h3 style="color:var(--error)">🚫 Bans actifs (<%= activeBansCount %>)</h3>
+        <h3 style="color:var(--error)"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bans actifs (<%= activeBansCount %>)</h3>
         <a href="/admin/bans" class="btn btn-sm btn-outline">Voir →</a>
       </div>
       <% recentBans.forEach(ban => { %>
@@ -635,23 +630,25 @@ document.documentElement.addEventListener && (function() {
 <div id="online-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(700px,95vw);max-height:80vh;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);z-index:1001;flex-direction:column;overflow:hidden">
   <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.25rem;border-bottom:1px solid var(--border)">
     <div>
-      <h3 style="margin:0;font-size:1rem;font-weight:700">🟢 Utilisateurs connectés</h3>
+      <h3 style="margin:0;font-size:1rem;font-weight:700"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg> Utilisateurs connectés</h3>
       <div style="font-size:.78rem;color:var(--text-dim);margin-top:.2rem">actifs ces 2 dernières minutes — <span id="online-count">…</span> en ligne</div>
     </div>
-    <button id="online-close" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1;padding:.2rem .4rem" title="Fermer">✕</button>
+    <button id="online-close" aria-label="Fermer le panneau" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1;padding:.2rem .4rem" title="Fermer"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
   </div>
   <div style="overflow-y:auto;flex:1">
-    <table class="dash-table" style="width:100%">
-      <thead><tr>
-        <th>Utilisateur</th>
-        <th>Pays</th>
-        <th>Plan</th>
-        <th>Vu</th>
-      </tr></thead>
-      <tbody id="online-tbody">
-        <tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-dim)">Chargement…</td></tr>
-      </tbody>
-    </table>
+    <div class="table-wrap">
+      <table class="dash-table" style="width:100%">
+        <thead><tr>
+          <th>Utilisateur</th>
+          <th>Pays</th>
+          <th>Plan</th>
+          <th>Vu</th>
+        </tr></thead>
+        <tbody id="online-tbody">
+          <tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-dim)">Chargement…</td></tr>
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 

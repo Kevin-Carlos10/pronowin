@@ -1,4 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
+import '../../../../core/utils/motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -75,7 +76,7 @@ class BalancePoint {
   final String?  result;
   const BalancePoint({required this.date, required this.balance, this.result});
   factory BalancePoint.fromJson(Map<String, dynamic> j) => BalancePoint(
-    date:    DateTime.parse(j['date'] as String),
+    date:    DateTime.parse(j['date'] as String).toLocal(),
     balance: (j['balance'] as num).toInt(),
     result:  j['result'] as String?,
   );
@@ -329,7 +330,21 @@ class _ROICard extends StatelessWidget {
   Widget build(BuildContext context) {
     final color = isPositive ? AppColors.success : AppColors.error;
 
-    return Container(
+    // « +12 400 FCFA », « ROI », « +18 % », « 24 », « 9 » : cinq nombres sans
+    // rattachement. Une seule phrase les relie et rappelle qu'il s'agit d'une
+    // simulation, pas des gains réels de l'utilisateur.
+    final annonce =
+        'Performance simulée sur ${perf.periodDays} jours, '
+        'pour une mise de référence de ${perf.stakeRef} FCFA. '
+        '${isPositive ? "Gain" : "Perte"} de ${_fmt(perf.simulatedNet.abs().toDouble())} FCFA, '
+        'retour sur investissement ${perf.roi} pour cent. '
+        '${perf.wins} pronostics gagnés sur ${perf.total}, '
+        'soit ${perf.winRate} pour cent de réussite.';
+
+    return Semantics(
+      label: annonce,
+      excludeSemantics: true,
+      child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -414,7 +429,7 @@ class _ROICard extends StatelessWidget {
           ])),
         ]),
       ]),
-    );
+    ));
   }
 }
 
@@ -686,7 +701,12 @@ class _StatChip extends StatelessWidget {
       required this.value, required this.color});
 
   @override
-  Widget build(BuildContext context) => Container(
+  // La valeur est au-dessus du libellé à l'écran : bon visuellement, mais lu
+  // à l'envers par un lecteur d'écran.
+  Widget build(BuildContext context) => Semantics(
+    label: '$label : $value',
+    excludeSemantics: true,
+    child: Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: context.cl.surface,
@@ -700,7 +720,7 @@ class _StatChip extends StatelessWidget {
       Text(label, style: TextStyle(color: context.cl.textM, fontSize: 9),
         textAlign: TextAlign.center),
     ]),
-  );
+  ));
 }
 
 // ── Shimmer ───────────────────────────────────────────────────────────────────
@@ -712,19 +732,19 @@ class _PerformanceShimmer extends StatelessWidget {
     child: Column(children: [
       Container(height: 150, decoration: BoxDecoration(
         color: context.cl.surface, borderRadius: BorderRadius.circular(20)))
-        .animate(onPlay: (c) => c.repeat())
+        .animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
         .shimmer(duration: 1200.ms, color: context.cl.borderSoft),
       const SizedBox(height: 14),
       Row(children: List.generate(4, (_) => Expanded(child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 4),
         height: 80,
         decoration: BoxDecoration(color: context.cl.surface, borderRadius: BorderRadius.circular(14)))
-        .animate(onPlay: (c) => c.repeat())
+        .animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
         .shimmer(duration: 1200.ms, color: context.cl.borderSoft)))),
       const SizedBox(height: 14),
       Container(height: 170, decoration: BoxDecoration(
         color: context.cl.surface, borderRadius: BorderRadius.circular(16)))
-        .animate(onPlay: (c) => c.repeat())
+        .animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
         .shimmer(duration: 1200.ms, color: context.cl.borderSoft),
     ]),
   );

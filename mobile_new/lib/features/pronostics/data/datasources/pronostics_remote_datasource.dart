@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/network/failures.dart';
 import '../../../../core/network/dio_exception_handler.dart';
@@ -44,6 +45,8 @@ class PronosticsRemoteDataSourceImpl implements PronosticsRemoteDataSource {
           'cursor':      ?cursor,
           'limit':       limit,
           'include_all': 'true',
+          // Le serveur borne la journée sur ce décalage, pas sur le sien.
+          'tz_offset':   decalageUtcMinutes(),
         },
       );
       final body = response.data as Map<String, dynamic>;

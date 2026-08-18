@@ -17,12 +17,9 @@ class PronoShareCard extends StatelessWidget {
     return AppColors.error;
   }
 
-  String get _confLabel {
-    if (match.confidenceScore >= 5) return 'Excellent';
-    if (match.confidenceScore >= 4) return 'Fort';
-    if (match.confidenceScore >= 3) return 'Bon';
-    return 'Faible';
-  }
+  // Libellé et couleur viennent de la source unique — cette carte affichait
+  // « Fort » pour un score de 4 là où le reste de l'app disait « Bon ».
+  String get _confLabel => MatchEntity.labelForConfidence(match.confidenceScore);
 
   @override
   Widget build(BuildContext context) {

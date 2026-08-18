@@ -63,29 +63,19 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<UserEntity> quickRegister({String? phoneNumber, String? email}) async {
-    final data = await _remote.quickRegister(phoneNumber: phoneNumber, email: email);
-    return _saveTokensAndReturn(data);
-  }
-
-  @override
-  Future<UserEntity> registerEmail({required String email, required String password, required String pseudo}) async {
-    final data = await _remote.registerEmail(email: email, password: password, pseudo: pseudo);
-    return _saveTokensAndReturn(data);
-  }
-
-  @override
-  Future<UserEntity> loginEmail({required String email, required String password}) async {
-    final data = await _remote.loginEmail(email: email, password: password);
-    return _saveTokensAndReturn(data);
-  }
-
-  @override
   Future<bool> sendEmailOtp(String email) => _remote.sendEmailOtp(email);
 
   @override
   Future<UserEntity> verifyEmailOtp({required String email, required String otp}) async {
     final data = await _remote.verifyEmailOtp(email: email, otp: otp);
+    return _saveTokensAndReturn(data);
+  }
+
+  /// Le jeton Google est déjà vérifié par le backend : la réponse est
+  /// exactement celle de verifyEmailOtp, donc le même enregistrement de session.
+  @override
+  Future<UserEntity> googleLogin(String idToken) async {
+    final data = await _remote.googleLogin(idToken);
     return _saveTokensAndReturn(data);
   }
 

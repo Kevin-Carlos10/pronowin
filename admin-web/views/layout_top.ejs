@@ -23,13 +23,15 @@
 </head>
 <body>
 
+<%- include('_icons') %>
+
 <!-- ── Overlay mobile sidebar ── -->
 <div class="sidebar-overlay" id="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <!-- ── Confirm dialog ── -->
 <div class="confirm-overlay" id="confirm-overlay">
   <div class="confirm-box">
-    <div class="confirm-icon" id="confirm-icon">⚠️</div>
+    <div class="confirm-icon" id="confirm-icon"><svg class="ic ic-xl" aria-hidden="true"><use href="#ic-alert"/></svg></div>
     <h3 id="confirm-title">Confirmer l'action</h3>
     <p id="confirm-msg">Êtes-vous sûr de vouloir effectuer cette action ?</p>
     <div class="confirm-actions">
@@ -45,12 +47,12 @@
 <!-- ── Session timeout warning ── -->
 <div class="session-overlay" id="session-overlay">
   <div class="session-box">
-    <div style="font-size:2.5rem;margin-bottom:.75rem">⏰</div>
+    <div style="font-size:2.5rem;margin-bottom:.75rem"><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg></div>
     <h3>Session sur le point d'expirer</h3>
     <p>Vous avez été inactif pendant un moment.<br>Votre session se fermera dans <strong id="session-countdown">02:00</strong>.</p>
     <div style="display:flex;gap:.75rem;justify-content:center;margin-top:1.5rem">
-      <button class="btn btn-primary" onclick="extendSession()">✅ Rester connecté</button>
-      <a href="/admin/logout" class="btn btn-outline">🚪 Se déconnecter</a>
+      <button class="btn btn-primary" onclick="extendSession()"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Rester connecté</button>
+      <a href="/admin/logout" class="btn btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> Se déconnecter</a>
     </div>
   </div>
 </div>
@@ -59,13 +61,13 @@
 <div class="search-overlay" id="search-overlay" onclick="if(event.target===this)closeSearch()">
   <div class="search-box">
     <div class="search-input-wrap">
-      <span class="search-icon">🔍</span>
+      <span class="search-icon"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></span>
       <input type="text" id="search-input" placeholder="Rechercher un utilisateur, pronostic, actualité…" autocomplete="off">
       <kbd class="search-esc" onclick="closeSearch()">Esc</kbd>
     </div>
     <div class="search-results" id="search-results">
       <div class="search-hint">
-        <span>👥 Utilisateurs</span><span>⚽ Pronostics</span><span>📰 Actualités</span>
+        <span><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Utilisateurs</span><span><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Pronostics</span><span><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg> Actualités</span>
       </div>
     </div>
   </div>
@@ -87,39 +89,57 @@
   <!-- Bouton recherche sidebar -->
   <div style="padding:0 12px 12px">
     <button class="sidebar-search-btn" onclick="openSearch()" title="Ctrl+K ou /">
-      <span>🔍</span> <span>Rechercher…</span> <kbd>/</kbd>
+      <span><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></span> <span>Rechercher…</span> <kbd>/</kbd>
     </button>
   </div>
 
   <nav>
-    <a href="/admin/dashboard" class="nav-item <%= page==='dashboard' ?'active':'' %>"><span class="icon">📊</span> Dashboard</a>
+    <a href="/admin/dashboard" class="nav-item <%= page==='dashboard' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg></span> Dashboard</a>
 
     <% if (hasPerm('statistiques')) { %>
-    <a href="/admin/statistiques" class="nav-item <%= page==='statistiques' ?'active':'' %>"><span class="icon">📈</span> Statistiques</a>
+    <a href="/admin/statistiques" class="nav-item <%= page==='statistiques' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg></span> Statistiques</a>
     <% } %>
 
     <% if (hasPerm('users')) { %>
-    <a href="/admin/users" class="nav-item <%= page==='users' ?'active':'' %>"><span class="icon">👥</span> Utilisateurs</a>
+    <a href="/admin/users" class="nav-item <%= page==='users' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span> Utilisateurs</a>
     <% } %>
 
     <% if (hasPerm('pronostics')) { %>
-    <a href="/admin/pronostics" class="nav-item <%= page==='pronostics' ?'active':'' %>"><span class="icon">⚽</span> Pronostics</a>
-    <a href="/admin/leagues" class="nav-item <%= page==='leagues' ?'active':'' %>"><span class="icon">🏆</span> Ligues</a>
+    <a href="/admin/pronostics" class="nav-item <%= page==='pronostics' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></span> Pronostics</a>
+    <a href="/admin/leagues" class="nav-item <%= page==='leagues' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg></span> Ligues</a>
     <% } %>
 
-    <% if (hasPerm('abonnements')) { %>
+    <% if (hasPerm('abonnements') || hasPerm('transactions') || hasPerm('historique') || hasPerm('bankroll')) { %>
     <div class="sidebar-section">Finances</div>
     <% } %>
 
     <% if (hasPerm('abonnements')) { %>
     <a href="/admin/abonnements" class="nav-item <%= page==='abonnements' ?'active':'' %>">
-      <span class="icon">👑</span> Abonnements
+      <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> Abonnements
       <span class="nav-badge" id="badge-proofs"></span>
     </a>
     <% } %>
 
+    <%# Transactions et Historique existaient comme pages complètes, avec leur
+        permission dans le formulaire sous-admin — mais aucun lien n'y menait
+        nulle part dans l'application. On ne pouvait les atteindre qu'en tapant
+        l'URL, ou depuis l'autre des deux. %>
+    <% if (hasPerm('transactions')) { %>
+    <a href="/admin/transactions" class="nav-item <%= page==='transactions' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg></span> Versements</a>
+    <% } %>
+
+    <%# Réservé à l'admin principal : changer le numéro de réception, c'est
+        rediriger l'argent des abonnés. %>
+    <% if (isMain) { %>
+    <a href="/admin/paiements" class="nav-item <%= page==='paiements' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg></span> Méthodes paiement</a>
+    <% } %>
+
+    <% if (hasPerm('historique')) { %>
+    <a href="/admin/historique" class="nav-item <%= page==='historique' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg></span> Historique</a>
+    <% } %>
+
     <% if (hasPerm('bankroll')) { %>
-    <a href="/admin/bankroll" class="nav-item <%= page==='bankroll' ?'active':'' %>"><span class="icon">🎯</span> Bankroll</a>
+    <a href="/admin/bankroll" class="nav-item <%= page==='bankroll' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg></span> Bankroll</a>
     <% } %>
 
     <% if (hasPerm('tutoriels') || hasPerm('notifications') || hasPerm('actualites')) { %>
@@ -127,23 +147,23 @@
     <% } %>
 
     <% if (hasPerm('actualites')) { %>
-    <a href="/admin/actualites" class="nav-item <%= page==='actualites' ?'active':'' %>"><span class="icon">📰</span> Actualités</a>
+    <a href="/admin/actualites" class="nav-item <%= page==='actualites' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg></span> Actualités</a>
     <% } %>
 
     <% if (hasPerm('tutoriels')) { %>
-    <a href="/admin/tutoriels" class="nav-item <%= page==='tutoriels' ?'active':'' %>"><span class="icon">📚</span> Tutoriels</a>
+    <a href="/admin/tutoriels" class="nav-item <%= page==='tutoriels' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-book"/></svg></span> Tutoriels</a>
     <% } %>
 
     <% if (hasPerm('notifications')) { %>
-    <a href="/admin/notifications" class="nav-item <%= page==='notifications' ?'active':'' %>"><span class="icon">📣</span> Notifications</a>
+    <a href="/admin/notifications" class="nav-item <%= page==='notifications' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg></span> Notifications</a>
     <% } %>
 
     <% if (isMain) { %>
     <div class="sidebar-section">Administration</div>
-    <a href="/admin/sub-admins" class="nav-item <%= page==='sub-admins' ?'active':'' %>"><span class="icon">🔐</span> Sous-admins</a>
-    <a href="/admin/bans"       class="nav-item <%= page==='bans'       ?'active':'' %>"><span class="icon">🚫</span> Bannissements</a>
-    <a href="/admin/audit"      class="nav-item <%= page==='audit'      ?'active':'' %>"><span class="icon">📋</span> Journal d'activité</a>
-    <a href="/admin/settings"   class="nav-item <%= page==='settings'   ?'active':'' %>"><span class="icon">⚙️</span> Paramètres</a>
+    <a href="/admin/sub-admins" class="nav-item <%= page==='sub-admins' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg></span> Sous-admins</a>
+    <a href="/admin/bans"       class="nav-item <%= page==='bans'       ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg></span> Bannissements</a>
+    <a href="/admin/audit"      class="nav-item <%= page==='audit'      ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg></span> Journal d'activité</a>
+    <a href="/admin/settings"   class="nav-item <%= page==='settings'   ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg></span> Paramètres</a>
     <% } %>
   </nav>
 
@@ -154,8 +174,8 @@
     <div class="theme-panel-row">
       <span class="theme-panel-lbl">Thème</span>
       <div class="mode-toggle">
-        <button class="mode-btn" id="mode-dark"  onclick="setMode('dark')"  title="Mode sombre">🌙</button>
-        <button class="mode-btn" id="mode-light" onclick="setMode('light')" title="Mode clair">☀️</button>
+        <button class="mode-btn" id="mode-dark"  onclick="setMode('dark')"  title="Mode sombre" aria-label="Activer le thème sombre"><svg class="ic" aria-hidden="true"><use href="#ic-moon"/></svg></button>
+        <button class="mode-btn" id="mode-light" onclick="setMode('light')" title="Mode clair" aria-label="Activer le thème clair"><svg class="ic" aria-hidden="true"><use href="#ic-sun"/></svg></button>
       </div>
     </div>
   </div>
@@ -170,7 +190,7 @@
         <div style="font-size:.7rem;color:<%= adminRole==='sub'?'var(--warning)':'var(--success)' %>"><%= adminRole==='sub'?'Sous-admin':'Admin principal' %></div>
       </div>
     </a>
-    <a href="/admin/logout" class="nav-item nav-logout"><span class="icon">🚪</span> Déconnexion</a>
+    <a href="/admin/logout" class="nav-item nav-logout"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg></span> Déconnexion</a>
   </div>
 </aside>
 
@@ -178,27 +198,27 @@
 <nav class="bottom-nav" id="bottom-nav" aria-label="Navigation mobile">
   <div class="bottom-nav-items">
     <a href="/admin/dashboard" class="bottom-nav-item <%= page==='dashboard'?'active':'' %>" aria-label="Dashboard">
-      <span class="bottom-nav-icon">📊</span>
+      <span class="bottom-nav-icon"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg></span>
       <span>Dashboard</span>
     </a>
     <% if (hasPerm('users')) { %>
     <a href="/admin/users" class="bottom-nav-item <%= page==='users'?'active':'' %>" aria-label="Utilisateurs">
-      <span class="bottom-nav-icon">👥</span>
+      <span class="bottom-nav-icon"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span>
       <span>Utilisateurs</span>
     </a>
     <% } else { %>
     <a href="/admin/statistiques" class="bottom-nav-item <%= page==='statistiques'?'active':'' %>" aria-label="Stats">
-      <span class="bottom-nav-icon">📈</span>
+      <span class="bottom-nav-icon"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg></span>
       <span>Stats</span>
     </a>
     <% } %>
     <!-- Bouton FAB central : recherche rapide -->
     <button class="bottom-nav-fab" onclick="openSearch()" aria-label="Rechercher">
-      <div class="bottom-nav-fab-circle">🔍</div>
+      <div class="bottom-nav-fab-circle"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></div>
       <span class="bottom-nav-fab-lbl">Chercher</span>
     </button>
     <a href="/admin/profile" class="bottom-nav-item <%= page==='profile'?'active':'' %>" aria-label="Profil">
-      <span class="bottom-nav-icon">👤</span>
+      <span class="bottom-nav-icon"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg></span>
       <span>Profil</span>
     </a>
   </div>
@@ -209,16 +229,16 @@
 
 <!-- Barre mobile (hamburger) -->
 <div class="mobile-bar">
-  <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+  <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu"><svg class="ic" aria-hidden="true"><use href="#ic-menu"/></svg></button>
   <span class="mobile-bar-title">Prono<span>Win</span> Admin</span>
-  <button class="search-trigger-btn" onclick="openSearch()" title="Recherche (Ctrl+K)">🔍</button>
+  <button class="search-trigger-btn" onclick="openSearch()" title="Recherche (Ctrl+K)" aria-label="Ouvrir la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></button>
 </div>
 
 <%
   const _s = locals.settings || {};
   const _announceBg   = { info: 'rgba(59,130,246,.12)', warning: 'rgba(245,158,11,.12)', danger: 'rgba(239,68,68,.12)' };
   const _announceColor= { info: 'var(--info)', warning: 'var(--warning)', danger: 'var(--error)' };
-  const _announceIcon = { info: 'ℹ️', warning: '⚠️', danger: '🚨' };
+  const _announceIcon = { info: 'ℹ', warning: '⚠', danger: '⚠' };
 %>
 <% if (_s.announcementEnabled && _s.announcementText) { %>
 <div style="background:<%= _announceBg[_s.announcementType]||_announceBg.info %>;border-bottom:1px solid <%= _announceColor[_s.announcementType]||'var(--info)' %>20;padding:.6rem 1.25rem;display:flex;align-items:center;gap:.6rem;font-size:.83rem;color:<%= _announceColor[_s.announcementType]||'var(--info)' %>;margin-bottom:0" id="global-announcement">
@@ -230,7 +250,7 @@
 
 <% if (_s.maintenanceMode) { %>
 <div style="background:rgba(245,158,11,.15);border-bottom:1px solid rgba(245,158,11,.3);padding:.6rem 1.25rem;display:flex;align-items:center;gap:.6rem;font-size:.83rem;color:var(--warning)">
-  <span>🔧</span>
+  <span><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg></span>
   <span style="flex:1"><strong>Mode maintenance actif</strong> — <%= _s.maintenanceMessage || 'Le panel est en maintenance.' %></span>
   <% if (isMain) { %>
   <a href="/admin/settings" style="color:var(--warning);font-weight:600;font-size:.78rem;text-decoration:underline">Désactiver →</a>

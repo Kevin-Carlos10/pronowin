@@ -219,6 +219,44 @@ final statsJourProvider =
   return data ?? empty;
 });
 
+/// Bilan des pronostics publiés sur les 30 derniers jours.
+///
+/// Sert la bande de preuve de l'accueil : « 30 derniers pronostics · 18 gagnés
+/// · +12 % ». C'est l'argument de confiance de l'app, donc l'endpoint est
+/// ouvert aux invités — il ne contient aucune donnée personnelle.
+final performance30Provider =
+    FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+  const key = 'pronostics_perf_30';
+  return _fetchWithCache<Map<String, dynamic>>(
+    ref: ref,
+    cacheKey: key,
+    fetchFn: () async {
+      final r = await ref
+          .read(dioProvider)
+          .get('/pronostics/performance', queryParameters: {'days': 30});
+      return Map<String, dynamic>.from(r.data as Map);
+    },
+    fromJson: (d) => Map<String, dynamic>.from(d as Map),
+  );
+});
+
+/// Pronostics d'hier, déjà réglés — pour boucler la journée précédente.
+final hierProvider =
+    FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  const key = 'pronostics_hier';
+  final data = await _fetchWithCache<List<dynamic>>(
+    ref: ref,
+    cacheKey: key,
+    fetchFn: () async {
+      final r = await ref.read(dioProvider).get('/pronostics',
+          queryParameters: {'date_filter': 'yesterday', 'limit': 50});
+      return (r.data['data'] as List?) ?? const [];
+    },
+    fromJson: (d) => List<dynamic>.from(d as List),
+  );
+  return data ?? const [];
+});
+
 // ─── État global du cache (pour la bannière offline) ─────────────────────────
 
 /// Retourne l'heure de la dernière sync réseau des pronos du jour, ou null.

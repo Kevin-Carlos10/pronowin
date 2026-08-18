@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../core/utils/motion.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -177,7 +178,7 @@ class _PremiumGateSheet extends ConsumerWidget {
                       fontWeight: FontWeight.w700, letterSpacing: 0.2)),
                   ],
                 ),
-              ).animate(onPlay: (c) => c.repeat())
+              ).animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
                .shimmer(duration: 2400.ms, delay: 800.ms, color: Colors.white24),
             ),
           ).animate(delay: 380.ms)

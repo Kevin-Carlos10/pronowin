@@ -73,7 +73,7 @@ input[name=category] { display:none; }
     { key:'promo',  emoji:'🎁', label:'Promo' },
     { key:'update', emoji:'🔄', label:'Mise à jour' },
     { key:'tip',    emoji:'💡', label:'Conseil' },
-    { key:'alert',  emoji:'🚨', label:'Alerte' },
+    { key:'alert',  emoji:'⚠', label:'Alerte' },
   ];
   const selCat = art.category || 'news';
 
@@ -171,7 +171,7 @@ input[name=category] { display:none; }
 
       <div class="af-toggle-row">
         <div>
-          <div class="af-toggle-label">✅ Publier immédiatement</div>
+          <div class="af-toggle-label"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Publier immédiatement</div>
           <div class="af-toggle-desc">L'article sera visible par les utilisateurs</div>
         </div>
         <label class="af-switch">
@@ -182,7 +182,7 @@ input[name=category] { display:none; }
 
       <div class="af-toggle-row">
         <div>
-          <div class="af-toggle-label">📌 Épingler en haut</div>
+          <div class="af-toggle-label"><svg class="ic" aria-hidden="true"><use href="#ic-pin"/></svg> Épingler en haut</div>
           <div class="af-toggle-desc">Apparaît en premier dans la liste</div>
         </div>
         <label class="af-switch">
@@ -193,7 +193,7 @@ input[name=category] { display:none; }
 
       <div class="af-toggle-row">
         <div>
-          <div class="af-toggle-label">👑 Réservé Premium</div>
+          <div class="af-toggle-label"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Réservé Premium</div>
           <div class="af-toggle-desc">Visible uniquement pour les abonnés Premium</div>
         </div>
         <label class="af-switch">
@@ -218,7 +218,7 @@ input[name=category] { display:none; }
       <button type="button" class="btn btn-danger" style="margin-left:auto"
         data-id="<%= art.id %>"
         data-title="<%= art.title.replace(/"/g,'&quot;') %>"
-        onclick="delArt(this.dataset.id, this.dataset.title)">🗑️ Supprimer</button>
+        onclick="delArt(this.dataset.id, this.dataset.title)"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Supprimer</button>
       <form method="POST" action="/admin/actualites/<%= art.id %>/delete" id="del-<%= art.id %>" style="display:none"></form>
       <% } %>
     </div>
@@ -235,14 +235,14 @@ input[name=category] { display:none; }
       </div>
       <div class="af-preview-img" id="prev-img-wrap">
         <img id="prev-img" src="" alt="">
-        <span id="prev-emoji">📰</span>
+        <span id="prev-emoji"><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg></span>
       </div>
       <div class="af-preview-body">
-        <div class="af-preview-cat" id="prev-cat">📰 News</div>
+        <div class="af-preview-cat" id="prev-cat"><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg> News</div>
         <div class="af-preview-title" id="prev-title">Titre de l'article</div>
         <div class="af-preview-summary" id="prev-summary" style="display:none"></div>
         <div class="af-preview-meta">
-          ✍️ <%= adminName %> · 👁 0 vues
+          <svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> <%= adminName %> · <svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> 0 vues
           <span id="prev-badges" style="display:inline-flex;gap:.35rem;margin-left:.4rem"></span>
         </div>
       </div>
@@ -253,7 +253,7 @@ input[name=category] { display:none; }
     <div class="card" style="padding:1.1rem">
       <div style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.7rem">Informations</div>
       <div class="af-stat-row"><span class="k">Vues</span><span class="v" style="color:var(--primary)"><%= (art.viewCount||0).toLocaleString() %></span></div>
-      <div class="af-stat-row"><span class="k">Likes</span><span class="v" style="color:var(--error)">❤️ <%= art.likeCount||0 %></span></div>
+      <div class="af-stat-row"><span class="k">Likes</span><span class="v" style="color:var(--error)"><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> <%= art.likeCount||0 %></span></div>
       <div class="af-stat-row"><span class="k">Auteur</span><span class="v"><%= art.authorName||'Admin' %></span></div>
       <div class="af-stat-row"><span class="k">Créé le</span><span class="v"><%= fmtDate(art.createdAt) %></span></div>
       <div class="af-stat-row"><span class="k">Modifié le</span><span class="v"><%= fmtDate(art.updatedAt) %></span></div>

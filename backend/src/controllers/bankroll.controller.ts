@@ -111,6 +111,12 @@ export const adminListBankrolls = async (req: AdminRequest, res: Response) => {
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };
 
+/** GET /bankroll/admin/stats — agrégats sur toutes les bankrolls */
+export const adminBankrollStats = async (_req: AdminRequest, res: Response) => {
+  try { res.json(await svc.listBankrollsStats()); }
+  catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
 /** GET /bankroll/admin/:userId — détail complet de la bankroll d'un utilisateur */
 export const adminGetBankrollDetail = async (req: AdminRequest, res: Response) => {
   try {

@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:country_picker/country_picker.dart' show CountryLocalizations;
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,6 +19,8 @@ import 'core/widgets/splash_screen.dart';
 import 'core/services/crashlytics_service.dart';
 import 'core/services/remote_config_service.dart';
 import 'core/services/review_service.dart';
+import 'core/config/distribution_channel.dart';
+import 'core/network/dio_client.dart';
 import 'core/services/version_service.dart';
 import 'core/services/background_sync_service.dart';
 import 'core/storage/secure_storage.dart';
@@ -25,10 +28,19 @@ import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/notifications/presentation/providers/fcm_service.dart';
 import 'features/parametres/presentation/providers/settings_provider.dart';
 
+/// Force l'arbre de sémantique sur la cible web, pour inspecter l'UI depuis un
+/// navigateur (Flutter dessine sur canvas : sans sémantique, il n'y a aucun DOM
+/// à lire). Opt-in via --dart-define=FORCE_SEMANTICS=true : les builds
+/// Android/iOS ne le passent pas et ne sont donc pas concernés.
+const bool _kForceSemantics = bool.fromEnvironment('FORCE_SEMANTICS');
+
 void main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-  // Garder le splash natif pendant les initialisations async
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  if (_kForceSemantics) SemanticsBinding.instance.ensureSemantics();
+  // Garder le splash natif pendant les initialisations async.
+  // Hors web uniquement : le splash natif est une notion Android/iOS, et sur
+  // web remove() lève une PlatformException avant runApp — l'app ne démarre pas.
+  if (!kIsWeb) FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await CrashlyticsService.init();
@@ -83,7 +95,7 @@ void main() async {
   await container.read(authProvider.notifier).restoreSession();
 
   // Retirer le splash natif → l'app Flutter prend le relais
-  FlutterNativeSplash.remove();
+  if (!kIsWeb) FlutterNativeSplash.remove();
 
   runApp(UncontrolledProviderScope(
     container: container,
@@ -198,7 +210,14 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
 
   Future<void> _checkVersion() async {
     if (!mounted) return;
-    await VersionService.check(context);
+    // Le canal décide de la destination : fiche du store, ou téléchargement
+    // de l'APK. Un build direct renvoyé vers Play tomberait sur une fiche qui
+    // n'héberge pas sa version.
+    await VersionService.check(
+      context,
+      estStore: ref.read(isStoreBuildProvider),
+      dio:      ref.read(dioProvider),
+    );
   }
 
   Future<void> _initFCM() async {

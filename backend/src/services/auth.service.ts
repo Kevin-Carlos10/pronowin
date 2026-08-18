@@ -1,5 +1,6 @@
 ﻿import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import { OAuth2Client } from 'google-auth-library';
 import { generateReferralCode, generateOtp } from '../utils/generators';
 import { sendWhatsAppOtp } from './whatsapp.service';
 import { sendEmailOtp } from './email.service';
@@ -116,90 +117,6 @@ export class AuthService {
     return newTokens; // { access_token, refresh_token }
   }
 
-  /**
-   * Inscription/connexion rapide sans vérification.
-   * Crée le compte si inexistant (phoneVerified/emailVerified = false).
-   * Si le compte existe déjà sans vérification, retourne un nouveau token.
-   */
-  async quickRegister(params: { phoneNumber?: string; email?: string }) {
-    const { phoneNumber, email } = params;
-    if (!phoneNumber && !email) throw new Error('Numéro ou email requis.');
-
-    let user = phoneNumber
-      ? await prisma.user.findUnique({ where: { phoneNumber } })
-      : await prisma.user.findUnique({ where: { email: email! } });
-
-    if (!user) {
-      const data: any = {
-        pseudo:       `Parieur_${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
-        referralCode: generateReferralCode(),
-        countryCode:  phoneNumber?.startsWith('+226') ? 'BF'
-                    : phoneNumber?.startsWith('+225') ? 'CI'
-                    : phoneNumber?.startsWith('+221') ? 'SN' : null,
-        phoneVerified: false,
-        emailVerified: false,
-      };
-      if (phoneNumber) data.phoneNumber = phoneNumber;
-      if (email)       data.email       = email;
-      user = await prisma.user.create({ data });
-    }
-
-    await prisma.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } });
-    const tokens = await this._generateTokens(user.id);
-    return { user, ...tokens };
-  }
-
-  /** Inscription par email + mot de passe */
-  async registerEmail(email: string, password: string, pseudo: string) {
-    const existing = await prisma.user.findUnique({ where: { email } });
-
-    if (existing) {
-      // Compte créé via OTP email (pas de mot de passe) → on ajoute le mot de passe
-      if (!existing.passwordHash) {
-        const passwordHash = await bcrypt.hash(password, 12);
-        const user = await prisma.user.update({
-          where: { id: existing.id },
-          data:  { passwordHash, emailVerified: true, lastLoginAt: new Date() },
-        });
-        const tokens = await this._generateTokens(user.id);
-        return { user, ...tokens };
-      }
-      throw new Error('Un compte avec mot de passe existe déjà pour cet email.');
-    }
-
-    const passwordHash = await bcrypt.hash(password, 12);
-    const user = await prisma.user.create({
-      data: {
-        email,
-        emailVerified: true,
-        passwordHash,
-        pseudo,
-        referralCode: generateReferralCode(),
-      },
-    });
-
-    const tokens = await this._generateTokens(user.id);
-    return { user, ...tokens };
-  }
-
-  /** Connexion par email + mot de passe */
-  async loginEmail(email: string, password: string) {
-    const user = await prisma.user.findUnique({ where: { email } });
-    if (!user || !user.passwordHash) {
-      throw new Error('Email ou mot de passe incorrect.');
-    }
-    const valid = await bcrypt.compare(password, user.passwordHash);
-    if (!valid) throw new Error('Email ou mot de passe incorrect.');
-
-    await prisma.user.update({
-      where: { id: user.id },
-      data:  { lastLoginAt: new Date() },
-    });
-
-    const tokens = await this._generateTokens(user.id);
-    return { user, ...tokens };
-  }
-
   /** Envoie un OTP par email. Indique aussi si l'email correspond à un
    *  compte déjà existant, pour adapter le message côté app (connexion
    *  vs inscription) sans dupliquer l'écran. */
@@ -241,26 +158,114 @@ export class AuthService {
       data:  { used: true },
     });
 
+    /*
+     * Consentement aux CGU.
+     *
+     * Il y avait deux recueils successifs : la mention « En continuant, tu
+     * acceptes nos conditions » sur l'écran d'e-mail, puis un écran entier
+     * avec une case à cocher. Un seul suffit, et c'est le premier : taper
+     * « Continuer » sous une mention lisible EST l'acte de consentement.
+     *
+     * On l'horodate ici, au moment où le compte est réellement créé ou
+     * reconnecté. Pour un compte existant dont la date est nulle,
+     * l'utilisateur vient de repasser par le même écran et la même mention —
+     * on n'invente donc aucun consentement rétroactif.
+     */
+    const maintenant = new Date();
+
     let user = await prisma.user.findUnique({ where: { email } });
     if (!user) {
       user = await prisma.user.create({
         data: {
           email,
-          emailVerified: true,
+          emailVerified:   true,
+          acceptedTermsAt: maintenant,
           pseudo:       `Parieur_${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
           referralCode: generateReferralCode(),
           },
       });
-    } else if (!user.emailVerified) {
+    } else if (!user.emailVerified || !user.acceptedTermsAt) {
       user = await prisma.user.update({
         where: { id: user.id },
-        data:  { emailVerified: true },
+        data:  {
+          emailVerified:   true,
+          acceptedTermsAt: user.acceptedTermsAt ?? maintenant,
+        },
       });
     }
 
     await prisma.user.update({
       where: { id: user.id },
-      data:  { lastLoginAt: new Date() },
+      data:  { lastLoginAt: maintenant },
+    });
+
+    const tokens = await this._generateTokens(user.id);
+    return { user, ...tokens };
+  }
+
+  /// Connexion via Google.
+  ///
+  /// Le client envoie l'`idToken` renvoyé par le SDK Google ; on le vérifie
+  /// auprès de Google (signature + audience + expiration) avant de faire quoi
+  /// que ce soit. Ne jamais faire confiance à l'e-mail transmis par le client :
+  /// seul le contenu du jeton vérifié fait foi.
+  async loginWithGoogle(idToken: string) {
+    const clientIds = (process.env.GOOGLE_CLIENT_IDS ?? '')
+      .split(',')
+      .map(s => s.trim())
+      .filter(Boolean);
+    if (clientIds.length === 0) {
+      throw new Error('Connexion Google non configurée sur le serveur.');
+    }
+
+    const client = new OAuth2Client();
+    let payload;
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: clientIds,
+      });
+      payload = ticket.getPayload();
+    } catch {
+      throw new Error('Jeton Google invalide.');
+    }
+
+    const email = payload?.email?.toLowerCase();
+    if (!email || payload?.email_verified !== true) {
+      throw new Error('Adresse Google non vérifiée.');
+    }
+
+    // Même recueil de consentement que par e-mail : la mention légale est
+    // affichée au-dessus du bouton Google, taper dessus vaut acceptation.
+    const maintenant = new Date();
+
+    let user = await prisma.user.findUnique({ where: { email } });
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          email,
+          emailVerified:   true,
+          acceptedTermsAt: maintenant,
+          // Google a déjà vérifié l'adresse : pas d'OTP à repasser.
+          firstName:    payload?.given_name  ?? null,
+          lastName:     payload?.family_name ?? null,
+          pseudo:       `Parieur_${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+          referralCode: generateReferralCode(),
+        },
+      });
+    } else if (!user.emailVerified || !user.acceptedTermsAt) {
+      user = await prisma.user.update({
+        where: { id: user.id },
+        data:  {
+          emailVerified:   true,
+          acceptedTermsAt: user.acceptedTermsAt ?? maintenant,
+        },
+      });
+    }
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data:  { lastLoginAt: maintenant },
     });
 
     const tokens = await this._generateTokens(user.id);
@@ -319,16 +324,6 @@ export class AuthService {
     const user = await prisma.user.update({
       where: { id: userId },
       data:  { email, emailVerified: true },
-    });
-    return { user };
-  }
-
-  /** Définit ou met à jour le mot de passe d'un compte connecté */
-  async setPassword(userId: string, password: string) {
-    const passwordHash = await bcrypt.hash(password, 12);
-    const user = await prisma.user.update({
-      where: { id: userId },
-      data:  { passwordHash },
     });
     return { user };
   }

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 
 class LockScreenPage extends ConsumerStatefulWidget {
@@ -166,10 +167,57 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
                   : _buildKeypad(bioEnabled),
               ),
             ),
+
+            // Sortie de secours : sans elle, oublier son code enfermait
+            // définitivement l'utilisateur hors de l'app — bankroll comprise.
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: TextButton(
+                onPressed: _codeOublie,
+                child: Text('Code oublié ?',
+                    style: TextStyle(
+                        color: context.cl.textM,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ),
           ]),
         ),
       ),
     );
+  }
+
+  /// Déverrouillage impossible : la seule issue sûre est de fermer la session.
+  /// On ne propose surtout pas de « réinitialiser le code » sur place, ce qui
+  /// annulerait la protection pour quiconque tient l'appareil en main.
+  Future<void> _codeOublie() async {
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: dctx.cl.surface,
+        title: const Text('Code oublié'),
+        content: const Text(
+            'Pour retrouver l\'accès, il faut te déconnecter puis te '
+            'reconnecter avec ton compte. Tes données ne sont pas perdues.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(dctx).pop(false),
+              child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.of(dctx).pop(true),
+              child: const Text('Se déconnecter')),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+
+    // Le code est effacé avec la session : le prochain démarrage repart d'un
+    // écran de connexion normal, sans verrou orphelin.
+    final p = await SharedPreferences.getInstance();
+    await p.remove('pin_code');
+    await ref.read(settingsProvider.notifier).setPinEnabled(false);
+    await ref.read(authProvider.notifier).logout();
+    if (mounted) context.go('/auth');
   }
 
   Widget _buildKeypad(bool bioEnabled) => Column(

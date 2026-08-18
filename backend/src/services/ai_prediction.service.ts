@@ -1,5 +1,7 @@
 ﻿
 import { prisma } from '../lib/prisma';
+import { apiFootballInsights } from './api_football.service';
+import type { MatchPrediction } from './api_football_insights.service';
 
 // ── Modèle statistique ────────────────────────────────────────────────────────
 //
@@ -51,6 +53,28 @@ function formSignal(
   }
 }
 
+/**
+ * Probabilité que le modèle d'API-Football attribue à l'issue pronostiquée,
+ * ou `null` si elle ne s'applique pas.
+ *
+ * L'API ne fournit des pourcentages que pour le marché « vainqueur »
+ * (domicile / nul / extérieur). Les transposer à un total de buts ou à un
+ * handicap serait une invention : on rend `null` et le calcul se passe de ce
+ * signal, comme il se passe déjà de la forme sur ces marchés.
+ */
+export function modelSignal(
+  predictionType: string,
+  prediction: MatchPrediction | null,
+): number | null {
+  if (!prediction) return null;
+  switch (predictionType) {
+    case 'win1': return prediction.percentHome / 100;
+    case 'draw': return prediction.percentDraw / 100;
+    case 'win2': return prediction.percentAway / 100;
+    default:     return null;
+  }
+}
+
 export function computeProbability(
   predictionType: string,
   oddsHome: number,
@@ -59,6 +83,8 @@ export function computeProbability(
   oddsRecommended: number,
   homeFormPoints: number,
   awayFormPoints: number,
+  /** Signal externe optionnel — voir `modelSignal`. */
+  modelProb: number | null = null,
 ): number {
   let oddsProb: number;
   switch (predictionType) {
@@ -71,8 +97,23 @@ export function computeProbability(
   // L'ancien terme constant « avantage du terrain » a été retiré : cet effet
   // est déjà intégré par le bookmaker dans la cote, l'ajouter le comptait deux
   // fois tout en rapprochant mécaniquement toutes les prédictions de 50 %.
-  const form    = formSignal(predictionType, homeFormPoints, awayFormPoints);
-  const blended = form === null ? oddsProb : oddsProb * 0.65 + form * 0.35;
+  // Pondération : la cote garde le poids dominant — c'est le seul signal
+  // adossé à de l'argent réel, donc le mieux informé. Le modèle statistique
+  // d'API-Football est une seconde opinion indépendante, la forme reste le
+  // signal le plus faible (trois derniers résultats, sans contexte).
+  const form  = formSignal(predictionType, homeFormPoints, awayFormPoints);
+  const model = modelProb;
+
+  let blended: number;
+  if (form !== null && model !== null) {
+    blended = oddsProb * 0.55 + model * 0.30 + form * 0.15;
+  } else if (model !== null) {
+    blended = oddsProb * 0.70 + model * 0.30;
+  } else if (form !== null) {
+    blended = oddsProb * 0.65 + form * 0.35;
+  } else {
+    blended = oddsProb;
+  }
 
   // Bornes volontairement larges : ramener une cote à 5.00 (20 % implicite) à
   // un plancher de 30 % gonflait artificiellement les pronostics risqués.
@@ -101,9 +142,12 @@ export function explainPrediction(params: {
   homeFormPoints:  number;
   awayFormPoints:  number;
   oddsRecommended: number;
+  /** Pourcentage du modèle API-Football pour l'issue pronostiquée, 0–100. */
+  modelPercent?:   number | null;
 }): string {
   const { homeTeam, awayTeam, predictionType, probability,
           homeFormPoints, awayFormPoints, oddsRecommended } = params;
+  const modelPercent = params.modelPercent ?? null;
 
   const parts: string[] = [];
 
@@ -138,7 +182,17 @@ export function explainPrediction(params: {
         : ` — avantage ${leader}.`));
   }
 
-  // 3. Le résultat, sans surinterprétation.
+  // 3. La seconde opinion, quand elle existe. Le fournisseur n'est plus
+  //    nommé dans le texte affiché, mais on continue de dire que le calcul est
+  //    externe : c'est un modèle tiers, pas une mesure de PronoWin, et
+  //    l'utilisateur a le droit de savoir d'où sort le chiffre.
+  if (modelPercent !== null) {
+    parts.push(
+      `Un modèle statistique externe, qui croise forme, attaque, ` +
+      `défense et confrontations directes, donne ${modelPercent}% à cette issue.`);
+  }
+
+  // 4. Le résultat, sans surinterprétation.
   parts.push(
     `En combinant ces signaux, le modèle retient ${probability}% de probabilité ` +
     `de réussite pour ce pronostic.`);
@@ -177,6 +231,14 @@ export async function analyzePronostic(id: string): Promise<StatPrediction> {
     };
   }
 
+  // Seconde opinion — best effort : `getPrediction` rend `null` sur panne, sur
+  // quota épuisé ou sur un match d'une source sans identifiant API-Football.
+  // Le calcul retombe alors exactement sur son comportement précédent.
+  const prediction = prono.match.source === 'API_FOOTBALL' && prono.match.externalId
+    ? await apiFootballInsights.getPrediction(prono.match.externalId)
+    : null;
+  const model = modelSignal(prono.predictionType, prediction);
+
   const probability = computeProbability(
     prono.predictionType,
     prono.oddsHome,
@@ -185,6 +247,7 @@ export async function analyzePronostic(id: string): Promise<StatPrediction> {
     prono.oddsRecommended,
     prono.match.homeFormPoints ?? 0,
     prono.match.awayFormPoints ?? 0,
+    model,
   );
 
   const explanation = explainPrediction({
@@ -195,6 +258,7 @@ export async function analyzePronostic(id: string): Promise<StatPrediction> {
     homeFormPoints:  prono.match.homeFormPoints ?? 0,
     awayFormPoints:  prono.match.awayFormPoints ?? 0,
     oddsRecommended: prono.oddsRecommended,
+    modelPercent:    model === null ? null : Math.round(model * 100),
   });
 
   // Mise en cache en DB

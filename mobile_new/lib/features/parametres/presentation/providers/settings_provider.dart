@@ -32,7 +32,7 @@ class AppSettings {
     this.themeMode     = ThemeMode.dark,
     this.lang          = 'fr',
     this.notifMatch    = true,
-    this.notifPromo    = true,
+    this.notifPromo    = false,   // marketing : opt-in
     this.notifReferral = true,
     this.notifPremium  = true,
     this.pinEnabled    = false,
@@ -85,7 +85,10 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
                           : ThemeMode.dark,
       lang:          p.getString(_kLang)  ?? 'fr',
       notifMatch:    p.getBool(_kNotifMatch)    ?? true,
-      notifPromo:    p.getBool(_kNotifPromo)    ?? true,
+      // Marketing : consentement explicite. Les alertes de match, le
+      // parrainage et l'abonnement sont du service attendu et restent
+      // actifs ; les offres commerciales se choisissent.
+      notifPromo:    p.getBool(_kNotifPromo)    ?? false,
       notifReferral: p.getBool(_kNotifReferral) ?? true,
       notifPremium:  p.getBool(_kNotifPremium)  ?? true,
       pinEnabled:    p.getBool(_kPinEnabled)    ?? false,

@@ -1,6 +1,8 @@
 ﻿import { NotificationService } from './notification.service';
 import { prisma } from '../lib/prisma';
+import { Prisma } from '@prisma/client';
 import { ReferralService } from './referral.service';
+import { listerPubliques } from './payment_method.service';
 
 // Import S3 de façon lazy pour éviter le crash si AWS pas configuré
 let s3Svc: any = null;
@@ -189,6 +191,9 @@ export class SubscriptionService {
         // Tarif des builds store (commission Apple/Google incluse).
         premium_price_monthly_store_usd: PREMIUM_PRICE_USD_STORE_MONTHLY,
         premium_price_annual_store_usd:  PREMIUM_PRICE_USD_STORE_ANNUAL,
+        // Numéros de réception, gérés depuis l'administration. L'app affichait
+        // jusqu'ici une constante compilée dans le binaire.
+        payment_methods: await listerPubliques(),
         pending_proof: pendingProof ? {
           id:         pendingProof.id,
           type:       pendingProof.type,
@@ -217,6 +222,7 @@ export class SubscriptionService {
         // Tarif des builds store (commission Apple/Google incluse).
         premium_price_monthly_store_usd: PREMIUM_PRICE_USD_STORE_MONTHLY,
         premium_price_annual_store_usd:  PREMIUM_PRICE_USD_STORE_ANNUAL,
+        payment_methods: await listerPubliques(),
         pending_proof: null,
         error:         e.message,
       };
@@ -351,17 +357,102 @@ export class SubscriptionService {
     };
   }
 
+  /**
+   * Preuves d'abonnement, filtrables par statut.
+   *
+   * Cette méthode ne servait que la file « en attente », et l'écran admin
+   * n'affichait donc rien d'autre : une fois une preuve traitée elle
+   * disparaissait sans laisser de trace consultable, alors que c'est une
+   * décision financière qu'on doit pouvoir retrouver et justifier.
+   *
+   * L'ancien `catch` renvoyait silencieusement une liste vide : une panne de
+   * base de données s'affichait comme « aucune preuve en attente ». L'erreur
+   * remonte désormais, à charge de l'appelant de la montrer.
+   */
+  async listProofs(params: {
+    page?: number; perPage?: number;
+    statut?: 'pending' | 'approved' | 'rejected' | 'all';
+    recherche?: string;
+  } = {}) {
+    const page    = Math.max(1, params.page ?? 1);
+    const perPage = Math.min(5000, Math.max(1, params.perPage ?? 20));
+    const statut  = params.statut ?? 'pending';
+    const q       = (params.recherche ?? '').trim();
+
+    const where: Prisma.SubscriptionProofWhereInput = {};
+    if (statut !== 'all') where.status = statut;
+    if (q) {
+      where.OR = [
+        { xbetId:      { contains: q, mode: 'insensitive' } },
+        { senderPhone: { contains: q, mode: 'insensitive' } },
+        { user: { pseudo:      { contains: q, mode: 'insensitive' } } },
+        { user: { phoneNumber: { contains: q, mode: 'insensitive' } } },
+      ];
+    }
+
+    const [items, total, contexte] = await Promise.all([
+      prisma.subscriptionProof.findMany({
+        where,
+        include: { user: { select: { id: true, pseudo: true, phoneNumber: true, xbetId: true } } },
+        // En attente : le plus ancien d'abord (ordre de la file). Traitées :
+        // le plus récent d'abord (ordre d'un historique).
+        orderBy: statut === 'pending' ? { createdAt: 'asc' } : { reviewedAt: 'desc' },
+        skip: (page - 1) * perPage,
+        take: perPage,
+      }),
+      prisma.subscriptionProof.count({ where }),
+      this._contexteProofs(),
+    ]);
+
+    return { data: items, total, page, per_page: perPage, statut, recherche: q,
+             promo_code: XBET_PROMO_CODE, contexte };
+  }
+
+  /** Conservé pour les appelants existants. */
   async getPendingProofs(page = 1, perPage = 20) {
-    try {
-      const [items, total] = await Promise.all([
-        prisma.subscriptionProof.findMany({
-          where: { status: 'pending' }, include: { user: { select: { pseudo: true, phoneNumber: true, xbetId: true } } },
-          orderBy: { createdAt: 'asc' }, skip: (page - 1) * perPage, take: perPage,
-        }),
-        prisma.subscriptionProof.count({ where: { status: 'pending' } }),
-      ]);
-      return { data: items, total, page, promo_code: XBET_PROMO_CODE };
-    } catch (_) { return { data: [], total: 0, page, promo_code: XBET_PROMO_CODE }; }
+    return this.listProofs({ page, perPage, statut: 'pending' });
+  }
+
+  /**
+   * Chiffres d'ensemble : ils expliquent une file vide et donnent la mesure de
+   * l'activité de validation, que l'écran ne montrait nulle part.
+   */
+  private async _contexteProofs() {
+    const [parStatut, revenu, dernieres] = await Promise.all([
+      prisma.subscriptionProof.groupBy({ by: ['status'], _count: { _all: true } }),
+      prisma.subscriptionProof.aggregate({ where: { status: 'approved' }, _sum: { amount: true } }),
+      // Délai de traitement : mesuré sur les 100 dernières décisions, pas sur
+      // tout l'historique — la moyenne doit refléter le rythme actuel.
+      prisma.subscriptionProof.findMany({
+        where:   { status: { not: 'pending' }, reviewedAt: { not: null } },
+        select:  { createdAt: true, reviewedAt: true },
+        orderBy: { reviewedAt: 'desc' },
+        take:    100,
+      }),
+    ]);
+
+    const compte = (s: string) =>
+      parStatut.find(g => g.status === s)?._count._all ?? 0;
+
+    // Borne a 0 : une date de revue anterieure a la soumission (horloge
+    // decalee, reprise de donnees) donnerait une moyenne negative, affichee
+    // telle quelle a l'ecran.
+    const delais = dernieres.map(d => Math.max(0,
+      (d.reviewedAt!.getTime() - d.createdAt.getTime()) / 3600000));
+    const delaiMoyen = delais.length
+      ? Math.round((delais.reduce((a, b) => a + b, 0) / delais.length) * 10) / 10
+      : null;
+
+    return {
+      en_attente:        compte('pending'),
+      approuvees:        compte('approved'),
+      rejetees:          compte('rejected'),
+      total:             parStatut.reduce((n, g) => n + g._count._all, 0),
+      revenu_approuve:   Math.round(revenu._sum.amount ?? 0),
+      derniere_decision: dernieres[0]?.reviewedAt ?? null,
+      delai_moyen_h:     delaiMoyen,
+      delai_echantillon: dernieres.length,
+    };
   }
 
   /**

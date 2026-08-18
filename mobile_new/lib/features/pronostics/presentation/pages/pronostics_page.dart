@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../../../core/utils/motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -162,8 +163,15 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
     final activeAdvancedCount = (leagueFilter != null ? 1 : 0) +
         (oddsRange != OddsRange.all ? 1 : 0);
 
+    // Matchs du jour, avant filtres avancés : la feuille s'en sert pour
+    // annoncer combien de résultats donnera la sélection en cours.
+    final matchsDuJour = allMatches
+        .where((m) => _isSameDay(m.matchDate, _selectedDate))
+        .toList();
+
     return Scaffold(
-      appBar: _buildAppBar(context, unread, activeAdvancedCount, availableLeagues),
+      appBar: _buildAppBar(
+          context, unread, activeAdvancedCount, availableLeagues, matchsDuJour),
       body: Column(children: [
         // ── Tab toggle ────────────────────────────────────────────────────────
         _TabToggle(
@@ -513,6 +521,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
     int unread,
     int activeAdvancedCount,
     List<String> availableLeagues,
+    List<MatchEntity> matchsDuJour,
   ) => AppBar(
     title: Row(children: [
       Container(
@@ -563,6 +572,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
               isScrollControlled: true,
               builder: (_) => _AdvancedFilterSheet(
                 availableLeagues: availableLeagues,
+                matchsDuJour:     matchsDuJour,
                 currentLeague:    ref.read(leagueFilterProvider),
                 currentOdds:      ref.read(oddsRangeFilterProvider),
                 onApply: (league, odds) {
@@ -899,7 +909,7 @@ class _StatPill extends StatelessWidget {
     Widget iconWidget = Icon(icon, size: 13, color: color);
     if (pulse) {
       iconWidget = iconWidget
-        .animate(onPlay: (c) => c.repeat(reverse: true))
+        .animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(reverse: true); })
         .fade(begin: 1, end: 0.3, duration: 700.ms);
     }
     final content = Container(
@@ -1124,6 +1134,12 @@ class _ActiveFiltersBar extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 class _AdvancedFilterSheet extends StatefulWidget {
   final List<String> availableLeagues;
+
+  /// Matchs du jour **avant** filtres avancés. Sert uniquement à compter les
+  /// résultats de la sélection en cours : un bouton « Fermer » ne disait pas
+  /// si les filtres choisis allaient donner trente matchs ou aucun.
+  final List<MatchEntity> matchsDuJour;
+
   final String? currentLeague;
   final OddsRange currentOdds;
   final void Function(String? league, OddsRange odds) onApply;
@@ -1131,6 +1147,7 @@ class _AdvancedFilterSheet extends StatefulWidget {
 
   const _AdvancedFilterSheet({
     required this.availableLeagues,
+    required this.matchsDuJour,
     required this.currentLeague,
     required this.currentOdds,
     required this.onApply,
@@ -1239,8 +1256,14 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
               widget.onApply(_league, _odds);
               Navigator.pop(context);
             },
+            // Le bouton annonce le résultat plutôt que l'action : on sait
+            // avant de valider si la sélection donne trente matchs ou aucun.
             child: Text(
-              _hasChange ? 'Appliquer les filtres' : 'Fermer',
+              switch (_nbResultats) {
+                0 => 'Aucun match — ajuster',
+                1 => 'Voir le match',
+                final n => 'Voir les $n matchs',
+              },
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           ),
         ),
@@ -1248,8 +1271,21 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
     );
   }
 
-  bool get _hasChange =>
-      _league != widget.currentLeague || _odds != widget.currentOdds;
+  /// Nombre de matchs que donnerait la sélection en cours. Même logique de
+  /// filtrage que la page — dupliquée ici en connaissance de cause : la sortir
+  /// obligerait à faire remonter les providers dans la feuille modale, pour
+  /// deux conditions tenant en cinq lignes.
+  int get _nbResultats => widget.matchsDuJour.where((m) {
+        if (_league != null && m.league != _league) return false;
+        final o = m.oddsRecommended;
+        return switch (_odds) {
+          OddsRange.under15    => o > 0 && o < 1.5,
+          OddsRange.from15to25 => o >= 1.5 && o < 2.5,
+          OddsRange.from25to4  => o >= 2.5 && o < 4.0,
+          OddsRange.over4      => o >= 4.0,
+          OddsRange.all        => true,
+        };
+      }).length;
 
   Color _oddsColor(OddsRange range) => switch (range) {
     OddsRange.under15    => AppColors.success,

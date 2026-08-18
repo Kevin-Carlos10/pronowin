@@ -93,20 +93,15 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
     ref.listen<AuthState>(authProvider, (_, state) {
       if (state is AuthAuthenticated) {
         _invalidateUserProviders();
-        if (state.user.acceptedTermsAt == null) {
-          context.go('/auth/terms', extra: widget.from);
-        } else if (!state.user.isProfileComplete) {
-          context.go('/compte/completer-profil', extra: widget.from);
-        } else {
-          context.go(widget.from ?? '/home');
-        }
-      } else if (state is TermsAccepted) {
-        _invalidateUserProviders();
-        if (!state.user.isProfileComplete) {
-          context.go('/compte/completer-profil', extra: widget.from);
-        } else {
-          context.go(widget.from ?? '/home');
-        }
+        // Le code validé, l'utilisateur est chez lui — point final.
+        //
+        // Il y avait ici deux détours obligatoires : un écran de CGU, alors
+        // que le consentement est déjà recueilli sur l'écran précédent, puis
+        // un formulaire d'identité sans bouton retour ni « plus tard ». Ces
+        // champs ne servent qu'au paiement Mobile Money du Premium
+        // (`requireProfileComplete` ne garde que deux routes) : ils sont
+        // maintenant demandés là-bas, au moment où ils ont un sens.
+        context.go(widget.from ?? '/home');
       } else if (state is AuthError) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(state.message),

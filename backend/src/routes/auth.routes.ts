@@ -4,18 +4,33 @@ import { authMiddleware } from '../middleware/auth.middleware';
 
 const router = Router();
 
-// Inscription rapide sans vérification
-router.post('/quick-register', AuthController.quickRegisterValidators, AuthController.quickRegister);
-
 // Routes publiques — WhatsApp OTP (pour vérification profil)
 router.post('/send-otp',   AuthController.sendOtpValidators,   AuthController.sendOtp);
 router.post('/verify-otp', AuthController.verifyOtpValidators, AuthController.verifyOtp);
 
-// Routes publiques — Email
-router.post('/register',         AuthController.registerEmailValidators,   AuthController.registerEmail);
-router.post('/login',            AuthController.loginEmailValidators,      AuthController.loginEmail);
+/*
+ * Connexion par e-mail — code à usage unique, sans mot de passe.
+ *
+ * Trois routes ont été retirées ici, et pas seulement parce qu'aucun client ne
+ * les appelait :
+ *
+ *   POST /quick-register  acceptait un e-mail nu et, si le compte existait,
+ *                         renvoyait des jetons valides pour ce compte. Connaître
+ *                         l'adresse d'un utilisateur suffisait à prendre sa
+ *                         place. Aucune limitation de débit n'était appliquée.
+ *   POST /register        posait le mot de passe de l'appelant sur tout compte
+ *                         dépourvu de `passwordHash` — donc sur tous ceux créés
+ *                         par OTP ou Google — puis renvoyait des jetons.
+ *   POST /set-password    n'avait plus d'objet une fois la connexion par mot de
+ *                         passe supprimée.
+ *
+ * Le code envoyé par e-mail est désormais le seul chemin d'entrée, avec Google.
+ */
 router.post('/send-email-otp',   AuthController.emailOtpValidators,        AuthController.sendEmailOtp);
 router.post('/verify-email-otp', AuthController.verifyEmailOtpValidators,  AuthController.verifyEmailOtp);
+
+// Connexion Google — le jeton est vérifié auprès de Google côté serveur.
+router.post('/google', AuthController.googleLoginValidators, AuthController.googleLogin);
 
 router.post('/refresh',    AuthController.refreshToken);
 
@@ -41,6 +56,5 @@ router.patch('/accept-terms', authMiddleware, AuthController.acceptTerms);
 // Étape 2 : vérifier et lier
 router.post('/link-phone',    authMiddleware, AuthController.linkPhone);
 router.post('/link-email',    authMiddleware, AuthController.linkEmail);
-router.post('/set-password',  authMiddleware, AuthController.setPassword);
 
 export default router;

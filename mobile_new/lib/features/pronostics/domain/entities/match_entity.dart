@@ -94,15 +94,35 @@ class MatchEntity extends Equatable {
   static int percentForConfidence(int score) =>
       _confidencePercentByScore[score.clamp(1, 5)]!;
 
-  bool get isToday {
-    final now = DateTime.now();
-    return matchDate.year == now.year && matchDate.month == now.month && matchDate.day == now.day;
+  /// Libellé de confiance — **source unique**.
+  ///
+  /// Quatre échelles cohabitaient dans l'app : un score de 4 s'affichait
+  /// « Excellent » sur l'accueil, « Bon » sur la liste des pronostics et
+  /// « Fort » sur la carte de partage. On garde les cinq paliers, qui sont
+  /// les seuls à correspondre au score réellement stocké (1 à 5).
+  static const Map<int, String> _confidenceLabelByScore = {
+    1: 'Risqué', 2: 'Faible', 3: 'Moyen', 4: 'Bon', 5: 'Excellent',
+  };
+
+  static String labelForConfidence(int score) =>
+      _confidenceLabelByScore[score.clamp(1, 5)]!;
+
+  String get confidenceLabel => labelForConfidence(confidenceScore);
+
+  /// `matchDate` est censé être local (converti au parsing dans `MatchModel`),
+  /// mais on ne peut pas le garantir pour toutes les voies de construction —
+  /// et comparer un instant UTC à un `DateTime.now()` local rangeait les matchs
+  /// du mauvais côté de minuit. Le `.toLocal()` est idempotent, il ne coûte
+  /// rien quand la conversion a déjà eu lieu.
+  bool _memeJourQue(DateTime autre) {
+    final d = matchDate.toLocal();
+    return d.year == autre.year && d.month == autre.month && d.day == autre.day;
   }
 
-  bool get isTomorrow {
-    final t = DateTime.now().add(const Duration(days: 1));
-    return matchDate.year == t.year && matchDate.month == t.month && matchDate.day == t.day;
-  }
+  bool get isToday => _memeJourQue(DateTime.now());
+
+  bool get isTomorrow =>
+      _memeJourQue(DateTime.now().add(const Duration(days: 1)));
 
   /// Raccourci booléen pour le résultat — true/false pour WIN/LOSS, null si
   /// non résolu OU remboursé (PUSH, ni gain ni perte). Les widgets qui

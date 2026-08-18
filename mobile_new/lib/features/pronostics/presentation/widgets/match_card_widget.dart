@@ -1,5 +1,7 @@
 ﻿import 'dart:ui';
 import 'package:flutter/material.dart';
+import '../../../../core/utils/motion.dart';
+import '../../../../shared/widgets/confidence_indicator.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -263,22 +265,67 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
                     color: AppColors.primary.withValues(alpha: 0.35), width: 0.5)),
-                child: Text(
-                  widget.match.displayPredictionLabel,
-                  style: const TextStyle(
-                    color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w700),
-                  textAlign: TextAlign.center,
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                // La cote recommandée vit dans la même boîte que le
+                // pronostic auquel elle se rapporte. Elle n'était affichée
+                // nulle part : les trois cotes 1/N/2 juste en dessous portent
+                // sur le marché « vainqueur », pas sur le pronostic — on
+                // pouvait donc prendre 1.79 pour la cote de « Plus de 2.5 ».
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Flexible(
+                      child: Text(
+                        widget.match.displayPredictionLabel,
+                        style: const TextStyle(
+                            color: AppColors.primary,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis),
+                    ),
+                    if (widget.match.oddsRecommended > 0) ...[
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.18),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          widget.match.oddsRecommended.toStringAsFixed(2),
+                          style: const TextStyle(
+                              color: AppColors.success,
+                              fontSize: 12,
+                              fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
               ),
             ),
             const SizedBox(width: 10),
             // Score confiance (jauge)
-            _ConfidenceBar(score: widget.match.confidenceScore),
+            ConfidenceIndicator(score: widget.match.confidenceScore),
           ]),
 
           const SizedBox(height: 8),
 
-          // Ligne 2 : Cotes H / N / A
+          // Ligne 2 : cotes du marché « vainqueur ». Explicitement nommées :
+          // sans titre, elles se lisaient comme les cotes du pronostic.
+          Row(children: [
+            Text('VAINQUEUR DU MATCH',
+                style: TextStyle(
+                    color: context.cl.textM,
+                    fontSize: 8,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6)),
+            const SizedBox(width: 6),
+            Expanded(child: Divider(color: context.cl.border, height: 1)),
+          ]),
+          const SizedBox(height: 6),
           _OddsRow(match: widget.match),
         ],
       ),
@@ -385,7 +432,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
 
         const SizedBox(height: 8),
 
-        // ── Cotes visibles (sans mise en évidence de la recommandée) ────
+        // ── Cotes du marché « vainqueur », visibles même verrouillé ─────
         if (widget.match.oddsHome > 0 || widget.match.oddsDraw > 0 ||
             widget.match.oddsAway > 0)
           _LockedOddsRow(match: widget.match),
@@ -502,10 +549,18 @@ class _LivePulseState extends State<_LivePulse>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
+    );
     _pulse = Tween<double>(begin: 0.4, end: 1.0).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Boucle infinie : coupée si l'utilisateur a réduit les animations.
+    // Ce hook est aussi rappelé quand le réglage système change.
+    context.boucler(_ctrl, reverse: true);
   }
 
   @override
@@ -574,10 +629,18 @@ class _VipBadgeState extends State<_VipBadge>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1800),
-    )..repeat();
+    );
     _shimmer = Tween<double>(begin: -1.0, end: 2.0).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut),
     );
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Boucle infinie : coupée si l'utilisateur a réduit les animations.
+    // Ce hook est aussi rappelé quand le réglage système change.
+    context.boucler(_ctrl);
   }
 
   @override
@@ -933,58 +996,6 @@ class _ScoreCenter extends StatelessWidget {
 
 
 // ─── JAUGE DE CONFIANCE ANIMÉE ───────────────────────────────────────────────
-class _ConfidenceBar extends StatelessWidget {
-  final int score; // 1-5
-  const _ConfidenceBar({required this.score});
-
-  Color get _barColor {
-    if (score >= 5) return AppColors.success;
-    if (score >= 4) return const Color(0xFF84CC16);
-    if (score >= 3) return AppColors.warning;
-    if (score >= 2) return const Color(0xFFF97316);
-    return AppColors.error;
-  }
-
-  String get _label {
-    if (score >= 5) return 'Excellent';
-    if (score >= 4) return 'Bon';
-    if (score >= 3) return 'Moyen';
-    if (score >= 2) return 'Faible';
-    return 'Risqué';
-  }
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: [
-      Text(_label, style: TextStyle(
-        color: _barColor, fontSize: 9, fontWeight: FontWeight.w700)),
-      const SizedBox(height: 4),
-      TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: score.toDouble()),
-        duration: const Duration(milliseconds: 600),
-        curve: Curves.easeOutCubic,
-        builder: (_, value, _) => SizedBox(
-          width: 48, height: 5,
-          child: Row(
-            children: List.generate(5, (i) {
-              final fill = (value - i).clamp(0.0, 1.0);
-              return Expanded(child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 1),
-                decoration: BoxDecoration(
-                  color: fill > 0
-                    ? _barColor.withValues(alpha: fill)
-                    : context.cl.borderSoft,
-                  borderRadius: BorderRadius.circular(3))));
-            }),
-          ),
-        ),
-      ),
-    ],
-  );
-}
-
-// ─── PASTILLE BET ─────────────────────────────────────────────────────────────
 class _BetBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {

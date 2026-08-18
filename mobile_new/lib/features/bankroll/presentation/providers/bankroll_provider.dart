@@ -54,7 +54,7 @@ class BankrollBet {
     potentialGain:   (j['potential_gain'] as num).toDouble(),
     result:          j['result'] as String?,
     profit:          (j['profit'] as num?)?.toDouble(),
-    createdAt:       DateTime.parse(j['created_at'] as String),
+    createdAt:       DateTime.parse(j['created_at'] as String).toLocal(),
     settledAt:       j['settled_at'] != null
         ? DateTime.tryParse(j['settled_at'] as String) : null,
     homeTeam:        (j['match'] as Map)['home_team'] as String,

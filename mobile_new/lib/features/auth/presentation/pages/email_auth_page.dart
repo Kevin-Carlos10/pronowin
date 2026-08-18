@@ -111,11 +111,20 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
 
                       const SizedBox(height: 24),
 
-                      const _BenefitRow(text: 'Suis tes pronostics et paris favoris'),
-                      const SizedBox(height: 12),
-                      const _BenefitRow(text: 'Débloque le Premium et l\'analyse statistique'),
-                      const SizedBox(height: 12),
-                      const _BenefitRow(text: 'Gère ta bankroll et ton parrainage'),
+                      // Les trois lignes partagent une colonne alignée à
+                      // gauche : centrées individuellement, leurs pastilles se
+                      // décalaient au gré de la longueur de chaque texte.
+                      const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _BenefitRow(text: 'Suis tes pronostics et paris favoris'),
+                          SizedBox(height: 12),
+                          _BenefitRow(
+                              text: 'Débloque le Premium et l\'analyse statistique'),
+                          SizedBox(height: 12),
+                          _BenefitRow(text: 'Gère ta bankroll et ton parrainage'),
+                        ],
+                      ),
 
                       const SizedBox(height: 32),
 
@@ -127,6 +136,11 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
                           textAlign: TextAlign.center,
                           keyboardType: TextInputType.emailAddress,
                           textInputAction: TextInputAction.done,
+                          // Laisse le gestionnaire de mots de passe et la
+                          // saisie automatique proposer l'adresse.
+                          autofillHints: const [AutofillHints.email],
+                          autocorrect: false,
+                          enableSuggestions: false,
                           onFieldSubmitted: (_) => _submit(),
                           style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600),
                           decoration: const InputDecoration(hintText: 'Adresse email'),
@@ -151,10 +165,57 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
 
                       const SizedBox(height: 18),
 
+                      // Séparateur
+                      Row(children: [
+                        Expanded(child: Divider(color: context.cl.border, height: 1)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: Text('ou',
+                              style: TextStyle(
+                                  color: context.cl.textM, fontSize: 12)),
+                        ),
+                        Expanded(child: Divider(color: context.cl.border, height: 1)),
+                      ]).animate().fadeIn(duration: 400.ms, delay: 210.ms),
+
+                      const SizedBox(height: 18),
+
+                      // Deux appuis au lieu de : saisir l'adresse, attendre le
+                      // code, aller le chercher dans sa boîte mail, le ressaisir.
+                      SizedBox(
+                        width: double.infinity,
+                        child: OutlinedButton.icon(
+                          onPressed: authState is AuthLoading
+                              ? null
+                              : () async {
+                                  final ok = await ref
+                                      .read(authProvider.notifier)
+                                      .loginWithGoogle();
+                                  if (!ok || !context.mounted) return;
+                                },
+                          icon: const Icon(Icons.g_mobiledata_rounded, size: 26),
+                          label: const Text('Continuer avec Google'),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: context.cl.textP,
+                            side: BorderSide(color: context.cl.border),
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                            textStyle: const TextStyle(
+                                fontSize: 15, fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                      ).animate().fadeIn(duration: 400.ms, delay: 240.ms),
+
+                      const SizedBox(height: 18),
+
+                      // Seul recueil de consentement depuis la suppression de
+                      // l'écran de CGU : cette mention doit être lisible, pas
+                      // décorative. `textM` donnait 2,5:1 sur ce fond, sous le
+                      // seuil AA de 4,5:1 ; `textS` monte à ~6:1.
                       RichText(
                         textAlign: TextAlign.center,
                         text: TextSpan(
-                          style: TextStyle(color: context.cl.textM, fontSize: 11.5),
+                          style: TextStyle(color: context.cl.textS, fontSize: 12.5, height: 1.45),
                           children: [
                             const TextSpan(text: 'En continuant, tu acceptes nos '),
                             TextSpan(
@@ -213,6 +274,7 @@ class _BenefitRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
     mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Container(
         width: 20, height: 20,

@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/erreur_chargement.dart';
+import '../../../../core/utils/motion.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -33,13 +35,11 @@ class ClassementPage extends ConsumerWidget {
             Expanded(
               child: entriesAsync.when(
                 loading: () => const _Shimmer(),
-                error:   (e, _) => Center(
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    const Icon(Icons.wifi_off_rounded, color: AppColors.error, size: 48),
-                    const SizedBox(height: 12),
-                    Text('Impossible de charger le classement',
-                      style: TextStyle(color: context.cl.textS, fontSize: 14)),
-                  ]),
+                error:   (e, _) => ErreurChargement(
+                  erreur: e,
+                  quoi: 'le classement',
+                  from: '/classement',
+                  onRetry: () => ref.invalidate(leaderboardProvider),
                 ),
                 data: (entries) {
                   if (entries.isEmpty) {
@@ -143,7 +143,7 @@ class _ClassementAppBar extends StatelessWidget {
               color: _gold.withValues(alpha: 0.4),
               blurRadius: 10, offset: const Offset(0, 3))]),
           child: const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 18),
-        ).animate(onPlay: (c) => c.repeat(reverse: true))
+        ).animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(reverse: true); })
          .scale(begin: const Offset(1.0, 1.0), end: const Offset(1.08, 1.08),
              duration: 1400.ms, curve: Curves.easeInOut),
         const SizedBox(width: 10),
@@ -289,7 +289,13 @@ class _PodiumCol extends StatelessWidget {
   Widget build(BuildContext context) {
     if (entry == null) return const SizedBox();
     final e = entry!;
-    return Column(
+    // Le podium est une mise en forme visuelle : la hauteur de la colonne
+    // porte le rang, information invisible pour un lecteur d'écran.
+    return Semantics(
+      label: '${e.rank}e place du podium : ${e.pseudo}, '
+             '${e.winRateLabel} de réussite sur ${e.totalPredictions} pronostics.',
+      excludeSemantics: true,
+      child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         // Avatar
@@ -348,7 +354,7 @@ class _PodiumCol extends StatelessWidget {
       ],
     ).animate(delay: animDelay)
      .fadeIn(duration: 400.ms)
-     .slideY(begin: 0.1, end: 0, curve: Curves.easeOutBack);
+     .slideY(begin: 0.1, end: 0, curve: Curves.easeOutBack));
   }
 }
 
@@ -432,7 +438,18 @@ class _EntryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final e = entry;
-    return Container(
+    // Lue widget par widget, la ligne donnait « #7 », « kevin », « 12/18
+    // gagnés », « 67 % » comme quatre fragments détachés — sans dire que #7
+    // est un rang ni que 67 % est un taux de réussite.
+    final annonce = 'Rang ${e.rank}. ${e.pseudo}'
+        '${e.isPremium ? ", membre Premium" : ""}. '
+        '${e.wonPredictions} pronostics gagnés sur ${e.totalPredictions}, '
+        'soit ${e.winRateLabel} de réussite.';
+
+    return Semantics(
+      label: annonce,
+      excludeSemantics: true,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
       decoration: BoxDecoration(
@@ -494,7 +511,7 @@ class _EntryTile extends StatelessWidget {
             fontSize: 12, fontWeight: FontWeight.w700)),
         ]),
       ]),
-    );
+    ));
   }
 
   Color _winRateColor(double rate) {
@@ -549,7 +566,7 @@ class _Shimmer extends StatelessWidget {
         color: context.cl.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: context.cl.border, width: 0.5)),
-    ).animate(onPlay: (c) => c.repeat(reverse: true))
+    ).animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(reverse: true); })
      .shimmer(duration: 1000.ms, color: Colors.white10),
   );
 }

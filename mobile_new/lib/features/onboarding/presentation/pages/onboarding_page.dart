@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/motion.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -328,9 +329,17 @@ class _EmojiOrbState extends State<_EmojiOrb>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2400),
-    )..repeat(reverse: true);
+    );
     _float = Tween<double>(begin: -8, end: 8).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Boucle infinie : coupée si l'utilisateur a réduit les animations.
+    // Ce hook est aussi rappelé quand le réglage système change.
+    context.boucler(_ctrl, reverse: true);
   }
 
   @override

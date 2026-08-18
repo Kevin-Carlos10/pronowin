@@ -1,4 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
+import '../../../../core/utils/motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -610,7 +611,21 @@ class _BalanceCard extends StatelessWidget {
     final profitColor = isProfit ? AppColors.success : AppColors.error;
     final pct         = bankroll.progressPct;
 
-    return Container(
+    // Lue widget par widget, la carte donnait « Solde actuel », « 12 500 »,
+    // « FCFA », « Budget total », « 10 000 », « FCFA », « +2 500 », « 125 % du
+    // budget » : huit fragments dont aucun ne dit lequel est quoi, sur l'écran
+    // où l'utilisateur suit son argent.
+    final annonce = 'Solde actuel '
+        '${_formatAmount(bankroll.currentBalance)} ${bankroll.currency}, '
+        'sur un budget de ${_formatAmount(bankroll.totalBudget)} ${bankroll.currency}. '
+        '${isProfit ? 'Bénéfice' : 'Perte'} de '
+        '${_formatAmount(profit.abs())} ${bankroll.currency}, '
+        'soit ${(pct * 100).toStringAsFixed(0)} pour cent du budget.';
+
+    return Semantics(
+      label: annonce,
+      excludeSemantics: true,
+      child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -673,7 +688,7 @@ class _BalanceCard extends StatelessWidget {
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
       ]),
-    );
+    ));
   }
 }
 
@@ -685,7 +700,13 @@ class _StatChip extends StatelessWidget {
   const _StatChip({required this.label, required this.value, required this.icon, required this.color});
 
   @override
-  Widget build(BuildContext context) => Container(
+  // La valeur précède le libellé à l'écran, ce qui est bon visuellement mais
+  // s'annonce à l'envers : « 12 » puis « Paris gagnés ». On rétablit l'ordre
+  // pour la voix.
+  Widget build(BuildContext context) => Semantics(
+    label: '$label : $value',
+    excludeSemantics: true,
+    child: Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: context.cl.surface,
@@ -698,7 +719,7 @@ class _StatChip extends StatelessWidget {
           color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w800)),
       Text(label, style: TextStyle(color: context.cl.textM, fontSize: 10)),
     ]),
-  );
+  ));
 }
 
 // ── Carte pari ────────────────────────────────────────────────────────────────
@@ -720,7 +741,25 @@ class _BetCard extends StatelessWidget {
                     : isPush   ? Icons.replay_rounded
                     :             Icons.cancel_rounded;
 
-    return GestureDetector(
+    // Sans libellé, la carte s'annonçait « PSG – Marseille, Plus de 2.5,
+    // −1 000, +1 800 » : impossible de savoir si le pari est en cours, gagné
+    // ou perdu, ni ce que sont ces deux montants.
+    final etat = isPending ? 'en cours'
+               : isWin    ? 'gagné'
+               : isPush   ? 'remboursé'
+               :            'perdu';
+    final montant = bet.profit != null
+        ? '${bet.profit! >= 0 ? 'Gain' : 'Perte'} de '
+          '${_formatAmount(bet.profit!.abs())}'
+        : 'Gain potentiel ${_formatAmount(bet.potentialGain)}';
+
+    return Semantics(
+      button: true,
+      label: '${bet.homeTeam} contre ${bet.awayTeam}. '
+             '${bet.displayPredictionLabel}. Pari $etat. '
+             'Mise ${_formatAmount(bet.stakedAmount)}. $montant.',
+      excludeSemantics: true,
+      child: GestureDetector(
       onTap: () => context.push('/bankroll/bet/${bet.id}', extra: bet),
       child: Container(
         margin:  const EdgeInsets.only(bottom: 10),
@@ -765,7 +804,7 @@ class _BetCard extends StatelessWidget {
           ]),
         ]),
       ),
-    );
+    ));
   }
 }
 
@@ -1060,9 +1099,17 @@ class _BankrollShimmerState extends State<_BankrollShimmer>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: 900.ms)..repeat(reverse: true);
+    _ctrl = AnimationController(vsync: this, duration: 900.ms);
     _anim = Tween<double>(begin: 0.3, end: 0.7)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Boucle infinie : coupée si l'utilisateur a réduit les animations.
+    // Ce hook est aussi rappelé quand le réglage système change.
+    context.boucler(_ctrl, reverse: true);
   }
   @override
   void dispose() { _ctrl.dispose(); super.dispose(); }

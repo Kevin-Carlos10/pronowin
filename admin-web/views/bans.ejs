@@ -81,7 +81,7 @@
 <!-- ── Header ── -->
 <div class="topbar">
   <div>
-    <h2>🚫 Bannissements</h2>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannissements</h2>
     <small>
       <% if (filter === 'active') { %><%= stats.active %> ban<%= stats.active!==1?'s':'' %> actif<%= stats.active!==1?'s':'' %>
       <% } else if (filter === 'expired') { %><%= total %> entrée<%= total!==1?'s':'' %> levées/expirées
@@ -89,8 +89,8 @@
     </small>
   </div>
   <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-    <button class="btn btn-outline btn-sm" onclick="toggleQuickBan()">➕ Bannir un utilisateur</button>
-    <a href="/admin/bans/export" class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)">⬇️ Export CSV</a>
+    <button class="btn btn-outline btn-sm" onclick="toggleQuickBan()"><svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Bannir un utilisateur</button>
+    <a href="/admin/bans/export" class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV</a>
   </div>
 </div>
 
@@ -100,11 +100,11 @@
 <!-- ── Stats ── -->
 <div class="bans-stats">
   <div class="ban-stat" style="border-left-color:var(--error)">
-    <div class="bs-lbl">🚫 Actifs</div>
+    <div class="bs-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Actifs</div>
     <div class="bs-val" style="color:var(--error)"><%= stats.active %></div>
   </div>
   <div class="ban-stat" style="border-left-color:var(--error)">
-    <div class="bs-lbl">♾️ Permanents</div>
+    <div class="bs-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-infinity"/></svg> Permanents</div>
     <div class="bs-val" style="color:var(--error)"><%= stats.permanent %></div>
   </div>
   <div class="ban-stat" style="border-left-color:var(--warning)">
@@ -112,15 +112,15 @@
     <div class="bs-val" style="color:var(--warning)"><%= stats.temporary %></div>
   </div>
   <div class="ban-stat" style="border-left-color:var(--warning)">
-    <div class="bs-lbl">🔔 Expirent ≤ 7j</div>
+    <div class="bs-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-bell"/></svg> Expirent ≤ 7j</div>
     <div class="bs-val" style="color:var(--warning)"><%= stats.expiringSoon %></div>
   </div>
   <div class="ban-stat">
-    <div class="bs-lbl">📅 Aujourd'hui</div>
+    <div class="bs-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg> Aujourd'hui</div>
     <div class="bs-val" style="color:var(--text-dim)"><%= stats.today %></div>
   </div>
   <div class="ban-stat">
-    <div class="bs-lbl">📋 Total historique</div>
+    <div class="bs-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Total historique</div>
     <div class="bs-val"><%= stats.total %></div>
   </div>
 </div>
@@ -128,7 +128,7 @@
 <!-- ── Formulaire ban rapide ── -->
 <div class="quick-ban-card" id="quick-ban-card">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem">
-    <h3 style="font-size:.9rem;font-weight:700;margin:0">➕ Bannir un utilisateur</h3>
+    <h3 style="font-size:.9rem;font-weight:700;margin:0"><svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Bannir un utilisateur</h3>
     <button onclick="toggleQuickBan()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:1.2rem;line-height:1;padding:0">×</button>
   </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
@@ -168,8 +168,8 @@
     <div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:.5rem">
       <button class="btn btn-outline" onclick="toggleQuickBan()">Annuler</button>
       <button class="btn btn-danger"
-        onclick="askConfirm({icon:'🚫',title:'Confirmer le bannissement',msg:'Bannir cet utilisateur ?',btnLabel:'Bannir',btnClass:'btn-danger',onConfirm:submitQuickBan})">
-        🚫 Bannir
+        onclick="askConfirm({icon:'ban',title:'Confirmer le bannissement',msg:'Bannir cet utilisateur ?',btnLabel:'Bannir',btnClass:'btn-danger',onConfirm:submitQuickBan})">
+        <svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir
       </button>
     </div>
   </div>
@@ -179,20 +179,20 @@
 <div class="bans-bar">
   <div class="filter-tabs">
     <a href="/admin/bans?filter=active<%= search ? '&search='+encodeURIComponent(search) : '' %>"
-      class="filter-tab <%= filter==='active'?'active':'' %>">🚫 Actifs <span style="font-size:.7rem;opacity:.7">(<%= stats.active %>)</span></a>
+      class="filter-tab <%= filter==='active'?'active':'' %>"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Actifs <span style="font-size:.7rem;opacity:.7">(<%= stats.active %>)</span></a>
     <a href="/admin/bans?filter=expired<%= search ? '&search='+encodeURIComponent(search) : '' %>"
-      class="filter-tab <%= filter==='expired'?'active':'' %>">✅ Levés/Expirés</a>
+      class="filter-tab <%= filter==='expired'?'active':'' %>"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Levés/Expirés</a>
     <a href="/admin/bans?filter=all<%= search ? '&search='+encodeURIComponent(search) : '' %>"
-      class="filter-tab <%= filter==='all'?'active':'' %>">📋 Tous (<%= stats.total %>)</a>
+      class="filter-tab <%= filter==='all'?'active':'' %>"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Tous (<%= stats.total %>)</a>
   </div>
 
   <form method="GET" action="/admin/bans" style="display:flex;gap:.4rem;flex:1;max-width:340px">
     <input type="hidden" name="filter" value="<%= filter %>">
     <input class="input" type="search" name="search" value="<%= search %>"
       placeholder="Pseudo, raison, admin…" style="flex:1">
-    <button class="btn btn-primary btn-sm" type="submit">🔍</button>
+    <button class="btn btn-primary btn-sm" type="submit" aria-label="Lancer la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></button>
     <% if (search) { %>
-    <a href="/admin/bans?filter=<%= filter %>" class="btn btn-outline btn-sm">✕</a>
+    <a href="/admin/bans?filter=<%= filter %>" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></a>
     <% } %>
   </form>
 </div>
@@ -201,7 +201,7 @@
 <% if (bans.length === 0) { %>
 <div style="text-align:center;padding:3.5rem 1rem;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius)">
   <div style="font-size:3rem;margin-bottom:.75rem">
-    <%= filter==='active' ? '✅' : filter==='expired' ? '📂' : '🚫' %>
+    <%= filter==='active' ? '✓' : filter==='expired' ? '' : '' %>
   </div>
   <h3 style="font-weight:700;margin-bottom:.4rem;font-size:1rem">
     <% if (filter==='active') { %>Aucun ban actif
@@ -248,7 +248,7 @@
       <td>
         <div class="ban-pseudo">
           <%= b.pseudo || '—' %>
-          <% if (isSoon) { %><span style="font-size:.65rem;color:var(--warning);margin-left:.3rem">⚠️</span><% } %>
+          <% if (isSoon) { %><span style="font-size:.65rem;color:var(--warning);margin-left:.3rem"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg></span><% } %>
         </div>
         <div class="ban-uid">ID&nbsp;<%= b.userId %></div>
       </td>
@@ -257,14 +257,14 @@
       <td>
         <div class="reason-cell" title="<%= b.reason %>"><%= b.reason || '—' %></div>
         <% if (b.unbanReason) { %>
-        <div style="font-size:.7rem;color:var(--success);margin-top:.2rem">✅ Note : <%= b.unbanReason %></div>
+        <div style="font-size:.7rem;color:var(--success);margin-top:.2rem"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Note : <%= b.unbanReason %></div>
         <% } %>
       </td>
 
       <!-- Durée -->
       <td>
         <% if (!b.durationDays || b.durationDays === 0) { %>
-          <span class="dur-pill <%= isExpired ? 'dur-done' : 'dur-perm' %>">♾️ Permanent</span>
+          <span class="dur-pill <%= isExpired ? 'dur-done' : 'dur-perm' %>"><svg class="ic" aria-hidden="true"><use href="#ic-infinity"/></svg> Permanent</span>
         <% } else { %>
           <span class="dur-pill <%= isExpired ? 'dur-done' : 'dur-temp' %>">⏳ <%= b.durationDays %>j</span>
         <% } %>
@@ -304,20 +304,20 @@
       <!-- Statut -->
       <td>
         <% if (!b.active && b.unbannedAt) { %>
-          <span class="st-pill st-expired">✅ Levé</span>
+          <span class="st-pill st-expired"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Levé</span>
         <% } else if (isExpired) { %>
           <span class="st-pill st-expired">⏰ Expiré</span>
         <% } else if (isSoon) { %>
-          <span class="st-pill st-soon">⚠️ Expire bientôt</span>
+          <span class="st-pill st-soon"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Expire bientôt</span>
         <% } else { %>
-          <span class="st-pill st-active">🚫 Actif</span>
+          <span class="st-pill st-active"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Actif</span>
         <% } %>
       </td>
 
       <!-- Actions -->
       <td style="text-align:right;white-space:nowrap">
         <div style="display:flex;gap:.4rem;justify-content:flex-end">
-          <a href="/admin/users/<%= b.userId %>" class="btn btn-outline btn-xs" title="Voir le profil">👤</a>
+          <a href="/admin/users/<%= b.userId %>" class="btn btn-outline btn-xs" title="Voir le profil"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg></a>
           <% if (b.active && !isExpired) { %>
           <form method="POST" action="/admin/users/<%= b.userId %>/unban" style="display:inline">
             <input type="hidden" name="pseudo" value="<%= b.pseudo %>">
@@ -325,8 +325,8 @@
             <button type="button" class="btn btn-outline btn-xs"
               style="color:var(--success);border-color:var(--success)"
               data-pseudo="<%= b.pseudo %>"
-              onclick="(function(btn){askConfirm({icon:'✅',title:'Lever le bannissement',msg:'Lever le ban de <strong>'+btn.dataset.pseudo+'</strong> ?',btnLabel:'Lever le ban',btnClass:'btn-outline',onConfirm:function(){btn.closest('form').submit()}})})(this)">
-              ✅ Lever
+              onclick="(function(btn){askConfirm({icon:'check',title:'Lever le bannissement',msg:'Lever le ban de <strong>'+btn.dataset.pseudo+'</strong> ?',btnLabel:'Lever le ban',btnClass:'btn-outline',onConfirm:function(){btn.closest('form').submit()}})})(this)">
+              <svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Lever
             </button>
           </form>
           <% } %>

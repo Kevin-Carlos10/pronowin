@@ -12,82 +12,18 @@
 .pro-stat.orange { border-left-color:var(--warning); } .pro-stat.orange .v { color:var(--warning); }
 .pro-stat.dim    { border-left-color:var(--border-s); }.pro-stat.dim    .v { color:var(--text-m); }
 
-/* ── Filtre bar ─────────────────────────────────────────────────────────────── */
-.pro-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
-.pro-filter select, .pro-filter input {
-  background:var(--surface-d); border:1px solid var(--border);
-  border-radius:var(--radius-s); padding:.45rem .75rem;
-  color:var(--text); font-size:.83rem; font-family:inherit;
-  outline:none; transition:border-color .15s;
-}
-.pro-filter select:focus, .pro-filter input:focus { border-color:var(--primary); }
-.pro-filter input[name="q"] { min-width:220px; }
+/* Barre de filtres : voir .filterbar dans style.css (socle partagé). */
 
-/* ── Match cards ─────────────────────────────────────────────────────────────── */
-.pro-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:.9rem; }
-@media(max-width:680px){ .pro-grid { grid-template-columns:1fr; } }
 
-.pro-card {
-  background:var(--surface); border:1px solid var(--border);
-  border-radius:16px; overflow:hidden;
-  transition:box-shadow .2s, border-color .2s, transform .2s;
-  display:flex; flex-direction:column;
-}
-.pro-card:hover { box-shadow:0 10px 32px rgba(0,0,0,.22); border-color:var(--primary); transform:translateY(-2px); }
-.pro-card.published  { border-left:3px solid var(--success); }
-.pro-card.draft      { border-left:3px solid var(--warning); }
-.pro-card.none       { border-left:3px solid var(--border); }
-.pro-card.live-match { border:1.5px solid var(--error); box-shadow:0 0 0 2px color-mix(in srgb,var(--error) 12%,transparent); }
 
-.pro-card-head {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:.6rem .9rem; border-bottom:1px solid var(--border);
-  gap:.5rem;
-}
-.pro-league { display:flex; align-items:center; gap:.35rem; font-size:.72rem; color:var(--text-m); font-weight:600; }
-.pro-league img { width:16px; height:16px; object-fit:contain; }
 .pro-date { font-size:.72rem; color:var(--text-dim); white-space:nowrap; }
 
-.pro-card-body { padding:.85rem .9rem; flex:1; }
-.pro-vs {
-  display:flex; align-items:center; justify-content:center;
-  gap:.75rem; text-align:center;
-}
-.pro-team { flex:1; display:flex; flex-direction:column; align-items:center; gap:.35rem; }
-.pro-team img { width:40px; height:40px; border-radius:50%; object-fit:contain; background:var(--surface-d); }
-.pro-team .team-initial {
-  width:40px; height:40px; border-radius:50%; background:var(--surface-d);
-  display:flex; align-items:center; justify-content:center;
-  font-weight:800; font-size:1rem; color:var(--text-m);
-}
-.pro-team .name { font-size:.8rem; font-weight:700; line-height:1.2; }
-.pro-vs-sep { font-size:1rem; font-weight:800; color:var(--text-dim); flex-shrink:0; }
 
-.pro-tip { margin-top:.75rem; padding:.5rem .7rem; background:var(--surface-d); border-radius:var(--radius-s); font-size:.78rem; }
-.pro-tip .label { color:var(--text-dim); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; margin-bottom:.2rem; }
-.pro-tip .val { font-weight:700; color:var(--text); }
-.pro-tip .conf { float:right; color:var(--warning); letter-spacing:.05em; }
 
-.pro-card-foot {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:.6rem .9rem; border-top:1px solid var(--border);
-  gap:.5rem; flex-wrap:wrap;
-}
 
 /* ── Countdown badge ────────────────────────────────────────────────────────── */
-.pro-countdown { font-size:.7rem; color:var(--text-dim); }
-.pro-countdown.soon { color:var(--warning); font-weight:700; }
-.pro-countdown.live { color:var(--error); font-weight:700; animation:pulse-live 1.5s ease-in-out infinite; }
 
 /* ── Groupe par championnat (Mes pronostics) ──────────────────────────────────── */
-.league-group { margin-bottom:1.4rem; }
-.league-group-head {
-  display:flex; align-items:center; gap:.5rem; margin-bottom:.6rem;
-  padding-bottom:.4rem; border-bottom:1px solid var(--border);
-}
-.league-group-head img { width:20px; height:20px; object-fit:contain; }
-.league-group-head .name { font-size:.92rem; font-weight:800; color:var(--text); }
-.league-group-head .count { font-size:.74rem; color:var(--text-dim); font-weight:600; }
 </style>
 
 <%
@@ -110,12 +46,23 @@
 
 <div class="topbar">
   <div>
-    <h2>⚽ Pronostics</h2>
-    <small><%= _total %> match<%= _total!==1?'s':'' %> · <%= (typeof live !== 'undefined' && live) ? 'Matchs en direct (base locale)' : (typeof mine !== 'undefined' && mine) ? 'Mes pronostics (base locale)' : 'API-Football' %></small>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Pronostics</h2>
+    <%# Le total avant troncature vient de l'en-tête X-Total-Count. L'afficher
+        évite de laisser croire que la liste est complète quand elle est
+        plafonnée à 400. %>
+    <% const _totalReel = (typeof totalMatchs !== 'undefined' && totalMatchs) ? totalMatchs : _total; %>
+    <small>
+      <% if (_totalReel > _total) { %>
+        <%= _total %> affichés sur <%= _totalReel.toLocaleString('fr-FR') %> matchs
+      <% } else { %>
+        <%= _total %> match<%= _total!==1?'s':'' %>
+      <% } %>
+      · <%= (typeof live !== 'undefined' && live) ? 'Matchs en direct (base locale)' : (typeof mine !== 'undefined' && mine) ? 'Mes pronostics (base locale)' : 'Catalogue externe' %>
+    </small>
   </div>
   <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
     <a href="/admin/pronostics/export<%= competition ? '?competition='+competition : '' %>"
-       class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)">⬇️ Export CSV</a>
+       class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV</a>
   </div>
 </div>
 
@@ -123,26 +70,29 @@
 <div style="display:flex;gap:.4rem;margin-bottom:1rem">
   <a href="/admin/pronostics"
      class="btn btn-sm <%= (typeof mine === 'undefined' || !mine) && (typeof live === 'undefined' || !live) ? 'btn-primary' : 'btn-outline' %>">
-    🌐 Découvrir
+    <svg class="ic" aria-hidden="true"><use href="#ic-globe"/></svg> Découvrir
   </a>
   <a href="/admin/pronostics?mine=1"
      class="btn btn-sm <%= (typeof mine !== 'undefined' && mine) ? 'btn-primary' : 'btn-outline' %>">
-    📋 Mes pronostics
+    <svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Mes pronostics
   </a>
   <a href="/admin/pronostics?live=1"
      class="btn btn-sm <%= (typeof live !== 'undefined' && live) ? 'btn-primary' : 'btn-outline' %>">
-    🔴 Match en direct
+    <svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-danger)"><use href="#ic-dot"/></svg> Match en direct
   </a>
 </div>
 
+<%# `data-toast="skip"` : le balayeur générique de layout_bottom transformait
+    déjà cette alerte en toast, et le script de la page en produisait un second.
+    Deux notifications identiques empilées pour un seul événement. %>
 <% if(typeof success !== 'undefined' && success){ %>
-<div class="alert alert-success" style="display:none" id="flash-success">✅ Pronostic publié avec succès !</div>
+<div class="alert alert-success" style="display:none" id="flash-success" data-toast="skip"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Pronostic publié avec succès !</div>
 <% } %>
 <% if(typeof error !== 'undefined' && error){ %>
 <div class="alert alert-error">
-  <strong>❌ Erreur API-Football</strong> — <%= error %>
+  <strong><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Erreur du fournisseur de données</strong> — <%= error %>
   <% if(error.includes('clé') || error.includes('API')){ %>
-  <br><small>👉 Vérifiez <code>API_FOOTBALL_KEY</code> dans le fichier <code>.env</code>.</small>
+  <br><small><svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"/></svg> Vérifiez <code>API_FOOTBALL_KEY</code> dans le fichier <code>.env</code>.</small>
   <% } %>
 </div>
 <% } %>
@@ -156,16 +106,30 @@
 </div>
 
 <!-- ── Filtres ────────────────────────────────────────────────────────────────── -->
-<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem">
-  <form method="GET" action="/admin/pronostics" class="pro-filter">
+<form method="GET" action="/admin/pronostics" class="filterbar">
     <input type="hidden" name="mine" value="<%= (typeof mine !== 'undefined' && mine) ? '1' : '0' %>">
     <input type="hidden" name="live" value="<%= (typeof live !== 'undefined' && live) ? '1' : '0' %>">
+    <%
+      // « Tout » est désormais la valeur vide, donc le défaut : l'appel API
+      // ramène de toute façon l'intégralité des matchs, la vue restreinte
+      // jetait 90 % de ce qui était déjà payé.
+      //
+      // Les homonymes sont levés par le pays quand l'API le fournit : deux
+      // « Serie A » (Italie, Brésil) s'affichaient à l'identique.
+      const _ligues = typeof visibleLeagues !== 'undefined' ? visibleLeagues : [];
+      const _occurrences = _ligues.reduce((acc, l) => {
+        acc[l.league] = (acc[l.league] ?? 0) + 1; return acc;
+      }, {});
+      const _libelle = l => _occurrences[l.league] > 1
+        ? `${l.league} · ${l.leagueCountry || l.leagueCode}`
+        : l.league;
+    %>
     <select name="competition" onchange="this.form.submit()">
-      <option value="">⭐ Ligues principales + amicaux</option>
-      <% (typeof visibleLeagues !== 'undefined' ? visibleLeagues : []).forEach(l => { %>
-        <option value="<%= l.leagueCode %>" <%= competition===l.leagueCode ?'selected':'' %>><%= l.league %></option>
+      <option value="">🌐 Tout</option>
+      <option value="MAJORS" <%= competition==='MAJORS' ?'selected':'' %>>⭐ Ligues principales + amicaux</option>
+      <% _ligues.forEach(l => { %>
+        <option value="<%= l.leagueCode %>" <%= competition===l.leagueCode ?'selected':'' %>><%= _libelle(l) %></option>
       <% }) %>
-      <option value="ALL" <%= competition==='ALL' ?'selected':'' %>>🌐 Toutes les autres ligues (API-Football)</option>
     </select>
     <select name="status" onchange="this.form.submit()">
       <option value="">Tous statuts</option>
@@ -179,11 +143,11 @@
     <% } %>
     <button type="submit" class="btn btn-outline btn-sm">Filtrer</button>
     <% if(competition || _statusFilter || (typeof q !== 'undefined' && q) || (typeof date !== 'undefined' && date)) { %>
-    <a href="/admin/pronostics<%= (typeof live !== 'undefined' && live) ? '?live=1' : (typeof mine !== 'undefined' && mine) ? '?mine=1' : '' %>" class="btn btn-outline btn-sm">✕ Reset</a>
+    <a href="/admin/pronostics<%= (typeof live !== 'undefined' && live) ? '?live=1' : (typeof mine !== 'undefined' && mine) ? '?mine=1' : '' %>" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a>
     <% } %>
-    <span style="margin-left:auto;font-size:.78rem;color:var(--text-dim)"><%= visibleMatches.length %> affiché<%= visibleMatches.length!==1?'s':'' %></span>
-  </form>
-</div>
+  <span class="spacer"></span>
+  <span style="font-size:.78rem;color:var(--text-dim)"><%= visibleMatches.length %> affiché<%= visibleMatches.length!==1?'s':'' %></span>
+</form>
 
 <!-- ── Grille des matchs ──────────────────────────────────────────────────────── -->
 <% const _isMine = typeof mine !== 'undefined' && mine; %>
@@ -217,139 +181,155 @@
 <% } else {
      const sections = _isGrouped ? leagueGroups : [{ league: null, logo: null, items: visibleMatches }];
 %>
-<% sections.forEach(section => { %>
-<% if(_isGrouped) { %>
-<div class="league-group">
-  <div class="league-group-head">
-    <% if(section.logo){ %><img src="<%= section.logo %>" onerror="this.style.display='none'"><% } %>
-    <span class="name"><%= section.league %></span>
-    <span class="count">· <%= section.items.length %> match<%= section.items.length!==1?'s':'' %></span>
+<div class="dt-wrap" id="pro-table">
+  <div class="bulkbar" id="pro-bulk">
+    <span class="count" id="pro-bulk-n">0</span>&nbsp;pronostic(s) sélectionné(s)
+    <span class="spacer"></span>
+    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="WIN"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> WIN</button>
+    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="LOSS"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> LOSS</button>
+    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="PUSH"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Push</button>
+    <button type="button" class="btn btn-sm btn-outline" id="pro-bulk-clear">Annuler</button>
   </div>
-<% } %>
-<div class="pro-grid">
-<% section.items.forEach(m => {
-     const d = new Date(m.matchDate);
-     const now = Date.now();
-     const diffMin = Math.floor((d.getTime() - now) / 60000);
-     const dateStr = d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}) + ' · ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-     const isLive = m.status === 'LIVE' || (diffMin < 0 && diffMin > -120);
-     const isFinished = m.status === 'FINISHED';
-     const cardClass = (isLive ? 'live-match ' : '') + (m.is_published ? 'published' : m.has_pronostic ? 'draft' : 'none');
-     const homeInitial = (m.homeTeam||'?')[0].toUpperCase();
-     const awayInitial = (m.awayTeam||'?')[0].toUpperCase();
-     const stars = m.pronostic?.confidence_score ?? 0;
-     const starsStr = '★'.repeat(stars) + '☆'.repeat(5-stars);
-     let countdownClass = 'pro-countdown', countdownStr = dateStr;
-     if (isLive) { countdownClass += ' live'; countdownStr = `🔴 EN DIRECT · ${dateStr}`; }
-     else if (isFinished) { countdownStr = `🏁 Terminé · ${dateStr}`; }
-     else if (diffMin >= 0 && diffMin < 120) { countdownClass += ' soon'; countdownStr = `⚡ Dans ${diffMin}min`; }
-%>
-<div class="pro-card <%= cardClass %>">
-
-  <!-- Head : ligue + date -->
-  <div class="pro-card-head">
-    <div class="pro-league">
-      <% if(m.leagueLogo){ %><img src="<%= m.leagueLogo %>" onerror="this.style.display='none'"><% } %>
-      <span class="badge badge-info" style="font-size:.65rem"><%= m.league %></span>
-    </div>
-    <div class="<%= countdownClass %>"><%= countdownStr %></div>
+  <div class="dt-scroll">
+  <div class="table-wrap">
+    <table class="dt">
+      <thead>
+        <tr>
+          <th class="col-check"><input type="checkbox" id="pro-all" aria-label="Tout sélectionner"></th>
+          <th>Coup d'envoi</th>
+          <% if(!_isGrouped) { %><th>Compétition</th><% } %>
+          <th>Match</th>
+          <th>Pronostic</th>
+          <th class="num">Cote</th>
+          <th class="num">Conf.</th>
+          <th>Statut</th>
+          <th class="col-act">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+  <% const _cols = _isGrouped ? 8 : 9; %>
+  <% sections.forEach(section => { %>
+  <% if(_isGrouped) { %>
+        <tr class="dt-group"><td colspan="<%= _cols %>">
+          <% if(section.logo){ %><img src="<%= section.logo %>" onerror="this.style.display='none'" alt=""><% } %>
+          <%= section.league %>
+          <span class="n">· <%= section.items.length %> match<%= section.items.length!==1?'s':'' %></span>
+        </td></tr>
+  <% } %>
+  <% section.items.forEach(m => {
+       const d = new Date(m.matchDate);
+       const diffMin = Math.floor((d.getTime() - Date.now()) / 60000);
+       const dateStr = d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}) + ' · ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+       const isLive = m.status === 'LIVE' || (diffMin < 0 && diffMin > -120);
+       const isFinished = m.status === 'FINISHED';
+       const homeInitial = (m.homeTeam||'?')[0].toUpperCase();
+       const awayInitial = (m.awayTeam||'?')[0].toUpperCase();
+       const conf = m.pronostic?.confidence_score ?? 0;
+       const rowClass = isLive ? 'is-live' : m.is_published ? 'is-pub' : m.has_pronostic ? 'is-draft' : '';
+       let whenClass = 'when', whenStr = dateStr;
+       if (isLive) { whenClass += ' live'; whenStr = ' ' + dateStr; }
+       else if (isFinished) { whenStr = ' ' + dateStr; }
+       else if (diffMin >= 0 && diffMin < 120) { whenClass += ' soon'; whenStr = ' Dans ' + diffMin + ' min'; }
+  %>
+        <tr class="<%= rowClass %>">
+          <td class="col-check">
+            <% if(m.has_pronostic && m.pronostic) { %>
+              <input type="checkbox" class="pro-chk" value="<%= m.pronostic.id %>" aria-label="Sélectionner ce pronostic">
+            <% } %>
+          </td>
+          <td><span class="<%= whenClass %>"><%= whenStr %></span></td>
+          <% if(!_isGrouped) { %>
+          <td style="color:var(--text-m)">
+            <% if(m.leagueLogo){ %><img src="<%= m.leagueLogo %>" class="team-logo" onerror="this.style.display='none'" alt=""><% } %>
+            <%= m.league %>
+          </td>
+          <% } %>
+          <td>
+            <div class="matchcell">
+              <span class="team" title="<%= m.homeTeam %>">
+                <% if(m.homeTeamLogo) { %><img src="<%= m.homeTeamLogo %>" class="team-logo" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'team-logo',textContent:'<%= homeInitial %>'}))"><% } else { %><span class="team-logo"><%= homeInitial %></span><% } %>
+                <%= m.homeTeam %>
+              </span>
+              <% if((isLive || isFinished) && m.homeScore != null && m.awayScore != null) { %>
+                <span class="score" style="color:<%= isLive ? 'var(--error)' : 'var(--text)' %>"><%= m.homeScore %>–<%= m.awayScore %></span>
+              <% } else { %><span class="vs">vs</span><% } %>
+              <span class="team" title="<%= m.awayTeam %>">
+                <% if(m.awayTeamLogo) { %><img src="<%= m.awayTeamLogo %>" class="team-logo" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'team-logo',textContent:'<%= awayInitial %>'}))"><% } else { %><span class="team-logo"><%= awayInitial %></span><% } %>
+                <%= m.awayTeam %>
+              </span>
+            </div>
+          </td>
+          <td>
+            <% if(m.has_pronostic && m.pronostic) { %>
+              <% if(m.pronostic.is_premium){ %><span title="Premium" style="color:var(--warning)"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> <% } %>
+              <%= m.pronostic.prediction_label || m.pronostic.tip || '—' %>
+            <% } else { %><span style="color:var(--text-dim)">—</span><% } %>
+          </td>
+          <td class="num"><%= (m.has_pronostic && m.pronostic && m.pronostic.odds) ? m.pronostic.odds : '—' %></td>
+          <td class="num"><%= conf ? conf + '/5' : '—' %></td>
+          <td>
+            <% if(m.is_published) { %><span class="status pub">Publié</span>
+            <% } else if(m.has_pronostic) { %><span class="status draft">Brouillon</span>
+            <% } else { %><span class="status none">Sans prono</span><% } %>
+            <% if(isFinished && m.has_pronostic) { %>
+              <% const _r = m.pronostic?.result; %>
+              <% if(_r === 'WIN') { %><span class="badge badge-ok" style="margin-left:.4rem"><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg> Gagné</span>
+              <% } else if(_r === 'LOSS') { %><span class="badge badge-error" style="margin-left:.4rem"><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> Perdu</span>
+              <% } else if(_r === 'PUSH') { %><span class="badge badge-info" style="margin-left:.4rem"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Remboursé</span>
+              <% } else { %><span class="badge badge-warn" style="margin-left:.4rem">⏳ En attente</span><% } %>
+            <% } %>
+          </td>
+          <td class="col-act">
+            <div class="row-act">
+              <% if(m.has_pronostic && m.pronostic) { %>
+                <button class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="WIN"  title="Forcer le résultat à GAGNANT"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg></button>
+                <button class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="LOSS" title="Forcer le résultat à PERDANT"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
+                <button class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="PUSH" title="Forcer le résultat à REMBOURSÉ"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg></button>
+              <% } %>
+              <a href="/admin/pronostics/edit/<%= m.id %>" class="btn btn-primary btn-sm"><%= m.has_pronostic ? '' : '+ Créer' %></a>
+            </div>
+          </td>
+        </tr>
+  <% }) %>
+  <% }) %>
+      </tbody>
+    </table>
   </div>
-
-  <!-- Corps : équipes -->
-  <div class="pro-card-body">
-    <div class="pro-vs">
-      <div class="pro-team">
-        <% if(m.homeTeamLogo) { %>
-          <img src="<%= m.homeTeamLogo %>" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-          <div class="team-initial" style="display:none"><%= homeInitial %></div>
-        <% } else { %>
-          <div class="team-initial"><%= homeInitial %></div>
-        <% } %>
-        <span class="name"><%= m.homeTeam %></span>
-      </div>
-      <div class="pro-vs-sep">
-        <% if((isLive || isFinished) && m.homeScore != null && m.awayScore != null) { %>
-          <span style="color:<%= isLive ? 'var(--error)' : 'var(--text)' %>;font-size:1.1rem;font-weight:900"><%= m.homeScore %> - <%= m.awayScore %></span>
-        <% } else { %>VS<% } %>
-      </div>
-      <div class="pro-team">
-        <% if(m.awayTeamLogo) { %>
-          <img src="<%= m.awayTeamLogo %>" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-          <div class="team-initial" style="display:none"><%= awayInitial %></div>
-        <% } else { %>
-          <div class="team-initial"><%= awayInitial %></div>
-        <% } %>
-        <span class="name"><%= m.awayTeam %></span>
-      </div>
-    </div>
-
-    <!-- Tip si existant -->
-    <% if(m.has_pronostic && m.pronostic) { %>
-    <div class="pro-tip">
-      <div class="label">Pronostic <% if(m.pronostic.is_premium){ %><span style="color:var(--warning)">👑 VIP</span><% } %>
-        <span class="conf" title="Confiance"><%= starsStr %></span>
-      </div>
-      <div class="val"><%= m.pronostic.prediction_label || m.pronostic.tip || '—' %>
-        <% if(m.pronostic.odds) { %><span style="color:var(--text-dim);font-weight:600"> · cote <%= m.pronostic.odds %></span><% } %>
-      </div>
-    </div>
-    <% } %>
   </div>
-
-  <!-- Pied : statut + résultat + boutons -->
-  <div class="pro-card-foot">
-    <% if(m.is_published) { %>
-      <span class="badge badge-ok">✅ Publié</span>
-    <% } else if(m.has_pronostic) { %>
-      <span class="badge badge-warn">✏️ Brouillon</span>
-    <% } else { %>
-      <span class="badge" style="background:var(--surface-d);color:var(--text-dim)">— Sans prono</span>
-    <% } %>
-    <% if(isFinished && m.has_pronostic) { %>
-      <% if(m.pronostic?.result === 'WIN') { %>
-        <span class="badge" style="background:color-mix(in srgb,var(--success) 15%,transparent);color:var(--success)">🏆 Gagné</span>
-      <% } else if(m.pronostic?.result === 'LOSS') { %>
-        <span class="badge" style="background:color-mix(in srgb,var(--error) 15%,transparent);color:var(--error)">💔 Perdu</span>
-      <% } else if(m.pronostic?.result === 'PUSH') { %>
-        <span class="badge" style="background:color-mix(in srgb,var(--info) 15%,transparent);color:var(--info)">🔄 Remboursé</span>
-      <% } else { %>
-        <span class="badge" style="background:color-mix(in srgb,var(--warning) 15%,transparent);color:var(--warning)">⏳ Résultat en attente</span>
-      <% } %>
-    <% } %>
-    <div style="display:flex;gap:.35rem;align-items:center;margin-left:auto">
-      <% if(m.has_pronostic && m.pronostic) { %>
-        <button class="btn btn-sm force-result-btn"
-          style="background:color-mix(in srgb,var(--success) 15%,transparent);color:var(--success);border:1px solid color-mix(in srgb,var(--success) 35%,transparent);font-size:.72rem;padding:.3rem .6rem"
-          data-id="<%= m.pronostic.id %>" data-result="WIN"
-          title="Forcer le résultat à GAGNANT">✅ WIN</button>
-        <button class="btn btn-sm force-result-btn"
-          style="background:color-mix(in srgb,var(--error) 15%,transparent);color:var(--error);border:1px solid color-mix(in srgb,var(--error) 35%,transparent);font-size:.72rem;padding:.3rem .6rem"
-          data-id="<%= m.pronostic.id %>" data-result="LOSS"
-          title="Forcer le résultat à PERDANT">❌ LOSS</button>
-        <button class="btn btn-sm force-result-btn"
-          style="background:color-mix(in srgb,var(--info) 15%,transparent);color:var(--info);border:1px solid color-mix(in srgb,var(--info) 35%,transparent);font-size:.72rem;padding:.3rem .6rem"
-          data-id="<%= m.pronostic.id %>" data-result="PUSH"
-          title="Forcer le résultat à REMBOURSÉ (push)">🔄 Push</button>
-      <% } %>
-      <a href="/admin/pronostics/edit/<%= m.id %>" class="btn btn-primary btn-sm">
-        <%= m.has_pronostic ? '✏️ Modifier' : '+ Créer' %>
-      </a>
-    </div>
-  </div>
-</div>
-<% }) %>
-</div>
-<% if(_isGrouped) { %>
 </div>
 <% } %>
-<% }) %>
+
+<%# Les valeurs transitent par un attribut data plutôt que par une
+    interpolation dans du JavaScript : un nom d'équipe contenant une
+    apostrophe casserait le script. %>
+<% if (typeof flash !== 'undefined' && flash) { %>
+<div id="flash-prono" hidden
+     data-ok="<%= flash.ok %>" data-match="<%= flash.match %>" data-tip="<%= flash.tip %>"></div>
 <% } %>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  const _fp = document.getElementById('flash-prono');
+  window.__flashProno = _fp ? {
+    ok: _fp.dataset.ok, match: _fp.dataset.match, tip: _fp.dataset.tip,
+  } : null;
+  // Confirmation de publication / brouillon.
   const flash = document.getElementById('flash-success');
-  if (flash && typeof showToast === 'function') {
-    showToast('✅ Pronostic publié avec succès !', 'success');
+  const info  = window.__flashProno ?? null;
+  if (typeof showToast === 'function' && (flash || info)) {
+    const brouillon = info && info.ok === 'brouillon';
+    const detail    = info
+      ? [info.match, info.tip].filter(Boolean).join('  ·  ')
+      : '';
+    showToast({
+      type:   brouillon ? 'warning' : 'success',
+      titre:  brouillon ? 'Brouillon enregistré' : 'Pronostic publié',
+      detail: detail || (brouillon
+        ? "Il n'apparaît pas encore dans l'application."
+        : "Visible dans l'application."),
+      action: brouillon ? null : { label: 'Voir les pronostics publiés →', href: '/admin/pronostics?mine=1' },
+      duree:  brouillon ? 6000 : 5000,
+    });
   }
 
   // ── Forcer le résultat WIN / LOSS / PUSH ────────────────────────────────────
@@ -397,6 +377,73 @@ document.addEventListener('DOMContentLoaded', function() {
       }
     });
   });
+
+  // ── Sélection multiple + actions groupées ─────────────────────────────────
+  // Les cases ne sont proposées que sur les lignes qui ont un pronostic :
+  // forcer un résultat n'a pas de sens sans pronostic.
+  const chks    = () => [...document.querySelectorAll('.pro-chk')];
+  const bulk    = document.getElementById('pro-bulk');
+  const bulkN   = document.getElementById('pro-bulk-n');
+  const allBox  = document.getElementById('pro-all');
+  if (bulk) {
+    const sync = () => {
+      const sel = chks().filter(c => c.checked);
+      bulkN.textContent = sel.length;
+      bulk.toggleAttribute('data-on', sel.length > 0);
+      chks().forEach(c => c.closest('tr').toggleAttribute('data-selected', c.checked));
+      if (allBox) {
+        allBox.checked = sel.length > 0 && sel.length === chks().length;
+        allBox.indeterminate = sel.length > 0 && sel.length < chks().length;
+      }
+    };
+    document.addEventListener('change', e => {
+      if (e.target.classList.contains('pro-chk')) sync();
+    });
+    if (allBox) allBox.addEventListener('change', () => {
+      chks().forEach(c => c.checked = allBox.checked); sync();
+    });
+    document.getElementById('pro-bulk-clear')?.addEventListener('click', () => {
+      chks().forEach(c => c.checked = false); sync();
+    });
+
+    // Traitement séquentiel : le backend n'expose pas d'endpoint de lot, on
+    // réutilise force-result une fois par pronostic. Séquentiel et non
+    // parallèle pour ne pas déclencher le rate-limiter ni saturer le serveur.
+    document.querySelectorAll('.bulk-result').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const result = btn.dataset.result;
+        const ids    = chks().filter(c => c.checked).map(c => c.value);
+        if (!ids.length) return;
+        const label = forceResultLabel(result);
+        if (!confirm(`Forcer ${ids.length} pronostic(s) comme ${label} ?
+
+Les paris en attente seront réglés automatiquement.`)) return;
+
+        document.querySelectorAll('.bulk-result').forEach(b => b.disabled = true);
+        let ok = 0; const failed = [];
+        for (const id of ids) {
+          try {
+            const res = await fetch(`/admin/pronostics/force-result/${id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ result }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            ok++;
+            bulkN.textContent = `${ok}/${ids.length}`;
+          } catch (e) { failed.push(id); }
+        }
+        document.querySelectorAll('.bulk-result').forEach(b => b.disabled = false);
+        const msg = failed.length
+          ? `${ok} réglé(s), ${failed.length} en échec.`
+          : `${ok} pronostic(s) forcé(s) ${label} — paris réglés.`;
+        if (typeof showToast === 'function') showToast(msg, failed.length ? 'error' : 'success');
+        else alert(msg);
+        if (ok) setTimeout(() => location.reload(), 1200);
+      });
+    });
+  }
 });
 </script>
 

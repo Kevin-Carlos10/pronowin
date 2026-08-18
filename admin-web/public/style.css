@@ -314,7 +314,9 @@ a:hover { color: var(--btn-primary); }
   box-shadow: 0 10px 32px rgba(0,0,0,.25);
 }
 .stat-card .val { font-size: 1.9rem; font-weight: 900; color: var(--text); line-height: 1.1; letter-spacing: -.03em; margin-top: .1rem; }
-.stat-card .lbl { font-size: .7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-bottom: 2px; }
+/* `--text-dim` mesure 2,33:1 (sombre) et 2,54:1 (clair) : sous le seuil AA.
+   Acceptable pour un ornement, pas pour le libellé qui nomme le chiffre. */
+.stat-card .lbl { font-size: .7rem; color: var(--text-m); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-bottom: 2px; }
 .stat-card .dot { width: 8px; height: 8px; border-radius: 50%; margin-bottom: 8px; }
 .stat-card.s-blue   { border-left-color: var(--info); }
 .stat-card.s-orange { border-left-color: var(--primary); }
@@ -390,6 +392,13 @@ label {
   margin-bottom: 6px; text-transform: uppercase;
   letter-spacing: .5px; font-weight: 600;
 }
+/* Cases et boutons radio : `width:100%` n'a aucun sens pour eux et cassait les
+   mises en page en ligne — une case occupait toute la largeur de son conteneur
+   flex et écrasait le libellé à côté (carte « Utilisateur spécifique » de la
+   page Notifications). Le problème avait déjà été rustiné localement sur
+   `.filterbar` et `.dt` ; la règle est posée une fois pour toutes ici. */
+input[type="checkbox"], input[type="radio"] { width: auto; }
+
 input, select, textarea {
   width: 100%; background: var(--surface-d);
   border: 0.5px solid var(--border-s);
@@ -419,26 +428,92 @@ textarea { resize: vertical; }
 }
 .alert-success { background: rgba(34,197,94,.07); color: var(--success); border: 0.5px solid rgba(34,197,94,.25); }
 .alert-error   { background: rgba(239,68,68,.07);  color: var(--error);   border: 0.5px solid rgba(239,68,68,.25); }
+/* Ni un succès ni une panne : un état à corriger côté exploitation. */
+.alert-warning { background: rgba(245,158,11,.07); color: var(--warning); border: 0.5px solid rgba(245,158,11,.25); }
 
 /* ── Toast notifications ─────────────────────────────────────────────────── */
 .toast-container {
-  position: fixed; bottom: 24px; right: 24px;
+  position: fixed; top: 20px; right: 24px;
   z-index: 9999; display: flex; flex-direction: column;
-  gap: 8px; pointer-events: none;
+  gap: 10px; pointer-events: none;
 }
+
+/* ── Notification ─────────────────────────────────────────────────────────
+   Le composant tenait sur une ligne de 13 px avec un liseré de 3 px : rien
+   ne distinguait ce qui s'était passé de ce sur quoi. Trois zones désormais —
+   icône, corps (titre + détail + action), fermeture — plus une barre qui
+   montre le temps restant. */
 .toast {
-  background: var(--surface); border: 0.5px solid var(--border);
-  border-radius: var(--radius-s); padding: 12px 16px;
-  font-size: 13px; color: var(--text); box-shadow: var(--shadow-lg);
-  pointer-events: all; display: flex; align-items: center; gap: 10px;
-  max-width: 340px; animation: toastIn .22s ease forwards;
+  position: relative; overflow: hidden;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: start;
+  gap: 12px; padding: 13px 14px 15px;
+  min-width: 300px; max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px -8px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.2);
+  pointer-events: all;
+  animation: toastIn .32s cubic-bezier(.16,1,.3,1) forwards;
 }
 .toast.out { animation: toastOut .22s ease forwards; }
-.toast-success { border-left: 3px solid var(--success); }
-.toast-error   { border-left: 3px solid var(--error); }
-.toast-info    { border-left: 3px solid var(--info); }
-@keyframes toastIn  { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:translateX(0); } }
-@keyframes toastOut { from { opacity:1; transform:translateX(0); }    to { opacity:0; transform:translateX(16px); } }
+
+/* Filet de couleur sur la tranche gauche — repérable sans lire. */
+.toast::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--info);
+}
+.toast-success::before { background: var(--success); }
+.toast-error::before   { background: var(--error); }
+.toast-warning::before { background: var(--warning); }
+
+.toast-ic {
+  width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
+  display: grid; place-items: center; font-size: .95rem;
+  background: rgba(59,130,246,.12); color: var(--info);
+}
+.toast-success .toast-ic { background: rgba(34,197,94,.12);  color: var(--success); }
+.toast-error   .toast-ic { background: rgba(239,68,68,.12);  color: var(--error); }
+.toast-warning .toast-ic { background: rgba(245,158,11,.12); color: var(--warning); }
+
+.toast-body   { min-width: 0; }
+.toast-title  { font-size: 13.5px; font-weight: 700; color: var(--text); line-height: 1.35; }
+.toast-detail {
+  margin-top: 3px; font-size: 12px; color: var(--text-m); line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.toast-action {
+  display: inline-block; margin-top: 8px;
+  font-size: 12px; font-weight: 700; color: var(--primary);
+  text-decoration: none; border-bottom: 1px solid transparent;
+  transition: border-color .15s;
+}
+.toast-action:hover { border-bottom-color: var(--primary); }
+
+.toast-close {
+  background: none; border: 0; cursor: pointer; padding: 2px;
+  color: var(--text-dim); line-height: 1; border-radius: 6px;
+  transition: color .15s, background .15s;
+}
+.toast-close:hover { color: var(--text); background: var(--surface-h); }
+
+/* Temps restant. Se met en pause au survol (piloté en JS). */
+.toast-bar {
+  position: absolute; left: 0; bottom: 0; height: 2px; width: 100%;
+  background: var(--info); transform-origin: left;
+  animation: toastBar linear forwards;
+}
+.toast-success .toast-bar { background: var(--success); }
+.toast-error   .toast-bar { background: var(--error); }
+.toast-warning .toast-bar { background: var(--warning); }
+
+@keyframes toastIn  { from { opacity:0; transform:translateX(24px) scale(.96); } to { opacity:1; transform:none; } }
+@keyframes toastOut { from { opacity:1; transform:none; } to { opacity:0; transform:translateX(24px) scale(.98); } }
+@keyframes toastBar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast, .toast.out { animation: none; }
+  .toast-bar { animation: none; opacity: .35; }
+}
 
 /* ── Confirm dialog ──────────────────────────────────────────────────────── */
 /* ── Session timeout warning ──────────────────────────────────────────────── */
@@ -545,7 +620,7 @@ textarea { resize: vertical; }
 .filter-advanced-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
 .filter-advanced-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 12px; }
 .filter-field          { display: flex; flex-direction: column; gap: 4px; }
-.filter-field label    { font-size: .68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+.filter-field label    { font-size: .68rem; color: var(--text-m); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
 
 .filter-presets        { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 8px; }
 .filter-presets-lbl    { font-size: .72rem; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
@@ -814,7 +889,7 @@ textarea { resize: vertical; }
   .search-overlay { align-items: flex-end; }
 
   /* Toast */
-  .toast-container { right: 10px; bottom: calc(74px + env(safe-area-inset-bottom)); left: 10px; }
+  .toast-container { right: 10px; top: calc(10px + env(safe-area-inset-top)); left: 10px; }
   .toast { max-width: 100%; }
 
   /* Pagination */
@@ -837,3 +912,203 @@ textarea { resize: vertical; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .filter-advanced-grid { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SOCLE PARTAGÉ — composants communs à toutes les vues.
+
+   Ajouté pour remplacer les 1 662 lignes de CSS dupliquées dans 21 vues.
+   Tout est ADDITIF : aucune règle existante n'est modifiée, à l'exception des
+   couleurs d'alerte qui étaient illisibles en thème clair (voir --on-*).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Icônes ───────────────────────────────────────────────────────────────
+   Remplacent les emoji utilisés comme icônes (670 occurrences, 97 symboles
+   distincts sur 27 vues). Le tracé est en `currentColor` : l'icône hérite de
+   la couleur du texte parent, donc du thème et des états (survol, actif,
+   danger) sans une règle supplémentaire.
+   Dimension en `em` : elle suit la taille de police du contexte, ce qu'un
+   emoji faisait déjà mais sans permettre le moindre réglage. */
+.ic {
+  width: 1em; height: 1em;
+  /* Un emoji se pose sur la ligne de base, un SVG non : sans ce décalage
+     l'icône flotte au-dessus du texte qu'elle accompagne. */
+  vertical-align: -0.135em;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.ic-sm { width: .85em;  height: .85em; }
+.ic-lg { width: 1.35em; height: 1.35em; }
+.ic-xl { width: 2em;    height: 2em; vertical-align: middle; }
+/* Icône seule dans un bouton : on rétablit un peu d'air autour. */
+.btn > .ic:only-child { vertical-align: -0.15em; }
+
+/* ── Couleurs de texte sur fond teinté ────────────────────────────────────
+   Les pastels écrits en dur dans dashboard.ejs (#FCA5A5, #FCD34D…) sont
+   conçus pour un fond sombre : sur le thème clair ils tombent entre 1,2 et
+   1,7:1, soit illisibles (seuil WCAG AA : 4,5:1). Ces tokens portent, pour
+   chaque thème, la teinte la plus vive qui atteigne encore 4,5:1 — vérifié
+   sur les DEUX fonds clairs de l'app (--surface #FFF et --bg #F1F4FB). */
+:root {
+  --on-danger:  #EE4E4E;  --on-warning: #F59E0B;
+  --on-info:    #4286F6;  --on-success: #22C55E;
+}
+html.light {
+  --on-danger:  #BC3A3D;  --on-warning: #916317;
+  --on-info:    #3168C2;  --on-success: #1B7B46;
+}
+
+/* ── Accessibilité : anneau de focus ──────────────────────────────────────
+   Il n'existait aucun style de focus dans tout l'admin. Pour un outil de
+   saisie répétitive, naviguer au clavier était impossible à suivre. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Barre de filtres ─────────────────────────────────────────────────────
+   `input, select, textarea { width:100% }` (plus haut dans ce fichier) est
+   pensé pour les formulaires. Dans une barre en flex, il forçait chaque
+   champ sur sa propre ligne : le filtre de Pronostics occupait ~250 px de
+   haut alors que le code demandait une seule ligne. On rétablit une largeur
+   automatique dans ce contexte précis, sans toucher la règle globale. */
+.filterbar {
+  display: flex; gap: .5rem; flex-wrap: wrap; align-items: center;
+  padding: .75rem; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+.filterbar input, .filterbar select { width: auto; padding: .4rem .65rem; font-size: .82rem; }
+.filterbar input[type=search], .filterbar input[name=q] { min-width: 220px; }
+.filterbar .spacer { margin-left: auto; }
+.filterbar label { font-size: .78rem; color: var(--text-m); display: flex; align-items: center; gap: .35rem; }
+.filterbar label input[type=checkbox] { width: auto; }
+
+/* ── Alertes ──────────────────────────────────────────────────────────────
+   Remplace .dash-alert et ses variantes recopiées ailleurs. */
+.alert {
+  display: flex; gap: .6rem; align-items: center;
+  padding: .7rem .9rem; border-radius: var(--radius-s);
+  border: 1px solid; font-size: .85rem; line-height: 1.45; margin-bottom: .5rem;
+}
+.alert a { color: inherit; font-weight: 600; text-decoration: underline; }
+.alert .alert-icon { flex-shrink: 0; font-size: 1.05rem; }
+.alert .alert-text { flex: 1; }
+.alert.danger  { background: color-mix(in srgb, var(--error) 8%, transparent);
+                 border-color: color-mix(in srgb, var(--error) 28%, transparent);
+                 color: var(--on-danger); }
+.alert.warning { background: color-mix(in srgb, var(--warning) 8%, transparent);
+                 border-color: color-mix(in srgb, var(--warning) 28%, transparent);
+                 color: var(--on-warning); }
+.alert.info    { background: color-mix(in srgb, var(--info) 8%, transparent);
+                 border-color: color-mix(in srgb, var(--info) 28%, transparent);
+                 color: var(--on-info); }
+.alert.success { background: color-mix(in srgb, var(--success) 8%, transparent);
+                 border-color: color-mix(in srgb, var(--success) 28%, transparent);
+                 color: var(--on-success); }
+
+/* ── Badge manquant ───────────────────────────────────────────────────────
+   `badge-error` est utilisé dans pronostic_form.ejs mais n'était défini
+   nulle part : le badge « LOSS » s'affichait sans style d'échec. Alias de
+   badge-err, conservé pour ne pas casser les usages existants. */
+.badge-error { background: rgba(239,68,68,.15); color: var(--error); }
+
+/* ── Statut : point coloré + libellé ──────────────────────────────────────
+   Moins bruyant qu'une pastille pleine répétée sur chaque ligne. */
+.status { display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap; }
+.status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.status.ok, .status.pub      { color: var(--success); }
+.status.warn, .status.draft  { color: var(--warning); }
+.status.off, .status.none    { color: var(--text-dim); }
+.status.err, .status.live    { color: var(--error); }
+.status.live::before { animation: status-pulse 1.6s infinite; }
+@keyframes status-pulse { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+@media (prefers-reduced-motion: reduce) { .status.live::before { animation: none } }
+
+/* ── Tableau de données unifié ────────────────────────────────────────────
+   Un seul composant pour les listes, aujourd'hui réécrites page par page.
+   Tri, sélection multiple, actions au survol, densité réglable. */
+.dt-wrap { background: var(--surface); border: 1px solid var(--border);
+           border-radius: var(--radius); overflow: hidden; }
+.dt-scroll { overflow: auto; }
+.dt { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dt thead th {
+  position: sticky; top: 0; z-index: 2; background: var(--surface-d);
+  text-align: left; color: var(--text-m); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .5px; padding: 9px 12px;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.dt th.sortable { cursor: pointer; user-select: none; }
+.dt th.sortable:hover { color: var(--text); }
+.dt th .arrow { opacity: .3; margin-left: 4px; }
+.dt th[aria-sort] .arrow { opacity: 1; color: var(--primary); }
+.dt td { padding: 6px 12px; border-bottom: .5px solid var(--border);
+         vertical-align: middle; line-height: 1.35; }
+/* Le padding par défaut de .btn est pensé pour les formulaires ; dans une
+   ligne de tableau il dictait à lui seul la hauteur (58 px au lieu de 35). */
+.dt .btn { padding: 3px 8px; font-size: 11.5px; }
+.dt tbody tr:hover td { background: rgba(var(--primary-rgb), .05); }
+.dt tbody tr[data-selected] td { background: rgba(var(--primary-rgb), .09); }
+.dt .num { text-align: right; font-variant-numeric: tabular-nums; }
+.dt .col-check { width: 34px; }
+.dt .col-act { width: 1%; white-space: nowrap; text-align: right; }
+.dt input[type=checkbox] { width: auto; }
+
+.dt-wrap[data-density=compact] .dt td       { padding: 2px 12px; }
+.dt-wrap[data-density=compact] .dt thead th { padding: 5px 12px; }
+.dt-wrap[data-density=compact] .dt .btn     { padding: 1px 7px; }
+
+/* Actions révélées au survol : les afficher en permanence saturait l'écran
+   (4 boutons x 15 lignes). Toujours visibles au tactile et au clavier. */
+.row-act { display: flex; gap: .25rem; justify-content: flex-end;
+           opacity: 0; transition: opacity .12s; }
+.dt tbody tr:hover .row-act, .dt tbody tr:focus-within .row-act { opacity: 1; }
+@media (hover: none) { .row-act { opacity: 1; } }
+
+/* Barre d'actions groupées — aucune liste n'en proposait. */
+.bulkbar {
+  display: none; align-items: center; gap: .6rem; padding: .55rem .9rem;
+  background: rgba(var(--primary-rgb), .12);
+  border-bottom: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  font-size: .83rem;
+}
+.bulkbar[data-on] { display: flex; }
+/* `--primary` sur le fond orangé translucide de la barre tombe à 1,86:1 en
+   thème clair ; `--on-warning` est le ton calibré pour les deux thèmes. */
+.bulkbar .count { font-weight: 700; color: var(--on-warning); }
+.bulkbar .spacer { margin-left: auto; }
+
+/* ── Équipes (listes de matchs) ───────────────────────────────────────── */
+/* Les noms d'équipe ne doivent jamais revenir à la ligne : une hauteur de
+   ligne variable rend le tableau illisible en balayage vertical. On tronque
+   plutôt, le nom complet restant accessible en infobulle. */
+.team { display: flex; align-items: center; gap: .45rem; min-width: 0;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-logo { width: 18px; height: 18px; border-radius: 50%; background: var(--surface-h);
+             display: grid; place-items: center; font-size: 9px; flex-shrink: 0;
+             object-fit: contain; }
+.matchcell { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.matchcell .team { flex: 1 1 0; }
+.matchcell .team:last-child { justify-content: flex-start; }
+.matchcell .vs { color: var(--text-dim); font-size: .72rem; }
+.dt-wrap[data-density=compact] .team-logo { width: 16px; height: 16px; }
+
+/* Ligne d'en-tête de groupe dans un tableau (regroupement par championnat). */
+.dt tr.dt-group td {
+  background: var(--surface-d); padding: 5px 12px;
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--text-m); font-weight: 700;
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.dt tr.dt-group img { width: 15px; height: 15px; vertical-align: -3px; margin-right: .35rem; }
+.dt tr.dt-group .n { color: var(--text-dim); font-weight: 500; text-transform: none; letter-spacing: 0; }
+.dt tbody tr:hover.dt-group td { background: var(--surface-d); }
+
+/* Accent de ligne selon l'état — remplace la bordure colorée des cartes. */
+.dt tbody tr.is-live  td:first-child { box-shadow: inset 3px 0 0 var(--error); }
+.dt tbody tr.is-pub   td:first-child { box-shadow: inset 3px 0 0 var(--success); }
+.dt tbody tr.is-draft td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+.dt .when { white-space: nowrap; color: var(--text-m); }
+.dt .when.live { color: var(--error); font-weight: 700; }
+.dt .when.soon { color: var(--warning); font-weight: 600; }
+.dt .score { font-weight: 900; font-variant-numeric: tabular-nums; }

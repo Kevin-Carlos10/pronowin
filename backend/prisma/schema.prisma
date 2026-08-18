@@ -176,6 +176,10 @@ model Match {
   league         String
   leagueCode     String              @map("league_code")
   leagueLogo     String?             @map("league_logo")
+  /// Pays de la compétition, quand l'API le fournit. Distingue les homonymes :
+  /// deux « Serie A » (Italie, Brésil) s'affichaient à l'identique dans le
+  /// filtre admin, sans moyen de savoir laquelle on choisissait.
+  leagueCountry  String?             @map("league_country")
   homeTeam       String              @map("home_team")
   homeTeamFull   String?             @map("home_team_full")
   homeTeamLogo   String?             @map("home_team_logo")
@@ -186,6 +190,10 @@ model Match {
   status         MatchStatus         @default(SCHEDULED)
   homeScore      Int?                @map("home_score")
   awayScore      Int?                @map("away_score")
+  // Minute de jeu pendant un direct (null hors match en cours). Stockée
+  // plutôt que calculée depuis matchDate : le temps écoulé au chronomètre
+  // ignore la mi-temps et les arrêts de jeu.
+  elapsedMinutes Int?                @map("elapsed_minutes")
   homeScoreHT    Int?                @map("home_score_ht")
   awayScoreHT    Int?                @map("away_score_ht")
   homeFormPoints Int                 @default(0) @map("home_form_points")
@@ -221,6 +229,57 @@ model Match {
 /// s'il a lui-même un pronostic publié (décision éditoriale déjà prise par
 /// l'admin en le publiant). N'affecte pas la découverte admin, qui doit
 /// pouvoir trouver n'importe quel match pour y créer un pronostic.
+/// Réglages modifiables depuis le panneau d'administration.
+///
+/// Ces valeurs vivaient dans le `.env` du backend : les changer imposait un
+/// redéploiement. Or publier un APK et annoncer sa version sont le même geste,
+/// fait par la même personne, plusieurs fois par mois — l'exiger d'un
+/// redéploiement garantissait qu'on l'oublie.
+///
+/// Table clé/valeur volontairement générique : le premier usage est la mise à
+/// jour du canal direct, mais tout réglage de la même nature (une chaîne, lue
+/// par l'API, modifiée rarement, sans schéma propre) a sa place ici plutôt que
+/// dans une colonne dédiée.
+///
+/// Les variables d'environnement restent la valeur de repli : une clé absente
+/// de cette table retombe sur le `.env`, ce qui laisse le comportement
+/// inchangé tant que personne n'a rien enregistré.
+model AppSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt @map("updated_at")
+  updatedBy String?  @map("updated_by")
+
+  @@map("app_settings")
+}
+
+/// Numéros Mobile Money sur lesquels les abonnés envoient leur paiement.
+///
+/// Ces coordonnées étaient à deux endroits qui ne se parlaient pas : trois
+/// variables `MOBCASH_*` côté serveur, et une constante `_paymentPhone` codée
+/// en dur dans l'application. L'écran de paiement affichait la seconde ; le
+/// serveur ne connaissait que les premières. Changer de numéro imposait donc
+/// une recompilation, et rien ne signalait la divergence.
+///
+/// Source unique désormais : l'application lit cette table, l'administration
+/// l'édite. Ajouter un opérateur ne demande plus de release.
+model PaymentMethod {
+  id        String   @id @default(uuid())
+  /// Identifiant stable, stocké dans Transaction.paymentMethod — ne pas
+  /// renommer après coup sans migrer l'historique.
+  key       String   @unique
+  label     String
+  phone     String
+  /// Désactiver plutôt que supprimer : les transactions passées gardent la clé.
+  isActive  Boolean  @default(true) @map("is_active")
+  sortOrder Int      @default(0)    @map("sort_order")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt      @map("updated_at")
+
+  @@index([isActive, sortOrder])
+  @@map("payment_methods")
+}
+
 model LeagueVisibility {
   leagueCode String   @id @map("league_code")
   league     String
@@ -273,6 +332,8 @@ model Pronostic {
   @@map("pronostics")
 }
 
+/// Versements Mobile Money des gains de parrainage, en attente de validation
+/// par un administrateur. Alimenté uniquement par `ReferralService`.
 model Transaction {
   id            String            @id @default(uuid())
   userId        String            @map("user_id")
@@ -435,8 +496,10 @@ enum SubscriptionPlan {
   premium
 }
 
+/// Ne subsiste que le versement des gains de parrainage : le portefeuille
+/// dépôt/retrait a été supprimé et plus aucun chemin ne peut créer un dépôt.
+/// La table était vide au moment du retrait — aucune ligne n'a été perdue.
 enum TransactionType {
-  deposit
   withdrawal
 }
 

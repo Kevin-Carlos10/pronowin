@@ -239,11 +239,18 @@ export async function listBankrolls(params: {
     };
   }
 
+  // `sortBy` vient de la query string : sans liste blanche, une valeur inconnue
+  // fait lever Prisma (500) et n'importe quel champ du modèle devient un
+  // critère d'ordre. Même correctif que sur la liste des utilisateurs.
+  const SORTABLE = new Set(['currentBalance', 'totalBudget', 'createdAt', 'pseudo']);
+  const col = SORTABLE.has(sortBy) ? sortBy : 'currentBalance';
+  const dir = sortDir === 'asc' ? 'asc' : 'desc';
+
   // Le tri par pseudo porte sur la relation user — reste séparé du tri sur
   // les colonnes propres à UserBankroll pour garder un orderBy Prisma valide.
-  const orderBy: any = sortBy === 'pseudo'
-    ? { user: { pseudo: sortDir } }
-    : { [sortBy]: sortDir };
+  const orderBy: any = col === 'pseudo'
+    ? { user: { pseudo: dir } }
+    : { [col]: dir };
 
   const [bankrolls, total] = await Promise.all([
     prisma.userBankroll.findMany({
@@ -285,6 +292,45 @@ export async function listBankrolls(params: {
   });
 
   return { data, total, page, per_page: perPage, total_pages: Math.ceil(total / perPage) };
+}
+
+/**
+ * ADMIN — Agrégats sur l'ensemble des bankrolls.
+ *
+ * La page listait les comptes un par un sans jamais dire si la fonctionnalité
+ * marche : combien de budget est confié, combien de paris attendent leur
+ * règlement, et surtout si l'ensemble des utilisateurs gagne ou perd. Ces
+ * quatre chiffres se lisent en une seconde et remplacent une lecture ligne à
+ * ligne.
+ */
+export async function listBankrollsStats() {
+  const [agg, bets] = await Promise.all([
+    prisma.userBankroll.aggregate({
+      _count: { _all: true },
+      _sum:   { totalBudget: true, currentBalance: true },
+    }),
+    prisma.bankrollBet.findMany({ select: { result: true, profit: true, stakedAmount: true } }),
+  ]);
+
+  const settled  = bets.filter(b => b.result !== null);
+  const decisive = settled.filter(b => b.result !== 'PUSH');   // PUSH = mise rendue
+  const wins     = decisive.filter(b => b.result === 'WIN').length;
+  const profit   = settled.reduce((s, b) => s + (b.profit ?? 0), 0);
+  const staked   = decisive.reduce((s, b) => s + b.stakedAmount, 0);
+
+  return {
+    bankrolls:     agg._count._all,
+    total_budget:  Math.round(agg._sum.totalBudget    ?? 0),
+    total_balance: Math.round(agg._sum.currentBalance ?? 0),
+    total_bets:    bets.length,
+    pending_bets:  bets.length - settled.length,
+    wins, losses:  decisive.length - wins,
+    // Sur zéro pari réglé, un « 0 % » se lirait comme un mauvais résultat
+    // alors qu'il n'y a simplement rien à mesurer : on renvoie null.
+    win_rate:      decisive.length > 0 ? +((wins / decisive.length) * 100).toFixed(1) : null,
+    total_profit:  Math.round(profit),
+    roi:           staked > 0 ? +((profit / staked) * 100).toFixed(1) : null,
+  };
 }
 
 // ── STATS ─────────────────────────────────────────────────────────────────────

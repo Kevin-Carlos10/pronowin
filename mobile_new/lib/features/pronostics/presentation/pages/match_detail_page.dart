@@ -1,6 +1,7 @@
 ﻿import 'dart:async';
 import 'dart:ui';
-import 'package:confetti/confetti.dart';
+import '../../../../core/utils/motion.dart';
+import '../../../../shared/widgets/confidence_indicator.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -25,6 +26,20 @@ import '../widgets/comments_section.dart';
 import '../widgets/prono_share_card.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
 
+// Découpé en fichiers `part` : le fichier faisait 3 604 lignes pour une
+// quarantaine de classes privées, dont le State d'un bouton situé 500
+// lignes après le bouton lui-même.
+part 'match_detail/partage.dart';
+part 'match_detail/compositions.dart';
+part 'match_detail/blessures.dart';
+part 'match_detail/classements.dart';
+part 'match_detail/face_a_face.dart';
+part 'match_detail/analyse_ia.dart';
+part 'match_detail/forme.dart';
+part 'match_detail/miser.dart';
+part 'match_detail/statistiques.dart';
+part 'match_detail/analyse_modele.dart';
+
 class MatchDetailPage extends ConsumerStatefulWidget {
   final String       matchId;
   final MatchEntity? preloaded;
@@ -39,19 +54,69 @@ class MatchDetailPage extends ConsumerStatefulWidget {
   ConsumerState<MatchDetailPage> createState() => _MatchDetailPageState();
 }
 
-class _MatchDetailPageState extends ConsumerState<MatchDetailPage> {
+class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
+    with TickerProviderStateMixin {
   Timer? _liveTimer;
+
+  // ── Onglets à composition variable ──────────────────────────────────────────
+  // Les onglets secondaires (compositions, blessures, classements, face-à-face,
+  // statistiques) apparaissent au fur et à mesure que leur appel réseau répond.
+  // La liste change donc en cours de vie de la page, ce qu'un TabController à
+  // longueur fixe n'accepte pas : on le recrée à chaque changement de
+  // composition, en reportant la sélection sur le même *libellé* plutôt que sur
+  // le même index — sinon l'arrivée d'un onglet décalait celui qu'on lisait.
+  TabController? _tabCtrl;
+  List<String>   _tabLabels = const [];
+
+  bool _memesOnglets(List<String> labels) {
+    if (_tabLabels.length != labels.length) return false;
+    for (var i = 0; i < labels.length; i++) {
+      if (_tabLabels[i] != labels[i]) return false;
+    }
+    return true;
+  }
+
+  TabController _controleurPour(List<String> labels) {
+    final actuel = _tabCtrl;
+    if (actuel != null && _memesOnglets(labels)) return actuel;
+
+    final ancien = actuel != null && actuel.index < _tabLabels.length
+        ? _tabLabels[actuel.index]
+        : null;
+    final index = ancien == null ? -1 : labels.indexOf(ancien);
+
+    // Jeter l'ancien dans la frame courante le ferait disposer alors que le
+    // TabBar sortant le référence encore.
+    if (actuel != null) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => actuel.dispose());
+    }
+
+    _tabLabels = labels;
+    return _tabCtrl = TabController(
+      length: labels.length,
+      initialIndex: index < 0 ? 0 : index,
+      vsync: this,
+    );
+  }
 
   @override
   void dispose() {
     _liveTimer?.cancel();
+    _tabCtrl?.dispose();
     super.dispose();
   }
+
+  /// Horodatage du dernier rafraîchissement du score, pour l'indicateur de
+  /// fraîcheur. Initialisé à l'ouverture de la page : la première donnée
+  /// affichée vient d'être chargée.
+  DateTime _dernierRefresh = DateTime.now();
 
   void _startLivePolling() {
     _liveTimer?.cancel();
     _liveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       ref.invalidate(liveScoreProvider(widget.matchId));
+      if (mounted) setState(() => _dernierRefresh = DateTime.now());
     });
   }
 
@@ -111,7 +176,14 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage> {
     // masquer ne protégeait rien et transformait la page en cul-de-sac pour
     // les invités comme pour les comptes gratuits.
     final showTabs = match.hasPronostic;
-    final tabsDataLoading = showTabs && (
+
+    // Un onglet dont l'appel est encore en vol n'est pas encore affichable —
+    // mais il ne doit plus retenir toute la page. « Détails » porte la carte
+    // Pronostic, c'est-à-dire la seule raison d'ouvrir cet écran : il s'affiche
+    // immédiatement, et les onglets secondaires s'ajoutent à mesure. Avant, un
+    // classement de championnat lent cachait le pronostic derrière un spinner
+    // plein écran.
+    final ongletsEnCours = showTabs && (
       lineupsAsync.isLoading || injuriesAsync.isLoading ||
       standingsAsync.isLoading || h2hAsync.isLoading ||
       statsAsync.isLoading);
@@ -122,6 +194,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage> {
     bool visibleOrPrompt(AsyncValue<Object?> async, bool Function() hasContent) {
       final status = _statusOf(async.error);
       if (status == 401) return true;
+      if (async.isLoading) return false;
       if (async.hasError) return false;
       return hasContent();
     }
@@ -136,73 +209,123 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage> {
       () => lineupsAsync.valueOrNull?.available == true);
     final showBlessures    = showTabs && visibleOrPrompt(injuriesAsync,
       () => injuriesAsync.valueOrNull?.isNotEmpty == true);
-    final showClassements  = showTabs && visibleOrPrompt(standingsAsync,
-      () => standingsAsync.valueOrNull?.isNotEmpty == true);
+    // Même condition que la carte elle-même : un classement qui ne contient
+    // aucune des deux équipes (tour qualificatif → tableau de la phase de
+    // ligue) ne mérite pas son onglet.
+    final showClassements  = showTabs && visibleOrPrompt(standingsAsync, () {
+      final rows = standingsAsync.valueOrNull;
+      return rows != null && rows.isNotEmpty && rows.any((r) =>
+          _StandingsCard.memeEquipe(r.teamName, match.homeTeam) ||
+          _StandingsCard.memeEquipe(r.teamName, match.awayTeam));
+    });
     final showFaceAFace    = showTabs && visibleOrPrompt(h2hAsync,
       () => h2hAsync.valueOrNull?.matches.isNotEmpty == true);
 
-    Widget scrollTab(Widget child) => SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
-      child: child,
+    // Entrée en cascade : chaque carte apparaît légèrement après la précédente,
+    // ce qui guide le regard de haut en bas au lieu d'afficher le bloc d'un
+    // coup. Supprimée — pas seulement raccourcie — quand l'utilisateur a réduit
+    // les animations : un glissement vertical répété sur 6 cartes est
+    // précisément ce qui déclenche le mal des transports vestibulaire.
+    Widget entree(Widget w, {int delaiMs = 0}) => context.animationsReduites
+        ? w
+        : w.animate(delay: delaiMs.ms)
+            .fadeIn(duration: 350.ms)
+            .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic);
+
+    // Deux enrobages, parce que le contexte diffère :
+    //
+    // * dans un NestedScrollView (cas normal, plusieurs onglets), il faut un
+    //   CustomScrollView avec un SliverOverlapInjector — c'est lui qui réserve
+    //   la place de la barre d'onglets épinglée et qui fait piloter le repli de
+    //   l'en-tête par le défilement intérieur ;
+    // * sans NestedScrollView (un seul onglet, pas d'en-tête repliable), le
+    //   même injecteur lèverait une assertion faute d'ancêtre à qui demander
+    //   le handle. Un SingleChildScrollView suffit.
+    const rembourrage = EdgeInsets.fromLTRB(16, 16, 16, 24);
+
+    Widget ongletImbrique(Widget child) => Builder(
+      builder: (ctx) => CustomScrollView(
+        slivers: [
+          SliverOverlapInjector(
+            handle: NestedScrollView.sliverOverlapAbsorberHandleFor(ctx)),
+          SliverPadding(
+            padding: rembourrage,
+            sliver: SliverToBoxAdapter(child: child),
+          ),
+        ],
+      ),
     );
 
+    Widget ongletSeul(Widget child) =>
+        SingleChildScrollView(padding: rembourrage, child: child);
+
     final tabs = <(String, Widget)>[
-      if (showTabs) ('Détails', scrollTab(Column(children: [
+      if (showTabs) ('Détails', Column(children: [
         // Entrée en cascade : chaque carte apparaît légèrement après la
         // précédente, ce qui guide le regard de haut en bas au lieu d'afficher
         // le bloc d'un coup.
         if (match.hasPronostic) ...[
-          _PronosticCard(match: match, isLocked: isLocked)
-            .animate().fadeIn(duration: 350.ms)
-            .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+          entree(_PronosticCard(match: match, isLocked: isLocked)),
           const SizedBox(height: 16),
         ],
         if (showEvents) ...[
-          _MatchEventsCard(matchId: match.id, match: match)
-            .animate(delay: 90.ms).fadeIn(duration: 350.ms)
-            .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+          entree(_MatchEventsCard(matchId: match.id, match: match),
+              delaiMs: 90),
           const SizedBox(height: 16),
         ],
         if (match.homeFormPoints > 0 || match.awayFormPoints > 0) ...[
-          _FormCard(match: match)
-            .animate(delay: 140.ms).fadeIn(duration: 350.ms)
-            .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+          entree(_FormCard(match: match), delaiMs: 140),
           const SizedBox(height: 16),
         ],
-        _AIAnalysisCard(matchId: match.id, status: match.status)
-          .animate(delay: 190.ms).fadeIn(duration: 350.ms)
-          .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+        entree(_AIAnalysisCard(matchId: match.id, status: match.status),
+            delaiMs: 190),
+        const SizedBox(height: 16),
+        // Le « pourquoi » chiffré, juste sous l'analyse : c'est la question que
+        // se pose l'utilisateur immédiatement après avoir lu le pronostic.
+        entree(_AnalyseModele(matchId: match.id), delaiMs: 210),
+        if (match.status == MatchStatus.live) ...[
+          const SizedBox(height: 16),
+          entree(_CotesEnDirect(matchId: match.id), delaiMs: 230),
+        ],
+        if (match.status == MatchStatus.finished) ...[
+          const SizedBox(height: 16),
+          entree(_NotesJoueurs(matchId: match.id), delaiMs: 230),
+        ],
         const SizedBox(height: 16),
         if (match.status == MatchStatus.upcoming) ...[
-          _MiserButton(match: match)
-            .animate(delay: 240.ms).fadeIn(duration: 350.ms)
-            .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+          entree(_MiserButton(match: match), delaiMs: 240),
           const SizedBox(height: 16),
         ],
         if (match.analystNote?.isNotEmpty == true) ...[
-          _AnalystCard(match: match)
-            .animate(delay: 270.ms).fadeIn(duration: 350.ms)
-            .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+          entree(_AnalystCard(match: match), delaiMs: 270),
           const SizedBox(height: 16),
         ],
-        CommentsSection(pronosticId: match.id)
-          .animate(delay: 310.ms).fadeIn(duration: 350.ms)
-          .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-      ]))),
-      if (showCotes) ('Cotes', scrollTab(_OddsCard(match: match))),
-      if (showStats) ('Statistiques', scrollTab(_MatchStatsCard(matchId: match.id))),
-      if (showCompositions) ('Compositions', scrollTab(_LineupsCard(matchId: match.id))),
-      if (showBlessures) ('Blessures', scrollTab(_InjuriesCard(
+        entree(CommentsSection(pronosticId: match.id), delaiMs: 310),
+      ])),
+      if (showCotes) ('Cotes', _OddsCard(match: match)),
+      if (showStats) ('Statistiques', Column(children: [
+        _MatchStatsCard(matchId: match.id),
+        const SizedBox(height: 16),
+        _ButsParTranche(matchId: match.id),
+      ])),
+      if (showCompositions) ('Compositions', _LineupsCard(matchId: match.id)),
+      if (showBlessures) ('Blessures', _InjuriesCard(
         matchId: match.id,
         homeTeam: match.homeTeam,
         awayTeam: match.awayTeam,
         homeLogo: match.homeTeamLogo,
-        awayLogo: match.awayTeamLogo))),
-      if (showClassements) ('Classements', scrollTab(_StandingsCard(matchId: match.id))),
-      if (showFaceAFace) ('Face à face', scrollTab(_H2HCard(
+        awayLogo: match.awayTeamLogo)),
+      if (showClassements) ('Classements', Column(children: [
+        _StandingsCard(
+          matchId: match.id,
+          homeTeam: match.homeTeam,
+          awayTeam: match.awayTeam),
+        _MeilleursButeurs(leagueCode: match.leagueCountry),
+      ])),
+      if (showFaceAFace) ('Face à face', _H2HCard(
         matchId: match.id,
         homeLogo: match.homeTeamLogo,
-        awayLogo: match.awayTeamLogo))),
+        awayLogo: match.awayTeamLogo)),
     ];
 
     return Scaffold(
@@ -240,14 +363,13 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage> {
               ref.read(favoritesProvider.notifier).toggleMatch(match.id);
             },
           ),
-          // Spinner discret pendant le refresh live
-          if (isRefreshing)
+          // Fraîcheur de la donnée : l'écran se rafraîchit toutes les 30 s,
+          // mais rien ne le disait. Un score figé et un score à jour avaient
+          // exactement la même apparence.
+          if (match.status == MatchStatus.live)
             Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: SizedBox(
-                width: 16, height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2, color: AppColors.error))),
+              padding: const EdgeInsets.only(right: 4),
+              child: _Fraicheur(enCours: isRefreshing, dernier: _dernierRefresh)),
           IconButton(
               icon: const Icon(Icons.share_rounded, size: 20),
               tooltip: 'Partager',
@@ -268,67 +390,226 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage> {
         ],
       ),
       body: Column(children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-          child: _MatchHeader(match: match)
-            .animate().fadeIn(duration: 350.ms)
-            .slideY(begin: -0.04, end: 0, curve: Curves.easeOutCubic),
-        ),
+        // Page sans barre d'onglets : l'en-tête reste fixe, il n'y a pas
+        // d'espace à récupérer.
+        if (!showTabs || (tabs.length <= 1 && !ongletsEnCours))
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: context.animationsReduites
+              ? _MatchHeader(match: match)
+              : _MatchHeader(match: match)
+                  .animate().fadeIn(duration: 350.ms)
+                  .slideY(begin: -0.04, end: 0, curve: Curves.easeOutCubic),
+          ),
         if (!showTabs) ...[
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
               child: Column(children: [
                 if (match.hasPronostic) ...[
-                  _PronosticCard(match: match, isLocked: isLocked)
-                    .animate(delay: 130.ms).fadeIn(duration: 350.ms)
-                    .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+                  entree(_PronosticCard(match: match, isLocked: isLocked),
+                      delaiMs: 130),
                   const SizedBox(height: 16),
                 ],
                 if (match.status == MatchStatus.finished) ...[
-                  _MatchStatsCard(matchId: match.id)
-                    .animate(delay: 170.ms).fadeIn(duration: 350.ms)
-                    .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+                  entree(_MatchStatsCard(matchId: match.id), delaiMs: 170),
                   const SizedBox(height: 16),
                 ],
                 if (isLocked)
-                  _PremiumBanner(
-                    onTap: () => goToPremium(context, ref))
-                    .animate(delay: 200.ms).fadeIn(duration: 400.ms)
-                    .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1),
-                      curve: Curves.easeOutBack),
+                  entree(_PremiumBanner(
+                      onTap: () => goToPremium(context, ref)),
+                      delaiMs: 200),
               ]),
             ),
           ),
-        ] else if (tabsDataLoading) ...[
-          const Expanded(child: Center(child: CircularProgressIndicator())),
-        ] else if (tabs.length <= 1) ...[
-          Expanded(child: tabs.first.$2),
+        ] else if (tabs.length <= 1 && !ongletsEnCours) ...[
+          Expanded(child: ongletSeul(tabs.first.$2)),
         ] else ...[
-          const SizedBox(height: 4),
+          // L'en-tête occupait ~23 % de la hauteur d'écran sur *chaque* onglet
+          // sans jamais se replier : sur le classement, cela coûtait huit
+          // lignes de tableau. NestedScrollView le fait fondre au défilement
+          // vers un résumé d'une ligne, la barre d'onglets restant épinglée.
           Expanded(
-            child: DefaultTabController(
-              length: tabs.length,
-              child: Column(children: [
-                TabBar(
-                  isScrollable: true,
-                  labelColor: AppColors.primary,
-                  unselectedLabelColor: context.cl.textS,
-                  indicatorColor: AppColors.primary,
-                  labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
-                  unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                  tabs: [for (final t in tabs) Tab(text: t.$1)],
-                ),
-                Expanded(
-                  child: TabBarView(
-                    children: [for (final t in tabs) t.$2],
+            child: NestedScrollView(
+              headerSliverBuilder: (ctx, _) => [
+                SliverOverlapAbsorber(
+                  handle: NestedScrollView.sliverOverlapAbsorberHandleFor(ctx),
+                  sliver: SliverAppBar(
+                    // Le Scaffold porte déjà une AppBar : celle-ci ne doit ni
+                    // reprendre un bouton retour, ni réserver la barre d'état.
+                    automaticallyImplyLeading: false,
+                    primary: false,
+                    pinned: true,
+                    backgroundColor: context.cl.bg,
+                    surfaceTintColor: Colors.transparent,
+                    elevation: 0,
+                    toolbarHeight: 44,
+                    // `expandedHeight` inclut la hauteur de `bottom` : il faut
+                    // donc 48 px de plus que la carte elle-même (~225 px) pour
+                    // que la barre d'onglets ne la recouvre pas.
+                    expandedHeight: 288,
+                    titleSpacing: 16,
+                    title: _EnTeteCompacte(match: match),
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: SingleChildScrollView(
+                        // Garde-fou : la hauteur de la carte dépend du nom des
+                        // équipes (une ou deux lignes) et de la taille de police
+                        // système. Un viewport non défilable la laisse prendre sa
+                        // hauteur naturelle et la rogne, plutôt que de lever un
+                        // débordement RenderFlex sur certains appareils.
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                          child: _MatchHeader(match: match),
+                        ),
+                      ),
+                    ),
+                    bottom: _BarreOnglets(
+                      controller: _controleurPour([for (final t in tabs) t.$1]),
+                      libelles: [for (final t in tabs) t.$1],
+                      enCours: ongletsEnCours,
+                    ),
                   ),
                 ),
-              ]),
+              ],
+              body: TabBarView(
+                controller: _controleurPour([for (final t in tabs) t.$1]),
+                children: [for (final t in tabs) ongletImbrique(t.$2)],
+              ),
             ),
           ),
         ],
       ]),
+    );
+  }
+}
+
+// ─── Barre d'onglets ─────────────────────────────────────────────────────────
+
+/// Barre d'onglets epinglee sous l'en-tete repliable.
+///
+/// `PreferredSizeWidget` parce que `SliverAppBar.bottom` l'exige. Elle porte
+/// aussi le fondu lateral et le temoin de chargement des onglets a venir.
+class _BarreOnglets extends StatelessWidget implements PreferredSizeWidget {
+  final TabController controller;
+  final List<String>  libelles;
+  final bool          enCours;
+  const _BarreOnglets({
+    required this.controller, required this.libelles, required this.enCours});
+
+  @override
+  Size get preferredSize => const Size.fromHeight(48);
+
+  @override
+  Widget build(BuildContext context) => Container(
+    color: context.cl.bg,
+    height: 48,
+    child: Row(children: [
+      Expanded(
+        // Fondu aux deux bords : la barre se recentre sur l'onglet actif et
+        // tronquait le precedent au milieu d'un mot (« ails » pour Details),
+        // ce qui se lisait comme un defaut d'affichage plutot que comme
+        // « il y en a d'autres a gauche ».
+        child: ShaderMask(
+          shaderCallback: (rect) => const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              Colors.transparent, Colors.black, Colors.black, Colors.transparent],
+            stops: [0.0, 0.045, 0.955, 1.0],
+          ).createShader(rect),
+          blendMode: BlendMode.dstIn,
+          child: TabBar(
+            controller: controller,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelColor: AppColors.primary,
+            unselectedLabelColor: context.cl.textS,
+            indicatorColor: AppColors.primary,
+            dividerColor: Colors.transparent,
+            labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            unselectedLabelStyle:
+                const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            tabs: [for (final l in libelles) Tab(text: l)],
+          ),
+        ),
+      ),
+      if (enCours)
+        Padding(
+          padding: const EdgeInsets.only(left: 2, right: 14),
+          child: SizedBox(
+            width: 13, height: 13,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.6, color: context.cl.textM)),
+        ),
+    ]),
+  );
+}
+
+/// Resume du match sur une ligne, revele a mesure que l'en-tete se replie.
+///
+/// `FlexibleSpaceBar` ne sait pas masquer un titre a l'etat deplie : on calcule
+/// l'opacite depuis la hauteur restante de la barre.
+class _EnTeteCompacte extends ConsumerWidget {
+  final MatchEntity match;
+  const _EnTeteCompacte({required this.match});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reglages =
+        context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
+    final double t = reglages == null
+        ? 1
+        : ((reglages.maxExtent - reglages.currentExtent) /
+                (reglages.maxExtent - reglages.minExtent))
+            .clamp(0.0, 1.0);
+    // Ne devient visible que sur le dernier tiers du repli, pour ne pas se
+    // superposer a l'en-tete complete encore lisible.
+    final opacite = ((t - 0.7) / 0.3).clamp(0.0, 1.0);
+    if (opacite == 0) return const SizedBox.shrink();
+
+    final live = match.status == MatchStatus.live
+        ? ref.watch(liveScoreProvider(match.id)).valueOrNull
+        : null;
+    final home   = live?.homeScore ?? match.homeScore;
+    final away   = live?.awayScore ?? match.awayScore;
+    final aScore = match.status != MatchStatus.upcoming;
+
+    return IgnorePointer(
+      child: Opacity(
+        opacity: opacite,
+        child: Row(children: [
+          _TeamLogo(url: match.homeTeamLogo ?? '', size: 22),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Text(match.homeTeam,
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: context.cl.textP,
+                fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              aScore ? '${home ?? 0} - ${away ?? 0}' : 'VS',
+              style: TextStyle(
+                color: match.status == MatchStatus.live
+                    ? AppColors.success
+                    : context.cl.textP,
+                fontSize: 14, fontWeight: FontWeight.w800)),
+          ),
+          Flexible(
+            child: Text(match.awayTeam,
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: context.cl.textP,
+                fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(width: 7),
+          _TeamLogo(url: match.awayTeamLogo ?? '', size: 22),
+        ]),
+      ),
     );
   }
 }
@@ -347,16 +628,38 @@ class _MatchHeader extends ConsumerWidget {
     final homeScore = liveAsync?.valueOrNull?.homeScore ?? match.homeScore;
     final awayScore = liveAsync?.valueOrNull?.awayScore ?? match.awayScore;
     final isRefreshingScore = liveAsync?.isLoading ?? false;
+    final minute = liveAsync?.valueOrNull?.elapsed;
 
     final d = match.matchDate;
-    final dateTimeStr =
-      '${d.day.toString().padLeft(2, '0')}/'
-      '${d.month.toString().padLeft(2, '0')}/'
-      '${d.year} · '
-      '${d.hour.toString().padLeft(2, '0')}:'
-      '${d.minute.toString().padLeft(2, '0')}';
+    final dateStr = '${d.day.toString().padLeft(2, '0')}/'
+        '${d.month.toString().padLeft(2, '0')}/${d.year}';
+    final heureStr = '${d.hour.toString().padLeft(2, '0')}:'
+        '${d.minute.toString().padLeft(2, '0')}';
 
-    return Container(
+    // Sur un match à venir, l'heure est déjà affichée en grand sous le « VS » :
+    // la répéter dans la pastille donnait deux fois la même information à dix
+    // pixels d'écart. Sur un match joué, il n'y a plus de bloc heure — la
+    // pastille la porte donc seule.
+    final dateTimeStr = match.status == MatchStatus.upcoming
+        ? dateStr
+        : '$dateStr · $heureStr';
+
+    final etat = switch (match.status) {
+      MatchStatus.live     => minute == null
+                                ? 'en direct'
+                                : 'en direct, ${minute}e minute',
+      MatchStatus.finished => 'terminé',
+      _                    => 'à venir',
+    };
+    final scoreParle = match.status == MatchStatus.upcoming
+        ? 'contre'
+        : '${homeScore ?? 0} à ${awayScore ?? 0} contre';
+
+    return Semantics(
+    label: '${match.league}. ${match.homeTeam} $scoreParle ${match.awayTeam}. '
+           'Match $etat, le $dateStr à $heureStr.',
+    excludeSemantics: true,
+    child: Container(
     padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
     decoration: BoxDecoration(
       gradient: const LinearGradient(
@@ -420,7 +723,7 @@ class _MatchHeader extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
             ] else if (match.status == MatchStatus.live) ...[
-              _LiveBadge(),
+              _LiveBadge(minute: minute),
               const SizedBox(height: 8),
             ],
             Container(
@@ -451,9 +754,7 @@ class _MatchHeader extends ConsumerWidget {
                 child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.success)),
             ] else if (match.status == MatchStatus.upcoming) ...[
               const SizedBox(height: 6),
-              Text(
-                '${match.matchDate.hour.toString().padLeft(2, '0')}:'
-                '${match.matchDate.minute.toString().padLeft(2, '0')}',
+              Text(heureStr,
                 style: TextStyle(
                   color: context.cl.textS,
                   fontSize: 14, fontWeight: FontWeight.w600)),
@@ -476,7 +777,7 @@ class _MatchHeader extends ConsumerWidget {
         ])),
       ]),
     ]),
-  );
+  ));
   }
 }
 
@@ -500,8 +801,34 @@ class _PronosticCard extends StatelessWidget {
       ? match.displayPredictionLabel
       : match.displayPredictionLabel.substring(_sep + 1).trim();
 
+  /// Ce que le lecteur d'écran annonce pour la carte entière. Lue widget par
+  /// widget, elle donnait « PRONOSTIC », « TOTAL BUTS +/- », « Plus de 1.5 »,
+  /// « COTE », « 1.18 », « CONFIANCE », « 95% », « Excellent » — huit fragments
+  /// dont aucun ne dit qu'ils forment un même pari.
+  String _annonce(BuildContext context) {
+    if (isLocked) {
+      return 'Pronostic réservé aux membres Premium.';
+    }
+    final marche = _market == null ? '' : '${_market!}, ';
+    final cote = match.oddsRecommended > 0
+        ? ' Cote recommandée ${match.oddsRecommended.toStringAsFixed(2)}.'
+        : '';
+    final verdict = switch (match.result) {
+      PronosticResult.win  => ' Pronostic gagnant.',
+      PronosticResult.loss => ' Pronostic perdant.',
+      PronosticResult.push => ' Pronostic remboursé.',
+      null                 => '',
+    };
+    return 'Pronostic : $marche$_pick.$cote '
+        'Indice de confiance ${MatchEntity.percentForConfidence(match.confidenceScore)} '
+        'pour cent, ${MatchEntity.labelForConfidence(match.confidenceScore)}.$verdict';
+  }
+
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => Semantics(
+    label: _annonce(context),
+    excludeSemantics: true,
+    child: Container(
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
       gradient: isLocked ? null : LinearGradient(
@@ -573,7 +900,20 @@ class _PronosticCard extends StatelessWidget {
             ]),
             const SizedBox(width: 28),
           ],
-          Expanded(child: _DetailConfidenceBar(score: match.confidenceScore)),
+          // Une fois le résultat connu, la confiance est rétrospective : elle
+          // n'aide plus à décider, elle ne fait que documenter. Elle passe donc
+          // d'une jauge pleine largeur à une mention discrète, et rend la place
+          // au rendement, qui est l'information que le parieur cherche
+          // vraiment sur un pronostic clos.
+          if (match.result == null)
+            Expanded(child: _DetailConfidenceBar(score: match.confidenceScore))
+          else ...[
+            if (match.oddsRecommended > 0)
+              Expanded(child: _RendementBox(odds: match.oddsRecommended,
+                  result: match.result!)),
+            const SizedBox(width: 20),
+            _ConfianceRappel(score: match.confidenceScore),
+          ],
         ]),
       ],
 
@@ -584,7 +924,92 @@ class _PronosticCard extends StatelessWidget {
         _VerdictStrip(result: match.result!, pronosticId: match.id),
       ],
     ]),
-  );
+  ));
+}
+
+/// Rendement d'un pronostic clos, exprimé pour une mise de référence.
+///
+/// « Cote 1.18 » et « Pronostic gagnant » sont deux faits que le parieur devait
+/// multiplier de tête. Sur un marché à faible cote c'est précisément le calcul
+/// qui décide si le pari valait la peine — autant le poser.
+class _RendementBox extends StatelessWidget {
+  final double odds;
+  final PronosticResult result;
+  const _RendementBox({required this.odds, required this.result});
+
+  /// Mise de référence en FCFA. Volontairement ronde et non paramétrable : il
+  /// s'agit d'illustrer un rendement, pas de simuler la bankroll de
+  /// l'utilisateur — celle-ci a sa propre page, avec ses vrais montants.
+  static const double _miseReference = 1000;
+
+  @override
+  Widget build(BuildContext context) {
+    final (libelle, montant, couleur) = switch (result) {
+      PronosticResult.win => (
+        'AURAIT RAPPORTÉ',
+        '+${((odds - 1) * _miseReference).round()}',
+        AppColors.success,
+      ),
+      PronosticResult.loss => (
+        'AURAIT COÛTÉ',
+        '-${_miseReference.round()}',
+        AppColors.error,
+      ),
+      PronosticResult.push => ('MISE RENDUE', '±0', AppColors.info),
+    };
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(libelle,
+        style: TextStyle(
+          color: context.cl.textM,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8)),
+      const SizedBox(height: 7),
+      Row(crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Flexible(
+            child: Text(montant,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: couleur, fontSize: 19,
+                fontWeight: FontWeight.w800, height: 1)),
+          ),
+          const SizedBox(width: 4),
+          Text('F  · mise ${_miseReference.round()}',
+            style: TextStyle(color: context.cl.textM, fontSize: 10)),
+        ]),
+    ]);
+  }
+}
+
+/// Rappel discret de la confiance annoncée avant le coup d'envoi, une fois le
+/// résultat connu. La jauge pleine largeur laisse la place au rendement.
+class _ConfianceRappel extends StatelessWidget {
+  final int score;
+  const _ConfianceRappel({required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    final couleur = ConfidenceIndicator.colorFor(score);
+    return Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+      Text('CONFIANCE ANNONCÉE',
+        style: TextStyle(
+          color: context.cl.textM,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8)),
+      const SizedBox(height: 7),
+      Text('${MatchEntity.percentForConfidence(score)} %',
+        style: TextStyle(
+          color: couleur.withValues(alpha: 0.75),
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          height: 1.2)),
+    ]);
+  }
 }
 
 /// Bandeau d'issue affiché au pied de la carte Pronostic. La cote n'y figure
@@ -598,40 +1023,74 @@ class _VerdictStrip extends StatefulWidget {
   State<_VerdictStrip> createState() => _VerdictStripState();
 }
 
-class _VerdictStripState extends State<_VerdictStrip> {
-  late final ConfettiController _confetti;
-
+class _VerdictStripState extends State<_VerdictStrip>
+    with SingleTickerProviderStateMixin {
   static const _prefKey = 'celebrated_win_';
+
+  /// Un seul contrôleur pilote toute la chorégraphie : les quatre gestes
+  /// doivent être calés les uns sur les autres à la milliseconde près, ce que
+  /// quatre contrôleurs indépendants ne garantissent pas.
+  late final AnimationController _c = AnimationController(
+    vsync: this, duration: const Duration(milliseconds: 1150));
+
+  /// Le bandeau se pose : 0,94 → 1 avec un léger dépassement. `easeOutBack`
+  /// et non un rebond — on veut un objet qui se stabilise, pas qui saute.
+  late final Animation<double> _pose = CurvedAnimation(
+      parent: _c, curve: const Interval(0.00, 0.40, curve: Curves.easeOutBack));
+
+  /// La coche arrive après le bandeau, jamais en même temps : l'œil se pose
+  /// d'abord sur la forme, puis lit la confirmation.
+  late final Animation<double> _coche = CurvedAnimation(
+      parent: _c, curve: const Interval(0.14, 0.54, curve: Curves.easeOutBack));
+
+  /// Halo qui éclôt puis retombe à son niveau de repos. C'est ce qui remplace
+  /// les confettis : signaler par la lumière plutôt que par des objets qui
+  /// jaillissent d'un point où rien n'a explosé.
+  late final Animation<double> _halo = TweenSequence<double>([
+    TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0)
+        .chain(CurveTween(curve: Curves.easeOutCubic)), weight: 35),
+    TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.30)
+        .chain(CurveTween(curve: Curves.easeInOutCubic)), weight: 65),
+  ]).animate(CurvedAnimation(
+      parent: _c, curve: const Interval(0.06, 1.00)));
+
+  /// Balayage spéculaire : une bande de lumière traverse le bandeau **une
+  /// fois**. C'est le signal « objet de qualité » — du métal ou du verre qui
+  /// accroche la lumière. En boucle, il deviendrait un gyrophare.
+  late final Animation<double> _reflet = CurvedAnimation(
+      parent: _c, curve: const Interval(0.34, 0.86, curve: Curves.easeInOutCubic));
 
   @override
   void initState() {
     super.initState();
-    _confetti = ConfettiController(duration: const Duration(milliseconds: 1500));
-    if (widget.result == PronosticResult.win) _maybeCelebrate();
+    if (widget.result == PronosticResult.win) _peutEtreCelebrer();
   }
 
-  /// Les confettis ne se déclenchent qu'à la première consultation d'un
-  /// pronostic gagnant — revenir sur la page ne les rejoue pas.
-  Future<void> _maybeCelebrate() async {
-    final prefs   = await SharedPreferences.getInstance();
-    final key     = '$_prefKey${widget.pronosticId}';
-    final already = prefs.getBool(key) ?? false;
-    if (already || !mounted) return;
+  /// La célébration ne se joue qu'à la première consultation d'un pronostic
+  /// gagnant — y revenir ne la rejoue pas.
+  Future<void> _peutEtreCelebrer() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cle   = '$_prefKey${widget.pronosticId}';
+    if ((prefs.getBool(cle) ?? false) || !mounted) return;
 
-    await prefs.setBool(key, true);
+    // Marqué comme vu dans tous les cas, y compris en animations réduites :
+    // sinon la célébration se déclencherait au premier changement de réglage,
+    // sur un pronostic vieux de trois semaines.
+    await prefs.setBool(cle, true);
+    if (!mounted || context.animationsReduites) return;
 
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (!mounted) return;
-      HapticFeedback.vibrate();
-      _confetti.play();
-    });
+    await Future.delayed(const Duration(milliseconds: 160));
+    if (!mounted) return;
+
+    // `mediumImpact` et non `vibrate` : une frappe nette, calée sur l'arrivée
+    // de la coche. `vibrate` est un bourdonnement de notification — le retour
+    // le plus grossier de la plateforme.
+    HapticFeedback.mediumImpact();
+    _c.forward();
   }
 
   @override
-  void dispose() {
-    _confetti.dispose();
-    super.dispose();
-  }
+  void dispose() { _c.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) {
@@ -645,40 +1104,98 @@ class _VerdictStripState extends State<_VerdictStrip> {
                  : isPush ? 'Pronostic remboursé'
                  : 'Pronostic perdant';
 
-    return Stack(alignment: Alignment.topCenter, children: [
-      Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: color.withValues(alpha: 0.35), width: 1)),
-        child: Row(children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 10),
-          Expanded(
+    // Hors victoire — ou en animations réduites — le bandeau est simplement
+    // affiché. Une défaite ne se met pas en scène.
+    if (!isWin || context.animationsReduites) {
+      return _bandeau(context, color, icon, label, echelle: 1, coche: 1);
+    }
+
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        final halo = _halo.value;
+        return Transform.scale(
+          scale: 0.94 + 0.06 * _pose.value,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [BoxShadow(
+                color: color.withValues(alpha: 0.34 * halo),
+                blurRadius: 10 + 22 * halo,
+                spreadRadius: 1 + 2 * halo,
+              )],
+            ),
+            child: _bandeau(context, color, icon, label,
+                echelle: _pose.value, coche: _coche.value, reflet: _reflet.value),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _bandeau(
+    BuildContext context, Color color, IconData icon, String label, {
+    required double echelle,
+    required double coche,
+    double? reflet,
+  }) {
+    final contenu = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 1)),
+      child: Row(children: [
+        Transform.scale(
+          scale: 0.55 + 0.45 * coche,
+          child: Opacity(opacity: coche.clamp(0.0, 1.0),
+            child: Icon(icon, color: color, size: 20)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Opacity(
+            opacity: echelle.clamp(0.0, 1.0),
             child: Text(label,
               style: TextStyle(
-                color: color, fontSize: 14, fontWeight: FontWeight.w800))),
-        ]),
-      ),
-      if (isWin)
-        ConfettiWidget(
-          confettiController: _confetti,
-          blastDirectionality: BlastDirectionality.explosive,
-          numberOfParticles: 18,
-          maxBlastForce: 12,
-          minBlastForce: 4,
-          gravity: 0.3,
-          colors: const [
-            AppColors.success,
-            AppColors.warning,
-            AppColors.primary,
-            Color(0xFFFFFFFF),
-          ],
-          shouldLoop: false,
+                color: color, fontSize: 14, fontWeight: FontWeight.w800)),
+          ),
         ),
-    ]);
+      ]),
+    );
+
+    if (reflet == null) return contenu;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(children: [
+        contenu,
+        // La bande traverse de −1,4 à 1,4 en largeur relative : elle entre et
+        // sort complètement du cadre, sans jamais s'arrêter au milieu.
+        Positioned.fill(
+          child: IgnorePointer(
+            child: FractionallySizedBox(
+              widthFactor: 0.45,
+              alignment: Alignment(-1.4 + 2.8 * reflet, 0),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      Colors.white.withValues(alpha: 0),
+                      Colors.white.withValues(alpha: 0.16),
+                      Colors.white.withValues(alpha: 0),
+                    ],
+                    stops: const [0.0, 0.5, 1.0],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ]),
+    );
   }
 }
 
@@ -694,30 +1211,101 @@ class _OddsCard extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!_hasOdds) return const SizedBox.shrink();
 
-    // Une seule ligne : le pastille verte indique déjà la cote recommandée,
-    // pas besoin d'un second bloc en dessous qui répète la même valeur.
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.border, width: 0.5)),
-      child: Row(children: [
-        Text('COTES', style: TextStyle(
-          color: context.cl.textM, fontSize: 11,
-          fontWeight: FontWeight.w600, letterSpacing: 1)),
-        const Spacer(),
-        _OddPill(label: '1', value: match.oddsHome,
-          isRecommended: match.predictionType == PredictionType.win1),
-        const SizedBox(width: 8),
-        _OddPill(label: 'X', value: match.oddsDraw,
-          isRecommended: match.predictionType == PredictionType.draw),
-        const SizedBox(width: 8),
-        _OddPill(label: '2', value: match.oddsAway,
-          isRecommended: match.predictionType == PredictionType.win2),
-      ]),
-    );
+    // La pastille verte ne signale la cote recommandée que si le pronostic
+    // porte sur le marché « vainqueur ». Sur un « Double chance » ou un
+    // « Total buts », les trois cotes 1/X/2 n'ont aucun rapport avec le
+    // pronostic, et la seule cote qui compte n'apparaissait nulle part.
+    final surMarcheVainqueur = match.predictionType == PredictionType.win1 ||
+                               match.predictionType == PredictionType.draw ||
+                               match.predictionType == PredictionType.win2;
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (match.oddsRecommended > 0 && !surMarcheVainqueur) ...[
+        _CoteRecommandee(match: match),
+        const SizedBox(height: 12),
+      ],
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: context.cl.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: context.cl.border, width: 0.5)),
+        child: Row(children: [
+          // Le marché est nommé : « COTES » seul laissait croire que ces trois
+          // valeurs étaient celles du pronostic.
+          Flexible(
+            child: Text('VAINQUEUR DU MATCH',
+              maxLines: 2,
+              style: TextStyle(
+                color: context.cl.textM, fontSize: 9.5,
+                fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          ),
+          const SizedBox(width: 10),
+          _OddPill(label: '1', value: match.oddsHome,
+            isRecommended: match.predictionType == PredictionType.win1),
+          const SizedBox(width: 8),
+          _OddPill(label: 'X', value: match.oddsDraw,
+            isRecommended: match.predictionType == PredictionType.draw),
+          const SizedBox(width: 8),
+          _OddPill(label: '2', value: match.oddsAway,
+            isRecommended: match.predictionType == PredictionType.win2),
+        ]),
+      ),
+      if (match.status == MatchStatus.live) ...[
+        const SizedBox(height: 10),
+        Row(children: [
+          Icon(Icons.info_outline_rounded, size: 13, color: context.cl.textM),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              "Cotes d'ouverture — elles ne suivent pas le match en cours.",
+              style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.3)),
+          ),
+        ]),
+      ],
+    ]);
   }
+}
+
+/// La cote du pronostic, mise en avant au-dessus du marché « vainqueur ».
+///
+/// Ne s'affiche que lorsque le pronostic ne porte PAS sur le 1X2 : sinon la
+/// pastille verte du marché fait déjà le travail, et deux fois la même valeur
+/// à quelques pixels d'écart est du bruit.
+class _CoteRecommandee extends StatelessWidget {
+  final MatchEntity match;
+  const _CoteRecommandee({required this.match});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    decoration: BoxDecoration(
+      color: AppColors.success.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: AppColors.success.withValues(alpha: 0.35), width: 1.2)),
+    child: Row(children: [
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('COTE DU PRONOSTIC',
+            style: TextStyle(
+              color: context.cl.textM, fontSize: 9.5,
+              fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          const SizedBox(height: 5),
+          Text(match.displayPredictionLabel,
+            maxLines: 2, overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: context.cl.textP, fontSize: 13,
+              fontWeight: FontWeight.w700, height: 1.25)),
+        ]),
+      ),
+      const SizedBox(width: 12),
+      Text(match.oddsRecommended.toStringAsFixed(2),
+        style: const TextStyle(
+          color: AppColors.success, fontSize: 22,
+          fontWeight: FontWeight.w800, height: 1)),
+    ]),
+  );
 }
 
 class _OddPill extends StatelessWidget {
@@ -866,7 +1454,9 @@ class _PremiumBannerState extends ConsumerState<_PremiumBanner>
           child: Text(priceLabel, style: const TextStyle(
             color: Colors.white, fontSize: 12,
             fontWeight: FontWeight.w700)))
-          .animate(onPlay: (c) => c.repeat())
+          .animate(onPlay: (c) {
+            if (!context.animationsReduites) c.repeat();
+          })
           .shimmer(duration: 2000.ms, delay: 600.ms, color: Colors.white30),
       ]),
     )),
@@ -884,7 +1474,74 @@ class _TeamLogo extends StatelessWidget {
       TeamLogoWidget(url: url.isEmpty ? null : url, size: size);
 }
 
+/// Âge de la donnée en direct, dans la barre de titre.
+///
+/// Un rond qui tourne pendant l'appel, puis « il y a 12 s » qui vieillit en
+/// continu. Sans lui, un score gelé par une panne réseau était indiscernable
+/// d'un score à jour.
+class _Fraicheur extends StatefulWidget {
+  final bool     enCours;
+  final DateTime dernier;
+  const _Fraicheur({required this.enCours, required this.dernier});
+
+  @override
+  State<_Fraicheur> createState() => _FraicheurState();
+}
+
+class _FraicheurState extends State<_Fraicheur> {
+  Timer? _tic;
+
+  @override
+  void initState() {
+    super.initState();
+    // Une seconde suffit : le libellé ne change qu'à la seconde près.
+    _tic = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() { _tic?.cancel(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.enCours) {
+      return const Padding(
+        padding: EdgeInsets.only(right: 8),
+        child: SizedBox(width: 16, height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.error)),
+      );
+    }
+
+    final secondes = DateTime.now().difference(widget.dernier).inSeconds;
+    final libelle  = secondes < 5
+        ? 'à jour'
+        : secondes < 60
+          ? 'il y a ${secondes}s'
+          : 'il y a ${(secondes / 60).floor()} min';
+
+    return Semantics(
+      label: 'Score mis à jour $libelle',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.sync_rounded, size: 12, color: context.cl.textM),
+          const SizedBox(width: 4),
+          Text(libelle,
+            style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+        ]),
+      ),
+    );
+  }
+}
+
 class _LiveBadge extends StatefulWidget {
+  /// Minute de jeu. Null tant que la source ne l'a pas fournie : on retombe
+  /// alors sur le libellé seul plutôt que d'inventer un chiffre.
+  final int? minute;
+  const _LiveBadge({this.minute});
+
   @override
   State<_LiveBadge> createState() => _LiveBadgeState();
 }
@@ -900,7 +1557,7 @@ class _LiveBadgeState extends State<_LiveBadge>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
+    );
     _pulse = Tween<double>(begin: 0.4, end: 1.0)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
@@ -912,7 +1569,26 @@ class _LiveBadgeState extends State<_LiveBadge>
   }
 
   @override
-  Widget build(BuildContext context) => Container(
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Une pastille qui clignote sans fin est exactement le mouvement que le
+    // réglage « réduire les animations » vise. Sans pulsation, le point reste
+    // rouge plein : l'information « en direct » est intacte.
+    if (context.animationsReduites) {
+      _ctrl.stop();
+      _ctrl.value = 1;
+    } else if (!_ctrl.isAnimating) {
+      _ctrl.repeat(reverse: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: widget.minute == null
+        ? 'Match en direct'
+        : 'Match en direct, ${widget.minute}e minute',
+    excludeSemantics: true,
+    child: Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
       color: AppColors.error.withValues(alpha: 0.12),
@@ -935,31 +1611,24 @@ class _LiveBadgeState extends State<_LiveBadge>
         ),
       ),
       const SizedBox(width: 6),
-      const Text('EN DIRECT', style: TextStyle(
-        color: AppColors.error, fontSize: 11,
-        fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-    ]));
+      Text(widget.minute == null ? 'EN DIRECT' : "${widget.minute}'",
+        style: const TextStyle(
+          color: AppColors.error, fontSize: 11,
+          fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+    ])));
 }
 
 class _DetailConfidenceBar extends StatelessWidget {
   final int score;
   const _DetailConfidenceBar({required this.score});
 
-  Color get _color {
-    if (score >= 5) return AppColors.success;
-    if (score >= 4) return const Color(0xFF84CC16);
-    if (score >= 3) return AppColors.warning;
-    if (score >= 2) return const Color(0xFFF97316);
-    return AppColors.error;
-  }
+  /// Couleur et libellé viennent tous deux de la source unique. Cette classe
+  /// avait sa propre échelle à 5 couleurs là où le reste de l'app en utilise 3 :
+  /// un score de 4 s'affichait vert-lime ici et vert ailleurs, pour la même
+  /// donnée sur deux écrans voisins.
+  Color get _color => ConfidenceIndicator.colorFor(score);
 
-  String get _label {
-    if (score >= 5) return 'Excellent';
-    if (score >= 4) return 'Bon';
-    if (score >= 3) return 'Moyen';
-    if (score >= 2) return 'Faible';
-    return 'Risqué';
-  }
+  String get _label => MatchEntity.labelForConfidence(score);
 
   @override
   Widget build(BuildContext context) {
@@ -1010,2278 +1679,3 @@ class _DetailConfidenceBar extends StatelessWidget {
 }
 
 // ─── PARTAGE ─────────────────────────────────────────────────────────────────
-
-String _buildShareText(MatchEntity match) {
-  final date   = DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR').format(match.matchDate);
-  final link   = 'https://pronowin.app/pronostics/${match.id}';
-  return '⚽ *PronoWin — Pronostic*\n\n'
-      '🏟️ ${match.homeTeam} vs ${match.awayTeam}\n'
-      '🏆 ${match.league}\n'
-      '📅 $date\n\n'
-      '🔮 *Pronostic :* ${match.displayPredictionLabel}\n'
-      '📊 Confiance : ${match.confidencePercent}%\n'
-      '💰 Cote recommandée : ${match.oddsRecommended.toStringAsFixed(2)}\n\n'
-      '📲 Voir le pronostic complet : $link\n'
-      '⬇️ Télécharge PronoWin pour tous les pronos !';
-}
-
-Future<void> _launchShare(String url) async {
-  final uri = Uri.parse(url);
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-}
-
-void _showShareSheet(BuildContext context, MatchEntity match) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    builder: (_) => _ShareSheet(match: match),
-  );
-}
-
-class _ShareSheet extends StatefulWidget {
-  final MatchEntity match;
-  const _ShareSheet({required this.match});
-  @override
-  State<_ShareSheet> createState() => _ShareSheetState();
-}
-
-class _ShareSheetState extends State<_ShareSheet> {
-  final _cardKey = GlobalKey();
-  bool _capturing = false;
-
-  Future<void> _shareImage() async {
-    if (_capturing) return;
-    setState(() => _capturing = true);
-    try {
-      final text = _buildShareText(widget.match);
-      await PronoShareService.captureAndShare(
-        repaintKey: _cardKey,
-        shareText:  text,
-        pixelRatio: 3.0,
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur de capture : $e'),
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    } finally {
-      if (mounted) setState(() => _capturing = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final text = _buildShareText(widget.match);
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.92,
-      minChildSize:     0.5,
-      maxChildSize:     0.95,
-      builder: (_, scrollCtrl) => Container(
-        decoration: BoxDecoration(
-          color:        context.cl.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border:       Border.all(color: context.cl.border, width: 0.5),
-        ),
-        child: ListView(
-          controller: scrollCtrl,
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-          children: [
-
-            // ── Handle ──────────────────────────────────────────────────────
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: context.cl.borderS,
-                  borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-
-            Text('Partager ce pronostic',
-              style: TextStyle(
-                color: context.cl.textP, fontSize: 15,
-                fontWeight: FontWeight.w700),
-              textAlign: TextAlign.center),
-            const SizedBox(height: 4),
-            Text('${widget.match.homeTeam} vs ${widget.match.awayTeam}',
-              style: TextStyle(color: context.cl.textS, fontSize: 12),
-              textAlign: TextAlign.center),
-            const SizedBox(height: 20),
-
-            // ── Prévisualisation de la carte ─────────────────────────────────
-            Center(
-              child: RepaintBoundary(
-                key: _cardKey,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: PronoShareCard(match: widget.match),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // ── Bouton principal : Partager l'image ──────────────────────────
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _capturing ? null : _shareImage,
-                icon: _capturing
-                    ? const SizedBox(
-                        width: 16, height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.image_rounded, size: 18),
-                label: Text(_capturing ? 'Génération…' : 'Partager l\'image'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // ── Boutons alternatifs ──────────────────────────────────────────
-            Row(children: [
-              Expanded(child: _ShareBtn(
-                fallbackIcon: Icons.chat_rounded,
-                label: 'WhatsApp',
-                color: const Color(0xFF25D366),
-                onTap: () async {
-                  final encoded = Uri.encodeComponent(text);
-                  await _launchShare('https://wa.me/?text=$encoded');
-                  if (context.mounted) Navigator.pop(context);
-                },
-              )),
-              const SizedBox(width: 10),
-              Expanded(child: _ShareBtn(
-                fallbackIcon: Icons.send_rounded,
-                label: 'Telegram',
-                color: const Color(0xFF0088CC),
-                onTap: () async {
-                  final encoded = Uri.encodeComponent(text);
-                  await _launchShare('https://t.me/share/url?url=https://pronowin.app&text=$encoded');
-                  if (context.mounted) Navigator.pop(context);
-                },
-              )),
-              const SizedBox(width: 10),
-              Expanded(child: _ShareBtn(
-                fallbackIcon: Icons.copy_rounded,
-                label: 'Copier',
-                color: AppColors.primary,
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: text));
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Pronostic copié !'),
-                    behavior: SnackBarBehavior.floating,
-                    duration: Duration(seconds: 2),
-                  ));
-                },
-              )),
-            ]),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ShareBtn extends StatelessWidget {
-  final IconData fallbackIcon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  const _ShareBtn({
-    required this.fallbackIcon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: () { HapticFeedback.lightImpact(); onTap(); },
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.25), width: 0.5)),
-      child: Column(children: [
-        Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            shape: BoxShape.circle),
-          child: Center(child: Icon(fallbackIcon, color: color, size: 20)),
-        ),
-        const SizedBox(height: 8),
-        Text(label, style: TextStyle(
-          color: color, fontSize: 12, fontWeight: FontWeight.w600)),
-      ]),
-    ),
-  );
-}
-
-// ─── COMPOSITIONS D'ÉQUIPE ──────────────────────────────────────────────────────
-
-/// Code HTTP d'une erreur Dio, ou null si ce n'en est pas une — utilisé pour
-/// distinguer un invité non connecté (401) d'une vraie panne réseau/serveur.
-int? _statusOf(Object? error) =>
-    error is DioException ? error.response?.statusCode : null;
-
-/// Message compact affiché à la place du contenu d'une carte (Compositions,
-/// Blessures, Classement, H2H) quand elle exige une connexion — plutôt que de
-/// faire disparaître silencieusement la carte, ce qui donne l'impression que
-/// le match n'a aucune donnée alors qu'il suffit de se connecter.
-class _CardLoginPrompt extends StatelessWidget {
-  final String message;
-  const _CardLoginPrompt({required this.message});
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: () => context.push('/auth/email?from=${Uri.encodeComponent('/pronostics')}'),
-    child: Row(children: [
-      Icon(Icons.login_rounded, color: AppColors.primary, size: 16),
-      const SizedBox(width: 8),
-      Expanded(
-        child: Text(message,
-          style: TextStyle(color: context.cl.textM, fontSize: 12))),
-      Icon(Icons.chevron_right_rounded, color: AppColors.primary, size: 18),
-    ]),
-  );
-}
-
-class _LineupsCard extends ConsumerWidget {
-  final String matchId;
-  const _LineupsCard({required this.matchId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final lineupsAsync = ref.watch(lineupsProvider(matchId));
-    final status = _statusOf(lineupsAsync.error);
-
-    // Vraie erreur réseau/serveur (pas juste un invité non connecté) → pas de
-    // carte plutôt qu'un message alarmant.
-    if (lineupsAsync.hasError && status != 401) return const SizedBox.shrink();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.borderSoft, width: 0.8),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.groups_rounded, color: AppColors.primary, size: 16),
-          ),
-          const SizedBox(width: 10),
-          Text('Compositions',
-            style: TextStyle(
-              color: context.cl.textP,
-              fontSize: 13,
-              fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: 14),
-        status == 401
-          ? const _CardLoginPrompt(message: 'Connecte-toi pour voir les compositions.')
-          : lineupsAsync.when(
-              loading: () => _H2HLoading(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (lineups) => !lineups.available
-                ? _LineupsPending()
-                : _LineupsContent(lineups: lineups),
-            ),
-      ]),
-    );
-  }
-}
-
-class _LineupsPending extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Row(children: [
-    Icon(Icons.schedule_rounded, color: context.cl.textM, size: 16),
-    const SizedBox(width: 8),
-    Expanded(
-      child: Text('Compositions pas encore annoncées — publiées ~1h avant le coup d\'envoi.',
-        style: TextStyle(color: context.cl.textM, fontSize: 12))),
-  ]);
-}
-
-class _LineupsContent extends StatelessWidget {
-  final LineupsData lineups;
-  const _LineupsContent({required this.lineups});
-
-  /// Le terrain n'a de sens que si l'API a placé les joueurs (champ `grid`).
-  /// Certaines compétitions mineures ne le renseignent pas — on retombe alors
-  /// sur la liste en pastilles, qui reste lisible sans coordonnées.
-  bool _placeable(TeamLineup? t) =>
-    t != null && t.startXI.isNotEmpty && t.startXI.every((p) => p.gridRow != null);
-
-  @override
-  Widget build(BuildContext context) {
-    final home = lineups.home, away = lineups.away;
-
-    if (_placeable(home) || _placeable(away)) {
-      return Column(children: [
-        _PitchView(home: home, away: away),
-        const SizedBox(height: 14),
-        if (home != null) _TeamCoachRow(team: home, color: AppColors.success),
-        if (home != null && away != null) const SizedBox(height: 6),
-        if (away != null) _TeamCoachRow(team: away, color: AppColors.error),
-      ]);
-    }
-
-    return Column(children: [
-      if (home != null) _TeamLineupBlock(team: home, color: AppColors.success),
-      if (home != null && away != null) const SizedBox(height: 16),
-      if (away != null) _TeamLineupBlock(team: away, color: AppColors.error),
-    ]);
-  }
-}
-
-/// Terrain vu du dessus : l'équipe à domicile occupe la moitié haute (gardien
-/// tout en haut), l'équipe visiteuse la moitié basse en miroir.
-class _PitchView extends StatelessWidget {
-  final TeamLineup? home;
-  final TeamLineup? away;
-  const _PitchView({this.home, this.away});
-
-  static const _grass     = Color(0xFF14532D);
-  static const _grassAlt  = Color(0xFF166534);
-  static const _lineColor = Color(0x59FFFFFF);
-
-  /// Regroupe les titulaires par ligne (1 = gardien) en respectant l'ordre de
-  /// colonne renvoyé par l'API.
-  static List<List<LineupPlayer>> _rows(TeamLineup t) {
-    final byRow = <int, List<LineupPlayer>>{};
-    for (final p in t.startXI) {
-      final r = p.gridRow;
-      if (r != null) (byRow[r] ??= []).add(p);
-    }
-    final keys = byRow.keys.toList()..sort();
-    return [
-      for (final k in keys)
-        byRow[k]!..sort((a, b) => (a.gridCol ?? 0).compareTo(b.gridCol ?? 0)),
-    ];
-  }
-
-  @override
-  Widget build(BuildContext context) => AspectRatio(
-    // Assez haut pour qu'un 4-2-3-1 (5 lignes par moitié) garde des photos
-    // lisibles sans que _HalfPitch ait à les rétrécir.
-    aspectRatio: 0.62,
-    child: Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_grass, _grassAlt, _grass],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Stack(children: [
-        Positioned.fill(child: CustomPaint(painter: _PitchLinesPainter())),
-        Column(children: [
-          Expanded(
-            child: home == null
-              ? const SizedBox.shrink()
-              : _HalfPitch(rows: _rows(home!), color: AppColors.success),
-          ),
-          Expanded(
-            child: away == null
-              ? const SizedBox.shrink()
-              // Miroir complet : lignes inversées (le gardien visiteur passe en
-              // bas) et colonnes inversées, pour que les deux équipes se fassent
-              // face comme sur un vrai terrain.
-              : _HalfPitch(
-                  rows: [
-                    for (final r in _rows(away!).reversed) r.reversed.toList(),
-                  ],
-                  color: AppColors.error),
-          ),
-        ]),
-      ]),
-    ),
-  );
-}
-
-class _HalfPitch extends StatelessWidget {
-  final List<List<LineupPlayer>> rows;
-  final Color color;
-  const _HalfPitch({required this.rows, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    if (rows.isEmpty) return const SizedBox.shrink();
-
-    // Le nombre de lignes dépend de la formation (4 pour un 4-4-2, 5 pour un
-    // 4-2-3-1…) : on répartit d'abord la hauteur disponible, puis on en déduit
-    // la taille des photos. Avec une taille fixe, les formations les plus
-    // profondes débordaient du terrain.
-    return LayoutBuilder(builder: (context, constraints) {
-      final rowHeight = constraints.maxHeight / rows.length;
-      // ~20px sont pris par le nom sous la photo et l'espacement.
-      final avatar = (rowHeight - 20).clamp(18.0, 34.0);
-
-      return Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4),
-        child: Column(children: [
-          for (final row in rows)
-            SizedBox(
-              height: rowHeight,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  for (final p in row)
-                    _PitchPlayer(player: p, color: color, size: avatar),
-                ],
-              ),
-            ),
-        ]),
-      );
-    });
-  }
-}
-
-class _PitchPlayer extends StatelessWidget {
-  final LineupPlayer player;
-  final Color color;
-  final double size;
-  const _PitchPlayer({required this.player, required this.color, required this.size});
-
-  @override
-  Widget build(BuildContext context) => Flexible(
-    // Dernier filet : si la ligne est vraiment trop basse (petit écran, 5
-    // lignes), l'ensemble photo+nom est réduit au lieu de déborder.
-    child: FittedBox(
-      fit: BoxFit.scaleDown,
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Stack(clipBehavior: Clip.none, children: [
-          Container(
-            width: size, height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: Colors.black26,
-              border: Border.all(color: color, width: 1.5),
-            ),
-            child: ClipOval(
-              child: player.photoUrl == null
-                ? Icon(Icons.person_rounded, color: Colors.white70, size: size * 0.55)
-                : Image.network(
-                    player.photoUrl!,
-                    fit: BoxFit.cover,
-                    // Le CDN peut renvoyer un 404 pour un joueur sans photo :
-                    // on retombe sur l'icône générique plutôt que sur une erreur.
-                    errorBuilder: (_, e, s) =>
-                      Icon(Icons.person_rounded, color: Colors.white70, size: size * 0.55),
-                  ),
-            ),
-          ),
-          if (player.number != null)
-            Positioned(
-              bottom: -3, right: -3,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Text('${player.number}',
-                  style: const TextStyle(
-                    color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w900)),
-              ),
-            ),
-        ]),
-        const SizedBox(height: 4),
-        Text(player.shortName,
-          maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w600,
-            shadows: [Shadow(color: Colors.black87, blurRadius: 3)])),
-      ]),
-    ),
-  );
-}
-
-/// Lignes du terrain (touches, rond central, surfaces) tracées par-dessus la
-/// pelouse — purement décoratif, aucune donnée.
-class _PitchLinesPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = _PitchView._lineColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.2;
-
-    final r = Rect.fromLTWH(6, 6, size.width - 12, size.height - 12);
-    canvas.drawRRect(RRect.fromRectAndRadius(r, const Radius.circular(8)), paint);
-
-    // Ligne médiane + rond central
-    canvas.drawLine(
-      Offset(r.left, size.height / 2), Offset(r.right, size.height / 2), paint);
-    canvas.drawCircle(Offset(size.width / 2, size.height / 2), size.width * 0.13, paint);
-
-    // Surfaces de réparation, haut et bas
-    final boxW = size.width * 0.46, boxH = size.height * 0.13;
-    for (final top in [r.top, r.bottom - boxH]) {
-      canvas.drawRect(
-        Rect.fromLTWH((size.width - boxW) / 2, top, boxW, boxH), paint);
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
-}
-
-/// Formation + entraîneur, sous le terrain.
-class _TeamCoachRow extends StatelessWidget {
-  final TeamLineup team;
-  final Color color;
-  const _TeamCoachRow({required this.team, required this.color});
-
-  @override
-  Widget build(BuildContext context) => Row(children: [
-    if (team.formation != null) ...[
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(6)),
-        child: Text(team.formation!,
-          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800)),
-      ),
-      const SizedBox(width: 8),
-    ],
-    if (team.coach != null)
-      Expanded(
-        child: Text('Entraîneur : ${team.coach}',
-          maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: context.cl.textM, fontSize: 11))),
-  ]);
-}
-
-/// Repli quand l'API ne fournit pas les coordonnées `grid` : liste en pastilles.
-class _TeamLineupBlock extends StatelessWidget {
-  final TeamLineup team;
-  final Color color;
-  const _TeamLineupBlock({required this.team, required this.color});
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      _TeamCoachRow(team: team, color: color),
-      const SizedBox(height: 8),
-      Wrap(
-        spacing: 6, runSpacing: 6,
-        children: team.startXI.map((p) => _PlayerChip(player: p, color: color)).toList(),
-      ),
-    ],
-  );
-}
-
-class _PlayerChip extends StatelessWidget {
-  final LineupPlayer player;
-  final Color color;
-  const _PlayerChip({required this.player, required this.color});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-    decoration: BoxDecoration(
-      color: context.cl.surfaceD,
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: context.cl.border, width: 0.5)),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      if (player.number != null) ...[
-        Text('${player.number}',
-          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800)),
-        const SizedBox(width: 4),
-      ],
-      Text(player.name,
-        style: TextStyle(color: context.cl.textS, fontSize: 11)),
-    ]),
-  );
-}
-
-// ─── BLESSURES / SUSPENSIONS ────────────────────────────────────────────────────
-
-class _InjuriesCard extends ConsumerWidget {
-  final String matchId;
-  final String homeTeam;
-  final String awayTeam;
-  final String? homeLogo;
-  final String? awayLogo;
-  const _InjuriesCard({
-    required this.matchId,
-    this.homeTeam = '',
-    this.awayTeam = '',
-    this.homeLogo,
-    this.awayLogo,
-  });
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final injuriesAsync = ref.watch(injuriesProvider(matchId));
-    final status = _statusOf(injuriesAsync.error);
-
-    // Vraie erreur, ou pas de blessés → pas de carte (rien à signaler)
-    if (injuriesAsync.hasError && status != 401) return const SizedBox.shrink();
-    if (status == null && injuriesAsync.valueOrNull?.isEmpty == true) return const SizedBox.shrink();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.borderSoft, width: 0.8),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.medical_services_rounded, color: AppColors.warning, size: 16),
-          ),
-          const SizedBox(width: 10),
-          Text('Absences',
-            style: TextStyle(
-              color: context.cl.textP,
-              fontSize: 13,
-              fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: 12),
-        status == 401
-          ? const _CardLoginPrompt(message: 'Connecte-toi pour voir les absences.')
-          : injuriesAsync.when(
-              loading: () => _H2HLoading(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (list) {
-                final home = list.where((p) => p.isHome).toList();
-                final away = list.where((p) => !p.isHome).toList();
-                return Column(children: [
-                  if (home.isNotEmpty)
-                    _InjuryTeamBlock(
-                      team: homeTeam, logo: homeLogo,
-                      players: home, color: AppColors.success),
-                  if (home.isNotEmpty && away.isNotEmpty) const SizedBox(height: 18),
-                  if (away.isNotEmpty)
-                    _InjuryTeamBlock(
-                      team: awayTeam, logo: awayLogo,
-                      players: away, color: AppColors.error),
-                ]);
-              },
-            ),
-      ]),
-    );
-  }
-}
-
-/// Absences d'une équipe, regroupées sous son nom et son logo — plus lisible
-/// que l'ancienne liste à plat où chaque ligne portait une pastille DOM/EXT.
-class _InjuryTeamBlock extends StatelessWidget {
-  final String team;
-  final String? logo;
-  final List<InjuredPlayer> players;
-  final Color color;
-  const _InjuryTeamBlock({
-    required this.team,
-    required this.players,
-    required this.color,
-    this.logo,
-  });
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(children: [
-        _TeamLogo(url: logo ?? '', size: 20),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(team.isEmpty ? 'Équipe' : team,
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: color, fontSize: 12, fontWeight: FontWeight.w700))),
-        Text('${players.length}',
-          style: TextStyle(
-            color: context.cl.textM, fontSize: 11, fontWeight: FontWeight.w700)),
-      ]),
-      const SizedBox(height: 10),
-      ...players.map((p) => _InjuryRow(player: p)),
-    ],
-  );
-}
-
-class _InjuryRow extends StatelessWidget {
-  final InjuredPlayer player;
-  const _InjuryRow({required this.player});
-
-  /// API-Football renvoie les motifs en anglais et en vrac. On traduit les
-  /// valeurs courantes ; tout motif inconnu est affiché tel quel plutôt que
-  /// masqué, pour ne pas perdre d'information.
-  static const _reasons = {
-    'yellow cards':    'Suspendu (cartons jaunes)',
-    'yellow card':     'Suspendu (carton jaune)',
-    'red card':        'Suspendu (carton rouge)',
-    'suspended':       'Suspendu',
-    'inactive':        'Indisponible',
-    'injury':          'Blessé',
-    'knee injury':     'Blessure au genou',
-    'ankle injury':    'Blessure à la cheville',
-    'thigh injury':    'Blessure à la cuisse',
-    'hamstring':       'Ischio-jambiers',
-    'muscle injury':   'Blessure musculaire',
-    'calf injury':     'Blessure au mollet',
-    'groin injury':    'Blessure à l\'aine',
-    'back injury':     'Blessure au dos',
-    'shoulder injury': 'Blessure à l\'épaule',
-    'foot injury':     'Blessure au pied',
-    'illness':         'Maladie',
-    'personal reasons':'Raisons personnelles',
-    'national team':   'Sélection nationale',
-    'coach decision':  'Choix de l\'entraîneur',
-    'rest':            'Au repos',
-    'broken leg':      'Jambe cassée',
-  };
-
-  /// true pour une suspension (carton), false pour une indisponibilité
-  /// physique — l'icône change en conséquence.
-  bool get _isSuspension {
-    final r = player.reason.toLowerCase();
-    return r.contains('card') || r.contains('suspend');
-  }
-
-  String get _label {
-    final raw = player.reason.trim().isNotEmpty ? player.reason.trim() : player.type;
-    return _reasons[raw.toLowerCase()] ?? raw;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isRed = player.reason.toLowerCase().contains('red');
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
-      child: Row(children: [
-        SizedBox(
-          width: 18,
-          child: Center(
-            child: _isSuspension
-              ? Container(
-                  width: 10, height: 13,
-                  decoration: BoxDecoration(
-                    color: isRed ? AppColors.error : AppColors.warning,
-                    borderRadius: BorderRadius.circular(2)),
-                )
-              : Icon(Icons.healing_rounded, color: context.cl.textM, size: 14),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: Text(player.name,
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: context.cl.textP, fontSize: 12.5))),
-        const SizedBox(width: 10),
-        Flexible(
-          child: Text(_label,
-            textAlign: TextAlign.right,
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: context.cl.textM, fontSize: 11)),
-        ),
-      ]),
-    );
-  }
-}
-
-// ─── CLASSEMENT ──────────────────────────────────────────────────────────────
-
-class _StandingsCard extends ConsumerWidget {
-  final String matchId;
-  const _StandingsCard({required this.matchId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final standingsAsync = ref.watch(standingsProvider(matchId));
-    final status = _statusOf(standingsAsync.error);
-
-    // Bloqué sur le plan gratuit (ou match sans classement, ex. amical) → rien
-    if (standingsAsync.hasError && status != 401) return const SizedBox.shrink();
-    if (status == null && standingsAsync.valueOrNull?.isEmpty == true) return const SizedBox.shrink();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.borderSoft, width: 0.8),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.leaderboard_rounded, color: AppColors.info, size: 16),
-          ),
-          const SizedBox(width: 10),
-          Text('Classement',
-            style: TextStyle(
-              color: context.cl.textP,
-              fontSize: 13,
-              fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: 12),
-        status == 401
-          ? const _CardLoginPrompt(message: 'Connecte-toi pour voir le classement.')
-          : standingsAsync.when(
-              loading: () => _H2HLoading(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (rows) => _StandingsTable(rows: rows),
-            ),
-      ]),
-    );
-  }
-}
-
-class _StandingsTable extends StatelessWidget {
-  final List<StandingRow> rows;
-  const _StandingsTable({required this.rows});
-
-  @override
-  Widget build(BuildContext context) => Column(children: [
-    Row(children: [
-      const SizedBox(width: 22),
-      Expanded(child: Text('Équipe',
-        style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600))),
-      _StandingsHeaderCell('J'),
-      _StandingsHeaderCell('V'),
-      _StandingsHeaderCell('N'),
-      _StandingsHeaderCell('D'),
-      _StandingsHeaderCell('+/-'),
-      _StandingsHeaderCell('Pts'),
-    ]),
-    const SizedBox(height: 6),
-    Divider(height: 1, color: context.cl.border),
-    const SizedBox(height: 4),
-    ...rows.map((r) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(children: [
-        SizedBox(width: 22, child: Text('${r.rank}',
-          style: TextStyle(color: context.cl.textM, fontSize: 11, fontWeight: FontWeight.w700))),
-        Expanded(child: Text(r.teamName,
-          maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: context.cl.textS, fontSize: 11.5))),
-        _StandingsCell('${r.played}'),
-        _StandingsCell('${r.win}'),
-        _StandingsCell('${r.draw}'),
-        _StandingsCell('${r.lose}'),
-        _StandingsCell(r.goalsDiff > 0 ? '+${r.goalsDiff}' : '${r.goalsDiff}'),
-        SizedBox(width: 28, child: Text('${r.points}', textAlign: TextAlign.center,
-          style: TextStyle(color: context.cl.textP, fontSize: 11.5, fontWeight: FontWeight.w800))),
-      ]),
-    )),
-  ]);
-}
-
-class _StandingsHeaderCell extends StatelessWidget {
-  final String label;
-  const _StandingsHeaderCell(this.label);
-  @override
-  Widget build(BuildContext context) => SizedBox(width: 24,
-    child: Text(label, textAlign: TextAlign.center,
-      style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600)));
-}
-
-class _StandingsCell extends StatelessWidget {
-  final String value;
-  const _StandingsCell(this.value);
-  @override
-  Widget build(BuildContext context) => SizedBox(width: 24,
-    child: Text(value, textAlign: TextAlign.center,
-      style: TextStyle(color: context.cl.textS, fontSize: 11)));
-}
-
-// ─── H2H ─────────────────────────────────────────────────────────────────────
-
-class _H2HCard extends ConsumerWidget {
-  final String matchId;
-  /// Logos du match courant — les confrontations passées opposent les mêmes
-  /// deux équipes, on les réutilise donc pour illustrer chaque ligne.
-  final String? homeLogo;
-  final String? awayLogo;
-  const _H2HCard({required this.matchId, this.homeLogo, this.awayLogo});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final h2hAsync = ref.watch(h2hProvider(matchId));
-    final status = _statusOf(h2hAsync.error);
-
-    // Pas de données, ou vraie erreur → on n'affiche rien
-    if (status == null && h2hAsync.valueOrNull?.matches.isEmpty == true) return const SizedBox.shrink();
-    if (h2hAsync.hasError && status != 401) return const SizedBox.shrink();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.borderSoft, width: 0.8),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.history_rounded, color: AppColors.primary, size: 16),
-          ),
-          const SizedBox(width: 10),
-          Text('Confrontations directes',
-            style: TextStyle(
-              color: context.cl.textP,
-              fontSize: 13,
-              fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: 14),
-        status == 401
-          ? const _CardLoginPrompt(message: 'Connecte-toi pour voir les confrontations directes.')
-          : h2hAsync.when(
-              loading: () => _H2HLoading(),
-              error: (_, __) => const SizedBox.shrink(),
-              data: (h2h) => _H2HContent(
-                h2h: h2h, homeLogo: homeLogo, awayLogo: awayLogo),
-            ),
-      ]),
-    );
-  }
-}
-
-class _H2HContent extends StatelessWidget {
-  final H2HData h2h;
-  final String? homeLogo;
-  final String? awayLogo;
-  const _H2HContent({required this.h2h, this.homeLogo, this.awayLogo});
-
-  @override
-  Widget build(BuildContext context) {
-    final total = h2h.homeWins + h2h.awayWins + h2h.draws;
-    final homeRatio = total > 0 ? h2h.homeWins / total : 0.0;
-    final drawRatio = total > 0 ? h2h.draws     / total : 0.0;
-    final awayRatio = total > 0 ? h2h.awayWins  / total : 0.0;
-
-    return Column(children: [
-      // Barre de résumé
-      Row(children: [
-        // Home wins
-        Expanded(
-          child: Column(children: [
-            TweenAnimationBuilder<int>(
-              tween: IntTween(begin: 0, end: h2h.homeWins),
-              duration: const Duration(milliseconds: 800),
-              builder: (_, v, __) => Text('$v',
-                style: TextStyle(
-                  color: AppColors.success,
-                  fontSize: 24, fontWeight: FontWeight.w900)),
-            ),
-            Text(h2h.homeTeam,
-              textAlign: TextAlign.center,
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: context.cl.textS, fontSize: 10)),
-          ]),
-        ),
-        // Draws
-        Column(children: [
-          TweenAnimationBuilder<int>(
-            tween: IntTween(begin: 0, end: h2h.draws),
-            duration: const Duration(milliseconds: 800),
-            builder: (_, v, __) => Text('$v',
-              style: TextStyle(
-                color: context.cl.textM,
-                fontSize: 24, fontWeight: FontWeight.w900)),
-          ),
-          Text('Nuls',
-            style: TextStyle(color: context.cl.textM, fontSize: 10)),
-        ]),
-        // Away wins
-        Expanded(
-          child: Column(children: [
-            TweenAnimationBuilder<int>(
-              tween: IntTween(begin: 0, end: h2h.awayWins),
-              duration: const Duration(milliseconds: 800),
-              builder: (_, v, __) => Text('$v',
-                style: TextStyle(
-                  color: AppColors.error,
-                  fontSize: 24, fontWeight: FontWeight.w900)),
-            ),
-            Text(h2h.awayTeam,
-              textAlign: TextAlign.center,
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: context.cl.textS, fontSize: 10)),
-          ]),
-        ),
-      ]),
-      const SizedBox(height: 12),
-      // Barre proportionnelle
-      ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: 1),
-          duration: const Duration(milliseconds: 900),
-          curve: Curves.easeOutCubic,
-          builder: (_, t, __) => Row(children: [
-            if (homeRatio > 0) Expanded(
-              flex: (homeRatio * 100).round(),
-              child: Container(
-                height: 8,
-                color: AppColors.success.withValues(alpha: 0.7 + 0.3 * t)),
-            ),
-            if (drawRatio > 0) Expanded(
-              flex: (drawRatio * 100).round(),
-              child: Container(height: 8, color: context.cl.borderSoft),
-            ),
-            if (awayRatio > 0) Expanded(
-              flex: (awayRatio * 100).round(),
-              child: Container(
-                height: 8,
-                color: AppColors.error.withValues(alpha: 0.7 + 0.3 * t)),
-            ),
-          ]),
-        ),
-      ),
-      const SizedBox(height: 6),
-      // Liste des derniers matchs
-      ...() {
-        final shown = h2h.matches.take(6).toList();
-        return [
-          for (var i = 0; i < shown.length; i++)
-            _H2HRow(
-              match: shown[i],
-              h2h: h2h,
-              homeLogo: homeLogo,
-              awayLogo: awayLogo,
-              showDivider: i < shown.length - 1,
-            ),
-        ];
-      }(),
-    ]);
-  }
-}
-
-class _H2HRow extends StatelessWidget {
-  final H2HMatchResult match;
-  final H2HData        h2h;
-  final String? homeLogo;
-  final String? awayLogo;
-  final bool showDivider;
-  const _H2HRow({
-    required this.match,
-    required this.h2h,
-    this.homeLogo,
-    this.awayLogo,
-    this.showDivider = true,
-  });
-
-  /// L'hôte change d'une confrontation à l'autre : on rattache le logo au nom
-  /// de l'équipe, jamais à sa position dans la ligne.
-  String? _logoFor(String team) => team == h2h.homeTeam ? homeLogo : awayLogo;
-
-  /// Le vainqueur est déduit du score de la ligne, et non du champ `winner` de
-  /// l'API : celui-ci est exprimé par rapport au domicile du *match courant*
-  /// (cf. api_football.service.ts), donc le lire comme l'hôte de cette
-  /// rencontre-là inverse la couleur dès que l'hôte a changé.
-  ///
-  /// La couleur suit ensuite l'équipe (vert = équipe à domicile du match
-  /// courant, rouge = son adversaire), pour rester cohérente avec la barre de
-  /// synthèse au-dessus quel que soit le terrain de la rencontre.
-  Color? _colorFor(String team) {
-    if (match.homeScore == match.awayScore) return null;
-    final winner = match.homeScore > match.awayScore
-      ? match.homeTeam
-      : match.awayTeam;
-    if (team != winner) return null;
-    return team == h2h.homeTeam ? AppColors.success : AppColors.error;
-  }
-
-  Widget _teamSide(BuildContext context, String team, {required bool alignEnd}) {
-    final color = _colorFor(team);
-    final logo  = _TeamLogo(url: _logoFor(team) ?? '', size: 18);
-    final name  = Flexible(
-      child: Text(team,
-        textAlign: alignEnd ? TextAlign.right : TextAlign.left,
-        maxLines: 1, overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: color ?? context.cl.textS,
-          fontSize: 12,
-          fontWeight: color != null ? FontWeight.w700 : FontWeight.w400)),
-    );
-
-    return Expanded(
-      child: Row(
-        mainAxisAlignment: alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
-        children: alignEnd
-          ? [name, const SizedBox(width: 7), logo]
-          : [logo, const SizedBox(width: 7), name],
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) => Column(children: [
-    Padding(
-      padding: const EdgeInsets.symmetric(vertical: 11),
-      child: Column(children: [
-        Row(children: [
-          Text(DateFormat('EEE d MMM y', 'fr_FR').format(match.date),
-            style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
-          const Spacer(),
-          if (match.league.isNotEmpty)
-            Flexible(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                decoration: BoxDecoration(
-                  color: context.cl.surfaceDeep,
-                  borderRadius: BorderRadius.circular(5)),
-                child: Text(match.league.toUpperCase(),
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: context.cl.textM,
-                    fontSize: 8.5,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.4)),
-              ),
-            ),
-        ]),
-        const SizedBox(height: 9),
-        Row(children: [
-          _teamSide(context, match.homeTeam, alignEnd: true),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text('${match.homeScore} - ${match.awayScore}',
-              style: TextStyle(
-                color: context.cl.textP,
-                fontSize: 14, fontWeight: FontWeight.w800)),
-          ),
-          _teamSide(context, match.awayTeam, alignEnd: false),
-        ]),
-      ]),
-    ),
-    if (showDivider) Container(height: 1, color: context.cl.borderSoft),
-  ]);
-}
-
-class _H2HLoading extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Column(
-    children: List.generate(3, (_) => Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Container(
-        height: 24,
-        decoration: BoxDecoration(
-          color: context.cl.surfaceD,
-          borderRadius: BorderRadius.circular(6)),
-      ).animate(onPlay: (c) => c.repeat())
-       .shimmer(duration: 1400.ms, color: context.cl.borderSoft),
-    )),
-  );
-}
-
-// ─── ANALYSE IA ──────────────────────────────────────────────────────────────
-
-class _AIAnalysisCard extends ConsumerWidget {
-  final String matchId;
-  final MatchStatus status;
-  const _AIAnalysisCard({required this.matchId, this.status = MatchStatus.upcoming});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final aiAsync = ref.watch(aiAnalysisProvider(matchId));
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF6C3AE8).withValues(alpha: 0.08),
-            const Color(0xFF3A7BD5).withValues(alpha: 0.08),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFF6C3AE8).withValues(alpha: 0.25),
-          width: 1,
-        ),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: const Color(0xFF6C3AE8).withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.query_stats_rounded,
-              color: Color(0xFF6C3AE8), size: 16),
-          ),
-          const SizedBox(width: 10),
-          Text('Analyse statistique',
-            style: TextStyle(
-              color: context.cl.textP,
-              fontSize: 14,
-              fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: 16),
-        aiAsync.when(
-          loading: () => _AILoadingState(),
-          error: (err, __) {
-            final isPremiumRequired = err is DioException &&
-                (err.response?.statusCode == 403 ||
-                 err.response?.data?['code'] == 'PREMIUM_REQUIRED');
-            if (isPremiumRequired) {
-              return _AIPremiumLockedState(
-                status: status,
-                onTap: () => goToPremium(context, ref));
-            }
-            return _AIErrorState(
-              onRetry: () => ref.invalidate(aiAnalysisProvider(matchId)));
-          },
-          data: (ai) => _AIData(analysis: ai),
-        ),
-      ]),
-    );
-  }
-}
-
-class _AIData extends StatelessWidget {
-  final AiAnalysis analysis;
-  const _AIData({required this.analysis});
-
-  Color get _probColor {
-    if (analysis.probability >= 70) return AppColors.success;
-    if (analysis.probability >= 55) return const Color(0xFF84CC16);
-    if (analysis.probability >= 45) return AppColors.warning;
-    return AppColors.error;
-  }
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(children: [
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('PROBABILITÉ DE SUCCÈS',
-              style: TextStyle(
-                color: context.cl.textM,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.6)),
-            const SizedBox(height: 8),
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: analysis.probability / 100),
-              duration: const Duration(milliseconds: 1200),
-              curve: Curves.easeOutCubic,
-              builder: (ctx, val, _) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: val,
-                      minHeight: 8,
-                      backgroundColor: ctx.cl.borderSoft,
-                      valueColor: AlwaysStoppedAnimation<Color>(_probColor),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ]),
-        ),
-        const SizedBox(width: 16),
-        TweenAnimationBuilder<int>(
-          tween: IntTween(begin: 0, end: analysis.probability),
-          duration: const Duration(milliseconds: 1200),
-          curve: Curves.easeOutCubic,
-          builder: (_, val, __) => Text('$val%',
-            style: TextStyle(
-              color: _probColor,
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-            )),
-        ),
-      ]),
-      const SizedBox(height: 14),
-      Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: context.cl.surfaceD,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('✦ ', style: TextStyle(color: Color(0xFF6C3AE8), fontSize: 12)),
-          Expanded(
-            child: Text(analysis.explanation,
-              style: TextStyle(
-                color: context.cl.textS,
-                fontSize: 12,
-                height: 1.5,
-              )),
-          ),
-        ]),
-      ),
-    ],
-  );
-}
-
-class _AILoadingState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(children: [
-        SizedBox(
-          width: 16, height: 16,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: const Color(0xFF6C3AE8),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Text('Analyse en cours…',
-          style: TextStyle(color: context.cl.textM, fontSize: 12)),
-      ]),
-      const SizedBox(height: 12),
-      Container(
-        height: 8,
-        decoration: BoxDecoration(
-          color: context.cl.borderSoft,
-          borderRadius: BorderRadius.circular(6)),
-      )
-        .animate(onPlay: (c) => c.repeat())
-        .shimmer(duration: 1500.ms, color: const Color(0xFF6C3AE8).withValues(alpha: 0.15)),
-    ],
-  );
-}
-
-class _AIPremiumLockedState extends StatefulWidget {
-  final VoidCallback onTap;
-  final MatchStatus status;
-  const _AIPremiumLockedState({required this.onTap, required this.status});
-
-  @override
-  State<_AIPremiumLockedState> createState() => _AIPremiumLockedStateState();
-}
-
-class _AIPremiumLockedStateState extends State<_AIPremiumLockedState>
-    with SingleTickerProviderStateMixin {
-  static const _gold = Color(0xFFDAA520);
-  static const _goldLight = Color(0xFFF4C430);
-
-  /// Sur un match terminé, promettre une « probabilité de succès » n'a plus
-  /// de valeur : le score est connu. On vend alors le débriefing — ce que
-  /// le modèle avait anticipé — qui reste le meilleur moyen de juger sa fiabilité
-  /// avant de s'abonner.
-  bool get _isFinished => widget.status == MatchStatus.finished;
-
-  String get _title => _isFinished
-    ? 'Débriefing du modèle'
-    : 'Débloquez l\'analyse complète';
-
-  String get _subtitle => _isFinished
-    ? 'Ce que le modèle avait anticipé, et sur quels critères'
-    : 'Probabilité de succès calculée à partir des cotes et de la forme';
-
-  late final AnimationController _pressCtrl = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 85),
-    reverseDuration: const Duration(milliseconds: 150),
-  );
-  late final Animation<double> _scale = Tween(begin: 1.0, end: 0.97).animate(
-    CurvedAnimation(parent: _pressCtrl, curve: Curves.easeOut));
-
-  @override
-  void dispose() { _pressCtrl.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTapDown: (_) => _pressCtrl.forward(),
-    onTapUp: (_) {
-      _pressCtrl.reverse();
-      HapticFeedback.lightImpact();
-      widget.onTap();
-    },
-    onTapCancel: () => _pressCtrl.reverse(),
-    child: ScaleTransition(
-      scale: _scale,
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Stack(children: [
-          // Aperçu flouté qui imite une vraie analyse — montre qu'il y a du
-          // contenu réel derrière le voile, plutôt qu'une simple phrase.
-          Positioned.fill(
-            child: ImageFiltered(
-              imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-              child: const Opacity(opacity: 0.55, child: _AIPreviewMock()),
-            ),
-          ),
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    context.cl.surfaceD.withValues(alpha: 0.55),
-                    context.cl.surfaceD.withValues(alpha: 0.93),
-                  ],
-                  begin: Alignment.topCenter,
-                  end: Alignment.bottomCenter,
-                ),
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Container(
-                width: 40, height: 40,
-                decoration: const BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: LinearGradient(colors: [_goldLight, _gold]),
-                ),
-                child: const Icon(Icons.query_stats_rounded, color: Colors.black, size: 19),
-              ),
-              const SizedBox(height: 10),
-              Text(_title,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: context.cl.textP,
-                  fontSize: 13.5,
-                  fontWeight: FontWeight.w800)),
-              const SizedBox(height: 4),
-              Text(_subtitle,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: context.cl.textS, fontSize: 11, height: 1.4)),
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(colors: [_goldLight, _gold]),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [BoxShadow(
-                    color: _gold.withValues(alpha: 0.35),
-                    blurRadius: 14, offset: const Offset(0, 4))],
-                ),
-                // Le bouton doré reste identique d'un verrou à l'autre — c'est
-                // devenu le signal « action Premium ». Seul le libellé change,
-                // pour éviter deux CTA rigoureusement identiques à la suite.
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.lock_open_rounded, color: Colors.black, size: 15),
-                  const SizedBox(width: 6),
-                  Text(_isFinished ? 'Voir le débriefing' : 'Débloquer l\'analyse',
-                    style: const TextStyle(
-                      color: Colors.black,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800)),
-                ]),
-              ).animate(onPlay: (c) => c.repeat())
-               .shimmer(duration: 2200.ms, delay: 700.ms, color: Colors.white70),
-            ]),
-          ),
-        ]),
-      ),
-    ),
-  );
-}
-
-/// Squelette imitant la mise en page de [_AIData], flouté et assombri
-/// derrière le CTA — donne un aperçu crédible du contenu sans afficher
-/// de vrais chiffres.
-class _AIPreviewMock extends StatelessWidget {
-  const _AIPreviewMock();
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(16),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: 0.72,
-              minHeight: 8,
-              backgroundColor: context.cl.borderSoft,
-              valueColor: const AlwaysStoppedAnimation(AppColors.success),
-            ),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Container(
-          width: 34, height: 22,
-          decoration: BoxDecoration(
-            color: context.cl.borderSoft,
-            borderRadius: BorderRadius.circular(5)),
-        ),
-      ]),
-      const SizedBox(height: 16),
-      _line(context, 1),
-      const SizedBox(height: 7),
-      _line(context, 0.85),
-      const SizedBox(height: 7),
-      _line(context, 0.5),
-    ]),
-  );
-
-  Widget _line(BuildContext context, double widthFactor) => FractionallySizedBox(
-    widthFactor: widthFactor,
-    alignment: Alignment.centerLeft,
-    child: Container(
-      height: 10,
-      decoration: BoxDecoration(
-        color: context.cl.borderSoft,
-        borderRadius: BorderRadius.circular(4)),
-    ),
-  );
-}
-
-class _AIErrorState extends StatelessWidget {
-  final VoidCallback onRetry;
-  const _AIErrorState({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) => Row(children: [
-    Icon(Icons.warning_amber_rounded, color: context.cl.textM, size: 16),
-    const SizedBox(width: 8),
-    Expanded(
-      child: Text('Analyse temporairement indisponible.',
-        style: TextStyle(color: context.cl.textM, fontSize: 12))),
-    TextButton(
-      onPressed: onRetry,
-      style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
-      child: Text('Réessayer',
-        style: TextStyle(color: const Color(0xFF6C3AE8), fontSize: 12))),
-  ]);
-}
-
-// ─── FORME DES ÉQUIPES ───────────────────────────────────────────────────────
-
-/// Forme récente des deux équipes. Les points de forme n'ont pas de maximum
-/// fixe côté backend — ils ne sont exploités qu'en rapport de l'un à l'autre
-/// (cf. `formToProb` dans ai_prediction.service.ts) — d'où une barre
-/// comparative plutôt que deux jauges sur une échelle absolue.
-class _FormCard extends StatelessWidget {
-  final MatchEntity match;
-  const _FormCard({required this.match});
-
-  @override
-  Widget build(BuildContext context) {
-    final total = match.homeFormPoints + match.awayFormPoints;
-    final homeRatio = total > 0 ? match.homeFormPoints / total : 0.5;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.borderSoft, width: 0.8),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _CardHeader(
-          icon: Icons.trending_up_rounded,
-          color: AppColors.success,
-          title: 'Forme des équipes'),
-        const SizedBox(height: 14),
-        Row(children: [
-          Expanded(
-            child: Text(match.homeTeam,
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: AppColors.success, fontSize: 11.5,
-                fontWeight: FontWeight.w700))),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(match.awayTeam,
-              textAlign: TextAlign.right,
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: AppColors.error, fontSize: 11.5,
-                fontWeight: FontWeight.w700))),
-        ]),
-        const SizedBox(height: 9),
-        Row(children: [
-          Text('${match.homeFormPoints} pts',
-            style: TextStyle(
-              color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w800)),
-          const Spacer(),
-          Text('${match.awayFormPoints} pts',
-            style: TextStyle(
-              color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w800)),
-        ]),
-        const SizedBox(height: 8),
-        TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0.5, end: homeRatio),
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeOutCubic,
-          builder: (context, val, child) => ClipRRect(
-            borderRadius: BorderRadius.circular(5),
-            child: SizedBox(
-              height: 8,
-              child: Row(children: [
-                Expanded(
-                  flex: (val * 1000).round().clamp(1, 999),
-                  child: Container(color: AppColors.success)),
-                Expanded(
-                  flex: ((1 - val) * 1000).round().clamp(1, 999),
-                  child: Container(color: AppColors.error)),
-              ]),
-            ),
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _MiserButton extends ConsumerStatefulWidget {
-  final MatchEntity match;
-  const _MiserButton({required this.match});
-
-  @override
-  ConsumerState<_MiserButton> createState() => _MiserButtonState();
-}
-
-class _MatchStatsCard extends ConsumerWidget {
-  final String matchId;
-  const _MatchStatsCard({required this.matchId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final statsAsync = ref.watch(matchStatsProvider(matchId));
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.borderSoft, width: 0.8),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.bar_chart_rounded, color: AppColors.info, size: 16),
-          ),
-          const SizedBox(width: 10),
-          Text('Statistiques du match',
-            style: TextStyle(
-              color: context.cl.textP,
-              fontSize: 13,
-              fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: 14),
-        statsAsync.when(
-          loading: () => _StatsLoading(),
-          error: (_, __) => _StatsUnavailable(),
-          data: (data) => data == null
-            ? _StatsUnavailable()
-            : _StatsList(stats: data.stats,
-                homeTeam: data.homeTeam, awayTeam: data.awayTeam),
-        ),
-      ]),
-    );
-  }
-}
-
-/// Faits marquants du match (buts, cartons) — affichés dans l'onglet Détails,
-/// séparément des statistiques chiffrées qui ont leur propre onglet.
-/// Masquée quand il n'y a aucun événement notable à montrer.
-class _MatchEventsCard extends ConsumerWidget {
-  final String matchId;
-  final MatchEntity match;
-  const _MatchEventsCard({required this.matchId, required this.match});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final statsAsync = ref.watch(matchStatsProvider(matchId));
-    final data = statsAsync.valueOrNull;
-    if (data == null || !_EventsList.hasNotable(data.events)) {
-      return const SizedBox.shrink();
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.borderSoft, width: 0.8),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        _CardHeader(
-          icon: Icons.timeline_rounded,
-          color: AppColors.info,
-          title: 'Faits marquants'),
-        const SizedBox(height: 14),
-        // En-tête et filet reprennent exactement la structure d'une ligne
-        // d'événement (colonne minute + 2 colonnes + colonne icône) : leur
-        // alignement est ainsi garanti par construction plutôt que par un
-        // calcul de marges qui dériverait au moindre changement.
-        Row(children: [
-          const SizedBox(width: _EventsList.minuteWidth),
-          Expanded(
-            child: Center(child: _TeamLogo(url: match.homeTeamLogo ?? '', size: 20))),
-          const SizedBox(width: _EventsList.iconWidth),
-          Expanded(
-            child: Center(child: _TeamLogo(url: match.awayTeamLogo ?? '', size: 20))),
-        ]),
-        const SizedBox(height: 12),
-        Stack(children: [
-          Positioned.fill(
-            child: Row(children: [
-              const SizedBox(width: _EventsList.minuteWidth),
-              const Expanded(child: SizedBox()),
-              SizedBox(
-                width: _EventsList.iconWidth,
-                child: Center(
-                  child: Container(width: 1, color: context.cl.borderSoft))),
-              const Expanded(child: SizedBox()),
-            ]),
-          ),
-          _EventsList(events: data.events,
-            homeTeam: data.homeTeam, awayTeam: data.awayTeam),
-        ]),
-      ]),
-    );
-  }
-}
-
-/// En-tête commun à toutes les cartes d'information : même taille d'icône,
-/// même typographie. Évite que chaque carte dérive de son côté.
-class _CardHeader extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final String title;
-  const _CardHeader({required this.icon, required this.color, required this.title});
-
-  @override
-  Widget build(BuildContext context) => Row(children: [
-    Container(
-      padding: const EdgeInsets.all(7),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Icon(icon, color: color, size: 16),
-    ),
-    const SizedBox(width: 10),
-    Expanded(
-      child: Text(title,
-        maxLines: 1, overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          color: context.cl.textP,
-          fontSize: 13.5,
-          fontWeight: FontWeight.w700)),
-    ),
-  ]);
-}
-
-class _EventsList extends StatelessWidget {
-  final List<MatchEvent> events;
-  final String homeTeam, awayTeam;
-  const _EventsList({required this.events, required this.homeTeam, required this.awayTeam});
-
-  /// Géométrie de la ligne, partagée avec l'en-tête et le filet central de
-  /// [_MatchEventsCard] : l'axe des deux camps est décalé par la colonne des
-  /// minutes, le centrer « au milieu de la carte » le désaligne.
-  static const double minuteWidth = 38;
-  static const double iconWidth   = 24;
-
-  /// Seuls les buts et les cartons sont affichés — les remplacements et autres
-  /// événements alourdiraient la liste sans intérêt.
-  static bool _isNotable(MatchEvent e) => e.type == 'Goal' || e.type == 'Card';
-
-  /// Permet au parent de décider s'il doit afficher la carte, en appliquant
-  /// exactement le même filtre que le rendu.
-  static bool hasNotable(List<MatchEvent> events) => events.any(_isNotable);
-
-  static Widget _eventIcon(MatchEvent e) {
-    if (e.type == 'Goal') {
-      if (e.detail == 'Own Goal') {
-        return Stack(clipBehavior: Clip.none, children: [
-          Icon(Icons.sports_soccer_rounded, color: AppColors.error, size: 16),
-          Positioned(right: -4, bottom: -2,
-            child: Icon(Icons.arrow_back_rounded, color: AppColors.error, size: 8)),
-        ]);
-      }
-      if (e.detail == 'Penalty') {
-        return Stack(clipBehavior: Clip.none, children: [
-          Icon(Icons.sports_soccer_rounded, color: AppColors.success, size: 16),
-          Positioned(right: -4, bottom: -2,
-            child: Icon(Icons.gps_fixed_rounded, color: AppColors.warning, size: 8)),
-        ]);
-      }
-      if (e.detail == 'Missed Penalty') {
-        return Icon(Icons.sports_soccer_rounded,
-          color: AppColors.error.withValues(alpha: 0.5), size: 16);
-      }
-      return Icon(Icons.sports_soccer_rounded, color: AppColors.success, size: 16);
-    }
-    if (e.type == 'Card') {
-      final isRed = e.detail.contains('Red');
-      return Container(
-        width: 11, height: 15,
-        decoration: BoxDecoration(
-          color: isRed ? AppColors.error : AppColors.warning,
-          borderRadius: BorderRadius.circular(2),
-        ),
-      );
-    }
-    if (e.type == 'subst') {
-      return Icon(Icons.swap_horiz_rounded, color: AppColors.info, size: 16);
-    }
-    return const Icon(Icons.sports_soccer_rounded, color: Colors.grey, size: 16);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final notable = events.where(_isNotable).toList();
-
-    if (notable.isEmpty) {
-      return Text('Aucun événement notable.',
-        style: TextStyle(color: context.cl.textM, fontSize: 12));
-    }
-
-    return Column(
-      children: notable.map((e) {
-        final isHome = e.team == homeTeam;
-        final minStr = e.extra != null ? "${e.minute}+${e.extra}'" : "${e.minute}'";
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(children: [
-            // Minute
-            SizedBox(width: minuteWidth,
-              child: Text(minStr,
-                style: TextStyle(
-                  color: AppColors.info, fontSize: 11,
-                  fontWeight: FontWeight.w700))),
-            // Gauche (domicile)
-            Expanded(child: isHome
-              ? _EventItem(event: e, align: TextAlign.right)
-              : const SizedBox()),
-            // Icône centrale — largeur fixe : les icônes n'ont pas toutes la
-            // même taille (16px pour un but, 11px pour un carton) et sans
-            // colonne fixe l'axe central se déplaçait d'une ligne à l'autre.
-            SizedBox(
-              width: iconWidth,
-              child: Center(child: _eventIcon(e)),
-            ),
-            // Droite (extérieur)
-            Expanded(child: !isHome
-              ? _EventItem(event: e, align: TextAlign.left)
-              : const SizedBox()),
-          ]),
-        );
-      }).toList(),
-    );
-  }
-}
-
-class _EventItem extends StatelessWidget {
-  final MatchEvent event;
-  final TextAlign align;
-  const _EventItem({required this.event, required this.align});
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: align == TextAlign.right
-      ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-    children: [
-      Text(event.player,
-        textAlign: align,
-        style: TextStyle(color: context.cl.textP, fontSize: 12,
-          fontWeight: FontWeight.w600),
-        maxLines: 1, overflow: TextOverflow.ellipsis),
-      if (event.assist != null && event.assist!.isNotEmpty)
-        Text('↳ ${event.assist}',
-          textAlign: align,
-          style: TextStyle(color: context.cl.textM, fontSize: 10),
-          maxLines: 1, overflow: TextOverflow.ellipsis),
-    ],
-  );
-}
-
-class _StatsList extends StatelessWidget {
-  final List<MatchStat> stats;
-  final String homeTeam, awayTeam;
-  const _StatsList({required this.stats, required this.homeTeam, required this.awayTeam});
-
-  static const _wantedStats = [
-    'Ball Possession',
-    'Total Shots',
-    'Shots on Goal',
-    'Shots off Goal',
-    'Blocked Shots',
-    'Corner Kicks',
-    'Fouls',
-    'Yellow Cards',
-    'Red Cards',
-    'Offsides',
-    'Total passes',
-    'Passes accurate',
-    'Goalkeeper Saves',
-  ];
-
-  static const _frenchLabels = {
-    'Ball Possession':   'Possession',
-    'Total Shots':       'Tirs (total)',
-    'Shots on Goal':     'Tirs cadrés',
-    'Shots off Goal':    'Tirs hors cadre',
-    'Blocked Shots':     'Tirs bloqués',
-    'Corner Kicks':      'Corners',
-    'Fouls':             'Fautes',
-    'Yellow Cards':      'Cartons jaunes',
-    'Red Cards':         'Cartons rouges',
-    'Offsides':          'Hors-jeu',
-    'Total passes':      'Passes (total)',
-    'Passes accurate':   'Passes réussies',
-    'Goalkeeper Saves':  'Arrêts du gardien',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final filtered = stats
-      .where((s) => _wantedStats.contains(s.label))
-      .toList()
-      ..sort((a, b) =>
-        _wantedStats.indexOf(a.label).compareTo(_wantedStats.indexOf(b.label)));
-
-    if (filtered.isEmpty) {
-      return Text('Statistiques indisponibles.',
-        style: TextStyle(color: context.cl.textM, fontSize: 12));
-    }
-
-    // La possession sert d'en-tête visuel : c'est la seule stat qui se lit
-    // naturellement comme un partage à 100 %, les autres sont des compteurs.
-    final possession = filtered
-      .where((s) => s.label == 'Ball Possession').firstOrNull;
-    final others = filtered.where((s) => s.label != 'Ball Possession');
-
-    return Column(children: [
-      Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Row(children: [
-          Expanded(child: Text(homeTeam,
-            style: TextStyle(color: AppColors.primary, fontSize: 11,
-              fontWeight: FontWeight.w700),
-            maxLines: 1, overflow: TextOverflow.ellipsis)),
-          const SizedBox(width: 12),
-          Expanded(child: Text(awayTeam,
-            style: TextStyle(color: AppColors.warning, fontSize: 11,
-              fontWeight: FontWeight.w700),
-            textAlign: TextAlign.right,
-            maxLines: 1, overflow: TextOverflow.ellipsis)),
-        ]),
-      ),
-      if (possession != null) ...[
-        Text('Possession de balle',
-          style: TextStyle(color: context.cl.textS, fontSize: 11.5)),
-        const SizedBox(height: 8),
-        _PossessionBar(home: possession.home, away: possession.away),
-        const SizedBox(height: 14),
-      ],
-      ...others.map((s) => _StatRow(
-        label: _frenchLabels[s.label] ?? s.label,
-        home: s.home, away: s.away,
-        lowerIsBetter: _lowerIsBetter.contains(s.label),
-      )),
-    ]);
-  }
-
-  /// Stats où le plus petit chiffre est le meilleur — la pastille doit alors
-  /// mettre en avant l'équipe qui en a le moins.
-  static const _lowerIsBetter = {
-    'Fouls', 'Yellow Cards', 'Red Cards', 'Offsides',
-  };
-}
-
-/// Barre de possession pleine largeur, chaque camp portant son pourcentage.
-class _PossessionBar extends StatelessWidget {
-  final dynamic home, away;
-  const _PossessionBar({this.home, this.away});
-
-  @override
-  Widget build(BuildContext context) {
-    final h = _statValue(home), a = _statValue(away);
-    final total = h + a;
-    final hRatio = total > 0 ? h / total : 0.5;
-
-    return TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0.5, end: hRatio),
-      duration: const Duration(milliseconds: 800),
-      curve: Curves.easeOutCubic,
-      builder: (context, val, child) => ClipRRect(
-        borderRadius: BorderRadius.circular(8),
-        child: SizedBox(
-          height: 30,
-          child: Row(children: [
-            Expanded(
-              flex: (val * 1000).round().clamp(1, 999),
-              child: Container(
-                color: AppColors.primary,
-                alignment: Alignment.centerLeft,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text('${home ?? 0}',
-                    style: const TextStyle(
-                      color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
-                ),
-              ),
-            ),
-            Expanded(
-              flex: ((1 - val) * 1000).round().clamp(1, 999),
-              child: Container(
-                color: AppColors.warning,
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                child: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text('${away ?? 0}',
-                    style: const TextStyle(
-                      color: Colors.black, fontSize: 13, fontWeight: FontWeight.w800)),
-                ),
-              ),
-            ),
-          ]),
-        ),
-      ),
-    );
-  }
-}
-
-/// Une ligne « valeur — libellé — valeur ». Seule l'équipe en tête reçoit une
-/// pastille colorée : le regard trouve le vainqueur de la stat sans avoir à
-/// comparer deux nombres.
-class _StatRow extends StatelessWidget {
-  final String label;
-  final dynamic home, away;
-  final bool lowerIsBetter;
-  const _StatRow({
-    required this.label,
-    this.home,
-    this.away,
-    this.lowerIsBetter = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final h = _statValue(home), a = _statValue(away);
-    final homeLeads = h != a && (lowerIsBetter ? h < a : h > a);
-    final awayLeads = h != a && (lowerIsBetter ? a < h : a > h);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 5),
-      child: Row(children: [
-        SizedBox(
-          width: 54,
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: _value(context, home, AppColors.primary, homeLeads, Colors.white),
-          ),
-        ),
-        Expanded(
-          child: Text(label,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: context.cl.textS, fontSize: 11.5, height: 1.3)),
-        ),
-        SizedBox(
-          width: 54,
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: _value(context, away, AppColors.warning, awayLeads, Colors.black),
-          ),
-        ),
-      ]),
-    );
-  }
-
-  Widget _value(BuildContext context, dynamic v, Color color, bool leads, Color onColor) {
-    final text = Text('${v ?? 0}',
-      style: TextStyle(
-        color: leads ? onColor : context.cl.textP,
-        fontSize: 12.5,
-        fontWeight: FontWeight.w700));
-
-    if (!leads) return text;
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(11)),
-      child: text,
-    );
-  }
-}
-
-/// Les valeurs d'API-Football arrivent en `int`, ou en `String` pour les
-/// pourcentages ("76%"), ou `null` quand la stat n'est pas fournie.
-double _statValue(dynamic v) {
-  if (v == null) return 0;
-  if (v is num) return v.toDouble();
-  return double.tryParse(v.toString().replaceAll('%', '').trim()) ?? 0;
-}
-
-class _StatsLoading extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Column(
-    children: List.generate(4, (_) => Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        height: 20,
-        decoration: BoxDecoration(
-          color: context.cl.surfaceD,
-          borderRadius: BorderRadius.circular(6)),
-      ).animate(onPlay: (c) => c.repeat())
-       .shimmer(duration: 1400.ms, color: context.cl.borderSoft),
-    )),
-  );
-}
-
-class _StatsUnavailable extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(children: [
-      Icon(Icons.info_outline_rounded, color: context.cl.textM, size: 15),
-      const SizedBox(width: 8),
-      Expanded(child: Text(
-        'Statistiques indisponibles pour ce match.',
-        style: TextStyle(color: context.cl.textM, fontSize: 12))),
-    ]),
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _MiserButtonState extends ConsumerState<_MiserButton> {
-  bool _betPlaced = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final alreadyBet = ref.watch(hasBetOnPronosticProvider(widget.match.id));
-
-    if (_betPlaced || alreadyBet) {
-      return Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color:  AppColors.success.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.success.withValues(alpha: 0.3))),
-        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.check_circle_rounded, color: AppColors.success, size: 18),
-          SizedBox(width: 8),
-          Text('Mise enregistrée dans ton bankroll',
-              style: TextStyle(color: AppColors.success,
-                  fontSize: 13, fontWeight: FontWeight.w600)),
-        ]),
-      );
-    }
-
-    return GestureDetector(
-      onTap: () async {
-        HapticFeedback.lightImpact();
-        // Miser suppose une bankroll, donc un compte. Sans cette garde, un
-        // invité ouvrait la feuille qui échouait en 401 sur un message
-        // générique — le dialogue ne diagnostique que le 404 « pas de
-        // bankroll configurée ».
-        if (!ref.read(effectiveLoggedInProvider)) {
-          context.push(
-            '/auth/email?from=${Uri.encodeComponent('/pronostics/${widget.match.id}')}');
-          return;
-        }
-        final ok = await showMiserDialog(
-          context,
-          ref:              ref,
-          pronosticId:      widget.match.id,
-          homeTeam:         widget.match.homeTeam,
-          awayTeam:         widget.match.awayTeam,
-          predictionLabel:  widget.match.displayPredictionLabel,
-          confidenceScore:  widget.match.confidenceScore,
-          oddsRecommended:  widget.match.oddsRecommended,
-        );
-        if (ok) setState(() => _betPlaced = true);
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppColors.success, Color(0xFF059669)],
-            begin: Alignment.topLeft, end: Alignment.bottomRight),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(
-            color: AppColors.success.withValues(alpha: 0.35),
-            blurRadius: 14, offset: const Offset(0, 5))]),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const Icon(Icons.savings_rounded, color: Colors.white, size: 20),
-          const SizedBox(width: 10),
-          const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Valider ma mise',
-                style: TextStyle(color: Colors.white,
-                    fontSize: 15, fontWeight: FontWeight.w700)),
-            Text('Ajouter à mon bankroll',
-                style: TextStyle(color: Colors.white70, fontSize: 11)),
-          ]),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20)),
-            child: const Text('→', style: TextStyle(
-                color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
-          ),
-        ]),
-      ),
-    );
-  }
-}
