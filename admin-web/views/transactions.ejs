@@ -162,6 +162,8 @@
   </div>
 </div>
 
+<%- include('_onglets_paiements', { actif: 'transactions' }) %>
+
 <% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
 <% if (error)   { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
 

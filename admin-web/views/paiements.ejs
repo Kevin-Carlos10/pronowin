@@ -38,6 +38,8 @@
   </div>
 </div>
 
+<%- include('_onglets_paiements', { actif: 'paiements' }) %>
+
 <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
 <% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"><%= error %></div><% } %>
 

@@ -128,22 +128,17 @@
     </a>
     <% } %>
 
-    <%# Transactions et Historique existaient comme pages complètes, avec leur
-        permission dans le formulaire sous-admin — mais aucun lien n'y menait
-        nulle part dans l'application. On ne pouvait les atteindre qu'en tapant
-        l'URL, ou depuis l'autre des deux. %>
-    <% if (hasPerm('transactions')) { %>
-    <a href="/admin/transactions" class="nav-item <%= page==='transactions' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg></span> Versements</a>
-    <% } %>
-
-    <%# Réservé à l'admin principal : changer le numéro de réception, c'est
-        rediriger l'argent des abonnés. %>
-    <% if (isMain) { %>
-    <a href="/admin/paiements" class="nav-item <%= page==='paiements' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg></span> Méthodes paiement</a>
-    <% } %>
-
-    <% if (hasPerm('historique')) { %>
-    <a href="/admin/historique" class="nav-item <%= page==='historique' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg></span> Historique</a>
+    <%# Versements, Historique et Méthodes de paiement occupaient trois entrées
+        pour un même sujet : l'argent qui entre et qui sort. Une seule entrée
+        désormais, les deux autres écrans restant accessibles par les onglets
+        de la section (voir `_onglets_paiements.ejs`). Aucune route supprimée :
+        un signet existant continue de fonctionner. %>
+    <% if (hasPerm('transactions') || hasPerm('historique') || isMain) { %>
+    <a href="<%= hasPerm('transactions') ? '/admin/transactions' : hasPerm('historique') ? '/admin/historique' : '/admin/paiements' %>"
+       class="nav-item <%= ['transactions','historique','paiements'].includes(page) ? 'active' : '' %>">
+      <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg></span> Paiements
+      <span class="nav-badge" id="badge-tx"></span>
+    </a>
     <% } %>
 
     <% if (hasPerm('bankroll')) { %>

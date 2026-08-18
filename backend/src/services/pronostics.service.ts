@@ -1328,6 +1328,22 @@ export class PronosticsService {
       ]);
 
     // activeUsers calculé à part (non caché) via /admin/stats/online
-    return { totalUsers, premiumUsers, pendingTx, totalPronostics, publishedToday };
+    // Vitrine gratuite du jour : le tableau de bord doit pouvoir signaler
+    // qu'aucune n'est designee — l'application retombe alors sur un tri, et
+    // c'est lui qui decide de ce que voient les visiteurs non abonnes.
+    const debutJour = new Date(new Date().setHours(0, 0, 0, 0));
+    const finJour   = new Date(new Date().setHours(23, 59, 59, 999));
+    const vitrineDuJour = await prisma.pronostic.count({
+      where: {
+        isPublished: true, isDailyFree: true,
+        match: { matchDate: { gte: debutJour, lte: finJour } },
+      },
+    });
+    const publiablesAujourdhui = await prisma.pronostic.count({
+      where: { isPublished: true, match: { matchDate: { gte: debutJour, lte: finJour } } },
+    });
+
+    return { totalUsers, premiumUsers, pendingTx, totalPronostics, publishedToday,
+             vitrineDuJour, publiablesAujourdhui };
   }
 }

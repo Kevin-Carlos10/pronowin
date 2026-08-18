@@ -140,6 +140,36 @@ const views = [
   }],
 
   // ── Dashboard ──
+  // File de travail : elle remplace les « alertes intelligentes », qui ne se
+  // declenchaient qu'a partir de 5 preuves et ignoraient les versements.
+  ['dashboard (file chargée)', 'dashboard', {
+    ...base, page: 'dashboard',
+    stats: { totalUsers: 412, premiumUsers: 38, pendingTx: 2, publishedToday: 5, activeUsers: 7 },
+    pending: { data: [], total: 2 }, proofs: { data: [], total: 3 },
+    activeBansCount: 1, recentBans: [], recentLogs: [],
+    settings: { maintenanceMode: true },
+    file: [
+      { cle:'proofs', urgence:'haute', icone:'crown',
+        titre:'3 preuves Premium à valider',
+        detail:"La plus ancienne attend depuis 2 jours. Chacune est un abonnement payé qui n'est pas encore actif.",
+        action:'Valider', lien:'/admin/abonnements' },
+      { cle:'versements', urgence:'normale', icone:'money',
+        titre:'2 versements de parrainage à effectuer',
+        detail:"Le plus ancien attend depuis 5 h. L'argent n'a pas encore été envoyé au parrain.",
+        action:'Traiter', lien:'/admin/transactions' },
+      { cle:'vitrine', urgence:'normale', icone:'star',
+        titre:"Aucun pronostic gratuit désigné pour aujourd'hui",
+        detail:"L'application choisit alors le premier par ordre d'heure de match.",
+        action:'Choisir', lien:'/admin/pronostics' },
+    ],
+  }],
+  ['dashboard (rien à traiter)', 'dashboard', {
+    ...base, page: 'dashboard',
+    stats: { totalUsers: 412, premiumUsers: 38, pendingTx: 0, publishedToday: 5, activeUsers: 7 },
+    pending: { data: [], total: 0 }, proofs: { data: [], total: 0 },
+    activeBansCount: 0, recentBans: [], recentLogs: [],
+    settings: {}, file: [],
+  }],
   ['dashboard', 'dashboard', {
     ...base, page: 'dashboard',
     stats: { totalUsers: 1200, premiumUsers: 342, activeToday: 87, pendingTx: 5, todayDeposits: 12, todayWithdrawals: 3, totalRevenue: 850000, monthRevenue: 120000, newUsersWeek: 45 },

@@ -811,14 +811,61 @@ app.get('/admin/dashboard', requireAuth, async (req, res) => {
   const baseStats  = statsRes.status === 'fulfilled' ? statsRes.value.data : { totalUsers:0, premiumUsers:0, pendingTx:0, publishedToday:0 };
   const activeUsers = onlineRes.status === 'fulfilled' ? (onlineRes.value.data.count ?? 0) : 0;
 
+  const pending = pendingRes.status === 'fulfilled' ? pendingRes.value.data : { data:[], total:0 };
+  const proofs  = proofsRes.status  === 'fulfilled' ? proofsRes.value.data  : { data:[], total:0 };
+
+  /**
+   * File de travail.
+   *
+   * Le tableau de bord montrait des compteurs : combien d'utilisateurs, combien
+   * de pronostics. Un compteur ne dit pas quoi faire. Ces entrees sont les
+   * seules choses qui attendent une action, avec leur anciennete — une preuve
+   * qui patiente depuis trois jours, c'est un client qui a paye et qui attend.
+   * L'ordre est celui de l'urgence, et la liste vide est un etat legitime.
+   */
+  const heures = iso => iso ? Math.floor((now - new Date(iso).getTime()) / 3600000) : 0;
+  const plusVieux = lignes => lignes.reduce((v, l) => Math.max(v, heures(l.createdAt)), 0);
+  const age = h => h >= 48 ? `depuis ${Math.floor(h / 24)} jours`
+                 : h >= 24 ? 'depuis plus de 24 h'
+                 : h >= 1  ? `depuis ${h} h` : "à l'instant";
+
+  const file = [];
+  if (proofs.total > 0) {
+    const h = plusVieux(proofs.data ?? []);
+    file.push({ cle:'proofs', urgence: h >= 24 ? 'haute' : 'normale', icone:'crown',
+      titre: `${proofs.total} preuve${proofs.total > 1 ? 's' : ''} Premium à valider`,
+      detail: `La plus ancienne attend ${age(h)}. Chacune est un abonnement payé qui n'est pas encore actif.`,
+      action:'Valider', lien:'/admin/abonnements' });
+  }
+  if (pending.total > 0) {
+    const h = plusVieux(pending.data ?? []);
+    file.push({ cle:'versements', urgence: h >= 48 ? 'haute' : 'normale', icone:'money',
+      titre: `${pending.total} versement${pending.total > 1 ? 's' : ''} de parrainage à effectuer`,
+      detail: `Le plus ancien attend ${age(h)}. L'argent n'a pas encore été envoyé au parrain.`,
+      action:'Traiter', lien:'/admin/transactions' });
+  }
+  const aRestaurer = bansARestaurer();
+  if (aRestaurer.length) {
+    file.push({ cle:'bans', urgence:'haute', icone:'ban',
+      titre: `${aRestaurer.length} compte${aRestaurer.length > 1 ? 's' : ''} encore suspendu${aRestaurer.length > 1 ? 's' : ''} après expiration du ban`,
+      detail: "Le bannissement a pris fin mais l'accès n'a pas été rendu. Ouvrir la page suffit à le rétablir.",
+      action:'Rétablir', lien:'/admin/bans' });
+  }
+  if ((baseStats.publiablesAujourdhui ?? 0) > 0 && (baseStats.vitrineDuJour ?? 0) === 0) {
+    file.push({ cle:'vitrine', urgence:'normale', icone:'star',
+      titre: "Aucun pronostic gratuit désigné pour aujourd'hui",
+      detail: "L'application choisit alors le premier par ordre d'heure de match : c'est un tri qui décide de votre vitrine.",
+      action:'Choisir', lien:'/admin/pronostics' });
+  }
+
   res.render('dashboard', {
     adminName: req.cookies.admin_name ?? 'Admin',
     stats:   { ...baseStats, activeUsers },
-    pending: pendingRes.status === 'fulfilled' ? pendingRes.value.data : { data:[], total:0 },
-    proofs:  proofsRes.status  === 'fulfilled' ? proofsRes.value.data  : { data:[], total:0 },
+    pending, proofs,
     activeBansCount: activeBans.length,
     recentBans:      activeBans.slice(0, 3),
     recentLogs,
+    file,
   });
 });
 

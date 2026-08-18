@@ -1,6 +1,31 @@
 <%- include('layout_top', {page:'dashboard'}) %>
 
 <style>
+/* ── File de travail ─────────────────────────────────────────────────────── */
+.file-travail  { background:var(--surface); border:1px solid var(--border); border-radius:16px;
+                 overflow:hidden; margin-bottom:1.25rem; }
+.file-entete   { display:flex; align-items:center; gap:.5rem; padding:.8rem 1.1rem;
+                 border-bottom:1px solid var(--border); font-size:.85rem; font-weight:800;
+                 color:var(--text-m); background:var(--surface-d); }
+.file-compte   { font-size:.7rem; font-weight:800; padding:.1rem .45rem; border-radius:999px;
+                 background:var(--surface-h); color:var(--text-m); }
+.file-compte.urgent { background:rgba(239,68,68,.15); color:var(--error); }
+.file-tache    { display:flex; align-items:center; gap:.85rem; padding:.85rem 1.1rem;
+                 border-bottom:1px solid var(--border); }
+.file-tache:last-child { border-bottom:0; }
+.file-tache:hover      { background:var(--surface-d); }
+.file-tache.urgente    { border-left:3px solid var(--error); }
+.file-ic       { width:34px; height:34px; border-radius:10px; flex-shrink:0;
+                 background:var(--surface-d); color:var(--text-m);
+                 display:flex; align-items:center; justify-content:center; }
+.file-tache.urgente .file-ic { background:rgba(239,68,68,.12); color:var(--error); }
+.file-txt      { flex:1; min-width:0; }
+.file-titre    { font-size:.88rem; font-weight:700; line-height:1.35; }
+.file-detail   { font-size:.76rem; color:var(--text-dim); line-height:1.5; margin-top:.15rem; }
+.file-vide     { padding:1.8rem 1.2rem; text-align:center; font-size:.83rem;
+                 color:var(--text-dim); line-height:1.65; }
+@media (max-width:620px) { .file-tache { flex-wrap:wrap; } .file-txt { flex-basis:100%; } }
+
 /* ══════════════════════════════════════════════════════════
    KPI CARDS — design glassmorphism avec icône badge
 ══════════════════════════════════════════════════════════ */
@@ -184,26 +209,52 @@
   </div>
 </div>
 
-<!-- ── Alertes intelligentes ──────────────────────────────────────────────── -->
+<!-- ── File de travail ────────────────────────────────────────────────────── -->
 <%
-  const _alerts = [];
-  const _pendingTotal = pending.total ?? 0;
-  const _proofsTotal  = proofs.total  ?? 0;
-  if (_proofsTotal >= 5)  _alerts.push({ type:'warning', icon:'crown', msg:`<strong>${_proofsTotal} preuves Premium</strong> en attente de vérification.`, link:'/admin/abonnements', linkTxt:'Vérifier →' });
-  if (activeBansCount > 0) _alerts.push({ type:'info',    icon:'ban', msg:`<strong>${activeBansCount} utilisateur${activeBansCount>1?'s':''}</strong> actuellement banni${activeBansCount>1?'s':''}.`, link:'/admin/bans', linkTxt:'Voir les bans →' });
-  if (locals.settings?.maintenanceMode) _alerts.push({ type:'danger', icon:'settings', msg:'<strong>Mode maintenance actif</strong> — ceci n\'est qu\'un avertissement interne aux admins, ça ne bloque pas les utilisateurs (géré séparément via Firebase Remote Config).', link:'/admin/settings', linkTxt:'Désactiver →' });
+  // Remplace les « alertes intelligentes » : elles ne se declenchaient qu'a
+  // partir de 5 preuves — une a quatre restaient invisibles — ignoraient les
+  // versements, et n'indiquaient jamais depuis combien de temps quelque chose
+  // attendait. Un compteur ne dit pas quoi faire.
+  const _file = (typeof file !== 'undefined' && Array.isArray(file)) ? [...file] : [];
+  // Le mode maintenance est un etat du systeme, pas une tache : il ferme la liste.
+  if (locals.settings?.maintenanceMode) {
+    _file.push({ cle:'maintenance', urgence:'haute', icone:'settings',
+      titre:'Mode maintenance actif',
+      detail:"Avertissement interne aux administrateurs : il ne bloque pas les utilisateurs, "
+           + "ce blocage est géré séparément via Firebase Remote Config.",
+      action:'Désactiver', lien:'/admin/settings' });
+  }
+  const _urgent = _file.filter(t => t.urgence === 'haute').length;
 %>
-<% if (_alerts.length) { %>
-<div class="alerts-list">
-  <% _alerts.forEach(al => { %>
-  <div class="alert <%= al.type %>">
-    <span class="alert-icon"><%- (al.icon) ? '<svg class="ic" aria-hidden="true"><use href="#ic-' + (al.icon) + '"/></svg>' : '' %></span>
-    <span class="alert-text"><%- al.msg %></span>
-    <a href="<%= al.link %>" class="btn btn-sm btn-outline" style="flex-shrink:0"><%= al.linkTxt %></a>
+
+<div class="file-travail">
+  <div class="file-entete">
+    <svg class="ic" aria-hidden="true"><use href="#ic-<%= _file.length ? 'inbox' : 'check-circle' %>"/></svg>
+    <span><%= _file.length ? 'À traiter' : 'Rien à traiter' %></span>
+    <% if (_file.length) { %>
+      <span class="file-compte"><%= _file.length %></span>
+      <% if (_urgent) { %><span class="file-compte urgent"><%= _urgent %> urgent<%= _urgent > 1 ? 's' : '' %></span><% } %>
+    <% } %>
+  </div>
+
+  <% if (!_file.length) { %>
+    <div class="file-vide">
+      Aucune preuve à valider, aucun versement en attente, aucun compte à rétablir.
+      Les tâches apparaissent ici dès qu'une action vous revient.
+    </div>
+  <% } %>
+
+  <% _file.forEach(t => { %>
+  <div class="file-tache <%= t.urgence === 'haute' ? 'urgente' : '' %>">
+    <span class="file-ic"><svg class="ic" aria-hidden="true"><use href="#ic-<%= t.icone %>"/></svg></span>
+    <div class="file-txt">
+      <div class="file-titre"><%= t.titre %></div>
+      <div class="file-detail"><%= t.detail %></div>
+    </div>
+    <a href="<%= t.lien %>" class="btn btn-sm <%= t.urgence === 'haute' ? 'btn-primary' : 'btn-outline' %>"><%= t.action %> →</a>
   </div>
   <% }) %>
 </div>
-<% } %>
 
 <!-- ── KPIs ───────────────────────────────────────────────────────────────── -->
 <div class="kpi-grid">

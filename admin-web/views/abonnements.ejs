@@ -133,7 +133,7 @@
 <nav class="pf-tabs" aria-label="Filtrer par statut">
   <% _onglets.forEach(([cle, label, n]) => { %>
   <a class="pf-tab <%= _stat === cle ? 'on' : '' %>" href="<%= _lien(cle, _q) %>"
-     <%= _stat === cle ? 'aria-current="page"' : '' %>>
+     aria-current="<%= _stat === cle ? 'page' : 'false' %>">
     <%= label %><% if (n !== null) { %><span class="n"><%= n %></span><% } %>
   </a>
   <% }) %>

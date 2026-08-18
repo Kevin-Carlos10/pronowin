@@ -49,9 +49,23 @@ function enTetesSansScope(html) {
   return [...html.matchAll(/<th\b([^>]*)>/g)].filter(m => !/scope=/.test(m[1])).length;
 }
 
+/**
+ * Attributs ARIA dont les guillemets ont été échappés.
+ *
+ * `<%= cond ? 'aria-current="page"' : '' %>` produit
+ * `aria-current=&#34;page&#34;` : l'attribut existe, mais sa valeur porte des
+ * guillemets littéraux et ne vaut donc pas « page ». La page rend
+ * parfaitement, et le repère est silencieusement perdu pour un lecteur
+ * d'écran. Le motif correct met l'expression DANS l'attribut :
+ * `aria-current="<%= cond ? 'page' : 'false' %>"`.
+ */
+function ariaEchappes(html) {
+  return [...html.matchAll(/\saria-[a-z]+=&#3[49];/g)].length;
+}
+
 (async () => {
   const champs = new Map(), boutons = new Map();
-  let thNus = 0, vues = 0;
+  let thNus = 0, ariaNus = 0, vues = 0;
 
   for (const [, vue, locals] of views) {
     let html;
@@ -63,7 +77,8 @@ function enTetesSansScope(html) {
     if (c.length) champs.set(vue, new Set([...(champs.get(vue) ?? []), ...c]));
     const b = boutonsSansNom(html);
     if (b.length) boutons.set(vue, new Set([...(boutons.get(vue) ?? []), ...b]));
-    thNus += enTetesSansScope(html);
+    thNus  += enTetesSansScope(html);
+    ariaNus += ariaEchappes(html);
   }
 
   const total = m => [...m.values()].reduce((n, s) => n + s.size, 0);
@@ -76,8 +91,9 @@ function enTetesSansScope(html) {
   console.log(`  boutons icône sans nom     : ${total(boutons)}`);
   if (boutons.size) console.log(detail(boutons));
   console.log(`  en-têtes <th> sans scope   : ${thNus}`);
+  console.log(`  attributs ARIA échappés    : ${ariaNus}`);
 
-  const echec = total(champs) + total(boutons) + thNus;
+  const echec = total(champs) + total(boutons) + thNus + ariaNus;
   console.log(echec ? '\nDes éléments restent sans nom accessible.'
                     : '\nTous les champs, boutons et en-têtes sont nommés.');
   process.exitCode = echec ? 1 : 0;

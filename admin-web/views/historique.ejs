@@ -81,6 +81,8 @@
   <a href="/admin/historique/export?<%= _qs %>" class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV</a>
 </div>
 
+<%- include('_onglets_paiements', { actif: 'historique' }) %>
+
 <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
 <% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
 

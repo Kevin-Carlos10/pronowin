@@ -1112,3 +1112,18 @@ html.light {
 .dt .when.live { color: var(--error); font-weight: 700; }
 .dt .when.soon { color: var(--warning); font-weight: 600; }
 .dt .score { font-weight: 900; font-variant-numeric: tabular-nums; }
+
+/* ── Sous-navigation d'une section ─────────────────────────────────────────
+   Trois écrans de paiement partageaient un même sujet en occupant trois
+   entrées de la barre latérale. Ils forment désormais une section, et ces
+   onglets servent à circuler entre eux. */
+.sous-onglets { display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: 1rem;
+                border-bottom: 1px solid var(--border); padding-bottom: .1rem; }
+.sous-onglet  { display: inline-flex; align-items: center; gap: .4rem;
+                padding: .5rem .85rem; border-radius: 10px 10px 0 0;
+                font-size: .84rem; font-weight: 700; color: var(--text-m);
+                text-decoration: none; border-bottom: 2px solid transparent;
+                transition: color .15s, background .15s; }
+.sous-onglet:hover { color: var(--text); background: var(--surface-d); }
+.sous-onglet.on    { color: var(--primary); border-bottom-color: var(--primary);
+                     background: var(--surface); }
