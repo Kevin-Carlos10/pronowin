@@ -7,7 +7,9 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>PronoWin Admin</title>
+  <%# Le titre etait ecrit en dur : le reglage « panelTitle » des Parametres
+      etait enregistre, journalise… et n'atteignait aucun titre de page. %>
+  <title><%= (typeof settings !== 'undefined' && settings && settings.panelTitle) ? settings.panelTitle : 'PronoWin Admin' %></title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/style.css">

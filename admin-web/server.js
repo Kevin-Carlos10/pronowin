@@ -625,6 +625,31 @@ function requireMain(req, res, next) {
   next();
 }
 
+/**
+ * Applique le fuseau horaire choisi dans les Paramètres.
+ *
+ * Le réglage était enregistré, réaffiché à lui-même dans la page… et appliqué
+ * nulle part : les 94 formatages de date du panneau utilisaient tous le fuseau
+ * du serveur. Le changer ne changeait rien, sans que rien ne le dise.
+ *
+ * `process.env.TZ` agit sur toutes les dates formatées ensuite, ce qui évite de
+ * passer une option `timeZone` à chaque appel. Vérifié à chaud sur cette
+ * plateforme avant d'être retenu.
+ */
+function appliquerFuseau() {
+  const tz = loadSettings().timezone;
+  if (!tz) return;
+  try {
+    // Un fuseau invalide ferait échouer tout formatage ultérieur : on le teste
+    // avant de l'appliquer.
+    new Date().toLocaleString('fr-FR', { timeZone: tz });
+    process.env.TZ = tz;
+  } catch {
+    console.warn(`[admin] Fuseau horaire « ${tz} » inconnu — réglage ignoré.`);
+  }
+}
+appliquerFuseau();
+
 // ─── RATE LIMITING (login) ───────────────────────────────────────────────────
 function getLoginMaxAttempts() { return loadSettings().loginMaxAttempts ?? 5; }
 function getLoginWindowMs()    { return (loadSettings().loginBlockMinutes ?? 15) * 60000; }
@@ -1181,7 +1206,7 @@ const contexteRoutes = {
   ERR_ECRITURE, ERR_CONFLIT, PERMISSIONS, DATA_DIR, LOG_MAX,
   STATS_ENDPOINTS, NEWS_DEFAULT_CATEGORIES,
   fs, path, slugify, sanitize, clampInt, sseBroadcast,
-  banUser, unbanUser, getActiveBan, ACTION_LABELS,
+  banUser, unbanUser, getActiveBan, ACTION_LABELS, appliquerFuseau,
   bansARestaurer, reconcilierBansExpires,
   SA_FILE, BANS_FILE, NEWS_FILE, LOG_FILE, NOTIF_FILE, SETTINGS_FILE,
   SEGMENTS, back, fetchTutorialCategories, fetchTutorialLevels,
