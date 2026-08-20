@@ -15,6 +15,7 @@ import '../providers/pronostics_provider.dart';
 import '../providers/favorites_provider.dart';
 import '../widgets/match_card_widget.dart';
 import '../../../../shared/widgets/skeletons.dart';
+import '../../../../shared/widgets/bottom_nav_metrics.dart';
 
 class PronosticsPage extends ConsumerStatefulWidget {
   const PronosticsPage({super.key});
@@ -398,7 +399,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                       ref.read(matchesPaginatedProvider.notifier).refresh(),
                   child: ListView(
                     controller: _listScrollCtrl,
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 100),
+                    padding: EdgeInsets.fromLTRB(14, 0, 14, bottomNavSpace(context)),
                     children: [
                       _DayStatsBar(
                         total: statTotal, pronos: statPronos, live: statLive,

@@ -98,6 +98,7 @@ export const CACHE_KEYS = {
   adminStats:   'stats:admin',                               // TTL 5min
   actualites:   'actualites:published',                      // TTL 2min
   leaderboard:  (period: string) => `leaderboard:${period}`, // TTL 2min
+  bilanPremium: (days: number) => `pronostics:bilan-premium:${days}`, // TTL 5min
 };
 
 export const CACHE_TTL = {

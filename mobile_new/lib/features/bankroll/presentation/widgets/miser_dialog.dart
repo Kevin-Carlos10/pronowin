@@ -9,6 +9,9 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/bankroll_provider.dart';
 import '../../../../core/config/distribution_channel.dart';
+import '../../../../core/config/bookmaker_affiliation.dart';
+import '../../../../shared/utils/devise.dart';
+import '../../../../shared/utils/montant.dart';
 
 Future<bool> showMiserDialog(
   BuildContext context, {
@@ -87,8 +90,9 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
   }
 
   Future<void> _launch1xBet() async {
-    const url = 'https://1xbet.com';
-    final uri = Uri.parse(url);
+    // Lien nu jusqu'ici : ces clics ne remontaient a aucun tag
+    // d'affiliation et ne rapportaient donc rien.
+    final uri = Uri.parse(BookmakerAffiliation.lien);
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
@@ -160,7 +164,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
             color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text(
-            '${_formatAmount(_confirmedStake!)} ${_confirmedCurrency ?? ''} · ${widget.homeTeam} – ${widget.awayTeam}',
+            '${montantExact(_confirmedStake!)} ${nomDevise(_confirmedCurrency)} · ${widget.homeTeam} – ${widget.awayTeam}',
             style: TextStyle(color: context.cl.textM, fontSize: 12),
             textAlign: TextAlign.center),
 
@@ -182,7 +186,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                   color: AppColors.warning, fontSize: 13, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 Text(
-                  'Mise exactement ${_formatAmount(_confirmedStake!)} ${_confirmedCurrency ?? ''} sur le bookmaker. Ne dépasse jamais ce montant, même si tu te sens confiant.',
+                  'Mise exactement ${montantExact(_confirmedStake!)} ${nomDevise(_confirmedCurrency)} sur le bookmaker. Ne dépasse jamais ce montant, même si tu te sens confiant.',
                   style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.45)),
               ])),
             ]),
@@ -337,7 +341,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                     Text('Mise calculée', style: TextStyle(
                       color: context.cl.textS, fontSize: 12)),
                     const SizedBox(height: 4),
-                    Text('${_formatAmount(stake)} $currency',
+                    Text('${montantExact(stake)} $currency',
                       style: const TextStyle(
                         color: AppColors.success, fontSize: 28,
                         fontWeight: FontWeight.w900, letterSpacing: -0.5)),
@@ -373,12 +377,12 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
             Row(children: [
               Expanded(child: _InfoChip(
                 label: 'Gain potentiel',
-                value: '+${_formatAmount(gain)} $currency',
+                value: '+${montantExact(gain)} $currency',
                 color: AppColors.primary)),
               const SizedBox(width: 10),
               Expanded(child: _InfoChip(
                 label: 'Solde après',
-                value: '${_formatAmount(balance - stake)} $currency',
+                value: '${montantExact(balance - stake)} $currency',
                 color: context.cl.textS)),
             ]),
 
@@ -568,12 +572,3 @@ class _ErrorView extends StatelessWidget {
 }
 
 // ─── Formatter ────────────────────────────────────────────────────────────────
-String _formatAmount(double amount) {
-  final s   = amount.abs().toStringAsFixed(0);
-  final buf = StringBuffer();
-  for (var i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
-    buf.write(s[i]);
-  }
-  return amount < 0 ? '-${buf.toString()}' : buf.toString();
-}

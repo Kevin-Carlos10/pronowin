@@ -9,4 +9,12 @@ if ($LASTEXITCODE -ne 0) {
     Write-Host "adb reverse a echoue - verifie que le telephone est branche et en mode debogage USB." -ForegroundColor Yellow
 }
 
-flutter run --dart-define=API_BASE_URL=http://127.0.0.1:3000/api/v1
+. (Join-Path $PSScriptRoot 'tool\google_client_id.ps1')
+$googleId = Get-GoogleWebClientId
+if ([string]::IsNullOrEmpty($googleId)) {
+    Write-Host "Identifiant client Web introuvable - la connexion Google sera inoperante." -ForegroundColor Yellow
+}
+
+flutter run `
+    --dart-define=API_BASE_URL=http://127.0.0.1:3000/api/v1 `
+    --dart-define=GOOGLE_SERVER_CLIENT_ID=$googleId

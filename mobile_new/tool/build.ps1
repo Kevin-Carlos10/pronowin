@@ -57,9 +57,24 @@ Write-Host "  API        : $ApiUrl"
 Write-Host "  Profil     : $resume"
 Write-Host ''
 
+. (Join-Path $PSScriptRoot 'google_client_id.ps1')
+$googleId = Get-GoogleWebClientId
+if ([string]::IsNullOrEmpty($googleId)) {
+  # Un build sans cet identifiant compile et s'installe normalement : seule la
+  # connexion Google echoue, a l'execution, sans rien qui la relie a ce manque.
+  # On previent donc ici plutot que de le decouvrir sur l'appareil.
+  Write-Host "  ATTENTION : identifiant client Web introuvable dans google-services.json." -ForegroundColor Yellow
+  Write-Host "              La connexion Google ne fonctionnera pas dans ce build." -ForegroundColor Yellow
+  Write-Host ''
+} else {
+  Write-Host "  Google     : $($googleId.Substring(0,20))..."
+  Write-Host ''
+}
+
 flutter build $cible --release `
   --dart-define=STORE_BUILD=$storeBuild `
-  --dart-define=API_BASE_URL=$ApiUrl
+  --dart-define=API_BASE_URL=$ApiUrl `
+  --dart-define=GOOGLE_SERVER_CLIENT_ID=$googleId
 
 if ($LASTEXITCODE -ne 0) {
   Write-Host ''

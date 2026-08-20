@@ -25,6 +25,8 @@ import '../providers/pronostics_provider.dart';
 import '../widgets/comments_section.dart';
 import '../widgets/prono_share_card.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
+import 'match_detail/bookmaker_cotes.dart';
+import '../../domain/entities/verdict_comparaison.dart';
 
 // Découpé en fichiers `part` : le fichier faisait 3 604 lignes pour une
 // quarantaine de classes privées, dont le State d'un bouton situé 500
@@ -927,6 +929,7 @@ class _PronosticCard extends StatelessWidget {
   ));
 }
 
+
 /// Rendement d'un pronostic clos, exprimé pour une mise de référence.
 ///
 /// « Cote 1.18 » et « Pronostic gagnant » sont deux faits que le parieur devait
@@ -1263,6 +1266,21 @@ class _OddsCard extends StatelessWidget {
           ),
         ]),
       ],
+      const SizedBox(height: 14),
+      // Mêmes cotes, mais cliquables : elles ouvrent le bookmaker partenaire.
+      // Le bloc précédent reste en lecture seule — un utilisateur qui consulte
+      // ne doit pas quitter l'app au moindre appui de travers.
+      BookmakerCotes(
+        coteDomicile:  match.oddsHome,
+        coteNul:       match.oddsDraw,
+        coteExterieur: match.oddsAway,
+        indiceRecommande: switch (match.predictionType) {
+          PredictionType.win1  => 0,
+          PredictionType.draw  => 1,
+          PredictionType.win2  => 2,
+          _                    => null,
+        },
+      ),
     ]);
   }
 }

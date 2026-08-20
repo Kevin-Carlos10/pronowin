@@ -147,9 +147,10 @@ class ParametresPage extends ConsumerWidget {
                         }
                       }
                     } catch (e) {
+                      debugPrint('[Bio] Activation refusée : $e');
                       if (context.mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text('Erreur biométrie : $e'),
+                          content: Text(messageErreurBio(e)),
                           backgroundColor: AppColors.error,
                           behavior: SnackBarBehavior.floating,
                         ));

@@ -10,6 +10,7 @@ import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../widgets/tutorial_icons.dart';
 import '../providers/tutoriels_provider.dart';
 import '../../domain/entities/tutorial_entity.dart';
+import '../../../../shared/widgets/bottom_nav_metrics.dart';
 
 // Couleurs par catégorie connue — repli neutre pour toute catégorie créée
 // librement par l'admin et non reconnue de ce code.
@@ -346,7 +347,7 @@ class TutorielsPage extends ConsumerWidget {
                         .fadeIn(duration: 350.ms)),
                     )
                   : SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(14, 0, 14, 100),
+                      padding: EdgeInsets.fromLTRB(14, 0, 14, bottomNavSpace(context)),
                       sliver: SliverList.separated(
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemCount: filtered.length,

@@ -39,6 +39,30 @@
 					<string>pronowin</string>
 				</array>
 			</dict>
+			<!-- ── Retour de la connexion Google ────────────────────────────────
+			     Le SDK Google ouvre Safari pour le choix du compte, puis renvoie
+			     vers ce schéma pour rendre la main à l'app. Sans lui, l'utilisateur
+			     choisit son compte et reste bloqué dans le navigateur.
+
+			     La valeur est le REVERSED_CLIENT_ID de GoogleService-Info.plist —
+			     l'identifiant iOS écrit à l'envers. Elle change si l'app Apple est
+			     recréée dans Firebase : les deux fichiers doivent alors être
+			     remis en phase.
+
+			     Entrée distincte de celle du dessus : `pronowin` sert aux deep
+			     links de l'app, ce schéma-ci appartient au SDK Google. Les
+			     fusionner rendrait impossible de savoir lequel supprimer le jour
+			     où l'un des deux disparaît. -->
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>com.googleusercontent.apps</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.207728984029-vl7ofjlv4olnri2qdok875s28763801b</string>
+				</array>
+			</dict>
 		</array>
 		<!-- ── App Transport Security ────────────────────────────────────────────
 	     En prod, supprimer NSAllowsArbitraryLoads et ne garder que

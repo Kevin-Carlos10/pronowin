@@ -3,8 +3,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/pin_store.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 
@@ -68,11 +68,8 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
   }
 
   Future<void> _validatePin() async {
-    final p    = await SharedPreferences.getInstance();
-    final saved = p.getString('pin_code') ?? '';
-
-    if (_pin == saved) {
-      _unlock();
+    if (await ref.read(pinStoreProvider).verify(_pin)) {
+      if (mounted) _unlock();
     } else {
       setState(() {
         _attempts++;
@@ -213,8 +210,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
 
     // Le code est effacé avec la session : le prochain démarrage repart d'un
     // écran de connexion normal, sans verrou orphelin.
-    final p = await SharedPreferences.getInstance();
-    await p.remove('pin_code');
+    await ref.read(pinStoreProvider).clear();
     await ref.read(settingsProvider.notifier).setPinEnabled(false);
     await ref.read(authProvider.notifier).logout();
     if (mounted) context.go('/auth');

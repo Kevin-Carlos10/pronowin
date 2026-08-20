@@ -10,6 +10,7 @@ import '../../features/pronostics/presentation/pages/pronostics_page.dart';
 import '../../features/bankroll/presentation/pages/bankroll_page.dart';
 import '../../features/tutoriels/presentation/pages/tutoriels_page.dart';
 import '../../features/compte/presentation/pages/compte_page.dart';
+import 'bottom_nav_metrics.dart';
 import 'guest_locked_view.dart';
 import 'offline_banner.dart';
 
@@ -33,7 +34,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
       icon:    Icons.account_balance_wallet_rounded,
       title:   'Suis ta bankroll',
       message: 'Connecte-toi pour enregistrer tes mises, suivre ton budget '
-                'et ton ROI en temps réel.',
+                'et ta rentabilité à chaque résultat.',
       from:    '/bankroll',
     ),
     4: GuestLockedView(
@@ -170,13 +171,14 @@ class _FloatingNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(12, 0, 12, bottomPadding + 4),
+      padding: EdgeInsets.fromLTRB(
+          12, 0, 12, bottomPadding + BottomNavMetrics.margeBasse),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
-            height: 64,
+            height: BottomNavMetrics.hauteur,
             decoration: BoxDecoration(
               color: context.cl.surface.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(22),

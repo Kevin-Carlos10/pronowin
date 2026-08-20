@@ -10,7 +10,7 @@ import { analyzePronostic } from '../services/ai_prediction.service';
 import { buildUserProfile, getPersonalizedPronostics } from '../services/personalized_ai.service';
 import { settleBets }      from '../services/bankroll.service';
 import { apiFootballService, apiFootballInsights } from '../services/api_football.service';
-import { LEAGUE_INFO } from '../services/api_football.service';
+import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
 
 const svc      = new PronosticsService();
 const fdSvc    = new FootballDataService();
@@ -120,6 +120,70 @@ export const getDaySummary = async (req: AuthRequest, res: Response) => {
     const summary = await svc.getDaySummary(dateFilter, decalage);
     cache.set(cacheKey, summary, CACHE_TTL.daySummary);
     res.json(summary);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+/**
+ * GET /pronostics/bilan-premium — taux de réussite réel des pronostics VIP.
+ *
+ * Le mur Premium affichait « Nos pronostics Premium affichent +68 % de
+ * réussite sur les 30 derniers jours ». Ce nombre était **écrit en dur** : il
+ * ne dépendait d'aucune donnée et ne pouvait donc être exact que par accident,
+ * sur l'écran qui demande de payer — et alors même que l'article 6 des CGU
+ * exclut toute garantie de résultat.
+ *
+ * `getPerformance` ne pouvait pas servir ici : il mesure *tous* les pronostics
+ * publiés, sans distinguer `isPremium`. Afficher son chiffre sous le mot
+ * « Premium » aurait remplacé une affirmation fausse par une autre.
+ *
+ * `echantillon_suffisant` est le garde-fou : sous ce seuil, un taux calculé
+ * sur trois paris tranchés est un artefact, pas une performance. L'appelant
+ * doit alors se taire plutôt que d'annoncer 100 % ou 0 %.
+ */
+const ECHANTILLON_MINIMAL = 10;
+
+export const getBilanPremium = async (req: AuthRequest, res: Response) => {
+  try {
+    const jours = Math.min(parseInt((req.query.days as string) ?? '30') || 30, 90);
+
+    const cacheKey = CACHE_KEYS.bilanPremium(jours);
+    const cached = cache.get<any>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
+    const depuis = new Date(Date.now() - jours * 24 * 60 * 60 * 1000);
+
+    const [gagnes, perdus] = await Promise.all([
+      prisma.pronostic.count({
+        where: {
+          isPremium: true, isPublished: true, result: 'WIN',
+          match: { status: 'FINISHED', matchDate: { gte: depuis } },
+        },
+      }),
+      prisma.pronostic.count({
+        where: {
+          isPremium: true, isPublished: true, result: 'LOSS',
+          match: { status: 'FINISHED', matchDate: { gte: depuis } },
+        },
+      }),
+    ]);
+
+    // Les remboursés (PUSH) sont exclus des deux côtés : ni gagnés ni perdus,
+    // ils ne disent rien de la justesse d'un pronostic. Même convention que
+    // `getPerformance` et que la carte bankroll.
+    const tranches = gagnes + perdus;
+
+    const reponse = {
+      periode_jours:          jours,
+      pronostics_tranches:    tranches,
+      gagnes,
+      perdus,
+      taux_reussite:          tranches > 0 ? Math.round((gagnes / tranches) * 100) : null,
+      echantillon_minimal:    ECHANTILLON_MINIMAL,
+      echantillon_suffisant:  tranches >= ECHANTILLON_MINIMAL,
+    };
+
+    cache.set(cacheKey, reponse, CACHE_TTL.stats);
+    res.json(reponse);
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };
 
@@ -753,7 +817,11 @@ export const getTopScorers = async (req: AuthRequest, res: Response) => {
     const info = LEAGUE_INFO(code);
     if (!info) { res.status(400).json({ message: 'Compétition inconnue.' }); return; }
 
-    const scorers = await apiFootballInsights.getTopScorers(info.id, info.season);
+    // Même piège que le classement : `info.season` est un repli codé en dur,
+    // pas la saison en cours. Un palmarès de buteurs figé sur l'exercice
+    // précédent se lit comme une information à jour.
+    const saison = (await saisonCourante(code)) ?? info.season;
+    const scorers = await apiFootballInsights.getTopScorers(info.id, saison);
     if (!scorers) { res.status(503).json({ message: 'Classement des buteurs indisponible.' }); return; }
     res.json(scorers);
   } catch (e: any) { res.status(500).json({ message: e.message }); }

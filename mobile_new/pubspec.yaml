@@ -92,6 +92,11 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
 
+  # Lecture de codemagic.yaml par les tests : l'identifiant client Google y est
+  # écrit, et doit rester en phase avec google-services.json. Une divergence ne
+  # casse aucun build — elle produit une app où la connexion Google échoue.
+  yaml: ^3.1.2
+
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
@@ -118,6 +123,7 @@ flutter:
     - assets/images/
     - assets/animations/
     - assets/icons/
+    - assets/images/bookmakers/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../../features/pronostics/presentation/providers/bilan_premium_provider.dart';
 
 // Appeler depuis n'importe où pour afficher la modale d'upgrade Premium.
 // [matchLabel] : ex. "PSG vs Real Madrid" — affiché en contexte.
@@ -26,8 +27,14 @@ class _PremiumGateSheet extends ConsumerWidget {
 
   static const _benefits = [
     (Icons.analytics_rounded,       'Pronostics VIP exclusifs',      'Accès à tous les pronostics d\'experts, y compris les analyses statistiques détaillées'),
-    (Icons.show_chart_rounded,      'Cotes & probabilités complètes', 'Cotes H/N/A, probabilité estimée, historique H2H et forme des équipes'),
-    (Icons.workspace_premium_rounded,'Taux de réussite supérieur',    'Nos pronostics Premium affichent +68% de réussite sur les 30 derniers jours'),
+    // « H2H » et « H/N/A » étaient deux sigles sur la même ligne, dans l'écran
+    // qui demande de payer — le pire endroit pour perdre le lecteur.
+    (Icons.show_chart_rounded,      'Cotes & probabilités complètes', 'Cotes 1/N/2, probabilité estimée, confrontations directes et forme des équipes'),
+    // Le taux de réussite ne figure plus dans cette liste : il y était écrit
+    // en dur (« +68 % de réussite sur les 30 derniers jours »), donc exact
+    // seulement par accident — sur l'écran qui demande de payer. Il est
+    // désormais mesuré, et affiché sous la liste par `_TauxReussiteReel`, qui
+    // se tait quand l'échantillon ne permet rien d'affirmer.
     (Icons.notifications_active_rounded, 'Alertes match prioritaires','Notifications 1h avant le coup d\'envoi pour ne jamais rater une opportunité'),
   ];
 
@@ -117,6 +124,8 @@ class _PremiumGateSheet extends ConsumerWidget {
               .slideX(begin: -0.04, end: 0);
           }),
 
+          const _TauxReussiteReel(),
+
           const SizedBox(height: 20),
 
           // Prix badge
@@ -132,7 +141,9 @@ class _PremiumGateSheet extends ConsumerWidget {
               children: [
                 Text('À partir de ', style: TextStyle(
                   color: context.cl.textS, fontSize: 13)),
-                Text('5 000 XOF', style: const TextStyle(
+                // « XOF » est un code bancaire ; le prix d'un abonnement se lit
+                // en FCFA, comme partout ailleurs dans l'app.
+                Text('5 000 FCFA', style: const TextStyle(
                   color: AppColors.primary, fontSize: 16,
                   fontWeight: FontWeight.w900)),
                 Text(' / mois', style: TextStyle(
@@ -195,6 +206,54 @@ class _PremiumGateSheet extends ConsumerWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Taux de réussite réel des pronostics Premium, ou rien.
+///
+/// « Rien » est un état de plein droit ici, et c'est tout l'intérêt : sur un
+/// échantillon trop mince, trois pronostics gagnés donnent « 100 % », ce qui
+/// serait la même promesse creuse que le « +68 % » codé en dur qu'on remplace.
+/// Le serveur tranche (`echantillon_suffisant`), l'écran obéit.
+///
+/// Le détail gagnés / perdus accompagne toujours le pourcentage : un taux seul
+/// ne se vérifie pas, avec « 34 gagnés sur 47 » en face il se vérifie.
+class _TauxReussiteReel extends ConsumerWidget {
+  const _TauxReussiteReel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bilan = ref.watch(bilanPremiumProvider).valueOrNull;
+    if (bilan == null || !bilan.affichable) return const SizedBox.shrink();
+
+    final taux = bilan.tauxReussite!;
+    final couleur = taux >= 60 ? AppColors.success : context.cl.textP;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 6),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: couleur.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: couleur.withValues(alpha: 0.30), width: 0.8),
+      ),
+      child: Row(children: [
+        Icon(Icons.workspace_premium_rounded, color: couleur, size: 20),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text('$taux % de réussite',
+              style: TextStyle(color: couleur, fontSize: 15,
+                  fontWeight: FontWeight.w800)),
+            const SizedBox(height: 2),
+            Text(
+              '${bilan.gagnes} gagnés sur ${bilan.pronosticsTranches} '
+              'pronostics VIP tranchés — ${bilan.periodeJours} derniers jours',
+              style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.3)),
+          ]),
+        ),
+      ]),
     );
   }
 }

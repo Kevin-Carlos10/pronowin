@@ -22,6 +22,8 @@ import '../../../bankroll/presentation/widgets/miser_dialog.dart';
 import '../providers/accueil_provider.dart';
 import '../providers/streak_provider.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
+import '../../../../shared/widgets/bottom_nav_metrics.dart';
+import '../../../../shared/utils/devise.dart';
 
 // Découpé en fichiers `part` : le fichier faisait 4 406 lignes pour une
 // cinquantaine de classes privées — plus gros que match_detail_page avant
@@ -128,7 +130,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
             const _SliverOfflineBanner(),
 
             SliverPadding(
-              padding: const EdgeInsets.fromLTRB(16, 0, 16, 110),
+              padding: EdgeInsets.fromLTRB(16, 0, 16, bottomNavSpace(context)),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
 

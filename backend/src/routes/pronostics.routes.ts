@@ -20,6 +20,9 @@ r.get ('/stats',       authMiddleware, C.getPublicStats);
 // (getPerformance n'utilise pas req.user). C'est l'argument de confiance de
 // l'app : il doit être visible avant de créer un compte.
 r.get ('/performance', optionalAuthMiddleware, C.getPerformance);
+// Public : le mur Premium l'appelle avant toute connexion, puisqu'il sert
+// justement a convaincre un visiteur de s'abonner.
+r.get ('/bilan-premium', optionalAuthMiddleware, C.getBilanPremium);
 // Avant `/:id` : sans cela Express prendrait « top-scorers » pour un identifiant.
 r.get ('/top-scorers', optionalAuthMiddleware, C.getTopScorers);
 r.get ('/for-you',     authMiddleware, premiumMiddleware, C.getForYou);

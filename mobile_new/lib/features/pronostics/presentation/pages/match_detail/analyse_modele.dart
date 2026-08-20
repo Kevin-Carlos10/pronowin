@@ -9,6 +9,19 @@
 // qu'il n'a pas demandé.
 part of '../match_detail_page.dart';
 
+/// Probabilité d'issue, formulée sans jamais annoncer l'impossible.
+///
+/// Le fournisseur renvoie parfois « 0 % » pour l'outsider — c'est ce qu'affichait
+/// l'écran pour Elche recevant le Barça. Aucun modèle sérieux ne donne zéro
+/// chance à une équipe de football : c'est un arrondi, pas une prédiction. Le
+/// lire tel quel engage la crédibilité de PronoWin, pas celle d'API-Football.
+///
+/// « < 1 % » dit la même chose — c'est très peu probable — sans affirmer que
+/// c'est exclu. Le cas « aucune donnée » est traité en amont : la barre entière
+/// disparaît si les trois issues sont nulles, plutôt que d'afficher trois
+/// « < 1 % » qui ne feraient pas 100 %.
+String _libellePourcent(double v) => v < 1 ? '< 1 %' : '${v.round()} %';
+
 /// « Pourquoi ce pronostic » — la lecture du match par le modèle statistique.
 class _AnalyseModele extends ConsumerWidget {
   final String matchId;
@@ -46,6 +59,13 @@ class _AnalyseModele extends ConsumerWidget {
         ]),
         const SizedBox(height: 14),
 
+        // La conclusion d'abord. La section s'appelle « Pourquoi ce
+        // pronostic » : elle ouvrait pourtant sur des barres brutes, en
+        // laissant le lecteur assembler lui-même un verdict qui figurait en
+        // sixième ligne d'une liste de six.
+        _VerdictModele(data: data),
+        const SizedBox(height: 14),
+
         _BarreIssues(data: data),
 
         if (data.advice != null && data.advice!.isNotEmpty) ...[
@@ -58,20 +78,39 @@ class _AnalyseModele extends ConsumerWidget {
               borderRadius: BorderRadius.circular(10),
               border: Border.all(
                 color: AppColors.primary.withValues(alpha: 0.20), width: 0.8)),
-            child: Row(children: [
-              const Icon(Icons.lightbulb_outline_rounded,
-                  color: AppColors.primary, size: 15),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 1),
+                child: Icon(Icons.lightbulb_outline_rounded,
+                    color: AppColors.primary, size: 15),
+              ),
               const SizedBox(width: 8),
               Expanded(
-                child: Text(data.advice!,
-                  style: TextStyle(
-                    color: context.cl.textS, fontSize: 12, height: 1.35)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Ce conseil vient du modèle tiers, pas de la rédaction :
+                    // il peut différer du pronostic PronoWin affiché plus haut,
+                    // et deux recommandations sans étiquette sur le même écran
+                    // laissent le lecteur choisir au hasard.
+                    Text('Marché suggéré par le modèle',
+                      style: TextStyle(
+                        color: AppColors.primary, fontSize: 9.5,
+                        fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                    const SizedBox(height: 3),
+                    Text(data.advice!,
+                      style: TextStyle(
+                        color: context.cl.textS, fontSize: 12, height: 1.35)),
+                  ],
+                ),
               ),
             ]),
           ),
         ],
 
         const SizedBox(height: 16),
+        _LegendeAxes(data: data),
+        const SizedBox(height: 11),
         _AxesComparaison(data: data),
 
         const SizedBox(height: 12),
@@ -102,6 +141,11 @@ class _BarreIssues extends StatelessWidget {
     ];
     final max = issues.map((e) => e.$2).reduce((a, b) => a > b ? a : b);
 
+    // Trois issues à zéro, ce n'est pas un match impossible : c'est un modèle
+    // qui n'a rien à dire. Mieux vaut ne rien montrer que trois « < 1 % » dont
+    // la somme ne ferait pas 100 %.
+    if (max <= 0) return const SizedBox.shrink();
+
     return Column(children: [
       // Une seule barre segmentée plutôt que trois jauges : la somme fait 100 %,
       // autant le montrer.
@@ -120,10 +164,10 @@ class _BarreIssues extends StatelessWidget {
         for (final (nom, v, c) in issues)
           Expanded(
             child: Semantics(
-              label: '$nom : ${v.round()} pour cent',
+              label: '$nom : ${_libellePourcent(v)}',
               excludeSemantics: true,
               child: Column(children: [
-                Text('${v.round()} %',
+                Text(_libellePourcent(v),
                   style: TextStyle(
                     color: v == max && v > 0 ? c : context.cl.textS,
                     fontSize: 15,
@@ -141,7 +185,130 @@ class _BarreIssues extends StatelessWidget {
   }
 }
 
-/// Les sept axes en barres opposées, domicile à gauche, extérieur à droite.
+/// Nom de l'axe qui porte la synthèse pondérée du fournisseur.
+const _cleSynthese = 'Synthèse';
+
+/// Verdict du modèle, en une phrase et un chiffre.
+///
+/// La synthèse était la sixième ligne d'une liste de six, au même poids visuel
+/// que « Buts » ou « Confrontations ». C'est pourtant la seule qui réponde à la
+/// question posée par le titre de la section. Sortie de la liste, elle devient
+/// la conclusion — et les axes deviennent ce qu'ils sont : les pièces qui la
+/// soutiennent.
+class _VerdictModele extends StatelessWidget {
+  final MatchInsights data;
+  const _VerdictModele({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final synthese = data.comparisons
+        .where((a) => a.label == _cleSynthese)
+        .firstOrNull;
+    if (synthese == null) return const SizedBox.shrink();
+
+    // La règle du verdict vit hors du widget : elle décide si l'écran affirme
+    // ou non un penchant, ce qui mérite d'être testé plutôt que constaté.
+    final verdict = VerdictComparaison(
+      domicile:     synthese.home,
+      exterieur:    synthese.away,
+      nomDomicile:  data.homeTeam,
+      nomExterieur: data.awayTeam,
+    );
+
+    final accent = verdict.indecis
+        ? context.cl.textM
+        : (verdict.favoriADomicile ? AppColors.success : AppColors.info);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.28), width: 0.9),
+      ),
+      child: Row(children: [
+        Icon(verdict.indecis
+              ? Icons.balance_rounded
+              : Icons.trending_up_rounded,
+          color: accent, size: 18),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(verdict.titre,
+              style: TextStyle(
+                color: verdict.indecis ? context.cl.textP : accent,
+                fontSize: 13.5, fontWeight: FontWeight.w800, height: 1.25)),
+            const SizedBox(height: 2),
+            Text(
+              verdict.indecis
+                ? 'Avantage réparti à ${synthese.home.round()} / '
+                  '${synthese.away.round()} sur l\'ensemble des critères'
+                : '${verdict.partFavori} % de l\'avantage sur l\'ensemble '
+                  'des critères',
+              style: TextStyle(
+                color: context.cl.textM, fontSize: 11, height: 1.3)),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Légende des deux couleurs, et surtout : ce que mesurent ces nombres.
+///
+/// Sans elle, « Elche 100 · Barcelona 0 » se lit « Elche est parfait, le Barça
+/// est nul » — une absurdité que le reste de l'écran dément aussitôt (cote
+/// 9.45 contre 1.35). La donnée n'est pas fausse : c'est une **répartition**
+/// de l'avantage entre deux équipes, pas une note absolue. Le lecteur ne
+/// pouvait pas le deviner.
+class _LegendeAxes extends StatelessWidget {
+  final MatchInsights data;
+  const _LegendeAxes({required this.data});
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Row(children: [
+        _Pastille(couleur: AppColors.success, nom: data.homeTeam),
+        const SizedBox(width: 14),
+        _Pastille(couleur: AppColors.info, nom: data.awayTeam),
+      ]),
+      const SizedBox(height: 7),
+      Text(
+        'Répartition de l\'avantage sur chaque critère : 100 signifie que tout '
+        'l\'avantage est d\'un côté, 50-50 qu\'aucune équipe ne se détache.',
+        style: TextStyle(color: context.cl.textM, fontSize: 10.5, height: 1.4)),
+    ],
+  );
+}
+
+class _Pastille extends StatelessWidget {
+  final Color couleur;
+  final String nom;
+  const _Pastille({required this.couleur, required this.nom});
+
+  @override
+  Widget build(BuildContext context) => Flexible(
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(width: 8, height: 8,
+        decoration: BoxDecoration(color: couleur, shape: BoxShape.circle)),
+      const SizedBox(width: 6),
+      Flexible(
+        child: Text(nom,
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: context.cl.textS, fontSize: 11, fontWeight: FontWeight.w600)),
+      ),
+    ]),
+  );
+}
+
+/// Les axes en barres opposées, domicile à gauche, extérieur à droite.
+///
+/// La synthèse en est exclue : elle est promue en verdict au-dessus, et la
+/// répéter ici ferait croire à un septième critère indépendant.
 class _AxesComparaison extends StatelessWidget {
   final MatchInsights data;
   const _AxesComparaison({required this.data});
@@ -149,7 +316,7 @@ class _AxesComparaison extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(
     children: [
-      for (final axe in data.comparisons)
+      for (final axe in data.comparisons.where((a) => a.label != _cleSynthese))
         Padding(
           padding: const EdgeInsets.only(bottom: 7),
           child: Semantics(
@@ -157,15 +324,21 @@ class _AxesComparaison extends StatelessWidget {
                    '${data.homeTeam}, ${axe.away.round()} pour cent pour '
                    '${data.awayTeam}',
             excludeSemantics: true,
-            child: Row(children: [
+            child: Builder(builder: (context) {
+              // `>=` mettait le domicile en vert dès l'égalité : un axe à 0/0
+              // ou à 50/50 s'affichait comme un avantage qui n'existe pas. Le
+              // vert signale un écart, pas une absence de départage.
+              final domGagne = axe.home > axe.away;
+              final extGagne = axe.away > axe.home;
+              return Row(children: [
               SizedBox(
                 width: 30,
                 child: Text('${axe.home.round()}',
                   textAlign: TextAlign.right,
                   style: TextStyle(
-                    color: axe.home >= axe.away ? AppColors.success : context.cl.textM,
+                    color: domGagne ? AppColors.success : context.cl.textM,
                     fontSize: 11,
-                    fontWeight: axe.home >= axe.away ? FontWeight.w800 : FontWeight.w500)),
+                    fontWeight: domGagne ? FontWeight.w800 : FontWeight.w500)),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -189,18 +362,22 @@ class _AxesComparaison extends StatelessWidget {
                 width: 30,
                 child: Text('${axe.away.round()}',
                   style: TextStyle(
-                    color: axe.away > axe.home ? AppColors.info : context.cl.textM,
+                    color: extGagne ? AppColors.info : context.cl.textM,
                     fontSize: 11,
-                    fontWeight: axe.away > axe.home ? FontWeight.w800 : FontWeight.w500)),
+                    fontWeight: extGagne ? FontWeight.w800 : FontWeight.w500)),
               ),
               const SizedBox(width: 8),
+              // 74 px tronquaient « Modèle de Poisson » — le seul des sept
+              // libellés à dépasser. Le libellé est désormais l'élément
+              // souple : c'est la barre qui cède de la place, pas le mot.
               SizedBox(
-                width: 74,
+                width: 96,
                 child: Text(axe.label,
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: context.cl.textM, fontSize: 10)),
               ),
-            ]),
+            ]);
+            }),
           ),
         ),
     ],

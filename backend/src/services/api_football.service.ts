@@ -2,18 +2,27 @@ import axios, { AxiosError, AxiosInstance } from 'axios';
 import type { H2HResult, H2HMatch } from './football_data.service';
 import { ApiFootballInsights } from './api_football_insights.service';
 
-// Mapping Football-Data.org codes → API-Football league IDs + saison.
-// ⚠️ season = année de DÉBUT de la saison (ex. 2025 = saison 2025-2026), pas
-// l'année civile en cours. À vérifier/incrémenter à chaque nouvelle saison
-// (~août) via GET /leagues?id=<id> → seasons[].current.
+// Mapping Football-Data.org codes → API-Football league IDs + saison de repli.
+//
+// ⚠️ `season` n'est PLUS la source de vérité — c'est un simple filet. La saison
+// réellement en cours est demandée à l'API (`saisonCourante()` ci-dessous), et
+// ces valeurs ne servent que si cette requête échoue.
+//
+// Pourquoi ce changement : ces nombres devaient être incrémentés à la main
+// chaque mois d'août. Personne ne l'a fait, et la panne est muette — l'écran
+// affiche un classement parfaitement formé, celui de la saison précédente.
+// C'est ainsi qu'en août 2026 les six championnats servaient encore la table
+// finale de 2025-2026, avec 38 journées jouées pour un match de 1re journée.
+//
+// season = année de DÉBUT de la saison (2026 = saison 2026-2027).
 const LEAGUE_MAP: Record<string, { id: number; season: number }> = {
   WC:       { id: 1,   season: 2026 },
-  PL:       { id: 39,  season: 2025 },
-  BL1:      { id: 78,  season: 2025 },
-  SA:       { id: 135, season: 2025 },
-  PD:       { id: 140, season: 2025 },
-  FL1:      { id: 61,  season: 2025 },
-  CL:       { id: 2,   season: 2025 },
+  PL:       { id: 39,  season: 2026 },
+  BL1:      { id: 78,  season: 2026 },
+  SA:       { id: 135, season: 2026 },
+  PD:       { id: 140, season: 2026 },
+  FL1:      { id: 61,  season: 2026 },
+  CL:       { id: 2,   season: 2026 },
   // "World - Friendlies" — absent de football-data.org, disponible uniquement
   // via API-Football. Season = année civile en cours (convention API-Football
   // pour les compétitions sans saison fixe).
@@ -28,6 +37,58 @@ const LEAGUE_MAP: Record<string, { id: number; season: number }> = {
  */
 export const LEAGUE_INFO = (code: string): { id: number; season: number } | null =>
   LEAGUE_MAP[code] ?? null;
+
+// ─── Saison courante, demandée à l'API plutôt que devinée ────────────────────
+
+const saisonCache = new Map<string, { annee: number; ts: number }>();
+// Une saison change une fois par an : 24 h de cache coûtent 7 requêtes par jour
+// sur un quota de 7 500, et suppriment une corvée annuelle.
+const SAISON_CACHE_TTL = 24 * 60 * 60 * 1000;
+
+/**
+ * Année de la saison en cours pour une compétition, telle que l'API la déclare.
+ *
+ * `GET /leagues?id=<id>` renvoie toutes les saisons connues, dont une seule
+ * porte `current: true`. C'est la seule réponse fiable : une heuristique sur le
+ * calendrier (« après juillet, saison = année en cours ») se tromperait sur les
+ * compétitions à cheval, sur celles qui suivent l'année civile, et sur la Coupe
+ * du Monde.
+ *
+ * En cas d'échec, on retombe sur la valeur de `LEAGUE_MAP` — mieux vaut un
+ * classement possiblement daté qu'un onglet vide — mais l'échec est journalisé,
+ * car c'est exactement la situation qui a produit le défaut d'origine.
+ */
+export async function saisonCourante(leagueCode: string): Promise<number | null> {
+  const league = LEAGUE_MAP[leagueCode];
+  if (!league) return null;
+
+  const cached = saisonCache.get(leagueCode);
+  if (cached && Date.now() - cached.ts < SAISON_CACHE_TTL) return cached.annee;
+
+  try {
+    const r = await apiFootballService.httpClient.get('/leagues', {
+      params: { id: league.id },
+    });
+    const saisons: any[] = r.data?.response?.[0]?.seasons ?? [];
+    const courante = saisons.find(s => s?.current === true)?.year;
+
+    if (typeof courante === 'number') {
+      if (courante !== league.season) {
+        console.info(
+          `[ApiFootball] ${leagueCode} : saison courante ${courante} ` +
+          `(repli codé en dur : ${league.season}).`);
+      }
+      saisonCache.set(leagueCode, { annee: courante, ts: Date.now() });
+      return courante;
+    }
+    console.warn(`[ApiFootball] ${leagueCode} : aucune saison « current » renvoyée.`);
+  } catch (err) {
+    const e = err as AxiosError;
+    console.warn(`[ApiFootball] ${leagueCode} : saison courante illisible —`,
+                 (e.response?.data as any) ?? e.message);
+  }
+  return league.season;
+}
 
 /** Noms lisibles des compétitions suivies par défaut (dropdown admin/mobile). */
 const LEAGUE_NAMES: Record<string, string> = {
@@ -794,13 +855,20 @@ export class ApiFootballService {
     const league = LEAGUE_MAP[leagueCode];
     if (!league || leagueCode === 'FRIENDLY') return null;
 
-    const cacheKey = `standings_${leagueCode}`;
+    // La saison est demandée à l'API, pas lue dans une constante : c'est le
+    // gel de cette constante qui faisait servir la table finale de la saison
+    // précédente à chaque rentrée d'août.
+    const saison = (await saisonCourante(leagueCode)) ?? league.season;
+
+    // La clé de cache porte la saison. Sans elle, le jour du basculement, les
+    // deux heures de cache continueraient de servir l'ancien tableau.
+    const cacheKey = `standings_${leagueCode}_${saison}`;
     const cached = standingsCache.get(cacheKey);
     if (cached && Date.now() - cached.ts < STANDINGS_CACHE_TTL) return cached.data;
 
     try {
       const r = await this.client.get('/standings', {
-        params: { league: league.id, season: league.season },
+        params: { league: league.id, season: saison },
       });
       if (r.data?.errors && Object.keys(r.data.errors).length > 0) {
         console.warn('[ApiFootball] Classement indisponible (plan) :', JSON.stringify(r.data.errors));

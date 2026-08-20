@@ -16,6 +16,8 @@ import '../providers/compte_provider.dart';
 import '../../../accueil/presentation/providers/streak_provider.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
+import '../../../../shared/utils/bilan_paris.dart';
+import '../../../../shared/widgets/bottom_nav_metrics.dart';
 
 class ComptePage extends ConsumerStatefulWidget {
   const ComptePage({super.key});
@@ -332,7 +334,7 @@ class _ApercuTab extends ConsumerWidget {
     final statsAsync = ref.watch(userStatsProvider);
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, bottomNavSpace(context)),
       children: [
         // Streak & XP
         _StreakCard(),
@@ -348,12 +350,21 @@ class _ApercuTab extends ConsumerWidget {
           loading: () => const SizedBox.shrink(),
           error: (_, _) => const SizedBox.shrink(),
           data: (stats) {
-            final suivis  = (stats['pronostics_suivis'] as num?)?.toInt() ?? 0;
-            final gagnes  = (stats['paris_gagnes']      as num?)?.toInt() ?? 0;
-            final perdus  = (stats['paris_perdus']      as num?)?.toInt() ?? 0;
-            final taux    = (stats['taux_reussite']     as num?)?.toDouble() ?? 0.0;
-            final serie   = (stats['serie_gagnante']    as num?)?.toInt() ?? 0;
-            if (suivis == 0) return const SizedBox.shrink();
+            // Un taux de réussite n'existe qu'à partir d'un pari tranché. Tant
+            // qu'aucun n'est réglé, l'API renvoie 0 — ce 0 était affiché tel
+            // quel, en orange, à côté d'une série à 0 en rouge : quelqu'un qui
+            // vient de poser son premier pari lisait donc un avertissement et
+            // une erreur, alors qu'il n'a simplement pas encore de résultat.
+            // `BilanParis` porte la règle, et elle est testée.
+            final bilan = BilanParis.depuisApi(stats);
+            if (bilan.sansAucunPari) return const SizedBox.shrink();
+
+            final suivis    = bilan.suivis;
+            final gagnes    = bilan.gagnes;
+            final perdus    = bilan.perdus;
+            final serie     = bilan.serie;
+            final enAttente = bilan.enAttente;
+            final vierge    = bilan.vierge;
             return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               const _SectionLabel('MES STATS BANKROLL'),
               GestureDetector(
@@ -375,42 +386,65 @@ class _ApercuTab extends ConsumerWidget {
                       Container(height: 32, width: 0.5, color: context.cl.border),
                       _StatPill(
                         icon: Icons.percent_rounded,
-                        rawValue: taux,
+                        rawValue: bilan.taux,
                         suffix: '%',
                         label: 'Réussite',
-                        color: taux >= 60 ? AppColors.success : AppColors.warning),
+                        color: vierge
+                            ? context.cl.textM
+                            : (bilan.tauxBrut >= 60
+                                ? AppColors.success
+                                : AppColors.warning)),
                       Container(height: 32, width: 0.5, color: context.cl.border),
                       _StatPill(
                         icon: Icons.local_fire_department_rounded,
-                        rawValue: serie.toDouble(),
+                        rawValue: vierge ? null : serie.toDouble(),
                         suffix: '',
                         label: 'Série en cours',
-                        color: serie > 0 ? AppColors.success : AppColors.error),
+                        // Une série à zéro n'est pas une faute : c'est une
+                        // série qui n'a pas commencé. Le rouge était réservé
+                        // aux pertes, il n'a rien à faire ici.
+                        color: serie > 0 ? AppColors.success : context.cl.textM),
                     ]),
                     const SizedBox(height: 10),
                     Divider(color: context.cl.border, height: 1),
                     const SizedBox(height: 10),
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                      Row(children: [
-                        Container(width: 8, height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppColors.success, shape: BoxShape.circle)),
+                    // Aligner « 0 Gagnés / 0 Perdus » sous trois tirets ne dit
+                    // rien : le compte est exact mais la raison manque. On
+                    // nomme l'état réel — des paris posés, aucun tranché.
+                    if (vierge)
+                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                        Icon(Icons.hourglass_empty_rounded,
+                          size: 13, color: context.cl.textM),
                         const SizedBox(width: 6),
-                        Text('$gagnes Gagnés', style: TextStyle(
-                          color: AppColors.success, fontSize: 12,
-                          fontWeight: FontWeight.w700)),
+                        Flexible(child: Text(
+                          enAttente > 1
+                            ? '$enAttente paris en attente de résultat'
+                            : 'Pari en attente de résultat',
+                          style: TextStyle(color: context.cl.textM, fontSize: 12,
+                            fontWeight: FontWeight.w600))),
+                      ])
+                    else
+                      Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+                        Row(children: [
+                          Container(width: 8, height: 8,
+                            decoration: const BoxDecoration(
+                              color: AppColors.success, shape: BoxShape.circle)),
+                          const SizedBox(width: 6),
+                          Text('$gagnes Gagnés', style: TextStyle(
+                            color: AppColors.success, fontSize: 12,
+                            fontWeight: FontWeight.w700)),
+                        ]),
+                        Container(height: 14, width: 0.5, color: context.cl.border),
+                        Row(children: [
+                          Container(width: 8, height: 8,
+                            decoration: const BoxDecoration(
+                              color: AppColors.error, shape: BoxShape.circle)),
+                          const SizedBox(width: 6),
+                          Text('$perdus Perdus', style: TextStyle(
+                            color: AppColors.error, fontSize: 12,
+                            fontWeight: FontWeight.w700)),
+                        ]),
                       ]),
-                      Container(height: 14, width: 0.5, color: context.cl.border),
-                      Row(children: [
-                        Container(width: 8, height: 8,
-                          decoration: const BoxDecoration(
-                            color: AppColors.error, shape: BoxShape.circle)),
-                        const SizedBox(width: 6),
-                        Text('$perdus Perdus', style: TextStyle(
-                          color: AppColors.error, fontSize: 12,
-                          fontWeight: FontWeight.w700)),
-                      ]),
-                    ]),
                     const SizedBox(height: 10),
                     Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                       GestureDetector(
@@ -559,7 +593,7 @@ class _AbonnementTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final subAsync = ref.watch(currentSubscriptionProvider);
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, bottomNavSpace(context)),
       children: [
         subAsync.when(
           loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
@@ -987,7 +1021,7 @@ class _ParrainageTab extends ConsumerWidget {
     final aucunFilleul = l1 == 0 && l2 == 0;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+      padding: EdgeInsets.fromLTRB(16, 16, 16, bottomNavSpace(context)),
       children: [
         // ── Gains + progression vers le seuil de retrait ────────────────────
         Container(
@@ -1266,24 +1300,39 @@ class _PendingBanner extends StatelessWidget {
 
 // ─── Stat pill dans section stats ────────────────────────────────────────────
 class _StatPill extends StatelessWidget {
-  final IconData icon; final double rawValue; final String suffix, label; final Color color;
+  /// [rawValue] vaut `null` quand la mesure n'a pas de sens faute de données —
+  /// un taux de réussite sans pari tranché, par exemple. On affiche alors un
+  /// tiret : compter zéro et ne rien savoir sont deux choses différentes, et
+  /// afficher « 0 % » à la place d'un tiret revient à annoncer un échec qui
+  /// n'a pas eu lieu.
+  final IconData icon; final double? rawValue; final String suffix, label; final Color color;
   const _StatPill({required this.icon, required this.rawValue, required this.suffix,
     required this.label, required this.color});
+
   @override
-  Widget build(BuildContext context) => Column(children: [
-    Icon(icon, color: color, size: 18),
-    const SizedBox(height: 4),
-    TweenAnimationBuilder<double>(
-      tween: Tween(begin: 0, end: rawValue),
-      duration: const Duration(milliseconds: 800),
-      curve: Curves.easeOutCubic,
-      builder: (_, v, _) => Text('${v.toStringAsFixed(0)}$suffix',
-        style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w800)),
-    ),
-    const SizedBox(height: 2),
-    Text(label, style: TextStyle(
-      color: context.cl.textM, fontSize: 10)),
-  ]);
+  Widget build(BuildContext context) {
+    final v = rawValue;
+    return Column(children: [
+      Icon(icon, color: color, size: 18),
+      const SizedBox(height: 4),
+      if (v == null)
+        // Pas de compteur animé : il partirait de 0 pour arriver à 0, ce qui
+        // laisserait croire à une valeur mesurée.
+        Text('—', style: TextStyle(
+          color: color, fontSize: 15, fontWeight: FontWeight.w800))
+      else
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: v),
+          duration: const Duration(milliseconds: 800),
+          curve: Curves.easeOutCubic,
+          builder: (_, x, _) => Text('${x.toStringAsFixed(0)}$suffix',
+            style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w800)),
+        ),
+      const SizedBox(height: 2),
+      Text(label, style: TextStyle(
+        color: context.cl.textM, fontSize: 10)),
+    ]);
+  }
 }
 
 // ─── AVATAR PROFIL AVEC BADGE NIVEAU ─────────────────────────────────────────

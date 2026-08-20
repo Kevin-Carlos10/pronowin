@@ -8,6 +8,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/bankroll_provider.dart';
+import '../../../../shared/widgets/bottom_nav_metrics.dart';
+import '../../../../shared/utils/devise.dart';
+import '../../../../shared/utils/montant.dart';
 
 // ── Filtre actif ───────────────────────────────────────────────────────────────
 enum _BetFilter { all, pending, win, loss }
@@ -270,7 +273,7 @@ class _BankrollView extends StatelessWidget {
                 .slideY(begin: 0.06, end: 0, duration: 280.ms),
             ),
 
-          const SizedBox(height: 100),
+          SizedBox(height: bottomNavSpace(context)),
         ]),
       )),
     ]);
@@ -474,7 +477,7 @@ class _WeeklySummary extends StatelessWidget {
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text(
-            '${isGain ? '+' : ''}${_formatAmount(profit)} ${bankroll.currency}',
+            '${isGain ? '+' : ''}${montantExact(profit)} ${nomDevise(bankroll.currency)}',
             style: TextStyle(
               color: isGain ? AppColors.success : AppColors.error,
               fontSize: 13, fontWeight: FontWeight.w800)),
@@ -616,10 +619,10 @@ class _BalanceCard extends StatelessWidget {
     // budget » : huit fragments dont aucun ne dit lequel est quoi, sur l'écran
     // où l'utilisateur suit son argent.
     final annonce = 'Solde actuel '
-        '${_formatAmount(bankroll.currentBalance)} ${bankroll.currency}, '
-        'sur un budget de ${_formatAmount(bankroll.totalBudget)} ${bankroll.currency}. '
+        '${montantExact(bankroll.currentBalance)} ${nomDevise(bankroll.currency)}, '
+        'sur un budget de ${montantExact(bankroll.totalBudget)} ${nomDevise(bankroll.currency)}. '
         '${isProfit ? 'Bénéfice' : 'Perte'} de '
-        '${_formatAmount(profit.abs())} ${bankroll.currency}, '
+        '${montantExact(profit.abs())} ${nomDevise(bankroll.currency)}, '
         'soit ${(pct * 100).toStringAsFixed(0)} pour cent du budget.';
 
     return Semantics(
@@ -644,7 +647,7 @@ class _BalanceCard extends StatelessWidget {
                 color: context.cl.textM, fontSize: 12, fontWeight: FontWeight.w500)),
             const SizedBox(height: 4),
             Text(
-              '${_formatAmount(bankroll.currentBalance)} ${bankroll.currency}',
+              '${montantExact(bankroll.currentBalance)} ${nomDevise(bankroll.currency)}',
               style: TextStyle(
                 color: context.cl.textP, fontSize: 28,
                 fontWeight: FontWeight.w800, letterSpacing: -0.5)),
@@ -654,7 +657,7 @@ class _BalanceCard extends StatelessWidget {
             Text('Budget total', style: TextStyle(color: context.cl.textM, fontSize: 11)),
             const SizedBox(height: 2),
             Text(
-              '${_formatAmount(bankroll.totalBudget)} ${bankroll.currency}',
+              '${montantExact(bankroll.totalBudget)} ${nomDevise(bankroll.currency)}',
               style: TextStyle(color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600)),
           ]),
         ]),
@@ -680,7 +683,7 @@ class _BalanceCard extends StatelessWidget {
               color: profitColor, size: 15),
           const SizedBox(width: 4),
           Text(
-            '${isProfit ? '+' : ''}${_formatAmount(profit)} ${bankroll.currency}',
+            '${isProfit ? '+' : ''}${montantExact(profit)} ${nomDevise(bankroll.currency)}',
             style: TextStyle(color: profitColor, fontSize: 13, fontWeight: FontWeight.w700)),
           const Spacer(),
           Text(
@@ -750,14 +753,14 @@ class _BetCard extends StatelessWidget {
                :            'perdu';
     final montant = bet.profit != null
         ? '${bet.profit! >= 0 ? 'Gain' : 'Perte'} de '
-          '${_formatAmount(bet.profit!.abs())}'
-        : 'Gain potentiel ${_formatAmount(bet.potentialGain)}';
+          '${montantExact(bet.profit!.abs())}'
+        : 'Gain potentiel ${montantExact(bet.potentialGain)}';
 
     return Semantics(
       button: true,
       label: '${bet.homeTeam} contre ${bet.awayTeam}. '
              '${bet.displayPredictionLabel}. Pari $etat. '
-             'Mise ${_formatAmount(bet.stakedAmount)}. $montant.',
+             'Mise ${montantExact(bet.stakedAmount)}. $montant.',
       excludeSemantics: true,
       child: GestureDetector(
       onTap: () => context.push('/bankroll/bet/${bet.id}', extra: bet),
@@ -788,18 +791,18 @@ class _BetCard extends StatelessWidget {
           ])),
           const SizedBox(width: 8),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('−${_formatAmount(bet.stakedAmount)}',
+            Text('−${montantExact(bet.stakedAmount)}',
               style: TextStyle(color: context.cl.textP, fontSize: 12,
                   fontWeight: FontWeight.w700)),
             const SizedBox(height: 3),
             if (bet.profit != null)
               Text(
-                '${bet.profit! >= 0 ? '+' : ''}${_formatAmount(bet.profit!)}',
+                '${bet.profit! >= 0 ? '+' : ''}${montantExact(bet.profit!)}',
                 style: TextStyle(
                   color: bet.profit! >= 0 ? AppColors.success : AppColors.error,
                   fontSize: 12, fontWeight: FontWeight.w700))
             else
-              Text('→ ${_formatAmount(bet.potentialGain)}',
+              Text('→ ${montantExact(bet.potentialGain)}',
                 style: TextStyle(color: context.cl.textM, fontSize: 11)),
           ]),
         ]),
@@ -887,7 +890,10 @@ class _SetupView extends StatelessWidget {
   Widget _features(BuildContext context) {
     const items = [
       (Icons.bolt_rounded,       'Mises calculées selon ton solde et la confiance'),
-      (Icons.auto_graph_rounded, 'Suivi du ROI et taux de réussite en temps réel'),
+      // Pas « en temps réel » : la synchronisation tourne toutes les 15 min.
+      // Les scores, eux, se rafraîchissent toutes les 30–45 s — d'où la
+      // formulation différente sur l'écran d'onboarding des résultats.
+      (Icons.auto_graph_rounded, 'Rentabilité et taux de réussite mis à jour à chaque résultat'),
       (Icons.update_rounded,     'Solde mis à jour automatiquement à chaque résultat'),
       (Icons.shield_rounded,     'Rappel de discipline après chaque mise confirmée'),
     ];
@@ -1003,7 +1009,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
                 border: Border.all(
                   color: _currency == c ? AppColors.success : context.cl.border,
                   width: 0.8)),
-              child: Text(c, style: TextStyle(
+              child: Text(libelleChoixDevise(c), style: TextStyle(
                 color:      _currency == c ? AppColors.success : context.cl.textM,
                 fontSize:   12,
                 fontWeight: _currency == c ? FontWeight.w700 : FontWeight.w400)),
@@ -1050,7 +1056,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
               color:  AppColors.success.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: AppColors.success.withValues(alpha: 0.3))),
-            child: Text(_formatAmount(p.toDouble()),
+            child: Text(montantExact(p.toDouble()),
               style: const TextStyle(color: AppColors.success, fontSize: 12,
                   fontWeight: FontWeight.w600)),
           ),
@@ -1163,15 +1169,3 @@ class _ErrorState extends StatelessWidget {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-String _formatAmount(double amount) {
-  if (amount.abs() >= 1000) {
-    final s = amount.abs().toStringAsFixed(0);
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
-      buf.write(s[i]);
-    }
-    return amount < 0 ? '-${buf.toString()}' : buf.toString();
-  }
-  return amount.toStringAsFixed(0);
-}

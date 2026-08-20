@@ -1,4 +1,5 @@
 import type { AxiosInstance } from 'axios';
+import { traduireRecommandation } from './traduction_recommandation';
 
 /**
  * Second volet du client API-Football : les données que le plan Pro débloque
@@ -57,15 +58,23 @@ export interface MatchPrediction {
 const predictionCache = new Map<number, { data: MatchPrediction; ts: number }>();
 const PREDICTION_TTL = 6 * 60 * 60 * 1000; // 6 h
 
-/** Libellés d'axes, dans l'ordre où on veut les afficher. */
+/**
+ * Libellés d'axes, dans l'ordre d'affichage.
+ *
+ * `total` s'appelait « Total » — un mot qui invite à vérifier l'addition. Or
+ * ce n'est pas la moyenne des lignes du dessus : c'est l'agrégat pondéré du
+ * fournisseur, et l'écart saute aux yeux (moyenne des six axes ≈ 36/47 pour un
+ * « Total » affiché à 17/83). Le renommer « Synthèse » supprime la promesse
+ * arithmétique que la donnée ne tient pas.
+ */
 const AXES: Array<[cle: string, libelle: string]> = [
   ['form',   'Forme'],
   ['att',    'Attaque'],
   ['def',    'Défense'],
   ['goals',  'Buts'],
   ['h2h',    'Confrontations'],
-  ['poisson_distribution', 'Modèle de Poisson'],
-  ['total',  'Total'],
+  ['poisson_distribution', 'Poisson'],
+  ['total',  'Synthèse'],
 ];
 
 const pct = (v: unknown): number => {
@@ -177,20 +186,27 @@ export class ApiFootballInsights {
       const ta = d.teams?.away?.league ?? {};
 
       const data: MatchPrediction = {
-        advice:        p.advice ?? null,
+        // Traduit ici, à la frontière du fournisseur : tous les consommateurs
+        // en bénéficient, et aucun écran n'a à connaître l'anglais d'origine.
+        advice:        traduireRecommandation(p.advice),
         winnerName:    p.winner?.name ?? null,
         winnerComment: p.winner?.comment ?? null,
         percentHome:   pct(p.percent?.home),
         percentDraw:   pct(p.percent?.draw),
         percentAway:   pct(p.percent?.away),
         underOver:     p.under_over ?? null,
+        // Un axe à 0/0 n'est pas une égalité : c'est une absence de donnée. Le
+        // filtre ne regardait que l'existence de l'objet, si bien que le
+        // « Modèle de Poisson » s'affichait vide sur les matchs de début de
+        // saison — une ligne qui n'apprend rien et occupe une place utile.
         comparisons: AXES
           .filter(([cle]) => c[cle])
           .map(([cle, libelle]) => ({
             label: libelle,
             home:  pct(c[cle].home),
             away:  pct(c[cle].away),
-          })),
+          }))
+          .filter(a => a.home > 0 || a.away > 0),
         formHome: th.form ?? null,
         formAway: ta.form ?? null,
         cleanSheetHome:    th.clean_sheet?.total ?? 0,

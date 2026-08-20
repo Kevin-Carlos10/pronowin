@@ -364,22 +364,33 @@ class _ROICard extends StatelessWidget {
               borderRadius: BorderRadius.circular(12)),
             child: Icon(Icons.analytics_rounded, color: color, size: 20)),
           const SizedBox(width: 12),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Gain simulé sur ${perf.periodDays} jours',
-              style: TextStyle(color: context.cl.textM, fontSize: 11)),
-            const SizedBox(height: 2),
-            TweenAnimationBuilder<int>(
-              tween: IntTween(begin: 0, end: perf.simulatedNet.abs()),
-              duration: 900.ms,
-              curve: Curves.easeOutCubic,
-              builder: (_, v, _) => Text(
-                '${isPositive ? '+' : '-'}${_fmt(v.toDouble())} FCFA',
-                style: TextStyle(color: context.cl.textP, fontSize: 26,
-                    fontWeight: FontWeight.w900, letterSpacing: -0.5)),
-            ),
-          ]),
-          const Spacer(),
-          // ROI badge
+          // `Expanded` plutôt qu'un `Spacer` après une colonne libre : le
+          // montant est écrit en 26 points et le badge a désormais un libellé
+          // en toutes lettres. Sur un écran de 320 points, la somme des deux
+          // dépassait la largeur disponible — le texte se réduit maintenant au
+          // lieu de déborder.
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('Gain simulé sur ${perf.periodDays} jours',
+                style: TextStyle(color: context.cl.textM, fontSize: 11)),
+              const SizedBox(height: 2),
+              TweenAnimationBuilder<int>(
+                tween: IntTween(begin: 0, end: perf.simulatedNet.abs()),
+                duration: 900.ms,
+                curve: Curves.easeOutCubic,
+                builder: (_, v, _) => FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    '${isPositive ? '+' : '-'}${_fmt(v.toDouble())} FCFA',
+                    style: TextStyle(color: context.cl.textP, fontSize: 26,
+                        fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(width: 10),
+          // Rentabilité — « ROI » n'était compris que des parieurs avertis.
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
@@ -387,7 +398,8 @@ class _ROICard extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: color.withValues(alpha: 0.4), width: 0.8)),
             child: Column(children: [
-              Text('ROI', style: TextStyle(color: context.cl.textM, fontSize: 9,
+              Text('RENTABILITÉ',
+                style: TextStyle(color: context.cl.textM, fontSize: 9,
                   fontWeight: FontWeight.w700, letterSpacing: 0.5)),
               const SizedBox(height: 2),
               Text('${isPositive ? '+' : ''}${perf.roi}%',
@@ -396,6 +408,14 @@ class _ROICard extends StatelessWidget {
             ]),
           ),
         ]),
+
+        const SizedBox(height: 8),
+        // Le pourcentage seul ne dit pas de quoi il est le pourcentage. Formulé
+        // en francs sur une mise ronde, il se comprend sans définition.
+        Text(
+          'Rentabilité : ${isPositive ? '+' : ''}${perf.roi} F de gain net '
+          'pour 100 F misés.',
+          style: TextStyle(color: context.cl.textM, fontSize: 10.5, height: 1.35)),
 
         const SizedBox(height: 16),
 

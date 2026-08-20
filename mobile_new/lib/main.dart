@@ -26,6 +26,8 @@ import 'core/services/background_sync_service.dart';
 import 'core/storage/secure_storage.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
 import 'features/notifications/presentation/providers/fcm_service.dart';
+import 'features/parametres/data/pin_store.dart';
+import 'features/parametres/presentation/providers/security_provider.dart';
 import 'features/parametres/presentation/providers/settings_provider.dart';
 
 /// Force l'arbre de sémantique sur la cible web, pour inspecter l'UI depuis un
@@ -171,40 +173,25 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
   }
 
   Future<void> _checkLockOnStart() async {
-    final settings = ref.read(settingsProvider);
-    if (!settings.pinEnabled && !settings.bioEnabled) {
-      _lockChecked = true;
-      return;
-    }
-
-    final p      = await SharedPreferences.getInstance();
-    final hasPin = p.getString('pin_code')?.isNotEmpty ?? false;
-
-    if (hasPin || settings.bioEnabled) {
-      _lockChecked = true;
-      if (mounted) {
-        final router = ref.read(appRouterProvider);
-        router.go('/lock');
-      }
-    } else {
-      _lockChecked = true;
+    final verrouiller = await doitVerrouiller(
+      settings: ref.read(settingsProvider),
+      pinStore: ref.read(pinStoreProvider));
+    _lockChecked = true;
+    if (verrouiller && mounted) {
+      ref.read(appRouterProvider).go('/lock');
     }
   }
 
   Future<void> _checkLockOnResume() async {
-    final settings = ref.read(settingsProvider);
-    if (!settings.pinEnabled && !settings.bioEnabled) return;
+    final verrouiller = await doitVerrouiller(
+      settings: ref.read(settingsProvider),
+      pinStore: ref.read(pinStoreProvider));
+    if (!verrouiller || !mounted) return;
 
-    final p      = await SharedPreferences.getInstance();
-    final hasPin = p.getString('pin_code')?.isNotEmpty ?? false;
-    if (!hasPin && !settings.bioEnabled) return;
-
-    if (mounted) {
-      final router   = ref.read(appRouterProvider);
-      final location = router.routerDelegate.currentConfiguration.last.route.path;
-      if (location != '/lock') {
-        router.go('/lock');
-      }
+    final router   = ref.read(appRouterProvider);
+    final location = router.routerDelegate.currentConfiguration.last.route.path;
+    if (location != '/lock') {
+      router.go('/lock');
     }
   }
 

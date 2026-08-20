@@ -375,7 +375,7 @@ class _BankrollMiniWidget extends ConsumerWidget {
                         color: context.cl.textM, fontSize: 11,
                         fontWeight: FontWeight.w500)),
                     const SizedBox(height: 2),
-                    Text('${_fmt(bankroll.currentBalance)} ${bankroll.currency}',
+                    Text('${_fmt(bankroll.currentBalance)} ${nomDevise(bankroll.currency)}',
                         style: TextStyle(
                             color: context.cl.textP, fontSize: 16,
                             fontWeight: FontWeight.w800, letterSpacing: -0.3)),
