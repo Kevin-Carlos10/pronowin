@@ -206,22 +206,44 @@
       <span class="bottom-nav-icon"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg></span>
       <span>Dashboard</span>
     </a>
+    <%# « Utilisateurs » et « Stats » s'excluaient mutuellement — un `if/else`
+        qui gaspillait un créneau alors que la barre n'en compte que cinq pour
+        vingt-trois destinations. Chacun s'affiche désormais selon sa propre
+        permission. %>
     <% if (hasPerm('users')) { %>
     <a href="/admin/users" class="bottom-nav-item <%= page==='users'?'active':'' %>" aria-label="Utilisateurs">
       <span class="bottom-nav-icon"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span>
       <span>Utilisateurs</span>
     </a>
-    <% } else { %>
-    <a href="/admin/statistiques" class="bottom-nav-item <%= page==='statistiques'?'active':'' %>" aria-label="Stats">
+    <% } %>
+
+    <%# Bouton central.
+        Il ouvrait la recherche — que la loupe de la barre du haut ouvre déjà,
+        à trois centimètres de là. Le contrôle le plus proéminent de l'écran
+        faisait donc doublon, pendant que le travail quotidien restait enfoui
+        dans le menu latéral.
+        Il mène maintenant au catalogue des pronostics : publier reste l'acte
+        le plus fréquent d'une journée d'administration.
+
+        Sans cette permission, le bouton disparaît — il ne retombe pas sur la
+        recherche. Un premier essai le faisait, et recréait exactement le
+        doublon qu'on venait de retirer : la loupe de la barre du haut reste
+        visible dans tous les cas. Quatre créneaux répartis également se lisent
+        mieux qu'un cinquième qui répète son voisin. %>
+    <% if (hasPerm('pronostics')) { %>
+    <a href="/admin/pronostics" class="bottom-nav-fab" aria-label="Pronostics">
+      <div class="bottom-nav-fab-circle"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></div>
+      <span class="bottom-nav-fab-lbl">Pronostics</span>
+    </a>
+    <% } %>
+
+    <% if (hasPerm('statistiques')) { %>
+    <a href="/admin/statistiques" class="bottom-nav-item <%= page==='statistiques'?'active':'' %>" aria-label="Statistiques">
       <span class="bottom-nav-icon"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg></span>
       <span>Stats</span>
     </a>
     <% } %>
-    <!-- Bouton FAB central : recherche rapide -->
-    <button class="bottom-nav-fab" onclick="openSearch()" aria-label="Rechercher">
-      <div class="bottom-nav-fab-circle"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></div>
-      <span class="bottom-nav-fab-lbl">Chercher</span>
-    </button>
+
     <a href="/admin/profile" class="bottom-nav-item <%= page==='profile'?'active':'' %>" aria-label="Profil">
       <span class="bottom-nav-icon"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg></span>
       <span>Profil</span>

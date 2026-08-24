@@ -5,16 +5,20 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/widgets/logotype_pronowin.dart';
 import '../../../../shared/widgets/pw_button.dart';
+import '../providers/apres_connexion.dart';
 import '../providers/auth_provider.dart';
+import '../widgets/bouton_fournisseur.dart';
 
-/// Écran de connexion / inscription par email — accessible uniquement à la
-/// demande (bouton "Se connecter" ou accès à une fonctionnalité réservée).
-/// L'application elle-même reste consultable sans compte.
+/// Écran de connexion — accessible uniquement à la demande (bouton « Se
+/// connecter » ou accès à une fonctionnalité réservée). L'application
+/// elle-même reste consultable sans compte.
 ///
-/// Style épuré (logo + bénéfices + un seul CTA), inspiré des écrans d'auth
-/// des grosses apps sport (Sofascore, OneFootball) : peu de texte, une seule
-/// action claire, pas de choix "connexion / inscription" à faire soi-même.
+/// Réduit à sa plus simple expression : le nom, puis les chemins de connexion,
+/// tous du même poids. Pas d'argumentaire — celui-ci est déjà tenu par l'écran
+/// d'où l'on vient — et pas de choix « connexion ou inscription » à faire
+/// soi-même : le serveur sait si l'adresse existe déjà.
 class EmailAuthPage extends ConsumerStatefulWidget {
   /// Route vers laquelle rediriger une fois connecté (fonctionnalité que
   /// l'invité tentait d'atteindre).
@@ -29,6 +33,14 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
   final _formKey   = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
 
+  /// L'écran a deux états : le choix du chemin, puis la saisie de l'adresse.
+  ///
+  /// Le champ était visible d'emblée, surmonté du seul bouton plein de la page
+  /// — l'e-mail devenait de fait le chemin par défaut, alors qu'il est le plus
+  /// lent pour l'utilisateur et le seul à coûter un envoi. Il reste offert,
+  /// mais à égalité, et sa saisie n'occupe l'écran que si on la demande.
+  bool _saisieEmail = false;
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -41,12 +53,31 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
     ref.read(authProvider.notifier).sendEmailOtp(_emailCtrl.text.trim());
   }
 
+  void _ouvrirSaisieEmail() {
+    HapticFeedback.selectionClick();
+    setState(() => _saisieEmail = true);
+  }
+
+  void _revenirAuChoix() {
+    FocusScope.of(context).unfocus();
+    setState(() => _saisieEmail = false);
+  }
+
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
 
     ref.listen<AuthState>(authProvider, (_, state) {
-      if (state is EmailOtpSent) {
+      if (state is AuthAuthenticated) {
+        // Cas manquant jusqu'ici. Le chemin e-mail se termine sur l'écran du
+        // code, qui gérait cette étape ; la connexion Google aboutit
+        // directement ici, et rien ne l'écoutait. L'utilisateur se retrouvait
+        // authentifié devant un écran de connexion qu'il devait refermer
+        // lui-même — pendant que ses données restaient celles d'un invité et
+        // que son jeton de notification restait orphelin.
+        apresConnexionReussie(ref);
+        context.go(widget.from ?? '/home');
+      } else if (state is EmailOtpSent) {
         context.push('/auth/email/otp', extra: {
           'email':     state.email,
           'isNewUser': state.isNewUser,
@@ -90,123 +121,43 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
-                      _LogoMark()
+                      // Le nom seul, sans tuile ni argumentaire.
+                      //
+                      // Les trois bénéfices ont été retirés parce que
+                      // l'utilisateur arrive de `GuestLockedView`, qui vient
+                      // justement de lui dire ce qu'il gagne à créer un compte :
+                      // les répéter retardait l'action au lieu de la motiver.
+                      //
+                      // La tuile au trophée l'a suivi : elle redisait en icône
+                      // ce que le mot énonce, à l'écran même où l'utilisateur
+                      // vient de toucher cette icône dans le lanceur. Le
+                      // logotype porte seul la marque, et il grandit d'autant.
+                      const LogotypePronoWin(taille: 34)
                         .animate()
                         .fadeIn(duration: 400.ms)
-                        .scale(begin: const Offset(0.85, 0.85), end: const Offset(1, 1),
+                        .scale(begin: const Offset(0.9, 0.9), end: const Offset(1, 1),
                             duration: 400.ms, curve: Curves.easeOutBack),
 
-                      const SizedBox(height: 24),
+                      const SizedBox(height: 44),
 
-                      Text(
-                        'Tout PronoWin en un compte',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: context.cl.textP,
-                          fontSize: 22,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.4,
+                      if (_saisieEmail)
+                        _EtapeEmail(
+                          formKey:   _formKey,
+                          controleur: _emailCtrl,
+                          enCours:   authState is AuthLoading,
+                          onValider: _submit,
+                          onRetour:  _revenirAuChoix,
+                        )
+                      else
+                        _ChoixFournisseur(
+                          enCours: authState is AuthLoading,
+                          onGoogle: () => ref
+                              .read(authProvider.notifier)
+                              .loginWithGoogle(),
+                          onEmail: _ouvrirSaisieEmail,
                         ),
-                      ).animate().fadeIn(duration: 400.ms, delay: 80.ms),
 
-                      const SizedBox(height: 24),
-
-                      // Les trois lignes partagent une colonne alignée à
-                      // gauche : centrées individuellement, leurs pastilles se
-                      // décalaient au gré de la longueur de chaque texte.
-                      const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _BenefitRow(text: 'Suis tes pronostics et paris favoris'),
-                          SizedBox(height: 12),
-                          _BenefitRow(
-                              text: 'Débloque le Premium et l\'analyse statistique'),
-                          SizedBox(height: 12),
-                          _BenefitRow(text: 'Gère ta bankroll et ton parrainage'),
-                        ],
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      Form(
-                        key: _formKey,
-                        child: TextFormField(
-                          controller: _emailCtrl,
-                          autofocus: false,
-                          textAlign: TextAlign.center,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.done,
-                          // Laisse le gestionnaire de mots de passe et la
-                          // saisie automatique proposer l'adresse.
-                          autofillHints: const [AutofillHints.email],
-                          autocorrect: false,
-                          enableSuggestions: false,
-                          onFieldSubmitted: (_) => _submit(),
-                          style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600),
-                          decoration: const InputDecoration(hintText: 'Adresse email'),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return 'Email requis';
-                            if (!v.contains('@')) return 'Email invalide';
-                            return null;
-                          },
-                        ),
-                      ).animate().fadeIn(duration: 400.ms, delay: 140.ms),
-
-                      const SizedBox(height: 18),
-
-                      SizedBox(
-                        width: double.infinity,
-                        child: PwButton(
-                          label: 'Continuer',
-                          isLoading: authState is AuthLoading,
-                          onPressed: _submit,
-                        ),
-                      ).animate().fadeIn(duration: 400.ms, delay: 180.ms),
-
-                      const SizedBox(height: 18),
-
-                      // Séparateur
-                      Row(children: [
-                        Expanded(child: Divider(color: context.cl.border, height: 1)),
-                        Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: Text('ou',
-                              style: TextStyle(
-                                  color: context.cl.textM, fontSize: 12)),
-                        ),
-                        Expanded(child: Divider(color: context.cl.border, height: 1)),
-                      ]).animate().fadeIn(duration: 400.ms, delay: 210.ms),
-
-                      const SizedBox(height: 18),
-
-                      // Deux appuis au lieu de : saisir l'adresse, attendre le
-                      // code, aller le chercher dans sa boîte mail, le ressaisir.
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton.icon(
-                          onPressed: authState is AuthLoading
-                              ? null
-                              : () async {
-                                  final ok = await ref
-                                      .read(authProvider.notifier)
-                                      .loginWithGoogle();
-                                  if (!ok || !context.mounted) return;
-                                },
-                          icon: const Icon(Icons.g_mobiledata_rounded, size: 26),
-                          label: const Text('Continuer avec Google'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: context.cl.textP,
-                            side: BorderSide(color: context.cl.border),
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(14)),
-                            textStyle: const TextStyle(
-                                fontSize: 15, fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                      ).animate().fadeIn(duration: 400.ms, delay: 240.ms),
-
-                      const SizedBox(height: 18),
+                      const SizedBox(height: 20),
 
                       // Seul recueil de consentement depuis la suppression de
                       // l'écran de CGU : cette mention doit être lisible, pas
@@ -242,51 +193,119 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
   }
 }
 
-// ─── LOGO ─────────────────────────────────────────────────────────────────────
-class _LogoMark extends StatelessWidget {
+// ─── CHOIX DU CHEMIN ──────────────────────────────────────────────────────────
+/// Les fournisseurs, tous du même poids visuel.
+///
+/// L'ordre n'est pas arbitraire : Google d'abord, parce que c'est le compte
+/// que possède la quasi-totalité des utilisateurs Android — le marché visé —
+/// et le seul chemin qui ne coûte ni SMS ni e-mail. L'adresse e-mail en
+/// dernier : elle reste le repli, plus le chemin principal.
+///
+/// « Continuer avec Apple » viendra s'insérer entre les deux dès la sortie
+/// iOS : la règle 4.8 de l'App Store l'exige de toute app proposant une
+/// connexion tierce comme Google. La pile est faite pour l'accueillir sans
+/// retoucher l'écran.
+class _ChoixFournisseur extends StatelessWidget {
+  final bool enCours;
+  final VoidCallback onGoogle;
+  final VoidCallback onEmail;
+
+  const _ChoixFournisseur({
+    required this.enCours,
+    required this.onGoogle,
+    required this.onEmail,
+  });
+
   @override
-  Widget build(BuildContext context) => Container(
-    width: 64, height: 64,
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [AppColors.primary, AppColors.primaryLight],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
+  Widget build(BuildContext context) => Column(children: [
+    BoutonFournisseur(
+      libelle: 'Continuer avec Google',
+      logo: const LogoGoogle(),
+      desactive: enCours,
+      onPressed: onGoogle,
+    ).animate().fadeIn(duration: 400.ms, delay: 140.ms)
+     .slideY(begin: 0.06, end: 0, duration: 400.ms),
+
+    const SizedBox(height: 11),
+
+    BoutonFournisseur(
+      libelle: 'Continuer avec un e-mail',
+      logo: const LogoEmail(),
+      desactive: enCours,
+      onPressed: onEmail,
+    ).animate().fadeIn(duration: 400.ms, delay: 190.ms)
+     .slideY(begin: 0.06, end: 0, duration: 400.ms),
+  ]);
+}
+
+// ─── SAISIE DE L'ADRESSE ──────────────────────────────────────────────────────
+/// Seconde étape du chemin par e-mail.
+class _EtapeEmail extends StatelessWidget {
+  final GlobalKey<FormState> formKey;
+  final TextEditingController controleur;
+  final bool enCours;
+  final VoidCallback onValider;
+  final VoidCallback onRetour;
+
+  const _EtapeEmail({
+    required this.formKey,
+    required this.controleur,
+    required this.enCours,
+    required this.onValider,
+    required this.onRetour,
+  });
+
+  @override
+  Widget build(BuildContext context) => Column(children: [
+    Form(
+      key: formKey,
+      child: TextFormField(
+        controller: controleur,
+        // L'utilisateur vient de demander explicitement ce chemin : lui faire
+        // toucher le champ une seconde fois serait un appui de trop.
+        autofocus: true,
+        textAlign: TextAlign.center,
+        keyboardType: TextInputType.emailAddress,
+        textInputAction: TextInputAction.done,
+        // Laisse le gestionnaire de mots de passe et la saisie automatique
+        // proposer l'adresse.
+        autofillHints: const [AutofillHints.email],
+        autocorrect: false,
+        enableSuggestions: false,
+        onFieldSubmitted: (_) => onValider(),
+        style: TextStyle(
+          color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600),
+        decoration: const InputDecoration(hintText: 'Adresse email'),
+        validator: (v) {
+          if (v == null || v.isEmpty) return 'Email requis';
+          if (!v.contains('@')) return 'Email invalide';
+          return null;
+        },
       ),
-      borderRadius: BorderRadius.circular(18),
-      boxShadow: [
-        BoxShadow(
-          color: AppColors.primary.withValues(alpha: 0.35),
-          blurRadius: 18,
-          offset: const Offset(0, 8),
-        ),
-      ],
     ),
-    child: const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 32),
-  );
+
+    const SizedBox(height: 16),
+
+    SizedBox(
+      width: double.infinity,
+      child: PwButton(
+        label: 'Recevoir mon code',
+        isLoading: enCours,
+        onPressed: onValider,
+      ),
+    ),
+
+    const SizedBox(height: 6),
+
+    // Sortie de secours : sans elle, choisir l'e-mail par erreur enfermerait
+    // l'utilisateur dans une étape qu'il n'a plus moyen de quitter autrement
+    // que par la croix, qui referme tout l'écran.
+    TextButton(
+      onPressed: enCours ? null : onRetour,
+      child: Text('Autres options de connexion',
+        style: TextStyle(
+          color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600)),
+    ),
+  ]).animate().fadeIn(duration: 300.ms);
 }
 
-// ─── BÉNÉFICE (checkmark + texte) ─────────────────────────────────────────────
-class _BenefitRow extends StatelessWidget {
-  final String text;
-  const _BenefitRow({required this.text});
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisSize: MainAxisSize.min,
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Container(
-        width: 20, height: 20,
-        decoration: const BoxDecoration(
-          color: AppColors.primary, shape: BoxShape.circle),
-        child: const Icon(Icons.check_rounded, color: Colors.white, size: 13),
-      ),
-      const SizedBox(width: 10),
-      Flexible(
-        child: Text(text,
-          style: TextStyle(color: context.cl.textS, fontSize: 13.5, height: 1.3)),
-      ),
-    ],
-  ).animate().fadeIn(duration: 350.ms, delay: 100.ms);
-}

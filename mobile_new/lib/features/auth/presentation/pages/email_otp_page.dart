@@ -6,10 +6,8 @@ import 'package:go_router/go_router.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/pw_button.dart';
+import '../providers/apres_connexion.dart';
 import '../providers/auth_provider.dart';
-import '../../../bankroll/presentation/providers/bankroll_provider.dart';
-import '../../../compte/presentation/providers/compte_provider.dart';
-import '../../../notifications/presentation/providers/fcm_service.dart';
 
 class EmailOtpPage extends ConsumerStatefulWidget {
   final String email;
@@ -75,24 +73,13 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
     }
   }
 
-  void _invalidateUserProviders() {
-    ref.invalidate(isLoggedInProvider);
-    ref.invalidate(bankrollProvider);
-    ref.invalidate(bankrollStatsProvider);
-    ref.invalidate(profileProvider);
-    ref.invalidate(userStatsProvider);
-    // Rattacher le token FCM déjà obtenu en mode invité au compte qui vient
-    // de se connecter (fire-and-forget, non bloquant).
-    FCMService.registerCurrentToken(ref);
-  }
-
   @override
   Widget build(BuildContext context) {
     final authState = ref.watch(authProvider);
 
     ref.listen<AuthState>(authProvider, (_, state) {
       if (state is AuthAuthenticated) {
-        _invalidateUserProviders();
+        apresConnexionReussie(ref);
         // Le code validé, l'utilisateur est chez lui — point final.
         //
         // Il y avait ici deux détours obligatoires : un écran de CGU, alors

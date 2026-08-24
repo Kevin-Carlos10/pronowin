@@ -747,7 +747,13 @@ textarea { resize: vertical; }
 /* ── Bottom navigation bar (mobile) ─────────────────────────────────────── */
 .bottom-nav {
   display: none;
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+  /* Sous le voile (99) et sous le tiroir (100), pas au-dessus.
+     À 200, la barre restait allumée et cliquable par-dessus le menu ouvert :
+     deux systèmes de navigation se disputaient l'attention, et surtout ses
+     64 px recouvraient le bas du tiroir — panneau Thème, Mon profil et
+     Déconnexion. Sur un écran court, se déconnecter devenait impossible.
+     Quand un tiroir de navigation est ouvert, il *est* la navigation. */
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
   background: var(--surface);
   border-top: 1px solid var(--border);
   padding: 6px 0 max(6px, env(safe-area-inset-bottom));
@@ -758,12 +764,22 @@ textarea { resize: vertical; }
 }
 .bottom-nav-item {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 4px 8px; cursor: pointer; text-decoration: none;
+  padding: 4px 6px; cursor: pointer; text-decoration: none;
   color: var(--text-dim); font-size: 9px; font-weight: 600;
   text-transform: uppercase; letter-spacing: .04em;
   border: none; background: none; position: relative;
-  min-width: 52px; border-radius: var(--radius-s);
+  border-radius: var(--radius-s);
   transition: color var(--transition);
+
+  /* La barre est passée de quatre créneaux à cinq : sur un écran de 320 px,
+     chacun tombe à ~64 px, et « Utilisateurs » n'y tient plus. `min-width: 52px`
+     l'aurait laissé pousser la barre en débordement. On borne plutôt chaque
+     créneau à sa part, et le libellé se tronque proprement s'il le faut. */
+  flex: 1 1 0; min-width: 0; max-width: 84px;
+}
+/* Le libellé est le seul texte du créneau : il se tronque, il ne déborde pas. */
+.bottom-nav-item > span:not(.bottom-nav-icon):not(.bottom-nav-badge) {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .bottom-nav-item:hover, .bottom-nav-item.active { color: var(--btn-primary); }
 .bottom-nav-icon { font-size: 20px; line-height: 1; transition: transform .15s; }
@@ -781,6 +797,9 @@ textarea { resize: vertical; }
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   text-decoration: none; border: none; background: none;
   cursor: pointer; padding: 0; position: relative; top: -10px;
+  /* Le cercle fait 46 px : le créneau ne descend pas en dessous, mais ne
+     s'étire pas non plus au détriment des quatre autres. */
+  flex: 0 0 auto; min-width: 56px;
 }
 .bottom-nav-fab-circle {
   width: 46px; height: 46px; border-radius: 50%;
@@ -818,7 +837,20 @@ textarea { resize: vertical; }
   .topbar { flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 16px; }
   .topbar h2 { font-size: 18px; }
   .topbar > div:last-child { width: 100%; display: flex; gap: 6px; flex-wrap: wrap; }
-  .topbar > div:last-child .btn { flex: 1; justify-content: center; text-align: center; font-size: .78rem; }
+
+  /* Les boutons se partagent la ligne — mais seulement s'ils sont plusieurs.
+     `flex: 1` appliqué sans condition étirait un bouton isolé sur toute la
+     largeur : sur le tableau de bord, « Actualiser » — une action secondaire —
+     devenait le plus large contrôle de l'écran. `:not(:only-child)` réserve le
+     partage aux cas où il y a effectivement quelque chose à partager. */
+  .topbar > div:last-child .btn:not(:only-child) {
+    flex: 1; justify-content: center; text-align: center;
+  }
+  .topbar > div:last-child .btn { font-size: .78rem; }
+
+  /* Un bouton seul garde sa largeur naturelle, aligné à gauche comme le titre
+     qu'il accompagne. */
+  .topbar > div:last-child .btn:only-child { flex: 0 0 auto; }
 
   /* Stats grid */
   .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
