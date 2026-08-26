@@ -140,7 +140,6 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
     final oddsRange     = ref.watch(oddsRangeFilterProvider);
     final pagedState    = ref.watch(matchesPaginatedProvider);
     final authState     = ref.watch(authProvider);
-    final unread        = ref.watch(unreadCountProvider);
     final favState      = ref.watch(favoritesProvider);
     final isPremium     = authState is AuthAuthenticated && authState.user.isPremium;
     final favCount      = favState.matchIds.length + favState.leagues.length;
@@ -172,7 +171,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
 
     return Scaffold(
       appBar: _buildAppBar(
-          context, unread, activeAdvancedCount, availableLeagues, matchsDuJour),
+          context, activeAdvancedCount, availableLeagues, matchsDuJour),
       body: Column(children: [
         // ── Tab toggle ────────────────────────────────────────────────────────
         _TabToggle(
@@ -527,7 +526,6 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
 
   AppBar _buildAppBar(
     BuildContext context,
-    int unread,
     int activeAdvancedCount,
     List<String> availableLeagues,
     List<MatchEntity> matchsDuJour,
@@ -618,33 +616,46 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
         ),
       ),
       const SizedBox(width: 8),
-      Semantics(
-        label: unread > 0 ? 'Notifications, $unread non lue${unread > 1 ? 's' : ''}' : 'Notifications',
-        button: true,
-        child: GestureDetector(
-          onTap: () => context.push('/notifications'),
-          child: Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: ExcludeSemantics(
-              child: Stack(clipBehavior: Clip.none, children: [
-                Icon(Icons.notifications_none_rounded, color: context.cl.textS, size: 26),
-                if (unread > 0) Positioned(
-                  top: -3, right: -3,
-                  child: Container(
-                    width: 16, height: 16,
-                    decoration: BoxDecoration(
-                      color: AppColors.error, shape: BoxShape.circle,
-                      border: Border.all(color: context.cl.bg, width: 1.5)),
-                    child: Center(
-                      child: Text(unread > 9 ? '9+' : '$unread',
-                        style: const TextStyle(
-                          color: Colors.white, fontSize: 8,
-                          fontWeight: FontWeight.w800))))),
-              ]),
+      // Le compteur de non-lues était lu en tête du `build` de la page.
+      // Une notification qui arrivait reconstruisait donc **tout l'écran** :
+      // la barre de dates, les filtres, et surtout l'assemblage de la liste —
+      // où chaque ligue est retriée à chaque passage. Pour un chiffre dans un
+      // rond de seize pixels.
+      //
+      // `Consumer` borne la reconstruction à la pastille elle-même.
+      Consumer(builder: (context, ref, _) {
+        final unread = ref.watch(unreadCountProvider);
+        return Semantics(
+          label: unread > 0
+              ? 'Notifications, $unread non lue${unread > 1 ? 's' : ''}'
+              : 'Notifications',
+          button: true,
+          child: GestureDetector(
+            onTap: () => context.push('/notifications'),
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: ExcludeSemantics(
+                child: Stack(clipBehavior: Clip.none, children: [
+                  Icon(Icons.notifications_none_rounded,
+                      color: context.cl.textS, size: 26),
+                  if (unread > 0) Positioned(
+                    top: -3, right: -3,
+                    child: Container(
+                      width: 16, height: 16,
+                      decoration: BoxDecoration(
+                        color: AppColors.error, shape: BoxShape.circle,
+                        border: Border.all(color: context.cl.bg, width: 1.5)),
+                      child: Center(
+                        child: Text(unread > 9 ? '9+' : '$unread',
+                          style: const TextStyle(
+                            color: Colors.white, fontSize: 8,
+                            fontWeight: FontWeight.w800))))),
+                ]),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      }),
     ],
   );
 }

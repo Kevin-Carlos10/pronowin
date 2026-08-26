@@ -99,4 +99,30 @@ void main() {
           .hasMatch(motion), isTrue);
     });
   });
+
+  group('une notification ne reconstruit pas tout l\'écran', () {
+    test('le compteur de non-lues est lu dans un Consumer, pas dans le build', () {
+      // Il était lu en tête du `build` de la page. Une notification qui
+      // arrivait reconstruisait donc la barre de dates, les filtres, et
+      // l'assemblage de la liste — où chaque ligue est retriée à chaque
+      // passage. Pour un chiffre dans un rond de seize pixels.
+      final debutBuild = page.indexOf('Widget build(BuildContext context) {');
+      expect(debutBuild, greaterThan(-1));
+
+      // La portée du build principal s'arrête au premier widget extrait.
+      final finBuild = page.indexOf('class _', debutBuild);
+      final corps = page.substring(debutBuild, finBuild == -1 ? page.length : finBuild);
+
+      final lignes = corps.split('\n');
+      final indexWatch = lignes.indexWhere((l) => l.contains('unreadCountProvider'));
+      expect(indexWatch, greaterThan(-1),
+        reason: 'la pastille doit toujours lire le compteur, ailleurs');
+
+      // Il doit être précédé d'un `Consumer(` : c'est lui qui borne la
+      // reconstruction. Sans ce contrôle, remonter la ligne de deux crans
+      // rétablirait le défaut sans que rien ne le signale.
+      final avant = lignes.take(indexWatch).join('\n');
+      expect(avant, contains('Consumer(builder:'));
+    });
+  });
 }
