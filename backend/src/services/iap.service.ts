@@ -60,8 +60,16 @@ const GOOGLE = {
  * Refuser un reçu Sandbox en production : sans ce garde-fou, n'importe qui
  * disposant d'un compte de test Apple peut s'offrir un Premium gratuit.
  */
-const ACCEPT_SANDBOX = process.env.IAP_ACCEPT_SANDBOX === 'true'
-  || process.env.NODE_ENV !== 'production';
+//
+// `IAP_ACCEPT_SANDBOX=false` était écrasé en silence : le `||` rendait la
+// valeur vraie dès que `NODE_ENV` valait autre chose que `production`, si bien
+// qu'un `.env` disant explicitement « non » se comportait comme un « oui ».
+// Un réglage qui ne règle rien vaut moins que pas de réglage du tout.
+//
+// Le repli sur `NODE_ENV` ne joue donc plus que si la variable est absente.
+const ACCEPT_SANDBOX = process.env.IAP_ACCEPT_SANDBOX !== undefined
+  ? process.env.IAP_ACCEPT_SANDBOX === 'true'
+  : process.env.NODE_ENV !== 'production';
 
 export class IapService {
 

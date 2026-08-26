@@ -34,16 +34,10 @@ router.post('/google', AuthController.googleLoginValidators, AuthController.goog
 
 router.post('/refresh',    AuthController.refreshToken);
 
-// ─── Route d'initialisation Admin ────────────────────────────────────────────
-/*
-router.post('/admin/create', (req, res, next) => {
-  const setupSecret = req.headers['x-admin-setup-secret'];
-  if (!setupSecret || setupSecret !== process.env.ADMIN_SETUP_SECRET) {
-    return res.status(403).json({ message: 'Secret de configuration invalide ou manquant.' });
-  }
-  next();
-}, AuthController.createAdmin);
-*/
+// La création d'administrateur vit dans `admin.routes.ts`. Une seconde version
+// dormait ici en commentaire — mieux écrite que la vraie, ce qui la rendait
+// trompeuse : on la lisait comme la protection en place alors que la route
+// active, ailleurs, échouait ouverte.
 
 // Routes protégées — profil & session
 router.get  ('/profile',      authMiddleware, AuthController.getProfile);

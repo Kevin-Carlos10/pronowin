@@ -84,13 +84,33 @@ r.post('/login',  async (req, res) => {
   try { res.json(await svc.login(req.body.email, req.body.password)); }
   catch (e: any) { res.status(401).json({ message: e.message }); }
 });
-// Route de création admin — désactivée en production
+/**
+ * POST /admin/create — amorçage du premier administrateur.
+ *
+ * Le contrôle précédent s'écrivait `secret !== process.env.ADMIN_SETUP_SECRET`.
+ * Absent des deux côtés, cela compare `undefined !== undefined`, c'est-à-dire
+ * **faux** : le garde laissait passer. Et rien ne rendait ce cas improbable —
+ * `ADMIN_SETUP_SECRET` ne figurait pas dans `.env.example`, que le README
+ * demande de recopier tel quel, avec `NODE_ENV=development` en deuxième ligne.
+ * Un déploiement fait en suivant la documentation ouvrait donc la création de
+ * comptes administrateurs à tout le monde — `createAdmin` accepte le rôle
+ * envoyé dans le corps, `super_admin` compris.
+ *
+ * Trois conditions désormais, dans cet ordre, chacune fermant d'elle-même :
+ * pas en production, secret configuré côté serveur, secret fourni et égal.
+ */
 r.post('/create', async (req, res) => {
   if (process.env.NODE_ENV === 'production') {
     res.status(404).json({ message: 'Route indisponible.' }); return;
   }
+  const attendu = process.env.ADMIN_SETUP_SECRET;
+  if (!attendu) {
+    // Ne pas dépendre de NODE_ENV pour cette protection : sans secret
+    // configuré, la route n'existe pas, quel que soit l'environnement.
+    res.status(404).json({ message: 'Route indisponible.' }); return;
+  }
   const secret = req.headers['x-admin-setup-secret'];
-  if (secret !== process.env.ADMIN_SETUP_SECRET) { res.status(403).json({ message: 'Interdit.' }); return; }
+  if (!secret || secret !== attendu) { res.status(403).json({ message: 'Interdit.' }); return; }
   try { res.status(201).json(await svc.createAdmin(req.body)); }
   catch (e: any) { res.status(400).json({ message: e.message }); }
 });
