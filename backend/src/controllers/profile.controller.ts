@@ -279,6 +279,12 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
       data: {
         phoneNumber:    `+00000000000_${anonymized}`,
         email:          null,
+        // Le compte n'est plus joignable — ni par téléphone ni par e-mail —
+        // donc aucun formulaire ne peut plus le désigner. L'empreinte du mot
+        // de passe restait néanmoins en base : on ne conserve pas de matière
+        // d'authentification pour un compte que l'utilisateur a demandé à
+        // faire disparaître.
+        passwordHash:   null,
         pseudo:         anonymized,
         firstName:      null,
         lastName:       null,
