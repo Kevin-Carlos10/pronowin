@@ -33,12 +33,24 @@ export const PREMIUM_PRICE_USD_ANNUAL   = parseFloat(process.env.PREMIUM_PRICE_U
 export const PREMIUM_PRICE_FCFA_MONTHLY = parseInt(process.env.PREMIUM_PRICE_FCFA_MONTHLY ?? '6000');
 export const PREMIUM_PRICE_FCFA_ANNUAL  = parseInt(process.env.PREMIUM_PRICE_FCFA_ANNUAL  ?? '54000');
 
-// Tarif réduit (-30%) pour les utilisateurs qui créent un compte sur une plateforme
-// partenaire avec notre code promo — paiement toujours requis, juste moins cher.
-export const PREMIUM_PRICE_USD_CODE_MONTHLY  = parseFloat(process.env.PREMIUM_PRICE_USD_CODE_MONTHLY  ?? '7');
-export const PREMIUM_PRICE_USD_CODE_ANNUAL   = parseFloat(process.env.PREMIUM_PRICE_USD_CODE_ANNUAL   ?? '63');
-export const PREMIUM_PRICE_FCFA_CODE_MONTHLY = parseInt(process.env.PREMIUM_PRICE_FCFA_CODE_MONTHLY ?? '4200');
-export const PREMIUM_PRICE_FCFA_CODE_ANNUAL  = parseInt(process.env.PREMIUM_PRICE_FCFA_CODE_ANNUAL  ?? '37800');
+/**
+ * Parcours « code promo » : plus un tarif, une offre.
+ *
+ * Il donnait droit à −30 % — l'utilisateur ouvrait un compte chez un partenaire
+ * *et* payait quand même. Il donne désormais le **premier mois** de Premium,
+ * offert : la contrepartie est l'ouverture d'un compte partenaire avec notre
+ * code **et le dépôt initial**, tous deux justifiés par capture.
+ *
+ * Une seule fois par compte, et une seule fois dans la vie du compte. Ce
+ * parcours débloque le premier mois, rien d'autre : au renouvellement,
+ * l'abonné paie le tarif normal comme tout le monde. Sans cette limite, le
+ * même justificatif se reconduirait indéfiniment, alors que l'ouverture d'un
+ * compte partenaire ne se fait qu'une fois.
+ *
+ * Le canal store ne voit jamais ce parcours : `isStoreBuildProvider` le masque
+ * côté mobile (Apple 3.1.1 et politiques jeux d'argent).
+ */
+export const OFFRE_CODE_JOURS = parseInt(process.env.PREMIUM_CODE_OFFER_DAYS ?? '30');
 
 // Tarif des builds publiés sur l'App Store / Google Play (+50 %).
 //
@@ -200,10 +212,8 @@ export class SubscriptionService {
         premium_price_annual_usd:   PREMIUM_PRICE_USD_ANNUAL,
         premium_price_monthly_fcfa: PREMIUM_PRICE_FCFA_MONTHLY,
         premium_price_annual_fcfa:  PREMIUM_PRICE_FCFA_ANNUAL,
-        premium_price_monthly_code_usd:  PREMIUM_PRICE_USD_CODE_MONTHLY,
-        premium_price_annual_code_usd:   PREMIUM_PRICE_USD_CODE_ANNUAL,
-        premium_price_monthly_code_fcfa: PREMIUM_PRICE_FCFA_CODE_MONTHLY,
-        premium_price_annual_code_fcfa:  PREMIUM_PRICE_FCFA_CODE_ANNUAL,
+        // Parcours « code promo » : une durée offerte, plus un tarif.
+        code_offer_days: OFFRE_CODE_JOURS,
         // Tarif des builds store (commission Apple/Google incluse).
         premium_price_monthly_store_usd: PREMIUM_PRICE_USD_STORE_MONTHLY,
         premium_price_annual_store_usd:  PREMIUM_PRICE_USD_STORE_ANNUAL,
@@ -246,10 +256,8 @@ export class SubscriptionService {
         premium_price_annual_usd:   PREMIUM_PRICE_USD_ANNUAL,
         premium_price_monthly_fcfa: PREMIUM_PRICE_FCFA_MONTHLY,
         premium_price_annual_fcfa:  PREMIUM_PRICE_FCFA_ANNUAL,
-        premium_price_monthly_code_usd:  PREMIUM_PRICE_USD_CODE_MONTHLY,
-        premium_price_annual_code_usd:   PREMIUM_PRICE_USD_CODE_ANNUAL,
-        premium_price_monthly_code_fcfa: PREMIUM_PRICE_FCFA_CODE_MONTHLY,
-        premium_price_annual_code_fcfa:  PREMIUM_PRICE_FCFA_CODE_ANNUAL,
+        // Parcours « code promo » : une durée offerte, plus un tarif.
+        code_offer_days: OFFRE_CODE_JOURS,
         // Tarif des builds store (commission Apple/Google incluse).
         premium_price_monthly_store_usd: PREMIUM_PRICE_USD_STORE_MONTHLY,
         premium_price_annual_store_usd:  PREMIUM_PRICE_USD_STORE_ANNUAL,
@@ -293,16 +301,14 @@ export class SubscriptionService {
     type:                'payment_screenshot' | 'xbet_account_screenshot';
     imageBase64?:        string;
     screenshotUrl?:      string;
-    paymentImageBase64?: string;
     xbetId?:             string;
     platform?:           string;
     amount?:             number;
     senderPhone?:        string;
     planId?:             string;
   }) {
-    const { userId, type, imageBase64, paymentImageBase64, xbetId, platform, amount, senderPhone, planId } = params;
+    const { userId, type, imageBase64, xbetId, platform, amount, senderPhone, planId } = params;
     let screenshotUrl        = params.screenshotUrl;
-    let paymentScreenshotUrl: string | undefined;
 
     // Vérifier preuve en attente
     try {
@@ -333,21 +339,8 @@ export class SubscriptionService {
     }
     if (!screenshotUrl) throw new Error('Image requise.');
 
-    // Chemin "code promo" : une 2e image est requise (preuve de paiement Mobile Money,
-    // distincte de la capture du compte partenaire ci-dessus)
-    if (type === 'xbet_account_screenshot') {
-      if (!paymentImageBase64) throw new Error('Capture de la preuve de paiement requise.');
-      if (s3) {
-        try {
-          paymentScreenshotUrl = await s3.uploadImage({ base64: paymentImageBase64, folder: 'proofs', userId });
-        } catch (e: any) {
-          throw new Error(`Erreur upload image: ${e.message}`);
-        }
-      } else {
-        paymentScreenshotUrl = `dev://proof/${userId}/${Date.now()}-payment`;
-        console.warn('[Subscription] S3 non configuré, URL placeholder utilisée');
-      }
-    }
+    // Le parcours « code promo » ne comporte plus de versement : la seconde
+    // capture, qui prouvait un paiement Mobile Money, n'a plus d'objet.
 
     if (type === 'payment_screenshot') {
       const expectedFcfa = planId === 'premium_annual' ? PREMIUM_PRICE_FCFA_ANNUAL : PREMIUM_PRICE_FCFA_MONTHLY;
@@ -359,16 +352,23 @@ export class SubscriptionService {
       if (!xbetId?.trim()) throw new Error('ID de compte requis.');
       if (!platform || !BETTING_PLATFORMS.includes(platform as BettingPlatform))
         throw new Error('Plateforme partenaire invalide.');
-      const expectedFcfa = planId === 'premium_annual' ? PREMIUM_PRICE_FCFA_CODE_ANNUAL : PREMIUM_PRICE_FCFA_CODE_MONTHLY;
-      if (!amount || amount < expectedFcfa)
-        throw new Error(`Le montant doit être d'au moins ${expectedFcfa} FCFA.`);
-      if (!senderPhone) throw new Error('Numéro Mobile Money requis.');
+
+      // Le premier mois, une seule fois dans la vie du compte. Le contrôle vit
+      // ici et non dans l'écran : l'application ne garde pas l'historique des
+      // preuves, et un appel direct à l'API contournerait de toute façon une
+      // vérification côté client.
+      const dejaOfferte = await prisma.subscriptionProof.findFirst({
+        where: { userId, type: 'xbet_account_screenshot', status: 'approved' },
+      });
+      if (dejaOfferte)
+        throw new Error(
+          'Le mois offert a déjà été accordé sur ce compte. '
+          + 'Le renouvellement se fait au tarif normal.');
     }
 
     const proof = await prisma.subscriptionProof.create({
       data: {
         userId, type, screenshotUrl,
-        paymentScreenshotUrl: paymentScreenshotUrl ?? null,
         xbetId:      xbetId?.trim() ?? null,
         platform:    type === 'xbet_account_screenshot' ? (platform ?? null) : null,
         planId:      planId ?? null,
@@ -393,8 +393,8 @@ export class SubscriptionService {
       estimated_review: type === 'payment_screenshot' ? REVIEW_DELAY_DIRECT : REVIEW_DELAY_CODE,
       message:          type === 'payment_screenshot'
         ? `Preuve de paiement soumise. Validation sous ${REVIEW_DELAY_DIRECT}.`
-        : 'Preuve de paiement et de compte partenaire soumise. '
-          + `Validation sous ${REVIEW_DELAY_CODE}.`,
+        : `Preuve de compte partenaire soumise. Validation sous ${REVIEW_DELAY_CODE}, `
+          + `puis ${OFFRE_CODE_JOURS} jours de Premium offerts.`,
     };
   }
 
@@ -566,10 +566,18 @@ export class SubscriptionService {
     if (proof.status !== 'pending') throw new Error('Preuve déjà traitée.');
 
     if (approved) {
+      // La durée du parcours « code promo » est celle de l'offre, jamais celle
+      // saisie côté administration : une offre annoncée « un mois » qui en
+      // accorderait douze parce qu'une liste déroulante traînait sur l'annuel
+      // resterait invisible jusqu'à ce que quelqu'un compte.
+      const jours = proof.type === 'xbet_account_screenshot'
+        ? OFFRE_CODE_JOURS
+        : durationDays;
+
       await Promise.all([
         this.grantPremium({
           userId:        proof.userId,
-          durationDays,
+          durationDays:  jours,
           amountPaid:    proof.amount ?? 0,
           paymentMethod: proof.type === 'payment_screenshot'
             ? 'manual_mobcash'

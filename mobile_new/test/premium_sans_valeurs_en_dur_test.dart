@@ -62,10 +62,17 @@ void main() {
               'sur l\'ancienne valeur quand le serveur changeait');
   });
 
-  test('la remise du code promo est calculée, pas écrite', () {
-    expect(RegExp(r'-\s*30\s*%').hasMatch(codeSeul(module['activer_premium']!)), isFalse,
-      reason: 'la remise se déduit des deux tarifs : elle devenait fausse au '
-              'premier changement de prix côté serveur');
+  test('la durée offerte n\'est pas écrite à la main', () {
+    // Le parcours « code promo » donnait −30 % ; il offre désormais le premier
+    // mois. Le chiffre vient du serveur (`code_offer_days`) : écrit en dur, il
+    // aurait promis un mois pendant que le serveur en accordait quinze jours.
+    final code = codeSeul(module['activer_premium']!);
+
+    expect(RegExp(r'-\s*30\s*%').hasMatch(code), isFalse,
+      reason: 'la remise n\'existe plus');
+    expect(RegExp(r"""['"]\s*1\s*mois offert""").hasMatch(code), isFalse,
+      reason: 'le libellé se construit depuis `joursOffreCode`');
+    expect(code.contains('libelleOffreCode'), isTrue);
   });
 
   test('la liste des opérateurs n\'est pas figée', () {

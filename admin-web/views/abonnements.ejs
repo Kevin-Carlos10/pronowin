@@ -455,21 +455,19 @@
         </div>
       <% } %>
 
-      <% if(p.type === 'xbet_account_screenshot'){ %>
-        <p style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 10px;font-weight:700">Capture du paiement</p>
-        <% if(p.paymentScreenshotUrl){ %>
-          <img
-            src="<%= p.paymentScreenshotUrl %>"
-            alt="Preuve de paiement"
-            style="width:100%;max-height:150px;object-fit:cover;border-radius:10px;cursor:pointer;border:1px solid #1E2A42"
-            onclick="document.getElementById('modal-img').src=this.src;document.getElementById('img-modal').classList.add('open')"
+      <%# Le parcours « code promo » ne comporte plus de versement : la seconde
+          capture, qui prouvait un paiement Mobile Money, n'a plus d'objet. Les
+          preuves anciennes en portent encore une — on continue de l'afficher
+          pour elles plutôt que de rendre l'historique illisible. %>
+      <% if(p.type === 'xbet_account_screenshot' && p.paymentScreenshotUrl){ %>
+        <p style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 10px;font-weight:700">Capture du paiement (ancienne offre)</p>
+        <img
+          src="<%= p.paymentScreenshotUrl %>"
+          alt="Preuve de paiement"
+          style="width:100%;max-height:150px;object-fit:cover;border-radius:10px;cursor:pointer;border:1px solid #1E2A42"
+          onclick="document.getElementById('modal-img').src=this.src;document.getElementById('img-modal').classList.add('open')"
           onerror="this.parentElement.innerHTML='<p style=color:#EF4444;font-size:12px>❌ Image non accessible</p>'"
-          >
-        <% } else { %>
-          <div style="height:100px;display:flex;align-items:center;justify-content:center;background:#0D1220;border-radius:10px;border:1px dashed #2A3050">
-            <p style="color:#EF4444;font-size:12px"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Aucune preuve de paiement</p>
-          </div>
-        <% } %>
+        >
       <% } %>
       <p style="font-size:11px;color:#8892AA;margin-top:6px;text-align:center">Cliquez sur une image pour l'agrandir</p>
     </div>
@@ -488,11 +486,24 @@
         <% } else { %>
         <div style="background:rgba(167,139,250,.06);border:0.5px solid rgba(167,139,250,.2);border-radius:8px;padding:10px;font-size:11px;color:#8892AA">
           <strong style="color:#A78BFA">À vérifier :</strong><br>
-          1) Confirmez que l'ID <strong><%= p.xbetId %></strong> est bien un nouveau compte créé sur <strong><%= platformLabels[p.platform] ?? p.platform %></strong> avec notre code promo.<br>
-          2) Confirmez que vous avez reçu <strong><%= p.amount?.toLocaleString() %> FCFA</strong> (tarif réduit) de <strong><%= p.senderPhone %></strong> sur votre numéro MobCash.
+          1) L'ID <strong><%= p.xbetId %></strong> est bien un <strong>nouveau</strong> compte créé sur <strong><%= platformLabels[p.platform] ?? p.platform %></strong> avec notre code promo.<br>
+          2) Le <strong>dépôt initial</strong> apparaît sur la capture. Sans dépôt, l'offre n'est pas due.<br>
+          <span style="color:#6B7690">Aucun versement n'est attendu de votre côté : ce parcours offre le premier mois.</span>
         </div>
         <% } %>
 
+        <%# La durée du parcours « code promo » est fixée par le serveur
+            (`OFFRE_CODE_JOURS`) et non par ce formulaire. Laisser un champ
+            modifiable qui n'a aucun effet, c'est promettre un réglage qui
+            n'existe pas : on affiche l'information au lieu de la saisir. %>
+        <% if(p.type === 'xbet_account_screenshot'){ %>
+        <div style="background:#0D1220;border:0.5px solid #1E2A42;border-radius:8px;padding:10px">
+          <p style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px;margin:0">Durée Premium</p>
+          <p style="font-size:12px;color:var(--text);margin:4px 0 0">
+            Fixée par l'offre, côté serveur — identique pour toutes les demandes de ce type.
+          </p>
+        </div>
+        <% } else { %>
         <div>
           <label style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px"
                  for="dd-<%= p.id %>">Durée Premium (jours)</label>
@@ -503,6 +514,7 @@
             <p style="font-size:10px;color:#8892AA;margin-top:3px"><svg class="ic" aria-hidden="true"><use href="#ic-bulb"/></svg> Plan <%= p.planId === 'premium_annual' ? 'annuel (365j)' : 'mensuel (30j)' %> déclaré à la souscription</p>
           <% } %>
         </div>
+        <% } %>
 
         <div>
           <label style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px"

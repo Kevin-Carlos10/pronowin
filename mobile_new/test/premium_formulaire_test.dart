@@ -89,10 +89,37 @@ void main() {
                 'le même numéro');
     });
 
-    test('le parcours par code promo se numérote à la suite', () {
-      expect(codeSeul(page).contains('etapeTransfert: 3'), isTrue,
-        reason: 'l\'onglet code promo compte déjà deux étapes avant le '
-                'transfert (ID de compte, capture du profil)');
+    test('le parcours par code promo ne demande plus de transfert', () {
+      // Ce test exigeait `etapeTransfert: 3` — l'onglet code promo comptait
+      // deux étapes avant le versement. Le versement a disparu : ce parcours
+      // n'échange plus d'argent, il offre le premier mois contre la preuve du
+      // dépôt chez le partenaire. Réclamer un montant et un numéro Mobile
+      // Money y serait devenu incompréhensible.
+      final code = codeSeul(page);
+
+      expect(code.contains('etapeTransfert: 3'), isFalse);
+      expect(RegExp(r'_buildPaymentFieldsSection\(isCode:\s*true')
+          .hasMatch(code), isFalse,
+        reason: 'aucun champ de paiement sur un parcours sans paiement');
+    });
+
+    test('la soumission du code promo n\'envoie ni montant ni numéro', () {
+      // La garde porte sur l'appel, pas sur le formulaire : masquer les champs
+      // en continuant d'envoyer leurs valeurs laisserait le serveur croire à
+      // un paiement.
+      final code = codeSeul(page);
+      final debut = code.indexOf('Future<void> _submitCode()');
+      expect(debut, greaterThan(-1));
+      final corps = code.substring(debut, code.indexOf('Future<String?> _toBase64'));
+
+      expect(corps.contains('amount:'), isFalse);
+      expect(corps.contains('senderPhone:'), isFalse);
+      expect(corps.contains('paymentImageBase64:'), isFalse);
+      expect(corps.contains('planId:'), isFalse,
+        reason: 'l\'offre porte une durée fixe, pas une formule choisie ici');
+      // Et ce qui la justifie reste exigé.
+      expect(corps.contains('xbetId:'), isTrue);
+      expect(corps.contains('platform:'), isTrue);
     });
   });
 

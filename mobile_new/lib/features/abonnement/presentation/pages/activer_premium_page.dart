@@ -77,10 +77,8 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
 
   // Prix FCFA à collecter selon durée × méthode — c'est le SEUL endroit de
   // l'app où le FCFA est affiché à l'utilisateur.
-  int get _fcfaAmountForSelectedPlan => _tarifs.prix(
-        annuel:   _duration == 'annuel',
-        avecCode: _method == 'code',
-      );
+  int get _fcfaAmountForSelectedPlan =>
+      _tarifs.prix(annuel: _duration == 'annuel');
 
   /// Montant saisi s'il diffère de l'attendu, `null` sinon.
   ///
@@ -543,8 +541,9 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
               fontWeight: FontWeight.w800, letterSpacing: -0.3)),
             const SizedBox(height: 6),
             Text(
-              'Crée un compte sur 1xBet, Melbet ou Betwinner avec notre code '
-              'et profite de -${_tarifs.remisePourcent} % sur ton abonnement.',
+              'Crée un compte sur 1xBet, Melbet ou Betwinner avec notre code, '
+              'fais ton premier dépôt, et ton premier mois de Premium est '
+              'offert.',
               style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.5),
               textAlign: TextAlign.center),
           ]),
@@ -569,7 +568,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         const SizedBox(height: 20),
 
         // ── Timeline des étapes ───────────────────────────────────
-        _XbetSteps(monthlyCodePrice: _codeMonthlyUsd, tarifs: _tarifs)
+        _XbetSteps(tarifs: _tarifs)
           .animate(delay: 140.ms).fadeIn(duration: 300.ms),
 
         const SizedBox(height: 24),
@@ -642,22 +641,20 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         const SizedBox(height: 20),
 
         // ── Zone upload capture du compte ───────────────────────────
-        _FieldLabel('2. Capture de ton profil (ID visible)'),
+        //
+        // Une seule capture désormais. La seconde prouvait un versement Mobile
+        // Money vers nous ; ce parcours n'en comporte plus. Ce qu'il faut voir
+        // sur l'image, c'est l'identifiant **et** le dépôt : c'est le dépôt qui
+        // ouvre droit au mois offert, pas l'inscription seule.
+        _FieldLabel('2. Capture de ton compte (ID et dépôt visibles)'),
         _ImagePickerWidget(image: _imageAccount, onTap: () => _showImagePicker((f) => _imageAccount = f)),
-
-        const SizedBox(height: 28),
-
-        // ── Preuve de paiement (tarif réduit) ───────────────────────
-        ..._buildPaymentFieldsSection(isCode: true, etapeTransfert: 3),
 
         const SizedBox(height: 20),
 
         // ── Bouton soumettre ──────────────────────────────────────
         _XbetSubmitButton(
           isLoading: submitState is ProofLoading,
-          enabled:   _imageAccount != null && _accountIdCtrl.text.isNotEmpty &&
-                     _imagePayment != null && _phoneCtrl.text.length >= 7 &&
-                     _montantSaisi,
+          enabled:   _imageAccount != null && _accountIdCtrl.text.isNotEmpty,
           onTap:     _submitCode,
         ).animate(delay: 240.ms).fadeIn(duration: 300.ms).slideY(begin: 0.06, end: 0),
         if (_raisonBlocageCode != null) ...[
@@ -675,15 +672,9 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
 
   String? get _raisonBlocageCode {
     if (_accountIdCtrl.text.isEmpty) return 'Entrez l\'ID de ton compte partenaire pour continuer';
-    if (_imageAccount == null)       return 'Ajoutez une capture de ton profil pour continuer';
-    if (!_montantSaisi)              return 'Indique le montant que tu as envoyé pour continuer';
-    if (_phoneCtrl.text.length < 7)  return 'Entrez un numéro de téléphone valide pour continuer';
-    if (_imagePayment == null)       return 'Ajoutez une capture d\'écran du paiement pour continuer';
+    if (_imageAccount == null)       return 'Ajoutez la capture de ton compte pour continuer';
     return null;
   }
-
-  double get _codeMonthlyUsd =>
-    (widget.subData?['premium_price_monthly_code_usd'] as num?)?.toDouble() ?? 7;
 
   // ─── Actions ─────────────────────────────────────────────────────────────
   Future<void> _submitPayment() async {
@@ -710,34 +701,30 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     );
   }
 
+  /// Parcours « code promo » : rien à payer, donc rien à saisir sur l'argent.
+  ///
+  /// Ce formulaire réclamait un montant, un numéro Mobile Money et une seconde
+  /// capture prouvant le versement. L'offre ne comporte plus de versement : ne
+  /// restent que ce qui la justifie — l'identifiant du compte partenaire, la
+  /// plateforme, et une capture où le premier dépôt apparaît.
   Future<void> _submitCode() async {
     if (_accountIdCtrl.text.trim().isEmpty) {
       _showSnack('ID de compte requis.', isError: true); return;
     }
-    // Le champ n'est plus pre-rempli : une soumission sans montant
-    // repartirait silencieusement sur l'attendu, ce qui reconstituerait
-    // exactement le defaut corrige.
-    final montant = double.tryParse(_amountCtrl.text.trim());
-    if (montant == null || montant <= 0) {
-      _showSnack('Indique le montant que tu as envoye.', isError: true); return;
-    }
-    final phone = '+${_selectedCountry.phoneCode}${_phoneCtrl.text.trim()}';
-    if (_phoneCtrl.text.trim().length < 7) {
-      _showSnack('Numéro de téléphone trop court.', isError: true); return;
+    if (_imageAccount == null) {
+      _showSnack('Ajoute la capture de ton compte partenaire.', isError: true);
+      return;
     }
     final accountBase64 = await _toBase64(_imageAccount!);
     if (accountBase64 == null) return;
-    final paymentBase64 = await _toBase64(_imagePayment!);
-    if (paymentBase64 == null) return;
+
     ref.read(submitProofProvider.notifier).submit(
-      type:               'xbet_account_screenshot',
-      imageBase64:        accountBase64,
-      paymentImageBase64: paymentBase64,
-      xbetId:             _accountIdCtrl.text.trim(),
-      platform:           _platform,
-      amount:             montant,
-      senderPhone:        phone,
-      planId:             _planIdForSelectedPlan,
+      type:        'xbet_account_screenshot',
+      imageBase64: accountBase64,
+      xbetId:      _accountIdCtrl.text.trim(),
+      platform:    _platform,
+      // Ni `amount`, ni `senderPhone`, ni `planId` : l'offre porte sur une
+      // durée fixe décidée par le serveur, pas sur une formule choisie ici.
     );
   }
 
@@ -1441,19 +1428,27 @@ class _PromoCodeCardState extends State<_PromoCodeCard>
 
 // ─── ÉTAPES CODE PROMO ────────────────────────────────────────────────────────
 class _XbetSteps extends StatelessWidget {
-  final double monthlyCodePrice;
   final TarifsPremium tarifs;
-  const _XbetSteps({required this.monthlyCodePrice, required this.tarifs});
+  const _XbetSteps({required this.tarifs});
 
+  /// Le parcours ne comporte plus d'étape de paiement.
+  ///
+  /// Il en comptait six, dont « Envoie ton paiement — tarif réduit à partir de
+  /// 7 $/mois ». L'offre remplace le versement : le dépôt chez le partenaire
+  /// *est* la contrepartie, et l'étape suivante n'a plus lieu d'être.
   List<(IconData, String, String)> get _steps => [
-    (Icons.language_rounded,      'Choisis une plateforme',       'Rendez-vous sur 1xBet, Melbet ou Betwinner'),
-    (Icons.person_add_rounded,    'Crée ton compte',              "Entrez le code promo lors de l'inscription"),
-    (Icons.account_balance_wallet_rounded, 'Effectue un dépôt',   'Un dépôt initial est obligatoire pour valider ton compte'),
-    (Icons.photo_camera_rounded,  'Capture ton profil',           'Ton ID de compte doit être visible'),
-    (Icons.send_to_mobile_rounded, 'Envoie ton paiement',         'Tarif réduit à partir de \$${monthlyCodePrice.toStringAsFixed(0)}/mois sur notre numéro Mobile Money'),
+    (Icons.language_rounded,   'Choisis une plateforme',
+     'Rendez-vous sur 1xBet, Melbet ou Betwinner'),
+    (Icons.person_add_rounded, 'Crée ton compte',
+     "Entrez le code promo lors de l'inscription"),
+    (Icons.account_balance_wallet_rounded, 'Effectue ton premier dépôt',
+     "C'est lui qui ouvre droit au mois offert"),
+    (Icons.photo_camera_rounded, 'Capture ton compte',
+     'Ton ID et le dépôt doivent être visibles'),
     // Quatrième et dernière copie manuelle du délai — elle annonçait « 2h »
     // sans lien avec la valeur du serveur.
-    (Icons.upload_rounded,        'Soumets ci-dessous',           'ID + 2 captures → validation sous ${tarifs.delaiCode}'),
+    (Icons.card_giftcard_rounded, 'Soumets ci-dessous',
+     'Validation sous ${tarifs.delaiCode}, puis ${tarifs.libelleOffreCode}'),
   ];
 
   @override
@@ -1685,13 +1680,13 @@ class _PaywallPage extends StatelessWidget {
                     const SizedBox(height: 10),
                     _MethodCard(
                       title:      'Avec Code Promo',
-                      subtitle:   'Crée un compte partenaire (1xBet, Melbet, Betwinner)',
-                      price:      duration == 'annuel' ? annualCodePrice : monthlyCodePrice,
-                      period:     duration == 'annuel' ? '/an' : '/mois',
-                      // Remise calculée depuis les deux tarifs du serveur.
-                      // Écrite en dur, elle restait « -30 % » quel que soit le
-                      // prix réellement facturé.
-                      badge:      '-${tarifs.remisePourcent}%',
+                      subtitle:   'Compte partenaire + premier dépôt — rien à payer',
+                      // Ce parcours ne facture plus rien : afficher un prix
+                      // barré, un « /mois » ou une remise décrirait une offre
+                      // qui n'existe plus.
+                      price:      0,
+                      period:     '',
+                      badge:      tarifs.libelleOffreCode,
                       color:      const Color(0xFF7C3AED),
                       isSelected: method == 'code',
                       onTap:      () => onSelectMethod('code'),
@@ -2077,9 +2072,14 @@ class _PaywallFaq extends StatelessWidget {
       (
         "C'est quoi l'option « Code Promo » ?",
         "Tu crées un compte sur une plateforme partenaire (1xBet, Melbet, "
-        "Betwinner) avec le code $promoCode : l'abonnement te revient "
-        "${tarifs.remisePourcent} % moins cher. Il faut alors envoyer deux "
-        "captures — ton compte partenaire et ton paiement.",
+        "Betwinner) avec le code $promoCode, tu fais ton premier dépôt, et tu "
+        "envoies une capture de ton compte où le dépôt apparaît. Ton premier "
+        "mois de Premium est alors offert — tu n'as rien à nous verser.",
+      ),
+      (
+        "Le mois offert, c'est valable à chaque fois ?",
+        "Non. Il débloque le premier mois, une seule fois. Ensuite, le "
+        "renouvellement se fait au tarif normal, comme pour tout le monde.",
       ),
       (
         "En combien de temps mon compte est activé ?",

@@ -10,10 +10,10 @@ void main() {
   const fine = ' ';
 
   const complet = {
-    'premium_price_monthly_fcfa':      6000,
-    'premium_price_annual_fcfa':       54000,
-    'premium_price_monthly_code_fcfa': 4200,
-    'premium_price_annual_code_fcfa':  37800,
+    'premium_price_monthly_fcfa': 6000,
+    'premium_price_annual_fcfa':  54000,
+    // Le parcours « code promo » n'a plus de tarif : il offre le premier mois.
+    'code_offer_days':            30,
     'promo_code':          'CODE2030',
     'review_delay_direct': '15 minutes ouvrables',
     'review_delay_code':   '1 heure ouvrable',
@@ -27,17 +27,15 @@ void main() {
   group('« à partir de » annonce un prix qui existe', () {
     test('le minimum est le meilleur tarif mensuel équivalent', () {
       final t = TarifsPremium.depuis(complet);
-      // 6000 · 4200 · 54000/12 = 4500 · 37800/12 = 3150
-      expect(t.minMensuel, 3150);
-      expect(t.minMensuelFormate, '3${fine}150');
+      // 6 000 mensuel · 54 000/12 = 4 500 ramené au mois
+      expect(t.minMensuel, 4500);
+      expect(t.minMensuelFormate, '4${fine}500');
     });
 
     test('le minimum correspond toujours à un tarif réellement proposé', () {
       final t = TarifsPremium.depuis(complet);
-      final proposes = {
-        t.mensuelDirect, t.mensuelCode,
-        (t.annuelDirect / 12).round(), (t.annuelCode / 12).round(),
-      };
+      final proposes = {t.mensuelDirect, (t.annuelDirect / 12).round()};
+
       expect(proposes, contains(t.minMensuel),
         reason: 'un « à partir de » qui ne correspond à aucune formule est '
                 'exactement le défaut corrigé ici');
@@ -45,26 +43,56 @@ void main() {
 
     test('il suit le serveur quand les tarifs changent', () {
       final t = TarifsPremium.depuis({...complet,
-        'premium_price_annual_code_fcfa': 24000});   // 2 000/mois
+        'premium_price_annual_fcfa': 24000});   // 2 000/mois
       expect(t.minMensuel, 2000);
+    });
+
+    test('le mois offert n\'entre pas dans le « à partir de »', () {
+      // Une offre d'entrée qui ne se reconduit pas n'est pas un tarif. La
+      // faire entrer dans le calcul annoncerait « à partir de 0 FCFA » et
+      // décrirait mal ce que coûte réellement l'abonnement.
+      final t = TarifsPremium.depuis(complet);
+
+      expect(t.minMensuel, greaterThan(0));
+      expect(t.minMensuel, t.mensuelDirect < (t.annuelDirect / 12).round()
+          ? t.mensuelDirect
+          : (t.annuelDirect / 12).round());
     });
   });
 
-  group('la remise est calculée, jamais écrite', () {
-    test('4 200 sur 6 000 donne 30 %', () {
-      expect(TarifsPremium.depuis(complet).remisePourcent, 30);
+  group('l\'offre du parcours « code promo »', () {
+    test('elle est lue chez le serveur', () {
+      expect(TarifsPremium.depuis(complet).joursOffreCode, 30);
+      expect(TarifsPremium.depuis({...complet, 'code_offer_days': 15})
+          .joursOffreCode, 15);
     });
 
-    test('elle suit un changement de tarif serveur', () {
-      final t = TarifsPremium.depuis({...complet,
-        'premium_price_monthly_code_fcfa': 3000});
-      expect(t.remisePourcent, 50);
+    test('le repli sert quand le serveur se tait', () {
+      expect(TarifsPremium.depuis(null).joursOffreCode,
+          TarifsPremium.joursOffreCodeDefaut);
     });
 
-    test('aucune remise négative si le code coûte plus cher', () {
+    test('le libellé se dit en mois quand c\'est un compte rond', () {
+      String libelle(int j) =>
+          TarifsPremium.depuis({...complet, 'code_offer_days': j})
+              .libelleOffreCode;
+
+      expect(libelle(30), '1 mois offert');
+      expect(libelle(60), '2 mois offerts');
+      // Et en jours sinon : « 0 mois offert » ou « 0,5 mois » ne se disent pas.
+      expect(libelle(15), '15 jours offerts');
+      expect(libelle(45), '45 jours offerts');
+    });
+
+    test('aucun tarif « code » ne subsiste dans la charge utile lue', () {
+      // Le serveur ne les publie plus ; si un ancien serveur les renvoyait,
+      // le modèle ne doit pas les ressusciter.
       final t = TarifsPremium.depuis({...complet,
-        'premium_price_monthly_code_fcfa': 9000});
-      expect(t.remisePourcent, 0);
+        'premium_price_monthly_code_fcfa': 4200,
+        'premium_price_annual_code_fcfa':  37800});
+
+      expect(t.minMensuel, 4500, reason: 'les tarifs « code » sont ignorés');
+      expect(t.prix(annuel: false), 6000);
     });
   });
 
@@ -119,11 +147,11 @@ void main() {
     });
   });
 
-  group('le prix collecté suit la combinaison choisie', () {
+  group('le prix collecté suit la durée choisie', () {
+    // Plus de dimension « méthode » : le parcours « code promo » ne facture
+    // rien. Garder un paramètre `avecCode` aurait laissé croire à un tarif.
     final t = TarifsPremium.depuis(complet);
-    test('mensuel direct',  () => expect(t.prix(annuel: false, avecCode: false), 6000));
-    test('annuel direct',   () => expect(t.prix(annuel: true,  avecCode: false), 54000));
-    test('mensuel code',    () => expect(t.prix(annuel: false, avecCode: true),  4200));
-    test('annuel code',     () => expect(t.prix(annuel: true,  avecCode: true),  37800));
+    test('mensuel', () => expect(t.prix(annuel: false), 6000));
+    test('annuel',  () => expect(t.prix(annuel: true),  54000));
   });
 }

@@ -18,8 +18,14 @@ class TarifsPremium {
   // ─── Replis, source unique ──────────────────────────────────────────────
   static const mensuelDirectDefaut = 6000;
   static const annuelDirectDefaut  = 54000;
-  static const mensuelCodeDefaut   = 4200;
-  static const annuelCodeDefaut    = 37800;
+
+  /// Durée offerte par le parcours « code promo ».
+  ///
+  /// Ce parcours donnait −30 % sur l'abonnement ; il donne désormais le
+  /// **premier mois** gratuit, contre l'ouverture d'un compte partenaire avec
+  /// notre code et la preuve du dépôt initial. Il n'y a donc plus de tarif
+  /// « code » : ni mensuel, ni annuel, ni remise à calculer.
+  static const joursOffreCodeDefaut = 30;
 
   static const promoCodeDefaut  = 'PRONOWIN2025';
   static const plateformesDefaut = ['1xbet', 'melbet', 'betwinner'];
@@ -29,8 +35,9 @@ class TarifsPremium {
 
   final int mensuelDirect;
   final int annuelDirect;
-  final int mensuelCode;
-  final int annuelCode;
+
+  /// Jours offerts par le parcours « code promo », publiés par le serveur.
+  final int joursOffreCode;
 
   final String promoCode;
   final List<String> plateformes;
@@ -44,8 +51,7 @@ class TarifsPremium {
   const TarifsPremium({
     required this.mensuelDirect,
     required this.annuelDirect,
-    required this.mensuelCode,
-    required this.annuelCode,
+    required this.joursOffreCode,
     required this.promoCode,
     required this.plateformes,
     required this.delaiDirect,
@@ -63,10 +69,9 @@ class TarifsPremium {
     }
 
     return TarifsPremium(
-      mensuelDirect: entier('premium_price_monthly_fcfa',      mensuelDirectDefaut),
-      annuelDirect:  entier('premium_price_annual_fcfa',       annuelDirectDefaut),
-      mensuelCode:   entier('premium_price_monthly_code_fcfa', mensuelCodeDefaut),
-      annuelCode:    entier('premium_price_annual_code_fcfa',  annuelCodeDefaut),
+      mensuelDirect:  entier('premium_price_monthly_fcfa', mensuelDirectDefaut),
+      annuelDirect:   entier('premium_price_annual_fcfa',  annuelDirectDefaut),
+      joursOffreCode: entier('code_offer_days',            joursOffreCodeDefaut),
       promoCode:     texte('promo_code',          promoCodeDefaut),
       delaiDirect:   texte('review_delay_direct', delaiDirectDefaut),
       delaiCode:     texte('review_delay_code',   delaiCodeDefaut),
@@ -84,37 +89,38 @@ class TarifsPremium {
     );
   }
 
-  /// Prix à collecter pour une combinaison durée × méthode.
-  int prix({required bool annuel, required bool avecCode}) => avecCode
-      ? (annuel ? annuelCode : mensuelCode)
-      : (annuel ? annuelDirect : mensuelDirect);
+  /// Prix à collecter pour une durée.
+  ///
+  /// Il n'y a plus de dimension « méthode » : le parcours « code promo » ne
+  /// facture rien, il offre le premier mois. Garder un paramètre `avecCode`
+  /// aurait laissé croire à un tarif qui n'existe plus.
+  int prix({required bool annuel}) => annuel ? annuelDirect : mensuelDirect;
 
-  /// Le plus bas coût mensuel réellement atteignable, toutes formules
-  /// confondues — l'annuel est ramené au mois pour être comparable.
+  /// Le plus bas coût mensuel réellement payable — l'annuel est ramené au mois
+  /// pour être comparable.
   ///
   /// C'est ce que « à partir de » doit annoncer. L'écrire à la main, c'était
   /// s'engager à le corriger à chaque changement de tarif ; personne ne l'a
   /// fait, et le chiffre affiché ne correspondait plus à rien.
+  ///
+  /// Le mois offert n'entre pas dans ce calcul : ce n'est pas un tarif, c'est
+  /// une entrée en matière qui ne se reconduit pas. L'annoncer comme un prix
+  /// « à partir de 0 FCFA » décrirait mal ce que coûte l'abonnement.
   int get minMensuel {
-    final candidats = [
-      mensuelDirect, mensuelCode,
-      (annuelDirect / 12).round(), (annuelCode / 12).round(),
-    ];
+    final candidats = [mensuelDirect, (annuelDirect / 12).round()];
     return candidats.reduce((a, b) => a < b ? a : b);
   }
 
-  /// « À partir de 3 150 FCFA », prêt à afficher.
+  /// « À partir de 4 500 FCFA », prêt à afficher.
   String get minMensuelFormate => montantExact(minMensuel);
 
-  /// Remise du code promo, en pourcentage entier, **calculée**.
-  ///
-  /// Le `-30 %` était écrit en dur à trois endroits. Il se trouve être juste
-  /// aujourd'hui (4 200 ÷ 6 000) ; il devenait faux au premier changement de
-  /// tarif côté serveur, sur l'argument commercial principal de l'écran.
-  int get remisePourcent {
-    if (mensuelDirect <= 0) return 0;
-    final r = ((1 - mensuelCode / mensuelDirect) * 100).round();
-    return r.clamp(0, 100);
+  /// « 1 mois offert » ou « 15 jours offerts », selon ce que publie le serveur.
+  String get libelleOffreCode {
+    if (joursOffreCode % 30 == 0 && joursOffreCode >= 30) {
+      final mois = joursOffreCode ~/ 30;
+      return mois == 1 ? '1 mois offert' : '$mois mois offerts';
+    }
+    return '$joursOffreCode jours offerts';
   }
 
   /// Y a-t-il un numéro à afficher ? Sinon l'écran doit annoncer

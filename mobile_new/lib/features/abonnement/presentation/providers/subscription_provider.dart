@@ -14,9 +14,8 @@ const _kSubFallback = {
   'premium_price_monthly_usd': 10, 'premium_price_annual_usd': 90,
   'premium_price_monthly_fcfa':      TarifsPremium.mensuelDirectDefaut,
   'premium_price_annual_fcfa':       TarifsPremium.annuelDirectDefaut,
-  'premium_price_monthly_code_usd': 7, 'premium_price_annual_code_usd': 63,
-  'premium_price_monthly_code_fcfa': TarifsPremium.mensuelCodeDefaut,
-  'premium_price_annual_code_fcfa':  TarifsPremium.annuelCodeDefaut,
+  // Le parcours « code promo » n'a plus de tarif : il offre le premier mois.
+  'code_offer_days': TarifsPremium.joursOffreCodeDefaut,
   'premium_price_monthly_store_usd': 15, 'premium_price_annual_store_usd': 135,
   'review_delay_direct': TarifsPremium.delaiDirectDefaut,
   'review_delay_code':   TarifsPremium.delaiCodeDefaut,
@@ -75,10 +74,16 @@ class SubmitProofNotifier extends StateNotifier<SubmitProofState> {
   final Dio _dio;
   SubmitProofNotifier(this._dio) : super(ProofIdle());
 
+  /// Soumet une preuve.
+  ///
+  /// `paymentImageBase64` a disparu avec l'ancienne offre « code promo » : ce
+  /// parcours exigeait une seconde capture prouvant un versement Mobile Money,
+  /// et il n'échange plus d'argent. Le serveur ne lit plus ce champ ; le garder
+  /// ici aurait laissé un paramètre que personne ne remplit et que rien ne
+  /// consomme.
   Future<void> submit({
     required String type,
     required String imageBase64,
-    String?  paymentImageBase64,
     String?  xbetId,
     String?  platform,
     double?  amount,
@@ -90,14 +95,13 @@ class SubmitProofNotifier extends StateNotifier<SubmitProofState> {
       final r = await _dio.post(
         '/subscriptions/submit-proof',
         data: {
-          'type':                 type,
-          'image_base64':         imageBase64,
-          'payment_image_base64': paymentImageBase64,
-          'xbet_id':              xbetId,
-          'platform':             platform,
-          'amount':               amount,
-          'sender_phone':         senderPhone,
-          'plan_id':              planId,
+          'type':         type,
+          'image_base64': imageBase64,
+          'xbet_id':      xbetId,
+          'platform':     platform,
+          'amount':       amount,
+          'sender_phone': senderPhone,
+          'plan_id':      planId,
         },
         options: Options(
           sendTimeout:    const Duration(seconds: 60), // Image peut être lourde

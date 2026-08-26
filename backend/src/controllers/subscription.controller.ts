@@ -37,7 +37,7 @@ export const getUploadUrl = async (req: AuthRequest, res: Response) => {
 
 /** Soumettre une preuve (base64 ou URL déjà uploadée) */
 export const submitProof = async (req: AuthRequest, res: Response) => {
-  const { type, image_base64, screenshot_url, payment_image_base64, xbet_id, platform, amount, sender_phone, plan_id } = req.body;
+  const { type, image_base64, screenshot_url, xbet_id, platform, amount, sender_phone, plan_id } = req.body;
 
   if (!type || !['payment_screenshot', 'xbet_account_screenshot'].includes(type)) {
     res.status(422).json({ message: 'Type de preuve invalide.' });
@@ -54,7 +54,6 @@ export const submitProof = async (req: AuthRequest, res: Response) => {
       type,
       imageBase64:        image_base64,
       screenshotUrl:      screenshot_url,
-      paymentImageBase64: payment_image_base64,
       xbetId:             xbet_id,
       platform:           platform,
       amount:             amount ? parseFloat(amount) : undefined,
