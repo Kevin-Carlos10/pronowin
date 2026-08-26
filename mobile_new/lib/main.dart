@@ -256,16 +256,19 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
       // **aucun** effet. Un utilisateur qui a agrandi le texte de son téléphone
       // parce qu'il lit mal retrouvait ici les tailles d'origine, sans recours.
       //
-      // À l'autre extrême, laisser passer un facteur de 2 fait déborder les
-      // cartes à hauteur fixe de l'accueil et du détail d'un match. On accepte
-      // donc jusqu'à 1,3 : ce que la mise en page sait porter, ce qui couvre
-      // les réglages « Grand » des deux systèmes, et ce qui reste honnête —
-      // au-delà, la promesse serait tenue à l'écran par un texte tronqué.
+      // La borne haute est **mesurée**, pas estimée : `echelle_texte_
+      // debordement_test.dart` rend la carte de match — le widget le plus
+      // répété de l'application — à trois largeurs réelles, dont 320 px. Elle
+      // tient jusqu'à 1,5 partout ; à 1,8 elle cède sur 320 px.
+      //
+      // La première version de cette borne valait 1,3, choisie à l'estime.
+      // Deux débordements corrigés depuis — un nom de ligue et un libellé sans
+      // contrainte — ont dégagé les deux crans supplémentaires.
       builder: (context, child) {
         final systeme = MediaQuery.textScalerOf(context);
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler: systeme.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.3),
+            textScaler: systeme.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.5),
           ),
           child: child!,
         );

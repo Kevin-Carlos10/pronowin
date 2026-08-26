@@ -540,11 +540,19 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                 child: Icon(Icons.hourglass_top_rounded,
                   color: context.cl.textM, size: 14)),
               const SizedBox(width: 10),
-              Text('Analyse en cours...',
-                style: TextStyle(
-                  color: context.cl.textM,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w500)),
+              // Sans `Flexible`, ce libellé pousse la rangée : mesuré à 77 px
+              // de dépassement sur un écran de 320 px avec le texte agrandi.
+              // Un bandeau pleine largeur donne l'illusion qu'il y a la place,
+              // mais son contenu n'en sait rien.
+              Flexible(
+                child: Text('Analyse en cours...',
+                  style: TextStyle(
+                    color: context.cl.textM,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w500),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis),
+              ),
             ]),
           ),
         ],

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pronowin/core/theme/app_theme.dart';
@@ -16,6 +17,13 @@ import 'package:pronowin/features/pronostics/presentation/widgets/match_card_wid
 /// échelles réelles, sur les largeurs d'écran réelles, et échouent au premier
 /// dépassement. C'est une mesure, pas un avis.
 void main() {
+  // Sans cette initialisation, `DateFormat('dd/MM', 'fr_FR')` lève une
+  // `LocaleDataException` — que le harnais comptait comme un débordement.
+  // J'ai cru pendant trois mesures que la disposition « match terminé » était
+  // fautive : c'était le banc d'essai. `main.dart` fait cet appel, pas les
+  // tests de widget.
+  setUpAll(() async => initializeDateFormatting('fr_FR'));
+
   MatchEntity fabriquer({
     String home = 'Real Sociedad de Fútbol',
     String away = 'Borussia Mönchengladbach',
@@ -72,11 +80,15 @@ void main() {
     await tester.pump();
   }
 
-  /// Les échelles à tenir, et la plus petite largeur du parc.
+  /// Les échelles à tenir, et les largeurs du parc.
   ///
   /// 320 px, c'est un Android d'entrée de gamme — exactement le matériel visé.
   /// Vérifier à 400 px seulement reviendrait à ne rien vérifier.
-  const echelles = [1.0, 1.15, 1.3];
+  ///
+  /// 1,5 est la borne mesurée : au-delà, la carte tient encore à 360 et 411 px
+  /// mais cède à 320. C'est ce qui fixe `maxScaleFactor` dans `main.dart` —
+  /// une valeur mesurée, plus une estimation.
+  const echelles = [1.0, 1.15, 1.3, 1.5];
   const largeurs = [320.0, 360.0, 411.0];
 
   group('la carte de match ne déborde pas', () {
@@ -106,16 +118,7 @@ void main() {
       );
 
       expect(tester.takeException(), isNull);
-    },
-        // Déborde encore, même à pleine largeur et à l'échelle normale. Deux
-        // corrections ont réduit le mal — le nom de ligue et la date sont
-        // désormais compressibles — mais cette disposition garde un élément
-        // trop large que je n'ai pas isolé : la chaîne de création remontée par
-        // Flutter s'arrête au widget racine.
-        //
-        // Consigné plutôt que supprimé : un test retiré n'alerte plus personne,
-        // et le trou disparaîtrait avec lui.
-        skip: true);
+    });
 
     testWidgets('sans pronostic, l\'autre disposition tient aussi',
         (tester) async {
@@ -147,10 +150,7 @@ void main() {
         echelle: 1.3, largeur: 320,
       );
       expect(tester.takeException(), isNull);
-    },
-        // Débordement mesuré : la disposition « terminé » ne tient pas
-        // encore à 320 px combiné à 1,3×.
-        skip: true);
+    });
 
     testWidgets('320 px × 1,3 — sans pronostic', (tester) async {
       await rendre(
@@ -159,8 +159,6 @@ void main() {
         echelle: 1.3, largeur: 320,
       );
       expect(tester.takeException(), isNull);
-    },
-        // Débordement mesuré à 77 px.
-        skip: true);
+    });
   });
 }
