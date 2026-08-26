@@ -38,10 +38,13 @@ class ApiEndpoints {
   // `subscribe`, `plans` et `promoCode` retirés : jamais référencés, et
   // /subscriptions/subscribe comme /subscriptions/promo n'existent pas côté
   // backend. Le paiement passe par /subscriptions/submit-proof.
-  static const String referral     = '/referral';
+  //
+  // `referral` et `notifications` retirés pour la même raison : zéro
+  // référence. Les deux chemins sont appelés en clair là où on s'en sert, si
+  // bien que modifier la constante n'aurait rien changé — une déclaration qui
+  // paraît gouverner un appel sans le gouverner finit par diverger de lui.
   static const String tutorials    = '/tutorials';
   // Les ligues sont servies sous le préfixe /pronostics — '/leagues' seul
   // renvoyait 404, donc le filtre par championnat n'a jamais rien chargé.
   static const String leagues = '/pronostics/leagues';
-  static const String notifications = '/notifications';
 }
