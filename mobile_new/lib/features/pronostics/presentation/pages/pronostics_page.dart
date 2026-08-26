@@ -365,42 +365,52 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                       color:    AppColors.error,
                       matches:  liveMatches,
                       favLeagues: favState.leagues,
-                      isPremium: isPremium,
-                      delayOffset: 0),
+                      isPremium: isPremium),
                   ..._buildTierSection(context,
                       label:    'Pronostics du jour',
                       icon:     Icons.analytics_outlined,
                       color:    AppColors.primary,
                       matches:  upcomingPronoMatches,
                       favLeagues: favState.leagues,
-                      isPremium: isPremium,
-                      delayOffset: 80),
+                      isPremium: isPremium),
                   ..._buildTierSection(context,
                       label:    'Analyse en cours',
                       icon:     Icons.hourglass_top_rounded,
                       color:    context.cl.textM,
                       matches:  analysisMatches,
                       favLeagues: favState.leagues,
-                      isPremium: isPremium,
-                      delayOffset: 160),
+                      isPremium: isPremium),
                   ..._buildTierSection(context,
                       label:    'Terminés',
                       icon:     Icons.check_circle_outline_rounded,
                       color:    AppColors.success,
                       matches:  finishedMatches,
                       favLeagues: favState.leagues,
-                      isPremium: isPremium,
-                      delayOffset: 240),
+                      isPremium: isPremium),
                 ];
 
                 return RefreshIndicator(
                   color: AppColors.primary,
                   onRefresh: () async =>
                       ref.read(matchesPaginatedProvider.notifier).refresh(),
-                  child: ListView(
-                    controller: _listScrollCtrl,
-                    padding: EdgeInsets.fromLTRB(14, 0, 14, bottomNavSpace(context)),
-                    children: [
+                  child: Builder(builder: (context) {
+                    // Liste paresseuse.
+                    //
+                    // `ListView(children:)` construisait et disposait **toutes**
+                    // les cartes du jour — soixante et plus les jours chargés —
+                    // pour six visibles à l'écran.
+                    //
+                    // L'animation d'entrée était pire : chaque carte portait un
+                    // délai `palier + ligue*80 + rang*60`, qui croît sans borne.
+                    // Une carte en huitième ligue attendait plus d'une seconde
+                    // et demie, hors écran, pour rien.
+                    //
+                    // Elle est désormais appliquée ici, sur les seuls premiers
+                    // éléments : c'est la seule fenêtre où un décalage se voit.
+                    // Au-delà, la carte apparaît telle quelle — ce qui est aussi
+                    // ce qu'il faut quand elle arrive par défilement, sinon elle
+                    // resterait vide le temps d'un délai déjà écoulé.
+                    final elements = <Widget>[
                       _DayStatsBar(
                         total: statTotal, pronos: statPronos, live: statLive,
                         showOnlyPronos: hasPronosticFilter,
@@ -435,8 +445,16 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                             style: TextStyle(color: context.cl.textM, fontSize: 12),
                           )),
                         ),
-                    ],
-                  ),
+                    ];
+
+                    return ListView.builder(
+                      controller: _listScrollCtrl,
+                      padding: EdgeInsets.fromLTRB(
+                        14, 0, 14, bottomNavSpace(context)),
+                      itemCount:  elements.length,
+                      itemBuilder: (context, i) => context.entree(elements[i], i),
+                    );
+                  }),
                 );
               }),
           ),
@@ -460,7 +478,6 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
     required List<MatchEntity> matches,
     required Set<String> favLeagues,
     required bool isPremium,
-    required int delayOffset,
   }) {
     if (matches.isEmpty) return const [];
 
@@ -486,12 +503,11 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
       });
 
     final widgets = <Widget>[
-      _TierSectionHeader(label: label, icon: icon, color: color, count: matches.length)
-        .animate(delay: Duration(milliseconds: delayOffset))
-        .fadeIn(duration: 250.ms),
+      _TierSectionHeader(
+        label: label, icon: icon, color: color, count: matches.length),
     ];
 
-    for (final (li, league) in leagues.indexed) {
+    for (final league in leagues) {
       widgets.add(
         _LeagueSectionHeader(
           league:      league,
@@ -499,18 +515,10 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
           count:       byLeague[league]!.length,
           isFav:       favLeagues.contains(league),
           onToggleFav: () => ref.read(favoritesProvider.notifier).toggleLeague(league),
-        )
-          .animate(delay: Duration(milliseconds: delayOffset + li * 80))
-          .fadeIn(duration: 250.ms)
-          .slideX(begin: -0.04, end: 0, duration: 250.ms,
-              curve: Curves.easeOutCubic),
+        ),
       );
-      widgets.addAll(byLeague[league]!.asMap().entries.map((e) =>
-        MatchCardWidget(match: e.value, isPremiumUser: isPremium)
-          .animate(delay: Duration(milliseconds: delayOffset + li * 80 + e.key * 60 + 30))
-          .fadeIn(duration: 300.ms)
-          .slideY(begin: 0.08, end: 0,
-              duration: 300.ms, curve: Curves.easeOutCubic)));
+      widgets.addAll(byLeague[league]!.map((m) =>
+        MatchCardWidget(match: m, isPremiumUser: isPremium)));
       widgets.add(const SizedBox(height: 4));
     }
 
@@ -1485,12 +1493,8 @@ class _ForYouView extends StatelessWidget {
         if (recs.isEmpty)
           _ForYouEmpty()
         else
-          ...recs.asMap().entries.map((e) =>
-            _ForYouCard(rec: e.value, isPremium: isPremium)
-              .animate(delay: Duration(milliseconds: 80 + e.key * 70))
-              .fadeIn(duration: 300.ms)
-              .slideY(begin: 0.08, end: 0, duration: 300.ms,
-                  curve: Curves.easeOutCubic)),
+          ...recs.asMap().entries.map((e) => context.entree(
+            _ForYouCard(rec: e.value, isPremium: isPremium), e.key)),
       ],
     );
   }
@@ -1744,15 +1748,12 @@ class _FavoritesView extends StatelessWidget {
             icon:  Icons.bookmark_rounded,
             count: pinnedMatches.length,
           ),
-          ...pinnedMatches.asMap().entries.map((e) =>
+          ...pinnedMatches.asMap().entries.map((e) => context.entree(
             MatchCardWidget(
               match: e.value,
               isPremiumUser: isPremium,
               showDate: true,
-            )
-              .animate(delay: Duration(milliseconds: e.key * 60))
-              .fadeIn(duration: 300.ms)
-              .slideY(begin: 0.08, end: 0, duration: 300.ms, curve: Curves.easeOutCubic)),
+            ), e.key)),
         ],
 
         // Section ligues épinglées
@@ -1773,14 +1774,12 @@ class _FavoritesView extends StatelessWidget {
             ).animate().fadeIn(duration: 250.ms).slideX(begin: -0.04, end: 0, duration: 250.ms),
             if (byPinnedLeague[league] != null)
               ...byPinnedLeague[league]!.asMap().entries.map((e) =>
-                MatchCardWidget(
-                  match: e.value,
-                  isPremiumUser: isPremium,
-                  showDate: true,
-                )
-                  .animate(delay: Duration(milliseconds: e.key * 60))
-                  .fadeIn(duration: 300.ms)
-                  .slideY(begin: 0.08, end: 0, duration: 300.ms, curve: Curves.easeOutCubic))
+                context.entree(
+                  MatchCardWidget(
+                    match: e.value,
+                    isPremiumUser: isPremium,
+                    showDate: true,
+                  ), e.key))
             else
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
