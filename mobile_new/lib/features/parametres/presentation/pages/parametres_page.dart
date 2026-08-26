@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:in_app_review/in_app_review.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/config/contact_support.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
@@ -522,18 +523,15 @@ class ParametresPage extends ConsumerWidget {
             ),
             _AboutChip(
               icon: Icons.mail_outline_rounded, label: 'Nous contacter', color: AppColors.info,
-              onTap: () => launchUrl(Uri.parse('mailto:pronowin2026@gmail.com')),
+              onTap: () => ContactSupport.ouvrirEmail(),
             ),
             _AboutChip(
               icon: Icons.send_rounded, label: 'Telegram', color: const Color(0xFF29A9EA),
-              onTap: () => launchUrl(Uri.parse('https://t.me/carlospronost'),
-                  mode: LaunchMode.externalApplication),
+              onTap: () => ContactSupport.ouvrirTelegram(),
             ),
             _AboutChip(
               icon: Icons.chat_rounded, label: 'WhatsApp', color: const Color(0xFF25D366),
-              onTap: () => launchUrl(
-                  Uri.parse('https://whatsapp.com/channel/0029Vb88L8BKAwEppGPhXQ1T'),
-                  mode: LaunchMode.externalApplication),
+              onTap: () => ContactSupport.ouvrirWhatsapp(),
             ),
             _AboutChip(
               icon: Icons.facebook_rounded, label: 'Facebook', color: const Color(0xFF1877F2),

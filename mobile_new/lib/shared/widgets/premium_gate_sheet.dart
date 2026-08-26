@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
+import '../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/pronostics/presentation/providers/bilan_premium_provider.dart';
 
@@ -42,6 +43,7 @@ class _PremiumGateSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.read(authProvider);
     final profileComplete = authState is! AuthAuthenticated || authState.user.isProfileComplete;
+    final tarifs = ref.watch(tarifsPremiumProvider);
 
     return Container(
       decoration: BoxDecoration(
@@ -143,7 +145,13 @@ class _PremiumGateSheet extends ConsumerWidget {
                   color: context.cl.textS, fontSize: 13)),
                 // « XOF » est un code bancaire ; le prix d'un abonnement se lit
                 // en FCFA, comme partout ailleurs dans l'app.
-                Text('5 000 FCFA', style: const TextStyle(
+                //
+                // Ce montant valait « 5 000 » en dur — un chiffre qui ne
+                // correspondait à aucune formule : ni 6 000 (mensuel), ni
+                // 4 200 (avec code), ni 4 500 ni 3 150 (annuels ramenés au
+                // mois). La feuille qui décide l'utilisateur annonçait donc un
+                // prix inexistant, et l'écran suivant le démentait.
+                Text('${tarifs.minMensuelFormate} FCFA', style: const TextStyle(
                   color: AppColors.primary, fontSize: 16,
                   fontWeight: FontWeight.w900)),
                 Text(' / mois', style: TextStyle(

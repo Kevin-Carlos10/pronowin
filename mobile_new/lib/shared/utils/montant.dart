@@ -32,6 +32,19 @@ String montantExact(num valeur) {
   return negatif ? '-$tampon' : tampon.toString();
 }
 
+/// Nombre décimal à la française — la virgule, pas le point.
+///
+/// `1.6` → `1,6`. La règle est déjà appliquée côté serveur (`seuilButs`, qui
+/// produit « moins de 3,5 buts ») ; elle manquait ici, si bien qu'un même écran
+/// affichait « marge de 1.6 % » deux lignes au-dessus de « moins de 3,5 buts ».
+///
+/// Réservé au texte suivi. Les cotes restent écrites avec un point dans leurs
+/// pastilles (`1.27`, `2.01`) — un choix d'affichage tabulaire, cohérent d'un
+/// bout à l'autre de l'app, qu'il faudrait trancher globalement plutôt qu'au
+/// cas par cas.
+String decimalFr(num valeur, {int decimales = 1}) =>
+    valeur.toStringAsFixed(decimales).replaceAll('.', ',');
+
 /// Montant signé : le `+` n'apparaît que sur un gain.
 ///
 /// Utile pour un résultat net, où le signe porte l'information principale.

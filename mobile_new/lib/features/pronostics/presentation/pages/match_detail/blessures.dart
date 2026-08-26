@@ -58,7 +58,7 @@ class _InjuriesCard extends ConsumerWidget {
           ? const _CardLoginPrompt(message: 'Connecte-toi pour voir les absences.')
           : injuriesAsync.when(
               loading: () => _H2HLoading(),
-              error: (_, __) => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
               data: (list) {
                 final home = list.where((p) => p.isHome).toList();
                 final away = list.where((p) => !p.isHome).toList();
@@ -120,56 +120,42 @@ class _InjuryRow extends StatelessWidget {
   final InjuredPlayer player;
   const _InjuryRow({required this.player});
 
-  /// API-Football renvoie les motifs en anglais et en vrac. On traduit les
-  /// valeurs courantes ; tout motif inconnu est affiché tel quel plutôt que
-  /// masqué, pour ne pas perdre d'information.
-  static const _reasons = {
-    'yellow cards':    'Suspendu (cartons jaunes)',
-    'yellow card':     'Suspendu (carton jaune)',
-    'red card':        'Suspendu (carton rouge)',
-    'suspended':       'Suspendu',
-    'inactive':        'Indisponible',
-    'injury':          'Blessé',
-    'knee injury':     'Blessure au genou',
-    'ankle injury':    'Blessure à la cheville',
-    'thigh injury':    'Blessure à la cuisse',
-    'hamstring':       'Ischio-jambiers',
-    'muscle injury':   'Blessure musculaire',
-    'calf injury':     'Blessure au mollet',
-    'groin injury':    'Blessure à l\'aine',
-    'back injury':     'Blessure au dos',
-    'shoulder injury': 'Blessure à l\'épaule',
-    'foot injury':     'Blessure au pied',
-    'illness':         'Maladie',
-    'personal reasons':'Raisons personnelles',
-    'national team':   'Sélection nationale',
-    'coach decision':  'Choix de l\'entraîneur',
-    'rest':            'Au repos',
-    'broken leg':      'Jambe cassée',
-  };
-
-  /// true pour une suspension (carton), false pour une indisponibilité
-  /// physique — l'icône change en conséquence.
-  bool get _isSuspension {
-    final r = player.reason.toLowerCase();
-    return r.contains('card') || r.contains('suspend');
-  }
-
-  String get _label {
-    final raw = player.reason.trim().isNotEmpty ? player.reason.trim() : player.type;
-    return _reasons[raw.toLowerCase()] ?? raw;
-  }
+  /// Le motif arrive **deja traduit** du serveur.
+  ///
+  /// Une table vivait ici et sa regle etait juste — un motif inconnu restait
+  /// affiche plutot que masque. Mais elle avait des trous, et rien ne les
+  /// signalait : elle contenait `hamstring` quand l API envoie
+  /// `Hamstring Injury`, si bien que deux motifs apparaissaient en anglais
+  /// dans une liste par ailleurs francaise.
+  ///
+  /// La traduction se fait desormais a la frontiere du fournisseur, comme
+  /// celle des recommandations et des marches — et un motif non reconnu s y
+  /// journalise au lieu de finir a l ecran.
 
   @override
   Widget build(BuildContext context) {
-    final isRed = player.reason.toLowerCase().contains('red');
+    final isRed = player.reason.toLowerCase().contains('rouge');
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
       child: Row(children: [
+        // Photo du joueur : fournie par l API dans la meme reponse et jamais
+        // lue. Un visage se reconnait plus vite qu un patronyme abrege —
+        // « R. Asencio » ne dit pas grand-chose.
+        if (player.photo != null && player.photo!.isNotEmpty) ...[
+          SizedBox(width: 26, height: 26,
+            child: ClipOval(child: Image.network(player.photo!,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) =>
+                  Icon(Icons.person_rounded, color: context.cl.textM, size: 15),
+              loadingBuilder: (c, enfant, progres) => progres == null
+                  ? enfant
+                  : Icon(Icons.person_rounded, color: context.cl.textM, size: 15)))),
+          const SizedBox(width: 9),
+        ],
         SizedBox(
           width: 18,
           child: Center(
-            child: _isSuspension
+            child: player.suspension
               ? Container(
                   width: 10, height: 13,
                   decoration: BoxDecoration(
@@ -186,7 +172,7 @@ class _InjuryRow extends StatelessWidget {
             style: TextStyle(color: context.cl.textP, fontSize: 12.5))),
         const SizedBox(width: 10),
         Flexible(
-          child: Text(_label,
+          child: Text(player.reason,
             textAlign: TextAlign.right,
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: TextStyle(color: context.cl.textM, fontSize: 11)),

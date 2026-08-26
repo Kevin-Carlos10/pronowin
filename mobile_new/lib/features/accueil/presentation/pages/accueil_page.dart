@@ -20,7 +20,6 @@ import '../../../../core/network/connectivity_provider.dart';
 import '../../../pronostics/domain/entities/match_entity.dart' show MatchEntity;
 import '../../../bankroll/presentation/widgets/miser_dialog.dart';
 import '../providers/accueil_provider.dart';
-import '../providers/streak_provider.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/utils/devise.dart';
@@ -353,12 +352,13 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
                     .slideY(begin: 0.08, end: 0, duration: 350.ms,
                         curve: Curves.easeOutCubic),
 
-                  // ─── STREAK BANNER ────────────────────────────────────────
-                  const _StreakBanner()
-                    .animate()
-                    .fadeIn(duration: 400.ms, delay: 120.ms)
-                    .slideY(begin: 0.08, end: 0, duration: 350.ms,
-                        curve: Curves.easeOutCubic),
+                  // Le bandeau « Streak » a été retiré. Il récompensait
+                  // l'ouverture quotidienne de l'application — un mécanisme qui
+                  // ne rendait personne meilleur en pronostics, et dont l'XP
+                  // n'était consommé nulle part. Surtout, récompenser le retour
+                  // quotidien dans une application liée aux paris est le motif
+                  // même que les stores et les régulateurs examinent.
+                  // La bankroll, juste au-dessus, occupe désormais la place.
 
                   // ─── NUDGE PSEUDO ─────────────────────────────────────────
                   // Invite à personnaliser le pseudo auto-généré (Parieur_XXX).

@@ -6,12 +6,15 @@
 part of '../match_detail_page.dart';
 
 class _LineupsCard extends ConsumerWidget {
-  final String matchId;
-  const _LineupsCard({required this.matchId});
+  /// Le match entier, et non son seul identifiant : le terrain porte
+  /// desormais l'ecusson et le nom de chaque equipe, que la reponse
+  /// `/lineups` ne contient pas.
+  final MatchEntity match;
+  const _LineupsCard({required this.match});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final lineupsAsync = ref.watch(lineupsProvider(matchId));
+    final lineupsAsync = ref.watch(lineupsProvider(match.id));
     final status = _statusOf(lineupsAsync.error);
 
     // Vraie erreur réseau/serveur (pas juste un invité non connecté) → pas de
@@ -51,7 +54,7 @@ class _LineupsCard extends ConsumerWidget {
               error: (_, __) => const SizedBox.shrink(),
               data: (lineups) => !lineups.available
                 ? _LineupsPending()
-                : _LineupsContent(lineups: lineups),
+                : _LineupsContent(lineups: lineups, match: match),
             ),
       ]),
     );
@@ -71,7 +74,8 @@ class _LineupsPending extends StatelessWidget {
 
 class _LineupsContent extends StatelessWidget {
   final LineupsData lineups;
-  const _LineupsContent({required this.lineups});
+  final MatchEntity match;
+  const _LineupsContent({required this.lineups, required this.match});
 
   /// Le terrain n'a de sens que si l'API a placé les joueurs (champ `grid`).
   /// Certaines compétitions mineures ne le renseignent pas — on retombe alors
@@ -85,14 +89,12 @@ class _LineupsContent extends StatelessWidget {
 
     if (_placeable(home) || _placeable(away)) {
       return Column(children: [
-        _PitchView(home: home, away: away),
+        _PitchView(home: home, away: away, match: match),
         const SizedBox(height: 14),
-        // Légende du terrain : mêmes couleurs que les pastilles au-dessus.
-        // Avec le vert/rouge de la charte, rien ne reliait une moitié de
-        // terrain à son équipe.
-        if (home != null) _TeamCoachRow(team: home, color: _domicileSurTerrain),
-        if (home != null && away != null) const SizedBox(height: 6),
-        if (away != null) _TeamCoachRow(team: away, color: _exterieurSurTerrain),
+        // La formation figure desormais dans l'en-tete de chaque terrain ; ne
+        // reste ici que l'entraineur, avec sa photo — fournie par l'API a cote
+        // de son nom, et jamais lue jusqu'ici.
+        _CarteEntraineurs(home: home, away: away),
       ]);
     }
 
@@ -109,15 +111,12 @@ class _LineupsContent extends StatelessWidget {
 class _PitchView extends StatelessWidget {
   final TeamLineup? home;
   final TeamLineup? away;
-  const _PitchView({this.home, this.away});
-
-  static const _grass     = Color(0xFF14532D);
-  static const _grassAlt  = Color(0xFF166534);
-  static const _lineColor = Color(0x59FFFFFF);
+  final MatchEntity match;
+  const _PitchView({this.home, this.away, required this.match});
 
   /// Regroupe les titulaires par ligne (1 = gardien) en respectant l'ordre de
-  /// colonne renvoyé par l'API.
-  static List<List<LineupPlayer>> _rows(TeamLineup t) {
+  /// colonne renvoye par l'API.
+  static List<List<LineupPlayer>> rangees(TeamLineup t) {
     final byRow = <int, List<LineupPlayer>>{};
     for (final p in t.startXI) {
       final r = p.gridRow;
@@ -131,47 +130,112 @@ class _PitchView extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => AspectRatio(
-    // Assez haut pour qu'un 4-2-3-1 (5 lignes par moitié) garde des photos
-    // lisibles sans que _HalfPitch ait à les rétrécir — mais pas au point
-    // d'exiger deux écrans de défilement pour voir l'équipe adverse : à 0.62
-    // le terrain dépassait 2 000 px de haut sur un grand téléphone.
-    // _PitchPlayer met déjà les joueurs dans un FittedBox, la compression
-    // résiduelle reste lisible.
-    aspectRatio: 0.78,
-    child: Container(
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [_grass, _grassAlt, _grass],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Stack(children: [
-        Positioned.fill(child: CustomPaint(painter: _PitchLinesPainter())),
-        Column(children: [
-          Expanded(
-            child: home == null
-              ? const SizedBox.shrink()
-              : _HalfPitch(rows: _rows(home!), color: _domicileSurTerrain),
-          ),
-          Expanded(
-            child: away == null
-              ? const SizedBox.shrink()
-              // Miroir complet : lignes inversées (le gardien visiteur passe en
-              // bas) et colonnes inversées, pour que les deux équipes se fassent
-              // face comme sur un vrai terrain.
-              : _HalfPitch(
-                  rows: [
-                    for (final r in _rows(away!).reversed) r.reversed.toList(),
-                  ],
-                  color: _exterieurSurTerrain),
-          ),
+  Widget build(BuildContext context) => Column(children: [
+    if (home != null)
+      _TerrainEquipe(
+        equipe: home!, nom: match.homeTeam, logo: match.homeTeamLogo,
+        couleur: _domicileSurTerrain),
+    if (home != null && away != null) const SizedBox(height: 14),
+    // L'equipe exterieure est en miroir : gardien en bas, attaquants en haut,
+    // et son en-tete sous le terrain plutot qu'au-dessus.
+    //
+    // J'avais supprime ce renversement en donnant un terrain a chacune, en
+    // croyant qu'il ne servait qu'a faire tenir deux equipes sur une surface.
+    // Il porte en fait autre chose : mises bout a bout, les deux moities se
+    // font face comme un terrain deplie, et chaque equipe attaque vers
+    // l'adversaire. Lire les deux dans le meme sens supprime cette lecture.
+    if (away != null)
+      _TerrainEquipe(
+        equipe: away!, nom: match.awayTeam, logo: match.awayTeamLogo,
+        couleur: _exterieurSurTerrain, miroir: true),
+  ]);
+}
+
+/// Terrain d'une seule equipe, avec son en-tete.
+///
+/// Les deux equipes partageaient auparavant **un seul terrain**, l'une en
+/// miroir de l'autre. Le commentaire du code admettait deja le prix de ce
+/// choix : a onze joueurs par moitie, les photos tombaient a dix-huit pixels
+/// et les noms se compressaient dans un `FittedBox`.
+///
+/// Un terrain par equipe rend a chaque ligne toute la hauteur qu'il lui faut.
+/// L'ecusson et la formation en en-tete disent immediatement qui joue comment
+/// — ils venaient du match, pas de la reponse `/lineups`, et manquaient donc.
+class _TerrainEquipe extends StatelessWidget {
+  final TeamLineup equipe;
+  final String nom;
+  final String? logo;
+  final Color couleur;
+  /// Renverse lignes et colonnes, et fait passer l'en-tete sous le terrain.
+  final bool miroir;
+  const _TerrainEquipe({
+    required this.equipe, required this.nom, this.logo, required this.couleur,
+    this.miroir = false});
+
+  static const _grass     = Color(0xFF14532D);
+  static const _grassAlt  = Color(0xFF166534);
+  static const _lineColor = Color(0x59FFFFFF);
+
+  @override
+  Widget build(BuildContext context) {
+    var rows = _PitchView.rangees(equipe);
+    if (rows.isEmpty) return const SizedBox.shrink();
+    if (miroir) {
+      rows = [for (final r in rows.reversed) r.reversed.toList()];
+    }
+
+    final entete = Padding(
+        padding: EdgeInsets.only(left: 2, bottom: miroir ? 0 : 8, top: miroir ? 8 : 0),
+        child: Row(children: [
+          if (logo != null && logo!.isNotEmpty) ...[
+            SizedBox(width: 18, height: 18,
+              child: Image.network(logo!,
+                fit: BoxFit.contain,
+                errorBuilder: (_, _, _) => const SizedBox.shrink(),
+                loadingBuilder: (c, enfant, progres) =>
+                    progres == null ? enfant : const SizedBox.shrink())),
+            const SizedBox(width: 8),
+          ],
+          Flexible(child: Text(nom,
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w800))),
+          if (equipe.formation != null) ...[
+            const SizedBox(width: 10),
+            Text(equipe.formation!,
+              style: TextStyle(
+                color: couleur, fontSize: 12.5, fontWeight: FontWeight.w800,
+                letterSpacing: 0.4)),
+          ],
         ]),
-      ]),
-    ),
-  );
+      );
+
+    final terrain = AspectRatio(
+        // Proche du carre : chaque equipe dispose de la hauteur qui etait
+        // auparavant partagee entre les deux. Les photos y tiennent sans
+        // compression.
+        aspectRatio: 0.92,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: const LinearGradient(
+              colors: [_grass, _grassAlt, _grass],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Stack(children: [
+            Positioned.fill(child: CustomPaint(painter: _PitchLinesPainter())),
+            // Gardien en haut, attaquants en bas : le sens de lecture naturel
+            // quand une equipe occupe tout le terrain.
+            _HalfPitch(rows: rows, color: couleur),
+          ]),
+        ),
+      );
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start,
+      children: miroir ? [terrain, entete] : [entete, terrain]);
+  }
 }
 
 class _HalfPitch extends StatelessWidget {
@@ -190,7 +254,11 @@ class _HalfPitch extends StatelessWidget {
     return LayoutBuilder(builder: (context, constraints) {
       final rowHeight = constraints.maxHeight / rows.length;
       // ~20px sont pris par le nom sous la photo et l'espacement.
-      final avatar = (rowHeight - 20).clamp(18.0, 34.0);
+      //
+      // Le plafond est passe de 34 a 52 px : il datait du terrain partage, ou
+      // onze joueurs tenaient dans une demi-hauteur. Avec un terrain par
+      // equipe, le brider a 34 aurait laisse la place inutilisee.
+      final avatar = (rowHeight - 20).clamp(18.0, 52.0);
 
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -294,7 +362,7 @@ class _PitchLinesPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = _PitchView._lineColor
+      ..color = _TerrainEquipe._lineColor
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
 
@@ -343,6 +411,84 @@ class _TeamCoachRow extends StatelessWidget {
           maxLines: 1, overflow: TextOverflow.ellipsis,
           style: TextStyle(color: context.cl.textM, fontSize: 11))),
   ]);
+}
+
+/// Entraineurs des deux equipes, cote a cote.
+///
+/// Le nom etait affiche en legende sous le terrain ; la photo accompagnait ce
+/// nom dans la meme reponse de l'API et n'etait pas lue. Un visage se
+/// reconnait plus vite qu'un patronyme, surtout etranger.
+class _CarteEntraineurs extends StatelessWidget {
+  final TeamLineup? home;
+  final TeamLineup? away;
+  const _CarteEntraineurs({this.home, this.away});
+
+  @override
+  Widget build(BuildContext context) {
+    final aDomicile   = home?.coach != null;
+    final aExterieur  = away?.coach != null;
+    if (!aDomicile && !aExterieur) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      decoration: BoxDecoration(
+        color: context.cl.surfaceDeep,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.cl.borderSoft, width: 0.6),
+      ),
+      child: Column(children: [
+        Text('Entraîneurs',
+          style: TextStyle(
+            color: context.cl.textM, fontSize: 10,
+            fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+        const SizedBox(height: 12),
+        Row(children: [
+          Expanded(child: _UnEntraineur(equipe: home)),
+          Expanded(child: _UnEntraineur(equipe: away)),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _UnEntraineur extends StatelessWidget {
+  final TeamLineup? equipe;
+  const _UnEntraineur({this.equipe});
+
+  @override
+  Widget build(BuildContext context) {
+    final nom = equipe?.coach;
+    if (nom == null) return const SizedBox.shrink();
+    final photo = equipe?.coachPhoto;
+
+    return Column(children: [
+      Container(
+        width: 46, height: 46,
+        decoration: BoxDecoration(
+          color: context.cl.surface,
+          shape: BoxShape.circle,
+          border: Border.all(color: context.cl.borderSoft, width: 0.8)),
+        clipBehavior: Clip.antiAlias,
+        child: photo == null || photo.isEmpty
+          ? Icon(Icons.person_rounded, color: context.cl.textM, size: 22)
+          // Une photo absente ne doit pas laisser un trou : on retombe sur la
+          // silhouette, de meme taille.
+          : Image.network(photo, fit: BoxFit.cover,
+              errorBuilder: (_, _, _) =>
+                  Icon(Icons.person_rounded, color: context.cl.textM, size: 22),
+              loadingBuilder: (c, enfant, progres) => progres == null
+                  ? enfant
+                  : Icon(Icons.person_rounded, color: context.cl.textM, size: 22)),
+      ),
+      const SizedBox(height: 7),
+      Text(nom,
+        maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          color: context.cl.textS, fontSize: 11.5, height: 1.25,
+          fontWeight: FontWeight.w600)),
+    ]);
+  }
 }
 
 /// Repli quand l'API ne fournit pas les coordonnées `grid` : liste en pastilles.

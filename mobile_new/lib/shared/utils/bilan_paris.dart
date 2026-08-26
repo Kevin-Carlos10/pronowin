@@ -55,8 +55,27 @@ class BilanParis {
   /// mesurée, seulement une valeur par défaut. Rien ne doit être chiffré.
   bool get vierge => regles == 0;
 
-  /// Taux de réussite, ou `null` tant qu'il n'a pas de dénominateur.
-  double? get taux => vierge ? null : tauxBrut;
+  /// En deçà de ce nombre de paris tranchés, un pourcentage ment par précision.
+  ///
+  /// Le garde-fou ne se déclenchait qu'à **zéro**. Avec un seul pari gagné,
+  /// l'écran annonçait « 100 % de réussite » — un chiffre exact et sans aucun
+  /// sens, sur la statistique qui fait croire à quelqu'un que sa méthode
+  /// fonctionne.
+  ///
+  /// Cinq, et non les dix du bilan Premium : celui-ci est un argument commercial
+  /// montré à des prospects, celui-là un tableau de bord personnel où
+  /// l'utilisateur connaît déjà ses propres paris. Le seuil protège de la
+  /// fausse précision, pas de la mauvaise foi.
+  static const echantillonMinimal = 5;
+
+  /// L'échantillon permet-il d'énoncer un pourcentage ?
+  bool get echantillonSuffisant => regles >= echantillonMinimal;
+
+  /// Taux de réussite, ou `null` tant qu'il ne veut rien dire.
+  ///
+  /// Les comptes bruts — « 1 gagné, 0 perdu » — restent affichés en dessous du
+  /// seuil : ils informent sans prétendre à une mesure.
+  double? get taux => echantillonSuffisant ? tauxBrut : null;
 
   /// Aucun pari du tout : la carte n'a pas lieu d'être affichée.
   bool get sansAucunPari => suivis == 0;

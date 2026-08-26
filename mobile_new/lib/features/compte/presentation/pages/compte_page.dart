@@ -13,7 +13,8 @@ import '../../../../shared/utils/premium_nav.dart';
 import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../../../features/parrainage/presentation/providers/referral_provider.dart';
 import '../providers/compte_provider.dart';
-import '../../../accueil/presentation/providers/streak_provider.dart';
+import '../../../../shared/utils/devise.dart';
+import '../../../../shared/utils/montant.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
 import '../../../../shared/utils/bilan_paris.dart';
@@ -336,8 +337,23 @@ class _ApercuTab extends ConsumerWidget {
     return ListView(
       padding: EdgeInsets.fromLTRB(16, 16, 16, bottomNavSpace(context)),
       children: [
-        // Streak & XP
-        _StreakCard(),
+        // La carte « Streak & XP » occupait cette place — la meilleure de la
+        // page. Elle a été retirée pour deux raisons.
+        //
+        // D'abord, elle ne servait à rien : l'XP n'était consommé **nulle
+        // part**, aucun palier ne débloquait quoi que ce soit, et le streak
+        // s'incrémentait à la simple connexion. Elle récompensait l'ouverture
+        // de l'application, pas une compétence de l'utilisateur.
+        //
+        // Ensuite, et surtout : récompenser le retour quotidien dans une
+        // application liée aux paris est le motif même que les régulateurs et
+        // les relecteurs de stores examinent. Cumulé à la bannière
+        // d'affiliation et au parcours promo qui exige un dépôt, l'ensemble se
+        // lit comme un dispositif de fidélisation autour de la mise.
+        //
+        // À la place : le solde de bankroll, la donnée que l'utilisateur vient
+        // réellement consulter et qui n'était visible nulle part sur cet écran.
+        const _SoldeBankroll(),
         const SizedBox(height: 20),
 
         // La bande « Actions rapides » a été retirée : ses quatre tuiles
@@ -463,14 +479,14 @@ class _ApercuTab extends ConsumerWidget {
                         onTap: () => context.push('/compte/stats'),
                         child: Row(children: [
                           const Icon(Icons.bar_chart_rounded,
-                            color: Color(0xFF6C63FF), size: 14),
+                            color: AppColors.primary, size: 14),
                           const SizedBox(width: 4),
                           const Text('Stats avancées',
-                            style: TextStyle(color: Color(0xFF6C63FF),
+                            style: TextStyle(color: AppColors.primary,
                               fontSize: 12, fontWeight: FontWeight.w600)),
                           const SizedBox(width: 4),
                           const Icon(Icons.arrow_forward_ios_rounded,
-                            color: Color(0xFF6C63FF), size: 11),
+                            color: AppColors.primary, size: 11),
                         ]),
                       ),
                     ]),
@@ -1586,184 +1602,110 @@ class _StatBox extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 // STREAK CARD (compte page)
 // ══════════════════════════════════════════════════════════════════════════════
-class _StreakCard extends ConsumerWidget {
+/// Solde de bankroll — ce que l'utilisateur vient consulter.
+///
+/// Remplace la carte « Streak & XP », qui occupait la meilleure place de la
+/// page sans rien apporter : l'XP n'etait consomme nulle part, aucun palier ne
+/// debloquait quoi que ce soit, et le streak s'incrementait a la connexion.
+///
+/// Le solde, lui, existait deja cote serveur et n'apparaissait sur aucun ecran
+/// de cette page — seules les statistiques de paris y figuraient, sans jamais
+/// dire combien il reste.
+class _SoldeBankroll extends ConsumerWidget {
+  const _SoldeBankroll();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final streakAsync = ref.watch(streakProvider);
+    final async = ref.watch(bankrollProvider);
+    final data  = async.valueOrNull;
 
-    return streakAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error:   (_, _) => const SizedBox.shrink(),
-      data: (streak) {
-        final prevMilestone = streak.milestones
-            .lastWhere((m) => m <= streak.streakDays, orElse: () => 0);
-        final progress = streak.progressToNext(prevMilestone);
-
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const _SectionLabel('MON STREAK & XP'),
+    // Aucune bankroll configuree : on invite plutot que d'afficher un zero,
+    // qui se lirait comme un solde epuise.
+    if (data == null) {
+      return _CarteCompte(
+        onTap: () => context.push('/bankroll'),
+        enfant: Row(children: [
           Container(
-            padding: const EdgeInsets.all(16),
+            width: 44, height: 44,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFF1A1A2E), Color(0xFF0F0F1A)],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(
-                  color: AppColors.primary.withValues(alpha: 0.3), width: 0.8),
-            ),
-            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.savings_rounded,
+              color: AppColors.primary, size: 22)),
+          const SizedBox(width: 14),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Suivre ma bankroll', style: TextStyle(
+                color: context.cl.textP, fontSize: 15,
+                fontWeight: FontWeight.w800)),
+              const SizedBox(height: 2),
+              Text('Definis ton budget et suis tes gains reels',
+                style: TextStyle(color: context.cl.textM, fontSize: 12)),
+            ])),
+          Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 20),
+        ]),
+      );
+    }
 
-              // ── Ligne principale : flamme + streak + XP ───────────────────
-              Row(children: [
-                Text(streak.streakDays >= 7 ? '🏆' : '🔥',
-                    style: const TextStyle(fontSize: 28)),
-                const SizedBox(width: 12),
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      streak.streakDays == 0
-                          ? 'Pas encore de streak'
-                          : '${streak.streakDays} jours consécutifs',
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    // Icône vectorielle plutôt qu'un emoji dans la chaîne :
-                    // le reste de l'app n'en utilise pas, et le rendu d'un
-                    // emoji varie d'un appareil à l'autre.
-                    Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(
-                        streak.todayClaimed
-                            ? Icons.check_circle_rounded
-                            : Icons.schedule_rounded,
-                        size: 13,
-                        color: streak.todayClaimed
-                            ? AppColors.success
-                            : AppColors.textMuted),
-                      const SizedBox(width: 5),
-                      Flexible(
-                        child: Text(
-                          streak.todayClaimed
-                              ? 'Streak du jour validé'
-                              : 'Connecte-toi demain pour continuer',
-                          maxLines: 1, overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: streak.todayClaimed
-                                ? AppColors.success
-                                : AppColors.textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ]),
-                  ],
-                )),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(
-                        color: AppColors.primary.withValues(alpha: 0.3),
-                        width: 0.5),
-                  ),
-                  child: Column(children: [
-                    TweenAnimationBuilder<int>(
-                      tween: IntTween(begin: 0, end: streak.xpTotal),
-                      duration: const Duration(milliseconds: 900),
-                      curve: Curves.easeOutCubic,
-                      builder: (_, v, _) => Text('$v',
-                        style: const TextStyle(
-                          color: AppColors.primary,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900)),
-                    ),
-                    const Text('XP TOTAL',
-                      style: TextStyle(
-                        color: AppColors.primaryLight,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 0.5)),
-                  ]),
-                ),
-              ]),
+    final devise  = nomDevise(data.currency);
+    final ecart   = data.currentBalance - data.totalBudget;
+    // Un ecart nul n'est ni un gain ni une perte : aucune couleur, aucun signe.
+    final neutre  = ecart.abs() < 0.5;
+    final couleur = neutre
+        ? context.cl.textM
+        : (ecart > 0 ? AppColors.success : AppColors.error);
 
-              const SizedBox(height: 14),
-
-              // ── Barre de progression ──────────────────────────────────────
-              Row(children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0, end: progress),
-                      duration: const Duration(milliseconds: 800),
-                      curve: Curves.easeOutCubic,
-                      builder: (_, v, _) => LinearProgressIndicator(
-                        value: v,
-                        minHeight: 6,
-                        backgroundColor: AppColors.borderSoft,
-                        valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text('${streak.streakDays}/${streak.nextMilestone}j',
-                  style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600)),
-              ]),
-
-              const SizedBox(height: 14),
-
-              // ── Milestones ────────────────────────────────────────────────
-              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: streak.milestones.map((m) {
-                  final done = streak.streakDays >= m;
-                  return Column(children: [
-                    Container(
-                      width: 34, height: 34,
-                      decoration: BoxDecoration(
-                        color: done
-                            ? AppColors.warning.withValues(alpha: 0.2)
-                            : context.cl.surfaceD,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: done
-                              ? AppColors.warning
-                              : context.cl.border,
-                          width: done ? 1.5 : 0.5,
-                        ),
-                      ),
-                      child: Center(child: Text(
-                        done ? '⭐' : '$m',
-                        style: TextStyle(
-                          fontSize: done ? 16 : 11,
-                          color: done ? AppColors.warning : context.cl.textM,
-                          fontWeight: FontWeight.w700),
-                      )),
-                    ),
-                    const SizedBox(height: 4),
-                    Text('$m j',
-                      style: TextStyle(
-                        color: done ? AppColors.warning : context.cl.textM,
-                        fontSize: 10,
-                        fontWeight: done ? FontWeight.w700 : FontWeight.w500)),
-                  ]);
-                }).toList(),
-              ),
-            ]),
-          ),
-        ]);
-      },
+    return _CarteCompte(
+      onTap: () => context.push('/bankroll'),
+      enfant: Row(children: [
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('SOLDE ACTUEL', style: TextStyle(
+              color: context.cl.textM, fontSize: 10,
+              fontWeight: FontWeight.w700, letterSpacing: 0.8)),
+            const SizedBox(height: 6),
+            Text('${montantExact(data.currentBalance)} $devise',
+              style: TextStyle(
+                color: context.cl.textP, fontSize: 26,
+                fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+            const SizedBox(height: 4),
+            Text(
+              neutre
+                ? 'Budget de départ : ${montantExact(data.totalBudget)} $devise'
+                : '${montantSigne(ecart)} $devise depuis le départ',
+              style: TextStyle(
+                color: couleur, fontSize: 12.5, fontWeight: FontWeight.w700)),
+          ])),
+        Container(
+          width: 44, height: 44,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12)),
+          child: const Icon(Icons.savings_rounded,
+            color: AppColors.primary, size: 22)),
+      ]),
     );
   }
+}
+
+/// Cadre commun aux cartes de la page Compte.
+class _CarteCompte extends StatelessWidget {
+  final Widget enfant;
+  final VoidCallback onTap;
+  const _CarteCompte({required this.enfant, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.cl.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.cl.borderSoft, width: 0.8)),
+      child: enfant,
+    ),
+  );
 }

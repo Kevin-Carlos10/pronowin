@@ -7,6 +7,35 @@ import 'package:pronowin/shared/utils/montant.dart';
 /// « 2.0 k ». Aucune erreur, aucun test rouge : juste 25 F qui disparaissent
 /// sur l'écran qu'on ouvre pour vérifier ses chiffres.
 void main() {
+  group('décimale à la française', () {
+    // Le serveur applique déjà la règle (« moins de 3,5 buts ») ; elle
+    // manquait côté mobile, si bien qu'un même écran affichait
+    // « marge de 1.6 % » deux lignes au-dessus de « moins de 3,5 buts ».
+    test('la virgule remplace le point', () {
+      expect(decimalFr(1.6), '1,6');
+      expect(decimalFr(12.05, decimales: 2), '12,05');
+    });
+
+    test('un entier reçoit quand même sa décimale', () {
+      expect(decimalFr(3), '3,0');
+      expect(decimalFr(3, decimales: 0), '3');
+    });
+
+    test('l\'arrondi suit le nombre de décimales demandé', () {
+      expect(decimalFr(2.649, decimales: 1), '2,6');
+      expect(decimalFr(2.66,  decimales: 1), '2,7');
+      // 2.65 n'est pas représentable exactement en binaire : la valeur stockée
+      // vaut un cheveu de moins, et l'arrondi descend. Comportement standard
+      // d'IEEE 754, identique dans la plupart des langages — on le constate
+      // plutôt que de prétendre l'inverse.
+      expect(decimalFr(2.65, decimales: 1), '2,6');
+    });
+
+    test('le signe négatif est conservé', () {
+      expect(decimalFr(-0.5), '-0,5');
+    });
+  });
+
   /// Espace fine insécable (U+202F). Écrite en échappement plutôt qu'au
   /// clavier : un caractère invisible dans une chaîne attendue rend l'échec
   /// illisible — « 2 025 » contre « 2 025 », visuellement identiques.

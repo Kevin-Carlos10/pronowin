@@ -10,6 +10,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/config/distribution_channel.dart';
+import '../../../../shared/utils/montant.dart';
 import '../../../../shared/utils/premium_nav.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/services/prono_share_service.dart';
@@ -310,7 +312,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         const SizedBox(height: 16),
         _ButsParTranche(matchId: match.id),
       ])),
-      if (showCompositions) ('Compositions', _LineupsCard(matchId: match.id)),
+      if (showCompositions) ('Compositions', _LineupsCard(match: match)),
       if (showBlessures) ('Blessures', _InjuriesCard(
         matchId: match.id,
         homeTeam: match.homeTeam,
@@ -324,10 +326,18 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           awayTeam: match.awayTeam),
         _MeilleursButeurs(leagueCode: match.leagueCountry),
       ])),
-      if (showFaceAFace) ('Face à face', _H2HCard(
-        matchId: match.id,
-        homeLogo: match.homeTeamLogo,
-        awayLogo: match.awayTeamLogo)),
+      if (showFaceAFace) ('Face à face', Column(children: [
+        _H2HCard(
+          matchId: match.id,
+          homeLogo: match.homeTeamLogo,
+          awayLogo: match.awayTeamLogo),
+        const SizedBox(height: 14),
+        // Les confrontations remontent parfois à deux ou trois ans, avec des
+        // effectifs entièrement renouvelés — un 2-0 de mai 2025 ne dit plus
+        // grand-chose. La saison en cours dit ce que valent les deux équipes
+        // *aujourd'hui*, et ces chiffres étaient déjà disponibles sans être lus.
+        _SaisonEnCours(match: match),
+      ])),
     ];
 
     return Scaffold(
@@ -1203,7 +1213,7 @@ class _VerdictStripState extends State<_VerdictStrip>
 }
 
 // COTES
-class _OddsCard extends StatelessWidget {
+class _OddsCard extends ConsumerWidget {
   final MatchEntity match;
   const _OddsCard({required this.match});
 
@@ -1211,7 +1221,7 @@ class _OddsCard extends StatelessWidget {
     match.oddsHome > 0 || match.oddsDraw > 0 || match.oddsAway > 0;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (!_hasOdds) return const SizedBox.shrink();
 
     // La pastille verte ne signale la cote recommandée que si le pronostic
@@ -1270,6 +1280,13 @@ class _OddsCard extends StatelessWidget {
       // Mêmes cotes, mais cliquables : elles ouvrent le bookmaker partenaire.
       // Le bloc précédent reste en lecture seule — un utilisateur qui consulte
       // ne doit pas quitter l'app au moindre appui de travers.
+      //
+      // ⚠️ Masqué sur les builds publiés : `distribution_channel.dart` annonce
+      // que le renvoi vers le bookmaker disparaît en canal store, mais seule
+      // la fenêtre de mise appliquait la règle. Cette barre-ci partait dans le
+      // paquet soumis à Google et Apple — un lien d'affiliation cliquable vers
+      // un opérateur de paris, c'est-à-dire le motif de retrait le plus direct.
+      if (!ref.watch(isStoreBuildProvider))
       BookmakerCotes(
         coteDomicile:  match.oddsHome,
         coteNul:       match.oddsDraw,
@@ -1333,34 +1350,41 @@ class _OddPill extends StatelessWidget {
   const _OddPill({required this.label, required this.value, this.isRecommended = false});
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: 48,
-    padding: const EdgeInsets.symmetric(vertical: 6),
-    decoration: BoxDecoration(
-      color: isRecommended
-        ? AppColors.success.withValues(alpha: 0.12)
-        : context.cl.surfaceDeep,
-      borderRadius: BorderRadius.circular(10),
-      border: Border.all(
+  Widget build(BuildContext context) => Semantics(
+    // La coche disparaît de l'écran, l'information reste pour qui n'y voit
+    // rien : sans elle, un lecteur d'écran annonçait « 1, 1.34 » à l'identique
+    // pour la cote recommandée et les deux autres — la couleur ne s'entend pas.
+    label: isRecommended
+      ? '$label, cote ${value.toStringAsFixed(2)}, recommandée'
+      : '$label, cote ${value > 0 ? value.toStringAsFixed(2) : "indisponible"}',
+    excludeSemantics: true,
+    child: Container(
+      width: 48,
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      decoration: BoxDecoration(
         color: isRecommended
-          ? AppColors.success.withValues(alpha: 0.4)
-          : context.cl.borderSoft,
-        width: isRecommended ? 1.2 : 0.5)),
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
-      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          ? AppColors.success.withValues(alpha: 0.12)
+          : context.cl.surfaceDeep,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isRecommended
+            ? AppColors.success.withValues(alpha: 0.4)
+            : context.cl.borderSoft,
+          width: isRecommended ? 1.2 : 0.5)),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // La pastille verte, sa bordure et le chiffre coloré disent déjà que
+        // cette cote est celle du pronostic. Une coche de neuf pixels collée
+        // au « 1 » ajoutait un quatrième signal pour la même information, et
+        // se lisait comme une scorie plutôt que comme un repère.
         Text(label, style: TextStyle(
           color: isRecommended ? AppColors.success : context.cl.textM,
           fontSize: 9, fontWeight: FontWeight.w700)),
-        if (isRecommended) ...[
-          const SizedBox(width: 2),
-          const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 9),
-        ],
+        Text(value > 0 ? value.toStringAsFixed(2) : '—',
+          style: TextStyle(
+            color: isRecommended ? AppColors.success : context.cl.textP,
+            fontSize: 14, fontWeight: FontWeight.w800)),
       ]),
-      Text(value > 0 ? value.toStringAsFixed(2) : '—',
-        style: TextStyle(
-          color: isRecommended ? AppColors.success : context.cl.textP,
-          fontSize: 14, fontWeight: FontWeight.w800)),
-    ]),
+    ),
   );
 }
 

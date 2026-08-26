@@ -292,3 +292,114 @@ class _H2HLoading extends StatelessWidget {
 }
 
 // ─── ANALYSE IA ──────────────────────────────────────────────────────────────
+
+/// Comparaison des deux equipes sur la saison en cours.
+///
+/// Les confrontations directes remontent parfois a deux ou trois ans, avec des
+/// effectifs entierement renouveles : un 2-0 de mai 2025 ne dit plus grand-chose
+/// du match de ce soir. La saison en cours, elle, dit ce que valent les deux
+/// equipes *aujourd hui*.
+///
+/// Aucune donnee nouvelle n a ete demandee au fournisseur : la position vient du
+/// classement deja charge, les moyennes de buts etaient deja envoyees par le
+/// serveur — le mobile ne les lisait simplement pas — et la moyenne encaissee
+/// arrivait a cote de celle marquee sans etre recuperee.
+class _SaisonEnCours extends ConsumerWidget {
+  final MatchEntity match;
+  const _SaisonEnCours({required this.match});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final classement = ref.watch(standingsProvider(match.id)).valueOrNull;
+    final stats      = ref.watch(matchInsightsProvider(match.id)).valueOrNull;
+
+    // Sans classement ni statistiques, la carte n a rien a dire : elle
+    // disparait plutot que d afficher une colonne de tirets.
+    if (classement == null && stats == null) return const SizedBox.shrink();
+
+    StandingRow? ligne(String equipe) {
+      for (final r in classement ?? const <StandingRow>[]) {
+        if (_StandingsCard.memeEquipe(r.teamName, equipe)) return r;
+      }
+      return null;
+    }
+
+    final dom = ligne(match.homeTeam);
+    final ext = ligne(match.awayTeam);
+
+    final lignes = <(String, String?, String?)>[
+      ('Position',              dom == null ? null : '${dom.rank}e',
+                                ext == null ? null : '${ext.rank}e'),
+      ('Victoires',             dom?.win.toString(),  ext?.win.toString()),
+      ('Nuls',                  dom?.draw.toString(), ext?.draw.toString()),
+      ('Defaites',              dom?.lose.toString(), ext?.lose.toString()),
+      ('Buts par match',        _moyenne(stats?.butsMarquesDom),
+                                _moyenne(stats?.butsMarquesExt)),
+      ('Buts encaisses par match', _moyenne(stats?.butsEncaissesDom),
+                                   _moyenne(stats?.butsEncaissesExt)),
+    ].where((l) => l.$2 != null || l.$3 != null).toList();
+
+    if (lignes.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.cl.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.cl.borderSoft, width: 0.8),
+      ),
+      child: Column(children: [
+        Row(children: [
+          if (match.homeTeamLogo != null)
+            SizedBox(width: 22, height: 22,
+              child: Image.network(match.homeTeamLogo!,
+                errorBuilder: (_, _, _) => const SizedBox.shrink())),
+          Expanded(child: Text('Saison en cours',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700))),
+          if (match.awayTeamLogo != null)
+            SizedBox(width: 22, height: 22,
+              child: Image.network(match.awayTeamLogo!,
+                errorBuilder: (_, _, _) => const SizedBox.shrink())),
+        ]),
+        const SizedBox(height: 12),
+        for (final (libelle, gauche, droite) in lignes)
+          _LigneSaison(libelle: libelle, gauche: gauche, droite: droite),
+      ]),
+    );
+  }
+
+  /// « 2.0 » plutot que « 2 » : une moyenne sans decimale se lit comme un
+  /// compte. La virgule suit la convention francaise, comme ailleurs.
+  static String? _moyenne(double? v) =>
+      v == null ? null : decimalFr(v);
+}
+
+class _LigneSaison extends StatelessWidget {
+  final String libelle;
+  final String? gauche, droite;
+  const _LigneSaison({required this.libelle, this.gauche, this.droite});
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 7),
+    child: Row(children: [
+      SizedBox(width: 46,
+        child: Text(gauche ?? '—',
+          style: TextStyle(
+            color: gauche == null ? context.cl.textM : context.cl.textP,
+            fontSize: 13, fontWeight: FontWeight.w800))),
+      Expanded(child: Text(libelle,
+        textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis,
+        style: TextStyle(color: context.cl.textM, fontSize: 11.5))),
+      SizedBox(width: 46,
+        child: Text(droite ?? '—',
+          textAlign: TextAlign.right,
+          style: TextStyle(
+            color: droite == null ? context.cl.textM : context.cl.textP,
+            fontSize: 13, fontWeight: FontWeight.w800))),
+    ]),
+  );
+}

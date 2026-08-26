@@ -10,20 +10,30 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import '../../../../core/config/contact_support.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/utils/montant.dart';
 import '../../../../shared/widgets/country_pill_selector.dart';
+import '../../domain/tarifs_premium.dart';
 import '../providers/subscription_provider.dart';
 import '../providers/iap_provider.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../data/iap_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 
-// Repli quand le serveur ne renvoie aucune méthode de paiement — première
-// installation, hors ligne au premier lancement, base vide. Les vrais numéros
-// viennent de `subData['payment_methods']`, gérés depuis l'administration :
-// en ajouter un ne demande plus de recompiler l'application.
-const _paymentPhone    = '22645568158';
-const _paymentOperator = 'Orange Money';
+// Aucun numéro n'est compilé dans ce fichier — et c'est délibéré.
+//
+// Il y en avait un (`_paymentPhone = '22645568158'`), présenté comme un repli.
+// Il annulait en silence une protection du serveur : `payment_method.service`
+// écarte volontairement les entrées sans téléphone, pour qu'une installation
+// mal configurée n'affiche **aucun** moyen de paiement plutôt qu'un faux
+// numéro. L'application recollait alors sa constante — et un utilisateur
+// pouvait envoyer son argent à un numéro que le serveur avait refusé de
+// publier. Le jour d'un changement de numéro, les anciennes versions
+// continuaient d'envoyer vers l'ancien.
+//
+// Les numéros viennent désormais uniquement de `payment_methods`, géré depuis
+// l'administration. Liste vide ⇒ l'écran le dit.
 
 class ActiverPremiumPage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? subData;
@@ -58,15 +68,28 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   File?  _imageAccount;
   String _platform = '1xbet';
 
+  /// Tarifs, délais et moyens de paiement — une seule lecture de `subData`.
+  ///
+  /// Les quatre prix étaient relus ici avec leurs propres replis (`?? 6000`…),
+  /// en double du fournisseur, et ni l'un ni l'autre ne contrôlait le
+  /// « 5 000 FCFA » écrit en dur dans la feuille d'accroche.
+  TarifsPremium get _tarifs => TarifsPremium.depuis(widget.subData);
+
   // Prix FCFA à collecter selon durée × méthode — c'est le SEUL endroit de
   // l'app où le FCFA est affiché à l'utilisateur.
-  int get _fcfaAmountForSelectedPlan {
-    final directMonthly = (widget.subData?['premium_price_monthly_fcfa'] as num?)?.toInt() ?? 6000;
-    final directAnnual  = (widget.subData?['premium_price_annual_fcfa']  as num?)?.toInt() ?? 54000;
-    final codeMonthly   = (widget.subData?['premium_price_monthly_code_fcfa'] as num?)?.toInt() ?? 4200;
-    final codeAnnual    = (widget.subData?['premium_price_annual_code_fcfa']  as num?)?.toInt() ?? 37800;
-    if (_method == 'code') return _duration == 'annuel' ? codeAnnual : codeMonthly;
-    return _duration == 'annuel' ? directAnnual : directMonthly;
+  int get _fcfaAmountForSelectedPlan => _tarifs.prix(
+        annuel:   _duration == 'annuel',
+        avecCode: _method == 'code',
+      );
+
+  /// Montant saisi s'il diffère de l'attendu, `null` sinon.
+  ///
+  /// Un champ vide n'est pas un écart : l'utilisateur n'a simplement pas encore
+  /// répondu, et l'alerter à ce moment-là serait du bruit.
+  int? get _ecartMontant {
+    final saisi = int.tryParse(_amountCtrl.text.trim());
+    if (saisi == null) return null;
+    return saisi == _fcfaAmountForSelectedPlan ? null : saisi;
   }
 
   String get _planIdForSelectedPlan =>
@@ -76,7 +99,6 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   void initState() {
     super.initState();
     _tab = TabController(length: 2, vsync: this);
-    _amountCtrl.text = _fcfaAmountForSelectedPlan.toString();
     _tab.addListener(_onTabChanged);
     if (ref.read(isStoreBuildProvider)) {
       _iapSub = ref.read(iapServiceProvider).results.listen(_onIapResult);
@@ -97,8 +119,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     if (newMethod != _method) {
       setState(() {
         _method = newMethod;
-        _amountCtrl.text = _fcfaAmountForSelectedPlan.toString();
-      });
+          });
     }
   }
 
@@ -116,7 +137,6 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     setState(() {
       _showPaywall      = false;
       _tab.index        = _method == 'code' ? 1 : 0;
-      _amountCtrl.text  = _fcfaAmountForSelectedPlan.toString();
     });
   }
 
@@ -233,7 +253,8 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       annualPrice:      annualUsd,
       monthlyCodePrice: monthlyCodeUsd,
       annualCodePrice:  annualCodeUsd,
-      promoCode:        widget.subData?['promo_code'] as String? ?? 'PRONOWIN2025',
+      promoCode:        _tarifs.promoCode,
+      tarifs:           _tarifs,
       duration:         _duration,
       method:           _method,
       onSelectDuration: (d) => setState(() => _duration = d),
@@ -322,31 +343,55 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         .toList();
   }
 
-  List<Widget> _buildPaymentFieldsSection({required bool isCode, required int stepOffset}) {
+  /// [etapeTransfert] : numéro de l'étape « envoie l'argent ».
+  ///
+  /// La numérotation démarrait à « 1. Montant envoyé » alors que la première
+  /// action réelle — le transfert — figurait au-dessus, sans numéro. L'écran
+  /// comptait donc à partir de sa deuxième étape.
+  List<Widget> _buildPaymentFieldsSection({required bool isCode, required int etapeTransfert}) {
     final price = _fcfaAmountForSelectedPlan;
     final planLabel = (_duration == 'annuel' ? 'Plan Annuel' : 'Plan Mensuel') +
       (isCode ? ' · Tarif réduit' : '');
     return [
       _PaymentRecipientCard(
-        price: price, planLabel: planLabel, methodes: _methodesPaiement),
+        price: price, planLabel: planLabel, methodes: _methodesPaiement,
+        etape: etapeTransfert),
       const SizedBox(height: 20),
 
-      _FieldLabel('$stepOffset. Montant envoyé (FCFA)'),
+      _FieldLabel('${etapeTransfert + 1}. Montant envoyé (FCFA)'),
+      // Champ volontairement vide.
+      //
+      // Il était pré-rempli avec le montant attendu, sous une étiquette qui
+      // demandait « le montant exact que vous avez envoyé ». Personne ne le
+      // modifiait : le montant déclaré était donc toujours égal à l'attendu,
+      // par construction, et la comparaison faite en administration ne pouvait
+      // rien détecter. Un envoi de 50 000 au lieu de 54 000, ou des frais
+      // transfrontaliers, passaient inaperçus.
+      //
+      // Vide, avec l'attendu en indication grise, l'écart redevient visible.
       TextField(
         controller: _amountCtrl,
         keyboardType: TextInputType.number,
         inputFormatters: [FilteringTextInputFormatter.digitsOnly],
         style: Theme.of(context).textTheme.bodyLarge,
+        onChanged: (_) => setState(() {}),   // rafraîchit l'alerte d'écart
         decoration: InputDecoration(
           hintText: '$price',
           prefixIcon: Icon(Icons.payments_rounded, size: 20, color: context.cl.textM),
-          helperText: 'Montant exact que vous avez envoyé',
+          helperText: 'Attendu : ${montantExact(price)} FCFA',
           helperStyle: TextStyle(color: context.cl.textM, fontSize: 11),
         ),
       ),
+
+      // Écart signalé tout de suite, pas découvert par l'administrateur deux
+      // heures plus tard. L'utilisateur peut encore compléter son envoi.
+      if (_ecartMontant != null) ...[
+        const SizedBox(height: 8),
+        _AlerteEcartMontant(saisi: _ecartMontant!, attendu: price),
+      ],
       const SizedBox(height: 20),
 
-      _FieldLabel('${stepOffset + 1}. Numéro Mobile Money utilisé pour le transfert'),
+      _FieldLabel('${etapeTransfert + 2}. Numéro Mobile Money utilisé pour le transfert'),
       Text(
         'Entrez le numéro depuis lequel vous avez envoyé l\'argent',
         style: TextStyle(color: context.cl.textM, fontSize: 11),
@@ -400,7 +445,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       ),
       const SizedBox(height: 20),
 
-      _FieldLabel('${stepOffset + 2}. Capture d\'écran de la confirmation de paiement'),
+      _FieldLabel('${etapeTransfert + 3}. Capture d\'écran de la confirmation de paiement'),
       _ImagePickerWidget(image: _imagePayment, onTap: () => _showImagePicker((f) => _imagePayment = f)),
     ];
   }
@@ -412,7 +457,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        ..._buildPaymentFieldsSection(isCode: false, stepOffset: 1),
+        ..._buildPaymentFieldsSection(isCode: false, etapeTransfert: 1),
         const SizedBox(height: 16),
 
         // Récapitulatif avant envoi
@@ -429,30 +474,45 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
           label:     'Envoyer la preuve',
           icon:      Icons.upload_rounded,
           isLoading: submitState is ProofLoading,
+          // Le montant fait désormais partie des conditions : il n'est plus
+          // pré-rempli, donc son absence est un vrai manque.
           enabled:   _imagePayment != null &&
-                     _phoneCtrl.text.length >= 7,
+                     _phoneCtrl.text.length >= 7 &&
+                     _montantSaisi,
           onTap:     _submitPayment,
         ),
-        if (_imagePayment == null || _phoneCtrl.text.length < 7) ...[
+        if (_raisonBlocagePaiement != null) ...[
           const SizedBox(height: 8),
-          Text(
-            _imagePayment == null
-                ? 'Ajoutez une capture d\'écran pour continuer'
-                : 'Entrez un numéro de téléphone valide pour continuer',
+          Text(_raisonBlocagePaiement!,
             textAlign: TextAlign.center,
             style: TextStyle(color: context.cl.textM, fontSize: 12)),
         ],
+
+        const SizedBox(height: 18),
+        const _SortieDeSecours(),
       ],
     );
+  }
+
+  bool get _montantSaisi => (int.tryParse(_amountCtrl.text.trim()) ?? 0) > 0;
+
+  /// Ce qui manque encore, dans l'ordre où l'utilisateur remplit l'écran.
+  ///
+  /// Un bouton désactivé sans raison affichée oblige à deviner ; l'énoncer
+  /// coûte une ligne.
+  String? get _raisonBlocagePaiement {
+    if (!_montantSaisi) return 'Indique le montant que tu as envoyé pour continuer';
+    if (_phoneCtrl.text.length < 7) return 'Entrez un numéro de téléphone valide pour continuer';
+    if (_imagePayment == null) return 'Ajoutez une capture d\'écran pour continuer';
+    return null;
   }
 
   // ══════════════════════════════════════════════════════
   // ONGLET CODE PROMO
   // ══════════════════════════════════════════════════════
   Widget _buildXbetTab(SubmitProofState submitState) {
-    final promoCode = widget.subData?['promo_code'] ?? 'PRONOWIN2025';
-    final platforms = (widget.subData?['betting_platforms'] as List?)?.cast<String>()
-      ?? const ['1xbet', 'melbet', 'betwinner'];
+    final promoCode = _tarifs.promoCode;
+    final platforms = _tarifs.plateformes;
     const purple    = Color(0xFFA78BFA);
     const purpleDark = Color(0xFF7C3AED);
 
@@ -483,7 +543,8 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
               fontWeight: FontWeight.w800, letterSpacing: -0.3)),
             const SizedBox(height: 6),
             Text(
-              'Crée un compte sur 1xBet, Melbet ou Betwinner avec notre code et profite de -30% sur ton abonnement.',
+              'Crée un compte sur 1xBet, Melbet ou Betwinner avec notre code '
+              'et profite de -${_tarifs.remisePourcent} % sur ton abonnement.',
               style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.5),
               textAlign: TextAlign.center),
           ]),
@@ -508,7 +569,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         const SizedBox(height: 20),
 
         // ── Timeline des étapes ───────────────────────────────────
-        _XbetSteps(monthlyCodePrice: _codeMonthlyUsd)
+        _XbetSteps(monthlyCodePrice: _codeMonthlyUsd, tarifs: _tarifs)
           .animate(delay: 140.ms).fadeIn(duration: 300.ms),
 
         const SizedBox(height: 24),
@@ -587,7 +648,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         const SizedBox(height: 28),
 
         // ── Preuve de paiement (tarif réduit) ───────────────────────
-        ..._buildPaymentFieldsSection(isCode: true, stepOffset: 3),
+        ..._buildPaymentFieldsSection(isCode: true, etapeTransfert: 3),
 
         const SizedBox(height: 20),
 
@@ -595,27 +656,30 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         _XbetSubmitButton(
           isLoading: submitState is ProofLoading,
           enabled:   _imageAccount != null && _accountIdCtrl.text.isNotEmpty &&
-                     _imagePayment != null && _phoneCtrl.text.length >= 7,
+                     _imagePayment != null && _phoneCtrl.text.length >= 7 &&
+                     _montantSaisi,
           onTap:     _submitCode,
         ).animate(delay: 240.ms).fadeIn(duration: 300.ms).slideY(begin: 0.06, end: 0),
-        if (_accountIdCtrl.text.isEmpty ||
-            _imageAccount == null ||
-            _imagePayment == null ||
-            _phoneCtrl.text.length < 7) ...[
+        if (_raisonBlocageCode != null) ...[
           const SizedBox(height: 8),
-          Text(
-            _accountIdCtrl.text.isEmpty
-                ? 'Entrez l\'ID de ton compte partenaire pour continuer'
-                : _imageAccount == null
-                    ? 'Ajoutez une capture de ton profil pour continuer'
-                    : _imagePayment == null
-                        ? 'Ajoutez une capture d\'écran du paiement pour continuer'
-                        : 'Entrez un numéro de téléphone valide pour continuer',
+          Text(_raisonBlocageCode!,
             textAlign: TextAlign.center,
             style: TextStyle(color: context.cl.textM, fontSize: 12)),
         ],
+
+        const SizedBox(height: 18),
+        const _SortieDeSecours(),
       ],
     );
+  }
+
+  String? get _raisonBlocageCode {
+    if (_accountIdCtrl.text.isEmpty) return 'Entrez l\'ID de ton compte partenaire pour continuer';
+    if (_imageAccount == null)       return 'Ajoutez une capture de ton profil pour continuer';
+    if (!_montantSaisi)              return 'Indique le montant que tu as envoyé pour continuer';
+    if (_phoneCtrl.text.length < 7)  return 'Entrez un numéro de téléphone valide pour continuer';
+    if (_imagePayment == null)       return 'Ajoutez une capture d\'écran du paiement pour continuer';
+    return null;
   }
 
   double get _codeMonthlyUsd =>
@@ -623,6 +687,13 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
 
   // ─── Actions ─────────────────────────────────────────────────────────────
   Future<void> _submitPayment() async {
+    // Le champ n'est plus pre-rempli : une soumission sans montant
+    // repartirait silencieusement sur l'attendu, ce qui reconstituerait
+    // exactement le defaut corrige.
+    final montant = double.tryParse(_amountCtrl.text.trim());
+    if (montant == null || montant <= 0) {
+      _showSnack('Indique le montant que tu as envoye.', isError: true); return;
+    }
     final phone = '+${_selectedCountry.phoneCode}${_phoneCtrl.text.trim()}';
     if (_phoneCtrl.text.trim().length < 7) {
       _showSnack('Numéro de téléphone trop court.', isError: true); return;
@@ -633,7 +704,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       type:        'payment_screenshot',
       imageBase64: base64,
       xbetId:      '',
-      amount:      double.tryParse(_amountCtrl.text) ?? _fcfaAmountForSelectedPlan.toDouble(),
+      amount:      montant,
       senderPhone: phone,
       planId:      _planIdForSelectedPlan,
     );
@@ -642,6 +713,13 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   Future<void> _submitCode() async {
     if (_accountIdCtrl.text.trim().isEmpty) {
       _showSnack('ID de compte requis.', isError: true); return;
+    }
+    // Le champ n'est plus pre-rempli : une soumission sans montant
+    // repartirait silencieusement sur l'attendu, ce qui reconstituerait
+    // exactement le defaut corrige.
+    final montant = double.tryParse(_amountCtrl.text.trim());
+    if (montant == null || montant <= 0) {
+      _showSnack('Indique le montant que tu as envoye.', isError: true); return;
     }
     final phone = '+${_selectedCountry.phoneCode}${_phoneCtrl.text.trim()}';
     if (_phoneCtrl.text.trim().length < 7) {
@@ -657,7 +735,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       paymentImageBase64: paymentBase64,
       xbetId:             _accountIdCtrl.text.trim(),
       platform:           _platform,
-      amount:             double.tryParse(_amountCtrl.text) ?? _fcfaAmountForSelectedPlan.toDouble(),
+      amount:             montant,
       senderPhone:        phone,
       planId:             _planIdForSelectedPlan,
     );
@@ -846,8 +924,12 @@ class _PaymentRecipientCard extends StatefulWidget {
   final dynamic price;
   final String  planLabel;
   final List<Map<String, dynamic>> methodes;
+  /// Numéro de cette étape dans le parcours — c'est la **première** action que
+  /// l'utilisateur accomplit, et elle n'en portait aucun.
+  final int etape;
   const _PaymentRecipientCard({
-    required this.price, required this.planLabel, required this.methodes});
+    required this.price, required this.planLabel, required this.methodes,
+    required this.etape});
 
   @override
   State<_PaymentRecipientCard> createState() => _PaymentRecipientCardState();
@@ -864,16 +946,48 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
     if (_choix >= widget.methodes.length) _choix = 0;
   }
 
-  String get _numero => widget.methodes.isEmpty
-      ? _paymentPhone
-      : (widget.methodes[_choix]['phone'] ?? _paymentPhone).toString();
+  /// Numéro courant, ou `null` si le serveur n'en publie aucun.
+  ///
+  /// Volontairement nullable : le type oblige tout appelant à traiter le cas
+  /// « pas de numéro », là où un repli en dur le faisait disparaître.
+  String? get _numero {
+    if (widget.methodes.isEmpty) return null;
+    final n = (widget.methodes[_choix]['phone'] ?? '').toString().trim();
+    return n.isEmpty ? null : n;
+  }
 
   String get _operateur => widget.methodes.isEmpty
-      ? _paymentOperator
-      : (widget.methodes[_choix]['label'] ?? _paymentOperator).toString();
+      ? ''
+      : (widget.methodes[_choix]['label'] ?? '').toString();
+
+  /// `22645568158` → `+226 45 56 81 58`.
+  ///
+  /// Onze chiffres d'affilée se recopient mal et se vérifient encore plus mal
+  /// — or c'est le seul écran où une erreur de chiffre envoie l'argent à
+  /// quelqu'un d'autre.
+  static String formaterNumero(String brut) {
+    final chiffres = brut.replaceAll(RegExp(r'\D'), '');
+    if (chiffres.length < 8) return brut;
+    // Indicatif UEMOA à trois chiffres (226, 225, 221…) suivi de l'abonné.
+    final indicatif = chiffres.length > 8
+        ? chiffres.substring(0, chiffres.length - 8)
+        : '';
+    final abonne = chiffres.substring(chiffres.length - 8);
+    final paires = <String>[];
+    for (var i = 0; i < abonne.length; i += 2) {
+      paires.add(abonne.substring(i, i + 2));
+    }
+    final corps = paires.join(' ');
+    return indicatif.isEmpty ? corps : '+$indicatif $corps';
+  }
 
   void _copier() {
-    Clipboard.setData(ClipboardData(text: _numero));
+    final n = _numero;
+    if (n == null) return;
+    // Le presse-papiers reçoit les chiffres bruts — c'est ce que le clavier de
+    // l'application Mobile Money attend ; l'écran, lui, montre la forme
+    // groupée pour que l'œil puisse vérifier.
+    Clipboard.setData(ClipboardData(text: n));
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text('Numéro $_operateur copié !'),
       backgroundColor: AppColors.success,
@@ -901,7 +1015,10 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
         const Icon(Icons.send_to_mobile_rounded, color: AppColors.primary, size: 16),
         const SizedBox(width: 8),
         Expanded(child: Text(
-          'Envoie ${widget.price} FCFA à ce numéro (${widget.planLabel})',
+          // `montantExact` : « 54 000 », pas « 54000 ». C'est le seul écran de
+          // l'app où l'utilisateur doit recopier un montant.
+          '${widget.etape}. Envoie ${montantExact(widget.price)} FCFA '
+          'à ce numéro (${widget.planLabel})',
           style: const TextStyle(
             color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w700))),
       ]),
@@ -939,39 +1056,150 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
       ],
 
       const SizedBox(height: 10),
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-        decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(10)),
-        child: Row(children: [
-          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(_numero, style: const TextStyle(
-              fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
-            const SizedBox(height: 2),
-            Text(_operateur, style: TextStyle(
-              fontSize: 11, color: context.cl.textS)),
-          ])),
-          GestureDetector(
-            onTap: _copier,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: AppColors.primary,
-                borderRadius: BorderRadius.circular(8)),
-              child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.copy_rounded, color: Colors.white, size: 14),
-                SizedBox(width: 6),
-                Text('Copier', style: TextStyle(
-                  color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
-              ]),
+
+      // Aucun numéro publié : le dire, plutôt que d'en afficher un compilé.
+      //
+      // Ce cas n'était pas atteignable auparavant — la constante le masquait —
+      // et c'est précisément ce qui le rendait dangereux : un serveur mal
+      // configuré envoyait l'argent vers un numéro qu'il refusait de publier.
+      if (_numero == null)
+        _AucunMoyenPaiement()
+      else
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.08),
+            borderRadius: BorderRadius.circular(10)),
+          child: Row(children: [
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(formaterNumero(_numero!), style: const TextStyle(
+                fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+              const SizedBox(height: 2),
+              Text(_operateur, style: TextStyle(
+                fontSize: 11, color: context.cl.textS)),
+            ])),
+            GestureDetector(
+              onTap: _copier,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(8)),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.copy_rounded, color: Colors.white, size: 14),
+                  SizedBox(width: 6),
+                  Text('Copier', style: TextStyle(
+                    color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                ]),
+              ),
             ),
-          ),
-        ]),
+          ]),
+        ),
+
+      if (_numero != null) ...[
+        const SizedBox(height: 8),
+        Text("Puis remplissez le formulaire ci-dessous et joignez la capture d'écran.",
+          style: TextStyle(color: context.cl.textS, fontSize: 11, height: 1.4)),
+      ],
+    ]),
+  );
+}
+
+/// Sortie de secours pour qui a déjà payé.
+///
+/// L'écran n'en offrait aucune. Celui qui avait envoyé son argent puis perdu
+/// sa capture — galerie vidée, téléphone changé, capture jamais prise — se
+/// retrouvait devant un bouton définitivement désactivé, sans personne à qui
+/// s'adresser. C'est le pire moment possible pour un cul-de-sac : l'argent est
+/// déjà parti.
+class _SortieDeSecours extends StatelessWidget {
+  const _SortieDeSecours();
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: TextButton.icon(
+      onPressed: () => ContactSupport.ouvrirEmail(
+        sujet: 'Paiement envoyé — capture manquante',
+        // Pré-remplir la demande évite un aller-retour : sans ces éléments,
+        // le support doit les réclamer avant de pouvoir chercher quoi que ce
+        // soit.
+        corps: "Bonjour,\n\nJ'ai envoyé mon paiement mais je n'ai pas la "
+               "capture d'écran.\n\n"
+               "Numéro utilisé pour l'envoi : \n"
+               "Montant envoyé : \n"
+               "Date et heure approximatives : \n"
+               "Identifiant de la transaction (si connu) : \n\n"
+               "Merci d'activer mon compte Premium.",
       ),
-      const SizedBox(height: 8),
-      Text("Puis remplissez le formulaire ci-dessous et joignez la capture d'écran.",
-        style: TextStyle(color: context.cl.textS, fontSize: 11, height: 1.4)),
+      icon: Icon(Icons.help_outline_rounded, size: 17, color: context.cl.textS),
+      label: Text("J'ai payé mais je n'ai pas la capture",
+        style: TextStyle(
+          color: context.cl.textS, fontSize: 12.5, fontWeight: FontWeight.w600)),
+    ),
+  );
+}
+
+/// Signale un montant saisi différent de celui attendu.
+///
+/// Ni bloquant ni accusateur : un envoi partiel se complète, un envoi
+/// supérieur se rembourse. Ce qui compte, c'est que l'écart soit dit **avant**
+/// la soumission plutôt que découvert par l'administrateur.
+class _AlerteEcartMontant extends StatelessWidget {
+  final int saisi;
+  final int attendu;
+  const _AlerteEcartMontant({required this.saisi, required this.attendu});
+
+  @override
+  Widget build(BuildContext context) {
+    final manque = attendu - saisi;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.warning.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.warning.withValues(alpha: 0.30)),
+      ),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Icon(Icons.error_outline_rounded, color: AppColors.warning, size: 17),
+        const SizedBox(width: 9),
+        Expanded(child: Text(
+          manque > 0
+            ? 'Il manque ${montantExact(manque)} FCFA pour activer ce plan. '
+              'Complète ton envoi avant de soumettre, sinon la validation sera refusée.'
+            : 'Tu as envoyé ${montantExact(-manque)} FCFA de plus que le tarif. '
+              'Soumets quand même : nous régularisons à la validation.',
+          style: TextStyle(color: context.cl.textP, fontSize: 11.5, height: 1.4)),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Ce que voit l'utilisateur quand le serveur ne publie aucun numéro.
+///
+/// Un message franc vaut mieux qu'un numéro de repli : il n'expose personne à
+/// envoyer de l'argent vers une destination périmée, et il dit quoi faire.
+class _AucunMoyenPaiement extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+    decoration: BoxDecoration(
+      color: AppColors.warning.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(10),
+      border: Border.all(color: AppColors.warning.withValues(alpha: 0.35)),
+    ),
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 18),
+      const SizedBox(width: 10),
+      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('Paiement mobile momentanément indisponible',
+          style: TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.warning)),
+        const SizedBox(height: 4),
+        Text("Aucun numéro de réception n'est publié pour le moment. "
+             "Réessaie dans quelques minutes, ou contacte le support.",
+          style: TextStyle(color: context.cl.textS, fontSize: 11.5, height: 1.4)),
+      ])),
     ]),
   );
 }
@@ -995,7 +1223,7 @@ class _RecapCard extends StatelessWidget {
           color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600)),
       ]),
       const SizedBox(height: 10),
-      _RecapRow('Montant',      '${amount.toStringAsFixed(0)} FCFA'),
+      _RecapRow('Montant',      '${montantExact(amount)} FCFA'),
       _RecapRow('N° envoyeur',  phone),
       if (xbetId.isNotEmpty) _RecapRow('ID 1xBet', xbetId),
     ]),
@@ -1214,7 +1442,8 @@ class _PromoCodeCardState extends State<_PromoCodeCard>
 // ─── ÉTAPES CODE PROMO ────────────────────────────────────────────────────────
 class _XbetSteps extends StatelessWidget {
   final double monthlyCodePrice;
-  const _XbetSteps({required this.monthlyCodePrice});
+  final TarifsPremium tarifs;
+  const _XbetSteps({required this.monthlyCodePrice, required this.tarifs});
 
   List<(IconData, String, String)> get _steps => [
     (Icons.language_rounded,      'Choisis une plateforme',       'Rendez-vous sur 1xBet, Melbet ou Betwinner'),
@@ -1222,7 +1451,9 @@ class _XbetSteps extends StatelessWidget {
     (Icons.account_balance_wallet_rounded, 'Effectue un dépôt',   'Un dépôt initial est obligatoire pour valider ton compte'),
     (Icons.photo_camera_rounded,  'Capture ton profil',           'Ton ID de compte doit être visible'),
     (Icons.send_to_mobile_rounded, 'Envoie ton paiement',         'Tarif réduit à partir de \$${monthlyCodePrice.toStringAsFixed(0)}/mois sur notre numéro Mobile Money'),
-    (Icons.upload_rounded,        'Soumets ci-dessous',           'ID + 2 captures → validation sous 2h'),
+    // Quatrième et dernière copie manuelle du délai — elle annonçait « 2h »
+    // sans lien avec la valeur du serveur.
+    (Icons.upload_rounded,        'Soumets ci-dessous',           'ID + 2 captures → validation sous ${tarifs.delaiCode}'),
   ];
 
   @override
@@ -1349,6 +1580,12 @@ class _PaywallPage extends StatelessWidget {
   final double monthlyCodePrice;
   final double annualCodePrice;
   final String promoCode;
+
+  /// Ce que le serveur publie réellement : opérateurs disponibles, délais de
+  /// validation, remise du code promo. Trois choses qui étaient écrites en dur
+  /// ici et qui contredisaient la page suivante.
+  final TarifsPremium tarifs;
+
   final String duration; // 'mensuel' | 'annuel'
   final String method;   // 'direct' | 'code'
   final void Function(String) onSelectDuration;
@@ -1373,6 +1610,7 @@ class _PaywallPage extends StatelessWidget {
     required this.monthlyCodePrice,
     required this.annualCodePrice,
     required this.promoCode,
+    required this.tarifs,
     required this.duration,
     this.iapMode        = false,
     this.iapLoading     = false,
@@ -1428,7 +1666,15 @@ class _PaywallPage extends StatelessWidget {
                   else ...[
                     _MethodCard(
                       title:      'Paiement Direct',
-                      subtitle:   'Orange Money  ·  Wave  ·  MTN  ·  Moov',
+                      // Les opérateurs réellement publiés, pas une liste figée.
+                      //
+                      // « Orange Money · Wave · MTN · Moov » était écrit ici
+                      // pendant que le serveur n'en publiait qu'un : cet écran
+                      // promettait quatre choix, le suivant en offrait un. Et
+                      // MTN n'opère même pas au Burkina Faso.
+                      subtitle:   tarifs.paiementDisponible
+                        ? tarifs.libelleOperateurs
+                        : 'Momentanément indisponible',
                       price:      duration == 'annuel' ? annualPrice : monthlyPrice,
                       period:     duration == 'annuel' ? '/an' : '/mois',
                       badge:      duration == 'annuel' ? '2 MOIS OFFERTS' : null,
@@ -1442,7 +1688,10 @@ class _PaywallPage extends StatelessWidget {
                       subtitle:   'Crée un compte partenaire (1xBet, Melbet, Betwinner)',
                       price:      duration == 'annuel' ? annualCodePrice : monthlyCodePrice,
                       period:     duration == 'annuel' ? '/an' : '/mois',
-                      badge:      '-30%',
+                      // Remise calculée depuis les deux tarifs du serveur.
+                      // Écrite en dur, elle restait « -30 % » quel que soit le
+                      // prix réellement facturé.
+                      badge:      '-${tarifs.remisePourcent}%',
                       color:      const Color(0xFF7C3AED),
                       isSelected: method == 'code',
                       onTap:      () => onSelectMethod('code'),
@@ -1452,21 +1701,21 @@ class _PaywallPage extends StatelessWidget {
                   ],
                   const SizedBox(height: 14),
                   Text(
-                    // Le backend renvoie « 30 minutes ouvrables » pour un
-                    // paiement direct et « 2 heures ouvrables » pour le code
-                    // promo (subscription.service.ts, estimated_review).
-                    // Le « sous 24h » qui était écrit ici contredisait l'écran
-                    // suivant, qui affiche le vrai délai. En achat intégré il
-                    // n'y a aucune validation manuelle : c'est immédiat.
+                    // Délai annoncé par le serveur (`review_delay_*`).
+                    //
+                    // Il était recopié à la main ici et à trois autres endroits
+                    // de ce fichier. Le raccourcir côté serveur laissait quatre
+                    // écrans promettre l'ancien délai — sans qu'aucune erreur
+                    // ne le signale. En achat intégré il n'y a aucune
+                    // validation manuelle : c'est immédiat.
                     iapMode
                       ? 'Accès Premium activé immédiatement après le paiement.'
-                      : method == 'code'
-                        ? 'Activation vérifiée par notre équipe sous 2 h ouvrables.'
-                        : 'Activation vérifiée par notre équipe sous 30 min ouvrables.',
+                      : 'Activation vérifiée par notre équipe sous '
+                        '${method == 'code' ? tarifs.delaiCode : tarifs.delaiDirect}.',
                     style: const TextStyle(color: Colors.white38, fontSize: 11),
                     textAlign: TextAlign.center),
                   const SizedBox(height: 26),
-                  _PaywallFaq(promoCode: promoCode, iapMode: iapMode),
+                  _PaywallFaq(promoCode: promoCode, tarifs: tarifs, iapMode: iapMode),
                   const SizedBox(height: 18),
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
                     Text('CGU', style: TextStyle(color: Colors.white30, fontSize: 10)),
@@ -1534,31 +1783,20 @@ class _PaywallPage extends StatelessWidget {
           style: TextStyle(color: Colors.white60, fontSize: 14, height: 1.5),
           textAlign: TextAlign.center,
         ).animate(delay: 140.ms).fadeIn(duration: 350.ms),
-        const SizedBox(height: 16),
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          SizedBox(width: 72, height: 26,
-            child: Stack(children: List.generate(3, (i) => Positioned(
-              left: i * 18.0,
-              child: Container(
-                width: 26, height: 26,
-                decoration: BoxDecoration(
-                  color: [const Color(0xFFE8541A), const Color(0xFF7C3AED), const Color(0xFF059669)][i],
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF0A0E1A), width: 2)),
-                child: Center(child: Text(
-                  ['M', 'A', 'S'][i],
-                  style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)))),
-            )))),
-          const SizedBox(width: 8),
-          RichText(text: const TextSpan(
-            children: [
-              TextSpan(text: '2K+', style: TextStyle(
-                color: Color(0xFFF59E0B), fontSize: 14, fontWeight: FontWeight.w800)),
-              TextSpan(text: '  Utilisateurs Actifs', style: TextStyle(
-                color: Colors.white54, fontSize: 13)),
-            ],
-          )),
-        ]).animate(delay: 200.ms).fadeIn(duration: 350.ms),
+        // La preuve sociale a été retirée, faute d'être vraie.
+        //
+        // Il y avait ici « 2K+ Utilisateurs Actifs » écrit en dur, précédé de
+        // trois pastilles colorées portant les lettres M, A et S — dessinées
+        // pour ressembler à des photos de profil d'abonnés réels. Ni le
+        // nombre ni les visages ne venaient de quoi que ce soit.
+        //
+        // Même famille que le « N°1 en Afrique de l'Ouest » et le « +68 % de
+        // réussite » déjà retirés, et même règle : sur l'écran qui demande de
+        // payer, ce qu'on affirme doit être mesuré. Le taux de réussite réel
+        // est déjà affiché par `_TauxReussiteReel` dans la feuille d'accroche,
+        // et il se tait quand l'échantillon ne permet rien d'affirmer.
+        //
+        // À rebrancher le jour où un compteur d'abonnés existe côté serveur.
       ]),
     );
   }
@@ -1735,7 +1973,11 @@ class _PaywallFaq extends StatelessWidget {
   /// moyen de paiement externe dans une app store est précisément ce qu'Apple
   /// interdit (3.1.1).
   final bool iapMode;
-  const _PaywallFaq({required this.promoCode, this.iapMode = false});
+  /// Délais et opérateurs publiés par le serveur : la FAQ les recopiait à la
+  /// main, et devenait fausse dès qu'ils changeaient.
+  final TarifsPremium tarifs;
+  const _PaywallFaq({
+    required this.promoCode, required this.tarifs, this.iapMode = false});
 
   @override
   Widget build(BuildContext context) {
@@ -1768,20 +2010,21 @@ class _PaywallFaq extends StatelessWidget {
       (
         'Comment se passe le paiement ?',
         "Choisis ta formule, envoie le montant sur le numéro Mobile Money "
-        "affiché à l'étape suivante (Orange Money, Wave, MTN, Moov), puis "
-        "soumets la capture d'écran de la transaction.",
+        "affiché à l'étape suivante"
+        "${tarifs.paiementDisponible ? ' (${tarifs.libelleOperateurs})' : ''}, "
+        "puis soumets la capture d'écran de la transaction.",
       ),
       (
         "C'est quoi l'option « Code Promo » ?",
         "Tu crées un compte sur une plateforme partenaire (1xBet, Melbet, "
-        "Betwinner) avec le code $promoCode : l'abonnement te revient 30 % "
-        "moins cher. Il faut alors envoyer deux captures — ton compte "
-        "partenaire et ton paiement.",
+        "Betwinner) avec le code $promoCode : l'abonnement te revient "
+        "${tarifs.remisePourcent} % moins cher. Il faut alors envoyer deux "
+        "captures — ton compte partenaire et ton paiement.",
       ),
       (
         "En combien de temps mon compte est activé ?",
-        "Paiement direct : 30 minutes ouvrables. Avec code promo : 2 heures "
-        "ouvrables, le temps de vérifier le compte partenaire.",
+        "Paiement direct : ${tarifs.delaiDirect}. Avec code promo : "
+        "${tarifs.delaiCode}, le temps de vérifier le compte partenaire.",
       ),
       (
         "Suis-je prélevé automatiquement ensuite ?",

@@ -28,7 +28,10 @@ void main() {
       expect(b.sansAucunPari, isFalse, reason: 'la carte doit rester visible');
     });
 
-    test('dès qu\'un pari est tranché, le taux redevient une mesure', () {
+    test('deux paris tranchés ne suffisent pas à énoncer un taux', () {
+      // Ancienne règle : un taux dès le premier pari réglé. L'écran affichait
+      // alors « 100 % de réussite » sur un unique pari gagné — exact, et sans
+      // aucun sens, sur la statistique qui fait croire qu'une méthode marche.
       final b = BilanParis.depuisApi(const {
         'pronostics_suivis': 3,
         'paris_gagnes': 1,
@@ -37,18 +40,48 @@ void main() {
         'serie_gagnante': 0,
       });
 
-      expect(b.vierge, isFalse);
-      expect(b.taux, 50.0);
+      expect(b.vierge, isFalse, reason: 'des paris sont bien tranchés');
+      expect(b.taux, isNull, reason: 'deux réglés sous le seuil de cinq');
       expect(b.enAttente, 1, reason: '3 posés − 2 réglés');
+      // Les comptes bruts restent disponibles : ils informent sans mesurer.
+      expect(b.gagnes, 1);
+      expect(b.perdus, 1);
+    });
+
+    test('le taux apparaît à partir du seuil', () {
+      final b = BilanParis.depuisApi({
+        'pronostics_suivis': BilanParis.echantillonMinimal,
+        'paris_gagnes': 3,
+        'paris_perdus': BilanParis.echantillonMinimal - 3,
+        'taux_reussite': 60.0,
+        'serie_gagnante': 2,
+      });
+
+      expect(b.echantillonSuffisant, isTrue);
+      expect(b.taux, 60.0);
+    });
+
+    test('un pari de moins que le seuil se tait encore', () {
+      final b = BilanParis.depuisApi({
+        'pronostics_suivis': BilanParis.echantillonMinimal - 1,
+        'paris_gagnes': BilanParis.echantillonMinimal - 1,
+        'paris_perdus': 0,
+        'taux_reussite': 100.0,
+        'serie_gagnante': 4,
+      });
+
+      expect(b.echantillonSuffisant, isFalse);
+      expect(b.taux, isNull, reason: 'c\'est ce « 100 % » qui trompait');
     });
 
     test('un taux réellement nul se distingue d\'un taux absent', () {
-      // Un pari joué, un pari perdu : 0 % est ici une vraie mesure, et doit
-      // s'afficher comme telle — c'est tout l'intérêt de la distinction.
-      final b = BilanParis.depuisApi(const {
-        'pronostics_suivis': 1,
+      // Un 0 % mesuré doit se distinguer d'un 0 % par défaut — mais il lui
+      // faut d'abord assez de paris. Sur un seul perdu, « 0 % » serait aussi
+      // trompeur que « 100 % » sur un seul gagné.
+      final b = BilanParis.depuisApi({
+        'pronostics_suivis': BilanParis.echantillonMinimal,
         'paris_gagnes': 0,
-        'paris_perdus': 1,
+        'paris_perdus': BilanParis.echantillonMinimal,
         'taux_reussite': 0.0,
         'serie_gagnante': 0,
       });
@@ -70,7 +103,10 @@ void main() {
 
       expect(b.regles, 1);
       expect(b.enAttente, 1);
-      expect(b.taux, 100.0);
+      // C'est exactement l'état vu à l'écran — 2 joués, 1 gagné, 0 perdu —
+      // qui affichait « 100 % de réussite ». Un seul pari tranché ne mesure
+      // rien : le propos de ce test reste le dénominateur, pas le taux.
+      expect(b.taux, isNull);
     });
 
     test('aucun pari du tout : la carte ne s\'affiche pas', () {

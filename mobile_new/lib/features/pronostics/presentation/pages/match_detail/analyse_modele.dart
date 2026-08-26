@@ -33,6 +33,18 @@ class _AnalyseModele extends ConsumerWidget {
     final data  = async.valueOrNull;
     if (data == null || data.comparisons.isEmpty) return const SizedBox.shrink();
 
+    // Sortie inexploitable : la section entière disparaît.
+    //
+    // Sur Lask Linz – Celtic, le fournisseur donnait 0 % à Lask Linz et 100 %
+    // de l'avantage à Celtic sur les cinq critères. Lask Linz a gagné 4–1.
+    //
+    // Afficher « < 1 % » adoucissait le libellé sans changer le fond : l'écran
+    // continuait de présenter une butée numérique comme une lecture du match,
+    // sous le titre « Pourquoi ce pronostic ». Mieux vaut ne rien dire — c'est
+    // la même règle que le bilan Premium, qui se tait sous dix pronostics
+    // tranchés plutôt que d'annoncer 100 % sur trois.
+    if (!data.modeleExploitable) return const SizedBox.shrink();
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -119,8 +131,15 @@ class _AnalyseModele extends ConsumerWidget {
         // Laisser croire le contraire serait une régression d'honnêteté, pas
         // un simple changement de libellé.
         Text(
-          'Modèle statistique externe — forme, attaque, défense, '
-          'confrontations directes et distribution de Poisson.',
+          // Les deux sources sont nommées séparément : les pourcentages
+          // viennent désormais du marché quand les cotes le permettent, les
+          // barres restent la lecture du modèle externe. Les confondre, c'était
+          // afficher « < 1 % » à côté d'une cote qui disait 48,5 %.
+          data.probabilitesDuMarche
+            ? 'Barres : modèle statistique externe — forme, attaque, défense, '
+              'confrontations directes et distribution de Poisson.'
+            : 'Modèle statistique externe — forme, attaque, défense, '
+              'confrontations directes et distribution de Poisson.',
           style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.4)),
       ]),
     );
@@ -181,6 +200,24 @@ class _BarreIssues extends StatelessWidget {
             ),
           ),
       ]),
+
+      // Nommer la source des pourcentages.
+      //
+      // Ils viennent des cotes quand celles-ci sont exploitables : un prix de
+      // marché agrège bien plus d'information qu'un modèle bâti sur les seuls
+      // buts marqués. Sans cette mention, un lecteur les prendrait pour un
+      // calcul maison — et ne saurait pas pourquoi ils diffèrent des barres,
+      // qui restent la lecture du modèle externe.
+      if (data.probabilitesDuMarche) ...[
+        const SizedBox(height: 6),
+        Text(
+          data.margeBookmaker != null
+            ? 'Probabilités du marché, marge de '
+              '${decimalFr(data.margeBookmaker!)} % retirée.'
+            : 'Probabilités déduites des cotes du marché.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.35)),
+      ],
     ]);
   }
 }
@@ -593,7 +630,11 @@ class _CotesEnDirect extends ConsumerWidget {
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(color: context.cl.borderSoft, width: 0.5)),
                 child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(v.value,
+                  // `libelle` porte le seuil quand il existe : « Over 2.5 » et
+                  // non « Over ». Sans lui, trois lignes Over/Under
+                  // s'affichaient à l'identique, et la cote pouvait se lire
+                  // comme un nombre de buts.
+                  Text(v.libelle,
                     style: TextStyle(color: context.cl.textM, fontSize: 10)),
                   const SizedBox(width: 6),
                   Text(v.odd.toStringAsFixed(2),

@@ -98,6 +98,34 @@ class _StandingsCard extends ConsumerWidget {
   }
 }
 
+/// Couleur d'une zone de qualification ou de relegation.
+///
+/// Elle depend de la **nature** renvoyee par le serveur, jamais du libelle :
+/// deux championnats nomment differemment la meme zone, et une couleur ne doit
+/// pas dependre d'une chaine de caracteres.
+Color? _couleurZone(String? nature) => switch (nature) {
+  'c1'         => const Color(0xFF22C55E),  // Ligue des champions
+  'c3'         => const Color(0xFF3B82F6),  // Ligue Europa
+  'c4'         => const Color(0xFF06B6D4),  // Ligue Conference
+  'promotion'  => const Color(0xFF22C55E),
+  'barrage'    => const Color(0xFFF59E0B),
+  'relegation' => const Color(0xFFEF4444),
+  _            => null,
+};
+
+/// Tableau de classement, regroupe par zone.
+///
+/// Trois manques comblés d'un coup :
+///
+///  1. **Les zones de qualification.** « 7e avec 3 points » ne dit rien tant
+///     qu'on ignore si cette place mene en Europe ou frole la descente — et
+///     c'est ce qui change la nature d'un match. La donnee existait chez le
+///     fournisseur et n'etait pas lue.
+///  2. **Les logos**, deja recuperes par le serveur et jamais affiches. Un nom
+///     se lit, un ecusson se reconnait.
+///  3. **Sept colonnes sur un ecran de telephone.** J/V/N/D/+-/Pts serraient le
+///     nom des equipes au point de le tronquer. Les victoires, nuls et defaites
+///     se deduisent des points ; on garde ce qui se lit d'un coup d'oeil.
 class _StandingsTable extends StatelessWidget {
   final List<StandingRow> rows;
   final String homeTeam;
@@ -106,58 +134,111 @@ class _StandingsTable extends StatelessWidget {
     required this.rows, required this.homeTeam, required this.awayTeam});
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-    Row(children: [
-      const SizedBox(width: 22),
-      Expanded(child: Text('Équipe',
-        style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600))),
-      _StandingsHeaderCell('J'),
-      _StandingsHeaderCell('V'),
-      _StandingsHeaderCell('N'),
-      _StandingsHeaderCell('D'),
-      _StandingsHeaderCell('+/-'),
-      _StandingsHeaderCell('Pts'),
-    ]),
-    const SizedBox(height: 6),
-    Divider(height: 1, color: context.cl.border),
-    const SizedBox(height: 4),
-    // Les deux équipes du match sont surlignées : sans repère, il fallait
-    // parcourir 36 lignes pour retrouver celles qu'on est venu voir.
-    ...rows.map((r) {
-      final concernee = _StandingsCard.memeEquipe(r.teamName, homeTeam) ||
-                        _StandingsCard.memeEquipe(r.teamName, awayTeam);
-      return Container(
-        padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 6),
-        margin: const EdgeInsets.symmetric(vertical: 1),
-        decoration: concernee
-            ? BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.10),
-                borderRadius: BorderRadius.circular(7),
-                border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.30), width: 0.8))
+  Widget build(BuildContext context) {
+    final lignes = <Widget>[];
+    String? zonePrecedente;
+
+    for (final r in rows) {
+      // En-tete de zone, insere au premier changement.
+      if (r.zone != null && r.zone != zonePrecedente) {
+        final couleur = _couleurZone(r.zoneNature);
+        lignes.add(Padding(
+          padding: const EdgeInsets.only(top: 10, bottom: 4, left: 2),
+          child: Row(children: [
+            Container(width: 3, height: 12,
+              decoration: BoxDecoration(
+                color: couleur ?? context.cl.border,
+                borderRadius: BorderRadius.circular(2))),
+            const SizedBox(width: 7),
+            Text(r.zone!,
+              style: TextStyle(
+                color: couleur ?? context.cl.textM,
+                fontSize: 10, fontWeight: FontWeight.w700,
+                letterSpacing: 0.2)),
+          ]),
+        ));
+      }
+      zonePrecedente = r.zone;
+      lignes.add(_LigneClassement(
+        row: r, homeTeam: homeTeam, awayTeam: awayTeam));
+    }
+
+    return Column(children: [
+      Row(children: [
+        const SizedBox(width: 22),
+        Expanded(child: Text('Équipe',
+          style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600))),
+        _StandingsHeaderCell('J'),
+        _StandingsHeaderCell('+/-'),
+        _StandingsHeaderCell('Pts'),
+      ]),
+      const SizedBox(height: 6),
+      Divider(height: 1, color: context.cl.border),
+      ...lignes,
+    ]);
+  }
+}
+
+/// Une ligne du classement.
+class _LigneClassement extends StatelessWidget {
+  final StandingRow row;
+  final String homeTeam, awayTeam;
+  const _LigneClassement({
+    required this.row, required this.homeTeam, required this.awayTeam});
+
+  @override
+  Widget build(BuildContext context) {
+    // Les deux equipes du match sont surlignees : sans repere, il fallait
+    // parcourir trente-six lignes pour retrouver celles qu'on est venu voir.
+    final concernee = _StandingsCard.memeEquipe(row.teamName, homeTeam) ||
+                      _StandingsCard.memeEquipe(row.teamName, awayTeam);
+    final couleurZone = _couleurZone(row.zoneNature);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 6),
+      margin: const EdgeInsets.symmetric(vertical: 1),
+      decoration: BoxDecoration(
+        color: concernee ? AppColors.primary.withValues(alpha: 0.10) : null,
+        borderRadius: BorderRadius.circular(7),
+        border: concernee
+            ? Border.all(color: AppColors.primary.withValues(alpha: 0.30), width: 0.8)
             : null,
-        child: Row(children: [
-          SizedBox(width: 22, child: Text('${r.rank}',
-            style: TextStyle(
-              color: concernee ? AppColors.primary : context.cl.textM,
-              fontSize: 11, fontWeight: FontWeight.w700))),
-          Expanded(child: Text(r.teamName,
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: concernee ? context.cl.textP : context.cl.textS,
-              fontSize: 11.5,
-              fontWeight: concernee ? FontWeight.w700 : FontWeight.w400))),
-          _StandingsCell('${r.played}'),
-          _StandingsCell('${r.win}'),
-          _StandingsCell('${r.draw}'),
-          _StandingsCell('${r.lose}'),
-          _StandingsCell(r.goalsDiff > 0 ? '+${r.goalsDiff}' : '${r.goalsDiff}'),
-          SizedBox(width: 28, child: Text('${r.points}', textAlign: TextAlign.center,
-            style: TextStyle(color: context.cl.textP, fontSize: 11.5, fontWeight: FontWeight.w800))),
-        ]),
-      );
-    }),
-  ]);
+      ),
+      child: Row(children: [
+        // Le rang porte la couleur de sa zone : le reperage marche aussi en
+        // faisant defiler, une fois l'en-tete sorti de l'ecran.
+        SizedBox(width: 22, child: Text('${row.rank}',
+          style: TextStyle(
+            color: concernee
+                ? AppColors.primary
+                : (couleurZone ?? context.cl.textM),
+            fontSize: 11, fontWeight: FontWeight.w700))),
+        // Ecusson : recupere par le serveur depuis toujours, jamais affiche.
+        if (row.teamLogo != null && row.teamLogo!.isNotEmpty) ...[
+          SizedBox(width: 16, height: 16,
+            child: Image.network(row.teamLogo!,
+              fit: BoxFit.contain,
+              // Un logo absent ne doit pas decaler la colonne : on garde la
+              // place et on n'affiche rien.
+              errorBuilder: (_, _, _) => const SizedBox.shrink(),
+              loadingBuilder: (c, enfant, progres) =>
+                  progres == null ? enfant : const SizedBox.shrink())),
+          const SizedBox(width: 7),
+        ] else
+          const SizedBox(width: 23),
+        Expanded(child: Text(row.teamName,
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: concernee ? context.cl.textP : context.cl.textS,
+            fontSize: 11.5,
+            fontWeight: concernee ? FontWeight.w700 : FontWeight.w400))),
+        _StandingsCell('${row.played}'),
+        _StandingsCell(row.goalsDiff > 0 ? '+${row.goalsDiff}' : '${row.goalsDiff}'),
+        SizedBox(width: 28, child: Text('${row.points}', textAlign: TextAlign.center,
+          style: TextStyle(color: context.cl.textP, fontSize: 11.5, fontWeight: FontWeight.w800))),
+      ]),
+    );
+  }
 }
 
 class _StandingsHeaderCell extends StatelessWidget {

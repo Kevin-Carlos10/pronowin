@@ -8,6 +8,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/config/contact_support.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/premium_nav.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
@@ -193,6 +194,18 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
     final needsLogin = status == 401;
     final isGated    = isPremiumRequired || needsLogin;
 
+    // Les canaux ne s'affichaient que dans `_EmptyComments`, c'est-à-dire dans
+    // la seule branche `data` — celle qu'un compte Premium atteint. Un invité
+    // reçoit 401, un compte gratuit 403 : ni l'un ni l'autre n'arrivait jamais
+    // à cet état vide, donc ni l'un ni l'autre ne voyait les canaux. Le lien
+    // destiné à faire grandir la communauté était caché à tous ceux qui n'en
+    // faisaient pas déjà partie.
+    //
+    // La règle porte sur ce qu'il y a à lire, pas sur le statut : une section
+    // verrouillée n'a rien à lire non plus.
+    final aucunCommentaire = commentsAsync.valueOrNull?.comments.isEmpty ?? false;
+    final rienALire        = isGated || aucunCommentaire;
+
     return Container(
       decoration: BoxDecoration(
         color: context.cl.surface,
@@ -248,7 +261,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
               ? _CommentsPremiumLocked(onTap: () => goToPremium(context, ref))
               : _CommentsError(message: e.toString()),
           data: (d) => d.comments.isEmpty
-            ? _EmptyComments()
+            ? const _EmptyComments()
             : Column(
                 children: d.comments.asMap().entries.map((entry) =>
                   _CommentTile(
@@ -261,6 +274,15 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
                 ).toList(),
               ),
         ),
+
+        // ── Canaux — dès qu'il n'y a rien à lire, quel qu'en soit le motif ─
+        //
+        // Volontairement en dehors de `_CommentsPremiumLocked` et de
+        // `_CommentsGuestLocked` : ces deux widgets captent le tap sur toute
+        // leur surface (l'un pour l'abonnement, l'autre pour l'inscription).
+        // Des boutons posés à l'intérieur se disputeraient l'arène des
+        // gestes avec eux.
+        if (rienALire) const _CanauxCommunaute(),
 
         // ── Input — réservé aux membres Premium ──────────────────────────
         if (!isGated) ...[
@@ -623,16 +645,113 @@ class _CommentInput extends StatelessWidget {
 }
 
 // ── États vides / erreur / loading ────────────────────────────────────────────
+/// Ce qu'on montre quand personne n'a encore commente ce match.
+///
+/// « Soyez le premier a commenter ! » occupait vingt-huit pixels de vide sur la
+/// quasi-totalite des matchs — un fil de discussion demarre rarement tout seul.
+///
+/// Les canaux ne sont plus ici mais dans `_CanauxCommunaute`, un cran au-dessus
+/// dans l'arbre : cet etat vide n'est atteint que par un compte Premium, et les
+/// canaux doivent s'afficher aussi derriere les deux verrous.
 class _EmptyComments extends StatelessWidget {
+  const _EmptyComments();
+
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 28),
+    padding: const EdgeInsets.fromLTRB(16, 22, 16, 18),
     child: Column(children: [
-      Text('💬', style: const TextStyle(fontSize: 32)),
-      const SizedBox(height: 8),
-      Text('Soyez le premier à commenter !',
-        style: TextStyle(color: context.cl.textS, fontSize: 13)),
+      Icon(Icons.forum_outlined, size: 28, color: context.cl.textM),
+      const SizedBox(height: 10),
+      Text('Personne n\'a encore commenté ce match',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 4),
+      Text('Sois le premier à donner ton avis',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: context.cl.textM, fontSize: 11.5, height: 1.4)),
     ]),
+  );
+}
+
+/// Les deux canaux, affiches des que la section n'a rien a lire.
+///
+/// Ils existaient deja — dans une modale, dans les Parametres, sous
+/// « A propos » : personne ne les trouvait. Ils vivent ici parce qu'un vide
+/// vaut moins qu'une porte ; quand des commentaires existent, la section fait
+/// son travail et n'a pas a pousser l'utilisateur hors de l'application.
+///
+/// Le separateur importe : sous le verrou Premium, sans lui, les deux boutons
+/// sembleraient faire partie de l'offre payante alors qu'ils sont gratuits.
+class _CanauxCommunaute extends StatelessWidget {
+  const _CanauxCommunaute();
+
+  @override
+  Widget build(BuildContext context) => Column(children: [
+    const Divider(height: 1),
+    Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+      child: Column(children: [
+        Text('Rejoins la communauté PronoWin',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: context.cl.textM, fontSize: 11.5, height: 1.4)),
+        const SizedBox(height: 12),
+        Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
+          _BoutonCanal(
+            libelle: 'Telegram',
+            icone: Icons.send_rounded,
+            couleur: Color(0xFF29A9EA),
+            onTap: ContactSupport.ouvrirTelegram),
+          SizedBox(width: 10),
+          _BoutonCanal(
+            libelle: 'WhatsApp',
+            icone: Icons.chat_rounded,
+            couleur: Color(0xFF25D366),
+            onTap: ContactSupport.ouvrirWhatsapp),
+        ]),
+      ]),
+    ),
+  ]);
+}
+
+/// Bouton d'ouverture d'un canal externe.
+class _BoutonCanal extends StatelessWidget {
+  final String libelle;
+  final IconData icone;
+  final Color couleur;
+  final Future<void> Function() onTap;
+  const _BoutonCanal({
+    required this.libelle, required this.icone,
+    required this.couleur, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    button: true,
+    // L'utilisateur quitte l'application : le dire plutot que de le laisser
+    // decouvrir qu'il a bascule vers une autre app.
+    label: 'Rejoindre le canal $libelle — ouvre $libelle',
+    excludeSemantics: true,
+    child: GestureDetector(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: couleur.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: couleur.withValues(alpha: 0.32), width: 0.8),
+        ),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(icone, color: couleur, size: 15),
+          const SizedBox(width: 7),
+          Text(libelle,
+            style: TextStyle(
+              color: couleur, fontSize: 12.5, fontWeight: FontWeight.w700)),
+        ]),
+      ),
+    ),
   );
 }
 
