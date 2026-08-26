@@ -5,7 +5,11 @@ import 'package:pronowin/core/theme/app_theme.dart';
 import 'package:pronowin/shared/widgets/confidence_indicator.dart';
 import 'package:pronowin/shared/widgets/erreur_chargement.dart';
 import 'package:pronowin/shared/widgets/guest_locked_view.dart';
+import 'package:pronowin/shared/widgets/logotype_pronowin.dart';
+import 'package:pronowin/shared/widgets/offline_banner.dart';
 import 'package:pronowin/shared/widgets/pw_button.dart';
+import 'package:pronowin/shared/widgets/pw_text_field.dart';
+import 'package:pronowin/shared/widgets/skeletons.dart';
 
 /// Le harnais de débordement, étendu aux widgets réutilisés partout.
 ///
@@ -101,6 +105,24 @@ void main() {
     onRetry: () {},
     quoi: 'les pronostics du jour',
   ));
+
+  batterie('PwTextField — étiquette et indication longues', () => const PwTextField(
+    label: 'Numero de telephone ayant servi au virement Mobile Money',
+    hint: 'Saisis le numéro qui a servi au virement Mobile Money',
+    prefix: Icon(Icons.phone_rounded, size: 18),
+  ));
+
+  batterie('OfflineBanner', () => const OfflineBanner());
+
+  batterie('LogotypePronoWin', () => const Padding(
+    padding: EdgeInsets.all(12),
+    child: LogotypePronoWin(taille: 28),
+  ));
+
+  // Les squelettes s'affichent au premier chargement de chaque écran : un
+  // débordement y serait la toute première chose que voit un nouvel utilisateur.
+  batterie('MatchCardSkeleton', () => const MatchCardSkeleton());
+  batterie('NotifTileSkeleton', () => const NotifTileSkeleton());
 
   batterie('GuestLockedView', () => const GuestLockedView(
     icon: Icons.lock_outline_rounded,
