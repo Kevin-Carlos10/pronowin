@@ -203,7 +203,16 @@ class _SliverHeader extends ConsumerWidget {
                           )
                         else
                           GestureDetector(
-                            onTap: () => context.go('/abonnement'),
+                            // `/abonnement` n'a jamais existé dans la table de
+                            // routage : ce bouton — le premier appel à
+                            // l'abonnement que voit un compte gratuit, en haut
+                            // de l'accueil — ouvrait la page d'erreur du
+                            // routeur.
+                            //
+                            // `goToPremium` plutôt qu'un chemin corrigé : il
+                            // passe d'abord par la complétion du profil quand
+                            // elle manque, ce qu'un `context.go` direct saute.
+                            onTap: () => goToPremium(context, ref),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [

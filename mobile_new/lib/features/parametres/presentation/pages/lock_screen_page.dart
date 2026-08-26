@@ -213,7 +213,11 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
     await ref.read(pinStoreProvider).clear();
     await ref.read(settingsProvider.notifier).setPinEnabled(false);
     await ref.read(authProvider.notifier).logout();
-    if (mounted) context.go('/auth');
+    // `/auth` n'est pas une route : seuls `/auth/email` et `/auth/email/otp`
+    // existent. Se déconnecter depuis le verrou menait donc à la page d'erreur
+    // du routeur — au moment précis où l'utilisateur n'a plus que ce chemin,
+    // puisqu'il vient d'oublier son code.
+    if (mounted) context.go('/auth/email');
   }
 
   Widget _buildKeypad(bool bioEnabled) => Column(

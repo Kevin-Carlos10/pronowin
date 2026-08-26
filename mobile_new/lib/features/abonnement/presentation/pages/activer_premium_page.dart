@@ -1717,14 +1717,27 @@ class _PaywallPage extends StatelessWidget {
                   const SizedBox(height: 26),
                   _PaywallFaq(promoCode: promoCode, tarifs: tarifs, iapMode: iapMode),
                   const SizedBox(height: 18),
-                  Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
-                    Text('CGU', style: TextStyle(color: Colors.white30, fontSize: 10)),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('·', style: TextStyle(color: Colors.white24))),
-                    Text('Confidentialité', style: TextStyle(color: Colors.white30, fontSize: 10)),
-                    Padding(padding: EdgeInsets.symmetric(horizontal: 8),
-                      child: Text('·', style: TextStyle(color: Colors.white24))),
-                    Text('Contact', style: TextStyle(color: Colors.white30, fontSize: 10)),
+                  // Trois mentions qui ressemblaient à des liens sans en être :
+                  // de simples `Text`, sans aucune zone tactile. Toucher
+                  // « Confidentialité » ne faisait rien, et rien ne le disait.
+                  //
+                  // Les deux pages existaient pourtant, et étaient routées. Il
+                  // manquait le geste — sur l'écran précisément où Apple exige
+                  // des liens *fonctionnels* vers les conditions d'utilisation
+                  // et la politique de confidentialité (3.1.2).
+                  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                    _LienLegal(
+                      libelle: 'CGU',
+                      onTap: () => context.push('/parametres/cgu')),
+                    const _PointSeparateur(),
+                    _LienLegal(
+                      libelle: 'Confidentialité',
+                      onTap: () => context.push('/parametres/confidentialite')),
+                    const _PointSeparateur(),
+                    _LienLegal(
+                      libelle: 'Contact',
+                      onTap: () => ContactSupport.ouvrirEmail(
+                        sujet: 'Question sur l\'abonnement Premium')),
                   ]),
                 ]),
               ),
@@ -1843,6 +1856,53 @@ class _PaywallPage extends StatelessWidget {
       Expanded(child: Divider(color: Colors.white12, height: 1)),
     ]);
   }
+}
+
+// ─── MENTIONS LÉGALES DU BAS DE PAYWALL ───────────────────────────────────────
+/// Mention légale réellement cliquable.
+///
+/// La zone tactile fait 44 px de haut alors que le libellé en fait 11 : un lien
+/// correctement câblé mais trop petit pour un pouce se comporte, pour celui qui
+/// l'utilise, exactement comme un lien mort.
+///
+/// Le soulignement n'est pas décoratif — c'est ce qui distingue un lien d'une
+/// mention grise. L'ancienne version, `Colors.white30` sans soulignement, ne
+/// ressemblait ni à l'un ni à l'autre.
+class _LienLegal extends StatelessWidget {
+  final String libelle;
+  final VoidCallback onTap;
+  const _LienLegal({required this.libelle, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    link: true,
+    child: InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onTap();
+      },
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 11),
+        child: Text(libelle,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 11,
+            decoration: TextDecoration.underline,
+            decorationColor: Colors.white38)),
+      ),
+    ),
+  );
+}
+
+class _PointSeparateur extends StatelessWidget {
+  const _PointSeparateur();
+
+  @override
+  Widget build(BuildContext context) => const Padding(
+    padding: EdgeInsets.symmetric(horizontal: 2),
+    child: Text('·', style: TextStyle(color: Colors.white24)),
+  );
 }
 
 // ─── TOGGLE DURÉE (MENSUEL / ANNUEL) ──────────────────────────────────────────
