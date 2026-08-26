@@ -153,6 +153,42 @@ module.exports = (app, ctx) => {
     }
   });
 
+  /**
+   * Dépublier un pronostic — retirer de la liste publique, sans y toucher.
+   *
+   * Le bouton « Dépublier » soumettait le formulaire entier avec
+   * `publish=false`, ce qui passait par `upsertPronostic` — une écriture
+   * complète du pronostic. Or ce chemin porte un garde-fou :
+   *
+   *     if (match.status === 'FINISHED')
+   *       throw new Error('Impossible de créer un pronostic pour un match terminé.')
+   *
+   * Écrit pour empêcher de *créer* un pronostic après coup, il bloquait aussi
+   * le simple retrait. Sur un match terminé — exactement quand on veut retirer
+   * un pronostic de la vitrine — la dépublication échouait, et le message
+   * parlait de création.
+   *
+   * `togglePublish` ne fait que basculer l'indicateur et n'a pas ce garde-fou :
+   * il existait déjà côté serveur, aucun écran ne l'appelait.
+   */
+  app.post('/admin/pronostics/:pronosticId/depublier', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
+    const a = api(req.cookies.admin_token);
+    const matchId = req.body.match_id;
+    const retour  = matchId ? '/admin/pronostics/edit/' + matchId : '/admin/pronostics';
+    try {
+      await a.patch('/pronostics/admin/pronostic/' + req.params.pronosticId + '/publish',
+        { publish: false });
+      logAction(req, 'pronostic_unpublished',
+        sanitize(req.body.libelle ?? `Pronostic #${req.params.pronosticId}`, 80),
+        { pronosticId: req.params.pronosticId, matchId });
+      res.redirect('/admin/pronostics?ok=depublie&match=' +
+        encodeURIComponent(sanitize(req.body.libelle ?? '', 80)));
+    } catch (e) {
+      res.redirect(retour + '?depublish_error=' +
+        encodeURIComponent(e.response?.data?.message ?? e.message));
+    }
+  });
+
   // Forcer le résultat WIN/LOSS/reset manuellement sur un pronostic
 
   app.post('/admin/pronostics/result/:pronosticId', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {

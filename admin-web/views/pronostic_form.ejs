@@ -111,6 +111,18 @@
   const dateStr     = matchDate.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const timeStr     = matchDate.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   const isEdit      = !!pro.id;
+
+  // Match termine : le pronostic n'est plus modifiable.
+  //
+  // Le serveur le refusait deja — `upsertPronostic` leve « Impossible de creer
+  // un pronostic pour un match termine » — mais l'ecran laissait croire le
+  // contraire : tous les champs restaient actifs, et « Publier maintenant »
+  // echouait avec un message parlant de creation. On saisissait, on validait,
+  // et rien n'etait enregistre.
+  //
+  // Deux actions restent legitimes et ne passent pas par cette ecriture : la
+  // depublication (route dediee) et la correction du resultat.
+  const _termine = String(match.status || '').toUpperCase() === 'FINISHED';
   // Même heuristique que la liste (pronostics.ejs) : le statut LIVE en base
   // peut avoir jusqu'à 2 minutes de retard (fréquence du cron de sync).
   const _diffMin    = Math.floor((matchDate.getTime() - Date.now()) / 60000);
@@ -152,6 +164,16 @@
 }
 @media(max-width:760px){ .pf-two { grid-template-columns:1fr; gap:0; } }
 </style>
+
+<%# Un échec de dépublication doit se voir. L'opération échouait côté serveur
+    et la redirection ramenait ici sans rien dire : le pronostic restait publié,
+    l'écran ne le contestait pas, et l'administrateur croyait l'avoir retiré. %>
+<% if(typeof query !== 'undefined' && query.depublish_error) { %>
+<div class="alert alert-error" style="margin-bottom:1rem">
+  <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg>
+  Dépublication impossible : <%= query.depublish_error %>
+</div>
+<% } %>
 
 <form method="POST" action="/admin/pronostics/edit/<%= match.id %>" id="pro-form">
 <div class="pf-main-grid">
@@ -239,12 +261,25 @@
 
       <!-- ── Actions (collées avec le récap : plus besoin de remonter/descendre) ── -->
       <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:1rem;padding-top:.85rem;border-top:1px solid var(--border)">
+        <%# Sur un match termine, ces deux boutons ne peuvent que echouer : le
+            serveur refuse toute ecriture. Les afficher quand meme, c'est
+            promettre une action impossible. %>
+        <% if(_termine) { %>
+        <div style="font-size:.75rem;color:var(--text-m);line-height:1.55;padding:.6rem .75rem;background:var(--surface-d);border-radius:8px">
+          <strong style="color:var(--text-p)">Match terminé</strong> — le pronostic
+          n'est plus modifiable.<% if(isEdit) { %> Vous pouvez encore le dépublier,
+          ou corriger son résultat plus bas.<% } %>
+        </div>
+        <% } else { %>
         <button type="submit" name="publish" value="true" class="btn btn-primary" style="justify-content:center">
           <svg class="ic" aria-hidden="true"><use href="#ic-rocket"/></svg> Publier maintenant
         </button>
         <button type="submit" name="publish" value="false" class="btn btn-outline" style="justify-content:center">
           <svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> Sauvegarder brouillon
         </button>
+        <% } %>
+        <%# La depublication reste offerte, match termine ou non : elle passe par
+            sa propre route et ne reecrit pas le pronostic. %>
         <% if(isEdit && pro.is_published) { %>
         <button type="button" class="btn btn-danger btn-sm" style="justify-content:center"
           onclick="askConfirm({icon:'trash',title:'Dépublier',msg:'Retirer ce pronostic de la liste publique ?',btnLabel:'Dépublier',btnClass:'btn-danger',onConfirm:()=>depublish()})">
@@ -258,6 +293,31 @@
 
   <!-- ── Colonne droite : formulaire ──────────────────────────────────────────── -->
   <div class="card">
+
+      <%# Un `fieldset` desactive neutralise d'un coup tous les controles qu'il
+          contient — champs, listes, boutons. Le faire champ par champ aurait
+          laisse passer le prochain ajout : c'est la structure qui garantit la
+          regle, pas la vigilance.
+
+          Il enveloppe la seule colonne des champs modifiables. La depublication
+          et la correction du resultat sont ailleurs, et restent actives. %>
+      <fieldset <%= _termine ? 'disabled' : '' %>
+                style="border:0;padding:0;margin:0;min-width:0">
+
+      <% if(_termine) { %>
+      <div class="alert" style="margin-bottom:1.1rem;background:color-mix(in srgb,var(--warning) 10%,transparent);border:1px solid color-mix(in srgb,var(--warning) 30%,transparent);color:var(--text-p)">
+        <svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg>
+        <div>
+          <strong>Ce match est terminé — le pronostic est verrouillé.</strong>
+          <div style="font-size:.78rem;color:var(--text-m);line-height:1.55;margin-top:.2rem">
+            Le résultat est joué : réécrire la prédiction après coup fausserait
+            le bilan public. Pour le retirer des statistiques, utilisez
+            « ↺ Retirer du bilan » dans la section Résultat, plus bas — le pronostic
+            et l'historique de vos utilisateurs restent intacts.
+          </div>
+        </div>
+      </div>
+      <% } %>
 
       <!-- Type de pronostic -->
       <div class="form-group" style="margin-bottom:1.1rem">
@@ -420,9 +480,22 @@
         </div>
       </div>
 
+      </fieldset>
   </div>
 </div>
 </form>
+
+<%# Dépublication : formulaire séparé, et nécessairement hors du précédent —
+    un formulaire ne peut pas en contenir un autre. Il ne porte que l'identité
+    du pronostic : retirer de la vitrine ne doit rien réécrire, sans quoi
+    l'opération retombe sur le garde-fou des matchs terminés. %>
+<% if(isEdit && pro.is_published) { %>
+<form method="POST" action="/admin/pronostics/<%= pro.id %>/depublier"
+      id="form-depublier" hidden>
+  <input type="hidden" name="match_id" value="<%= match.id %>">
+  <input type="hidden" name="libelle"  value="<%= match.homeTeam %> – <%= match.awayTeam %>">
+</form>
+<% } %>
 
 <script>
 /* ── Étoiles ──
@@ -831,13 +904,20 @@ async function fetchOdds(auto) {
 fetchOdds(true);
 fetchPrediction();
 
-/* ── Dépublier ── */
+/* ── Dépublier ──
+ *
+ * Un formulaire distinct, pas le formulaire d'édition.
+ *
+ * Cette fonction ajoutait `publish=false` au formulaire principal et le
+ * soumettait : une écriture complète du pronostic, qui traverse le garde-fou
+ * « Impossible de créer un pronostic pour un match terminé ». Sur un match
+ * fini — le cas où l'on veut justement retirer un pronostic — la dépublication
+ * echouait, avec un message parlant de création.
+ *
+ * Retirer de la vitrine n'est pas enregistrer : la bascule passe par sa propre
+ * route, qui ne touche qu'a l'indicateur de publication. */
 function depublish() {
-  const f = document.getElementById('pro-form');
-  const h = document.createElement('input');
-  h.type = 'hidden'; h.name = 'publish'; h.value = 'false';
-  f.appendChild(h);
-  f.submit();
+  document.getElementById('form-depublier').submit();
 }
 </script>
 
@@ -895,8 +975,14 @@ function depublish() {
     <form method="POST" action="/admin/pronostics/result/<%= pro.id %>" style="display:contents">
       <input type="hidden" name="match_id" value="<%= match.id %>">
       <input type="hidden" name="result" value="null">
-      <button type="submit" class="btn btn-outline" style="padding:.5rem 1.25rem;border-radius:var(--radius-s);font-weight:600;cursor:pointer">
-        ↺ Réinitialiser
+      <%# Ce bouton est la reponse a « retirer de l'historique qui touche aux
+          statistiques ». Le bilan public ne compte que les `WIN` et les `LOSS` :
+          remettre le resultat a vide en sort le pronostic, sans rien detruire.
+          Son effet n'etait ecrit nulle part, et « Reinitialiser » ne le disait
+          pas — on ne pouvait pas deviner que c'etait la l'action cherchee. %>
+      <button type="submit" class="btn btn-outline" style="padding:.5rem 1.25rem;border-radius:var(--radius-s);font-weight:600;cursor:pointer"
+              title="Retire ce pronostic du taux de réussite affiché aux visiteurs. Le pronostic, les commentaires et les paris de vos utilisateurs restent intacts.">
+        ↺ Retirer du bilan
       </button>
     </form>
     <% } %>

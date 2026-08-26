@@ -876,11 +876,27 @@ app.get('/admin/dashboard', requireAuth, async (req, res) => {
       detail: "Le bannissement a pris fin mais l'accès n'a pas été rendu. Ouvrir la page suffit à le rétablir.",
       action:'Rétablir', lien:'/admin/bans' });
   }
+  // Deux situations opposées, longtemps confondues sous le même message.
+  //
+  // Le repli côté serveur exige `isPremium: false`. Si tout ce qui est publié
+  // aujourd'hui est premium, il ne trouve rien : `/daily-free` répond 404 et le
+  // visiteur non abonné ne voit **aucun** pronostic. L'alerte annonçait pourtant
+  // que « l'application choisit alors le premier par ordre d'heure » — une
+  // phrase rassurante, fausse exactement dans le cas grave.
   if ((baseStats.publiablesAujourdhui ?? 0) > 0 && (baseStats.vitrineDuJour ?? 0) === 0) {
-    file.push({ cle:'vitrine', urgence:'normale', icone:'star',
-      titre: "Aucun pronostic gratuit désigné pour aujourd'hui",
-      detail: "L'application choisit alors le premier par ordre d'heure de match : c'est un tri qui décide de votre vitrine.",
-      action:'Choisir', lien:'/admin/pronostics' });
+    const gratuits = baseStats.gratuitsAujourdhui ?? 0;
+    file.push(gratuits === 0
+      ? { cle:'vitrine', urgence:'haute', icone:'star',
+          titre: "Vitrine vide : aucun pronostic gratuit aujourd'hui",
+          detail: `${baseStats.publiablesAujourdhui} pronostic(s) publié(s), tous premium. `
+                + "Un visiteur non abonné n'en voit donc aucun — l'accueil n'a rien "
+                + "à lui montrer. Rendez-en un gratuit pour ouvrir la vitrine.",
+          action:'Ouvrir la vitrine', lien:'/admin/pronostics' }
+      : { cle:'vitrine', urgence:'normale', icone:'star',
+          titre: "Aucun pronostic gratuit désigné pour aujourd'hui",
+          detail: `L'application affiche alors le premier des ${gratuits} pronostic(s) `
+                + "gratuit(s), par ordre d'heure de match : c'est un tri qui décide de votre vitrine.",
+          action:'Choisir', lien:'/admin/pronostics' });
   }
 
   res.render('dashboard', {

@@ -71,7 +71,17 @@ const fakePro = {
   homeLogoUrl: '', awayLogoUrl: '', league: 'Ligue 1', matchDate: now,
   tip: '1', odds: 1.85, stars: 4, label: 'Victoire PSG',
   is_published: true, isPremium: false, type: 'winner',
-  pronostic: { tip: '1', odds: 1.85, stars: 4, label: 'V PSG', isPremium: false, type: 'winner', is_published: true },
+  // `has_pronostic` et l'`id` du pronostic manquaient.
+  //
+  // Deux conséquences mesurées : le bouton « Dépublier » (conditionné à
+  // `pro.id`) n'apparaissait dans aucun rendu — sa panne était donc invisible —
+  // et l'action « vitrine du jour » produisait « /admin/pronostics/daily/ »,
+  // sans identifiant. Un jeu d'essai qui ne ressemble pas à l'API ne teste que
+  // lui-même.
+  has_pronostic: true,
+  pronostic: { id: 'p1', tip: '1', odds: 1.85, stars: 4, label: 'V PSG',
+               isPremium: false, is_premium: false, type: 'winner',
+               is_published: true, is_daily_free: false, result: null },
   createdAt: now, updatedAt: now,
 };
 
@@ -242,7 +252,19 @@ const views = [
   ['pronostics (aucune vitrine)', 'pronostics', {
     ...base, page: 'pronostics',
     matches: [{ ...fakePro, is_published: true, status: 'SCHEDULED',
-                pronostic: { ...fakePro.pronostic, is_daily_free: false } }],
+                pronostic: { ...fakePro.pronostic, is_daily_free: false,
+                             is_premium: false } }],
+    statusFilter: '', competition: '', totalMatchs: 12,
+  }],
+  // Tout est publie, tout est premium, aucune vitrine designee : le repli du
+  // serveur exige `isPremium: false` et ne trouve donc rien. Le visiteur non
+  // abonne ne voit AUCUN pronostic — et le bandeau annoncait pourtant que
+  // l'application en choisirait un par ordre d'heure.
+  ['pronostics (tout premium, vitrine vide)', 'pronostics', {
+    ...base, page: 'pronostics',
+    matches: [{ ...fakePro, is_published: true, status: 'SCHEDULED',
+                pronostic: { ...fakePro.pronostic, is_daily_free: false,
+                             is_premium: true } }],
     statusFilter: '', competition: '', totalMatchs: 12,
   }],
   ['pronostics (vide)', 'pronostics', {
@@ -272,6 +294,27 @@ const views = [
   ['pronostic_form (sans prono)', 'pronostic_form', {
     ...base, page: 'pronostics',
     match: { ...fakePro, pronostic: null },
+  }],
+  // Le bouton « Dépublier » n'apparait que si `pro.id` existe ET que le
+  // pronostic est publie. Le jeu d'essai « edit » n'avait pas d'id : le bouton
+  // n'etait donc rendu par aucun cas, et sa panne — la soumission passait par
+  // une ecriture complete, refusee sur un match termine — ne pouvait pas etre
+  // vue ici.
+  ['pronostic_form (publie, depublication possible)', 'pronostic_form', {
+    ...base, page: 'pronostics',
+    match: { ...fakePro, pronostic: { ...fakePro.pronostic, id: 'p1', is_published: true } },
+  }],
+  // Match termine : c'est exactement la situation ou la dépublication
+  // echouait, et ou l'on veut le plus souvent retirer un pronostic.
+  ['pronostic_form (match termine, publie)', 'pronostic_form', {
+    ...base, page: 'pronostics',
+    match: { ...fakePro, status: 'FINISHED', homeScore: 2, awayScore: 1,
+             pronostic: { ...fakePro.pronostic, id: 'p1', is_published: true, result: 'WIN' } },
+  }],
+  ['pronostic_form (echec de depublication)', 'pronostic_form', {
+    ...base, page: 'pronostics',
+    match: { ...fakePro, pronostic: { ...fakePro.pronostic, id: 'p1', is_published: true } },
+    query: { depublish_error: 'Impossible de créer un pronostic pour un match terminé.' },
   }],
 
   // ── Abonnements / Preuves Premium ──

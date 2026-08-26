@@ -38,6 +38,15 @@
   const _vitrine = matches.find(m => m.pronostic && m.pronostic.is_daily_free) ?? null;
   const _none      = matches.filter(m => !m.has_pronostic).length;
 
+  // Y a-t-il seulement de quoi alimenter la vitrine ?
+  //
+  // Le repli du serveur exige `isPremium: false`. Tout publier en premium et
+  // ne designer aucune vitrine, c'est ne rien montrer du tout aux visiteurs
+  // non abonnes — et le bandeau annoncait pourtant que « l'application affiche
+  // alors le premier pronostic gratuit du jour ».
+  const _gratuitsPublies = matches.filter(
+    m => m.is_published && m.pronostic && !m.pronostic.is_premium).length;
+
   // statusFilter est injecté par le serveur depuis req.query.status
   const _statusFilter = (typeof statusFilter !== 'undefined' ? statusFilter : '') || '';
   function matchesStatus(m) {
@@ -119,10 +128,19 @@
   <div class="pro-stat blue"><div class="l">Matchs</div><div class="v"><%= _total %></div></div>
   <div class="pro-stat green"><div class="l">Publiés</div><div class="v"><%= _published %></div></div>
   <div class="pro-stat" style="border-left-color:#F5A623"><div class="l">Vitrine du jour</div><div class="v" style="font-size:1.15rem;color:#F5A623"><%= _vitrine ? "1" : "—" %></div></div>
-  <div class="pro-stat orange"><div class="l">Brouillons</div>
+  <div class="pro-stat orange"><div class="l">Brouillons</div><div class="v"><%= _drafts %></div></div>
+  <div class="pro-stat dim"><div class="l">Sans prono</div><div class="v"><%= _none %></div></div>
+</div>
 
 <%# Ce que voit un visiteur non abonne. Sans ce bandeau, rien n'indique quel
-    pronostic sert de vitrine, ni meme que ce reglage existe. %>
+    pronostic sert de vitrine, ni meme que ce reglage existe.
+
+    Ce bloc etait imbrique DANS la tuile « Brouillons », entre son libelle et
+    sa valeur. Une banniere pleine largeur enfermee dans une colonne de 150 px :
+    son texte debordait sur la tuile voisine, s'y faisait couper au milieu des
+    mots, et repoussait le compteur de brouillons hors de vue. Le gabarit
+    restait valide, la page se rendait sans erreur — seule la lecture revelait
+    le probleme. Sa place est ici, apres la rangee de statistiques. %>
 <div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;border-left:3px solid #F5A623">
   <svg class="ic ic-lg" aria-hidden="true" style="color:#F5A623;flex-shrink:0"><use href="#ic-star"/></svg>
   <div style="flex:1;min-width:220px">
@@ -131,15 +149,20 @@
       <% if (_vitrine) { %>
         <strong><%= _vitrine.homeTeam %> – <%= _vitrine.awayTeam %></strong>
         — visible par tous les visiteurs, abonnés ou non.
+      <% } else if (_gratuitsPublies === 0) { %>
+        <strong style="color:#F5A623">Aucun pronostic gratuit publié.</strong>
+        Un visiteur non abonné ne voit donc <strong>rien</strong> : il n'y a pas de
+        repli possible, l'application ne peut afficher que des pronostics gratuits.
+        Décochez « Premium » sur l'un d'eux, ou désignez-en un avec l'étoile
+        dans la colonne Actions.
       <% } else { %>
-        Aucun choisi. L'application affiche alors le premier pronostic gratuit du jour
-        par ordre d'heure de match — c'est le tri qui décide de votre vitrine, pas vous.
-        Utilisez l'étoile dans la colonne Actions.
+        Aucun choisi. L'application affiche alors le premier des
+        <strong><%= _gratuitsPublies %></strong> pronostic(s) gratuit(s) publié(s),
+        par ordre d'heure de match — c'est le tri qui décide de votre vitrine, pas
+        vous. Utilisez l'étoile dans la colonne Actions.
       <% } %>
     </div>
   </div>
-</div><div class="v"><%= _drafts %></div></div>
-  <div class="pro-stat dim"><div class="l">Sans prono</div><div class="v"><%= _none %></div></div>
 </div>
 
 <!-- ── Filtres ────────────────────────────────────────────────────────────────── -->
@@ -326,7 +349,11 @@
               <%# Vitrine gratuite : un seul pronostic a la fois. Propose uniquement
                   sur un pronostic publie et non termine — designer un match fini
                   n'aurait aucun effet visible pour les visiteurs. %>
-              <% if (m.is_published && !isFinished && m.pronostic) { %>
+              <%# `m.pronostic.id` et non le seul `m.pronostic` : sans
+                  identifiant, l'action devient « /admin/pronostics/daily/ » et
+                  n'atteint aucune route. L'API en fournit toujours un, mais une
+                  URL ne doit pas dependre de cette promesse. %>
+              <% if (m.is_published && !isFinished && m.pronostic && m.pronostic.id) { %>
                 <% if (m.pronostic.is_daily_free) { %>
                   <span class="btn btn-sm pro-daily-actif" title="Ce pronostic est la vitrine gratuite du jour">
                     <svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg> Vitrine
