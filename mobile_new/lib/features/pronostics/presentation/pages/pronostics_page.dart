@@ -761,11 +761,21 @@ class _DateScrollBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
+
+    // Hauteur proportionnelle à l'échelle de texte.
+    //
+    // La pastille empile trois lignes — jour, quantième, nombre de matchs —
+    // dans une boîte qui était figée à 72 px. Une liste horizontale exige une
+    // hauteur bornée, d'où le `SizedBox` ; mais bornée ne veut pas dire
+    // constante. À 1,4× le contenu dépassait, et c'est ce widget qui plafonnait
+    // le réglage d'accessibilité de toute l'application.
+    final echelle = MediaQuery.textScalerOf(context).scale(1);
+
     return Container(
       color: context.cl.bg,
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       child: SizedBox(
-        height: 72,
+        height: 72 * echelle,
         child: ListView.separated(
           controller: scrollController,
           scrollDirection: Axis.horizontal,

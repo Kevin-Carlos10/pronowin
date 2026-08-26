@@ -144,31 +144,54 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
       padding: const EdgeInsets.fromLTRB(14, 11, 14, 0),
       child: Row(
         children: [
-          // Badge ligue
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-            decoration: BoxDecoration(
-              color: context.cl.surfaceDeep,
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.sports_soccer_rounded,
-                    color: AppColors.primaryLight, size: 12),
-                const SizedBox(width: 5),
-                Text(
-                  widget.match.league,
-                  style: TextStyle(color: context.cl.textS, fontSize: 11),
-                ),
-              ],
+          // Badge ligue.
+          //
+          // Le nom de la ligue n'avait aucune contrainte : ni `Flexible`, ni
+          // troncature. « UEFA Champions League » ou « Campeonato Brasileiro
+          // Série A » poussaient la rangée au-delà du bord, et la carte —
+          // le widget le plus répété de l'application — affichait la bande
+          // rayée jaune et noire. Dès 411 px, sans même agrandir le texte.
+          //
+          // `Flexible` sur les deux niveaux : le badge cède de la place au
+          // reste de la rangée, et le libellé s'ellipse au lieu de pousser.
+          Flexible(
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: context.cl.surfaceDeep,
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.sports_soccer_rounded,
+                      color: AppColors.primaryLight, size: 12),
+                  const SizedBox(width: 5),
+                  Flexible(
+                    child: Text(
+                      widget.match.league,
+                      style: TextStyle(color: context.cl.textS, fontSize: 11),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
           if (widget.showDate) ...[
             const SizedBox(width: 6),
-            Text(
-              DateFormat('dd/MM', 'fr_FR').format(widget.match.matchDate),
-              style: TextStyle(color: context.cl.textM, fontSize: 10),
+            // `Flexible` ici aussi : la date, le badge de pari et le badge de
+            // résultat s'ajoutaient tous au groupe de gauche sans qu'aucun ne
+            // puisse céder. Sur un match terminé avec la date affichée, la
+            // rangée dépassait dès 411 px — sans même agrandir le texte.
+            Flexible(
+              child: Text(
+                DateFormat('dd/MM', 'fr_FR').format(widget.match.matchDate),
+                style: TextStyle(color: context.cl.textM, fontSize: 10),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           ],
           if (hasBet) ...[
