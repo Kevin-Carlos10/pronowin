@@ -144,23 +144,39 @@ class _PwButtonState extends State<PwButton>
         ),
       );
     }
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (widget.icon != null) ...[
-          Icon(widget.icon, size: 18, color: color),
-          const SizedBox(width: 8),
-        ],
-        Text(
-          widget.label,
-          style: TextStyle(
-            color: color,
-            fontSize: 15,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.3,
+    // Le libellé n'avait aucune contrainte : ni `Flexible`, ni troncature.
+    // « Créer un compte gratuit pour continuer » débordait le bouton de 196 px
+    // sur un écran de 411, et de 287 px sur un 320 — sans même agrandir le
+    // texte. Le bouton occupe toute la largeur, ce qui donnait l'illusion qu'il
+    // y avait la place ; son contenu n'en savait rien.
+    //
+    // Le rembourrage évite en plus que le texte tronqué vienne toucher le bord
+    // arrondi.
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (widget.icon != null) ...[
+            Icon(widget.icon, size: 18, color: color),
+            const SizedBox(width: 8),
+          ],
+          Flexible(
+            child: Text(
+              widget.label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: color,
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.3,
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

@@ -128,8 +128,16 @@ class ErreurChargement extends ConsumerWidget {
                       : Icons.refresh_rounded,
                     color: Colors.white, size: 17),
                   const SizedBox(width: 8),
-                  Text(libelleAction, style: const TextStyle(
-                    color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+                  // Même défaut : le libellé d'action pousse la rangée dès que
+                  // le texte est agrandi sur un petit écran.
+                  Flexible(
+                    child: Text(libelleAction,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white, fontSize: 14,
+                        fontWeight: FontWeight.w700)),
+                  ),
                 ]),
               ),
             ),
