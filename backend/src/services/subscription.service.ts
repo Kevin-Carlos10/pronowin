@@ -385,10 +385,16 @@ export class SubscriptionService {
     return {
       proof_id:         proof.id,
       status:           'pending',
+      // `message` répétait le délai en dur : la même réponse annonçait
+      // `estimated_review` construit depuis la constante, et « Validation sous
+      // 30 minutes » écrit à la main. Raccourcir la variable faisait dire à la
+      // même réponse deux choses différentes, dans deux champs que l'écran
+      // affiche l'un sous l'autre.
       estimated_review: type === 'payment_screenshot' ? REVIEW_DELAY_DIRECT : REVIEW_DELAY_CODE,
       message:          type === 'payment_screenshot'
-        ? 'Preuve de paiement soumise. Validation sous 30 minutes.'
-        : 'Preuve de paiement et de compte partenaire soumise. Validation sous 2 heures.',
+        ? `Preuve de paiement soumise. Validation sous ${REVIEW_DELAY_DIRECT}.`
+        : 'Preuve de paiement et de compte partenaire soumise. '
+          + `Validation sous ${REVIEW_DELAY_CODE}.`,
     };
   }
 
