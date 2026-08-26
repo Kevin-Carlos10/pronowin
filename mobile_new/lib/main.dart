@@ -13,6 +13,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
+import 'core/constants/app_constants.dart' show AppConstants;
 import 'core/router/app_router.dart' show appRouterProvider, onboardingDoneProvider;
 import 'core/theme/app_theme.dart';
 import 'core/widgets/splash_screen.dart';
@@ -66,7 +67,11 @@ void main() async {
   // Utilisateur existant : token présent mais onboarding jamais vu
   // → bypasser silencieusement (il connaît déjà l'app)
   if (!onboardingDone) {
-    final token = await SecureStorageService().read('access_token');
+    // La clé venait d'un littéral recopié ici. Le reste de l'application lit
+    // `AppConstants.accessTokenKey` : la renommer aurait laissé cette ligne
+    // chercher une clé qui n'existe plus, et chaque utilisateur déjà installé
+    // aurait revu l'onboarding — sans erreur nulle part.
+    final token = await SecureStorageService().read(AppConstants.accessTokenKey);
     if (token != null && token.isNotEmpty) {
       onboardingDone = true;
       await prefs.setBool('onboarding_done', true);
