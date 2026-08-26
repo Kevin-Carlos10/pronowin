@@ -1,6 +1,7 @@
 import 'package:country_picker/country_picker.dart'
     show CountryService, CountryLocalizations;
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/image_distante.dart';
 import '../../../../core/utils/motion.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -1396,8 +1397,9 @@ class _ProfileAvatar extends StatelessWidget {
                 begin: Alignment.topLeft, end: Alignment.bottomRight)),
             child: ClipOval(
               child: avatarUrl != null && avatarUrl!.isNotEmpty
-                ? Image.network(avatarUrl!, fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => Center(child: Text(initiale,
+                ? ImageDistante(
+                    url:   avatarUrl,
+                    repli: Center(child: Text(initiale,
                       style: const TextStyle(color: Colors.white,
                         fontSize: 28, fontWeight: FontWeight.w800))))
                 : Center(child: Text(initiale,

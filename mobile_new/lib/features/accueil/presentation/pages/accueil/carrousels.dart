@@ -393,7 +393,7 @@ class _HeroLiveBadgeState extends State<_HeroLiveBadge>
     child: Row(mainAxisSize: MainAxisSize.min, children: [
       AnimatedBuilder(
         animation: _pulse,
-        builder: (_, __) => Container(
+        builder: (_, _) => Container(
           width: 7, height: 7,
           decoration: BoxDecoration(
             color: AppColors.error.withValues(alpha: 0.4 + 0.6 * _pulse.value),

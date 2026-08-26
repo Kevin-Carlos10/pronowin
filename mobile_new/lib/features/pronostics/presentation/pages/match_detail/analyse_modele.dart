@@ -809,10 +809,12 @@ class _PhotoJoueur extends StatelessWidget {
     child: ClipOval(
       child: url == null
         ? Icon(Icons.person_rounded, color: context.cl.textM, size: taille * 0.55)
-        : Image.network(url!, fit: BoxFit.cover,
-            // Le CDN renvoie un 404 pour les joueurs sans photo.
-            errorBuilder: (_, _, _) =>
-              Icon(Icons.person_rounded, color: context.cl.textM, size: taille * 0.55)),
+        // Le CDN renvoie un 404 pour les joueurs sans photo.
+        : ImageDistante(
+            url:     url,
+            largeur: taille, hauteur: taille,
+            repli:   Icon(Icons.person_rounded,
+                          color: context.cl.textM, size: taille * 0.55)),
     ),
   );
 }

@@ -51,7 +51,7 @@ class _LineupsCard extends ConsumerWidget {
           ? const _CardLoginPrompt(message: 'Connecte-toi pour voir les compositions.')
           : lineupsAsync.when(
               loading: () => _H2HLoading(),
-              error: (_, __) => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
               data: (lineups) => !lineups.available
                 ? _LineupsPending()
                 : _LineupsContent(lineups: lineups, match: match),
@@ -189,11 +189,11 @@ class _TerrainEquipe extends StatelessWidget {
         child: Row(children: [
           if (logo != null && logo!.isNotEmpty) ...[
             SizedBox(width: 18, height: 18,
-              child: Image.network(logo!,
-                fit: BoxFit.contain,
-                errorBuilder: (_, _, _) => const SizedBox.shrink(),
-                loadingBuilder: (c, enfant, progres) =>
-                    progres == null ? enfant : const SizedBox.shrink())),
+              child: ImageDistante(
+                url:     logo,
+                largeur: 18, hauteur: 18,
+                fit:     BoxFit.contain,
+                repli:   const SizedBox.shrink())),
             const SizedBox(width: 8),
           ],
           Flexible(child: Text(nom,
@@ -320,13 +320,13 @@ class _PitchPlayer extends StatelessWidget {
             child: ClipOval(
               child: player.photoUrl == null
                 ? Icon(Icons.person_rounded, color: Colors.white70, size: size * 0.55)
-                : Image.network(
-                    player.photoUrl!,
-                    fit: BoxFit.cover,
-                    // Le CDN peut renvoyer un 404 pour un joueur sans photo :
-                    // on retombe sur l'icône générique plutôt que sur une erreur.
-                    errorBuilder: (_, e, s) =>
-                      Icon(Icons.person_rounded, color: Colors.white70, size: size * 0.55),
+                // Le CDN peut renvoyer un 404 pour un joueur sans photo :
+                // on retombe sur l'icône générique plutôt que sur une erreur.
+                : ImageDistante(
+                    url:     player.photoUrl,
+                    largeur: size, hauteur: size,
+                    repli:   Icon(Icons.person_rounded,
+                                  color: Colors.white70, size: size * 0.55),
                   ),
             ),
           ),
@@ -474,12 +474,11 @@ class _UnEntraineur extends StatelessWidget {
           ? Icon(Icons.person_rounded, color: context.cl.textM, size: 22)
           // Une photo absente ne doit pas laisser un trou : on retombe sur la
           // silhouette, de meme taille.
-          : Image.network(photo, fit: BoxFit.cover,
-              errorBuilder: (_, _, _) =>
-                  Icon(Icons.person_rounded, color: context.cl.textM, size: 22),
-              loadingBuilder: (c, enfant, progres) => progres == null
-                  ? enfant
-                  : Icon(Icons.person_rounded, color: context.cl.textM, size: 22)),
+          : ImageDistante(
+              url:     photo,
+              largeur: 52, hauteur: 52,
+              repli:   Icon(Icons.person_rounded,
+                            color: context.cl.textM, size: 22)),
       ),
       const SizedBox(height: 7),
       Text(nom,

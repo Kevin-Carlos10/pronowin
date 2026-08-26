@@ -367,7 +367,7 @@ class _BalanceChart extends StatelessWidget {
                   barWidth: 2.5,
                   dotData: FlDotData(
                     show: true,
-                    getDotPainter: (spot, _, __, index) {
+                    getDotPainter: (spot, _, _, index) {
                       final isLast = index == spots.length - 1;
                       return FlDotCirclePainter(
                         radius: isLast ? 4 : 2,

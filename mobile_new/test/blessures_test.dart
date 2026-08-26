@@ -78,7 +78,13 @@ void main() {
     test('la photo du joueur est affichée', () {
       expect(code.contains('player.photo'), isTrue,
         reason: 'elle était fournie par l\'API et jamais lue');
-      expect(code.contains('errorBuilder'), isTrue,
+      // `repli:` a remplacé `errorBuilder:` : la photo passe par
+      // `ImageDistante`, qui décode à la taille d'affichage et exige un repli
+      // — la propriété est la même, elle est simplement devenue obligatoire.
+      expect(code.contains('ImageDistante('), isTrue,
+        reason: 'décoder une photo de 500 px pour un rond de 26 coûte de la '
+                'mémoire sur les appareils que vise l\'application');
+      expect(code.contains('repli:'), isTrue,
         reason: 'une photo introuvable ne doit pas casser la ligne');
     });
   });

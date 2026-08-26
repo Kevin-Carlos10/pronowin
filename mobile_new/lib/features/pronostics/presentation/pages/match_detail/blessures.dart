@@ -143,13 +143,11 @@ class _InjuryRow extends StatelessWidget {
         // « R. Asencio » ne dit pas grand-chose.
         if (player.photo != null && player.photo!.isNotEmpty) ...[
           SizedBox(width: 26, height: 26,
-            child: ClipOval(child: Image.network(player.photo!,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) =>
-                  Icon(Icons.person_rounded, color: context.cl.textM, size: 15),
-              loadingBuilder: (c, enfant, progres) => progres == null
-                  ? enfant
-                  : Icon(Icons.person_rounded, color: context.cl.textM, size: 15)))),
+            child: ClipOval(child: ImageDistante(
+              url:     player.photo,
+              largeur: 26, hauteur: 26,
+              repli:   Icon(Icons.person_rounded,
+                            color: context.cl.textM, size: 15)))),
           const SizedBox(width: 9),
         ],
         SizedBox(

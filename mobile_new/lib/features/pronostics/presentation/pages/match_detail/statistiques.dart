@@ -41,7 +41,7 @@ class _MatchStatsCard extends ConsumerWidget {
         const SizedBox(height: 14),
         statsAsync.when(
           loading: () => _StatsLoading(),
-          error: (_, __) => _StatsUnavailable(),
+          error: (_, _) => _StatsUnavailable(),
           data: (data) => data == null
             ? _StatsUnavailable()
             : _StatsList(stats: data.stats,

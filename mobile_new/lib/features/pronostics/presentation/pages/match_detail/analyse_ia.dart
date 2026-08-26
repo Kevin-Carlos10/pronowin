@@ -53,7 +53,7 @@ class _AIAnalysisCard extends ConsumerWidget {
         const SizedBox(height: 16),
         aiAsync.when(
           loading: () => _AILoadingState(),
-          error: (err, __) {
+          error: (err, _) {
             final code = err is DioException ? err.response?.statusCode : null;
 
             // L'endpoint enchaîne authMiddleware PUIS premiumMiddleware : un
@@ -139,7 +139,7 @@ class _AIData extends StatelessWidget {
           tween: IntTween(begin: 0, end: analysis.probability),
           duration: const Duration(milliseconds: 1200),
           curve: Curves.easeOutCubic,
-          builder: (_, val, __) => Text('$val%',
+          builder: (_, val, _) => Text('$val%',
             style: TextStyle(
               color: _probColor,
               fontSize: 28,

@@ -89,7 +89,7 @@ class _StandingsCard extends ConsumerWidget {
           ? const _CardLoginPrompt(message: 'Connecte-toi pour voir le classement.')
           : standingsAsync.when(
               loading: () => _H2HLoading(),
-              error: (_, __) => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
               data: (rows) => _StandingsTable(
                 rows: rows, homeTeam: homeTeam, awayTeam: awayTeam),
             ),
@@ -216,13 +216,13 @@ class _LigneClassement extends StatelessWidget {
         // Ecusson : recupere par le serveur depuis toujours, jamais affiche.
         if (row.teamLogo != null && row.teamLogo!.isNotEmpty) ...[
           SizedBox(width: 16, height: 16,
-            child: Image.network(row.teamLogo!,
-              fit: BoxFit.contain,
-              // Un logo absent ne doit pas decaler la colonne : on garde la
-              // place et on n'affiche rien.
-              errorBuilder: (_, _, _) => const SizedBox.shrink(),
-              loadingBuilder: (c, enfant, progres) =>
-                  progres == null ? enfant : const SizedBox.shrink())),
+            // Un logo absent ne doit pas decaler la colonne : on garde la
+            // place et on n'affiche rien.
+            child: ImageDistante(
+              url:     row.teamLogo,
+              largeur: 16, hauteur: 16,
+              fit:     BoxFit.contain,
+              repli:   const SizedBox.shrink())),
           const SizedBox(width: 7),
         ] else
           const SizedBox(width: 23),

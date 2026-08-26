@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/image_distante.dart';
 import '../../../../shared/widgets/erreur_chargement.dart';
 import '../../../../core/utils/motion.dart';
 import 'package:flutter/services.dart';
@@ -565,10 +566,9 @@ class _FeaturedCardState extends State<_FeaturedCard>
               SizedBox(
                 height: 180,
                 width: double.infinity,
-                child: Image.network(
-                  tuto.thumbnailUrl!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _GradientBg(color: _catColor),
+                child: ImageDistante(
+                  url:   tuto.thumbnailUrl,
+                  repli: _GradientBg(color: _catColor),
                 ),
               )
             else
@@ -724,11 +724,10 @@ class _TutoCard extends StatelessWidget {
             aspectRatio: 16 / 9,
             child: Stack(fit: StackFit.expand, children: [
               tuto.thumbnailUrl != null
-                  ? Image.network(
-                      tuto.thumbnailUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) =>
-                          _EmojiIcon(tuto: tuto, catColor: _catColor, emojiSize: 40),
+                  ? ImageDistante(
+                      url:   tuto.thumbnailUrl,
+                      repli: _EmojiIcon(
+                          tuto: tuto, catColor: _catColor, emojiSize: 40),
                     )
                   : _EmojiIcon(tuto: tuto, catColor: _catColor, emojiSize: 40),
 

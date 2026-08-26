@@ -145,10 +145,9 @@ class _SliverHeader extends ConsumerWidget {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(12),
                         child: (user?.avatarUrl != null && (user!.avatarUrl as String).isNotEmpty)
-                            ? Image.network(
-                                user!.avatarUrl as String,
-                                fit: BoxFit.cover,
-                                errorBuilder: (_, _, _) => _AvatarInitials(user: user),
+                            ? ImageDistante(
+                                url:   user!.avatarUrl as String,
+                                repli: _AvatarInitials(user: user),
                               )
                             : _AvatarInitials(user: user),
                       ),

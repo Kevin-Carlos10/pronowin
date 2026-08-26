@@ -67,7 +67,7 @@ void main() {
     test('l\'écusson est affiché', () {
       expect(code.contains('row.teamLogo'), isTrue,
         reason: 'le logo était récupéré par le serveur et ignoré par l\'écran');
-      expect(code.contains('errorBuilder'), isTrue,
+      expect(code.contains('repli:'), isTrue,
         reason: 'un logo introuvable ne doit pas casser la ligne');
     });
 

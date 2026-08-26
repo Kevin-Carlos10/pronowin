@@ -250,10 +250,26 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
         Locale('fr', 'FR'),
         Locale('en', 'US'),
       ],
-      builder: (context, child) => MediaQuery(
-        data:  MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
-        child: child!,
-      ),
+      // Taille de texte : bornée, pas ignorée.
+      //
+      // C'était `TextScaler.noScaling` — le réglage système n'avait donc
+      // **aucun** effet. Un utilisateur qui a agrandi le texte de son téléphone
+      // parce qu'il lit mal retrouvait ici les tailles d'origine, sans recours.
+      //
+      // À l'autre extrême, laisser passer un facteur de 2 fait déborder les
+      // cartes à hauteur fixe de l'accueil et du détail d'un match. On accepte
+      // donc jusqu'à 1,3 : ce que la mise en page sait porter, ce qui couvre
+      // les réglages « Grand » des deux systèmes, et ce qui reste honnête —
+      // au-delà, la promesse serait tenue à l'écran par un texte tronqué.
+      builder: (context, child) {
+        final systeme = MediaQuery.textScalerOf(context);
+        return MediaQuery(
+          data: MediaQuery.of(context).copyWith(
+            textScaler: systeme.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.3),
+          ),
+          child: child!,
+        );
+      },
     );
   }
 }

@@ -107,12 +107,14 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
       });
       ref.invalidate(bankrollProvider);
       HapticFeedback.mediumImpact();
-      if (mounted) setState(() {
+      if (mounted) {
+        setState(() {
         _confirmed        = true;
         _confirmedStake   = stake;
         _confirmedCurrency = currency;
         _loading          = false;
       });
+      }
     } catch (e) {
       String msg;
       if (e is DioException) {

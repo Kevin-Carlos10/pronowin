@@ -52,7 +52,7 @@ class _H2HCard extends ConsumerWidget {
           ? const _CardLoginPrompt(message: 'Connecte-toi pour voir les confrontations directes.')
           : h2hAsync.when(
               loading: () => _H2HLoading(),
-              error: (_, __) => const SizedBox.shrink(),
+              error: (_, _) => const SizedBox.shrink(),
               data: (h2h) => _H2HContent(
                 h2h: h2h, homeLogo: homeLogo, awayLogo: awayLogo),
             ),
@@ -83,7 +83,7 @@ class _H2HContent extends StatelessWidget {
             TweenAnimationBuilder<int>(
               tween: IntTween(begin: 0, end: h2h.homeWins),
               duration: const Duration(milliseconds: 800),
-              builder: (_, v, __) => Text('$v',
+              builder: (_, v, _) => Text('$v',
                 style: TextStyle(
                   color: AppColors.success,
                   fontSize: 24, fontWeight: FontWeight.w900)),
@@ -99,7 +99,7 @@ class _H2HContent extends StatelessWidget {
           TweenAnimationBuilder<int>(
             tween: IntTween(begin: 0, end: h2h.draws),
             duration: const Duration(milliseconds: 800),
-            builder: (_, v, __) => Text('$v',
+            builder: (_, v, _) => Text('$v',
               style: TextStyle(
                 color: context.cl.textM,
                 fontSize: 24, fontWeight: FontWeight.w900)),
@@ -113,7 +113,7 @@ class _H2HContent extends StatelessWidget {
             TweenAnimationBuilder<int>(
               tween: IntTween(begin: 0, end: h2h.awayWins),
               duration: const Duration(milliseconds: 800),
-              builder: (_, v, __) => Text('$v',
+              builder: (_, v, _) => Text('$v',
                 style: TextStyle(
                   color: AppColors.error,
                   fontSize: 24, fontWeight: FontWeight.w900)),
@@ -133,7 +133,7 @@ class _H2HContent extends StatelessWidget {
           tween: Tween(begin: 0, end: 1),
           duration: const Duration(milliseconds: 900),
           curve: Curves.easeOutCubic,
-          builder: (_, t, __) => Row(children: [
+          builder: (_, t, _) => Row(children: [
             if (homeRatio > 0) Expanded(
               flex: (homeRatio * 100).round(),
               child: Container(
@@ -353,16 +353,20 @@ class _SaisonEnCours extends ConsumerWidget {
         Row(children: [
           if (match.homeTeamLogo != null)
             SizedBox(width: 22, height: 22,
-              child: Image.network(match.homeTeamLogo!,
-                errorBuilder: (_, _, _) => const SizedBox.shrink())),
+              child: ImageDistante(
+                url:     match.homeTeamLogo,
+                largeur: 22, hauteur: 22,
+                repli:   const SizedBox.shrink())),
           Expanded(child: Text('Saison en cours',
             textAlign: TextAlign.center,
             style: TextStyle(
               color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700))),
           if (match.awayTeamLogo != null)
             SizedBox(width: 22, height: 22,
-              child: Image.network(match.awayTeamLogo!,
-                errorBuilder: (_, _, _) => const SizedBox.shrink())),
+              child: ImageDistante(
+                url:     match.awayTeamLogo,
+                largeur: 22, hauteur: 22,
+                repli:   const SizedBox.shrink())),
         ]),
         const SizedBox(height: 12),
         for (final (libelle, gauche, droite) in lignes)

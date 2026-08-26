@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/image_distante.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -283,8 +284,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     : _localAvatarPath != null
                       ? Image.file(File(_localAvatarPath!), fit: BoxFit.cover)
                       : avatarUrl != null && avatarUrl.isNotEmpty
-                        ? Image.network(avatarUrl, fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Center(child: Text(initiale,
+                        ? ImageDistante(
+                            url:   avatarUrl,
+                            repli: Center(child: Text(initiale,
                               style: const TextStyle(color: Colors.white,
                                 fontSize: 32, fontWeight: FontWeight.w800))))
                         : Center(child: Text(initiale,

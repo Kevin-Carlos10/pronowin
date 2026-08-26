@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/image_distante.dart';
 import '../../../../shared/widgets/erreur_chargement.dart';
 import '../../../../core/utils/motion.dart';
 import 'package:flutter/services.dart';
@@ -380,8 +381,10 @@ class _Avatar extends StatelessWidget {
       ),
       child: ClipOval(
         child: avatarUrl != null
-          ? Image.network(avatarUrl!, fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => _Initiale(pseudo: pseudo, size: size))
+          ? ImageDistante(
+              url:     avatarUrl,
+              largeur: size, hauteur: size,
+              repli:   _Initiale(pseudo: pseudo, size: size))
           : _Initiale(pseudo: pseudo, size: size),
       ),
     );

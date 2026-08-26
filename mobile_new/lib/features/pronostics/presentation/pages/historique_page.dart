@@ -83,7 +83,7 @@ class HistoriquePage extends ConsumerWidget {
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error:   (_, __) => const _ErrorView(),
+        error:   (_, _) => const _ErrorView(),
         data: (all) {
           final entries = _applyFilter(all, filter);
           return Column(
@@ -263,7 +263,11 @@ class _HistoriqueBody extends StatelessWidget {
     final taux  = total > 0 ? (won / total * 100).round() : 0;
     int serie   = 0;
     for (final e in allEntries) {
-      if (e['result'] == 'WIN') serie++; else break;
+      if (e['result'] == 'WIN') {
+        serie++;
+      } else {
+        break;
+      }
     }
 
     // Grouper par semaine
@@ -413,7 +417,7 @@ class _PerformanceChart extends StatelessWidget {
                   barWidth: 2.5,
                   dotData: FlDotData(
                     show: true,
-                    getDotPainter: (spot, _, __, ___) {
+                    getDotPainter: (spot, _, _, _) {
                       final isLast = spot.x == spots.last.x;
                       return FlDotCirclePainter(
                         radius: isLast ? 5 : 0,

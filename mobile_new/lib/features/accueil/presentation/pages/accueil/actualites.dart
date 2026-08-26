@@ -174,9 +174,10 @@ class _FeaturedNewsCard extends StatelessWidget {
             // Image fond
             if (imgUrl != null && imgUrl.isNotEmpty)
               Positioned.fill(
-                child: Image.network(imgUrl, fit: BoxFit.cover,
-                  headers: _imgHeaders(imgUrl),
-                  errorBuilder: (_, _, _) => Container(color: context.cl.surfaceD)),
+                child: ImageDistante(
+                  url:     imgUrl,
+                  entetes: _imgHeaders(imgUrl),
+                  repli:   Container(color: context.cl.surfaceD)),
               )
             else
               Positioned.fill(child: Container(
@@ -306,9 +307,11 @@ class _CompactNewsCard extends StatelessWidget {
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: hasImg
-                ? Image.network(imgUrl, width: 60, height: 60, fit: BoxFit.cover,
-                    headers: _imgHeaders(imgUrl),
-                    errorBuilder: (_, _, _) => _NewsEmojiFallback(
+                ? ImageDistante(
+                    url:     imgUrl,
+                    largeur: 60, hauteur: 60,
+                    entetes: _imgHeaders(imgUrl),
+                    repli:   _NewsEmojiFallback(
                       emoji: news['emoji'] as String? ?? '📰', accent: accent))
                 : _NewsEmojiFallback(emoji: news['emoji'] as String? ?? '📰', accent: accent),
           ),
@@ -413,9 +416,10 @@ class _NewsDetailSheet extends StatelessWidget {
               Stack(children: [
                 SizedBox(
                   height: 200, width: double.infinity,
-                  child: Image.network(imgUrl, fit: BoxFit.cover,
-                    headers: _imgHeaders(imgUrl),
-                    errorBuilder: (_, _, _) => const SizedBox.shrink())),
+                  child: ImageDistante(
+                    url:     imgUrl,
+                    entetes: _imgHeaders(imgUrl),
+                    repli:   const SizedBox.shrink())),
                 Positioned.fill(child: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(

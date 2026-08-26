@@ -66,9 +66,9 @@ void main() {
 
   group('ce que l\'en-tête doit porter', () {
     test('l\'écusson de l\'équipe', () {
-      expect(code.contains('Image.network(logo!'), isTrue,
+      expect(code.contains('url:     logo'), isTrue,
         reason: 'le logo vient du match : `/lineups` n\'en renvoie aucun');
-      expect(code.contains('errorBuilder'), isTrue,
+      expect(code.contains('repli:   const SizedBox.shrink()'), isTrue,
         reason: 'un logo introuvable ne doit pas casser l\'en-tête');
     });
 
@@ -100,7 +100,7 @@ void main() {
       final corps = code.substring(c);
       expect(corps.contains('Icons.person_rounded'), isTrue,
         reason: 'il faut une silhouette de repli, de même taille');
-      expect(corps.contains('errorBuilder'), isTrue);
+      expect(corps.contains('repli:'), isTrue);
     });
   });
 

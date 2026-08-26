@@ -18,6 +18,7 @@ import '../../../../core/services/prono_share_service.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../bankroll/presentation/widgets/miser_dialog.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
+import '../../../../core/widgets/image_distante.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
