@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { Prisma } from '@prisma/client';
 import { ReferralService } from './referral.service';
 import { listerPubliques } from './payment_method.service';
+import { estProfilComplet } from '../middleware/profile.middleware';
 
 // Import S3 de façon lazy pour éviter le crash si AWS pas configuré
 let s3Svc: any = null;
@@ -56,6 +57,21 @@ export const PREMIUM_PRICE_USD_STORE_ANNUAL  = parseFloat(process.env.PREMIUM_PR
 export const XBET_PROMO_CODE    = process.env.XBET_PROMO_CODE ?? 'PRONOWIN2025';
 export const BETTING_PLATFORMS  = ['1xbet', 'melbet', 'betwinner'] as const;
 export type BettingPlatform = typeof BETTING_PLATFORMS[number];
+
+/**
+ * Délai de validation annoncé à l'utilisateur — **source unique**.
+ *
+ * Il était écrit en dur ici (réponse à la soumission) et à quatre endroits de
+ * l'écran mobile, avec des valeurs qui ne se contrôlaient pas les unes les
+ * autres. Le raccourcir côté serveur laissait quatre écrans promettre
+ * l'ancien délai, sans qu'aucune erreur ne le signale.
+ *
+ * Exposé dans `/subscriptions/current` pour que les écrans l'affichent
+ * *avant* la soumission — c'est là que l'utilisateur se pose la question,
+ * juste après avoir envoyé son argent.
+ */
+export const REVIEW_DELAY_DIRECT = process.env.REVIEW_DELAY_DIRECT ?? '30 minutes ouvrables';
+export const REVIEW_DELAY_CODE   = process.env.REVIEW_DELAY_CODE   ?? '2 heures ouvrables';
 
 /** Jours avant expiration où l'on prévient l'abonné. */
 const EXPIRY_REMINDER_DAYS = [7, 3, 1];
@@ -193,7 +209,22 @@ export class SubscriptionService {
         premium_price_annual_store_usd:  PREMIUM_PRICE_USD_STORE_ANNUAL,
         // Numéros de réception, gérés depuis l'administration. L'app affichait
         // jusqu'ici une constante compilée dans le binaire.
-        payment_methods: await listerPubliques(),
+        // Numéros de réception : servis uniquement à un profil complet et
+        // majeur.
+        //
+        // Ils accompagnaient jusqu'ici toute réponse authentifiée. La barrière
+        // « 18 ans » n'existait donc que dans le sélecteur de date de
+        // l'application : trois appuis pour créer un compte Google, un appel à
+        // cette route, et le numéro était lisible — sans nom, sans âge, sans
+        // téléphone. Ce champ n'est pas un affichage, c'est la destination
+        // d'un virement.
+        payment_methods: (await estProfilComplet(userId))
+          ? await listerPubliques()
+          : [],
+        // Délais annoncés — l'écran les affiche avant la soumission, sans les
+        // réécrire de son côté.
+        review_delay_direct: REVIEW_DELAY_DIRECT,
+        review_delay_code:   REVIEW_DELAY_CODE,
         pending_proof: pendingProof ? {
           id:         pendingProof.id,
           type:       pendingProof.type,
@@ -222,7 +253,11 @@ export class SubscriptionService {
         // Tarif des builds store (commission Apple/Google incluse).
         premium_price_monthly_store_usd: PREMIUM_PRICE_USD_STORE_MONTHLY,
         premium_price_annual_store_usd:  PREMIUM_PRICE_USD_STORE_ANNUAL,
-        payment_methods: await listerPubliques(),
+        // Branche d'erreur : on ne publie aucun numéro. Ne pas avoir pu lire
+        // le profil, c'est ne pas avoir pu vérifier l'âge.
+        payment_methods: [],
+        review_delay_direct: REVIEW_DELAY_DIRECT,
+        review_delay_code:   REVIEW_DELAY_CODE,
         pending_proof: null,
         error:         e.message,
       };
@@ -350,7 +385,7 @@ export class SubscriptionService {
     return {
       proof_id:         proof.id,
       status:           'pending',
-      estimated_review: type === 'payment_screenshot' ? '30 minutes ouvrables' : '2 heures ouvrables',
+      estimated_review: type === 'payment_screenshot' ? REVIEW_DELAY_DIRECT : REVIEW_DELAY_CODE,
       message:          type === 'payment_screenshot'
         ? 'Preuve de paiement soumise. Validation sous 30 minutes.'
         : 'Preuve de paiement et de compte partenaire soumise. Validation sous 2 heures.',

@@ -11,6 +11,7 @@ import { buildUserProfile, getPersonalizedPronostics } from '../services/persona
 import { settleBets }      from '../services/bankroll.service';
 import { apiFootballService, apiFootballInsights } from '../services/api_football.service';
 import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
+import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
 
 const svc      = new PronosticsService();
 const fdSvc    = new FootballDataService();
@@ -728,17 +729,45 @@ export const getMatchInsights = async (req: AuthRequest, res: Response) => {
         ])
       : [null, null];
 
+    // Sortie inexploitable : ni probabilités, ni axes, ni recommandation.
+    //
+    // Vidées ici plutôt que triées par l'écran : aucun consommateur — le mobile
+    // aujourd'hui, un autre client demain — ne peut afficher des butées
+    // numériques sous le titre « Pourquoi ce pronostic ». Le drapeau accompagne
+    // la réponse pour que l'écran se taise au lieu de montrer une section vide.
+    const utilisable = prediction.modeleExploitable;
+
+    // Probabilités du marché, déduites des cotes déjà stockées.
+    //
+    // Sur Lask Linz – Celtic, le modèle externe donnait Lask Linz sous 1 % et
+    // les cotes le donnaient favori à 48,5 % ; Lask Linz a gagné 4–1. Les deux
+    // lectures cohabitaient dans l'app, à deux onglets d'écart, sans jamais se
+    // croiser. Le marché agrège bien plus d'information qu'un modèle bâti sur
+    // les seuls buts marqués : quand ses cotes sont exploitables, ce sont
+    // elles qui font foi pour l'affichage des probabilités.
+    const marche = probabilitesDepuisCotes(
+      prono.oddsHome, prono.oddsDraw, prono.oddsAway);
+
     res.json({
-      advice:         prediction.advice,
-      winner_name:    prediction.winnerName,
-      winner_comment: prediction.winnerComment,
-      percent: {
-        home: prediction.percentHome,
-        draw: prediction.percentDraw,
-        away: prediction.percentAway,
-      },
-      under_over:  prediction.underOver,
-      comparisons: prediction.comparisons,
+      modele_exploitable: utilisable,
+      // Quelle source alimente `percent` — l'écran doit pouvoir le nommer
+      // plutôt que de laisser croire à un chiffre maison.
+      source_probabilites: marche ? 'marche' : (utilisable ? 'modele' : null),
+      marge_bookmaker: marche?.margePct ?? null,
+      advice:         utilisable ? prediction.advice : null,
+      winner_name:    utilisable ? prediction.winnerName : null,
+      winner_comment: utilisable ? prediction.winnerComment : null,
+      // Le marché d'abord, le modèle en repli. Si aucun des deux ne tient, on
+      // n'envoie rien : mieux vaut une section absente qu'une section fausse.
+      percent: marche
+        ? { home: marche.home, draw: marche.draw, away: marche.away }
+        : (utilisable ? {
+            home: prediction.percentHome,
+            draw: prediction.percentDraw,
+            away: prediction.percentAway,
+          } : null),
+      under_over:  utilisable ? prediction.underOver : null,
+      comparisons: utilisable ? prediction.comparisons : [],
       form: { home: prediction.formHome, away: prediction.formAway },
       clean_sheet:      { home: prediction.cleanSheetHome,    away: prediction.cleanSheetAway },
       failed_to_score:  { home: prediction.failedToScoreHome, away: prediction.failedToScoreAway },
@@ -749,6 +778,13 @@ export const getMatchInsights = async (req: AuthRequest, res: Response) => {
       goals_average: {
         home: statsHome?.goalsForAverage ?? null,
         away: statsAway?.goalsForAverage ?? null,
+      },
+      // Buts encaisses : recuperes a cote de ceux marques et jamais exposes.
+      // Une attaque a 2,0 devant une defense a 0,5 ne raconte pas la meme
+      // chose qu a 2,0 contre 2,0.
+      goals_conceded_average: {
+        home: statsHome?.goalsAgainstAverage ?? null,
+        away: statsAway?.goalsAgainstAverage ?? null,
       },
       home_team: prono.match.homeTeam,
       away_team: prono.match.awayTeam,

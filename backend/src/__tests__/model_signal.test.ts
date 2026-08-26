@@ -17,6 +17,7 @@ import type { MatchPrediction } from '../services/api_football_insights.service'
 const prediction = (h: number, d: number, a: number): MatchPrediction => ({
   advice: null, winnerName: null, winnerComment: null,
   percentHome: h, percentDraw: d, percentAway: a,
+  modeleExploitable: true,
   underOver: null, comparisons: [],
   formHome: null, formAway: null,
   leagueId: null, season: null, homeTeamId: null, awayTeamId: null,

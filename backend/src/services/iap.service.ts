@@ -81,10 +81,16 @@ export class IapService {
   }
 
   /**
-   * Les payloads Apple sont des JWS signés par Apple. On décode la charge utile
-   * sans revérifier la signature : la réponse arrive déjà par un canal TLS
-   * authentifié auprès d'api.storekit.itunes.apple.com. Pour les notifications
-   * serveur, en revanche, la signature EST vérifiée (voir `_verifyAppleJws`).
+   * Décode la charge utile d'un JWS Apple, **sans rien vérifier**.
+   *
+   * Le nom le dit : c'est un décodage, pas une authentification. Deux usages,
+   * tous deux légitimes parce que la confiance vient d'ailleurs :
+   *
+   *  * réponses de `api.storekit.itunes.apple.com`, obtenues par un canal TLS
+   *    authentifié auprès d'Apple ;
+   *  * notifications serveur, dont le contenu n'est **jamais** cru sur parole
+   *    — il sert seulement à retrouver la transaction, puis tout est
+   *    revérifié auprès de l'API d'Apple.
    */
   private _decodeJws(token: string): any {
     const part = token.split('.')[1];
@@ -290,49 +296,69 @@ export class IapService {
   // ─── Notifications serveur ──────────────────────────────────────────────────
 
   /**
-   * Vérifie la signature d'un JWS Apple via la chaîne de certificats x5c.
+   * App Store Server Notifications V2.
    *
-   * Contrairement à `verifyApple`, la charge arrive ici par un webhook public :
-   * sans vérification, n'importe qui pourrait poster un faux renouvellement.
+   * ⚠️ Le contenu de la notification n'est **jamais** cru sur parole.
+   *
+   * La version précédente vérifiait la signature du JWS avec le certificat
+   * contenu **dans le JWS lui-même** (`header.x5c[0]`), sans jamais remonter
+   * la chaîne jusqu'à la racine Apple. C'était circulaire : n'importe qui
+   * pouvait générer une paire de clés ES256, y joindre son propre certificat
+   * auto-signé, signer la charge de son choix — et `jwt.verify` acceptait.
+   * L'échéance ainsi transmise était ensuite écrite telle quelle dans
+   * `subscriptionExpiresAt`. Il suffisait d'un achat réel pour connaître un
+   * `originalTransactionId` valide, puis d'une notification forgée pour se
+   * prolonger jusqu'en 2099 — ou pour révoquer l'abonnement d'autrui.
+   *
+   * Le correctif ne consiste pas à valider la chaîne de certificats, mais à
+   * cesser d'en dépendre : la notification sert uniquement à **retrouver**
+   * l'achat, et tout le reste — produit, échéance, statut — est relu auprès de
+   * l'API authentifiée d'Apple par `verifyAndRecord`. C'est déjà ce que fait
+   * le chemin Google ; les deux stores sont désormais traités pareil.
+   *
+   * Cette approche résiste aussi au rejeu d'une notification authentique, ce
+   * qu'une simple vérification de signature n'aurait pas empêché.
    */
-  private _verifyAppleJws(token: string): any {
-    const [rawHeader] = token.split('.');
-    const header = JSON.parse(Buffer.from(rawHeader, 'base64url').toString('utf8'));
-    const chain: string[] = header.x5c ?? [];
-    if (chain.length === 0) throw new Error('Certificat absent du JWS Apple.');
-
-    const pem = `-----BEGIN CERTIFICATE-----\n`
-      + chain[0].replace(/(.{64})/g, '$1\n')
-      + `\n-----END CERTIFICATE-----`;
-    return jwt.verify(token, pem, { algorithms: ['ES256'] });
-  }
-
-  /** App Store Server Notifications V2. */
   async handleAppleNotification(signedPayload: string) {
-    const payload: any = this._verifyAppleJws(signedPayload);
-    const info = this._decodeJws(payload.data.signedTransactionInfo);
+    const payload = this._decodeJws(signedPayload);
+    const signedInfo = payload?.data?.signedTransactionInfo;
+    if (!signedInfo) return { ignored: true, reason: 'payload_sans_transaction' };
+
+    const info = this._decodeJws(signedInfo);
+    const originalId = info?.originalTransactionId;
+    if (!originalId) return { ignored: true, reason: 'original_transaction_absent' };
 
     const purchase = await prisma.iapPurchase.findFirst({
-      where:   { originalTransactionId: info.originalTransactionId },
+      where:   { originalTransactionId: originalId },
       orderBy: { createdAt: 'desc' },
     });
     // Notification pour un achat qu'on n'a jamais vu : le mobile n'a pas encore
     // appelé /verify. On l'ignore, il enverra le reçu à la prochaine ouverture.
     if (!purchase) return { ignored: true, reason: 'unknown_original_transaction' };
 
-    await this._applyStoreEvent({
-      userId:        purchase.userId,
-      store:         'apple',
-      productId:     info.productId,
-      transactionId: info.transactionId,
-      originalId:    info.originalTransactionId,
-      expiresAt:     new Date(Number(info.expiresDate)),
-      notificationType: payload.notificationType,
-      environment:   info.environment ?? 'Production',
-      payload,
+    // L'autorité, c'est Apple — pas l'expéditeur de la requête.
+    const resultat = await this.verifyAndRecord({
+      userId:  purchase.userId,
+      store:   'apple',
+      receipt: originalId,
     });
 
-    return { handled: true, type: payload.notificationType };
+    // Prévenir l'abonné dont l'accès s'interrompt. `verifyAndRecord` révoque
+    // mais ne notifie pas ; sans ce rappel, l'utilisateur découvrirait la
+    // coupure en ouvrant un pronostic verrouillé.
+    if (!resultat.active) {
+      await notifSvc.sendToUser(purchase.userId, {
+        title: 'Abonnement Premium interrompu',
+        body:  'Ton accès Premium a pris fin. Tu peux le réactiver à tout moment.',
+        data:  { deep_link: '/compte', type: 'premium' },
+      }, 'premium').catch(() => {});
+    }
+
+    return {
+      handled: true,
+      type:    payload?.notificationType ?? 'inconnu',
+      active:  resultat.active,
+    };
   }
 
   /** Google Play Real-time Developer Notifications (via Pub/Sub push). */
@@ -359,39 +385,13 @@ export class IapService {
     return { handled: true, type: sub.notificationType };
   }
 
-  private async _applyStoreEvent(e: {
-    userId: string; store: IapStoreName; productId: string;
-    transactionId: string; originalId: string; expiresAt: Date;
-    notificationType: string; environment: string; payload: unknown;
-  }) {
-    const revoked = ['REFUND', 'REVOKE', 'EXPIRED'].includes(e.notificationType);
-    const status  = revoked ? e.notificationType.toLowerCase() : 'active';
-
-    await prisma.iapPurchase.upsert({
-      where:  { transactionId: e.transactionId },
-      update: { status, expiresAt: e.expiresAt, payload: e.payload as any },
-      create: {
-        userId: e.userId, store: e.store, productId: e.productId,
-        transactionId: e.transactionId, originalTransactionId: e.originalId,
-        expiresAt: e.expiresAt, status, environment: e.environment,
-        payload: e.payload as any,
-      },
-    });
-
-    if (revoked) {
-      await this._revokeIfExpired(e.userId);
-      await notifSvc.sendToUser(e.userId, {
-        title: 'Abonnement Premium interrompu',
-        body:  'Ton accès Premium a pris fin. Tu peux le réactiver à tout moment.',
-        data:  { deep_link: '/compte', type: 'premium' },
-      }, 'premium').catch(() => {});
-    } else {
-      await prisma.user.update({
-        where: { id: e.userId },
-        data:  { subscriptionPlan: 'premium', subscriptionExpiresAt: e.expiresAt },
-      });
-    }
-  }
+  // `_applyStoreEvent` a été supprimé avec la vérification circulaire.
+  //
+  // Il écrivait `subscriptionExpiresAt` directement depuis la charge reçue, et
+  // décidait de la révocation d'après le seul `notificationType` transmis par
+  // l'appelant. C'était le point d'écriture que la signature défaillante
+  // laissait atteindre. Tout passe désormais par `verifyAndRecord`, qui ne
+  // retient que ce qu'Apple ou Google confirment.
 }
 
 const APPLE_STATUS: Record<number, string> = {

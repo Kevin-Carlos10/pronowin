@@ -1343,7 +1343,23 @@ export class PronosticsService {
       where: { isPublished: true, match: { matchDate: { gte: debutJour, lte: finJour } } },
     });
 
+    // Combien de pronostics publiés aujourd'hui sont réellement gratuits.
+    //
+    // Sans ce compte, on ne distingue pas deux situations opposées. Le repli de
+    // `getDailyFreePronostic` exige `isPremium: false` : si tous les pronostics
+    // publiés du jour sont premium, il ne trouve rien, `/daily-free` répond 404
+    // et **le visiteur non abonné ne voit aucun pronostic**. L'alerte
+    // rassurait pourtant en annonçant que « l'application choisit alors le
+    // premier par ordre d'heure » — vrai dans un cas, faux dans l'autre, et
+    // faux précisément quand la vitrine est vide.
+    const gratuitsAujourdhui = await prisma.pronostic.count({
+      where: {
+        isPublished: true, isPremium: false,
+        match: { matchDate: { gte: debutJour, lte: finJour } },
+      },
+    });
+
     return { totalUsers, premiumUsers, pendingTx, totalPronostics, publishedToday,
-             vitrineDuJour, publiablesAujourdhui };
+             vitrineDuJour, publiablesAujourdhui, gratuitsAujourdhui };
   }
 }

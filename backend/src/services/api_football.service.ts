@@ -1,6 +1,8 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import type { H2HResult, H2HMatch } from './football_data.service';
 import { ApiFootballInsights } from './api_football_insights.service';
+import { zoneDepuisDescription } from './zones_classement';
+import { traduireAbsence, estSuspension } from './traduction_absences';
 
 // Mapping Football-Data.org codes → API-Football league IDs + saison de repli.
 //
@@ -205,6 +207,8 @@ export interface LineupPlayer {
 export interface TeamLineup {
   formation:   string | null;
   coach:       string | null;
+  /// Photo de l entraineur, fournie a cote de son nom dans la meme reponse.
+  coachPhoto:  string | null;
   startXI:     LineupPlayer[];
   substitutes: LineupPlayer[];
 }
@@ -226,7 +230,12 @@ export interface InjuredPlayer {
   name:   string;
   team:   'home' | 'away';
   type:   string; // "Injured", "Suspended", "Missing Fixture"...
+  /// Motif **deja traduit** : l ecran n a plus a connaitre l anglais.
   reason: string;
+  /// Photo du joueur, fournie dans la meme reponse et jamais lue.
+  photo:  string | null;
+  /// Suspension (carton) plutot qu indisponibilite physique — l icone change.
+  suspension: boolean;
 }
 
 const injuriesCache = new Map<string, { data: InjuredPlayer[]; ts: number }>();
@@ -288,6 +297,12 @@ export interface StandingRow {
   goalsDiff:   number;
   points:      number;
   form:        string | null; // ex. "WWDLW"
+  /// Zone de qualification ou de relegation, traduite. `null` si aucune.
+  zone:        string | null;
+  /// Nature de la zone, pour la couleur : c1, c3, c4, barrage, promotion,
+  /// relegation. Separee du libelle : une couleur ne doit pas dependre d une
+  /// chaine de caracteres.
+  zoneNature:  string | null;
 }
 
 const standingsCache = new Map<string, { data: StandingRow[]; ts: number }>();
@@ -661,7 +676,10 @@ export class ApiFootballService {
 
       const format = (side: any): TeamLineup => ({
         formation: side.formation ?? null,
-        coach:     side.coach?.name ?? null,
+        coach:      side.coach?.name  ?? null,
+        // La photo accompagne le nom dans la même réponse ; seul le nom était
+        // lu.
+        coachPhoto: side.coach?.photo ?? null,
         startXI:   (side.startXI ?? []).map((p: any) => ({
           id:     p.player?.id ?? null,
           name:   p.player?.name ?? '',
@@ -719,7 +737,14 @@ export class ApiFootballService {
         name:   item.player?.name ?? '',
         team:   item.team?.id === fixture.teams?.home?.id ? 'home' : 'away',
         type:   item.player?.type ?? 'Injured',
-        reason: item.player?.reason ?? '',
+        // Traduit ici, à la frontière du fournisseur — comme les
+        // recommandations et les marchés. La table vivait côté mobile et avait
+        // des trous que rien ne signalait : « Hamstring Injury » et « Hip
+        // Injury » s'affichaient en anglais sous « Blessure musculaire ».
+        reason: traduireAbsence(item.player?.reason ?? item.player?.type),
+        // Photo du joueur, fournie dans la même réponse et jamais lue.
+        photo:  item.player?.photo ?? null,
+        suspension: estSuspension(item.player?.reason ?? ''),
       }));
 
       // L'API renvoie parfois plusieurs fois la même absence pour un joueur
@@ -887,6 +912,11 @@ export class ApiFootballService {
         goalsDiff: row.goalsDiff ?? 0,
         points:    row.points ?? 0,
         form:      row.form ?? null,
+        // `description` porte la zone de qualification ou de relégation. Elle
+        // arrive en anglais et sous forme libre — « Promotion - Champions
+        // League (Group Stage) » — et n'était pas lue du tout.
+        zone:       zoneDepuisDescription(row.description)?.libelle ?? null,
+        zoneNature: zoneDepuisDescription(row.description)?.nature  ?? null,
       }));
 
       standingsCache.set(cacheKey, { data: result, ts: Date.now() });

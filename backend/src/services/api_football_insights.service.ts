@@ -1,5 +1,7 @@
 import type { AxiosInstance } from 'axios';
 import { traduireRecommandation } from './traduction_recommandation';
+import { extraireLigne, libelleSansLigne, marcheLisible, traduireMarche } from './cotes_live';
+import { evaluerFiabilite } from './fiabilite_modele';
 
 /**
  * Second volet du client API-Football : les données que le plan Pro débloque
@@ -35,6 +37,15 @@ export interface MatchPrediction {
   percentHome: number;
   percentDraw: number;
   percentAway: number;
+  /**
+   * La sortie du modèle est-elle exploitable ?
+   *
+   * `false` quand les valeurs sont collées aux butées — 0 % pour une équipe,
+   * tous les axes à 0/100. Ce n'est pas de la certitude, c'est une absence de
+   * données déguisée en évidence, et l'écran doit se taire plutôt que de la
+   * présenter sous « Pourquoi ce pronostic ».
+   */
+  modeleExploitable: boolean;
   /** Ligne de but conseillée, ex. '-2.5'. */
   underOver:   string | null;
   comparisons: PredictionComparison[];
@@ -90,6 +101,8 @@ export interface TeamSeasonStats {
   goalsForByMinute:     Record<string, number>;
   goalsAgainstByMinute: Record<string, number>;
   goalsForAverage:     { home: string; away: string; total: string };
+  /// Buts encaisses par match — fournis a cote de ceux marques, jamais lus.
+  goalsAgainstAverage: { home: string; away: string; total: string };
   cleanSheetTotal:     number;
   failedToScoreTotal:  number;
   penaltyScored:       number;
@@ -101,7 +114,12 @@ const SEASON_STATS_TTL = 24 * 60 * 60 * 1000;
 
 // ─── Cotes en direct ──────────────────────────────────────────────────────────
 
-export interface LiveOddValue { value: string; odd: number; }
+export interface LiveOddValue {
+  value: string;
+  odd:   number;
+  /** Seuil du marché — « 2.5 », « -0.5 ». Absent quand il n'y en a pas. */
+  ligne?: string;
+}
 export interface LiveOddMarket { name: string; values: LiveOddValue[]; }
 
 export interface LiveOdds {
@@ -217,7 +235,19 @@ export class ApiFootballInsights {
         season:     d.league?.season ?? null,
         homeTeamId: d.teams?.home?.id ?? null,
         awayTeamId: d.teams?.away?.id ?? null,
+        // Rempli juste après : l'évaluation a besoin de l'objet complet.
+        modeleExploitable: true,
       };
+
+      // Le fournisseur renvoie parfois des butées plutôt qu'une prédiction —
+      // 0 % pour une équipe, tous les axes à 0/100. On le constate ici, une
+      // seule fois, plutôt que dans chaque écran qui consomme la donnée.
+      const verdict = evaluerFiabilite(data);
+      data.modeleExploitable = verdict.exploitable;
+      if (!verdict.exploitable) {
+        console.warn(
+          `[ApiFootball] prédiction inexploitable pour la fixture ${fixtureId} : ${verdict.raison}`);
+      }
 
       predictionCache.set(fixtureId, { data, ts: Date.now() });
       return data;
@@ -261,6 +291,14 @@ export class ApiFootballInsights {
           home:  d.goals.for?.average?.home  ?? '0',
           away:  d.goals.for?.average?.away  ?? '0',
           total: d.goals.for?.average?.total ?? '0',
+        },
+        // Buts encaissés par match : fournis dans la même réponse, à côté de
+        // ceux marqués, et jamais lus. Une attaque à 2,0 face à une défense à
+        // 0,5 ne raconte pas la même chose qu'à 2,0 contre 2,0.
+        goalsAgainstAverage: {
+          home:  d.goals.against?.average?.home  ?? '0',
+          away:  d.goals.against?.average?.away  ?? '0',
+          total: d.goals.against?.average?.total ?? '0',
         },
         cleanSheetTotal:    d.clean_sheet?.total ?? 0,
         failedToScoreTotal: d.failed_to_score?.total ?? 0,
@@ -306,13 +344,27 @@ export class ApiFootballInsights {
           fixtureId: id,
           elapsed:   m.fixture?.status?.elapsed ?? null,
           markets: (m.odds ?? []).map((o: any) => ({
-            name: o.name ?? '',
+            name: traduireMarche(o.name ?? ''),
             values: (o.values ?? [])
-              .map((v: any) => ({ value: String(v.value ?? ''), odd: parseFloat(v.odd) }))
+              .map((v: any) => {
+                const ligne = extraireLigne(v);
+                return {
+                  // Le seuil est porté à part : le laisser dans le libellé le
+                  // ferait apparaître deux fois là où l'API l'y met déjà.
+                  value: libelleSansLigne(String(v.value ?? '')),
+                  odd:   parseFloat(v.odd),
+                  ...(ligne ? { ligne } : {}),
+                };
+              })
               // L'API renvoie parfois une cote à 0 sur un marché suspendu :
               // l'afficher ferait croire à une cote nulle.
               .filter((v: LiveOddValue) => Number.isFinite(v.odd) && v.odd > 1),
-          })).filter((o: LiveOddMarket) => o.values.length > 0),
+          }))
+            .filter((o: LiveOddMarket) => o.values.length > 0)
+            // Un marché à seuil dont le seuil manque se lit à l'envers — la
+            // cote peut être prise pour le nombre de buts. On le retire plutôt
+            // que d'exposer une ambiguïté.
+            .filter((o: LiveOddMarket) => marcheLisible(o.values)),
         });
       }
 

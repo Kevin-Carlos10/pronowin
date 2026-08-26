@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 
 import { prisma } from '../lib/prisma';
 import { NOTIF_CATEGORIES } from '../services/notification.service';
+import { estMajeur, AGE_MINIMUM } from '../utils/age';
 
 /**
  * PATCH /profile/notification-prefs
@@ -181,15 +182,20 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
     res.status(422).json({ message: 'Nom trop court (minimum 2 caractères).' }); return;
   }
 
-  // Validation date de naissance — doit avoir au moins 18 ans
+  // Validation date de naissance — doit avoir au moins 18 ans.
+  //
+  // `estMajeur` remplace un calcul par division (365,25 jours) qui se trompait
+  // d'un jour autour de l'anniversaire, et refuse aussi les dates futures.
   if (birth_date) {
-    const dob  = new Date(birth_date);
-    const age  = Math.floor((Date.now() - dob.getTime()) / (365.25 * 86400000));
+    const dob = new Date(birth_date);
     if (isNaN(dob.getTime())) {
       res.status(422).json({ message: 'Date de naissance invalide.' }); return;
     }
-    if (age < 18) {
-      res.status(422).json({ message: 'Vous devez avoir au moins 18 ans pour utiliser PronoWin.' }); return;
+    if (!estMajeur(dob)) {
+      res.status(422).json({
+        message: `Vous devez avoir au moins ${AGE_MINIMUM} ans pour utiliser PronoWin.`,
+      });
+      return;
     }
   }
 
