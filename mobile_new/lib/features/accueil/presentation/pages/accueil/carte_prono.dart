@@ -407,7 +407,7 @@ class _PronosticCard extends ConsumerWidget {
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.6)),
                         const SizedBox(height: 2),
-                        ConfidenceIndicator(score: conf, width: 44, showLabel: false),
+                        ConfidenceIndicator(score: conf, showLabel: false),
                       ],
                     ),
                   ],

@@ -235,7 +235,6 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                             if (confidenceScore > 0)
                               ConfidenceIndicator(
                                   score: confidenceScore,
-                                  width: 44,
                                   showLabel: false),
                             const Spacer(),
                             if (oddsRec != null)

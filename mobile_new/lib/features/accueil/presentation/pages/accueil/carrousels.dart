@@ -314,7 +314,7 @@ class _HeroPronoCard extends StatelessWidget {
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.5)),
                       const SizedBox(height: 6),
-                      ConfidenceIndicator(score: conf, asPercent: true),
+                      ConfidenceIndicator(score: conf, showLabel: false),
                     ],
                   ),
                 ],

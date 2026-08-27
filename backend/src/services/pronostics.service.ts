@@ -6,6 +6,7 @@ import { settleBets } from './bankroll.service';
 // Moteur de règlement — extrait dans son propre module pour être testable
 // sans base de données (cf. settlement.ts).
 import { _resolvePronosticResult, type ScoreLine } from './settlement';
+import { estVerrouille } from './verrou_pronostic';
 
 const notifSvc  = new NotificationService();
 
@@ -858,7 +859,9 @@ export class PronosticsService {
       ? pronostics[pronostics.length - 1].id
       : null;
     const data = pronostics.map(p => {
-      const locked = p.isPremium && !isPremium;
+      // Règle unique, partagée avec le détail d'un match : un pronostic
+      // premium se masque tant que le match n'est pas joué, plus après.
+      const locked = estVerrouille(p.isPremium, p.match.status, isPremium);
       return {
       id:               p.id,
       // Le mobile (Accueil) s'appuie sur match_id pour le bouton favori —
@@ -1174,7 +1177,11 @@ export class PronosticsService {
     const data = matches.map(m => {
       const p           = m.pronostic;
       const hasPronostic = !!p && p.isPublished;
-      const mLocked      = hasPronostic && p!.isPremium && !isPremium;
+      // Troisième point d'application de la même règle — celui-ci alimente la
+      // liste « tous les matchs », c'est-à-dire l'écran principal. Il avait
+      // échappé aux deux premiers changements ; seul un contrôle l'a trouvé.
+      const mLocked      = hasPronostic
+          && estVerrouille(p!.isPremium, m.status, isPremium);
 
       return {
         id:               m.id,

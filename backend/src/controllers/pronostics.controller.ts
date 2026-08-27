@@ -1,6 +1,7 @@
 ﻿import { Request, Response }  from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest }  from '../middleware/auth.middleware';
+import { estVerrouille } from '../services/verrou_pronostic';
 import { AdminRequest } from '../middleware/admin.middleware';
 import { PronosticsService } from '../services/pronostics.service';
 import { FootballDataService } from '../services/football_data.service';
@@ -362,7 +363,11 @@ export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
     // gratuit voyait un mur au lieu d'une raison de s'abonner, et l'invité
     // n'entrait même pas. On sert désormais toute la donnée du match, et on
     // retire les seuls champs qui constituent l'offre payante.
-    const locked = prono.isPremium && !userIsPremium;
+    // Règle unique, partagée avec la liste (`verrou_pronostic.ts`). Un match
+    // terminé n'a plus rien à cacher : le score est public, le pronostic est
+    // vérifiable, et l'historique ouvert est ce qui rend crédible le taux de
+    // réussite affiché sur l'accueil.
+    const locked = estVerrouille(prono.isPremium, prono.match.status, userIsPremium);
 
     res.json({
       // `locked` dit au client d'afficher la carte pronostic verrouillée
