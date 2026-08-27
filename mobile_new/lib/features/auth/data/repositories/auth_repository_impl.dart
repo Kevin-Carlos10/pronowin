@@ -109,9 +109,30 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  /// Y a-t-il une session à restaurer ?
+  ///
+  /// Cette méthode effaçait **tout le stockage** dès que le jeton d'accès était
+  /// expiré — jeton de rafraîchissement compris. Or le jeton d'accès vit quinze
+  /// minutes et celui de rafraîchissement trente jours : le second existe
+  /// précisément pour survivre au premier.
+  ///
+  /// Conséquence, parfaitement reproductible : fermer l'application, attendre un
+  /// quart d'heure, la rouvrir — et se retrouver déconnecté. Après un
+  /// redémarrage du téléphone, c'était systématique.
+  ///
+  /// Un jeton d'accès expiré n'est donc pas un problème, c'est l'état normal.
+  /// La seule question est : reste-t-il de quoi en obtenir un nouveau ?
   Future<bool> isLoggedIn() async {
+    final refresh = await _storage.read(AppConstants.refreshTokenKey);
+
+    // Il y a de quoi renouveler : l'intercepteur s'en chargera au premier 401.
+    if (refresh != null && refresh.isNotEmpty) return true;
+
     final token = await _storage.read(AppConstants.accessTokenKey);
     if (token == null) return false;
+
+    // Sans jeton de rafraîchissement, un jeton d'accès expiré ne mène nulle
+    // part : là, et seulement là, il n'y a rien à conserver.
     try {
       final parts = token.split('.');
       if (parts.length != 3) return false;

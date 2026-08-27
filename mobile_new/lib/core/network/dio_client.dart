@@ -242,9 +242,33 @@ class DioClient {
       return true;
 
     } catch (e) {
-      debugPrint('[DioClient] ❌ Refresh échoué : $e');
-      await _storage.deleteAll();
-      _onRefreshFailed();
+      // ── Un échec réseau n'est pas un refus ────────────────────────────────
+      //
+      // Cette branche appelait `deleteAll()` sur **n'importe quelle** exception.
+      // Une coupure réseau détruisait donc la session, définitivement : les
+      // jetons effacés, plus rien à restaurer au retour de la connexion.
+      //
+      // Le symptôme rapporté était « je redémarre le téléphone et je suis
+      // déconnecté ». C'en est la conséquence directe : le jeton d'accès vit
+      // quinze minutes, il est donc toujours expiré après un redémarrage, et le
+      // rafraîchissement part au moment précis où Android n'a pas fini de
+      // rétablir le réseau. La requête échoue, et la session part avec elle.
+      //
+      // On n'efface plus que sur un refus **explicite** du serveur. Tout le
+      // reste — pas de réponse, délai dépassé, réponse illisible — laisse les
+      // jetons en place : la requête suivante réessaiera.
+      final refuse = e is DioException &&
+          e.response != null &&
+          (e.response!.statusCode == 401 || e.response!.statusCode == 403);
+
+      if (refuse) {
+        debugPrint('[DioClient] ❌ Refresh refusé par le serveur → déconnexion');
+        await _storage.deleteAll();
+        _onRefreshFailed();
+      } else {
+        debugPrint('[DioClient] ⚠️ Refresh injoignable ($e) — jetons conservés');
+      }
+
       _refreshCompleter!.complete(false);
       return false;
 
