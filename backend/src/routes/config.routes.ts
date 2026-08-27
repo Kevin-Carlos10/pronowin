@@ -37,6 +37,14 @@ router.get('/', async (_req, res) => {
     apkForceUpdate:   valeurs.APK_FORCE_UPDATE === 'true',
     apkUrl:           valeurs.APK_URL || null,
 
+    // ── Partenariat bookmaker ────────────────────────────────────────────
+    //
+    // Publie ici plutot qu'ecrit dans le binaire : un lien d'affiliation
+    // expire sans prevenir, et le remplacer ne doit pas demander de republier
+    // l'application. Vide, le mobile n'affiche aucune invitation a parier.
+    affiliateName: valeurs.AFFILIATE_NAME || null,
+    affiliateUrl:  valeurs.AFFILIATE_URL  || null,
+
     // ── Commun ───────────────────────────────────────────────────────────
     updateMessage: valeurs.APP_UPDATE_MESSAGE,
     maintenance:   process.env.APP_MAINTENANCE === 'true',

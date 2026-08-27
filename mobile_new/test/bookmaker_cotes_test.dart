@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pronowin/core/config/bookmaker_affiliation.dart';
@@ -11,24 +13,69 @@ Widget _hote(Widget enfant) => MaterialApp(
 
 void main() {
   group('Lien d\'affiliation — une erreur ici ne se voit pas', () {
-    // Un caractère de travers dans le tag ne casse rien à l'écran : le lien
-    // s'ouvre, la page 1xBet s'affiche, et seuls les relevés de commission
-    // révèlent, des semaines plus tard, que rien n'a été attribué.
-    test('le lien est exactement celui du compte partenaire', () {
-      expect(
-        BookmakerAffiliation.lien,
-        'https://reffpa.com/L?tag=d_1793663m_97c_&site=1793663&ad=97',
-      );
+    // Ce groupe verifiait que le lien etait exactement celui du compte
+    // partenaire, tag compris. C'etait la bonne garde pour l'ancien dessin :
+    // le lien vivait dans le binaire.
+    //
+    // Il vient desormais du serveur, parce qu'un lien d'affiliation expire
+    // sans prevenir et que le remplacer ne doit pas demander de republier
+    // l'application. Ce qu'il faut garder a change de nature : plus la valeur,
+    // mais le fait qu'aucune valeur ne soit ecrite en dur, et qu'un lien
+    // absent n'ouvre rien.
+
+    setUp(() => BookmakerAffiliation.configurer(null));
+
+    test('sans configuration, aucun partenariat n est propose', () {
+      expect(BookmakerAffiliation.disponible, isFalse);
+      expect(BookmakerAffiliation.lien, isEmpty);
+      expect(BookmakerAffiliation.nom,  isEmpty);
     });
 
-    test('les trois paramètres de suivi sont présents et intacts', () {
-      final uri = Uri.parse(BookmakerAffiliation.lien);
+    test('le lien publie par le serveur est repris tel quel', () {
+      // Tag, identifiant de compte et creatif doivent traverser intacts : un
+      // caractere de travers ne casse rien a l ecran, et seuls les releves de
+      // commission le revelent, des semaines plus tard.
+      const lien = 'https://reffpa.com/L?tag=d_1793663m_97c_&site=1793663&ad=97';
+      BookmakerAffiliation.configurer(
+        {'affiliateUrl': lien, 'affiliateName': '1xBet'});
 
-      expect(uri.host, 'reffpa.com');
-      expect(uri.scheme, 'https', reason: 'jamais de lien en clair');
-      expect(uri.queryParameters['tag'], 'd_1793663m_97c_');
+      expect(BookmakerAffiliation.lien, lien);
+      expect(BookmakerAffiliation.nom, '1xBet');
+      expect(BookmakerAffiliation.disponible, isTrue);
+
+      final uri = Uri.parse(BookmakerAffiliation.lien);
+      expect(uri.queryParameters['tag'],  'd_1793663m_97c_');
       expect(uri.queryParameters['site'], '1793663');
-      expect(uri.queryParameters['ad'], '97');
+      expect(uri.queryParameters['ad'],   '97');
+    });
+
+    test('une URL qui n en est pas une est refusee', () {
+      // Un champ mal saisi dans l administration ne doit pas produire un
+      // bouton qui ouvre n importe quoi.
+      for (final mauvais in ['reffpa.com/L', 'javascript:alert(1)', '   ', '']) {
+        BookmakerAffiliation.configurer({'affiliateUrl': mauvais});
+        expect(BookmakerAffiliation.disponible, isFalse, reason: mauvais);
+      }
+    });
+
+    test('aucun lien d affiliation n est ecrit dans le binaire', () {
+      // Le commentaire de ce fichier ne cite pas le domaine du partenaire :
+      // la lecture brute suffit, sans filtrer les commentaires.
+      final source = File('lib/core/config/bookmaker_affiliation.dart')
+          .readAsStringSync();
+
+      expect(source.contains('reffpa.com'), isFalse);
+    });
+
+    test('un seul chemin ouvre le partenaire', () {
+      // `miser_dialog` avait sa propre copie de `launchUrl` — celle-la meme que
+      // le commentaire de la classe redoutait. Elle ignorait le garde
+      // « aucun partenariat configure ».
+      final dialogue = File('lib/features/bankroll/presentation/widgets/'
+                            'miser_dialog.dart').readAsStringSync();
+
+      expect(dialogue.contains('launchUrl('), isFalse);
+      expect(dialogue, contains('BookmakerAffiliation.ouvrir()'));
     });
   });
 

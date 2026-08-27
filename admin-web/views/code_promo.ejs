@@ -115,6 +115,40 @@
     <% }) %>
   </div>
 
+  <p style="font-size:.7rem;font-weight:700;color:var(--text-m);text-transform:uppercase;
+            letter-spacing:.05em;margin:1.3rem 0 .6rem">
+    Lien d'affiliation
+  </p>
+
+  <div class="cp-grille">
+    <div class="cp-champ">
+      <label for="AFFILIATE_NAME">Nom du partenaire</label>
+      <input type="text" id="AFFILIATE_NAME" name="AFFILIATE_NAME" maxlength="40"
+             value="<%= _val.AFFILIATE_NAME ?? '' %>" placeholder="1xBet" autocomplete="off">
+    </div>
+    <div class="cp-champ" style="grid-column:1/-1">
+      <label for="AFFILIATE_URL">
+        URL de suivi
+        <span class="cp-origine <%= (_val.AFFILIATE_URL ?? '').trim() ? (_org.AFFILIATE_URL === 'base' ? 'cp-base' : 'cp-env') : 'cp-vide' %>">
+          <%= (_val.AFFILIATE_URL ?? '').trim() ? (_org.AFFILIATE_URL === 'base' ? 'réglé ici' : 'hérité du serveur') : 'vide' %>
+        </span>
+      </label>
+      <input type="url" id="AFFILIATE_URL" name="AFFILIATE_URL" maxlength="500"
+             value="<%= _val.AFFILIATE_URL ?? '' %>"
+             placeholder="https://…?tag=…&amp;site=…&amp;ad=…" autocomplete="off"
+             style="text-transform:none;letter-spacing:0">
+      <div class="cp-aide">
+        Le lien porte votre identifiant de compte, l'étiquette de campagne et le
+        créatif. Un caractère de travers ne casse rien à l'écran : les clics
+        partent, la page du partenaire s'ouvre, et seul le relevé de commission
+        révèle — des semaines plus tard — que rien n'a été attribué.
+        <br>
+        <strong>Vide, aucune invitation à parier n'est affichée dans
+        l'application.</strong> Un lien mort fait cliquer sans rien rapporter.
+      </div>
+    </div>
+  </div>
+
   <div class="cp-aide" style="margin-top:.7rem">
     Laissez vide si le partenaire accepte le code général. Renseignez-le seulement
     si cette enseigne vous a attribué le sien — un code d'une autre enseigne ne

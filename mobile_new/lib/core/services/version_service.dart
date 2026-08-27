@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 import '../constants/app_constants.dart';
 import 'remote_config_service.dart';
+import '../config/bookmaker_affiliation.dart';
 
 /// Vérification de version au démarrage.
 ///
@@ -86,11 +87,21 @@ class VersionService {
   }
 
   /// Seuils du canal direct, lus sur l'API publique.
+  ///
+  /// Cette requete sert aussi a renseigner le partenariat bookmaker : `/config`
+  /// le publie desormais, et l'appeler une seconde fois pour le seul lien
+  /// d'affiliation serait une requete de plus au demarrage, sur des reseaux ou
+  /// chacune se paie.
   static Future<_Seuils?> _seuilsDirects(Dio dio) async {
     try {
       final r = await dio.get<Map<String, dynamic>>('/config');
       final d = r.data;
       if (d == null) return null;
+
+      // Sans lien configure, l'application n'affiche aucune invitation a
+      // parier — plutot qu'un lien mort qui fait cliquer sans rien rapporter.
+      BookmakerAffiliation.configurer(d);
+
       return _Seuils(
         min:     (d['apkMinVersion']    as String?) ?? '1.0.0',
         latest:  (d['apkLatestVersion'] as String?) ?? '1.0.0',

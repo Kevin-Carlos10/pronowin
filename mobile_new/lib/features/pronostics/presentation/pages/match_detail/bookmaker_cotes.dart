@@ -128,7 +128,8 @@ class _LogoPartenaire extends StatelessWidget {
           // Le repli garde le fond blanc : deux apparences très différentes
           // selon qu'un fichier est présent ou non rendraient un écran de
           // recette trompeur.
-          errorBuilder: (_, _, _) => const Center(
+          // Plus `const` : le nom du partenaire vient desormais du serveur.
+          errorBuilder: (_, _, _) => Center(
             child: FittedBox(
               fit: BoxFit.contain,
               child: Text(

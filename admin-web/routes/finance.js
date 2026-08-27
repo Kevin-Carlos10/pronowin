@@ -197,6 +197,8 @@ module.exports = (app, ctx) => {
         PROMO_CODE_1XBET:     sanitize(req.body.PROMO_CODE_1XBET ?? '', 40),
         PROMO_CODE_MELBET:    sanitize(req.body.PROMO_CODE_MELBET ?? '', 40),
         PROMO_CODE_BETWINNER: sanitize(req.body.PROMO_CODE_BETWINNER ?? '', 40),
+        AFFILIATE_NAME:       sanitize(req.body.AFFILIATE_NAME ?? '', 40),
+        AFFILIATE_URL:        (req.body.AFFILIATE_URL ?? '').trim(),
       };
       await api(req.cookies.admin_token).put('/admin/app-config', corps);
       logAction(req, 'settings_changed', 'Code promo partenaire mis a jour',

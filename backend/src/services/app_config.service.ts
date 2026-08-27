@@ -40,6 +40,18 @@ export const CLES_CONFIG = [
   'PROMO_CODE_1XBET',
   'PROMO_CODE_MELBET',
   'PROMO_CODE_BETWINNER',
+
+  // ── Lien d'affiliation bookmaker ──────────────────────────────────────────
+  //
+  // Meme nature que le code promo : un identifiant qui porte du revenu, et
+  // dont l'expiration ne produit **aucune erreur**. Les clics partent sur un
+  // tag qui ne rapporte plus rien, et on ne le decouvre qu'au releve mensuel.
+  //
+  // Le fichier mobile qui le portait documentait ce risque dans son propre
+  // commentaire, sans s'en proteger : il etait compile dans le binaire, donc
+  // changer le lien exigeait de republier l'application.
+  'AFFILIATE_NAME',
+  'AFFILIATE_URL',
 ] as const;
 
 export type CleConfig = (typeof CLES_CONFIG)[number];
@@ -89,6 +101,12 @@ export async function lireConfig(): Promise<{
     PROMO_CODE_1XBET:      '',
     PROMO_CODE_MELBET:     '',
     PROMO_CODE_BETWINNER:  '',
+
+    // Vide : sans lien configure, l'application n'affiche aucune invitation a
+    // parier. Un lien mort vaut moins que pas de lien du tout — il fait cliquer
+    // sans rien rapporter, et il use la confiance au passage.
+    AFFILIATE_NAME:        process.env.AFFILIATE_NAME ?? '',
+    AFFILIATE_URL:         process.env.AFFILIATE_URL  ?? '',
   };
 
   const valeurs = {} as Record<CleConfig, string>;
@@ -161,10 +179,11 @@ export async function ecrireConfig(
       valeur = ['true', 'on', '1', 'oui'].includes(valeur.toLowerCase()) ? 'true' : 'false';
     }
 
-    // Une URL d'APK doit être une adresse http(s) ou vide. Enregistrer autre
-    // chose produirait un bouton « Mettre à jour » qui n'ouvre rien.
-    if (cle === 'APK_URL' && valeur !== '' && !/^https?:\/\//i.test(valeur)) {
-      throw new Error("L'URL de l'APK doit commencer par http:// ou https://, ou rester vide.");
+    // Une URL doit être une adresse http(s) ou vide. Enregistrer autre chose
+    // produirait un bouton qui n'ouvre rien.
+    if ((cle === 'APK_URL' || cle === 'AFFILIATE_URL')
+        && valeur !== '' && !/^https?:\/\//i.test(valeur)) {
+      throw new Error(`${cle} doit commencer par http:// ou https://, ou rester vide.`);
     }
 
     // Les versions suivent « x.y.z ». Un champ mal saisi ferait comparer à

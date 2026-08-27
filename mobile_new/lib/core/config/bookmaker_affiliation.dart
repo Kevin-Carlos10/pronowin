@@ -12,12 +12,35 @@ import 'package:url_launcher/url_launcher.dart';
 class BookmakerAffiliation {
   const BookmakerAffiliation._();
 
-  /// Nom affiché du partenaire.
-  static const String nom = '1xBet';
+  /// Nom et lien du partenaire — **servis par le serveur**.
+  ///
+  /// Ils etaient compiles dans le binaire. Le commentaire ci-dessus decrivait
+  /// deja le risque — « une divergence ici ne casse rien de visible : les
+  /// clics partent simplement sur un tag qui ne rapporte plus rien » — sans
+  /// s'en proteger : changer le lien exigeait de republier l'application, puis
+  /// d'attendre que chacun la mette a jour.
+  ///
+  /// Ces deux champs sont renseignes au demarrage depuis `/config`. Tant que
+  /// rien n'est configure, ils restent vides et [disponible] vaut faux :
+  /// l'application n'affiche alors **aucune** invitation a parier. Un lien
+  /// mort vaut moins que pas de lien — il fait cliquer sans rien rapporter, et
+  /// il use la confiance au passage.
+  static String nom  = '';
+  static String lien = '';
 
-  /// Lien d'affiliation 1xPartners.
-  static const String lien =
-      'https://reffpa.com/L?tag=d_1793663m_97c_&site=1793663&ad=97';
+  /// Y a-t-il un partenariat a proposer ?
+  static bool get disponible => lien.trim().isNotEmpty;
+
+  /// Renseigne le partenariat depuis la reponse de `/config`.
+  ///
+  /// Silencieux et idempotent : appele au demarrage, il ne doit jamais
+  /// empecher l'application de se lancer parce qu'un champ manque.
+  static void configurer(Map<String, dynamic>? config) {
+    final url = (config?['affiliateUrl'] as String?)?.trim() ?? '';
+    if (!url.startsWith('http')) { lien = ''; nom = ''; return; }
+    lien = url;
+    nom  = (config?['affiliateName'] as String?)?.trim() ?? '';
+  }
 
   /// Logo officiel du partenaire, fourni par le programme d'affiliation.
   ///
@@ -41,6 +64,7 @@ class BookmakerAffiliation {
     // `canLaunchUrl` répond faux sur Android quand aucune requête de visibilité
     // de paquet ne couvre le schéma : on tente l'ouverture, et on ne retient
     // l'échec que s'il se produit réellement.
+    if (!disponible) return;
     try {
       await launchUrl(Uri.parse(lien), mode: LaunchMode.externalApplication);
     } catch (e) {

@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/bankroll_provider.dart';
@@ -89,14 +88,13 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
     return '${widget.confidenceScore}/5';
   }
 
-  Future<void> _launch1xBet() async {
-    // Lien nu jusqu'ici : ces clics ne remontaient a aucun tag
-    // d'affiliation et ne rapportaient donc rien.
-    final uri = Uri.parse(BookmakerAffiliation.lien);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
+  /// Passe par le chemin unique d'ouverture.
+  ///
+  /// Cet ecran avait sa propre copie de `launchUrl` — celle-la meme que le
+  /// commentaire de `BookmakerAffiliation` redoutait. Elle ne connaissait pas
+  /// le garde « aucun partenariat configure », et `canLaunchUrl` sur une URL
+  /// vide echoue en silence : le bouton ne faisait rien, sans rien dire.
+  Future<void> _launch1xBet() => BookmakerAffiliation.ouvrir();
 
   Future<void> _submit(double stake, String currency) async {
     setState(() { _loading = true; _error = null; });

@@ -126,48 +126,25 @@ final actualitesProvider =
     cacheKey: key,
     fetchFn:  () async {
       final r = await ref.read(dioProvider).get('/actualites');
-      final list = (r.data as List<dynamic>?) ?? [];
-      return list.isNotEmpty ? list : _staticNews;
+      // Une liste vide est une reponse valide, pas un echec : elle veut dire
+      // qu'aucune actualite n'est publiee. L'ecran omet alors la section.
+      return (r.data as List<dynamic>?) ?? [];
     },
     fromJson: (d) => (d as List<dynamic>),
   );
-  if (data == null || data.isEmpty) return _staticNews;
+  // Quatre articles etaient inventes ici — « La FIFA a officialise les
+  // groupes », « Real Madrid vs Bayern et Arsenal vs PSG » — dates en relatif
+  // (« Aujourd'hui », « Hier »), donc jamais perimes en apparence. C'est ce qui
+  // les rendait dangereux : de l'information fabriquee qu'aucun lecteur ne
+  // pouvait reconnaitre comme fausse.
+  //
+  // Et ce n'etait pas un repli d'erreur : ils sortaient aussi quand l'API
+  // repondait correctement avec une liste vide, c'est-a-dire tant qu'aucune
+  // actualite n'etait publiee. L'etat par defaut d'une installation neuve.
+  if (data == null) return const <Map<String, dynamic>>[];
   return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 });
 
-const _staticNews = [
-  {
-    'titre':     'Coupe du Monde 2026 — Les groupes dévoilés',
-    'resume':    "La FIFA a officialisé les groupes. Le Brésil, la France et l'Angleterre dans le même chapeau.",
-    'date':      "Aujourd'hui",
-    'emoji':     '🌍',
-    'categorie': 'Coupe du Monde',
-    'image_url': 'https://images.unsplash.com/photo-1551958219-acbc17c2f7e4?w=400&q=80',
-  },
-  {
-    'titre':     'Ligue des Champions — Demi-finales confirmées',
-    'resume':    'Real Madrid vs Bayern et Arsenal vs PSG. Les affiches qui font rêver l\'Europe.',
-    'date':      'Hier',
-    'emoji':     '⚽',
-    'categorie': 'Champions League',
-    'image_url': 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80',
-  },
-  {
-    'titre':     'Premier League — Course au titre serrée',
-    'resume':    'Man City et Arsenal à égalité de points à 4 journées de la fin.',
-    'date':      'Il y a 2j',
-    'emoji':     '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    'categorie': 'Premier League',
-    'image_url': 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=400&q=80',
-  },
-  {
-    'titre':     "Serie A — L'Inter Milan champion ?",
-    'resume':    "Avec 8 points d'avance, les Nerazzurri semblent intouchables.",
-    'date':      'Il y a 3j',
-    'emoji':     '🇮🇹',
-    'categorie': 'Serie A',
-  },
-];
 
 // ─── Prochain match à venir ───────────────────────────────────────────────────
 
