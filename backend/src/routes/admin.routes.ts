@@ -2,9 +2,11 @@ import { Router } from 'express';
 import { AdminAuthService } from '../services/admin_auth.service';
 import { adminMiddleware, AdminRequest } from '../middleware/admin.middleware';
 import { lireConfig, ecrireConfig } from '../services/app_config.service';
+import { SubscriptionService } from '../services/subscription.service';
 import * as Methodes from '../services/payment_method.service';
 const r   = Router();
 const svc = new AdminAuthService();
+const subSvc = new SubscriptionService();
 
 /**
  * PATCH /admin/profile/password
@@ -39,6 +41,20 @@ r.put('/app-config', adminMiddleware, async (req: AdminRequest, res) => {
     const { valeurs, origine } = await lireConfig();
     res.json({ updated: ecrites, valeurs, origine });
   } catch (e: any) { res.status(422).json({ message: e.message }); }
+});
+
+/**
+ * GET /admin/promo-stats — bilan du parcours « code promo ».
+ *
+ * Ce parcours coute un mois d'abonnement par conversion. Le detail par
+ * plateforme repond a la question qu'aucun autre ecran ne pose : est-ce que
+ * les comptes ouverts chez un partenaire valent les mois offerts ?
+ */
+r.get('/promo-stats', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    const jours = Math.min(parseInt((req.query.days as string) ?? '30') || 30, 365);
+    res.json(await subSvc.statistiquesCodePromo(jours));
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
 });
 
 // ─── Méthodes de paiement Mobile Money ───────────────────────────────────────

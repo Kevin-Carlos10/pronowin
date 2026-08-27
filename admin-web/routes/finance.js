@@ -155,6 +155,58 @@ module.exports = (app, ctx) => {
   // MOBCASH_* côté serveur, et une constante compilée dans l'app mobile — qui ne
   // portaient déjà pas les mêmes valeurs. Cette page est la source unique.
 
+  // ─── Code promo partenaire ────────────────────────────────────────────────
+  //
+  // Le code d'affiliation etait une variable d'environnement, donc modifiable
+  // seulement par quelqu'un ayant un acces SSH au serveur. Trois replis ecrits
+  // en dur — backend, mobile, admin — nommaient encore `PRONOWIN2025` alors que
+  // le code en service etait `PRONOWIN2026`.
+  //
+  // Un code perime ne produit aucune erreur : l'utilisateur ouvre son compte
+  // avec, nous ne sommes jamais credites, et il reclame son mois offert. La
+  // page existe pour que changer ce code prenne dix secondes et se voie.
+
+  app.get('/admin/code-promo', requireAuth, requireMain, async (req, res) => {
+    let config = null, stats = null, erreur = null;
+    try {
+      const a = api(req.cookies.admin_token);
+      const [c, s] = await Promise.all([
+        a.get('/admin/app-config'),
+        a.get('/admin/promo-stats?days=30'),
+      ]);
+      config = c.data;
+      stats  = s.data;
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      erreur = e.response?.data?.message ?? e.message;
+    }
+    res.render('code_promo', {
+      config, stats, erreur,
+      success: req.query.success ?? null,
+      error:   req.query.error   ?? null,
+    });
+  });
+
+  app.post('/admin/code-promo', requireAuth, requireMain, async (req, res) => {
+    try {
+      // Seules ces quatre cles sont transmises. `ecrireConfig` ignore de toute
+      // facon les autres, mais on ne compte pas sur la protection d'en face
+      // pour decider ce que cette page a le droit d'ecrire.
+      const corps = {
+        PROMO_CODE:           sanitize(req.body.PROMO_CODE ?? '', 40),
+        PROMO_CODE_1XBET:     sanitize(req.body.PROMO_CODE_1XBET ?? '', 40),
+        PROMO_CODE_MELBET:    sanitize(req.body.PROMO_CODE_MELBET ?? '', 40),
+        PROMO_CODE_BETWINNER: sanitize(req.body.PROMO_CODE_BETWINNER ?? '', 40),
+      };
+      await api(req.cookies.admin_token).put('/admin/app-config', corps);
+      logAction(req, 'settings_changed', 'Code promo partenaire mis a jour',
+        { general: corps.PROMO_CODE });
+      res.redirect('/admin/code-promo?success=' + encodeURIComponent('Code promo enregistre.'));
+    } catch (e) {
+      res.redirect('/admin/code-promo?error=' + encodeURIComponent(e.response?.data?.message ?? e.message));
+    }
+  });
+
   app.get('/admin/paiements', requireAuth, requireMain, async (req, res) => {
     let methodes = null, erreur = null;
     try {

@@ -27,7 +27,6 @@ class TarifsPremium {
   /// « code » : ni mensuel, ni annuel, ni remise à calculer.
   static const joursOffreCodeDefaut = 30;
 
-  static const promoCodeDefaut  = 'PRONOWIN2025';
   static const plateformesDefaut = ['1xbet', 'melbet', 'betwinner'];
 
   static const delaiDirectDefaut = '30 minutes ouvrables';
@@ -40,6 +39,14 @@ class TarifsPremium {
   final int joursOffreCode;
 
   final String promoCode;
+
+  /// Code propre a une plateforme, quand un partenaire exige le sien.
+  ///
+  /// L'ecran laisse choisir entre trois enseignes mais n'affichait qu'un code.
+  /// Si elles n'attribuent pas le meme, deux utilisateurs sur trois ouvraient
+  /// un compte avec un code qui ne credite personne — et reclamaient malgre
+  /// tout leur mois offert.
+  final Map<String, String> codesParPlateforme;
   final List<String> plateformes;
   final String delaiDirect;
   final String delaiCode;
@@ -53,6 +60,7 @@ class TarifsPremium {
     required this.annuelDirect,
     required this.joursOffreCode,
     required this.promoCode,
+    required this.codesParPlateforme,
     required this.plateformes,
     required this.delaiDirect,
     required this.delaiCode,
@@ -72,7 +80,20 @@ class TarifsPremium {
       mensuelDirect:  entier('premium_price_monthly_fcfa', mensuelDirectDefaut),
       annuelDirect:   entier('premium_price_annual_fcfa',  annuelDirectDefaut),
       joursOffreCode: entier('code_offer_days',            joursOffreCodeDefaut),
-      promoCode:     texte('promo_code',          promoCodeDefaut),
+      // Aucun repli : un code d'affiliation invente ne vaut rien.
+      //
+      // La constante valait `PRONOWIN2025` alors que le code en service est
+      // `PRONOWIN2026`. Hors ligne, ou le temps d'un hoquet du serveur, l'ecran
+      // affichait donc celui de l'an dernier — l'utilisateur le recopiait chez
+      // le bookmaker, nous n'etions jamais credites, et son mois offert
+      // n'avait plus de justification.
+      //
+      // Vide, l'ecran doit le dire. C'est la meme regle que pour les numeros
+      // de paiement, et pour la meme raison.
+      promoCode:     texte('promo_code', ''),
+      codesParPlateforme: ((d?['promo_codes'] as Map?) ?? const {})
+          .map((k, v) => MapEntry(k.toString(), v.toString()))
+        ..removeWhere((_, v) => v.trim().isEmpty),
       delaiDirect:   texte('review_delay_direct', delaiDirectDefaut),
       delaiCode:     texte('review_delay_code',   delaiCodeDefaut),
       plateformes: (d?['betting_platforms'] as List?)
@@ -126,6 +147,18 @@ class TarifsPremium {
   /// Y a-t-il un numéro à afficher ? Sinon l'écran doit annoncer
   /// l'indisponibilité plutôt que de servir une constante compilée.
   bool get paiementDisponible => moyensPaiement.isNotEmpty;
+
+  /// Y a-t-il un code d'affiliation a proposer ? Sinon l'ecran annonce que
+  /// l'offre est momentanement indisponible, plutot que d'en inventer un.
+  bool get offreCodeDisponible =>
+      promoCode.trim().isNotEmpty || codesParPlateforme.isNotEmpty;
+
+  /// Code a afficher pour la plateforme choisie : le sien s'il en a un, le
+  /// code general sinon.
+  String codePour(String plateforme) {
+    final propre = codesParPlateforme[plateforme]?.trim() ?? '';
+    return propre.isNotEmpty ? propre : promoCode.trim();
+  }
 
   /// Les opérateurs réellement proposés — « Orange Money · Wave ».
   ///

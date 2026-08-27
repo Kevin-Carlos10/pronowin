@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { ReferralService } from './referral.service';
 import { listerPubliques } from './payment_method.service';
 import { estProfilComplet } from '../middleware/profile.middleware';
+import { lireConfig, codePromoPour, codesPromoParPlateforme } from './app_config.service';
 
 // Import S3 de façon lazy pour éviter le crash si AWS pas configuré
 let s3Svc: any = null;
@@ -52,6 +53,13 @@ export const PREMIUM_PRICE_FCFA_ANNUAL  = parseInt(process.env.PREMIUM_PRICE_FCF
  */
 export const OFFRE_CODE_JOURS = parseInt(process.env.PREMIUM_CODE_OFFER_DAYS ?? '30');
 
+/**
+ * Nombre de dossiers tranches sous lequel aucun taux d'approbation n'est
+ * annonce. Sur trois dossiers, « 100 % » est un artefact — la meme regle que
+ * pour le bilan Premium, et pour la meme raison.
+ */
+const ECHANTILLON_MINIMAL_PROMO = 10;
+
 // Tarif des builds publiés sur l'App Store / Google Play (+50 %).
 //
 // Apple et Google prélèvent 30 % (15 % au-delà d'un an d'ancienneté de
@@ -66,7 +74,30 @@ export const OFFRE_CODE_JOURS = parseInt(process.env.PREMIUM_CODE_OFFER_DAYS ?? 
 export const PREMIUM_PRICE_USD_STORE_MONTHLY = parseFloat(process.env.PREMIUM_PRICE_USD_STORE_MONTHLY ?? '15');
 export const PREMIUM_PRICE_USD_STORE_ANNUAL  = parseFloat(process.env.PREMIUM_PRICE_USD_STORE_ANNUAL  ?? '135');
 
-export const XBET_PROMO_CODE    = process.env.XBET_PROMO_CODE ?? 'PRONOWIN2025';
+/**
+ * Code d'affiliation partenaire — **aucun repli**.
+ *
+ * Il valait `?? 'PRONOWIN2025'`. Le code reellement en service est
+ * `PRONOWIN2026` : le repli nommait donc deja celui de l'an dernier.
+ *
+ * Un repli est ici pire que rien. Non configure, il faisait afficher un code
+ * perime que l'utilisateur recopiait a l'inscription chez le bookmaker : nous
+ * n'etions jamais credites, et son mois offert n'avait plus de justification.
+ * Deux pertes, et aucune erreur nulle part.
+ *
+ * Vide, l'ecran mobile annonce que l'offre est indisponible — ce qui est vrai,
+ * et rattrapable. Le meme raisonnement que pour les numeros de paiement.
+ */
+/**
+ * Repli d'environnement du code d'affiliation.
+ *
+ * La valeur qui fait foi vit desormais dans `app_settings`, modifiable depuis
+ * l'administration — c'est `codePromoPour()` qui la lit. Cette constante ne
+ * sert plus qu'au premier demarrage, avant que quiconque ait enregistre quoi
+ * que ce soit, et reste vide par defaut : un code d'affiliation invente ne
+ * credite personne.
+ */
+export const XBET_PROMO_CODE    = process.env.XBET_PROMO_CODE ?? '';
 export const BETTING_PLATFORMS  = ['1xbet', 'melbet', 'betwinner'] as const;
 export type BettingPlatform = typeof BETTING_PLATFORMS[number];
 
@@ -138,7 +169,11 @@ export class SubscriptionService {
     return { notified };
   }
 
-  getPlans() {
+  async getPlans() {
+    // Le code vient de la configuration administrable, plus du `.env`.
+    const { valeurs } = await lireConfig();
+    const code = codePromoPour(valeurs);
+
     return [
       {
         id: 'free', type: 'free', name: 'Plan Gratuit',
@@ -156,7 +191,7 @@ export class SubscriptionService {
         is_popular:      false,
         features:        ['Pronostics VIP illimités', 'Tous les tutoriels', 'Statistiques avancées', 'Sans publicité', 'Support prioritaire'],
         locked_features: [],
-        xbet_promo_code: XBET_PROMO_CODE,
+        xbet_promo_code: code,
       },
       {
         id: 'premium_annual', type: 'premium', name: 'Premium Annuel',
@@ -167,13 +202,19 @@ export class SubscriptionService {
         is_popular:      true,
         features:        ['Pronostics VIP illimités', 'Tous les tutoriels', 'Statistiques avancées', 'Sans publicité', 'Support prioritaire'],
         locked_features: [],
-        xbet_promo_code: XBET_PROMO_CODE,
+        xbet_promo_code: code,
       },
     ];
   }
 
   /** Abonnement actuel — resilient aux erreurs */
   async getCurrentSubscription(userId: string) {
+    // Chargee une fois pour les deux branches — la nominale et le repli
+    // d'erreur publient la meme charge utile, et doivent donc annoncer le
+    // meme code. Les lire separement serait exactement le genre d'ecart que
+    // ce fichier a deja connu.
+    const config = await lireConfig();
+
     try {
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user) throw new Error('Utilisateur introuvable.');
@@ -206,7 +247,10 @@ export class SubscriptionService {
         expires_at:    sub?.endDate?.toISOString() ?? null,
         days_left:     Math.max(0, daysLeft),    // toujours un int >= 0
         xbet_id:       user.xbetId ?? null,
-        promo_code:    XBET_PROMO_CODE,
+        promo_code:    codePromoPour(config.valeurs),
+        // Un code par plateforme quand un partenaire exige le sien ; sinon
+        // la carte reprend simplement le code general pour chacune.
+        promo_codes:   codesPromoParPlateforme(config.valeurs, BETTING_PLATFORMS),
         betting_platforms: BETTING_PLATFORMS,
         premium_price_monthly_usd:  PREMIUM_PRICE_USD_MONTHLY,
         premium_price_annual_usd:   PREMIUM_PRICE_USD_ANNUAL,
@@ -250,7 +294,10 @@ export class SubscriptionService {
         expires_at:    null,
         days_left:     0,
         xbet_id:       null,
-        promo_code:    XBET_PROMO_CODE,
+        promo_code:    codePromoPour(config.valeurs),
+        // Un code par plateforme quand un partenaire exige le sien ; sinon
+        // la carte reprend simplement le code general pour chacune.
+        promo_codes:   codesPromoParPlateforme(config.valeurs, BETTING_PLATFORMS),
         betting_platforms: BETTING_PLATFORMS,
         premium_price_monthly_usd:  PREMIUM_PRICE_USD_MONTHLY,
         premium_price_annual_usd:   PREMIUM_PRICE_USD_ANNUAL,
@@ -446,7 +493,7 @@ export class SubscriptionService {
     ]);
 
     return { data: items, total, page, per_page: perPage, statut, recherche: q,
-             promo_code: XBET_PROMO_CODE, contexte };
+             promo_code: codePromoPour((await lireConfig()).valeurs), contexte };
   }
 
   /** Conservé pour les appelants existants. */
@@ -559,6 +606,96 @@ export class SubscriptionService {
     return { endDate };
   }
 
+  /**
+   * Bilan du parcours « code promo », plateforme par plateforme.
+   *
+   * Ce parcours coute un mois d'abonnement par conversion. Sans ce bilan, on
+   * ne peut pas repondre a la seule question qui compte : est-ce que les
+   * comptes ouverts chez un partenaire valent les mois offerts ?
+   *
+   * Le detail par plateforme n'est pas decoratif. Si un code ne credite rien
+   * chez un partenaire, cela se voit ici avant de se voir sur le releve : ses
+   * soumissions continuent d'arriver et d'etre approuvees, mais rien ne
+   * remonte de son cote.
+   */
+  async statistiquesCodePromo(jours = 30) {
+    const depuis = new Date(Date.now() - jours * 86400000);
+
+    const [parPlateforme, parStatut, recentes, totalMoisOfferts] = await Promise.all([
+      prisma.subscriptionProof.groupBy({
+        by:      ['platform', 'status'],
+        where:   { type: 'xbet_account_screenshot' },
+        _count:  { _all: true },
+      }),
+      prisma.subscriptionProof.groupBy({
+        by:      ['status'],
+        where:   { type: 'xbet_account_screenshot', createdAt: { gte: depuis } },
+        _count:  { _all: true },
+      }),
+      prisma.subscriptionProof.count({
+        where: { type: 'xbet_account_screenshot', createdAt: { gte: depuis } },
+      }),
+      prisma.subscriptionProof.count({
+        where: { type: 'xbet_account_screenshot', status: 'approved' },
+      }),
+    ]);
+
+    // Regroupement par plateforme, avec les quatre statuts toujours presents :
+    // une plateforme sans aucune soumission doit apparaitre a zero, pas
+    // disparaitre du tableau. C'est justement celle-la qu'il faut voir.
+    const plateformes: Record<string, {
+      soumises: number; approuvees: number; refusees: number; en_attente: number;
+      taux_approbation: number | null;
+    }> = {};
+
+    for (const p of BETTING_PLATFORMS) {
+      plateformes[p] = {
+        soumises: 0, approuvees: 0, refusees: 0, en_attente: 0,
+        taux_approbation: null,
+      };
+    }
+
+    for (const ligne of parPlateforme) {
+      const nom = ligne.platform ?? 'inconnue';
+      plateformes[nom] ??= {
+        soumises: 0, approuvees: 0, refusees: 0, en_attente: 0,
+        taux_approbation: null,
+      };
+      const n = ligne._count._all;
+      plateformes[nom].soumises += n;
+      if (ligne.status === 'approved') plateformes[nom].approuvees += n;
+      if (ligne.status === 'rejected') plateformes[nom].refusees   += n;
+      if (ligne.status === 'pending')  plateformes[nom].en_attente += n;
+    }
+
+    for (const nom of Object.keys(plateformes)) {
+      const p = plateformes[nom];
+      const tranchees = p.approuvees + p.refusees;
+      // Aucun taux sous dix dossiers tranches : sur trois, « 100 % » est un
+      // artefact, pas une performance. Meme regle que le bilan Premium.
+      p.taux_approbation = tranchees >= ECHANTILLON_MINIMAL_PROMO
+        ? Math.round((p.approuvees / tranchees) * 100)
+        : null;
+    }
+
+    const statut = Object.fromEntries(
+      parStatut.map(l => [l.status, l._count._all]));
+
+    return {
+      periode_jours:       jours,
+      soumissions_periode: recentes,
+      par_statut_periode: {
+        pending:  statut.pending  ?? 0,
+        approved: statut.approved ?? 0,
+        rejected: statut.rejected ?? 0,
+      },
+      mois_offerts_total:  totalMoisOfferts,
+      jours_par_offre:     OFFRE_CODE_JOURS,
+      plateformes,
+      echantillon_minimal: ECHANTILLON_MINIMAL_PROMO,
+    };
+  }
+
   async reviewProof(params: { proofId: string; adminId: string; approved: boolean; adminNote?: string; durationDays?: number }) {
     const { proofId, adminId, approved, adminNote, durationDays = 30 } = params;
     const proof = await prisma.subscriptionProof.findUnique({ where: { id: proofId }, include: { user: true } });
@@ -582,7 +719,12 @@ export class SubscriptionService {
           paymentMethod: proof.type === 'payment_screenshot'
             ? 'manual_mobcash'
             : `promo_${proof.platform ?? 'code'}`,
-          promoCodeUsed: proof.type === 'xbet_account_screenshot' ? XBET_PROMO_CODE : null,
+          // Le code enregistre est celui de **la plateforme choisie**, pas un
+          // code general : c'est lui qui devra correspondre au relevé du
+          // partenaire quand on rapprochera les comptes.
+          promoCodeUsed: proof.type === 'xbet_account_screenshot'
+            ? codePromoPour((await lireConfig()).valeurs, proof.platform)
+            : null,
         }),
         prisma.subscriptionProof.update({ where: { id: proofId }, data: { status: 'approved', adminNote, reviewedBy: adminId, reviewedAt: new Date() } }),
       ]);

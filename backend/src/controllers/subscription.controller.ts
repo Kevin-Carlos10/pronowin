@@ -7,7 +7,7 @@ import { SubscriptionService } from '../services/subscription.service';
 const svc = new SubscriptionService();
 
 // ── PUBLIQUE ──────────────────────────────────────────────────────────────────
-export const getPlans = (_: Request, res: Response) => res.json(svc.getPlans());
+export const getPlans = async (_: Request, res: Response) => res.json(await svc.getPlans());
 
 // ── UTILISATEUR ───────────────────────────────────────────────────────────────
 export const getCurrent = async (req: AuthRequest, res: Response) => {

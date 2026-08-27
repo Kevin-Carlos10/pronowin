@@ -24,6 +24,22 @@ export const CLES_CONFIG = [
   'APK_FORCE_UPDATE',
   'APK_URL',
   'APP_UPDATE_MESSAGE',
+
+  // ── Code d'affiliation partenaire ─────────────────────────────────────────
+  //
+  // `PROMO_CODE` est le code general. Les trois suivants ne servent que si un
+  // partenaire exige le sien : laisses vides, ils heritent du general.
+  //
+  // Pourquoi cette forme plutot qu'un seul code : l'ecran laisse choisir entre
+  // 1xBet, Melbet et Betwinner, mais n'affichait qu'un code. Si les trois
+  // enseignes n'attribuent pas le meme, deux utilisateurs sur trois ouvraient
+  // un compte avec un code qui ne credite personne — et reclamaient malgre tout
+  // leur mois offert. La forme generale + surcharges couvre les deux cas sans
+  // obliger a trancher aujourd'hui.
+  'PROMO_CODE',
+  'PROMO_CODE_1XBET',
+  'PROMO_CODE_MELBET',
+  'PROMO_CODE_BETWINNER',
 ] as const;
 
 export type CleConfig = (typeof CLES_CONFIG)[number];
@@ -65,6 +81,14 @@ export async function lireConfig(): Promise<{
     APK_FORCE_UPDATE:   'false',
     APK_URL:            '',
     APP_UPDATE_MESSAGE: 'Une nouvelle version de PronoWin est disponible avec des améliorations et corrections.',
+
+    // Aucun code par defaut. Un code d'affiliation invente ne credite personne :
+    // vide, l'ecran mobile annonce l'indisponibilite plutot que d'en afficher
+    // un qui ne marche pas.
+    PROMO_CODE:            process.env.XBET_PROMO_CODE ?? '',
+    PROMO_CODE_1XBET:      '',
+    PROMO_CODE_MELBET:     '',
+    PROMO_CODE_BETWINNER:  '',
   };
 
   const valeurs = {} as Record<CleConfig, string>;
@@ -89,6 +113,33 @@ export async function lireConfig(): Promise<{
  *
  * Retourne les clés réellement écrites.
  */
+/**
+ * Code d'affiliation a proposer pour une plateforme donnee.
+ *
+ * Surcharge par plateforme si elle est renseignee, code general sinon. Une
+ * chaine vide n'est pas un code : elle vaut « pas de surcharge », pas
+ * « surcharge vide » — sans quoi effacer un champ dans l'administration
+ * couperait le code au lieu de retablir le general.
+ */
+export function codePromoPour(
+  valeurs: Record<CleConfig, string>,
+  plateforme?: string | null,
+): string {
+  const cle = `PROMO_CODE_${(plateforme ?? '').toUpperCase()}` as CleConfig;
+  const surcharge = (valeurs as Record<string, string>)[cle]?.trim();
+  return surcharge && surcharge.length > 0 ? surcharge : (valeurs.PROMO_CODE ?? '').trim();
+}
+
+/** Tous les codes, plateforme par plateforme — prêt à publier au mobile. */
+export function codesPromoParPlateforme(
+  valeurs: Record<CleConfig, string>,
+  plateformes: readonly string[],
+): Record<string, string> {
+  return Object.fromEntries(
+    plateformes.map(p => [p, codePromoPour(valeurs, p)]).filter(([, v]) => v !== ''),
+  );
+}
+
 export async function ecrireConfig(
   entrees: Record<string, unknown>,
   parQui?: string,

@@ -509,7 +509,9 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   // ONGLET CODE PROMO
   // ══════════════════════════════════════════════════════
   Widget _buildXbetTab(SubmitProofState submitState) {
-    final promoCode = _tarifs.promoCode;
+    // Le code suit la plateforme selectionnee : chaque enseigne peut avoir
+    // le sien, et un code d'une autre enseigne ne credite rien.
+    final promoCode = _tarifs.codePour(_platform);
     final platforms = _tarifs.plateformes;
     const purple    = Color(0xFFA78BFA);
     const purpleDark = Color(0xFF7C3AED);
@@ -562,8 +564,17 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         const SizedBox(height: 20),
 
         // ── Code promo ────────────────────────────────────────────
-        _PromoCodeCard(promoCode: promoCode)
-          .animate(delay: 80.ms).fadeIn(duration: 300.ms).slideY(begin: 0.04, end: 0),
+        //
+        // Vide, on le dit. Le repli valait `PRONOWIN2025` alors que le code en
+        // service etait `PRONOWIN2026` : l'ecran affichait donc celui de l'an
+        // dernier des que le serveur ne repondait pas. L'utilisateur ouvrait
+        // son compte avec, nous n'etions jamais credites, et son mois offert
+        // n'avait plus de justification.
+        if (promoCode.isEmpty)
+          const _CodePromoIndisponible()
+        else
+          _PromoCodeCard(promoCode: promoCode)
+            .animate(delay: 80.ms).fadeIn(duration: 300.ms).slideY(begin: 0.04, end: 0),
 
         const SizedBox(height: 20),
 
@@ -1340,6 +1351,41 @@ class _SubmitButton extends StatelessWidget {
           : Icon(icon, size: 20),
       label: Text(label),
     ),
+  );
+}
+
+/// Ce qu'on montre quand aucun code n'est configure.
+///
+/// Annoncer l'indisponibilite plutot que d'inventer un code : c'est la meme
+/// regle que pour les numeros de paiement, et pour la meme raison. Un code
+/// invente ne produit aucune erreur — il produit une inscription qui ne
+/// credite personne.
+class _CodePromoIndisponible extends StatelessWidget {
+  const _CodePromoIndisponible();
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 22),
+    decoration: BoxDecoration(
+      color: context.cl.surfaceD,
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: context.cl.border, width: 0.8),
+    ),
+    child: Column(children: [
+      Icon(Icons.hourglass_empty_rounded, color: context.cl.textM, size: 26),
+      const SizedBox(height: 10),
+      Text('Offre momentanément indisponible',
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: context.cl.textP, fontSize: 13.5, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 6),
+      Text(
+        'Le code partenaire nous manque pour le moment. Tu peux passer par '
+        'le paiement direct, ou réessayer plus tard.',
+        textAlign: TextAlign.center,
+        style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.5)),
+    ]),
   );
 }
 

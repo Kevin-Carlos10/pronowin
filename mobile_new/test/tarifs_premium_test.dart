@@ -133,17 +133,34 @@ void main() {
       expect(t.plateformes, ['1xbet', 'melbet']);
     });
 
-    test('une réponse vide retombe sur les replis', () {
+    test('une réponse vide retombe sur les replis chiffrés', () {
       final t = TarifsPremium.depuis(null);
       expect(t.mensuelDirect, TarifsPremium.mensuelDirectDefaut);
-      expect(t.promoCode,     TarifsPremium.promoCodeDefaut);
       expect(t.delaiDirect,   TarifsPremium.delaiDirectDefaut);
     });
 
-    test('une chaîne vide ne remplace pas le repli', () {
+    test('le code promo se passe de repli, deliberement', () {
+      // Un tarif de repli est une approximation ; un code d'affiliation de
+      // repli est un code qui ne credite personne. La constante valait
+      // `PRONOWIN2025` alors que le code en service est `PRONOWIN2026` : hors
+      // ligne, l'ecran affichait celui de l'an dernier, l'utilisateur le
+      // recopiait chez le bookmaker, et son mois offert perdait sa
+      // justification.
+      final t = TarifsPremium.depuis(null);
+      expect(t.promoCode, isEmpty);
+      expect(t.offreCodeDisponible, isFalse);
+    });
+
+    test('une chaîne vide ou blanche ne fait pas un code', () {
       final t = TarifsPremium.depuis({'promo_code': '   ', 'review_delay_code': ''});
-      expect(t.promoCode, TarifsPremium.promoCodeDefaut);
+      expect(t.offreCodeDisponible, isFalse);
       expect(t.delaiCode, TarifsPremium.delaiCodeDefaut);
+    });
+
+    test('un code publié par le serveur est repris tel quel', () {
+      final t = TarifsPremium.depuis({'promo_code': 'PRONOWIN2026'});
+      expect(t.promoCode, 'PRONOWIN2026');
+      expect(t.offreCodeDisponible, isTrue);
     });
   });
 

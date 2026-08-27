@@ -1,0 +1,213 @@
+<%- include('layout_top', {page:'code_promo'}) %>
+
+<style>
+.cp-grille   { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: .9rem; }
+.cp-champ    { display: block; }
+.cp-champ label { display: block; font-size: .7rem; font-weight: 700; color: var(--text-m);
+                  text-transform: uppercase; letter-spacing: .05em; margin-bottom: .35rem; }
+.cp-champ input { width: 100%; font-family: monospace; font-size: .95rem; letter-spacing: .06em;
+                  text-transform: uppercase; }
+.cp-aide     { font-size: .72rem; color: var(--text-dim); margin-top: .3rem; line-height: 1.5; }
+.cp-origine  { font-size: .68rem; font-weight: 700; text-transform: uppercase;
+               letter-spacing: .05em; padding: .1rem .4rem; border-radius: 5px; }
+.cp-base     { background: rgba(52,211,153,.15); color: #34d399; }
+.cp-env      { background: rgba(148,163,184,.15); color: var(--text-dim); }
+.cp-vide     { background: rgba(248,113,113,.15); color: #f87171; }
+.cp-tab      { width: 100%; border-collapse: collapse; font-size: .86rem; }
+.cp-tab th   { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+               color: var(--text-m); padding: .55rem .7rem; border-bottom: 1px solid var(--border); }
+.cp-tab td   { padding: .6rem .7rem; border-bottom: 1px solid var(--border); }
+.cp-tab tr:last-child td { border-bottom: 0; }
+.cp-num      { font-variant-numeric: tabular-nums; font-weight: 700; }
+.cp-tuiles   { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: .8rem; }
+.cp-tuile    { background: var(--surface-d); border: 1px solid var(--border); border-radius: 12px;
+               padding: .85rem 1rem; }
+.cp-tuile .v { font-size: 1.5rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.cp-tuile .l { font-size: .72rem; color: var(--text-m); margin-top: .2rem; }
+@media (max-width: 700px) { .cp-tab thead { display: none; } }
+</style>
+
+<%
+  const _cfg   = (typeof config !== 'undefined' && config) ? config : null;
+  const _st    = (typeof stats  !== 'undefined' && stats ) ? stats  : null;
+  const _err   = typeof erreur !== 'undefined' ? erreur : null;
+  const _val   = _cfg ? _cfg.valeurs : {};
+  const _org   = _cfg ? _cfg.origine : {};
+
+  // Un code general vide n'est pas un detail de presentation : sans lui,
+  // l'ecran mobile annonce que l'offre est indisponible.
+  const _general = (_val.PROMO_CODE ?? '').trim();
+
+  const _libelles = { '1xbet': '1xBet', 'melbet': 'Melbet', 'betwinner': 'Betwinner' };
+  const _cleDe    = p => 'PROMO_CODE_' + p.toUpperCase();
+%>
+
+<div class="topbar">
+  <div>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg> Code promo partenaire</h2>
+    <small>
+      <% if (_general) { %>
+        Code en service : <strong style="font-family:monospace"><%= _general %></strong>
+      <% } else { %>
+        Aucun code configuré — l'offre est masquée dans l'application
+      <% } %>
+    </small>
+  </div>
+</div>
+
+<% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+<% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+<% if (!_cfg) { %>
+  <div class="alert alert-error">
+    <strong><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> API injoignable</strong>
+    — impossible de lire la configuration<%= _err ? ' : ' + _err : '.' %>
+  </div>
+<% } else { %>
+
+<% if (!_general) { %>
+  <div class="alert alert-error">
+    <strong>Aucun code n'est configuré.</strong>
+    Le parcours « Code Promo » est donc masqué dans l'application : personne ne peut
+    obtenir son premier mois offert tant que ce champ est vide.
+  </div>
+<% } %>
+
+<div class="card" style="padding:.85rem 1.1rem;margin-bottom:1rem">
+  <p style="margin:0;font-size:.83rem;color:var(--text-m);line-height:1.6">
+    Ce code est celui que l'utilisateur saisit en créant son compte chez le partenaire.
+    Il est lu par l'application à chaque ouverture : <strong>aucune recompilation
+    n'est nécessaire</strong>.
+    <br>
+    Un code périmé ne provoque aucune erreur — l'inscription se fait quand même,
+    mais <strong>elle ne vous crédite pas</strong>, et l'utilisateur réclame malgré tout
+    son mois offert. C'est la seule raison d'être de cette page.
+  </p>
+</div>
+
+<form method="POST" action="/admin/code-promo" class="card" style="padding:1.1rem">
+  <div class="cp-champ" style="margin-bottom:1.1rem">
+    <label for="PROMO_CODE">
+      Code général
+      <span class="cp-origine <%= !_general ? 'cp-vide' : (_org.PROMO_CODE === 'base' ? 'cp-base' : 'cp-env') %>">
+        <%= !_general ? 'vide' : (_org.PROMO_CODE === 'base' ? 'réglé ici' : 'hérité du serveur') %>
+      </span>
+    </label>
+    <input type="text" id="PROMO_CODE" name="PROMO_CODE" maxlength="40"
+           value="<%= _val.PROMO_CODE ?? '' %>" placeholder="PRONOWIN2026" autocomplete="off">
+    <div class="cp-aide">
+      Utilisé pour toutes les plateformes qui n'ont pas de code propre ci-dessous.
+    </div>
+  </div>
+
+  <p style="font-size:.7rem;font-weight:700;color:var(--text-m);text-transform:uppercase;
+            letter-spacing:.05em;margin:0 0 .6rem">
+    Codes propres à une plateforme — facultatifs
+  </p>
+
+  <div class="cp-grille">
+    <% Object.keys(_libelles).forEach(p => { const cle = _cleDe(p); %>
+    <div class="cp-champ">
+      <label for="<%= cle %>"><%= _libelles[p] %></label>
+      <input type="text" id="<%= cle %>" name="<%= cle %>" maxlength="40"
+             value="<%= _val[cle] ?? '' %>" placeholder="hérite du général" autocomplete="off">
+    </div>
+    <% }) %>
+  </div>
+
+  <div class="cp-aide" style="margin-top:.7rem">
+    Laissez vide si le partenaire accepte le code général. Renseignez-le seulement
+    si cette enseigne vous a attribué le sien — un code d'une autre enseigne ne
+    crédite rien, et cela ne se voit que sur le relevé, des semaines plus tard.
+  </div>
+
+  <div style="margin-top:1.1rem;display:flex;gap:.5rem">
+    <button type="submit" class="btn btn-primary">Enregistrer</button>
+  </div>
+</form>
+
+<% } %>
+
+<%# ─── Statistiques ────────────────────────────────────────────────────── %>
+<% if (_st) { %>
+
+<h3 style="margin:1.6rem 0 .8rem;font-size:1rem">
+  Ce que ce parcours a produit
+  <small style="font-weight:400;color:var(--text-dim);font-size:.78rem">
+    — <%= _st.periode_jours %> derniers jours
+  </small>
+</h3>
+
+<div class="cp-tuiles" style="margin-bottom:1.2rem">
+  <div class="cp-tuile">
+    <div class="v"><%= _st.soumissions_periode %></div>
+    <div class="l">demandes reçues</div>
+  </div>
+  <div class="cp-tuile">
+    <div class="v" style="color:#fbbf24"><%= _st.par_statut_periode.pending %></div>
+    <div class="l">en attente de vérification</div>
+  </div>
+  <div class="cp-tuile">
+    <div class="v" style="color:#34d399"><%= _st.par_statut_periode.approved %></div>
+    <div class="l">acceptées</div>
+  </div>
+  <div class="cp-tuile">
+    <div class="v" style="color:#f87171"><%= _st.par_statut_periode.rejected %></div>
+    <div class="l">refusées</div>
+  </div>
+  <div class="cp-tuile">
+    <div class="v" style="color:var(--primary)"><%= _st.mois_offerts_total %></div>
+    <div class="l">
+      mois offerts depuis le début
+      <br><span style="color:var(--text-dim)">soit <%= _st.mois_offerts_total * _st.jours_par_offre %> jours d'abonnement</span>
+    </div>
+  </div>
+</div>
+
+<div class="card" style="padding:0;overflow:hidden">
+  <table class="cp-tab">
+    <thead>
+      <tr>
+        <th scope="col">Plateforme</th>
+        <th scope="col">Demandes</th>
+        <th scope="col">Acceptées</th>
+        <th scope="col">Refusées</th>
+        <th scope="col">En attente</th>
+        <th scope="col">Taux d'acceptation</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% Object.keys(_st.plateformes).forEach(p => { const l = _st.plateformes[p]; %>
+      <tr>
+        <td><strong><%= _libelles[p] ?? p %></strong></td>
+        <td class="cp-num"><%= l.soumises %></td>
+        <td class="cp-num" style="color:#34d399"><%= l.approuvees %></td>
+        <td class="cp-num" style="color:#f87171"><%= l.refusees %></td>
+        <td class="cp-num" style="color:#fbbf24"><%= l.en_attente %></td>
+        <td class="cp-num">
+          <% if (l.taux_approbation === null) { %>
+            <span style="color:var(--text-dim);font-weight:400">
+              <%= (l.approuvees + l.refusees) %> / <%= _st.echantillon_minimal %> dossiers
+            </span>
+          <% } else { %>
+            <%= l.taux_approbation %> %
+          <% } %>
+        </td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+</div>
+
+<p style="font-size:.75rem;color:var(--text-dim);margin-top:.7rem;line-height:1.6">
+  Aucun taux n'est annoncé sous <%= _st.echantillon_minimal %> dossiers tranchés : sur trois,
+  « 100 % » est un artefact, pas une performance.
+  <br>
+  Une plateforme dont les demandes arrivent et sont acceptées, mais dont rien ne remonte
+  sur votre relevé partenaire, est le signe que son code ne crédite pas — c'est ce que
+  ce tableau permet de voir avant la fin du mois.
+</p>
+
+<% } %>
+
+<%- include('layout_bottom') %>

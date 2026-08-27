@@ -634,6 +634,49 @@ const views = [
     localStats: { totalAmount: 0, total: 0 },
   }]),
 
+  // ── Code promo partenaire ──
+  //
+  // Les trois etats degrades comptent autant que le nominal : un code vide
+  // masque l'offre dans l'application, et une API muette ne doit pas produire
+  // une page blanche.
+  ['code promo (configure, avec statistiques)', 'code_promo', {
+    ...base, page: 'code_promo',
+    config: {
+      valeurs: {
+        PROMO_CODE: 'PRONOWIN2026', PROMO_CODE_1XBET: '',
+        PROMO_CODE_MELBET: 'MELBET2026', PROMO_CODE_BETWINNER: '',
+      },
+      origine: {
+        PROMO_CODE: 'base', PROMO_CODE_1XBET: 'env',
+        PROMO_CODE_MELBET: 'base', PROMO_CODE_BETWINNER: 'env',
+      },
+    },
+    stats: {
+      periode_jours: 30, soumissions_periode: 42,
+      par_statut_periode: { pending: 5, approved: 30, rejected: 7 },
+      mois_offerts_total: 118, jours_par_offre: 30,
+      echantillon_minimal: 10,
+      plateformes: {
+        '1xbet':     { soumises: 30, approuvees: 24, refusees: 4, en_attente: 2, taux_approbation: 86 },
+        'melbet':    { soumises: 9,  approuvees: 6,  refusees: 2, en_attente: 1, taux_approbation: null },
+        'betwinner': { soumises: 0,  approuvees: 0,  refusees: 0, en_attente: 0, taux_approbation: null },
+      },
+    },
+    erreur: null,
+  }],
+  ['code promo (aucun code configure)', 'code_promo', {
+    ...base, page: 'code_promo',
+    config: {
+      valeurs: { PROMO_CODE: '', PROMO_CODE_1XBET: '', PROMO_CODE_MELBET: '', PROMO_CODE_BETWINNER: '' },
+      origine: { PROMO_CODE: 'env', PROMO_CODE_1XBET: 'env', PROMO_CODE_MELBET: 'env', PROMO_CODE_BETWINNER: 'env' },
+    },
+    stats: null, erreur: null,
+  }],
+  ['code promo (API muette)', 'code_promo', {
+    ...base, page: 'code_promo', config: null, stats: null,
+    erreur: 'connect ECONNREFUSED',
+  }],
+
   // ── Méthodes de paiement ──
   ['paiements (liste)', 'paiements', {
     ...base, page: 'paiements',

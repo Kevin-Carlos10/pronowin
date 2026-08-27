@@ -9,7 +9,9 @@ import '../../domain/tarifs_premium.dart';
 // listes qui pouvaient diverger sans que rien ne le signale.
 const _kSubFallback = {
   'plan': 'free', 'days_left': 0,
-  'promo_code':        TarifsPremium.promoCodeDefaut,
+  // Pas de code promo de repli : un code d'affiliation invente ne credite
+  // personne. Vide, l'ecran annonce l'indisponibilite.
+  'promo_code':        '',
   'betting_platforms': TarifsPremium.plateformesDefaut,
   'premium_price_monthly_usd': 10, 'premium_price_annual_usd': 90,
   'premium_price_monthly_fcfa':      TarifsPremium.mensuelDirectDefaut,

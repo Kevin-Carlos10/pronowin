@@ -30,6 +30,13 @@ jest.mock('../middleware/admin.middleware', () => ({
 }));
 jest.mock('../services/app_config.service', () => ({ lireConfig: async () => ({}), ecrireConfig: async () => ({}) }));
 jest.mock('../services/payment_method.service', () => ({}));
+// Isoler ce service n'est pas un detail : sans doublure, il importe Prisma
+// pour de vrai, et Prisma charge le `.env` du projet pour y trouver
+// `DATABASE_URL`. `ADMIN_SETUP_SECRET` y est renseigne — le test croyait donc
+// tester « aucun secret configure » sur un environnement qui en avait un.
+jest.mock('../services/subscription.service', () => ({
+  SubscriptionService: class { async statistiquesCodePromo() { return {}; } },
+}));
 
 const ENV_INITIAL = { ...process.env };
 afterEach(() => { process.env = { ...ENV_INITIAL }; });
