@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../domain/entities/match_entity.dart';
 
@@ -402,7 +403,7 @@ class PronoShareCard extends StatelessWidget {
                     ),
                   ]),
                   Text(
-                    'pronowin.app',
+                    AppConstants.domaine,
                     style: TextStyle(
                       color: AppColors.primary.withValues(alpha: 0.8),
                       fontSize: 11,

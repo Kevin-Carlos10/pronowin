@@ -246,15 +246,32 @@
       <span class="eyebrow">Prêt ?</span>
       <h2 class="headline">Prêt à parier plus intelligemment ?</h2>
       <p class="headline-sub">Téléchargez PronoWin, activez vos pronostics gratuits du jour, et passez VIP quand vous êtes prêt à aller plus loin.</p>
+      <%#
+        L'application n'est sur aucun store aujourd'hui. Les deux badges
+        pointaient sur « # » : ils avaient l'air cliquables et ne menaient
+        nulle part.
+
+        On annonce donc ce qui existe — le téléchargement direct — et on dit
+        « bientôt » pour le reste. Un badge « Google Play » qui ouvre un APK
+        tromperait sur ce qu'on reçoit ; un badge inerte trompe sur ce qui est
+        disponible.
+      %>
       <div class="store-badges">
-        <a href="#" class="store-badge">
-          <%- include('partials/icon', { name: 'apple', size: 20 }) %>
-          <span class="store-badge-text"><small>Télécharger sur l'</small><strong>App Store</strong></span>
-        </a>
-        <a href="#" class="store-badge">
+        <a href="<%= site.apkUrl %>" class="store-badge" download>
           <%- include('partials/icon', { name: 'android', size: 20 }) %>
-          <span class="store-badge-text"><small>Disponible sur</small><strong>Google Play</strong></span>
+          <span class="store-badge-text"><small>Télécharger pour</small><strong>Android</strong></span>
         </a>
+      </div>
+
+      <div class="store-badges store-badges--soon" aria-hidden="false">
+        <span class="store-badge store-badge--soon">
+          <%- include('partials/icon', { name: 'apple', size: 20 }) %>
+          <span class="store-badge-text"><small>App Store</small><strong>Bientôt</strong></span>
+        </span>
+        <span class="store-badge store-badge--soon">
+          <%- include('partials/icon', { name: 'android', size: 20 }) %>
+          <span class="store-badge-text"><small>Google Play</small><strong>Bientôt</strong></span>
+        </span>
       </div>
     </div>
   </section>

@@ -1,5 +1,7 @@
 const express = require('express');
 const path = require('path');
+const https = require('https');
+const http  = require('http');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -12,11 +14,52 @@ const site = {
   name: 'PronoWin',
   tagline: 'Des pronostics gagnants, des gains grandissants',
   year: new Date().getFullYear(),
+
+  // Telechargement direct : l'application n'est sur aucun store aujourd'hui.
+  // Le badge « Google Play » pointerait donc sur une fiche inexistante — on
+  // annonce ce qui existe, et on dit « bientot » pour le reste.
+  apkUrl: process.env.APK_URL || '/downloads/app-release.apk',
 };
 
+// URL de l'API, pour lire le taux de reussite reel.
+const API_URL = process.env.API_URL || 'http://127.0.0.1:3000/api/v1';
+
+/**
+ * Bilan Premium reel, lu au rendu de la page.
+ *
+ * Le chiffre etait ecrit en dur : `{ value: '87', label: 'de taux de reussite
+ * VIP' }`. C'est une affirmation publique, sur la page qui vend, et elle ne
+ * dependait d'aucune donnee — elle ne pouvait donc etre exacte que par
+ * accident. Le meme defaut avait ete corrige dans l'application ; il vivait
+ * encore ici.
+ *
+ * En cas d'echec, ou sous le seuil d'echantillon du serveur, on ne remplace
+ * pas par une estimation : la tuile disparait. Une page qui annonce un
+ * chiffre faux vaut moins qu'une page qui n'en annonce aucun.
+ */
+function bilanPremium() {
+  return new Promise((resolve) => {
+    const client = API_URL.startsWith('https') ? https : http;
+    const req = client.get(`${API_URL}/pronostics/bilan-premium?days=30`,
+      { timeout: 2500 }, (res) => {
+        let corps = '';
+        res.on('data', (c) => (corps += c));
+        res.on('end', () => {
+          try {
+            const d = JSON.parse(corps);
+            resolve(d.echantillon_suffisant && d.taux_reussite !== null ? d : null);
+          } catch { resolve(null); }
+        });
+      });
+    req.on('error',   () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+}
+
+// Les tuiles qui ne dependent d'aucune donnee. Le taux de reussite, lui, est
+// lu au rendu : il est insere en tete quand le serveur en publie un.
 const stats = [
   { value: '12', suffix: '', label: 'ligues couvertes' },
-  { value: '87', suffix: '%', label: 'de taux de réussite VIP' },
   { value: '4', suffix: '', label: 'pronostics publiés / jour' },
 ];
 
@@ -178,8 +221,17 @@ const faqs = [
   },
 ];
 
-app.get('/', (req, res) => {
-  res.render('index', { site, stats, productBlocks, bigStats, testimonials, pricingPlans, comparisonRows, faqs });
+app.get('/', async (req, res) => {
+  const bilan = await bilanPremium();
+  const statsAffichees = bilan
+    ? [{ value: String(bilan.taux_reussite), suffix: '%',
+         label: `de réussite VIP sur ${bilan.periode_jours} jours` }, ...stats]
+    : stats;
+
+  res.render('index', {
+    site, stats: statsAffichees, productBlocks, bigStats,
+    testimonials, pricingPlans, comparisonRows, faqs,
+  });
 });
 
 app.get('/mentions-legales', (req, res) => {

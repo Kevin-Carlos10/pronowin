@@ -7,7 +7,7 @@ part of '../match_detail_page.dart';
 
 String _buildShareText(MatchEntity match) {
   final date = DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR').format(match.matchDate);
-  final link = 'https://pronowin.app/pronostics/${match.id}';
+  final link = '${AppConstants.siteUrl}/pronostics/${match.id}';
   final cote = match.oddsRecommended.toStringAsFixed(2);
 
   // Un pronostic clos et un pronostic à venir ne se partagent pas pareil.
@@ -196,7 +196,8 @@ class _ShareSheetState extends State<_ShareSheet> {
                 color: const Color(0xFF0088CC),
                 onTap: () async {
                   final encoded = Uri.encodeComponent(text);
-                  await _launchShare('https://t.me/share/url?url=https://pronowin.app&text=$encoded');
+                  await _launchShare(
+                      'https://t.me/share/url?url=${AppConstants.siteUrl}&text=$encoded');
                   if (context.mounted) Navigator.pop(context);
                 },
               )),

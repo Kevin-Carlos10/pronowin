@@ -667,3 +667,10 @@ button { font-family: inherit; cursor: pointer; }
   .footer-top { grid-template-columns: 1fr; }
   .footer-bottom { flex-direction: column; }
 }
+
+/* ── Badges « bientôt » ────────────────────────────────────────────────────
+   Les badges App Store et Google Play pointaient sur « # » : cliquables en
+   apparence, inertes en réalité. Ils sont désormais des `<span>`, pas des
+   liens — un curseur qui ne change pas dit déjà qu'il n'y a rien à cliquer.  */
+.store-badges--soon { margin-top: .75rem; opacity: .45; }
+.store-badge--soon  { cursor: default; pointer-events: none; }

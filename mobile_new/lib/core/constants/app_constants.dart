@@ -14,6 +14,18 @@ class AppConstants {
   static const int pageSize      = 20;
   static const int weekPageSize  = 200; // Toute la semaine en une requête
 
+  /// Domaine public — **source unique**.
+  ///
+  /// Il etait ecrit en dur a trois endroits, et il nommait `pronowin.app` : un
+  /// domaine qui n'existe pas. Verifie depuis le serveur lui-meme, injoignable
+  /// en racine comme en API. Chaque partage envoyait donc les gens dans le
+  /// vide — sur le canal de croissance le plus naturel de cette application.
+  ///
+  /// Un lien partage vit pour toujours dans une conversation. C'est le seul
+  /// endroit de l'app ou changer d'avis coute cher : il vit ici, une fois.
+  static const String domaine = 'pronowin.space';
+  static const String siteUrl = 'https://$domaine';
+
   static const String playStoreUrl = 'https://play.google.com/store/apps/details?id=com.pronowin.app';
   static const String appStoreUrl  = 'https://apps.apple.com/app/pronowin/id0000000000'; // ← remplacer l'ID réel
 }
