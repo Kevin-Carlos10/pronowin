@@ -36,6 +36,26 @@ import leaderboardRoutes     from './routes/leaderboard.routes';
 const app  = express();
 const PORT = process.env.PORT ?? 3000;
 
+/**
+ * Un seul intermédiaire de confiance : nginx.
+ *
+ * Sans ce réglage, `req.ip` vaut l'adresse du proxy — la même pour tout le
+ * monde. Or c'est la clé de tous les limiteurs de débit ci-dessous, et le plus
+ * strict autorise **trois demandes d'OTP par dix minutes**. Trois personnes
+ * demandaient un code, la quatrième était bloquée : pas la quatrième depuis la
+ * même adresse, la quatrième de toute l'application.
+ *
+ * `express-rate-limit` le signalait à chaque requête
+ * (`ERR_ERL_UNEXPECTED_X_FORWARDED_FOR`), dans un journal d'erreurs que
+ * personne ne lisait.
+ *
+ * La valeur `1` et non `true` : elle dit « fais confiance au dernier maillon,
+ * pas à la chaîne entière ». Avec `true`, n'importe qui pourrait usurper une
+ * adresse en envoyant son propre en-tête `X-Forwarded-For` et contourner les
+ * limiteurs — le remède serait pire que le mal.
+ */
+app.set('trust proxy', 1);
+
 app.use(helmet());
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())

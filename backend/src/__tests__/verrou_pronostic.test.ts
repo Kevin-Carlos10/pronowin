@@ -85,9 +85,15 @@ describe('verrou d\'un pronostic premium', () => {
       for (const f of ['services/pronostics.service.ts',
                        'controllers/pronostics.controller.ts']) {
         const code = lire(f);
-        // La liste « tous les matchs » passe `m.status`, les deux autres
-        // `.match.status` : dans les trois cas, un statut doit etre transmis.
-        expect(/estVerrouille\([^)]*status[^)]*\)/.test(code)).toBe(true);
+        // **Chaque** appel, pas au moins un. Ma première version se contentait
+        // du premier : le fichier de service en contient deux, et en casser un
+        // laissait l'autre valider le test. Une injection l'a montré.
+        const appels = code.match(/estVerrouille\([^)]*\)/g) ?? [];
+        expect(appels.length).toBeGreaterThan(0);
+
+        for (const appel of appels) {
+          expect(appel).toMatch(/\bstatus\b/);
+        }
       }
     });
   });
