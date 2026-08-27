@@ -1,58 +1,110 @@
 # Marque PronoWin
 
-`logo-pronowin.svg` est la source. Tous les PNG en sont dérivés — ne les
-retouchez pas à la main, régénérez-les :
+Deux marques, deux fichiers source :
+
+| Source | Ce que c'est |
+|---|---|
+| `logo-pronowin.svg` | l'**emblème** — trophée blanc au « P » sur fond orange |
+| `logotype-pronowin-*.svg` | le **logotype** — le mot « PronoWin » |
+
+Tous les PNG en dérivent. Ne les retouchez pas à la main, régénérez :
 
 ```
-node brand/rendre.js      # produit les PNG
-node brand/verifier.js    # planche de contrôle : cercle + 160/80/40 px
+cd brand && npm install && npm run tout
 ```
 
-## Ce que le logo reprend
+`npm run tout` reconstruit tout depuis zéro, police intermédiaire comprise.
+Les étapes séparément : `npm run logotype`, `npm run rendre`, `npm run verifier`.
+
+## L'emblème
 
 Le trophée blanc portant un « P » sur fond orange **existait déjà** : c'est
-l'icône de l'application Android, et la pastille « P » du site en dérive. Le
-logo la reprend au lieu d'en proposer une autre — une marque qu'il faut
+l'icône de l'application Android, et la pastille « P » du site en dérive.
+L'emblème la reprend au lieu d'en proposer une autre — une marque qu'il faut
 réapprendre à chaque support n'en est pas une.
 
-Aucune police n'est utilisée : le « P » est un tracé. Un rendu qui dépend
-d'une police installée produit un logo différent sur chaque machine, et se
-dégrade en silence.
+Deux réglages que le fichier source ne laisse pas deviner :
+
+- **Le trophée est remonté de 13 px.** Il s'étend de y=150 à y=388 : son centre
+  tombait sous celui du carré. Invisible sur un carré, net dès que Telegram
+  recadre en cercle.
+- **Le « P » est agrandi de 14 %.** À 40 px — sa taille dans une liste de
+  discussions, là où il est vu cent fois pour une fois en grand — son
+  contre-poinçon se refermait et la lettre devenait une tache.
+
+## Le logotype
+
+**Les lettres sont des tracés, pas du texte.** Le site compose la marque avec
+une pile de polices système (`-apple-system, SF Pro Display, Helvetica Neue,
+Arial`) : un logo qui s'appuie là-dessus se rend différemment sur chaque
+machine, et ne le dit pas. Ici, aucune police n'est nécessaire pour l'afficher.
+
+La coupure de couleur « Prono » / « Win » reprend celle du site
+(`.brand span { color: var(--accent) }`).
+
+### Police et licence
+
+**Inter Bold**, sous SIL Open Font License 1.1, qui autorise l'usage des
+contours dans un logo. C'est le point à ne pas escamoter : Arial et Segoe UI —
+les deux polices vers lesquelles la pile du site retombe sous Windows — sont
+sous licence Monotype/Microsoft. Les intégrer à une marque destinée à être
+déposée poserait un problème que personne ne découvrirait avant le dépôt.
+
+`@fontsource/inter` ne livre que du WOFF ; `opentype.js` ne lit que le TTF.
+`woff2ttf.js` fait la conversion — un WOFF n'est qu'un conteneur de tables
+compressées en zlib. Le WOFF2, lui, est refusé explicitement : il demande
+Brotli **et** une transformation des tables `glyf`/`loca`, et produire une
+police à moitié convertie serait pire que refuser.
+
+`logotype.js` compose ensuite lettre par lettre plutôt que par `getPaths()` :
+opentype.js ne sait pas lire la fonctionnalité `ccmp` d'Inter et lève une
+exception. Pour huit lettres latines sans ligature ni diacritique, `ccmp`
+n'aurait rien substitué — on ne perd rien, et la position de chaque lettre
+devient explicite.
 
 ## Les deux palettes
 
-Elles divergeaient, et divergent toujours dans le code :
+Elles divergent, et divergent toujours dans le code :
 
 | Source | Orange | Clair | Profond |
 |---|---|---|---|
 | `mobile_new/lib/core/theme` | `#E8541A` | `#F5A623` | — |
 | `website/public/css/style.css` | `#F2632A` | `#F2B705` | `#D9451F` |
 
-Le dégradé du logo les traverse : `#F5A623 → #E8541A → #D9451F`. À unifier un
-jour dans le code — deux orange qui se ressemblent sans être identiques finiront
-par se voir côte à côte.
+Le dégradé de l'emblème les traverse (`#F5A623 → #E8541A → #D9451F`) et le
+logotype utilise `#E8541A`. À unifier un jour dans le code — deux orange qui se
+ressemblent sans être identiques finiront par se retrouver côte à côte, une
+capture d'application posée sur le site par exemple.
 
 ## Quel fichier pour quoi
 
+### Emblème
+
 | Fichier | Usage |
 |---|---|
-| `pronowin-telegram-512.png` | photo du canal Telegram |
+| `pronowin-telegram-512.png` | **photo du canal Telegram** |
 | `pronowin-telegram-1024.png` | idem, si Telegram accepte plus grand |
-| `logo-pronowin-512.png` | icône d'application, favicon, stores |
+| `logo-pronowin-512.png` | icône d'application, favicon |
 | `logo-pronowin-1024.png` | fiche Play Store (512 exigé, 1024 utile) |
-| `apercu-cercle-512.png` | contrôle : le recadrage circulaire de Telegram |
-| `planche-controle.png` | contrôle : lisibilité en 160 / 80 / 40 px |
 
 Les variantes `telegram-*` sont **à fond perdu**, sans coins arrondis :
 Telegram recadre en cercle, où un arrondi serait rogné et laisserait un liseré
 transparent visible sur fond clair. Les variantes `logo-*` gardent l'arrondi
-(rayon 112 sur 512), pour les usages où le carré reste carré.
+(rayon 112 sur 512).
 
-## Deux réglages non évidents
+### Logotype
 
-- **Le trophée est remonté de 13 px.** Il s'étend de y=150 à y=388 : son centre
-  tombait sous celui du carré. Invisible sur un carré, net dès le recadrage en
-  cercle.
-- **Le « P » est agrandi de 14 %.** À 40 px — sa taille dans une liste de
-  discussions, là où il est vu cent fois pour une fois en grand — son
-  contre-poinçon se refermait et la lettre devenait une tache.
+| Fichier | Usage |
+|---|---|
+| `logotype-pronowin-fond-*.png` | bandeau sur fond bleu-nuit, prêt à poser |
+| `logotype-pronowin-clair-*.png` | transparent, **sur fond sombre** |
+| `logotype-pronowin-noir-*.png` | transparent, **sur fond clair** |
+
+### Contrôles
+
+| Fichier | Ce qu'il montre |
+|---|---|
+| `apercu-cercle-512.png` | le recadrage circulaire de Telegram |
+| `planche-controle.png` | la lisibilité en 160 / 80 / 40 px |
+
+Un logo se juge là où il sera vu, pas dans son fichier source.

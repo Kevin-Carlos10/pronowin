@@ -38,6 +38,14 @@ const sorties = [
   ['pronowin-telegram-1024.png', svgPlein, 1024],
 ];
 
+// Logotypes : générés par logotype.js, rendus ici à une largeur utile. Ils ne
+// sont pas carrés — on impose la largeur et on laisse la hauteur suivre.
+const LOGOTYPES = [
+  'logotype-pronowin-fond',
+  'logotype-pronowin-clair',
+  'logotype-pronowin-noir',
+];
+
 (async () => {
   for (const [nom, source, taille] of sorties) {
     const cible = path.join(RACINE, nom);
@@ -48,6 +56,26 @@ const sorties = [
 
     const { width, height, channels } = await sharp(cible).metadata();
     const octets = fs.statSync(cible).size;
-    console.log(`  ${nom.padEnd(28)} ${width}x${height}  ${channels} canaux  ${(octets / 1024).toFixed(1)} Ko`);
+    console.log(`  ${nom.padEnd(30)} ${width}x${height}  ${channels} canaux  ${(octets / 1024).toFixed(1)} Ko`);
+  }
+
+  for (const base of LOGOTYPES) {
+    const src = path.join(RACINE, `${base}.svg`);
+    if (!fs.existsSync(src)) {
+      console.error(`  MANQUE ${base}.svg — lancez d'abord : node brand/logotype.js`);
+      process.exitCode = 1;
+      continue;
+    }
+    for (const largeur of [600, 1200]) {
+      const nom = `${base}-${largeur}.png`;
+      await sharp(fs.readFileSync(src), { density: 384 })
+        .resize({ width: largeur })
+        .png({ compressionLevel: 9 })
+        .toFile(path.join(RACINE, nom));
+
+      const m = await sharp(path.join(RACINE, nom)).metadata();
+      const o = fs.statSync(path.join(RACINE, nom)).size;
+      console.log(`  ${nom.padEnd(30)} ${m.width}x${m.height}  ${m.channels} canaux  ${(o / 1024).toFixed(1)} Ko`);
+    }
   }
 })().catch((e) => { console.error(e.message); process.exit(1); });
