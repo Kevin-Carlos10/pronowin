@@ -1,4 +1,5 @@
 ﻿import { NotificationService } from './notification.service';
+import { nomDevise } from '../utils/devise';
 import { prisma } from '../lib/prisma';
 
 const notifSvc = new NotificationService();
@@ -192,21 +193,21 @@ export async function settleBets(pronosticId: string, result: 'WIN' | 'LOSS' | '
       const gain = profit.toLocaleString('fr-FR');
       notifSvc.sendToUser(userId, {
         title: '🏆 Pronostic Gagnant !',
-        body:  `+${gain} ${currency} sur ${matchStr}. Votre bankroll est mis à jour !`,
+        body:  `+${gain} ${nomDevise(currency)} sur ${matchStr}. Votre bankroll est mis à jour !`,
         data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
       }).catch(() => {});
     } else if (result === 'PUSH') {
       const remb = stakedAmount.toLocaleString('fr-FR');
       notifSvc.sendToUser(userId, {
         title: '🔄 Pronostic remboursé',
-        body:  `${remb} ${currency} de mise remboursée sur ${matchStr}.`,
+        body:  `${remb} ${nomDevise(currency)} de mise remboursée sur ${matchStr}.`,
         data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
       }).catch(() => {});
     } else {
       const perte = stakedAmount.toLocaleString('fr-FR');
       notifSvc.sendToUser(userId, {
         title: '❌ Pronostic Perdant',
-        body:  `-${perte} ${currency} sur ${matchStr}. Ne lâchez pas !`,
+        body:  `-${perte} ${nomDevise(currency)} sur ${matchStr}. Ne lâchez pas !`,
         data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
       }).catch(() => {});
     }
