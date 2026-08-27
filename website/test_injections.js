@@ -62,12 +62,53 @@ const INJECTIONS = [
     vers: '    <a href="#temoignages">Témoignages</a>\n    <a href="#telecharger"',
   },
   {
+    nom: "le site promet de l'IA alors que le modèle est statistique",
+    fichier: 'server.js',
+    de: "    eyebrow: 'Données du match',",
+    vers: "    eyebrow: 'Analyse par IA',",
+  },
+  {
+    nom: "l'annuel se voit attribuer un avantage que le mensuel n'a pas",
+    fichier: 'server.js',
+    de: "  { label: 'Support prioritaire',                   values: [false, true,  true] },",
+    vers: "  { label: 'Support prioritaire',                   values: [false, true,  true] },\n"
+        + "  { label: 'Historique complet des performances',    values: [false, false, true] },",
+  },
+  {
     nom: 'les mentions légales redécrivent un portefeuille de paris',
     fichier: 'views/legal.ejs',
     de: 'PronoWin ne collecte aucune mise et ne tient aucun compte de paris.',
     vers: 'Les dépôts et retraits passent par Orange Money, Moov Money et MTN MoMo.',
   },
 ];
+
+/**
+ * Réécrit `contenu` dans `chemin`, en réessayant.
+ *
+ * Sous Windows, un antivirus ou un processus qui lit le fichier au même
+ * instant fait échouer l'ouverture en écriture avec `EBUSY`, `EPERM` ou
+ * `UNKNOWN`. Ce sont des échecs transitoires : quelques essais espacés
+ * suffisent. Si rien n'y fait, on le crie fort — le dépôt contient alors un
+ * défaut volontaire, et le silence serait le pire des résultats.
+ */
+function restaurer(chemin, contenu, essais = 12) {
+  for (let i = 0; i < essais; i++) {
+    try {
+      fs.writeFileSync(chemin, contenu);
+      return;
+    } catch (e) {
+      if (i === essais - 1) {
+        console.error(`\n  ÉCHEC DE RESTAURATION : ${chemin} (${e.code})`);
+        console.error('  Le fichier contient encore le défaut injecté.');
+        console.error(`  Restaurez-le : git checkout -- ${chemin}\n`);
+        process.exit(2);
+      }
+      // Attente active courte : `execFileSync` interdit l'asynchrone ici.
+      const fin = Date.now() + 120;
+      while (Date.now() < fin) { /* patiente */ }
+    }
+  }
+}
 
 let echecs = 0;
 
@@ -83,22 +124,29 @@ for (const inj of INJECTIONS) {
     continue;
   }
 
-  fs.writeFileSync(inj.fichier, texte.replace(inj.de, inj.vers), 'utf8');
-
   let detecte;
   try {
-    execFileSync('node', ['test_contenu.js'], { stdio: 'pipe' });
-    detecte = false;                       // les contrôles ont tous passé
-  } catch {
-    detecte = true;                        // au moins un contrôle a échoué
+    fs.writeFileSync(inj.fichier, texte.replace(inj.de, inj.vers), 'utf8');
+    try {
+      execFileSync('node', ['test_contenu.js'], { stdio: 'pipe' });
+      detecte = false;                     // les contrôles ont tous passé
+    } catch {
+      detecte = true;                      // au moins un contrôle a échoué
+    }
+  } finally {
+    // La restauration doit survivre à tout — y compris à l'échec du test.
+    //
+    // Elle a déjà lâché une fois : `EUNKNOWN` sur l'ouverture en écriture,
+    // sous Windows, pendant qu'un serveur d'aperçu lisait le même fichier. Le
+    // banc s'est arrêté sur l'exception et a laissé le défaut injecté dans
+    // l'arbre de travail. Un outil qui remet volontairement un bug doit le
+    // retirer même quand tout va mal, sinon il devient lui-même la panne.
+    restaurer(inj.fichier, avant);
   }
 
-  // Restauration à l'octet près : c'est la seule preuve que le banc n'a rien
-  // laissé derrière lui. Une comparaison de texte masquerait un changement de
-  // fin de ligne ou d'encodage.
-  fs.writeFileSync(inj.fichier, avant);
-  const apres = fs.readFileSync(inj.fichier);
-  if (!avant.equals(apres)) {
+  // Restauration vérifiée à l'octet près : une comparaison de texte masquerait
+  // un changement de fin de ligne ou d'encodage.
+  if (!avant.equals(fs.readFileSync(inj.fichier))) {
     console.log(`  SOUILLÉ ${inj.fichier} n'a pas été restauré à l'identique`);
     echecs++;
     continue;

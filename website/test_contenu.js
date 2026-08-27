@@ -118,6 +118,15 @@ const INTERDITS = [
   ['2 min',         "le serveur annonce « 30 minutes ouvrables »"],
   ['4 filleuls',    'compteur inventé dans une maquette'],
   ['Retrait de gains', 'PronoWin ne tient aucun compte de paris'],
+
+  // Le service s'appelle `ai_prediction.service.ts`, mais son propre en-tête
+  // dit : « Aucun modèle génératif n'intervient ici ». C'est une combinaison
+  // pondérée de la cote du bookmaker et de l'écart de forme. L'application ne
+  // dit jamais « IA » à l'utilisateur — elle écrit « modèle statistique
+  // externe ». Le site ne doit pas promettre davantage que le produit.
+  ['intelligence artificielle', 'le modèle est statistique, pas génératif'],
+  [' IA ',                      'idem'],
+  ['par IA',                    'idem'],
 ];
 
 /* ─── Contrôles ───────────────────────────────────────────────────────── */
@@ -182,6 +191,27 @@ test('aucun lien ne mène nulle part', async () => {
   for (const ancre of new Set(ancres)) {
     assert.ok(accueil.html.includes(`id="${ancre}"`),
       `l'ancre « #${ancre} » ne correspond à aucune section de la page`);
+  }
+});
+
+test('les deux formules Premium ouvrent le même accès', async () => {
+  const { accueil } = await rendre(API_COMPLETE);
+
+  // L'API donne au mensuel et à l'annuel exactement les mêmes fonctionnalités.
+  // La table réservait pourtant « Historique complet des performances » et
+  // « Tous les tutoriels » à l'annuel : deux avantages inventés, sur la page
+  // où l'on choisit combien payer. Les colonnes 2 et 3 doivent coïncider.
+  const corps  = accueil.html.split('<tbody>')[1].split('</tbody>')[0];
+  const lignes = [...corps.matchAll(/<tr>([\s\S]*?)<\/tr>/g)].map((m) => m[1]);
+  assert.ok(lignes.length >= 5, 'table comparative introuvable ou vide');
+
+  for (const ligne of lignes) {
+    const cellules = [...ligne.matchAll(/<td>([\s\S]*?)<\/td>/g)].map((m) => m[1]);
+    const [, , mensuel, annuel] = cellules;
+    const coche = (c) => /<svg/.test(c);
+    assert.strictEqual(coche(mensuel), coche(annuel),
+      `« ${cellules[0].trim()} » distingue le mensuel de l'annuel, ` +
+      'alors que le backend leur donne le même accès');
   }
 });
 

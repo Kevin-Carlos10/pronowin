@@ -125,28 +125,87 @@ const productBlocks = [
     ],
   },
   {
-    icon: 'crown',
+    icon: 'star',
     bg: 'white',
-    eyebrow: 'Premium',
-    // « Des combinés qui comptent », « 6.40 cote moyenne du combiné du jour » :
-    // il n'existe aucun combiné dans le produit. La fonctionnalité était
-    // inventée jusqu'à sa cote moyenne, et elle occupait le chapitre entier.
-    title: 'Tous les pronostics.\nSans limite de nombre.',
-    text: "L'abonnement Premium ouvre l'intégralité des pronostics publiés, les statistiques détaillées, le bilan des résultats et le suivi de bankroll, sans publicité.",
+    eyebrow: 'Données du match',
+    // Le site ne disait rien de tout cela, alors que c'est le gros du produit :
+    // sept onglets sur la fiche d'un match, alimentés par API-Football.
+    // Le nombre d'onglets n'est pas annoncé : certains ne s'affichent que si la
+    // donnée existe pour ce match, et un compte fixe finirait par mentir.
+    title: 'Compositions, blessures,\nclassements, face-à-face.',
+    text: "Sur chaque match : les compositions, les statistiques, le face-à-face, les classements, les blessures et les cotes de plusieurs bookmakers. Dans la même fiche, sans aller les chercher ailleurs.",
     stats: [
-      { value: 'Illimité', label: 'pronostics accessibles' },
-      { value: 'Bilan',    label: 'résultats déjà tranchés' },
-      { value: 'Sans pub', label: "dans toute l'application" },
+      { value: 'Compos',  label: 'et blessures avant le coup d\'envoi' },
+      { value: 'H2H',     label: 'historique des confrontations' },
+      { value: 'Cotes',   label: 'comparées entre bookmakers' },
     ],
     apercu: [
-      { badge: 'gold', icone: 'crown',  titre: 'Pronostics Premium',  sous: 'Tous ceux publiés, sans limite' },
-      { badge: 'gold', icone: 'trophy', titre: 'Bilan des résultats', sous: 'Ce qui a été gagné et perdu' },
-      { badge: 'dark', icone: 'shield', titre: 'Suivi de bankroll',   sous: 'Vos mises et votre solde' },
+      { badge: 'green', icone: 'users',  titre: 'Compositions probables', sous: 'Titulaires et remplaçants' },
+      { badge: 'green', icone: 'chart',  titre: 'Statistiques du match',  sous: 'Possession, tirs, corners' },
+      { badge: 'dark',  icone: 'trophy', titre: 'Classements et forme',   sous: 'Position, série en cours' },
+    ],
+  },
+  {
+    icon: 'bell',
+    bg: 'black',
+    eyebrow: 'En direct',
+    // Boucle adaptative dans index.ts : 30 s tant qu'un match est LIVE, 2 min
+    // sinon, en continu. Le rappel avant match tourne toutes les 15 minutes.
+    title: 'Le score en direct.\nToutes les 30 secondes.',
+    text: "Pendant qu'un match est en cours, les scores se synchronisent toutes les 30 secondes, 24 h/24 — et toutes les deux minutes le reste du temps. Vous êtes prévenu avant le coup d'envoi, puis au résultat.",
+    stats: [
+      { value: '30 s',   label: 'entre deux synchronisations en direct' },
+      { value: '24 h/24', label: 'sans interruption' },
+      { value: 'Alertes', label: 'avant le match et au résultat' },
+    ],
+    apercu: [
+      { badge: 'green', icone: 'ball',  titre: 'Score en direct',       sous: 'Minute par minute' },
+      { badge: 'gold',  icone: 'bell',  titre: 'Rappel avant le match', sous: 'Pour ne pas le manquer' },
+      { badge: 'dark',  icone: 'check-circle', titre: 'Résultat notifié', sous: 'Dès le coup de sifflet' },
     ],
   },
   {
     icon: 'wallet',
+    bg: 'white',
+    eyebrow: 'Bankroll',
+    // suggestStake() dans bankroll.service.ts : Kelly simplifié, palier de
+    // 1,5 % à 5 % du solde selon le score de confiance. C'est l'inverse d'une
+    // martingale — la mise ne monte jamais après une perte, elle suit le solde.
+    title: 'Une bankroll tenue\ncomme un professionnel.',
+    text: "Vous fixez un budget. À chaque pari, l'application calcule une mise recommandée à partir de votre solde et du niveau de confiance — de 1,5 % à 5 %, jamais davantage. Elle suit ensuite la cote, le gain potentiel et le profit réel.",
+    stats: [
+      { value: '1,5 – 5 %', label: 'du solde, selon la confiance' },
+      { value: 'Solde',     label: 'mis à jour à chaque pari' },
+      { value: 'Profit',    label: 'calculé pari par pari' },
+    ],
+    apercu: [
+      { badge: 'green', icone: 'wallet', titre: 'Budget et solde',    sous: 'Ce qui reste, à tout moment' },
+      { badge: 'gold',  icone: 'shield', titre: 'Mise recommandée',   sous: 'Jamais plus de 5 % du solde' },
+      { badge: 'dark',  icone: 'coins',  titre: 'Profit par pari',    sous: 'Gagné, perdu, en attente' },
+    ],
+  },
+  {
+    icon: 'trophy',
     bg: 'black',
+    eyebrow: 'Apprendre',
+    // Cinq tutoriels réellement en base, trois niveaux, progression suivie
+    // (mark_progress). Le classement repose sur les paris tranchés.
+    title: 'Cinq tutoriels.\nTrois niveaux.',
+    text: "Du value bet à la gestion de bankroll, des statistiques xG à la psychologie du parieur et aux handicaps asiatiques. Votre progression est enregistrée. Et un classement compare la communauté sur les paris réellement tranchés.",
+    stats: [
+      { value: '5',      label: 'tutoriels disponibles' },
+      { value: '3',      label: 'niveaux, du débutant à l\'avancé' },
+      { value: 'Suivi',  label: 'votre progression est gardée' },
+    ],
+    apercu: [
+      { badge: 'green', icone: 'check-circle', titre: 'Comprendre le Value Bet', sous: 'Débutant' },
+      { badge: 'gold',  icone: 'chart',        titre: 'Statistiques : xG et pressing', sous: 'Intermédiaire' },
+      { badge: 'dark',  icone: 'trophy',       titre: 'Classement de la communauté', sous: 'Taux de réussite et badges' },
+    ],
+  },
+  {
+    icon: 'coins',
+    bg: 'white',
     eyebrow: 'Abonnement',
     // « Dépôt et retrait », « retirez vos gains », « 3 opérateurs Mobile
     // Money », « 2 min ». PronoWin ne tient aucun compte de paris : le seul
@@ -212,11 +271,15 @@ const formules = [
     name: 'Gratuit',
     period: 'toujours',
     highlight: false,
+    // Le gratuit est bien plus large que ce que le site laissait croire : les
+    // donnees du match (compositions, statistiques, classements, blessures,
+    // cotes), le direct et la bankroll ne sont derriere aucun paywall — leurs
+    // routes n'exigent qu'un compte, pas un abonnement.
     features: [
       'Une sélection de pronostics chaque jour',
-      'Actualités et analyses',
-      'Statistiques de base par match',
-      'Accès aux canaux communautaires',
+      'Compositions, statistiques, classements, blessures',
+      'Scores en direct et alertes de match',
+      'Bankroll et mise recommandée',
     ],
     cta: "Télécharger l'app",
   },
@@ -228,8 +291,8 @@ const formules = [
     badge: 'Populaire',
     features: [
       'Tous les pronostics Premium, sans limite',
-      'Niveau de confiance en pourcentage',
-      'Statistiques avancées et bilan',
+      'Statistiques avancées',
+      'Tous les tutoriels, niveaux avancés compris',
       'Sans publicité · support prioritaire',
     ],
     cta: 'Souscrire',
@@ -239,25 +302,36 @@ const formules = [
     name: 'Premium Annuel',
     period: '/ an',
     highlight: false,
+    // L'API donne au mensuel et a l'annuel exactement les memes fonctionnalites.
+    // La table comparative reservait pourtant « Historique complet des
+    // performances » et « Tous les tutoriels » a l'annuel : deux avantages
+    // inventes, sur la page ou l'on choisit combien payer.
+    // 54 000 / 6 000 = neuf mois payes pour douze.
     features: [
-      'Tous les avantages du mensuel',
+      'Exactement le même accès que le mensuel',
       'Trois mois économisés sur douze',
-      'Historique complet des performances',
-      'Tous les tutoriels',
+      "Un seul paiement pour l'année",
+      'Aucune reconduction automatique',
     ],
     cta: 'Souscrire',
   },
 ];
 
+// Mensuel et annuel ouvrent le meme produit : leurs deux colonnes sont donc
+// identiques, et c'est voulu. Un ecart entre elles serait une promesse que le
+// backend ne tient pas (cf. le controle « les deux formules Premium ouvrent
+// le meme acces »).
 const comparisonRows = [
-  { label: 'Pronostics gratuits du jour',         values: [true,  true,  true] },
-  { label: 'Pronostics Premium illimités',        values: [false, true,  true] },
-  { label: 'Niveau de confiance en pourcentage',  values: [false, true,  true] },
-  { label: 'Statistiques avancées',               values: [false, true,  true] },
-  { label: 'Sans publicité',                      values: [false, true,  true] },
-  { label: 'Support prioritaire',                 values: [false, true,  true] },
-  { label: 'Historique complet des performances', values: [false, false, true] },
-  { label: 'Tous les tutoriels',                  values: [false, false, true] },
+  { label: 'Sélection de pronostics gratuits',      values: [true,  true,  true] },
+  { label: 'Compositions, blessures, classements',  values: [true,  true,  true] },
+  { label: 'Statistiques et face-à-face du match',  values: [true,  true,  true] },
+  { label: 'Scores en direct et alertes',           values: [true,  true,  true] },
+  { label: 'Bankroll et mise recommandée',          values: [true,  true,  true] },
+  { label: 'Pronostics Premium illimités',          values: [false, true,  true] },
+  { label: 'Statistiques avancées',                 values: [false, true,  true] },
+  { label: 'Tous les tutoriels, avancés compris',   values: [false, true,  true] },
+  { label: 'Sans publicité',                        values: [false, true,  true] },
+  { label: 'Support prioritaire',                   values: [false, true,  true] },
 ];
 
 const faqs = [
