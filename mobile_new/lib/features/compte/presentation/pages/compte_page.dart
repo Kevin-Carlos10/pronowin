@@ -1028,6 +1028,13 @@ class _ParrainageTab extends ConsumerWidget {
     // d'environnement, l'écran doit suivre.
     final comL1 = (stats['commission_l1']  as num?)?.toInt() ?? 500;
     final comL2 = (stats['commission_l2']  as num?)?.toInt() ?? 200;
+    // Devise du versement, publiee par le serveur a cote des montants.
+    //
+    // Cet ecran ecrivait le libelle de memoire, et pas deux fois pareil :
+    // le solde en « FCFA », les commissions en « F », a quatre centimetres
+    // d'ecart. Ce n'est pas la devise du Bankroll — c'est celle du virement
+    // Mobile Money que nous emettons.
+    final devise = nomDevise(stats['currency'] as String? ?? 'XOF');
     final minW  = (stats['min_withdrawal'] as num?)?.toInt() ?? 2000;
     final canW  = stats['can_withdraw'] as bool? ?? false;
 
@@ -1062,7 +1069,7 @@ class _ParrainageTab extends ConsumerWidget {
                     tween: IntTween(begin: 0, end: earnings),
                     duration: const Duration(milliseconds: 900),
                     curve: Curves.easeOutCubic,
-                    builder: (_, v, _) => Text('$v FCFA', style: const TextStyle(
+                    builder: (_, v, _) => Text('$v $devise', style: const TextStyle(
                       color: _purple, fontSize: 24, fontWeight: FontWeight.w800)),
                   ),
                 ]),
@@ -1110,10 +1117,10 @@ class _ParrainageTab extends ConsumerWidget {
         const _SectionLabel('CE QUE ÇA TE RAPPORTE'),
         Row(children: [
           Expanded(child: _RewardTile(
-            amount: '$comL1 F', label: 'par filleul direct', color: _purple)),
+            amount: '$comL1 $devise', label: 'par filleul direct', color: _purple)),
           const SizedBox(width: 10),
           Expanded(child: _RewardTile(
-            amount: '$comL2 F', label: 'par filleul indirect', color: AppColors.info)),
+            amount: '$comL2 $devise', label: 'par filleul indirect', color: AppColors.info)),
         ]),
         const SizedBox(height: 16),
 
@@ -1123,7 +1130,7 @@ class _ParrainageTab extends ConsumerWidget {
           _HowToStep(n: 1, text: 'Partage ton code avec tes amis'),
           _HowToStep(n: 2, text: 'Ils créent leur compte avec ce code'),
           _HowToStep(n: 3,
-            text: 'Tu gagnes $comL1 F dès qu\'ils passent Premium', last: true),
+            text: 'Tu gagnes $comL1 $devise dès qu\'ils passent Premium', last: true),
         ]),
         const SizedBox(height: 16),
 
@@ -1190,7 +1197,7 @@ class _ParrainageTab extends ConsumerWidget {
               const SizedBox(height: 6),
               Text(
                 'Partage ton code : chaque ami qui s\'abonne te rapporte '
-                '$comL1 F, et ceux qu\'il parraine à son tour $comL2 F.',
+                '$comL1 $devise, et ceux qu\'il parraine à son tour $comL2 $devise.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: context.cl.textM, fontSize: 12.5, height: 1.45)),
             ]),
@@ -1201,7 +1208,7 @@ class _ParrainageTab extends ConsumerWidget {
               value: '$l1', sub: '$p1 Premium', color: _purple),
             const SizedBox(width: 10),
             _StatBox(label: 'Filleuls indirects',
-              value: '$l2', sub: '$comL2 F / filleul', color: AppColors.info),
+              value: '$l2', sub: '$comL2 $devise / filleul', color: AppColors.info),
           ]).animate().fadeIn(duration: 350.ms).slideY(begin: 0.06, end: 0),
           const SizedBox(height: 16),
           SizedBox(

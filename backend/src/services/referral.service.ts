@@ -8,6 +8,20 @@ export const COMMISSION_L1 = parseInt(process.env.REFERRAL_COMMISSION_L1 ?? '500
 export const COMMISSION_L2 = parseInt(process.env.REFERRAL_COMMISSION_L2 ?? '200');
 export const MIN_WITHDRAWAL = parseInt(process.env.REFERRAL_MIN_WITHDRAWAL ?? '2000');
 
+/**
+ * Devise dans laquelle les commissions sont versées.
+ *
+ * Ce n'est pas la devise de l'utilisateur, et il ne faut pas la confondre avec
+ * celle de son Bankroll : c'est celle du **virement Mobile Money** que nous
+ * emettons — `currency: 'XOF'` a la ligne qui cree la transaction.
+ *
+ * Elle n'etait publiee nulle part. Le mobile ecrivait donc le libelle de
+ * memoire, et pas deux fois pareil sur le meme ecran : « 0 FCFA » pour le
+ * solde, « 500 F » pour la commission. Deux ecritures d'une meme monnaie a
+ * quatre centimetres d'ecart.
+ */
+export const REFERRAL_CURRENCY = process.env.REFERRAL_CURRENCY ?? 'XOF';
+
 export class ReferralService {
 
   /** Statistiques de parrainage d'un utilisateur */
@@ -47,6 +61,8 @@ export class ReferralService {
       min_withdrawal:   MIN_WITHDRAWAL,
       commission_l1:    COMMISSION_L1,
       commission_l2:    COMMISSION_L2,
+      // La devise accompagne les montants : sans elle, l'ecran doit deviner.
+      currency:         REFERRAL_CURRENCY,
       stats: {
         total_l1:   totalL1,
         premium_l1: premiumL1,
@@ -217,7 +233,7 @@ export class ReferralService {
             userId,
             type:          'withdrawal',
             amount,
-            currency:      'XOF',
+            currency:      REFERRAL_CURRENCY,
             senderPhone:   phone,
             paymentMethod: method,
             xbetId:        user.xbetId ?? undefined,

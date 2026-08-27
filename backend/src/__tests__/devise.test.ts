@@ -101,3 +101,43 @@ describe('les deux tables de devises ne divergent pas', () => {
     expect(dart).toEqual(ts);
   });
 });
+
+describe('les montants de parrainage voyagent avec leur devise', () => {
+  /// Le fichier **sans ses commentaires**.
+  ///
+  /// La première version lisait la source brute, et échouait sur la
+  /// documentation que je venais d'écrire : elle cite `currency: 'XOF'` pour
+  /// expliquer le défaut corrigé. Un contrôle qui se valide sur sa propre prose
+  /// ne contrôle rien.
+  const src = fs.readFileSync(
+    path.join(__dirname, '..', 'services', 'referral.service.ts'), 'utf8')
+    .split('\n')
+    .filter(l => {
+      const t = l.trimStart();
+      return !t.startsWith('//') && !t.startsWith('*') && !t.startsWith('/*');
+    })
+    .join('\n');
+
+  it('la charge utile publie une devise', () => {
+    // Sans elle, l'ecran doit deviner — et deviner deux fois donne deux
+    // reponses : « 0 FCFA » pour le solde, « 500 F » pour la commission, a
+    // quatre centimetres d'ecart sur le meme ecran.
+    expect(src).toMatch(/currency:\s*REFERRAL_CURRENCY/);
+  });
+
+  it('la devise du versement et celle annoncee sont la meme constante', () => {
+    // Le virement Mobile Money etait cree avec `'XOF'` ecrit en dur, a un
+    // autre endroit du fichier. Annoncer une devise et en verser une autre est
+    // le genre d'ecart que personne ne voit avant un litige.
+    expect(src).toContain('export const REFERRAL_CURRENCY');
+    expect(src).not.toMatch(/currency:\s*'XOF'/);
+
+    // On compte les **affectations**, pas les mentions du nom. La ligne de
+    // declaration le contient deux fois (`export const X = process.env.X`) :
+    // un seuil sur le nom restait donc atteint alors que la charge utile avait
+    // disparu. Une injection l'a montre.
+    const affectations = src.match(/currency:\s*REFERRAL_CURRENCY/g) ?? [];
+    // Charge utile annoncee + transaction reellement creee.
+    expect(affectations.length).toBeGreaterThanOrEqual(2);
+  });
+});
