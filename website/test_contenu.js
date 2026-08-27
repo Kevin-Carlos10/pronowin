@@ -1,0 +1,213 @@
+/**
+ * Le site n'affirme que ce que le produit fait.
+ *
+ * Une page vitrine est le seul endroit du projet où une phrase fausse est
+ * *lue par des inconnus* avant tout contact avec le produit. Celle-ci en
+ * portait treize, dont trois témoignages signés de noms et de villes.
+ *
+ * Ce contrôle tient deux promesses distinctes :
+ *
+ *  1. Aucune affirmation fabriquée ne revient — ni les chiffres inventés, ni
+ *     les fonctionnalités inexistantes (combinés, basketball, tennis, dépôt
+ *     et retrait de paris), ni les faux clients.
+ *
+ *  2. Les chiffres qui restent viennent du serveur. Le site annonçait
+ *     « 8 000 FCFA » pour un abonnement qui en coûte 6 000, et un forfait
+ *     hebdomadaire qui n'existe pas. Un tarif recopié finit recopié faux.
+ *
+ * Le test monte une fausse API : il éprouve la vraie route, y compris la
+ * lecture réseau et le repli quand elle échoue.
+ *
+ *     node test_contenu.js
+ */
+const http = require('http');
+const assert = require('assert');
+
+/* ─── Fausse API ──────────────────────────────────────────────────────── */
+
+function fausseApi(reponses) {
+  const serveur = http.createServer((req, res) => {
+    const chemin = req.url.split('?')[0];
+    const corps = reponses[chemin];
+    if (corps === undefined) { res.statusCode = 404; return res.end('{}'); }
+    res.setHeader('content-type', 'application/json');
+    res.end(JSON.stringify(corps));
+  });
+  return new Promise((r) => serveur.listen(0, '127.0.0.1', () => r(serveur)));
+}
+
+function recuperer(port, chemin) {
+  return new Promise((resolve, reject) => {
+    http.get({ host: '127.0.0.1', port, path: chemin }, (res) => {
+      let c = '';
+      res.on('data', (d) => (c += d));
+      res.on('end', () => resolve({ statut: res.statusCode, html: c }));
+    }).on('error', reject);
+  });
+}
+
+/** Rend la page d'accueil avec l'API décrite, et rend le HTML obtenu. */
+async function rendre(reponsesApi) {
+  const api = reponsesApi ? await fausseApi(reponsesApi) : null;
+
+  // Port fermé quand on veut éprouver le repli : rien n'écoute dessus.
+  process.env.API_URL = api
+    ? `http://127.0.0.1:${api.address().port}`
+    : 'http://127.0.0.1:1';
+
+  delete require.cache[require.resolve('./server')];
+  const app = require('./server');
+
+  const site = await new Promise((r) => {
+    const s = app.listen(0, '127.0.0.1', () => r(s));
+  });
+
+  const accueil = await recuperer(site.address().port, '/');
+  const legal   = await recuperer(site.address().port, '/mentions-legales');
+
+  site.close();
+  if (api) api.close();
+  return { accueil, legal };
+}
+
+/* ─── Fixtures ────────────────────────────────────────────────────────── */
+
+const API_COMPLETE = {
+  '/pronostics/bilan-premium': {
+    taux_reussite: 73, periode_jours: 30, echantillon_suffisant: true,
+  },
+  '/subscriptions/plans': [
+    { id: 'free',            price_usd: 0,  price_fcfa: null },
+    { id: 'premium_monthly', price_usd: 10, price_fcfa: 6000 },
+    { id: 'premium_annual',  price_usd: 90, price_fcfa: 54000 },
+  ],
+};
+
+// Le serveur répond, mais refuse de publier un taux : trop peu de pronostics
+// tranchés. C'est l'état réel de la production aujourd'hui.
+const API_SANS_TAUX = {
+  '/pronostics/bilan-premium': {
+    taux_reussite: 86, periode_jours: 30, echantillon_suffisant: false,
+  },
+  '/subscriptions/plans': API_COMPLETE['/subscriptions/plans'],
+};
+
+/* ─── Affirmations interdites ─────────────────────────────────────────── */
+
+// Chacune était sur la page. Le commentaire dit ce qui est vrai à la place.
+const INTERDITS = [
+  ['+50 000',       'la base contient 29 pronostics'],
+  ['+8 000',        'la base contient 6 comptes'],
+  ['4,6/5',         "l'application n'est sur aucun store : aucune note n'existe"],
+  ['Kader B.',      'faux client'],
+  ['Salimata O.',   'faux client'],
+  ['Yacouba N.',    'faux client'],
+  ['basketball',    "aucune notion de sport dans le schéma : football uniquement"],
+  ['Basketball',    'idem'],
+  ['tennis',        'idem'],
+  ['Tennis',        'idem'],
+  ['ombiné',        "aucun combiné n'existe dans le produit"],
+  ['6.40',          'cote moyenne inventée pour un combiné inexistant'],
+  ['Moov',          "un seul opérateur actif en base : Orange Money"],
+  ['MTN',           'idem'],
+  ['MoMo',          'idem'],
+  ['VIP Hebdo',     "ce plan n'existe pas dans le backend"],
+  ['8 000 FCFA',    "le mensuel coûte 6 000 FCFA"],
+  ['2 500',         'tarif hebdomadaire inventé'],
+  ['7 jours VIP',   'la récompense de parrainage est de 500 FCFA'],
+  ['2 min',         "le serveur annonce « 30 minutes ouvrables »"],
+  ['4 filleuls',    'compteur inventé dans une maquette'],
+  ['Retrait de gains', 'PronoWin ne tient aucun compte de paris'],
+];
+
+/* ─── Contrôles ───────────────────────────────────────────────────────── */
+
+const controles = [];
+const test = (nom, fn) => controles.push([nom, fn]);
+
+test('aucune affirmation fabriquée ne subsiste', async () => {
+  const { accueil, legal } = await rendre(API_COMPLETE);
+  for (const [aiguille, pourquoi] of INTERDITS) {
+    assert.ok(!accueil.html.includes(aiguille),
+      `« ${aiguille} » est revenu sur l'accueil — ${pourquoi}`);
+    assert.ok(!legal.html.includes(aiguille),
+      `« ${aiguille} » est revenu sur les mentions légales — ${pourquoi}`);
+  }
+});
+
+test('les tarifs affichés sont ceux que le serveur publie', async () => {
+  const { accueil } = await rendre(API_COMPLETE);
+
+  // L'espace des milliers est insécable : on compare sur la forme rendue.
+  assert.ok(/6\s000/.test(accueil.html),  'le tarif mensuel du serveur (6 000) manque');
+  assert.ok(/54\s000/.test(accueil.html), "le tarif annuel du serveur (54 000) manque");
+});
+
+test("sans tarif du serveur, aucun montant n'est inventé", async () => {
+  const { accueil } = await rendre(null); // API injoignable
+
+  assert.ok(accueil.html.includes('Voir le tarif dans l\'application'),
+    'le repli sans montant devrait être affiché');
+  assert.ok(!/6\s000\s*<span>FCFA/.test(accueil.html),
+    'un montant est affiché alors que le serveur n\'a rien donné');
+});
+
+test('le grand chiffre est le taux du serveur, ou rien', async () => {
+  const avec = await rendre(API_COMPLETE);
+  assert.ok(avec.accueil.html.includes('mega-number'),
+    'la section devrait exister quand le serveur publie un taux');
+  assert.ok(/mega-number">73%/.test(avec.accueil.html),
+    'le grand chiffre devrait être le taux publié (73)');
+
+  // Le défaut historique : la vue lisait `stats[1]` par position, si bien
+  // qu'elle affichait « 12 » (des ligues) sous la légende « taux de réussite ».
+  const sans = await rendre(API_SANS_TAUX);
+  assert.ok(!sans.accueil.html.includes('mega-number'),
+    'la section devrait disparaître quand le serveur refuse de publier un taux');
+  assert.ok(!sans.accueil.html.includes('86'),
+    "le taux sous-échantillonné (86) ne doit pas fuiter dans la page");
+});
+
+test('aucun lien ne mène nulle part', async () => {
+  const { accueil } = await rendre(API_COMPLETE);
+
+  // Six `href="#"` vivaient dans la page : « Se connecter » (deux fois),
+  // « Nous contacter », et trois icônes de réseaux sociaux sans compte.
+  const morts = accueil.html.match(/href="#"/g) || [];
+  assert.strictEqual(morts.length, 0,
+    `${morts.length} lien(s) pointent encore sur « # »`);
+
+  // Et aucune ancre ne doit viser une section supprimée.
+  const ancres = [...accueil.html.matchAll(/href="#([a-zA-Z0-9_-]+)"/g)].map((m) => m[1]);
+  for (const ancre of new Set(ancres)) {
+    assert.ok(accueil.html.includes(`id="${ancre}"`),
+      `l'ancre « #${ancre} » ne correspond à aucune section de la page`);
+  }
+});
+
+test('les mentions légales décrivent le bon métier', async () => {
+  const { legal } = await rendre(API_COMPLETE);
+
+  assert.ok(legal.html.includes('ne tient aucun compte de paris'),
+    'les mentions légales doivent dire que PronoWin ne tient pas de compte de paris');
+  assert.ok(!legal.html.includes('réseaux sociaux indiqués en pied de page'),
+    'renvoi vers des réseaux sociaux qui n\'existent pas');
+});
+
+/* ─── Exécution ───────────────────────────────────────────────────────── */
+
+(async () => {
+  let echecs = 0;
+  for (const [nom, fn] of controles) {
+    try {
+      await fn();
+      console.log(`  OK    ${nom}`);
+    } catch (e) {
+      echecs++;
+      console.log(`  ECHEC ${nom}`);
+      console.log(`        ${e.message}`);
+    }
+  }
+  console.log(`\n${controles.length - echecs}/${controles.length} contrôles passés`);
+  process.exit(echecs ? 1 : 0);
+})();

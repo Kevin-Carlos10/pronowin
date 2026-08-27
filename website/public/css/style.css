@@ -473,6 +473,11 @@ button { font-family: inherit; cursor: pointer; }
 .pricing-price { font-size: 2.4rem; font-weight: 700; letter-spacing: -0.02em; margin-top: 18px; }
 .pricing-price span { font-size: .95rem; font-weight: 400; color: var(--text-gray); }
 .pricing-card--highlight .pricing-price span { color: var(--text-gray-light); }
+/* Tarif indisponible : l'API n'a pas repondu au rendu. On presente la formule
+   sans montant plutot qu'un montant errone, d'ou une taille de texte reduite
+   qui ne mime pas un prix. */
+.pricing-price--absent { font-size: 1rem; font-weight: 500; line-height: 1.4; }
+.pricing-price--absent span { font-size: 1rem; }
 .pricing-period { color: var(--text-gray); margin-bottom: 24px; font-size: .85rem; }
 .pricing-card--highlight .pricing-period { color: var(--text-gray-light); }
 .pricing-features { margin-bottom: 28px; flex: 1; }

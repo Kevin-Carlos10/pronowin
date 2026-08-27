@@ -4,7 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title><%= site.name %> — <%= site.tagline %></title>
-  <meta name="description" content="PronoWin : pronostics sportifs quotidiens, abonnements VIP, dépôt et retrait Mobile Money. Football, basketball, tennis.">
+  <%# La description annonçait « Football, basketball, tennis » et « dépôt et
+      retrait Mobile Money » : trois sports quand l'application n'en traite
+      qu'un, et un portefeuille de paris que PronoWin ne tient pas. C'est le
+      texte que reprennent Google et les aperçus de partage. %>
+  <meta name="description" content="PronoWin : pronostics de football analysés chaque jour, gratuits ou en accès Premium. Abonnement par Orange Money.">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -22,8 +26,10 @@
         <a href="#comparer">Comparer</a>
         <a href="#faq">FAQ</a>
       </nav>
+      <%# « Se connecter » pointait sur `#`. Il n'existe aucune connexion web
+          pour les utilisateurs : le compte vit dans l'application. Un lien qui
+          ne mène nulle part fait douter du reste de la page. %>
       <div class="nav-actions">
-        <a href="#" class="nav-login">Se connecter</a>
         <a href="#telecharger" class="nav-cta">Télécharger</a>
         <button class="nav-toggle" aria-label="Menu" aria-expanded="false">
           <%- include('partials/icon', { name: 'menu', size: 22 }) %>
@@ -37,7 +43,6 @@
     <a href="#tarifs">Tarifs</a>
     <a href="#comparer">Comparer</a>
     <a href="#faq">FAQ</a>
-    <a href="#">Se connecter</a>
     <a href="#telecharger" class="btn btn-primary">Télécharger l'app</a>
   </div>
 
@@ -50,7 +55,7 @@
     <div class="container hero-content">
       <div class="hero-eyebrow">PronoWin</div>
       <h1 class="hero-title">Des pronostics gagnants.<br>Des gains grandissants.</h1>
-      <p class="hero-subtitle">Football. Basketball. Tennis. Des analyses expertes chaque jour, gratuites ou en accès VIP — avec dépôt et retrait par Mobile Money.</p>
+      <p class="hero-subtitle">Des analyses de football chaque jour, avec cotes et niveau de confiance chiffré. Une sélection gratuite, le reste en accès Premium.</p>
       <div class="hero-cta">
         <a href="#telecharger" class="btn btn-primary">Télécharger l'app</a>
         <a href="#fonctionnalites" class="btn-link">En savoir plus <%- include('partials/icon', { name: 'arrow', size: 14 }) %></a>
@@ -61,21 +66,38 @@
     </div>
   </section>
 
+  <%
+    // Le grand chiffre de la page.
+    //
+    // Il lisait `stats[1].value` — par position — et le collait à une légende
+    // écrite en dur. Or `stats[1]` n'a jamais été un taux : la page a affiché
+    // « 12 » (le nombre de ligues) présenté comme le taux de réussite, et « 4 »
+    // (les pronostics du jour) quand le serveur ne publiait pas de bilan.
+    //
+    // Il lit désormais le bilan lui-même, période comprise, et la section
+    // disparaît entièrement s'il n'y en a pas — plutôt qu'un grand chiffre
+    // faux, aucun grand chiffre.
+  %>
+  <% if (bilan) { %>
   <!-- Mega number chapter -->
   <section class="chapter chapter--white chapter--mega">
     <div class="container">
       <span class="eyebrow">Performance</span>
-      <div class="mega-number"><%= stats[1].value %><%= stats[1].suffix %></div>
-      <p class="headline-sub" style="margin-top:24px">de taux de réussite sur les pronostics VIP, mesuré sur les 30 derniers jours.</p>
+      <div class="mega-number"><%= bilan.taux_reussite %>%</div>
+      <p class="headline-sub" style="margin-top:24px">
+        de réussite sur les pronostics Premium déjà tranchés, mesuré sur les
+        <%= bilan.periode_jours %> derniers jours.
+      </p>
     </div>
   </section>
+  <% } %>
 
   <!-- Demo video chapter -->
   <section class="chapter chapter--black">
     <div class="container">
       <span class="eyebrow">Démo</span>
       <h2 class="headline">L'application en action.</h2>
-      <p class="headline-sub">Pronostics, cotes, abonnement VIP et retrait de gains — un aperçu de l'expérience PronoWin.</p>
+      <p class="headline-sub">Pronostics, cotes, niveau de confiance et abonnement — un aperçu de l'expérience PronoWin.</p>
       <div class="video-frame">
         <video autoplay muted loop playsinline poster="/images/demo-poster.svg">
           <source src="/videos/demo-loop.mp4" type="video/mp4">
@@ -106,24 +128,24 @@
               <img src="<%= block.photo %>" alt="<%= block.title.replace(/\n/g, ' ') %>" loading="lazy">
             </div>
           <% } %>
+          <%
+            // Les trois lignes de l'aperçu viennent des données (server.js).
+            // Elles étaient écrites ici, et elles y affirmaient des faits :
+            // « 87% sur les 30 derniers jours », « Cote totale 6.40 »,
+            // « Retrait de gains · Vers Moov Money ». Une maquette qui énonce
+            // un chiffre est une affirmation publique comme une autre — sauf
+            // que personne ne pense à la relire quand le produit change.
+          %>
           <div class="feature-card">
-            <% if (block.icon === 'chart') { %>
-              <div class="feature-row"><span class="icon-badge icon-badge--green"><%- include('partials/icon', {name:'ball', size:18}) %></span><div><div class="feature-row-title">Real Madrid vs Barcelone</div><div class="feature-row-sub">Confiance : Élevée · Cote 1.72</div></div></div>
-              <div class="feature-row"><span class="icon-badge icon-badge--green"><%- include('partials/icon', {name:'ball', size:18}) %></span><div><div class="feature-row-title">Bayern vs Dortmund</div><div class="feature-row-sub">Confiance : Moyenne · Cote 2.10</div></div></div>
-              <div class="feature-row"><span class="icon-badge icon-badge--green"><%- include('partials/icon', {name:'ball', size:18}) %></span><div><div class="feature-row-title">Juventus vs Milan</div><div class="feature-row-sub">Confiance : Élevée · Cote 1.95</div></div></div>
-            <% } else if (block.icon === 'crown') { %>
-              <div class="feature-row"><span class="icon-badge icon-badge--gold"><%- include('partials/icon', {name:'crown', size:18}) %></span><div><div class="feature-row-title">Combiné VIP du jour</div><div class="feature-row-sub">3 sélections · Cote totale 6.40</div></div></div>
-              <div class="feature-row"><span class="icon-badge icon-badge--gold"><%- include('partials/icon', {name:'trophy', size:18}) %></span><div><div class="feature-row-title">Taux de réussite VIP</div><div class="feature-row-sub">87% sur les 30 derniers jours</div></div></div>
-              <div class="feature-row"><span class="icon-badge icon-badge--dark"><%- include('partials/icon', {name:'shield', size:18}) %></span><div><div class="feature-row-title">Analyse vérifiée</div><div class="feature-row-sub">Par notre équipe d'experts</div></div></div>
-            <% } else if (block.icon === 'wallet') { %>
-              <div class="feature-row"><span class="icon-badge icon-badge--green"><%- include('partials/icon', {name:'wallet', size:18}) %></span><div><div class="feature-row-title">Dépôt Orange Money</div><div class="feature-row-sub">Confirmé en 2 minutes</div></div></div>
-              <div class="feature-row"><span class="icon-badge icon-badge--green"><%- include('partials/icon', {name:'coins', size:18}) %></span><div><div class="feature-row-title">Retrait de gains</div><div class="feature-row-sub">Vers Moov Money · 15 000 FCFA</div></div></div>
-              <div class="feature-row"><span class="icon-badge icon-badge--dark"><%- include('partials/icon', {name:'shield', size:18}) %></span><div><div class="feature-row-title">Paiement sécurisé</div><div class="feature-row-sub">Suivi en temps réel</div></div></div>
-            <% } else { %>
-              <div class="feature-row"><span class="icon-badge icon-badge--green"><%- include('partials/icon', {name:'users', size:18}) %></span><div><div class="feature-row-title">Code de parrainage</div><div class="feature-row-sub">PWIN-4F82</div></div></div>
-              <div class="feature-row"><span class="icon-badge icon-badge--gold"><%- include('partials/icon', {name:'crown', size:18}) %></span><div><div class="feature-row-title">Récompense</div><div class="feature-row-sub">7 jours VIP offerts / filleul</div></div></div>
-              <div class="feature-row"><span class="icon-badge icon-badge--dark"><%- include('partials/icon', {name:'users', size:18}) %></span><div><div class="feature-row-title">4 filleuls actifs</div><div class="feature-row-sub">28 jours VIP cumulés</div></div></div>
-            <% } %>
+            <% block.apercu.forEach(function(ligne){ %>
+              <div class="feature-row">
+                <span class="icon-badge icon-badge--<%= ligne.badge %>"><%- include('partials/icon', {name: ligne.icone, size:18}) %></span>
+                <div>
+                  <div class="feature-row-title"><%= ligne.titre %></div>
+                  <div class="feature-row-sub"><%= ligne.sous %></div>
+                </div>
+              </div>
+            <% }) %>
           </div>
         </div>
       </div>
@@ -131,52 +153,44 @@
   <% }) %>
   </div>
 
-  <!-- Big stats -->
-  <section class="chapter chapter--white chapter--tight">
-    <div class="container">
-      <div class="chapter-stats">
-        <% bigStats.forEach(function(bs){ %>
-          <div>
-            <div class="chapter-stat-value"><%= bs.value %></div>
-            <div class="chapter-stat-label"><%= bs.label %></div>
-          </div>
-        <% }) %>
-      </div>
-    </div>
-  </section>
-
-  <!-- Quote chapter -->
-  <section id="temoignages" class="chapter chapter--black quote-chapter">
-    <div class="container-narrow">
-      <span class="eyebrow">Ils parlent de nous</span>
-      <div class="quote-slides">
-        <% testimonials.forEach(function(t, i){ %>
-          <div class="quote-slide"<% if (i !== 0) { %> style="display:none"<% } %>>
-            <p class="quote-text">&ldquo;<%= t.text %>&rdquo;</p>
-            <p class="quote-attribution"><%= t.author %> — <%= t.role %></p>
-          </div>
-        <% }) %>
-      </div>
-      <div class="quote-nav">
-        <% testimonials.forEach(function(t, i){ %>
-          <button class="quote-dot<%= i === 0 ? ' is-active' : '' %>" data-index="<%= i %>" aria-label="Témoignage <%= i + 1 %>"></button>
-        <% }) %>
-      </div>
-    </div>
-  </section>
+  <%
+    // Deux sections retirées ici.
+    //
+    // Les grands chiffres — « +50 000 pronostics publiés », « +8 000 parieurs
+    // actifs », « 4,6/5 de note moyenne ». La base contient 29 pronostics et
+    // 6 comptes, et l'application n'est sur aucun store : la note n'avait même
+    // pas de source possible.
+    //
+    // Les témoignages — trois clients signés d'un nom et d'une ville, qui
+    // n'existent pas. C'est le défaut des actualités fabriquées déjà retirées
+    // de l'application, à ceci près qu'il est conçu pour convaincre.
+    //
+    // Ils reviendront le jour où il y aura de vrais chiffres et de vrais
+    // clients à citer.
+  %>
 
   <!-- Pricing -->
   <section id="tarifs" class="chapter chapter--gray">
     <div class="container">
       <span class="eyebrow">Tarifs</span>
       <h2 class="headline">Choisissez votre forfait.</h2>
-      <p class="headline-sub">Commencez gratuitement, passez VIP quand vous êtes prêt. Paiement 100% Mobile Money.</p>
+      <p class="headline-sub">Commencez gratuitement, passez Premium quand vous êtes prêt. Paiement par Orange Money.</p>
       <div class="pricing-grid">
         <% pricingPlans.forEach(function(plan){ %>
           <div class="pricing-card <%= plan.highlight ? 'pricing-card--highlight' : '' %>">
             <% if (plan.badge) { %><span class="pricing-badge"><%= plan.badge %></span><% } %>
             <div class="pricing-name"><%= plan.name %></div>
-            <div class="pricing-price"><%= plan.price %> <span>FCFA</span></div>
+            <%
+              // `price` est nul quand l'API n'a pas répondu. On présente alors
+              // la formule sans montant : le site annonçait « 8 000 FCFA » pour
+              // un abonnement qui en coûte 6 000, et un forfait hebdomadaire
+              // qui n'existe pas. Un tarif faux se découvre au moment de payer.
+            %>
+            <% if (plan.price !== null) { %>
+              <div class="pricing-price"><%= plan.price %> <span>FCFA</span></div>
+            <% } else { %>
+              <div class="pricing-price pricing-price--absent"><span>Voir le tarif dans l'application</span></div>
+            <% } %>
             <div class="pricing-period"><%= plan.period %></div>
             <ul class="pricing-features">
               <% plan.features.forEach(function(f){ %>
@@ -245,7 +259,7 @@
     <div class="container">
       <span class="eyebrow">Prêt ?</span>
       <h2 class="headline">Prêt à parier plus intelligemment ?</h2>
-      <p class="headline-sub">Téléchargez PronoWin, activez vos pronostics gratuits du jour, et passez VIP quand vous êtes prêt à aller plus loin.</p>
+      <p class="headline-sub">Téléchargez PronoWin, activez vos pronostics gratuits du jour, et passez Premium quand vous êtes prêt à aller plus loin.</p>
       <%#
         L'application n'est sur aucun store aujourd'hui. Les deux badges
         pointaient sur « # » : ils avaient l'air cliquables et ne menaient
@@ -291,7 +305,7 @@
           <div class="footer-col-title">Pronostics</div>
           <ul>
             <li><a href="#fonctionnalites">Pronostics gratuits</a></li>
-            <li><a href="#fonctionnalites">Pronostics VIP</a></li>
+            <li><a href="#fonctionnalites">Pronostics Premium</a></li>
             <li><a href="#tarifs">Abonnements</a></li>
             <li><a href="#fonctionnalites">Parrainage</a></li>
           </ul>
@@ -299,7 +313,6 @@
         <div class="footer-col">
           <div class="footer-col-title">Compte</div>
           <ul>
-            <li><a href="#">Se connecter</a></li>
             <li><a href="#telecharger">Télécharger l'app</a></li>
             <li><a href="#comparer">Comparer les forfaits</a></li>
             <li><a href="#faq">Support</a></li>
@@ -309,19 +322,23 @@
           <div class="footer-col-title">PronoWin</div>
           <ul>
             <li><a href="#faq">FAQ</a></li>
-            <li><a href="#temoignages">Témoignages</a></li>
+<%# « Témoignages » retiré : la section n'existe plus, et un lien de pied de page
+    qui ne mène nulle part est le genre de détail qui survit des années. %>
             <li><a href="/mentions-legales">Mentions légales</a></li>
-            <li><a href="#">Nous contacter</a></li>
+            <%# « Nous contacter » pointait sur `#`. Aucune adresse, aucun
+                numéro, aucun canal de support n'est configuré côté serveur :
+                le lien ne pouvait mener nulle part. Le support existe, mais
+                dans l'application. %>
           </ul>
         </div>
       </div>
       <div class="footer-bottom">
         <p class="footer-legal">© <%= site.year %> <%= site.name %>. Tous droits réservés. Le pronostic et le pari sportif comportent des risques de perte financière. Service réservé aux personnes majeures — jouez de manière responsable.</p>
-        <div class="footer-socials">
-          <a href="#" aria-label="Facebook"><%- include('partials/icon', { name: 'facebook', size: 14 }) %></a>
-          <a href="#" aria-label="Instagram"><%- include('partials/icon', { name: 'instagram', size: 14 }) %></a>
-          <a href="#" aria-label="WhatsApp"><%- include('partials/icon', { name: 'whatsapp', size: 14 }) %></a>
-        </div>
+        <%# Trois icônes sociales qui pointaient toutes sur `#`. Aucun compte
+            n'est ouvert à ce jour ; les mentions légales renvoyaient pourtant
+            le lecteur vers « les réseaux sociaux indiqués en pied de page »
+            pour joindre le support — une boucle qui ne menait nulle part.
+            Elles reviendront avec de vraies adresses. %>
       </div>
     </div>
   </footer>

@@ -27,52 +27,14 @@
     });
   });
 
-  var quoteSlides = document.querySelectorAll('.quote-slide');
-  var quoteDots = document.querySelectorAll('.quote-dot');
-  if (quoteSlides.length && quoteDots.length) {
-    var currentQuote = 0;
-    var quoteTimer = null;
-
-    function showQuote(index) {
-      quoteSlides.forEach(function (slide, i) {
-        slide.style.display = i === index ? '' : 'none';
-      });
-      quoteDots.forEach(function (dot, i) {
-        dot.classList.toggle('is-active', i === index);
-      });
-      currentQuote = index;
-    }
-
-    function scheduleAutoplay() {
-      if (quoteTimer) clearInterval(quoteTimer);
-      quoteTimer = setInterval(function () {
-        showQuote((currentQuote + 1) % quoteSlides.length);
-      }, 6000);
-    }
-
-    quoteDots.forEach(function (dot) {
-      dot.addEventListener('click', function () {
-        showQuote(parseInt(dot.getAttribute('data-index'), 10));
-        scheduleAutoplay();
-      });
-    });
-
-    scheduleAutoplay();
-  }
-
-  var newsletterForm = document.querySelector('.newsletter-form');
-  if (newsletterForm) {
-    newsletterForm.addEventListener('submit', function (e) {
-      e.preventDefault();
-      var input = newsletterForm.querySelector('input');
-      var btn = newsletterForm.querySelector('button');
-      if (input && input.value) {
-        btn.textContent = 'Merci !';
-        input.value = '';
-        setTimeout(function () { btn.textContent = 'Souscrire'; }, 2500);
-      }
-    });
-  }
+  // Carrousel de temoignages retire : les trois temoignages qu'il faisait
+  // defiler etaient inventes, signes de noms et de villes.
+  //
+  // Formulaire newsletter retire aussi. Il n'etait affiche dans aucune vue,
+  // et il n'avait jamais eu de destinataire : la soumission repondait
+  // « Merci ! » puis effacait le champ. Une adresse saisie la n'allait nulle
+  // part — ni serveur, ni stockage. Le jour ou quelqu'un aurait recolle le
+  // gabarit dans une page, il aurait collecte des adresses pour rien.
 
   /* ---------------------------------------------------------
      Scroll reveal + count-up animations (Apple-style chapters)
