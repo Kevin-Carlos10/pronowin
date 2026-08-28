@@ -149,13 +149,15 @@ const productBlocks = [
     icon: 'bell',
     bg: 'black',
     eyebrow: 'En direct',
-    // Boucle adaptative dans index.ts : 30 s tant qu'un match est LIVE, 2 min
-    // sinon, en continu. Le rappel avant match tourne toutes les 15 minutes.
-    title: 'Le score en direct.\nToutes les 30 secondes.',
-    text: "Pendant qu'un match est en cours, les scores se synchronisent toutes les 30 secondes, 24 h/24 — et toutes les deux minutes le reste du temps. Vous êtes prévenu avant le coup d'envoi, puis au résultat.",
+    // La cadence exacte (une boucle adaptative dans index.ts) n'est pas
+    // annoncée : elle dépend du quota de l'API et se règle sans que personne
+    // ne pense à rouvrir cette page. Un intervalle affiché ici serait un
+    // engagement public recopié à la main — le défaut du « 87 % ».
+    title: 'Le score en direct.\nPendant que le match se joue.',
+    text: "Tant qu'un match est en cours, les scores se rafraîchissent tout seuls, sans quitter l'écran. Vous êtes prévenu avant le coup d'envoi, puis au résultat.",
     stats: [
-      { value: '30 s',   label: 'entre deux synchronisations en direct' },
-      { value: '24 h/24', label: 'sans interruption' },
+      { value: 'Direct',  label: 'les scores pendant le match' },
+      { value: 'Continu', label: 'sans rien rafraîchir à la main' },
       { value: 'Alertes', label: 'avant le match et au résultat' },
     ],
     apercu: [
@@ -169,18 +171,20 @@ const productBlocks = [
     bg: 'white',
     eyebrow: 'Bankroll',
     // suggestStake() dans bankroll.service.ts : Kelly simplifié, palier de
-    // 1,5 % à 5 % du solde selon le score de confiance. C'est l'inverse d'une
+    // Les pourcentages de mise vivent dans suggestStake() et se règlent là-bas.
+    // Les recopier ici les figerait dans une page que personne ne relit.
+    // C'est l'inverse d'une
     // martingale — la mise ne monte jamais après une perte, elle suit le solde.
     title: 'Une bankroll tenue\ncomme un professionnel.',
-    text: "Vous fixez un budget. À chaque pari, l'application calcule une mise recommandée à partir de votre solde et du niveau de confiance — de 1,5 % à 5 %, jamais davantage. Elle suit ensuite la cote, le gain potentiel et le profit réel.",
+    text: "Vous fixez un budget. À chaque pari, l'application calcule une mise recommandée à partir de votre solde et du niveau de confiance — une fraction, jamais tout. Elle suit ensuite la cote, le gain potentiel et le profit réel.",
     stats: [
-      { value: '1,5 – 5 %', label: 'du solde, selon la confiance' },
+      { value: 'Mise',  label: 'calculée, pas devinée' },
       { value: 'Solde',     label: 'mis à jour à chaque pari' },
       { value: 'Profit',    label: 'calculé pari par pari' },
     ],
     apercu: [
       { badge: 'green', icone: 'wallet', titre: 'Budget et solde',    sous: 'Ce qui reste, à tout moment' },
-      { badge: 'gold',  icone: 'shield', titre: 'Mise recommandée',   sous: 'Jamais plus de 5 % du solde' },
+      { badge: 'gold',  icone: 'shield', titre: 'Mise recommandée',   sous: 'Une part de votre solde, pas tout' },
       { badge: 'dark',  icone: 'coins',  titre: 'Profit par pari',    sous: 'Gagné, perdu, en attente' },
     ],
   },
@@ -210,20 +214,24 @@ const productBlocks = [
     // « Dépôt et retrait », « retirez vos gains », « 3 opérateurs Mobile
     // Money », « 2 min ». PronoWin ne tient aucun compte de paris : le seul
     // mouvement d'argent est le paiement de l'abonnement. Un seul opérateur est
-    // actif en base (Orange Money), et le délai annoncé par le serveur lui-même
-    // est « 30 minutes ouvrables ». Présenter un dépôt/retrait faisait passer
+    // actif en base (Orange Money). Présenter un dépôt/retrait faisait passer
     // PronoWin pour un bookmaker, ce qu'il n'est pas.
+    //
+    // Le délai de validation n'est plus annoncé ici. Il vit dans
+    // REVIEW_DELAY_DIRECT, côté serveur, qui le dit déjà à l'utilisateur au
+    // moment où il envoie sa preuve. L'écrire aussi sur cette page en aurait
+    // fait une seconde source, muette le jour où la première change.
     title: "Payez par Orange Money.\nVérifié par un humain.",
     text: "Vous réglez l'abonnement par Orange Money et joignez la preuve du transfert. Un membre de l'équipe la vérifie, puis votre accès Premium s'ouvre.",
     photo: '/images/photo-paiements.svg',
     stats: [
       { value: 'Orange Money', label: 'opérateur accepté' },
-      { value: '30 min',       label: 'délai de vérification annoncé' },
+      { value: 'Vérifié',      label: "par un membre de l'équipe" },
       { value: 'Suivi',        label: "depuis l'application" },
     ],
     apercu: [
       { badge: 'green', icone: 'wallet', titre: 'Paiement Orange Money', sous: 'Preuve de transfert jointe' },
-      { badge: 'green', icone: 'coins',  titre: 'Vérification',          sous: '30 minutes ouvrables annoncées' },
+      { badge: 'green', icone: 'coins',  titre: 'Vérification',          sous: "Le délai s'affiche dans l'app" },
       { badge: 'dark',  icone: 'shield', titre: 'Accès Premium',         sous: "Ouvert dès l'accord" },
     ],
   },
@@ -341,7 +349,7 @@ const faqs = [
   },
   {
     q: 'Comment souscrire à un abonnement Premium ?',
-    a: "Depuis l'application, rendez-vous dans Abonnements, choisissez la formule mensuelle ou annuelle, payez par Orange Money et joignez la preuve du transfert. L'accès s'ouvre après vérification, annoncée sous 30 minutes ouvrables.",
+    a: "Depuis l'application, rendez-vous dans Abonnements, choisissez la formule mensuelle ou annuelle, payez par Orange Money et joignez la preuve du transfert. L'accès s'ouvre après vérification ; le délai annoncé s'affiche dans l'application au moment de l'envoi.",
   },
   {
     q: 'Quels moyens de paiement sont acceptés ?',

@@ -14,6 +14,26 @@ const { execFileSync } = require('child_process');
 
 const INJECTIONS = [
   {
+    // Le cas exact que l'on vient de retirer : un chiffre vrai, recopie du
+    // serveur, qui devient faux le jour ou la constante bouge.
+    nom: 'une cadence de synchronisation est republiee',
+    fichier: 'server.js',
+    de: "    title: 'Le score en direct.\\nPendant que le match se joue.',",
+    vers: "    title: 'Le score en direct.\\nToutes les 30 secondes.',",
+  },
+  {
+    nom: 'un pourcentage de mise est republie',
+    fichier: 'server.js',
+    de: "      { value: 'Mise',  label: 'calculée, pas devinée' },",
+    vers: "      { value: '1,5 – 5 %', label: 'du solde, selon la confiance' },",
+  },
+  {
+    nom: 'le delai de validation est republie',
+    fichier: 'server.js',
+    de: "      { value: 'Vérifié',      label: \"par un membre de l'équipe\" },",
+    vers: "      { value: '30 min',       label: 'sous 30 minutes ouvrables' },",
+  },
+  {
     nom: 'un faux témoignage revient',
     fichier: 'views/index.ejs',
     de: '  <!-- Pricing -->',

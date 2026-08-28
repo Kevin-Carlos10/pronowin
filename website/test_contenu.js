@@ -129,10 +129,49 @@ const INTERDITS = [
   ['par IA',                    'idem'],
 ];
 
+/**
+ * Les chiffres opérationnels ne se publient pas.
+ *
+ * « 30 secondes » entre deux synchronisations, « 1,5 % à 5 % » de mise,
+ * « 30 minutes ouvrables » de vérification : tous exacts le jour où ils ont été
+ * écrits, et tous recopiés à la main depuis une constante du serveur.
+ *
+ * C'est ce qui les distingue de la liste ci-dessus. Ce ne sont pas des
+ * inventions — ce sont des **engagements publics qui vieillissent sans bruit**.
+ * Le jour où `REVIEW_DELAY_DIRECT` passe à deux heures, le serveur le dira à
+ * l'utilisateur au moment de l'envoi, et cette page continuera d'annoncer
+ * trente minutes. Personne ne rouvre une page de vente pour changer un réglage.
+ *
+ * C'est le défaut du « 87 % » sous une autre forme : une même valeur à deux
+ * endroits, dont un seul est tenu à jour.
+ *
+ * La règle est donc : le site dit ce que le produit fait, jamais à quelle
+ * cadence ni dans quelle proportion. Ces réglages restent réglables.
+ */
+const CHIFFRES_OPERATIONNELS = [
+  [/\b30\s*(?:s\b|secondes)/,        'cadence de synchronisation — vit dans la boucle de index.ts'],
+  [/1[.,]5\s*(?:[–—-]|à)?\s*\d*\s*%/, 'fourchette de mise — vit dans suggestStake()'],
+  [/\d\s*%\s+du solde/,              'mise exprimée en part du solde — idem'],
+  [/minutes ouvrables/,               'délai de validation — vit dans REVIEW_DELAY_DIRECT'],
+  [/\b24\s*h\s*\/\s*24/,             'disponibilité de la boucle — un engagement de service'],
+];
+
 /* ─── Contrôles ───────────────────────────────────────────────────────── */
 
 const controles = [];
 const test = (nom, fn) => controles.push([nom, fn]);
+
+test('aucun chiffre opérationnel n\'est publié', async () => {
+  const { accueil } = await rendre(API_COMPLETE);
+  // Sur le texte visible, balises retirées : « 1,5 – 5 % » et « du solde »
+  // vivent dans deux éléments voisins, et un motif appliqué au HTML brut les
+  // manque. Le banc d'injection l'a montré avant que ce commentaire existe.
+  const texte = accueil.html.replace(/<[^>]*>/g, ' ');
+  for (const [motif, pourquoi] of CHIFFRES_OPERATIONNELS) {
+    assert.ok(!motif.test(texte),
+      `${motif} publié sur la page — ${pourquoi}`);
+  }
+});
 
 test('aucune affirmation fabriquée ne subsiste', async () => {
   const { accueil, legal } = await rendre(API_COMPLETE);
