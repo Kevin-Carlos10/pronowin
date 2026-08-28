@@ -132,8 +132,8 @@ const productBlocks = [
     // sept onglets sur la fiche d'un match, alimentés par API-Football.
     // Le nombre d'onglets n'est pas annoncé : certains ne s'affichent que si la
     // donnée existe pour ce match, et un compte fixe finirait par mentir.
-    title: 'Compositions, blessures,\nclassements, face-à-face.',
-    text: "Sur chaque match : les compositions, les statistiques, le face-à-face, les classements, les blessures et les cotes de plusieurs bookmakers. Dans la même fiche, sans aller les chercher ailleurs.",
+    title: 'Tout le match.\nAvant le match.',
+    text: "Compositions probables, blessures, face-à-face, classements, forme, statistiques, et les cotes de plusieurs bookmakers comparées. Ce que vous ouvriez en dix onglets tient dans une seule fiche.",
     stats: [
       { value: 'Compos',  label: 'et blessures avant le coup d\'envoi' },
       { value: 'H2H',     label: 'historique des confrontations' },
@@ -194,7 +194,7 @@ const productBlocks = [
     eyebrow: 'Apprendre',
     // Cinq tutoriels réellement en base, trois niveaux, progression suivie
     // (mark_progress). Le classement repose sur les paris tranchés.
-    title: 'Cinq tutoriels.\nTrois niveaux.',
+    title: 'On ne vous donne pas\nque des pronostics.',
     text: "Du value bet à la gestion de bankroll, des statistiques xG à la psychologie du parieur et aux handicaps asiatiques. Votre progression est enregistrée. Et un classement compare la communauté sur les paris réellement tranchés.",
     stats: [
       { value: '5',      label: 'tutoriels disponibles' },
@@ -207,53 +207,39 @@ const productBlocks = [
       { badge: 'dark',  icone: 'trophy',       titre: 'Classement de la communauté', sous: 'Taux de réussite et badges' },
     ],
   },
-  {
-    icon: 'coins',
-    bg: 'white',
-    eyebrow: 'Abonnement',
-    // « Dépôt et retrait », « retirez vos gains », « 3 opérateurs Mobile
-    // Money », « 2 min ». PronoWin ne tient aucun compte de paris : le seul
-    // mouvement d'argent est le paiement de l'abonnement. Un seul opérateur est
-    // actif en base (Orange Money). Présenter un dépôt/retrait faisait passer
-    // PronoWin pour un bookmaker, ce qu'il n'est pas.
-    //
-    // Le délai de validation n'est plus annoncé ici. Il vit dans
-    // REVIEW_DELAY_DIRECT, côté serveur, qui le dit déjà à l'utilisateur au
-    // moment où il envoie sa preuve. L'écrire aussi sur cette page en aurait
-    // fait une seconde source, muette le jour où la première change.
-    title: "Payez par Orange Money.\nVérifié par un humain.",
-    text: "Vous réglez l'abonnement par Orange Money et joignez la preuve du transfert. Un membre de l'équipe la vérifie, puis votre accès Premium s'ouvre.",
-    photo: '/images/photo-paiements.svg',
-    stats: [
-      { value: 'Orange Money', label: 'opérateur accepté' },
-      { value: 'Vérifié',      label: "par un membre de l'équipe" },
-      { value: 'Suivi',        label: "depuis l'application" },
-    ],
-    apercu: [
-      { badge: 'green', icone: 'wallet', titre: 'Paiement Orange Money', sous: 'Preuve de transfert jointe' },
-      { badge: 'green', icone: 'coins',  titre: 'Vérification',          sous: "Le délai s'affiche dans l'app" },
-      { badge: 'dark',  icone: 'shield', titre: 'Accès Premium',         sous: "Ouvert dès l'accord" },
-    ],
-  },
+  // Le chapitre « Abonnement » est retiré.
+  //
+  // Il détaillait la mécanique de paiement : un seul opérateur, une preuve de
+  // transfert à joindre, une vérification humaine. Tout était exact — et tout
+  // décrivait les limites du système sur la page censée donner envie. Un
+  // visiteur qui hésite encore à télécharger n'a pas à apprendre que la
+  // validation se fait à la main.
+  //
+  // Ces informations restent dans la FAQ, où l'on va les chercher quand on se
+  // pose la question, et dans l'application au moment de payer.
   {
     icon: 'users',
     bg: 'gray',
     eyebrow: 'Parrainage',
-    // « 7 jours VIP offerts / filleul », et une maquette annonçant « 4 filleuls
-    // actifs, 28 jours VIP cumulés ». La récompense réelle est de 500 FCFA
-    // (REFERRAL_COMMISSION_L1), convertibles en jours Premium ou retirables à
-    // partir de 2 000 FCFA. Le site promettait une récompense d'une autre
-    // nature, et plus généreuse que celle qui existe.
+    // Les montants ne sont plus affichés. Ils vivent dans
+    // REFERRAL_COMMISSION_L1 et REFERRAL_MIN_WITHDRAWAL, et se règlent là-bas :
+    // les recopier ici en ferait une promesse chiffrée, figée dans une page que
+    // personne ne relit le jour où le barème change.
+    //
+    // Un montant précis dessert d'ailleurs l'argument. « 500 F » se compare à
+    // ce que promettent les autres ; « des gains à chaque filleul » se compare
+    // à rien, et l'utilisateur découvre le barème exact dans l'application,
+    // au seul endroit qui le connaisse.
     title: 'Invitez vos amis.\nCumulez des gains.',
-    text: "Chaque filleul qui s'inscrit avec votre code vous rapporte 500 FCFA. Vous les convertissez en jours Premium, ou vous les retirez à partir de 2 000 FCFA.",
+    text: "Partagez votre code : chaque filleul qui s'inscrit vous rapporte des gains. À vous de choisir — les convertir en jours Premium, ou les retirer.",
     stats: [
-      { value: '500 F',   label: 'par filleul inscrit' },
-      { value: '2 000 F', label: 'retrait possible à partir de' },
-      { value: 'ou VIP',  label: 'convertibles en jours Premium' },
+      { value: 'Votre code', label: 'partagé en un geste' },
+      { value: 'Des gains',  label: 'à chaque filleul inscrit' },
+      { value: 'Au choix',   label: 'retrait, ou jours Premium' },
     ],
     apercu: [
       { badge: 'green', icone: 'users', titre: 'Votre code de parrainage', sous: 'Partagé en un geste' },
-      { badge: 'gold',  icone: 'crown', titre: 'Récompense',               sous: '500 FCFA par filleul inscrit' },
+      { badge: 'gold',  icone: 'crown', titre: 'Récompense',               sous: 'À chaque filleul inscrit' },
       { badge: 'dark',  icone: 'users', titre: 'Au choix',                 sous: 'Retrait, ou jours Premium' },
     ],
   },
@@ -365,7 +351,10 @@ const faqs = [
   },
   {
     q: 'Comment fonctionne le parrainage ?',
-    a: "Partagez votre code personnel depuis l'application. Chaque filleul qui s'inscrit avec ce code vous rapporte 500 FCFA, que vous convertissez en jours Premium ou retirez à partir de 2 000 FCFA.",
+    // Le barème vit dans REFERRAL_COMMISSION_L1 et REFERRAL_MIN_WITHDRAWAL.
+    // L'application l'affiche à l'utilisateur, qui le voit donc à jour ; le
+    // recopier ici en ferait une seconde source, muette au premier changement.
+    a: "Partagez votre code personnel depuis l'application. Chaque filleul qui s'inscrit avec ce code vous rapporte des gains, que vous convertissez en jours Premium ou que vous retirez. Le barème et le seuil de retrait sont affichés dans l'application.",
   },
   {
     q: 'Puis-je annuler mon abonnement à tout moment ?',

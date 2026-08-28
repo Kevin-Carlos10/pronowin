@@ -8,7 +8,10 @@
       retrait Mobile Money » : trois sports quand l'application n'en traite
       qu'un, et un portefeuille de paris que PronoWin ne tient pas. C'est le
       texte que reprennent Google et les aperçus de partage. %>
-  <meta name="description" content="PronoWin : pronostics de football analysés chaque jour — compositions, statistiques, classements, scores en direct et gestion de bankroll. Abonnement par Orange Money.">
+  <%# Elle se terminait par « Abonnement par Orange Money » : le moyen de
+      paiement en argument de vente, dans les 160 caractères que Google
+      affiche. La ligne sert désormais à dire ce que l'application apporte. %>
+  <meta name="description" content="PronoWin : l'application de pronostics football qui montre ses chiffres. Compositions, blessures, classements, cotes comparées, scores en direct et gestion de bankroll — dans une seule app.">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -55,7 +58,7 @@
     <div class="container hero-content">
       <div class="hero-eyebrow">PronoWin</div>
       <h1 class="hero-title">Des pronostics gagnants.<br>Des gains grandissants.</h1>
-      <p class="hero-subtitle">Compositions, statistiques, classements, scores en direct et une bankroll tenue au cordeau. Une sélection de pronostics gratuite chaque jour, tout le reste en Premium.</p>
+      <p class="hero-subtitle">Compositions, statistiques, classements, cotes comparées, scores en direct et gestion de bankroll : ce qu'un parieur sérieux ouvre en dix onglets tient ici dans une seule application. Une sélection de pronostics gratuite chaque jour.</p>
       <div class="hero-cta">
         <a href="#telecharger" class="btn btn-primary">Télécharger l'app</a>
         <a href="#fonctionnalites" class="btn-link">En savoir plus <%- include('partials/icon', { name: 'arrow', size: 14 }) %></a>
@@ -92,19 +95,18 @@
   </section>
   <% } %>
 
-  <!-- Demo video chapter -->
-  <section class="chapter chapter--black">
-    <div class="container">
-      <span class="eyebrow">Démo</span>
-      <h2 class="headline">L'application en action.</h2>
-      <p class="headline-sub">Pronostics, données du match, direct et bankroll — un aperçu de l'expérience PronoWin.</p>
-      <div class="video-frame">
-        <video autoplay muted loop playsinline poster="/images/demo-poster.svg">
-          <source src="/videos/demo-loop.mp4" type="video/mp4">
-        </video>
-      </div>
-    </div>
-  </section>
+  <%
+    // Le chapitre « Démo » est retiré.
+    //
+    // Il annonçait « L'application en action » et lisait /videos/demo-loop.mp4,
+    // qui renvoie 404. Comme la balise portait un `poster`, la page affichait
+    // une image fixe : une démonstration qui ne démontrait rien, et rien ne le
+    // signalait — ni erreur, ni console.
+    //
+    // C'est la section qui devrait le mieux vendre l'application. Elle revient
+    // le jour où il y a un vrai enregistrement d'écran à y mettre ; d'ici là,
+    // son absence vaut mieux que sa promesse creuse.
+  %>
 
   <!-- Feature chapters -->
   <div id="fonctionnalites">

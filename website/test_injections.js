@@ -22,16 +22,25 @@ const INJECTIONS = [
     vers: "    title: 'Le score en direct.\\nToutes les 30 secondes.',",
   },
   {
+    nom: 'un montant de parrainage est republie',
+    fichier: 'server.js',
+    de: "      { value: 'Des gains',  label: 'à chaque filleul inscrit' },",
+    vers: "      { value: '500 F',   label: 'par filleul inscrit' },",
+  },
+  {
     nom: 'un pourcentage de mise est republie',
     fichier: 'server.js',
     de: "      { value: 'Mise',  label: 'calculée, pas devinée' },",
     vers: "      { value: '1,5 – 5 %', label: 'du solde, selon la confiance' },",
   },
   {
+    // L'ancre precedente visait une tuile du chapitre « Abonnement », lui-meme
+    // retire depuis. Elle vise desormais la FAQ, qui reste le seul endroit du
+    // site ou le delai est evoque.
     nom: 'le delai de validation est republie',
     fichier: 'server.js',
-    de: "      { value: 'Vérifié',      label: \"par un membre de l'équipe\" },",
-    vers: "      { value: '30 min',       label: 'sous 30 minutes ouvrables' },",
+    de: "le délai annoncé s'affiche dans l'application au moment de l'envoi.",
+    vers: "annoncée sous 30 minutes ouvrables.",
   },
   {
     nom: 'un faux témoignage revient',

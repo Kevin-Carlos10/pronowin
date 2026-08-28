@@ -154,6 +154,8 @@ const CHIFFRES_OPERATIONNELS = [
   [/\d\s*%\s+du solde/,              'mise exprimée en part du solde — idem'],
   [/minutes ouvrables/,               'délai de validation — vit dans REVIEW_DELAY_DIRECT'],
   [/\b24\s*h\s*\/\s*24/,             'disponibilité de la boucle — un engagement de service'],
+  [/\b500\s*F/,                      'prime de parrainage — vit dans REFERRAL_COMMISSION_L1'],
+  [/\b2\s*000\s*F/,                  'seuil de retrait — vit dans REFERRAL_MIN_WITHDRAWAL'],
 ];
 
 /* ─── Contrôles ───────────────────────────────────────────────────────── */
