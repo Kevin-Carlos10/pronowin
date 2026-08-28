@@ -686,3 +686,12 @@ button { font-family: inherit; cursor: pointer; }
    liens — un curseur qui ne change pas dit déjà qu'il n'y a rien à cliquer.  */
 .store-badges--soon { margin-top: .75rem; opacity: .45; }
 .store-badge--soon  { cursor: default; pointer-events: none; }
+
+/* Version de l'APK servi, sous le bouton de telechargement. Lue sur
+   /config : voir versionApk() dans server.js. */
+.apk-version {
+  margin: 14px 0 0;
+  font-size: 12px;
+  color: var(--text-gray);
+  text-align: center;
+}

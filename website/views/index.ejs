@@ -287,6 +287,13 @@
         </a>
       </div>
 
+      <%# La version vient de /config — la même valeur que celle qui déclenche
+          la mise à jour dans l'application. Absente si l'API n'a pas répondu :
+          un numéro faux vaudrait moins que pas de numéro. %>
+      <% if (versionApp) { %>
+        <p class="apk-version">Version <%= versionApp %> · Android 7.0 et plus</p>
+      <% } %>
+
       <div class="store-badges store-badges--soon" aria-hidden="false">
         <span class="store-badge store-badge--soon">
           <%- include('partials/icon', { name: 'apple', size: 20 }) %>

@@ -85,6 +85,26 @@ async function tarifsReels() {
   return par;
 }
 
+/**
+ * Version de l'APK réellement publiée, lue au rendu.
+ *
+ * Le bouton de téléchargement pointe sur un chemin fixe dont le contenu est
+ * remplacé à chaque publication. Rien n'indiquait ce qu'il y avait derrière :
+ * un fichier à jour et un fichier oublié depuis trois mois donnaient la même
+ * page.
+ *
+ * `apkLatestVersion` est la valeur que le serveur sert déjà à l'application
+ * pour déclencher la proposition de mise à jour. La lire ici plutôt que
+ * l'écrire garantit que les deux ne divergeront pas.
+ *
+ * Illisible, on n'affiche rien : un numéro faux vaut moins que pas de numéro.
+ */
+async function versionApk() {
+  const d = await lireJson('/config');
+  const v = d && typeof d.apkLatestVersion === 'string' ? d.apkLatestVersion.trim() : '';
+  return /^\d+\.\d+/.test(v) ? v : null;
+}
+
 /** 54000 → « 54 000 », avec une espace insécable fine. */
 function montant(n) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
@@ -369,7 +389,9 @@ const faqs = [
 ];
 
 app.get('/', async (req, res) => {
-  const [bilan, tarifs] = await Promise.all([bilanPremium(), tarifsReels()]);
+  const [bilan, tarifs, versionApp] = await Promise.all([
+    bilanPremium(), tarifsReels(), versionApk(),
+  ]);
 
   // Le prix reste `null` quand l'API n'a rien donné : la vue affiche alors la
   // formule sans montant plutôt qu'un montant erroné.
@@ -380,7 +402,7 @@ app.get('/', async (req, res) => {
 
   res.render('index', {
     site, bilan, productBlocks,
-    pricingPlans, comparisonRows, faqs,
+    pricingPlans, comparisonRows, faqs, versionApp,
   });
 });
 
