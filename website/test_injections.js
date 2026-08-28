@@ -94,10 +94,18 @@ const INJECTIONS = [
     vers: '  <% if (true) { %>',
   },
   {
+    // Cette injection retirait le filtre. Elle ne mordait plus des que les deux
+    // adresses ont ete renseignees : sans entree vide, retirer le filtre ne
+    // change rien. Une injection qui ne peut plus echouer ne teste rien — elle
+    // ressemble pourtant a un succes. Elle remet donc une entree sans adresse,
+    // ce qui reproduit le defaut quelle que soit la configuration.
     nom: 'une icone sociale revient sans adresse',
     fichier: 'views/index.ejs',
+    // Ancre d'une seule ligne : la version précédente en couvrait deux, et
+    // l'échappement du saut de ligne n'a pas survécu au heredoc qui l'a
+    // écrite — la chaîne JS s'est retrouvée coupée en deux.
     de: "].filter(function (r) { return r.url && r.url.trim(); }); %>",
-    vers: "]; %>",
+    vers: "{ url: '', nom: 'WhatsApp', icone: 'whatsapp' }]; %>",
   },
   {
     nom: 'un lien mort revient',

@@ -30,7 +30,10 @@ const site = {
   // personnel d'un inconnu. Un controle de code HTTP seul n'aurait pas fait
   // la difference.
   telegramUrl: process.env.TELEGRAM_URL || 'https://t.me/pronowin2026',
-  whatsappUrl: process.env.WHATSAPP_URL || '',
+  // Verifie avant publication : la page repond og:title = « PronoWin ».
+  // Forme canonique (www), celle vers laquelle WhatsApp redirige de toute
+  // facon — un saut de moins.
+  whatsappUrl: process.env.WHATSAPP_URL || 'https://www.whatsapp.com/channel/0029Vb88L8BKAwEppGPhXQ1T',
 };
 
 // URL de l'API, pour lire ce que le produit fait réellement.
