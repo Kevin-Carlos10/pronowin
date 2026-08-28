@@ -12,6 +12,10 @@
       paiement en argument de vente, dans les 160 caractères que Google
       affiche. La ligne sert désormais à dire ce que l'application apporte. %>
   <meta name="description" content="PronoWin : l'application de pronostics football qui montre ses chiffres. Compositions, blessures, classements, cotes comparées, scores en direct et gestion de bankroll — dans une seule app.">
+  <%# Aucun favicon n'etait declare : l'onglet affichait l'icone generique
+      du navigateur, sur un site dont c'est la marque qu'on vend. %>
+  <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
+  <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -20,7 +24,7 @@
   <header class="navbar">
     <div class="container">
       <a href="/" class="brand">
-        <span class="brand-mark">P</span>
+        <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
         Prono<span>Win</span>
       </a>
       <nav class="nav-links">
@@ -285,7 +289,7 @@
           <span class="store-badge-text"><small>App Store</small><strong>Bientôt</strong></span>
         </span>
         <span class="store-badge store-badge--soon">
-          <%- include('partials/icon', { name: 'android', size: 20 }) %>
+          <%- include('partials/icon', { name: 'google-play', size: 20 }) %>
           <span class="store-badge-text"><small>Google Play</small><strong>Bientôt</strong></span>
         </span>
       </div>
@@ -298,7 +302,7 @@
       <div class="footer-top">
         <div class="footer-brand">
           <a href="/" class="brand">
-            <span class="brand-mark">P</span>
+            <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
             Prono<span>Win</span>
           </a>
           <p class="footer-tagline"><%= site.tagline %>.</p>

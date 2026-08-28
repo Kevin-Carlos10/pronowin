@@ -181,18 +181,16 @@ button { font-family: inherit; cursor: pointer; }
   font-weight: 600;
   color: var(--text-light);
 }
+/* La marque etait une lettre « P » dans un carre en degrade CSS. Le logo
+   existe desormais comme fichier : on l'affiche, au lieu d'en redessiner une
+   approximation que rien ne tenait a jour. */
 .brand-mark {
   width: 22px;
   height: 22px;
   border-radius: 6px;
-  background: linear-gradient(135deg, var(--accent), var(--accent-strong));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #fff;
-  font-size: 13px;
-  font-weight: 800;
-  font-family: var(--font);
+  display: block;
+  object-fit: contain;
+  flex: 0 0 auto;
 }
 .brand span { color: var(--accent); font-weight: 700; }
 
@@ -582,7 +580,6 @@ button { font-family: inherit; cursor: pointer; }
   border-bottom: 1px solid var(--border);
 }
 .footer-brand .brand { color: var(--text-dark); margin-bottom: 10px; }
-.footer-brand .brand-mark { background: linear-gradient(135deg, var(--accent), var(--accent-strong)); }
 .footer-brand .brand span { color: var(--accent-strong); }
 .footer-tagline { max-width: 260px; }
 .footer-col-title {

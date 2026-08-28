@@ -4,13 +4,17 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Mentions légales — <%= site.name %></title>
+  <%# Aucun favicon n'etait declare : l'onglet affichait l'icone generique
+      du navigateur, sur un site dont c'est la marque qu'on vend. %>
+  <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
+  <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
   <header class="navbar">
     <div class="container">
       <a href="/" class="brand">
-        <span class="brand-mark">P</span>
+        <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
         Prono<span>Win</span>
       </a>
       <div class="nav-actions">

@@ -214,7 +214,15 @@ test('le grand chiffre est le taux du serveur, ou rien', async () => {
   const sans = await rendre(API_SANS_TAUX);
   assert.ok(!sans.accueil.html.includes('mega-number'),
     'la section devrait disparaître quand le serveur refuse de publier un taux');
-  assert.ok(!sans.accueil.html.includes('86'),
+  // Sur le texte visible, pas sur le HTML : l'assertion portait sur la page
+  // entière, données de tracé comprises. Le jour où une icône est arrivée dont
+  // les coordonnées contiennent « .86 », elle a accusé du code correct — et
+  // elle aurait accusé n'importe quelle icône future au même titre.
+  //
+  // Ce qu'on veut interdire, c'est que le taux s'affiche. Pas que ses chiffres
+  // existent quelque part dans le document.
+  const texteSans = sans.accueil.html.replace(/<[^>]*>/g, ' ');
+  assert.ok(!/\b86\b/.test(texteSans),
     "le taux sous-échantillonné (86) ne doit pas fuiter dans la page");
 });
 
