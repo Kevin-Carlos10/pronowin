@@ -44,7 +44,13 @@ const _slides = [
     bullets: [
       'Pronostics d\'experts chaque jour',
       'Analyses statistiques exclusives',
-      'Une communauté qui partage ses analyses',
+      // « Une communaute qui partage ses analyses » : les commentaires sont
+      // reserves au Premium (premiumMiddleware sur les trois routes). Promis
+      // ici a tout nouvel arrivant, avant meme la creation du compte.
+      //
+      // Remplace par ce que le compte gratuit obtient reellement — et qui est
+      // large : les donnees du match ne sont derriere aucun paywall.
+      'Compos, statistiques et classements sur chaque match',
     ],
     color: Color(0xFF6366F1),
     colorDark: Color(0xFF4338CA),
@@ -127,10 +133,14 @@ const _slides = [
   _Slide(
     emoji: '🚀',
     title: 'Prêt à commencer ?',
-    subtitle: 'Rejoins une communauté qui analyse avant de miser',
+    subtitle: 'Les chiffres d\'abord. La mise ensuite.',
     bullets: [
-      'Accès gratuit à tous les pronostics du jour',
-      'Premium pour les analyses exclusives',
+      // « tous les pronostics du jour » etait faux : estVerrouille() garde
+      // les pronostics Premium fermes tant que le match n'est pas termine.
+      // Le gratuit voit tous les pronostics *gratuits* — sans limite de
+      // nombre, aucun quota n'etant applique dans le code.
+      'Tous les pronostics gratuits du jour',
+      'Premium : pronostics exclusifs et espace communauté',
       'Parrainage et récompenses à gagner',
     ],
     color: Color(0xFFEC4899),
