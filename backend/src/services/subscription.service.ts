@@ -179,8 +179,16 @@ export class SubscriptionService {
         id: 'free', type: 'free', name: 'Plan Gratuit',
         description: 'Pour découvrir PronoWin',
         price_usd: 0, duration_days: 0, is_popular: false,
-        features:        ['3 pronostics par jour', 'Tutoriels basiques', 'Notifications matchs'],
-        locked_features: ['Pronostics VIP illimités', 'Statistiques avancées', 'Sans publicité'],
+        // « 3 pronostics par jour » : aucun quota n'existe, ni ici ni dans
+        // l'application. Le gratuit voit tous les pronostics gratuits ; seuls
+        // les Premium sont verrouillés, et seulement tant que le match n'est
+        // pas terminé (voir estVerrouille).
+        //
+        // « Sans publicité » retiré des deux listes : aucune régie n'est
+        // intégrée au projet. En `locked_features`, cette ligne disait au
+        // compte gratuit qu'il voyait des publicités — il n'en voit aucune.
+        features:        ['Pronostics gratuits du jour, sans limite', 'Tutoriels de base', 'Notifications de match'],
+        locked_features: ['Pronostics VIP illimités', 'Espace communauté', 'Statistiques avancées'],
       },
       {
         id: 'premium_monthly', type: 'premium', name: 'Premium Mensuel',
@@ -189,18 +197,20 @@ export class SubscriptionService {
         price_fcfa:      PREMIUM_PRICE_FCFA_MONTHLY,
         duration_days:   30,
         is_popular:      false,
-        features:        ['Pronostics VIP illimités', 'Tous les tutoriels', 'Statistiques avancées', 'Sans publicité', 'Support prioritaire'],
+        features:        ['Pronostics VIP illimités', 'Espace communauté', 'Tous les tutoriels', 'Statistiques avancées', 'Support prioritaire'],
         locked_features: [],
         xbet_promo_code: code,
       },
       {
         id: 'premium_annual', type: 'premium', name: 'Premium Annuel',
-        description: 'Accès total à tous les pronostics VIP — 2 mois offerts',
+        // 6 000 x 12 = 72 000 ; l'annuel coûte 54 000. L'économie est de
+        // 18 000, soit trois mois — la formule était sous-vendue d'un tiers.
+        description: 'Accès total à tous les pronostics VIP — 3 mois offerts',
         price_usd:       PREMIUM_PRICE_USD_ANNUAL,
         price_fcfa:      PREMIUM_PRICE_FCFA_ANNUAL,
         duration_days:   365,
         is_popular:      true,
-        features:        ['Pronostics VIP illimités', 'Tous les tutoriels', 'Statistiques avancées', 'Sans publicité', 'Support prioritaire'],
+        features:        ['Pronostics VIP illimités', 'Espace communauté', 'Tous les tutoriels', 'Statistiques avancées', 'Support prioritaire'],
         locked_features: [],
         xbet_promo_code: code,
       },
