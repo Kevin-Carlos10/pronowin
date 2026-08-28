@@ -175,6 +175,24 @@ test('aucun chiffre opérationnel n\'est publié', async () => {
   }
 });
 
+test('le nom de la marque n\'est pas coupé en deux', async () => {
+  // `.brand` est un conteneur flex avec `gap: 8px`, prévu entre le logo et le
+  // nom. Tant que « Prono » était un nœud de texte nu et « Win » un <span>,
+  // flex en faisait deux éléments : l'espacement s'appliquait aussi entre les
+  // deux moitiés du mot, et la marque s'affichait « Prono Win » partout.
+  //
+  // Rien ne le signalait — pas d'erreur, pas de test rouge, une page qui se
+  // rend parfaitement en écrivant le nom de travers.
+  const { accueil, legal } = await rendre(API_COMPLETE);
+
+  for (const [nom, page] of [['accueil', accueil], ['mentions légales', legal]]) {
+    assert.ok(page.html.includes('class="brand-name"'),
+      `${nom} : le nom devrait être enveloppé dans un seul élément flex`);
+    assert.ok(!/Prono<span>Win<\/span>/.test(page.html),
+      `${nom} : « Prono » redevient un nœud de texte nu — le gap le sépare de « Win »`);
+  }
+});
+
 test('aucune affirmation fabriquée ne subsiste', async () => {
   const { accueil, legal } = await rendre(API_COMPLETE);
   for (const [aiguille, pourquoi] of INTERDITS) {

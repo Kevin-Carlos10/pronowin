@@ -192,7 +192,17 @@ button { font-family: inherit; cursor: pointer; }
   object-fit: contain;
   flex: 0 0 auto;
 }
-.brand span { color: var(--accent); font-weight: 700; }
+/* Le nom est un seul element flex.
+
+   « Prono » etait un noeud de texte nu et « Win » un <span> : flex en faisait
+   deux elements, et le `gap: 8px` ci-dessus — prevu entre le logo et le nom —
+   s'appliquait aussi entre les deux moities du mot. La marque s'affichait
+   « Prono Win » sur toutes les pages.
+
+   La couleur vise desormais une classe, et non « tout span dans .brand » : le
+   conteneur du nom en est un, et la regle large l'aurait colore en entier. */
+.brand-name { white-space: nowrap; }
+.brand-win  { color: var(--accent); font-weight: 700; }
 
 .nav-links {
   display: flex;
@@ -580,7 +590,7 @@ button { font-family: inherit; cursor: pointer; }
   border-bottom: 1px solid var(--border);
 }
 .footer-brand .brand { color: var(--text-dark); margin-bottom: 10px; }
-.footer-brand .brand span { color: var(--accent-strong); }
+.footer-brand .brand-win { color: var(--accent-strong); }
 .footer-tagline { max-width: 260px; }
 .footer-col-title {
   color: var(--text-dark);

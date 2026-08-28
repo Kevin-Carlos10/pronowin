@@ -22,6 +22,15 @@ const INJECTIONS = [
     vers: "    title: 'Le score en direct.\\nToutes les 30 secondes.',",
   },
   {
+    // Ancre posee sur legal.ejs : index.ejs porte la marque deux fois (barre et
+    // pied de page), et le banc exige une ancre unique. Le controle verifie les
+    // deux pages, l'injection sur l'une suffit a le mettre en defaut.
+    nom: 'le nom de la marque redevient un noeud de texte nu',
+    fichier: 'views/legal.ejs',
+    de: '<span class="brand-name">Prono<span class="brand-win">Win</span></span>',
+    vers: 'Prono<span>Win</span>',
+  },
+  {
     nom: 'un montant de parrainage est republie',
     fichier: 'server.js',
     de: "      { value: 'Des gains',  label: 'à chaque filleul inscrit' },",
