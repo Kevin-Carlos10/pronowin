@@ -351,11 +351,21 @@
       </div>
       <div class="footer-bottom">
         <p class="footer-legal">© <%= site.year %> <%= site.name %>. Tous droits réservés. Le pronostic et le pari sportif comportent des risques de perte financière. Service réservé aux personnes majeures — jouez de manière responsable.</p>
-        <%# Trois icônes sociales qui pointaient toutes sur `#`. Aucun compte
-            n'est ouvert à ce jour ; les mentions légales renvoyaient pourtant
-            le lecteur vers « les réseaux sociaux indiqués en pied de page »
-            pour joindre le support — une boucle qui ne menait nulle part.
-            Elles reviendront avec de vraies adresses. %>
+        <%# Elles pointaient toutes sur `#`. Chacune ne s'affiche désormais
+            que si son adresse est renseignée : pas d'adresse, pas d'icône. %>
+        <% const reseaux = [
+             { url: site.telegramUrl, nom: 'Telegram', icone: 'telegram' },
+             { url: site.whatsappUrl, nom: 'WhatsApp', icone: 'whatsapp' },
+           ].filter(function (r) { return r.url && r.url.trim(); }); %>
+        <% if (reseaux.length) { %>
+        <div class="footer-socials">
+          <% reseaux.forEach(function (r) { %>
+            <a href="<%= r.url %>" aria-label="<%= r.nom %>" target="_blank" rel="noopener noreferrer">
+              <%- include('partials/icon', { name: r.icone, size: 14 }) %>
+            </a>
+          <% }) %>
+        </div>
+        <% } %>
       </div>
     </div>
   </footer>

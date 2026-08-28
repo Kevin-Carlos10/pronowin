@@ -282,6 +282,13 @@ test('aucun lien ne mène nulle part', async () => {
   assert.strictEqual(morts.length, 0,
     `${morts.length} lien(s) pointent encore sur « # »`);
 
+  // Un href vide passe le contrôle du « # » et ne mène pas plus loin. Les
+  // icônes sociales sont filtrées sur une adresse non vide ; si ce filtre
+  // saute, elles reviennent en liens creux.
+  const vides = accueil.html.match(/href="\s*"/g) || [];
+  assert.strictEqual(vides.length, 0,
+    `${vides.length} lien(s) ont une adresse vide`);
+
   // Et aucune ancre ne doit viser une section supprimée.
   const ancres = [...accueil.html.matchAll(/href="#([a-zA-Z0-9_-]+)"/g)].map((m) => m[1]);
   for (const ancre of new Set(ancres)) {

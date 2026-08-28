@@ -19,6 +19,18 @@ const site = {
   // Le badge « Google Play » pointerait donc sur une fiche inexistante — on
   // annonce ce qui existe, et on dit « bientôt » pour le reste.
   apkUrl: process.env.APK_URL || '/downloads/app-release.apk',
+
+  // Canaux publics. Vides, ils n'affichent rien : une icone qui ne mene nulle
+  // part fait cliquer sans rien donner, et use la confiance au passage. C'est
+  // la meme regle que le lien d'affiliation.
+  //
+  // `t.me/pronowin2026` verifie : la page repond « View @pronowin2026 », donc
+  // un canal. Attention au raccourci qui vient a l'esprit — `t.me/PronoWin`
+  // repond 200 lui aussi, mais avec « Contact @PronoWin » : le compte
+  // personnel d'un inconnu. Un controle de code HTTP seul n'aurait pas fait
+  // la difference.
+  telegramUrl: process.env.TELEGRAM_URL || 'https://t.me/pronowin2026',
+  whatsappUrl: process.env.WHATSAPP_URL || '',
 };
 
 // URL de l'API, pour lire ce que le produit fait réellement.

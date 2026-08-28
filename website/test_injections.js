@@ -94,6 +94,12 @@ const INJECTIONS = [
     vers: '  <% if (true) { %>',
   },
   {
+    nom: 'une icone sociale revient sans adresse',
+    fichier: 'views/index.ejs',
+    de: "].filter(function (r) { return r.url && r.url.trim(); }); %>",
+    vers: "]; %>",
+  },
+  {
     nom: 'un lien mort revient',
     fichier: 'views/index.ejs',
     de: '            <li><a href="#faq">FAQ</a></li>',
