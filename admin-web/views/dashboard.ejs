@@ -428,7 +428,15 @@
 </div>
 
 <!-- ── Chart.js ─────────────────────────────────────────────────────────── -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<%# Chart.js était chargé depuis cdn.jsdelivr.net. Le poste depuis lequel on
+    consulte le panneau ne joint pas ce domaine (code 000 après 11 s), et les
+    trois graphiques restaient noirs.
+
+    Le service local existait déjà — server.js le monte sur /vendor/chart.js
+    depuis node_modules, pour que la version reste celle de package.json. La
+    page Statistiques l'utilisait ; ce tableau de bord était resté sur le CDN.
+    Le même défaut à deux endroits, corrigé à un seul. %>
+<script src="/admin/vendor/chart.js/chart.umd.js"></script>
 <script>
 /* ── Date ── */
 document.getElementById('dash-date').textContent =
@@ -463,7 +471,34 @@ function applyChartDefaults() {
   Chart.defaults.plugins.tooltip.bodyColor           = textColor;
   Chart.defaults.plugins.tooltip.padding             = 10;
 }
-applyChartDefaults();
+/**
+ * Panne muette : ce qui s'est passe en production.
+ *
+ * `Chart` indefini, `applyChartDefaults()` leve une ReferenceError, et le bloc
+ * entier s'arrete la — y compris la fenetre des connectes, plus bas. Les trois
+ * panneaux restaient noirs et leurs badges figes sur « … » : aucune erreur a
+ * l'ecran, rien dans l'interface pour relier ce vide a sa cause.
+ *
+ * Le garde subsiste malgre le passage en local : un fichier peut manquer apres
+ * un deploiement partiel, et un tableau de bord qui ment par omission est pire
+ * qu'un tableau de bord qui s'annonce en panne.
+ */
+function signalerGraphiquesIndisponibles() {
+  document.querySelectorAll('.chart-wrap').forEach((zone) => {
+    zone.innerHTML =
+      '<div style="height:100%;display:flex;align-items:center;justify-content:center;'
+    + 'text-align:center;padding:1rem;color:var(--text-dim);font-size:.82rem;line-height:1.6">'
+    + 'Graphiques indisponibles.<br>La bibliotheque n\'a pas pu etre chargee.'
+    + '</div>';
+  });
+  document.querySelectorAll('.chart-stat-badge').forEach((b) => { b.textContent = '—'; });
+}
+
+if (typeof Chart === 'undefined') {
+  signalerGraphiquesIndisponibles();
+} else {
+  applyChartDefaults();
+}
 
 /* ── Palette ── */
 function palette() {
@@ -544,6 +579,10 @@ function flashUpdate(id, val, format) {
 
 /* ── Chargement données ── */
 async function loadCharts() {
+  // Sans bibliotheque, le message est deja pose : on ne va pas chercher des
+  // donnees qu'on ne saurait pas dessiner.
+  if (typeof Chart === 'undefined') return;
+
   const btn = document.getElementById('refresh-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
 
