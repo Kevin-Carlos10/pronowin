@@ -1,11 +1,12 @@
 # Marque PronoWin
 
-Deux marques, deux fichiers source :
+Trois pièces, trois sources :
 
 | Source | Ce que c'est |
 |---|---|
 | `logo-pronowin.svg` | l'**emblème** — trophée blanc au « P » sur fond orange |
 | `logotype-pronowin-*.svg` | le **logotype** — le mot « PronoWin » |
+| `profil-pronowin-*.svg` | l'**assemblage** — emblème + mot, carré, pour une photo de profil |
 
 Tous les PNG en dérivent. Ne les retouchez pas à la main, régénérez :
 
@@ -14,7 +15,9 @@ cd brand && npm install && npm run tout
 ```
 
 `npm run tout` reconstruit tout depuis zéro, police intermédiaire comprise.
-Les étapes séparément : `npm run logotype`, `npm run rendre`, `npm run verifier`.
+Les étapes séparément : `npm run logotype`, `npm run profil`, `npm run rendre`,
+`npm run verifier`. Le contrôle accepte un sujet :
+`node verifier.js pronowin-telegram-512.png`.
 
 ## L'emblème
 
@@ -62,6 +65,28 @@ exception. Pour huit lettres latines sans ligature ni diacritique, `ccmp`
 n'aurait rien substitué — on ne perd rien, et la position de chaque lettre
 devient explicite.
 
+## L'assemblage — la photo de profil
+
+**C'est ce qu'il faut mettre en photo de canal Telegram, pas le logotype.**
+
+Telegram recadre la photo d'un canal **en cercle**. Le logotype seul est large
+et plat : le disque en coupe les deux bouts, et il n'en reste que « Pro ».
+L'assemblage empile l'emblème et le mot dans un carré dont le contenu tient
+dans le disque inscrit.
+
+Le trophée y est **relu depuis `logo-pronowin.svg`**, pas recopié. Deux copies
+d'un même dessin finissent par diverger, et celle que personne ne regarde est
+celle qui se périme. L'extraction se valide : si l'emblème change de structure,
+`lockup.js` s'arrête au lieu de produire un assemblage amputé d'une anse.
+
+La mise en page est vérifiée, pas supposée : le script calcule la distance du
+coin le plus éloigné au centre et **refuse de produire** au-delà de 86 % du
+rayon. Aujourd'hui : 81,8 %.
+
+À 40 px, le mot se referme et seul le trophée reste lisible. C'est le compromis
+normal d'un assemblage — celui de PronoVision se comporte pareil : la photo de
+profil est vue en grand sur la fiche du canal, et en silhouette dans la liste.
+
 ## Les deux palettes
 
 Elles divergent, et divergent toujours dans le code :
@@ -82,8 +107,8 @@ capture d'application posée sur le site par exemple.
 
 | Fichier | Usage |
 |---|---|
-| `pronowin-telegram-512.png` | **photo du canal Telegram** |
-| `pronowin-telegram-1024.png` | idem, si Telegram accepte plus grand |
+| `pronowin-telegram-512.png` | avatar carré sans texte (emblème seul) |
+| `pronowin-telegram-1024.png` | idem, plus grand |
 | `logo-pronowin-512.png` | icône d'application, favicon |
 | `logo-pronowin-1024.png` | fiche Play Store (512 exigé, 1024 utile) |
 
@@ -91,6 +116,14 @@ Les variantes `telegram-*` sont **à fond perdu**, sans coins arrondis :
 Telegram recadre en cercle, où un arrondi serait rogné et laisserait un liseré
 transparent visible sur fond clair. Les variantes `logo-*` gardent l'arrondi
 (rayon 112 sur 512).
+
+### Assemblage (photo de profil)
+
+| Fichier | Usage |
+|---|---|
+| `profil-pronowin-sombre-512.png` | **photo du canal Telegram** — fond bleu-nuit |
+| `profil-pronowin-orange-512.png` | même chose, fond orange plein |
+| `profil-pronowin-*-1024.png` | si la plateforme accepte plus grand |
 
 ### Logotype
 
@@ -104,7 +137,7 @@ transparent visible sur fond clair. Les variantes `logo-*` gardent l'arrondi
 
 | Fichier | Ce qu'il montre |
 |---|---|
-| `apercu-cercle-512.png` | le recadrage circulaire de Telegram |
-| `planche-controle.png` | la lisibilité en 160 / 80 / 40 px |
+| `apercu-cercle-*.png` | le recadrage circulaire de Telegram |
+| `planche-*.png` | la lisibilité en 160 / 80 / 40 px |
 
 Un logo se juge là où il sera vu, pas dans son fichier source.

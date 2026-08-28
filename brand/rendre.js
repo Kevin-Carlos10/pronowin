@@ -38,6 +38,19 @@ const sorties = [
   ['pronowin-telegram-1024.png', svgPlein, 1024],
 ];
 
+// Assemblages carrés « emblème + mot », pour une photo de profil. Générés par
+// lockup.js ; déjà à fond perdu, donc rendus tels quels.
+for (const base of ['profil-pronowin-sombre', 'profil-pronowin-orange']) {
+  const f = path.join(RACINE, `${base}.svg`);
+  if (fs.existsSync(f)) {
+    const source = fs.readFileSync(f, 'utf8');
+    sorties.push([`${base}-512.png`, source, 512], [`${base}-1024.png`, source, 1024]);
+  } else {
+    console.error(`  MANQUE ${base}.svg — lancez d'abord : node brand/lockup.js`);
+    process.exitCode = 1;
+  }
+}
+
 // Logotypes : générés par logotype.js, rendus ici à une largeur utile. Ils ne
 // sont pas carrés — on impose la largeur et on laisse la hauteur suivre.
 const LOGOTYPES = [

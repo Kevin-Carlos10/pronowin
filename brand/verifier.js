@@ -20,7 +20,18 @@ const path = require('path');
 const RACINE = path.resolve(__dirname);
 const sharp  = require(path.join(RACINE, '..', 'mobile_new', 'node_modules', 'sharp'));
 
-const SOURCE = path.join(RACINE, 'pronowin-telegram-512.png');
+// Sujet de la planche : passer un nom de fichier en argument pour en contrôler
+// un autre. Par défaut, l'assemblage carré — c'est lui qu'on pose en photo de
+// profil, et c'est là que le recadrage circulaire fait des dégâts.
+const SOURCE = path.join(RACINE,
+  process.argv[2] || 'profil-pronowin-sombre-512.png');
+
+if (!fs.existsSync(SOURCE)) {
+  console.error(`${path.basename(SOURCE)} introuvable — lancez d'abord : npm run rendre`);
+  process.exit(1);
+}
+
+const ETIQUETTE = path.basename(SOURCE, '.png');
 
 const disque = Buffer.from(
   '<svg width="512" height="512"><circle cx="256" cy="256" r="256" fill="#fff"/></svg>');
@@ -32,7 +43,7 @@ const disque = Buffer.from(
     .png()
     .toBuffer();
 
-  await sharp(rond).toFile(path.join(RACINE, 'apercu-cercle-512.png'));
+  await sharp(rond).toFile(path.join(RACINE, `apercu-cercle-${ETIQUETTE}.png`));
 
   // 2. Les petites tailles, ré-agrandies sans lissage pour montrer ce qui reste.
   const vignettes = [];
@@ -56,9 +67,9 @@ const disque = Buffer.from(
       { input: vignettes[2], top: 512, left: 512 },
     ])
     .png()
-    .toFile(path.join(RACINE, 'planche-controle.png'));
+    .toFile(path.join(RACINE, `planche-${ETIQUETTE}.png`));
 
-  console.log('  apercu-cercle-512.png   le logo tel que Telegram le recadre');
-  console.log('  planche-controle.png    512 px, puis 160 / 80 / 40 ré-agrandis');
+  console.log(`  apercu-cercle-${ETIQUETTE}.png`.padEnd(48) + 'recadrage circulaire de Telegram');
+  console.log(`  planche-${ETIQUETTE}.png`.padEnd(48) + '512 px, puis 160 / 80 / 40 ré-agrandis');
   console.log('  planche :', planche.width + 'x' + planche.height);
 })().catch((e) => { console.error(e.message); process.exit(1); });
