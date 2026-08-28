@@ -201,7 +201,19 @@ export class NotificationService {
       return { success: true, simulated: true };
     }
     try {
-      const r = await fa.messaging().sendToTopic(topic, {
+      // `send({ topic })` et non `sendToTopic()`.
+      //
+      // L'ancienne API n'accepte qu'un `MessagingPayload` : `notification` et
+      // `data`, rien d'autre. Les blocs `android` et `apns` ci-dessous la font
+      // échouer avec « Messaging payload contains an invalid "android"
+      // property » — et comme l'erreur est attrapée puis journalisée, l'appelant
+      // reçoit `{ success: false }` sans que rien ne remonte à l'écran.
+      //
+      // Relevé en production : 109 échecs, zéro succès. Aucune notification par
+      // sujet n'était jamais partie depuis la mise en service — donc ni les
+      // rappels avant match, ni les résultats, qui passent tous par ici.
+      const r = await fa.messaging().send({
+        topic,
         notification: { title: payload.title, body: payload.body },
         data:         payload.data ?? {},
         android: {
