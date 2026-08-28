@@ -46,6 +46,16 @@ void main() {
       expect(m, contains('Comptes'));
       // Et il propose toujours le chemin qui, lui, fonctionne.
       expect(m, contains('e-mail'));
+
+      // L'ordre porte le sens. Le message affirmait « Ton compte Google doit
+      // être reconnecté » : une cause unique, donnée comme un fait. Or `[16]`
+      // remonte aussi quand l'empreinte de signature n'est pas enregistrée
+      // côté Google — vu en passant en clé de release, où le compte n'avait
+      // rien et où l'utilisateur était envoyé réparer ce qui marchait.
+      //
+      // Le chemin qui fonctionne doit donc précéder l'hypothèse.
+      expect(m.indexOf('e-mail'), lessThan(m.indexOf('réglages')),
+          reason: 'la solution qui marche doit venir avant la piste');
     });
 
     test('un refus inconnu reste actionnable', () {

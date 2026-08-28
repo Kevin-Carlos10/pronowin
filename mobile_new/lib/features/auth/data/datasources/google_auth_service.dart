@@ -149,11 +149,22 @@ bool estRejetSysteme(String? description) =>
 String messageRejetSysteme(String? description) {
   final d = description ?? '';
 
-  // Le cas rencontré en pratique, et le seul dont la solution soit précise.
+  // Le cas rencontré en pratique. Le message annonçait « Ton compte Google
+  // doit être reconnecté » — une cause unique, présentée comme un fait.
+  //
+  // Or `[16]` remonte aussi quand l'empreinte de signature de l'application
+  // n'est pas enregistrée côté Google : les deux se ressemblent ici, et rien
+  // dans ce que le SDK renvoie ne permet de les séparer. Constaté au passage
+  // en clé de release — le compte n'avait rien, c'est l'empreinte qui
+  // manquait, et l'utilisateur était envoyé réparer ce qui fonctionnait.
+  //
+  // L'ordre dit maintenant ce qu'on sait : le refus est certain, l'e-mail
+  // fonctionne, la reconnexion du compte n'est qu'une piste.
   if (d.toLowerCase().contains('reauth')) {
-    return 'Ton compte Google doit être reconnecté sur cet appareil. '
-           'Ouvre les réglages Android → Comptes, reconnecte-toi, puis '
-           'réessaie. Tu peux aussi utiliser ton adresse e-mail.';
+    return 'La connexion Google a été refusée par cet appareil. '
+           'Le plus rapide : continue avec ton adresse e-mail. '
+           'Sinon, essaie de reconnecter ton compte dans les réglages '
+           'Android → Comptes.';
   }
 
   return 'Les services Google de cet appareil ont refusé la connexion. '
