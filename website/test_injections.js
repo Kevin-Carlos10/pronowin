@@ -66,14 +66,14 @@ const INJECTIONS = [
   {
     nom: 'le tarif du serveur cesse d\'être lu',
     fichier: 'server.js',
-    de: '      if (p && typeof p.price_fcfa === \'number\' && p.price_fcfa > 0) par[p.id] = p.price_fcfa;',
-    vers: '      if (false) par[p.id] = p.price_fcfa;',
+    de: '      if (p && typeof p.price_usd === \'number\' && p.price_usd > 0) par[p.id] = p.price_usd;',
+    vers: '      if (false) par[p.id] = p.price_usd;',
   },
   {
     nom: 'un tarif de repli est inventé quand l\'API se tait',
     fichier: 'server.js',
-    de: "    price: f.id === 'free' ? '0' : (tarifs[f.id] ? fcfa(tarifs[f.id]) : null),",
-    vers: "    price: f.id === 'free' ? '0' : (tarifs[f.id] ? fcfa(tarifs[f.id]) : '8 000'),",
+    de: "    price: f.id === 'free' ? '0' : (tarifs[f.id] ? montant(tarifs[f.id]) : null),",
+    vers: "    price: f.id === 'free' ? '0' : (tarifs[f.id] ? montant(tarifs[f.id]) : '9'),",
   },
   {
     nom: 'le grand chiffre redevient un index de position',

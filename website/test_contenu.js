@@ -206,9 +206,16 @@ test('aucune affirmation fabriquée ne subsiste', async () => {
 test('les tarifs affichés sont ceux que le serveur publie', async () => {
   const { accueil } = await rendre(API_COMPLETE);
 
-  // L'espace des milliers est insécable : on compare sur la forme rendue.
-  assert.ok(/6\s000/.test(accueil.html),  'le tarif mensuel du serveur (6 000) manque');
-  assert.ok(/54\s000/.test(accueil.html), "le tarif annuel du serveur (54 000) manque");
+  // Les montants sont affichés en dollars : le serveur publie `price_usd` et
+  // `price_fcfa`, et c'est le premier qui est lu. Aucune conversion n'est faite
+  // par le site — elle aurait demandé un taux de change écrit en dur.
+  assert.ok(/>10 <span>USD/.test(accueil.html),  'le tarif mensuel du serveur (10 USD) manque');
+  assert.ok(/>90 <span>USD/.test(accueil.html),  "le tarif annuel du serveur (90 USD) manque");
+
+  // Le contre-test : les montants en francs ne doivent plus être affichés, ni
+  // par une lecture restée sur `price_fcfa`, ni par une conversion maison.
+  assert.ok(!/6\s000/.test(accueil.html),  'un montant en francs est affiché');
+  assert.ok(!/54\s000/.test(accueil.html), 'un montant en francs est affiché');
 });
 
 test("sans tarif du serveur, aucun montant n'est inventé", async () => {
@@ -216,7 +223,7 @@ test("sans tarif du serveur, aucun montant n'est inventé", async () => {
 
   assert.ok(accueil.html.includes('Voir le tarif dans l\'application'),
     'le repli sans montant devrait être affiché');
-  assert.ok(!/6\s000\s*<span>FCFA/.test(accueil.html),
+  assert.ok(!/<span>USD<\/span>/.test(accueil.html.replace(/>0 <span>USD<\/span>/, '')),
     'un montant est affiché alors que le serveur n\'a rien donné');
 });
 

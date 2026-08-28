@@ -66,6 +66,11 @@ async function bilanPremium() {
  * page de vente qui recopie un tarif finit par le recopier faux : celui-ci est
  * désormais lu sur /subscriptions/plans, qui est public.
  *
+ * Les montants sont affichés en dollars. Le serveur publie les deux —
+ * `price_usd` et `price_fcfa` — et c'est le premier qui est lu. Aucune
+ * conversion n'est faite ici : elle aurait demandé un taux de change écrit
+ * en dur, qui aurait vieilli sans que personne ne s'en aperçoive.
+ *
  * En cas d'échec, aucun montant n'est affiché — la formule reste présentée, le
  * prix renvoie à l'application. Un tarif faux se découvre au moment de payer.
  */
@@ -74,14 +79,14 @@ async function tarifsReels() {
   const par = {};
   if (Array.isArray(plans)) {
     for (const p of plans) {
-      if (p && typeof p.price_fcfa === 'number' && p.price_fcfa > 0) par[p.id] = p.price_fcfa;
+      if (p && typeof p.price_usd === 'number' && p.price_usd > 0) par[p.id] = p.price_usd;
     }
   }
   return par;
 }
 
-/** 6000 → « 6 000 », avec une espace insécable fine. */
-function fcfa(n) {
+/** 54000 → « 54 000 », avec une espace insécable fine. */
+function montant(n) {
   return String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 }
 
@@ -369,7 +374,7 @@ app.get('/', async (req, res) => {
   // formule sans montant plutôt qu'un montant erroné.
   const pricingPlans = formules.map((f) => ({
     ...f,
-    price: f.id === 'free' ? '0' : (tarifs[f.id] ? fcfa(tarifs[f.id]) : null),
+    price: f.id === 'free' ? '0' : (tarifs[f.id] ? montant(tarifs[f.id]) : null),
   }));
 
   res.render('index', {
