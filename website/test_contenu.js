@@ -175,6 +175,28 @@ test('aucun chiffre opérationnel n\'est publié', async () => {
   }
 });
 
+test('la vitrine ne nomme aucun moyen de paiement', async () => {
+  // Nommer un opérateur sur la page qui vend restreint le produit dans
+  // l'esprit du lecteur : Orange Money n'existe qu'en Afrique de l'Ouest et
+  // du Centre, et la page s'adresse à tout le monde — avec des tarifs en
+  // dollars, la combinaison devenait franchement bancale.
+  //
+  // Le moyen de paiement se découvre dans l'application, au moment où la
+  // question se pose.
+  //
+  // Ce contrôle ne vise que l'accueil. Les mentions légales gardent la
+  // mention, et doivent la garder : un avis légal dit comment l'argent
+  // circule, et c'est ce qui rend crédible la phrase « PronoWin n'est pas un
+  // établissement de paiement ».
+  const { accueil } = await rendre(API_COMPLETE);
+
+  for (const operateur of ['Orange Money', 'Mobile Money', 'Wave', 'Airtel']) {
+    assert.ok(!accueil.html.includes(operateur),
+      `« ${operateur} » nommé sur la vitrine — le moyen de paiement se `
+      + `découvre dans l'application`);
+  }
+});
+
 test('le nom de la marque n\'est pas coupé en deux', async () => {
   // `.brand` est un conteneur flex avec `gap: 8px`, prévu entre le logo et le
   // nom. Tant que « Prono » était un nœud de texte nu et « Win » un <span>,

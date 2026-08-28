@@ -340,15 +340,16 @@ const faqs = [
   },
   {
     q: 'Comment souscrire à un abonnement Premium ?',
-    a: "Depuis l'application, rendez-vous dans Abonnements, choisissez la formule mensuelle ou annuelle, payez par Orange Money et joignez la preuve du transfert. L'accès s'ouvre après vérification ; le délai annoncé s'affiche dans l'application au moment de l'envoi.",
+    a: "Depuis l'application, rendez-vous dans Abonnements et choisissez la formule mensuelle ou annuelle. Les moyens de paiement disponibles vous sont proposés à cette étape, et votre accès s'ouvre une fois le règlement vérifié.",
   },
   {
-    q: 'Quels moyens de paiement sont acceptés ?',
-    a: "Orange Money. Ce paiement règle l'abonnement à PronoWin : l'application ne tient pas de compte de paris et n'encaisse aucune mise.",
-  },
-  {
+    // La question « quels moyens de paiement sont acceptés ? » est retirée :
+    // nommer un opérateur sur la vitrine restreint le produit avant même le
+    // téléchargement. Ce qu'elle portait d'essentiel — PronoWin n'encaisse
+    // aucune mise — rejoint la question ci-dessous, qui en est le vrai
+    // domicile : c'est une clarification sur le métier, pas sur la caisse.
     q: 'PronoWin est-il un site de paris ?',
-    a: "Non. PronoWin publie des analyses et des pronostics de football. Les paris se placent chez un opérateur agréé, sous votre seule responsabilité.",
+    a: "Non. PronoWin publie des analyses et des pronostics de football, et n'encaisse aucune mise : l'application ne tient aucun compte de paris. Les paris se placent chez un opérateur agréé, sous votre seule responsabilité.",
   },
   {
     q: 'Le taux de réussite est-il garanti ?',

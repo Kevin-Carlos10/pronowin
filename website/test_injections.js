@@ -22,6 +22,12 @@ const INJECTIONS = [
     vers: "    title: 'Le score en direct.\\nToutes les 30 secondes.',",
   },
   {
+    nom: 'un operateur de paiement revient sur la vitrine',
+    fichier: 'server.js',
+    de: "Les moyens de paiement disponibles vous sont proposés à cette étape",
+    vers: "Payez par Orange Money et joignez la preuve du transfert",
+  },
+  {
     // Ancre posee sur legal.ejs : index.ejs porte la marque deux fois (barre et
     // pied de page), et le banc exige une ancre unique. Le controle verifie les
     // deux pages, l'injection sur l'une suffit a le mettre en defaut.
@@ -48,8 +54,8 @@ const INJECTIONS = [
     // site ou le delai est evoque.
     nom: 'le delai de validation est republie',
     fichier: 'server.js',
-    de: "le délai annoncé s'affiche dans l'application au moment de l'envoi.",
-    vers: "annoncée sous 30 minutes ouvrables.",
+    de: "et votre accès s'ouvre une fois le règlement vérifié.",
+    vers: "et votre accès s'ouvre sous 30 minutes ouvrables.",
   },
   {
     nom: 'un faux témoignage revient',

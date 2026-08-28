@@ -180,7 +180,11 @@
     <div class="container">
       <span class="eyebrow">Tarifs</span>
       <h2 class="headline">Choisissez votre forfait.</h2>
-      <p class="headline-sub">Commencez gratuitement, passez Premium quand vous êtes prêt. Paiement par Orange Money.</p>
+      <%# « Paiement par Orange Money » retiré : nommer un opérateur sur la
+         page qui vend restreint le produit dans l'esprit du lecteur, et
+         contredit des tarifs affichés en dollars. Les moyens disponibles
+         sont proposés dans l'application, au moment où la question se pose. %>
+      <p class="headline-sub">Commencez gratuitement, passez Premium quand vous êtes prêt. Sans reconduction automatique.</p>
       <div class="pricing-grid">
         <% pricingPlans.forEach(function(plan){ %>
           <div class="pricing-card <%= plan.highlight ? 'pricing-card--highlight' : '' %>">
