@@ -119,6 +119,26 @@ void main() {
         reason: 'jauge dessinée à la main :\n${fautifs.join('\n')}');
     });
 
+    test('la confiance ne s\'exprime jamais en fraction sur cinq', () {
+      // Troisième forme trouvée pour la même grandeur, après la jauge et le
+      // mot : « 4/5 », dans la boîte de validation de mise. Elle côtoyait
+      // « Confiance moyenne » à quatre centimètres — deux écritures, aucune
+      // n'étant celle du reste de l'application.
+      //
+      // Les contrôles précédents cherchaient une jauge ou un appel au widget
+      // partagé. Une fraction n'est ni l'un ni l'autre.
+      final fautifs = <String>[];
+      for (final f in Directory('lib').listSync(recursive: true)
+          .whereType<File>().where((f) => f.path.endsWith('.dart'))) {
+        final src = f.readAsStringSync();
+        if (RegExp(r'onfidence[A-Za-z]*\}?\s*/\s*5').hasMatch(src)) {
+          fautifs.add(f.path.replaceAll(RegExp(r'\\'), '/'));
+        }
+      }
+      expect(fautifs, isEmpty,
+        reason: 'confiance écrite en fraction :\n${fautifs.join('\n')}');
+    });
+
     test('la carte de partage affiche un pourcentage', () {
       // Nommée explicitement : c'est la seule vue qui quitte l'application.
       final src = File('lib/features/pronostics/presentation/widgets/'

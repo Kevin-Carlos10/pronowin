@@ -87,6 +87,21 @@ rayon. Aujourd'hui : 81,8 %.
 normal d'un assemblage — celui de PronoVision se comporte pareil : la photo de
 profil est vue en grand sur la fiche du canal, et en silhouette dans la liste.
 
+## L'icône de notification
+
+`ic_notification.svg` et les cinq PNG de `mobile_new/.../res/drawable-*` sont
+générés par `notification.js`, depuis les mêmes tracés que l'emblème.
+
+Elle est **blanche sur transparent, le « P » percé**. Depuis Android 5, la
+petite icône d'une notification est rendue en silhouette : le système ne garde
+que le canal alpha et repeint la forme. Une icône de lanceur, dont le fond
+orange est opaque, y devient un carré blanc uni — et le « P », s'il était
+peint, disparaîtrait dans la masse.
+
+Les notifications portaient jusqu'ici **le logo de Flutter** : `ic_launcher.png`
+était resté le fichier par défaut du jour de création du projet, et deux
+réglages pointaient dessus.
+
 ## Les deux palettes
 
 Elles divergent, et divergent toujours dans le code :

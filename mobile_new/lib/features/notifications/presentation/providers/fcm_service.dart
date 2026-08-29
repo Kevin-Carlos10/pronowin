@@ -50,7 +50,10 @@ class FCMService {
 
     // 2. Configurer les notifications locales (foreground)
     const initSettings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      // `@mipmap/ic_launcher` etait le logo Flutter par defaut, jamais
+      // remplace : l'application utilise `launcher_icon`. Et une icone de
+      // notification doit etre monochrome — Android n'en garde que l'alpha.
+      android: AndroidInitializationSettings('@drawable/ic_notification'),
       iOS:     DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,

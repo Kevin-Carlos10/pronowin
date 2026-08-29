@@ -76,9 +76,21 @@
             android:value="2" />
 
         <!-- FCM default notification channel -->
+        <!-- Pointait sur @mipmap/ic_launcher, qui est reste le logo Flutter
+             par defaut du jour de creation du projet : l'application affiche
+             @mipmap/launcher_icon, pas celui-la. Les notifications portaient
+             donc le logo de Flutter.
+
+             Et pointer sur launcher_icon n'aurait pas suffi : depuis Android 5
+             la petite icone est rendue en silhouette, canal alpha seul. Un
+             fond orange opaque y devient un carre blanc. D'ou une icone
+             monochrome dediee, generee par brand/notification.js. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@mipmap/ic_launcher"/>
+            android:resource="@drawable/ic_notification"/>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/couleur_notification"/>
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="pronowin_high"/>

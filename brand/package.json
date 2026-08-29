@@ -7,8 +7,9 @@
     "logotype": "node woff2ttf.js node_modules/@fontsource/inter/files/inter-latin-700-normal.woff inter-700.ttf && node logotype.js",
     "rendre": "node rendre.js",
     "verifier": "node verifier.js",
-    "tout": "npm run logotype && npm run profil && npm run rendre && npm run verifier",
-    "profil": "node lockup.js"
+    "tout": "npm run logotype && npm run profil && npm run notification && npm run rendre && npm run verifier",
+    "profil": "node lockup.js",
+    "notification": "node notification.js"
   },
   "dependencies": {
     "@fontsource/inter": "^5.0.0",

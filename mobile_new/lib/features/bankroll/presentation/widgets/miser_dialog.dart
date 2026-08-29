@@ -10,6 +10,7 @@ import '../providers/bankroll_provider.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../../../core/config/bookmaker_affiliation.dart';
 import '../../../../shared/utils/devise.dart';
+import '../../../pronostics/domain/entities/match_entity.dart';
 import '../../../../shared/utils/montant.dart';
 
 Future<bool> showMiserDialog(
@@ -71,9 +72,13 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
 
   // confidenceScore = 1-5 (étoiles choisies par l'admin à la publication)
   String get _ruleLabel {
-    if (widget.confidenceScore >= 5) return '5% du solde  ·  Confiance maximale';
-    if (widget.confidenceScore >= 3) return '3% du solde  ·  Confiance moyenne';
-    return '1,5% du solde  ·  Confiance faible';
+    // « Confiance maximale / moyenne / faible » disait en mots ce que la
+    // tuile voisine disait en fraction. Deux formes pour une grandeur, et
+    // aucune des deux n'etait celle du reste de l'application.
+    final p = MatchEntity.percentForConfidence(widget.confidenceScore);
+    if (widget.confidenceScore >= 5) return '5% du solde  ·  Confiance $p %';
+    if (widget.confidenceScore >= 3) return '3% du solde  ·  Confiance $p %';
+    return '1,5% du solde  ·  Confiance $p %';
   }
 
   Color get _confColor {
@@ -82,11 +87,16 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
     return AppColors.error;
   }
 
-  String get _confLabel {
-    if (widget.confidenceScore >= 5) return '${widget.confidenceScore}/5';
-    if (widget.confidenceScore >= 3) return '${widget.confidenceScore}/5';
-    return '${widget.confidenceScore}/5';
-  }
+  /// Le pourcentage, comme partout ailleurs dans l'application.
+  ///
+  /// Cette boite affichait « 4/5 ». Trois branches rendaient d'ailleurs la
+  /// meme chaine — un reste de remaniement que personne n'avait retire, et
+  /// qui donnait l'illusion d'un choix.
+  ///
+  /// La conversion vient de `MatchEntity.percentForConfidence` : la recopier
+  /// ici aurait cree un second bareme, muet le jour ou le premier change.
+  String get _confLabel =>
+      '${MatchEntity.percentForConfidence(widget.confidenceScore)} %';
 
   /// Passe par le chemin unique d'ouverture.
   ///
