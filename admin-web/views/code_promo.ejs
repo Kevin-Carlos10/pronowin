@@ -5,8 +5,16 @@
 .cp-champ    { display: block; }
 .cp-champ label { display: block; font-size: .7rem; font-weight: 700; color: var(--text-m);
                   text-transform: uppercase; letter-spacing: .05em; margin-bottom: .35rem; }
-.cp-champ input { width: 100%; font-family: monospace; font-size: .95rem; letter-spacing: .06em;
-                  text-transform: uppercase; }
+/* Pas de `text-transform: uppercase`.
+
+   Le champ affichait les valeurs en capitales tout en enregistrant ce qui
+   avait ete tape : « 1xbet » saisi apparaissait « 1XBET », et l'application
+   affichait ensuite « 1xbet ». Le formulaire mentait sur son propre contenu,
+   et rien ne permettait de s'en apercevoir depuis cette page.
+
+   La monospace et l'interlettrage restent : ils aident a relire un code
+   caractere par caractere, sans rien changer a ce qu'on lit. */
+.cp-champ input { width: 100%; font-family: monospace; font-size: .95rem; letter-spacing: .06em; }
 .cp-aide     { font-size: .72rem; color: var(--text-dim); margin-top: .3rem; line-height: 1.5; }
 .cp-origine  { font-size: .68rem; font-weight: 700; text-transform: uppercase;
                letter-spacing: .05em; padding: .1rem .4rem; border-radius: 5px; }
@@ -136,7 +144,7 @@
       <input type="url" id="AFFILIATE_URL" name="AFFILIATE_URL" maxlength="500"
              value="<%= _val.AFFILIATE_URL ?? '' %>"
              placeholder="https://…?tag=…&amp;site=…&amp;ad=…" autocomplete="off"
-             style="text-transform:none;letter-spacing:0">
+             style="letter-spacing:0">
       <div class="cp-aide">
         Le lien porte votre identifiant de compte, l'étiquette de campagne et le
         créatif. Un caractère de travers ne casse rien à l'écran : les clics
