@@ -173,11 +173,15 @@ const productBlocks = [
     // Le nombre d'onglets n'est pas annoncé : certains ne s'affichent que si la
     // donnée existe pour ce match, et un compte fixe finirait par mentir.
     title: 'Tout le match.\nAvant le match.',
-    text: "Compositions probables, blessures, face-à-face, classements, forme, statistiques, et les cotes de plusieurs bookmakers comparées. Ce que vous ouvriez en dix onglets tient dans une seule fiche.",
+    // « les cotes de plusieurs bookmakers comparées » : faux, et de mon fait.
+    // Le serveur n'interroge qu'un seul opérateur — XBET_BOOKMAKER_ID = 11
+    // dans api_football.service. Il n'existe aucune comparaison, ni en base ni
+    // à l'écran.
+    text: "Compositions probables, blessures, face-à-face, classements, forme, statistiques et cotes. Ce que vous ouvriez en dix onglets tient dans une seule fiche.",
     stats: [
       { value: 'Compos',  label: 'et blessures avant le coup d\'envoi' },
       { value: 'H2H',     label: 'historique des confrontations' },
-      { value: 'Cotes',   label: 'comparées entre bookmakers' },
+      { value: 'Cotes',   label: 'affichées sur la fiche du match' },
     ],
     apercu: [
       { badge: 'green', icone: 'users',  titre: 'Compositions probables', sous: 'Titulaires et remplaçants' },

@@ -119,6 +119,14 @@ const INTERDITS = [
   ['4 filleuls',    'compteur inventé dans une maquette'],
   ['Retrait de gains', 'PronoWin ne tient aucun compte de paris'],
 
+  // Affirmation que j'avais introduite en réécrivant la page. Le serveur
+  // n'interroge qu'un seul opérateur — XBET_BOOKMAKER_ID = 11 dans
+  // api_football.service — et c'est délibéré : le modèle est l'affiliation
+  // à un partenaire, pas la comparaison. Le produit est cohérent ; c'est la
+  // page qui promettait autre chose.
+  ['bookmakers comparé', "un seul opérateur est interrogé, et c'est voulu"],
+  ['comparées entre bookmakers', 'idem'],
+
   // Le service s'appelle `ai_prediction.service.ts`, mais son propre en-tête
   // dit : « Aucun modèle génératif n'intervient ici ». C'est une combinaison
   // pondérée de la cote du bookmaker et de l'écart de forme. L'application ne
