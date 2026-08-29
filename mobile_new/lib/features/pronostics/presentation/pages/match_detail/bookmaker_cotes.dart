@@ -42,6 +42,11 @@ class BookmakerCotes extends StatelessWidget {
   Widget build(BuildContext context) {
     if (!_aDesCotes) return const SizedBox.shrink();
 
+    // Sans partenariat configure, ce bandeau annonce une enseigne dont le nom
+    // est vide et mene a une ouverture qui ne se produit pas. Il disparait,
+    // comme la tuile du taux de reussite quand le serveur n'en publie aucun.
+    if (!BookmakerAffiliation.disponible) return const SizedBox.shrink();
+
     final cotes = [
       ('1', coteDomicile),
       ('X', coteNul),

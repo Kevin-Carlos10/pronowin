@@ -29,7 +29,7 @@ void main() {
     // rien a etre conditionnee.
     'renvoi bookmaker depuis la mise': (
       fichier: 'lib/features/bankroll/presentation/widgets/miser_dialog.dart',
-      motif:   'onTap: _launch1xBet',
+      motif:   'onTap: _ouvrirPartenaire',
     ),
   };
 

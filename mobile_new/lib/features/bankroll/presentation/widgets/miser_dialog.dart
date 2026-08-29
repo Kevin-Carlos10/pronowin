@@ -104,7 +104,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
   /// commentaire de `BookmakerAffiliation` redoutait. Elle ne connaissait pas
   /// le garde « aucun partenariat configure », et `canLaunchUrl` sur une URL
   /// vide echoue en silence : le bouton ne faisait rien, sans rien dire.
-  Future<void> _launch1xBet() => BookmakerAffiliation.ouvrir();
+  Future<void> _ouvrirPartenaire() => BookmakerAffiliation.ouvrir();
 
   Future<void> _submit(double stake, String currency) async {
     setState(() { _loading = true; _error = null; });
@@ -211,9 +211,14 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
           // exigée par pays, diffusion restreinte, et le plus souvent un rejet
           // au review. Sur les builds APK distribués en direct, le renvoi reste
           // en place — c'est un modèle d'affiliation légitime hors des stores.
-          if (!ref.watch(isStoreBuildProvider)) ...[
+          // `disponible` etait declare et jamais appele : le bouton
+          // s'affichait sans partenariat configure, se laissait presser, et
+          // `ouvrir()` sortait en silence. Un bouton mort, place juste apres
+          // la confirmation d'une mise.
+          if (!ref.watch(isStoreBuildProvider) &&
+              BookmakerAffiliation.disponible) ...[
             GestureDetector(
-              onTap: _launch1xBet,
+              onTap: _ouvrirPartenaire,
               child: Container(
                 width: double.infinity, height: 52,
                 decoration: BoxDecoration(
@@ -223,15 +228,19 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                   boxShadow: [BoxShadow(
                     color: const Color(0xFF1A73E8).withValues(alpha: 0.35),
                     blurRadius: 12, offset: const Offset(0, 5))]),
-                child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  Text('Aller miser sur', style: TextStyle(
+                // Le nom venait d'une constante ecrite ici — « 1xBet » —
+                // alors que le serveur le publie. Deux sources pour une
+                // enseigne : le jour d'un changement de partenaire, ce bouton
+                // aurait continue d'en nommer un autre.
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  const Text('Aller miser sur', style: TextStyle(
                     color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-                  SizedBox(width: 6),
-                  Text('1xBet', style: TextStyle(
+                  const SizedBox(width: 6),
+                  Text(BookmakerAffiliation.nom, style: const TextStyle(
                     color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900,
                     letterSpacing: 0.5)),
-                  SizedBox(width: 6),
-                  Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
                 ]),
               ),
             ).animate(delay: 80.ms).fadeIn(duration: 300.ms),

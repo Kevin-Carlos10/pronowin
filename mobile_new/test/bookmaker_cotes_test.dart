@@ -80,6 +80,30 @@ void main() {
   });
 
   group('BookmakerCotes', () {
+    // Le bandeau ne s'affiche plus sans partenariat configuré : il annoncerait
+    // une enseigne au nom vide et mènerait à une ouverture qui ne se produit
+    // pas. Ces tests dépendaient jusqu'ici d'un affichage inconditionnel — ils
+    // configurent donc un partenariat, comme en production.
+    setUp(() => BookmakerAffiliation.configurer({
+          'affiliateUrl':  'https://exemple.test/L?tag=t&site=1&ad=1',
+          'affiliateName': 'Partenaire',
+        }));
+    tearDown(() => BookmakerAffiliation.configurer(null));
+
+    testWidgets('sans partenariat configuré, le bandeau disparaît',
+        (tester) async {
+      // Le défaut qui a motivé ce garde : `disponible` était déclaré et aucun
+      // écran ne l'appelait. Le bouton s'affichait, se laissait presser, et ne
+      // faisait rien.
+      BookmakerAffiliation.configurer(null);
+
+      await tester.pumpWidget(_hote(const BookmakerCotes(
+        coteDomicile: 1.85, coteNul: 3.40, coteExterieur: 4.20)));
+
+      expect(find.text('1.85'), findsNothing);
+      expect(find.textContaining('Publicit'), findsNothing);
+    });
+
     testWidgets('sans aucune cote, rien ne s\'affiche', (tester) async {
       await tester.pumpWidget(_hote(const BookmakerCotes(
         coteDomicile: 0, coteNul: 0, coteExterieur: 0)));
