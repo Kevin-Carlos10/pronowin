@@ -97,5 +97,36 @@ void main() {
       }
       expect(fautifs, isEmpty);
     });
+
+    test('aucun écran ne redessine sa propre jauge à cinq segments', () {
+      // Le trou que ce contrôle bouche. Les deux tests ci-dessus ne regardent
+      // que `confidence_indicator.dart` et ceux qui l'appellent — or la carte
+      // de partage ne l'appelait pas : elle dessinait ses cinq points
+      // elle-même, avec le mot « Bon » dessous.
+      //
+      // Elle est passée à travers tout le passage au pourcentage, et c'est
+      // précisément l'image qui sort de l'application quand quelqu'un partage
+      // un pronostic — le seul écran que voient des gens qui n'ont pas l'app.
+      final fautifs = <String>[];
+      for (final f in Directory('lib').listSync(recursive: true)
+          .whereType<File>().where((f) => f.path.endsWith('.dart'))) {
+        final src = f.readAsStringSync();
+        if (src.contains('confidenceScore') && src.contains('List.generate(5')) {
+          fautifs.add(f.path.replaceAll(RegExp(r'\\'), '/'));
+        }
+      }
+      expect(fautifs, isEmpty,
+        reason: 'jauge dessinée à la main :\n${fautifs.join('\n')}');
+    });
+
+    test('la carte de partage affiche un pourcentage', () {
+      // Nommée explicitement : c'est la seule vue qui quitte l'application.
+      final src = File('lib/features/pronostics/presentation/widgets/'
+                       'prono_share_card.dart').readAsStringSync();
+
+      expect(src, contains('confidencePercent'));
+      expect(src.contains('labelForConfidence'), isFalse,
+        reason: 'le mot est revenu à la place du chiffre');
+    });
   });
 }

@@ -18,9 +18,9 @@ class PronoShareCard extends StatelessWidget {
     return AppColors.error;
   }
 
-  // Libellé et couleur viennent de la source unique — cette carte affichait
-  // « Fort » pour un score de 4 là où le reste de l'app disait « Bon ».
-  String get _confLabel => MatchEntity.labelForConfidence(match.confidenceScore);
+  // Le libellé est parti avec les cinq points : la carte dit désormais un
+  // pourcentage, comme le reste de l'application. Seule la couleur reste, et
+  // elle ne nomme rien — elle nuance un chiffre déjà lisible.
 
   @override
   Widget build(BuildContext context) {
@@ -349,27 +349,21 @@ class PronoShareCard extends StatelessWidget {
                           letterSpacing: 1.5,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(5, (i) => Container(
-                          width: 10, height: 10,
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          decoration: BoxDecoration(
-                            color: i < match.confidenceScore
-                                ? _confColor
-                                : Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        )),
-                      ),
+                      // La carte affichait cinq points et un mot — « Bon ». Le
+                      // reste de l'application dit la confiance en pourcentage
+                      // depuis qu'un adjectif a été jugé trop vague pour un
+                      // pari ; cette carte était restée en arrière, et c'est
+                      // elle qui sort de l'application quand on partage.
+                      //
+                      // Même forme que la cote, à gauche : deux tuiles, deux
+                      // chiffres. Le mot ne disait pas ce que « Bon » vaut.
                       const SizedBox(height: 4),
                       Text(
-                        _confLabel,
+                        '${match.confidencePercent} %',
                         style: TextStyle(
                           color: _confColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ]),
