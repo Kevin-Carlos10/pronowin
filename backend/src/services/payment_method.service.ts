@@ -20,10 +20,19 @@ export interface MethodePaiement {
   sortOrder: number;
 }
 
-/** Repli : la table est vide (première installation, base réinitialisée…). */
-const REPLI: MethodePaiement[] = [
-  { key: 'orange_money', label: 'Orange Money', phone: process.env.MOBCASH_ORANGE ?? '', isActive: true, sortOrder: 0 },
-].filter(m => m.phone !== '');
+// Il y avait ici un repli sur `process.env.MOBCASH_ORANGE`, pour le cas d'une
+// table vide. Il a été retiré.
+//
+// `findMany({ where: { isActive: true } })` rend zéro ligne aussi bien quand la
+// table est vide que lorsque l'administrateur a tout masqué : le repli ne
+// pouvait pas les distinguer. Masquer le seul opérateur faisait donc réapparaître
+// le numéro du `.env` — un autre que celui configuré. L'administration annonçait
+// « Opérateur masqué dans l'application », et l'application affichait un numéro.
+//
+// C'est le seul écran où une erreur envoie l'argent de quelqu'un ailleurs. Une
+// seconde source, silencieuse, n'y a pas sa place : mieux vaut n'afficher aucun
+// moyen de paiement — ce que l'application sait faire, et dit — qu'un numéro que
+// personne n'a choisi.
 
 /** Clé technique : minuscules, chiffres et tirets bas uniquement. */
 export function normaliserCle(brut: string): string {
@@ -41,9 +50,12 @@ export async function listerPubliques(): Promise<MethodePaiement[]> {
       orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
       select:  { key: true, label: true, phone: true, isActive: true, sortOrder: true },
     });
-    return lignes.length ? lignes : REPLI;
+    // Aucune ligne active ⇒ aucune méthode. C'est une réponse, pas un échec.
+    return lignes;
   } catch {
-    return REPLI;
+    // Base injoignable : on ne devine pas un numéro. L'écran de paiement
+    // annoncera qu'aucun moyen n'est disponible, ce qui est vrai à cet instant.
+    return [];
   }
 }
 
