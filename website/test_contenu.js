@@ -119,14 +119,6 @@ const INTERDITS = [
   ['4 filleuls',    'compteur inventé dans une maquette'],
   ['Retrait de gains', 'PronoWin ne tient aucun compte de paris'],
 
-  // Affirmation que j'avais introduite en réécrivant la page. Le serveur
-  // n'interroge qu'un seul opérateur — XBET_BOOKMAKER_ID = 11 dans
-  // api_football.service — et c'est délibéré : le modèle est l'affiliation
-  // à un partenaire, pas la comparaison. Le produit est cohérent ; c'est la
-  // page qui promettait autre chose.
-  ['bookmakers comparé', "un seul opérateur est interrogé, et c'est voulu"],
-  ['comparées entre bookmakers', 'idem'],
-
   // Le service s'appelle `ai_prediction.service.ts`, mais son propre en-tête
   // dit : « Aucun modèle génératif n'intervient ici ». C'est une combinaison
   // pondérée de la cote du bookmaker et de l'écart de forme. L'application ne
@@ -156,6 +148,25 @@ const INTERDITS = [
  * La règle est donc : le site dit ce que le produit fait, jamais à quelle
  * cadence ni dans quelle proportion. Ces réglages restent réglables.
  */
+/**
+ * Le site ne promet pas de comparaison de cotes.
+ *
+ * Le serveur n'interroge qu'un seul opérateur — `XBET_BOOKMAKER_ID = 11` dans
+ * `api_football.service` — et c'est délibéré : le modèle est l'affiliation à un
+ * partenaire, pas la comparaison. Le produit est cohérent avec lui-même ; c'est
+ * la page qui promettait autre chose.
+ *
+ * Ce contrôle a d'abord été écrit comme deux chaînes interdites — « bookmakers
+ * comparé » et « comparées entre bookmakers ». La promesse a survécu dans une
+ * troisième formulation, « cotes comparées », aux deux endroits les plus
+ * exposés : la méta-description que Google affiche et le sous-titre du hero.
+ *
+ * Une liste de phrases n'attrape que ce qu'on a déjà vu. Le motif vise donc la
+ * notion : « comparé » à portée de « cote » ou de « bookmaker », dans un sens
+ * comme dans l'autre.
+ */
+const COMPARAISON = /(cotes?|bookmakers?)[^.<]{0,30}compar|compar[^.<]{0,30}(cotes?|bookmakers?)/i;
+
 const CHIFFRES_OPERATIONNELS = [
   [/\b30\s*(?:s\b|secondes)/,        'cadence de synchronisation — vit dans la boucle de index.ts'],
   [/1[.,]5\s*(?:[–—-]|à)?\s*\d*\s*%/, 'fourchette de mise — vit dans suggestStake()'],
@@ -170,6 +181,21 @@ const CHIFFRES_OPERATIONNELS = [
 
 const controles = [];
 const test = (nom, fn) => controles.push([nom, fn]);
+
+test('aucune comparaison de cotes n\'est promise', async () => {
+  const { accueil } = await rendre(API_COMPLETE);
+  const texte = accueil.html.replace(/<[^>]*>/g, ' ');
+
+  // La méta-description n'est pas du texte visible : elle vit dans un attribut,
+  // et le retrait des balises l'emporte avec. On la contrôle à part — c'est
+  // elle que Google affiche, et c'est là que la promesse avait survécu.
+  const meta = (accueil.html.match(/<meta name="description" content="([^"]*)"/) || [])[1] ?? '';
+
+  assert.ok(!COMPARAISON.test(texte),
+    'comparaison de cotes promise sur la page — un seul opérateur est interrogé');
+  assert.ok(!COMPARAISON.test(meta),
+    'comparaison de cotes promise dans la méta-description');
+});
 
 test('aucun chiffre opérationnel n\'est publié', async () => {
   const { accueil } = await rendre(API_COMPLETE);
