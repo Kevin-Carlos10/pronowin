@@ -37,7 +37,12 @@ class _TutorielsBanner extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Apprends à gagner',
+          // « Apprends à gagner » promettait un résultat. Les tutoriels
+          // enseignent une méthode — value bet, bankroll, lecture des cotes —
+          // pas une issue. C'était la seule promesse de gain de l'application :
+          // tout le reste est rétrospectif, « 12 gagnés sur 18 » étant un fait
+          // et non une annonce.
+          Text('Apprends la méthode',
             style: TextStyle(
               color: context.cl.textP,
               fontSize: 13, fontWeight: FontWeight.w700)),

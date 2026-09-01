@@ -31,6 +31,14 @@ const INJECTIONS = [
     vers: '<% if (false) { %>',
   },
   {
+    // La signature promettait dans le <title>, c'est-a-dire a l'endroit que
+    // Google affiche et que personne ne relit.
+    nom: 'la signature promet a nouveau des gains',
+    fichier: 'server.js',
+    de: "tagline: 'Le pronostic qui montre ses chiffres',",
+    vers: "tagline: 'Des pronostics gagnants, des gains grandissants',",
+  },
+  {
     nom: 'un operateur de paiement revient sur la vitrine',
     fichier: 'server.js',
     de: "Les moyens de paiement disponibles vous sont proposés à cette étape",

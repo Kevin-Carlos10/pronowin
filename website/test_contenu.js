@@ -165,7 +165,30 @@ const INTERDITS = [
  * notion : « comparé » à portée de « cote » ou de « bookmaker », dans un sens
  * comme dans l'autre.
  */
-const COMPARAISON = /(cotes?|bookmakers?)[^.<]{0,30}compar|compar[^.<]{0,30}(cotes?|bookmakers?)/i;
+/**
+ * Aucune promesse de gain.
+ *
+ * La signature disait « Des pronostics gagnants, des gains grandissants » —
+ * dans le <title> que Google affiche, en titre principal de l'accueil et en
+ * pied de page. Double promesse, et elle contredisait le texte au bas de la
+ * même page : « aucun gain n'est garanti ».
+ *
+ * Promettre en gros et démentir en petit n'est pas prudent. Le lecteur lit le
+ * gros, et c'est cette structure qu'un examinateur relève.
+ *
+ * Les mentions rétrospectives restent permises : « 12 gagnés sur 18 » énonce
+ * un fait sur des paris déjà tranchés. C'est l'annonce d'un résultat futur qui
+ * est interdite, pas le compte-rendu d'un résultat passé.
+ */
+const PROMESSES = [
+  [/pronostics? gagnants?/i,     'promet des pronostics qui gagnent'],
+  [/gains? grandissants?/i,      'promet des gains qui augmentent'],
+  [/apprends? à gagner/i,        'promet une issue, pas une méthode'],
+  [/(profit|revenus?|gains?) (assuré|garanti)/i, 'promesse de résultat'],
+  [/sans risque|argent facile/i, 'nie le risque'],
+];
+
+const COMPARAISON =/(cotes?|bookmakers?)[^.<]{0,30}compar|compar[^.<]{0,30}(cotes?|bookmakers?)/i;
 
 const CHIFFRES_OPERATIONNELS = [
   [/\b30\s*(?:s\b|secondes)/,        'cadence de synchronisation — vit dans la boucle de index.ts'],
@@ -224,6 +247,23 @@ test('sans fiche Play, l\'APK reste l\'appel principal', async () => {
     'aucune fiche Play ne doit être annoncée tant qu\'elle n\'existe pas');
   assert.strictEqual((accueil.html.match(/Bientôt/g) || []).length, 2,
     'les deux stores devraient être annoncés « bientôt »');
+});
+
+test('aucune promesse de gain n\'est faite', async () => {
+  const { accueil, legal } = await rendre(API_COMPLETE);
+
+  for (const [nom, page] of [['accueil', accueil], ['mentions légales', legal]]) {
+    const texte = page.html.replace(/<[^>]*>/g, ' ');
+    // Le titre de l'onglet vit dans une balise : le dépouillement l'emporte,
+    // et c'est pourtant lui que Google affiche dans ses résultats. C'est là
+    // que la signature promettait, et là que personne ne l'aurait relue.
+    const titre = (page.html.match(/<title>([^<]*)<\/title>/) || [])[1] ?? '';
+
+    for (const [motif, pourquoi] of PROMESSES) {
+      assert.ok(!motif.test(texte), `${nom} : ${pourquoi}`);
+      assert.ok(!motif.test(titre), `${nom}, dans le <title> : ${pourquoi}`);
+    }
+  }
 });
 
 test('aucune comparaison de cotes n\'est promise', async () => {

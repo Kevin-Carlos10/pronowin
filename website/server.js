@@ -12,7 +12,18 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const site = {
   name: 'PronoWin',
-  tagline: 'Des pronostics gagnants, des gains grandissants',
+  // « Des pronostics gagnants, des gains grandissants » : double promesse —
+  // des pronostics qui gagnent, des gains qui grandissent — dans le <title>
+  // que Google affiche, en titre principal et en pied de page.
+  //
+  // Elle contredisait le texte au bas de la même page, « aucun gain n'est
+  // garanti ». Promettre en gros et démentir en petit n'est pas prudent : le
+  // lecteur lit le gros, et c'est cette structure qu'un examinateur relève.
+  //
+  // Le nom porte déjà l'idée de gagner. La signature dit maintenant la
+  // méthode — et c'est celle du visuel Play, donc la marque parle d'une seule
+  // voix.
+  tagline: 'Le pronostic qui montre ses chiffres',
   year: new Date().getFullYear(),
 
   // Téléchargement direct : l'application n'est sur aucun store aujourd'hui.
