@@ -182,6 +182,50 @@ const CHIFFRES_OPERATIONNELS = [
 const controles = [];
 const test = (nom, fn) => controles.push([nom, fn]);
 
+test('la fiche Play, quand elle existe, passe devant l\'APK', async () => {
+  // L'état qui n'existe pas encore. Le jour de l'approbation, il suffira de
+  // renseigner PLAY_STORE_URL — mais un basculement jamais éprouvé est un
+  // basculement qui casse le jour où on en a besoin, sous la pression.
+  //
+  // L'enjeu dépasse l'affichage : le site est le seul endroit où Google voit
+  // les deux canaux côte à côte. Le binaire Play ne peut pas montrer
+  // l'affiliation — `STORE_BUILD` est une constante de compilation — mais un
+  // APK du même paquet mis en avant à côté de la fiche peut se lire comme un
+  // contournement.
+  const avant = process.env.PLAY_STORE_URL;
+  process.env.PLAY_STORE_URL =
+    'https://play.google.com/store/apps/details?id=com.pronowin.app';
+
+  try {
+    const { accueil } = await rendre(API_COMPLETE);
+
+    assert.ok(accueil.html.includes('play.google.com/store/apps/details'),
+      'la fiche Play devrait être annoncée');
+
+    // L'APK reste accessible — on le relègue, on ne le supprime pas.
+    assert.ok(accueil.html.includes('Télécharger l\'APK directement'),
+      'le canal direct doit rester atteignable');
+    assert.ok(!/class="store-badge" download/.test(accueil.html),
+      'l\'APK ne doit plus porter le badge principal');
+  } finally {
+    if (avant === undefined) delete process.env.PLAY_STORE_URL;
+    else process.env.PLAY_STORE_URL = avant;
+  }
+});
+
+test('sans fiche Play, l\'APK reste l\'appel principal', async () => {
+  // L'état d'aujourd'hui. Les deux badges de store disent « bientôt » plutôt
+  // que de pointer sur rien — ils pointaient jadis sur « # ».
+  const { accueil } = await rendre(API_COMPLETE);
+
+  assert.ok(/class="store-badge" download/.test(accueil.html),
+    'l\'APK devrait porter le badge principal');
+  assert.ok(!accueil.html.includes('play.google.com/store/apps/details'),
+    'aucune fiche Play ne doit être annoncée tant qu\'elle n\'existe pas');
+  assert.strictEqual((accueil.html.match(/Bientôt/g) || []).length, 2,
+    'les deux stores devraient être annoncés « bientôt »');
+});
+
 test('aucune comparaison de cotes n\'est promise', async () => {
   const { accueil } = await rendre(API_COMPLETE);
   const texte = accueil.html.replace(/<[^>]*>/g, ' ');

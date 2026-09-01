@@ -42,6 +42,28 @@ const site = {
   // Google Play en exigera une pour la fiche : le jour ou elle existe, elle
   // se renseigne ici et la politique de confidentialite la reprend.
   contactEmail: process.env.CONTACT_EMAIL || 'pronowin2026@gmail.com',
+
+  /**
+   * Fiche Google Play — vide tant qu'elle n'existe pas.
+   *
+   * Vide : la page annonce le téléchargement direct et dit « bientôt » pour
+   * les stores. C'est l'état d'aujourd'hui.
+   *
+   * Renseignée : Play devient l'appel principal, et l'APK direct passe en
+   * lien discret sous les badges. Le canal direct n'est pas supprimé — il
+   * cesse d'être mis en avant.
+   *
+   * Ce n'est pas une préférence d'affichage. Le site est le seul endroit où
+   * Google voit les deux canaux côte à côte. Le binaire Play ne peut pas
+   * afficher l'affiliation — `STORE_BUILD` est une constante de compilation,
+   * et le défaut penche vers `store` — mais un examinateur qui trouve un APK
+   * du même paquet mis en avant à côté de la fiche Play peut y lire un
+   * contournement. Play devant retire ce couplage de la vitrine.
+   *
+   * Le jour de l'approbation, cette ligne suffit : aucun gabarit à retoucher
+   * sous la pression.
+   */
+  playStoreUrl: process.env.PLAY_STORE_URL || '',
 };
 
 // URL de l'API, pour lire ce que le produit fait réellement.

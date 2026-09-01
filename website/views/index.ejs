@@ -271,39 +271,69 @@
       <h2 class="headline">Prêt à parier plus intelligemment ?</h2>
       <p class="headline-sub">Téléchargez PronoWin, activez vos pronostics gratuits du jour, et passez Premium quand vous êtes prêt à aller plus loin.</p>
       <%#
-        L'application n'est sur aucun store aujourd'hui. Les deux badges
-        pointaient sur « # » : ils avaient l'air cliquables et ne menaient
-        nulle part.
+        Deux états, gouvernés par `site.playStoreUrl`.
 
-        On annonce donc ce qui existe — le téléchargement direct — et on dit
-        « bientôt » pour le reste. Un badge « Google Play » qui ouvre un APK
-        tromperait sur ce qu'on reçoit ; un badge inerte trompe sur ce qui est
-        disponible.
+        Vide — l'état d'aujourd'hui : l'application n'est sur aucun store, on
+        annonce le téléchargement direct et on dit « bientôt » pour le reste.
+        Les deux badges pointaient jadis sur « # » : ils avaient l'air
+        cliquables et ne menaient nulle part.
+
+        Renseignée : Play devient l'appel principal et l'APK direct passe en
+        lien discret. Le canal direct reste accessible — il cesse d'être mis
+        en avant. C'est le seul endroit où Google voit les deux côte à côte.
       %>
-      <div class="store-badges">
-        <a href="<%= site.apkUrl %>" class="store-badge" download>
-          <%- include('partials/icon', { name: 'android', size: 20 }) %>
-          <span class="store-badge-text"><small>Télécharger pour</small><strong>Android</strong></span>
-        </a>
-      </div>
+      <% if (site.playStoreUrl) { %>
 
-      <%# La version vient de /config — la même valeur que celle qui déclenche
-          la mise à jour dans l'application. Absente si l'API n'a pas répondu :
-          un numéro faux vaudrait moins que pas de numéro. %>
-      <% if (versionApp) { %>
-        <p class="apk-version">Version <%= versionApp %> · Android 7.0 et plus</p>
+        <div class="store-badges">
+          <a href="<%= site.playStoreUrl %>" class="store-badge" rel="noopener" target="_blank">
+            <%- include('partials/icon', { name: 'google-play', size: 20 }) %>
+            <span class="store-badge-text"><small>Disponible sur</small><strong>Google Play</strong></span>
+          </a>
+        </div>
+
+        <div class="store-badges store-badges--soon">
+          <span class="store-badge store-badge--soon">
+            <%- include('partials/icon', { name: 'apple', size: 20 }) %>
+            <span class="store-badge-text"><small>App Store</small><strong>Bientôt</strong></span>
+          </span>
+        </div>
+
+        <%# L'APK reste offert, sans bouton : ceux qui le cherchent le trouvent,
+            il ne s'impose plus à ceux qui ne le cherchent pas. %>
+        <p class="apk-version">
+          <a href="<%= site.apkUrl %>" download>Télécharger l'APK directement</a>
+          <% if (versionApp) { %> · Version <%= versionApp %><% } %>
+          · Android 7.0 et plus
+        </p>
+
+      <% } else { %>
+
+        <div class="store-badges">
+          <a href="<%= site.apkUrl %>" class="store-badge" download>
+            <%- include('partials/icon', { name: 'android', size: 20 }) %>
+            <span class="store-badge-text"><small>Télécharger pour</small><strong>Android</strong></span>
+          </a>
+        </div>
+
+        <%# La version vient de /config — la même valeur que celle qui déclenche
+            la mise à jour dans l'application. Absente si l'API n'a pas répondu :
+            un numéro faux vaudrait moins que pas de numéro. %>
+        <% if (versionApp) { %>
+          <p class="apk-version">Version <%= versionApp %> · Android 7.0 et plus</p>
+        <% } %>
+
+        <div class="store-badges store-badges--soon" aria-hidden="false">
+          <span class="store-badge store-badge--soon">
+            <%- include('partials/icon', { name: 'apple', size: 20 }) %>
+            <span class="store-badge-text"><small>App Store</small><strong>Bientôt</strong></span>
+          </span>
+          <span class="store-badge store-badge--soon">
+            <%- include('partials/icon', { name: 'google-play', size: 20 }) %>
+            <span class="store-badge-text"><small>Google Play</small><strong>Bientôt</strong></span>
+          </span>
+        </div>
+
       <% } %>
-
-      <div class="store-badges store-badges--soon" aria-hidden="false">
-        <span class="store-badge store-badge--soon">
-          <%- include('partials/icon', { name: 'apple', size: 20 }) %>
-          <span class="store-badge-text"><small>App Store</small><strong>Bientôt</strong></span>
-        </span>
-        <span class="store-badge store-badge--soon">
-          <%- include('partials/icon', { name: 'google-play', size: 20 }) %>
-          <span class="store-badge-text"><small>Google Play</small><strong>Bientôt</strong></span>
-        </span>
-      </div>
     </div>
   </section>
 

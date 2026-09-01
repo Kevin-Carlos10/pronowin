@@ -22,6 +22,15 @@ const INJECTIONS = [
     vers: "    title: 'Le score en direct.\\nToutes les 30 secondes.',",
   },
   {
+    // Le basculement vers Play cesse de basculer. Sans cette injection, le
+    // controle de l'etat futur pourrait verdir sur un `if` qui ne choisit
+    // jamais rien — et on ne le decouvrirait que le jour de l'approbation.
+    nom: 'le basculement vers la fiche Play ne bascule plus',
+    fichier: 'views/index.ejs',
+    de: '<% if (site.playStoreUrl) { %>',
+    vers: '<% if (false) { %>',
+  },
+  {
     nom: 'un operateur de paiement revient sur la vitrine',
     fichier: 'server.js',
     de: "Les moyens de paiement disponibles vous sont proposés à cette étape",
