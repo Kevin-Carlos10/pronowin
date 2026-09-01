@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.0.6+7
 
 environment:
   sdk: ^3.11.5
@@ -73,8 +73,11 @@ dependencies:
   crypto: ^3.0.3
   share_plus: ^10.1.4
   path_provider: ^2.1.5
-  confetti: ^0.7.0
   webview_flutter: ^4.10.0
+  country_picker: ^2.0.28
+  youtube_player_iframe: ^6.0.2
+  in_app_purchase: ^3.3.0
+  google_sign_in: ^7.2.0
 
 
 flutter_launcher_icons:
@@ -88,6 +91,11 @@ flutter_launcher_icons:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+
+  # Lecture de codemagic.yaml par les tests : l'identifiant client Google y est
+  # écrit, et doit rester en phase avec google-services.json. Une divergence ne
+  # casse aucun build — elle produit une app où la connexion Google échoue.
+  yaml: ^3.1.2
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
@@ -115,6 +123,7 @@ flutter:
     - assets/images/
     - assets/animations/
     - assets/icons/
+    - assets/images/bookmakers/
 
   # To add assets to your application, add an assets section, like this:
   # assets:

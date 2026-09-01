@@ -89,20 +89,20 @@
 
       <!-- Contenu -->
       <div class="card" style="margin-bottom:1rem">
-        <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.9rem">📝 Contenu</div>
+        <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.9rem"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Contenu</div>
 
         <div class="form-group">
           <label>Titre <span style="color:var(--error)">*</span></label>
           <input class="input" type="text" name="title" id="tf-title"
             value="<%= isEdit ? tutorial.title : '' %>"
             required placeholder="Ex : Comprendre le Value Bet en 10 minutes…"
-            style="font-size:.95rem;font-weight:600">
+            style="font-size:.95rem;font-weight:600" aria-label="Titre">
         </div>
 
         <div class="form-group">
           <label>Description <span style="color:var(--error)">*</span></label>
           <textarea class="input" name="description" id="tf-desc" rows="5" required maxlength="1000"
-            placeholder="Description détaillée visible par les utilisateurs…"><%= isEdit ? tutorial.description : '' %></textarea>
+            placeholder="Description détaillée visible par les utilisateurs…" aria-label="Description détaillée visible par les utilisateurs"><%= isEdit ? tutorial.description : '' %></textarea>
           <div class="char-counter" id="desc-counter">0 / 1000</div>
         </div>
 
@@ -110,14 +110,14 @@
           <label>Auteur</label>
           <input class="input" type="text" name="author_name" id="tf-author"
             value="<%= isEdit ? (tutorial.authorName || '') : 'Expert PronoWin' %>"
-            placeholder="Expert PronoWin">
+            placeholder="Expert PronoWin" aria-label="Auteur">
         </div>
 
         <div class="form-group">
           <label>URL Vidéo <span style="font-size:.72rem;color:var(--text-dim);font-weight:400">(YouTube, Vimeo ou direct)</span></label>
           <input class="input" type="url" name="video_url" id="tf-video"
             value="<%= isEdit ? (tutorial.videoUrl || '') : '' %>"
-            placeholder="https://youtube.com/watch?v=…">
+            placeholder="https://youtube.com/watch?v=…" aria-label="Lien de la vidéo">
           <div class="tf-yt-preview" id="yt-preview">
             <iframe id="yt-frame" src="" allowfullscreen title="Aperçu vidéo"></iframe>
           </div>
@@ -127,29 +127,28 @@
           <label>URL Miniature <span style="font-size:.72rem;color:var(--text-dim);font-weight:400">(optionnel)</span></label>
           <input class="input" type="url" name="thumbnail_url" id="tf-thumb"
             value="<%= isEdit ? (tutorial.thumbnailUrl || '') : '' %>"
-            placeholder="https://…/image.jpg">
+            placeholder="https://…/image.jpg" aria-label="thumbnail_url">
         </div>
       </div>
 
       <!-- Paramètres -->
       <div class="card" style="margin-bottom:1rem">
-        <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.9rem">⚙️ Paramètres</div>
+        <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.9rem"><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Paramètres</div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:.85rem">
           <div class="form-group" style="margin:0">
             <label>Catégorie <span style="color:var(--error)">*</span></label>
-            <select class="input" name="category" id="tf-cat" required>
-              <option value="">Choisir…</option>
-              <option value="valuebet"    <%= isEdit && tutorial.category==='valuebet'    ?'selected':'' %>>🎯 Value Bet</option>
-              <option value="bankroll"    <%= isEdit && tutorial.category==='bankroll'    ?'selected':'' %>>💰 Bankroll</option>
-              <option value="analyse"     <%= isEdit && tutorial.category==='analyse'     ?'selected':'' %>>📊 Analyse</option>
-              <option value="strategie"   <%= isEdit && tutorial.category==='strategie'   ?'selected':'' %>>♟️ Stratégie</option>
-              <option value="psychologie" <%= isEdit && tutorial.category==='psychologie' ?'selected':'' %>>🧠 Psychologie</option>
-            </select>
+            <input class="input" type="text" name="category" id="tf-cat" list="tf-cat-list" required
+              value="<%= isEdit ? tutorial.category : '' %>"
+              placeholder="Ex : valuebet, bankroll, paris-en-direct…" aria-label="Catégorie">
+            <datalist id="tf-cat-list">
+              <% (locals.categories||[]).forEach(c => { %><option value="<%= c %>"><% }) %>
+            </datalist>
+            <div style="font-size:.72rem;color:var(--text-dim);margin-top:.25rem">Réutilise une catégorie existante ou tape-en une nouvelle</div>
           </div>
           <div class="form-group" style="margin:0">
             <label>Niveau <span style="color:var(--error)">*</span></label>
-            <select class="input" name="level" id="tf-level" required>
+            <select class="input" name="level" id="tf-level" required aria-label="Niveau">
               <option value="">Choisir…</option>
               <option value="beginner"     <%= isEdit && tutorial.level==='beginner'     ?'selected':'' %>>🟢 Débutant</option>
               <option value="intermediate" <%= isEdit && tutorial.level==='intermediate' ?'selected':'' %>>🟡 Intermédiaire</option>
@@ -162,14 +161,14 @@
           <label>Durée <span style="font-size:.72rem;color:var(--text-dim);font-weight:400">(en minutes)</span></label>
           <input class="input" type="number" name="duration_seconds" id="tf-dur"
             value="<%= isEdit ? Math.floor((tutorial.durationSeconds||0)/60) : '' %>"
-            min="0" max="300" placeholder="Ex : 15">
+            min="0" max="300" placeholder="Ex : 15" aria-label="duration_seconds">
           <div style="font-size:.72rem;color:var(--text-dim);margin-top:.25rem">Sera converti en secondes automatiquement</div>
         </div>
 
         <!-- Toggle Premium -->
         <div class="tf-toggle-wrap <%= (isEdit && tutorial.isPremium) ? 'on' : '' %>" id="tf-toggle-wrap" onclick="togglePremium()">
           <div class="tf-toggle-info">
-            <div class="t">👑 Contenu Premium</div>
+            <div class="t"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Contenu Premium</div>
             <div class="s">Réservé aux abonnés Premium uniquement</div>
           </div>
           <label class="tf-switch" onclick="event.stopPropagation()">
@@ -196,11 +195,11 @@
 
     <!-- Aperçu live -->
     <div class="card" style="margin-bottom:.85rem">
-      <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.85rem">👁 Aperçu carte</div>
+      <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.85rem"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> Aperçu carte</div>
       <div class="tf-preview">
         <div class="tf-preview-thumb" id="pv-thumb">
           <img id="pv-img" src="" alt="">
-          <span id="pv-emoji">📚</span>
+          <span id="pv-emoji"><svg class="ic" aria-hidden="true"><use href="#ic-book"/></svg></span>
         </div>
         <div class="tf-preview-body">
           <div class="tf-preview-meta">
@@ -211,7 +210,7 @@
           <div class="tf-preview-author" id="pv-author">par <%= isEdit ? (tutorial.authorName||'Expert PronoWin') : 'Expert PronoWin' %></div>
           <div class="tf-preview-row">
             <span id="pv-dur"><%= isEdit && tutorial.durationSeconds ? Math.floor(tutorial.durationSeconds/60)+'min' : '— min' %></span>
-            <span>⭐ <%= isEdit ? (tutorial.rating||0).toFixed(1) : '0.0' %></span>
+            <span><svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg> <%= isEdit ? (tutorial.rating||0).toFixed(1) : '0.0' %></span>
             <span id="pv-type" style="color:<%= (isEdit&&tutorial.isPremium)?'var(--warning)':'var(--success)' %>"><%= (isEdit&&tutorial.isPremium)?'👑 Premium':'✓ Gratuit' %></span>
           </div>
         </div>
@@ -221,12 +220,12 @@
     <!-- Stats (mode édition) -->
     <% if(isEdit) { %>
     <div class="card">
-      <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.7rem">📊 Statistiques</div>
-      <div class="tf-stat-row"><span class="tf-stat-lbl">👁 Vues</span><span class="tf-stat-val"><%= (tutorial.viewCount||0).toLocaleString() %></span></div>
-      <div class="tf-stat-row"><span class="tf-stat-lbl">⭐ Note</span><span class="tf-stat-val" style="color:var(--warning)"><%= (tutorial.rating||0).toFixed(1) %> / 5</span></div>
-      <div class="tf-stat-row"><span class="tf-stat-lbl">💬 Avis</span><span class="tf-stat-val"><%= tutorial.ratingCount || 0 %></span></div>
-      <div class="tf-stat-row"><span class="tf-stat-lbl">📅 Créé</span><span class="tf-stat-val" style="font-weight:400;font-size:.78rem;color:var(--text-m)"><%= tutorial.createdAt ? new Date(tutorial.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '—' %></span></div>
-      <div class="tf-stat-row"><span class="tf-stat-lbl">🔄 Modifié</span><span class="tf-stat-val" style="font-weight:400;font-size:.78rem;color:var(--text-m)"><%= tutorial.updatedAt ? new Date(tutorial.updatedAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '—' %></span></div>
+      <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.7rem"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg> Statistiques</div>
+      <div class="tf-stat-row"><span class="tf-stat-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> Vues</span><span class="tf-stat-val"><%= (tutorial.viewCount||0).toLocaleString() %></span></div>
+      <div class="tf-stat-row"><span class="tf-stat-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg> Note</span><span class="tf-stat-val" style="color:var(--warning)"><%= (tutorial.rating||0).toFixed(1) %> / 5</span></div>
+      <div class="tf-stat-row"><span class="tf-stat-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-comment"/></svg> Avis</span><span class="tf-stat-val"><%= tutorial.ratingCount || 0 %></span></div>
+      <div class="tf-stat-row"><span class="tf-stat-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg> Créé</span><span class="tf-stat-val" style="font-weight:400;font-size:.78rem;color:var(--text-m)"><%= tutorial.createdAt ? new Date(tutorial.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',year:'numeric'}) : '—' %></span></div>
+      <div class="tf-stat-row"><span class="tf-stat-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Modifié</span><span class="tf-stat-val" style="font-weight:400;font-size:.78rem;color:var(--text-m)"><%= tutorial.updatedAt ? new Date(tutorial.updatedAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short'}) : '—' %></span></div>
     </div>
     <% } %>
 
@@ -258,7 +257,7 @@ document.getElementById('tf-author').addEventListener('input', function() {
 });
 
 /* ── Aperçu catégorie ── */
-document.getElementById('tf-cat').addEventListener('change', function() {
+document.getElementById('tf-cat').addEventListener('input', function() {
   document.getElementById('pv-emoji').textContent = catEmojis[this.value] || '📚';
 });
 

@@ -1,5 +1,8 @@
+import 'dart:convert';
 import 'dart:io';
+import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/image_distante.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -7,6 +10,8 @@ import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../shared/widgets/country_pill_selector.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/compte_provider.dart';
 
 class EditProfilePage extends ConsumerStatefulWidget {
@@ -20,7 +25,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   final _emailCtrl     = TextEditingController();
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl  = TextEditingController();
+  final _phoneCtrl     = TextEditingController();
   DateTime? _birthDate;
+  Country _country     = deviceDefaultCountry();
   bool _loading       = false;
   bool _avatarLoading = false;
   String? _localAvatarPath; // chemin local après sélection
@@ -36,6 +43,34 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       _lastNameCtrl.text  = profile['last_name']  as String? ?? '';
       final bd = profile['birth_date'] as String?;
       if (bd != null) _birthDate = DateTime.tryParse(bd);
+      // Le pays enregistré fait foi : plusieurs pays partagent le même
+      // indicatif (+1 → US, CA, PR…), le déduire du numéro choisirait l'un
+      // d'eux au hasard. Et comme le formulaire renvoie désormais
+      // `country_code`, partir du défaut « BF » écraserait le vrai pays d'un
+      // utilisateur dont le numéro n'a pas de préfixe reconnu.
+      final savedCode = profile['country_code'] as String?;
+      if (savedCode != null && savedCode.isNotEmpty) {
+        final saved = CountryService().findByCode(savedCode);
+        if (saved != null) _country = saved;
+      }
+
+      final phone = profile['phone_number'] as String?;
+      if (phone != null && phone.isNotEmpty) {
+        // Retire l'indicatif du champ : celui du pays enregistré en priorité,
+        // sinon le plus long préfixe qui corresponde.
+        if (phone.startsWith('+${_country.phoneCode}')) {
+          _phoneCtrl.text = phone.substring(_country.phoneCode.length + 1);
+        } else {
+          final candidates = CountryService().getAll()
+            .where((c) => phone.startsWith('+${c.phoneCode}'))
+            .toList()
+            ..sort((a, b) => b.phoneCode.length.compareTo(a.phoneCode.length));
+          if (candidates.isNotEmpty) {
+            _country = candidates.first;
+            _phoneCtrl.text = phone.substring(_country.phoneCode.length + 1);
+          }
+        }
+      }
     }
   }
 
@@ -43,6 +78,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   void dispose() {
     _pseudoCtrl.dispose(); _emailCtrl.dispose();
     _firstNameCtrl.dispose(); _lastNameCtrl.dispose();
+    _phoneCtrl.dispose();
     super.dispose();
   }
 
@@ -57,11 +93,14 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     setState(() { _localAvatarPath = picked.path; _avatarLoading = true; });
 
     try {
-      final formData = FormData.fromMap({
-        'avatar': await MultipartFile.fromFile(picked.path,
-          filename: 'avatar.jpg'),
+      // Base64 et non multipart : c'est le format qu'attend le backend, et le
+      // seul chemin d'upload éprouvé du projet (identique aux preuves
+      // d'abonnement). Le multipart envoyé jusqu'ici n'était de toute façon
+      // reçu par personne — l'endpoint n'existait pas.
+      final bytes = await File(picked.path).readAsBytes();
+      await ref.read(dioProvider).patch('/profile/avatar', data: {
+        'image_base64': 'data:image/jpeg;base64,${base64Encode(bytes)}',
       });
-      await ref.read(dioProvider).patch('/profile/avatar', data: formData);
       ref.invalidate(profileProvider);
       if (mounted) _showSnack('Photo de profil mise à jour ✅');
     } on DioException catch (e) {
@@ -156,6 +195,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         _lastNameCtrl.text.trim().length < 2) {
       _showSnack('Nom trop court (minimum 2 caractères).', isError: true); return;
     }
+    if (_phoneCtrl.text.trim().isNotEmpty &&
+        _phoneCtrl.text.trim().length < 7) {
+      _showSnack('Numéro de téléphone trop court.', isError: true); return;
+    }
 
     setState(() => _loading = true);
     try {
@@ -169,8 +212,14 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           'last_name': _lastNameCtrl.text.trim(),
         if (_birthDate != null)
           'birth_date': _birthDate!.toIso8601String().split('T')[0],
+        if (_phoneCtrl.text.trim().isNotEmpty)
+          'phone_number': '+${_country.phoneCode}${_phoneCtrl.text.trim()}',
+        // Même raison qu'à la complétion du profil : le pays doit suivre
+        // l'indicatif sélectionné, sinon il reste figé sur l'ancienne valeur.
+        'country_code': _country.countryCode,
       });
       ref.invalidate(profileProvider);
+      await ref.read(authProvider.notifier).refreshUser();
       if (mounted) {
         _showSnack('Profil mis à jour ✅');
         context.pop();
@@ -235,8 +284,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     : _localAvatarPath != null
                       ? Image.file(File(_localAvatarPath!), fit: BoxFit.cover)
                       : avatarUrl != null && avatarUrl.isNotEmpty
-                        ? Image.network(avatarUrl, fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Center(child: Text(initiale,
+                        ? ImageDistante(
+                            url:   avatarUrl,
+                            repli: Center(child: Text(initiale,
                               style: const TextStyle(color: Colors.white,
                                 fontSize: 32, fontWeight: FontWeight.w800))))
                         : Center(child: Text(initiale,
@@ -327,6 +377,26 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 style: const TextStyle(color: AppColors.success, fontSize: 11)),
             ]),
           ),
+          const SizedBox(height: 16),
+
+          _FieldLabel('Numéro de téléphone'),
+          Row(children: [
+            CountryPillSelector(
+              country: _country,
+              onSelect: (c) => setState(() => _country = c),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  hintText: '70 00 00 00',
+                  prefixIcon: Icon(Icons.phone_rounded,
+                    size: 20, color: context.cl.textM)),
+              ),
+            ),
+          ]),
           const SizedBox(height: 20),
 
           // ─── Compte ───────────────────────────────────────────────────

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/referral_provider.dart';
+import '../../../../core/config/distribution_channel.dart';
 
 class RetraitParrainagePage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? data;
@@ -45,6 +46,26 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
 
   @override
   Widget build(BuildContext context) {
+    // Second verrou, au cas où l'écran serait atteint autrement que par le
+    // bouton — un lien profond, une route restaurée. Masquer l'entrée ne
+    // suffit pas à fermer une porte.
+    if (ref.watch(isStoreBuildProvider)) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Récompenses de parrainage')),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(28),
+            child: Text(
+              'Sur cette version, les récompenses de parrainage se convertissent '
+              'en jours Premium depuis l\'écran Parrainage.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.cl.textS, fontSize: 14, height: 1.6),
+            ),
+          ),
+        ),
+      );
+    }
+
     final earnings   = (widget.data?['earnings'] as num?)?.toInt() ?? 0;
     final minWithdraw = (widget.data?['min'] as num?)?.toInt() ?? 2000;
     final withdrawState = ref.watch(withdrawProvider);
@@ -60,7 +81,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Retirer mes gains'),
+        title: const Text('Retirer mes récompenses'),
         bottom: TabBar(
           controller: _tab,
           indicatorColor: Color(0xFFA78BFA),
@@ -201,7 +222,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
               color: AppColors.primaryLight, fontSize: 28, fontWeight: FontWeight.w800)),
           ),
           const SizedBox(height: 6),
-          Text('pour tes $earnings FCFA de gains', style: const TextStyle(
+          Text('pour tes $earnings FCFA de récompenses', style: const TextStyle(
             color: Color(0xFFCBD5E1), fontSize: 14)),
           const SizedBox(height: 8),
           const Text('(1 000 FCFA = 6 jours Premium)', style: TextStyle(

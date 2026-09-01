@@ -1,22 +1,55 @@
 ﻿import { Request, Response }  from 'express';
 import { prisma } from '../lib/prisma';
 import { AuthRequest }  from '../middleware/auth.middleware';
+import { estVerrouille } from '../services/verrou_pronostic';
 import { AdminRequest } from '../middleware/admin.middleware';
 import { PronosticsService } from '../services/pronostics.service';
 import { FootballDataService } from '../services/football_data.service';
 import { NotificationService } from '../services/notification.service';
-import { OddsService } from '../services/odds.service';
 import { cache, CACHE_KEYS, CACHE_TTL } from '../services/cache.service';
 import { analyzePronostic } from '../services/ai_prediction.service';
+import { buildUserProfile, getPersonalizedPronostics } from '../services/personalized_ai.service';
 import { settleBets }      from '../services/bankroll.service';
-import { apiFootballService } from '../services/api_football.service';
+import { apiFootballService, apiFootballInsights } from '../services/api_football.service';
+import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
+import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
 
 const svc      = new PronosticsService();
 const fdSvc    = new FootballDataService();
 const notifSvc = new NotificationService();
-const oddsSvc  = new OddsService();
+
+/**
+ * Statut premium effectif d'un utilisateur.
+ *
+ * Extrait ici parce que la clé de cache des listes en dépend : la réponse
+ * n'est plus la même selon les droits de l'appelant.
+ */
+async function isUserPremium(userId: string): Promise<boolean> {
+  const u = await prisma.user.findUnique({
+    where: { id: userId }, select: { subscriptionPlan: true, subscriptionExpiresAt: true },
+  });
+  return u?.subscriptionPlan === 'premium'
+    && (u.subscriptionExpiresAt ? u.subscriptionExpiresAt > new Date() : false);
+}
 
 // ── PUBLIC / UTILISATEUR ──────────────────────────────────────────────────────
+/**
+ * Décalage UTC du client, en minutes (`tz_offset`), tel que l'envoie le mobile.
+ *
+ * Le serveur découpait les journées dans son propre fuseau, le mobile dans
+ * celui de l'appareil : un match de fin de soirée tombait alors d'un côté pour
+ * l'un et de l'autre pour l'autre, ce qui faisait diverger le compteur du
+ * bandeau et le nombre de cartes affichées.
+ *
+ * Borné à ±14 h, l'amplitude réelle des fuseaux : au-delà, la valeur est
+ * ignorée plutôt que d'ouvrir une fenêtre de dates arbitraire depuis l'URL.
+ */
+const lireDecalage = (req: AuthRequest): number | undefined => {
+  const brut = parseInt(req.query.tz_offset as string, 10);
+  if (!Number.isFinite(brut) || Math.abs(brut) > 14 * 60) return undefined;
+  return brut;
+};
+
 export const getPronostics = async (req: AuthRequest, res: Response) => {
   try {
     const includeAll = req.query.include_all === 'true';
@@ -24,17 +57,27 @@ export const getPronostics = async (req: AuthRequest, res: Response) => {
     const limit      = Math.min(parseInt((req.query.limit as string) ?? '20') || 20, 50);
 
     const params = {
-      userId:      req.userId!,
-      dateFilter:  req.query.date_filter as string,
-      sport:       req.query.sport as string,
-      leagueCode:  req.query.league_code as string,
+      userId:        req.userId,
+      dateFilter:    req.query.date_filter as string,
+      tzOffsetMin:   lireDecalage(req),
+      sport:         req.query.sport as string,
+      leagueCode:    req.query.league_code as string,
+      status:        req.query.status as string,
+      hasPronostic:  req.query.has_pronostic === 'true' ? true : undefined,
       cursor,
       limit,
     };
 
+    // Le palier fait partie de la clé de cache : depuis que le serveur masque
+    // le pronostic premium, la réponse dépend des droits de l'appelant. Sans
+    // cette dimension, la première réponse mise en cache était resservie à
+    // tout le monde — un invité pouvait recevoir la version complète d'un
+    // abonné, et inversement un abonné voyait son propre pronostic verrouillé.
+    const tier = !req.userId ? 'guest' : (await isUserPremium(req.userId) ? 'premium' : 'free');
+
     // Pas de cache sur les requêtes avec cursor (résultats dépendent du curseur)
     const cacheKey = cursor ? null : CACHE_KEYS.pronostics(
-      `${includeAll}:${params.dateFilter ?? ''}:${params.sport ?? ''}:${params.leagueCode ?? ''}:${limit}`
+      `${tier}:${includeAll}:${params.dateFilter ?? ''}:${params.sport ?? ''}:${params.leagueCode ?? ''}:${params.status ?? ''}:${params.hasPronostic ?? ''}:${limit}`
     );
     if (cacheKey) {
       const cached = cache.get<any>(cacheKey);
@@ -50,35 +93,287 @@ export const getPronostics = async (req: AuthRequest, res: Response) => {
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };
 
+// GET /pronostics/counts-by-day — comptage par jour pour le sélecteur de dates mobile
+export const getCountsByDay = async (_req: AuthRequest, res: Response) => {
+  try {
+    const cacheKey = CACHE_KEYS.dayCounts;
+    const cached = cache.get<Record<string, number>>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
+    const counts = await svc.getMatchCountsByDay();
+    cache.set(cacheKey, counts, CACHE_TTL.dayCounts);
+    res.json(counts);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+// GET /pronostics/day-summary — totaux réels (matchs / avec prono / live) pour un jour,
+// indépendants de la pagination de la liste (qui ne couvre jamais tout le jour)
+export const getDaySummary = async (req: AuthRequest, res: Response) => {
+  try {
+    const dateFilter = (req.query.date_filter as string) ?? '';
+    const decalage   = lireDecalage(req);
+    // Le décalage entre dans la clé : deux utilisateurs de fuseaux différents
+    // n'ont pas le même « aujourd'hui », et se serviraient l'un à l'autre une
+    // réponse fausse.
+    const cacheKey = CACHE_KEYS.daySummary(`${dateFilter}:${decalage ?? ''}`);
+    const cached = cache.get<any>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
+    const summary = await svc.getDaySummary(dateFilter, decalage);
+    cache.set(cacheKey, summary, CACHE_TTL.daySummary);
+    res.json(summary);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+/**
+ * GET /pronostics/bilan-premium — taux de réussite réel des pronostics VIP.
+ *
+ * Le mur Premium affichait « Nos pronostics Premium affichent +68 % de
+ * réussite sur les 30 derniers jours ». Ce nombre était **écrit en dur** : il
+ * ne dépendait d'aucune donnée et ne pouvait donc être exact que par accident,
+ * sur l'écran qui demande de payer — et alors même que l'article 6 des CGU
+ * exclut toute garantie de résultat.
+ *
+ * `getPerformance` ne pouvait pas servir ici : il mesure *tous* les pronostics
+ * publiés, sans distinguer `isPremium`. Afficher son chiffre sous le mot
+ * « Premium » aurait remplacé une affirmation fausse par une autre.
+ *
+ * `echantillon_suffisant` est le garde-fou : sous ce seuil, un taux calculé
+ * sur trois paris tranchés est un artefact, pas une performance. L'appelant
+ * doit alors se taire plutôt que d'annoncer 100 % ou 0 %.
+ */
+const ECHANTILLON_MINIMAL = 10;
+
+export const getBilanPremium = async (req: AuthRequest, res: Response) => {
+  try {
+    const jours = Math.min(parseInt((req.query.days as string) ?? '30') || 30, 90);
+
+    const cacheKey = CACHE_KEYS.bilanPremium(jours);
+    const cached = cache.get<any>(cacheKey);
+    if (cached) { res.json(cached); return; }
+
+    const depuis = new Date(Date.now() - jours * 24 * 60 * 60 * 1000);
+
+    const [gagnes, perdus] = await Promise.all([
+      prisma.pronostic.count({
+        where: {
+          isPremium: true, isPublished: true, result: 'WIN',
+          match: { status: 'FINISHED', matchDate: { gte: depuis } },
+        },
+      }),
+      prisma.pronostic.count({
+        where: {
+          isPremium: true, isPublished: true, result: 'LOSS',
+          match: { status: 'FINISHED', matchDate: { gte: depuis } },
+        },
+      }),
+    ]);
+
+    // Les remboursés (PUSH) sont exclus des deux côtés : ni gagnés ni perdus,
+    // ils ne disent rien de la justesse d'un pronostic. Même convention que
+    // `getPerformance` et que la carte bankroll.
+    const tranches = gagnes + perdus;
+
+    const reponse = {
+      periode_jours:          jours,
+      pronostics_tranches:    tranches,
+      gagnes,
+      perdus,
+      taux_reussite:          tranches > 0 ? Math.round((gagnes / tranches) * 100) : null,
+      echantillon_minimal:    ECHANTILLON_MINIMAL,
+      echantillon_suffisant:  tranches >= ECHANTILLON_MINIMAL,
+    };
+
+    cache.set(cacheKey, reponse, CACHE_TTL.stats);
+    res.json(reponse);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+export const getPerformance = async (req: AuthRequest, res: Response) => {
+  try {
+    const days   = Math.min(parseInt((req.query.days as string) ?? '30') || 30, 90);
+    const since  = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+    const STAKE  = 1000; // mise fictive en FCFA
+
+    const pronostics = await prisma.pronostic.findMany({
+      where: {
+        isPublished: true,
+        result:      { not: null },
+        match:       { status: 'FINISHED', matchDate: { gte: since } },
+      },
+      include: { match: { select: { league: true, matchDate: true } } },
+      orderBy: { match: { matchDate: 'asc' } },
+    });
+
+    // Net simulé d'un pronostic pour la mise fictive STAKE — 0 pour un PUSH
+    // (marché remboursé : ni gain ni perte), symétrique à settleBets().
+    const _net = (p: (typeof pronostics)[number]): number =>
+      p.result === 'WIN'  ? STAKE * p.oddsRecommended - STAKE
+      : p.result === 'PUSH' ? 0
+      : -STAKE;
+
+    const total    = pronostics.length;
+    const decisive = pronostics.filter(p => p.result !== 'PUSH');
+    const wins     = decisive.filter(p => p.result === 'WIN').length;
+    const losses   = decisive.filter(p => p.result === 'LOSS').length;
+    // Le taux de réussite et le ROI excluent les remboursés — ni victoire ni
+    // défaite, la mise fictive n'a jamais été réellement "à risque".
+    const winRate  = decisive.length > 0 ? Math.round((wins / decisive.length) * 100) : 0;
+
+    const netGain      = pronostics.reduce((sum, p) => sum + _net(p), 0);
+    const totalStaked  = decisive.length * STAKE;
+    const roi = totalStaked > 0 ? Math.round((netGain / totalStaked) * 100 * 10) / 10 : 0;
+
+    // Meilleure série (un PUSH n'interrompt pas une série de victoires, il est ignoré)
+    let bestStreak = 0, currentStreak = 0;
+    for (const p of pronostics) {
+      if (p.result === 'WIN') { currentStreak++; bestStreak = Math.max(bestStreak, currentStreak); }
+      else if (p.result === 'LOSS') currentStreak = 0;
+    }
+
+    // Ligue la plus rentable
+    const byLeague: Record<string, { wins: number; total: number; net: number }> = {};
+    for (const p of pronostics) {
+      const l = p.match.league;
+      if (!byLeague[l]) byLeague[l] = { wins: 0, total: 0, net: 0 };
+      byLeague[l].total++;
+      if (p.result === 'WIN') byLeague[l].wins++;
+      byLeague[l].net += _net(p);
+    }
+    const bestLeague = Object.entries(byLeague)
+      .sort((a, b) => b[1].net - a[1].net)
+      .map(([league, s]) => ({
+        league,
+        wins:     s.wins,
+        total:    s.total,
+        win_rate: s.total > 0 ? Math.round(s.wins / s.total * 100) : 0,
+        net_gain: Math.round(s.net),
+      }));
+
+    // Évolution du solde simulé jour par jour
+    let runningBalance = 0;
+    const balanceHistory = pronostics.map(p => {
+      runningBalance += _net(p);
+      return {
+        date:    p.match.matchDate,
+        balance: Math.round(runningBalance),
+        result:  p.result,
+      };
+    });
+
+    // Stats par semaine (7 derniers jours vs 7 précédents)
+    const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const thisWeek = pronostics.filter(p => p.match.matchDate >= weekAgo);
+    const thisWeekDecisive = thisWeek.filter(p => p.result !== 'PUSH');
+    const weekWins = thisWeekDecisive.filter(p => p.result === 'WIN').length;
+
+    res.json({
+      period_days:      days,
+      stake_reference:  STAKE,
+      total_pronostics: total,
+      wins,
+      losses,
+      pushes:           total - decisive.length,
+      win_rate:         winRate,
+      roi,
+      simulated_net:    Math.round(netGain),
+      best_streak:      bestStreak,
+      best_leagues:     bestLeague.slice(0, 5),
+      balance_history:  balanceHistory,
+      this_week: {
+        total:    thisWeek.length,
+        wins:     weekWins,
+        win_rate: thisWeekDecisive.length > 0 ? Math.round(weekWins / thisWeekDecisive.length * 100) : 0,
+      },
+    });
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+export const getDailyFree = async (_req: Request, res: Response) => {
+  try {
+    const prono = await svc.getDailyFreePronostic();
+    if (!prono) { res.status(404).json({ message: 'Aucun prono du jour disponible.' }); return; }
+    res.json(prono);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+export const setDailyFree = async (req: AdminRequest, res: Response) => {
+  try {
+    const result = await svc.setDailyFreePronostic(req.params.id);
+    res.json(result);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+// GET /pronostics/for-you — recommandations IA personnalisées
+export const getForYou = async (req: AuthRequest, res: Response) => {
+  try {
+    const userId  = req.userId!;
+    const limit   = Math.min(parseInt((req.query.limit as string) ?? '10') || 10, 20);
+
+    const profile = await buildUserProfile(userId);
+    const recs    = await getPersonalizedPronostics(userId, profile, limit);
+
+    res.json({
+      profile: {
+        total_bets:     profile.totalBets,
+        win_rate:       profile.winRate,
+        top_leagues:    profile.topLeagues,
+        top_bet_types:  profile.topBetTypes,
+        odds_sweet_min: profile.oddsSweetMin,
+        odds_sweet_max: profile.oddsSweetMax,
+        is_new_user:    profile.isEmpty,
+      },
+      recommendations: recs,
+    });
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
 export const getLeagues = async (_req: AuthRequest, res: Response) => {
-  try { res.json(await fdSvc.getCompetitions()); }
+  try { res.json(await apiFootballService.getCompetitions()); }
   catch (e: any) { res.status(500).json({ message: e.message }); }
 };
 
 export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
   try {
+    // Accepte un id de pronostic OU de match — même raison que les autres
+    // endpoints du détail match (cf. findPronoByIdOrMatchId).
     const [prono, user] = await Promise.all([
-      prisma.pronostic.findUnique({
-        where:   { id: req.params.id },
+      prisma.pronostic.findFirst({
+        where:   { OR: [{ id: req.params.id }, { matchId: req.params.id }] },
         include: { match: true, analyst: { select: { name: true } } },
       }),
-      prisma.user.findUnique({
-        where:  { id: req.userId! },
-        select: { subscriptionPlan: true, subscriptionExpiresAt: true },
-      }),
+      // Invité : pas d'userId. `findUnique` avec un id undefined lève une
+      // erreur Prisma, d'où la garde.
+      req.userId
+        ? prisma.user.findUnique({
+            where:  { id: req.userId },
+            select: { subscriptionPlan: true, subscriptionExpiresAt: true },
+          })
+        : Promise.resolve(null),
     ]);
     if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
 
     const userIsPremium = user?.subscriptionPlan === 'premium' &&
       (!user.subscriptionExpiresAt || user.subscriptionExpiresAt > new Date());
 
-    // Bloquer l'accès complet au pronostic premium pour les non-premium
-    if (prono.isPremium && !userIsPremium) {
-      res.status(403).json({ message: 'Accès réservé aux membres Premium.', code: 'PREMIUM_REQUIRED' });
-      return;
-    }
+    // Le pronostic premium est FILTRÉ, plus bloqué.
+    //
+    // Un 403 renvoyait une page d'erreur : ni compositions, ni classement, ni
+    // face-à-face — alors que rien de tout cela n'est payant. L'utilisateur
+    // gratuit voyait un mur au lieu d'une raison de s'abonner, et l'invité
+    // n'entrait même pas. On sert désormais toute la donnée du match, et on
+    // retire les seuls champs qui constituent l'offre payante.
+    // Règle unique, partagée avec la liste (`verrou_pronostic.ts`). Un match
+    // terminé n'a plus rien à cacher : le score est public, le pronostic est
+    // vérifiable, et l'historique ouvert est ce qui rend crédible le taux de
+    // réussite affiché sur l'accueil.
+    const locked = estVerrouille(prono.isPremium, prono.match.status, userIsPremium);
 
     res.json({
+      // `locked` dit au client d'afficher la carte pronostic verrouillée
+      // plutôt que de croire à une absence de données.
+      locked,
+      requires_auth: !req.userId,
       id:               prono.id,
       league:           prono.match.league,
       league_country:   prono.match.leagueCode,
@@ -90,20 +385,25 @@ export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
       status:           prono.match.status.toLowerCase(),
       home_score:       prono.match.homeScore,
       away_score:       prono.match.awayScore,
-      prediction_type:  prono.predictionType,
-      prediction_label: prono.predictionLabel,
+      is_premium:       prono.isPremium,
+      // Données du match — jamais payantes, elles viennent d'API-Football.
+      home_form_points: prono.match.homeFormPoints,
+      away_form_points: prono.match.awayFormPoints,
       odds_home:        prono.oddsHome,
       odds_draw:        prono.oddsDraw,
       odds_away:        prono.oddsAway,
-      odds_recommended: prono.oddsRecommended,
-      confidence_score: prono.confidenceScore,
-      is_premium:       prono.isPremium,
-      analyst_note:     prono.analystNote,
-      analyst_name:     prono.analyst.name,
-      home_form_points: prono.match.homeFormPoints,
-      away_form_points: prono.match.awayFormPoints,
-      ai_probability:   prono.aiProbability,
-      ai_explanation:   prono.aiExplanation,
+      // Le pronostic lui-même : c'est ce qui se vend.
+      prediction_type:  locked ? null : prono.predictionType,
+      prediction_label: locked ? null : prono.predictionLabel,
+      odds_recommended: locked ? null : prono.oddsRecommended,
+      confidence_score: locked ? null : prono.confidenceScore,
+      analyst_note:     locked ? null : prono.analystNote,
+      analyst_name:     locked ? null : prono.analyst.name,
+      ai_probability:   locked ? null : prono.aiProbability,
+      ai_explanation:   locked ? null : prono.aiExplanation,
+      // Le résultat reste visible : il prouve la fiabilité passée et c'est
+      // précisément l'argument de vente.
+      result:           prono.result,
     });
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };
@@ -111,15 +411,18 @@ export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
 /** GET /pronostics/:id/score — score + statut uniquement (polling live léger) */
 export const getPronosticScore = async (req: AuthRequest, res: Response) => {
   try {
-    const prono = await prisma.pronostic.findUnique({
-      where:  { id: req.params.id },
-      select: { match: { select: { homeScore: true, awayScore: true, status: true } } },
-    });
+    // Accepte un id de pronostic OU de match : la page détail relaie celui que
+    // lui a transmis l'écran d'origine (cf. findPronoByIdOrMatchId). Sans ça,
+    // le score live ne se rafraîchissait jamais depuis l'onglet Pronostics.
+    const prono = await findPronoByIdOrMatchId(req.params.id);
     if (!prono) { res.status(404).json({ message: 'Introuvable.' }); return; }
     res.json({
       homeScore: prono.match.homeScore,
       awayScore: prono.match.awayScore,
       status:    prono.match.status,
+      // Minute de jeu — l'écran de direct affichait un score sans jamais dire
+      // où on en était dans le match.
+      elapsed:   prono.match.elapsedMinutes,
     });
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };
@@ -127,17 +430,32 @@ export const getPronosticScore = async (req: AuthRequest, res: Response) => {
 // ── ADMIN ─────────────────────────────────────────────────────────────────────
 export const fetchUpcoming = async (req: AdminRequest, res: Response) => {
   try {
-    // Vérifier que la clé API est configurée
-    if (!process.env.FOOTBALL_DATA_API_KEY) {
+    const competition = req.query.competition as string | undefined;
+    const search      = req.query.search as string | undefined;
+    const date        = req.query.date as string | undefined;
+    const mine        = req.query.mine === '1';
+    const live        = req.query.live === '1';
+
+    // "Mes pronostics", une date précise et "Match en direct" se lisent
+    // directement en base — pas besoin de la clé API.
+    if (!date && !mine && !live && !process.env.API_FOOTBALL_KEY) {
       res.status(400).json({
-        message: 'FOOTBALL_DATA_API_KEY manquante dans .env',
-        help: 'Inscrivez-vous sur https://www.football-data.org/client/register',
+        message: 'API_FOOTBALL_KEY manquante dans .env',
+        help: 'Inscrivez-vous sur https://www.api-football.com',
       });
       return;
     }
 
-    const competition = req.query.competition as string | undefined;
-    const data = await svc.fetchUpcomingMatchesForAdmin(competition);
+    // La page de liste demande un plafond, l'export CSV et la recherche
+    // globale n'en passent aucun : les plafonner tronquerait un export sans
+    // rien dire. Le total avant troncature part en en-tête, le corps reste un
+    // tableau — trois appelants s'appuient sur cette forme.
+    const brut   = req.query.limit as string | undefined;
+    const limite = brut && /^\d+$/.test(brut) ? Math.min(parseInt(brut, 10), 2000) : undefined;
+    const { items, total } = await svc.fetchUpcomingMatchesForAdmin(
+      competition, search, date, mine, live, limite);
+    res.setHeader('X-Total-Count', String(total));
+    const data = items;
     res.json(data);
 
   } catch (e: any) {
@@ -160,6 +478,8 @@ export const upsertPronostic = async (req: AdminRequest, res: Response) => {
       analystId:       req.adminId!,
       predictionType:  b.prediction_type,
       predictionLabel: b.prediction_label,
+      marketName:      b.market_name,
+      marketValue:     b.market_value,
       oddsHome:        parseFloat(b.odds_home),
       oddsDraw:        parseFloat(b.odds_draw),
       oddsAway:        parseFloat(b.odds_away),
@@ -217,12 +537,51 @@ export const togglePublish = async (req: AdminRequest, res: Response) => {
   } catch (e: any) { res.status(400).json({ message: e.message }); }
 };
 
+/** GET /pronostics/admin/leagues — liste blanche des compétitions visibles dans le flux public */
+export const getLeagueVisibility = async (_req: AdminRequest, res: Response) => {
+  try {
+    const leagues = await svc.listLeagueVisibility();
+    res.json(leagues);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+/** POST /pronostics/admin/leagues/:code — active/désactive une compétition */
+export const setLeagueVisibility = async (req: AdminRequest, res: Response) => {
+  try {
+    const { league, visible } = req.body;
+    if (typeof league !== 'string' || !league.trim()) {
+      res.status(400).json({ message: 'league requis.' }); return;
+    }
+    const isVisible = visible === true || visible === 'true';
+    const row = await svc.setLeagueVisibility(req.params.code, league, isVisible);
+    // Le flux public ("Tous les matchs") lit ce filtre à chaque requête —
+    // invalider le cache (préfixe "pronostics:", couvre aussi day-counts/day-summary)
+    // pour que le changement soit immédiat.
+    cache.del('pronostics:');
+    res.json(row);
+  } catch (e: any) { res.status(400).json({ message: e.message }); }
+};
+
+/** POST /pronostics/admin/leagues-bulk — bascule un lot de compétitions d'un coup */
+export const setLeagueVisibilityBulk = async (req: AdminRequest, res: Response) => {
+  try {
+    const { leagues, visible } = req.body;
+    if (!Array.isArray(leagues) || leagues.length === 0) {
+      res.status(400).json({ message: 'leagues doit être un tableau non vide.' }); return;
+    }
+    const isVisible = visible === true || visible === 'true';
+    const result = await svc.setLeagueVisibilityBulk(leagues, isVisible);
+    cache.del('pronostics:');
+    res.json(result);
+  } catch (e: any) { res.status(400).json({ message: e.message }); }
+};
+
 /** PATCH /pronostics/admin/pronostic/:id/result — forcer WIN/LOSS/null manuellement */
 export const setPronosticResult = async (req: AdminRequest, res: Response) => {
   try {
-    const { result } = req.body; // 'WIN' | 'LOSS' | null
-    if (result !== 'WIN' && result !== 'LOSS' && result !== null) {
-      res.status(400).json({ message: 'result doit être WIN, LOSS ou null.' }); return;
+    const { result } = req.body; // 'WIN' | 'LOSS' | 'PUSH' | null
+    if (result !== 'WIN' && result !== 'LOSS' && result !== 'PUSH' && result !== null) {
+      res.status(400).json({ message: 'result doit être WIN, LOSS, PUSH ou null.' }); return;
     }
     const p = await prisma.pronostic.update({
       where: { id: req.params.id },
@@ -232,7 +591,7 @@ export const setPronosticResult = async (req: AdminRequest, res: Response) => {
     cache.del(CACHE_KEYS.publicStats);
     cache.del(CACHE_KEYS.adminStats);
     // Régler automatiquement les paris bankroll liés à ce pronostic
-    if (result === 'WIN' || result === 'LOSS') {
+    if (result === 'WIN' || result === 'LOSS' || result === 'PUSH') {
       settleBets(req.params.id, result).catch(() => {});
     }
     res.json(p);
@@ -309,12 +668,15 @@ export const getAdminStats = async (_req: AdminRequest, res: Response) => {
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };
 
-/** GET /admin/match/:matchId/odds — cotes live depuis The Odds API */
+/** GET /admin/match/:matchId/odds — cotes 1xBet live via API-Football */
 export const getMatchOdds = async (req: AdminRequest, res: Response) => {
   try {
     const match = await prisma.match.findUnique({ where: { id: req.params.matchId } });
     if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
-    const odds = await oddsSvc.getOddsForMatch(match.homeTeam, match.awayTeam, match.league);
+    const dateStr = match.matchDate.toISOString().slice(0, 10);
+    const fixtureId = match.source === 'API_FOOTBALL' ? match.externalId : undefined;
+    const odds = await apiFootballService.getOdds1xBet(match.homeTeam, match.awayTeam, dateStr, fixtureId);
+    if (!odds) { res.status(422).json({ message: 'Cotes indisponibles pour ce match.' }); return; }
     res.json(odds);
   } catch (e: any) { res.status(422).json({ message: e.message }); }
 };
@@ -327,6 +689,206 @@ async function findPronoByIdOrMatchId(id: string) {
   return prisma.pronostic.findUnique({ where: { matchId: id }, include: { match: true } });
 }
 
+
+// ─── Enrichissements API-Football (plan Pro) ─────────────────────────────────
+//
+// Tous ces endpoints sont *optionnels* : ils enrichissent un match, ils ne le
+// définissent pas. Une panne côté fournisseur doit se traduire par un 503 que
+// le mobile masque, jamais par une page de match cassée.
+
+/** Un match n'a d'enrichissement que s'il vient d'API-Football avec un id. */
+function fixtureIdDe(match: { source: string; externalId: number | null }): number | null {
+  return match.source === 'API_FOOTBALL' && match.externalId ? match.externalId : null;
+}
+
+/**
+ * GET /pronostics/:id/insights — « Pourquoi ce pronostic ».
+ *
+ * Réunit le modèle statistique du fournisseur (probabilités 1X2, sept axes de
+ * comparaison) et le profil de buts par tranche horaire des deux équipes.
+ * Deux à trois requêtes API au premier appel, puis cache 6 h / 24 h.
+ */
+export const getMatchInsights = async (req: AuthRequest, res: Response) => {
+  try {
+    const prono = await findPronoByIdOrMatchId(req.params.id);
+    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+
+    const fixtureId = fixtureIdDe(prono.match);
+    if (!fixtureId) { res.status(404).json({ message: 'Données détaillées indisponibles pour ce match.' }); return; }
+
+    const prediction = await apiFootballInsights.getPrediction(fixtureId);
+    if (!prediction) { res.status(503).json({ message: 'Analyse indisponible.' }); return; }
+
+    // Les statistiques de saison n'ont de sens qu'en championnat : sur un tour
+    // de coupe, la « saison » de la compétition n'a pas de tableau de buts.
+    const [statsHome, statsAway] = prediction.leagueId && prediction.season
+      ? await Promise.all([
+          prediction.homeTeamId
+            ? apiFootballInsights.getTeamSeasonStats(
+                prediction.leagueId, prediction.season, prediction.homeTeamId)
+            : null,
+          prediction.awayTeamId
+            ? apiFootballInsights.getTeamSeasonStats(
+                prediction.leagueId, prediction.season, prediction.awayTeamId)
+            : null,
+        ])
+      : [null, null];
+
+    // Sortie inexploitable : ni probabilités, ni axes, ni recommandation.
+    //
+    // Vidées ici plutôt que triées par l'écran : aucun consommateur — le mobile
+    // aujourd'hui, un autre client demain — ne peut afficher des butées
+    // numériques sous le titre « Pourquoi ce pronostic ». Le drapeau accompagne
+    // la réponse pour que l'écran se taise au lieu de montrer une section vide.
+    const utilisable = prediction.modeleExploitable;
+
+    // Probabilités du marché, déduites des cotes déjà stockées.
+    //
+    // Sur Lask Linz – Celtic, le modèle externe donnait Lask Linz sous 1 % et
+    // les cotes le donnaient favori à 48,5 % ; Lask Linz a gagné 4–1. Les deux
+    // lectures cohabitaient dans l'app, à deux onglets d'écart, sans jamais se
+    // croiser. Le marché agrège bien plus d'information qu'un modèle bâti sur
+    // les seuls buts marqués : quand ses cotes sont exploitables, ce sont
+    // elles qui font foi pour l'affichage des probabilités.
+    const marche = probabilitesDepuisCotes(
+      prono.oddsHome, prono.oddsDraw, prono.oddsAway);
+
+    res.json({
+      modele_exploitable: utilisable,
+      // Quelle source alimente `percent` — l'écran doit pouvoir le nommer
+      // plutôt que de laisser croire à un chiffre maison.
+      source_probabilites: marche ? 'marche' : (utilisable ? 'modele' : null),
+      marge_bookmaker: marche?.margePct ?? null,
+      advice:         utilisable ? prediction.advice : null,
+      winner_name:    utilisable ? prediction.winnerName : null,
+      winner_comment: utilisable ? prediction.winnerComment : null,
+      // Le marché d'abord, le modèle en repli. Si aucun des deux ne tient, on
+      // n'envoie rien : mieux vaut une section absente qu'une section fausse.
+      percent: marche
+        ? { home: marche.home, draw: marche.draw, away: marche.away }
+        : (utilisable ? {
+            home: prediction.percentHome,
+            draw: prediction.percentDraw,
+            away: prediction.percentAway,
+          } : null),
+      under_over:  utilisable ? prediction.underOver : null,
+      comparisons: utilisable ? prediction.comparisons : [],
+      form: { home: prediction.formHome, away: prediction.formAway },
+      clean_sheet:      { home: prediction.cleanSheetHome,    away: prediction.cleanSheetAway },
+      failed_to_score:  { home: prediction.failedToScoreHome, away: prediction.failedToScoreAway },
+      goals_by_minute: {
+        home: statsHome?.goalsForByMinute ?? null,
+        away: statsAway?.goalsForByMinute ?? null,
+      },
+      goals_average: {
+        home: statsHome?.goalsForAverage ?? null,
+        away: statsAway?.goalsForAverage ?? null,
+      },
+      // Buts encaisses : recuperes a cote de ceux marques et jamais exposes.
+      // Une attaque a 2,0 devant une defense a 0,5 ne raconte pas la meme
+      // chose qu a 2,0 contre 2,0.
+      goals_conceded_average: {
+        home: statsHome?.goalsAgainstAverage ?? null,
+        away: statsAway?.goalsAgainstAverage ?? null,
+      },
+      home_team: prono.match.homeTeam,
+      away_team: prono.match.awayTeam,
+    });
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+/**
+ * GET /pronostics/:id/live-odds — cotes qui suivent le match.
+ *
+ * Le service ne filtre jamais `/odds/live` par fixture : un seul appel couvre
+ * tous les matchs en cours, et le cache de 2 minutes est partagé.
+ */
+export const getLiveOdds = async (req: AuthRequest, res: Response) => {
+  try {
+    const prono = await findPronoByIdOrMatchId(req.params.id);
+    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+    if (prono.match.status !== 'LIVE') {
+      res.status(400).json({ message: 'Cotes en direct réservées aux matchs en cours.' });
+      return;
+    }
+
+    const fixtureId = fixtureIdDe(prono.match);
+    if (!fixtureId) { res.status(404).json({ message: 'Données détaillées indisponibles pour ce match.' }); return; }
+
+    const odds = await apiFootballInsights.getLiveOdds(fixtureId);
+    if (!odds) { res.status(503).json({ message: 'Cotes en direct indisponibles.' }); return; }
+
+    res.json({
+      elapsed: odds.elapsed,
+      markets: odds.markets,
+      // Cote d'ouverture du pronostic, pour situer la variation.
+      opening_odd: prono.oddsRecommended,
+    });
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+/** GET /pronostics/:id/ratings — notes des joueurs d'un match terminé. */
+export const getPlayerRatings = async (req: AuthRequest, res: Response) => {
+  try {
+    const prono = await findPronoByIdOrMatchId(req.params.id);
+    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+    if (prono.match.status !== 'FINISHED') {
+      res.status(400).json({ message: 'Notes disponibles après le coup de sifflet final.' });
+      return;
+    }
+
+    const fixtureId = fixtureIdDe(prono.match);
+    if (!fixtureId) { res.status(404).json({ message: 'Données détaillées indisponibles pour ce match.' }); return; }
+
+    const ratings = await apiFootballInsights.getPlayerRatings(fixtureId);
+    if (!ratings?.length) { res.status(503).json({ message: 'Notes indisponibles.' }); return; }
+
+    res.json({
+      home_team: prono.match.homeTeam,
+      away_team: prono.match.awayTeam,
+      players:   ratings,
+    });
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+/** GET /pronostics/top-scorers?league=PL — meilleurs buteurs d'une compétition. */
+export const getTopScorers = async (req: AuthRequest, res: Response) => {
+  try {
+    const code = (req.query.league as string) ?? '';
+    const info = LEAGUE_INFO(code);
+    if (!info) { res.status(400).json({ message: 'Compétition inconnue.' }); return; }
+
+    // Même piège que le classement : `info.season` est un repli codé en dur,
+    // pas la saison en cours. Un palmarès de buteurs figé sur l'exercice
+    // précédent se lit comme une information à jour.
+    const saison = (await saisonCourante(code)) ?? info.season;
+    const scorers = await apiFootballInsights.getTopScorers(info.id, saison);
+    if (!scorers) { res.status(503).json({ message: 'Classement des buteurs indisponible.' }); return; }
+    res.json(scorers);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+/**
+ * GET /pronostics/admin/match/:matchId/prediction — avis du modèle, côté admin.
+ *
+ * Sert à orienter le choix du marché dans le formulaire, à côté des cotes
+ * 1xBet. C'est une aide à la décision, pas une automatisation : la publication
+ * reste un geste humain.
+ */
+export const getAdminPrediction = async (req: AdminRequest, res: Response) => {
+  try {
+    const match = await prisma.match.findUnique({ where: { id: req.params.matchId } });
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+
+    const fixtureId = fixtureIdDe(match);
+    if (!fixtureId) { res.status(404).json({ message: 'Données détaillées indisponibles pour ce match.' }); return; }
+
+    const prediction = await apiFootballInsights.getPrediction(fixtureId);
+    if (!prediction) { res.status(503).json({ message: 'Avis du modèle indisponible.' }); return; }
+    res.json(prediction);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
 export const getH2H = async (req: AuthRequest, res: Response) => {
   try {
     const prono = await findPronoByIdOrMatchId(req.params.id);
@@ -335,7 +897,15 @@ export const getH2H = async (req: AuthRequest, res: Response) => {
     const externalId = prono.match.externalId;
     if (!externalId) { res.status(404).json({ message: 'ID externe manquant.' }); return; }
 
-    const h2h = await fdSvc.getH2H(externalId, 10);
+    // Deux fournisseurs identifient les matchs différemment : football-data.org
+    // par externalId direct, API-Football par ID d'équipe (retrouvé via date + noms).
+    const h2h = prono.match.source === 'API_FOOTBALL'
+      ? await apiFootballService.getH2H(
+          prono.match.homeTeam, prono.match.awayTeam,
+          new Date(prono.match.matchDate).toISOString().split('T')[0], 10,
+        )
+      : await fdSvc.getH2H(externalId, 10);
+
     if (!h2h) { res.status(503).json({ message: 'Données H2H indisponibles.' }); return; }
 
     // Filtrer seulement les matchs terminés + formater
@@ -361,7 +931,60 @@ export const getH2H = async (req: AuthRequest, res: Response) => {
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };
 
-// Analyse IA d'un pronostic (ML probability + explication Claude)
+// Compositions d'équipe — uniquement disponibles côté API-Football (source unique désormais)
+export const getLineups = async (req: AuthRequest, res: Response) => {
+  try {
+    const prono = await findPronoByIdOrMatchId(req.params.id);
+    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+
+    if (prono.match.source !== 'API_FOOTBALL') {
+      res.json({ available: false, home: null, away: null });
+      return;
+    }
+
+    const lineups = await apiFootballService.getLineups(
+      prono.match.homeTeam, prono.match.awayTeam,
+      new Date(prono.match.matchDate).toISOString().split('T')[0],
+    );
+
+    if (!lineups) { res.status(503).json({ message: 'Compositions indisponibles.' }); return; }
+    res.json(lineups);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+// Blessures / suspensions — uniquement disponibles côté API-Football
+export const getInjuries = async (req: AuthRequest, res: Response) => {
+  try {
+    const prono = await findPronoByIdOrMatchId(req.params.id);
+    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+
+    if (prono.match.source !== 'API_FOOTBALL') { res.json([]); return; }
+
+    const injuries = await apiFootballService.getInjuries(
+      prono.match.homeTeam, prono.match.awayTeam,
+      new Date(prono.match.matchDate).toISOString().split('T')[0],
+    );
+
+    if (injuries === null) { res.status(503).json({ message: 'Blessures indisponibles.' }); return; }
+    res.json(injuries);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+// Classement de la ligue du match — grandes ligues suivies uniquement
+export const getStandings = async (req: AuthRequest, res: Response) => {
+  try {
+    const prono = await findPronoByIdOrMatchId(req.params.id);
+    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+
+    const standings = await apiFootballService.getStandings(prono.match.leagueCode);
+    if (standings === null) { res.status(503).json({ message: 'Classement indisponible.' }); return; }
+    res.json(standings);
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+// Analyse statistique d'un pronostic : probabilité calculée à partir de la
+// cote et de la forme, plus une explication du calcul. Aucun modèle génératif
+// n'est appelé (cf. ai_prediction.service.ts).
 export const getAiAnalysis = async (req: AuthRequest, res: Response) => {
   try {
     const result = await analyzePronostic(req.params.id);
@@ -379,10 +1002,32 @@ export const getMatchFromDB = async (req: AdminRequest, res: Response) => {
       include: { pronostic: true },
     });
     if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+    const p = match.pronostic;
     res.json({
       ...match,
-      has_pronostic: !!match.pronostic,
-      is_published:  match.pronostic?.isPublished ?? false,
+      has_pronostic: !!p,
+      is_published:  p?.isPublished ?? false,
+      // Le formulaire admin (pronostic_form.ejs) attend du snake_case — Prisma
+      // renvoie du camelCase par défaut, d'où ce remappage explicite.
+      pronostic: p ? {
+        id:                p.id,
+        prediction_type:   p.predictionType,
+        prediction_label:  p.predictionLabel,
+        market_name:       p.marketName,
+        market_value:      p.marketValue,
+        odds_home:         p.oddsHome,
+        odds_draw:         p.oddsDraw,
+        odds_away:         p.oddsAway,
+        odds_recommended:  p.oddsRecommended,
+        confidence_score:  p.confidenceScore,
+        analyst_note:      p.analystNote,
+        is_premium:        p.isPremium,
+        is_published:      p.isPublished,
+        result:            p.result,
+        createdAt:         p.createdAt,
+        updatedAt:         p.updatedAt,
+        publishedAt:       p.publishedAt,
+      } : null,
     });
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };

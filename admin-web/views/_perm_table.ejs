@@ -22,77 +22,79 @@
   }
 %>
 <div class="perm-table-wrap">
-  <table class="perm-table">
-    <thead>
-      <tr>
-        <th style="width:40%">Section</th>
-        <th class="perm-level-head lvl-read">👁 Lire</th>
-        <th class="perm-level-head lvl-write">✏️ Écrire</th>
-        <th class="perm-level-head lvl-delete">🗑 Supprimer</th>
-      </tr>
-    </thead>
-    <tbody>
-    <% PERMISSIONS.forEach(function(p) {
-         const levels = p.levels || {};
-    %>
-      <tr>
-        <td>
-          <div class="perm-key-label"><%= p.label %></div>
-          <div class="perm-key-desc"><%= p.desc %></div>
-        </td>
-
-        <!-- READ -->
-        <td>
-          <% if (levels.read) { %>
-          <label title="<%= levels.read %>">
-            <input type="checkbox"
-              class="perm-cb"
-              id="<%= _prefix %>-<%= p.key %>-read"
-              name="permissions"
-              value="<%= p.key %>:read"
-              <%= _levelOk(p.key, 'read') ? 'checked' : '' %>
-              onchange="onPermChange('<%= _prefix %>','<%= p.key %>','read')">
-          </label>
-          <% } else { %>
-          <span style="color:var(--text-dim);font-size:.8rem;">—</span>
-          <% } %>
-        </td>
-
-        <!-- WRITE -->
-        <td>
-          <% if (levels.write) { %>
-          <label title="<%= levels.write %>">
-            <input type="checkbox"
-              class="perm-cb"
-              id="<%= _prefix %>-<%= p.key %>-write"
-              name="permissions"
-              value="<%= p.key %>:write"
-              <%= _levelOk(p.key, 'write') ? 'checked' : '' %>
-              onchange="onPermChange('<%= _prefix %>','<%= p.key %>','write')">
-          </label>
-          <% } else { %>
-          <span style="color:var(--text-dim);font-size:.8rem;">—</span>
-          <% } %>
-        </td>
-
-        <!-- DELETE -->
-        <td>
-          <% if (levels.delete) { %>
-          <label title="<%= levels.delete %>">
-            <input type="checkbox"
-              class="perm-cb"
-              id="<%= _prefix %>-<%= p.key %>-delete"
-              name="permissions"
-              value="<%= p.key %>:delete"
-              <%= _levelOk(p.key, 'delete') ? 'checked' : '' %>
-              onchange="onPermChange('<%= _prefix %>','<%= p.key %>','delete')">
-          </label>
-          <% } else { %>
-          <span style="color:var(--text-dim);font-size:.8rem;">—</span>
-          <% } %>
-        </td>
-      </tr>
-    <% }); %>
-    </tbody>
-  </table>
+  <div class="table-wrap">
+    <table class="perm-table">
+      <thead>
+        <tr>
+          <th scope="col" style="width:40%">Section</th>
+          <th scope="col" class="perm-level-head lvl-read"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> Lire</th>
+          <th scope="col" class="perm-level-head lvl-write"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Écrire</th>
+          <th scope="col" class="perm-level-head lvl-delete"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Supprimer</th>
+        </tr>
+      </thead>
+      <tbody>
+      <% PERMISSIONS.forEach(function(p) {
+           const levels = p.levels || {};
+      %>
+        <tr>
+          <td>
+            <div class="perm-key-label"><%- p.icon ? '<svg class="ic" aria-hidden="true"><use href="#ic-' + p.icon + '"/></svg> ' : '' %><%= p.label %></div>
+            <div class="perm-key-desc"><%= p.desc %></div>
+          </td>
+  
+          <!-- READ -->
+          <td>
+            <% if (levels.read) { %>
+            <label title="<%= levels.read %>">
+              <input type="checkbox"
+                class="perm-cb"
+                id="<%= _prefix %>-<%= p.key %>-read"
+                name="permissions"
+                value="<%= p.key %>:read"
+                <%= _levelOk(p.key, 'read') ? 'checked' : '' %>
+                onchange="onPermChange('<%= _prefix %>','<%= p.key %>','read')">
+            </label>
+            <% } else { %>
+            <span style="color:var(--text-dim);font-size:.8rem;">—</span>
+            <% } %>
+          </td>
+  
+          <!-- WRITE -->
+          <td>
+            <% if (levels.write) { %>
+            <label title="<%= levels.write %>">
+              <input type="checkbox"
+                class="perm-cb"
+                id="<%= _prefix %>-<%= p.key %>-write"
+                name="permissions"
+                value="<%= p.key %>:write"
+                <%= _levelOk(p.key, 'write') ? 'checked' : '' %>
+                onchange="onPermChange('<%= _prefix %>','<%= p.key %>','write')">
+            </label>
+            <% } else { %>
+            <span style="color:var(--text-dim);font-size:.8rem;">—</span>
+            <% } %>
+          </td>
+  
+          <!-- DELETE -->
+          <td>
+            <% if (levels.delete) { %>
+            <label title="<%= levels.delete %>">
+              <input type="checkbox"
+                class="perm-cb"
+                id="<%= _prefix %>-<%= p.key %>-delete"
+                name="permissions"
+                value="<%= p.key %>:delete"
+                <%= _levelOk(p.key, 'delete') ? 'checked' : '' %>
+                onchange="onPermChange('<%= _prefix %>','<%= p.key %>','delete')">
+            </label>
+            <% } else { %>
+            <span style="color:var(--text-dim);font-size:.8rem;">—</span>
+            <% } %>
+          </td>
+        </tr>
+      <% }); %>
+      </tbody>
+    </table>
+  </div>
 </div>

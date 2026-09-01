@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Politique de confidentialité — <%= site.name %></title>
+  <meta name="description" content="Quelles données PronoWin collecte, pourquoi, avec qui elles sont partagées, et comment les supprimer.">
+  <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
+  <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <header class="navbar">
+    <div class="container">
+      <a href="/" class="brand">
+        <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
+        <span class="brand-name">Prono<span class="brand-win">Win</span></span>
+      </a>
+      <div class="nav-actions">
+        <a href="/" class="nav-cta">Retour au site</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="container legal-page">
+
+      <h1>Politique de confidentialité</h1>
+      <p><em>Dernière mise à jour : <%= dateMaj %></em></p>
+
+      <%# Ce document décrit ce que le code fait réellement. Chaque donnée
+          listée ci-dessous correspond à un champ du modèle `User` ou à une
+          table du schéma : une politique qui décrit un produit imaginaire est
+          pire que pas de politique — c'est une déclaration fausse, et Google
+          la traite comme telle. %>
+
+      <h2>En résumé</h2>
+        <p>
+          PronoWin publie des analyses et des pronostics de football. Pour créer
+          votre compte et faire fonctionner l'application, nous collectons un
+          nombre limité de données, décrites ci-dessous une par une.
+        </p>
+        <p>
+          <strong>Nous ne vendons aucune donnée personnelle</strong> et nous n'en
+          transmettons à aucun annonceur. L'application ne contient aucune régie
+          publicitaire.
+        </p>
+        <p>
+          <strong>L'accès est réservé aux personnes majeures.</strong> Votre date
+          de naissance nous sert à vérifier cette condition.
+        </p>
+
+      <h2>Les données que nous collectons</h2>
+
+        <h3>Ce que vous nous donnez</h3>
+        <ul>
+          <li><strong>Numéro de téléphone ou adresse e-mail</strong> — c'est votre
+              identifiant de connexion. L'un des deux suffit.</li>
+          <li><strong>Pseudo</strong>, et <strong>photo de profil</strong> si vous
+              en ajoutez une.</li>
+          <li><strong>Prénom et nom</strong>, facultatifs.</li>
+          <li><strong>Date de naissance</strong> — pour vérifier que vous êtes
+              majeur. C'est une obligation liée à la nature du service.</li>
+          <li><strong>Pays</strong>, pour adapter l'affichage.</li>
+          <li><strong>Identifiant chez un opérateur partenaire</strong>, uniquement
+              si vous demandez l'offre « premier mois offert » : il nous sert à
+              vérifier votre inscription auprès de ce partenaire.</li>
+          <%# Conditionnée à l'action, pas au canal.
+
+              Le règlement par facturation Google Play ne produit aucune
+              capture : l'annoncer sans condition aurait décrit une collecte
+              que cette version ne fait pas — et aurait soulevé la question de
+              savoir pourquoi une application facturée par Google réclamerait
+              une preuve de paiement.
+
+              Formulée ainsi, la phrase est exacte pour tout le monde et ne dit
+              rien du canal de distribution. %>
+          <li><strong>Preuve de paiement</strong> — si vous réglez votre
+              abonnement par transfert, la capture d'écran que vous joignez
+              pour le faire valider. Un règlement par facturation Google Play
+              n'en demande aucune.</li>
+        </ul>
+
+        <h3>Ce que l'application enregistre à l'usage</h3>
+        <ul>
+          <li><strong>Votre abonnement</strong> : formule en cours et date
+              d'échéance.</li>
+          <li><strong>Votre bankroll</strong> : budget que vous fixez, mises que
+              vous enregistrez, gains et pertes qui en découlent.</li>
+          <li><strong>Votre parrainage</strong> : votre code, la personne qui vous
+              a parrainé le cas échéant, et les gains accumulés.</li>
+          <li><strong>Votre activité</strong> : date de dernière connexion, de
+              dernière présence, et série de jours consécutifs.</li>
+          <li><strong>Vos favoris, votes et commentaires.</strong></li>
+        </ul>
+
+        <h3>Ce qui est technique</h3>
+        <ul>
+          <li><strong>Un jeton de notification</strong>, qui permet d'envoyer les
+              alertes de match à votre appareil et à lui seul.</li>
+          <li><strong>Vos préférences de notification.</strong></li>
+          <li><strong>Des rapports de plantage et de performance</strong>, envoyés
+              à Google Firebase quand l'application rencontre une erreur.</li>
+        </ul>
+
+        <p>
+          Nous ne collectons <strong>ni votre position GPS</strong>, ni vos
+          contacts, ni le contenu de votre appareil.
+        </p>
+
+      <h2>Pourquoi</h2>
+        <ul>
+          <li><strong>Vous identifier</strong> et sécuriser l'accès à votre
+              compte.</li>
+          <li><strong>Vous donner accès aux pronostics</strong> correspondant à
+              votre formule.</li>
+          <li><strong>Vous prévenir</strong> avant un match et à son résultat, si
+              vous l'avez demandé.</li>
+          <li><strong>Traiter votre abonnement</strong> et vérifier vos
+              paiements.</li>
+          <li><strong>Calculer votre bankroll</strong> et vos gains de
+              parrainage.</li>
+          <li><strong>Vérifier que vous êtes majeur.</strong></li>
+          <li><strong>Corriger les pannes</strong>, grâce aux rapports d'erreur.</li>
+        </ul>
+
+      <h2>Avec qui elles sont partagées</h2>
+        <p>
+          Nous ne partageons vos données qu'avec les prestataires nécessaires au
+          fonctionnement de l'application, et pour ce seul usage.
+        </p>
+        <ul>
+          <li><strong>Google Firebase</strong> — envoi des notifications, rapports
+              de plantage, mesure de performance et configuration à distance.</li>
+          <li><strong>Google Sign-In</strong> — si vous choisissez de vous
+              connecter avec votre compte Google.</li>
+          <li><strong>Google Play</strong> — pour les achats intégrés, sur la
+              version installée depuis le Play Store.</li>
+        </ul>
+        <p>
+          Les données sportives affichées (matchs, compositions, classements,
+          cotes) proviennent d'un fournisseur tiers, <strong>API-Football</strong>.
+          <strong>Aucune donnée personnelle ne lui est transmise</strong> : nous
+          lui demandons des informations de match, pas des informations sur vous.
+        </p>
+        <p>
+          Nous ne vendons, ne louons et n'échangeons aucune donnée personnelle.
+        </p>
+
+      <h2>Où elles sont conservées</h2>
+        <p>
+          Sur un serveur dédié hébergé par <strong>OVH, à Montréal (Canada)</strong>.
+          Si vous résidez dans l'Union européenne, vos données sont donc
+          transférées hors de l'UE.
+        </p>
+        <p>
+          Les échanges entre l'application et le serveur sont chiffrés (HTTPS).
+          Les mots de passe, lorsqu'ils existent, sont conservés sous forme
+          d'empreinte et jamais en clair.
+        </p>
+
+      <h2>Combien de temps</h2>
+        <p>
+          Tant que votre compte existe. Vous pouvez le supprimer à tout moment
+          depuis l'application, rubrique Compte.
+        </p>
+        <p>
+          <strong>Ce que la suppression fait exactement</strong>, parce que la
+          nuance compte : votre compte est <em>anonymisé</em>. Vos identifiants,
+          votre nom, votre pseudo, votre photo, votre jeton de notification et
+          votre identifiant partenaire sont effacés ou remplacés par une valeur
+          neutre. Vous ne pouvez plus vous connecter, et plus rien ne vous
+          rattache à ce compte.
+        </p>
+        <p>
+          Les <strong>écritures comptables</strong> liées aux abonnements et aux
+          paiements sont conservées sans lien avec votre identité, comme la loi
+          l'exige pour toute transaction.
+        </p>
+
+      <h2>Vos droits</h2>
+        <p>Vous pouvez à tout moment :</p>
+        <ul>
+          <li><strong>consulter</strong> les données de votre profil, depuis
+              l'application ;</li>
+          <li><strong>les corriger</strong>, dans la rubrique Compte ;</li>
+          <li><strong>supprimer votre compte</strong>, sans avoir à le
+              justifier ;</li>
+          <li><strong>désactiver les notifications</strong>, par catégorie.</li>
+        </ul>
+        <p>
+          Pour toute demande relative à vos données, écrivez-nous
+          <% if (site.contactEmail) { %>
+            à <a href="mailto:<%= site.contactEmail %>"><%= site.contactEmail %></a>.
+          <% } else { %>
+            depuis l'application, rubrique Aide.
+          <% } %>
+        </p>
+
+      <h2>Les mineurs</h2>
+        <p>
+          L'application est <strong>interdite aux moins de 18 ans</strong>. Elle
+          n'est ni conçue ni destinée aux enfants, et nous ne collectons pas
+          sciemment leurs données. Si vous constatez qu'un mineur a créé un
+          compte, signalez-le-nous : il sera supprimé.
+        </p>
+
+      <h2>Modifications</h2>
+        <p>
+          Ce document peut évoluer avec l'application. La date de dernière mise à
+          jour figure en haut de cette page ; toute modification importante sera
+          annoncée dans l'application.
+        </p>
+
+      <h2>Voir aussi</h2>
+      <p>
+        <a href="/mentions-legales">Mentions légales</a> ·
+        <a href="/">Retour au site</a>
+      </p>
+
+  </div>
+
+  <footer class="footer">
+    <div class="container footer-bottom">
+      <span>© <%= site.year %> <%= site.name %>. Tous droits réservés.</span>
+    </div>
+  </footer>
+</body>
+</html>

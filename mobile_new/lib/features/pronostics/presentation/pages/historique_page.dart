@@ -8,6 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../core/cache/cache_service.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../domain/entities/match_entity.dart' show MatchEntity;
 
 // ─── Filtres ──────────────────────────────────────────────────────────────────
 enum _ResultFilter { all, win, loss, pending }
@@ -82,7 +83,7 @@ class HistoriquePage extends ConsumerWidget {
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error:   (_, __) => const _ErrorView(),
+        error:   (_, _) => const _ErrorView(),
         data: (all) {
           final entries = _applyFilter(all, filter);
           return Column(
@@ -124,7 +125,8 @@ class HistoriquePage extends ConsumerWidget {
       final home   = match['homeTeam']  as String? ?? '';
       final away   = match['awayTeam']  as String? ?? '';
       final league = match['league']    as String? ?? '';
-      final pred   = e['predictionLabel'] as String? ?? '';
+      final pred   = MatchEntity.applyTeamNames(
+          e['predictionLabel'] as String? ?? '', homeTeam: home, awayTeam: away);
       final odds   = (e['oddsRecommended'] as num?)?.toStringAsFixed(2) ?? '';
       final result = e['result'] as String? ?? 'EN ATTENTE';
       buf.writeln('"$date","$home vs $away","$league","$pred",$odds,$result');
@@ -261,7 +263,11 @@ class _HistoriqueBody extends StatelessWidget {
     final taux  = total > 0 ? (won / total * 100).round() : 0;
     int serie   = 0;
     for (final e in allEntries) {
-      if (e['result'] == 'WIN') serie++; else break;
+      if (e['result'] == 'WIN') {
+        serie++;
+      } else {
+        break;
+      }
     }
 
     // Grouper par semaine
@@ -411,7 +417,7 @@ class _PerformanceChart extends StatelessWidget {
                   barWidth: 2.5,
                   dotData: FlDotData(
                     show: true,
-                    getDotPainter: (spot, _, __, ___) {
+                    getDotPainter: (spot, _, _, _) {
                       final isLast = spot.x == spots.last.x;
                       return FlDotCirclePainter(
                         radius: isLast ? 5 : 0,
@@ -576,7 +582,8 @@ class _EntryCard extends StatelessWidget {
     final league     = match['league']    as String? ?? '';
     final date       = DateTime.tryParse(match['matchDate'] as String? ?? '');
     final dateStr    = date != null ? DateFormat('dd/MM', 'fr_FR').format(date) : '';
-    final pred       = entry['predictionLabel'] as String? ?? '';
+    final pred       = MatchEntity.applyTeamNames(
+        entry['predictionLabel'] as String? ?? '', homeTeam: homeTeam, awayTeam: awayTeam);
     final odds       = (entry['oddsRecommended'] as num?)?.toDouble() ?? 0.0;
 
     final resultColor = isPending ? AppColors.warning

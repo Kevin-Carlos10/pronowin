@@ -14,13 +14,15 @@ class PronosticsRepositoryImpl implements PronosticsRepository {
     String? leagueId,
     String? dateFilter,
     String? sport,
+    String? status,
+    bool?   hasPronostic,
     String? cursor,
     int     limit = 20,
   }) async {
     try {
       final page = await _remote.getMatches(
-        leagueId: leagueId, dateFilter: dateFilter, sport: sport,
-        cursor: cursor, limit: limit,
+        leagueId: leagueId, dateFilter: dateFilter, sport: sport, status: status,
+        hasPronostic: hasPronostic, cursor: cursor, limit: limit,
       );
       return Right(MatchesPageResult(
         data:       page.data,

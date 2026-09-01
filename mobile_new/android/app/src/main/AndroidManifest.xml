@@ -8,7 +8,9 @@
     <application
         android:label="PronoWin"
         android:name="${applicationName}"
-        android:icon="@mipmap/launcher_icon">
+        android:icon="@mipmap/launcher_icon"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -74,9 +76,21 @@
             android:value="2" />
 
         <!-- FCM default notification channel -->
+        <!-- Pointait sur @mipmap/ic_launcher, qui est reste le logo Flutter
+             par defaut du jour de creation du projet : l'application affiche
+             @mipmap/launcher_icon, pas celui-la. Les notifications portaient
+             donc le logo de Flutter.
+
+             Et pointer sur launcher_icon n'aurait pas suffi : depuis Android 5
+             la petite icone est rendue en silhouette, canal alpha seul. Un
+             fond orange opaque y devient un carre blanc. D'ou une icone
+             monochrome dediee, generee par brand/notification.js. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@mipmap/ic_launcher"/>
+            android:resource="@drawable/ic_notification"/>
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/couleur_notification"/>
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="pronowin_high"/>
@@ -90,6 +104,25 @@
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
             <data android:mimeType="text/plain"/>
+        </intent>
+        <!-- Requis (Android 11+ package visibility) pour que url_launcher puisse
+             détecter et ouvrir un navigateur/app externe (ex: vidéos YouTube). -->
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="https"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="http"/>
+        </intent>
+        <!-- Requis pour ouvrir l'app mail depuis "Nous contacter" (À propos). -->
+        <intent>
+            <action android:name="android.intent.action.SENDTO"/>
+            <data android:scheme="mailto"/>
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW"/>
+            <data android:scheme="mailto"/>
         </intent>
     </queries>
 </manifest>

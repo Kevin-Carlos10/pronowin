@@ -2,8 +2,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/cache/cache_service.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../domain/tarifs_premium.dart';
 
-const _kSubFallback = {'plan': 'free', 'days_left': 0, 'premium_price': 5000, 'promo_code': 'PRONOWIN2025'};
+// Les tarifs FCFA, le code promo et les plateformes viennent de
+// `TarifsPremium` : ils étaient écrits ici *et* dans l'écran d'abonnement, deux
+// listes qui pouvaient diverger sans que rien ne le signale.
+const _kSubFallback = {
+  'plan': 'free', 'days_left': 0,
+  // Pas de code promo de repli : un code d'affiliation invente ne credite
+  // personne. Vide, l'ecran annonce l'indisponibilite.
+  'promo_code':        '',
+  'betting_platforms': TarifsPremium.plateformesDefaut,
+  'premium_price_monthly_usd': 10, 'premium_price_annual_usd': 90,
+  'premium_price_monthly_fcfa':      TarifsPremium.mensuelDirectDefaut,
+  'premium_price_annual_fcfa':       TarifsPremium.annuelDirectDefaut,
+  // Le parcours « code promo » n'a plus de tarif : il offre le premier mois.
+  'code_offer_days': TarifsPremium.joursOffreCodeDefaut,
+  'premium_price_monthly_store_usd': 15, 'premium_price_annual_store_usd': 135,
+  'review_delay_direct': TarifsPremium.delaiDirectDefaut,
+  'review_delay_code':   TarifsPremium.delaiCodeDefaut,
+  // Aucun numéro de repli : un serveur qui n'en publie pas ne doit pas être
+  // contredit par une constante compilée dans le binaire.
+  'payment_methods': <Map<String, dynamic>>[],
+};
 
 // ─── Abonnement actuel ────────────────────────────────────────────────────────
 final currentSubscriptionProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
@@ -17,6 +38,16 @@ final currentSubscriptionProvider = FutureProvider.autoDispose<Map<String, dynam
     return await CacheService.loadStale<Map<String, dynamic>>(
       cacheKey, (d) => d as Map<String, dynamic>) ?? _kSubFallback;
   }
+});
+
+/// Tarifs et moyens de paiement, prêts à afficher.
+///
+/// Évite que chaque écran relise la carte brute à sa façon — c'est ainsi que la
+/// feuille d'accroche avait fini par annoncer un prix que plus rien ne
+/// produisait.
+final tarifsPremiumProvider = Provider.autoDispose<TarifsPremium>((ref) {
+  final sub = ref.watch(currentSubscriptionProvider);
+  return TarifsPremium.depuis(sub.valueOrNull);
 });
 
 // ─── Statut preuve ────────────────────────────────────────────────────────────
@@ -45,30 +76,42 @@ class SubmitProofNotifier extends StateNotifier<SubmitProofState> {
   final Dio _dio;
   SubmitProofNotifier(this._dio) : super(ProofIdle());
 
+  /// Soumet une preuve.
+  ///
+  /// `paymentImageBase64` a disparu avec l'ancienne offre « code promo » : ce
+  /// parcours exigeait une seconde capture prouvant un versement Mobile Money,
+  /// et il n'échange plus d'argent. Le serveur ne lit plus ce champ ; le garder
+  /// ici aurait laissé un paramètre que personne ne remplit et que rien ne
+  /// consomme.
   Future<void> submit({
     required String type,
     required String imageBase64,
     String?  xbetId,
+    String?  platform,
     double?  amount,
     String?  senderPhone,
+    String?  planId,
   }) async {
     state = ProofLoading();
     try {
       final r = await _dio.post(
         '/subscriptions/submit-proof',
         data: {
-          'type':          type,
-          'image_base64':  imageBase64,
+          'type':         type,
+          'image_base64': imageBase64,
           'xbet_id':      xbetId,
-          'amount':        amount,
-          'sender_phone':  senderPhone,
+          'platform':     platform,
+          'amount':       amount,
+          'sender_phone': senderPhone,
+          'plan_id':      planId,
         },
         options: Options(
           sendTimeout:    const Duration(seconds: 60), // Image peut être lourde
           receiveTimeout: const Duration(seconds: 30),
         ),
       );
-      final estimated = r.data['estimated_review'] as String? ?? '30 minutes';
+      final estimated =
+          r.data['estimated_review'] as String? ?? TarifsPremium.delaiDirectDefaut;
       state = ProofSubmitted(estimated);
     } on DioException catch (e) {
       state = ProofError(e.response?.data?['message'] as String? ?? 'Erreur lors de l\'envoi.');
@@ -82,83 +125,3 @@ final submitProofProvider = StateNotifierProvider<SubmitProofNotifier, SubmitPro
   (ref) => SubmitProofNotifier(ref.read(dioProvider)));
 
 // ─── Validation code promo ─────────────────────────────────────────────────────
-abstract class PromoState {}
-class PromoIdle    extends PromoState {}
-class PromoLoading extends PromoState {}
-class PromoValid   extends PromoState {
-  final PromoCode code;
-  PromoValid(this.code);
-}
-class PromoInvalid extends PromoState {
-  final String message;
-  PromoInvalid(this.message);
-}
-
-class PromoCode {
-  final String code, description;
-  final int durationDays;
-  const PromoCode({required this.code, required this.description, required this.durationDays});
-}
-
-class PromoNotifier extends StateNotifier<PromoState> {
-  final Dio _dio;
-  PromoNotifier(this._dio) : super(PromoIdle());
-
-  Future<void> validate(String code) async {
-    if (code.trim().isEmpty) return;
-    state = PromoLoading();
-    try {
-      final r = await _dio.post('/subscriptions/validate-promo', data: {'code': code.trim()});
-      final data = r.data as Map<String, dynamic>;
-      if (data['valid'] == true) {
-        state = PromoValid(PromoCode(
-          code: code.trim(),
-          description: data['description'] as String? ?? 'Code valide',
-          durationDays: (data['duration_days'] as num?)?.toInt() ?? 30,
-        ));
-      } else {
-        state = PromoInvalid(data['message'] as String? ?? 'Code invalide');
-      }
-    } catch (_) {
-      state = PromoInvalid('Code invalide ou expiré');
-    }
-  }
-
-  void reset() => state = PromoIdle();
-}
-
-final promoProvider = StateNotifierProvider<PromoNotifier, PromoState>(
-  (ref) => PromoNotifier(ref.read(dioProvider)));
-
-// ─── Abonnement via code promo ─────────────────────────────────────────────────
-abstract class SubscribeState {}
-class SubscribeIdle    extends SubscribeState {}
-class SubscribeLoading extends SubscribeState {}
-class SubscribeSuccess extends SubscribeState {}
-class SubscribeError   extends SubscribeState {
-  final String message;
-  SubscribeError(this.message);
-}
-
-class SubscribeNotifier extends StateNotifier<SubscribeState> {
-  final Dio _dio;
-  SubscribeNotifier(this._dio) : super(SubscribeIdle());
-
-  Future<void> subscribe({required String planId, required String paymentMethod, String? promoCode}) async {
-    state = SubscribeLoading();
-    try {
-      await _dio.post('/subscriptions/subscribe', data: {
-        'plan_id': planId, 'payment_method': paymentMethod,
-        'promo_code': promoCode,
-      });
-      state = SubscribeSuccess();
-    } catch (e) {
-      state = SubscribeError('Erreur lors de la souscription');
-    }
-  }
-
-  void reset() => state = SubscribeIdle();
-}
-
-final subscribeProvider = StateNotifierProvider<SubscribeNotifier, SubscribeState>(
-  (ref) => SubscribeNotifier(ref.read(dioProvider)));

@@ -1,7 +1,9 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/network/dio_client.dart';
 
 // ─── Clés SharedPreferences ───────────────────────────────────────────────────
 const _kTheme         = 'settings_theme';
@@ -9,7 +11,6 @@ const _kLang          = 'settings_lang';
 const _kNotifMatch    = 'notif_match';
 const _kNotifPromo    = 'notif_promo';
 const _kNotifReferral = 'notif_referral';
-const _kNotifPayment  = 'notif_payment';
 const _kNotifPremium  = 'notif_premium';
 const _kPinEnabled    = 'security_pin_enabled';
 const _kBioEnabled    = 'security_bio_enabled';
@@ -18,23 +19,21 @@ const _kBioEnabled    = 'security_bio_enabled';
 const _topicMatch    = 'match_alerts';
 const _topicPromo    = 'promo_alerts';
 const _topicReferral = 'referral_alerts';
-const _topicPayment  = 'payment_alerts';
 const _topicPremium  = 'premium_alerts';
 
 // ─── Modèle ───────────────────────────────────────────────────────────────────
 class AppSettings {
   final ThemeMode themeMode;
   final String    lang;
-  final bool      notifMatch, notifPromo, notifReferral, notifPayment, notifPremium;
+  final bool      notifMatch, notifPromo, notifReferral, notifPremium;
   final bool      pinEnabled, bioEnabled;
 
   const AppSettings({
     this.themeMode     = ThemeMode.dark,
     this.lang          = 'fr',
     this.notifMatch    = true,
-    this.notifPromo    = true,
+    this.notifPromo    = false,   // marketing : opt-in
     this.notifReferral = true,
-    this.notifPayment  = true,
     this.notifPremium  = true,
     this.pinEnabled    = false,
     this.bioEnabled    = false,
@@ -43,7 +42,7 @@ class AppSettings {
   AppSettings copyWith({
     ThemeMode? themeMode, String? lang,
     bool? notifMatch, bool? notifPromo, bool? notifReferral,
-    bool? notifPayment, bool? notifPremium,
+    bool? notifPremium,
     bool? pinEnabled, bool? bioEnabled,
   }) => AppSettings(
     themeMode:     themeMode     ?? this.themeMode,
@@ -51,7 +50,6 @@ class AppSettings {
     notifMatch:    notifMatch    ?? this.notifMatch,
     notifPromo:    notifPromo    ?? this.notifPromo,
     notifReferral: notifReferral ?? this.notifReferral,
-    notifPayment:  notifPayment  ?? this.notifPayment,
     notifPremium:  notifPremium  ?? this.notifPremium,
     pinEnabled:    pinEnabled    ?? this.pinEnabled,
     bioEnabled:    bioEnabled    ?? this.bioEnabled,
@@ -69,7 +67,8 @@ class AppSettings {
 
 // ─── Notifier ─────────────────────────────────────────────────────────────────
 class SettingsNotifier extends StateNotifier<AppSettings> {
-  SettingsNotifier() : super(const AppSettings()) {
+  final Ref _ref;
+  SettingsNotifier(this._ref) : super(const AppSettings()) {
     _load();
   }
 
@@ -86,9 +85,11 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
                           : ThemeMode.dark,
       lang:          p.getString(_kLang)  ?? 'fr',
       notifMatch:    p.getBool(_kNotifMatch)    ?? true,
-      notifPromo:    p.getBool(_kNotifPromo)    ?? true,
+      // Marketing : consentement explicite. Les alertes de match, le
+      // parrainage et l'abonnement sont du service attendu et restent
+      // actifs ; les offres commerciales se choisissent.
+      notifPromo:    p.getBool(_kNotifPromo)    ?? false,
       notifReferral: p.getBool(_kNotifReferral) ?? true,
-      notifPayment:  p.getBool(_kNotifPayment)  ?? true,
       notifPremium:  p.getBool(_kNotifPremium)  ?? true,
       pinEnabled:    p.getBool(_kPinEnabled)    ?? false,
       bioEnabled:    p.getBool(_kBioEnabled)    ?? false,
@@ -103,7 +104,6 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     await _setTopic(_topicMatch,    s.notifMatch);
     await _setTopic(_topicPromo,    s.notifPromo);
     await _setTopic(_topicReferral, s.notifReferral);
-    await _setTopic(_topicPayment,  s.notifPayment);
     await _setTopic(_topicPremium,  s.notifPremium);
   }
 
@@ -138,41 +138,52 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     await p.setString(_kLang, lang);
   }
 
-  // ─── Toggle notification (local + FCM topic) ──────────────────────────────
+  // ─── Toggle notification (local + FCM topic + serveur) ────────────────────
   Future<void> toggleNotif(String key) async {
     final p = await SharedPreferences.getInstance();
+    bool? newVal;
 
     switch (key) {
       case 'match':
-        final newVal = !state.notifMatch;
+        newVal = !state.notifMatch;
         state = state.copyWith(notifMatch: newVal);
         await p.setBool(_kNotifMatch, newVal);
         await _setTopic(_topicMatch, newVal);
 
       case 'promo':
-        final newVal = !state.notifPromo;
+        newVal = !state.notifPromo;
         state = state.copyWith(notifPromo: newVal);
         await p.setBool(_kNotifPromo, newVal);
         await _setTopic(_topicPromo, newVal);
 
       case 'referral':
-        final newVal = !state.notifReferral;
+        newVal = !state.notifReferral;
         state = state.copyWith(notifReferral: newVal);
         await p.setBool(_kNotifReferral, newVal);
         await _setTopic(_topicReferral, newVal);
 
-      case 'payment':
-        final newVal = !state.notifPayment;
-        state = state.copyWith(notifPayment: newVal);
-        await p.setBool(_kNotifPayment, newVal);
-        await _setTopic(_topicPayment, newVal);
-
       case 'premium':
-        final newVal = !state.notifPremium;
+        newVal = !state.notifPremium;
         state = state.copyWith(notifPremium: newVal);
         await p.setBool(_kNotifPremium, newVal);
         await _setTopic(_topicPremium, newVal);
     }
+
+    if (newVal != null) await _syncPrefToServer(key, newVal);
+  }
+
+  /// Les topics FCM ne filtrent que les envois de masse. Les notifications
+  /// personnelles (parrainage, premium, résultat d'un match favori) partent par
+  /// token : se désabonner d'un topic ne les coupait pas. Le serveur doit donc
+  /// connaître la préférence pour la respecter dans `sendToUser`.
+  ///
+  /// Volontairement silencieux : l'écran Paramètres est accessible en invité,
+  /// où l'appel renvoie 401. Le réglage local reste appliqué dans tous les cas.
+  Future<void> _syncPrefToServer(String key, bool value) async {
+    try {
+      await _ref.read(dioProvider).patch(
+        '/profile/notification-prefs', data: {key: value});
+    } catch (_) { /* hors ligne ou invité — la préférence locale suffit */ }
   }
 
   // ─── PIN / Bio ────────────────────────────────────────────────────────────
@@ -199,7 +210,6 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       _kNotifMatch:    p.getBool(_kNotifMatch),
       _kNotifPromo:    p.getBool(_kNotifPromo),
       _kNotifReferral: p.getBool(_kNotifReferral),
-      _kNotifPayment:  p.getBool(_kNotifPayment),
       _kNotifPremium:  p.getBool(_kNotifPremium),
       _kPinEnabled:    p.getBool(_kPinEnabled),
       _kBioEnabled:    p.getBool(_kBioEnabled),
@@ -217,10 +227,21 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
 // ─── Providers ────────────────────────────────────────────────────────────────
 final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>(
-  (_) => SettingsNotifier());
+  (ref) => SettingsNotifier(ref));
 
 final themeModeProvider = Provider<ThemeMode>(
   (ref) => ref.watch(settingsProvider).themeMode);
 
 final localeProvider = Provider<Locale>(
   (ref) => Locale(ref.watch(settingsProvider).lang));
+
+/// Version de l'app lue depuis le bundle natif.
+///
+/// Elle était écrite en dur (« v1.0.0 ») à trois endroits de l'écran
+/// Paramètres : la ligne « À propos », le pied de page et la feuille « À
+/// propos ». Trois valeurs à mettre à jour à chaque release, donc trois
+/// occasions de diverger du numéro réellement publié.
+final appVersionProvider = FutureProvider<String>((ref) async {
+  final info = await PackageInfo.fromPlatform();
+  return 'v${info.version}';
+});

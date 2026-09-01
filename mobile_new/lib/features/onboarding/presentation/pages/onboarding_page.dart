@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../core/utils/motion.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -30,11 +31,26 @@ const _slides = [
   _Slide(
     emoji: '🏆',
     title: 'Bienvenue sur PronoWin',
-    subtitle: 'L\'appli de pronostics sportifs N°1 en Afrique de l\'Ouest',
+    // Le sous-titre annonçait un rang (« N°1 ») et une zone géographique.
+    //
+    // Le rang est parti d'abord : invérifiable, et Apple range une
+    // revendication marketing non fondée sous la règle 2.3.1 (« marketing your
+    // app in a misleading way … is grounds for removal »).
+    //
+    // La zone est partie ensuite : elle rétrécissait l'app à une région alors
+    // que rien, dans le produit, ne l'y limite — ni les compétitions suivies,
+    // ni les devises proposées.
+    subtitle: 'Pronostics et analyses football',
     bullets: [
       'Pronostics d\'experts chaque jour',
-      'Analyses IA exclusives',
-      'Communauté de parieurs sérieux',
+      'Analyses statistiques exclusives',
+      // « Une communaute qui partage ses analyses » : les commentaires sont
+      // reserves au Premium (premiumMiddleware sur les trois routes). Promis
+      // ici a tout nouvel arrivant, avant meme la creation du compte.
+      //
+      // Remplace par ce que le compte gratuit obtient reellement — et qui est
+      // large : les donnees du match ne sont derriere aucun paywall.
+      'Compos, statistiques et classements sur chaque match',
     ],
     color: Color(0xFF6366F1),
     colorDark: Color(0xFF4338CA),
@@ -42,9 +58,14 @@ const _slides = [
   _Slide(
     emoji: '🎯',
     title: 'Pronostics Experts',
-    subtitle: 'Des pronostics analysés et validés par nos analystes',
+    subtitle: 'Des pronostics analysés et validés par nos pronostiqueurs',
     bullets: [
-      'Football, basketball, tennis et plus',
+      // « Football, basketball, tennis et plus » annonçait trois sports que
+      // l'app ne couvre pas : une seule source de données
+      // (v3.football.api-sports.io) et huit compétitions, toutes de football.
+      // C'est la promesse la plus facilement démentie de l'onboarding — il
+      // suffit d'ouvrir l'onglet Pronostics.
+      'Les grands championnats européens et la Ligue des champions',
       'Cotes recommandées et niveau de confiance',
       'Résultats en temps réel',
     ],
@@ -53,12 +74,23 @@ const _slides = [
   ),
   _Slide(
     emoji: '🤖',
-    title: 'Analyse IA Intégrée',
-    subtitle: 'Notre algorithme calcule les probabilités pour chaque match',
+    title: 'Analyse statistique intégrée',
+    // « Notre algorithme » s'attribuait un modèle qui ne vient pas de nous :
+    // les probabilités sont celles d'API-Football (`percent.home/draw/away`).
+    // L'écran d'analyse le reconnaît d'ailleurs — « Modèle statistique
+    // externe » — si bien que l'onboarding contredisait la page même qui
+    // affiche ces chiffres.
+    subtitle: 'Un modèle statistique calcule les probabilités de chaque match',
     bullets: [
-      'Score de probabilité basé sur l\'historique H2H',
+      // « H2H » est un sigle anglais (head-to-head) sur l'écran que voit
+      // quelqu'un qui découvre l'app. Le terme français est employé partout
+      // ailleurs dans le produit.
+      'Probabilités fondées sur les confrontations directes',
       'Forme des équipes et avantage domicile',
-      'Explication en français de chaque prédiction',
+      // L'explication est derrière un compte (analyse_ia.dart : « Crée ton
+      // compte pour voir l'analyse »). Annoncer le prix ici prépare
+      // l'inscription au lieu de la faire subir plus tard.
+      'Explication en français, avec un compte gratuit',
     ],
     color: AppColors.info,
     colorDark: Color(0xFF0369A1),
@@ -81,8 +113,19 @@ const _slides = [
     subtitle: 'Une bonne gestion du capital est la clé pour durer dans le temps',
     bullets: [
       'Définis ton budget de départ dans la section Bankroll',
-      'Mise un % fixe — jamais tout sur un seul pari',
-      'Suis ton ROI et ta progression en temps réel',
+      // « Mise un % fixe » enseignait la mise plate, alors que l'app
+      // recommande un pourcentage indexé sur la confiance — 1,5 %, 3 % ou 5 %
+      // du solde (miser_dialog.dart). Les deux stratégies se défendent, mais
+      // enseigner l'une et pratiquer l'autre met l'utilisateur en porte-à-faux
+      // dès sa première mise. La formule retenue garde le conseil essentiel
+      // (une fraction, jamais tout) et reste vraie si l'échelle change.
+      'Mise un pourcentage de ton solde — jamais tout sur un seul pari',
+      // « En temps réel » : la synchronisation tourne toutes les 15 minutes
+      // (background_sync_service.dart). Un quart d'heure convient très bien,
+      // mais la promesse faisait conclure à une panne à qui consulte son solde
+      // juste après le coup de sifflet. « À chaque résultat » dit quand, pas
+      // à quelle vitesse.
+      'Suis ta rentabilité et ta progression à chaque résultat',
     ],
     color: Color(0xFF10B981),
     colorDark: Color(0xFF065F46),
@@ -90,10 +133,14 @@ const _slides = [
   _Slide(
     emoji: '🚀',
     title: 'Prêt à commencer ?',
-    subtitle: 'Rejoins des milliers de parieurs qui gagnent avec PronoWin',
+    subtitle: 'Les chiffres d\'abord. La mise ensuite.',
     bullets: [
-      'Accès gratuit à tous les pronostics du jour',
-      'Premium pour les analyses exclusives',
+      // « tous les pronostics du jour » etait faux : estVerrouille() garde
+      // les pronostics Premium fermes tant que le match n'est pas termine.
+      // Le gratuit voit tous les pronostics *gratuits* — sans limite de
+      // nombre, aucun quota n'etant applique dans le code.
+      'Tous les pronostics gratuits du jour',
+      'Premium : pronostics exclusifs et espace communauté',
       'Parrainage et récompenses à gagner',
     ],
     color: Color(0xFFEC4899),
@@ -328,9 +375,17 @@ class _EmojiOrbState extends State<_EmojiOrb>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 2400),
-    )..repeat(reverse: true);
+    );
     _float = Tween<double>(begin: -8, end: 8).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Boucle infinie : coupée si l'utilisateur a réduit les animations.
+    // Ce hook est aussi rappelé quand le réglage système change.
+    context.boucler(_ctrl, reverse: true);
   }
 
   @override

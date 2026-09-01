@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/referral_provider.dart';
+import '../../../../core/config/distribution_channel.dart';
 
 class ParrainagePage extends ConsumerWidget {
   const ParrainagePage({super.key});
@@ -15,7 +16,17 @@ class ParrainagePage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        // Page atteinte par `push` depuis le Compte : sans flèche de retour
+        // (et avec `automaticallyImplyLeading: false`), elle était un
+        // cul-de-sac dès qu'on y arrivait.
         automaticallyImplyLeading: false,
+        leading: context.canPop()
+          ? IconButton(
+              icon: Icon(Icons.arrow_back_ios_new_rounded,
+                size: 20, color: context.cl.textS),
+              onPressed: () => context.pop(),
+            )
+          : null,
         title: Row(children: [
           Container(width: 32, height: 32,
             decoration: BoxDecoration(
@@ -63,9 +74,22 @@ class ParrainagePage extends ConsumerWidget {
               children: [
 
                 // ─── Solde + Code ──────────────────────────────────────────
+                // Le retrait en argent ne suit pas l'application sur Play.
+                //
+                // Le parrainage reste entier — seule la sortie en espèces
+                // disparaît, et la récompense se convertit en jours Premium.
+                //
+                // Ce n'est pas la générosité du programme qui pose problème,
+                // c'est la combinaison : pronostics sportifs, « gains »
+                // accumulés, retrait en argent réel. Séparément anodins,
+                // ensemble ils dessinent ce qu'un examinateur cherche quand il
+                // évalue la catégorie « jeux d'argent réel ».
+                //
+                // Le serveur décide déjà si le solde permet un retrait
+                // (`can_withdraw`) ; le canal décide s'il est proposé.
                 _EarningsBanner(
                   earnings:   earnings,
-                  canWithdraw: canWithdraw,
+                  canWithdraw: canWithdraw && !ref.watch(isStoreBuildProvider),
                   minWithdraw: minWithdraw,
                   onWithdraw: () => context.push('/parrainage/retrait', extra: {
                     'earnings': earnings, 'min': minWithdraw,
@@ -168,24 +192,40 @@ class _EarningsBanner extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: const Color(0xFFA78BFA).withValues(alpha: 0.3), width: 1)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('MES GAINS PARRAINAGE', style: TextStyle(
-        color: Color(0xFFA78BFA), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1)),
-      const SizedBox(height: 8),
-      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        TweenAnimationBuilder<int>(
-          tween: IntTween(begin: 0, end: earnings),
-          duration: const Duration(milliseconds: 900),
-          curve: Curves.easeOutCubic,
-          builder: (_, v, _) => Text(
-            v.toLocaleString(),
-            style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.only(left: 6, bottom: 6),
-          child: Text('FCFA', style: TextStyle(color: Color(0xFFA78BFA), fontSize: 14, fontWeight: FontWeight.w600)),
-        ),
-      ]),
+      // Le compteur monte de 0 jusqu'au montant : lu tel quel, il annonçait
+      // une suite de nombres. Et le seuil de retrait n'était rattaché à rien.
+      // L'exclusion s'arrête ici — le bouton « Retirer » plus bas doit rester
+      // atteignable au lecteur d'écran.
+      Semantics(
+        label: 'Mes récompenses de parrainage : $earnings FCFA. '
+               '${canWithdraw
+                  ? "Montant retirable."
+                  : "Retrait possible à partir de $minWithdraw FCFA."}',
+        excludeSemantics: true,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('MES GAINS PARRAINAGE', style: TextStyle(
+            color: Color(0xFFA78BFA), fontSize: 11,
+            fontWeight: FontWeight.w600, letterSpacing: 1)),
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            TweenAnimationBuilder<int>(
+              tween: IntTween(begin: 0, end: earnings),
+              duration: const Duration(milliseconds: 900),
+              curve: Curves.easeOutCubic,
+              builder: (_, v, _) => Text(
+                v.toLocaleString(),
+                style: const TextStyle(
+                  color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
+              ),
+            ),
+            const Padding(
+              padding: EdgeInsets.only(left: 6, bottom: 6),
+              child: Text('FCFA', style: TextStyle(
+                color: Color(0xFFA78BFA), fontSize: 14, fontWeight: FontWeight.w600)),
+            ),
+          ]),
+        ]),
+      ),
       const SizedBox(height: 12),
       Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -559,7 +599,10 @@ class _StatChip extends StatelessWidget {
   const _StatChip({required this.label, required this.value, required this.sub, required this.color});
   @override
   Widget build(BuildContext context) => Expanded(
-    child: Container(
+    child: Semantics(
+      label: '$label : $value $sub',
+      excludeSemantics: true,
+      child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(14),
@@ -575,7 +618,7 @@ class _StatChip extends StatelessWidget {
         ),
         Text(sub, style: TextStyle(color: context.cl.textM, fontSize: 10)),
       ]),
-    ),
+    )),
   );
 }
 

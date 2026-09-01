@@ -1,5 +1,8 @@
 ﻿import 'dart:async';
-import 'package:confetti/confetti.dart';
+import 'dart:ui';
+import '../../../../core/utils/motion.dart';
+import '../../../../shared/widgets/confidence_indicator.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -7,18 +10,41 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/config/distribution_channel.dart';
+import '../../../../shared/utils/montant.dart';
 import '../../../../shared/utils/premium_nav.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/services/prono_share_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../bankroll/presentation/widgets/miser_dialog.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
+import '../../../../core/widgets/image_distante.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
+import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../domain/entities/match_entity.dart';
 import '../providers/favorites_provider.dart';
 import '../providers/pronostics_provider.dart';
+import '../widgets/comments_section.dart';
 import '../widgets/prono_share_card.dart';
+import '../../../abonnement/presentation/providers/iap_provider.dart';
+import 'match_detail/bookmaker_cotes.dart';
+import '../../domain/entities/verdict_comparaison.dart';
+
+// Découpé en fichiers `part` : le fichier faisait 3 604 lignes pour une
+// quarantaine de classes privées, dont le State d'un bouton situé 500
+// lignes après le bouton lui-même.
+part 'match_detail/partage.dart';
+part 'match_detail/compositions.dart';
+part 'match_detail/blessures.dart';
+part 'match_detail/classements.dart';
+part 'match_detail/face_a_face.dart';
+part 'match_detail/analyse_ia.dart';
+part 'match_detail/forme.dart';
+part 'match_detail/miser.dart';
+part 'match_detail/statistiques.dart';
+part 'match_detail/analyse_modele.dart';
 
 class MatchDetailPage extends ConsumerStatefulWidget {
   final String       matchId;
@@ -34,19 +60,69 @@ class MatchDetailPage extends ConsumerStatefulWidget {
   ConsumerState<MatchDetailPage> createState() => _MatchDetailPageState();
 }
 
-class _MatchDetailPageState extends ConsumerState<MatchDetailPage> {
+class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
+    with TickerProviderStateMixin {
   Timer? _liveTimer;
+
+  // ── Onglets à composition variable ──────────────────────────────────────────
+  // Les onglets secondaires (compositions, blessures, classements, face-à-face,
+  // statistiques) apparaissent au fur et à mesure que leur appel réseau répond.
+  // La liste change donc en cours de vie de la page, ce qu'un TabController à
+  // longueur fixe n'accepte pas : on le recrée à chaque changement de
+  // composition, en reportant la sélection sur le même *libellé* plutôt que sur
+  // le même index — sinon l'arrivée d'un onglet décalait celui qu'on lisait.
+  TabController? _tabCtrl;
+  List<String>   _tabLabels = const [];
+
+  bool _memesOnglets(List<String> labels) {
+    if (_tabLabels.length != labels.length) return false;
+    for (var i = 0; i < labels.length; i++) {
+      if (_tabLabels[i] != labels[i]) return false;
+    }
+    return true;
+  }
+
+  TabController _controleurPour(List<String> labels) {
+    final actuel = _tabCtrl;
+    if (actuel != null && _memesOnglets(labels)) return actuel;
+
+    final ancien = actuel != null && actuel.index < _tabLabels.length
+        ? _tabLabels[actuel.index]
+        : null;
+    final index = ancien == null ? -1 : labels.indexOf(ancien);
+
+    // Jeter l'ancien dans la frame courante le ferait disposer alors que le
+    // TabBar sortant le référence encore.
+    if (actuel != null) {
+      WidgetsBinding.instance
+          .addPostFrameCallback((_) => actuel.dispose());
+    }
+
+    _tabLabels = labels;
+    return _tabCtrl = TabController(
+      length: labels.length,
+      initialIndex: index < 0 ? 0 : index,
+      vsync: this,
+    );
+  }
 
   @override
   void dispose() {
     _liveTimer?.cancel();
+    _tabCtrl?.dispose();
     super.dispose();
   }
+
+  /// Horodatage du dernier rafraîchissement du score, pour l'indicateur de
+  /// fraîcheur. Initialisé à l'ouverture de la page : la première donnée
+  /// affichée vient d'être chargée.
+  DateTime _dernierRefresh = DateTime.now();
 
   void _startLivePolling() {
     _liveTimer?.cancel();
     _liveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       ref.invalidate(liveScoreProvider(widget.matchId));
+      if (mounted) setState(() => _dernierRefresh = DateTime.now());
     });
   }
 
@@ -84,9 +160,187 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage> {
               style: TextStyle(color: context.cl.textS))));
     }
 
-    final isLocked = match.isPremium && !isPremium;
+    // Le verdict du serveur prime sur le calcul local : c'est lui qui connaît
+    // l'état réel de l'abonnement. Le calcul local reste le repli quand la
+    // donnée vient du cache ou de l'écran précédent.
+    final isLocked = match.isLocked || (match.isPremium && !isPremium);
     final isRefreshing = matchAsync.isLoading && match.status == MatchStatus.live;
     final isFav = ref.watch(favoritesProvider).matchIds.contains(match.id);
+
+    // Onglets style Sofascore — surveillés ici (en plus des cartes elles-mêmes,
+    // Riverpod dédoublonne l'appel) pour savoir lesquels construire : un onglet
+    // sans donnée n'apparaît pas du tout, plutôt que d'afficher un message vide.
+    final lineupsAsync   = ref.watch(lineupsProvider(match.id));
+    final injuriesAsync  = ref.watch(injuriesProvider(match.id));
+    final standingsAsync = ref.watch(standingsProvider(match.id));
+    final h2hAsync       = ref.watch(h2hProvider(match.id));
+    final statsAsync     = ref.watch(matchStatsProvider(match.id));
+
+    // Les onglets restent visibles même sur un pronostic verrouillé : ils ne
+    // servent que de la donnée de match (compositions, classements,
+    // face-à-face...), qui n'a jamais fait partie de l'offre payante. Les
+    // masquer ne protégeait rien et transformait la page en cul-de-sac pour
+    // les invités comme pour les comptes gratuits.
+    final showTabs = match.hasPronostic;
+
+    // Un onglet dont l'appel est encore en vol n'est pas encore affichable —
+    // mais il ne doit plus retenir toute la page. « Détails » porte la carte
+    // Pronostic, c'est-à-dire la seule raison d'ouvrir cet écran : il s'affiche
+    // immédiatement, et les onglets secondaires s'ajoutent à mesure. Avant, un
+    // classement de championnat lent cachait le pronostic derrière un spinner
+    // plein écran.
+    final ongletsEnCours = showTabs && (
+      lineupsAsync.isLoading || injuriesAsync.isLoading ||
+      standingsAsync.isLoading || h2hAsync.isLoading ||
+      statsAsync.isLoading);
+
+    // Un 401 (invité) affiche quand même l'onglet — avec une invite à se
+    // connecter à l'intérieur — plutôt que de le cacher comme s'il n'y avait
+    // rien à voir.
+    bool visibleOrPrompt(AsyncValue<Object?> async, bool Function() hasContent) {
+      final status = _statusOf(async.error);
+      if (status == 401) return true;
+      if (async.isLoading) return false;
+      if (async.hasError) return false;
+      return hasContent();
+    }
+
+    final showCotes        = showTabs && match.status != MatchStatus.finished;
+    final showStats        = showTabs && visibleOrPrompt(statsAsync,
+      () => statsAsync.valueOrNull != null);
+    // Les faits marquants vivent dans l'onglet Détails, pas dans Statistiques.
+    final showEvents = showTabs &&
+      _EventsList.hasNotable(statsAsync.valueOrNull?.events ?? const []);
+    final showCompositions = showTabs && visibleOrPrompt(lineupsAsync,
+      () => lineupsAsync.valueOrNull?.available == true);
+    final showBlessures    = showTabs && visibleOrPrompt(injuriesAsync,
+      () => injuriesAsync.valueOrNull?.isNotEmpty == true);
+    // Même condition que la carte elle-même : un classement qui ne contient
+    // aucune des deux équipes (tour qualificatif → tableau de la phase de
+    // ligue) ne mérite pas son onglet.
+    final showClassements  = showTabs && visibleOrPrompt(standingsAsync, () {
+      final rows = standingsAsync.valueOrNull;
+      return rows != null && rows.isNotEmpty && rows.any((r) =>
+          _StandingsCard.memeEquipe(r.teamName, match.homeTeam) ||
+          _StandingsCard.memeEquipe(r.teamName, match.awayTeam));
+    });
+    final showFaceAFace    = showTabs && visibleOrPrompt(h2hAsync,
+      () => h2hAsync.valueOrNull?.matches.isNotEmpty == true);
+
+    // Entrée en cascade : chaque carte apparaît légèrement après la précédente,
+    // ce qui guide le regard de haut en bas au lieu d'afficher le bloc d'un
+    // coup. Supprimée — pas seulement raccourcie — quand l'utilisateur a réduit
+    // les animations : un glissement vertical répété sur 6 cartes est
+    // précisément ce qui déclenche le mal des transports vestibulaire.
+    Widget entree(Widget w, {int delaiMs = 0}) => context.animationsReduites
+        ? w
+        : w.animate(delay: delaiMs.ms)
+            .fadeIn(duration: 350.ms)
+            .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic);
+
+    // Deux enrobages, parce que le contexte diffère :
+    //
+    // * dans un NestedScrollView (cas normal, plusieurs onglets), il faut un
+    //   CustomScrollView avec un SliverOverlapInjector — c'est lui qui réserve
+    //   la place de la barre d'onglets épinglée et qui fait piloter le repli de
+    //   l'en-tête par le défilement intérieur ;
+    // * sans NestedScrollView (un seul onglet, pas d'en-tête repliable), le
+    //   même injecteur lèverait une assertion faute d'ancêtre à qui demander
+    //   le handle. Un SingleChildScrollView suffit.
+    const rembourrage = EdgeInsets.fromLTRB(16, 16, 16, 24);
+
+    Widget ongletImbrique(Widget child) => Builder(
+      builder: (ctx) => CustomScrollView(
+        slivers: [
+          SliverOverlapInjector(
+            handle: NestedScrollView.sliverOverlapAbsorberHandleFor(ctx)),
+          SliverPadding(
+            padding: rembourrage,
+            sliver: SliverToBoxAdapter(child: child),
+          ),
+        ],
+      ),
+    );
+
+    Widget ongletSeul(Widget child) =>
+        SingleChildScrollView(padding: rembourrage, child: child);
+
+    final tabs = <(String, Widget)>[
+      if (showTabs) ('Détails', Column(children: [
+        // Entrée en cascade : chaque carte apparaît légèrement après la
+        // précédente, ce qui guide le regard de haut en bas au lieu d'afficher
+        // le bloc d'un coup.
+        if (match.hasPronostic) ...[
+          entree(_PronosticCard(match: match, isLocked: isLocked)),
+          const SizedBox(height: 16),
+        ],
+        if (showEvents) ...[
+          entree(_MatchEventsCard(matchId: match.id, match: match),
+              delaiMs: 90),
+          const SizedBox(height: 16),
+        ],
+        if (match.homeFormPoints > 0 || match.awayFormPoints > 0) ...[
+          entree(_FormCard(match: match), delaiMs: 140),
+          const SizedBox(height: 16),
+        ],
+        entree(_AIAnalysisCard(matchId: match.id, status: match.status),
+            delaiMs: 190),
+        const SizedBox(height: 16),
+        // Le « pourquoi » chiffré, juste sous l'analyse : c'est la question que
+        // se pose l'utilisateur immédiatement après avoir lu le pronostic.
+        entree(_AnalyseModele(matchId: match.id), delaiMs: 210),
+        if (match.status == MatchStatus.live) ...[
+          const SizedBox(height: 16),
+          entree(_CotesEnDirect(matchId: match.id), delaiMs: 230),
+        ],
+        if (match.status == MatchStatus.finished) ...[
+          const SizedBox(height: 16),
+          entree(_NotesJoueurs(matchId: match.id), delaiMs: 230),
+        ],
+        const SizedBox(height: 16),
+        if (match.status == MatchStatus.upcoming) ...[
+          entree(_MiserButton(match: match), delaiMs: 240),
+          const SizedBox(height: 16),
+        ],
+        if (match.analystNote?.isNotEmpty == true) ...[
+          entree(_AnalystCard(match: match), delaiMs: 270),
+          const SizedBox(height: 16),
+        ],
+        entree(CommentsSection(pronosticId: match.id), delaiMs: 310),
+      ])),
+      if (showCotes) ('Cotes', _OddsCard(match: match)),
+      if (showStats) ('Statistiques', Column(children: [
+        _MatchStatsCard(matchId: match.id),
+        const SizedBox(height: 16),
+        _ButsParTranche(matchId: match.id),
+      ])),
+      if (showCompositions) ('Compositions', _LineupsCard(match: match)),
+      if (showBlessures) ('Blessures', _InjuriesCard(
+        matchId: match.id,
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        homeLogo: match.homeTeamLogo,
+        awayLogo: match.awayTeamLogo)),
+      if (showClassements) ('Classements', Column(children: [
+        _StandingsCard(
+          matchId: match.id,
+          homeTeam: match.homeTeam,
+          awayTeam: match.awayTeam),
+        _MeilleursButeurs(leagueCode: match.leagueCountry),
+      ])),
+      if (showFaceAFace) ('Face à face', Column(children: [
+        _H2HCard(
+          matchId: match.id,
+          homeLogo: match.homeTeamLogo,
+          awayLogo: match.awayTeamLogo),
+        const SizedBox(height: 14),
+        // Les confrontations remontent parfois à deux ou trois ans, avec des
+        // effectifs entièrement renouvelés — un 2-0 de mai 2025 ne dit plus
+        // grand-chose. La saison en cours dit ce que valent les deux équipes
+        // *aujourd'hui*, et ces chiffres étaient déjà disponibles sans être lus.
+        _SaisonEnCours(match: match),
+      ])),
+    ];
 
     return Scaffold(
       backgroundColor: context.cl.bg,
@@ -112,19 +366,25 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage> {
             tooltip: isFav ? 'Retirer des favoris' : 'Ajouter aux favoris',
             onPressed: () {
               HapticFeedback.selectionClick();
+              // Le détail est ouvert aux invités, mais mettre en favori exige un
+              // compte : on les emmène s'inscrire au moment du geste plutôt que
+              // de laisser l'appel échouer en 401 sans rien dire.
+              if (!ref.read(effectiveLoggedInProvider)) {
+                context.push(
+                  '/auth/email?from=${Uri.encodeComponent('/pronostics/${match.id}')}');
+                return;
+              }
               ref.read(favoritesProvider.notifier).toggleMatch(match.id);
             },
           ),
-          // Spinner discret pendant le refresh live
-          if (isRefreshing)
+          // Fraîcheur de la donnée : l'écran se rafraîchit toutes les 30 s,
+          // mais rien ne le disait. Un score figé et un score à jour avaient
+          // exactement la même apparence.
+          if (match.status == MatchStatus.live)
             Padding(
-              padding: const EdgeInsets.only(right: 8),
-              child: SizedBox(
-                width: 16, height: 16,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2, color: AppColors.error))),
-          if (!isLocked)
-            IconButton(
+              padding: const EdgeInsets.only(right: 4),
+              child: _Fraicheur(enCours: isRefreshing, dernier: _dernierRefresh)),
+          IconButton(
               icon: const Icon(Icons.share_rounded, size: 20),
               tooltip: 'Partager',
               onPressed: () {
@@ -143,78 +403,225 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage> {
                 size: 20)),
         ],
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 80),
-        child: Column(children: [
-          _MatchHeader(match: match)
-            .animate().fadeIn(duration: 350.ms)
-            .slideY(begin: -0.04, end: 0, curve: Curves.easeOutCubic),
-          const SizedBox(height: 16),
-          _MatchStatusRow(match: match)
-            .animate(delay: 80.ms).fadeIn(duration: 300.ms)
-            .slideX(begin: -0.05, end: 0, curve: Curves.easeOutCubic),
-          const SizedBox(height: 16),
-          if (match.hasPronostic) ...[
-            _PronosticCard(match: match, isLocked: isLocked)
-              .animate(delay: 130.ms).fadeIn(duration: 350.ms)
-              .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-            const SizedBox(height: 16),
-          ],
-          // Résultat du pronostic si match terminé
-          if (match.predictionWon != null) ...[
-            _ResultBanner(won: match.predictionWon!, pronosticId: match.id)
-              .animate(delay: 160.ms).fadeIn(duration: 350.ms)
-              .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1),
-                curve: Curves.easeOutBack),
-            const SizedBox(height: 16),
-          ],
-          // Statistiques détaillées (matchs terminés uniquement)
-          if (!isLocked && match.status == MatchStatus.finished) ...[
-            _MatchStatsCard(matchId: match.id)
-              .animate(delay: 170.ms).fadeIn(duration: 350.ms)
-              .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-            const SizedBox(height: 16),
-          ],
-          if (!isLocked && match.hasPronostic) ...[
-            _OddsCard(match: match)
-              .animate(delay: 200.ms).fadeIn(duration: 350.ms)
-              .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-            const SizedBox(height: 16),
-            // Forme des équipes (masquée si aucune donnée)
-            if (match.homeFormPoints > 0 || match.awayFormPoints > 0)
-              _FormCard(match: match)
-                .animate(delay: 240.ms).fadeIn(duration: 350.ms)
-                .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-            const SizedBox(height: 16),
-          ],
-          if (!isLocked && match.hasPronostic) ...[
-            _H2HCard(matchId: match.id)
-              .animate(delay: 260.ms).fadeIn(duration: 350.ms)
-              .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-            const SizedBox(height: 16),
-            _AIAnalysisCard(matchId: match.id)
-              .animate(delay: 290.ms).fadeIn(duration: 350.ms)
-              .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-            const SizedBox(height: 16),
-            // Bouton miser — uniquement pour les matchs à venir
-            if (match.status == MatchStatus.upcoming)
-              _MiserButton(match: match)
-                .animate(delay: 320.ms).fadeIn(duration: 350.ms)
-                .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-            const SizedBox(height: 16),
-          ],
-          if (!isLocked && match.hasPronostic && match.analystNote?.isNotEmpty == true) ...[
-            _AnalystCard(match: match)
-              .animate(delay: 280.ms).fadeIn(duration: 350.ms)
-              .slideY(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-            const SizedBox(height: 16),
-          ],
-          if (isLocked)
-            _PremiumBanner(
-              onTap: () => goToPremium(context, ref))
-              .animate(delay: 200.ms).fadeIn(duration: 400.ms)
-              .scale(begin: const Offset(0.95, 0.95), end: const Offset(1, 1),
-                curve: Curves.easeOutBack),
+      body: Column(children: [
+        // Page sans barre d'onglets : l'en-tête reste fixe, il n'y a pas
+        // d'espace à récupérer.
+        if (!showTabs || (tabs.length <= 1 && !ongletsEnCours))
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: context.animationsReduites
+              ? _MatchHeader(match: match)
+              : _MatchHeader(match: match)
+                  .animate().fadeIn(duration: 350.ms)
+                  .slideY(begin: -0.04, end: 0, curve: Curves.easeOutCubic),
+          ),
+        if (!showTabs) ...[
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+              child: Column(children: [
+                if (match.hasPronostic) ...[
+                  entree(_PronosticCard(match: match, isLocked: isLocked),
+                      delaiMs: 130),
+                  const SizedBox(height: 16),
+                ],
+                if (match.status == MatchStatus.finished) ...[
+                  entree(_MatchStatsCard(matchId: match.id), delaiMs: 170),
+                  const SizedBox(height: 16),
+                ],
+                if (isLocked)
+                  entree(_PremiumBanner(
+                      onTap: () => goToPremium(context, ref)),
+                      delaiMs: 200),
+              ]),
+            ),
+          ),
+        ] else if (tabs.length <= 1 && !ongletsEnCours) ...[
+          Expanded(child: ongletSeul(tabs.first.$2)),
+        ] else ...[
+          // L'en-tête occupait ~23 % de la hauteur d'écran sur *chaque* onglet
+          // sans jamais se replier : sur le classement, cela coûtait huit
+          // lignes de tableau. NestedScrollView le fait fondre au défilement
+          // vers un résumé d'une ligne, la barre d'onglets restant épinglée.
+          Expanded(
+            child: NestedScrollView(
+              headerSliverBuilder: (ctx, _) => [
+                SliverOverlapAbsorber(
+                  handle: NestedScrollView.sliverOverlapAbsorberHandleFor(ctx),
+                  sliver: SliverAppBar(
+                    // Le Scaffold porte déjà une AppBar : celle-ci ne doit ni
+                    // reprendre un bouton retour, ni réserver la barre d'état.
+                    automaticallyImplyLeading: false,
+                    primary: false,
+                    pinned: true,
+                    backgroundColor: context.cl.bg,
+                    surfaceTintColor: Colors.transparent,
+                    elevation: 0,
+                    toolbarHeight: 44,
+                    // `expandedHeight` inclut la hauteur de `bottom` : il faut
+                    // donc 48 px de plus que la carte elle-même (~225 px) pour
+                    // que la barre d'onglets ne la recouvre pas.
+                    expandedHeight: 288,
+                    titleSpacing: 16,
+                    title: _EnTeteCompacte(match: match),
+                    flexibleSpace: FlexibleSpaceBar(
+                      background: SingleChildScrollView(
+                        // Garde-fou : la hauteur de la carte dépend du nom des
+                        // équipes (une ou deux lignes) et de la taille de police
+                        // système. Un viewport non défilable la laisse prendre sa
+                        // hauteur naturelle et la rogne, plutôt que de lever un
+                        // débordement RenderFlex sur certains appareils.
+                        physics: const NeverScrollableScrollPhysics(),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+                          child: _MatchHeader(match: match),
+                        ),
+                      ),
+                    ),
+                    bottom: _BarreOnglets(
+                      controller: _controleurPour([for (final t in tabs) t.$1]),
+                      libelles: [for (final t in tabs) t.$1],
+                      enCours: ongletsEnCours,
+                    ),
+                  ),
+                ),
+              ],
+              body: TabBarView(
+                controller: _controleurPour([for (final t in tabs) t.$1]),
+                children: [for (final t in tabs) ongletImbrique(t.$2)],
+              ),
+            ),
+          ),
+        ],
+      ]),
+    );
+  }
+}
+
+// ─── Barre d'onglets ─────────────────────────────────────────────────────────
+
+/// Barre d'onglets epinglee sous l'en-tete repliable.
+///
+/// `PreferredSizeWidget` parce que `SliverAppBar.bottom` l'exige. Elle porte
+/// aussi le fondu lateral et le temoin de chargement des onglets a venir.
+class _BarreOnglets extends StatelessWidget implements PreferredSizeWidget {
+  final TabController controller;
+  final List<String>  libelles;
+  final bool          enCours;
+  const _BarreOnglets({
+    required this.controller, required this.libelles, required this.enCours});
+
+  @override
+  Size get preferredSize => const Size.fromHeight(48);
+
+  @override
+  Widget build(BuildContext context) => Container(
+    color: context.cl.bg,
+    height: 48,
+    child: Row(children: [
+      Expanded(
+        // Fondu aux deux bords : la barre se recentre sur l'onglet actif et
+        // tronquait le precedent au milieu d'un mot (« ails » pour Details),
+        // ce qui se lisait comme un defaut d'affichage plutot que comme
+        // « il y en a d'autres a gauche ».
+        child: ShaderMask(
+          shaderCallback: (rect) => const LinearGradient(
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+            colors: [
+              Colors.transparent, Colors.black, Colors.black, Colors.transparent],
+            stops: [0.0, 0.045, 0.955, 1.0],
+          ).createShader(rect),
+          blendMode: BlendMode.dstIn,
+          child: TabBar(
+            controller: controller,
+            isScrollable: true,
+            tabAlignment: TabAlignment.start,
+            labelColor: AppColors.primary,
+            unselectedLabelColor: context.cl.textS,
+            indicatorColor: AppColors.primary,
+            dividerColor: Colors.transparent,
+            labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            unselectedLabelStyle:
+                const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            tabs: [for (final l in libelles) Tab(text: l)],
+          ),
+        ),
+      ),
+      if (enCours)
+        Padding(
+          padding: const EdgeInsets.only(left: 2, right: 14),
+          child: SizedBox(
+            width: 13, height: 13,
+            child: CircularProgressIndicator(
+              strokeWidth: 1.6, color: context.cl.textM)),
+        ),
+    ]),
+  );
+}
+
+/// Resume du match sur une ligne, revele a mesure que l'en-tete se replie.
+///
+/// `FlexibleSpaceBar` ne sait pas masquer un titre a l'etat deplie : on calcule
+/// l'opacite depuis la hauteur restante de la barre.
+class _EnTeteCompacte extends ConsumerWidget {
+  final MatchEntity match;
+  const _EnTeteCompacte({required this.match});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final reglages =
+        context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
+    final double t = reglages == null
+        ? 1
+        : ((reglages.maxExtent - reglages.currentExtent) /
+                (reglages.maxExtent - reglages.minExtent))
+            .clamp(0.0, 1.0);
+    // Ne devient visible que sur le dernier tiers du repli, pour ne pas se
+    // superposer a l'en-tete complete encore lisible.
+    final opacite = ((t - 0.7) / 0.3).clamp(0.0, 1.0);
+    if (opacite == 0) return const SizedBox.shrink();
+
+    final live = match.status == MatchStatus.live
+        ? ref.watch(liveScoreProvider(match.id)).valueOrNull
+        : null;
+    final home   = live?.homeScore ?? match.homeScore;
+    final away   = live?.awayScore ?? match.awayScore;
+    final aScore = match.status != MatchStatus.upcoming;
+
+    return IgnorePointer(
+      child: Opacity(
+        opacity: opacite,
+        child: Row(children: [
+          _TeamLogo(url: match.homeTeamLogo ?? '', size: 22),
+          const SizedBox(width: 7),
+          Flexible(
+            child: Text(match.homeTeam,
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: context.cl.textP,
+                fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            child: Text(
+              aScore ? '${home ?? 0} - ${away ?? 0}' : 'VS',
+              style: TextStyle(
+                color: match.status == MatchStatus.live
+                    ? AppColors.success
+                    : context.cl.textP,
+                fontSize: 14, fontWeight: FontWeight.w800)),
+          ),
+          Flexible(
+            child: Text(match.awayTeam,
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: context.cl.textP,
+                fontSize: 13, fontWeight: FontWeight.w600)),
+          ),
+          const SizedBox(width: 7),
+          _TeamLogo(url: match.awayTeamLogo ?? '', size: 22),
         ]),
       ),
     );
@@ -235,9 +642,39 @@ class _MatchHeader extends ConsumerWidget {
     final homeScore = liveAsync?.valueOrNull?.homeScore ?? match.homeScore;
     final awayScore = liveAsync?.valueOrNull?.awayScore ?? match.awayScore;
     final isRefreshingScore = liveAsync?.isLoading ?? false;
+    final minute = liveAsync?.valueOrNull?.elapsed;
 
-    return Container(
-    padding: const EdgeInsets.all(20),
+    final d = match.matchDate;
+    final dateStr = '${d.day.toString().padLeft(2, '0')}/'
+        '${d.month.toString().padLeft(2, '0')}/${d.year}';
+    final heureStr = '${d.hour.toString().padLeft(2, '0')}:'
+        '${d.minute.toString().padLeft(2, '0')}';
+
+    // Sur un match à venir, l'heure est déjà affichée en grand sous le « VS » :
+    // la répéter dans la pastille donnait deux fois la même information à dix
+    // pixels d'écart. Sur un match joué, il n'y a plus de bloc heure — la
+    // pastille la porte donc seule.
+    final dateTimeStr = match.status == MatchStatus.upcoming
+        ? dateStr
+        : '$dateStr · $heureStr';
+
+    final etat = switch (match.status) {
+      MatchStatus.live     => minute == null
+                                ? 'en direct'
+                                : 'en direct, ${minute}e minute',
+      MatchStatus.finished => 'terminé',
+      _                    => 'à venir',
+    };
+    final scoreParle = match.status == MatchStatus.upcoming
+        ? 'contre'
+        : '${homeScore ?? 0} à ${awayScore ?? 0} contre';
+
+    return Semantics(
+    label: '${match.league}. ${match.homeTeam} $scoreParle ${match.awayTeam}. '
+           'Match $etat, le $dateStr à $heureStr.',
+    excludeSemantics: true,
+    child: Container(
+    padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
     decoration: BoxDecoration(
       gradient: const LinearGradient(
         colors: [Color(0xFF151B2E), Color(0xFF0D1220)],
@@ -256,15 +693,19 @@ class _MatchHeader extends ConsumerWidget {
           : [],
     ),
     child: Column(children: [
-      Text(
-        match.leagueCountry.isNotEmpty
-          ? '${match.leagueCountry} · ${match.league}'
-          : match.league,
-        style: TextStyle(
-          color: context.cl.textM, fontSize: 11, letterSpacing: 0.5)),
-      const SizedBox(height: 18),
+      // Pill date/heure centrée — la ligue est déjà dans l'AppBar, pas besoin de la répéter ici
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+        decoration: BoxDecoration(
+          color: context.cl.surfaceDeep,
+          borderRadius: BorderRadius.circular(20)),
+        child: Text(dateTimeStr,
+          style: TextStyle(
+            color: context.cl.textS, fontSize: 12.5, fontWeight: FontWeight.w600)),
+      ),
+      const SizedBox(height: 22),
 
-      Row(children: [
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
         // Domicile
         Expanded(child: Column(children: [
           Hero(
@@ -279,10 +720,26 @@ class _MatchHeader extends ConsumerWidget {
             maxLines: 2, overflow: TextOverflow.ellipsis),
         ])),
 
-        // Score central
+        // Score / statut central
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.only(top: 6),
           child: Column(children: [
+            if (match.status == MatchStatus.finished) ...[
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: context.cl.surfaceDeep,
+                  borderRadius: BorderRadius.circular(6)),
+                child: Text('TERMINÉ',
+                  style: TextStyle(
+                    color: context.cl.textM, fontSize: 9,
+                    fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+              ),
+              const SizedBox(height: 8),
+            ] else if (match.status == MatchStatus.live) ...[
+              _LiveBadge(minute: minute),
+              const SizedBox(height: 8),
+            ],
             Container(
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(
@@ -297,7 +754,7 @@ class _MatchHeader extends ConsumerWidget {
                   width: match.status == MatchStatus.live ? 1.5 : 0.5)),
               child: Text(
                 match.status == MatchStatus.live || match.status == MatchStatus.finished
-                  ? '${homeScore ?? 0}  -  ${awayScore ?? 0}'
+                  ? '${homeScore ?? 0} - ${awayScore ?? 0}'
                   : 'VS',
                 style: TextStyle(
                   color: match.status == MatchStatus.live
@@ -305,22 +762,17 @@ class _MatchHeader extends ConsumerWidget {
                     : context.cl.textP,
                   fontSize: 24, fontWeight: FontWeight.w800,
                   letterSpacing: 2))),
-            const SizedBox(height: 6),
-            if (isRefreshingScore)
+            if (isRefreshingScore) ...[
+              const SizedBox(height: 6),
               SizedBox(width: 12, height: 12,
-                child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.success))
-            else if (match.status == MatchStatus.live)
-              _LiveBadge()
-            else if (match.status == MatchStatus.finished)
-              Text('Terminé',
-                style: TextStyle(color: context.cl.textM, fontSize: 11))
-            else
-              Text(
-                '${match.matchDate.hour.toString().padLeft(2, '0')}:'
-                '${match.matchDate.minute.toString().padLeft(2, '0')}',
+                child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.success)),
+            ] else if (match.status == MatchStatus.upcoming) ...[
+              const SizedBox(height: 6),
+              Text(heureStr,
                 style: TextStyle(
                   color: context.cl.textS,
                   fontSize: 14, fontWeight: FontWeight.w600)),
+            ],
           ]),
         ),
 
@@ -339,42 +791,7 @@ class _MatchHeader extends ConsumerWidget {
         ])),
       ]),
     ]),
-  );
-  }
-}
-
-// STATUT
-class _MatchStatusRow extends StatelessWidget {
-  final MatchEntity match;
-  const _MatchStatusRow({required this.match});
-
-  @override
-  Widget build(BuildContext context) {
-    final d = match.matchDate;
-    final dateStr =
-      '${d.day.toString().padLeft(2, '0')}/'
-      '${d.month.toString().padLeft(2, '0')}/'
-      '${d.year}';
-    final timeStr =
-      '${d.hour.toString().padLeft(2, '0')}:'
-      '${d.minute.toString().padLeft(2, '0')}';
-
-    return Row(children: [
-      _InfoChip(icon: Icons.calendar_today_rounded, label: dateStr, color: AppColors.info),
-      SizedBox(width: 8),
-      _InfoChip(icon: Icons.access_time_rounded, label: timeStr, color: context.cl.textS),
-      const SizedBox(width: 8),
-      _InfoChip(
-        icon: match.status == MatchStatus.finished
-          ? Icons.check_circle_rounded
-          : match.status == MatchStatus.live
-            ? Icons.circle_rounded
-            : Icons.schedule_rounded,
-        label: match.status == MatchStatus.finished ? 'Terminé'
-          : match.status == MatchStatus.live ? 'En direct' : 'À venir',
-        color: match.status == MatchStatus.finished ? context.cl.textM
-          : match.status == MatchStatus.live ? AppColors.success : AppColors.primary),
-    ]);
+  ));
   }
 }
 
@@ -384,8 +801,48 @@ class _PronosticCard extends StatelessWidget {
   final bool isLocked;
   const _PronosticCard({required this.match, required this.isLocked});
 
+  /// Les libellés composés par le formulaire admin ont la forme
+  /// "Marché : Choix" (ex. "Vainqueur du match : PSV Eindhoven"). On les coupe
+  /// au premier ':' pour hiérarchiser l'affichage. Un libellé sans séparateur
+  /// (ex. "Les deux équipes marquent") reste affiché tel quel comme choix.
+  int get _sep => match.displayPredictionLabel.indexOf(':');
+
+  String? get _market => _sep <= 0
+      ? null
+      : match.displayPredictionLabel.substring(0, _sep).trim();
+
+  String get _pick => _sep <= 0
+      ? match.displayPredictionLabel
+      : match.displayPredictionLabel.substring(_sep + 1).trim();
+
+  /// Ce que le lecteur d'écran annonce pour la carte entière. Lue widget par
+  /// widget, elle donnait « PRONOSTIC », « TOTAL BUTS +/- », « Plus de 1.5 »,
+  /// « COTE », « 1.18 », « CONFIANCE », « 95% », « Excellent » — huit fragments
+  /// dont aucun ne dit qu'ils forment un même pari.
+  String _annonce(BuildContext context) {
+    if (isLocked) {
+      return 'Pronostic réservé aux membres Premium.';
+    }
+    final marche = _market == null ? '' : '${_market!}, ';
+    final cote = match.oddsRecommended > 0
+        ? ' Cote recommandée ${match.oddsRecommended.toStringAsFixed(2)}.'
+        : '';
+    final verdict = switch (match.result) {
+      PronosticResult.win  => ' Pronostic gagnant.',
+      PronosticResult.loss => ' Pronostic perdant.',
+      PronosticResult.push => ' Pronostic remboursé.',
+      null                 => '',
+    };
+    return 'Pronostic : $marche$_pick.$cote '
+        'Indice de confiance ${MatchEntity.percentForConfidence(match.confidenceScore)} '
+        'pour cent, ${MatchEntity.labelForConfidence(match.confidenceScore)}.$verdict';
+  }
+
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => Semantics(
+    label: _annonce(context),
+    excludeSemantics: true,
+    child: Container(
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
       gradient: isLocked ? null : LinearGradient(
@@ -396,8 +853,14 @@ class _PronosticCard extends StatelessWidget {
       border: Border.all(
         color: isLocked
           ? context.cl.border
-          : AppColors.primary.withValues(alpha: 0.3),
-        width: isLocked ? 0.5 : 1)),
+          : AppColors.primary.withValues(alpha: 0.45),
+        width: isLocked ? 0.5 : 1.2),
+      // Halo discret : c'est la carte maîtresse de l'onglet, elle doit se
+      // détacher des cartes d'information qui la suivent (toutes plates).
+      boxShadow: isLocked ? null : [BoxShadow(
+        color: AppColors.primary.withValues(alpha: 0.14),
+        blurRadius: 20, offset: const Offset(0, 6))],
+    ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text('PRONOSTIC', style: TextStyle(
         color: context.cl.textM, fontSize: 11,
@@ -412,94 +875,519 @@ class _PronosticCard extends StatelessWidget {
             style: TextStyle(color: context.cl.textM, fontSize: 14))),
         ])
       else ...[
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        // Marché en surtitre + choix en gros : se lit comme un ticket de pari,
+        // au lieu d'une longue phrase qui passe à la ligne.
+        if (_market != null) ...[
+          Text(_market!.toUpperCase(),
+            style: const TextStyle(
+              color: AppColors.primary,
+              fontSize: 10.5,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.8)),
+          const SizedBox(height: 7),
+        ],
+        Text(_pick,
+          style: TextStyle(
+            color: context.cl.textP,
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            height: 1.2)),
+        const SizedBox(height: 16),
+        Container(height: 1, color: context.cl.borderSoft),
+        const SizedBox(height: 14),
+        Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          if (match.oddsRecommended > 0) ...[
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text('COTE',
+                style: TextStyle(
+                  color: context.cl.textM,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8)),
+              const SizedBox(height: 7),
+              Text(match.oddsRecommended.toStringAsFixed(2),
+                style: TextStyle(
+                  color: context.cl.textP,
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  height: 1)),
+            ]),
+            const SizedBox(width: 28),
+          ],
+          // Une fois le résultat connu, la confiance est rétrospective : elle
+          // n'aide plus à décider, elle ne fait que documenter. Elle passe donc
+          // d'une jauge pleine largeur à une mention discrète, et rend la place
+          // au rendement, qui est l'information que le parieur cherche
+          // vraiment sur un pronostic clos.
+          if (match.result == null)
+            Expanded(child: _DetailConfidenceBar(score: match.confidenceScore))
+          else ...[
+            if (match.oddsRecommended > 0)
+              Expanded(child: _RendementBox(odds: match.oddsRecommended,
+                  result: match.result!)),
+            const SizedBox(width: 20),
+            _ConfianceRappel(score: match.confidenceScore),
+          ],
+        ]),
+      ],
+
+      // Verdict intégré à la carte : le pronostic et son issue racontent la
+      // même histoire, les séparer en deux blocs obligeait à répéter la cote.
+      if (match.result != null) ...[
+        const SizedBox(height: 16),
+        _VerdictStrip(result: match.result!, pronosticId: match.id),
+      ],
+    ]),
+  ));
+}
+
+
+/// Rendement d'un pronostic clos, exprimé pour une mise de référence.
+///
+/// « Cote 1.18 » et « Pronostic gagnant » sont deux faits que le parieur devait
+/// multiplier de tête. Sur un marché à faible cote c'est précisément le calcul
+/// qui décide si le pari valait la peine — autant le poser.
+class _RendementBox extends StatelessWidget {
+  final double odds;
+  final PronosticResult result;
+  const _RendementBox({required this.odds, required this.result});
+
+  /// Mise de référence en FCFA. Volontairement ronde et non paramétrable : il
+  /// s'agit d'illustrer un rendement, pas de simuler la bankroll de
+  /// l'utilisateur — celle-ci a sa propre page, avec ses vrais montants.
+  static const double _miseReference = 1000;
+
+  @override
+  Widget build(BuildContext context) {
+    final (libelle, montant, couleur) = switch (result) {
+      PronosticResult.win => (
+        'AURAIT RAPPORTÉ',
+        '+${((odds - 1) * _miseReference).round()}',
+        AppColors.success,
+      ),
+      PronosticResult.loss => (
+        'AURAIT COÛTÉ',
+        '-${_miseReference.round()}',
+        AppColors.error,
+      ),
+      PronosticResult.push => ('MISE RENDUE', '±0', AppColors.info),
+    };
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(libelle,
+        style: TextStyle(
+          color: context.cl.textM,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8)),
+      const SizedBox(height: 7),
+      Row(crossAxisAlignment: CrossAxisAlignment.baseline,
+        textBaseline: TextBaseline.alphabetic,
+        children: [
+          Flexible(
+            child: Text(montant,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: couleur, fontSize: 19,
+                fontWeight: FontWeight.w800, height: 1)),
+          ),
+          const SizedBox(width: 4),
+          Text('F  · mise ${_miseReference.round()}',
+            style: TextStyle(color: context.cl.textM, fontSize: 10)),
+        ]),
+    ]);
+  }
+}
+
+/// Rappel discret de la confiance annoncée avant le coup d'envoi, une fois le
+/// résultat connu. La jauge pleine largeur laisse la place au rendement.
+class _ConfianceRappel extends StatelessWidget {
+  final int score;
+  const _ConfianceRappel({required this.score});
+
+  @override
+  Widget build(BuildContext context) {
+    final couleur = ConfidenceIndicator.colorFor(score);
+    return Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+      Text('CONFIANCE ANNONCÉE',
+        style: TextStyle(
+          color: context.cl.textM,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8)),
+      const SizedBox(height: 7),
+      Text('${MatchEntity.percentForConfidence(score)} %',
+        style: TextStyle(
+          color: couleur.withValues(alpha: 0.75),
+          fontSize: 15,
+          fontWeight: FontWeight.w700,
+          height: 1.2)),
+    ]);
+  }
+}
+
+/// Bandeau d'issue affiché au pied de la carte Pronostic. La cote n'y figure
+/// pas : elle est déjà juste au-dessus dans la même carte.
+class _VerdictStrip extends StatefulWidget {
+  final PronosticResult result;
+  final String pronosticId;
+  const _VerdictStrip({required this.result, required this.pronosticId});
+
+  @override
+  State<_VerdictStrip> createState() => _VerdictStripState();
+}
+
+class _VerdictStripState extends State<_VerdictStrip>
+    with SingleTickerProviderStateMixin {
+  static const _prefKey = 'celebrated_win_';
+
+  /// Un seul contrôleur pilote toute la chorégraphie : les quatre gestes
+  /// doivent être calés les uns sur les autres à la milliseconde près, ce que
+  /// quatre contrôleurs indépendants ne garantissent pas.
+  late final AnimationController _c = AnimationController(
+    vsync: this, duration: const Duration(milliseconds: 1150));
+
+  /// Le bandeau se pose : 0,94 → 1 avec un léger dépassement. `easeOutBack`
+  /// et non un rebond — on veut un objet qui se stabilise, pas qui saute.
+  late final Animation<double> _pose = CurvedAnimation(
+      parent: _c, curve: const Interval(0.00, 0.40, curve: Curves.easeOutBack));
+
+  /// La coche arrive après le bandeau, jamais en même temps : l'œil se pose
+  /// d'abord sur la forme, puis lit la confirmation.
+  late final Animation<double> _coche = CurvedAnimation(
+      parent: _c, curve: const Interval(0.14, 0.54, curve: Curves.easeOutBack));
+
+  /// Halo qui éclôt puis retombe à son niveau de repos. C'est ce qui remplace
+  /// les confettis : signaler par la lumière plutôt que par des objets qui
+  /// jaillissent d'un point où rien n'a explosé.
+  late final Animation<double> _halo = TweenSequence<double>([
+    TweenSequenceItem(tween: Tween(begin: 0.0, end: 1.0)
+        .chain(CurveTween(curve: Curves.easeOutCubic)), weight: 35),
+    TweenSequenceItem(tween: Tween(begin: 1.0, end: 0.30)
+        .chain(CurveTween(curve: Curves.easeInOutCubic)), weight: 65),
+  ]).animate(CurvedAnimation(
+      parent: _c, curve: const Interval(0.06, 1.00)));
+
+  /// Balayage spéculaire : une bande de lumière traverse le bandeau **une
+  /// fois**. C'est le signal « objet de qualité » — du métal ou du verre qui
+  /// accroche la lumière. En boucle, il deviendrait un gyrophare.
+  late final Animation<double> _reflet = CurvedAnimation(
+      parent: _c, curve: const Interval(0.34, 0.86, curve: Curves.easeInOutCubic));
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.result == PronosticResult.win) _peutEtreCelebrer();
+  }
+
+  /// La célébration ne se joue qu'à la première consultation d'un pronostic
+  /// gagnant — y revenir ne la rejoue pas.
+  Future<void> _peutEtreCelebrer() async {
+    final prefs = await SharedPreferences.getInstance();
+    final cle   = '$_prefKey${widget.pronosticId}';
+    if ((prefs.getBool(cle) ?? false) || !mounted) return;
+
+    // Marqué comme vu dans tous les cas, y compris en animations réduites :
+    // sinon la célébration se déclencherait au premier changement de réglage,
+    // sur un pronostic vieux de trois semaines.
+    await prefs.setBool(cle, true);
+    if (!mounted || context.animationsReduites) return;
+
+    await Future.delayed(const Duration(milliseconds: 160));
+    if (!mounted) return;
+
+    // `mediumImpact` et non `vibrate` : une frappe nette, calée sur l'arrivée
+    // de la coche. `vibrate` est un bourdonnement de notification — le retour
+    // le plus grossier de la plateforme.
+    HapticFeedback.mediumImpact();
+    _c.forward();
+  }
+
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final isWin  = widget.result == PronosticResult.win;
+    final isPush = widget.result == PronosticResult.push;
+    final color  = isWin ? AppColors.success : isPush ? AppColors.info : AppColors.error;
+    final icon   = isWin  ? Icons.check_circle_rounded
+                 : isPush ? Icons.replay_rounded
+                 : Icons.cancel_rounded;
+    final label  = isWin  ? 'Pronostic gagnant'
+                 : isPush ? 'Pronostic remboursé'
+                 : 'Pronostic perdant';
+
+    // Hors victoire — ou en animations réduites — le bandeau est simplement
+    // affiché. Une défaite ne se met pas en scène.
+    if (!isWin || context.animationsReduites) {
+      return _bandeau(context, color, icon, label, echelle: 1, coche: 1);
+    }
+
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        final halo = _halo.value;
+        return Transform.scale(
+          scale: 0.94 + 0.06 * _pose.value,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [BoxShadow(
+                color: color.withValues(alpha: 0.34 * halo),
+                blurRadius: 10 + 22 * halo,
+                spreadRadius: 1 + 2 * halo,
+              )],
+            ),
+            child: _bandeau(context, color, icon, label,
+                echelle: _pose.value, coche: _coche.value, reflet: _reflet.value),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _bandeau(
+    BuildContext context, Color color, IconData icon, String label, {
+    required double echelle,
+    required double coche,
+    double? reflet,
+  }) {
+    final contenu = Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withValues(alpha: 0.35), width: 1)),
+      child: Row(children: [
+        Transform.scale(
+          scale: 0.55 + 0.45 * coche,
+          child: Opacity(opacity: coche.clamp(0.0, 1.0),
+            child: Icon(icon, color: color, size: 20)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Opacity(
+            opacity: echelle.clamp(0.0, 1.0),
+            child: Text(label,
+              style: TextStyle(
+                color: color, fontSize: 14, fontWeight: FontWeight.w800)),
+          ),
+        ),
+      ]),
+    );
+
+    if (reflet == null) return contenu;
+
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(12),
+      child: Stack(children: [
+        contenu,
+        // La bande traverse de −1,4 à 1,4 en largeur relative : elle entre et
+        // sort complètement du cadre, sans jamais s'arrêter au milieu.
+        Positioned.fill(
+          child: IgnorePointer(
+            child: FractionallySizedBox(
+              widthFactor: 0.45,
+              alignment: Alignment(-1.4 + 2.8 * reflet, 0),
+              child: DecoratedBox(
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
                     colors: [
-                      AppColors.primary.withValues(alpha: 0.18),
-                      AppColors.primaryLight.withValues(alpha: 0.08),
+                      Colors.white.withValues(alpha: 0),
+                      Colors.white.withValues(alpha: 0.16),
+                      Colors.white.withValues(alpha: 0),
                     ],
+                    stops: const [0.0, 0.5, 1.0],
                   ),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                      color: AppColors.primary.withValues(alpha: 0.35), width: 0.5),
-                ),
-                child: Text(
-                  match.predictionLabel,
-                  style: const TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800),
-                  textAlign: TextAlign.center,
                 ),
               ),
             ),
-            const SizedBox(width: 14),
-            _DetailConfidenceBar(score: match.confidenceScore),
-          ],
+          ),
         ),
+      ]),
+    );
+  }
+}
+
+// COTES
+class _OddsCard extends ConsumerWidget {
+  final MatchEntity match;
+  const _OddsCard({required this.match});
+
+  bool get _hasOdds =>
+    match.oddsHome > 0 || match.oddsDraw > 0 || match.oddsAway > 0;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!_hasOdds) return const SizedBox.shrink();
+
+    // La pastille verte ne signale la cote recommandée que si le pronostic
+    // porte sur le marché « vainqueur ». Sur un « Double chance » ou un
+    // « Total buts », les trois cotes 1/X/2 n'ont aucun rapport avec le
+    // pronostic, et la seule cote qui compte n'apparaissait nulle part.
+    final surMarcheVainqueur = match.predictionType == PredictionType.win1 ||
+                               match.predictionType == PredictionType.draw ||
+                               match.predictionType == PredictionType.win2;
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (match.oddsRecommended > 0 && !surMarcheVainqueur) ...[
+        _CoteRecommandee(match: match),
+        const SizedBox(height: 12),
       ],
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: context.cl.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: context.cl.border, width: 0.5)),
+        child: Row(children: [
+          // Le marché est nommé : « COTES » seul laissait croire que ces trois
+          // valeurs étaient celles du pronostic.
+          Flexible(
+            child: Text('VAINQUEUR DU MATCH',
+              maxLines: 2,
+              style: TextStyle(
+                color: context.cl.textM, fontSize: 9.5,
+                fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          ),
+          const SizedBox(width: 10),
+          _OddPill(label: '1', value: match.oddsHome,
+            isRecommended: match.predictionType == PredictionType.win1),
+          const SizedBox(width: 8),
+          _OddPill(label: 'X', value: match.oddsDraw,
+            isRecommended: match.predictionType == PredictionType.draw),
+          const SizedBox(width: 8),
+          _OddPill(label: '2', value: match.oddsAway,
+            isRecommended: match.predictionType == PredictionType.win2),
+        ]),
+      ),
+      if (match.status == MatchStatus.live) ...[
+        const SizedBox(height: 10),
+        Row(children: [
+          Icon(Icons.info_outline_rounded, size: 13, color: context.cl.textM),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              "Cotes d'ouverture — elles ne suivent pas le match en cours.",
+              style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.3)),
+          ),
+        ]),
+      ],
+      const SizedBox(height: 14),
+      // Mêmes cotes, mais cliquables : elles ouvrent le bookmaker partenaire.
+      // Le bloc précédent reste en lecture seule — un utilisateur qui consulte
+      // ne doit pas quitter l'app au moindre appui de travers.
+      //
+      // ⚠️ Masqué sur les builds publiés : `distribution_channel.dart` annonce
+      // que le renvoi vers le bookmaker disparaît en canal store, mais seule
+      // la fenêtre de mise appliquait la règle. Cette barre-ci partait dans le
+      // paquet soumis à Google et Apple — un lien d'affiliation cliquable vers
+      // un opérateur de paris, c'est-à-dire le motif de retrait le plus direct.
+      if (!ref.watch(isStoreBuildProvider))
+      BookmakerCotes(
+        coteDomicile:  match.oddsHome,
+        coteNul:       match.oddsDraw,
+        coteExterieur: match.oddsAway,
+        indiceRecommande: switch (match.predictionType) {
+          PredictionType.win1  => 0,
+          PredictionType.draw  => 1,
+          PredictionType.win2  => 2,
+          _                    => null,
+        },
+      ),
+    ]);
+  }
+}
+
+/// La cote du pronostic, mise en avant au-dessus du marché « vainqueur ».
+///
+/// Ne s'affiche que lorsque le pronostic ne porte PAS sur le 1X2 : sinon la
+/// pastille verte du marché fait déjà le travail, et deux fois la même valeur
+/// à quelques pixels d'écart est du bruit.
+class _CoteRecommandee extends StatelessWidget {
+  final MatchEntity match;
+  const _CoteRecommandee({required this.match});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+    decoration: BoxDecoration(
+      color: AppColors.success.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(
+        color: AppColors.success.withValues(alpha: 0.35), width: 1.2)),
+    child: Row(children: [
+      Expanded(
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text('COTE DU PRONOSTIC',
+            style: TextStyle(
+              color: context.cl.textM, fontSize: 9.5,
+              fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          const SizedBox(height: 5),
+          Text(match.displayPredictionLabel,
+            maxLines: 2, overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: context.cl.textP, fontSize: 13,
+              fontWeight: FontWeight.w700, height: 1.25)),
+        ]),
+      ),
+      const SizedBox(width: 12),
+      Text(match.oddsRecommended.toStringAsFixed(2),
+        style: const TextStyle(
+          color: AppColors.success, fontSize: 22,
+          fontWeight: FontWeight.w800, height: 1)),
     ]),
   );
 }
 
-// COTES
-class _OddsCard extends StatelessWidget {
-  final MatchEntity match;
-  const _OddsCard({required this.match});
+class _OddPill extends StatelessWidget {
+  final String label;
+  final double value;
+  final bool isRecommended;
+  const _OddPill({required this.label, required this.value, this.isRecommended = false});
 
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.all(16),
+  Widget build(BuildContext context) => Semantics(
+    // La coche disparaît de l'écran, l'information reste pour qui n'y voit
+    // rien : sans elle, un lecteur d'écran annonçait « 1, 1.34 » à l'identique
+    // pour la cote recommandée et les deux autres — la couleur ne s'entend pas.
+    label: isRecommended
+      ? '$label, cote ${value.toStringAsFixed(2)}, recommandée'
+      : '$label, cote ${value > 0 ? value.toStringAsFixed(2) : "indisponible"}',
+    excludeSemantics: true,
+    child: Container(
+      width: 48,
+      padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.border, width: 0.5)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('COTES', style: TextStyle(
-          color: context.cl.textM, fontSize: 11,
-          fontWeight: FontWeight.w600, letterSpacing: 1)),
-        const SizedBox(height: 12),
-        Row(children: [
-          _OddBox(label: '1', sublabel: 'Domicile',
-            value: match.oddsHome,
-            isRecommended: match.predictionType == PredictionType.win1),
-          const SizedBox(width: 8),
-          _OddBox(label: 'X', sublabel: 'Match nul',
-            value: match.oddsDraw,
-            isRecommended: match.predictionType == PredictionType.draw),
-          const SizedBox(width: 8),
-          _OddBox(label: '2', sublabel: 'Extérieur',
-            value: match.oddsAway,
-            isRecommended: match.predictionType == PredictionType.win2),
-        ]),
-        const SizedBox(height: 12),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: AppColors.success.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.success.withValues(alpha: 0.2))),
-          child: Row(children: [
-            Icon(Icons.recommend_rounded, color: AppColors.success, size: 18),
-            SizedBox(width: 10),
-            Text('Cote recommandée',
-              style: TextStyle(color: context.cl.textS, fontSize: 13)),
-            const Spacer(),
-            Text(match.oddsRecommended.toStringAsFixed(2),
-              style: const TextStyle(
-                color: AppColors.success, fontSize: 20,
-                fontWeight: FontWeight.w800)),
-          ])),
+        color: isRecommended
+          ? AppColors.success.withValues(alpha: 0.12)
+          : context.cl.surfaceDeep,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: isRecommended
+            ? AppColors.success.withValues(alpha: 0.4)
+            : context.cl.borderSoft,
+          width: isRecommended ? 1.2 : 0.5)),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        // La pastille verte, sa bordure et le chiffre coloré disent déjà que
+        // cette cote est celle du pronostic. Une coche de neuf pixels collée
+        // au « 1 » ajoutait un quatrième signal pour la même information, et
+        // se lisait comme une scorie plutôt que comme un repère.
+        Text(label, style: TextStyle(
+          color: isRecommended ? AppColors.success : context.cl.textM,
+          fontSize: 9, fontWeight: FontWeight.w700)),
+        Text(value > 0 ? value.toStringAsFixed(2) : '—',
+          style: TextStyle(
+            color: isRecommended ? AppColors.success : context.cl.textP,
+            fontSize: 14, fontWeight: FontWeight.w800)),
       ]),
-    );
-  }
+    ),
+  );
 }
 
 // NOTE ANALYSTE
@@ -539,14 +1427,14 @@ class _AnalystCard extends StatelessWidget {
 }
 
 // BANNIERE PREMIUM
-class _PremiumBanner extends StatefulWidget {
+class _PremiumBanner extends ConsumerStatefulWidget {
   final VoidCallback onTap;
   const _PremiumBanner({required this.onTap});
   @override
-  State<_PremiumBanner> createState() => _PremiumBannerState();
+  ConsumerState<_PremiumBanner> createState() => _PremiumBannerState();
 }
 
-class _PremiumBannerState extends State<_PremiumBanner>
+class _PremiumBannerState extends ConsumerState<_PremiumBanner>
     with SingleTickerProviderStateMixin {
   late AnimationController _pressCtrl;
   late Animation<double> _scale;
@@ -567,7 +1455,12 @@ class _PremiumBannerState extends State<_PremiumBanner>
   void dispose() { _pressCtrl.dispose(); super.dispose(); }
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
+  Widget build(BuildContext context) {
+    final sub = ref.watch(currentSubscriptionProvider).valueOrNull ?? const {};
+    // Sur un build store le tarif est majoré (commission Apple/Google) :
+    // annoncer le prix Mobile Money afficherait moins que le montant débité.
+    final priceLabel = '${premiumMonthlyPriceLabel(ref, sub)}/mois';
+    return GestureDetector(
     onTapDown: (_) => _pressCtrl.forward(),
     onTapUp: (_) { _pressCtrl.reverse(); HapticFeedback.lightImpact(); widget.onTap(); },
     onTapCancel: () => _pressCtrl.reverse(),
@@ -602,14 +1495,17 @@ class _PremiumBannerState extends State<_PremiumBanner>
           decoration: BoxDecoration(
             color: AppColors.primary,
             borderRadius: BorderRadius.circular(20)),
-          child: const Text('5 000 F', style: TextStyle(
+          child: Text(priceLabel, style: const TextStyle(
             color: Colors.white, fontSize: 12,
             fontWeight: FontWeight.w700)))
-          .animate(onPlay: (c) => c.repeat())
+          .animate(onPlay: (c) {
+            if (!context.animationsReduites) c.repeat();
+          })
           .shimmer(duration: 2000.ms, delay: 600.ms, color: Colors.white30),
       ]),
     )),
   );
+  }
 }
 
 // WIDGETS UTILITAIRES
@@ -622,7 +1518,74 @@ class _TeamLogo extends StatelessWidget {
       TeamLogoWidget(url: url.isEmpty ? null : url, size: size);
 }
 
+/// Âge de la donnée en direct, dans la barre de titre.
+///
+/// Un rond qui tourne pendant l'appel, puis « il y a 12 s » qui vieillit en
+/// continu. Sans lui, un score gelé par une panne réseau était indiscernable
+/// d'un score à jour.
+class _Fraicheur extends StatefulWidget {
+  final bool     enCours;
+  final DateTime dernier;
+  const _Fraicheur({required this.enCours, required this.dernier});
+
+  @override
+  State<_Fraicheur> createState() => _FraicheurState();
+}
+
+class _FraicheurState extends State<_Fraicheur> {
+  Timer? _tic;
+
+  @override
+  void initState() {
+    super.initState();
+    // Une seconde suffit : le libellé ne change qu'à la seconde près.
+    _tic = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void dispose() { _tic?.cancel(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    if (widget.enCours) {
+      return const Padding(
+        padding: EdgeInsets.only(right: 8),
+        child: SizedBox(width: 16, height: 16,
+          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.error)),
+      );
+    }
+
+    final secondes = DateTime.now().difference(widget.dernier).inSeconds;
+    final libelle  = secondes < 5
+        ? 'à jour'
+        : secondes < 60
+          ? 'il y a ${secondes}s'
+          : 'il y a ${(secondes / 60).floor()} min';
+
+    return Semantics(
+      label: 'Score mis à jour $libelle',
+      excludeSemantics: true,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 8),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.sync_rounded, size: 12, color: context.cl.textM),
+          const SizedBox(width: 4),
+          Text(libelle,
+            style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+        ]),
+      ),
+    );
+  }
+}
+
 class _LiveBadge extends StatefulWidget {
+  /// Minute de jeu. Null tant que la source ne l'a pas fournie : on retombe
+  /// alors sur le libellé seul plutôt que d'inventer un chiffre.
+  final int? minute;
+  const _LiveBadge({this.minute});
+
   @override
   State<_LiveBadge> createState() => _LiveBadgeState();
 }
@@ -638,7 +1601,7 @@ class _LiveBadgeState extends State<_LiveBadge>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 900),
-    )..repeat(reverse: true);
+    );
     _pulse = Tween<double>(begin: 0.4, end: 1.0)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
   }
@@ -650,7 +1613,26 @@ class _LiveBadgeState extends State<_LiveBadge>
   }
 
   @override
-  Widget build(BuildContext context) => Container(
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Une pastille qui clignote sans fin est exactement le mouvement que le
+    // réglage « réduire les animations » vise. Sans pulsation, le point reste
+    // rouge plein : l'information « en direct » est intacte.
+    if (context.animationsReduites) {
+      _ctrl.stop();
+      _ctrl.value = 1;
+    } else if (!_ctrl.isAnimating) {
+      _ctrl.repeat(reverse: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    label: widget.minute == null
+        ? 'Match en direct'
+        : 'Match en direct, ${widget.minute}e minute',
+    excludeSemantics: true,
+    child: Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
       color: AppColors.error.withValues(alpha: 0.12),
@@ -673,1432 +1655,71 @@ class _LiveBadgeState extends State<_LiveBadge>
         ),
       ),
       const SizedBox(width: 6),
-      const Text('EN DIRECT', style: TextStyle(
-        color: AppColors.error, fontSize: 11,
-        fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-    ]));
-}
-
-class _InfoChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color color;
-  const _InfoChip({required this.icon, required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.08),
-      borderRadius: BorderRadius.circular(8),
-      border: Border.all(color: color.withValues(alpha: 0.2), width: 0.5)),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, size: 12, color: color),
-      const SizedBox(width: 5),
-      Text(label, style: TextStyle(
-        color: color, fontSize: 11, fontWeight: FontWeight.w500)),
-    ]));
+      Text(widget.minute == null ? 'EN DIRECT' : "${widget.minute}'",
+        style: const TextStyle(
+          color: AppColors.error, fontSize: 11,
+          fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+    ])));
 }
 
 class _DetailConfidenceBar extends StatelessWidget {
   final int score;
   const _DetailConfidenceBar({required this.score});
 
-  Color get _color {
-    if (score >= 5) return AppColors.success;
-    if (score >= 4) return const Color(0xFF84CC16);
-    if (score >= 3) return AppColors.warning;
-    if (score >= 2) return const Color(0xFFF97316);
-    return AppColors.error;
-  }
+  /// Couleur et libellé viennent tous deux de la source unique. Cette classe
+  /// avait sa propre échelle à 5 couleurs là où le reste de l'app en utilise 3 :
+  /// un score de 4 s'affichait vert-lime ici et vert ailleurs, pour la même
+  /// donnée sur deux écrans voisins.
+  Color get _color => ConfidenceIndicator.colorFor(score);
 
-  String get _label {
-    if (score >= 5) return 'Excellent';
-    if (score >= 4) return 'Bon';
-    if (score >= 3) return 'Moyen';
-    if (score >= 2) return 'Faible';
-    return 'Risqué';
-  }
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.center,
-    children: [
-      Text('CONFIANCE',
-          style: TextStyle(
-              color: context.cl.textM,
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              letterSpacing: 0.8)),
-      const SizedBox(height: 8),
-      TweenAnimationBuilder<int>(
-        tween: IntTween(begin: 0, end: score),
-        duration: const Duration(milliseconds: 900),
-        curve: Curves.easeOutCubic,
-        builder: (context, animScore, _) => SizedBox(
-          width: 80,
-          height: 7,
-          child: Row(
-            children: List.generate(5, (i) {
-              final filled = i < animScore;
-              return Expanded(
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 1.5),
-                  decoration: BoxDecoration(
-                    color: filled ? _color : context.cl.borderSoft,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-      ),
-      const SizedBox(height: 5),
-      Text(_label,
-          style: TextStyle(
-              color: _color, fontSize: 11, fontWeight: FontWeight.w700)),
-    ],
-  );
-}
-
-// ─── PARTAGE ─────────────────────────────────────────────────────────────────
-
-String _buildShareText(MatchEntity match) {
-  final stars  = '⭐' * match.confidenceScore.clamp(1, 5);
-  final date   = DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR').format(match.matchDate);
-  final link   = 'https://pronowin.app/pronostics/${match.id}';
-  return '⚽ *PronoWin — Pronostic*\n\n'
-      '🏟️ ${match.homeTeam} vs ${match.awayTeam}\n'
-      '🏆 ${match.league}\n'
-      '📅 $date\n\n'
-      '🔮 *Pronostic :* ${match.predictionLabel}\n'
-      '$stars Confiance : ${match.confidenceScore}/5\n'
-      '💰 Cote recommandée : ${match.oddsRecommended.toStringAsFixed(2)}\n\n'
-      '📲 Voir le pronostic complet : $link\n'
-      '⬇️ Télécharge PronoWin pour tous les pronos !';
-}
-
-Future<void> _launchShare(String url) async {
-  final uri = Uri.parse(url);
-  if (await canLaunchUrl(uri)) {
-    await launchUrl(uri, mode: LaunchMode.externalApplication);
-  }
-}
-
-void _showShareSheet(BuildContext context, MatchEntity match) {
-  showModalBottomSheet(
-    context: context,
-    backgroundColor: Colors.transparent,
-    isScrollControlled: true,
-    builder: (_) => _ShareSheet(match: match),
-  );
-}
-
-class _ShareSheet extends StatefulWidget {
-  final MatchEntity match;
-  const _ShareSheet({required this.match});
-  @override
-  State<_ShareSheet> createState() => _ShareSheetState();
-}
-
-class _ShareSheetState extends State<_ShareSheet> {
-  final _cardKey = GlobalKey();
-  bool _capturing = false;
-
-  Future<void> _shareImage() async {
-    if (_capturing) return;
-    setState(() => _capturing = true);
-    try {
-      final text = _buildShareText(widget.match);
-      await PronoShareService.captureAndShare(
-        repaintKey: _cardKey,
-        shareText:  text,
-        pixelRatio: 3.0,
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur de capture : $e'),
-          behavior: SnackBarBehavior.floating,
-        ));
-      }
-    } finally {
-      if (mounted) setState(() => _capturing = false);
-    }
-  }
+  String get _label => MatchEntity.labelForConfidence(score);
 
   @override
   Widget build(BuildContext context) {
-    final text = _buildShareText(widget.match);
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.92,
-      minChildSize:     0.5,
-      maxChildSize:     0.95,
-      builder: (_, scrollCtrl) => Container(
-        decoration: BoxDecoration(
-          color:        context.cl.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border:       Border.all(color: context.cl.border, width: 0.5),
-        ),
-        child: ListView(
-          controller: scrollCtrl,
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 32),
-          children: [
-
-            // ── Handle ──────────────────────────────────────────────────────
-            Center(
-              child: Container(
-                width: 36, height: 4,
-                margin: const EdgeInsets.symmetric(vertical: 12),
-                decoration: BoxDecoration(
-                  color: context.cl.borderS,
-                  borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-
-            Text('Partager ce pronostic',
-              style: TextStyle(
-                color: context.cl.textP, fontSize: 15,
-                fontWeight: FontWeight.w700),
-              textAlign: TextAlign.center),
-            const SizedBox(height: 4),
-            Text('${widget.match.homeTeam} vs ${widget.match.awayTeam}',
-              style: TextStyle(color: context.cl.textS, fontSize: 12),
-              textAlign: TextAlign.center),
-            const SizedBox(height: 20),
-
-            // ── Prévisualisation de la carte ─────────────────────────────────
-            Center(
-              child: RepaintBoundary(
-                key: _cardKey,
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(20),
-                  child: PronoShareCard(match: widget.match),
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-
-            // ── Bouton principal : Partager l'image ──────────────────────────
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: _capturing ? null : _shareImage,
-                icon: _capturing
-                    ? const SizedBox(
-                        width: 16, height: 16,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.image_rounded, size: 18),
-                label: Text(_capturing ? 'Génération…' : 'Partager l\'image'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(14)),
-                  textStyle: const TextStyle(
-                    fontSize: 14, fontWeight: FontWeight.w700),
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // ── Boutons alternatifs ──────────────────────────────────────────
-            Row(children: [
-              Expanded(child: _ShareBtn(
-                fallbackIcon: Icons.chat_rounded,
-                label: 'WhatsApp',
-                color: const Color(0xFF25D366),
-                onTap: () async {
-                  final encoded = Uri.encodeComponent(text);
-                  await _launchShare('https://wa.me/?text=$encoded');
-                  if (context.mounted) Navigator.pop(context);
-                },
-              )),
-              const SizedBox(width: 10),
-              Expanded(child: _ShareBtn(
-                fallbackIcon: Icons.send_rounded,
-                label: 'Telegram',
-                color: const Color(0xFF0088CC),
-                onTap: () async {
-                  final encoded = Uri.encodeComponent(text);
-                  await _launchShare('https://t.me/share/url?url=https://pronowin.app&text=$encoded');
-                  if (context.mounted) Navigator.pop(context);
-                },
-              )),
-              const SizedBox(width: 10),
-              Expanded(child: _ShareBtn(
-                fallbackIcon: Icons.copy_rounded,
-                label: 'Copier',
-                color: AppColors.primary,
-                onTap: () {
-                  Clipboard.setData(ClipboardData(text: text));
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Pronostic copié !'),
-                    behavior: SnackBarBehavior.floating,
-                    duration: Duration(seconds: 2),
-                  ));
-                },
-              )),
-            ]),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _ShareBtn extends StatelessWidget {
-  final IconData fallbackIcon;
-  final String label;
-  final Color color;
-  final VoidCallback onTap;
-  const _ShareBtn({
-    required this.fallbackIcon,
-    required this.label,
-    required this.color,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: () { HapticFeedback.lightImpact(); onTap(); },
-    child: Container(
-      padding: const EdgeInsets.symmetric(vertical: 14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.25), width: 0.5)),
-      child: Column(children: [
-        Container(
-          width: 40, height: 40,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.15),
-            shape: BoxShape.circle),
-          child: Center(child: Icon(fallbackIcon, color: color, size: 20)),
-        ),
-        const SizedBox(height: 8),
-        Text(label, style: TextStyle(
-          color: color, fontSize: 12, fontWeight: FontWeight.w600)),
-      ]),
-    ),
-  );
-}
-
-// ─── H2H ─────────────────────────────────────────────────────────────────────
-
-class _H2HCard extends ConsumerWidget {
-  final String matchId;
-  const _H2HCard({required this.matchId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final h2hAsync = ref.watch(h2hProvider(matchId));
-
-    // Pas de données → on n'affiche rien
-    if (h2hAsync.valueOrNull?.matches.isEmpty == true) return const SizedBox.shrink();
-    if (h2hAsync.hasError) return const SizedBox.shrink();
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.borderSoft, width: 0.8),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+    final percent = MatchEntity.percentForConfidence(score);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         Row(children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.history_rounded, color: AppColors.primary, size: 16),
-          ),
-          const SizedBox(width: 10),
-          Text('Confrontations directes',
-            style: TextStyle(
-              color: context.cl.textP,
-              fontSize: 13,
-              fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: 14),
-        h2hAsync.when(
-          loading: () => _H2HLoading(),
-          error: (_, __) => const SizedBox.shrink(),
-          data: (h2h) => _H2HContent(h2h: h2h),
-        ),
-      ]),
-    );
-  }
-}
-
-class _H2HContent extends StatelessWidget {
-  final H2HData h2h;
-  const _H2HContent({required this.h2h});
-
-  @override
-  Widget build(BuildContext context) {
-    final total = h2h.homeWins + h2h.awayWins + h2h.draws;
-    final homeRatio = total > 0 ? h2h.homeWins / total : 0.0;
-    final drawRatio = total > 0 ? h2h.draws     / total : 0.0;
-    final awayRatio = total > 0 ? h2h.awayWins  / total : 0.0;
-
-    return Column(children: [
-      // Barre de résumé
-      Row(children: [
-        // Home wins
-        Expanded(
-          child: Column(children: [
-            TweenAnimationBuilder<int>(
-              tween: IntTween(begin: 0, end: h2h.homeWins),
-              duration: const Duration(milliseconds: 800),
-              builder: (_, v, __) => Text('$v',
-                style: TextStyle(
-                  color: AppColors.success,
-                  fontSize: 24, fontWeight: FontWeight.w900)),
-            ),
-            Text(h2h.homeTeam,
-              textAlign: TextAlign.center,
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: context.cl.textS, fontSize: 10)),
-          ]),
-        ),
-        // Draws
-        Column(children: [
-          TweenAnimationBuilder<int>(
-            tween: IntTween(begin: 0, end: h2h.draws),
-            duration: const Duration(milliseconds: 800),
-            builder: (_, v, __) => Text('$v',
+          Text('CONFIANCE',
               style: TextStyle(
-                color: context.cl.textM,
-                fontSize: 24, fontWeight: FontWeight.w900)),
-          ),
-          Text('Nuls',
-            style: TextStyle(color: context.cl.textM, fontSize: 10)),
-        ]),
-        // Away wins
-        Expanded(
-          child: Column(children: [
-            TweenAnimationBuilder<int>(
-              tween: IntTween(begin: 0, end: h2h.awayWins),
-              duration: const Duration(milliseconds: 800),
-              builder: (_, v, __) => Text('$v',
+                  color: context.cl.textM,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8)),
+          const Spacer(),
+          TweenAnimationBuilder<int>(
+            tween: IntTween(begin: 0, end: percent),
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.easeOutCubic,
+            builder: (_, val, child) => Text('$val%',
                 style: TextStyle(
-                  color: AppColors.error,
-                  fontSize: 24, fontWeight: FontWeight.w900)),
-            ),
-            Text(h2h.awayTeam,
-              textAlign: TextAlign.center,
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: context.cl.textS, fontSize: 10)),
-          ]),
-        ),
-      ]),
-      const SizedBox(height: 12),
-      // Barre proportionnelle
-      ClipRRect(
-        borderRadius: BorderRadius.circular(6),
-        child: TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: 1),
+                    color: _color, fontSize: 15, fontWeight: FontWeight.w800,
+                    height: 1)),
+          ),
+        ]),
+        const SizedBox(height: 7),
+        TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: percent / 100),
           duration: const Duration(milliseconds: 900),
           curve: Curves.easeOutCubic,
-          builder: (_, t, __) => Row(children: [
-            if (homeRatio > 0) Expanded(
-              flex: (homeRatio * 100).round(),
-              child: Container(
-                height: 8,
-                color: AppColors.success.withValues(alpha: 0.7 + 0.3 * t)),
+          builder: (_, val, child) => ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: val,
+              minHeight: 6,
+              backgroundColor: context.cl.borderSoft,
+              valueColor: AlwaysStoppedAnimation<Color>(_color),
             ),
-            if (drawRatio > 0) Expanded(
-              flex: (drawRatio * 100).round(),
-              child: Container(height: 8, color: context.cl.borderSoft),
-            ),
-            if (awayRatio > 0) Expanded(
-              flex: (awayRatio * 100).round(),
-              child: Container(
-                height: 8,
-                color: AppColors.error.withValues(alpha: 0.7 + 0.3 * t)),
-            ),
-          ]),
+          ),
         ),
-      ),
-      const SizedBox(height: 14),
-      // Liste des derniers matchs
-      ...h2h.matches.take(6).map((m) => _H2HRow(match: m, h2h: h2h)),
-    ]);
-  }
-}
-
-class _H2HRow extends StatelessWidget {
-  final H2HMatchResult match;
-  final H2HData        h2h;
-  const _H2HRow({required this.match, required this.h2h});
-
-  Color _winnerColor(BuildContext context) {
-    if (match.winner == 'HOME_TEAM') return AppColors.success;
-    if (match.winner == 'AWAY_TEAM') return AppColors.error;
-    return context.cl.textM;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isHomeWin = match.winner == 'HOME_TEAM';
-    final isAwayWin = match.winner == 'AWAY_TEAM';
-    final dateStr   = DateFormat('dd/MM/yy').format(match.date);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(children: [
-        // Date
-        SizedBox(
-          width: 52,
-          child: Text(dateStr,
-            style: TextStyle(color: context.cl.textM, fontSize: 10))),
-        // Équipe domicile
-        Expanded(
-          child: Text(match.homeTeam,
-            textAlign: TextAlign.right,
-            maxLines: 1, overflow: TextOverflow.ellipsis,
+        const SizedBox(height: 5),
+        Text(_label,
             style: TextStyle(
-              color: isHomeWin ? AppColors.success : context.cl.textS,
-              fontSize: 11,
-              fontWeight: isHomeWin ? FontWeight.w700 : FontWeight.w400))),
-        // Score
-        Container(
-          margin: const EdgeInsets.symmetric(horizontal: 8),
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-          decoration: BoxDecoration(
-            color: _winnerColor(context).withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(
-              color: _winnerColor(context).withValues(alpha: 0.25), width: 0.5)),
-          child: Text('${match.homeScore} - ${match.awayScore}',
-            style: TextStyle(
-              color: _winnerColor(context),
-              fontSize: 12, fontWeight: FontWeight.w800)),
-        ),
-        // Équipe extérieure
-        Expanded(
-          child: Text(match.awayTeam,
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: isAwayWin ? AppColors.error : context.cl.textS,
-              fontSize: 11,
-              fontWeight: isAwayWin ? FontWeight.w700 : FontWeight.w400))),
-      ]),
-    );
-  }
-}
-
-class _H2HLoading extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Column(
-    children: List.generate(3, (_) => Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Container(
-        height: 24,
-        decoration: BoxDecoration(
-          color: context.cl.surfaceD,
-          borderRadius: BorderRadius.circular(6)),
-      ).animate(onPlay: (c) => c.repeat())
-       .shimmer(duration: 1400.ms, color: context.cl.borderSoft),
-    )),
-  );
-}
-
-class _H2HError extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Row(children: [
-      Icon(Icons.info_outline_rounded, color: context.cl.textM, size: 16),
-      const SizedBox(width: 8),
-      Text('Historique indisponible pour ce match.',
-        style: TextStyle(color: context.cl.textM, fontSize: 12)),
-    ]),
-  );
-}
-
-class _H2HEmpty extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 8),
-    child: Text('Aucune confrontation directe disponible.',
-      style: TextStyle(color: context.cl.textM, fontSize: 12)),
-  );
-}
-
-// ─── ANALYSE IA ──────────────────────────────────────────────────────────────
-
-class _AIAnalysisCard extends ConsumerWidget {
-  final String matchId;
-  const _AIAnalysisCard({required this.matchId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final aiAsync = ref.watch(aiAnalysisProvider(matchId));
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            const Color(0xFF6C3AE8).withValues(alpha: 0.08),
-            const Color(0xFF3A7BD5).withValues(alpha: 0.08),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: const Color(0xFF6C3AE8).withValues(alpha: 0.25),
-          width: 1,
-        ),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: const Color(0xFF6C3AE8).withValues(alpha: 0.15),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: const Icon(Icons.auto_awesome_rounded,
-              color: Color(0xFF6C3AE8), size: 16),
-          ),
-          const SizedBox(width: 10),
-          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Analyse IA',
-              style: TextStyle(
-                color: context.cl.textP,
-                fontSize: 13,
-                fontWeight: FontWeight.w700)),
-            Text('Modèle ML + Claude AI',
-              style: TextStyle(
-                color: context.cl.textM,
-                fontSize: 10,
-                fontWeight: FontWeight.w500)),
-          ]),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(
-              color: const Color(0xFF6C3AE8).withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: const Text('UNIQUE EN AFRIQUE',
-              style: TextStyle(
-                color: Color(0xFF6C3AE8),
-                fontSize: 8,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.5)),
-          ),
-        ]),
-        const SizedBox(height: 16),
-        aiAsync.when(
-          loading: () => _AILoadingState(),
-          error: (_, __) => _AIErrorState(onRetry: () => ref.invalidate(aiAnalysisProvider(matchId))),
-          data: (ai) => _AIData(analysis: ai),
-        ),
-      ]),
-    );
-  }
-}
-
-class _AIData extends StatelessWidget {
-  final AiAnalysis analysis;
-  const _AIData({required this.analysis});
-
-  Color get _probColor {
-    if (analysis.probability >= 70) return AppColors.success;
-    if (analysis.probability >= 55) return const Color(0xFF84CC16);
-    if (analysis.probability >= 45) return AppColors.warning;
-    return AppColors.error;
-  }
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(children: [
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('PROBABILITÉ DE SUCCÈS',
-              style: TextStyle(
-                color: context.cl.textM,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.6)),
-            const SizedBox(height: 8),
-            TweenAnimationBuilder<double>(
-              tween: Tween(begin: 0, end: analysis.probability / 100),
-              duration: const Duration(milliseconds: 1200),
-              curve: Curves.easeOutCubic,
-              builder: (ctx, val, _) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(6),
-                    child: LinearProgressIndicator(
-                      value: val,
-                      minHeight: 8,
-                      backgroundColor: ctx.cl.borderSoft,
-                      valueColor: AlwaysStoppedAnimation<Color>(_probColor),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ]),
-        ),
-        const SizedBox(width: 16),
-        TweenAnimationBuilder<int>(
-          tween: IntTween(begin: 0, end: analysis.probability),
-          duration: const Duration(milliseconds: 1200),
-          curve: Curves.easeOutCubic,
-          builder: (_, val, __) => Text('$val%',
-            style: TextStyle(
-              color: _probColor,
-              fontSize: 28,
-              fontWeight: FontWeight.w900,
-            )),
-        ),
-      ]),
-      const SizedBox(height: 14),
-      Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: context.cl.surfaceD,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('✦ ', style: TextStyle(color: Color(0xFF6C3AE8), fontSize: 12)),
-          Expanded(
-            child: Text(analysis.explanation,
-              style: TextStyle(
-                color: context.cl.textS,
-                fontSize: 12,
-                height: 1.5,
-              )),
-          ),
-        ]),
-      ),
-    ],
-  );
-}
-
-class _AILoadingState extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(children: [
-        SizedBox(
-          width: 16, height: 16,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: const Color(0xFF6C3AE8),
-          ),
-        ),
-        const SizedBox(width: 10),
-        Text('Analyse en cours…',
-          style: TextStyle(color: context.cl.textM, fontSize: 12)),
-      ]),
-      const SizedBox(height: 12),
-      Container(
-        height: 8,
-        decoration: BoxDecoration(
-          color: context.cl.borderSoft,
-          borderRadius: BorderRadius.circular(6)),
-      )
-        .animate(onPlay: (c) => c.repeat())
-        .shimmer(duration: 1500.ms, color: const Color(0xFF6C3AE8).withValues(alpha: 0.15)),
-    ],
-  );
-}
-
-class _AIErrorState extends StatelessWidget {
-  final VoidCallback onRetry;
-  const _AIErrorState({required this.onRetry});
-
-  @override
-  Widget build(BuildContext context) => Row(children: [
-    Icon(Icons.warning_amber_rounded, color: context.cl.textM, size: 16),
-    const SizedBox(width: 8),
-    Expanded(
-      child: Text('Analyse temporairement indisponible.',
-        style: TextStyle(color: context.cl.textM, fontSize: 12))),
-    TextButton(
-      onPressed: onRetry,
-      style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
-      child: Text('Réessayer',
-        style: TextStyle(color: const Color(0xFF6C3AE8), fontSize: 12))),
-  ]);
-}
-
-// ─── RÉSULTAT DU PRONOSTIC ────────────────────────────────────────────────────
-
-class _ResultBanner extends StatefulWidget {
-  final bool won;
-  final String pronosticId;
-  const _ResultBanner({required this.won, required this.pronosticId});
-
-  @override
-  State<_ResultBanner> createState() => _ResultBannerState();
-}
-
-class _ResultBannerState extends State<_ResultBanner> {
-  late final ConfettiController _confetti;
-
-  static const _prefKey = 'celebrated_win_';
-
-  @override
-  void initState() {
-    super.initState();
-    _confetti = ConfettiController(duration: const Duration(milliseconds: 1500));
-    if (widget.won) {
-      _maybeCelebrate();
-    }
-  }
-
-  Future<void> _maybeCelebrate() async {
-    final prefs  = await SharedPreferences.getInstance();
-    final key    = '$_prefKey${widget.pronosticId}';
-    final already = prefs.getBool(key) ?? false;
-    if (already || !mounted) return;
-
-    await prefs.setBool(key, true);
-
-    Future.delayed(const Duration(milliseconds: 200), () {
-      if (!mounted) return;
-      HapticFeedback.vibrate();
-      _confetti.play();
-    });
-  }
-
-  @override
-  void dispose() {
-    _confetti.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final color = widget.won ? AppColors.success : AppColors.error;
-    final icon  = widget.won ? Icons.check_circle_rounded : Icons.cancel_rounded;
-    final label = widget.won ? 'Pronostic gagnant !' : 'Pronostic perdant';
-
-    return Stack(
-      alignment: Alignment.topCenter,
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: color.withValues(alpha: 0.35), width: 1.2)),
-          child: Row(children: [
-            Icon(icon, color: color, size: 26),
-            const SizedBox(width: 12),
-            Text(label, style: TextStyle(
-              color: color, fontSize: 15, fontWeight: FontWeight.w800)),
-          ]),
-        ),
-        if (widget.won)
-          ConfettiWidget(
-            confettiController: _confetti,
-            blastDirectionality: BlastDirectionality.explosive,
-            numberOfParticles: 18,
-            maxBlastForce: 12,
-            minBlastForce: 4,
-            gravity: 0.3,
-            colors: const [
-              AppColors.success,
-              AppColors.warning,
-              AppColors.primary,
-              Color(0xFFFFFFFF),
-            ],
-            shouldLoop: false,
-          ),
+                color: _color, fontSize: 10.5, fontWeight: FontWeight.w700)),
       ],
     );
   }
 }
 
-// ─── FORME RÉCENTE ────────────────────────────────────────────────────────────
-
-class _FormCard extends StatelessWidget {
-  final MatchEntity match;
-  const _FormCard({required this.match});
-
-  @override
-  Widget build(BuildContext context) {
-    final homePoints = match.homeFormPoints.clamp(0, 15);
-    final awayPoints = match.awayFormPoints.clamp(0, 15);
-    const maxPts     = 15;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.border, width: 0.5)),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('FORME RÉCENTE', style: TextStyle(
-          color: context.cl.textM, fontSize: 11,
-          fontWeight: FontWeight.w700, letterSpacing: 0.8)),
-        const SizedBox(height: 14),
-        _FormRow(team: match.homeTeam, points: homePoints, max: maxPts, color: AppColors.primary),
-        const SizedBox(height: 10),
-        _FormRow(team: match.awayTeam, points: awayPoints, max: maxPts, color: AppColors.warning),
-        const SizedBox(height: 10),
-        Text('Sur les 5 derniers matchs (victoire=3pts, nul=1pt)',
-          style: TextStyle(color: context.cl.textM, fontSize: 10)),
-      ]),
-    );
-  }
-}
-
-class _FormRow extends StatelessWidget {
-  final String team;
-  final int points, max;
-  final Color color;
-  const _FormRow({required this.team, required this.points, required this.max, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final ratio = max > 0 ? points / max : 0.0;
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [
-        Expanded(child: Text(team, style: TextStyle(
-          color: context.cl.textP, fontSize: 12, fontWeight: FontWeight.w600),
-          maxLines: 1, overflow: TextOverflow.ellipsis)),
-        Text('$points pts', style: TextStyle(
-          color: color, fontSize: 12, fontWeight: FontWeight.w700)),
-      ]),
-      const SizedBox(height: 6),
-      ClipRRect(
-        borderRadius: BorderRadius.circular(4),
-        child: LinearProgressIndicator(
-          value: ratio.toDouble(),
-          minHeight: 6,
-          backgroundColor: context.cl.borderSoft,
-          valueColor: AlwaysStoppedAnimation<Color>(color),
-        ),
-      ),
-    ]);
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _OddBox extends StatelessWidget {
-  final String label, sublabel;
-  final double value;
-  final bool isRecommended;
-  const _OddBox({required this.label, required this.sublabel,
-    required this.value, this.isRecommended = false});
-
-  @override
-  Widget build(BuildContext context) => Expanded(child: Container(
-    padding: EdgeInsets.symmetric(vertical: 12),
-    decoration: BoxDecoration(
-      color: isRecommended
-        ? AppColors.success.withValues(alpha: 0.08)
-        : context.cl.surfaceDeep,
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(
-        color: isRecommended
-          ? AppColors.success.withValues(alpha: 0.3)
-          : context.cl.borderSoft,
-        width: isRecommended ? 1.5 : 0.5)),
-    child: Column(children: [
-      Text(label, style: TextStyle(
-        color: isRecommended ? AppColors.success : context.cl.textM,
-        fontSize: 12, fontWeight: FontWeight.w600)),
-      SizedBox(height: 4),
-      Text(value.toStringAsFixed(2),
-        style: TextStyle(
-          color: isRecommended ? AppColors.success : context.cl.textP,
-          fontSize: 20, fontWeight: FontWeight.w800)),
-      SizedBox(height: 2),
-      Text(sublabel, style: TextStyle(
-        color: context.cl.textM, fontSize: 10)),
-    ])));
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// BOUTON MISER
-// ══════════════════════════════════════════════════════════════════════════════
-class _MiserButton extends ConsumerStatefulWidget {
-  final MatchEntity match;
-  const _MiserButton({required this.match});
-  @override
-  ConsumerState<_MiserButton> createState() => _MiserButtonState();
-}
-
-// ─── STATISTIQUES DU MATCH TERMINÉ ───────────────────────────────────────────
-
-class _MatchStatsCard extends ConsumerWidget {
-  final String matchId;
-  const _MatchStatsCard({required this.matchId});
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final statsAsync = ref.watch(matchStatsProvider(matchId));
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.borderSoft, width: 0.8),
-      ),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Container(
-            padding: const EdgeInsets.all(7),
-            decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(Icons.bar_chart_rounded, color: AppColors.info, size: 16),
-          ),
-          const SizedBox(width: 10),
-          Text('Statistiques du match',
-            style: TextStyle(
-              color: context.cl.textP,
-              fontSize: 13,
-              fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: 14),
-        statsAsync.when(
-          loading: () => _StatsLoading(),
-          error: (_, __) => _StatsUnavailable(),
-          data: (data) => data == null
-            ? _StatsUnavailable()
-            : _StatsContent(data: data),
-        ),
-      ]),
-    );
-  }
-}
-
-class _StatsContent extends StatefulWidget {
-  final MatchStatsData data;
-  const _StatsContent({required this.data});
-  @override
-  State<_StatsContent> createState() => _StatsContentState();
-}
-
-class _StatsContentState extends State<_StatsContent> {
-  bool _showEvents = true;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      // Toggle événements / stats
-      Row(children: [
-        _TabChip(label: 'Événements', active: _showEvents,
-          onTap: () => setState(() => _showEvents = true)),
-        const SizedBox(width: 8),
-        _TabChip(label: 'Stats', active: !_showEvents,
-          onTap: () => setState(() => _showEvents = false)),
-      ]),
-      const SizedBox(height: 14),
-      if (_showEvents)
-        _EventsList(events: widget.data.events,
-          homeTeam: widget.data.homeTeam, awayTeam: widget.data.awayTeam)
-      else
-        _StatsList(stats: widget.data.stats,
-          homeTeam: widget.data.homeTeam, awayTeam: widget.data.awayTeam),
-    ]);
-  }
-}
-
-class _TabChip extends StatelessWidget {
-  final String label;
-  final bool active;
-  final VoidCallback onTap;
-  const _TabChip({required this.label, required this.active, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-      decoration: BoxDecoration(
-        color: active ? AppColors.info.withValues(alpha: 0.15) : context.cl.surfaceDeep,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: active ? AppColors.info.withValues(alpha: 0.4) : context.cl.borderSoft,
-          width: 0.8)),
-      child: Text(label, style: TextStyle(
-        color: active ? AppColors.info : context.cl.textM,
-        fontSize: 12, fontWeight: FontWeight.w600)),
-    ),
-  );
-}
-
-class _EventsList extends StatelessWidget {
-  final List<MatchEvent> events;
-  final String homeTeam, awayTeam;
-  const _EventsList({required this.events, required this.homeTeam, required this.awayTeam});
-
-  static Widget _eventIcon(MatchEvent e) {
-    if (e.type == 'Goal') {
-      if (e.detail == 'Own Goal') {
-        return Stack(clipBehavior: Clip.none, children: [
-          Icon(Icons.sports_soccer_rounded, color: AppColors.error, size: 16),
-          Positioned(right: -4, bottom: -2,
-            child: Icon(Icons.arrow_back_rounded, color: AppColors.error, size: 8)),
-        ]);
-      }
-      if (e.detail == 'Penalty') {
-        return Stack(clipBehavior: Clip.none, children: [
-          Icon(Icons.sports_soccer_rounded, color: AppColors.success, size: 16),
-          Positioned(right: -4, bottom: -2,
-            child: Icon(Icons.gps_fixed_rounded, color: AppColors.warning, size: 8)),
-        ]);
-      }
-      if (e.detail == 'Missed Penalty') {
-        return Icon(Icons.sports_soccer_rounded,
-          color: AppColors.error.withValues(alpha: 0.5), size: 16);
-      }
-      return Icon(Icons.sports_soccer_rounded, color: AppColors.success, size: 16);
-    }
-    if (e.type == 'Card') {
-      final isRed = e.detail.contains('Red');
-      return Container(
-        width: 11, height: 15,
-        decoration: BoxDecoration(
-          color: isRed ? AppColors.error : AppColors.warning,
-          borderRadius: BorderRadius.circular(2),
-        ),
-      );
-    }
-    if (e.type == 'subst') {
-      return Icon(Icons.swap_horiz_rounded, color: AppColors.info, size: 16);
-    }
-    return const Icon(Icons.sports_soccer_rounded, color: Colors.grey, size: 16);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final notable = events.where((e) =>
-      e.type == 'Goal' ||
-      e.type == 'Card'
-    ).toList();
-
-    if (notable.isEmpty) {
-      return Text('Aucun événement notable.',
-        style: TextStyle(color: context.cl.textM, fontSize: 12));
-    }
-
-    return Column(
-      children: notable.map((e) {
-        final isHome = e.team == homeTeam;
-        final minStr = e.extra != null ? "${e.minute}+${e.extra}'" : "${e.minute}'";
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(children: [
-            // Minute
-            SizedBox(width: 38,
-              child: Text(minStr,
-                style: TextStyle(
-                  color: AppColors.info, fontSize: 11,
-                  fontWeight: FontWeight.w700))),
-            // Gauche (domicile)
-            Expanded(child: isHome
-              ? _EventItem(event: e, align: TextAlign.right)
-              : const SizedBox()),
-            // Icône centrale
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: _eventIcon(e),
-            ),
-            // Droite (extérieur)
-            Expanded(child: !isHome
-              ? _EventItem(event: e, align: TextAlign.left)
-              : const SizedBox()),
-          ]),
-        );
-      }).toList(),
-    );
-  }
-}
-
-class _EventItem extends StatelessWidget {
-  final MatchEvent event;
-  final TextAlign align;
-  const _EventItem({required this.event, required this.align});
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: align == TextAlign.right
-      ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-    children: [
-      Text(event.player,
-        textAlign: align,
-        style: TextStyle(color: context.cl.textP, fontSize: 12,
-          fontWeight: FontWeight.w600),
-        maxLines: 1, overflow: TextOverflow.ellipsis),
-      if (event.assist != null && event.assist!.isNotEmpty)
-        Text('↳ ${event.assist}',
-          textAlign: align,
-          style: TextStyle(color: context.cl.textM, fontSize: 10),
-          maxLines: 1, overflow: TextOverflow.ellipsis),
-    ],
-  );
-}
-
-class _StatsList extends StatelessWidget {
-  final List<MatchStat> stats;
-  final String homeTeam, awayTeam;
-  const _StatsList({required this.stats, required this.homeTeam, required this.awayTeam});
-
-  static const _wantedStats = [
-    'Ball Possession',
-    'Total Shots',
-    'Shots on Goal',
-    'Shots off Goal',
-    'Blocked Shots',
-    'Corner Kicks',
-    'Fouls',
-    'Yellow Cards',
-    'Red Cards',
-    'Offsides',
-    'Total passes',
-    'Passes accurate',
-    'Goalkeeper Saves',
-  ];
-
-  static const _frenchLabels = {
-    'Ball Possession':   'Possession',
-    'Total Shots':       'Tirs (total)',
-    'Shots on Goal':     'Tirs cadrés',
-    'Shots off Goal':    'Tirs hors cadre',
-    'Blocked Shots':     'Tirs bloqués',
-    'Corner Kicks':      'Corners',
-    'Fouls':             'Fautes',
-    'Yellow Cards':      'Cartons jaunes',
-    'Red Cards':         'Cartons rouges',
-    'Offsides':          'Hors-jeu',
-    'Total passes':      'Passes (total)',
-    'Passes accurate':   'Passes réussies',
-    'Goalkeeper Saves':  'Arrêts du gardien',
-  };
-
-  @override
-  Widget build(BuildContext context) {
-    final filtered = stats
-      .where((s) => _wantedStats.contains(s.label))
-      .toList()
-      ..sort((a, b) =>
-        _wantedStats.indexOf(a.label).compareTo(_wantedStats.indexOf(b.label)));
-
-    if (filtered.isEmpty) {
-      return Text('Statistiques indisponibles.',
-        style: TextStyle(color: context.cl.textM, fontSize: 12));
-    }
-
-    return Column(children: [
-      // En-têtes d'équipes
-      Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Row(children: [
-          Expanded(child: Text(homeTeam,
-            style: TextStyle(color: AppColors.primary, fontSize: 11,
-              fontWeight: FontWeight.w700),
-            textAlign: TextAlign.center,
-            maxLines: 1, overflow: TextOverflow.ellipsis)),
-          const SizedBox(width: 80),
-          Expanded(child: Text(awayTeam,
-            style: TextStyle(color: AppColors.warning, fontSize: 11,
-              fontWeight: FontWeight.w700),
-            textAlign: TextAlign.center,
-            maxLines: 1, overflow: TextOverflow.ellipsis)),
-        ]),
-      ),
-      ...filtered.map((s) => _StatRow(
-        label: _frenchLabels[s.label] ?? s.label,
-        home: s.home, away: s.away,
-      )),
-    ]);
-  }
-}
-
-class _StatRow extends StatelessWidget {
-  final String label;
-  final dynamic home, away;
-  const _StatRow({required this.label, this.home, this.away});
-
-  double _parse(dynamic v) {
-    if (v == null) return 0;
-    if (v is num) return v.toDouble();
-    final s = v.toString().replaceAll('%', '');
-    return double.tryParse(s) ?? 0;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final hVal = _parse(home);
-    final aVal = _parse(away);
-    final total = hVal + aVal;
-    final hRatio = total > 0 ? hVal / total : 0.5;
-
-    final homeStr = home?.toString() ?? '0';
-    final awayStr = away?.toString() ?? '0';
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
-          Text(homeStr,
-            style: TextStyle(color: AppColors.primary, fontSize: 12,
-              fontWeight: FontWeight.w700)),
-          Expanded(child: Text(label,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: context.cl.textM, fontSize: 10,
-              letterSpacing: 0.3))),
-          Text(awayStr,
-            style: TextStyle(color: AppColors.warning, fontSize: 12,
-              fontWeight: FontWeight.w700)),
-        ]),
-        const SizedBox(height: 4),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(6),
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0.5, end: hRatio),
-            duration: const Duration(milliseconds: 800),
-            curve: Curves.easeOutCubic,
-            builder: (_, val, __) => Stack(children: [
-              Container(height: 7, color: AppColors.warning.withValues(alpha: 0.5)),
-              FractionallySizedBox(
-                widthFactor: val,
-                child: Container(height: 7, color: AppColors.primary.withValues(alpha: 0.85)),
-              ),
-            ]),
-          ),
-        ),
-      ]),
-    );
-  }
-}
-
-class _StatsLoading extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Column(
-    children: List.generate(4, (_) => Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Container(
-        height: 20,
-        decoration: BoxDecoration(
-          color: context.cl.surfaceD,
-          borderRadius: BorderRadius.circular(6)),
-      ).animate(onPlay: (c) => c.repeat())
-       .shimmer(duration: 1400.ms, color: context.cl.borderSoft),
-    )),
-  );
-}
-
-class _StatsUnavailable extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 4),
-    child: Row(children: [
-      Icon(Icons.info_outline_rounded, color: context.cl.textM, size: 15),
-      const SizedBox(width: 8),
-      Expanded(child: Text(
-        'Statistiques indisponibles pour ce match.',
-        style: TextStyle(color: context.cl.textM, fontSize: 12))),
-    ]),
-  );
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _MiserButtonState extends ConsumerState<_MiserButton> {
-  bool _betPlaced = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final alreadyBet = ref.watch(hasBetOnPronosticProvider(widget.match.id));
-
-    if (_betPlaced || alreadyBet) {
-      return Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color:  AppColors.success.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.success.withValues(alpha: 0.3))),
-        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.check_circle_rounded, color: AppColors.success, size: 18),
-          SizedBox(width: 8),
-          Text('Mise enregistrée dans ton bankroll',
-              style: TextStyle(color: AppColors.success,
-                  fontSize: 13, fontWeight: FontWeight.w600)),
-        ]),
-      );
-    }
-
-    return GestureDetector(
-      onTap: () async {
-        HapticFeedback.lightImpact();
-        final ok = await showMiserDialog(
-          context,
-          ref:              ref,
-          pronosticId:      widget.match.id,
-          homeTeam:         widget.match.homeTeam,
-          awayTeam:         widget.match.awayTeam,
-          predictionLabel:  widget.match.predictionLabel,
-          confidenceScore:  widget.match.confidenceScore,
-          oddsRecommended:  widget.match.oddsRecommended,
-        );
-        if (ok) setState(() => _betPlaced = true);
-      },
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppColors.success, Color(0xFF059669)],
-            begin: Alignment.topLeft, end: Alignment.bottomRight),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [BoxShadow(
-            color: AppColors.success.withValues(alpha: 0.35),
-            blurRadius: 14, offset: const Offset(0, 5))]),
-        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const Icon(Icons.savings_rounded, color: Colors.white, size: 20),
-          const SizedBox(width: 10),
-          const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Valider ma mise',
-                style: TextStyle(color: Colors.white,
-                    fontSize: 15, fontWeight: FontWeight.w700)),
-            Text('Ajouter à mon bankroll',
-                style: TextStyle(color: Colors.white70, fontSize: 11)),
-          ]),
-          const Spacer(),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.2),
-              borderRadius: BorderRadius.circular(20)),
-            child: const Text('→', style: TextStyle(
-                color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
-          ),
-        ]),
-      ),
-    );
-  }
-}
+// ─── PARTAGE ─────────────────────────────────────────────────────────────────

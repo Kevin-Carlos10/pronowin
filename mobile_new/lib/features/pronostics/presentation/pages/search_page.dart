@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/erreur_chargement.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/match_entity.dart';
@@ -73,8 +74,11 @@ class _SearchPageState extends ConsumerState<SearchPage> {
       body: pagedState.isInitialLoading
         ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
         : pagedState.error != null && pagedState.matches.isEmpty
-        ? Center(child: Text('Impossible de charger les matchs',
-            style: TextStyle(color: context.cl.textS)))
+        ? ErreurChargement(
+            erreur: pagedState.error,
+            quoi: 'les matchs',
+            from: '/recherche',
+            onRetry: () => ref.read(matchesPaginatedProvider.notifier).refresh())
         : Builder(builder: (context) {
           final all = pagedState.matches;
           if (_query.trim().isEmpty) {

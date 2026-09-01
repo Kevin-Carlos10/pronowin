@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../domain/entities/match_entity.dart';
 
@@ -17,16 +18,13 @@ class PronoShareCard extends StatelessWidget {
     return AppColors.error;
   }
 
-  String get _confLabel {
-    if (match.confidenceScore >= 5) return 'Excellent';
-    if (match.confidenceScore >= 4) return 'Fort';
-    if (match.confidenceScore >= 3) return 'Bon';
-    return 'Faible';
-  }
+  // Le libellé est parti avec les cinq points : la carte dit désormais un
+  // pourcentage, comme le reste de l'application. Seule la couleur reste, et
+  // elle ne nomme rien — elle nuance un chiffre déjà lisible.
 
   @override
   Widget build(BuildContext context) {
-    final won = match.predictionWon;
+    final result = match.result;
 
     return SizedBox(
       width:  360,
@@ -213,41 +211,42 @@ class PronoShareCard extends StatelessWidget {
               const SizedBox(height: 24),
 
               // ── Badge résultat (si terminé) ──────────────────────────────────
-              if (won != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: won
-                        ? AppColors.success.withValues(alpha: 0.15)
-                        : AppColors.error.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: won
-                          ? AppColors.success.withValues(alpha: 0.5)
-                          : AppColors.error.withValues(alpha: 0.5),
+              if (result != null)
+                Builder(builder: (_) {
+                  final color = switch (result) {
+                    PronosticResult.win  => AppColors.success,
+                    PronosticResult.loss => AppColors.error,
+                    PronosticResult.push => AppColors.info,
+                  };
+                  final icon = switch (result) {
+                    PronosticResult.win  => Icons.check_circle_rounded,
+                    PronosticResult.loss => Icons.cancel_rounded,
+                    PronosticResult.push => Icons.replay_rounded,
+                  };
+                  final label = switch (result) {
+                    PronosticResult.win  => 'Pronostic GAGNANT ✅',
+                    PronosticResult.loss => 'Pronostic PERDU',
+                    PronosticResult.push => 'Pronostic REMBOURSÉ 🔄',
+                  };
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: color.withValues(alpha: 0.5)),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        won ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                        color: won ? AppColors.success : AppColors.error,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        won ? 'Pronostic GAGNANT ✅' : 'Pronostic PERDU',
-                        style: TextStyle(
-                          color: won ? AppColors.success : AppColors.error,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icon, color: color, size: 18),
+                        const SizedBox(width: 8),
+                        Text(label, style: TextStyle(
+                          color: color, fontSize: 14, fontWeight: FontWeight.w800)),
+                      ],
+                    ),
+                  );
+                }),
 
               // ── Bloc pronostic ────────────────────────────────────────────────
               Container(
@@ -280,7 +279,7 @@ class PronoShareCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    match.predictionLabel,
+                    match.displayPredictionLabel,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
@@ -350,27 +349,21 @@ class PronoShareCard extends StatelessWidget {
                           letterSpacing: 1.5,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(5, (i) => Container(
-                          width: 10, height: 10,
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          decoration: BoxDecoration(
-                            color: i < match.confidenceScore
-                                ? _confColor
-                                : Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        )),
-                      ),
+                      // La carte affichait cinq points et un mot — « Bon ». Le
+                      // reste de l'application dit la confiance en pourcentage
+                      // depuis qu'un adjectif a été jugé trop vague pour un
+                      // pari ; cette carte était restée en arrière, et c'est
+                      // elle qui sort de l'application quand on partage.
+                      //
+                      // Même forme que la cote, à gauche : deux tuiles, deux
+                      // chiffres. Le mot ne disait pas ce que « Bon » vaut.
                       const SizedBox(height: 4),
                       Text(
-                        _confLabel,
+                        '${match.confidencePercent} %',
                         style: TextStyle(
                           color: _confColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
+                          fontSize: 22,
+                          fontWeight: FontWeight.w900,
                         ),
                       ),
                     ]),
@@ -404,7 +397,7 @@ class PronoShareCard extends StatelessWidget {
                     ),
                   ]),
                   Text(
-                    'pronowin.app',
+                    AppConstants.domaine,
                     style: TextStyle(
                       color: AppColors.primary.withValues(alpha: 0.8),
                       fontSize: 11,

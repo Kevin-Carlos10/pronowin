@@ -3,19 +3,20 @@
 <style>
 /* ── Stats ─────────────────────────────────────────────────────────────────── */
 .sa-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:.7rem; margin-bottom:1.1rem; }
-.sa-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.8rem 1rem; }
-.sa-stat .v { font-size:1.35rem; font-weight:800; line-height:1; margin-bottom:.2rem; }
-.sa-stat .l { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
-.sa-stat.green  .v { color:var(--success); }
-.sa-stat.red    .v { color:var(--error); }
-.sa-stat.blue   .v { color:var(--info); }
+.sa-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1.1rem; transition:transform .2s,box-shadow .2s; }
+.sa-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.sa-stat .v { font-size:1.7rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
+.sa-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
+.sa-stat.green  { border-left-color:var(--success); } .sa-stat.green  .v { color:var(--success); }
+.sa-stat.red    { border-left-color:var(--error); }   .sa-stat.red    .v { color:var(--error); }
+.sa-stat.blue   { border-left-color:var(--info); }    .sa-stat.blue   .v { color:var(--info); }
 
 /* ── Cards ──────────────────────────────────────────────────────────────────── */
 .sa-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:1rem; margin-bottom:1.25rem; }
 @media(max-width:700px){ .sa-grid { grid-template-columns:1fr; } }
 
-.sa-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; transition:box-shadow var(--transition); }
-.sa-card:hover { box-shadow:var(--shadow-lg); }
+.sa-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; overflow:hidden; transition:box-shadow .2s,transform .2s; }
+.sa-card:hover { box-shadow:0 10px 32px rgba(0,0,0,.25); transform:translateY(-2px); }
 .sa-card.inactive { opacity:.7; border-style:dashed; }
 
 .sa-card-head { display:flex; align-items:center; gap:.85rem; padding:.9rem 1rem; border-bottom:1px solid var(--border); }
@@ -85,6 +86,19 @@
 .form-row { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
 @media(max-width:560px){ .form-row { grid-template-columns:1fr; } }
 
+/* ── État vide explicatif ── */
+.sa-vide      { text-align:center; padding:2.6rem 1.5rem 2.2rem; }
+.sa-vide-ic   { width:62px; height:62px; border-radius:50%; margin:0 auto .9rem;
+                background:rgba(148,163,184,.12); color:var(--text-dim);
+                display:flex; align-items:center; justify-content:center; }
+.sa-vide h3   { margin:0 0 .4rem; font-size:1.12rem; font-weight:800; }
+.sa-vide .diag{ margin:0 auto; max-width:52ch; font-size:.87rem; line-height:1.65; color:var(--text-m); }
+.sa-niveaux   { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr));
+                gap:.9rem; max-width:660px; margin:1.6rem auto 0; text-align:left; }
+.sa-niveaux > div { background:var(--surface-d); border:1px solid var(--border);
+                border-radius:12px; padding:.8rem .9rem; }
+.sa-niveaux p { margin:.45rem 0 0; font-size:.75rem; line-height:1.5; color:var(--text-dim); }
+
 /* ── Pwd strength ──────────────────────────────────────────────────────────────── */
 .pwd-strength { height:4px; border-radius:2px; margin-top:.4rem; background:var(--border); overflow:hidden; }
 .pwd-strength-bar { height:100%; border-radius:2px; width:0; transition:width .3s, background .3s; }
@@ -119,21 +133,30 @@
     return null;
   }
 
-  const ACTION_LABELS = {
-    login:'🔐 Connexion', sub_admin_created:'👤 Sous-admin créé', sub_admin_perms_updated:'✏️ Perms modifiées',
-    sub_admin_pwd_changed:'🔑 MDP changé', sub_admin_toggled:'⏯ Statut modifié', sub_admin_deleted:'🗑 Suppression',
-    user_banned:'🚫 Bannissement', user_unbanned:'🔓 Débannissement', pronostic_published:'⚽ Pronostic publié',
-    transaction_approved:'✅ TX approuvée', transaction_rejected:'❌ TX rejetée',
-  };
+  // Le catalogue d'actions vient du serveur : la copie qui vivait ici ne
+  // couvrait que 9 des 43 actions, et « logout » s'affichait tel quel.
+  const _ACTIONS = typeof ACTION_LABELS !== 'undefined' && ACTION_LABELS ? ACTION_LABELS : {};
+  const _action = a => _ACTIONS[a] ?? { label: a, icon: 'dot' };
+
+  // JSON depose dans un <script> : `</script>` present dans un nom refermait
+  // la balise et sortait du contexte JavaScript. On neutralise `<`, ainsi que
+  // les separateurs de ligne Unicode que JSON autorise mais que JavaScript
+  // interdit a l interieur d une chaine.
+  function jsonPourScript(v) {
+    return JSON.stringify(v)
+      .replace(/</g,        "\\u003c")
+      .replace(/\u2028/g, "\\u2028")
+      .replace(/\u2029/g, "\\u2029");
+  }
 %>
 
 <div class="topbar">
   <div>
-    <h2>🔐 Sous-administrateurs</h2>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Sous-administrateurs</h2>
     <small>Comptes avec permissions granulaires (Lire · Écrire · Supprimer)</small>
   </div>
   <button class="btn btn-primary btn-sm" onclick="document.getElementById('create-section').scrollIntoView({behavior:'smooth'})">
-    ➕ Nouveau sous-admin
+    <svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Nouveau sous-admin
   </button>
 </div>
 
@@ -171,9 +194,9 @@
       <div class="sa-username">@<%= sub.username %></div>
       <div class="sa-status">
         <% if (isActive) { %>
-        <span class="badge badge-ok">✓ Actif</span>
+        <span class="badge badge-ok"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Actif</span>
         <% } else { %>
-        <span class="badge badge-err">✗ Inactif</span>
+        <span class="badge badge-err"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Inactif</span>
         <% } %>
         <% if (sub.createdAt) { %>
         <span style="font-size:.68rem;color:var(--text-dim)">Créé <%= relTime(sub.createdAt) %></span>
@@ -194,14 +217,14 @@
       <% PERMISSIONS.forEach(p => {
            const lvl = getLevelFromArray(perms, p.key);
            if (!lvl) return;
-           const icon = lvl==='delete'?'🗑':lvl==='write'?'✏️':'👁';
-      %><span class="perm-badge <%= lvl %>"><%= icon %> <%= p.label.replace(/^\S+\s/,'') %></span><% }); %>
+           const ic = lvl==='delete'?'trash':lvl==='write'?'edit':'eye';
+      %><span class="perm-badge <%= lvl %>"><svg class="ic" aria-hidden="true"><use href="#ic-<%= ic %>"/></svg> <%= p.label %></span><% }); %>
       <% } %>
     </div>
 
     <!-- Dernière connexion -->
     <div class="sa-last-login <%= loginClass %>">
-      🕐 <%= lastLogin ? 'Dernière connexion : ' + lastLogin : 'Jamais connecté' %>
+      <svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg> <%= lastLogin ? 'Dernière connexion : ' + lastLogin : 'Jamais connecté' %>
     </div>
 
     <!-- Activité récente -->
@@ -212,7 +235,10 @@
       <% subLogs.forEach((log, i) => { %>
         <div class="sa-tl-item <%= i === 0 ? 'recent' : '' %>">
           <div class="sa-tl-dot"></div>
-          <div class="sa-tl-text"><%= ACTION_LABELS[log.action] || log.action %><% if(log.target){%> · <em style="color:var(--text-dim)"><%= log.target.length>24 ? log.target.slice(0,24)+'…' : log.target %></em><% } %></div>
+          <div class="sa-tl-text">
+            <svg class="ic ic-sm" aria-hidden="true"><use href="#ic-<%= _action(log.action).icon %>"/></svg>
+            <%= _action(log.action).label %><% if(log.target){%> · <em style="color:var(--text-dim)"><%= log.target.length>24 ? log.target.slice(0,24)+'…' : log.target %></em><% } %>
+          </div>
           <div class="sa-tl-time"><%= relTime(log.timestamp) %></div>
         </div>
       <% }) %>
@@ -224,43 +250,84 @@
 
   <!-- Actions -->
   <div class="sa-card-foot">
-    <button class="btn btn-sm btn-outline" onclick="openEditPerms('<%= sub.id %>','<%= sub.name %>')" title="Modifier les permissions">✏️ Permissions</button>
-    <button class="btn btn-sm btn-outline" onclick="openChangePwd('<%= sub.id %>','<%= sub.name %>')" title="Changer le mot de passe">🔑 Mot de passe</button>
+    <%# Le nom passait dans une chaine JS interpolee : EJS echappe l'apostrophe
+        en &#39;, que le parseur HTML redecode AVANT le JS — « N'Diaye » cassait
+        donc les trois boutons de la carte. L'identifiant seul transite ici, le
+        nom est relu depuis SUBS_DATA. %>
+    <button class="btn btn-sm btn-outline" data-sa-perms="<%= sub.id %>" title="Modifier les permissions"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Permissions</button>
+    <button class="btn btn-sm btn-outline" data-sa-pwd="<%= sub.id %>" title="Changer le mot de passe"><svg class="ic" aria-hidden="true"><use href="#ic-key"/></svg> Mot de passe</button>
     <form method="POST" action="/admin/sub-admins/<%= sub.id %>/toggle" style="margin:0;">
       <button class="btn btn-sm <%= isActive ? 'btn-warning' : 'btn-success' %>" type="submit">
         <%= isActive ? '⏸ Désactiver' : '▶️ Activer' %>
       </button>
     </form>
-    <button class="btn btn-sm btn-danger" onclick="confirmDelete('<%= sub.id %>','<%= sub.name %>')" style="margin-left:auto">🗑</button>
+    <button class="btn btn-sm btn-danger" data-sa-del="<%= sub.id %>" style="margin-left:auto"
+            title="Supprimer <%= sub.name %>" aria-label="Supprimer <%= sub.name %>"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg></button>
   </div>
 
 </div>
 <% }) %>
 </div>
 <% } else { %>
-<div class="empty-state card" style="margin-bottom:1.25rem">
-  <div style="font-size:2.5rem;margin-bottom:.5rem">👤</div>
-  <p>Aucun sous-admin créé pour l'instant.</p>
+<%# Une page vide ne dit pas a quoi elle sert. Celle-ci explique ce qu'un
+    sous-admin permet de faire, et ce que valent les trois niveaux — sans quoi
+    l'ecran se resume a un formulaire sans contexte. %>
+<div class="card sa-vide" style="margin-bottom:1.25rem">
+  <div class="sa-vide-ic"><svg class="ic ic-xl" aria-hidden="true"><use href="#ic-users"/></svg></div>
+  <h3>Vous êtes seul à administrer</h3>
+  <p class="diag">
+    Un sous-admin est un compte de connexion distinct, auquel vous n'ouvrez que
+    les sections choisies. Utile pour confier la validation des paiements ou la
+    publication des pronostics sans donner accès au reste.
+  </p>
+
+  <div class="sa-niveaux">
+    <div>
+      <span class="perm-badge read"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> Lire</span>
+      <p>Consulter la section, sans rien y changer.</p>
+    </div>
+    <div>
+      <span class="perm-badge write"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Écrire</span>
+      <p>Créer et modifier : publier un pronostic, approuver un versement.</p>
+    </div>
+    <div>
+      <span class="perm-badge delete"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Supprimer</span>
+      <p>Effacer définitivement. À n'accorder qu'en connaissance de cause.</p>
+    </div>
+  </div>
+
+  <p style="margin-top:1.3rem;font-size:.8rem;color:var(--text-dim)">
+    <%= PERMISSIONS.length %> sections peuvent être ouvertes indépendamment.
+    Vous gardez seul l'accès à cette page.
+  </p>
+  <button class="btn btn-primary btn-sm" style="margin-top:.9rem"
+          onclick="document.getElementById('create-section').scrollIntoView({behavior:'smooth'})">
+    <svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Créer le premier sous-admin
+  </button>
 </div>
 <% } %>
 
 <!-- ── Formulaire de création ────────────────────────────────────────────────── -->
 <div class="sa-create" id="create-section">
-  <h2>➕ Nouveau sous-admin</h2>
+  <h2><svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Nouveau sous-admin</h2>
   <form method="POST" action="/admin/sub-admins" id="create-form">
     <div class="form-row" style="margin-bottom:.85rem">
       <div class="form-group" style="margin:0">
         <label>Nom affiché</label>
-        <input class="input" type="text" name="name" placeholder="Ex : Jean Martin" required maxlength="60">
+        <input class="input" type="text" name="name" placeholder="Ex : Jean Martin" required maxlength="60" aria-label="Nom affiché">
       </div>
       <div class="form-group" style="margin:0">
         <label>Identifiant de connexion</label>
-        <input class="input" type="text" name="username" placeholder="jean_martin" required maxlength="40" pattern="[a-zA-Z0-9_\-]+">
+        <%# Le navigateur pre-remplissait ce champ avec l'identifiant d'un compte
+            deja enregistre : on cree un compte, on n'en rouvre pas un. %>
+        <input class="input" type="text" name="username" placeholder="jean_martin" required maxlength="40"
+               pattern="[a-zA-Z0-9_\-]+" autocomplete="off" aria-label="Identifiant de connexion">
       </div>
     </div>
     <div class="form-group">
       <label>Mot de passe</label>
-      <input class="input" type="password" name="password" id="create-pwd" placeholder="Min. 6 caractères" required minlength="6">
+      <input class="input" type="password" name="password" id="create-pwd" placeholder="Min. 8 caractères"
+             required minlength="8" autocomplete="new-password" aria-label="Mot de passe">
       <div class="pwd-strength"><div class="pwd-strength-bar" id="create-pwd-bar"></div></div>
       <div class="pwd-strength-label" id="create-pwd-label"></div>
     </div>
@@ -275,9 +342,9 @@
       <button class="btn btn-primary" type="submit">Créer le sous-admin</button>
       <button class="btn btn-outline" type="button" onclick="document.getElementById('create-form').reset();pwdStrength('create-pwd','create-pwd-bar','create-pwd-label')">Réinitialiser</button>
       <div style="display:flex;gap:.4rem;margin-left:auto">
-        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('create','write')">✏️ Tout Écriture</button>
-        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('create','read')">👁 Tout Lecture</button>
-        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('create',null)">✕ Effacer</button>
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('create','write')"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Tout Écriture</button>
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('create','read')"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> Tout Lecture</button>
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('create',null)"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Effacer</button>
       </div>
     </div>
   </form>
@@ -286,19 +353,19 @@
 <!-- ── Modal : modifier permissions ─────────────────────────────────────────── -->
 <div class="modal-overlay" id="modal-perms">
   <div class="modal-box">
-    <h3>✏️ Permissions — <span id="modal-perms-name"></span></h3>
+    <h3><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Permissions — <span id="modal-perms-name"></span></h3>
     <form method="POST" id="perms-form">
       <div id="perms-grid-container">
         <%- include('_perm_table', { formId: 'modal', existingPerms: [] }) %>
       </div>
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.75rem">
-        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('modal','write')">✏️ Tout Écriture</button>
-        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('modal','read')">👁 Tout Lecture</button>
-        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('modal',null)">✕ Effacer</button>
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('modal','write')"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Tout Écriture</button>
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('modal','read')"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> Tout Lecture</button>
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('modal',null)"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Effacer</button>
       </div>
       <div class="modal-actions">
         <button class="btn btn-outline" type="button" onclick="closeModal('modal-perms')">Annuler</button>
-        <button class="btn btn-primary" type="submit">💾 Enregistrer</button>
+        <button class="btn btn-primary" type="submit"><svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> Enregistrer</button>
       </div>
     </form>
   </div>
@@ -307,17 +374,19 @@
 <!-- ── Modal : changer mot de passe ─────────────────────────────────────────── -->
 <div class="modal-overlay" id="modal-pwd">
   <div class="modal-box">
-    <h3>🔑 Nouveau mot de passe — <span id="modal-pwd-name"></span></h3>
+    <h3><svg class="ic" aria-hidden="true"><use href="#ic-key"/></svg> Nouveau mot de passe — <span id="modal-pwd-name"></span></h3>
     <form method="POST" id="pwd-form">
       <div class="form-group">
         <label>Nouveau mot de passe</label>
-        <input class="input" type="password" name="password" id="pwd-input" placeholder="Min. 6 caractères" required minlength="6">
+        <input class="input" type="password" name="password" id="pwd-input" placeholder="Min. 8 caractères"
+               required minlength="8" autocomplete="new-password" aria-label="Mot de passe">
         <div class="pwd-strength"><div class="pwd-strength-bar" id="modal-pwd-bar"></div></div>
         <div class="pwd-strength-label" id="modal-pwd-label"></div>
       </div>
       <div class="form-group">
         <label>Confirmer le mot de passe</label>
-        <input class="input" type="password" id="pwd-confirm" placeholder="Répéter le mot de passe">
+        <input class="input" type="password" id="pwd-confirm" placeholder="Répéter le mot de passe"
+               autocomplete="new-password" aria-label="Répéter le mot de passe">
       </div>
       <div class="modal-actions">
         <button class="btn btn-outline" type="button" onclick="closeModal('modal-pwd')">Annuler</button>
@@ -331,7 +400,7 @@
 <form method="POST" id="delete-form" style="display:none;"></form>
 
 <script>
-const SUBS_DATA   = <%- JSON.stringify(subs.map(s => ({ id: s.id, name: s.name, permissions: s.permissions || [] }))) %>;
+const SUBS_DATA   = <%- jsonPourScript(subs.map(s => ({ id: s.id, name: s.name, permissions: s.permissions || [] }))) %>;
 const PERM_KEYS   = <%- JSON.stringify(PERMISSIONS.map(p => p.key)) %>;
 const PERM_LEVELS = ['read', 'write', 'delete'];
 
@@ -383,9 +452,21 @@ function onPermChange(prefix, key, changedLevel) {
   }
 }
 
+/* Nom d'un sous-admin, relu depuis les donnees plutot que recu du balisage. */
+function nomDe(id) {
+  const s = SUBS_DATA.find(x => x.id === id);
+  return s ? s.name : id;
+}
+/* Echappe le nom avant de l'inserer dans un message HTML. */
+function echapper(t) {
+  const d = document.createElement("div");
+  d.textContent = t;
+  return d.innerHTML;
+}
+
 /* ── Ouvrir modal permissions ── */
-function openEditPerms(id, name) {
-  document.getElementById('modal-perms-name').textContent = name;
+function openEditPerms(id) {
+  document.getElementById('modal-perms-name').textContent = nomDe(id);
   document.getElementById('perms-form').action = `/admin/sub-admins/${id}/permissions`;
   const sub = SUBS_DATA.find(s => s.id === id);
   const perms = sub ? sub.permissions : [];
@@ -400,8 +481,8 @@ function openEditPerms(id, name) {
 }
 
 /* ── Ouvrir modal mot de passe ── */
-function openChangePwd(id, name) {
-  document.getElementById('modal-pwd-name').textContent = name;
+function openChangePwd(id) {
+  document.getElementById('modal-pwd-name').textContent = nomDe(id);
   document.getElementById('pwd-form').action = `/admin/sub-admins/${id}/password`;
   document.getElementById('pwd-input').value   = '';
   document.getElementById('pwd-confirm').value = '';
@@ -419,10 +500,10 @@ document.getElementById('pwd-form').addEventListener('submit', e => {
 });
 
 /* ── Confirmation suppression ── */
-function confirmDelete(id, name) {
+function confirmDelete(id) {
   askConfirm({
-    icon:'🗑️', title:'Supprimer ce sous-admin',
-    msg:`Êtes-vous sûr de vouloir supprimer <strong>${name}</strong> ? Cette action est irréversible.`,
+    icon:'trash', title:'Supprimer ce sous-admin',
+    msg:`Êtes-vous sûr de vouloir supprimer <strong>${echapper(nomDe(id))}</strong> ? Cette action est irréversible.`,
     btnLabel:'Supprimer', btnClass:'btn-danger',
     onConfirm: () => {
       const form = document.getElementById('delete-form');
@@ -431,6 +512,16 @@ function confirmDelete(id, name) {
     },
   });
 }
+
+/* Delegation : les boutons portent l'identifiant en attribut `data-`, plus
+   aucun texte utilisateur ne transite par du code inline. */
+document.addEventListener("click", function (e) {
+  const b = e.target.closest("[data-sa-perms],[data-sa-pwd],[data-sa-del]");
+  if (!b) return;
+  if (b.dataset.saPerms) openEditPerms(b.dataset.saPerms);
+  else if (b.dataset.saPwd) openChangePwd(b.dataset.saPwd);
+  else if (b.dataset.saDel) confirmDelete(b.dataset.saDel);
+});
 
 /* ── Indicateur force MDP ── */
 function pwdStrength(inputId, barId, labelId) {

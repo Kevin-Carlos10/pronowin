@@ -63,29 +63,19 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<UserEntity> quickRegister({String? phoneNumber, String? email}) async {
-    final data = await _remote.quickRegister(phoneNumber: phoneNumber, email: email);
-    return _saveTokensAndReturn(data);
-  }
-
-  @override
-  Future<UserEntity> registerEmail({required String email, required String password, required String pseudo}) async {
-    final data = await _remote.registerEmail(email: email, password: password, pseudo: pseudo);
-    return _saveTokensAndReturn(data);
-  }
-
-  @override
-  Future<UserEntity> loginEmail({required String email, required String password}) async {
-    final data = await _remote.loginEmail(email: email, password: password);
-    return _saveTokensAndReturn(data);
-  }
-
-  @override
-  Future<void> sendEmailOtp(String email) => _remote.sendEmailOtp(email);
+  Future<bool> sendEmailOtp(String email) => _remote.sendEmailOtp(email);
 
   @override
   Future<UserEntity> verifyEmailOtp({required String email, required String otp}) async {
     final data = await _remote.verifyEmailOtp(email: email, otp: otp);
+    return _saveTokensAndReturn(data);
+  }
+
+  /// Le jeton Google est déjà vérifié par le backend : la réponse est
+  /// exactement celle de verifyEmailOtp, donc le même enregistrement de session.
+  @override
+  Future<UserEntity> googleLogin(String idToken) async {
+    final data = await _remote.googleLogin(idToken);
     return _saveTokensAndReturn(data);
   }
 
@@ -119,9 +109,30 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  /// Y a-t-il une session à restaurer ?
+  ///
+  /// Cette méthode effaçait **tout le stockage** dès que le jeton d'accès était
+  /// expiré — jeton de rafraîchissement compris. Or le jeton d'accès vit quinze
+  /// minutes et celui de rafraîchissement trente jours : le second existe
+  /// précisément pour survivre au premier.
+  ///
+  /// Conséquence, parfaitement reproductible : fermer l'application, attendre un
+  /// quart d'heure, la rouvrir — et se retrouver déconnecté. Après un
+  /// redémarrage du téléphone, c'était systématique.
+  ///
+  /// Un jeton d'accès expiré n'est donc pas un problème, c'est l'état normal.
+  /// La seule question est : reste-t-il de quoi en obtenir un nouveau ?
   Future<bool> isLoggedIn() async {
+    final refresh = await _storage.read(AppConstants.refreshTokenKey);
+
+    // Il y a de quoi renouveler : l'intercepteur s'en chargera au premier 401.
+    if (refresh != null && refresh.isNotEmpty) return true;
+
     final token = await _storage.read(AppConstants.accessTokenKey);
     if (token == null) return false;
+
+    // Sans jeton de rafraîchissement, un jeton d'accès expiré ne mène nulle
+    // part : là, et seulement là, il n'y a rien à conserver.
     try {
       final parts = token.split('.');
       if (parts.length != 3) return false;

@@ -12,10 +12,11 @@ abstract class AuthRepository {
     required String otp,
   });
 
-  Future<UserEntity> quickRegister({String? phoneNumber, String? email});
-  Future<UserEntity> registerEmail({required String email, required String password, required String pseudo});
-  Future<UserEntity> loginEmail({required String email, required String password});
-  Future<void> sendEmailOtp(String email);
+  /// Ouvre une session à partir d'un jeton Google déjà obtenu côté client.
+  /// Le jeton est vérifié par le backend — jamais par l'application.
+  Future<UserEntity> googleLogin(String idToken);
+  /// Retourne `true` si l'email ne correspond à aucun compte existant.
+  Future<bool> sendEmailOtp(String email);
   Future<UserEntity> verifyEmailOtp({required String email, required String otp});
 
   /// Récupère le profil utilisateur courant.

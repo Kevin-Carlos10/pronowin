@@ -26,6 +26,41 @@ export class AdminAuthService {
     return { token, admin: { id: admin.id, name: admin.name, email: admin.email, role: admin.role } };
   }
 
+  /**
+   * Changer son propre mot de passe.
+   *
+   * L'admin-web postait déjà sur PATCH /admin/profile/password, qui n'existait
+   * pas : le formulaire échouait toujours pour l'admin principal (les
+   * sous-admins, eux, sont gérés localement par l'admin-web).
+   *
+   * La longueur minimale est revérifiée ici : l'admin-web la contrôle déjà,
+   * mais un contrôle purement client ne protège rien.
+   */
+  async changePassword(adminId: string, currentPassword: string, newPassword: string) {
+    if (!currentPassword || !newPassword) {
+      throw new Error('Mot de passe actuel et nouveau mot de passe requis.');
+    }
+    if (newPassword.length < 8) {
+      throw new Error('Le nouveau mot de passe doit faire au moins 8 caractères.');
+    }
+
+    const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+    if (!admin) throw new Error('Compte introuvable.');
+
+    if (!await bcrypt.compare(currentPassword, admin.passwordHash)) {
+      throw new Error('Mot de passe actuel incorrect.');
+    }
+    if (await bcrypt.compare(newPassword, admin.passwordHash)) {
+      throw new Error('Le nouveau mot de passe doit être différent de l\'actuel.');
+    }
+
+    await prisma.admin.update({
+      where: { id: adminId },
+      data:  { passwordHash: await bcrypt.hash(newPassword, 12) },
+    });
+    return { success: true };
+  }
+
   async createAdmin(data: { email: string; password: string; name: string; role?: 'super_admin' | 'analyst' }) {
     const hash = await bcrypt.hash(data.password, 12);
     

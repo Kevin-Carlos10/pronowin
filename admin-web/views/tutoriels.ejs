@@ -3,9 +3,10 @@
 <style>
 /* ── Stats ─────────────────────────────────────────────────────────────────── */
 .tut-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:.65rem; margin-bottom:1rem; }
-.tut-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.75rem .9rem; }
-.tut-stat .v { font-size:1.3rem; font-weight:800; line-height:1; margin-bottom:.15rem; }
-.tut-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+.tut-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1rem; transition:transform .2s,box-shadow .2s; }
+.tut-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.tut-stat .v { font-size:1.6rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
+.tut-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
 
 /* ── Filtre ─────────────────────────────────────────────────────────────────── */
 .tut-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
@@ -24,11 +25,11 @@
 
 .tut-card {
   background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius); overflow:hidden;
-  transition:box-shadow var(--transition), border-color var(--transition);
+  border-radius:16px; overflow:hidden;
+  transition:box-shadow .2s, border-color .2s, transform .2s;
   display:flex; flex-direction:column;
 }
-.tut-card:hover { box-shadow:var(--shadow-lg); border-color:var(--primary); }
+.tut-card:hover { box-shadow:0 10px 32px rgba(0,0,0,.22); border-color:var(--primary); transform:translateY(-2px); }
 .tut-card.premium { border-top:2px solid var(--warning); }
 .tut-card.free    { border-top:2px solid var(--success); }
 
@@ -76,6 +77,14 @@
   const _catCfg = {
     valuebet:'🎯', bankroll:'💰', analyse:'📊', strategie:'♟️', psychologie:'🧠'
   };
+  const _catLabels = {
+    valuebet:'Value Bet', bankroll:'Bankroll', analyse:'Analyse',
+    strategie:'Stratégie', psychologie:'Psychologie',
+  };
+  function catLabel(c) {
+    if (_catLabels[c]) return _catLabels[c];
+    return c.replace(/[_-]/g, ' ').replace(/\b\w/g, ch => ch.toUpperCase());
+  }
   const _lvlCfg = {
     beginner:     { label:'Débutant',      cls:'lvl-beginner' },
     intermediate: { label:'Intermédiaire', cls:'lvl-intermediate' },
@@ -92,13 +101,13 @@
 
 <div class="topbar">
   <div>
-    <h2>📚 Tutoriels</h2>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-book"/></svg> Tutoriels</h2>
     <small><%= stats.total %> tutoriel<%= stats.total!==1?'s':'' %> · <%= stats.premium %> Premium · <%= stats.free %> Gratuit<%= stats.free!==1?'s':'' %></small>
   </div>
   <div style="display:flex;gap:.5rem">
     <% if(hasPerm('tutoriels','write')) { %>
     <form method="POST" action="/admin/tutoriels/seed" style="display:inline">
-      <button type="submit" class="btn btn-outline btn-sm" title="Insérer les tutoriels par défaut si la liste est vide">🌱 Seed</button>
+      <button type="submit" class="btn btn-outline btn-sm" title="Insérer les tutoriels par défaut si la liste est vide"><svg class="ic" aria-hidden="true"><use href="#ic-sprout"/></svg> Seed</button>
     </form>
     <a href="/admin/tutoriels/new" class="btn btn-primary btn-sm">+ Nouveau</a>
     <% } %>
@@ -122,23 +131,22 @@
 <!-- ── Filtres ────────────────────────────────────────────────────────────────── -->
 <div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem">
   <form method="GET" action="/admin/tutoriels" class="tut-filter">
-    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Titre, description, auteur…">
-    <select name="category" onchange="this.form.submit()">
+    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Titre, description, auteur…" aria-label="Rechercher">
+    <select name="category" onchange="this.form.submit()" aria-label="Catégorie">
       <option value="">Toutes catégories</option>
-      <option value="valuebet"    <%= category==='valuebet'    ?'selected':'' %>>🎯 Value Bet</option>
-      <option value="bankroll"    <%= category==='bankroll'    ?'selected':'' %>>💰 Bankroll</option>
-      <option value="analyse"     <%= category==='analyse'     ?'selected':'' %>>📊 Analyse</option>
-      <option value="strategie"   <%= category==='strategie'   ?'selected':'' %>>♟️ Stratégie</option>
-      <option value="psychologie" <%= category==='psychologie' ?'selected':'' %>>🧠 Psychologie</option>
+      <% (locals.categories||[]).forEach(c => { %>
+        <option value="<%= c %>" <%= category===c ?'selected':'' %>><%= _catCfg[c] || '📚' %> <%= catLabel(c) %></option>
+      <% }) %>
     </select>
-    <select name="level" onchange="this.form.submit()">
+    <select name="level" onchange="this.form.submit()" aria-label="Niveau">
       <option value="">Tous niveaux</option>
-      <option value="beginner"     <%= level==='beginner'     ?'selected':'' %>>🟢 Débutant</option>
-      <option value="intermediate" <%= level==='intermediate' ?'selected':'' %>>🟡 Intermédiaire</option>
-      <option value="advanced"     <%= level==='advanced'     ?'selected':'' %>>🔴 Avancé</option>
+      <% const _lvlEmoji = { beginner:'🟢', intermediate:'🟡', advanced:'🔴' }; %>
+      <% (levels||[]).forEach(l => { %>
+        <option value="<%= l %>" <%= level===l ?'selected':'' %>><%= _lvlEmoji[l] || '📊' %> <%= (_lvlCfg[l]||{}).label || l %></option>
+      <% }) %>
     </select>
     <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
-    <% if(_hasFilter){ %><a href="/admin/tutoriels" class="btn btn-outline btn-sm">✕ Reset</a><% } %>
+    <% if(_hasFilter){ %><a href="/admin/tutoriels" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a><% } %>
     <span style="margin-left:auto;font-size:.78rem;color:var(--text-dim)"><%= total %> résultat<%= total!==1?'s':'' %></span>
   </form>
 </div>
@@ -171,8 +179,8 @@
     <% } else { %>
     <div class="tut-no-thumb"><%= catEmoji %></div>
     <% } %>
-    <% if(t.isPremium) { %><span class="tut-premium-badge badge badge-warn">👑 Premium</span><% } %>
-    <% if(t.viewCount > 0) { %><span class="tut-views-badge">👁 <%= views %></span><% } %>
+    <% if(t.isPremium) { %><span class="tut-premium-badge badge badge-warn"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span><% } %>
+    <% if(t.viewCount > 0) { %><span class="tut-views-badge"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> <%= views %></span><% } %>
   </div>
 
   <!-- Corps -->
@@ -186,15 +194,15 @@
     <div class="tut-author">par <%= t.authorName || 'Expert PronoWin' %></div>
     <div class="tut-row">
       <% if(dur!=='—') { %><span>⏱ <%= dur %></span><% } %>
-      <span>⭐ <%= rating %></span>
-      <% if(!t.isPremium) { %><span style="color:var(--success)">✓ Gratuit</span><% } %>
+      <span><svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg> <%= rating %></span>
+      <% if(!t.isPremium) { %><span style="color:var(--success)"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Gratuit</span><% } %>
     </div>
   </div>
 
   <!-- Actions -->
   <div class="tut-card-foot">
     <% if(hasPerm('tutoriels','write')) { %>
-    <a href="/admin/tutoriels/<%= t.id %>/edit" class="btn btn-sm btn-outline">✏️ Modifier</a>
+    <a href="/admin/tutoriels/<%= t.id %>/edit" class="btn btn-sm btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier</a>
     <form method="POST" action="/admin/tutoriels/<%= t.id %>/premium" style="margin:0">
       <button type="submit" class="btn btn-sm btn-outline" title="<%= t.isPremium ? 'Passer Gratuit' : 'Passer Premium' %>">
         <%= t.isPremium ? '🔓 Gratuit' : '👑 Premium' %>
@@ -204,7 +212,7 @@
     <% if(hasPerm('tutoriels','delete')) { %>
     <button class="btn btn-sm btn-danger" style="margin-left:auto"
       data-id="<%= t.id %>" data-title="<%= t.title.replace(/"/g,'&quot;') %>"
-      onclick="delTut(this.dataset.id, this.dataset.title)">🗑️</button>
+      onclick="delTut(this.dataset.id, this.dataset.title)"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg></button>
     <form method="POST" action="/admin/tutoriels/<%= t.id %>/delete" id="del-<%= t.id %>" style="display:none"></form>
     <% } %>
   </div>

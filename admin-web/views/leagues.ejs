@@ -1,0 +1,396 @@
+<%- include('layout_top', {page:'leagues'}) %>
+
+<%
+  const visibleCount = leagues.filter(l => l.isVisible).length;
+  const hiddenCount  = leagues.length - visibleCount;
+
+  // Deux ordres différents, pour deux gestes différents :
+  //  — les visibles se consultent, on veut retrouver un nom → alphabétique ;
+  //  — les masquées se prospectent, on cherche ce qui vaut la peine d'être
+  //    ouvert → volume à venir puis volume total, le nom en dernier recours.
+  // Sans cela, 327 compétitions triées par nom noyaient les grosses ligues.
+  const rows = [...leagues].sort((a, b) => {
+    if (a.isVisible !== b.isVisible) return a.isVisible ? -1 : 1;
+    if (a.isVisible) return a.league.localeCompare(b.league);
+    return (b.upcomingCount ?? 0) - (a.upcomingCount ?? 0)
+        || (b.matchCount    ?? 0) - (a.matchCount    ?? 0)
+        || a.league.localeCompare(b.league);
+  });
+%>
+
+<div class="topbar">
+  <div>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg> Ligues</h2>
+    <small>Contrôle ce qui apparaît dans le flux « Tous les matchs » de l'app — un match avec un pronostic publié reste toujours visible, quelle que soit sa ligue</small>
+  </div>
+</div>
+
+<% if(error){ %>
+  <div class="alert alert-error"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= error %></div>
+<% } %>
+
+<style>
+/* ── Interrupteur (repris de settings.ejs) ──────────────────────────────────── */
+.tog-sw  { position:relative; width:40px; height:22px; flex-shrink:0; display:inline-block; }
+.tog-sw input { opacity:0; width:0; height:0; position:absolute; }
+.tog-slider { position:absolute; inset:0; background:var(--border); border-radius:99px; cursor:pointer; transition:background .2s; }
+.tog-slider::before { content:''; position:absolute; width:16px; height:16px; left:3px; top:3px; background:#fff; border-radius:50%; transition:transform .2s; }
+.tog-sw input:checked + .tog-slider { background:var(--primary); }
+.tog-sw input:checked + .tog-slider::before { transform:translateX(18px); }
+.tog-sw input:focus-visible + .tog-slider { outline:2px solid var(--primary); outline-offset:2px; }
+.tog-sw input:disabled + .tog-slider { opacity:.5; cursor:progress; }
+
+/* ── Filtres en tête (les anciennes cartes de stats, rendues cliquables) ────── */
+.lg-tabs { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.9rem; }
+.lg-tab {
+  display:flex; flex-direction:column; gap:.15rem; min-width:132px;
+  padding:.6rem .9rem; text-align:left; cursor:pointer;
+  background:var(--surface); border:1px solid var(--border);
+  border-left:3px solid var(--border-s); border-radius:12px;
+  font-family:inherit; transition:border-color .15s, background .15s;
+}
+.lg-tab:hover { background:var(--surface-d); }
+.lg-tab[aria-pressed="true"] { border-color:var(--primary); border-left-color:var(--primary); background:rgba(var(--primary-rgb),.08); }
+.lg-tab .l { font-size:.66rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-m); }
+.lg-tab .v { font-size:1.45rem; font-weight:900; line-height:1; letter-spacing:-.03em; color:var(--text); }
+.lg-tab.on  { border-left-color:var(--success); }
+.lg-tab.off { border-left-color:var(--text-dim); }
+.lg-tab.on[aria-pressed="true"], .lg-tab.off[aria-pressed="true"] { border-left-color:var(--primary); }
+
+/* ── Recherche ──────────────────────────────────────────────────────────────── */
+.lg-search { position:relative; margin-bottom:.9rem; max-width:420px; }
+.lg-search input {
+  width:100%; padding-left:2.3rem; padding-right:2.2rem;
+  background:var(--surface-d); border:1px solid var(--border);
+  border-radius:var(--radius-s); color:var(--text); font-size:.86rem; font-family:inherit;
+  outline:none; transition:border-color .15s;
+}
+.lg-search input:focus { border-color:var(--primary); }
+.lg-search .lg-search-icon { position:absolute; left:.75rem; top:50%; transform:translateY(-50%); font-size:.9rem; opacity:.55; pointer-events:none; }
+.lg-search .lg-search-clear {
+  position:absolute; right:.5rem; top:50%; transform:translateY(-50%);
+  width:22px; height:22px; border:none; background:var(--surface-h);
+  color:var(--text-m); border-radius:50%; cursor:pointer; font-size:.75rem;
+  display:none; align-items:center; justify-content:center; line-height:1;
+}
+.lg-search .lg-search-clear:hover { background:var(--border); color:var(--text); }
+.lg-search.has-query .lg-search-clear { display:flex; }
+
+/* ── Tableau ────────────────────────────────────────────────────────────────── */
+.lg-logo { width:20px; height:20px; border-radius:50%; object-fit:contain;
+           background:var(--surface-h); flex-shrink:0; }
+.lg-logo-ph { width:20px; height:20px; border-radius:50%; background:var(--surface-h);
+              display:grid; place-items:center; font-size:9px; font-weight:800;
+              color:var(--text-m); flex-shrink:0; }
+.lg-cell { display:flex; align-items:center; gap:.5rem; min-width:0; }
+.lg-name { font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.lg-code { font-size:.68rem; font-family:monospace; color:var(--text-m); background:var(--surface-h);
+           padding:.1rem .4rem; border-radius:5px; letter-spacing:.02em; flex-shrink:0; }
+/* « — » signale une compétition hors saison : c'est un critère de décision,
+   pas un ornement. --text-dim tombe à 2,3:1, sous le seuil AA. */
+.lg-soon { color:var(--text-m); }
+.lg-soon.none { color:var(--text-m); }
+.lg-none { display:none; padding:2rem 1rem; text-align:center; color:var(--text-m); font-size:.85rem; }
+</style>
+
+<div class="lg-tabs" role="group" aria-label="Filtrer les compétitions">
+  <button type="button" class="lg-tab" data-scope="all" aria-pressed="false" onclick="lgSetScope('all')">
+    <span class="l">Total compétitions</span>
+    <span class="v" id="lg-n-all"><%= leagues.length %></span>
+  </button>
+  <button type="button" class="lg-tab on" data-scope="visible" aria-pressed="true" onclick="lgSetScope('visible')">
+    <span class="l">Visibles dans l'app</span>
+    <%# --success tombe à 1,97:1 sur le fond clair de l'onglet actif ;
+        --on-success est le ton du socle calculé pour les deux thèmes. %>
+    <span class="v" id="lg-n-visible" style="color:var(--on-success)"><%= visibleCount %></span>
+  </button>
+  <button type="button" class="lg-tab off" data-scope="hidden" aria-pressed="false" onclick="lgSetScope('hidden')">
+    <span class="l">Masquées</span>
+    <span class="v" id="lg-n-hidden" style="color:var(--text-m)"><%= hiddenCount %></span>
+  </button>
+</div>
+
+<div class="lg-search" id="lg-search-wrap">
+  <span class="lg-search-icon"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></span>
+  <input class="input" type="search" id="lg-search-input"
+         aria-label="Rechercher une compétition"
+         placeholder="Rechercher une compétition…" oninput="lgFilter()" autocomplete="off">
+  <button type="button" class="lg-search-clear" onclick="lgClearSearch()" title="Effacer" aria-label="Effacer la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
+</div>
+
+<div class="dt-wrap">
+  <div class="bulkbar" id="lg-bulkbar">
+    <span><span class="count" id="lg-sel-count">0</span> sélectionnée(s)</span>
+    <span class="spacer"></span>
+    <button type="button" class="btn btn-sm btn-primary" onclick="lgBulk(true)"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Afficher dans l'app</button>
+    <button type="button" class="btn btn-sm btn-outline" onclick="lgBulk(false)"><svg class="ic" aria-hidden="true"><use href="#ic-eye-off"/></svg> Masquer</button>
+    <button type="button" class="btn btn-sm btn-outline" onclick="lgClearSelection()">Annuler</button>
+  </div>
+
+  <div class="dt-scroll">
+    <div class="table-wrap">
+      <table class="dt">
+        <thead>
+          <tr>
+            <th scope="col" class="col-check">
+              <input type="checkbox" id="lg-check-all" onchange="lgToggleAll(this)"
+                     aria-label="Tout sélectionner">
+            </th>
+            <th scope="col">Compétition</th>
+            <th scope="col" class="num">Matchs (60 j)</th>
+            <th scope="col" class="num">À venir</th>
+            <th scope="col" style="width:110px">Dans l'app</th>
+          </tr>
+        </thead>
+        <tbody id="lg-body">
+          <% rows.forEach(l => { %>
+          <tr class="<%= l.isVisible ? 'is-pub' : '' %>"
+              data-code="<%= l.leagueCode %>"
+              data-league="<%= l.league %>"
+              data-visible="<%= l.isVisible ? '1' : '0' %>"
+              data-search="<%= (l.league + ' ' + l.leagueCode).toLowerCase() %>">
+            <td class="col-check">
+              <input type="checkbox" class="lg-check" onchange="lgSelChanged()"
+                     aria-label="Sélectionner <%= l.league %>">
+            </td>
+            <td>
+              <div class="lg-cell">
+                <% if (l.leagueLogo) { %>
+                  <img class="lg-logo" src="<%= l.leagueLogo %>" alt=""
+                       onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'lg-logo-ph',textContent:'<%= (l.league||'?')[0].toUpperCase() %>'}))">
+                <% } else { %>
+                  <span class="lg-logo-ph"><%= (l.league||'?')[0].toUpperCase() %></span>
+                <% } %>
+                <span class="lg-name" title="<%= l.league %>"><%= l.league %></span>
+                <span class="lg-code"><%= l.leagueCode %></span>
+              </div>
+            </td>
+            <td class="num"><%= l.matchCount ?? 0 %></td>
+            <td class="num lg-soon <%= (l.upcomingCount ?? 0) === 0 ? 'none' : '' %>">
+              <%= (l.upcomingCount ?? 0) === 0 ? '—' : l.upcomingCount %>
+            </td>
+            <td>
+              <label class="tog-sw">
+                <input type="checkbox" <%= l.isVisible ? 'checked' : '' %>
+                       aria-label="Afficher <%= l.league %> dans le flux public"
+                       onchange="lgToggle(this)">
+                <span class="tog-slider"></span>
+              </label>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="lg-none" id="lg-none"></div>
+</div>
+
+<% if (leagues.length === 0) { %>
+  <div class="card" style="margin-top:1rem">
+    <div class="empty-state">
+      <div class="empty-state-icon"><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg></div>
+      <div class="empty-state-title">Aucune compétition trouvée</div>
+      <div class="empty-state-desc">Les ligues apparaissent ici dès qu'un match est synchronisé depuis le catalogue externe.</div>
+    </div>
+  </div>
+<% } %>
+
+<script>
+/* ── Filtrage : périmètre (onglet) + recherche texte ──
+   Le tri et l'appartenance à un groupe ne sont plus portés par deux sections
+   HTML distinctes mais par `data-visible` : une bascule n'a donc plus besoin
+   de recharger la page pour déplacer une ligne. */
+let lgScope = 'visible';
+
+function lgSetScope(scope) {
+  lgScope = scope;
+  document.querySelectorAll('.lg-tab').forEach(t =>
+    t.setAttribute('aria-pressed', t.dataset.scope === scope ? 'true' : 'false'));
+  lgFilter();
+}
+
+/** Applique périmètre + texte sur toutes les lignes, renvoie le nombre affiché. */
+function lgApplyFilter(q, scope) {
+  let shown = 0;
+  document.querySelectorAll('#lg-body tr').forEach(tr => {
+    const isVisible = tr.dataset.visible === '1';
+    const inScope = scope === 'all'
+      || (scope === 'visible' &&  isVisible)
+      || (scope === 'hidden'  && !isVisible);
+    const match = inScope && (!q || tr.dataset.search.includes(q));
+    tr.hidden = !match;
+    if (match) shown++;
+  });
+  return shown;
+}
+
+function lgFilter() {
+  const input = document.getElementById('lg-search-input');
+  const q = input.value.trim().toLowerCase();
+  document.getElementById('lg-search-wrap').classList.toggle('has-query', !!input.value);
+
+  const shown = lgApplyFilter(q, lgScope);
+
+  // Le vide est le moment où l'on perd l'utilisateur : chercher une ligue
+  // masquée depuis l'onglet « Visibles » renvoyait « aucun résultat » alors que
+  // la compétition existe. Plutôt que de changer d'onglet dans son dos — ce qui
+  // rendait ensuite les onglets sans effet apparent — on compte ce qui existe
+  // ailleurs et on propose d'élargir.
+  const none = document.getElementById('lg-none');
+  none.textContent = '';
+  if (shown === 0) {
+    if (q) {
+      const ailleurs = [...document.querySelectorAll('#lg-body tr')]
+        .filter(tr => tr.dataset.search.includes(q)).length;
+      // textContent et non innerHTML : la requête vient de l'utilisateur.
+      none.append(`🔍 Aucune compétition ${lgScope === 'visible' ? 'visible ' : lgScope === 'hidden' ? 'masquée ' : ''}ne correspond à « ${input.value.trim()} ».`);
+      if (ailleurs > 0 && lgScope !== 'all') {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'btn btn-sm btn-outline';
+        b.style.marginLeft = '.6rem';
+        b.textContent = `Voir les ${ailleurs} résultat(s) sur l'ensemble`;
+        b.onclick = () => lgSetScope('all');
+        none.append(b);
+      }
+    } else {
+      none.append(lgScope === 'visible'
+        ? '🙈 Aucune ligue visible — active une compétition pour alimenter le flux public.'
+        : '✅ Aucune ligue masquée — toutes les compétitions synchronisées sont visibles.');
+    }
+    none.style.display = 'block';
+  } else {
+    none.style.display = 'none';
+  }
+  lgSyncCheckAll();
+}
+
+function lgClearSearch() {
+  const input = document.getElementById('lg-search-input');
+  input.value = '';
+  lgFilter();
+  input.focus();
+}
+
+/* ── Compteurs ── */
+function lgRefreshCounts() {
+  const all = document.querySelectorAll('#lg-body tr');
+  let vis = 0;
+  all.forEach(tr => { if (tr.dataset.visible === '1') vis++; });
+  document.getElementById('lg-n-all').textContent     = all.length;
+  document.getElementById('lg-n-visible').textContent = vis;
+  document.getElementById('lg-n-hidden').textContent  = all.length - vis;
+}
+
+/** Applique l'état d'une ligne sans rien recharger. */
+function lgApplyRowState(tr, visible) {
+  tr.dataset.visible = visible ? '1' : '0';
+  tr.classList.toggle('is-pub', visible);
+  const sw = tr.querySelector('.tog-sw input');
+  sw.checked = visible;
+  lgRefreshCounts();
+}
+
+/* ── Bascule unitaire ── */
+async function lgToggle(checkbox) {
+  const tr      = checkbox.closest('tr');
+  const code    = tr.dataset.code;
+  const league  = tr.dataset.league;
+  const visible = checkbox.checked;
+
+  checkbox.disabled = true;
+  try {
+    const res = await fetch(`/admin/leagues/${encodeURIComponent(code)}/toggle`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ league, visible }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Erreur ${res.status}`);
+    }
+    lgApplyRowState(tr, visible);
+    // La ligne peut sortir du périmètre affiché (onglet « Visibles » →
+    // on vient de masquer) : on réapplique le filtre au lieu de recharger.
+    lgFilter();
+    showToast(`${league} ${visible ? 'affichée' : 'masquée'} dans le flux public.`, 'success');
+  } catch (e) {
+    checkbox.checked = !visible;
+    showToast('Erreur : ' + e.message, 'error');
+  } finally {
+    checkbox.disabled = false;
+  }
+}
+
+/* ── Sélection multiple ── */
+function lgSelectedRows() {
+  return [...document.querySelectorAll('#lg-body tr')]
+    .filter(tr => !tr.hidden && tr.querySelector('.lg-check').checked);
+}
+
+function lgSelChanged() {
+  const n = lgSelectedRows().length;
+  document.getElementById('lg-sel-count').textContent = n;
+  document.getElementById('lg-bulkbar').toggleAttribute('data-on', n > 0);
+  lgSyncCheckAll();
+}
+
+/** L'en-tête ne coche que ce qui est réellement affiché : sinon un clic
+    embarquerait les 327 compétitions masquées sans que rien ne le montre. */
+function lgToggleAll(master) {
+  document.querySelectorAll('#lg-body tr').forEach(tr => {
+    if (!tr.hidden) tr.querySelector('.lg-check').checked = master.checked;
+  });
+  lgSelChanged();
+}
+
+function lgSyncCheckAll() {
+  const rows = [...document.querySelectorAll('#lg-body tr')].filter(tr => !tr.hidden);
+  const sel  = rows.filter(tr => tr.querySelector('.lg-check').checked).length;
+  const box  = document.getElementById('lg-check-all');
+  box.checked       = rows.length > 0 && sel === rows.length;
+  box.indeterminate = sel > 0 && sel < rows.length;
+}
+
+function lgClearSelection() {
+  document.querySelectorAll('.lg-check').forEach(c => { c.checked = false; });
+  lgSelChanged();
+}
+
+async function lgBulk(visible) {
+  const rows = lgSelectedRows();
+  if (rows.length === 0) return;
+
+  const payload = rows.map(tr => ({ leagueCode: tr.dataset.code, league: tr.dataset.league }));
+  const btns = document.querySelectorAll('#lg-bulkbar button');
+  btns.forEach(b => b.disabled = true);
+
+  try {
+    const res = await fetch('/admin/leagues/bulk', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ leagues: payload, visible }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.message || `Erreur ${res.status}`);
+    }
+    rows.forEach(tr => lgApplyRowState(tr, visible));
+    lgClearSelection();
+    lgFilter();
+    showToast(`${rows.length} compétition(s) ${visible ? 'affichée(s)' : 'masquée(s)'}.`, 'success');
+  } catch (e) {
+    showToast('Erreur : ' + e.message, 'error');
+  } finally {
+    btns.forEach(b => b.disabled = false);
+  }
+}
+
+lgFilter();
+</script>
+
+<%- include('layout_bottom') %>

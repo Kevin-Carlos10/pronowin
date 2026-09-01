@@ -1,4 +1,5 @@
 import 'package:fl_chart/fl_chart.dart';
+import '../../../../core/utils/motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -7,6 +8,9 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/bankroll_provider.dart';
+import '../../../../shared/widgets/bottom_nav_metrics.dart';
+import '../../../../shared/utils/devise.dart';
+import '../../../../shared/utils/montant.dart';
 
 // ── Filtre actif ───────────────────────────────────────────────────────────────
 enum _BetFilter { all, pending, win, loss }
@@ -79,7 +83,22 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
         await dio.post('/bankroll/reset');
         ref.invalidate(bankrollProvider);
         ref.invalidate(bankrollStatsProvider);
-      } catch (_) {}
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Solde réinitialisé ✅'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Échec de la réinitialisation. Vérifie ta connexion et réessaie.'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+      }
     }
   }
 }
@@ -113,7 +132,9 @@ class _BankrollView extends StatelessWidget {
   Widget build(BuildContext context) {
     final settled  = bankroll.bets.where((b) => b.result != null).toList();
     final wins     = settled.where((b) => b.result == 'WIN').length;
-    final winRate  = settled.isNotEmpty ? wins / settled.length * 100 : 0.0;
+    // Un remboursé (PUSH) n'est ni une victoire ni une défaite — exclu du taux.
+    final decisive = settled.where((b) => b.result != 'PUSH').length;
+    final winRate  = decisive > 0 ? wins / decisive * 100 : 0.0;
     final profit   = bankroll.currentBalance - bankroll.totalBudget;
     final pending  = bankroll.bets.where((b) => b.result == null).toList();
     final filtered = _filtered;
@@ -252,7 +273,7 @@ class _BankrollView extends StatelessWidget {
                 .slideY(begin: 0.06, end: 0, duration: 280.ms),
             ),
 
-          const SizedBox(height: 100),
+          SizedBox(height: bottomNavSpace(context)),
         ]),
       )),
     ]);
@@ -346,7 +367,7 @@ class _BalanceChart extends StatelessWidget {
                   barWidth: 2.5,
                   dotData: FlDotData(
                     show: true,
-                    getDotPainter: (spot, _, __, index) {
+                    getDotPainter: (spot, _, _, index) {
                       final isLast = index == spots.length - 1;
                       return FlDotCirclePainter(
                         radius: isLast ? 4 : 2,
@@ -426,10 +447,11 @@ class _WeeklySummary extends StatelessWidget {
 
     if (weekly.isEmpty) return const SizedBox.shrink();
 
-    final wins    = weekly.where((b) => b.result == 'WIN').length;
-    final profit  = weekly.fold<double>(0, (sum, b) => sum + (b.profit ?? 0));
-    final isGain  = profit >= 0;
-    final rate    = weekly.isNotEmpty ? (wins / weekly.length * 100).toStringAsFixed(0) : '0';
+    final wins     = weekly.where((b) => b.result == 'WIN').length;
+    final decisive = weekly.where((b) => b.result != 'PUSH').length;
+    final profit   = weekly.fold<double>(0, (sum, b) => sum + (b.profit ?? 0));
+    final isGain   = profit >= 0;
+    final rate     = decisive > 0 ? (wins / decisive * 100).toStringAsFixed(0) : '0';
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -455,7 +477,7 @@ class _WeeklySummary extends StatelessWidget {
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text(
-            '${isGain ? '+' : ''}${_formatAmount(profit)} ${bankroll.currency}',
+            '${isGain ? '+' : ''}${montantExact(profit)} ${nomDevise(bankroll.currency)}',
             style: TextStyle(
               color: isGain ? AppColors.success : AppColors.error,
               fontSize: 13, fontWeight: FontWeight.w800)),
@@ -523,7 +545,7 @@ class _FilterRow extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: sel ? color.withValues(alpha: 0.15) : context.cl.surface,
               borderRadius: BorderRadius.circular(20),
@@ -592,7 +614,21 @@ class _BalanceCard extends StatelessWidget {
     final profitColor = isProfit ? AppColors.success : AppColors.error;
     final pct         = bankroll.progressPct;
 
-    return Container(
+    // Lue widget par widget, la carte donnait « Solde actuel », « 12 500 »,
+    // « FCFA », « Budget total », « 10 000 », « FCFA », « +2 500 », « 125 % du
+    // budget » : huit fragments dont aucun ne dit lequel est quoi, sur l'écran
+    // où l'utilisateur suit son argent.
+    final annonce = 'Solde actuel '
+        '${montantExact(bankroll.currentBalance)} ${nomDevise(bankroll.currency)}, '
+        'sur un budget de ${montantExact(bankroll.totalBudget)} ${nomDevise(bankroll.currency)}. '
+        '${isProfit ? 'Bénéfice' : 'Perte'} de '
+        '${montantExact(profit.abs())} ${nomDevise(bankroll.currency)}, '
+        'soit ${(pct * 100).toStringAsFixed(0)} pour cent du budget.';
+
+    return Semantics(
+      label: annonce,
+      excludeSemantics: true,
+      child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -611,7 +647,7 @@ class _BalanceCard extends StatelessWidget {
                 color: context.cl.textM, fontSize: 12, fontWeight: FontWeight.w500)),
             const SizedBox(height: 4),
             Text(
-              '${_formatAmount(bankroll.currentBalance)} ${bankroll.currency}',
+              '${montantExact(bankroll.currentBalance)} ${nomDevise(bankroll.currency)}',
               style: TextStyle(
                 color: context.cl.textP, fontSize: 28,
                 fontWeight: FontWeight.w800, letterSpacing: -0.5)),
@@ -621,7 +657,7 @@ class _BalanceCard extends StatelessWidget {
             Text('Budget total', style: TextStyle(color: context.cl.textM, fontSize: 11)),
             const SizedBox(height: 2),
             Text(
-              '${_formatAmount(bankroll.totalBudget)} ${bankroll.currency}',
+              '${montantExact(bankroll.totalBudget)} ${nomDevise(bankroll.currency)}',
               style: TextStyle(color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600)),
           ]),
         ]),
@@ -647,7 +683,7 @@ class _BalanceCard extends StatelessWidget {
               color: profitColor, size: 15),
           const SizedBox(width: 4),
           Text(
-            '${isProfit ? '+' : ''}${_formatAmount(profit)} ${bankroll.currency}',
+            '${isProfit ? '+' : ''}${montantExact(profit)} ${nomDevise(bankroll.currency)}',
             style: TextStyle(color: profitColor, fontSize: 13, fontWeight: FontWeight.w700)),
           const Spacer(),
           Text(
@@ -655,7 +691,7 @@ class _BalanceCard extends StatelessWidget {
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
       ]),
-    );
+    ));
   }
 }
 
@@ -667,7 +703,13 @@ class _StatChip extends StatelessWidget {
   const _StatChip({required this.label, required this.value, required this.icon, required this.color});
 
   @override
-  Widget build(BuildContext context) => Container(
+  // La valeur précède le libellé à l'écran, ce qui est bon visuellement mais
+  // s'annonce à l'envers : « 12 » puis « Paris gagnés ». On rétablit l'ordre
+  // pour la voix.
+  Widget build(BuildContext context) => Semantics(
+    label: '$label : $value',
+    excludeSemantics: true,
+    child: Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: context.cl.surface,
@@ -680,7 +722,7 @@ class _StatChip extends StatelessWidget {
           color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w800)),
       Text(label, style: TextStyle(color: context.cl.textM, fontSize: 10)),
     ]),
-  );
+  ));
 }
 
 // ── Carte pari ────────────────────────────────────────────────────────────────
@@ -692,14 +734,35 @@ class _BetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPending = bet.result == null;
     final isWin     = bet.result == 'WIN';
+    final isPush    = bet.result == 'PUSH';
     final color     = isPending ? AppColors.warning
                     : isWin    ? AppColors.success
+                    : isPush   ? AppColors.info
                     :             AppColors.error;
     final icon      = isPending ? Icons.hourglass_empty_rounded
                     : isWin    ? Icons.check_circle_rounded
+                    : isPush   ? Icons.replay_rounded
                     :             Icons.cancel_rounded;
 
-    return GestureDetector(
+    // Sans libellé, la carte s'annonçait « PSG – Marseille, Plus de 2.5,
+    // −1 000, +1 800 » : impossible de savoir si le pari est en cours, gagné
+    // ou perdu, ni ce que sont ces deux montants.
+    final etat = isPending ? 'en cours'
+               : isWin    ? 'gagné'
+               : isPush   ? 'remboursé'
+               :            'perdu';
+    final montant = bet.profit != null
+        ? '${bet.profit! >= 0 ? 'Gain' : 'Perte'} de '
+          '${montantExact(bet.profit!.abs())}'
+        : 'Gain potentiel ${montantExact(bet.potentialGain)}';
+
+    return Semantics(
+      button: true,
+      label: '${bet.homeTeam} contre ${bet.awayTeam}. '
+             '${bet.displayPredictionLabel}. Pari $etat. '
+             'Mise ${montantExact(bet.stakedAmount)}. $montant.',
+      excludeSemantics: true,
+      child: GestureDetector(
       onTap: () => context.push('/bankroll/bet/${bet.id}', extra: bet),
       child: Container(
         margin:  const EdgeInsets.only(bottom: 10),
@@ -723,28 +786,28 @@ class _BetCard extends StatelessWidget {
                   fontWeight: FontWeight.w600),
               maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 3),
-            Text(bet.predictionLabel,
+            Text(bet.displayPredictionLabel,
               style: TextStyle(color: context.cl.textM, fontSize: 11)),
           ])),
           const SizedBox(width: 8),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('−${_formatAmount(bet.stakedAmount)}',
+            Text('−${montantExact(bet.stakedAmount)}',
               style: TextStyle(color: context.cl.textP, fontSize: 12,
                   fontWeight: FontWeight.w700)),
             const SizedBox(height: 3),
             if (bet.profit != null)
               Text(
-                '${bet.profit! >= 0 ? '+' : ''}${_formatAmount(bet.profit!)}',
+                '${bet.profit! >= 0 ? '+' : ''}${montantExact(bet.profit!)}',
                 style: TextStyle(
                   color: bet.profit! >= 0 ? AppColors.success : AppColors.error,
                   fontSize: 12, fontWeight: FontWeight.w700))
             else
-              Text('→ ${_formatAmount(bet.potentialGain)}',
+              Text('→ ${montantExact(bet.potentialGain)}',
                 style: TextStyle(color: context.cl.textM, fontSize: 11)),
           ]),
         ]),
       ),
-    );
+    ));
   }
 }
 
@@ -827,7 +890,10 @@ class _SetupView extends StatelessWidget {
   Widget _features(BuildContext context) {
     const items = [
       (Icons.bolt_rounded,       'Mises calculées selon ton solde et la confiance'),
-      (Icons.auto_graph_rounded, 'Suivi du ROI et taux de réussite en temps réel'),
+      // Pas « en temps réel » : la synchronisation tourne toutes les 15 min.
+      // Les scores, eux, se rafraîchissent toutes les 30–45 s — d'où la
+      // formulation différente sur l'écran d'onboarding des résultats.
+      (Icons.auto_graph_rounded, 'Rentabilité et taux de réussite mis à jour à chaque résultat'),
       (Icons.update_rounded,     'Solde mis à jour automatiquement à chaque résultat'),
       (Icons.shield_rounded,     'Rappel de discipline après chaque mise confirmée'),
     ];
@@ -934,7 +1000,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color:  _currency == c
                     ? AppColors.success.withValues(alpha: 0.15)
@@ -943,7 +1009,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
                 border: Border.all(
                   color: _currency == c ? AppColors.success : context.cl.border,
                   width: 0.8)),
-              child: Text(c, style: TextStyle(
+              child: Text(libelleChoixDevise(c), style: TextStyle(
                 color:      _currency == c ? AppColors.success : context.cl.textM,
                 fontSize:   12,
                 fontWeight: _currency == c ? FontWeight.w700 : FontWeight.w400)),
@@ -985,12 +1051,12 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
         Wrap(spacing: 8, runSpacing: 6, children: _presets.map((p) => GestureDetector(
           onTap: () => setState(() => _ctrl.text = '$p'),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color:  AppColors.success.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: AppColors.success.withValues(alpha: 0.3))),
-            child: Text(_formatAmount(p.toDouble()),
+            child: Text(montantExact(p.toDouble()),
               style: const TextStyle(color: AppColors.success, fontSize: 12,
                   fontWeight: FontWeight.w600)),
           ),
@@ -1039,9 +1105,17 @@ class _BankrollShimmerState extends State<_BankrollShimmer>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: 900.ms)..repeat(reverse: true);
+    _ctrl = AnimationController(vsync: this, duration: 900.ms);
     _anim = Tween<double>(begin: 0.3, end: 0.7)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Boucle infinie : coupée si l'utilisateur a réduit les animations.
+    // Ce hook est aussi rappelé quand le réglage système change.
+    context.boucler(_ctrl, reverse: true);
   }
   @override
   void dispose() { _ctrl.dispose(); super.dispose(); }
@@ -1095,15 +1169,3 @@ class _ErrorState extends StatelessWidget {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-String _formatAmount(double amount) {
-  if (amount.abs() >= 1000) {
-    final s = amount.abs().toStringAsFixed(0);
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
-      buf.write(s[i]);
-    }
-    return amount < 0 ? '-${buf.toString()}' : buf.toString();
-  }
-  return amount.toStringAsFixed(0);
-}

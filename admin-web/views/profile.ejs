@@ -8,12 +8,12 @@
 /* ── Avatar card ─────────────────────────────────────────────────────────────── */
 .pf-avatar-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.75rem; text-align:center; }
 .pf-avatar { width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.75rem; font-weight:800; margin:0 auto .9rem; }
-.pf-avatar.main { background:rgba(34,197,94,.12); color:var(--success); }
-.pf-avatar.sub  { background:rgba(245,158,11,.12); color:var(--warning); }
+.pf-avatar.pf-principal { background:rgba(34,197,94,.12); color:var(--success); }
+.pf-avatar.pf-adjoint  { background:rgba(245,158,11,.12); color:var(--warning); }
 .pf-name  { font-size:1.15rem; font-weight:800; margin-bottom:.25rem; }
 .pf-role  { display:inline-block; font-size:.75rem; padding:.2rem .7rem; border-radius:99px; font-weight:600; margin-bottom:1.25rem; }
-.pf-role.main { background:rgba(34,197,94,.12); color:var(--success); }
-.pf-role.sub  { background:rgba(245,158,11,.12); color:var(--warning); }
+.pf-role.pf-principal { background:rgba(34,197,94,.12); color:var(--success); }
+.pf-role.pf-adjoint  { background:rgba(245,158,11,.12); color:var(--warning); }
 
 /* ── Info rows ───────────────────────────────────────────────────────────────── */
 .pf-row { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.82rem; gap:.5rem; }
@@ -47,7 +47,7 @@
 .pf-tl-time { color:var(--text-dim); font-size:.72rem; white-space:nowrap; }
 
 /* ── Cartes sections ─────────────────────────────────────────────────────────── */
-.pf-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.35rem 1.5rem; margin-bottom:1rem; }
+.pf-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.35rem 1.5rem; margin-bottom:1rem; }
 .pf-card:last-child { margin-bottom:0; }
 .pf-card-title { font-size:.9rem; font-weight:700; margin-bottom:1.1rem; display:flex; align-items:center; gap:.5rem; }
 
@@ -85,10 +85,10 @@
 
 <div class="topbar">
   <div>
-    <h2>👤 Mon profil</h2>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> Mon profil</h2>
     <small>Informations, sécurité et préférences</small>
   </div>
-  <a href="/admin/logout" class="btn btn-outline btn-sm">🚪 Déconnexion</a>
+  <a href="/admin/logout" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> Déconnexion</a>
 </div>
 
 <% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
@@ -101,9 +101,12 @@
 
     <!-- Avatar + infos -->
     <div class="pf-avatar-card" style="margin-bottom:1rem">
-      <div class="pf-avatar <%= isMain ? 'main' : 'sub' %>"><%= _initial %></div>
+      <%# Modificateur prefixe : « main » tout court est la classe de la zone de
+          contenu du gabarit, qui porte min-height:100vh. L'avatar s'etirait
+          alors sur toute la hauteur de la colonne. %>
+      <div class="pf-avatar <%= isMain ? 'pf-principal' : 'pf-adjoint' %>"><%= _initial %></div>
       <div class="pf-name"><%= adminName %></div>
-      <div class="pf-role <%= isMain ? 'main' : 'sub' %>">
+      <div class="pf-role <%= isMain ? 'pf-principal' : 'pf-adjoint' %>">
         <%= isMain ? '🔷 Admin principal' : '🔸 Sous-admin' %>
       </div>
 
@@ -114,8 +117,8 @@
           <span class="pf-lbl">Identifiant</span>
           <div style="display:flex;align-items:center;gap:.3rem">
             <code style="font-size:.78rem;background:var(--surface-d);padding:.12rem .4rem;border-radius:4px;color:var(--primary)" id="pf-username"><%= sub.username %></code>
-            <button class="pf-copy" onclick="copyText('<%= sub.username %>','pf-username-check')" title="Copier">📋</button>
-            <span id="pf-username-check" style="font-size:.68rem;color:var(--success);display:none">✓</span>
+            <button class="pf-copy" onclick="copyText('<%= sub.username %>','pf-username-check')" title="Copier"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg></button>
+            <span id="pf-username-check" style="font-size:.68rem;color:var(--success);display:none"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg></span>
           </div>
         </div>
         <div class="pf-row">
@@ -169,9 +172,12 @@
           <% PERMISSIONS.forEach(p => {
                const lvl = _myLevel(p.key);
                if (!lvl) return;
-               const icon = lvl==='delete'?'🗑':lvl==='write'?'✏️':'👁';
+               const ic = lvl==='delete'?'trash':lvl==='write'?'edit':'eye';
           %>
-          <span class="perm-tag <%= lvl %>"><%= icon %> <%= p.label.split(' ').slice(1).join(' ') %></span>
+          <%# `slice(1)` retirait le premier mot du libellé : c'était l'emoji.
+              Sans emoji, il aurait mangé le nom du module et laissé une
+              pastille vide. %>
+          <span class="perm-tag <%= lvl %>"><svg class="ic" aria-hidden="true"><use href="#ic-<%= ic %>"/></svg> <%= p.label %></span>
           <% }); %>
           <% if (!_hasAnyPerm) { %><span style="color:var(--text-dim);font-size:.78rem;font-style:italic">Aucune permission</span><% } %>
         </div>
@@ -181,7 +187,7 @@
 
     <!-- Historique connexions -->
     <div class="pf-card">
-      <div class="pf-card-title">🕐 Connexions récentes</div>
+      <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg> Connexions récentes</div>
       <% if (lastLogins.length === 0) { %>
       <p style="color:var(--text-dim);font-size:.82rem;font-style:italic">Aucune connexion enregistrée.</p>
       <% } else { lastLogins.forEach((log, i) => { %>
@@ -204,13 +210,15 @@
     <!-- Activité récente -->
     <% if (recentActivity && recentActivity.length > 0) { %>
     <div class="pf-card">
-      <div class="pf-card-title">⚡ Activité récente</div>
+      <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-zap"/></svg> Activité récente</div>
       <div class="pf-tl">
         <% recentActivity.forEach(log => {
-             const meta = (typeof ACTION_LABELS !== 'undefined' && ACTION_LABELS[log.action]) || { label: log.action, icon: '•' };
+             // Repli : « • » etait injecte dans href="#ic-•", une reference de sprite
+             // inexistante. `dot` existe et s'affiche.
+             const meta = (typeof ACTION_LABELS !== 'undefined' && ACTION_LABELS[log.action]) || { label: log.action, icon: 'dot' };
         %><div class="pf-tl-item">
           <div class="pf-tl-dot"></div>
-          <div class="pf-tl-text"><%= meta.icon %> <%= meta.label %><% if(log.target){ %> · <em style="color:var(--text-dim)"><%= log.target.length>30?log.target.slice(0,30)+'…':log.target %></em><% } %></div>
+          <div class="pf-tl-text"><%- (meta.icon) ? '<svg class="ic" aria-hidden="true"><use href="#ic-' + (meta.icon) + '"/></svg>' : '' %> <%= meta.label %><% if(log.target){ %> · <em style="color:var(--text-dim)"><%= log.target.length>30?log.target.slice(0,30)+'…':log.target %></em><% } %></div>
           <div class="pf-tl-time"><%= relTime(log.timestamp) %></div>
         </div><% }); %>
       </div>
@@ -220,21 +228,21 @@
 
     <!-- Changer mot de passe -->
     <div class="pf-card">
-      <div class="pf-card-title">🔑 Changer mon mot de passe</div>
+      <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-key"/></svg> Changer mon mot de passe</div>
       <form method="POST" action="/admin/profile/password" id="pwd-form">
         <div class="form-group" style="margin-bottom:.9rem">
           <label>Mot de passe actuel</label>
-          <input class="input" type="password" name="current_password" required placeholder="Votre mot de passe actuel" autocomplete="current-password">
+          <input class="input" type="password" name="current_password" required placeholder="Votre mot de passe actuel" autocomplete="current-password" aria-label="Mot de passe actuel">
         </div>
         <div class="form-group" style="margin-bottom:.9rem">
           <label>Nouveau mot de passe</label>
-          <input class="input" type="password" name="new_password" id="new-pwd" required placeholder="Min. 6 caractères" autocomplete="new-password" minlength="6">
+          <input class="input" type="password" name="new_password" id="new-pwd" required placeholder="Min. 8 caractères" autocomplete="new-password" minlength="8" aria-label="Nouveau mot de passe">
           <div class="strength-bar"><div class="strength-fill" id="strength-fill" style="width:0%"></div></div>
           <div id="strength-label" style="font-size:.72rem;margin-top:.25rem;color:var(--text-dim)"></div>
         </div>
         <div class="form-group" style="margin-bottom:1.1rem">
           <label>Confirmer le nouveau mot de passe</label>
-          <input class="input" type="password" name="confirm_password" id="confirm-pwd" required placeholder="Répéter le nouveau mot de passe" autocomplete="new-password">
+          <input class="input" type="password" name="confirm_password" id="confirm-pwd" required placeholder="Répéter le nouveau mot de passe" autocomplete="new-password" aria-label="Confirmer le mot de passe">
           <div id="match-label" style="font-size:.72rem;margin-top:.25rem"></div>
         </div>
         <button class="btn btn-primary" type="submit" style="width:100%">Modifier le mot de passe</button>
@@ -243,13 +251,13 @@
 
     <!-- Préférences visuelles -->
     <div class="pf-card">
-      <div class="pf-card-title">🎨 Préférences visuelles</div>
+      <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-sparkle"/></svg> Préférences visuelles</div>
 
       <div style="margin-bottom:1rem">
         <div style="font-size:.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:.55rem">Thème</div>
         <div class="pf-theme-btns">
-          <button class="pf-theme-btn" id="btn-dark"  onclick="applyTheme('dark')">🌙 Sombre</button>
-          <button class="pf-theme-btn" id="btn-light" onclick="applyTheme('light')">☀️ Clair</button>
+          <button class="pf-theme-btn" id="btn-dark"  onclick="applyTheme('dark')"><svg class="ic" aria-hidden="true"><use href="#ic-moon"/></svg> Sombre</button>
+          <button class="pf-theme-btn" id="btn-light" onclick="applyTheme('light')"><svg class="ic" aria-hidden="true"><use href="#ic-sun"/></svg> Clair</button>
         </div>
       </div>
 
@@ -267,17 +275,17 @@
 
     <!-- Session + sécurité -->
     <div class="pf-card">
-      <div class="pf-card-title">📡 Session &amp; Sécurité</div>
-      <div class="pf-row"><span class="pf-lbl">Statut</span><span style="color:var(--success);font-weight:600">🟢 Connecté</span></div>
+      <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> Session &amp; Sécurité</div>
+      <div class="pf-row"><span class="pf-lbl">Statut</span><span style="color:var(--success);font-weight:600"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg> Connecté</span></div>
       <div class="pf-row"><span class="pf-lbl">IP actuelle</span><span class="pf-val" style="font-family:monospace;font-size:.78rem"><%= currentIp %></span></div>
       <div class="pf-row"><span class="pf-lbl">Timeout inactivité</span><span class="pf-val">30 min</span></div>
       <div class="pf-row" style="border-bottom:0"><span class="pf-lbl">Durée max.</span><span class="pf-val">8 h (30 j si "Se souvenir")</span></div>
 
       <div style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
         <div style="font-size:.78rem;color:var(--text-m);line-height:1.7;display:flex;flex-direction:column;gap:.35rem">
-          <div>✅ Utilisez un mot de passe de <strong>12+ caractères</strong> avec chiffres et symboles</div>
-          <div>✅ Ne réutilisez pas ce mot de passe ailleurs</div>
-          <div>⚠️ Après <strong style="color:var(--warning)">5 tentatives</strong> échouées, l'IP est bloquée 15 min</div>
+          <div><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Utilisez un mot de passe de <strong>12+ caractères</strong> avec chiffres et symboles</div>
+          <div><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Ne réutilisez pas ce mot de passe ailleurs</div>
+          <div><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Après <strong style="color:var(--warning)">5 tentatives</strong> échouées, l'IP est bloquée 15 min</div>
         </div>
       </div>
     </div>

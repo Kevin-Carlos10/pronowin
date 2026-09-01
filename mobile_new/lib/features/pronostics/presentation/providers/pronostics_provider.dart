@@ -52,8 +52,12 @@ final pronosticsFilterProvider = StateProvider<PronosticsFilter>(
   (_) => PronosticsFilter(dateFilter: _todayStr()),
 );
 
-/// Filtre statut côté client : null=tous, upcoming, live, finished
+/// Filtre statut côté serveur : null=tous, upcoming, live, finished
 final statusFilterProvider = StateProvider<MatchStatus?>((ref) => null);
+
+/// Filtre "avec pronostic uniquement" côté serveur : false = tous les matchs
+/// (avec ou sans pronostic, y compris "analyse en cours")
+final hasPronosticFilterProvider = StateProvider<bool>((ref) => false);
 
 /// Filtre ligue côté client : null = toutes
 final leagueFilterProvider = StateProvider<String?>((ref) => null);
@@ -100,11 +104,20 @@ class MatchesPaginatedState {
   );
 }
 
+String? _statusParam(MatchStatus? status) => switch (status) {
+  MatchStatus.upcoming => 'upcoming',
+  MatchStatus.live     => 'live',
+  MatchStatus.finished => 'finished',
+  null                 => null,
+};
+
 class MatchesPaginatedNotifier extends StateNotifier<MatchesPaginatedState> {
   final GetMatchesUseCase _usecase;
   PronosticsFilter        _filter;
+  final MatchStatus?      _status;
+  final bool              _hasPronostic;
 
-  MatchesPaginatedNotifier(this._usecase, this._filter)
+  MatchesPaginatedNotifier(this._usecase, this._filter, this._status, this._hasPronostic)
       : super(const MatchesPaginatedState()) {
     _loadInitial();
   }
@@ -120,14 +133,16 @@ class MatchesPaginatedNotifier extends StateNotifier<MatchesPaginatedState> {
       clearError:       true,
     );
 
-    final cacheKey = 'matches_${_filter.sport}_${_filter.dateFilter}_${_filter.leagueId ?? "all"}';
+    final cacheKey = 'matches_${_filter.sport}_${_filter.dateFilter}_${_filter.leagueId ?? "all"}_${_statusParam(_status) ?? "all"}_$_hasPronostic';
 
     try {
       final result = await _usecase(GetMatchesParams(
-        sport:      _filter.sport == 'all' ? null : _filter.sport,
-        dateFilter: _filter.dateFilter,
-        leagueId:   _filter.leagueId,
-        limit:      _limit,
+        sport:        _filter.sport == 'all' ? null : _filter.sport,
+        dateFilter:   _filter.dateFilter,
+        leagueId:     _filter.leagueId,
+        status:       _statusParam(_status),
+        hasPronostic: _hasPronostic,
+        limit:        _limit,
       ));
 
       result.fold(
@@ -173,11 +188,13 @@ class MatchesPaginatedNotifier extends StateNotifier<MatchesPaginatedState> {
 
     try {
       final result = await _usecase(GetMatchesParams(
-        sport:      _filter.sport == 'all' ? null : _filter.sport,
-        dateFilter: _filter.dateFilter,
-        leagueId:   _filter.leagueId,
-        cursor:     state.nextCursor,
-        limit:      _limit,
+        sport:        _filter.sport == 'all' ? null : _filter.sport,
+        dateFilter:   _filter.dateFilter,
+        leagueId:     _filter.leagueId,
+        status:       _statusParam(_status),
+        hasPronostic: _hasPronostic,
+        cursor:       state.nextCursor,
+        limit:        _limit,
       ));
 
       result.fold(
@@ -204,9 +221,11 @@ class MatchesPaginatedNotifier extends StateNotifier<MatchesPaginatedState> {
 
 final matchesPaginatedProvider =
     StateNotifierProvider.autoDispose<MatchesPaginatedNotifier, MatchesPaginatedState>((ref) {
-  final filter  = ref.watch(pronosticsFilterProvider);
-  final usecase = GetMatchesUseCase(ref.read(pronosticsRepoProvider));
-  return MatchesPaginatedNotifier(usecase, filter);
+  final filter       = ref.watch(pronosticsFilterProvider);
+  final status       = ref.watch(statusFilterProvider);
+  final hasPronostic = ref.watch(hasPronosticFilterProvider);
+  final usecase      = GetMatchesUseCase(ref.read(pronosticsRepoProvider));
+  return MatchesPaginatedNotifier(usecase, filter, status, hasPronostic);
 });
 
 // ─── Détail d'un match ────────────────────────────────────────────────────────
@@ -234,7 +253,14 @@ final matchDetailProvider = FutureProvider.autoDispose.family<MatchEntity, Strin
 class LiveScore {
   final int? homeScore, awayScore;
   final String status;
-  const LiveScore({this.homeScore, this.awayScore, required this.status});
+
+  /// Minute de jeu, null hors direct. Un 0-0 à la 10e et un 0-0 à la 85e sont
+  /// deux situations opposées pour un parieur : l'écran affichait le score
+  /// sans jamais dire où on en était.
+  final int? elapsed;
+
+  const LiveScore({
+    this.homeScore, this.awayScore, required this.status, this.elapsed});
 }
 
 final liveScoreProvider = FutureProvider.autoDispose.family<LiveScore, String>((ref, id) async {
@@ -244,6 +270,7 @@ final liveScoreProvider = FutureProvider.autoDispose.family<LiveScore, String>((
     homeScore: r.data['homeScore'] as int?,
     awayScore: r.data['awayScore'] as int?,
     status:    r.data['status']    as String? ?? 'SCHEDULED',
+    elapsed:   r.data['elapsed']   as int?,
   );
 });
 
@@ -306,7 +333,7 @@ final h2hProvider = FutureProvider.autoDispose.family<H2HData, String>((ref, id)
   final matches = (d['matches'] as List).map((m) {
     final mm = m as Map<String, dynamic>;
     return H2HMatchResult(
-      date:      DateTime.parse(mm['date'] as String),
+      date:      DateTime.parse(mm['date'] as String).toLocal(),
       homeTeam:  mm['home_team'] as String,
       awayTeam:  mm['away_team'] as String,
       homeScore: (mm['home_score'] as num).toInt(),
@@ -325,6 +352,182 @@ final h2hProvider = FutureProvider.autoDispose.family<H2HData, String>((ref, id)
     totalMatches: (agg['numberOfMatches'] as num).toInt(),
     matches:      matches,
   );
+});
+
+// ─── Compositions d'équipe ─────────────────────────────────────────────────────
+class LineupPlayer {
+  final int?    id;
+  final String  name;
+  final int?    number;
+  final String? pos;
+  /// Position sur le terrain renvoyée par API-Football, "ligne:colonne"
+  /// (ex. "1:1" = gardien). null pour les remplaçants.
+  final String? grid;
+  const LineupPlayer({required this.name, this.id, this.number, this.pos, this.grid});
+
+  factory LineupPlayer.fromJson(Map<String, dynamic> j) => LineupPlayer(
+    id:     (j['id'] as num?)?.toInt(),
+    name:   j['name'] as String? ?? '',
+    number: (j['number'] as num?)?.toInt(),
+    pos:    j['pos'] as String?,
+    grid:   j['grid'] as String?,
+  );
+
+  /// Ligne du joueur sur le terrain (1 = gardien), null si non placé.
+  int? get gridRow => _gridPart(0);
+  /// Colonne du joueur dans sa ligne, null si non placé.
+  int? get gridCol => _gridPart(1);
+
+  int? _gridPart(int i) {
+    final parts = grid?.split(':');
+    if (parts == null || parts.length != 2) return null;
+    return int.tryParse(parts[i]);
+  }
+
+  /// Photo officielle API-Football, null si le joueur n'a pas d'id.
+  String? get photoUrl =>
+    id == null ? null : 'https://media.api-sports.io/football/players/$id.png';
+
+  /// "M. Kovář" — nom compact pour tenir sous une pastille du terrain.
+  String get shortName {
+    final parts = name.trim().split(RegExp(r'\s+'));
+    if (parts.length < 2) return name;
+    return '${parts.first[0]}. ${parts.sublist(1).join(' ')}';
+  }
+}
+
+class TeamLineup {
+  final String? formation;
+  final String? coach;
+  /// Photo de l entraineur, fournie a cote de son nom. Seul le nom etait lu.
+  final String? coachPhoto;
+  final List<LineupPlayer> startXI;
+  final List<LineupPlayer> substitutes;
+  const TeamLineup({
+    this.formation, this.coach, this.coachPhoto,
+    required this.startXI, required this.substitutes,
+  });
+
+  factory TeamLineup.fromJson(Map<String, dynamic> j) => TeamLineup(
+    formation:   j['formation'] as String?,
+    coach:       j['coach'] as String?,
+    coachPhoto:  j['coachPhoto'] as String?,
+    startXI:     (j['startXI'] as List? ?? [])
+      .map((p) => LineupPlayer.fromJson(p as Map<String, dynamic>)).toList(),
+    substitutes: (j['substitutes'] as List? ?? [])
+      .map((p) => LineupPlayer.fromJson(p as Map<String, dynamic>)).toList(),
+  );
+}
+
+class LineupsData {
+  final bool available;
+  final TeamLineup? home;
+  final TeamLineup? away;
+  const LineupsData({required this.available, this.home, this.away});
+}
+
+final lineupsProvider = FutureProvider.autoDispose.family<LineupsData, String>((ref, id) async {
+  final dio = ref.read(dioProvider);
+  final r   = await dio.get('/pronostics/$id/lineups');
+  final d   = r.data as Map<String, dynamic>;
+  return LineupsData(
+    available: d['available'] as bool? ?? false,
+    home: d['home'] != null ? TeamLineup.fromJson(d['home'] as Map<String, dynamic>) : null,
+    away: d['away'] != null ? TeamLineup.fromJson(d['away'] as Map<String, dynamic>) : null,
+  );
+});
+
+// ─── Blessures / suspensions ───────────────────────────────────────────────────
+class InjuredPlayer {
+  final String name;
+  final bool   isHome;
+  final String type;
+  /// Motif **deja traduit par le serveur**. L ecran n a plus a connaitre
+  /// l anglais : la table qui vivait ici avait des trous que rien ne
+  /// signalait, si bien que « Hamstring Injury » s affichait sous
+  /// « Blessure musculaire ».
+  final String reason;
+  /// Photo du joueur, fournie par l API et jamais lue jusqu ici.
+  final String? photo;
+  /// Suspension (carton) plutot qu indisponibilite physique.
+  final bool suspension;
+  const InjuredPlayer({
+    required this.name, required this.isHome,
+    required this.type, required this.reason,
+    this.photo, this.suspension = false,
+  });
+
+  factory InjuredPlayer.fromJson(Map<String, dynamic> j) => InjuredPlayer(
+    name:   j['name'] as String? ?? '',
+    isHome: j['team'] == 'home',
+    type:   j['type'] as String? ?? 'Injured',
+    reason: j['reason'] as String? ?? '',
+    photo:  j['photo'] as String?,
+    // Absent d une reponse serveur anterieure : on retombe sur le motif, comme
+    // le faisait l ecran auparavant.
+    suspension: j['suspension'] as bool?
+        ?? (j['reason'] as String? ?? '').toLowerCase().contains('card'),
+  );
+}
+
+final injuriesProvider = FutureProvider.autoDispose.family<List<InjuredPlayer>, String>((ref, id) async {
+  final dio = ref.read(dioProvider);
+  final r   = await dio.get('/pronostics/$id/injuries');
+  return (r.data as List)
+    .map((e) => InjuredPlayer.fromJson(e as Map<String, dynamic>))
+    .toList();
+});
+
+// ─── Classement ─────────────────────────────────────────────────────────────────
+class StandingRow {
+  final int    rank;
+  final String teamName;
+  final String? teamLogo;
+  final int    played, win, draw, lose, goalsDiff, points;
+  final String? form;
+
+  /// Zone de qualification ou de relégation — « Ligue des champions »,
+  /// « Relégation ». Absente sur la plupart des lignes.
+  ///
+  /// Un classement sans ses zones ne dit pas ce qui se joue : la 7ᵉ place
+  /// qualifie-t-elle pour l'Europe, ou frôle-t-elle la descente ? La donnée
+  /// existait chez le fournisseur (`description`) et n'était pas lue.
+  final String? zone;
+
+  /// Nature de la zone, qui décide de la couleur : `c1`, `c3`, `c4`,
+  /// `barrage`, `promotion`, `relegation`. Séparée du libellé — une couleur ne
+  /// doit pas dépendre d'une chaîne de caractères.
+  final String? zoneNature;
+
+  const StandingRow({
+    required this.rank, required this.teamName, this.teamLogo,
+    required this.played, required this.win, required this.draw, required this.lose,
+    required this.goalsDiff, required this.points, this.form,
+    this.zone, this.zoneNature,
+  });
+
+  factory StandingRow.fromJson(Map<String, dynamic> j) => StandingRow(
+    rank:      (j['rank'] as num).toInt(),
+    teamName:  j['teamName'] as String? ?? '',
+    teamLogo:  j['teamLogo'] as String?,
+    played:    (j['played'] as num?)?.toInt() ?? 0,
+    win:       (j['win'] as num?)?.toInt() ?? 0,
+    draw:      (j['draw'] as num?)?.toInt() ?? 0,
+    lose:      (j['lose'] as num?)?.toInt() ?? 0,
+    goalsDiff: (j['goalsDiff'] as num?)?.toInt() ?? 0,
+    points:    (j['points'] as num?)?.toInt() ?? 0,
+    form:      j['form'] as String?,
+    zone:       j['zone'] as String?,
+    zoneNature: j['zoneNature'] as String?,
+  );
+}
+
+final standingsProvider = FutureProvider.autoDispose.family<List<StandingRow>, String>((ref, id) async {
+  final dio = ref.read(dioProvider);
+  final r   = await dio.get('/pronostics/$id/standings');
+  return (r.data as List)
+    .map((e) => StandingRow.fromJson(e as Map<String, dynamic>))
+    .toList();
 });
 
 // ─── Statistiques match terminé (API-Football) ───────────────────────────────
@@ -395,6 +598,163 @@ final matchStatsProvider = FutureProvider.autoDispose.family<MatchStatsData?, St
   }
 });
 
+// ─── Prono gratuit du jour ────────────────────────────────────────────────────
+final dailyPronoProvider = FutureProvider<MatchEntity?>((ref) async {
+  final dio = ref.read(dioProvider);
+  try {
+    final r = await dio.get('/pronostics/daily');
+    if (r.data == null) return null;
+    return MatchModel.fromJson(r.data as Map<String, dynamic>);
+  } catch (_) {
+    return null;
+  }
+});
+
+// ─── Pronostics IA personnalisés ──────────────────────────────────────────────
+class ForYouRec {
+  final int            score;
+  final List<String>   reasons;
+  final ForYouProno    pronostic;
+  const ForYouRec({required this.score, required this.reasons, required this.pronostic});
+
+  factory ForYouRec.fromJson(Map<String, dynamic> j) => ForYouRec(
+    score:     (j['score'] as num).toInt(),
+    reasons:   List<String>.from(j['reasons'] as List),
+    pronostic: ForYouProno.fromJson(j['pronostic'] as Map<String, dynamic>),
+  );
+}
+
+class ForYouProno {
+  final String  id, league, leagueCode, homeTeam, awayTeam;
+  final String  predictionType, predictionLabel;
+  final double  oddsRecommended;
+  final int     confidenceScore, aiProbability;
+  final String? analystNote, analystName;
+  final bool    isPremium;
+  final DateTime matchDate;
+  const ForYouProno({
+    required this.id, required this.league, required this.leagueCode,
+    required this.homeTeam, required this.awayTeam,
+    required this.predictionType, required this.predictionLabel,
+    required this.oddsRecommended, required this.confidenceScore,
+    required this.aiProbability, required this.matchDate,
+    this.analystNote, this.analystName, this.isPremium = false,
+  });
+  factory ForYouProno.fromJson(Map<String, dynamic> j) => ForYouProno(
+    id:               j['id'] as String,
+    league:           j['league'] as String,
+    leagueCode:       j['league_code'] as String,
+    homeTeam:         j['home_team'] as String,
+    awayTeam:         j['away_team'] as String,
+    predictionType:   j['prediction_type'] as String,
+    predictionLabel:  j['prediction_label'] as String,
+    oddsRecommended:  (j['odds_recommended'] as num).toDouble(),
+    confidenceScore:  (j['confidence_score'] as num).toInt(),
+    aiProbability:    (j['ai_probability'] as num).toInt(),
+    matchDate:        DateTime.parse(j['match_date'] as String).toLocal(),
+    analystNote:      j['analyst_note'] as String?,
+    analystName:      j['analyst_name'] as String?,
+    isPremium:        (j['is_premium'] as bool?) ?? false,
+  );
+}
+
+class ForYouProfile {
+  final int      totalBets, winRate;
+  final List<String> topLeagues, topBetTypes;
+  final double   oddsSweetMin, oddsSweetMax;
+  final bool     isNewUser;
+  const ForYouProfile({
+    required this.totalBets, required this.winRate,
+    required this.topLeagues, required this.topBetTypes,
+    required this.oddsSweetMin, required this.oddsSweetMax,
+    required this.isNewUser,
+  });
+  factory ForYouProfile.fromJson(Map<String, dynamic> j) => ForYouProfile(
+    totalBets:    (j['total_bets']     as num).toInt(),
+    winRate:      (j['win_rate']       as num).toInt(),
+    topLeagues:   List<String>.from(j['top_leagues'] as List),
+    topBetTypes:  List<String>.from(j['top_bet_types'] as List),
+    oddsSweetMin: (j['odds_sweet_min'] as num).toDouble(),
+    oddsSweetMax: (j['odds_sweet_max'] as num).toDouble(),
+    isNewUser:    (j['is_new_user']    as bool?) ?? true,
+  );
+}
+
+class ForYouData {
+  final ForYouProfile      profile;
+  final List<ForYouRec>    recommendations;
+  const ForYouData({required this.profile, required this.recommendations});
+}
+
+final forYouProvider = FutureProvider.autoDispose<ForYouData>((ref) async {
+  final dio = ref.read(dioProvider);
+  final r   = await dio.get('/pronostics/for-you');
+  final d   = r.data as Map<String, dynamic>;
+  return ForYouData(
+    profile:         ForYouProfile.fromJson(d['profile'] as Map<String, dynamic>),
+    recommendations: (d['recommendations'] as List)
+        .map((e) => ForYouRec.fromJson(e as Map<String, dynamic>))
+        .toList(),
+  );
+});
+
+// ─── Comptage de matchs par jour (sélecteur de dates) ──────────────────────────
+// Fenêtre complète (30j passés + 7j à venir) indépendante du jour sélectionné —
+// contrairement à matchesPaginatedProvider qui ne charge que le jour en cours.
+final dayCountsProvider = FutureProvider.autoDispose<Map<String, int>>((ref) async {
+  const cacheKey = 'pronostics_day_counts';
+  try {
+    final r    = await ref.read(dioProvider).get('/pronostics/counts-by-day');
+    final data = (r.data as Map<String, dynamic>).map((k, v) => MapEntry(k, v as int));
+    await CacheService.save(cacheKey, data);
+    return data;
+  } catch (_) {
+    return await CacheService.loadStale<Map<String, int>>(
+      cacheKey, (d) => (d as Map<String, dynamic>).map((k, v) => MapEntry(k, v as int))) ?? {};
+  }
+});
+
+// ─── Totaux réels du jour (barre de stats) ─────────────────────────────────────
+// Indépendant de matchesPaginatedProvider, qui ne reflète que la page déjà
+// chargée : sans ça, "0 prono" ne veut souvent rien dire (les premiers matchs
+// du jour, triés par heure, n'ont pas encore de pronostic publié).
+class DaySummary {
+  final int total;
+  final int withPronostic;
+  final int live;
+  const DaySummary({required this.total, required this.withPronostic, required this.live});
+
+  factory DaySummary.fromJson(Map<String, dynamic> j) => DaySummary(
+    total:         j['total']         as int? ?? 0,
+    withPronostic: j['withPronostic'] as int? ?? 0,
+    live:          j['live']          as int? ?? 0,
+  );
+
+  Map<String, dynamic> toJson() =>
+      {'total': total, 'withPronostic': withPronostic, 'live': live};
+}
+
+final daySummaryProvider =
+    FutureProvider.autoDispose.family<DaySummary, String>((ref, dateFilter) async {
+  final cacheKey = 'pronostics_day_summary_$dateFilter';
+  try {
+    final r = await ref.read(dioProvider).get(
+      '/pronostics/day-summary',
+      queryParameters: {
+        'date_filter': dateFilter,
+        'tz_offset':   decalageUtcMinutes(),
+      },
+    );
+    final summary = DaySummary.fromJson(r.data as Map<String, dynamic>);
+    await CacheService.save(cacheKey, summary.toJson());
+    return summary;
+  } catch (_) {
+    return await CacheService.loadStale<DaySummary>(
+        cacheKey, (d) => DaySummary.fromJson(d as Map<String, dynamic>)) ??
+        const DaySummary(total: 0, withPronostic: 0, live: 0);
+  }
+});
+
 // ─── Ligues ───────────────────────────────────────────────────────────────────
 final leaguesProvider = FutureProvider<List<LeagueEntity>>((ref) async {
   const cacheKey = 'leagues';
@@ -417,4 +777,279 @@ final leaguesProvider = FutureProvider<List<LeagueEntity>>((ref) async {
     if (cached != null) return cached;
     rethrow;
   }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ENRICHISSEMENTS API-FOOTBALL (plan Pro)
+// ═══════════════════════════════════════════════════════════════════════════
+//
+// Tous optionnels : ils enrichissent un match sans le définir. Un 503 côté
+// fournisseur doit se traduire par une section absente, jamais par une page
+// cassée — les widgets s'effacent silencieusement plutôt que d'afficher une
+// erreur pour du bonus.
+
+/// Un axe de comparaison du modèle : « Attaque 100 % / 0 % ».
+class ComparisonAxis {
+  final String label;
+  final double home, away;
+  const ComparisonAxis({required this.label, required this.home, required this.away});
+
+  factory ComparisonAxis.fromJson(Map<String, dynamic> j) => ComparisonAxis(
+    label: j['label'] as String? ?? '',
+    home:  (j['home'] as num?)?.toDouble() ?? 0,
+    away:  (j['away'] as num?)?.toDouble() ?? 0,
+  );
+}
+
+class MatchInsights {
+  final String? advice, winnerName, winnerComment, underOver;
+  final double percentHome, percentDraw, percentAway;
+  final List<ComparisonAxis> comparisons;
+  final String? formHome, formAway;
+  final int cleanSheetHome, cleanSheetAway;
+
+  /// Buts marqués et encaissés **par match** cette saison.
+  ///
+  /// Le serveur envoyait déjà `goals_average` ; le mobile ne le lisait pas.
+  /// La moyenne encaissée, elle, n'était même pas récupérée — or une attaque à
+  /// 2,0 face à une défense à 0,5 ne raconte pas la même chose qu'à 2,0 contre
+  /// 2,0.
+  final double? butsMarquesDom, butsMarquesExt;
+  final double? butsEncaissesDom, butsEncaissesExt;
+
+  /// Buts marqués par tranche de 15 minutes, `null` hors championnat (un tour
+  /// de coupe n'a pas de tableau de saison).
+  final Map<String, int>? goalsByMinuteHome, goalsByMinuteAway;
+
+  final String homeTeam, awayTeam;
+
+  /// La sortie du modèle externe est-elle exploitable ?
+  ///
+  /// `false` quand le fournisseur a rendu des butées plutôt qu'une prédiction :
+  /// 0 % pour une équipe, tous les axes à 0/100. Sur Lask Linz – Celtic, il
+  /// donnait 0 % à Lask Linz et 100 % de l'avantage à Celtic sur les cinq
+  /// critères ; Lask Linz a gagné 4–1.
+  ///
+  /// Le serveur vide alors les champs, mais l'écran a besoin de le **savoir**
+  /// pour se taire — sans quoi il afficherait « Pourquoi ce pronostic » avec
+  /// trois zéros.
+  final bool modeleExploitable;
+
+  /// D'où viennent les probabilités affichées : `'marche'` ou `'modele'`.
+  ///
+  /// Les deux lectures cohabitaient dans l'application sans jamais se croiser.
+  /// Sur Lask Linz – Celtic, le modèle donnait Lask Linz sous 1 % pendant que
+  /// les cotes de l'onglet voisin le donnaient favori à 48,5 % — il a gagné
+  /// 4–1. Nommer la source évite de faire passer l'une pour l'autre.
+  final String? sourceProbabilites;
+
+  /// Marge du bookmaker, en points, quand les probabilités viennent du marché.
+  final double? margeBookmaker;
+
+  bool get probabilitesDuMarche => sourceProbabilites == 'marche';
+
+  const MatchInsights({
+    this.advice, this.winnerName, this.winnerComment, this.underOver,
+    required this.percentHome, required this.percentDraw, required this.percentAway,
+    required this.comparisons,
+    this.modeleExploitable = true,
+    this.sourceProbabilites,
+    this.margeBookmaker,
+    this.formHome, this.formAway,
+    required this.cleanSheetHome, required this.cleanSheetAway,
+    this.goalsByMinuteHome, this.goalsByMinuteAway,
+    this.butsMarquesDom, this.butsMarquesExt,
+    this.butsEncaissesDom, this.butsEncaissesExt,
+    required this.homeTeam, required this.awayTeam,
+  });
+
+  static Map<String, int>? _minutes(dynamic v) => v == null
+      ? null
+      : (v as Map<String, dynamic>)
+          .map((k, val) => MapEntry(k, (val as num?)?.toInt() ?? 0));
+
+  factory MatchInsights.fromJson(Map<String, dynamic> j) {
+    final p  = j['percent'] as Map<String, dynamic>? ?? const {};
+    final cs = j['clean_sheet'] as Map<String, dynamic>? ?? const {};
+    final f  = j['form'] as Map<String, dynamic>? ?? const {};
+    final gm = j['goals_by_minute'] as Map<String, dynamic>? ?? const {};
+    final ga = j['goals_average'] as Map<String, dynamic>? ?? const {};
+    final gc = j['goals_conceded_average'] as Map<String, dynamic>? ?? const {};
+    // L API rend ces moyennes sous forme de chaines (« 2.0 ») : les lire comme
+    // des nombres directement produirait null en silence.
+    double? moyenne(dynamic cote) {
+      final t = (cote as Map<String, dynamic>?)?['total'];
+      return t == null ? null : double.tryParse(t.toString());
+    }
+    return MatchInsights(
+      advice:        j['advice'] as String?,
+      winnerName:    j['winner_name'] as String?,
+      winnerComment: j['winner_comment'] as String?,
+      underOver:     j['under_over'] as String?,
+      // Absent d'une réponse d'une version antérieure du serveur : on suppose
+      // exploitable, comme avant l'introduction du drapeau.
+      modeleExploitable: j['modele_exploitable'] as bool? ?? true,
+      sourceProbabilites: j['source_probabilites'] as String?,
+      margeBookmaker: (j['marge_bookmaker'] as num?)?.toDouble(),
+      butsMarquesDom:   moyenne(ga['home']),
+      butsMarquesExt:   moyenne(ga['away']),
+      butsEncaissesDom: moyenne(gc['home']),
+      butsEncaissesExt: moyenne(gc['away']),
+      percentHome: (p['home'] as num?)?.toDouble() ?? 0,
+      percentDraw: (p['draw'] as num?)?.toDouble() ?? 0,
+      percentAway: (p['away'] as num?)?.toDouble() ?? 0,
+      comparisons: ((j['comparisons'] as List?) ?? const [])
+          .map((e) => ComparisonAxis.fromJson(e as Map<String, dynamic>))
+          .toList(),
+      formHome: f['home'] as String?,
+      formAway: f['away'] as String?,
+      cleanSheetHome: (cs['home'] as num?)?.toInt() ?? 0,
+      cleanSheetAway: (cs['away'] as num?)?.toInt() ?? 0,
+      goalsByMinuteHome: _minutes(gm['home']),
+      goalsByMinuteAway: _minutes(gm['away']),
+      homeTeam: j['home_team'] as String? ?? '',
+      awayTeam: j['away_team'] as String? ?? '',
+    );
+  }
+}
+
+final matchInsightsProvider =
+    FutureProvider.autoDispose.family<MatchInsights, String>((ref, id) async {
+  final r = await ref.read(dioProvider).get('/pronostics/$id/insights');
+  return MatchInsights.fromJson(r.data as Map<String, dynamic>);
+});
+
+// ─── Cotes en direct ─────────────────────────────────────────────────────────
+
+class LiveOddValue {
+  final String value;
+  final double odd;
+
+  /// Seuil du marché — « 2.5 », « -0.5 ». Absent quand le marché n'en a pas.
+  ///
+  /// Il manquait : l'écran affichait « Over 7.50 » sur un marché de buts, où
+  /// 7,50 est la **cote**. Le serveur ne publie plus un marché à seuil dont le
+  /// seuil est inconnu, mais il faut encore l'afficher quand il existe — sans
+  /// quoi trois lignes Over/Under restent trois rangées identiques.
+  final String? ligne;
+
+  const LiveOddValue({required this.value, required this.odd, this.ligne});
+
+  /// « Plus de 2.5 », « Home -0.5 », ou le libellé seul.
+  String get libelle => ligne == null ? value : '$value $ligne';
+}
+
+class LiveOddMarket {
+  final String name;
+  final List<LiveOddValue> values;
+  const LiveOddMarket({required this.name, required this.values});
+}
+
+class LiveOddsData {
+  final int? elapsed;
+  final double openingOdd;
+  final List<LiveOddMarket> markets;
+  const LiveOddsData({this.elapsed, required this.openingOdd, required this.markets});
+
+  factory LiveOddsData.fromJson(Map<String, dynamic> j) => LiveOddsData(
+    elapsed:    (j['elapsed'] as num?)?.toInt(),
+    openingOdd: (j['opening_odd'] as num?)?.toDouble() ?? 0,
+    markets: ((j['markets'] as List?) ?? const []).map((m) {
+      final mm = m as Map<String, dynamic>;
+      return LiveOddMarket(
+        name: mm['name'] as String? ?? '',
+        values: ((mm['values'] as List?) ?? const []).map((v) {
+          final vv = v as Map<String, dynamic>;
+          final ligne = vv['ligne'] as String?;
+          return LiveOddValue(
+            value: vv['value'] as String? ?? '',
+            odd:   (vv['odd'] as num?)?.toDouble() ?? 0,
+            ligne: (ligne != null && ligne.isNotEmpty) ? ligne : null,
+          );
+        }).toList(),
+      );
+    }).toList(),
+  );
+}
+
+final liveOddsProvider =
+    FutureProvider.autoDispose.family<LiveOddsData, String>((ref, id) async {
+  final r = await ref.read(dioProvider).get('/pronostics/$id/live-odds');
+  return LiveOddsData.fromJson(r.data as Map<String, dynamic>);
+});
+
+// ─── Notes de joueurs ────────────────────────────────────────────────────────
+
+class PlayerRating {
+  final String name;
+  final String? photo;
+  final String team; // 'home' | 'away'
+  final double rating;
+  final int minutes, goals, assists, shots, passes;
+
+  const PlayerRating({
+    required this.name, this.photo, required this.team, required this.rating,
+    required this.minutes, required this.goals, required this.assists,
+    required this.shots, required this.passes,
+  });
+
+  factory PlayerRating.fromJson(Map<String, dynamic> j) => PlayerRating(
+    name:    j['name'] as String? ?? '',
+    photo:   j['photo'] as String?,
+    team:    j['team'] as String? ?? 'home',
+    rating:  (j['rating'] as num?)?.toDouble() ?? 0,
+    minutes: (j['minutes'] as num?)?.toInt() ?? 0,
+    goals:   (j['goals'] as num?)?.toInt() ?? 0,
+    assists: (j['assists'] as num?)?.toInt() ?? 0,
+    shots:   (j['shots'] as num?)?.toInt() ?? 0,
+    passes:  (j['passes'] as num?)?.toInt() ?? 0,
+  );
+}
+
+final playerRatingsProvider =
+    FutureProvider.autoDispose.family<List<PlayerRating>, String>((ref, id) async {
+  final r = await ref.read(dioProvider).get('/pronostics/$id/ratings');
+  return ((r.data['players'] as List?) ?? const [])
+      .map((e) => PlayerRating.fromJson(e as Map<String, dynamic>))
+      .toList();
+});
+
+// ─── Meilleurs buteurs ───────────────────────────────────────────────────────
+
+class TopScorer {
+  final int rank, goals, assists, penalties, appearances;
+  final String name, team;
+  final String? photo, teamLogo;
+
+  const TopScorer({
+    required this.rank, required this.name, this.photo,
+    required this.team, this.teamLogo,
+    required this.goals, required this.assists,
+    required this.penalties, required this.appearances,
+  });
+
+  factory TopScorer.fromJson(Map<String, dynamic> j) => TopScorer(
+    rank:        (j['rank'] as num?)?.toInt() ?? 0,
+    name:        j['name'] as String? ?? '',
+    photo:       j['photo'] as String?,
+    team:        j['team'] as String? ?? '',
+    teamLogo:    j['teamLogo'] as String?,
+    goals:       (j['goals'] as num?)?.toInt() ?? 0,
+    assists:     (j['assists'] as num?)?.toInt() ?? 0,
+    penalties:   (j['penalties'] as num?)?.toInt() ?? 0,
+    appearances: (j['appearances'] as num?)?.toInt() ?? 0,
+  );
+}
+
+/// Buteurs d'une compétition, par code interne (`PL`, `PD`, `CL`…).
+///
+/// Les codes `AF_*` (compétitions hors des sept suivies) n'ont pas d'entrée
+/// dans la table du backend : l'appel répond 400 et le widget s'efface.
+final topScorersProvider =
+    FutureProvider.autoDispose.family<List<TopScorer>, String>((ref, code) async {
+  final r = await ref.read(dioProvider)
+      .get('/pronostics/top-scorers', queryParameters: {'league': code});
+  return (r.data as List)
+      .map((e) => TopScorer.fromJson(e as Map<String, dynamic>))
+      .toList();
 });

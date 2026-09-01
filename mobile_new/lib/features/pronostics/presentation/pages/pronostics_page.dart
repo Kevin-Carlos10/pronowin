@@ -1,3 +1,5 @@
+import 'package:dio/dio.dart';
+import '../../../../core/utils/motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -7,12 +9,13 @@ import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../features/notifications/presentation/providers/notification_service.dart';
+import '../../../../shared/utils/premium_nav.dart';
 import '../../domain/entities/match_entity.dart';
 import '../providers/pronostics_provider.dart';
 import '../providers/favorites_provider.dart';
 import '../widgets/match_card_widget.dart';
 import '../../../../shared/widgets/skeletons.dart';
-import 'search_page.dart';
+import '../../../../shared/widgets/bottom_nav_metrics.dart';
 
 class PronosticsPage extends ConsumerStatefulWidget {
   const PronosticsPage({super.key});
@@ -21,17 +24,61 @@ class PronosticsPage extends ConsumerStatefulWidget {
   ConsumerState<PronosticsPage> createState() => _PronosticsPageState();
 }
 
+enum _PronosticsTab { all, forYou, favorites }
+
+// ── Importance des championnats ─────────────────────────────────────────────
+// Priorise les grandes compétitions dans l'affichage : sans ça, les sections
+// sont triées par heure de coup d'envoi, et un petit tournoi régional (ex.
+// U21, coupe amicale) peut se retrouver au-dessus de la Champions League ou
+// de la Premier League simplement parce qu'il commence plus tôt.
+const _topTierLeagues = {
+  'uefa champions league',
+  'premier league',
+  'la liga',
+  'serie a',
+  'bundesliga',
+  'ligue 1',
+  'uefa europa league',
+  'world cup',
+  'coupe du monde',
+};
+
+const _secondTierLeagues = {
+  'uefa europa conference league',
+  'championship',
+  'eredivisie',
+  'primeira liga',
+  'copa libertadores',
+  'copa america',
+  'euro championship',
+  'major league soccer',
+  'liga mx',
+  'saudi pro league',
+  'süper lig',
+  'super lig',
+  'scottish premiership',
+  'brasileirão',
+  'campeonato brasileiro',
+};
+
+int _leagueImportance(String league) {
+  final l = league.toLowerCase();
+  final isWomen = l.contains('women') || l.endsWith(' w');
+
+  int tier = 2;
+  if (_topTierLeagues.any((t) => l == t || l.startsWith('$t '))) {
+    tier = 0;
+  } else if (_secondTierLeagues.any((t) => l.contains(t))) {
+    tier = 1;
+  }
+  if (isWomen && tier < 2) tier += 1;
+  return tier;
+}
+
 class _PronosticsPageState extends ConsumerState<PronosticsPage> {
   DateTime _selectedDate = DateTime.now();
   late final List<DateTime> _dates;
-  bool _showFavorites = false;
-
-  final _sports = [
-    {'id': 'all',        'label': 'Tous',       'icon': Icons.apps_rounded},
-    {'id': 'football',   'label': 'Football',   'icon': Icons.sports_soccer},
-    {'id': 'basketball', 'label': 'Basketball', 'icon': Icons.sports_basketball},
-    {'id': 'tennis',     'label': 'Tennis',     'icon': Icons.sports_tennis},
-  ];
+  _PronosticsTab _tab = _PronosticsTab.all;
 
   static const _pastDays   = 30;
   static const _futureDays = 7;
@@ -80,26 +127,30 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
+  String _dateFilterStr(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
+      '${d.month.toString().padLeft(2, '0')}-'
+      '${d.day.toString().padLeft(2, '0')}';
+
   @override
   Widget build(BuildContext context) {
-    final filter        = ref.watch(pronosticsFilterProvider);
-    final statusFilter  = ref.watch(statusFilterProvider);
-    final leagueFilter  = ref.watch(leagueFilterProvider);
+    final statusFilter      = ref.watch(statusFilterProvider);
+    final hasPronosticFilter = ref.watch(hasPronosticFilterProvider);
+    final daySummaryAsync   = ref.watch(daySummaryProvider(_dateFilterStr(_selectedDate)));
+    final leagueFilter      = ref.watch(leagueFilterProvider);
     final oddsRange     = ref.watch(oddsRangeFilterProvider);
     final pagedState    = ref.watch(matchesPaginatedProvider);
     final authState     = ref.watch(authProvider);
-    final unread        = ref.watch(unreadCountProvider);
     final favState      = ref.watch(favoritesProvider);
     final isPremium     = authState is AuthAuthenticated && authState.user.isPremium;
     final favCount      = favState.matchIds.length + favState.leagues.length;
     final allMatches    = pagedState.matches;
+    final showFavorites = _tab == _PronosticsTab.favorites;
+    final showForYou    = _tab == _PronosticsTab.forYou;
 
-    // Compteurs par jour (pour badges + jours grisés)
-    final Map<String, int> matchCountByDay = {};
-    for (final m in allMatches) {
-      final key = '${m.matchDate.year}-${m.matchDate.month}-${m.matchDate.day}';
-      matchCountByDay[key] = (matchCountByDay[key] ?? 0) + 1;
-    }
+    // Compteurs par jour (pour badges du sélecteur de dates) — endpoint dédié
+    // sur toute la fenêtre visible (30j passés + 7j à venir), car allMatches
+    // ne contient que le jour actuellement sélectionné (filtré côté serveur).
+    final matchCountByDay = ref.watch(dayCountsProvider).valueOrNull ?? const <String, int>{};
 
     // Ligues disponibles pour le jour sélectionné (pour le filtre)
     final List<String> availableLeagues = [];
@@ -112,26 +163,80 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
     final activeAdvancedCount = (leagueFilter != null ? 1 : 0) +
         (oddsRange != OddsRange.all ? 1 : 0);
 
+    // Matchs du jour, avant filtres avancés : la feuille s'en sert pour
+    // annoncer combien de résultats donnera la sélection en cours.
+    final matchsDuJour = allMatches
+        .where((m) => _isSameDay(m.matchDate, _selectedDate))
+        .toList();
+
     return Scaffold(
-      appBar: _buildAppBar(context, unread, activeAdvancedCount, availableLeagues),
+      appBar: _buildAppBar(
+          context, activeAdvancedCount, availableLeagues, matchsDuJour),
       body: Column(children: [
-        // ── Tab toggle Pronostics / Favoris ──────────────────────────────────
+        // ── Tab toggle ────────────────────────────────────────────────────────
         _TabToggle(
-          showFavorites: _showFavorites,
-          favCount:      favCount,
-          onToggle: (v) {
+          tab:      _tab,
+          favCount: favCount,
+          onTab: (t) {
             HapticFeedback.selectionClick();
-            setState(() => _showFavorites = v);
+            setState(() => _tab = t);
           },
         ),
 
+        // ── Vue Pour Toi ──────────────────────────────────────────────────────
+        if (showForYou) Expanded(
+          child: ref.watch(forYouProvider).when(
+            loading: () => _ShimmerList(),
+            error:   (e, _) {
+              // /for-you exige connexion + Premium — distinguer les deux cas
+              // plutôt que d'afficher le DioException brut (401/403).
+              final status = e is DioException ? e.response?.statusCode : null;
+              if (status == 401) {
+                return _AuthGateView(
+                  icon:        Icons.login_rounded,
+                  title:       'Connecte-toi pour voir tes recommandations',
+                  message:     'L\'onglet "Pour Toi" propose des pronostics personnalisés '
+                               'selon tes équipes et ligues favorites.',
+                  buttonLabel: 'Se connecter',
+                  onAction:    () => context.push('/auth/email?from=${Uri.encodeComponent('/pronostics')}'));
+              }
+              if (status == 403) {
+                return _AuthGateView(
+                  icon:        Icons.workspace_premium_rounded,
+                  title:       'Fonctionnalité réservée aux membres Premium',
+                  message:     'Débloque des recommandations personnalisées selon '
+                               'tes préférences avec Premium.',
+                  buttonLabel: 'Découvrir Premium',
+                  onAction:    () => goToPremium(context, ref));
+              }
+              return _ErrorView(
+                message: e.toString().replaceAll('Exception:', '').trim(),
+                onRetry: () => ref.invalidate(forYouProvider));
+            },
+            data: (d) => _ForYouView(data: d, isPremium: isPremium),
+          ),
+        ),
+
         // ── Vue Favoris ───────────────────────────────────────────────────────
-        if (_showFavorites) Expanded(
+        if (showFavorites) Expanded(
           child: ref.watch(favoritesMatchesProvider).when(
             loading: () => _ShimmerList(),
-            error: (e, _) => _ErrorView(
-              message: e.toString().replaceAll('Exception:', '').trim(),
-              onRetry: () => ref.invalidate(favoritesMatchesProvider)),
+            error: (e, _) {
+              // /favorites exige juste une connexion (pas de Premium) — 401 seul à gérer.
+              final status = e is DioException ? e.response?.statusCode : null;
+              if (status == 401) {
+                return _AuthGateView(
+                  icon:        Icons.login_rounded,
+                  title:       'Connecte-toi pour retrouver tes favoris',
+                  message:     'Épingle tes matchs et tes ligues préférées pour les '
+                               'retrouver rapidement ici.',
+                  buttonLabel: 'Se connecter',
+                  onAction:    () => context.push('/auth/email?from=${Uri.encodeComponent('/pronostics')}'));
+              }
+              return _ErrorView(
+                message: e.toString().replaceAll('Exception:', '').trim(),
+                onRetry: () => ref.invalidate(favoritesMatchesProvider));
+            },
             data: (favMatches) => _FavoritesView(
               favMatches: favMatches,
               favState:   favState,
@@ -142,7 +247,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
         ),
 
         // ── Vue normale ───────────────────────────────────────────────────────
-        if (!_showFavorites) ...[
+        if (_tab == _PronosticsTab.all) ...[
           _DateScrollBar(
             dates:           _dates,
             selectedDate:    _selectedDate,
@@ -157,12 +262,6 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
               ref.read(pronosticsFilterProvider.notifier)
                   .update((f) => f.copyWith(dateFilter: dateStr));
             },
-          ),
-          _SportFilter(
-            sports:   _sports,
-            selected: filter.sport,
-            onSelect: (id) => ref.read(pronosticsFilterProvider.notifier)
-                .update((f) => f.copyWith(sport: id)),
           ),
           _StatusFilterBar(
             selected: statusFilter,
@@ -209,22 +308,32 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                   }).toList();
                 }
 
-                // Stats du jour (avant filtres avancés)
-                final dayAll    = matches.where((m) => _isSameDay(m.matchDate, _selectedDate)).toList();
-                final dayPronos = dayAll.where((m) => m.hasPronostic).length;
-                final dayLive   = dayAll.where((m) => m.status == MatchStatus.live).length;
+                // Stats du jour — totaux réels (indépendants de la pagination) si
+                // disponibles, sinon repli sur la page déjà chargée le temps du fetch.
+                final dayAll     = matches.where((m) => _isSameDay(m.matchDate, _selectedDate)).toList();
+                final daySummary = daySummaryAsync.valueOrNull;
+                final statTotal  = daySummary?.total         ?? dayAll.length;
+                final statPronos = daySummary?.withPronostic ?? dayAll.where((m) => m.hasPronostic).length;
+                final statLive   = daySummary?.live          ?? dayAll.where((m) => m.status == MatchStatus.live).length;
 
-                final hasAnyFilter = statusFilter != null || leagueFilter != null || oddsRange != OddsRange.all;
+                final hasAnyFilter = statusFilter != null || hasPronosticFilter ||
+                    leagueFilter != null || oddsRange != OddsRange.all;
 
                 if (filtered.isEmpty) {
                   return Column(children: [
-                    if (dayAll.isNotEmpty)
-                      _DayStatsBar(total: dayAll.length, pronos: dayPronos, live: dayLive),
+                    if (statTotal > 0)
+                      _DayStatsBar(
+                        total: statTotal, pronos: statPronos, live: statLive,
+                        showOnlyPronos: hasPronosticFilter,
+                        onToggleShowOnlyPronos: () => ref
+                            .read(hasPronosticFilterProvider.notifier).state = !hasPronosticFilter,
+                      ),
                     Expanded(child: _EmptyView(
                       date:          _selectedDate,
                       hasFilter:     hasAnyFilter,
                       onClearFilter: () {
                         ref.read(statusFilterProvider.notifier).state = null;
+                        ref.read(hasPronosticFilterProvider.notifier).state = false;
                         ref.read(leagueFilterProvider.notifier).state = null;
                         ref.read(oddsRangeFilterProvider.notifier).state = OddsRange.all;
                       },
@@ -232,31 +341,81 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                   ]);
                 }
 
-                // Grouper par ligue — LIVE en premier dans chaque groupe
-                final Map<String, List<MatchEntity>> byLeague = {};
-                for (final m in filtered) {
-                  byLeague.putIfAbsent(m.league, () => []).add(m);
-                }
-                for (final league in byLeague.keys) {
-                  byLeague[league]!.sort((a, b) {
-                    if (a.status == MatchStatus.live && b.status != MatchStatus.live) return -1;
-                    if (b.status == MatchStatus.live && a.status != MatchStatus.live) return 1;
-                    return a.matchDate.compareTo(b.matchDate);
-                  });
-                }
-                final leagues = byLeague.keys.toList()
-                  ..sort((a, b) => byLeague[a]!.first.matchDate
-                      .compareTo(byLeague[b]!.first.matchDate));
+                // Répartition en 4 paliers de statut — met en avant le
+                // contenu à forte valeur (pronostics) au lieu de le disperser
+                // section de ligue par section de ligue. Chaque palier reste
+                // trié compétition majeure → mineure en interne, et un match
+                // LIVE sans prono reste dans le palier "En direct" (pas noyé
+                // parmi les analyses en cours) car c'est l'info la plus
+                // urgente pour l'utilisateur, prono ou pas.
+                final liveMatches = filtered
+                    .where((m) => m.status == MatchStatus.live).toList();
+                final upcomingPronoMatches = filtered
+                    .where((m) => m.status == MatchStatus.upcoming && m.hasPronostic).toList();
+                final analysisMatches = filtered
+                    .where((m) => m.status == MatchStatus.upcoming && !m.hasPronostic).toList();
+                final finishedMatches = filtered
+                    .where((m) => m.status == MatchStatus.finished).toList();
+
+                final tierWidgets = <Widget>[
+                  ..._buildTierSection(context,
+                      label:    'En direct',
+                      icon:     Icons.radio_button_checked_rounded,
+                      color:    AppColors.error,
+                      matches:  liveMatches,
+                      favLeagues: favState.leagues,
+                      isPremium: isPremium),
+                  ..._buildTierSection(context,
+                      label:    'Pronostics du jour',
+                      icon:     Icons.analytics_outlined,
+                      color:    AppColors.primary,
+                      matches:  upcomingPronoMatches,
+                      favLeagues: favState.leagues,
+                      isPremium: isPremium),
+                  ..._buildTierSection(context,
+                      label:    'Analyse en cours',
+                      icon:     Icons.hourglass_top_rounded,
+                      color:    context.cl.textM,
+                      matches:  analysisMatches,
+                      favLeagues: favState.leagues,
+                      isPremium: isPremium),
+                  ..._buildTierSection(context,
+                      label:    'Terminés',
+                      icon:     Icons.check_circle_outline_rounded,
+                      color:    AppColors.success,
+                      matches:  finishedMatches,
+                      favLeagues: favState.leagues,
+                      isPremium: isPremium),
+                ];
 
                 return RefreshIndicator(
                   color: AppColors.primary,
                   onRefresh: () async =>
                       ref.read(matchesPaginatedProvider.notifier).refresh(),
-                  child: ListView(
-                    controller: _listScrollCtrl,
-                    padding: const EdgeInsets.fromLTRB(14, 0, 14, 100),
-                    children: [
-                      _DayStatsBar(total: dayAll.length, pronos: dayPronos, live: dayLive),
+                  child: Builder(builder: (context) {
+                    // Liste paresseuse.
+                    //
+                    // `ListView(children:)` construisait et disposait **toutes**
+                    // les cartes du jour — soixante et plus les jours chargés —
+                    // pour six visibles à l'écran.
+                    //
+                    // L'animation d'entrée était pire : chaque carte portait un
+                    // délai `palier + ligue*80 + rang*60`, qui croît sans borne.
+                    // Une carte en huitième ligue attendait plus d'une seconde
+                    // et demie, hors écran, pour rien.
+                    //
+                    // Elle est désormais appliquée ici, sur les seuls premiers
+                    // éléments : c'est la seule fenêtre où un décalage se voit.
+                    // Au-delà, la carte apparaît telle quelle — ce qui est aussi
+                    // ce qu'il faut quand elle arrive par défilement, sinon elle
+                    // resterait vide le temps d'un délai déjà écoulé.
+                    final elements = <Widget>[
+                      _DayStatsBar(
+                        total: statTotal, pronos: statPronos, live: statLive,
+                        showOnlyPronos: hasPronosticFilter,
+                        onToggleShowOnlyPronos: () => ref
+                            .read(hasPronosticFilterProvider.notifier).state = !hasPronosticFilter,
+                      ),
                       if (hasAnyFilter)
                         _ActiveFiltersBar(
                           statusFilter:  statusFilter,
@@ -264,30 +423,12 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                           oddsRange:     oddsRange,
                           onClear:       () {
                             ref.read(statusFilterProvider.notifier).state = null;
+                            ref.read(hasPronosticFilterProvider.notifier).state = false;
                             ref.read(leagueFilterProvider.notifier).state = null;
                             ref.read(oddsRangeFilterProvider.notifier).state = OddsRange.all;
                           },
                         ),
-                      for (final (li, league) in leagues.indexed) ...[
-                        _LeagueSectionHeader(
-                          league:      league,
-                          leagueCode:  byLeague[league]!.first.leagueCountry,
-                          count:       byLeague[league]!.length,
-                          isFav:       favState.leagues.contains(league),
-                          onToggleFav: () => ref.read(favoritesProvider.notifier).toggleLeague(league),
-                        )
-                          .animate(delay: Duration(milliseconds: li * 80))
-                          .fadeIn(duration: 250.ms)
-                          .slideX(begin: -0.04, end: 0, duration: 250.ms,
-                              curve: Curves.easeOutCubic),
-                        ...byLeague[league]!.asMap().entries.map((e) =>
-                          MatchCardWidget(match: e.value, isPremiumUser: isPremium)
-                            .animate(delay: Duration(milliseconds: li * 80 + e.key * 60 + 30))
-                            .fadeIn(duration: 300.ms)
-                            .slideY(begin: 0.08, end: 0,
-                                duration: 300.ms, curve: Curves.easeOutCubic)),
-                        const SizedBox(height: 4),
-                      ],
+                      ...tierWidgets,
                       // Footer infinite scroll
                       if (pagedState.isLoadingMore)
                         const Padding(
@@ -303,8 +444,16 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                             style: TextStyle(color: context.cl.textM, fontSize: 12),
                           )),
                         ),
-                    ],
-                  ),
+                    ];
+
+                    return ListView.builder(
+                      controller: _listScrollCtrl,
+                      padding: EdgeInsets.fromLTRB(
+                        14, 0, 14, bottomNavSpace(context)),
+                      itemCount:  elements.length,
+                      itemBuilder: (context, i) => context.entree(elements[i], i),
+                    );
+                  }),
                 );
               }),
           ),
@@ -313,11 +462,73 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
     );
   }
 
+  // Construit un palier de statut (ex. "En direct") : en-tête de palier,
+  // puis les matchs groupés par ligue (majeure → mineure), et au sein de
+  // chaque ligue triés LIVE d'abord puis prono d'abord puis par heure —
+  // ce dernier tri ne change rien dans les paliers déjà homogènes (ex.
+  // "Pronostics du jour" n'a que des matchs avec prono), mais reste utile
+  // pour "Terminés" où les matchs sans prono ne doivent pas passer devant
+  // ceux qui ont un résultat à afficher.
+  List<Widget> _buildTierSection(
+    BuildContext context, {
+    required String label,
+    required IconData icon,
+    required Color color,
+    required List<MatchEntity> matches,
+    required Set<String> favLeagues,
+    required bool isPremium,
+  }) {
+    if (matches.isEmpty) return const [];
+
+    final Map<String, List<MatchEntity>> byLeague = {};
+    for (final m in matches) {
+      byLeague.putIfAbsent(m.league, () => []).add(m);
+    }
+    for (final league in byLeague.keys) {
+      byLeague[league]!.sort((a, b) {
+        if (a.status == MatchStatus.live && b.status != MatchStatus.live) return -1;
+        if (b.status == MatchStatus.live && a.status != MatchStatus.live) return 1;
+        if (a.hasPronostic && !b.hasPronostic) return -1;
+        if (b.hasPronostic && !a.hasPronostic) return 1;
+        return a.matchDate.compareTo(b.matchDate);
+      });
+    }
+    final leagues = byLeague.keys.toList()
+      ..sort((a, b) {
+        final tierCmp = _leagueImportance(a).compareTo(_leagueImportance(b));
+        if (tierCmp != 0) return tierCmp;
+        return byLeague[a]!.first.matchDate
+            .compareTo(byLeague[b]!.first.matchDate);
+      });
+
+    final widgets = <Widget>[
+      _TierSectionHeader(
+        label: label, icon: icon, color: color, count: matches.length),
+    ];
+
+    for (final league in leagues) {
+      widgets.add(
+        _LeagueSectionHeader(
+          league:      league,
+          leagueCode:  byLeague[league]!.first.leagueCountry,
+          count:       byLeague[league]!.length,
+          isFav:       favLeagues.contains(league),
+          onToggleFav: () => ref.read(favoritesProvider.notifier).toggleLeague(league),
+        ),
+      );
+      widgets.addAll(byLeague[league]!.map((m) =>
+        MatchCardWidget(match: m, isPremiumUser: isPremium)));
+      widgets.add(const SizedBox(height: 4));
+    }
+
+    return widgets;
+  }
+
   AppBar _buildAppBar(
     BuildContext context,
-    int unread,
     int activeAdvancedCount,
     List<String> availableLeagues,
+    List<MatchEntity> matchsDuJour,
   ) => AppBar(
     title: Row(children: [
       Container(
@@ -340,79 +551,111 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
     ]),
     actions: [
       // Bouton recherche
-      GestureDetector(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const SearchPage())),
-        child: Padding(
-          padding: const EdgeInsets.only(right: 4),
-          child: Icon(Icons.search_rounded, color: context.cl.textS, size: 24),
+      Semantics(
+        label: 'Rechercher',
+        button: true,
+        child: GestureDetector(
+          onTap: () => context.push('/recherche'),
+          child: Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: ExcludeSemantics(
+              child: Icon(Icons.search_rounded, color: context.cl.textS, size: 24)),
+          ),
         ),
       ),
       const SizedBox(width: 8),
       // Bouton filtres avancés
-      GestureDetector(
-        onTap: () {
-          HapticFeedback.selectionClick();
-          showModalBottomSheet(
-            context: context,
-            backgroundColor: Colors.transparent,
-            isScrollControlled: true,
-            builder: (_) => _AdvancedFilterSheet(
-              availableLeagues: availableLeagues,
-              currentLeague:    ref.read(leagueFilterProvider),
-              currentOdds:      ref.read(oddsRangeFilterProvider),
-              onApply: (league, odds) {
-                ref.read(leagueFilterProvider.notifier).state = league;
-                ref.read(oddsRangeFilterProvider.notifier).state = odds;
-              },
-              onReset: () {
-                ref.read(leagueFilterProvider.notifier).state = null;
-                ref.read(oddsRangeFilterProvider.notifier).state = OddsRange.all;
-              },
+      Semantics(
+        label: activeAdvancedCount > 0
+          ? 'Filtres avancés, $activeAdvancedCount actif${activeAdvancedCount > 1 ? 's' : ''}'
+          : 'Filtres avancés',
+        button: true,
+        child: GestureDetector(
+          onTap: () {
+            HapticFeedback.selectionClick();
+            showModalBottomSheet(
+              context: context,
+              backgroundColor: Colors.transparent,
+              isScrollControlled: true,
+              builder: (_) => _AdvancedFilterSheet(
+                availableLeagues: availableLeagues,
+                matchsDuJour:     matchsDuJour,
+                currentLeague:    ref.read(leagueFilterProvider),
+                currentOdds:      ref.read(oddsRangeFilterProvider),
+                onApply: (league, odds) {
+                  ref.read(leagueFilterProvider.notifier).state = league;
+                  ref.read(oddsRangeFilterProvider.notifier).state = odds;
+                },
+                onReset: () {
+                  ref.read(leagueFilterProvider.notifier).state = null;
+                  ref.read(oddsRangeFilterProvider.notifier).state = OddsRange.all;
+                },
+              ),
+            );
+          },
+          child: Padding(
+            padding: const EdgeInsets.only(right: 4),
+            child: ExcludeSemantics(
+              child: Stack(clipBehavior: Clip.none, children: [
+                Icon(Icons.tune_rounded, color: activeAdvancedCount > 0
+                    ? AppColors.primary : context.cl.textS, size: 24),
+                if (activeAdvancedCount > 0) Positioned(
+                  top: -3, right: -3,
+                  child: Container(
+                    width: 15, height: 15,
+                    decoration: BoxDecoration(
+                      color: AppColors.primary, shape: BoxShape.circle,
+                      border: Border.all(color: context.cl.bg, width: 1.5)),
+                    child: Center(child: Text('$activeAdvancedCount',
+                      style: const TextStyle(
+                        color: Colors.white, fontSize: 8,
+                        fontWeight: FontWeight.w800))))),
+              ]),
             ),
-          );
-        },
-        child: Padding(
-          padding: const EdgeInsets.only(right: 4),
-          child: Stack(clipBehavior: Clip.none, children: [
-            Icon(Icons.tune_rounded, color: activeAdvancedCount > 0
-                ? AppColors.primary : context.cl.textS, size: 24),
-            if (activeAdvancedCount > 0) Positioned(
-              top: -3, right: -3,
-              child: Container(
-                width: 15, height: 15,
-                decoration: BoxDecoration(
-                  color: AppColors.primary, shape: BoxShape.circle,
-                  border: Border.all(color: context.cl.bg, width: 1.5)),
-                child: Center(child: Text('$activeAdvancedCount',
-                  style: const TextStyle(
-                    color: Colors.white, fontSize: 8,
-                    fontWeight: FontWeight.w800))))),
-          ]),
+          ),
         ),
       ),
       const SizedBox(width: 8),
-      GestureDetector(
-        onTap: () => context.push('/notifications'),
-        child: Padding(
-          padding: const EdgeInsets.only(right: 16),
-          child: Stack(clipBehavior: Clip.none, children: [
-            Icon(Icons.notifications_none_rounded, color: context.cl.textS, size: 26),
-            if (unread > 0) Positioned(
-              top: -3, right: -3,
-              child: Container(
-                width: 16, height: 16,
-                decoration: BoxDecoration(
-                  color: AppColors.error, shape: BoxShape.circle,
-                  border: Border.all(color: context.cl.bg, width: 1.5)),
-                child: Center(
-                  child: Text(unread > 9 ? '9+' : '$unread',
-                    style: const TextStyle(
-                      color: Colors.white, fontSize: 8,
-                      fontWeight: FontWeight.w800))))),
-          ]),
-        ),
-      ),
+      // Le compteur de non-lues était lu en tête du `build` de la page.
+      // Une notification qui arrivait reconstruisait donc **tout l'écran** :
+      // la barre de dates, les filtres, et surtout l'assemblage de la liste —
+      // où chaque ligue est retriée à chaque passage. Pour un chiffre dans un
+      // rond de seize pixels.
+      //
+      // `Consumer` borne la reconstruction à la pastille elle-même.
+      Consumer(builder: (context, ref, _) {
+        final unread = ref.watch(unreadCountProvider);
+        return Semantics(
+          label: unread > 0
+              ? 'Notifications, $unread non lue${unread > 1 ? 's' : ''}'
+              : 'Notifications',
+          button: true,
+          child: GestureDetector(
+            onTap: () => context.push('/notifications'),
+            child: Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: ExcludeSemantics(
+                child: Stack(clipBehavior: Clip.none, children: [
+                  Icon(Icons.notifications_none_rounded,
+                      color: context.cl.textS, size: 26),
+                  if (unread > 0) Positioned(
+                    top: -3, right: -3,
+                    child: Container(
+                      width: 16, height: 16,
+                      decoration: BoxDecoration(
+                        color: AppColors.error, shape: BoxShape.circle,
+                        border: Border.all(color: context.cl.bg, width: 1.5)),
+                      child: Center(
+                        child: Text(unread > 9 ? '9+' : '$unread',
+                          style: const TextStyle(
+                            color: Colors.white, fontSize: 8,
+                            fontWeight: FontWeight.w800))))),
+                ]),
+              ),
+            ),
+          ),
+        );
+      }),
     ],
   );
 }
@@ -507,18 +750,32 @@ class _DateScrollBar extends StatelessWidget {
       a.year == b.year && a.month == b.month && a.day == b.day;
 
   int _countForDate(DateTime d) {
-    final key = '${d.year}-${d.month}-${d.day}';
+    // Format YYYY-MM-DD zero-paddé — doit matcher les clés renvoyées par
+    // GET /pronostics/counts-by-day (dayCountsProvider).
+    final key = '${d.year.toString().padLeft(4, '0')}-'
+        '${d.month.toString().padLeft(2, '0')}-'
+        '${d.day.toString().padLeft(2, '0')}';
     return matchCountByDay[key] ?? 0;
   }
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
+
+    // Hauteur proportionnelle à l'échelle de texte.
+    //
+    // La pastille empile trois lignes — jour, quantième, nombre de matchs —
+    // dans une boîte qui était figée à 72 px. Une liste horizontale exige une
+    // hauteur bornée, d'où le `SizedBox` ; mais bornée ne veut pas dire
+    // constante. À 1,4× le contenu dépassait, et c'est ce widget qui plafonnait
+    // le réglage d'accessibilité de toute l'application.
+    final echelle = MediaQuery.textScalerOf(context).scale(1);
+
     return Container(
       color: context.cl.bg,
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
       child: SizedBox(
-        height: 72,
+        height: 72 * echelle,
         child: ListView.separated(
           controller: scrollController,
           scrollDirection: Axis.horizontal,
@@ -612,7 +869,15 @@ class _DayStatsBar extends StatelessWidget {
   final int total;
   final int pronos;
   final int live;
-  const _DayStatsBar({required this.total, required this.pronos, required this.live});
+  final bool showOnlyPronos;
+  final VoidCallback onToggleShowOnlyPronos;
+  const _DayStatsBar({
+    required this.total,
+    required this.pronos,
+    required this.live,
+    required this.showOnlyPronos,
+    required this.onToggleShowOnlyPronos,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -630,12 +895,16 @@ class _DayStatsBar extends StatelessWidget {
         _StatPill(
           icon: Icons.sports_soccer_rounded,
           label: '$total match${total > 1 ? 's' : ''}',
-          color: context.cl.textS),
+          color: showOnlyPronos ? context.cl.textM : context.cl.textS,
+          selected: !showOnlyPronos,
+          onTap: showOnlyPronos ? onToggleShowOnlyPronos : null),
         _StatDivider(),
         _StatPill(
           icon: Icons.analytics_outlined,
           label: '$pronos prono${pronos > 1 ? 's' : ''}',
-          color: AppColors.primary),
+          color: AppColors.primary,
+          selected: showOnlyPronos,
+          onTap: showOnlyPronos ? null : onToggleShowOnlyPronos),
         if (live > 0) ...[
           _StatDivider(),
           _StatPill(
@@ -654,22 +923,48 @@ class _StatPill extends StatelessWidget {
   final String label;
   final Color color;
   final bool pulse;
-  const _StatPill({required this.icon, required this.label, required this.color, this.pulse = false});
+  final bool selected;
+  final VoidCallback? onTap;
+  const _StatPill({
+    required this.icon,
+    required this.label,
+    required this.color,
+    this.pulse = false,
+    this.selected = false,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     Widget iconWidget = Icon(icon, size: 13, color: color);
     if (pulse) {
       iconWidget = iconWidget
-        .animate(onPlay: (c) => c.repeat(reverse: true))
+        .animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(reverse: true); })
         .fade(begin: 1, end: 0.3, duration: 700.ms);
     }
-    return Row(mainAxisSize: MainAxisSize.min, children: [
-      iconWidget,
-      const SizedBox(width: 5),
-      Text(label, style: TextStyle(
-        color: color, fontSize: 12, fontWeight: FontWeight.w600)),
-    ]);
+    final content = Container(
+      padding: onTap != null || selected
+          ? const EdgeInsets.symmetric(horizontal: 8, vertical: 4)
+          : EdgeInsets.zero,
+      decoration: selected && onTap == null
+          ? BoxDecoration(
+              color: color.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20))
+          : null,
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        iconWidget,
+        const SizedBox(width: 5),
+        Text(label, style: TextStyle(
+          color: color, fontSize: 12, fontWeight: FontWeight.w600)),
+      ]),
+    );
+
+    if (onTap == null) return content;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(20),
+      child: content,
+    );
   }
 }
 
@@ -679,6 +974,39 @@ class _StatDivider extends StatelessWidget {
     width: 1, height: 14,
     margin: const EdgeInsets.symmetric(horizontal: 12),
     color: context.cl.border);
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// EN-TÊTE DE PALIER (En direct / Pronostics du jour / Analyse en cours / Terminés)
+// ══════════════════════════════════════════════════════════════════════════════
+class _TierSectionHeader extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final Color color;
+  final int count;
+
+  const _TierSectionHeader({
+    required this.label,
+    required this.icon,
+    required this.color,
+    required this.count,
+  });
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(2, 18, 2, 4),
+    child: Row(children: [
+      Icon(icon, size: 16, color: color),
+      const SizedBox(width: 7),
+      Text(label.toUpperCase(), style: TextStyle(
+        color: color, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.6)),
+      const SizedBox(width: 8),
+      Expanded(child: Container(height: 1, color: color.withValues(alpha: 0.18))),
+      const SizedBox(width: 8),
+      Text('$count', style: TextStyle(
+        color: context.cl.textM, fontSize: 12, fontWeight: FontWeight.w600)),
+    ]),
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -836,6 +1164,12 @@ class _ActiveFiltersBar extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 class _AdvancedFilterSheet extends StatefulWidget {
   final List<String> availableLeagues;
+
+  /// Matchs du jour **avant** filtres avancés. Sert uniquement à compter les
+  /// résultats de la sélection en cours : un bouton « Fermer » ne disait pas
+  /// si les filtres choisis allaient donner trente matchs ou aucun.
+  final List<MatchEntity> matchsDuJour;
+
   final String? currentLeague;
   final OddsRange currentOdds;
   final void Function(String? league, OddsRange odds) onApply;
@@ -843,6 +1177,7 @@ class _AdvancedFilterSheet extends StatefulWidget {
 
   const _AdvancedFilterSheet({
     required this.availableLeagues,
+    required this.matchsDuJour,
     required this.currentLeague,
     required this.currentOdds,
     required this.onApply,
@@ -951,8 +1286,14 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
               widget.onApply(_league, _odds);
               Navigator.pop(context);
             },
+            // Le bouton annonce le résultat plutôt que l'action : on sait
+            // avant de valider si la sélection donne trente matchs ou aucun.
             child: Text(
-              _hasChange ? 'Appliquer les filtres' : 'Fermer',
+              switch (_nbResultats) {
+                0 => 'Aucun match — ajuster',
+                1 => 'Voir le match',
+                final n => 'Voir les $n matchs',
+              },
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           ),
         ),
@@ -960,8 +1301,21 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
     );
   }
 
-  bool get _hasChange =>
-      _league != widget.currentLeague || _odds != widget.currentOdds;
+  /// Nombre de matchs que donnerait la sélection en cours. Même logique de
+  /// filtrage que la page — dupliquée ici en connaissance de cause : la sortir
+  /// obligerait à faire remonter les providers dans la feuille modale, pour
+  /// deux conditions tenant en cinq lignes.
+  int get _nbResultats => widget.matchsDuJour.where((m) {
+        if (_league != null && m.league != _league) return false;
+        final o = m.oddsRecommended;
+        return switch (_odds) {
+          OddsRange.under15    => o > 0 && o < 1.5,
+          OddsRange.from15to25 => o >= 1.5 && o < 2.5,
+          OddsRange.from25to4  => o >= 2.5 && o < 4.0,
+          OddsRange.over4      => o >= 4.0,
+          OddsRange.all        => true,
+        };
+      }).length;
 
   Color _oddsColor(OddsRange range) => switch (range) {
     OddsRange.under15    => AppColors.success,
@@ -1011,65 +1365,17 @@ class _FilterChip extends StatelessWidget {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
-// FILTRE SPORTS
-// ══════════════════════════════════════════════════════════════════════════════
-class _SportFilter extends StatelessWidget {
-  final List<Map<String, dynamic>> sports;
-  final String selected;
-  final void Function(String) onSelect;
-  const _SportFilter({required this.sports, required this.selected, required this.onSelect});
-
-  @override
-  Widget build(BuildContext context) => Container(
-    color: context.cl.bg,
-    padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-    child: SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(children: sports.map((s) {
-        final active = selected == s['id'];
-        return GestureDetector(
-          onTap: () {
-            HapticFeedback.selectionClick();
-            onSelect(s['id'] as String);
-          },
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 180),
-            margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-            decoration: BoxDecoration(
-              color: active ? AppColors.primary : context.cl.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: active ? AppColors.primary : context.cl.borderSoft,
-                width: 0.5)),
-            child: Row(children: [
-              Icon(s['icon'] as IconData, size: 14,
-                color: active ? Colors.white : context.cl.textS),
-              const SizedBox(width: 6),
-              Text(s['label'] as String, style: TextStyle(
-                color: active ? Colors.white : context.cl.textS,
-                fontSize: 12,
-                fontWeight: active ? FontWeight.w600 : FontWeight.w400)),
-            ]),
-          ),
-        );
-      }).toList()),
-    ),
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
 // TAB TOGGLE
 // ══════════════════════════════════════════════════════════════════════════════
 class _TabToggle extends StatelessWidget {
-  final bool showFavorites;
+  final _PronosticsTab tab;
   final int favCount;
-  final void Function(bool) onToggle;
+  final void Function(_PronosticsTab) onTab;
 
   const _TabToggle({
-    required this.showFavorites,
+    required this.tab,
     required this.favCount,
-    required this.onToggle,
+    required this.onTab,
   });
 
   @override
@@ -1077,22 +1383,33 @@ class _TabToggle extends StatelessWidget {
     return Container(
       color: context.cl.bg,
       padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
-      child: Row(children: [
-        _Tab(
-          label:  'Pronostics',
-          icon:   Icons.analytics_outlined,
-          active: !showFavorites,
-          onTap:  () => onToggle(false),
-        ),
-        const SizedBox(width: 8),
-        _Tab(
-          label:  'Favoris',
-          icon:   Icons.bookmark_rounded,
-          active: showFavorites,
-          badge:  favCount > 0 ? '$favCount' : null,
-          onTap:  () => onToggle(true),
-        ),
-      ]),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: [
+          _Tab(
+            label:  'Pronos',
+            icon:   Icons.analytics_outlined,
+            active: tab == _PronosticsTab.all,
+            onTap:  () => onTab(_PronosticsTab.all),
+          ),
+          const SizedBox(width: 8),
+          _Tab(
+            label:  'Pour Toi',
+            icon:   Icons.auto_awesome_rounded,
+            active: tab == _PronosticsTab.forYou,
+            color:  const Color(0xFFAB7CF6),
+            onTap:  () => onTab(_PronosticsTab.forYou),
+          ),
+          const SizedBox(width: 8),
+          _Tab(
+            label:  'Favoris',
+            icon:   Icons.bookmark_rounded,
+            active: tab == _PronosticsTab.favorites,
+            badge:  favCount > 0 ? '$favCount' : null,
+            onTap:  () => onTab(_PronosticsTab.favorites),
+          ),
+        ]),
+      ),
     );
   }
 }
@@ -1102,9 +1419,10 @@ class _Tab extends StatelessWidget {
   final IconData icon;
   final bool active;
   final String? badge;
+  final Color? color;
   final VoidCallback onTap;
   const _Tab({required this.label, required this.icon, required this.active,
-    required this.onTap, this.badge});
+    required this.onTap, this.badge, this.color});
 
   @override
   Widget build(BuildContext context) {
@@ -1115,44 +1433,289 @@ class _Tab extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: ExcludeSemantics(
-          child: AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            decoration: BoxDecoration(
-              color: active ? AppColors.primary : context.cl.surface,
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: active ? AppColors.primary : context.cl.borderSoft,
-                width: 0.8),
-              boxShadow: active ? [BoxShadow(
-                color: AppColors.primary.withValues(alpha: 0.3),
-                blurRadius: 8, offset: const Offset(0, 2))] : null,
-            ),
-            child: Row(mainAxisSize: MainAxisSize.min, children: [
-              Icon(icon, size: 14, color: active ? Colors.white : context.cl.textS),
-              const SizedBox(width: 6),
-              Text(label, style: TextStyle(
-                color: active ? Colors.white : context.cl.textS,
-                fontSize: 12, fontWeight: active ? FontWeight.w700 : FontWeight.w400)),
-              if (badge != null) ...[
+          child: Builder(builder: (context) {
+            final c = color ?? AppColors.primary;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: active ? c : context.cl.surface,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: active ? c : context.cl.borderSoft,
+                  width: 0.8),
+                boxShadow: active ? [BoxShadow(
+                  color: c.withValues(alpha: 0.3),
+                  blurRadius: 8, offset: const Offset(0, 2))] : null,
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Icon(icon, size: 14, color: active ? Colors.white : context.cl.textS),
                 const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(
-                    color: active ? Colors.white.withValues(alpha: 0.25)
-                        : AppColors.primary.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8)),
-                  child: Text(badge!, style: TextStyle(
-                    color: active ? Colors.white : AppColors.primary,
-                    fontSize: 10, fontWeight: FontWeight.w700)),
-                ),
-              ],
-            ]),
-          ),
+                Text(label, style: TextStyle(
+                  color: active ? Colors.white : context.cl.textS,
+                  fontSize: 12, fontWeight: active ? FontWeight.w700 : FontWeight.w400)),
+                if (badge != null) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                    decoration: BoxDecoration(
+                      color: active ? Colors.white.withValues(alpha: 0.25)
+                          : c.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(8)),
+                    child: Text(badge!, style: TextStyle(
+                      color: active ? Colors.white : c,
+                      fontSize: 10, fontWeight: FontWeight.w700)),
+                  ),
+                ],
+              ]),
+            );
+          }),
         ),
       ),
     );
   }
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
+// VUE POUR TOI (IA PERSONNALISÉ)
+// ══════════════════════════════════════════════════════════════════════════════
+class _ForYouView extends StatelessWidget {
+  final ForYouData data;
+  final bool isPremium;
+  const _ForYouView({required this.data, required this.isPremium});
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = data.profile;
+    final recs    = data.recommendations;
+
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 100),
+      children: [
+
+        // ── Carte profil IA ──────────────────────────────────────────────
+        _ForYouProfileCard(profile: profile)
+          .animate().fadeIn(duration: 300.ms).slideY(begin: -0.04, end: 0),
+
+        const SizedBox(height: 12),
+
+        // ── Titre section ────────────────────────────────────────────────
+        Row(children: [
+          const Icon(Icons.auto_awesome_rounded, color: Color(0xFFAB7CF6), size: 14),
+          const SizedBox(width: 6),
+          Text('${recs.length} pronos sélectionnés pour toi',
+            style: TextStyle(color: context.cl.textP, fontSize: 13,
+                fontWeight: FontWeight.w700)),
+        ]).animate(delay: 60.ms).fadeIn(duration: 250.ms),
+
+        const SizedBox(height: 10),
+
+        // ── Liste recommandations ────────────────────────────────────────
+        if (recs.isEmpty)
+          _ForYouEmpty()
+        else
+          ...recs.asMap().entries.map((e) => context.entree(
+            _ForYouCard(rec: e.value, isPremium: isPremium), e.key)),
+      ],
+    );
+  }
+}
+
+class _ForYouProfileCard extends StatelessWidget {
+  final ForYouProfile profile;
+  const _ForYouProfileCard({required this.profile});
+
+  @override
+  Widget build(BuildContext context) {
+    if (profile.isNewUser) {
+      return Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [Color(0xFF7C3AED), Color(0xFFAB7CF6)],
+            begin: Alignment.topLeft, end: Alignment.bottomRight),
+          borderRadius: BorderRadius.circular(16)),
+        child: Row(children: [
+          const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 22),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Text('Pronostics personnalisés',
+              style: TextStyle(color: Colors.white, fontSize: 13,
+                  fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Text('Parie sur quelques pronos pour affiner tes recommandations.',
+              style: TextStyle(color: Colors.white.withValues(alpha: 0.8),
+                  fontSize: 11, height: 1.4)),
+          ])),
+        ]),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF5B21B6), Color(0xFF7C3AED)],
+          begin: Alignment.topLeft, end: Alignment.bottomRight),
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [BoxShadow(
+          color: const Color(0xFF7C3AED).withValues(alpha: 0.3),
+          blurRadius: 12, offset: const Offset(0, 4))]),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Icon(Icons.query_stats_rounded, color: Colors.white, size: 20),
+          const SizedBox(width: 8),
+          const Text('Ton profil', style: TextStyle(
+            color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
+          const Spacer(),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(10)),
+            child: Text('${profile.winRate}% win rate',
+              style: const TextStyle(color: Colors.white, fontSize: 10,
+                  fontWeight: FontWeight.w700))),
+        ]),
+        const SizedBox(height: 10),
+        Text('${profile.totalBets} paris analysés · '
+            'Cote préférée ${profile.oddsSweetMin.toStringAsFixed(1)}–${profile.oddsSweetMax.toStringAsFixed(1)}',
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 11)),
+        if (profile.topLeagues.isNotEmpty) ...[
+          const SizedBox(height: 8),
+          Wrap(spacing: 6, children: profile.topLeagues.map((l) => Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8)),
+            child: Text(l, style: const TextStyle(
+              color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+          )).toList()),
+        ],
+      ]),
+    );
+  }
+}
+
+class _ForYouCard extends StatelessWidget {
+  final ForYouRec rec;
+  final bool      isPremium;
+  const _ForYouCard({required this.rec, required this.isPremium});
+
+  @override
+  Widget build(BuildContext context) {
+    final p        = rec.pronostic;
+    final isLocked = p.isPremium && !isPremium;
+
+    return GestureDetector(
+      onTap: () => context.push('/pronostics/${p.id}'),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        decoration: BoxDecoration(
+          color: context.cl.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(
+            color: const Color(0xFFAB7CF6).withValues(alpha: 0.3),
+            width: 0.8)),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+
+          // ── Header avec score IA ─────────────────────────────────────
+          Container(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 8),
+            decoration: BoxDecoration(
+              color: const Color(0xFF7C3AED).withValues(alpha: 0.07),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16))),
+            child: Row(children: [
+              const Icon(Icons.auto_awesome_rounded,
+                color: Color(0xFFAB7CF6), size: 13),
+              const SizedBox(width: 6),
+              Text(p.league, style: TextStyle(
+                color: context.cl.textM, fontSize: 11, fontWeight: FontWeight.w600),
+                maxLines: 1, overflow: TextOverflow.ellipsis),
+              const Spacer(),
+              // Score de match IA
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF7C3AED).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8)),
+                child: Text('${p.aiProbability}% est.',
+                  style: const TextStyle(color: Color(0xFFAB7CF6),
+                      fontSize: 10, fontWeight: FontWeight.w800))),
+              if (isLocked) ...[
+                const SizedBox(width: 6),
+                const Icon(Icons.lock_rounded, color: AppColors.warning, size: 14)],
+            ])),
+
+          // ── Match teams ──────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 6),
+            child: Row(children: [
+              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Text('${p.homeTeam} vs ${p.awayTeam}',
+                  style: TextStyle(color: context.cl.textP, fontSize: 14,
+                      fontWeight: FontWeight.w700),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                const SizedBox(height: 3),
+                Row(children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: AppColors.primary.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8)),
+                    child: Text(p.predictionLabel, style: const TextStyle(
+                      color: AppColors.primary, fontSize: 10,
+                      fontWeight: FontWeight.w700))),
+                  const SizedBox(width: 8),
+                  Text('@ ${p.oddsRecommended.toStringAsFixed(2)}',
+                    style: TextStyle(color: context.cl.textM, fontSize: 11,
+                        fontWeight: FontWeight.w600)),
+                ]),
+              ])),
+            ]),
+          ),
+
+          // ── Raisons IA ───────────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              ...rec.reasons.map((r) => Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Row(children: [
+                  const Icon(Icons.check_circle_rounded,
+                    color: Color(0xFFAB7CF6), size: 12),
+                  const SizedBox(width: 5),
+                  Expanded(child: Text(r, style: TextStyle(
+                    color: context.cl.textS, fontSize: 11))),
+                ]),
+              )),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _ForYouEmpty extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        const Text('🤖', style: TextStyle(fontSize: 48)),
+        const SizedBox(height: 16),
+        Text('Aucun prono disponible pour toi aujourd\'hui',
+          style: TextStyle(color: context.cl.textP, fontSize: 15,
+              fontWeight: FontWeight.w700),
+          textAlign: TextAlign.center),
+        const SizedBox(height: 8),
+        Text('Reviens demain ou parie sur les pronos disponibles pour affiner ton profil.',
+          style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.4),
+          textAlign: TextAlign.center),
+      ]),
+    ),
+  ).animate().fadeIn(duration: 350.ms);
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -1206,15 +1769,12 @@ class _FavoritesView extends StatelessWidget {
             icon:  Icons.bookmark_rounded,
             count: pinnedMatches.length,
           ),
-          ...pinnedMatches.asMap().entries.map((e) =>
+          ...pinnedMatches.asMap().entries.map((e) => context.entree(
             MatchCardWidget(
               match: e.value,
               isPremiumUser: isPremium,
               showDate: true,
-            )
-              .animate(delay: Duration(milliseconds: e.key * 60))
-              .fadeIn(duration: 300.ms)
-              .slideY(begin: 0.08, end: 0, duration: 300.ms, curve: Curves.easeOutCubic)),
+            ), e.key)),
         ],
 
         // Section ligues épinglées
@@ -1235,14 +1795,12 @@ class _FavoritesView extends StatelessWidget {
             ).animate().fadeIn(duration: 250.ms).slideX(begin: -0.04, end: 0, duration: 250.ms),
             if (byPinnedLeague[league] != null)
               ...byPinnedLeague[league]!.asMap().entries.map((e) =>
-                MatchCardWidget(
-                  match: e.value,
-                  isPremiumUser: isPremium,
-                  showDate: true,
-                )
-                  .animate(delay: Duration(milliseconds: e.key * 60))
-                  .fadeIn(duration: 300.ms)
-                  .slideY(begin: 0.08, end: 0, duration: 300.ms, curve: Curves.easeOutCubic))
+                context.entree(
+                  MatchCardWidget(
+                    match: e.value,
+                    isPremiumUser: isPremium,
+                    showDate: true,
+                  ), e.key))
             else
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -1344,6 +1902,56 @@ class _ShimmerList extends StatelessWidget {
     padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
     itemCount: 3,
     itemBuilder: (_, _) => const MatchCardSkeleton(),
+  );
+}
+
+// Connexion ou Premium requis (401/403), affiché à la place du DioException
+// brut — réutilisé par l'onglet "Pour Toi" (401/403) et "Favoris" (401).
+class _AuthGateView extends StatelessWidget {
+  final IconData icon;
+  final String title;
+  final String message;
+  final String buttonLabel;
+  final VoidCallback onAction;
+  const _AuthGateView({
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.buttonLabel,
+    required this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(32),
+      child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+        Container(
+          width: 80, height: 80,
+          decoration: BoxDecoration(
+            color: AppColors.primary.withValues(alpha: 0.12),
+            shape: BoxShape.circle),
+          child: Icon(icon, color: AppColors.primary, size: 36)),
+        const SizedBox(height: 20),
+        Text(title,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
+        const SizedBox(height: 8),
+        Text(message,
+          textAlign: TextAlign.center,
+          style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5)),
+        const SizedBox(height: 24),
+        ElevatedButton(
+          onPressed: onAction,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.primary,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+          child: Text(buttonLabel,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700))),
+      ]),
+    ),
   );
 }
 

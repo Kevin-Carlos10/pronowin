@@ -4,7 +4,7 @@
   var _message = (typeof message !== 'undefined') ? message : "Une erreur s'est produite.";
   var _hint    = (typeof hint    !== 'undefined') ? hint    : null;
   var _back    = (typeof back    !== 'undefined') ? back    : '/admin/dashboard';
-  var icon     = _status === 404 ? '🔍' : _status === 403 ? '🔒' : _status === 401 ? '🔑' : '⚠️';
+  var icon     = _status === 404 ? '' : _status === 403 ? '' : _status === 401 ? '' : '⚠';
   var color    = _status === 404 ? 'var(--info)' : _status === 403 ? 'var(--warning)' : 'var(--error)';
 %>
 <!DOCTYPE html>
@@ -29,6 +29,11 @@
   </style>
 </head>
 <body>
+
+<%# Document autonome : il ne passe pas par layout_top, il doit donc porter le
+    sprite lui-même — sans quoi ses deux références d'icône ne résolvent vers
+    aucun symbole et s'affichent en carrés vides. %>
+<%- include('_icons') %>
 <div class="error-wrap">
   <div class="error-box">
 
@@ -44,11 +49,11 @@
 
     <div class="error-actions">
       <a href="<%= _back %>" class="btn btn-primary">← Retour</a>
-      <a href="/admin/dashboard" class="btn btn-outline">🏠 Dashboard</a>
+      <a href="/admin/dashboard" class="btn btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-home"/></svg> Dashboard</a>
     </div>
 
     <div class="divider-line"></div>
-    <a href="/admin/logout" style="color:var(--text-dim);font-size:.8rem;text-decoration:none;">🚪 Se déconnecter</a>
+    <a href="/admin/logout" style="color:var(--text-dim);font-size:.8rem;text-decoration:none;"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> Se déconnecter</a>
   </div>
 </div>
 </body>

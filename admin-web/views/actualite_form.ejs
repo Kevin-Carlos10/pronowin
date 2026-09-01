@@ -73,7 +73,7 @@ input[name=category] { display:none; }
     { key:'promo',  emoji:'🎁', label:'Promo' },
     { key:'update', emoji:'🔄', label:'Mise à jour' },
     { key:'tip',    emoji:'💡', label:'Conseil' },
-    { key:'alert',  emoji:'🚨', label:'Alerte' },
+    { key:'alert',  emoji:'⚠', label:'Alerte' },
   ];
   const selCat = art.category || 'news';
 
@@ -106,13 +106,13 @@ input[name=category] { display:none; }
         <label>Titre <span style="color:var(--error)">*</span> <span class="af-counter" id="cnt-title">0/120</span></label>
         <input class="input" type="text" name="title" id="inp-title" value="<%= art.title||'' %>"
           placeholder="Ex : Grosse cote du week-end 🔥"
-          oninput="updateCounter('inp-title','cnt-title',120);updatePreview()" required>
+          oninput="updateCounter('inp-title','cnt-title',120);updatePreview()" required aria-label="Titre">
       </div>
       <div class="af-field" style="margin-bottom:0">
         <label>Résumé (affiché dans la liste) <span class="af-counter" id="cnt-summary">0/250</span></label>
         <textarea class="input" name="summary" id="inp-summary" rows="2"
           placeholder="Une ou deux phrases résumant l'article…"
-          oninput="updateCounter('inp-summary','cnt-summary',250);updatePreview()"><%= art.summary||'' %></textarea>
+          oninput="updateCounter('inp-summary','cnt-summary',250);updatePreview()" aria-label="Résumé"><%= art.summary||'' %></textarea>
       </div>
     </div>
 
@@ -122,7 +122,7 @@ input[name=category] { display:none; }
         <label>Contenu complet <span class="af-counter" id="cnt-content">0/5000</span></label>
         <textarea class="input" name="content" id="inp-content" rows="12"
           placeholder="Contenu de l'article… Vous pouvez utiliser du HTML basique : &lt;b&gt;, &lt;i&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;a href=&quot;…&quot;&gt;…"
-          oninput="updateCounter('inp-content','cnt-content',5000)"><%= art.content||'' %></textarea>
+          oninput="updateCounter('inp-content','cnt-content',5000)" aria-label="Contenu"><%= art.content||'' %></textarea>
         <div class="hint">HTML basique supporté. Évitez les scripts.</div>
       </div>
     </div>
@@ -140,6 +140,16 @@ input[name=category] { display:none; }
           </div>
           <% }) %>
         </div>
+        <div class="af-field" style="margin-top:.6rem;margin-bottom:0">
+          <label style="font-weight:400;font-size:.75rem">Ou catégorie personnalisée</label>
+          <input class="input" type="text" id="inp-cat-custom" list="cat-datalist" aria-label="Nouvelle catégorie"
+            placeholder="Ex : partenariat"
+            value="<%= catList.some(c => c.key===selCat) ? '' : selCat %>"
+            oninput="selectCat(this.value.trim().toLowerCase())">
+          <datalist id="cat-datalist">
+            <% (typeof categories !== 'undefined' ? categories : []).forEach(c => { %><option value="<%= c %>"><% }) %>
+          </datalist>
+        </div>
       </div>
     </div>
 
@@ -150,7 +160,7 @@ input[name=category] { display:none; }
         <input class="input" type="url" name="imageUrl" id="inp-img"
           value="<%= art.imageUrl||'' %>"
           placeholder="https://exemple.com/image.jpg"
-          oninput="updateImg()">
+          oninput="updateImg()" aria-label="Lien de l'image">
         <div class="hint">Format recommandé : 1200 × 525 px (ratio 16:7)</div>
       </div>
     </div>
@@ -161,7 +171,7 @@ input[name=category] { display:none; }
 
       <div class="af-toggle-row">
         <div>
-          <div class="af-toggle-label">✅ Publier immédiatement</div>
+          <div class="af-toggle-label"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Publier immédiatement</div>
           <div class="af-toggle-desc">L'article sera visible par les utilisateurs</div>
         </div>
         <label class="af-switch">
@@ -172,7 +182,7 @@ input[name=category] { display:none; }
 
       <div class="af-toggle-row">
         <div>
-          <div class="af-toggle-label">📌 Épingler en haut</div>
+          <div class="af-toggle-label"><svg class="ic" aria-hidden="true"><use href="#ic-pin"/></svg> Épingler en haut</div>
           <div class="af-toggle-desc">Apparaît en premier dans la liste</div>
         </div>
         <label class="af-switch">
@@ -183,7 +193,7 @@ input[name=category] { display:none; }
 
       <div class="af-toggle-row">
         <div>
-          <div class="af-toggle-label">👑 Réservé Premium</div>
+          <div class="af-toggle-label"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Réservé Premium</div>
           <div class="af-toggle-desc">Visible uniquement pour les abonnés Premium</div>
         </div>
         <label class="af-switch">
@@ -208,7 +218,7 @@ input[name=category] { display:none; }
       <button type="button" class="btn btn-danger" style="margin-left:auto"
         data-id="<%= art.id %>"
         data-title="<%= art.title.replace(/"/g,'&quot;') %>"
-        onclick="delArt(this.dataset.id, this.dataset.title)">🗑️ Supprimer</button>
+        onclick="delArt(this.dataset.id, this.dataset.title)"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Supprimer</button>
       <form method="POST" action="/admin/actualites/<%= art.id %>/delete" id="del-<%= art.id %>" style="display:none"></form>
       <% } %>
     </div>
@@ -225,14 +235,14 @@ input[name=category] { display:none; }
       </div>
       <div class="af-preview-img" id="prev-img-wrap">
         <img id="prev-img" src="" alt="">
-        <span id="prev-emoji">📰</span>
+        <span id="prev-emoji"><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg></span>
       </div>
       <div class="af-preview-body">
-        <div class="af-preview-cat" id="prev-cat">📰 News</div>
+        <div class="af-preview-cat" id="prev-cat"><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg> News</div>
         <div class="af-preview-title" id="prev-title">Titre de l'article</div>
         <div class="af-preview-summary" id="prev-summary" style="display:none"></div>
         <div class="af-preview-meta">
-          ✍️ <%= adminName %> · 👁 0 vues
+          <svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> <%= adminName %> · <svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> 0 vues
           <span id="prev-badges" style="display:inline-flex;gap:.35rem;margin-left:.4rem"></span>
         </div>
       </div>
@@ -243,7 +253,7 @@ input[name=category] { display:none; }
     <div class="card" style="padding:1.1rem">
       <div style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.7rem">Informations</div>
       <div class="af-stat-row"><span class="k">Vues</span><span class="v" style="color:var(--primary)"><%= (art.viewCount||0).toLocaleString() %></span></div>
-      <div class="af-stat-row"><span class="k">Likes</span><span class="v" style="color:var(--error)">❤️ <%= art.likeCount||0 %></span></div>
+      <div class="af-stat-row"><span class="k">Likes</span><span class="v" style="color:var(--error)"><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> <%= art.likeCount||0 %></span></div>
       <div class="af-stat-row"><span class="k">Auteur</span><span class="v"><%= art.authorName||'Admin' %></span></div>
       <div class="af-stat-row"><span class="k">Créé le</span><span class="v"><%= fmtDate(art.createdAt) %></span></div>
       <div class="af-stat-row"><span class="k">Modifié le</span><span class="v"><%= fmtDate(art.updatedAt) %></span></div>
@@ -267,8 +277,13 @@ const CAT_CFG = {
   alert:  { emoji:'🚨', label:'Alerte',      cls:'cat-alert'  },
 };
 function selectCat(key) {
+  if (!key) return;
   document.getElementById('inp-cat').value = key;
   document.querySelectorAll('.af-cat-pill').forEach(p => p.classList.toggle('active', p.dataset.cat === key));
+  const customInput = document.getElementById('inp-cat-custom');
+  if (customInput && document.activeElement !== customInput) {
+    customInput.value = CAT_CFG[key] ? '' : key;
+  }
   updatePreview();
 }
 
@@ -277,7 +292,7 @@ function updatePreview() {
   const title   = document.getElementById('inp-title')?.value   || 'Titre de l\'article';
   const summary = document.getElementById('inp-summary')?.value || '';
   const cat     = document.getElementById('inp-cat')?.value     || 'news';
-  const cfg     = CAT_CFG[cat] || CAT_CFG.news;
+  const cfg     = CAT_CFG[cat] || { emoji:'🏷️', label:cat, cls:'cat-news' };
 
   document.getElementById('prev-title').textContent   = title   || 'Titre de l\'article';
   const sumEl = document.getElementById('prev-summary');

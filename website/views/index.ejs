@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title><%= site.name %> — <%= site.tagline %></title>
+  <%# La description annonçait « Football, basketball, tennis » et « dépôt et
+      retrait Mobile Money » : trois sports quand l'application n'en traite
+      qu'un, et un portefeuille de paris que PronoWin ne tient pas. C'est le
+      texte que reprennent Google et les aperçus de partage. %>
+  <%# Elle se terminait par « Abonnement par Orange Money » : le moyen de
+      paiement en argument de vente, dans les 160 caractères que Google
+      affiche. La ligne sert désormais à dire ce que l'application apporte. %>
+  <meta name="description" content="PronoWin : l'application de pronostics football qui montre ses chiffres. Compositions, blessures, classements, cotes, scores en direct et gestion de bankroll — dans une seule app.">
+  <%# Aucun favicon n'etait declare : l'onglet affichait l'icone generique
+      du navigateur, sur un site dont c'est la marque qu'on vend. %>
+  <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
+  <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Navbar -->
+  <header class="navbar">
+    <div class="container">
+      <a href="/" class="brand">
+        <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
+        <span class="brand-name">Prono<span class="brand-win">Win</span></span>
+      </a>
+      <nav class="nav-links">
+        <a href="#fonctionnalites">Aperçu</a>
+        <a href="#tarifs">Tarifs</a>
+        <a href="#comparer">Comparer</a>
+        <a href="#faq">FAQ</a>
+      </nav>
+      <%# « Se connecter » pointait sur `#`. Il n'existe aucune connexion web
+          pour les utilisateurs : le compte vit dans l'application. Un lien qui
+          ne mène nulle part fait douter du reste de la page. %>
+      <div class="nav-actions">
+        <a href="#telecharger" class="nav-cta">Télécharger</a>
+        <button class="nav-toggle" aria-label="Menu" aria-expanded="false">
+          <%- include('partials/icon', { name: 'menu', size: 22 }) %>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <div class="mobile-nav">
+    <a href="#fonctionnalites">Aperçu</a>
+    <a href="#tarifs">Tarifs</a>
+    <a href="#comparer">Comparer</a>
+    <a href="#faq">FAQ</a>
+    <a href="#telecharger" class="btn btn-primary">Télécharger l'app</a>
+  </div>
+
+  <!-- Hero -->
+  <section class="hero">
+    <video class="hero-bg-video" autoplay muted loop playsinline poster="/images/hero-poster.svg">
+      <source src="/videos/hero-loop.mp4" type="video/mp4">
+    </video>
+    <div class="hero-bg-overlay"></div>
+    <div class="container hero-content">
+      <div class="hero-eyebrow">PronoWin</div>
+      <h1 class="hero-title">Le pronostic<br>qui montre ses chiffres.</h1>
+      <p class="hero-subtitle">Compositions, statistiques, classements, cotes, scores en direct et gestion de bankroll : ce qu'un parieur sérieux ouvre en dix onglets tient ici dans une seule application. Une sélection de pronostics gratuite chaque jour.</p>
+      <div class="hero-cta">
+        <a href="#telecharger" class="btn btn-primary">Télécharger l'app</a>
+        <a href="#fonctionnalites" class="btn-link">En savoir plus <%- include('partials/icon', { name: 'arrow', size: 14 }) %></a>
+      </div>
+    </div>
+    <div class="hero-showcase">
+      <img class="hero-app-shot" src="/images/app-screenshot-hero.jpg" alt="Aperçu de l'application PronoWin : prochain match, compte à rebours et match en direct">
+    </div>
+  </section>
+
+  <%
+    // Le grand chiffre de la page.
+    //
+    // Il lisait `stats[1].value` — par position — et le collait à une légende
+    // écrite en dur. Or `stats[1]` n'a jamais été un taux : la page a affiché
+    // « 12 » (le nombre de ligues) présenté comme le taux de réussite, et « 4 »
+    // (les pronostics du jour) quand le serveur ne publiait pas de bilan.
+    //
+    // Il lit désormais le bilan lui-même, période comprise, et la section
+    // disparaît entièrement s'il n'y en a pas — plutôt qu'un grand chiffre
+    // faux, aucun grand chiffre.
+  %>
+  <% if (bilan) { %>
+  <!-- Mega number chapter -->
+  <section class="chapter chapter--white chapter--mega">
+    <div class="container">
+      <span class="eyebrow">Performance</span>
+      <div class="mega-number"><%= bilan.taux_reussite %>%</div>
+      <p class="headline-sub" style="margin-top:24px">
+        de réussite sur les pronostics Premium déjà tranchés, mesuré sur les
+        <%= bilan.periode_jours %> derniers jours.
+      </p>
+    </div>
+  </section>
+  <% } %>
+
+  <%
+    // Le chapitre « Démo » est retiré.
+    //
+    // Il annonçait « L'application en action » et lisait /videos/demo-loop.mp4,
+    // qui renvoie 404. Comme la balise portait un `poster`, la page affichait
+    // une image fixe : une démonstration qui ne démontrait rien, et rien ne le
+    // signalait — ni erreur, ni console.
+    //
+    // C'est la section qui devrait le mieux vendre l'application. Elle revient
+    // le jour où il y a un vrai enregistrement d'écran à y mettre ; d'ici là,
+    // son absence vaut mieux que sa promesse creuse.
+  %>
+
+  <!-- Feature chapters -->
+  <div id="fonctionnalites">
+  <% productBlocks.forEach(function(block){ %>
+    <section class="chapter chapter--<%= block.bg %>">
+      <div class="container">
+        <span class="eyebrow"><%= block.eyebrow %></span>
+        <h2 class="headline"><%- block.title.split('\n').join('<br>') %></h2>
+        <p class="headline-sub"><%= block.text %></p>
+        <div class="chapter-stats">
+          <% block.stats.forEach(function(s){ %>
+            <div>
+              <div class="chapter-stat-value"><%= s.value %></div>
+              <div class="chapter-stat-label"><%= s.label %></div>
+            </div>
+          <% }) %>
+        </div>
+        <div class="feature-visual">
+          <% if (block.photo) { %>
+            <div class="feature-photo">
+              <img src="<%= block.photo %>" alt="<%= block.title.replace(/\n/g, ' ') %>" loading="lazy">
+            </div>
+          <% } %>
+          <%
+            // Les trois lignes de l'aperçu viennent des données (server.js).
+            // Elles étaient écrites ici, et elles y affirmaient des faits :
+            // « 87% sur les 30 derniers jours », « Cote totale 6.40 »,
+            // « Retrait de gains · Vers Moov Money ». Une maquette qui énonce
+            // un chiffre est une affirmation publique comme une autre — sauf
+            // que personne ne pense à la relire quand le produit change.
+          %>
+          <div class="feature-card">
+            <% block.apercu.forEach(function(ligne){ %>
+              <div class="feature-row">
+                <span class="icon-badge icon-badge--<%= ligne.badge %>"><%- include('partials/icon', {name: ligne.icone, size:18}) %></span>
+                <div>
+                  <div class="feature-row-title"><%= ligne.titre %></div>
+                  <div class="feature-row-sub"><%= ligne.sous %></div>
+                </div>
+              </div>
+            <% }) %>
+          </div>
+        </div>
+      </div>
+    </section>
+  <% }) %>
+  </div>
+
+  <%
+    // Deux sections retirées ici.
+    //
+    // Les grands chiffres — « +50 000 pronostics publiés », « +8 000 parieurs
+    // actifs », « 4,6/5 de note moyenne ». La base contient 29 pronostics et
+    // 6 comptes, et l'application n'est sur aucun store : la note n'avait même
+    // pas de source possible.
+    //
+    // Les témoignages — trois clients signés d'un nom et d'une ville, qui
+    // n'existent pas. C'est le défaut des actualités fabriquées déjà retirées
+    // de l'application, à ceci près qu'il est conçu pour convaincre.
+    //
+    // Ils reviendront le jour où il y aura de vrais chiffres et de vrais
+    // clients à citer.
+  %>
+
+  <!-- Pricing -->
+  <section id="tarifs" class="chapter chapter--gray">
+    <div class="container">
+      <span class="eyebrow">Tarifs</span>
+      <h2 class="headline">Choisissez votre forfait.</h2>
+      <%# « Paiement par Orange Money » retiré : nommer un opérateur sur la
+         page qui vend restreint le produit dans l'esprit du lecteur, et
+         contredit des tarifs affichés en dollars. Les moyens disponibles
+         sont proposés dans l'application, au moment où la question se pose. %>
+      <p class="headline-sub">Commencez gratuitement, passez Premium quand vous êtes prêt. Sans reconduction automatique.</p>
+      <div class="pricing-grid">
+        <% pricingPlans.forEach(function(plan){ %>
+          <div class="pricing-card <%= plan.highlight ? 'pricing-card--highlight' : '' %>">
+            <% if (plan.badge) { %><span class="pricing-badge"><%= plan.badge %></span><% } %>
+            <div class="pricing-name"><%= plan.name %></div>
+            <%
+              // `price` est nul quand l'API n'a pas répondu. On présente alors
+              // la formule sans montant : le site annonçait « 8 000 FCFA » pour
+              // un abonnement qui en coûte 6 000, et un forfait hebdomadaire
+              // qui n'existe pas. Un tarif faux se découvre au moment de payer.
+            %>
+            <% if (plan.price !== null) { %>
+              <div class="pricing-price"><%= plan.price %> <span>USD</span></div>
+            <% } else { %>
+              <div class="pricing-price pricing-price--absent"><span>Voir le tarif dans l'application</span></div>
+            <% } %>
+            <div class="pricing-period"><%= plan.period %></div>
+            <ul class="pricing-features">
+              <% plan.features.forEach(function(f){ %>
+                <li><%- include('partials/icon', { name: 'check', size: 15 }) %> <span><%= f %></span></li>
+              <% }) %>
+            </ul>
+            <a href="#telecharger" class="btn <%= plan.highlight ? 'btn-inverse' : 'btn-primary' %> btn-sm">Choisir <%= plan.name %></a>
+          </div>
+        <% }) %>
+      </div>
+      <p class="pricing-note">Les abonnements ne sont pas reconduits automatiquement. Résiliables à tout moment depuis l'application.</p>
+    </div>
+  </section>
+
+  <!-- Comparison table -->
+  <section id="comparer" class="chapter chapter--white">
+    <div class="container">
+      <span class="eyebrow">Comparatif</span>
+      <h2 class="headline">Comparer les forfaits.</h2>
+      <div class="compare-wrap">
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th></th>
+              <% pricingPlans.forEach(function(plan){ %>
+                <th><%= plan.name %></th>
+              <% }) %>
+            </tr>
+          </thead>
+          <tbody>
+            <% comparisonRows.forEach(function(row){ %>
+              <tr>
+                <td><%= row.label %></td>
+                <% row.values.forEach(function(v){ %>
+                  <td><% if (v) { %><%- include('partials/icon', { name: 'check', size: 16 }) %><% } else { %><span class="dash">—</span><% } %></td>
+                <% }) %>
+              </tr>
+            <% }) %>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="chapter chapter--gray">
+    <div class="container">
+      <span class="eyebrow">Besoin d'aide ?</span>
+      <h2 class="headline">Questions fréquentes.</h2>
+      <div class="faq-list">
+        <% faqs.forEach(function(item){ %>
+          <div class="faq-item">
+            <button class="faq-question" type="button">
+              <span><%= item.q %></span>
+              <%- include('partials/icon', { name: 'plus', size: 18 }) %>
+            </button>
+            <div class="faq-answer"><div class="faq-answer-inner"><%= item.a %></div></div>
+          </div>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+
+  <!-- Final CTA -->
+  <section id="telecharger" class="chapter chapter--black">
+    <div class="container">
+      <span class="eyebrow">Prêt ?</span>
+      <h2 class="headline">Prêt à parier plus intelligemment ?</h2>
+      <p class="headline-sub">Téléchargez PronoWin, activez vos pronostics gratuits du jour, et passez Premium quand vous êtes prêt à aller plus loin.</p>
+      <%#
+        Deux états, gouvernés par `site.playStoreUrl`.
+
+        Vide — l'état d'aujourd'hui : l'application n'est sur aucun store, on
+        annonce le téléchargement direct et on dit « bientôt » pour le reste.
+        Les deux badges pointaient jadis sur « # » : ils avaient l'air
+        cliquables et ne menaient nulle part.
+
+        Renseignée : Play devient l'appel principal et l'APK direct passe en
+        lien discret. Le canal direct reste accessible — il cesse d'être mis
+        en avant. C'est le seul endroit où Google voit les deux côte à côte.
+      %>
+      <% if (site.playStoreUrl) { %>
+
+        <div class="store-badges">
+          <a href="<%= site.playStoreUrl %>" class="store-badge" rel="noopener" target="_blank">
+            <%- include('partials/icon', { name: 'google-play', size: 20 }) %>
+            <span class="store-badge-text"><small>Disponible sur</small><strong>Google Play</strong></span>
+          </a>
+        </div>
+
+        <div class="store-badges store-badges--soon">
+          <span class="store-badge store-badge--soon">
+            <%- include('partials/icon', { name: 'apple', size: 20 }) %>
+            <span class="store-badge-text"><small>App Store</small><strong>Bientôt</strong></span>
+          </span>
+        </div>
+
+        <%# L'APK reste offert, sans bouton : ceux qui le cherchent le trouvent,
+            il ne s'impose plus à ceux qui ne le cherchent pas. %>
+        <p class="apk-version">
+          <a href="<%= site.apkUrl %>" download>Télécharger l'APK directement</a>
+          <% if (versionApp) { %> · Version <%= versionApp %><% } %>
+          · Android 7.0 et plus
+        </p>
+
+      <% } else { %>
+
+        <div class="store-badges">
+          <a href="<%= site.apkUrl %>" class="store-badge" download>
+            <%- include('partials/icon', { name: 'android', size: 20 }) %>
+            <span class="store-badge-text"><small>Télécharger pour</small><strong>Android</strong></span>
+          </a>
+        </div>
+
+        <%# La version vient de /config — la même valeur que celle qui déclenche
+            la mise à jour dans l'application. Absente si l'API n'a pas répondu :
+            un numéro faux vaudrait moins que pas de numéro. %>
+        <% if (versionApp) { %>
+          <p class="apk-version">Version <%= versionApp %> · Android 7.0 et plus</p>
+        <% } %>
+
+        <div class="store-badges store-badges--soon" aria-hidden="false">
+          <span class="store-badge store-badge--soon">
+            <%- include('partials/icon', { name: 'apple', size: 20 }) %>
+            <span class="store-badge-text"><small>App Store</small><strong>Bientôt</strong></span>
+          </span>
+          <span class="store-badge store-badge--soon">
+            <%- include('partials/icon', { name: 'google-play', size: 20 }) %>
+            <span class="store-badge-text"><small>Google Play</small><strong>Bientôt</strong></span>
+          </span>
+        </div>
+
+      <% } %>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-top">
+        <div class="footer-brand">
+          <a href="/" class="brand">
+            <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
+            <span class="brand-name">Prono<span class="brand-win">Win</span></span>
+          </a>
+          <p class="footer-tagline"><%= site.tagline %>.</p>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">Pronostics</div>
+          <ul>
+            <li><a href="#fonctionnalites">Pronostics gratuits</a></li>
+            <li><a href="#fonctionnalites">Pronostics Premium</a></li>
+            <li><a href="#tarifs">Abonnements</a></li>
+            <li><a href="#fonctionnalites">Parrainage</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">Compte</div>
+          <ul>
+            <li><a href="#telecharger">Télécharger l'app</a></li>
+            <li><a href="#comparer">Comparer les forfaits</a></li>
+            <li><a href="#faq">Support</a></li>
+          </ul>
+        </div>
+        <div class="footer-col">
+          <div class="footer-col-title">PronoWin</div>
+          <ul>
+            <li><a href="#faq">FAQ</a></li>
+<%# « Témoignages » retiré : la section n'existe plus, et un lien de pied de page
+    qui ne mène nulle part est le genre de détail qui survit des années. %>
+            <li><a href="/mentions-legales">Mentions légales</a></li>
+            <li><a href="/confidentialite">Confidentialité</a></li>
+            <%# « Nous contacter » pointait sur `#`. Aucune adresse, aucun
+                numéro, aucun canal de support n'est configuré côté serveur :
+                le lien ne pouvait mener nulle part. Le support existe, mais
+                dans l'application. %>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p class="footer-legal">© <%= site.year %> <%= site.name %>. Tous droits réservés. Le pronostic et le pari sportif comportent des risques de perte financière. Service réservé aux personnes majeures — jouez de manière responsable.</p>
+        <%# Elles pointaient toutes sur `#`. Chacune ne s'affiche désormais
+            que si son adresse est renseignée : pas d'adresse, pas d'icône. %>
+        <% const reseaux = [
+             { url: site.telegramUrl, nom: 'Telegram', icone: 'telegram' },
+             { url: site.whatsappUrl, nom: 'WhatsApp', icone: 'whatsapp' },
+           ].filter(function (r) { return r.url && r.url.trim(); }); %>
+        <% if (reseaux.length) { %>
+        <div class="footer-socials">
+          <% reseaux.forEach(function (r) { %>
+            <a href="<%= r.url %>" aria-label="<%= r.nom %>" target="_blank" rel="noopener noreferrer">
+              <%- include('partials/icon', { name: r.icone, size: 14 }) %>
+            </a>
+          <% }) %>
+        </div>
+        <% } %>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/main.js"></script>
+</body>
+</html>

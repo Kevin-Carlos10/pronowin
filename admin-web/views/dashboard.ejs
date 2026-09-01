@@ -1,73 +1,199 @@
 <%- include('layout_top', {page:'dashboard'}) %>
 
 <style>
-/* ── KPI Cards ─────────────────────────────────────────────────────────────── */
-.kpi-grid       { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px,1fr)); gap: 1rem; margin-bottom: 1.25rem; }
-.kpi-card       { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem 1.5rem; position: relative; overflow: hidden; transition: transform var(--transition), box-shadow var(--transition); text-decoration: none; color: inherit; display: block; }
-.kpi-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); border-color: var(--primary); }
-.kpi-card::before { content:''; position:absolute; top:0;left:0;right:0; height:3px; border-radius: var(--radius) var(--radius) 0 0; }
-.kpi-card.blue::before   { background: var(--info); }
-.kpi-card.orange::before { background: var(--primary); }
-.kpi-card.red::before    { background: var(--error); }
-.kpi-card.green::before  { background: var(--success); }
-.kpi-card.purple::before { background: var(--purple, #7C3AED); }
-.kpi-icon  { font-size: 1.5rem; margin-bottom: .5rem; }
-.kpi-val   { font-size: 1.9rem; font-weight: 800; line-height: 1; margin-bottom: .25rem; }
-.kpi-lbl   { font-size: .78rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
-.kpi-delta { font-size: .78rem; margin-top: .4rem; font-weight: 500; }
+/* ── File de travail ─────────────────────────────────────────────────────── */
+.file-travail  { background:var(--surface); border:1px solid var(--border); border-radius:16px;
+                 overflow:hidden; margin-bottom:1.25rem; }
+.file-entete   { display:flex; align-items:center; gap:.5rem; padding:.8rem 1.1rem;
+                 border-bottom:1px solid var(--border); font-size:.85rem; font-weight:800;
+                 color:var(--text-m); background:var(--surface-d); }
+.file-compte   { font-size:.7rem; font-weight:800; padding:.1rem .45rem; border-radius:999px;
+                 background:var(--surface-h); color:var(--text-m); }
+.file-compte.urgent { background:rgba(239,68,68,.15); color:var(--error); }
+.file-tache    { display:flex; align-items:center; gap:.85rem; padding:.85rem 1.1rem;
+                 border-bottom:1px solid var(--border); }
+.file-tache:last-child { border-bottom:0; }
+.file-tache:hover      { background:var(--surface-d); }
+.file-tache.urgente    { border-left:3px solid var(--error); }
+.file-ic       { width:34px; height:34px; border-radius:10px; flex-shrink:0;
+                 background:var(--surface-d); color:var(--text-m);
+                 display:flex; align-items:center; justify-content:center; }
+.file-tache.urgente .file-ic { background:rgba(239,68,68,.12); color:var(--error); }
+.file-txt      { flex:1; min-width:0; }
+.file-titre    { font-size:.88rem; font-weight:700; line-height:1.35; }
+.file-detail   { font-size:.76rem; color:var(--text-dim); line-height:1.5; margin-top:.15rem; }
+.file-vide     { padding:1.8rem 1.2rem; text-align:center; font-size:.83rem;
+                 color:var(--text-dim); line-height:1.65; }
+@media (max-width:620px) { .file-tache { flex-wrap:wrap; } .file-txt { flex-basis:100%; } }
+
+/* ══════════════════════════════════════════════════════════
+   KPI CARDS — design glassmorphism avec icône badge
+══════════════════════════════════════════════════════════ */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+.kpi-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.4rem 1.5rem 1.2rem;
+  position: relative; overflow: hidden;
+  transition: transform .2s, box-shadow .2s;
+  text-decoration: none; color: inherit; display: block;
+}
+.kpi-card::after {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 16px;
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+}
+.kpi-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,.2); }
+.kpi-card:hover::after { opacity: 1; }
+
+/* Bande colorée gauche */
+.kpi-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; bottom: 0;
+  width: 3px; border-radius: 16px 0 0 16px;
+}
+.kpi-card.blue::before   { background: var(--info); box-shadow: 0 0 12px var(--info); }
+.kpi-card.orange::before { background: var(--primary); box-shadow: 0 0 12px rgba(var(--primary-rgb),.5); }
+.kpi-card.green::before  { background: var(--success); box-shadow: 0 0 12px var(--success); }
+.kpi-card.teal::before   { background: #14B8A6; box-shadow: 0 0 12px #14B8A6; }
+
+/* Icône badge en haut à droite */
+.kpi-icon-badge {
+  position: absolute; top: 1.1rem; right: 1.2rem;
+  width: 38px; height: 38px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.1rem;
+}
+.kpi-card.blue   .kpi-icon-badge { background: rgba(59,130,246,.12); }
+.kpi-card.orange .kpi-icon-badge { background: rgba(var(--primary-rgb),.12); }
+.kpi-card.green  .kpi-icon-badge { background: rgba(34,197,94,.12); }
+.kpi-card.teal   .kpi-icon-badge { background: rgba(20,184,166,.12); }
+
+.kpi-val {
+  font-size: 2.2rem; font-weight: 900; line-height: 1; letter-spacing: -.03em;
+  margin-bottom: .3rem; margin-top: .2rem;
+}
+.kpi-lbl {
+  font-size: .72rem; color: var(--text-dim);
+  text-transform: uppercase; letter-spacing: .07em; font-weight: 700;
+}
+.kpi-delta { font-size: .78rem; margin-top: .55rem; font-weight: 500; display: flex; align-items: center; gap: .3rem; }
 .kpi-delta.up   { color: var(--success); }
 .kpi-delta.down { color: var(--error); }
 .kpi-delta.neu  { color: var(--text-dim); }
+.kpi-delta::before { content:''; display:inline-block; width:5px; height:5px; border-radius:50%; background:currentColor; flex-shrink:0; }
 
-/* ── Alertes intelligentes ─────────────────────────────────────────────────── */
+/* Pulse pour "connectés" */
+@keyframes kpi-pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.7)} }
+.kpi-pulse-dot { animation: kpi-pulse 2s ease-in-out infinite; }
+
+/* ══════════════════════════════════════════════════════════
+   ALERTES
+══════════════════════════════════════════════════════════ */
 .alerts-list { display: flex; flex-direction: column; gap: .5rem; margin-bottom: 1.25rem; }
-.dash-alert  { display: flex; align-items: center; gap: .75rem; padding: .7rem 1rem; border-radius: var(--radius-s); font-size: .83rem; border: 1px solid; }
-.dash-alert-icon { font-size: 1.1rem; flex-shrink: 0; }
-.dash-alert-text { flex: 1; line-height: 1.4; }
-.dash-alert a    { color: inherit; font-weight: 600; text-decoration: underline; }
-.dash-alert.danger  { background: rgba(239,68,68,.08);  border-color: rgba(239,68,68,.2);  color: #FCA5A5; }
-.dash-alert.warning { background: rgba(245,158,11,.08); border-color: rgba(245,158,11,.2); color: #FCD34D; }
-.dash-alert.info    { background: rgba(59,130,246,.08); border-color: rgba(59,130,246,.2); color: #93C5FD; }
-.dash-alert.success { background: rgba(34,197,94,.08);  border-color: rgba(34,197,94,.2);  color: #86EFAC; }
+/* Alertes : voir .alert dans style.css (socle partagé). Les couleurs pastel
+   qui étaient écrites ici tombaient à 1,2–1,7:1 en thème clair, soit sous le
+   seuil WCAG AA de 4,5:1 — elles étaient purement et simplement illisibles. */
 
-/* ── Grilles ───────────────────────────────────────────────────────────────── */
-.charts-grid    { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-.charts-row     { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
-.bottom-grid    { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; }
-.chart-card     { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
-.chart-card h3  { font-size: .95rem; font-weight: 700; margin-bottom: 1rem; display: flex; align-items: center; gap: .4rem; }
-.chart-wrap     { position: relative; }
+/* ══════════════════════════════════════════════════════════
+   GRILLE CHARTS
+══════════════════════════════════════════════════════════ */
+.charts-main  { display: grid; grid-template-columns: 1.8fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.charts-row   { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
+.bottom-grid  { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
 
-/* ── Tables ────────────────────────────────────────────────────────────────── */
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.35rem 1.4rem;
+}
+.chart-card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 1.1rem;
+}
+.chart-card-title {
+  font-size: .9rem; font-weight: 700; display: flex; align-items: center; gap: .4rem;
+}
+.chart-card-sub { font-size: .75rem; color: var(--text-dim); font-weight: 400; }
+.chart-stat-badge {
+  background: var(--surface-d); border: 1px solid var(--border);
+  border-radius: 8px; padding: .25rem .65rem;
+  font-size: .78rem; font-weight: 700; color: var(--text);
+}
+
+/* ══════════════════════════════════════════════════════════
+   TABLES
+══════════════════════════════════════════════════════════ */
 .dash-table  { width: 100%; border-collapse: collapse; }
-.dash-table th { text-align:left; padding: .5rem .75rem; font-size: .72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); white-space: nowrap; }
-.dash-table td { padding: .6rem .75rem; border-bottom: 1px solid var(--border); font-size: .83rem; vertical-align: middle; }
+.dash-table th { text-align:left; padding: .5rem .75rem; font-size: .72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); }
+.dash-table td { padding: .65rem .75rem; border-bottom: 1px solid var(--border); font-size: .83rem; vertical-align: middle; }
 .dash-table tr:last-child td { border-bottom: 0; }
 .dash-table tr:hover td { background: var(--surface-d); }
 
-/* ── Feed activité ─────────────────────────────────────────────────────────── */
-.activity-feed { display: flex; flex-direction: column; gap: 0; }
-.activity-item { display: flex; align-items: flex-start; gap: .6rem; padding: .65rem .75rem; border-bottom: 1px solid var(--border); font-size: .8rem; }
+/* ══════════════════════════════════════════════════════════
+   ACTIVITÉ
+══════════════════════════════════════════════════════════ */
+.activity-feed { display: flex; flex-direction: column; }
+.activity-item {
+  display: flex; align-items: center; gap: .75rem;
+  padding: .75rem 1rem; border-bottom: 1px solid var(--border); font-size: .82rem;
+  transition: background .12s;
+}
 .activity-item:last-child { border-bottom: 0; }
-.activity-dot  { width: 8px; height: 8px; border-radius: 50%; background: var(--primary); margin-top: .25rem; flex-shrink: 0; }
+.activity-item:hover { background: var(--surface-d); }
+.activity-avatar {
+  width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .78rem; font-weight: 700;
+  background: rgba(var(--primary-rgb),.12); color: var(--primary);
+}
 .activity-body { flex: 1; min-width: 0; }
-.activity-action { font-weight: 600; color: var(--text); }
-.activity-meta   { color: var(--text-dim); margin-top: .1rem; }
+.activity-action { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.activity-meta   { color: var(--text-dim); margin-top: .08rem; font-size: .76rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .activity-time   { font-size: .72rem; color: var(--text-dim); white-space: nowrap; flex-shrink: 0; }
 
-/* ── Quick actions ─────────────────────────────────────────────────────────── */
-.quick-actions { display: flex; flex-direction: column; gap: .45rem; }
-.qa-btn { display: flex; align-items: center; gap: .6rem; padding: .65rem .85rem; background: var(--surface-d); border: 1px solid var(--border); border-radius: var(--radius-s); color: var(--text); text-decoration: none; font-size: .83rem; font-weight: 500; transition: all .15s; cursor: pointer; width: 100%; text-align: left; font-family: inherit; }
-.qa-btn:hover  { background: var(--surface-h); border-color: var(--primary); color: var(--primary); transform: translateX(2px); }
-.qa-btn-icon   { font-size: 1rem; flex-shrink: 0; }
+/* ══════════════════════════════════════════════════════════
+   ACCÈS RAPIDES
+══════════════════════════════════════════════════════════ */
+.quick-actions { display: flex; flex-direction: column; gap: .4rem; }
+.qa-btn {
+  display: flex; align-items: center; gap: .7rem;
+  padding: .72rem 1rem;
+  background: var(--surface-d); border: 1px solid var(--border);
+  border-radius: 12px; color: var(--text); text-decoration: none;
+  font-size: .83rem; font-weight: 500;
+  transition: all .15s; cursor: pointer; width: 100%; text-align: left; font-family: inherit;
+}
+.qa-btn:hover { background: var(--surface-h); border-color: var(--primary); color: var(--primary); transform: translateX(3px); }
+.qa-icon-wrap {
+  width: 28px; height: 28px; border-radius: 8px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: .9rem;
+  background: rgba(var(--primary-rgb),.08);
+}
 
-/* ── Card section header ───────────────────────────────────────────────────── */
-.card-header { padding: .9rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+/* ══════════════════════════════════════════════════════════
+   CARD HEADER
+══════════════════════════════════════════════════════════ */
+.card-header { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
 .card-header h3 { margin: 0; font-size: .9rem; font-weight: 700; }
 
-/* ── Responsive ────────────────────────────────────────────────────────────── */
-@media (max-width: 1100px) { .bottom-grid { grid-template-columns: 1fr 1fr; } }
-@media (max-width: 900px)  { .charts-grid, .charts-row, .bottom-grid { grid-template-columns: 1fr; } }
+/* ══════════════════════════════════════════════════════════
+   RESPONSIVE
+══════════════════════════════════════════════════════════ */
+@media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 900px)  { .charts-main, .charts-row, .bottom-grid { grid-template-columns: 1fr; } }
+@media (max-width: 600px)  { .kpi-grid { grid-template-columns: 1fr 1fr; } }
 </style>
 
 <div class="topbar">
@@ -79,75 +205,99 @@
     <span id="live-indicator" style="font-size:.75rem;color:var(--success);font-weight:600;display:flex;align-items:center;gap:.3rem">
       <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse-live 2s ease-in-out infinite"></span> LIVE
     </span>
-    <button class="btn btn-outline btn-sm" onclick="refreshAll()" id="refresh-btn">🔄 Actualiser</button>
+    <button class="btn btn-outline btn-sm" onclick="refreshAll()" id="refresh-btn"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Actualiser</button>
   </div>
 </div>
 
-<!-- ── Alertes intelligentes ──────────────────────────────────────────────── -->
+<!-- ── File de travail ────────────────────────────────────────────────────── -->
 <%
-  const _alerts = [];
-  const _pendingTotal = pending.total ?? 0;
-  const _proofsTotal  = proofs.total  ?? 0;
-  if (_pendingTotal >= 10) _alerts.push({ type:'danger',  icon:'🚨', msg:`<strong>${_pendingTotal} transactions</strong> en attente — action requise.`, link:'/admin/transactions', linkTxt:'Traiter →' });
-  else if (_pendingTotal >= 3) _alerts.push({ type:'warning', icon:'⚠️', msg:`<strong>${_pendingTotal} transactions</strong> en attente de validation.`, link:'/admin/transactions', linkTxt:'Voir →' });
-  if (_proofsTotal >= 5)  _alerts.push({ type:'warning', icon:'👑', msg:`<strong>${_proofsTotal} preuves Premium</strong> en attente de vérification.`, link:'/admin/abonnements', linkTxt:'Vérifier →' });
-  if (activeBansCount > 0) _alerts.push({ type:'info',    icon:'🚫', msg:`<strong>${activeBansCount} utilisateur${activeBansCount>1?'s':''}</strong> actuellement banni${activeBansCount>1?'s':''}.`, link:'/admin/bans', linkTxt:'Voir les bans →' });
-  if (locals.settings?.maintenanceMode) _alerts.push({ type:'danger', icon:'🔧', msg:'<strong>Mode maintenance actif</strong> — les utilisateurs ne peuvent pas accéder à l\'app.', link:'/admin/settings', linkTxt:'Désactiver →' });
+  // Remplace les « alertes intelligentes » : elles ne se declenchaient qu'a
+  // partir de 5 preuves — une a quatre restaient invisibles — ignoraient les
+  // versements, et n'indiquaient jamais depuis combien de temps quelque chose
+  // attendait. Un compteur ne dit pas quoi faire.
+  const _file = (typeof file !== 'undefined' && Array.isArray(file)) ? [...file] : [];
+  // Le mode maintenance est un etat du systeme, pas une tache : il ferme la liste.
+  if (locals.settings?.maintenanceMode) {
+    _file.push({ cle:'maintenance', urgence:'haute', icone:'settings',
+      titre:'Mode maintenance actif',
+      detail:"Avertissement interne aux administrateurs : il ne bloque pas les utilisateurs, "
+           + "ce blocage est géré séparément via Firebase Remote Config.",
+      action:'Désactiver', lien:'/admin/settings' });
+  }
+  const _urgent = _file.filter(t => t.urgence === 'haute').length;
 %>
-<% if (_alerts.length) { %>
-<div class="alerts-list">
-  <% _alerts.forEach(al => { %>
-  <div class="dash-alert <%= al.type %>">
-    <span class="dash-alert-icon"><%= al.icon %></span>
-    <span class="dash-alert-text"><%- al.msg %></span>
-    <a href="<%= al.link %>" class="btn btn-sm btn-outline" style="flex-shrink:0"><%= al.linkTxt %></a>
+
+<div class="file-travail">
+  <div class="file-entete">
+    <svg class="ic" aria-hidden="true"><use href="#ic-<%= _file.length ? 'inbox' : 'check-circle' %>"/></svg>
+    <span><%= _file.length ? 'À traiter' : 'Rien à traiter' %></span>
+    <% if (_file.length) { %>
+      <span class="file-compte"><%= _file.length %></span>
+      <% if (_urgent) { %><span class="file-compte urgent"><%= _urgent %> urgent<%= _urgent > 1 ? 's' : '' %></span><% } %>
+    <% } %>
+  </div>
+
+  <% if (!_file.length) { %>
+    <div class="file-vide">
+      Aucune preuve à valider, aucun versement en attente, aucun compte à rétablir.
+      Les tâches apparaissent ici dès qu'une action vous revient.
+    </div>
+  <% } %>
+
+  <% _file.forEach(t => { %>
+  <div class="file-tache <%= t.urgence === 'haute' ? 'urgente' : '' %>">
+    <span class="file-ic"><svg class="ic" aria-hidden="true"><use href="#ic-<%= t.icone %>"/></svg></span>
+    <div class="file-txt">
+      <div class="file-titre"><%= t.titre %></div>
+      <div class="file-detail"><%= t.detail %></div>
+    </div>
+    <a href="<%= t.lien %>" class="btn btn-sm <%= t.urgence === 'haute' ? 'btn-primary' : 'btn-outline' %>"><%= t.action %> →</a>
   </div>
   <% }) %>
 </div>
-<% } %>
 
 <!-- ── KPIs ───────────────────────────────────────────────────────────────── -->
 <div class="kpi-grid">
   <a href="/admin/users" class="kpi-card blue">
-    <div class="kpi-icon">👥</div>
+    <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span>
+    <div class="kpi-lbl">Utilisateurs totaux</div>
     <div class="kpi-val" id="kpi-users"><%= stats.totalUsers ?? 0 %></div>
-    <div class="kpi-lbl">Utilisateurs</div>
-    <div class="kpi-delta neu" id="kpi-users-delta">—</div>
+    <div class="kpi-delta neu" id="kpi-users-delta">— cette semaine</div>
   </a>
   <a href="/admin/users?plan=premium" class="kpi-card orange">
-    <div class="kpi-icon">👑</div>
-    <div class="kpi-val" id="kpi-premium"><%= stats.premiumUsers ?? 0 %></div>
+    <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span>
     <div class="kpi-lbl">Membres Premium</div>
-    <div class="kpi-delta neu" id="kpi-conv-rate">—</div>
-  </a>
-  <a href="/admin/transactions" class="kpi-card red">
-    <div class="kpi-icon">⏳</div>
-    <div class="kpi-val" id="kpi-tx"><%= stats.pendingTx ?? 0 %></div>
-    <div class="kpi-lbl">Transactions en attente</div>
-    <div class="kpi-delta neu" id="kpi-tx-delta">—</div>
+    <div class="kpi-val" id="kpi-premium"><%= stats.premiumUsers ?? 0 %></div>
+    <div class="kpi-delta neu" id="kpi-conv-rate">— taux de conversion</div>
   </a>
   <a href="/admin/pronostics" class="kpi-card green">
-    <div class="kpi-icon">⚽</div>
-    <div class="kpi-val" id="kpi-prono"><%= stats.publishedToday ?? 0 %></div>
+    <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></span>
     <div class="kpi-lbl">Pronostics publiés auj.</div>
-    <div class="kpi-delta neu" id="kpi-prono-delta">—</div>
+    <div class="kpi-val" id="kpi-prono"><%= stats.publishedToday ?? 0 %></div>
+    <div class="kpi-delta neu" id="kpi-prono-delta">— taux de succès</div>
   </a>
-  <a href="/admin/historique" class="kpi-card purple">
-    <div class="kpi-icon">💰</div>
-    <div class="kpi-val" id="kpi-revenue">—</div>
-    <div class="kpi-lbl">Revenus ce mois</div>
-    <div class="kpi-delta neu" id="kpi-revenue-delta">—</div>
-  </a>
+  <div class="kpi-card teal" id="kpi-active-card" style="cursor:pointer" title="Voir les utilisateurs connectés">
+    <span class="kpi-icon-badge"><span class="kpi-pulse-dot"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg></span></span>
+    <div class="kpi-lbl">Connectés maintenant</div>
+    <div class="kpi-val" id="kpi-active"><%= stats.activeUsers ?? 0 %></div>
+    <div class="kpi-delta neu">ces 2 dernières minutes</div>
+  </div>
 </div>
 
 <!-- ── Graphiques ─────────────────────────────────────────────────────────── -->
-<div class="charts-grid">
+<div class="charts-main">
   <div class="chart-card">
-    <h3>📈 Inscriptions <span style="color:var(--text-dim);font-weight:400;font-size:.82rem">— 14 derniers jours</span></h3>
+    <div class="chart-card-header">
+      <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg> Inscriptions <span class="chart-card-sub">— 14 derniers jours</span></div>
+      <span class="chart-stat-badge" id="badge-signups">…</span>
+    </div>
     <div class="chart-wrap" style="height:200px"><canvas id="chart-signups"></canvas></div>
   </div>
   <div class="chart-card">
-    <h3>🎯 Conversion Free → Premium</h3>
+    <div class="chart-card-header">
+      <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Conversion</div>
+      <span class="chart-stat-badge" id="badge-conv">…</span>
+    </div>
     <div class="chart-wrap" style="height:200px;display:flex;align-items:center;justify-content:center">
       <canvas id="chart-conversion" style="max-height:190px"></canvas>
     </div>
@@ -156,13 +306,41 @@
 
 <div class="charts-row">
   <div class="chart-card">
-    <h3>💳 Dépôts validés <span style="color:var(--text-dim);font-weight:400;font-size:.82rem">— 7 jours (FCFA)</span></h3>
-    <div class="chart-wrap" style="height:180px"><canvas id="chart-deposits"></canvas></div>
-  </div>
-  <div class="chart-card">
-    <h3>⚽ Taux de succès pronostics</h3>
+    <div class="chart-card-header">
+      <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Taux de succès pronostics</div>
+      <span class="chart-stat-badge" id="badge-pronos">…</span>
+    </div>
     <div class="chart-wrap" style="height:180px;display:flex;align-items:center;justify-content:center">
       <canvas id="chart-pronostics" style="max-height:170px"></canvas>
+    </div>
+  </div>
+  <div class="chart-card">
+    <div class="chart-card-header">
+      <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg> Répartition membres</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:.6rem;justify-content:center;height:180px;padding:.5rem 0">
+      <% const _total = (stats.totalUsers||0); const _prem = (stats.premiumUsers||0); const _free = _total - _prem; const _rate = _total > 0 ? Math.round(_prem/_total*100) : 0; %>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.3rem">
+          <span style="color:var(--text-dim)"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span><span style="font-weight:700"><%= _prem %> (<%= _rate %>%)</span>
+        </div>
+        <div style="height:7px;border-radius:4px;background:var(--border);overflow:hidden">
+          <div style="height:100%;width:<%= _rate %>%;background:var(--primary);border-radius:4px;transition:width .6s ease"></div>
+        </div>
+      </div>
+      <div>
+        <div style="display:flex;justify-content:space-between;font-size:.78rem;margin-bottom:.3rem">
+          <span style="color:var(--text-dim)">🆓 Gratuit</span><span style="font-weight:700"><%= _free %> (<%= 100-_rate %>%)</span>
+        </div>
+        <div style="height:7px;border-radius:4px;background:var(--border);overflow:hidden">
+          <div style="height:100%;width:<%= 100-_rate %>%;background:var(--info);border-radius:4px;transition:width .6s ease"></div>
+        </div>
+      </div>
+      <div style="margin-top:.5rem;padding:.75rem;background:var(--surface-d);border-radius:10px;display:flex;justify-content:space-around;text-align:center">
+        <div><div style="font-size:1.3rem;font-weight:800;color:var(--primary)"><%= _rate %>%</div><div style="font-size:.7rem;color:var(--text-dim)">taux Premium</div></div>
+        <div style="width:1px;background:var(--border)"></div>
+        <div><div style="font-size:1.3rem;font-weight:800;color:var(--success)" id="stat-active-users"><%= stats.activeUsers ?? 0 %></div><div style="font-size:.7rem;color:var(--text-dim)">en ligne</div></div>
+      </div>
     </div>
   </div>
 </div>
@@ -170,35 +348,10 @@
 <!-- ── Bas de page : 3 colonnes ───────────────────────────────────────────── -->
 <div class="bottom-grid">
 
-  <!-- Transactions en attente -->
-  <div class="card" style="padding:0;overflow:hidden">
-    <div class="card-header">
-      <h3>💰 Dépôts en attente <span style="color:var(--text-dim);font-weight:400">(<%= pending.total %>)</span></h3>
-      <a href="/admin/transactions" class="btn btn-sm btn-outline">Tout voir →</a>
-    </div>
-    <% if(pending.data && pending.data.length > 0){ %>
-    <div class="table-wrap"><table class="dash-table">
-      <thead><tr><th>Utilisateur</th><th>Montant</th><th>Type</th></tr></thead>
-      <tbody>
-      <% pending.data.slice(0,5).forEach(tx => { %>
-      <tr>
-        <td>
-          <strong><%= tx.user?.pseudo ?? '—' %></strong>
-          <div style="color:var(--text-dim);font-size:.72rem"><%= tx.user?.phoneNumber ?? '' %></div>
-        </td>
-        <td style="font-weight:700"><%= (tx.amount ?? 0).toLocaleString() %> F</td>
-        <td><span class="badge <%= tx.type==='deposit'?'badge-ok':'badge-warn' %>"><%= tx.type==='deposit'?'Dépôt':'Retrait' %></span></td>
-      </tr>
-      <% }) %>
-      </tbody>
-    </table></div>
-    <% } else { %><p class="empty" style="padding:1.5rem">Aucune demande en attente ✅</p><% } %>
-  </div>
-
   <!-- Activité récente -->
   <div class="card" style="padding:0;overflow:hidden">
     <div class="card-header">
-      <h3>📋 Activité récente</h3>
+      <h3><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Activité récente</h3>
       <a href="/admin/audit" class="btn btn-sm btn-outline">Journal →</a>
     </div>
     <% if(recentLogs && recentLogs.length > 0){ %>
@@ -215,7 +368,7 @@
            })();
       %>
       <div class="activity-item">
-        <div class="activity-dot" style="<%= log.action==='login_failed'?'background:var(--error)':log.action==='user_banned'?'background:var(--error)':log.action==='login'?'background:var(--success)':'' %>"></div>
+        <div class="activity-avatar" style="<%= log.action==='login_failed'||log.action==='user_banned'?'background:rgba(239,68,68,.12);color:var(--error)':log.action==='login'?'background:rgba(34,197,94,.12);color:var(--success)':'' %>"><%= (log.adminName||'?')[0].toUpperCase() %></div>
         <div class="activity-body">
           <div class="activity-action"><%= _icon %> <%= log.adminName %></div>
           <div class="activity-meta"><%= log.target ? log.target.slice(0,40) : log.action %></div>
@@ -231,25 +384,22 @@
   <div style="display:flex;flex-direction:column;gap:1rem">
     <!-- Accès rapides -->
     <div class="card">
-      <h3 style="margin-bottom:.75rem;font-size:.9rem">⚡ Accès rapides</h3>
+      <h3 style="margin-bottom:.75rem;font-size:.9rem"><svg class="ic" aria-hidden="true"><use href="#ic-zap"/></svg> Accès rapides</h3>
       <div class="quick-actions">
         <% if(hasPerm('users','write')) { %>
-        <a href="/admin/users" class="qa-btn"><span class="qa-btn-icon">👥</span> Gérer les utilisateurs</a>
-        <% } %>
-        <% if(hasPerm('transactions','write')) { %>
-        <a href="/admin/transactions" class="qa-btn"><span class="qa-btn-icon">💰</span> Valider les dépôts <% if((pending.total??0)>0){ %><span class="badge badge-err" style="margin-left:auto;font-size:.7rem"><%= pending.total %></span><% } %></a>
+        <a href="/admin/users" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span> Gérer les utilisateurs</a>
         <% } %>
         <% if(hasPerm('abonnements','write')) { %>
-        <a href="/admin/abonnements" class="qa-btn"><span class="qa-btn-icon">👑</span> Vérifier preuves Premium <% if((proofs.total??0)>0){ %><span class="badge badge-warn" style="margin-left:auto;font-size:.7rem"><%= proofs.total %></span><% } %></a>
+        <a href="/admin/abonnements" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> Vérifier preuves Premium <% if((proofs.total??0)>0){ %><span class="badge badge-warn" style="margin-left:auto;font-size:.7rem"><%= proofs.total %></span><% } %></a>
         <% } %>
         <% if(hasPerm('pronostics','write')) { %>
-        <a href="/admin/pronostics" class="qa-btn"><span class="qa-btn-icon">⚽</span> Publier un pronostic</a>
+        <a href="/admin/pronostics" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></span> Publier un pronostic</a>
         <% } %>
         <% if(hasPerm('notifications','write')) { %>
-        <a href="/admin/notifications" class="qa-btn"><span class="qa-btn-icon">📣</span> Envoyer une notification</a>
+        <a href="/admin/notifications" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg></span> Envoyer une notification</a>
         <% } %>
         <% if(isMain) { %>
-        <a href="/admin/bans" class="qa-btn"><span class="qa-btn-icon">🚫</span> Bannissements <% if(activeBansCount>0){ %><span class="badge badge-err" style="margin-left:auto;font-size:.7rem"><%= activeBansCount %></span><% } %></a>
+        <a href="/admin/bans" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg></span> Bannissements <% if(activeBansCount>0){ %><span class="badge badge-err" style="margin-left:auto;font-size:.7rem"><%= activeBansCount %></span><% } %></a>
         <% } %>
       </div>
     </div>
@@ -258,7 +408,7 @@
     <% if(activeBansCount > 0 && recentBans && recentBans.length > 0){ %>
     <div class="card" style="padding:0;overflow:hidden">
       <div class="card-header">
-        <h3 style="color:var(--error)">🚫 Bans actifs (<%= activeBansCount %>)</h3>
+        <h3 style="color:var(--error)"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bans actifs (<%= activeBansCount %>)</h3>
         <a href="/admin/bans" class="btn btn-sm btn-outline">Voir →</a>
       </div>
       <% recentBans.forEach(ban => { %>
@@ -278,7 +428,15 @@
 </div>
 
 <!-- ── Chart.js ─────────────────────────────────────────────────────────── -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<%# Chart.js était chargé depuis cdn.jsdelivr.net. Le poste depuis lequel on
+    consulte le panneau ne joint pas ce domaine (code 000 après 11 s), et les
+    trois graphiques restaient noirs.
+
+    Le service local existait déjà — server.js le monte sur /vendor/chart.js
+    depuis node_modules, pour que la version reste celle de package.json. La
+    page Statistiques l'utilisait ; ce tableau de bord était resté sur le CDN.
+    Le même défaut à deux endroits, corrigé à un seul. %>
+<script src="/admin/vendor/chart.js/chart.umd.js"></script>
 <script>
 /* ── Date ── */
 document.getElementById('dash-date').textContent =
@@ -313,7 +471,34 @@ function applyChartDefaults() {
   Chart.defaults.plugins.tooltip.bodyColor           = textColor;
   Chart.defaults.plugins.tooltip.padding             = 10;
 }
-applyChartDefaults();
+/**
+ * Panne muette : ce qui s'est passe en production.
+ *
+ * `Chart` indefini, `applyChartDefaults()` leve une ReferenceError, et le bloc
+ * entier s'arrete la — y compris la fenetre des connectes, plus bas. Les trois
+ * panneaux restaient noirs et leurs badges figes sur « … » : aucune erreur a
+ * l'ecran, rien dans l'interface pour relier ce vide a sa cause.
+ *
+ * Le garde subsiste malgre le passage en local : un fichier peut manquer apres
+ * un deploiement partiel, et un tableau de bord qui ment par omission est pire
+ * qu'un tableau de bord qui s'annonce en panne.
+ */
+function signalerGraphiquesIndisponibles() {
+  document.querySelectorAll('.chart-wrap').forEach((zone) => {
+    zone.innerHTML =
+      '<div style="height:100%;display:flex;align-items:center;justify-content:center;'
+    + 'text-align:center;padding:1rem;color:var(--text-dim);font-size:.82rem;line-height:1.6">'
+    + 'Graphiques indisponibles.<br>La bibliotheque n\'a pas pu etre chargee.'
+    + '</div>';
+  });
+  document.querySelectorAll('.chart-stat-badge').forEach((b) => { b.textContent = '—'; });
+}
+
+if (typeof Chart === 'undefined') {
+  signalerGraphiquesIndisponibles();
+} else {
+  applyChartDefaults();
+}
 
 /* ── Palette ── */
 function palette() {
@@ -328,7 +513,7 @@ function palette() {
   };
 }
 
-let chartSignups, chartConv, chartDeposits, chartPronos;
+let chartSignups, chartConv, chartPronos;
 
 function last14Days() {
   const days = [];
@@ -338,8 +523,6 @@ function last14Days() {
   }
   return days;
 }
-function last7Days() { return last14Days().slice(7); }
-
 /* ── Build charts ── */
 function buildSignupsChart(data) {
   if (chartSignups) chartSignups.destroy();
@@ -368,20 +551,6 @@ function buildConversionChart(free, premium) {
   });
 }
 
-function buildDepositsChart(data) {
-  if (chartDeposits) chartDeposits.destroy();
-  const P = palette();
-  const ctx = document.getElementById('chart-deposits')?.getContext('2d');
-  if (!ctx) return;
-  const g = ctx.createLinearGradient(0,0,0,180);
-  g.addColorStop(0, hexToRgba(P.green,.45));
-  g.addColorStop(1, hexToRgba(P.green,.03));
-  chartDeposits = new Chart(ctx, {
-    type: 'bar',
-    data: { labels: data.labels ?? last7Days(), datasets:[{ label:'FCFA validés', data: data.values ?? [], backgroundColor: g, borderColor: P.green, borderWidth:1.5, borderRadius:5 }] },
-    options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{ x:{grid:{display:false}}, y:{grid:{color:P.border}, beginAtZero:true, ticks:{callback: v => v>=1000?(v/1000)+'k':v}} } }
-  });
-}
 
 function buildPronosticsChart(won, lost, pending) {
   if (chartPronos) chartPronos.destroy();
@@ -410,13 +579,16 @@ function flashUpdate(id, val, format) {
 
 /* ── Chargement données ── */
 async function loadCharts() {
+  // Sans bibliotheque, le message est deja pose : on ne va pas chercher des
+  // donnees qu'on ne saurait pas dessiner.
+  if (typeof Chart === 'undefined') return;
+
   const btn = document.getElementById('refresh-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⏳'; }
 
   try {
-    const [signupsRes, depositsRes, pronosticsRes] = await Promise.allSettled([
+    const [signupsRes, pronosticsRes] = await Promise.allSettled([
       fetch('/admin/api/stats/signups?days=14').then(r => r.json()),
-      fetch('/admin/api/stats/deposits?days=7').then(r => r.json()),
       fetch('/admin/api/stats/pronostics').then(r => r.json()),
     ]);
 
@@ -425,6 +597,8 @@ async function loadCharts() {
     if (signups.newThisWeek !== undefined) {
       document.getElementById('kpi-users-delta').textContent = `+${signups.newThisWeek} cette semaine`;
       document.getElementById('kpi-users-delta').className = 'kpi-delta up';
+      const badgeS = document.getElementById('badge-signups');
+      if (badgeS) badgeS.textContent = `+${signups.newThisWeek} / 7j`;
     }
 
     const totalU   = parseInt(document.getElementById('kpi-users')?.textContent.replace(/\s/g,'')) || 0;
@@ -434,15 +608,8 @@ async function loadCharts() {
       const rate = Math.round(premiumU / totalU * 100);
       document.getElementById('kpi-conv-rate').textContent = `Taux conversion : ${rate}%`;
       document.getElementById('kpi-conv-rate').className   = rate > 10 ? 'kpi-delta up' : 'kpi-delta neu';
-    }
-
-    const deposits = depositsRes.status === 'fulfilled' ? depositsRes.value : {};
-    buildDepositsChart(deposits);
-    if (deposits.totalThisMonth !== undefined) {
-      document.getElementById('kpi-revenue').textContent       = (deposits.totalThisMonth ?? 0).toLocaleString() + ' F';
-      const vs = deposits.vsLastMonth;
-      document.getElementById('kpi-revenue-delta').textContent = vs !== undefined ? (vs >= 0 ? '+' : '') + vs + '% vs mois passé' : '—';
-      document.getElementById('kpi-revenue-delta').className   = vs > 0 ? 'kpi-delta up' : vs < 0 ? 'kpi-delta down' : 'kpi-delta neu';
+      const badgeC = document.getElementById('badge-conv');
+      if (badgeC) badgeC.textContent = `${rate}% premium`;
     }
 
     const pronos = pronosticsRes.status === 'fulfilled' ? pronosticsRes.value : {};
@@ -452,6 +619,8 @@ async function loadCharts() {
       const rate  = total > 0 ? Math.round(pronos.won / total * 100) : 0;
       document.getElementById('kpi-prono-delta').textContent = `Taux de réussite : ${rate}%`;
       document.getElementById('kpi-prono-delta').className   = rate >= 60 ? 'kpi-delta up' : rate >= 40 ? 'kpi-delta neu' : 'kpi-delta down';
+      const badgeP = document.getElementById('badge-pronos');
+      if (badgeP) badgeP.textContent = `${rate}% réussite`;
     }
 
   } catch(e) {
@@ -472,8 +641,8 @@ loadCharts();
 window.addEventListener('sseKpis', function(e) {
   const d = e.detail;
   if (d.users_total    != null) flashUpdate('kpi-users',   d.users_total);
-  if (d.tx_pending     != null) flashUpdate('kpi-tx',      d.tx_pending);
   if (d.proofs_pending != null) flashUpdate('kpi-proofs',  d.proofs_pending);
+  if (d.active_users   != null) { flashUpdate('kpi-active', d.active_users); flashUpdate('stat-active-users', d.active_users); }
 });
 
 /* ── Reconstruire les charts si le thème change ── */
@@ -481,6 +650,96 @@ document.documentElement.addEventListener && (function() {
   const obs = new MutationObserver(() => { applyChartDefaults(); refreshAll(); });
   obs.observe(document.documentElement, { attributes:true, attributeFilter:['class','data-accent'] });
 })();
+
+/* ── Modal utilisateurs connectés ── */
+(function() {
+  const card = document.getElementById('kpi-active-card');
+  const modal = document.getElementById('online-modal');
+  const overlay = document.getElementById('online-overlay');
+  const closeBtn = document.getElementById('online-close');
+  const tbody = document.getElementById('online-tbody');
+  const countEl = document.getElementById('online-count');
+
+  function closeModal() {
+    modal.style.display = 'none';
+    overlay.style.display = 'none';
+  }
+
+  async function openModal() {
+    modal.style.display = 'flex';
+    overlay.style.display = 'block';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-dim)">Chargement…</td></tr>';
+    try {
+      const data = await fetch('/admin/api/users/online').then(r => r.json());
+      countEl.textContent = data.total ?? 0;
+      if (!data.users || data.users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-dim)">Aucun utilisateur connecté actuellement.</td></tr>';
+        return;
+      }
+      tbody.innerHTML = data.users.map(u => {
+        const ago = (() => {
+          const ms = Date.now() - new Date(u.lastSeenAt).getTime();
+          if (ms < 60000) return 'à l\'instant';
+          return Math.floor(ms / 60000) + 's min';
+        })();
+        const plan = u.subscriptionPlan === 'premium'
+          ? '<span class="badge badge-ok" style="font-size:.7rem">👑 Premium</span>'
+          : '<span class="badge" style="font-size:.7rem;background:rgba(59,130,246,.15);color:#93C5FD">Free</span>';
+        const id = u.identifier ?? u.phoneNumber ?? u.email ?? '—';
+        return `<tr>
+          <td>
+            <div style="display:flex;align-items:center;gap:.6rem">
+              <div style="width:30px;height:30px;border-radius:50%;background:rgba(34,197,94,.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;color:var(--success);flex-shrink:0">${(u.pseudo||'?')[0].toUpperCase()}</div>
+              <div>
+                <div style="font-weight:600">${u.pseudo ?? '—'}</div>
+                <div style="font-size:.72rem;color:var(--text-dim)">${id}</div>
+              </div>
+            </div>
+          </td>
+          <td>${u.countryCode ?? '—'}</td>
+          <td>${plan}</td>
+          <td style="color:var(--success);font-size:.8rem;font-weight:500">
+            <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);margin-right:.3rem;animation:pulse-live 2s ease-in-out infinite"></span>${ago}
+          </td>
+        </tr>`;
+      }).join('');
+    } catch(e) {
+      tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--error)">Erreur de chargement.</td></tr>';
+    }
+  }
+
+  if (card)    card.addEventListener('click', openModal);
+  if (closeBtn) closeBtn.addEventListener('click', closeModal);
+  if (overlay)  overlay.addEventListener('click', closeModal);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+})();
 </script>
+
+<!-- ── Modal utilisateurs connectés ── -->
+<div id="online-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:1000"></div>
+<div id="online-modal" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);width:min(700px,95vw);max-height:80vh;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);z-index:1001;flex-direction:column;overflow:hidden">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:1rem 1.25rem;border-bottom:1px solid var(--border)">
+    <div>
+      <h3 style="margin:0;font-size:1rem;font-weight:700"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg> Utilisateurs connectés</h3>
+      <div style="font-size:.78rem;color:var(--text-dim);margin-top:.2rem">actifs ces 2 dernières minutes — <span id="online-count">…</span> en ligne</div>
+    </div>
+    <button id="online-close" aria-label="Fermer le panneau" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1;padding:.2rem .4rem" title="Fermer"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
+  </div>
+  <div style="overflow-y:auto;flex:1">
+    <div class="table-wrap">
+      <table class="dash-table" style="width:100%">
+        <thead><tr>
+          <th scope="col">Utilisateur</th>
+          <th scope="col">Pays</th>
+          <th scope="col">Plan</th>
+          <th scope="col">Vu</th>
+        </tr></thead>
+        <tbody id="online-tbody">
+          <tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-dim)">Chargement…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
 <%- include('layout_bottom') %>

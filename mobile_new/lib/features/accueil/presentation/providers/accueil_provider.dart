@@ -102,7 +102,12 @@ final pronosticsJourProvider =
     cacheKey: key,
     fetchFn:  () async {
       final r = await ref.read(dioProvider).get('/pronostics', queryParameters: {
-        'date_filter': 'today', 'page': 1, 'per_page': 5,
+        // Fetch généreux (limite max autorisée côté backend) — cette liste
+        // alimente aussi les sections "En direct" et "Top prono du jour" qui
+        // ont besoin de voir TOUS les pronos publiés du jour pour choisir
+        // correctement (pas seulement les 5 affichés dans la liste "Pronostics
+        // du jour" elle-même, qui applique son propre .take(5) à l'affichage).
+        'date_filter': 'today', 'limit': 50,
       });
       return (r.data['data'] as List<dynamic>?) ?? [];
     },
@@ -121,48 +126,25 @@ final actualitesProvider =
     cacheKey: key,
     fetchFn:  () async {
       final r = await ref.read(dioProvider).get('/actualites');
-      final list = (r.data as List<dynamic>?) ?? [];
-      return list.isNotEmpty ? list : _staticNews;
+      // Une liste vide est une reponse valide, pas un echec : elle veut dire
+      // qu'aucune actualite n'est publiee. L'ecran omet alors la section.
+      return (r.data as List<dynamic>?) ?? [];
     },
     fromJson: (d) => (d as List<dynamic>),
   );
-  if (data == null || data.isEmpty) return _staticNews;
+  // Quatre articles etaient inventes ici — « La FIFA a officialise les
+  // groupes », « Real Madrid vs Bayern et Arsenal vs PSG » — dates en relatif
+  // (« Aujourd'hui », « Hier »), donc jamais perimes en apparence. C'est ce qui
+  // les rendait dangereux : de l'information fabriquee qu'aucun lecteur ne
+  // pouvait reconnaitre comme fausse.
+  //
+  // Et ce n'etait pas un repli d'erreur : ils sortaient aussi quand l'API
+  // repondait correctement avec une liste vide, c'est-a-dire tant qu'aucune
+  // actualite n'etait publiee. L'etat par defaut d'une installation neuve.
+  if (data == null) return const <Map<String, dynamic>>[];
   return data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
 });
 
-const _staticNews = [
-  {
-    'titre':     'Coupe du Monde 2026 — Les groupes dévoilés',
-    'resume':    "La FIFA a officialisé les groupes. Le Brésil, la France et l'Angleterre dans le même chapeau.",
-    'date':      "Aujourd'hui",
-    'emoji':     '🌍',
-    'categorie': 'Coupe du Monde',
-    'image_url': 'https://images.unsplash.com/photo-1551958219-acbc17c2f7e4?w=400&q=80',
-  },
-  {
-    'titre':     'Ligue des Champions — Demi-finales confirmées',
-    'resume':    'Real Madrid vs Bayern et Arsenal vs PSG. Les affiches qui font rêver l\'Europe.',
-    'date':      'Hier',
-    'emoji':     '⚽',
-    'categorie': 'Champions League',
-    'image_url': 'https://images.unsplash.com/photo-1574629810360-7efbbe195018?w=400&q=80',
-  },
-  {
-    'titre':     'Premier League — Course au titre serrée',
-    'resume':    'Man City et Arsenal à égalité de points à 4 journées de la fin.',
-    'date':      'Il y a 2j',
-    'emoji':     '🏴󠁧󠁢󠁥󠁮󠁧󠁿',
-    'categorie': 'Premier League',
-    'image_url': 'https://images.unsplash.com/photo-1522778119026-d647f0596c20?w=400&q=80',
-  },
-  {
-    'titre':     "Serie A — L'Inter Milan champion ?",
-    'resume':    "Avec 8 points d'avance, les Nerazzurri semblent intouchables.",
-    'date':      'Il y a 3j',
-    'emoji':     '🇮🇹',
-    'categorie': 'Serie A',
-  },
-];
 
 // ─── Prochain match à venir ───────────────────────────────────────────────────
 
@@ -174,7 +156,9 @@ final nextPronosticProvider =
     cacheKey: key,
     fetchFn:  () async {
       final r = await ref.read(dioProvider).get('/pronostics', queryParameters: {
-        'date_filter': 'week', 'page': 1, 'per_page': 20,
+        // Idem pronosticsJourProvider ci-dessus : page/per_page sont ignorés
+        // par le backend (pagination par curseur), seul `limit` compte.
+        'date_filter': 'week', 'limit': 50,
       });
       return (r.data['data'] as List<dynamic>?) ?? [];
     },
@@ -210,6 +194,44 @@ final statsJourProvider =
     fromJson: (d) => Map<String, dynamic>.from(d as Map),
   );
   return data ?? empty;
+});
+
+/// Bilan des pronostics publiés sur les 30 derniers jours.
+///
+/// Sert la bande de preuve de l'accueil : « 30 derniers pronostics · 18 gagnés
+/// · +12 % ». C'est l'argument de confiance de l'app, donc l'endpoint est
+/// ouvert aux invités — il ne contient aucune donnée personnelle.
+final performance30Provider =
+    FutureProvider.autoDispose<Map<String, dynamic>?>((ref) async {
+  const key = 'pronostics_perf_30';
+  return _fetchWithCache<Map<String, dynamic>>(
+    ref: ref,
+    cacheKey: key,
+    fetchFn: () async {
+      final r = await ref
+          .read(dioProvider)
+          .get('/pronostics/performance', queryParameters: {'days': 30});
+      return Map<String, dynamic>.from(r.data as Map);
+    },
+    fromJson: (d) => Map<String, dynamic>.from(d as Map),
+  );
+});
+
+/// Pronostics d'hier, déjà réglés — pour boucler la journée précédente.
+final hierProvider =
+    FutureProvider.autoDispose<List<dynamic>>((ref) async {
+  const key = 'pronostics_hier';
+  final data = await _fetchWithCache<List<dynamic>>(
+    ref: ref,
+    cacheKey: key,
+    fetchFn: () async {
+      final r = await ref.read(dioProvider).get('/pronostics',
+          queryParameters: {'date_filter': 'yesterday', 'limit': 50});
+      return (r.data['data'] as List?) ?? const [];
+    },
+    fromJson: (d) => List<dynamic>.from(d as List),
+  );
+  return data ?? const [];
 });
 
 // ─── État global du cache (pour la bannière offline) ─────────────────────────

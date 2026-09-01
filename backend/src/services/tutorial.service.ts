@@ -1,13 +1,22 @@
 ﻿
 import { prisma } from '../lib/prisma';
 
-// Données de démo si la table est vide ou inexistante
+// Données de démo si la table est vide ou inexistante.
+//
+// Les compteurs y étaient inventés : 4 823 vues et 4,7 étoiles sur le premier
+// tutoriel, pour une application qui compte six comptes. La table de
+// production porte les vraies valeurs (0 et 0), donc rien de tout cela n'était
+// servi — mais un repli n'existe que pour les jours où il sort, et ce jour-là
+// l'application aurait annoncé une popularité qu'elle n'a pas.
+//
+// Les titres et descriptions restent : ce sont ceux de la table. Seuls les
+// chiffres partent.
 const DEMO_TUTORIALS = [
   {
     id: 'tut_001', title: 'Comprendre le Value Bet',
     description: 'Le Value Bet est la stratégie la plus rentable. Apprenez à calculer la valeur réelle d\'une cote et détecter quand le bookmaker sous-estime une équipe.',
     level: 'beginner', category: 'valuebet', duration_seconds: 720,
-    is_premium: false, view_count: 4823, rating: 4.7, author_name: 'Expert PronoWin',
+    is_premium: false, view_count: 0, rating: 0, author_name: 'Expert PronoWin',
     thumbnail_url: null, video_url: null, has_video: false,
     published_at: new Date().toISOString(),
   },
@@ -15,7 +24,7 @@ const DEMO_TUTORIALS = [
     id: 'tut_002', title: 'Bankroll Management',
     description: 'La règle d\'or : ne jamais miser plus de 2-5% de votre bankroll sur un seul pari. Méthodes Kelly, Flat et Fixed.',
     level: 'beginner', category: 'bankroll', duration_seconds: 540,
-    is_premium: false, view_count: 3201, rating: 4.9, author_name: 'Expert PronoWin',
+    is_premium: false, view_count: 0, rating: 0, author_name: 'Expert PronoWin',
     thumbnail_url: null, video_url: null, has_video: false,
     published_at: new Date().toISOString(),
   },
@@ -23,7 +32,7 @@ const DEMO_TUTORIALS = [
     id: 'tut_003', title: 'Statistiques avancées : xG et pressing',
     description: 'Les buts attendus (xG) révolutionnent l\'analyse foot. Utilisez ces métriques pour anticiper les résultats.',
     level: 'intermediate', category: 'analyse', duration_seconds: 1080,
-    is_premium: true, view_count: 1847, rating: 4.8, author_name: 'Expert PronoWin',
+    is_premium: true, view_count: 0, rating: 0, author_name: 'Expert PronoWin',
     thumbnail_url: null, video_url: null, has_video: false,
     published_at: new Date().toISOString(),
   },
@@ -31,7 +40,7 @@ const DEMO_TUTORIALS = [
     id: 'tut_004', title: 'Psychologie du parieur',
     description: 'Évitez les biais cognitifs : biais de confirmation, effet de récence, gambling fallacy. Prenez des décisions rationnelles.',
     level: 'intermediate', category: 'psychologie', duration_seconds: 660,
-    is_premium: false, view_count: 2156, rating: 4.6, author_name: 'Expert PronoWin',
+    is_premium: false, view_count: 0, rating: 0, author_name: 'Expert PronoWin',
     thumbnail_url: null, video_url: null, has_video: false,
     published_at: new Date().toISOString(),
   },
@@ -39,7 +48,7 @@ const DEMO_TUTORIALS = [
     id: 'tut_005', title: 'Stratégie des handicaps asiatiques',
     description: 'Les handicaps asiatiques éliminent le match nul et offrent de meilleures cotes. Maîtrisez cette technique avancée.',
     level: 'advanced', category: 'strategie', duration_seconds: 900,
-    is_premium: true, view_count: 987, rating: 4.9, author_name: 'Expert PronoWin',
+    is_premium: true, view_count: 0, rating: 0, author_name: 'Expert PronoWin',
     thumbnail_url: null, video_url: null, has_video: false,
     published_at: new Date().toISOString(),
   },

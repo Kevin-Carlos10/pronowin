@@ -17,52 +17,48 @@ enum TutorialLevel {
   };
 }
 
-enum TutorialCategory {
-  valuebet,
-  bankroll,
-  martingale,
-  trading,
-  psychology,
-  statistics,
-  strategie,
-  analyse,
-  psychologie;
-
-  String get label => switch (this) {
-    TutorialCategory.valuebet    => 'Value Bet',
-    TutorialCategory.bankroll    => 'Bankroll',
-    TutorialCategory.martingale  => 'Martingale',
-    TutorialCategory.trading     => 'Trading',
-    TutorialCategory.psychology  => 'Psychologie',
-    TutorialCategory.psychologie => 'Psychologie',
-    TutorialCategory.statistics  => 'Statistiques',
-    TutorialCategory.strategie   => 'Stratégie',
-    TutorialCategory.analyse     => 'Analyse',
+// Les catégories sont créées librement par l'admin (texte libre côté back),
+// pas une liste figée — on garde la valeur brute et on ne fait que des
+// suggestions d'affichage (libellé/emoji) pour les catégories qu'on reconnaît,
+// avec un repli générique pour toute nouvelle catégorie inconnue de ce code.
+class TutorialCategoryInfo {
+  static const Map<String, String> _labels = {
+    'valuebet':    'Value Bet',
+    'bankroll':    'Bankroll',
+    'martingale':  'Martingale',
+    'trading':     'Trading',
+    'psychology':  'Psychologie',
+    'psychologie': 'Psychologie',
+    'statistics':  'Statistiques',
+    'strategie':   'Stratégie',
+    'analyse':     'Analyse',
   };
 
-  String get emoji => switch (this) {
-    TutorialCategory.valuebet    => '🎯',
-    TutorialCategory.bankroll    => '💰',
-    TutorialCategory.martingale  => '🔄',
-    TutorialCategory.trading     => '⚡',
-    TutorialCategory.psychology  => '🧠',
-    TutorialCategory.psychologie => '🧠',
-    TutorialCategory.statistics  => '📊',
-    TutorialCategory.strategie   => '♟️',
-    TutorialCategory.analyse     => '📊',
+  static const Map<String, String> _emojis = {
+    'valuebet':    '🎯',
+    'bankroll':    '💰',
+    'martingale':  '🔄',
+    'trading':     '⚡',
+    'psychology':  '🧠',
+    'psychologie': '🧠',
+    'statistics':  '📊',
+    'strategie':   '♟️',
+    'analyse':     '📊',
   };
 
-  static TutorialCategory fromString(String? s) => switch (s?.toLowerCase()) {
-    'bankroll'    => TutorialCategory.bankroll,
-    'martingale'  => TutorialCategory.martingale,
-    'trading'     => TutorialCategory.trading,
-    'psychology'  => TutorialCategory.psychology,
-    'psychologie' => TutorialCategory.psychologie,
-    'statistics'  => TutorialCategory.statistics,
-    'strategie'   => TutorialCategory.strategie,
-    'analyse'     => TutorialCategory.analyse,
-    _             => TutorialCategory.valuebet,
-  };
+  static String labelFor(String category) =>
+      _labels[category.toLowerCase()] ?? _titleCase(category);
+
+  static String emojiFor(String category) =>
+      _emojis[category.toLowerCase()] ?? '📚';
+
+  static String _titleCase(String s) => s
+      .replaceAll(RegExp(r'[_-]+'), ' ')
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((w) => w.isNotEmpty)
+      .map((w) => w[0].toUpperCase() + w.substring(1))
+      .join(' ');
 }
 
 // ─── Entity ───────────────────────────────────────────────────────────────────
@@ -71,7 +67,7 @@ class TutorialEntity {
   final String           title;
   final String           description;
   final TutorialLevel    level;
-  final TutorialCategory category;
+  final String           category; // texte libre côté back — voir TutorialCategoryInfo
   final String?          thumbnailUrl;
   final String?          videoUrl;
   final String?          articleContent;  // contenu article texte
@@ -107,8 +103,8 @@ class TutorialEntity {
 
   // ─── Getters pratiques ────────────────────────────────────────────────────
   String get levelLabel    => level.label;
-  String get categoryLabel => category.label;
-  String get categoryEmoji => category.emoji;
+  String get categoryLabel => TutorialCategoryInfo.labelFor(category);
+  String get categoryEmoji => TutorialCategoryInfo.emojiFor(category);
 
   String get durationText {
     final m = durationSeconds ~/ 60;
@@ -125,7 +121,8 @@ class TutorialEntity {
     title:           j['title']       as String,
     description:     j['description'] as String? ?? '',
     level:           TutorialLevel.fromString(j['level'] as String?),
-    category:        TutorialCategory.fromString(j['category'] as String?),
+    category:        (j['category'] as String?)?.trim().isNotEmpty == true
+      ? (j['category'] as String).trim() : 'valuebet',
     thumbnailUrl:    j['thumbnail_url']  as String?,
     videoUrl:        j['video_url']      as String?,
     articleContent:  j['article_content'] as String?,
@@ -147,7 +144,7 @@ class TutorialEntity {
     'title':            title,
     'description':      description,
     'level':            level.name,
-    'category':         category.name,
+    'category':         category,
     'thumbnail_url':    thumbnailUrl,
     'video_url':        videoUrl,
     'article_content':  articleContent,
@@ -164,7 +161,7 @@ class TutorialEntity {
 
   TutorialEntity copyWith({
     String? id, String? title, String? description,
-    TutorialLevel? level, TutorialCategory? category,
+    TutorialLevel? level, String? category,
     String? thumbnailUrl, String? videoUrl, String? articleContent,
     String? authorName, String? authorAvatar,
     int? durationSeconds, int? viewCount, double? rating,

@@ -1,11 +1,26 @@
 ﻿import { NotificationService } from './notification.service';
 import { prisma } from '../lib/prisma';
+import { PREMIUM_PRICE_FCFA_MONTHLY } from './subscription.service';
 
 const notifSvc = new NotificationService();
 
 export const COMMISSION_L1 = parseInt(process.env.REFERRAL_COMMISSION_L1 ?? '500');
 export const COMMISSION_L2 = parseInt(process.env.REFERRAL_COMMISSION_L2 ?? '200');
 export const MIN_WITHDRAWAL = parseInt(process.env.REFERRAL_MIN_WITHDRAWAL ?? '2000');
+
+/**
+ * Devise dans laquelle les commissions sont versées.
+ *
+ * Ce n'est pas la devise de l'utilisateur, et il ne faut pas la confondre avec
+ * celle de son Bankroll : c'est celle du **virement Mobile Money** que nous
+ * emettons — `currency: 'XOF'` a la ligne qui cree la transaction.
+ *
+ * Elle n'etait publiee nulle part. Le mobile ecrivait donc le libelle de
+ * memoire, et pas deux fois pareil sur le meme ecran : « 0 FCFA » pour le
+ * solde, « 500 F » pour la commission. Deux ecritures d'une meme monnaie a
+ * quatre centimetres d'ecart.
+ */
+export const REFERRAL_CURRENCY = process.env.REFERRAL_CURRENCY ?? 'XOF';
 
 export class ReferralService {
 
@@ -36,11 +51,18 @@ export class ReferralService {
 
     return {
       referral_code:    user.referralCode,
+      // Le mobile masque le formulaire « Entrer un code parrain » sur ce
+      // champ. Il n'était pas renvoyé : le client retombait sur `?? false` et
+      // proposait donc le formulaire à tout le monde, y compris à ceux qui ont
+      // déjà un parrain — lesquels se prenaient l'erreur au moment de valider.
+      has_referrer:     user.referredBy !== null,
       total_earnings:   totalEarnings,
       can_withdraw:     canWithdraw,
       min_withdrawal:   MIN_WITHDRAWAL,
       commission_l1:    COMMISSION_L1,
       commission_l2:    COMMISSION_L2,
+      // La devise accompagne les montants : sans elle, l'ecran doit deviner.
+      currency:         REFERRAL_CURRENCY,
       stats: {
         total_l1:   totalL1,
         premium_l1: premiumL1,
@@ -115,7 +137,7 @@ export class ReferralService {
       title: '👥 Nouveau filleul !',
       body:  `${user.pseudo} vient de rejoindre PronoWin avec votre code. +${COMMISSION_L1} FCFA quand il s'abonne Premium !`,
       data:  { deep_link: '/compte', type: 'referral' },
-    }).catch(() => {});
+    }, 'referral').catch(() => {});
 
     return { success: true, referrer_pseudo: referrer.pseudo };
   }
@@ -148,7 +170,7 @@ export class ReferralService {
         title: `💰 Commission L${ref.level} reçue !`,
         body:  `${ref.referred.pseudo} vient de s'abonner Premium ! +${commission} FCFA crédités sur votre compte.`,
         data:  { deep_link: '/compte', type: 'referral' },
-      }).catch(() => {});
+      }, 'referral').catch(() => {});
     }
 
     return { commissions_paid: referrals.length };
@@ -169,22 +191,26 @@ export class ReferralService {
     if (user.referralEarnings < amount) throw new Error('Solde insuffisant.');
     if (amount < MIN_WITHDRAWAL) throw new Error(`Minimum ${MIN_WITHDRAWAL} FCFA.`);
 
+    // Déduction atomique et conditionnelle (WHERE referralEarnings>=amount évalué par
+    // Postgres au moment de l'UPDATE) : évite qu'un retrait concurrent fasse passer
+    // le solde de gains en négatif.
     if (useAsCredit) {
-      // Convertir en jours Premium (5000 FCFA = 30 jours)
-      const premiumDays = Math.floor((amount / 5000) * 30);
+      // Convertir en jours Premium (prix du plan mensuel = 30 jours)
+      const premiumDays = Math.floor((amount / PREMIUM_PRICE_FCFA_MONTHLY) * 30);
       const newExpiry = new Date(
         Math.max(Date.now(), user.subscriptionExpiresAt?.getTime() ?? Date.now()) +
         premiumDays * 86400000
       );
 
-      await prisma.user.update({
-        where: { id: userId },
+      const decremented = await prisma.user.updateMany({
+        where: { id: userId, referralEarnings: { gte: amount } },
         data: {
           referralEarnings:      { decrement: amount },
           subscriptionPlan:      'premium',
           subscriptionExpiresAt: newExpiry,
         },
       });
+      if (decremented.count === 0) throw new Error('Solde insuffisant.');
 
       return {
         success: true,
@@ -194,25 +220,27 @@ export class ReferralService {
       };
 
     } else {
-      // Créer une transaction de retrait
-      const tx = await prisma.transaction.create({
-        data: {
-          userId,
-          type:          'withdrawal',
-          amount,
-          currency:      'XOF',
-          senderPhone:   phone,
-          paymentMethod: method,
-          xbetId:        user.xbetId ?? undefined,
-          status:        'pending',
-          metadata:      { source: 'referral_earnings' },
-        },
-      });
+      const tx = await prisma.$transaction(async (t) => {
+        // Déduire provisoirement (sera confirmé par l'admin)
+        const decremented = await t.user.updateMany({
+          where: { id: userId, referralEarnings: { gte: amount } },
+          data:  { referralEarnings: { decrement: amount } },
+        });
+        if (decremented.count === 0) throw new Error('Solde insuffisant.');
 
-      // Déduire provisoirement (sera confirmé par l'admin)
-      await prisma.user.update({
-        where: { id: userId },
-        data:  { referralEarnings: { decrement: amount } },
+        return t.transaction.create({
+          data: {
+            userId,
+            type:          'withdrawal',
+            amount,
+            currency:      REFERRAL_CURRENCY,
+            senderPhone:   phone,
+            paymentMethod: method,
+            xbetId:        user.xbetId ?? undefined,
+            status:        'pending',
+            metadata:      { source: 'referral_earnings' },
+          },
+        });
       });
 
       return {

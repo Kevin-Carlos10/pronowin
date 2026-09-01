@@ -2,8 +2,8 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/pin_store.dart';
 import '../providers/settings_provider.dart';
 
 class PinSetupPage extends ConsumerStatefulWidget {
@@ -51,8 +51,7 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
   Future<void> _validate() async {
     if (_pin == _confirm) {
       HapticFeedback.mediumImpact();
-      final p = await SharedPreferences.getInstance();
-      await p.setString('pin_code', _pin);
+      await ref.read(pinStoreProvider).save(_pin);
       await ref.read(settingsProvider.notifier).setPinEnabled(true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(

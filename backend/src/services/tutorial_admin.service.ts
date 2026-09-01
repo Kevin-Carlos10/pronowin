@@ -165,6 +165,40 @@ export class TutorialAdminService {
     return prisma.tutorial.update({ where: { id }, data: { isPremium: !t.isPremium } });
   }
 
+  /** Catégories déjà utilisées — alimente les suggestions admin (form + filtre),
+   * pour que l'admin puisse réutiliser ou créer librement une catégorie sans
+   * dépendre d'une liste figée dans le code. */
+  async getDistinctCategories(): Promise<string[]> {
+    try {
+      const rows = await prisma.tutorial.findMany({
+        distinct: ['category'],
+        select:   { category: true },
+        orderBy:  { category: 'asc' },
+      });
+      const set = new Set(rows.map(r => r.category));
+      for (const t of DEFAULT_TUTORIALS) set.add(t.category);
+      return [...set].sort();
+    } catch (_) {
+      return [...new Set(DEFAULT_TUTORIALS.map(t => t.category))].sort();
+    }
+  }
+
+  /** Niveaux déjà utilisés — même logique que getDistinctCategories(). */
+  async getDistinctLevels(): Promise<string[]> {
+    try {
+      const rows = await prisma.tutorial.findMany({
+        distinct: ['level'],
+        select:   { level: true },
+        orderBy:  { level: 'asc' },
+      });
+      const set = new Set(rows.map(r => r.level));
+      for (const t of DEFAULT_TUTORIALS) set.add(t.level);
+      return [...set].sort();
+    } catch (_) {
+      return [...new Set(DEFAULT_TUTORIALS.map(t => t.level))].sort();
+    }
+  }
+
   /** Stats */
   async getStats() {
     try {

@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mentions légales — <%= site.name %></title>
+  <%# Aucun favicon n'etait declare : l'onglet affichait l'icone generique
+      du navigateur, sur un site dont c'est la marque qu'on vend. %>
+  <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
+  <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="navbar">
+    <div class="container">
+      <a href="/" class="brand">
+        <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
+        <span class="brand-name">Prono<span class="brand-win">Win</span></span>
+      </a>
+      <div class="nav-actions">
+        <a href="/" class="nav-cta">Retour à l'accueil</a>
+      </div>
+    </div>
+  </header>
+
+  <div class="container legal-page">
+    <h1>Mentions légales</h1>
+    <p>Cette page présente les informations légales relatives au service PronoWin. Contenu à compléter avec vos informations d'éditeur, d'hébergeur et vos conditions générales définitives.</p>
+
+    <h2>Éditeur du site</h2>
+    <p>PronoWin — plateforme de pronostics sportifs. Coordonnées de l'éditeur à renseigner.</p>
+
+    <h2>Nature du service</h2>
+    <p>PronoWin propose des analyses et pronostics sportifs à titre informatif. Les pronostics ne constituent pas une garantie de gain et n'engagent pas la responsabilité de PronoWin quant aux décisions de pari prises par l'utilisateur.</p>
+
+    <h2>Jeu responsable</h2>
+    <p>Le service est réservé aux personnes majeures. Le pronostic et le pari sportif comportent des risques de perte financière ; jouez de manière responsable et dans la limite de vos moyens.</p>
+
+    <%# Cette section décrivait « les dépôts et retraits » via trois opérateurs
+        Mobile Money. PronoWin ne tient aucun compte de paris : le seul paiement
+        est celui de l'abonnement, et un seul opérateur est actif. Décrire un
+        portefeuille dépôt/retrait dans les mentions légales fait passer
+        PronoWin pour un opérateur de jeu, ce qu'il n'est pas — et c'est la
+        page que l'on cite quand la question se pose. %>
+    <h2>Paiements</h2>
+    <%# Ce paragraphe a porté deux versions avant celle-ci.
+
+        La première nommait « Orange Money » sans dire de quelle version de
+        l'application elle parlait : faux dès que la version Play existe, et
+        ambigu pour qui arrive ici depuis l'URL de confidentialité.
+
+        La deuxième détaillait quel moyen de règlement s'applique à quel canal.
+        Exact, mais elle annonçait publiquement qu'il existe deux versions de
+        l'application — une information qui ne sert aucun lecteur et qui
+        appelle des questions auxquelles une mention légale n'a pas à répondre.
+
+        Une mention légale n'a pas à énumérer les canaux de distribution. Elle
+        doit dire ce que le service fait de l'argent. Les deux affirmations
+        ci-dessous suffisent, et ce sont celles qui engagent : aucune mise
+        encaissée, aucun statut d'établissement de paiement.
+
+        Le moyen de règlement est présenté à l'utilisateur dans l'application,
+        au moment où il paie — c'est-à-dire là où il en a besoin. %>
+    <p>PronoWin ne collecte aucune mise et ne tient aucun compte de paris. Le seul paiement est celui de l'abonnement Premium.</p>
+    <p>PronoWin n'est pas un établissement de paiement.</p>
+
+    <h2>Données personnelles</h2>
+    <p>Les données que nous collectons, pourquoi, avec qui elles sont partagées et comment les supprimer sont décrites dans notre <a href="/confidentialite">politique de confidentialité</a>.</p>
+
+    <h2>Contact</h2>
+    <p>Pour toute question, contactez le support depuis l'application, rubrique Aide.</p>
+  </div>
+
+  <footer class="footer">
+    <div class="container footer-bottom">
+      <span>© <%= site.year %> <%= site.name %>. Tous droits réservés.</span>
+    </div>
+  </footer>
+</body>
+</html>

@@ -10,7 +10,6 @@ export const getHistory = async (req: AdminRequest, res: Response) => {
       page:     parseInt(req.query.page     as string ?? '1'),
       perPage:  parseInt(req.query.per_page as string ?? '20'),
       search:   req.query.search   as string,
-      type:     req.query.type     as string,
       status:   req.query.status   as string,
       method:   req.query.method   as string,
       dateFrom: req.query.date_from as string,
@@ -37,7 +36,6 @@ export const updateTransaction = async (req: AdminRequest, res: Response) => {
 export const exportCsv = async (req: AdminRequest, res: Response) => {
   try {
     const csv = await svc.exportCsv({
-      type:     req.query.type     as string,
       status:   req.query.status   as string,
       dateFrom: req.query.date_from as string,
       dateTo:   req.query.date_to   as string,
