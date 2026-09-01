@@ -65,8 +65,20 @@
           <li><strong>Identifiant chez un opérateur partenaire</strong>, uniquement
               si vous demandez l'offre « premier mois offert » : il nous sert à
               vérifier votre inscription auprès de ce partenaire.</li>
-          <li><strong>Preuve de paiement</strong> — la capture d'écran que vous
-              joignez pour faire valider un abonnement.</li>
+          <%# Conditionnée à l'action, pas au canal.
+
+              Le règlement par facturation Google Play ne produit aucune
+              capture : l'annoncer sans condition aurait décrit une collecte
+              que cette version ne fait pas — et aurait soulevé la question de
+              savoir pourquoi une application facturée par Google réclamerait
+              une preuve de paiement.
+
+              Formulée ainsi, la phrase est exacte pour tout le monde et ne dit
+              rien du canal de distribution. %>
+          <li><strong>Preuve de paiement</strong> — si vous réglez votre
+              abonnement par transfert, la capture d'écran que vous joignez
+              pour le faire valider. Un règlement par facturation Google Play
+              n'en demande aucune.</li>
         </ul>
 
         <h3>Ce que l'application enregistre à l'usage</h3>
