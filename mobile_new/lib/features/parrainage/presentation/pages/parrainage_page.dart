@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/referral_provider.dart';
+import '../../../../core/config/distribution_channel.dart';
 
 class ParrainagePage extends ConsumerWidget {
   const ParrainagePage({super.key});
@@ -73,9 +74,22 @@ class ParrainagePage extends ConsumerWidget {
               children: [
 
                 // ─── Solde + Code ──────────────────────────────────────────
+                // Le retrait en argent ne suit pas l'application sur Play.
+                //
+                // Le parrainage reste entier — seule la sortie en espèces
+                // disparaît, et la récompense se convertit en jours Premium.
+                //
+                // Ce n'est pas la générosité du programme qui pose problème,
+                // c'est la combinaison : pronostics sportifs, « gains »
+                // accumulés, retrait en argent réel. Séparément anodins,
+                // ensemble ils dessinent ce qu'un examinateur cherche quand il
+                // évalue la catégorie « jeux d'argent réel ».
+                //
+                // Le serveur décide déjà si le solde permet un retrait
+                // (`can_withdraw`) ; le canal décide s'il est proposé.
                 _EarningsBanner(
                   earnings:   earnings,
-                  canWithdraw: canWithdraw,
+                  canWithdraw: canWithdraw && !ref.watch(isStoreBuildProvider),
                   minWithdraw: minWithdraw,
                   onWithdraw: () => context.push('/parrainage/retrait', extra: {
                     'earnings': earnings, 'min': minWithdraw,
@@ -183,7 +197,7 @@ class _EarningsBanner extends StatelessWidget {
       // L'exclusion s'arrête ici — le bouton « Retirer » plus bas doit rester
       // atteignable au lecteur d'écran.
       Semantics(
-        label: 'Mes gains de parrainage : $earnings FCFA. '
+        label: 'Mes récompenses de parrainage : $earnings FCFA. '
                '${canWithdraw
                   ? "Montant retirable."
                   : "Retrait possible à partir de $minWithdraw FCFA."}',

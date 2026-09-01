@@ -31,6 +31,25 @@ void main() {
       fichier: 'lib/features/bankroll/presentation/widgets/miser_dialog.dart',
       motif:   'onTap: _ouvrirPartenaire',
     ),
+    // Le retrait des récompenses de parrainage en argent réel.
+    //
+    // Le parrainage lui-même ne pose pas de problème, et offrir des jours
+    // Premium revient à offrir son propre produit. C'est la combinaison qui
+    // expose : une application de pronostics sportifs, où l'on accumule un
+    // solde, que l'on peut faire sortir en espèces. Séparément anodins,
+    // ensemble ils dessinent ce qu'un examinateur cherche quand il évalue la
+    // catégorie « jeux d'argent réel ».
+    //
+    // Sur Play, la récompense se convertit en jours Premium. Le retrait reste
+    // entier sur le canal direct.
+    'retrait des récompenses de parrainage': (
+      fichier: 'lib/features/parrainage/presentation/pages/parrainage_page.dart',
+      // Le motif vise la navigation vers l'écran de retrait, pas la ligne qui
+      // porte la garde : celle-ci est en ligne sur `canWithdraw`, donc elle ne
+      // *précède* pas un motif posé sur elle-même. Viser le `push` place la
+      // garde avant, et cible d'ailleurs ce qui compte — l'accès à l'écran.
+      motif:   "onWithdraw: () => context.push('/parrainage/retrait'",
+    ),
   };
 
   String lire(String chemin) {
