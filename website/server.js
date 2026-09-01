@@ -41,7 +41,7 @@ const site = {
   //
   // Google Play en exigera une pour la fiche : le jour ou elle existe, elle
   // se renseigne ici et la politique de confidentialite la reprend.
-  contactEmail: process.env.CONTACT_EMAIL || '',
+  contactEmail: process.env.CONTACT_EMAIL || 'pronowin2026@gmail.com',
 };
 
 // URL de l'API, pour lire ce que le produit fait réellement.
