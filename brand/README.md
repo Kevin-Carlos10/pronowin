@@ -102,6 +102,19 @@ Les notifications portaient jusqu'ici **le logo de Flutter** : `ic_launcher.png`
 était resté le fichier par défaut du jour de création du projet, et deux
 réglages pointaient dessus.
 
+## Le visuel de mise en avant Google Play
+
+`feature-graphic.js` produit `feature-graphic-1024x500.png` — dimensions
+imposées, **sans canal alpha** (Play refuse la transparence sur ce visuel), et
+le dessin tient dans 86 % de la largeur parce que Play rogne les bords selon la
+surface d'affichage. Le script refuse de produire au-delà.
+
+Il relit l'emblème **et** le logotype. Attention à un piège rencontré : les
+tracés du logotype sortent d'opentype.js en coordonnées de police — ligne de
+base à zéro — et c'est le `translate` du groupe qui les pose dans la boîte.
+Extraire les tracés sans ce `transform` donne un mot flottant au-dessus de sa
+place, et rien ne le signale sinon l'œil. Le script l'extrait et le valide.
+
 ## Les deux palettes
 
 Elles divergent, et divergent toujours dans le code :

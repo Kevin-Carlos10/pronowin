@@ -34,6 +34,14 @@ const site = {
   // Forme canonique (www), celle vers laquelle WhatsApp redirige de toute
   // facon — un saut de moins.
   whatsappUrl: process.env.WHATSAPP_URL || 'https://www.whatsapp.com/channel/0029Vb88L8BKAwEppGPhXQ1T',
+
+  // Adresse de contact, vide par defaut : aucune n'existe aujourd'hui, et en
+  // inventer une dans un document juridique serait pire que de renvoyer vers
+  // l'aide de l'application — ce que font deja les mentions legales.
+  //
+  // Google Play en exigera une pour la fiche : le jour ou elle existe, elle
+  // se renseigne ici et la politique de confidentialite la reprend.
+  contactEmail: process.env.CONTACT_EMAIL || '',
 };
 
 // URL de l'API, pour lire ce que le produit fait réellement.
@@ -427,6 +435,27 @@ app.get('/', async (req, res) => {
 
 app.get('/mentions-legales', (req, res) => {
   res.render('legal', { site });
+});
+
+/**
+ * Politique de confidentialité.
+ *
+ * Google Play exige une URL de politique de confidentialité, et la section
+ * « Sécurité des données » de la fiche doit décrire fidèlement ce que
+ * l'application collecte. Une déclaration inexacte n'est pas corrigée : elle
+ * suspend l'application.
+ *
+ * Le contenu est donc écrit depuis le schéma — chaque donnée citée correspond
+ * à un champ du modèle `User` ou à une table de la base.
+ *
+ * La date de mise à jour est une constante, pas `new Date()` : un document
+ * juridique dont la date de révision change toute seule chaque jour ne dit
+ * plus rien de sa dernière révision.
+ */
+const MAJ_CONFIDENTIALITE = '1er septembre 2026';
+
+app.get('/confidentialite', (req, res) => {
+  res.render('confidentialite', { site, dateMaj: MAJ_CONFIDENTIALITE });
 });
 
 app.use((req, res) => {
