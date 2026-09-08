@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Supprimer mon compte - <%= site.name %></title>
+  <meta name="description" content="Demandez la suppression de votre compte et de vos données PronoWin sans vous reconnecter à l'application.">
+  <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
+  <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <% const emailSupport = site.contactEmail || ''; %>
+  <% const sujet = 'Demande de suppression de compte PronoWin'; %>
+  <% const corps = 'Bonjour,\n\nJe souhaite demander la suppression de mon compte PronoWin.\n\nAdresse e-mail ou numéro de téléphone associé au compte :\n\nJe confirme être titulaire de ce compte.\n\nMerci.'; %>
+  <% const lienSuppression = emailSupport ? 'mailto:' + emailSupport + '?subject=' + encodeURIComponent(sujet) + '&body=' + encodeURIComponent(corps) : ''; %>
+
+  <header class="navbar">
+    <div class="container">
+      <a href="/" class="brand">
+        <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
+        <span class="brand-name">Prono<span class="brand-win">Win</span></span>
+      </a>
+      <div class="nav-actions">
+        <a href="/confidentialite" class="nav-cta">Confidentialité</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container legal-page deletion-page">
+    <h1>Supprimer mon compte</h1>
+    <p class="legal-intro">
+      Cette page permet de demander la suppression de votre compte PronoWin et
+      des données associées, sans connexion à l'application.
+    </p>
+
+    <section class="legal-callout legal-callout--deletion" aria-labelledby="request-title">
+      <p class="legal-callout__eyebrow">Demande externe</p>
+      <h2 id="request-title">Lancer ma demande</h2>
+      <p>
+        Envoyez votre demande au support. Nous utiliserons uniquement les
+        informations nécessaires pour identifier le compte et protéger votre
+        demande contre une suppression non autorisée.
+      </p>
+      <% if (lienSuppression) { %>
+        <div class="legal-actions">
+          <a class="legal-button" href="<%= lienSuppression %>">Demander la suppression par e-mail</a>
+        </div>
+      <% } else { %>
+        <p class="legal-note">L'adresse de contact est temporairement indisponible. Réessayez plus tard.</p>
+      <% } %>
+    </section>
+
+    <section>
+      <h2>Informations à indiquer</h2>
+      <ol class="legal-steps">
+        <li>l'adresse e-mail ou le numéro de téléphone associé au compte ;</li>
+        <li>une confirmation que vous êtes titulaire de ce compte.</li>
+      </ol>
+      <p>
+        Ne communiquez jamais votre mot de passe, un code reçu par SMS, ni une
+        information de carte bancaire. Si une vérification complémentaire est
+        nécessaire, le support vous expliquera la marche à suivre.
+      </p>
+    </section>
+
+    <section>
+      <h2>Ce qui sera supprimé</h2>
+      <p>
+        Après vérification de votre demande, nous supprimons ou anonymisons de
+        façon irréversible les données permettant de vous identifier, notamment
+        vos identifiants de connexion, informations de profil, photo, jeton de
+        notification et données d'authentification. Votre accès à PronoWin
+        prendra fin.
+      </p>
+      <p>
+        Certains historiques techniques ou de service peuvent devoir être
+        conservés pour une obligation légale, la sécurité, la prévention de la
+        fraude ou l'intégrité du service. Ils sont dissociés de votre identité
+        lorsque cela est possible et ne permettent plus d'accéder à votre
+        compte.
+      </p>
+    </section>
+
+    <section>
+      <h2>Abonnement Google Play</h2>
+      <p>
+        La suppression de votre compte PronoWin ne résilie pas automatiquement
+        un abonnement Google Play. Pour éviter son renouvellement, annulez-le
+        depuis Google Play, rubrique Paiements et abonnements. Cette étape ne
+        bloque pas votre demande de suppression.
+      </p>
+    </section>
+
+    <section>
+      <h2>Besoin d'aide</h2>
+      <p>
+        <% if (emailSupport) { %>
+          Vous pouvez aussi écrire directement à <a href="mailto:<%= emailSupport %>"><%= emailSupport %></a>.
+        <% } else { %>
+          Consultez la rubrique Aide de l'application.
+        <% } %>
+      </p>
+      <p class="legal-links">
+        <a href="/confidentialite">Lire la politique de confidentialité</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/">Retour au site</a>
+      </p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-bottom">
+      <span>© <%= site.year %> <%= site.name %>. Tous droits réservés.</span>
+    </div>
+  </footer>
+</body>
+</html>

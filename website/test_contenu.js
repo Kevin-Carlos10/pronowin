@@ -62,12 +62,14 @@ async function rendre(reponsesApi) {
     const s = app.listen(0, '127.0.0.1', () => r(s));
   });
 
-  const accueil = await recuperer(site.address().port, '/');
-  const legal   = await recuperer(site.address().port, '/mentions-legales');
+  const accueil           = await recuperer(site.address().port, '/');
+  const legal             = await recuperer(site.address().port, '/mentions-legales');
+  const confidentialite   = await recuperer(site.address().port, '/confidentialite');
+  const suppressionCompte = await recuperer(site.address().port, '/suppression-compte');
 
   site.close();
   if (api) api.close();
-  return { accueil, legal };
+  return { accueil, legal, confidentialite, suppressionCompte };
 }
 
 /* ─── Fixtures ────────────────────────────────────────────────────────── */
@@ -205,7 +207,7 @@ const CHIFFRES_OPERATIONNELS = [
 const controles = [];
 const test = (nom, fn) => controles.push([nom, fn]);
 
-test('la fiche Play, quand elle existe, passe devant l\'APK', async () => {
+test('la fiche Play, quand elle existe, devient le seul téléchargement public', async () => {
   // L'état qui n'existe pas encore. Le jour de l'approbation, il suffira de
   // renseigner PLAY_STORE_URL — mais un basculement jamais éprouvé est un
   // basculement qui casse le jour où on en a besoin, sous la pression.
@@ -225,24 +227,26 @@ test('la fiche Play, quand elle existe, passe devant l\'APK', async () => {
     assert.ok(accueil.html.includes('play.google.com/store/apps/details'),
       'la fiche Play devrait être annoncée');
 
-    // L'APK reste accessible — on le relègue, on ne le supprime pas.
-    assert.ok(accueil.html.includes('Télécharger l\'APK directement'),
-      'le canal direct doit rester atteignable');
-    assert.ok(!/class="store-badge" download/.test(accueil.html),
-      'l\'APK ne doit plus porter le badge principal');
+    assert.ok(!accueil.html.includes('Télécharger l\'APK directement'),
+      'l\'APK ne doit pas être proposé sur la vitrine');
+    assert.ok(!accueil.html.includes('/downloads/app-release.apk'),
+      'aucun lien direct vers l\'APK ne doit être rendu');
   } finally {
     if (avant === undefined) delete process.env.PLAY_STORE_URL;
     else process.env.PLAY_STORE_URL = avant;
   }
 });
 
-test('sans fiche Play, l\'APK reste l\'appel principal', async () => {
-  // L'état d'aujourd'hui. Les deux badges de store disent « bientôt » plutôt
-  // que de pointer sur rien — ils pointaient jadis sur « # ».
+test('sans fiche Play, la vitrine ne propose pas l\'APK public', async () => {
+  // Pendant la validation Play, l'APK est partagé dans les canaux de
+  // communication choisis par PronoWin. Les badges de store ne promettent pas
+  // un lien qui n'existe pas encore.
   const { accueil } = await rendre(API_COMPLETE);
 
-  assert.ok(/class="store-badge" download/.test(accueil.html),
-    'l\'APK devrait porter le badge principal');
+  assert.ok(!/class="store-badge" download/.test(accueil.html),
+    'l\'APK ne doit pas porter de badge public');
+  assert.ok(!accueil.html.includes('/downloads/app-release.apk'),
+    'aucun lien direct vers l\'APK ne doit être rendu');
   assert.ok(!accueil.html.includes('play.google.com/store/apps/details'),
     'aucune fiche Play ne doit être annoncée tant qu\'elle n\'existe pas');
   assert.strictEqual((accueil.html.match(/Bientôt/g) || []).length, 2,
@@ -443,6 +447,34 @@ test('les mentions légales décrivent le bon métier', async () => {
     'les mentions légales doivent dire que PronoWin ne tient pas de compte de paris');
   assert.ok(!legal.html.includes('réseaux sociaux indiqués en pied de page'),
     'renvoi vers des réseaux sociaux qui n\'existent pas');
+});
+
+test('la politique offre une suppression de compte hors application', async () => {
+  const { confidentialite, suppressionCompte } = await rendre(API_COMPLETE);
+
+  assert.strictEqual(confidentialite.statut, 200,
+    'la politique de confidentialité doit être publique');
+  assert.strictEqual(suppressionCompte.statut, 200,
+    'la page de suppression doit être publique');
+  assert.ok(confidentialite.html.includes('href="/suppression-compte"'),
+    'la politique doit lier clairement la page de suppression');
+  assert.ok(suppressionCompte.html.includes('PronoWin'),
+    'la page de suppression doit identifier l\'application');
+  assert.ok(suppressionCompte.html.includes('mailto:pronowin2026@gmail.com'),
+    'la demande de suppression doit pouvoir être lancée sans connexion');
+});
+
+test('la politique distingue les pratiques de la version Google Play', async () => {
+  const { confidentialite } = await rendre(API_COMPLETE);
+
+  assert.ok(confidentialite.html.includes('Version distribuée sur Google Play'),
+    'la portée de la politique Google Play doit être explicite');
+  assert.ok(confidentialite.html.includes('vos données de carte bancaire'),
+    'la politique doit préciser que PronoWin ne conserve pas les cartes bancaires');
+  assert.ok(confidentialite.html.includes('Jeton de notification'),
+    'les notifications doivent apparaître dans les données déclarées');
+  assert.ok(confidentialite.html.includes('Diagnostic technique'),
+    'les données Firebase techniques doivent apparaître dans les données déclarées');
 });
 
 /* ─── Exécution ───────────────────────────────────────────────────────── */

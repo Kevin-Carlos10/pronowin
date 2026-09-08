@@ -55,21 +55,39 @@
 
   <!-- Hero -->
   <section class="hero">
-    <video class="hero-bg-video" autoplay muted loop playsinline poster="/images/hero-poster.svg">
-      <source src="/videos/hero-loop.mp4" type="video/mp4">
-    </video>
+    <img class="hero-bg-image" src="/images/hero-stadium.png" alt="" aria-hidden="true">
     <div class="hero-bg-overlay"></div>
-    <div class="container hero-content">
-      <div class="hero-eyebrow">PronoWin</div>
-      <h1 class="hero-title">Le pronostic<br>qui montre ses chiffres.</h1>
-      <p class="hero-subtitle">Compositions, statistiques, classements, cotes, scores en direct et gestion de bankroll : ce qu'un parieur sérieux ouvre en dix onglets tient ici dans une seule application. Une sélection de pronostics gratuite chaque jour.</p>
-      <div class="hero-cta">
-        <a href="#telecharger" class="btn btn-primary">Télécharger l'app</a>
-        <a href="#fonctionnalites" class="btn-link">En savoir plus <%- include('partials/icon', { name: 'arrow', size: 14 }) %></a>
+    <div class="container hero-layout">
+      <div class="hero-content">
+        <p class="hero-kicker"><span></span> Football, données et méthode</p>
+        <h1 class="hero-title"><span class="hero-brand-name">Prono<span class="hero-brand-win">Win</span></span></h1>
+        <p class="hero-statement">Le pronostic<br>qui montre ses chiffres.</p>
+        <p class="hero-subtitle">Compositions, statistiques, classements, cotes, scores en direct et gestion de bankroll : ce qu'un parieur sérieux ouvre en dix onglets tient ici dans une seule application.</p>
+        <div class="hero-cta">
+          <a href="#telecharger" class="btn btn-primary">Télécharger l'app</a>
+          <a href="#fonctionnalites" class="btn-link">Découvrir l'expérience <%- include('partials/icon', { name: 'arrow', size: 14 }) %></a>
+        </div>
+        <ul class="hero-signals" aria-label="Points forts de PronoWin">
+          <li>Données de match</li>
+          <li>Scores en direct</li>
+          <li>Bankroll suivie</li>
+        </ul>
+      </div>
+      <div class="hero-showcase">
+        <img class="hero-app-shot" src="/images/app-screenshot-hero.jpg" alt="Aperçu de l'application PronoWin : prochain match, compte à rebours et match en direct">
       </div>
     </div>
-    <div class="hero-showcase">
-      <img class="hero-app-shot" src="/images/app-screenshot-hero.jpg" alt="Aperçu de l'application PronoWin : prochain match, compte à rebours et match en direct">
+  </section>
+
+  <!-- Editorial banner -->
+  <section class="editorial-banner" aria-labelledby="editorial-title">
+    <img class="editorial-banner-image" src="/images/banner-analysis.png" alt="" aria-hidden="true" loading="lazy">
+    <div class="editorial-banner-overlay"></div>
+    <div class="container editorial-banner-content">
+      <span class="eyebrow">Match center</span>
+      <h2 id="editorial-title">Votre journée foot,<br>mieux préparée.</h2>
+      <p>Les éléments utiles autour de chaque match, réunis au même endroit pour garder votre lecture du jeu claire.</p>
+      <a href="#fonctionnalites" class="editorial-banner-link">Explorer les fonctionnalités <%- include('partials/icon', { name: 'arrow', size: 16 }) %></a>
     </div>
   </section>
 
@@ -158,6 +176,18 @@
     </section>
   <% }) %>
   </div>
+
+  <!-- Match-day banner -->
+  <section class="matchday-banner" aria-labelledby="matchday-title">
+    <img class="matchday-banner-image" src="/images/banner-live.png" alt="" aria-hidden="true" loading="lazy">
+    <div class="matchday-banner-overlay"></div>
+    <div class="container matchday-banner-content">
+      <span class="eyebrow">Jour de match</span>
+      <h2 id="matchday-title">Avant le coup d'envoi,<br>gardez l'essentiel en vue.</h2>
+      <p>Préparez votre lecture du match, puis suivez le score et les alertes directement dans l'application.</p>
+      <a href="#telecharger" class="btn btn-primary">Découvrir PronoWin</a>
+    </div>
+  </section>
 
   <%
     // Deux sections retirées ici.
@@ -278,9 +308,9 @@
         Les deux badges pointaient jadis sur « # » : ils avaient l'air
         cliquables et ne menaient nulle part.
 
-        Renseignée : Play devient l'appel principal et l'APK direct passe en
-        lien discret. Le canal direct reste accessible — il cesse d'être mis
-        en avant. C'est le seul endroit où Google voit les deux côte à côte.
+        Renseignée : Play devient le seul appel public au téléchargement. La
+        diffusion directe de l'APK reste réservée aux canaux de communication
+        choisis par PronoWin.
       %>
       <% if (site.playStoreUrl) { %>
 
@@ -298,29 +328,11 @@
           </span>
         </div>
 
-        <%# L'APK reste offert, sans bouton : ceux qui le cherchent le trouvent,
-            il ne s'impose plus à ceux qui ne le cherchent pas. %>
-        <p class="apk-version">
-          <a href="<%= site.apkUrl %>" download>Télécharger l'APK directement</a>
-          <% if (versionApp) { %> · Version <%= versionApp %><% } %>
-          · Android 7.0 et plus
-        </p>
-
-      <% } else { %>
-
-        <div class="store-badges">
-          <a href="<%= site.apkUrl %>" class="store-badge" download>
-            <%- include('partials/icon', { name: 'android', size: 20 }) %>
-            <span class="store-badge-text"><small>Télécharger pour</small><strong>Android</strong></span>
-          </a>
-        </div>
-
-        <%# La version vient de /config — la même valeur que celle qui déclenche
-            la mise à jour dans l'application. Absente si l'API n'a pas répondu :
-            un numéro faux vaudrait moins que pas de numéro. %>
         <% if (versionApp) { %>
           <p class="apk-version">Version <%= versionApp %> · Android 7.0 et plus</p>
         <% } %>
+
+      <% } else { %>
 
         <div class="store-badges store-badges--soon" aria-hidden="false">
           <span class="store-badge store-badge--soon">

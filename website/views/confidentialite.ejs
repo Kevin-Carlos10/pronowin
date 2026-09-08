@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Politique de confidentialité — <%= site.name %></title>
-  <meta name="description" content="Quelles données PronoWin collecte, pourquoi, avec qui elles sont partagées, et comment les supprimer.">
+  <title>Politique de confidentialité - <%= site.name %></title>
+  <meta name="description" content="Comment l'application PronoWin traite les données personnelles, protège les comptes et permet leur suppression.">
   <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
   <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
   <link rel="stylesheet" href="/css/style.css">
@@ -23,202 +23,228 @@
     </div>
   </header>
 
-  <div class="container legal-page">
+  <main class="container legal-page">
+    <h1>Politique de confidentialité</h1>
+    <p class="legal-updated">Dernière mise à jour : <%= dateMaj %></p>
+    <p class="legal-intro">
+      Cette politique explique comment l'application <strong>PronoWin</strong>
+      collecte, utilise, protège et supprime vos données. Elle est accessible
+      publiquement, sans connexion, depuis l'application et le site.
+    </p>
 
-      <h1>Politique de confidentialité</h1>
-      <p><em>Dernière mise à jour : <%= dateMaj %></em></p>
-
-      <%# Ce document décrit ce que le code fait réellement. Chaque donnée
-          listée ci-dessous correspond à un champ du modèle `User` ou à une
-          table du schéma : une politique qui décrit un produit imaginaire est
-          pire que pas de politique — c'est une déclaration fausse, et Google
-          la traite comme telle. %>
-
-      <h2>En résumé</h2>
-        <p>
-          PronoWin publie des analyses et des pronostics de football. Pour créer
-          votre compte et faire fonctionner l'application, nous collectons un
-          nombre limité de données, décrites ci-dessous une par une.
-        </p>
-        <p>
-          <strong>Nous ne vendons aucune donnée personnelle</strong> et nous n'en
-          transmettons à aucun annonceur. L'application ne contient aucune régie
-          publicitaire.
-        </p>
-        <p>
-          <strong>L'accès est réservé aux personnes majeures.</strong> Votre date
-          de naissance nous sert à vérifier cette condition.
-        </p>
-
-      <h2>Les données que nous collectons</h2>
-
-        <h3>Ce que vous nous donnez</h3>
-        <ul>
-          <li><strong>Numéro de téléphone ou adresse e-mail</strong> — c'est votre
-              identifiant de connexion. L'un des deux suffit.</li>
-          <li><strong>Pseudo</strong>, et <strong>photo de profil</strong> si vous
-              en ajoutez une.</li>
-          <li><strong>Prénom et nom</strong>, facultatifs.</li>
-          <li><strong>Date de naissance</strong> — pour vérifier que vous êtes
-              majeur. C'est une obligation liée à la nature du service.</li>
-          <li><strong>Pays</strong>, pour adapter l'affichage.</li>
-          <li><strong>Identifiant chez un opérateur partenaire</strong>, uniquement
-              si vous demandez l'offre « premier mois offert » : il nous sert à
-              vérifier votre inscription auprès de ce partenaire.</li>
-          <%# Conditionnée à l'action, pas au canal.
-
-              Le règlement par facturation Google Play ne produit aucune
-              capture : l'annoncer sans condition aurait décrit une collecte
-              que cette version ne fait pas — et aurait soulevé la question de
-              savoir pourquoi une application facturée par Google réclamerait
-              une preuve de paiement.
-
-              Formulée ainsi, la phrase est exacte pour tout le monde et ne dit
-              rien du canal de distribution. %>
-          <li><strong>Preuve de paiement</strong> — si vous réglez votre
-              abonnement par transfert, la capture d'écran que vous joignez
-              pour le faire valider. Un règlement par facturation Google Play
-              n'en demande aucune.</li>
-        </ul>
-
-        <h3>Ce que l'application enregistre à l'usage</h3>
-        <ul>
-          <li><strong>Votre abonnement</strong> : formule en cours et date
-              d'échéance.</li>
-          <li><strong>Votre bankroll</strong> : budget que vous fixez, mises que
-              vous enregistrez, gains et pertes qui en découlent.</li>
-          <li><strong>Votre parrainage</strong> : votre code, la personne qui vous
-              a parrainé le cas échéant, et les gains accumulés.</li>
-          <li><strong>Votre activité</strong> : date de dernière connexion, de
-              dernière présence, et série de jours consécutifs.</li>
-          <li><strong>Vos favoris, votes et commentaires.</strong></li>
-        </ul>
-
-        <h3>Ce qui est technique</h3>
-        <ul>
-          <li><strong>Un jeton de notification</strong>, qui permet d'envoyer les
-              alertes de match à votre appareil et à lui seul.</li>
-          <li><strong>Vos préférences de notification.</strong></li>
-          <li><strong>Des rapports de plantage et de performance</strong>, envoyés
-              à Google Firebase quand l'application rencontre une erreur.</li>
-        </ul>
-
-        <p>
-          Nous ne collectons <strong>ni votre position GPS</strong>, ni vos
-          contacts, ni le contenu de votre appareil.
-        </p>
-
-      <h2>Pourquoi</h2>
-        <ul>
-          <li><strong>Vous identifier</strong> et sécuriser l'accès à votre
-              compte.</li>
-          <li><strong>Vous donner accès aux pronostics</strong> correspondant à
-              votre formule.</li>
-          <li><strong>Vous prévenir</strong> avant un match et à son résultat, si
-              vous l'avez demandé.</li>
-          <li><strong>Traiter votre abonnement</strong> et vérifier vos
-              paiements.</li>
-          <li><strong>Calculer votre bankroll</strong> et vos gains de
-              parrainage.</li>
-          <li><strong>Vérifier que vous êtes majeur.</strong></li>
-          <li><strong>Corriger les pannes</strong>, grâce aux rapports d'erreur.</li>
-        </ul>
-
-      <h2>Avec qui elles sont partagées</h2>
-        <p>
-          Nous ne partageons vos données qu'avec les prestataires nécessaires au
-          fonctionnement de l'application, et pour ce seul usage.
-        </p>
-        <ul>
-          <li><strong>Google Firebase</strong> — envoi des notifications, rapports
-              de plantage, mesure de performance et configuration à distance.</li>
-          <li><strong>Google Sign-In</strong> — si vous choisissez de vous
-              connecter avec votre compte Google.</li>
-          <li><strong>Google Play</strong> — pour les achats intégrés, sur la
-              version installée depuis le Play Store.</li>
-        </ul>
-        <p>
-          Les données sportives affichées (matchs, compositions, classements,
-          cotes) proviennent d'un fournisseur tiers, <strong>API-Football</strong>.
-          <strong>Aucune donnée personnelle ne lui est transmise</strong> : nous
-          lui demandons des informations de match, pas des informations sur vous.
-        </p>
-        <p>
-          Nous ne vendons, ne louons et n'échangeons aucune donnée personnelle.
-        </p>
-
-      <h2>Où elles sont conservées</h2>
-        <p>
-          Sur un serveur dédié hébergé par <strong>OVH, à Montréal (Canada)</strong>.
-          Si vous résidez dans l'Union européenne, vos données sont donc
-          transférées hors de l'UE.
-        </p>
-        <p>
-          Les échanges entre l'application et le serveur sont chiffrés (HTTPS).
-          Les mots de passe, lorsqu'ils existent, sont conservés sous forme
-          d'empreinte et jamais en clair.
-        </p>
-
-      <h2>Combien de temps</h2>
-        <p>
-          Tant que votre compte existe. Vous pouvez le supprimer à tout moment
-          depuis l'application, rubrique Compte.
-        </p>
-        <p>
-          <strong>Ce que la suppression fait exactement</strong>, parce que la
-          nuance compte : votre compte est <em>anonymisé</em>. Vos identifiants,
-          votre nom, votre pseudo, votre photo, votre jeton de notification et
-          votre identifiant partenaire sont effacés ou remplacés par une valeur
-          neutre. Vous ne pouvez plus vous connecter, et plus rien ne vous
-          rattache à ce compte.
-        </p>
-        <p>
-          Les <strong>écritures comptables</strong> liées aux abonnements et aux
-          paiements sont conservées sans lien avec votre identité, comme la loi
-          l'exige pour toute transaction.
-        </p>
-
-      <h2>Vos droits</h2>
-        <p>Vous pouvez à tout moment :</p>
-        <ul>
-          <li><strong>consulter</strong> les données de votre profil, depuis
-              l'application ;</li>
-          <li><strong>les corriger</strong>, dans la rubrique Compte ;</li>
-          <li><strong>supprimer votre compte</strong>, sans avoir à le
-              justifier ;</li>
-          <li><strong>désactiver les notifications</strong>, par catégorie.</li>
-        </ul>
-        <p>
-          Pour toute demande relative à vos données, écrivez-nous
-          <% if (site.contactEmail) { %>
-            à <a href="mailto:<%= site.contactEmail %>"><%= site.contactEmail %></a>.
-          <% } else { %>
-            depuis l'application, rubrique Aide.
-          <% } %>
-        </p>
-
-      <h2>Les mineurs</h2>
-        <p>
-          L'application est <strong>interdite aux moins de 18 ans</strong>. Elle
-          n'est ni conçue ni destinée aux enfants, et nous ne collectons pas
-          sciemment leurs données. Si vous constatez qu'un mineur a créé un
-          compte, signalez-le-nous : il sera supprimé.
-        </p>
-
-      <h2>Modifications</h2>
-        <p>
-          Ce document peut évoluer avec l'application. La date de dernière mise à
-          jour figure en haut de cette page ; toute modification importante sera
-          annoncée dans l'application.
-        </p>
-
-      <h2>Voir aussi</h2>
+    <section id="supprimer-mon-compte" class="legal-callout" aria-labelledby="suppression-title">
+      <p class="legal-callout__eyebrow">Contrôle de vos données</p>
+      <h2 id="suppression-title">Supprimer votre compte</h2>
       <p>
-        <a href="/mentions-legales">Mentions légales</a> ·
+        Vous pouvez demander la suppression de votre compte sans réinstaller
+        l'application et sans vous reconnecter.
+      </p>
+      <div class="legal-actions">
+        <a class="legal-button" href="/suppression-compte">Demander la suppression de mon compte</a>
+      </div>
+    </section>
+
+    <section>
+      <h2>Responsable et contact</h2>
+      <p>
+        PronoWin est responsable du traitement des données décrit dans cette
+        page. Pour une question concernant vos données personnelles, votre
+        compte ou cette politique, contactez-nous
+        <% if (site.contactEmail) { %>
+          à <a href="mailto:<%= site.contactEmail %>"><%= site.contactEmail %></a>.
+        <% } else { %>
+          depuis l'application, rubrique Aide.
+        <% } %>
+      </p>
+    </section>
+
+    <section id="google-play">
+      <h2>Version distribuée sur Google Play</h2>
+      <p>
+        La version de PronoWin distribuée sur Google Play utilise le système de
+        facturation de Google Play pour les abonnements numériques. PronoWin ne
+        demande ni ne conserve vos données de carte bancaire, vos coordonnées
+        bancaires, une capture de paiement ou un identifiant auprès d'un
+        opérateur de paiement dans cette version.
+      </p>
+      <p>
+        Cette politique décrit les pratiques de la version distribuée par
+        Google Play. Toute version distribuée par un autre canal doit présenter
+        ses modalités particulières avant qu'une donnée supplémentaire soit
+        demandée.
+      </p>
+    </section>
+
+    <section>
+      <h2>Les données que nous collectons</h2>
+      <div class="legal-table-wrap" role="region" aria-label="Tableau des données traitées par PronoWin" tabindex="0">
+        <table class="legal-table">
+          <thead>
+            <tr>
+              <th scope="col">Catégorie</th>
+              <th scope="col">Données concernées</th>
+              <th scope="col">Utilité</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Compte et profil</th>
+              <td>Adresse e-mail ou numéro de téléphone, pseudo, empreinte de mot de passe, prénom, nom, pays, date de naissance et photo de profil facultative.</td>
+              <td>Créer et sécuriser le compte, vérifier la majorité et personnaliser le profil.</td>
+            </tr>
+            <tr>
+              <th scope="row">Utilisation du service</th>
+              <td>Formule d'abonnement, favoris, votes, commentaires, activité, données de bankroll et informations de parrainage.</td>
+              <td>Donner accès aux fonctionnalités choisies, mémoriser vos préférences et afficher votre suivi personnel.</td>
+            </tr>
+            <tr>
+              <th scope="row">Notifications</th>
+              <td>Jeton de notification propre à l'appareil et préférences d'alerte.</td>
+              <td>Envoyer uniquement les alertes que vous avez activées.</td>
+            </tr>
+            <tr>
+              <th scope="row">Diagnostic technique</th>
+              <td>Identifiant d'installation, modèle de l'appareil, version du système, rapports de plantage et mesures de performance.</td>
+              <td>Détecter les erreurs, améliorer la stabilité et mesurer les performances de l'application.</td>
+            </tr>
+            <tr>
+              <th scope="row">Abonnement Google Play</th>
+              <td>État de l'abonnement et informations nécessaires à sa vérification.</td>
+              <td>Confirmer les droits Premium. Les informations de paiement sont gérées par Google Play, pas par PronoWin.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="legal-note">
+        Nous ne collectons pas votre position GPS, vos contacts, vos SMS, vos
+        journaux d'appels ni le contenu de votre appareil. Une image n'est
+        lue que si vous choisissez volontairement une photo pour votre profil.
+      </p>
+    </section>
+
+    <section>
+      <h2>Pourquoi nous utilisons ces données</h2>
+      <ul class="legal-list">
+        <li>vous identifier et protéger l'accès à votre compte ;</li>
+        <li>fournir les pronostics, favoris, commentaires et fonctionnalités de votre formule ;</li>
+        <li>vérifier votre abonnement et gérer vos droits Premium ;</li>
+        <li>envoyer les notifications que vous avez autorisées ;</li>
+        <li>prévenir les abus, résoudre les incidents et améliorer la stabilité du service ;</li>
+        <li>respecter les obligations légales applicables, notamment la vérification de la majorité.</li>
+      </ul>
+      <p>
+        Nous ne vendons pas vos données personnelles et nous ne les utilisons
+        pas pour de la publicité personnalisée. PronoWin ne contient pas de
+        régie publicitaire.
+      </p>
+    </section>
+
+    <section>
+      <h2>Prestataires qui peuvent traiter des données</h2>
+      <p>
+        Nous ne partageons des données qu'avec les prestataires nécessaires au
+        fonctionnement du service, pour les finalités décrites ci-dessus.
+      </p>
+      <ul class="legal-list">
+        <li><strong>OVHcloud</strong>, qui héberge les services et la base de données sur une infrastructure située à Montréal, au Canada ;</li>
+        <li><strong>Google Firebase</strong>, pour les notifications, les rapports de plantage, les mesures de performance et la configuration à distance ;</li>
+        <li><strong>Google Sign-In</strong>, uniquement si vous choisissez cette méthode de connexion ;</li>
+        <li><strong>Google Play</strong>, pour la facturation et la vérification des abonnements achetés via le Play Store.</li>
+      </ul>
+      <p>
+        Les informations sportives affichées proviennent d'API-Football.
+        Aucune donnée personnelle ne lui est transmise.
+      </p>
+    </section>
+
+    <section>
+      <h2>Sécurité</h2>
+      <p>
+        Les échanges entre l'application, le site et nos serveurs utilisent
+        HTTPS. Les mots de passe ne sont jamais conservés en clair : seule une
+        empreinte sécurisée est stockée. L'accès aux systèmes est limité aux
+        personnes et services qui en ont besoin pour faire fonctionner
+        PronoWin.
+      </p>
+    </section>
+
+    <section>
+      <h2>Conservation et suppression</h2>
+      <p>
+        Les données de compte sont conservées tant que votre compte est actif
+        ou aussi longtemps que nécessaire pour fournir le service. Vous pouvez
+        demander leur suppression depuis l'application, rubrique Compte, ou
+        depuis notre <a href="/suppression-compte">page publique de suppression de compte</a>.
+      </p>
+      <p>
+        La suppression n'est pas une simple suspension. Après vérification de
+        la demande, les identifiants de connexion, informations de profil,
+        photo, jeton de notification et données permettant de vous identifier
+        sont supprimés ou anonymisés de façon irréversible. L'accès au compte
+        est alors retiré.
+      </p>
+      <p>
+        Certains historiques techniques ou de service peuvent devoir être
+        conservés pour respecter une obligation légale, assurer la sécurité,
+        prévenir la fraude ou préserver l'intégrité du service. Ils sont
+        dissociés de votre identité lorsque cela est possible et ne permettent
+        plus d'accéder à votre compte. Les données techniques déjà transmises
+        à Firebase suivent également les règles de conservation du service
+        concerné.
+      </p>
+      <p>
+        La suppression du compte PronoWin ne résilie pas un abonnement Google
+        Play en cours. Pour éviter un renouvellement, annulez-le dans Google
+        Play, rubrique Paiements et abonnements.
+      </p>
+    </section>
+
+    <section>
+      <h2>Vos choix et vos droits</h2>
+      <ul class="legal-list">
+        <li>consulter et corriger les informations de votre profil depuis l'application ;</li>
+        <li>désactiver les notifications par catégorie ;</li>
+        <li>demander la suppression de votre compte et des données associées ;</li>
+        <li>nous contacter pour une question d'accès, de rectification ou de confidentialité.</li>
+      </ul>
+      <p>
+        <% if (site.contactEmail) { %>
+          Écrivez-nous à <a href="mailto:<%= site.contactEmail %>"><%= site.contactEmail %></a>.
+        <% } else { %>
+          Utilisez la rubrique Aide de l'application.
+        <% } %>
+      </p>
+    </section>
+
+    <section>
+      <h2>Mineurs</h2>
+      <p>
+        PronoWin est réservé aux personnes de 18 ans ou plus. Si vous pensez
+        qu'un mineur a créé un compte, contactez-nous afin que nous puissions
+        intervenir.
+      </p>
+    </section>
+
+    <section>
+      <h2>Évolutions de cette politique</h2>
+      <p>
+        Nous mettrons cette page à jour avant ou au moment de toute évolution
+        importante de nos pratiques. La date affichée en haut de la page permet
+        d'identifier sa dernière révision.
+      </p>
+    </section>
+
+    <section class="legal-links">
+      <h2>Liens utiles</h2>
+      <p>
+        <a href="/suppression-compte">Supprimer mon compte</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/mentions-legales">Mentions légales</a>
+        <span aria-hidden="true"> · </span>
         <a href="/">Retour au site</a>
       </p>
-
-  </div>
+    </section>
+  </main>
 
   <footer class="footer">
     <div class="container footer-bottom">

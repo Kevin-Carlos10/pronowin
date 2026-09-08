@@ -65,10 +65,17 @@
     <p>PronoWin n'est pas un établissement de paiement.</p>
 
     <h2>Données personnelles</h2>
-    <p>Les données que nous collectons, pourquoi, avec qui elles sont partagées et comment les supprimer sont décrites dans notre <a href="/confidentialite">politique de confidentialité</a>.</p>
+    <p>Les données que nous collectons, pourquoi, avec qui elles sont partagées et comment les supprimer sont décrites dans notre <a href="/confidentialite">politique de confidentialité</a>. Vous pouvez aussi <a href="/suppression-compte">demander la suppression de votre compte</a> depuis le site, sans vous reconnecter à l'application.</p>
 
     <h2>Contact</h2>
-    <p>Pour toute question, contactez le support depuis l'application, rubrique Aide.</p>
+    <p>
+      Pour toute question, contactez le support
+      <% if (site.contactEmail) { %>
+        à <a href="mailto:<%= site.contactEmail %>"><%= site.contactEmail %></a>.
+      <% } else { %>
+        depuis l'application, rubrique Aide.
+      <% } %>
+    </p>
   </div>
 
   <footer class="footer">

@@ -31,6 +31,14 @@ const INJECTIONS = [
     vers: '<% if (false) { %>',
   },
   {
+    // Pendant la validation Play, un bouton APK public ne doit pas revenir par
+    // mégarde dans le rendu sans fiche de store.
+    nom: 'l APK direct redevient un bouton public',
+    fichier: 'views/index.ejs',
+    de: '<div class="store-badges store-badges--soon" aria-hidden="false">',
+    vers: '<a href="<%= site.apkUrl %>" class="store-badge" download>APK</a>\n        <div class="store-badges store-badges--soon" aria-hidden="false">',
+  },
+  {
     // La signature promettait dans le <title>, c'est-a-dire a l'endroit que
     // Google affiche et que personne ne relit.
     nom: 'la signature promet a nouveau des gains',

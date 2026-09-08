@@ -26,9 +26,8 @@ const site = {
   tagline: 'Le pronostic qui montre ses chiffres',
   year: new Date().getFullYear(),
 
-  // Téléchargement direct : l'application n'est sur aucun store aujourd'hui.
-  // Le badge « Google Play » pointerait donc sur une fiche inexistante — on
-  // annonce ce qui existe, et on dit « bientôt » pour le reste.
+  // L'APK reste disponible pour une diffusion contrôlée, mais la vitrine
+  // publique ne le propose pas avant la validation de la fiche Google Play.
   apkUrl: process.env.APK_URL || '/downloads/app-release.apk',
 
   // Canaux publics. Vides, ils n'affichent rien : une icone qui ne mene nulle
@@ -57,12 +56,12 @@ const site = {
   /**
    * Fiche Google Play — vide tant qu'elle n'existe pas.
    *
-   * Vide : la page annonce le téléchargement direct et dit « bientôt » pour
-   * les stores. C'est l'état d'aujourd'hui.
+   * Vide : la page annonce seulement les stores « bientôt ». L'APK direct est
+   * partagé dans les canaux de communication choisis par PronoWin, pas depuis
+   * la vitrine publique.
    *
-   * Renseignée : Play devient l'appel principal, et l'APK direct passe en
-   * lien discret sous les badges. Le canal direct n'est pas supprimé — il
-   * cesse d'être mis en avant.
+   * Renseignée : Play devient le seul appel public au téléchargement. Le
+   * canal direct reste une diffusion contrôlée, hors de la vitrine.
    *
    * Ce n'est pas une préférence d'affichage. Le site est le seul endroit où
    * Google voit les deux canaux côte à côte. Le binaire Play ne peut pas
@@ -71,8 +70,7 @@ const site = {
    * du même paquet mis en avant à côté de la fiche Play peut y lire un
    * contournement. Play devant retire ce couplage de la vitrine.
    *
-   * Le jour de l'approbation, cette ligne suffit : aucun gabarit à retoucher
-   * sous la pression.
+   * Le jour de l'approbation, cette ligne suffit : aucun gabarit à retoucher.
    */
   playStoreUrl: process.env.PLAY_STORE_URL || '',
 };
@@ -144,10 +142,9 @@ async function tarifsReels() {
 /**
  * Version de l'APK réellement publiée, lue au rendu.
  *
- * Le bouton de téléchargement pointe sur un chemin fixe dont le contenu est
- * remplacé à chaque publication. Rien n'indiquait ce qu'il y avait derrière :
- * un fichier à jour et un fichier oublié depuis trois mois donnaient la même
- * page.
+ * Cette valeur accompagne la diffusion contrôlée de l'APK. Elle reste lue
+ * depuis la même source que l'application, même lorsque la vitrine ne propose
+ * aucun téléchargement direct.
  *
  * `apkLatestVersion` est la valeur que le serveur sert déjà à l'application
  * pour déclencher la proposition de mise à jour. La lire ici plutôt que
@@ -193,7 +190,7 @@ const productBlocks = [
     // dans le schéma, ni rien hors football. Le site vendait deux sports que
     // l'application ne traite pas.
     text: "Chaque pronostic porte sa cote, les statistiques du match et un niveau de confiance exprimé en pourcentage — le même que celui affiché dans l'application.",
-    photo: '/images/photo-pronostics.svg',
+    photo: '/images/banner-analysis.png',
     stats: [
       { value: 'Cotes',   label: 'affichées par match' },
       { value: '%',       label: 'confiance chiffrée, pas un mot' },
@@ -416,7 +413,7 @@ const comparisonRows = [
 const faqs = [
   {
     q: 'Comment recevoir les pronostics gratuits ?',
-    a: "Téléchargez l'application PronoWin et créez un compte avec votre numéro de téléphone. Une sélection de pronostics est visible depuis l'accueil, sans abonnement.",
+    a: "Téléchargez l'application PronoWin, indiquez votre adresse e-mail et confirmez le code reçu. Une sélection de pronostics est visible depuis l'accueil, sans abonnement.",
   },
   {
     q: 'Comment souscrire à un abonnement Premium ?',
@@ -485,10 +482,14 @@ app.get('/mentions-legales', (req, res) => {
  * juridique dont la date de révision change toute seule chaque jour ne dit
  * plus rien de sa dernière révision.
  */
-const MAJ_CONFIDENTIALITE = '1er septembre 2026';
+const MAJ_CONFIDENTIALITE = '4 septembre 2026';
 
 app.get('/confidentialite', (req, res) => {
   res.render('confidentialite', { site, dateMaj: MAJ_CONFIDENTIALITE });
+});
+
+app.get('/suppression-compte', (req, res) => {
+  res.render('suppression-compte', { site });
 });
 
 app.use((req, res) => {
