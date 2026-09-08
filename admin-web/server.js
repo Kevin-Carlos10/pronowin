@@ -388,6 +388,49 @@ function logAction(req, action, target = '', details = {}) {
   }
 }
 
+/**
+ * Ce que cette session a le droit de lire du journal d'activité.
+ *
+ * Le tableau de bord affichait `loadLogs().slice(0, 8)` — les huit dernières
+ * actions de tout le monde, à qui que ce soit. Un sous-admin y lisait donc les
+ * connexions de l'administrateur principal, la création des autres comptes, et
+ * jusqu'aux tentatives échouées, qui portent l'identifiant saisi : une adresse
+ * e-mail s'y affichait en clair.
+ *
+ * Rien ne l'avait signalé parce que les surfaces prévues pour ça sont bien
+ * gardées : `/admin/audit`, son export CSV et la page Sous-admins sont tous en
+ * `requireMain`. La barre latérale ne montrait même pas « Journal d'activité »
+ * à ce compte. Le tableau de bord affichait le contenu de la page qu'on lui
+ * cachait.
+ *
+ * La comparaison porte sur le rôle *et* le nom : filtrer sur le seul nom
+ * laisserait un sous-admin nommé « Super Admin » lire les entrées de
+ * l'administrateur principal.
+ */
+function journalVisiblePar(logs, req) {
+  if (req.cookies?.admin_role === 'main') return logs;
+  return logs.filter((l) => estMoi(l, req));
+}
+
+/**
+ * Cette entrée est-elle une action de la personne connectée ?
+ *
+ * Distinct de `journalVisiblePar`, qui répond à « qu'ai-je le droit de lire ».
+ * Les deux coïncident pour un sous-admin, pas pour l'administrateur principal :
+ * il a le droit de tout lire, mais sa page de profil doit montrer ses actions à
+ * lui. Les confondre lui aurait affiché le journal complet sous le titre
+ * « Mon activité ».
+ *
+ * Le rôle entre dans la comparaison : sur le seul nom, un sous-admin appelé
+ * « Super Admin » se verrait attribuer les actions de l'administrateur
+ * principal — et les lirait.
+ */
+function estMoi(l, req) {
+  const role = req.cookies?.admin_role === 'main' ? 'main' : 'sub';
+  return (l.adminRole ?? 'main') === role
+      && l.adminName === (req.cookies?.admin_name ?? '');
+}
+
 // ─── SYSTÈME DE PERMISSIONS GRANULAIRES ─────────────────────────────────────
 // Le catalogue vit dans lib/permissions.js : le banc d'essai des vues en
 // gardait sa propre copie, réduite à une entrée sans icône, et rendait donc
@@ -989,7 +1032,7 @@ app.get('/admin/dashboard', requireAuth, async (req, res) => {
   const now        = Date.now();
   const allBans    = loadBans();
   const activeBans = allBans.filter(b => b.active && (!b.expiresAt || new Date(b.expiresAt).getTime() > now));
-  const recentLogs = loadLogs().slice(0, 8);
+  const recentLogs = journalVisiblePar(loadLogs(), req).slice(0, 8);
 
   const baseStats  = statsRes.status === 'fulfilled' ? statsRes.value.data : { totalUsers:0, premiumUsers:0, pendingTx:0, publishedToday:0 };
   const activeUsers = onlineRes.status === 'fulfilled' ? (onlineRes.value.data.count ?? 0) : 0;
@@ -1376,7 +1419,8 @@ const contexteRoutes = {
   loadSettings, saveSettings, empreinteSettings, saveSettingsSi,
   loadNews, saveNews, loadBans, saveBans, loadLogs, saveLogs,
   loadNotifHistory, saveNotifHistory, getNewsCategories,
-  uid, hashPwd, checkPwd, normaliserIdentifiant, getClientIP, ecrireJson,
+  uid, hashPwd, checkPwd, normaliserIdentifiant, journalVisiblePar, estMoi,
+  getClientIP, ecrireJson,
   ERR_ECRITURE, ERR_CONFLIT, PERMISSIONS, DATA_DIR, LOG_MAX,
   STATS_ENDPOINTS, NEWS_DEFAULT_CATEGORIES,
   fs, path, slugify, sanitize, clampInt, sseBroadcast,

@@ -351,8 +351,17 @@
   <!-- Activité récente -->
   <div class="card" style="padding:0;overflow:hidden">
     <div class="card-header">
-      <h3><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Activité récente</h3>
+      <%# Le titre dit de qui on parle. Un sous-admin ne voit que ses propres
+          actions : intitulé « Activité récente », il aurait cru lire celle du
+          panneau entier et conclu qu'il ne s'y passe rien. %>
+      <h3><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg>
+        <%= isMain ? 'Activité récente' : 'Mon activité récente' %></h3>
+      <%# « Journal → » mène à /admin/audit, réservé à l'administrateur
+          principal : proposé à un sous-admin, le bouton ne menait qu'à une page
+          « Accès refusé ». %>
+      <% if (isMain) { %>
       <a href="/admin/audit" class="btn btn-sm btn-outline">Journal →</a>
+      <% } %>
     </div>
     <% if(recentLogs && recentLogs.length > 0){ %>
     <div class="activity-feed">
@@ -382,27 +391,41 @@
 
   <!-- Accès rapides + bans récents -->
   <div style="display:flex;flex-direction:column;gap:1rem">
-    <!-- Accès rapides -->
+    <%# ── Accès rapides ──
+        Chaque entrée demandait une permission d'écriture, et la carte
+        s'affichait quoi qu'il arrive : un sous-admin en lecture seule voyait un
+        cadre « Accès rapides » vide, sans un mot pour dire pourquoi.
+
+        La liste est décrite une fois puis filtrée, plutôt que d'écrire la même
+        condition dans le rendu et dans un test de non-vacuité : les deux
+        auraient fini par diverger, et la carte serait redevenue vide — ou
+        aurait disparu alors qu'elle avait quelque chose à montrer. %>
+    <%
+      const _acces = [
+        { droit: hasPerm('users','write'),         href: '/admin/users',
+          icone: 'users',     libelle: 'Gérer les utilisateurs' },
+        { droit: hasPerm('abonnements','write'),   href: '/admin/abonnements',
+          icone: 'crown',     libelle: 'Vérifier preuves Premium',
+          badge: (proofs.total ?? 0) || null, classeBadge: 'badge-warn' },
+        { droit: hasPerm('pronostics','write'),    href: '/admin/pronostics',
+          icone: 'ball',      libelle: 'Publier un pronostic' },
+        { droit: hasPerm('notifications','write'), href: '/admin/notifications',
+          icone: 'megaphone', libelle: 'Envoyer une notification' },
+        { droit: isMain,                           href: '/admin/bans',
+          icone: 'ban',       libelle: 'Bannissements',
+          badge: activeBansCount || null, classeBadge: 'badge-err' },
+      ].filter(e => e.droit);
+    %>
+    <% if (_acces.length > 0) { %>
     <div class="card">
       <h3 style="margin-bottom:.75rem;font-size:.9rem"><svg class="ic" aria-hidden="true"><use href="#ic-zap"/></svg> Accès rapides</h3>
       <div class="quick-actions">
-        <% if(hasPerm('users','write')) { %>
-        <a href="/admin/users" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span> Gérer les utilisateurs</a>
-        <% } %>
-        <% if(hasPerm('abonnements','write')) { %>
-        <a href="/admin/abonnements" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> Vérifier preuves Premium <% if((proofs.total??0)>0){ %><span class="badge badge-warn" style="margin-left:auto;font-size:.7rem"><%= proofs.total %></span><% } %></a>
-        <% } %>
-        <% if(hasPerm('pronostics','write')) { %>
-        <a href="/admin/pronostics" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></span> Publier un pronostic</a>
-        <% } %>
-        <% if(hasPerm('notifications','write')) { %>
-        <a href="/admin/notifications" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg></span> Envoyer une notification</a>
-        <% } %>
-        <% if(isMain) { %>
-        <a href="/admin/bans" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg></span> Bannissements <% if(activeBansCount>0){ %><span class="badge badge-err" style="margin-left:auto;font-size:.7rem"><%= activeBansCount %></span><% } %></a>
-        <% } %>
+        <% _acces.forEach(e => { %>
+        <a href="<%= e.href %>" class="qa-btn"><span class="qa-icon-wrap"><svg class="ic" aria-hidden="true"><use href="#ic-<%= e.icone %>"/></svg></span> <%= e.libelle %><% if (e.badge) { %> <span class="badge <%= e.classeBadge %>" style="margin-left:auto;font-size:.7rem"><%= e.badge %></span><% } %></a>
+        <% }) %>
       </div>
     </div>
+    <% } %>
 
     <!-- Bans récents (si >0) -->
     <% if(activeBansCount > 0 && recentBans && recentBans.length > 0){ %>
