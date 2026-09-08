@@ -466,6 +466,12 @@
   const _locked         = typeof locked !== 'undefined' ? locked : null;
   const _isLocked       = !!_locked || !!_blockedUntilMs;
   const _isExpired      = typeof expired !== 'undefined' && expired;
+  // Le bandeau disait « session expirée » quelle que soit la raison. Sur un
+  // compte désactivé ou supprimé, cela envoie réessayer une connexion qui ne
+  // peut pas aboutir. `motif` porte la vraie raison quand il y en a une.
+  const _motif          = (typeof motif !== 'undefined' && motif)
+                          ? motif
+                          : 'Votre session a expiré. Reconnectez-vous pour continuer.';
   const _username       = typeof username !== 'undefined' ? username : '';
   const _showGauge      = !!error && !_isLocked && _remaining > 0 && _remaining <= 3;
 %>
@@ -542,7 +548,7 @@
       <% if (_isExpired && !_isLocked && !error) { %>
       <div class="note note-info rise" style="--d:.16s" role="status">
         <svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg>
-        <span>Votre session a expiré. Reconnectez-vous pour continuer.</span>
+        <span><%= _motif %></span>
       </div>
       <% } %>
 

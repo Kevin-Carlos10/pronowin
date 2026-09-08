@@ -17,7 +17,11 @@ if (!process.env.ADMIN_PERM_SECRET && !process.env.ADMIN_SECRET) {
 }
 
 // ─── SOUS-ADMINS : stockage local ────────────────────────────────────────────
-const DATA_DIR = path.join(__dirname, 'data');
+// `ADMIN_DATA_DIR` n'existe que pour les contrôles automatiques, qui doivent
+// pouvoir créer et révoquer des comptes sans toucher aux vrais. Sans lui, le
+// seul banc possible écrivait dans `data/` — donc dans les comptes de la
+// machine — et personne ne l'aurait mis dans `npm test`.
+const DATA_DIR = process.env.ADMIN_DATA_DIR ?? path.join(__dirname, 'data');
 const SA_FILE  = path.join(DATA_DIR, 'sub_admins.json');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(SA_FILE))  fs.writeFileSync(SA_FILE, '[]');
@@ -99,6 +103,11 @@ function empreinteSubs()  { return empreinte(SA_FILE); }
 function saveSubsSi(data, emp) { return ecrireSiInchange(SA_FILE, data, emp); }
 function hashPwd(pwd)     { return bcrypt.hashSync(pwd, 12); }
 function checkPwd(pwd, hash) { return bcrypt.compareSync(pwd, hash); }
+
+// La forme canonique d'un identifiant vit dans `lib/identifiant.js`, avec le
+// détail de la panne qu'elle corrige. Elle est réexportée dans le contexte des
+// routes pour que la création et la connexion appliquent la même règle.
+const { normaliserIdentifiant } = require('./lib/identifiant');
 // Signer les permissions avec HMAC pour empêcher la falsification côté client
 function signPerms(perms) {
   const data = Buffer.from(JSON.stringify(perms)).toString('base64');
@@ -553,6 +562,28 @@ app.use((req, res, next) => {
   next();
 });
 
+/**
+ * Chemins où la session ne doit pas être revalidée.
+ *
+ * `/admin/login` et `/admin/logout` doivent rester joignables avec des cookies
+ * périmés — sans quoi une session révoquée redirigerait vers la page de
+ * connexion, qui la révoquerait à nouveau : une boucle.
+ */
+const CHEMINS_SANS_REVALIDATION = new Set(['/admin/login', '/admin/logout']);
+
+/**
+ * La session portée par ces cookies désigne-t-elle encore un accès existant ?
+ *
+ * Même règle que la revalidation ci-dessous, mais sans effet de bord : la page
+ * de connexion s'en sert pour décider si elle peut renvoyer vers le tableau de
+ * bord, plutôt que de se fier à la seule présence d'un cookie.
+ */
+function sessionEncoreValable(req) {
+  if (req.cookies?.admin_role === 'main') return true;
+  const compte = loadSubs().find(s => s.id === req.cookies?.admin_sub_id);
+  return !!compte && compte.isActive !== false;
+}
+
 // Données communes injectées dans tous les templates via res.locals
 app.use((req, res, next) => {
   // Le rôle par défaut est le moins privilégié : seul un cookie admin_role
@@ -560,9 +591,84 @@ app.use((req, res, next) => {
   // supprimé ou altéré (ex: via les DevTools) retombe sur 'sub' sans permission,
   // au lieu de devenir admin principal par défaut.
   const role  = req.cookies?.admin_role === 'main' ? 'main' : 'sub';
+
+  // ── Inactivité ──
+  //
+  // « Session (min) », dans Paramètres → Sécurité connexion, n'était appliquée
+  // que par une minuterie JavaScript dans la page ouverte. Elle repartait de
+  // zéro à chaque chargement : on fermait l'onglet, on revenait le lendemain,
+  // la session était toujours ouverte — jusqu'à 8 heures, ou 30 jours si
+  // « Se souvenir de moi » était coché. Le réglage s'affichait pourtant comme
+  // un indicateur de sécurité sur la page Paramètres.
+  //
+  // Le cookie `admin_last_active` existait déjà pour porter cette date d'une
+  // page à l'autre, et le script définissait même de quoi le lire — sans
+  // jamais s'en servir pour décider. Le serveur ne le regardait pas non plus.
+  //
+  // Il est modifiable depuis les outils du navigateur (`httpOnly:false`, pour
+  // le compte à rebours affiché). Cela ne protège donc pas de quelqu'un qui
+  // veut prolonger sa propre session, mais du cas réel : un panneau
+  // d'administration laissé ouvert sur un poste partagé.
+  const derniereActivite = Number(req.cookies?.admin_last_active);
+  if (req.cookies?.admin_token
+      && !CHEMINS_SANS_REVALIDATION.has(req.path)
+      && Number.isFinite(derniereActivite)
+      && Date.now() - derniereActivite > (loadSettings().sessionTimeoutMin ?? 30) * 60000) {
+    ['admin_token', 'admin_name', 'admin_role', 'admin_perms',
+     'admin_sub_id', 'admin_last_active'].forEach(c => res.clearCookie(c));
+    if (req.path.startsWith('/admin/api/')) {
+      return res.status(401).json({ error: 'Session expirée.' });
+    }
+    return res.redirect('/admin/login?expired=1');
+  }
+
   let   perms = [];
   if (role === 'sub') {
     perms = verifyPerms(req.cookies?.admin_perms);
+
+    // ── Revalider la session contre le fichier des comptes ──
+    //
+    // Les cookies de session portaient à eux seuls l'identité, le rôle et les
+    // permissions, signés une fois à la connexion et jamais relus ensuite. Trois
+    // conséquences, mesurées sur le serveur réel :
+    //
+    //   - « Désactiver » un sous-admin ne fermait pas sa session : il continuait
+    //     à travailler. Le bouton bloquait la prochaine connexion, pas celle en
+    //     cours — et la page affichait « Inactif » pendant ce temps ;
+    //   - le supprimer non plus : un compte qui n'existait plus ouvrait encore
+    //     les pages, avec ses droits, jusqu'à l'expiration du cookie — 30 jours
+    //     si « Se souvenir de moi » était coché ;
+    //   - lui retirer ses permissions ne s'appliquait pas davantage : le cookie
+    //     signé gardait celles d'avant.
+    //
+    // Ces trois boutons sont les seuls moyens de reprendre un accès. Ils
+    // annonçaient une révocation qui n'avait pas lieu, ce qui est pire que de
+    // ne pas les avoir : on croit l'accès coupé et on passe à autre chose.
+    //
+    // Les permissions sont désormais relues dans le fichier à chaque requête,
+    // et non plus dans le cookie : le fichier est la seule source qu'un
+    // administrateur peut corriger. Le cookie signé reste posé — il identifie
+    // encore la session — mais il ne décide plus de rien.
+    const session = req.cookies?.admin_token;
+    if (session && !CHEMINS_SANS_REVALIDATION.has(req.path)) {
+      const compte = loadSubs().find(s => s.id === req.cookies?.admin_sub_id);
+      // Fermeture par défaut : un `admin_sub_id` absent ou inconnu ne peut pas
+      // être rattaché à un compte, donc rien ne prouve que l'accès tient
+      // toujours. C'est aussi le cas d'une session « main » dont le cookie de
+      // rôle a été perdu ou altéré — elle se retrouve ici, et se reconnecter
+      // vaut mieux que continuer avec une identité qu'on ne sait plus lire.
+      if (!compte || compte.isActive === false) {
+        ['admin_token', 'admin_name', 'admin_role', 'admin_perms',
+         'admin_sub_id', 'admin_last_active'].forEach(c => res.clearCookie(c));
+        // Une réponse JSON pour les appels de fond : les rediriger vers une page
+        // HTML ferait afficher du HTML dans un compteur de badges.
+        if (req.path.startsWith('/admin/api/')) {
+          return res.status(401).json({ error: 'Session révoquée.' });
+        }
+        return res.redirect('/admin/login?fin=' + (compte ? 'desactive' : 'inconnu'));
+      }
+      perms = compte.permissions ?? [];
+    }
   }
   res.locals.adminRole  = role;
   res.locals.adminName  = req.cookies?.admin_name ?? 'Admin';
@@ -710,11 +816,29 @@ app.use((req, res, next) => {
 
 // ─── AUTH ─────────────────────────────────────────────────────────────────────
 app.get('/admin/login', (req, res) => {
-  if (req.cookies?.admin_token) return res.redirect('/admin/dashboard');
+  // Ne renvoyer vers le tableau de bord qu'une session que le tableau de bord
+  // acceptera. La présence du seul cookie `admin_token` suffisait : un
+  // sous-admin révoqué dont le navigateur gardait ce cookie était renvoyé vers
+  // le tableau de bord, qui le renvoyait ici, qui le renvoyait là — une boucle
+  // de redirections dont on ne sort qu'en vidant ses cookies à la main.
+  // `/admin/login` est justement le chemin où la revalidation ne s'applique
+  // pas, pour ne pas boucler ; c'est donc ici que la vérification doit se
+  // refaire.
+  if (req.cookies?.admin_token && sessionEncoreValable(req)) {
+    return res.redirect('/admin/dashboard');
+  }
   // Une seule lecture : `getLoginMaxAttempts` relit settings.json à chaque appel.
   const maxTentatives = getLoginMaxAttempts();
+  // Une session peut finir de trois façons, et les confondre envoie chercher au
+  // mauvais endroit : « session expirée » sur un compte désactivé fait
+  // recommencer indéfiniment une connexion qui ne peut pas aboutir.
+  const MOTIFS = {
+    desactive: 'Ce compte a été désactivé. Contactez l\'administrateur principal.',
+    inconnu:   'Ce compte n\'existe plus. Contactez l\'administrateur principal.',
+  };
+  const motif = MOTIFS[req.query.fin] ?? null;
   res.render('login', {
-    error: null, expired: req.query.expired === '1',
+    error: null, expired: req.query.expired === '1' || motif !== null, motif,
     locked: null, remaining: maxTentatives, maxAttempts: maxTentatives, blockedUntilMs: null, username: '',
   });
 });
@@ -738,7 +862,10 @@ app.post('/admin/login', async (req, res) => {
   // ── 1. Sous-admins locaux ──
   const empSubs = empreinteSubs();
   const subs = loadSubs();
-  const sub  = subs.find(s => s.username === username && s.isActive !== false && checkPwd(password, s.passwordHash));
+  // Comparaison sur la forme canonique, la même qu'à la création : sans elle,
+  // « Lonfo_lookman » ne retrouvait pas le compte qu'il avait lui-même créé.
+  const saisi = normaliserIdentifiant(username);
+  const sub  = subs.find(s => normaliserIdentifiant(s.username) === saisi && s.isActive !== false && checkPwd(password, s.passwordHash));
   if (sub) {
     clearAttempts(ip);
     // Obtenir un token backend frais via le compte service
@@ -751,6 +878,37 @@ app.post('/admin/login', async (req, res) => {
         apiToken = svcRes.data.token ?? apiToken;
       }
     } catch (_) { /* fallback sur ADMIN_API_TOKEN si le backend est indisponible */ }
+
+    // ── Refuser une session qu'on sait vide ──
+    //
+    // Sans jeton d'API, `admin_token` était posé à la chaîne vide. Or
+    // `requireAuth` la traite comme une absence de session : le sous-admin
+    // était renvoyé à l'écran de connexion à la page suivante, sans message,
+    // après un « Connexion réussie » enregistré au journal. Vu de lui, taper
+    // les bons identifiants ramenait au formulaire — indistinguable d'un mot de
+    // passe faux, et introuvable dans le journal, qui affichait une réussite.
+    //
+    // C'est arrivé en production : `ADMIN_SERVICE_PASSWORD` ne correspondait
+    // plus au compte `admin@pronowin.com` et `ADMIN_API_TOKEN` n'était pas
+    // renseigné. L'admin principal, lui, continuait d'entrer normalement — il
+    // obtient son jeton de sa propre authentification — donc rien ne signalait
+    // la panne côté panneau.
+    //
+    // Une session vide ne s'ouvre plus, et l'écran dit ce qui manque.
+    if (!apiToken) {
+      logAction(req, 'login_failed',
+        `Sous-admin: ${sub.name} — compte de service API invalide`,
+        { username: sub.username, cause: 'api_token_absent' });
+      console.error('[admin] Connexion de sous-admin refusée : aucun jeton d\'API. '
+        + 'Vérifiez ADMIN_SERVICE_EMAIL / ADMIN_SERVICE_PASSWORD, ou ADMIN_API_TOKEN.');
+      return res.render('login', {
+        error: 'Le panneau n\'est pas relié à l\'API : le compte de service est '
+             + 'refusé. Vos identifiants sont bons — c\'est la configuration du '
+             + 'serveur qui bloque. Prévenez l\'administrateur principal.',
+        expired: false, locked: null, remaining: getLoginMaxAttempts(),
+        maxAttempts: getLoginMaxAttempts(), blockedUntilMs: null, username,
+      });
+    }
 
     const perms    = JSON.stringify(sub.permissions ?? []);
     sub.lastLoginAt = new Date().toISOString();
@@ -769,7 +927,7 @@ app.post('/admin/login', async (req, res) => {
   }
 
   // ── Vérifier si le username ressemble à un sous-admin inactif ──
-  const inactiveSub = subs.find(s => s.username === username && s.isActive === false);
+  const inactiveSub = subs.find(s => normaliserIdentifiant(s.username) === saisi && s.isActive === false);
   if (inactiveSub) {
     recordFailedAttempt(ip);
     return res.render('login', { error: 'Ce compte est désactivé. Contactez l\'administrateur principal.', expired: false, locked: null, remaining: getLoginMaxAttempts(), maxAttempts: getLoginMaxAttempts(), blockedUntilMs: null, username });
@@ -1218,7 +1376,7 @@ const contexteRoutes = {
   loadSettings, saveSettings, empreinteSettings, saveSettingsSi,
   loadNews, saveNews, loadBans, saveBans, loadLogs, saveLogs,
   loadNotifHistory, saveNotifHistory, getNewsCategories,
-  uid, hashPwd, checkPwd, getClientIP, ecrireJson,
+  uid, hashPwd, checkPwd, normaliserIdentifiant, getClientIP, ecrireJson,
   ERR_ECRITURE, ERR_CONFLIT, PERMISSIONS, DATA_DIR, LOG_MAX,
   STATS_ENDPOINTS, NEWS_DEFAULT_CATEGORIES,
   fs, path, slugify, sanitize, clampInt, sseBroadcast,

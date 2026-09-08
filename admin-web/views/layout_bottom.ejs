@@ -352,12 +352,21 @@ document.addEventListener('DOMContentLoaded', () => {
     return m ? parseInt(m[1]) : null;
   }
 
-  function resetTimers() {
+  function resetTimers({ depuisCookie = false } = {}) {
     clearTimeout(_warnTimer);
     clearTimeout(_decoTimer);
     if (_warnShown) hideWarn();
 
-    const idleMs = TIMEOUT_MS;
+    // Au chargement, repartir de la dernière activité connue plutôt que de
+    // remettre le compteur à zéro : un onglet rouvert après une heure affichait
+    // « 30:00 » alors que le serveur allait fermer la session à la requête
+    // suivante. `getCookieLastActive` était écrite pour ça et n'était appelée
+    // nulle part.
+    let idleMs = TIMEOUT_MS;
+    if (depuisCookie) {
+      const vu = getCookieLastActive();
+      if (vu) idleMs = Math.max(0, TIMEOUT_MS - (Date.now() - vu));
+    }
     _warnTimer = setTimeout(showWarn, idleMs - WARN_MS);
     _decoTimer = setTimeout(forceLogout, idleMs);
   }
@@ -392,8 +401,12 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.extendSession = function() {
-    // Touche l'API badges pour rafraîchir le cookie côté serveur
-    fetch('/admin/api/badges').catch(() => {});
+    // Le commentaire précédent annonçait que cet appel « rafraîchit le cookie
+    // côté serveur » : c'est faux, le rafraîchissement exclut explicitement
+    // `/admin/api/`, justement pour qu'un sondage de fond ne maintienne pas une
+    // session que personne ne regarde. Le bouton « Rester connecté » ne
+    // prolongeait donc rien. C'est le clic dessus qui repose le jalon.
+    marquerActivite();
     resetTimers();
     hideWarn();
   };
@@ -402,10 +415,26 @@ document.addEventListener('DOMContentLoaded', () => {
   const ACTIVITY_EVENTS = ['mousemove','mousedown','keydown','scroll','touchstart','click'];
   let _lastActivity = Date.now();
 
+  // Le serveur ferme désormais une session dont `admin_last_active` a dépassé
+  // le délai réglé. Il ne le rafraîchissait que sur un chargement de page :
+  // quelqu'un qui remplit un long formulaire ne charge rien, et se serait fait
+  // déconnecter en cliquant sur « Enregistrer », avec sa saisie perdue.
+  //
+  // L'activité réelle repose ce jalon. C'est le même cookie que celui du compte
+  // à rebours, déjà lisible par le script (`httpOnly:false`) — on ne lui confie
+  // donc rien de plus qu'avant.
+  function marquerActivite() {
+    const duree = Math.round(TIMEOUT_MS / 1000) + 120;
+    const sur   = location.protocol === 'https:' ? ';Secure' : '';
+    document.cookie = 'admin_last_active=' + Date.now()
+                    + ';path=/;max-age=' + duree + ';SameSite=Lax' + sur;
+  }
+
   function onActivity() {
     const now = Date.now();
     if (now - _lastActivity > 10000) {  // throttle : au plus 1 reset / 10s
       _lastActivity = now;
+      marquerActivite();
       resetTimers();
     }
   }
@@ -422,8 +451,8 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   document.addEventListener('click', broadcastActivity, { passive: true });
 
-  // Démarrer
-  resetTimers();
+  // Démarrer — depuis la dernière activité connue, pas depuis le chargement.
+  resetTimers({ depuisCookie: true });
 })();
 
 /* ═══════════════════════════════════════════════════════════════
