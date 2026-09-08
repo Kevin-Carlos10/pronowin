@@ -123,14 +123,30 @@
     return new Date(isoStr).toLocaleDateString('fr-FR', {day:'numeric', month:'short'});
   }
 
+  // Miroir de `niveauAccorde` (lib/permissions.js) : le niveau accordé est le
+  // PLUS ÉLEVÉ des entrées, pas le premier trouvé. Cette fonction renvoyait le
+  // premier — donc « read » pour un compte enregistré avec les trois niveaux,
+  // ce que produit la cascade des cases. La fenêtre d'édition n'affichait
+  // qu'une case cochée sur trois ; on cochait « Écrire », on enregistrait, le
+  // panneau annonçait la mise à jour — vraie — et en réouvrant, seule « Lire »
+  // était cochée. Vu de l'utilisateur, l'enregistrement était ignoré. Pire :
+  // le formulaire repartant de l'affichage, chaque enregistrement rabaissait
+  // le compte au niveau affiché.
+  //
+  // `_check_niveau_permission.js` compare cette copie à celle du serveur sur
+  // une batterie de cas : les deux doivent répondre la même chose.
   function getLevelFromArray(perms, key) {
+    const ordre = ['read', 'write', 'delete'];
+    let meilleur = null;
     for (const p of perms || []) {
       if (typeof p !== 'string') continue;
       const [k, l] = p.split(':');
-      if (k === key && ['read','write','delete'].includes(l)) return l;
+      if (k !== key) continue;
+      const niveau = l === undefined ? 'write' : l;   // ancien format
+      if (!ordre.includes(niveau)) continue;
+      if (ordre.indexOf(niveau) > ordre.indexOf(meilleur)) meilleur = niveau;
     }
-    if ((perms||[]).includes(key)) return 'write';
-    return null;
+    return meilleur;
   }
 
   // Le catalogue d'actions vient du serveur : la copie qui vivait ici ne

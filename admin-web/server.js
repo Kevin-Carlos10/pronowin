@@ -435,32 +435,16 @@ function estMoi(l, req) {
 // Le catalogue vit dans lib/permissions.js : le banc d'essai des vues en
 // gardait sa propre copie, réduite à une entrée sans icône, et rendait donc
 // « 42/42 vues OK » en n'exerçant qu'un libellé sur dix.
-const { PERM_LEVELS, PERMISSIONS } = require('./lib/permissions');
+const { PERM_LEVELS, PERMISSIONS, niveauAccorde, niveauSuffisant } =
+  require('./lib/permissions');
 
-/**
- * Retourne le niveau accordé pour une clé de permission dans un tableau de perms.
- * Supporte les deux formats : "users:write" (nouveau) et "users" (rétrocompat → write).
- */
-function getPermLevel(perms, key) {
-  // Chercher le format nouveau "key:level"
-  for (const p of perms) {
-    if (typeof p !== 'string') continue;
-    const [k, l] = p.split(':');
-    if (k === key && PERM_LEVELS.includes(l)) return l;
-  }
-  // Rétrocompat : ancienne clé simple sans niveau → write
-  if (perms.includes(key)) return 'write';
-  return null; // pas de permission
-}
-
-/**
- * Test si un niveau accordé est suffisant pour le niveau requis.
- * Ordre : read < write < delete
- */
-function permLevelOk(granted, required) {
-  if (!granted) return false;
-  return PERM_LEVELS.indexOf(granted) >= PERM_LEVELS.indexOf(required);
-}
+// La lecture d'un niveau accorde et sa comparaison vivent dans
+// lib/permissions.js, avec le detail de la panne qu'elles corrigent : les deux
+// implementations qui etaient ici renvoyaient le PREMIER niveau trouve, donc
+// « read » pour un compte a qui l'interface avait tout accorde. Ces deux alias
+// gardent les noms employes par les 64 appels de `requirePerm` et par les vues.
+const getPermLevel = niveauAccorde;
+const permLevelOk  = niveauSuffisant;
 
 // ─── CSV HELPER ──────────────────────────────────────────────────────────────
 /**
@@ -722,6 +706,11 @@ app.use((req, res, next) => {
     return permLevelOk(getPermLevel(perms, key), level);
   };
   res.locals.getPermLevel = (key) => role !== 'sub' ? 'delete' : getPermLevel(perms, key);
+  // Pour les vues qui lisent les permissions d'un AUTRE compte que la session
+  // en cours — la fenetre d'edition des sous-admins. `_perm_table.ejs` en
+  // gardait sa propre copie, qui renvoyait le premier niveau au lieu du plus
+  // eleve : la fenetre n'affichait qu'une case cochee sur trois.
+  res.locals.niveauAccorde = niveauAccorde;
   // Injecter les paramètres globaux (annonce, titre…)
   const settings = loadSettings();
   res.locals.settings = settings;

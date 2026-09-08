@@ -57,4 +57,55 @@ const PERMISSIONS = [
   },
 ];
 
-module.exports = { PERM_LEVELS, PERMISSIONS };
+/**
+ * Le niveau réellement accordé sur une section : le plus élevé, pas le premier.
+ *
+ * Les cases du formulaire cascadent — cocher « Supprimer » coche « Écrire » et
+ * « Lire », et les trois partent au serveur. Un compte à qui on accorde tout
+ * sur les pronostics est donc enregistré ainsi :
+ *
+ *     ["pronostics:read", "pronostics:write", "pronostics:delete"]
+ *
+ * Trois implémentations de cette lecture existaient — `getPermLevel` dans
+ * server.js pour l'autorisation, `_getLevel` dans _perm_table.ejs pour le
+ * rendu, `getLevelFromArray` dans sub_admins.ejs pour la fenêtre d'édition — et
+ * toutes les trois renvoyaient le **premier** niveau rencontré. Sur le tableau
+ * ci-dessus, « read ». Conséquences, mesurées :
+ *
+ *   - l'autorisation traitait ce compte comme un lecteur. `requirePerm(...,
+ *     'write')` répondait 403 sur une permission accordée : le système de
+ *     permissions granulaires ne fonctionnait au-delà de la lecture pour aucun
+ *     compte enregistré depuis l'interface ;
+ *   - la fenêtre d'édition n'affichait qu'une case cochée sur trois. On cochait
+ *     « Écrire », on enregistrait, le panneau annonçait « Permissions mises à
+ *     jour » — ce qui était vrai — et en réouvrant, seule « Lire » était
+ *     cochée. Vu de l'utilisateur, l'enregistrement était ignoré ;
+ *   - et comme le formulaire repart de ce que la fenêtre affiche, chaque
+ *     enregistrement rabaissait silencieusement le compte au niveau affiché.
+ *
+ * La règle vit ici, et ses trois appelants passent par elle. La rétrocompat de
+ * l'ancien format — une clé nue sans niveau — reste traitée comme « write ».
+ */
+function niveauAccorde(perms, key) {
+  let meilleur = null;
+  for (const p of perms || []) {
+    if (typeof p !== 'string') continue;
+    const [k, l] = p.split(':');
+    if (k !== key) continue;
+    if (l === undefined) { // ancien format : "users" valait write
+      if (PERM_LEVELS.indexOf('write') > PERM_LEVELS.indexOf(meilleur)) meilleur = 'write';
+      continue;
+    }
+    if (!PERM_LEVELS.includes(l)) continue;
+    if (PERM_LEVELS.indexOf(l) > PERM_LEVELS.indexOf(meilleur)) meilleur = l;
+  }
+  return meilleur;
+}
+
+/** `granted` suffit-il pour `required` ? Ordre : read < write < delete. */
+function niveauSuffisant(granted, required) {
+  if (!granted) return false;
+  return PERM_LEVELS.indexOf(granted) >= PERM_LEVELS.indexOf(required);
+}
+
+module.exports = { PERM_LEVELS, PERMISSIONS, niveauAccorde, niveauSuffisant };

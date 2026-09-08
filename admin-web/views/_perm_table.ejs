@@ -3,16 +3,13 @@
   // existingPerms : tableau de permissions actuelles
   const _prefix = formId === 'create' ? 'cp' : 'mp';
 
-  function _getLevel(key) {
-    const perms = existingPerms || [];
-    for (const p of perms) {
-      if (typeof p !== 'string') continue;
-      const [k, l] = p.split(':');
-      if (k === key && ['read','write','delete'].includes(l)) return l;
-    }
-    if (perms.includes(key)) return 'write'; // rétrocompat
-    return null;
-  }
+  // La lecture du niveau accordé vient du serveur (`lib/permissions.js`, via
+  // res.locals). La copie qui vivait ici renvoyait le PREMIER niveau trouvé au
+  // lieu du plus élevé : sur un compte enregistré avec
+  // ["pronostics:read","pronostics:write","pronostics:delete"] — ce que produit
+  // la cascade des cases — elle répondait « read », et le tableau n'affichait
+  // qu'une case cochée sur trois.
+  const _getLevel = (key) => niveauAccorde(existingPerms || [], key);
 
   function _levelOk(key, lvl) {
     const granted = _getLevel(key);

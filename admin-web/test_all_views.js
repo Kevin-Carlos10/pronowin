@@ -11,6 +11,10 @@ const base = {
   hasPerm: () => true,
   relTime: () => 'il y a 5min',
   success: null, error: null,
+  // Meme fonction que celle injectee par res.locals en service : les vues la
+  // recoivent du serveur, le harnais doit la fournir aussi, sinon _perm_table
+  // rendrait ici avec une regle differente de celle en production.
+  niveauAccorde: require('./lib/permissions').niveauAccorde,
 };
 
 // Les `icon:` doivent rester des identifiants du sprite (views/_icons.ejs),
