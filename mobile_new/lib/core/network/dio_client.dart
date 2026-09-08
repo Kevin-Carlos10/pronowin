@@ -29,9 +29,35 @@ class DioClient {
   bool _isRefreshing = false;
   Completer<bool>? _refreshCompleter;
 
+  /// Fabrique de l'instance Dio dédiée au rafraîchissement.
+  ///
+  /// Le rafraîchissement passe volontairement par un Dio vierge, pour ne pas
+  /// retraverser l'intercepteur qui l'a déclenché — sans quoi un 401 sur le
+  /// rafraîchissement lui-même relancerait un rafraîchissement, en boucle.
+  ///
+  /// Conséquence : cette instance échappe à tout adaptateur posé sur `dio`,
+  /// et le chemin « 401 → rafraîchissement → rejeu » n'était donc pas
+  /// testable de bout en bout. C'est précisément le chemin sur lequel un
+  /// défaut est passé inaperçu six semaines. Cette couture existe pour qu'il
+  /// soit observable ; elle n'est pas utilisée en production.
+  @visibleForTesting
+  static Dio Function()? fabriqueDioRafraichissement;
+
   // Endpoints publics, appelés sans session existante — un 401 dessus est
   // toujours une erreur métier (code invalide ou expiré), jamais un jeton
   // périmé. Ne doit jamais déclencher _doRefresh().
+  /// Marque posée sur une requête déjà rejouée après rafraîchissement.
+  ///
+  /// `dio.fetch` retraverse toute la chaîne d'intercepteurs, y compris celui-ci.
+  /// Sans marque, un rejeu qui reçoit lui aussi un 401 relance un
+  /// rafraîchissement, qui rejoue, qui reçoit un 401 — indéfiniment, en
+  /// martelant le serveur. Le rafraîchissement réussit à chaque tour (le jeton
+  /// de session, lui, est valide), donc rien n'arrête la boucle.
+  ///
+  /// Un rejeu et un seul : si le jeton neuf est refusé, la réponse est
+  /// définitive et doit remonter à l'appelant.
+  static const _dejaRejoue = '_auth_deja_rejoue';
+
   static const _publicAuthEndpoints = <String>{
     ApiEndpoints.sendOtp,
     ApiEndpoints.verifyOtp,
@@ -40,7 +66,22 @@ class DioClient {
     ApiEndpoints.refreshToken,
   };
 
-  DioClient(this._storage, this._ref) {
+  /// [telemetrie] : installe l'intercepteur Firebase Performance.
+  ///
+  /// Faux uniquement en test. Cet intercepteur résout
+  /// `FirebasePerformance.instance` dès sa construction et lève donc si
+  /// Firebase n'a pas démarré — ce qui rend le client HTTP inconstructible
+  /// hors application, et avec lui tout le chemin « 401 →
+  /// rafraîchissement → rejeu ». C'est ce chemin qui a laissé passer, six
+  /// semaines durant, un écran proposant de créer un compte à des
+  /// utilisateurs connectés.
+  ///
+  /// Rendre le champ paresseux réglait cela d'un mot, mais seize tests de
+  /// mise en page passaient *parce que* cette construction échouait : leurs
+  /// widgets n'émettaient aucune requête. Les débloquer les faisait échouer
+  /// sur des minuteurs en attente. Le défaut de production reste donc
+  /// inchangé, et seul le test s'en écarte — explicitement.
+  DioClient(this._storage, this._ref, {bool telemetrie = true}) {
     dio = Dio(
       BaseOptions(
         baseUrl:        AppConstants.baseUrl,
@@ -55,7 +96,7 @@ class DioClient {
     _setupCertificatePinning();
     _addInterceptors();
     dio.interceptors.add(CacheInterceptor());
-    dio.interceptors.add(PerformanceInterceptor());
+    if (telemetrie) dio.interceptors.add(PerformanceInterceptor());
   }
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -167,17 +208,41 @@ class DioClient {
           final isPublicAuthEndpoint = _publicAuthEndpoints
               .any((p) => error.requestOptions.path.contains(p));
 
-          if (error.response?.statusCode == 401 && !isPublicAuthEndpoint) {
+          final dejaRejoue = error.requestOptions.extra[_dejaRejoue] == true;
+
+          if (error.response?.statusCode == 401 &&
+              !isPublicAuthEndpoint &&
+              !dejaRejoue) {
             final refreshed = await _doRefresh();
             if (refreshed) {
               // Rejouer la requête originale avec le nouveau token
               final token = await _storage.read(AppConstants.accessTokenKey);
               error.requestOptions.headers['Authorization'] = 'Bearer $token';
+              error.requestOptions.extra[_dejaRejoue] = true;
               try {
                 final retryResp = await dio.fetch(error.requestOptions);
                 return handler.resolve(retryResp);
               } catch (retryErr) {
-                return handler.next(error);
+                // Le rejeu a échoué — mais pas forcément pour la même raison.
+                //
+                // Cette ligne renvoyait le 401 d'origine quoi qu'il arrive. Or
+                // le rejeu part juste après un rafraîchissement, souvent au
+                // milieu d'une rafale de requêtes : un délai dépassé ou une
+                // coupure y est banal. Le signaler comme un 401 est un
+                // contresens, parce que 401 ne veut pas dire « ça a raté » —
+                // dans cette application, il veut dire « pas de compte ».
+                //
+                // Observé sur l'émulateur : session parfaitement valide,
+                // `/auth/profile` répondant, et la fiche de match proposant
+                // « Crée ton compte pour voir l'analyse ». L'écran ne plante
+                // pas, ne signale rien, et affirme le faux — au seul endroit
+                // où l'utilisateur cherche à comprendre le pronostic.
+                //
+                // Un vrai 401 au rejeu reste un 401 : le jeton neuf a été
+                // refusé, la conclusion est juste. C'est le reste qui ne doit
+                // plus emprunter son code.
+                return handler.next(
+                  retryErr is DioException ? retryErr : error);
               }
             }
           }
@@ -215,7 +280,7 @@ class DioClient {
       }
 
       // Utiliser une instance Dio vierge pour éviter les boucles d'intercepteurs
-      final freshDio = Dio(BaseOptions(
+      final freshDio = fabriqueDioRafraichissement?.call() ?? Dio(BaseOptions(
         baseUrl:        AppConstants.baseUrl,
         connectTimeout: AppConstants.connectTimeout,
         receiveTimeout: AppConstants.receiveTimeout,

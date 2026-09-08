@@ -62,7 +62,17 @@ class _AIAnalysisCard extends ConsumerWidget {
             // indisponible » avec un bouton Réessayer qui relançait le même
             // 401 indéfiniment — un mensonge doublé d'une impasse, à l'endroit
             // exact où l'utilisateur veut savoir pourquoi ce pronostic.
-            if (code == 401) {
+            // Mais un 401 ne *prouve* pas l'absence de compte. Le jeton
+            // d'accès vit quinze minutes ; s'il expire pendant le chargement
+            // de la fiche, cet appel part avec un jeton mort et revient en 401
+            // alors que la session est parfaitement valide. On l'a vu sur
+            // l'émulateur : `/auth/profile` répondait, l'utilisateur était
+            // connecté, et cette carte lui proposait de créer un compte.
+            //
+            // Le code HTTP répond « cette requête n'était pas authentifiée ».
+            // La question posée ici est « cette personne a-t-elle un compte ».
+            // Ce ne sont pas les mêmes, et seule la seconde décide du texte.
+            if (code == 401 && !ref.watch(effectiveLoggedInProvider)) {
               return _AIPremiumLockedState(
                 status: status,
                 nonConnecte: true,
