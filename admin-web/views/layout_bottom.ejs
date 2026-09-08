@@ -206,7 +206,22 @@ function askConfirm({ icon = 'alert', title = 'Confirmer', msg = 'Êtes-vous sû
   document.getElementById('confirm-icon').innerHTML =
     `<svg class="ic ic-xl" aria-hidden="true"><use href="#ic-${id}"/></svg>`;
   document.getElementById('confirm-title').textContent = title;
-  document.getElementById('confirm-msg').textContent   = msg;
+  // Douze appelants mettent en gras la partie qui compte — le nom du compte
+  // supprimé, le montant validé. `textContent` affichait « supprimer
+  // <strong>Lonfo lookman</strong> ? » avec les balises en toutes lettres.
+  // Les rendre avec `innerHTML` ouvrirait une injection : ces messages portent
+  // des pseudos et des titres saisis par des utilisateurs.
+  //
+  // On échappe donc tout, puis on ne réautorise que la mise en gras. Un pseudo
+  // contenant une balise de script reste échappé ; au pire il contient une
+  // balise de gras et met un mot en gras.
+  //
+  // (Le commentaire ne cite volontairement aucune balise en toutes lettres :
+  // écrite ici, elle vit à l'intérieur d'un bloc de script, et _check_injection
+  // la compte comme une ouverture sans fermeture — à juste titre.)
+  document.getElementById('confirm-msg').innerHTML = String(msg)
+    .replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]))
+    .replace(/&lt;(\/?)strong&gt;/g, '<$1strong>');
   const btn = document.getElementById('confirm-ok-btn');
   btn.textContent = btnLabel;
   btn.className   = `btn ${btnClass}`;

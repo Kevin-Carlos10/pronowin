@@ -38,7 +38,15 @@
     <p id="confirm-msg">Êtes-vous sûr de vouloir effectuer cette action ?</p>
     <div class="confirm-actions">
       <button class="btn btn-outline" onclick="closeConfirm()">Annuler</button>
-      <button class="btn btn-primary" id="confirm-ok-btn">Confirmer</button>
+      <%# Ce bouton n'appelait rien depuis le commit initial. « Annuler » avait
+          son `onclick`, pas lui : la boîte s'ouvrait, on cliquait, il ne se
+          passait rien — et comme aucune erreur n'apparaissait, on croyait le
+          clic mal pris. Toutes les confirmations du panneau étaient concernées,
+          soit 18 boîtes dans 12 vues : bannir, lever un ban, valider ou rejeter
+          un versement, supprimer un sous-admin, un tutoriel, une actualité, un
+          pronostic, vider le journal d'audit. Aucune de ces actions ne pouvait
+          aboutir depuis l'interface. %>
+      <button class="btn btn-primary" id="confirm-ok-btn" onclick="submitConfirm()">Confirmer</button>
     </div>
   </div>
 </div>
