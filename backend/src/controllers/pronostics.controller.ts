@@ -590,10 +590,9 @@ export const setPronosticResult = async (req: AdminRequest, res: Response) => {
     cache.del('pronostics:');
     cache.del(CACHE_KEYS.publicStats);
     cache.del(CACHE_KEYS.adminStats);
-    // Régler automatiquement les paris bankroll liés à ce pronostic
-    if (result === 'WIN' || result === 'LOSS' || result === 'PUSH') {
-      settleBets(req.params.id, result).catch(() => {});
-    }
+    // Reconcile linked bankroll bets, including an already settled bet whose
+    // result is being corrected by an administrator.
+    await settleBets(req.params.id, result);
     res.json(p);
   } catch (e: any) { res.status(400).json({ message: e.message }); }
 };

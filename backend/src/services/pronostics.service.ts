@@ -23,14 +23,14 @@ const STALE_RETRY_INTERVAL = 45 * 60 * 1000; // 45 min entre deux tentatives sur
 
 export class PronosticsService {
 
-  // Set en m茅moire pour 茅viter les doublons de notif "match bient么t"
-  // (r茅initialis茅 au red茅marrage du serveur 鈥?acceptable car les matchs changent chaque jour)
+  // Set en mémoire pour éviter les doublons de notif "match bientôt"
+  // (réinitialisé au redémarrage du serveur — acceptable car les matchs changent chaque jour)
 
-  // 鈹€鈹€鈹€ CRON 鈥?Notifier "match dans 1h" 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ─── CRON — Notifier "match dans 1h" ─────────────────────────────────────────
   /**
-   * 脌 appeler toutes les 15 minutes depuis index.ts.
-   * Cherche les matchs programm茅s dans 45鈥?5 min avec un pronostic publi茅
-   * et envoie une notification push 脿 tous les abonn茅s au topic "match_alerts".
+   * À appeler toutes les 15 minutes depuis index.ts.
+   * Cherche les matchs programmés dans 45-75 min avec un pronostic publié
+   * et envoie une notification push à tous les abonnés au topic "match_alerts".
    */
   async checkMatchesSoon(): Promise<{ notified: number }> {
     const now  = new Date();
@@ -62,7 +62,7 @@ export class PronosticsService {
   }
 
 
-  // 鈹€鈹€鈹€ ADMIN 鈥?R茅cup茅rer les matchs depuis Football-Data.org 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ─── ADMIN — Récupérer les matchs depuis Football-Data.org ──────────────────
   /**
    * Filtre de compétition du panneau admin.
    *
@@ -424,11 +424,11 @@ export class PronosticsService {
     };
   }
 
-  // 鈹€鈹€鈹€ SYNC AUTOMATIQUE DES SCORES 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ─── SYNC AUTOMATIQUE DES SCORES ─────────────────────────────────────────────
   /**
-   * R茅cup猫re les matchs live/termin茅s depuis football-data.org,
-   * met 脿 jour les scores en base et calcule le r茅sultat (WIN/LOSS) des pronostics.
-   * Appel茅 toutes les 5 minutes par le setInterval dans index.ts.
+   * Récupère les matchs live/terminés depuis football-data.org,
+   * met à jour les scores en base et calcule le résultat (WIN/LOSS) des pronostics.
+   * Appelé toutes les 5 minutes par le setInterval dans index.ts.
    */
   async syncMatchScores(): Promise<{ updated: number; resolved: number }> {
     let updated  = 0;
@@ -554,7 +554,7 @@ export class PronosticsService {
       });
       updated++;
 
-      // R茅cup茅rer les utilisateurs qui ont mis ce match en favori
+      // Récupérer les utilisateurs qui ont mis ce match en favori
       const favorites = await prisma.userFavoriteMatch.findMany({
         where:  { matchId: match.id },
         select: { userId: true },
@@ -567,7 +567,7 @@ export class PronosticsService {
         });
         for (const fav of favorites) {
           notifSvc.sendToUser(fav.userId, {
-            title: '鈿?Match en direct !',
+            title: '⚽ Match en direct !',
             body:  `${match.homeTeam} vs ${match.awayTeam} vient de commencer.`,
             data:  {
               type:      'match_live',
@@ -578,7 +578,7 @@ export class PronosticsService {
         }
       }
 
-      // 3. Si le match est TERMIN脡 鈫?calculer le r茅sultat du pronostic
+      // 3. Si le match est TERMINÉ → calculer le résultat du pronostic
       if (mappedStatus === 'FINISHED' && homeScore !== null && awayScore !== null) {
         const prono = await prisma.pronostic.findUnique({
           where: { matchId: match.id },
@@ -590,7 +590,7 @@ export class PronosticsService {
           for (const fav of favorites) {
             notifSvc.sendToUser(fav.userId, {
               title: `Fin de match : ${match.homeTeam} ${scoreStr} ${match.awayTeam}`,
-              body:  'Le match est termin茅. Consultez le r茅sultat de votre pronostic.',
+              body:  'Le match est terminé. Consultez le résultat de votre pronostic.',
               data:  {
                 type:      'match_finished',
                 deep_link: prono ? `/pronostics/${prono.id}` : '',
@@ -614,7 +614,7 @@ export class PronosticsService {
             });
             resolved++;
             settleBets(prono.id, result).catch((err: any) => console.error("[PronoSvc]", err.message));
-            console.log(`[ScoreSync] Pronostic ${prono.id} 鈫?${result} (${homeScore}-${awayScore})`);
+            console.log(`[ScoreSync] Pronostic ${prono.id} → ${result} (${homeScore}-${awayScore})`);
             notifSvc.notifyMatchResult({
               homeTeam:    match.homeTeam,
               awayTeam:    match.awayTeam,
@@ -624,13 +624,13 @@ export class PronosticsService {
               pronosticId: prono.id,
             }).catch((err: any) => console.error("[PronoSvc]", err.message));
 
-            // Notifier personnellement les utilisateurs favoris avec le r茅sultat de leur prono
-            const emoji = result === 'WIN' ? '✅' : result === 'PUSH' ? '🔄' : '❌';
+            // Notifier personnellement les utilisateurs favoris avec le résultat de leur prono
+            const emoji = result === 'WIN' ? '✅ ' : result === 'PUSH' ? '🔄' : '❌';
             const label = result === 'WIN' ? 'Pronostic gagnant !' : result === 'PUSH' ? 'Pronostic remboursé' : 'Pronostic perdant';
             for (const fav of favorites) {
               notifSvc.sendToUser(fav.userId, {
                 title: `${emoji} ${label}`,
-                body:  `${match.homeTeam} ${homeScore}-${awayScore} ${match.awayTeam} 路 Prono : ${prono.predictionLabel}`,
+                body:  `${match.homeTeam} ${homeScore}-${awayScore} ${match.awayTeam} · Prono : ${prono.predictionLabel}`,
                 data:  {
                   type:      'prono_result',
                   deep_link: `/pronostics/${prono.id}`,
@@ -643,8 +643,8 @@ export class PronosticsService {
       }
     }
 
-    // 4. R茅soudre les pronostics publi茅s dont le match est d茅j脿 FINISHED en base
-    //    (cas : pronostic publi茅 apr猫s la fin du match, ou serveur red茅marr茅 apr猫s la fin)
+    // 4. Résoudre les pronostics publiés dont le match est déjà FINISHED en base
+    //    (cas : pronostic publié après la fin du match, ou serveur redémarré après la fin)
     const unresolvedPronos = await prisma.pronostic.findMany({
       where: {
         isPublished: true,
@@ -667,7 +667,7 @@ export class PronosticsService {
         await prisma.pronostic.update({ where: { id: prono.id }, data: { result } });
         resolved++;
         settleBets(prono.id, result).catch((err: any) => console.error("[PronoSvc]", err.message));
-        console.log(`[ScoreSync] Pronostic ${prono.id} 鈫?${result} (backfill ${homeScore}-${awayScore})`);
+        console.log(`[ScoreSync] Pronostic ${prono.id} → ${result} (backfill ${homeScore}-${awayScore})`);
         notifSvc.notifyMatchResult({
           homeTeam:    prono.match.homeTeam,
           awayTeam:    prono.match.awayTeam,
@@ -679,11 +679,11 @@ export class PronosticsService {
       }
     }
 
-    console.log(`[ScoreSync] 鉁?${updated} matchs mis 脿 jour, ${resolved} r茅sultats calcul茅s`);
+    console.log(`[ScoreSync] ✅ ${updated} matchs mis à jour, ${resolved} résultats calculés`);
     return { updated, resolved };
   }
 
-  // 鈹€鈹€鈹€ ADMIN 鈥?Cr茅er / Mettre 脿 jour un pronostic 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ─── ADMIN — Créer / Mettre à jour un pronostic ─────────────────────────────
   async upsertPronostic(params: {
     matchId:         string;
     analystId:       string;
@@ -740,7 +740,7 @@ export class PronosticsService {
     });
   }
 
-  // 鈹€鈹€鈹€ ADMIN 鈥?Publier / D茅publier 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ─── ADMIN — Publier / Dépublier ─────────────────────────────────────────────
   async togglePublish(pronosticId: string, publish: boolean) {
     return prisma.$transaction(async (tx) => {
       const pronostic = await tx.pronostic.update({
@@ -755,7 +755,7 @@ export class PronosticsService {
     });
   }
 
-  // 鈹€鈹€鈹€ Helper : filtre de date 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ─── Helper : filtre de date ──────────────────────────────────────────────────
   /**
    * Fenêtre de dates d'une requête.
    *
@@ -809,11 +809,11 @@ export class PronosticsService {
       return { matchDate: { gte: d, lt: end } };
     }
 
-    // Par d茅faut : semaine 脿 venir + 30 jours pass茅s
+    // Par défaut : semaine à venir + 30 jours passés
     return { matchDate: { gte: past30, lt: week } };
   }
 
-  // 鈹€鈹€鈹€ PUBLIC 鈥?Liste pronostics publi茅s 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ─── PUBLIC — Liste pronostics publiés ────────────────────────────────────────
   async getPublishedPronostics(params: {
     userId?:     string;
     dateFilter?: string;
@@ -844,8 +844,8 @@ export class PronosticsService {
         match:   true,
         analyst: { select: { name: true } },
       },
-      // LIVE d'abord — Pronostic→Match est une relation obligatoire (pas de
-      // NULL possible ici, contrairement à Match→Pronostic ailleurs dans ce
+      // LIVE d'abord — Pronostic→ Match est une relation obligatoire (pas de
+      // NULL possible ici, contrairement à Match→ Pronostic ailleurs dans ce
       // fichier), donc un orderBy relationnel classique suffit.
       orderBy: [
         { match: { statusPriority: 'asc' } },
@@ -1117,7 +1117,7 @@ export class PronosticsService {
     return { updated: uniq.size, isVisible };
   }
 
-  // 鈹€鈹€鈹€ Tous les matchs (avec ou sans pronostic publi茅) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ─── Tous les matchs (avec ou sans pronostic publié) ─────────────────────────
   async getAllMatches(params: {
     userId?:       string;
     dateFilter?:   string;
@@ -1272,12 +1272,12 @@ export class PronosticsService {
     return counts;
   }
 
-  // 鈹€鈹€鈹€ Stats publiques (accueil mobile) 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ─── Stats publiques (accueil mobile) ────────────────────────────────────────
   async getPublicStats() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    // Tous les pronostics termin茅s (r茅sultat connu)
+    // Tous les pronostics terminés (résultat connu)
     const finished = await prisma.pronostic.findMany({
       where: { isPublished: true, result: { in: ['WIN', 'LOSS'] } },
       select: { result: true, publishedAt: true },
@@ -1290,14 +1290,14 @@ export class PronosticsService {
       ? Math.round((wins / totalFinished) * 100)
       : 0;
 
-    // S茅rie actuelle (cons茅cutive depuis le plus r茅cent)
+    // Série actuelle (consécutive depuis le plus récent)
     let streak = 0;
     for (const p of finished) {
       if (p.result === 'WIN') streak++;
       else break;
     }
 
-    // Pronostics publi茅s aujourd'hui
+    // Pronostics publiés aujourd'hui
     const publishedToday = await prisma.pronostic.count({
       where: {
         isPublished: true,
@@ -1305,7 +1305,7 @@ export class PronosticsService {
       },
     });
 
-    // Pronostics 脿 venir (status SCHEDULED, publi茅s)
+    // Pronostics à venir (status SCHEDULED, publiés)
     const upcoming = await prisma.pronostic.count({
       where: {
         isPublished: true,
@@ -1316,7 +1316,7 @@ export class PronosticsService {
     return { winRate, streak, totalFinished, wins, publishedToday, upcoming };
   }
 
-  // 鈹€鈹€鈹€ Stats admin 鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€鈹€
+  // ─── Stats admin ──────────────────────────────────────────────────────────────
   async getAdminStats() {
     const [totalUsers, premiumUsers, pendingTx, totalPronostics, publishedToday] =
       await Promise.all([
