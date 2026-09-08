@@ -16,6 +16,7 @@ import '../../../../shared/utils/premium_nav.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/services/prono_share_service.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/utils/verrou_pronostic.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../bankroll/presentation/widgets/miser_dialog.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
@@ -163,7 +164,19 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     // Le verdict du serveur prime sur le calcul local : c'est lui qui connaît
     // l'état réel de l'abonnement. Le calcul local reste le repli quand la
     // donnée vient du cache ou de l'écran précédent.
-    final isLocked = match.isLocked || (match.isPremium && !isPremium);
+    // `match.isLocked` vient du serveur, `match.isPremium` du cache ou de
+    // l'écran précédent : l'un comme l'autre signalent un contenu payant, d'où
+    // le « ou ». Mais ce « ou » donnait toujours raison à celui qui verrouille,
+    // et aucun des deux ne regardait le statut du match — la correction serveur
+    // (« plus rien à protéger après le coup de sifflet ») ne pouvait donc pas
+    // atteindre cet ecran.
+    //
+    // La règle partagée tranche : payant, oui ; mais pas après le match.
+    final isLocked = estVerrouille(
+      estPremium:         match.isPremium || match.isLocked,
+      matchTermine:       match.status == MatchStatus.finished,
+      utilisateurPremium: isPremium,
+    );
     final isRefreshing = matchAsync.isLoading && match.status == MatchStatus.live;
     final isFav = ref.watch(favoritesProvider).matchIds.contains(match.id);
 
@@ -916,16 +929,22 @@ class _PronosticCard extends StatelessWidget {
           ],
           // Une fois le résultat connu, la confiance est rétrospective : elle
           // n'aide plus à décider, elle ne fait que documenter. Elle passe donc
-          // d'une jauge pleine largeur à une mention discrète, et rend la place
-          // au rendement, qui est l'information que le parieur cherche
-          // vraiment sur un pronostic clos.
+          // d'une jauge pleine largeur à une mention discrète.
+          //
+          // La place libérée accueillait un rendement — « AURAIT RAPPORTÉ
+          // +790 F », calculé sur une mise de référence de 1 000 F. Le montant
+          // était donc vrai pour une mise que personne n'a posée : celui qui
+          // avait misé 200 F lisait un gain quatre fois trop grand, celui qui
+          // n'avait pas misé du tout lisait un gain tout court.
+          //
+          // Un gain n'a de sens que rapporté à une bankroll, et la bankroll a
+          // son propre écran, avec les vrais montants et les paris réellement
+          // enregistrés. La fiche de match dit ce qui s'est passé ; elle n'a
+          // pas à chiffrer ce qui aurait pu arriver.
           if (match.result == null)
             Expanded(child: _DetailConfidenceBar(score: match.confidenceScore))
           else ...[
-            if (match.oddsRecommended > 0)
-              Expanded(child: _RendementBox(odds: match.oddsRecommended,
-                  result: match.result!)),
-            const SizedBox(width: 20),
+            const Spacer(),
             _ConfianceRappel(score: match.confidenceScore),
           ],
         ]),
@@ -942,66 +961,8 @@ class _PronosticCard extends StatelessWidget {
 }
 
 
-/// Rendement d'un pronostic clos, exprimé pour une mise de référence.
-///
-/// « Cote 1.18 » et « Pronostic gagnant » sont deux faits que le parieur devait
-/// multiplier de tête. Sur un marché à faible cote c'est précisément le calcul
-/// qui décide si le pari valait la peine — autant le poser.
-class _RendementBox extends StatelessWidget {
-  final double odds;
-  final PronosticResult result;
-  const _RendementBox({required this.odds, required this.result});
-
-  /// Mise de référence en FCFA. Volontairement ronde et non paramétrable : il
-  /// s'agit d'illustrer un rendement, pas de simuler la bankroll de
-  /// l'utilisateur — celle-ci a sa propre page, avec ses vrais montants.
-  static const double _miseReference = 1000;
-
-  @override
-  Widget build(BuildContext context) {
-    final (libelle, montant, couleur) = switch (result) {
-      PronosticResult.win => (
-        'AURAIT RAPPORTÉ',
-        '+${((odds - 1) * _miseReference).round()}',
-        AppColors.success,
-      ),
-      PronosticResult.loss => (
-        'AURAIT COÛTÉ',
-        '-${_miseReference.round()}',
-        AppColors.error,
-      ),
-      PronosticResult.push => ('MISE RENDUE', '±0', AppColors.info),
-    };
-
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(libelle,
-        style: TextStyle(
-          color: context.cl.textM,
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.8)),
-      const SizedBox(height: 7),
-      Row(crossAxisAlignment: CrossAxisAlignment.baseline,
-        textBaseline: TextBaseline.alphabetic,
-        children: [
-          Flexible(
-            child: Text(montant,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: couleur, fontSize: 19,
-                fontWeight: FontWeight.w800, height: 1)),
-          ),
-          const SizedBox(width: 4),
-          Text('F  · mise ${_miseReference.round()}',
-            style: TextStyle(color: context.cl.textM, fontSize: 10)),
-        ]),
-    ]);
-  }
-}
-
 /// Rappel discret de la confiance annoncée avant le coup d'envoi, une fois le
-/// résultat connu. La jauge pleine largeur laisse la place au rendement.
+/// résultat connu — la jauge pleine largeur n'a plus lieu d'être.
 class _ConfianceRappel extends StatelessWidget {
   final int score;
   const _ConfianceRappel({required this.score});

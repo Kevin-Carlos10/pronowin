@@ -11,6 +11,7 @@ import '../providers/bankroll_provider.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/utils/devise.dart';
 import '../../../../shared/utils/montant.dart';
+import '../../../../shared/utils/bilan_paris.dart';
 
 // ── Filtre actif ───────────────────────────────────────────────────────────────
 enum _BetFilter { all, pending, win, loss }
@@ -134,7 +135,22 @@ class _BankrollView extends StatelessWidget {
     final wins     = settled.where((b) => b.result == 'WIN').length;
     // Un remboursé (PUSH) n'est ni une victoire ni une défaite — exclu du taux.
     final decisive = settled.where((b) => b.result != 'PUSH').length;
-    final winRate  = decisive > 0 ? wins / decisive * 100 : 0.0;
+    // Le taux passe désormais par `BilanParis`, la règle partagée.
+    //
+    // Cette ligne calculait son propre pourcentage, avec un garde-fou à zéro
+    // seulement — exactement le défaut que `BilanParis` documente et qu'il
+    // avait été écrit pour supprimer : avec un seul pari gagné, l'écran
+    // annonçait « 100 % ». La règle avait été appliquée à l'onglet Compte et
+    // oubliée ici, si bien que les deux écrans affichaient deux vérités sur
+    // les mêmes paris — « — » d'un côté, « 50 % » de l'autre.
+    final bilan = BilanParis(
+      suivis:   bankroll.bets.length,
+      gagnes:   wins,
+      perdus:   settled.where((b) => b.result == 'LOSS').length,
+      tauxBrut: decisive > 0 ? wins / decisive * 100 : 0.0,
+      serie:    0,
+    );
+    final winRate = bilan.taux;
     final profit   = bankroll.currentBalance - bankroll.totalBudget;
     final pending  = bankroll.bets.where((b) => b.result == null).toList();
     final filtered = _filtered;
@@ -215,9 +231,13 @@ class _BankrollView extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(child: _StatChip(
               label: 'Win rate',
-              value: '${winRate.toStringAsFixed(0)}%',
+              // Sous le seuil, un tiret plutôt qu'un chiffre : les comptes
+              // bruts « 1 gagné / 1 perdu » restent affichés juste à côté.
+              value: winRate == null ? '—' : '${winRate.toStringAsFixed(0)}%',
               icon:  Icons.trending_up_rounded,
-              color: winRate >= 50 ? AppColors.success : AppColors.warning,
+              color: winRate == null
+                  ? context.cl.textM
+                  : (winRate >= 50 ? AppColors.success : AppColors.warning),
             )),
           ]).animate(delay: 100.ms).fadeIn(duration: 300.ms),
 
@@ -451,7 +471,21 @@ class _WeeklySummary extends StatelessWidget {
     final decisive = weekly.where((b) => b.result != 'PUSH').length;
     final profit   = weekly.fold<double>(0, (sum, b) => sum + (b.profit ?? 0));
     final isGain   = profit >= 0;
-    final rate     = decisive > 0 ? (wins / decisive * 100).toStringAsFixed(0) : '0';
+    // Même règle que le bandeau du haut : le taux passe par `BilanParis`.
+    //
+    // Cette ligne repliait sur « 0 » quand rien n'était tranché — « 0 %
+    // réussite » sur une semaine où aucun pari n'a encore de résultat — et
+    // annonçait « 100 % » dès le premier gagné. Sur une fenêtre de sept
+    // jours, l'échantillon est presque toujours sous le seuil : c'est
+    // justement là que le pourcentage trompe le plus.
+    final bilanSemaine = BilanParis(
+      suivis:   weekly.length,
+      gagnes:   wins,
+      perdus:   weekly.where((b) => b.result == 'LOSS').length,
+      tauxBrut: decisive > 0 ? wins / decisive * 100 : 0.0,
+      serie:    0,
+    );
+    final taux = bilanSemaine.taux;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -472,7 +506,13 @@ class _WeeklySummary extends StatelessWidget {
           Text('Cette semaine',
             style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           const SizedBox(height: 2),
-          Text('${weekly.length} paris · $wins gagnés · $rate% réussite',
+          // Sans taux affichable, on s'en tient aux comptes bruts : ils
+          // informent sans prétendre à une mesure. Les pluriels suivent le
+          // nombre — « 1 paris · 1 gagnés » se lisait mal.
+          Text(
+            '${weekly.length} pari${weekly.length > 1 ? 's' : ''}'
+            ' · $wins gagné${wins > 1 ? 's' : ''}'
+            '${taux == null ? '' : ' · ${taux.toStringAsFixed(0)}% réussite'}',
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -500,8 +540,14 @@ class _DisciplineReminder extends StatelessWidget {
     child: Row(children: [
       const Icon(Icons.shield_rounded, color: AppColors.warning, size: 15),
       const SizedBox(width: 8),
+      // Disait « Ne mise jamais plus sur le bookmaker. » Le conseil reste —
+      // c'est un garde-fou, et le retirer pour éviter un mot serait un
+      // mauvais échange. Seule la mention de l'opérateur part : PronoWin
+      // calcule une mise et en tient le registre, il ne la place nulle part,
+      // et un build destiné à Google Play n'a pas à désigner un guichet de
+      // paris.
       Expanded(child: Text(
-        'Respecte toujours la mise calculée. Ne mise jamais plus sur le bookmaker.',
+        'Respecte toujours la mise calculée. Ne la dépasse jamais.',
         style: TextStyle(color: context.cl.textS, fontSize: 11, height: 1.4),
       )),
     ]),

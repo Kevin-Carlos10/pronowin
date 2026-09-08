@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/utils/verrou_pronostic.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../domain/entities/match_entity.dart';
 import '../providers/favorites_provider.dart';
@@ -55,7 +56,13 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
 
   @override
   Widget build(BuildContext context) {
-    final locked  = widget.match.isPremium && !widget.isPremiumUser;
+    // Le statut manquait : une carte de match joué restait cadenassée, alors
+    // que le serveur en livre le contenu.
+    final locked  = estVerrouille(
+      estPremium:         widget.match.isPremium,
+      matchTermine:       widget.match.status == MatchStatus.finished,
+      utilisateurPremium: widget.isPremiumUser,
+    );
     final noProno = !widget.match.hasPronostic;
 
     final m = widget.match;

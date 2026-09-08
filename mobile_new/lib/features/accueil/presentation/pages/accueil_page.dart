@@ -24,6 +24,8 @@ import '../providers/accueil_provider.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/utils/devise.dart';
+import '../../../../shared/utils/bilan_paris.dart';
+import '../../../../shared/utils/verrou_pronostic.dart';
 
 // Découpé en fichiers `part` : le fichier faisait 4 406 lignes pour une
 // cinquantaine de classes privées — plus gros que match_detail_page avant

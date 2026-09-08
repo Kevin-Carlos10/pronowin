@@ -515,9 +515,40 @@ class _PremiumBanner extends ConsumerWidget {
       data: (s) => (s['winRate'] as num?)?.toDouble(),
     );
 
+    // Nombre de pronostics tranchés — le dénominateur du taux ci-dessus.
+    //
+    // Le titre ne le lisait pas : il annonçait « 90 % de réussite cette
+    // semaine » dès que `winRate` dépassait 70, fût-il calculé sur un seul
+    // pronostic. Et comme la condition ne se déclenche qu'au-dessus de 70,
+    // le chiffre n'apparaissait *que* quand il flattait — un petit
+    // échantillon favorable devenait une promesse, un petit échantillon
+    // défavorable disparaissait.
+    //
+    // La règle existe déjà à deux endroits : la bande de statistiques, vingt
+    // lignes plus haut, se tait sous trois pronostics tranchés ; et le
+    // backend fixe `ECHANTILLON_MINIMAL = 10` pour le bilan Premium, avec
+    // cette phrase — « l'appelant doit alors se taire plutôt que d'annoncer
+    // 100 % ou 0 % ». Ce titre est précisément cet appelant : un argument
+    // commercial montré à des prospects. Il prend donc le seuil commercial,
+    // pas celui du tableau de bord personnel.
+    const echantillonCommercial = 10;
+    final tranches = statsAsync.whenOrNull(
+      data: (s) => (s['totalFinished'] as num?)?.toInt() ?? 0,
+    ) ?? 0;
+
     final String headline;
-    if (winRate != null && winRate >= 70) {
-      headline = '${winRate.toStringAsFixed(0)}% de réussite cette semaine';
+    if (winRate != null && winRate >= 70 && tranches >= echantillonCommercial) {
+      // Disait « cette semaine ». Le chiffre ne l'est pas : `getPublicStats()`
+      // compte *tous* les pronostics publiés ayant un résultat, sans filtre de
+      // date. La période annoncée était donc fausse — et c'est le genre de
+      // précision qui rend une promesse invérifiable plutôt que fausse à
+      // moitié.
+      //
+      // La formulation suit maintenant ce que la donnée mesure. La rendre
+      // hebdomadaire pour de bon serait un autre changement : il faudrait
+      // filtrer côté serveur, et le nombre annoncé s'en trouverait modifié.
+      headline = '${winRate.toStringAsFixed(0)}% de réussite '
+                 'sur nos pronostics publiés';
     } else if (vipList.length > 1) {
       headline = nbGrosseCote > 0
           ? "${vipList.length} pronos VIP aujourd'hui, "

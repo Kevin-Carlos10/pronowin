@@ -260,7 +260,18 @@ class _HistoriqueBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final won   = allEntries.where((e) => e['result'] == 'WIN').length;
     final total = allEntries.length;
-    final taux  = total > 0 ? (won / total * 100).round() : 0;
+    // Ce taux décrit le palmarès du modèle, pas les paris de l'utilisateur :
+    // c'est un argument de vente. Le backend fixe ECHANTILLON_MINIMAL = 10
+    // pour exactement cette promesse, avec cette phrase — « l'appelant doit
+    // alors se taire plutôt que d'annoncer 100 % ou 0 % ».
+    //
+    // Il repliait sur 0 : une page d'historique vide annonçait « 0 % de
+    // réussite », ce qui n'est pas une absence de mesure mais une mauvaise
+    // performance. C'est l'inverse de ce que la donnée dit.
+    const echantillonCommercial = 10;
+    final int? taux = total >= echantillonCommercial
+        ? (won / total * 100).round()
+        : null;
     int serie   = 0;
     for (final e in allEntries) {
       if (e['result'] == 'WIN') {
@@ -459,16 +470,23 @@ class _PerformanceChart extends StatelessWidget {
 
 // ─── Header stats ─────────────────────────────────────────────────────────────
 class _StatsHeader extends StatelessWidget {
-  final int won, total, taux, serie;
+  final int won, total, serie;
+
+  /// Taux de réussite, ou `null` sous le seuil commercial de dix pronostics
+  /// tranchés — auquel cas l'en-tête affiche un tiret plutôt qu'un chiffre.
+  final int? taux;
   const _StatsHeader({required this.won, required this.total,
     required this.taux, required this.serie});
 
   @override
   Widget build(BuildContext context) {
     final lost  = total - won;
-    final color = taux >= 60 ? AppColors.success
-                : taux >= 45 ? AppColors.warning
-                : AppColors.error;
+    // Sans taux mesurable, aucune couleur de jugement : le gris dit
+    // « pas encore mesuré », le rouge dirait « mauvais ».
+    final color = taux == null    ? context.cl.textM
+                : taux! >= 60     ? AppColors.success
+                : taux! >= 45     ? AppColors.warning
+                :                   AppColors.error;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -485,7 +503,7 @@ class _StatsHeader extends StatelessWidget {
         Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
           _BigStat(label: 'Total',    value: '$total', color: context.cl.textP),
           _VDivider(),
-          _BigStat(label: 'Réussite', value: '$taux%', color: color),
+          _BigStat(label: 'Réussite', value: taux == null ? '—' : '$taux%', color: color),
           _VDivider(),
           _BigStat(label: 'Série',    value: '+$serie', color: AppColors.warning),
         ]),

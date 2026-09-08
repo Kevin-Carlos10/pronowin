@@ -332,9 +332,31 @@ class _BankrollMiniWidget extends ConsumerWidget {
         final profitColor = isProfit ? AppColors.success : AppColors.error;
         final settled     = bankroll.bets.where((b) => b.result != null).toList();
         final wins        = settled.where((b) => b.result == 'WIN').length;
-        final winRate     = settled.isNotEmpty
-            ? '${(wins / settled.length * 100).toStringAsFixed(0)}%'
-            : '—';
+        // Quatrième calcul du même taux dans l'application, et le plus
+        // divergent : il divisait par `settled.length`, donc les paris
+        // remboursés (PUSH) comptaient au dénominateur — un remboursement
+        // faisait baisser le taux de réussite. Et son garde-fou s'arrêtait à
+        // zéro : un seul pari gagné affichait « 100% win ».
+        //
+        // Il a échappé à la garde posée pour les trois autres, qui cherchait
+        // le motif exact `/ decisive * 100` : celui-ci s'écrit autrement. Une
+        // assertion trop étroite n'accuse rien.
+        //
+        // `BilanParis` porte la règle : dénominateur sans les PUSH, et
+        // silence sous cinq paris tranchés.
+        final bilanCarte = BilanParis(
+          suivis:   bankroll.bets.length,
+          gagnes:   wins,
+          perdus:   settled.where((b) => b.result == 'LOSS').length,
+          tauxBrut: settled.where((b) => b.result != 'PUSH').isEmpty
+              ? 0.0
+              : wins /
+                  settled.where((b) => b.result != 'PUSH').length * 100,
+          serie:    0,
+        );
+        final winRate = bilanCarte.taux == null
+            ? '—'
+            : '${bilanCarte.taux!.toStringAsFixed(0)}%';
         final pending = bankroll.bets.where((b) => b.result == null).length;
 
         return Padding(

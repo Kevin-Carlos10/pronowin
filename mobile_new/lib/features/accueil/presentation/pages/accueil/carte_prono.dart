@@ -29,10 +29,18 @@ class _PronosticCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final isLocked  = (prono['is_premium'] as bool? ?? false) && !isPremium;
     final conf      = (prono['confidence_score'] as num?)?.toInt() ?? 0;
     final status    = prono['status'] as String? ?? '';
     final isFinished = status == 'finished';
+    // Le verrou se calculait avant même de lire le statut, et sans le
+    // consulter : une carte de match joué restait cadenassée sur l'accueil,
+    // alors que le serveur en livre le contenu. Les trois lignes ont été
+    // remontées pour que la règle ait la donnée qu'il lui faut.
+    final isLocked  = estVerrouille(
+      estPremium:         prono['is_premium'] as bool? ?? false,
+      matchTermine:       isFinished,
+      utilisateurPremium: isPremium,
+    );
     final isLive     = status == 'live';
     final homeScore  = prono['home_score'];
     final awayScore  = prono['away_score'];
