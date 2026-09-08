@@ -20,7 +20,8 @@ Ces declarations sont deja remplies et enregistrees dans la console :
 - Cible : 18 ans et plus
 - Securite des donnees
 - Applications gouvernementales : non
-- Fonctionnalites financieres : recompenses internes uniquement
+- Fonctionnalites financieres : aucune case cochee (voir la section dediee —
+  cocher « recompenses et fidelite » a fait refuser l'application)
 - Sante : aucune fonctionnalite de sante
 - Identifiant publicitaire : non
 
@@ -185,13 +186,55 @@ cette declaration avant l'envoi d'une nouvelle version.
 
 ### Fonctionnalites financieres
 
+**Ne cocher AUCUNE case de cette section.** Descendre jusqu'en bas de la page
+pour verifier qu'aucune case n'est cochee, puis `Suivant`.
+
 | Question | Reponse |
 | --- | --- |
-| Fonctionnalite financiere | Choisir seulement `Programmes de recompenses, points et fidelite`, si la question apparait |
-| Pret, banque, portefeuille, transfert d'argent, investissement, assurance, crypto | `Non` |
+| Recompenses, points, programmes de fidelite et autres avantages | **Ne pas cocher** |
+| Acheter maintenant payer plus tard | Ne pas cocher |
+| Pret, banque, portefeuille, transfert d'argent, investissement, assurance, crypto | Ne pas cocher |
 
-Les jours Premium obtenus par parrainage sont une recompense interne, pas un
-portefeuille, une monnaie ou un transfert d'argent.
+#### Pourquoi — l'app a ete refusee pour ca le 8 septembre 2026
+
+Une version precedente de ce guide disait de cocher « Programmes de
+recompenses, points et fidelite ». C'etait la seule case cochee de la section,
+et elle a suffi a faire refuser l'application :
+
+> Violation des exigences de Play Console. Certains types d'applis ne peuvent
+> etre distribuees que par des organisations. Vous avez selectionne une
+> categorie d'applis ou declare que votre appli offre certaines
+> fonctionnalites, ce qui exige que vous soumettiez votre appli par le biais
+> d'un compte organisationnel.
+
+Depuis le 31 aout 2024, un compte developpeur personnel ne peut pas publier une
+application qui declare fournir des services financiers. Or cette case vit dans
+la rubrique **« Contrats d'achat »**, aux cotes de « Acheter maintenant, payer
+plus tard » : c'est une famille de credit a la consommation. La cocher declare
+que le programme de recompenses est un **produit financier**, pas une promotion
+interne.
+
+#### Pourquoi « aucune » est la reponse exacte, et non un contournement
+
+Ce que la version publiee sur Play fait reellement, verifiable dans le code :
+
+- `retrait_parrainage_page.dart` ne rend, sur le canal store, que l'onglet
+  « Credit Premium ». Le titre de l'ecran est « Convertir mes recompenses », pas
+  « Retirer ». Aucun versement en argent n'existe dans cette version ;
+- `recompense_premium.dart` convertit les recompenses en **jours d'abonnement**.
+  Il n'y a ni solde retirable, ni valeur transferable, ni conversion en
+  monnaie ;
+- l'abonnement se vend par Play Billing, ce qui est un achat integre ordinaire
+  et non une fonctionnalite financiere ;
+- l'application ne permet ni de placer un pari, ni de deposer, ni de retirer.
+
+Une recompense qui ne s'echange que contre du temps d'abonnement dans
+l'application est un avoir promotionnel, comme une prolongation d'essai.
+
+**Si le versement en argent est un jour ouvert sur le canal store**, cette
+reponse devient fausse : il faudra alors declarer la fonctionnalite ET passer
+le compte en organisation. Les deux vont ensemble, et l'un sans l'autre fait
+refuser l'application.
 
 ### Sante et identifiant publicitaire
 
