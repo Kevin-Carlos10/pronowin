@@ -126,94 +126,141 @@ export async function placeBet(
   return bet;
 }
 
-// ── SETTLE BETS (appelé quand un résultat est posté) ─────────────────────────
-export async function settleBets(pronosticId: string, result: 'WIN' | 'LOSS' | 'PUSH') {
-  const pendingBets = await prisma.bankrollBet.findMany({
-    where:   { pronosticId, result: null },
-    include: {
-      bankroll: { include: { user: { select: { id: true } } } },
-    },
-  });
-  if (pendingBets.length === 0) return 0;
+export type BankrollBetResult = 'WIN' | 'LOSS' | 'PUSH';
+type SettlementResult = BankrollBetResult | null;
+type SettlementAmounts = { stakedAmount: number; potentialGain: number };
 
-  // Récupérer les infos du pronostic pour le message de notif
+/** Amount that must be returned to the available bankroll for a settled bet. */
+export function _settlementCredit(result: SettlementResult, bet: SettlementAmounts): number {
+  if (result === 'WIN') return bet.potentialGain;
+  if (result === 'PUSH') return bet.stakedAmount;
+  return 0;
+}
+
+/** Net result displayed in the bankroll history. */
+export function _settlementProfit(result: SettlementResult, bet: SettlementAmounts): number | null {
+  if (result === null) return null;
+  if (result === 'WIN') return parseFloat((bet.potentialGain - bet.stakedAmount).toFixed(2));
+  if (result === 'PUSH') return 0;
+  return -bet.stakedAmount;
+}
+
+/**
+ * The stake is deducted when it is placed. A settlement therefore only moves
+ * the amount returned to the available bankroll. This also makes a manual
+ * correction (LOSS -> WIN, for example) safe to replay.
+ */
+export function _settlementBalanceDelta(
+  previousResult: SettlementResult,
+  nextResult: SettlementResult,
+  bet: SettlementAmounts,
+): number {
+  return parseFloat((_settlementCredit(nextResult, bet) - _settlementCredit(previousResult, bet)).toFixed(2));
+}
+
+// ── SETTLE OR CORRECT BETS ───────────────────────────────────────────────────
+// Called after a score sync or an admin override. Existing settled bets are
+// reconciled too, so correcting an erroneous verdict fixes both the history
+// and the bankroll balance.
+export async function settleBets(pronosticId: string, result: SettlementResult) {
+  const changedBets = await prisma.$transaction(async (tx) => {
+    const bets = await tx.bankrollBet.findMany({
+      where:   { pronosticId },
+      include: {
+        bankroll: { include: { user: { select: { id: true } } } },
+      },
+    });
+
+    const now = new Date();
+    const changes: Array<{
+      previousResult: SettlementResult;
+      userId: string;
+      currency: string;
+      profit: number | null;
+      stakedAmount: number;
+      potentialGain: number;
+    }> = [];
+
+    for (const bet of bets) {
+      const previousResult = bet.result as SettlementResult;
+      if (previousResult === result) continue;
+
+      const profit = _settlementProfit(result, bet);
+      // The conditional update protects the balance from a duplicate concurrent
+      // sync: only the call that changes the stored verdict may move the money.
+      const updated = await tx.bankrollBet.updateMany({
+        where: { id: bet.id, result: previousResult },
+        data:  { result, profit, settledAt: result === null ? null : now },
+      });
+      if (updated.count === 0) continue;
+
+      const balanceDelta = _settlementBalanceDelta(previousResult, result, bet);
+      if (balanceDelta !== 0) {
+        await tx.userBankroll.update({
+          where: { id: bet.bankrollId },
+          data:  { currentBalance: { increment: balanceDelta } },
+        });
+      }
+
+      changes.push({
+        previousResult,
+        userId:        bet.bankroll.user.id,
+        currency:      bet.bankroll.currency ?? 'XOF',
+        profit,
+        stakedAmount:  bet.stakedAmount,
+        potentialGain: bet.potentialGain,
+      });
+    }
+
+    return changes;
+  });
+
+  if (changedBets.length === 0 || result === null) return changedBets.length;
+
+  // Notifications are intentionally sent after the transaction. A notification
+  // failure must never leave a corrected balance half-written.
   const pronostic = await prisma.pronostic.findUnique({
     where:   { id: pronosticId },
     include: { match: true },
   });
-
-  // Un seul aller-retour DB (une seule transaction) pour tous les paris à régler,
-  // au lieu d'une transaction séquentielle par pari (qui devient très lent quand
-  // beaucoup d'utilisateurs ont misé sur le même pronostic).
-  const ops: ReturnType<typeof prisma.bankrollBet.update>[] = [];
-  const notifJobs: Array<{ userId: string; currency: string; profit: number; stakedAmount: number }> = [];
-
-  for (const bet of pendingBets) {
-    // PUSH (marché remboursé, ex. handicap asiatique sur ligne ronde) :
-    // ni gain ni perte, la mise est simplement rendue.
-    const profit = result === 'WIN'
-      ? parseFloat((bet.potentialGain - bet.stakedAmount).toFixed(2))
-      : result === 'PUSH' ? 0
-      : -bet.stakedAmount;
-
-    ops.push(prisma.bankrollBet.update({
-      where: { id: bet.id },
-      data:  { result, profit, settledAt: new Date() },
-    }));
-
-    if (result === 'WIN') {
-      ops.push(prisma.userBankroll.update({
-        where: { id: bet.bankrollId },
-        data:  { currentBalance: { increment: bet.potentialGain } },
-      }) as any);
-    } else if (result === 'PUSH') {
-      ops.push(prisma.userBankroll.update({
-        where: { id: bet.bankrollId },
-        data:  { currentBalance: { increment: bet.stakedAmount } },
-      }) as any);
-    }
-
-    notifJobs.push({
-      userId:       bet.bankroll.user.id,
-      currency:     bet.bankroll.currency ?? 'XOF',
-      profit,
-      stakedAmount: bet.stakedAmount,
-    });
-  }
-
-  await prisma.$transaction(ops);
-
-  // Notifications envoyées après coup, en parallèle (déjà fire-and-forget avant ce correctif)
   const matchStr = pronostic?.match
     ? `${pronostic.match.homeTeam} vs ${pronostic.match.awayTeam}`
     : 'votre pronostic';
 
-  for (const { userId, currency, profit, stakedAmount } of notifJobs) {
+  for (const bet of changedBets) {
+    const corrected = bet.previousResult !== null;
     if (result === 'WIN') {
-      const gain = profit.toLocaleString('fr-FR');
-      notifSvc.sendToUser(userId, {
-        title: '🏆 Pronostic Gagnant !',
-        body:  `+${gain} ${nomDevise(currency)} sur ${matchStr}. Votre bankroll est mis à jour !`,
+      const gain = (bet.profit ?? 0).toLocaleString('fr-FR');
+      const retour = bet.potentialGain.toLocaleString('fr-FR');
+      notifSvc.sendToUser(bet.userId, {
+        title: corrected ? '🏆 Résultat corrigé : gagnant' : '🏆 Pronostic Gagnant !',
+        body:  corrected
+          ? `${matchStr} : retour de ${retour} ${nomDevise(bet.currency)} crédité, gain net +${gain} ${nomDevise(bet.currency)}.`
+          : `+${gain} ${nomDevise(bet.currency)} sur ${matchStr}. Votre bankroll est mise à jour !`,
         data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
       }).catch(() => {});
     } else if (result === 'PUSH') {
-      const remb = stakedAmount.toLocaleString('fr-FR');
-      notifSvc.sendToUser(userId, {
-        title: '🔄 Pronostic remboursé',
-        body:  `${remb} ${nomDevise(currency)} de mise remboursée sur ${matchStr}.`,
+      const remb = bet.stakedAmount.toLocaleString('fr-FR');
+      notifSvc.sendToUser(bet.userId, {
+        title: corrected ? '🔄 Résultat corrigé : remboursé' : '🔄 Pronostic remboursé',
+        body:  corrected
+          ? `${matchStr} : la mise de ${remb} ${nomDevise(bet.currency)} a été remboursée après correction.`
+          : `${remb} ${nomDevise(bet.currency)} de mise remboursée sur ${matchStr}.`,
         data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
       }).catch(() => {});
     } else {
-      const perte = stakedAmount.toLocaleString('fr-FR');
-      notifSvc.sendToUser(userId, {
-        title: '❌ Pronostic Perdant',
-        body:  `-${perte} ${nomDevise(currency)} sur ${matchStr}. Ne lâchez pas !`,
+      const perte = bet.stakedAmount.toLocaleString('fr-FR');
+      notifSvc.sendToUser(bet.userId, {
+        title: corrected ? '❌ Résultat corrigé : perdu' : '❌ Pronostic Perdant',
+        body:  corrected
+          ? `${matchStr} : le résultat a été corrigé. Mise de ${perte} ${nomDevise(bet.currency)} perdue.`
+          : `-${perte} ${nomDevise(bet.currency)} sur ${matchStr}. Ne lâchez pas !`,
         data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
       }).catch(() => {});
     }
   }
 
-  return pendingBets.length;
+  return changedBets.length;
 }
 
 // ── ADMIN — Liste de toutes les bankrolls ─────────────────────────────────────
