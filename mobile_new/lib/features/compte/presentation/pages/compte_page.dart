@@ -13,6 +13,8 @@ import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/utils/premium_nav.dart';
 import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../../../features/parrainage/presentation/providers/referral_provider.dart';
+import '../../../../features/parrainage/domain/recompense_premium.dart';
+import '../../../../core/config/distribution_channel.dart';
 import '../providers/compte_provider.dart';
 import '../../../../shared/utils/devise.dart';
 import '../../../../shared/utils/montant.dart';
@@ -602,8 +604,26 @@ class _AbonnementTab extends ConsumerWidget {
     (Icons.star_rounded,          'Pronostics VIP illimités',  'Accès à tous les matchs Premium'),
     (Icons.query_stats_rounded,    'Analyse statistique par match', 'Probabilités et explications détaillées'),
     (Icons.leaderboard_rounded,   'Statistiques avancées',     'Classement et historique complet'),
-    (Icons.play_lesson_rounded,   'Tous les tutoriels',        'Bibliothèque complète débloquée'),
-    (Icons.headset_mic_rounded,   'Support prioritaire',       'Réponse sous 2h ouvrées'),
+    // « Tous les tutoriels — Bibliothèque complète débloquée » figurait ici,
+    // cadenas compris, sur la page qui demande 15 $ par mois. Les tutoriels
+    // sont tous en accès libre : l'abonné payait pour ce qu'il avait déjà.
+    //
+    // Vendre un avantage inexistant à l'endroit exact de l'achat n'est pas
+    // une maladresse de formulation — c'est ce qu'un utilisateur cite quand
+    // il demande un remboursement, et ce qu'un examinateur de store lit comme
+    // une facturation trompeuse.
+    //
+    // À RÉTABLIR quand des tutoriels produits par PronoWin seront proposés en
+    // Premium : la capacité existe toujours côté application et côté base.
+    // Annonçait « Réponse sous 2h ouvrées ». Un délai chiffré sur une page de
+    // paiement n'est pas un argument, c'est un engagement : il se mesure, il
+    // se réclame, et il se tient sept jours sur sept par une équipe qui n'a
+    // pas de permanence. Le premier abonné qui attend trois heures un dimanche
+    // a raison contre nous, et il a une capture d'écran.
+    //
+    // La priorité, elle, est vraie et ne se chiffre pas : les demandes des
+    // abonnés passent devant. C'est ce qui est promis désormais.
+    (Icons.headset_mic_rounded,   'Support prioritaire',       'Vos demandes traitées en priorité'),
   ];
 
   @override
@@ -757,7 +777,12 @@ class _FreeState extends ConsumerWidget {
           decoration: BoxDecoration(
             color: AppColors.primary.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(6)),
-          child: const Text('5 avantages', style: TextStyle(
+          // Ce nombre était écrit en dur, à cent cinquante lignes de la liste
+          // qu'il compte. Retirer un avantage laissait donc la pastille en
+          // annoncer un de plus que l'écran n'en montre — le lecteur n'a même
+          // pas à faire l'effort de compter, les deux se contredisent sous
+          // ses yeux. Il suit désormais la liste.
+          child: Text('${features.length} avantages', style: const TextStyle(
             color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600))),
       ]).animate(delay: 100.ms).fadeIn(duration: 280.ms),
 
@@ -1038,6 +1063,24 @@ class _ParrainageTab extends ConsumerWidget {
     final minW  = (stats['min_withdrawal'] as num?)?.toInt() ?? 2000;
     final canW  = stats['can_withdraw'] as bool? ?? false;
 
+    // ── Canal store : le parrainage ne se compte qu'en jours Premium ────────
+    //
+    // La garde posée sur la route /parrainage ne couvrait pas cet écran-ci.
+    // Ce sont deux écrans de parrainage distincts, et c'est celui-ci que
+    // l'onglet Compte affiche. Le build store masquait donc un bouton sur une
+    // page que personne n'ouvre, pendant que celle-ci annonçait « 0 / 2000
+    // FCFA avant de pouvoir retirer », un barème en francs et un bouton
+    // « Retirer mes gains » dès que le serveur disait `can_withdraw`.
+    //
+    // Vérifié sur l'émulateur, pas déduit du code : c'est la capture de
+    // l'onglet Parrainage qui a montré le seuil de retrait dans un binaire
+    // compilé avec STORE_BUILD=true.
+    final estStore   = ref.watch(isStoreBuildProvider);
+    final joursDispo = joursPremiumPour(earnings);
+    final joursL1    = joursPremiumPour(comL1);
+    final joursL2    = joursPremiumPour(comL2);
+    final peutAgir   = estStore ? joursDispo >= 1 : canW;
+
     final s  = stats['stats'] as Map<String, dynamic>? ?? const {};
     final l1 = (s['total_l1']   as num?)?.toInt() ?? 0;
     final l2 = (s['total_l2']   as num?)?.toInt() ?? 0;
@@ -1063,47 +1106,60 @@ class _ParrainageTab extends ConsumerWidget {
               const SizedBox(width: 14),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Mes gains parrainage',
+                  Text(estStore ? 'Mes récompenses parrainage'
+                                : 'Mes gains parrainage',
                     style: TextStyle(color: context.cl.textS, fontSize: 12)),
                   TweenAnimationBuilder<int>(
-                    tween: IntTween(begin: 0, end: earnings),
+                    tween: IntTween(begin: 0, end: estStore ? joursDispo : earnings),
                     duration: const Duration(milliseconds: 900),
                     curve: Curves.easeOutCubic,
-                    builder: (_, v, _) => Text('$v $devise', style: const TextStyle(
-                      color: _purple, fontSize: 24, fontWeight: FontWeight.w800)),
+                    builder: (_, v, _) => Text(
+                      estStore ? '$v jours Premium' : '$v $devise',
+                      style: const TextStyle(
+                        color: _purple, fontSize: 24, fontWeight: FontWeight.w800)),
                   ),
                 ]),
               ),
             ]),
             const SizedBox(height: 14),
-            // Le seuil de retrait n'apparaissait nulle part : on voyait « 0 FCFA »
-            // sans savoir à partir de quel montant on peut être payé.
-            ClipRRect(
-              borderRadius: BorderRadius.circular(4),
-              child: LinearProgressIndicator(
-                value: minW > 0 ? (earnings / minW).clamp(0.0, 1.0) : 0,
-                minHeight: 6,
-                backgroundColor: Colors.white.withValues(alpha: 0.08),
-                valueColor: const AlwaysStoppedAnimation(_purple)),
-            ),
-            const SizedBox(height: 7),
+            // La barre mesure une progression vers un seuil de versement.
+            // Elle n'a pas de sens dans un canal qui ne verse rien.
+            if (!estStore) ...[
+              // Le seuil de retrait n'apparaissait nulle part : on voyait « 0 FCFA »
+              // sans savoir à partir de quel montant on peut être payé.
+              ClipRRect(
+                borderRadius: BorderRadius.circular(4),
+                child: LinearProgressIndicator(
+                  value: minW > 0 ? (earnings / minW).clamp(0.0, 1.0) : 0,
+                  minHeight: 6,
+                  backgroundColor: Colors.white.withValues(alpha: 0.08),
+                  valueColor: const AlwaysStoppedAnimation(_purple)),
+              ),
+              const SizedBox(height: 7),
+            ],
             Text(
-              canW
-                ? 'Seuil atteint — tu peux demander ton retrait.'
-                : '$earnings / $minW FCFA avant de pouvoir retirer',
+              estStore
+                ? (peutAgir
+                    ? 'Convertis-les en jours Premium quand tu veux.'
+                    : 'Parraine un ami pour gagner tes premiers jours Premium.')
+                : (canW
+                    ? 'Seuil atteint — tu peux demander ton retrait.'
+                    : '$earnings / $minW FCFA avant de pouvoir retirer'),
               style: TextStyle(
-                color: canW ? AppColors.success : context.cl.textM,
+                color: peutAgir ? AppColors.success : context.cl.textM,
                 fontSize: 11.5,
-                fontWeight: canW ? FontWeight.w600 : FontWeight.w400)),
-            if (canW) ...[
+                fontWeight: peutAgir ? FontWeight.w600 : FontWeight.w400)),
+            if (peutAgir) ...[
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity, height: 42,
                 child: ElevatedButton.icon(
                   onPressed: () => context.push('/parrainage/retrait',
                     extra: {'earnings': earnings, 'min': minW}),
-                  icon: const Icon(Icons.payments_rounded, size: 17),
-                  label: const Text('Retirer mes gains'),
+                  icon: Icon(estStore ? Icons.workspace_premium_rounded
+                                      : Icons.payments_rounded, size: 17),
+                  label: Text(estStore ? 'Convertir en jours Premium'
+                                       : 'Retirer mes gains'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _purple, foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
@@ -1117,10 +1173,12 @@ class _ParrainageTab extends ConsumerWidget {
         const _SectionLabel('CE QUE ÇA TE RAPPORTE'),
         Row(children: [
           Expanded(child: _RewardTile(
-            amount: '$comL1 $devise', label: 'par filleul direct', color: _purple)),
+            amount: estStore ? libelleJours(joursL1) : '$comL1 $devise',
+            label: 'par filleul direct', color: _purple)),
           const SizedBox(width: 10),
           Expanded(child: _RewardTile(
-            amount: '$comL2 $devise', label: 'par filleul indirect', color: AppColors.info)),
+            amount: estStore ? libelleJours(joursL2) : '$comL2 $devise',
+            label: 'par filleul indirect', color: AppColors.info)),
         ]),
         const SizedBox(height: 16),
 
@@ -1130,7 +1188,10 @@ class _ParrainageTab extends ConsumerWidget {
           _HowToStep(n: 1, text: 'Partage ton code avec tes amis'),
           _HowToStep(n: 2, text: 'Ils créent leur compte avec ce code'),
           _HowToStep(n: 3,
-            text: 'Tu gagnes $comL1 $devise dès qu\'ils passent Premium', last: true),
+            text: estStore
+                ? 'Tu gagnes ${libelleJours(joursL1)} d\'abonnement dès qu\'ils passent Premium'
+                : 'Tu gagnes $comL1 $devise dès qu\'ils passent Premium',
+            last: true),
         ]),
         const SizedBox(height: 16),
 
@@ -1196,8 +1257,12 @@ class _ParrainageTab extends ConsumerWidget {
                   color: context.cl.textP, fontSize: 14.5, fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
               Text(
-                'Partage ton code : chaque ami qui s\'abonne te rapporte '
-                '$comL1 $devise, et ceux qu\'il parraine à son tour $comL2 $devise.',
+                estStore
+                  ? 'Partage ton code : chaque ami qui s\'abonne te rapporte '
+                    '${libelleJours(joursL1)} d\'abonnement, et ceux qu\'il '
+                    'parraine à son tour ${libelleJours(joursL2)}.'
+                  : 'Partage ton code : chaque ami qui s\'abonne te rapporte '
+                    '$comL1 $devise, et ceux qu\'il parraine à son tour $comL2 $devise.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: context.cl.textM, fontSize: 12.5, height: 1.45)),
             ]),
@@ -1208,7 +1273,10 @@ class _ParrainageTab extends ConsumerWidget {
               value: '$l1', sub: '$p1 Premium', color: _purple),
             const SizedBox(width: 10),
             _StatBox(label: 'Filleuls indirects',
-              value: '$l2', sub: '$comL2 $devise / filleul', color: AppColors.info),
+              value: '$l2',
+              sub: estStore ? '${libelleJours(joursL2)} / filleul'
+                            : '$comL2 $devise / filleul',
+              color: AppColors.info),
           ]).animate().fadeIn(duration: 350.ms).slideY(begin: 0.06, end: 0),
           const SizedBox(height: 16),
           SizedBox(

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/referral_provider.dart';
+import '../../domain/recompense_premium.dart';
 import '../../../../core/config/distribution_channel.dart';
 
 class RetraitParrainagePage extends ConsumerStatefulWidget {
@@ -46,26 +47,6 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
 
   @override
   Widget build(BuildContext context) {
-    // Second verrou, au cas où l'écran serait atteint autrement que par le
-    // bouton — un lien profond, une route restaurée. Masquer l'entrée ne
-    // suffit pas à fermer une porte.
-    if (ref.watch(isStoreBuildProvider)) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Récompenses de parrainage')),
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(28),
-            child: Text(
-              'Sur cette version, les récompenses de parrainage se convertissent '
-              'en jours Premium depuis l\'écran Parrainage.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: context.cl.textS, fontSize: 14, height: 1.6),
-            ),
-          ),
-        ),
-      );
-    }
-
     final earnings   = (widget.data?['earnings'] as num?)?.toInt() ?? 0;
     final minWithdraw = (widget.data?['min'] as num?)?.toInt() ?? 2000;
     final withdrawState = ref.watch(withdrawProvider);
@@ -74,6 +55,31 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
       if (s is WithdrawSuccess) _showSuccess(s.message);
       if (s is WithdrawError)   _showError(s.message);
     });
+
+    // Second verrou, au cas où l'écran serait atteint autrement que par le
+    // bouton — un lien profond, une route restaurée. Masquer l'entrée ne
+    // suffit pas à fermer une porte.
+    //
+    // Ce verrou renvoyait un écran d'explication et rien d'autre. Il fermait
+    // bien le versement en argent, mais il fermait aussi la conversion en
+    // jours Premium — celle-là même que son texte annonçait. Les récompenses
+    // s'accumulaient alors sans aucune issue, et l'écran disait le contraire.
+    //
+    // Il ne reste donc que l'onglet Crédit Premium, sans barre d'onglets :
+    // créditer du temps d'abonnement n'est pas un versement, et c'est la
+    // seule promesse que cette version peut tenir.
+    if (ref.watch(isStoreBuildProvider)) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            onPressed: () => context.pop(),
+          ),
+          title: const Text('Convertir mes récompenses'),
+        ),
+        body: _buildCreditTab(earnings, withdrawState),
+      );
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -200,7 +206,8 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
   }
 
   Widget _buildCreditTab(int earnings, WithdrawState state) {
-    final premiumDays = ((earnings / 5000) * 30).floor();
+    final premiumDays = joursPremiumPour(earnings);
+    final estStore    = ref.watch(isStoreBuildProvider);
 
     return ListView(padding: const EdgeInsets.all(20), children: [
       Container(
@@ -222,11 +229,21 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
               color: AppColors.primaryLight, fontSize: 28, fontWeight: FontWeight.w800)),
           ),
           const SizedBox(height: 6),
-          Text('pour tes $earnings FCFA de récompenses', style: const TextStyle(
-            color: Color(0xFFCBD5E1), fontSize: 14)),
-          const SizedBox(height: 8),
-          const Text('(1 000 FCFA = 6 jours Premium)', style: TextStyle(
-            color: Color(0xFF8892AA), fontSize: 12)),
+          // Le canal store ne chiffre jamais les récompenses en monnaie : ce
+          // qu'il crédite, c'est du temps d'abonnement, et le dire en francs
+          // rhabille une fidélité en versement.
+          Text(
+            estStore
+                ? 'pour tes récompenses de parrainage'
+                : 'pour tes $earnings FCFA de récompenses',
+            style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 14)),
+          if (!estStore) ...[
+            const SizedBox(height: 8),
+            // Rapport dérivé de la constante, plus recopié à la main : le
+            // libellé « 1 000 FCFA = 6 jours » vieillissait tout seul.
+            Text('($prixMensuelPremiumFCFA FCFA = 30 jours Premium)',
+              style: const TextStyle(color: Color(0xFF8892AA), fontSize: 12)),
+          ],
         ]),
       ).animate().fadeIn(duration: 400.ms)
        .scale(begin: const Offset(0.96, 0.96), end: const Offset(1, 1),
