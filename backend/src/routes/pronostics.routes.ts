@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { authMiddleware, optionalAuthMiddleware, premiumMiddleware }  from '../middleware/auth.middleware';
+import { authMiddleware, optionalAuthMiddleware, premiumMiddleware, premiumSaufMatchTermine }  from '../middleware/auth.middleware';
 import { adminMiddleware } from '../middleware/admin.middleware';
 import * as C from '../controllers/pronostics.controller';
 
@@ -45,7 +45,7 @@ r.get ('/:id/live-odds',   optionalAuthMiddleware, C.getLiveOdds);
 r.get ('/:id/ratings',     optionalAuthMiddleware, C.getPlayerRatings);
 
 // L'analyse statistique reste le cœur de l'offre payante.
-r.get ('/:id/ai-analyze',  authMiddleware, premiumMiddleware, C.getAiAnalysis);
+r.get ('/:id/ai-analyze',  authMiddleware, premiumSaufMatchTermine, C.getAiAnalysis);
 
 // Le détail est accessible à tous ; le contenu premium est filtré, pas bloqué.
 r.get ('/:id',             optionalAuthMiddleware, C.getPronosticDetail);

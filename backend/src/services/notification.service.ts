@@ -478,9 +478,25 @@ export class NotificationService {
     const title   = isLive
       ? `${prefix}Pronostic EN DIRECT`
       : `${prefix}Nouveau pronostic publié`;
+
+    // Le corps ne révèle la décision que si le pronostic est gratuit.
+    //
+    // Cette notification part sur le topic global : tout le monde la reçoit,
+    // abonné ou non. Elle contenait `predictionLabel` dans tous les cas — un
+    // utilisateur gratuit lisait donc le pronostic VIP dans son fil, sans
+    // ouvrir l'application, sans payer. Le titre le lui signalait même :
+    // le préfixe « 👑 [VIP] » annonçait la valeur de ce qu'il obtenait pour
+    // rien.
+    //
+    // La fonction *savait* : `isPremium` servait déjà à choisir l'emoji. La
+    // même donnée décide maintenant du corps. Le rappel part toujours à tous
+    // — il n'y a aucune raison de cacher l'existence d'un pronostic VIP,
+    // seulement son contenu.
+    const affiche = params.isPremium ? 'pronostic VIP disponible'
+                                     : params.predictionLabel;
     const body    = isLive
-      ? `${params.homeTeam} vs ${params.awayTeam} en cours — ${params.predictionLabel}`
-      : `${params.homeTeam} vs ${params.awayTeam} — ${params.predictionLabel}`;
+      ? `${params.homeTeam} vs ${params.awayTeam} en cours — ${affiche}`
+      : `${params.homeTeam} vs ${params.awayTeam} — ${affiche}`;
     return this.sendToTopic(FCM_TOPICS.match, {
       title, body,
       data: { deep_link: `/pronostics/${params.pronosticId}`, type: 'match' },

@@ -2,20 +2,42 @@
 import { AuthRequest } from '../middleware/auth.middleware';
 
 import { prisma } from '../lib/prisma';
+import { estVerrouille } from '../services/verrou_pronostic';
 
 export const getFavorites = async (req: AuthRequest, res: Response) => {
   try {
-    const favs = await prisma.userFavoriteMatch.findMany({
-      where:   { userId: req.userId! },
-      include: { match: { include: { pronostic: true } } },
-      orderBy: { createdAt: 'desc' },
-    });
+    const [favs, user] = await Promise.all([
+      prisma.userFavoriteMatch.findMany({
+        where:   { userId: req.userId! },
+        include: { match: { include: { pronostic: true } } },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.user.findUnique({
+        where:  { id: req.userId! },
+        select: { subscriptionPlan: true, subscriptionExpiresAt: true },
+      }),
+    ]);
+
+    // Cet endpoint ne lisait pas l'abonnement de l'appelant. Il renvoyait
+    // `prediction_label`, `confidence_score`, `analyst_note` et
+    // `ai_probability` pour n'importe quel match mis en favori, tout en
+    // annonçant `is_premium: true` à côté — le serveur déclarait le contenu
+    // payant puis le livrait.
+    //
+    // Le paywall ne tenait donc que par le client : il suffisait de mettre un
+    // match VIP en favori et de lire la réponse HTTP. `estVerrouille` existait
+    // déjà et était appliquée ailleurs ; elle avait été oubliée ici.
+    const userIsPremium = user?.subscriptionPlan === 'premium' &&
+      (!user.subscriptionExpiresAt || user.subscriptionExpiresAt > new Date());
     const result = favs.map(f => {
       const p = f.match.pronostic;
       const rawStatus = f.match.status.toLowerCase();
       const status = rawStatus === 'live' ? 'live'
                    : rawStatus === 'finished' ? 'finished'
                    : 'upcoming';
+      const locked = estVerrouille(
+        p?.isPremium ?? false, f.match.status, userIsPremium);
+
       return {
         // Identifiants — `id` sert à la navigation vers le détail (le
         // backend résout aussi bien un id de pronostic que de match), tandis
@@ -36,18 +58,19 @@ export const getFavorites = async (req: AuthRequest, res: Response) => {
         away_score:       f.match.awayScore ?? null,
         has_pronostic:    p !== null,
         // Pronostic (valeurs par défaut si pas de prono)
-        prediction_type:  p?.predictionType  ?? 'win1',
-        prediction_label: p?.predictionLabel ?? '',
-        odds_recommended: p?.oddsRecommended ?? 0,
+        prediction_type:  locked ? null : (p?.predictionType  ?? 'win1'),
+        prediction_label: locked ? null : (p?.predictionLabel ?? ''),
+        odds_recommended: locked ? null : (p?.oddsRecommended ?? 0),
         odds_home:        p?.oddsHome        ?? 0,
         odds_draw:        p?.oddsDraw        ?? 0,
         odds_away:        p?.oddsAway        ?? 0,
-        confidence_score: p?.confidenceScore ?? 1,
+        confidence_score: locked ? null : (p?.confidenceScore ?? 1),
+        locked,
         is_premium:       p?.isPremium       ?? false,
-        analyst_note:     p?.analystNote     ?? null,
+        analyst_note:     locked ? null : (p?.analystNote ?? null),
         home_form_points: f.match.homeFormPoints ?? 0,
         away_form_points: f.match.awayFormPoints ?? 0,
-        ai_probability:   p?.aiProbability   ?? null,
+        ai_probability:   locked ? null : (p?.aiProbability ?? null),
         ai_explanation:   p?.aiExplanation   ?? null,
       };
     });

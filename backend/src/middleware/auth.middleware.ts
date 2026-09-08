@@ -2,6 +2,7 @@
 import jwt from 'jsonwebtoken';
 
 import { prisma } from '../lib/prisma';
+import { matchTermine } from '../services/verrou_pronostic';
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -86,4 +87,50 @@ export async function premiumMiddleware(
     return;
   }
   next();
+}
+/**
+ * Premium — sauf si le match est terminé.
+ *
+ * `estVerrouille` porte déjà la règle : un pronostic payant cesse de l'être
+ * une fois le match joué, parce qu'il n'a plus rien à vendre. Elle est
+ * appliquée sur les charges utiles, mais deux routes protégeaient leur
+ * contenu au niveau du middleware, où la notion de match terminé n'existe
+ * pas. Résultat : sur un match joué, la fiche affichait le score, les cotes
+ * et le pronostic, puis « Débriefing du modèle » sous un cadenas — l'écran
+ * ouvrait tout sauf la seule chose qui expliquait le reste.
+ *
+ * L'identifiant peut désigner un pronostic ou un match : `analyzePronostic`
+ * accepte les deux, ce garde-fou doit donc les accepter aussi, sans quoi il
+ * laisserait passer par simple ignorance.
+ *
+ * En cas de doute — identifiant introuvable, erreur de base — on retombe sur
+ * `premiumMiddleware`. Un garde-fou qui échoue doit fermer, pas ouvrir.
+ */
+export async function premiumSaufMatchTermine(
+  req: AuthRequest, res: Response, next: NextFunction,
+): Promise<void> {
+  const id = (req.params.id ?? req.params.pronosticId ?? '').trim();
+
+  if (id) {
+    try {
+      const prono =
+        await prisma.pronostic.findUnique({
+          where: { id }, select: { match: { select: { status: true } } },
+        }) ??
+        await prisma.pronostic.findUnique({
+          where: { matchId: id }, select: { match: { select: { status: true } } },
+        });
+
+      const statut = prono?.match?.status
+        ?? (await prisma.match.findUnique({
+              where: { id }, select: { status: true },
+            }))?.status;
+
+      if (matchTermine(statut)) { next(); return; }
+    } catch {
+      // On ne sait pas : le contrôle payant s'applique.
+    }
+  }
+
+  return premiumMiddleware(req, res, next);
 }
