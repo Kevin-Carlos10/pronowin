@@ -6,9 +6,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:in_app_review/in_app_review.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/config/contact_support.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/config/distribution_channel.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/security_provider.dart';
@@ -256,7 +256,13 @@ class ParametresPage extends ConsumerWidget {
           _SettingsCard(children: [
             _DangerNavTile(
               icon: Icons.delete_forever_rounded,
-              subtitle: 'Effacer définitivement tes données',
+              // Disait « Effacer définitivement tes données ». Le serveur
+              // anonymise : il vide les champs personnels et garde la ligne,
+              // l'historique et la bankroll. Promettre un effacement définitif
+              // sur le bouton qui ne l'exécute pas est la pire place pour
+              // cette inexactitude — c'est celle que l'on cite pour exercer un
+              // droit à l'effacement.
+              subtitle: 'Fermer ton compte et effacer tes informations',
               onTap: () => _showDeleteAccountSheet(context, ref),
             ),
           ]).animate(delay: 320.ms).fadeIn(duration: 300.ms)
@@ -535,9 +541,7 @@ class ParametresPage extends ConsumerWidget {
             ),
             _AboutChip(
               icon: Icons.facebook_rounded, label: 'Facebook', color: const Color(0xFF1877F2),
-              onTap: () => launchUrl(
-                  Uri.parse('https://www.facebook.com/Carlospronos11/'),
-                  mode: LaunchMode.externalApplication),
+              onTap: () => ContactSupport.ouvrirFacebook(),
             ),
           ]),
           const SizedBox(height: 20),
@@ -610,8 +614,13 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
       Text('Supprimer le compte', style: TextStyle(
         color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
       const SizedBox(height: 8),
+      // Annonçait « Toutes tes données, ton historique et ton abonnement
+      // seront définitivement supprimés ». Aucune des trois affirmations
+      // n'était exacte : le serveur anonymise le compte — il vide les champs
+      // personnels, met `isActive` à faux et conserve la ligne, l'historique
+      // et la bankroll —, et il ne touche jamais à l'abonnement.
       Text(
-        'Cette action est irréversible. Toutes tes données, ton historique et ton abonnement seront définitivement supprimés.',
+        'Cette action est irréversible. Tes informations personnelles sont effacées et tu perds l\'accès à ton compte.',
         style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
         textAlign: TextAlign.center),
       const SizedBox(height: 20),
@@ -623,11 +632,23 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.error.withValues(alpha: 0.2))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _DeleteWarning('Ton abonnement Premium sera annulé'),
+          // « Ton abonnement Premium sera annulé » était faux, et
+          // dangereusement : la suppression ne touche ni `subscriptionPlan`
+          // ni `subscriptionExpiresAt`, et aucune résiliation n'est appelée
+          // nulle part. En facturation Google Play, seul Google peut résilier.
+          //
+          // Quelqu'un qui supprime son compte pour cesser de payer continuait
+          // donc d'être débité tous les mois, après avoir lu le contraire sur
+          // l'écran qui le lui demandait. C'est l'avertissement qui devait le
+          // protéger qui causait le prélèvement.
+          _DeleteWarning(widget.ref.read(isStoreBuildProvider)
+              ? 'Ton abonnement n\'est pas résilié : fais-le depuis le Play Store'
+              : 'Ton abonnement n\'est ni résilié ni remboursé'),
           const SizedBox(height: 6),
-          _DeleteWarning('Tes gains de parrainage seront perdus'),
+          _DeleteWarning('Tu perds l\'accès à tes gains de parrainage'),
           const SizedBox(height: 6),
-          _DeleteWarning('Ton historique sera effacé définitivement'),
+          // Anonymisé, pas effacé — c'est ce que fait `deleteAccount`.
+          _DeleteWarning('Ton historique est conservé sous forme anonyme'),
         ]),
       ),
       const SizedBox(height: 20),

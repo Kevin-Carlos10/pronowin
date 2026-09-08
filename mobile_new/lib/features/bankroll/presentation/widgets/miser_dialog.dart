@@ -195,8 +195,23 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                 const Text('Rappel de discipline', style: TextStyle(
                   color: AppColors.warning, fontSize: 13, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
+                // Ce rappel disait « Mise exactement 4 800 XOF sur le
+                // bookmaker ». Deux choses en partent.
+                //
+                // L'opérateur, d'abord : PronoWin calcule une mise et en tient
+                // le registre, il ne la place nulle part. Un build destiné à
+                // Google Play n'a pas à désigner un guichet de paris — et le
+                // conseil, lui, garde toute sa force sans lui.
+                //
+                // Le montant ensuite, qui était réécrit ici alors que la carte
+                // juste au-dessus l'affiche en gros caractères. La même valeur
+                // passait par deux formatages distincts, dans le même dialogue,
+                // à quinze lignes d'écart : le jour où l'un des deux change,
+                // l'écran se contredit sous les yeux de l'utilisateur, au
+                // moment précis où on lui demande de faire confiance au
+                // chiffre.
                 Text(
-                  'Mise exactement ${montantExact(_confirmedStake!)} ${nomDevise(_confirmedCurrency)} sur le bookmaker. Ne dépasse jamais ce montant, même si tu te sens confiant.',
+                  'Ne dépasse jamais ce montant, même si tu te sens confiant.',
                   style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.45)),
               ])),
             ]),

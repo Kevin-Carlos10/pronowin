@@ -255,7 +255,20 @@ class _EmptyPronostics extends StatelessWidget {
                           fontSize: 13,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
-                  Text('Le prochain match est demain',
+                  // Disait « Le prochain match est demain ». C'était une
+                  // constante : `_EmptyPronostics` est un widget `const` sans
+                  // paramètre, il ne reçoit aucune date. La phrase annonçait
+                  // donc « demain » tous les jours de l'année.
+                  //
+                  // Le 2 septembre, elle s'affichait sous une carte qui
+                  // décomptait 3 jours jusqu'au prochain match : deux
+                  // affirmations contradictoires sur le même écran, à deux
+                  // cents pixels l'une de l'autre, dont une invérifiable par
+                  // construction.
+                  //
+                  // Cette carte n'a pas de calendrier à annoncer — elle a un
+                  // bouton qui y mène. C'est ce qu'elle dit maintenant.
+                  Text('Consulte les matchs à venir',
                       style: TextStyle(
                           color: context.cl.textS, fontSize: 11)),
                 ],

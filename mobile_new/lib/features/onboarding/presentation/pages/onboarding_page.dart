@@ -102,7 +102,17 @@ const _slides = [
     bullets: [
       'Value Bet, Bankroll, Stratégie...',
       'Tutoriels vidéo et articles complets',
-      'Contenu gratuit et premium disponible',
+      // Annonçait « Contenu gratuit et premium disponible ». Le catalogue ne
+      // contient aujourd'hui que des vidéos YouTube tierces, et en faire payer
+      // l'accès contrevient aux conditions de la plateforme qui les héberge :
+      // plus aucun tutoriel n'est réservé aux abonnés.
+      //
+      // La phrase de remplacement ne parle donc plus de tarif. Écrire
+      // « accessibles à tous » aurait simplement inversé le mensonge le jour
+      // où des vidéos produites par PronoWin seront proposées en Premium.
+      // Celle-ci décrit une fonction réelle et indépendante du prix — l'écran
+      // affiche « Ta progression · 0/5 ».
+      'Suis ta progression, tutoriel par tutoriel',
     ],
     color: AppColors.success,
     colorDark: Color(0xFF166534),
