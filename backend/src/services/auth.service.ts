@@ -4,6 +4,12 @@ import { OAuth2Client } from 'google-auth-library';
 import { generateReferralCode, generateOtp } from '../utils/generators';
 import { sendWhatsAppOtp } from './whatsapp.service';
 import { sendEmailOtp } from './email.service';
+import {
+  compareReviewOtp,
+  getGooglePlayReviewConfig,
+  normaliseEmail,
+} from '../config/google_play_review';
+import logger from '../utils/logger';
 
 import { prisma } from '../lib/prisma';
 
@@ -121,6 +127,13 @@ export class AuthService {
    *  compte déjà existant, pour adapter le message côté app (connexion
    *  vs inscription) sans dupliquer l'écran. */
   async sendEmailOtp(email: string): Promise<{ isNewUser: boolean }> {
+    const review = getGooglePlayReviewConfig();
+    if (review && normaliseEmail(email) === review.email) {
+      // The reviewer enters the stable code provided in Play Console. No email
+      // is sent and no temporary OTP record is created for this account.
+      return { isNewUser: false };
+    }
+
     await prisma.otpCode.updateMany({
       where: { phoneNumber: email, used: false },
       data:  { used: true },
@@ -139,8 +152,28 @@ export class AuthService {
     return { isNewUser: !existing };
   }
 
-  /** Vérifie l'OTP email et connecte/crée l'utilisateur */
+  /** Verifie l'OTP email et connecte ou cree l'utilisateur */
   async verifyEmailOtp(email: string, code: string) {
+    const review = getGooglePlayReviewConfig();
+    if (review && normaliseEmail(email) === review.email) {
+      if (!compareReviewOtp(code, review.otp)) {
+        throw new Error('Code OTP invalide ou expire.');
+      }
+
+      const user = await prisma.user.findUnique({ where: { email: review.email } });
+      if (!user || !user.isActive || user.deletedAt) {
+        throw new Error('Compte de revue indisponible.');
+      }
+
+      const activeUser = await prisma.user.update({
+        where: { id: user.id },
+        data:  { lastLoginAt: new Date() },
+      });
+      const tokens = await this._generateTokens(activeUser.id);
+      logger.info('[Auth] Connexion du compte de revue Google Play');
+      return { user: activeUser, ...tokens };
+    }
+
     const otpRecord = await prisma.otpCode.findFirst({
       where: {
         phoneNumber: email,
