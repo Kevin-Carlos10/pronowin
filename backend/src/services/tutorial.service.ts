@@ -32,7 +32,16 @@ const DEMO_TUTORIALS = [
     id: 'tut_003', title: 'Statistiques avancées : xG et pressing',
     description: 'Les buts attendus (xG) révolutionnent l\'analyse foot. Utilisez ces métriques pour anticiper les résultats.',
     level: 'intermediate', category: 'analyse', duration_seconds: 1080,
-    is_premium: true, view_count: 0, rating: 0, author_name: 'Expert PronoWin',
+    // `is_premium` valait `true` ici alors que la table de production ne
+    // verrouille plus aucun tutoriel : les vidéos sont des intégrations
+    // YouTube, et en faire payer l'accès contrevient aux conditions de la
+    // plateforme qui les héberge.
+    //
+    // Ce repli sort sur *n'importe quelle* erreur de base, pas seulement sur
+    // une table vide. Un incident Postgres suffisait donc à remettre le
+    // paywall en service, sans que rien ne le signale. Une valeur écrite à
+    // deux endroits finit toujours par diverger ; celle-ci suit la table.
+    is_premium: false, view_count: 0, rating: 0, author_name: 'Expert PronoWin',
     thumbnail_url: null, video_url: null, has_video: false,
     published_at: new Date().toISOString(),
   },
@@ -44,14 +53,14 @@ const DEMO_TUTORIALS = [
     thumbnail_url: null, video_url: null, has_video: false,
     published_at: new Date().toISOString(),
   },
-  {
-    id: 'tut_005', title: 'Stratégie des handicaps asiatiques',
-    description: 'Les handicaps asiatiques éliminent le match nul et offrent de meilleures cotes. Maîtrisez cette technique avancée.',
-    level: 'advanced', category: 'strategie', duration_seconds: 900,
-    is_premium: true, view_count: 0, rating: 0, author_name: 'Expert PronoWin',
-    thumbnail_url: null, video_url: null, has_video: false,
-    published_at: new Date().toISOString(),
-  },
+  // « Stratégie des handicaps asiatiques » a été retiré du catalogue : la
+  // vignette de la vidéo affichait les marques PINNACLE, PS3838, PIWI247 et
+  // 1XBET, en plein écran, dans le build destiné à Google Play — c'est-à-dire
+  // exactement ce que le canal store masque partout ailleurs dans le code.
+  //
+  // Le retirer de la table ne suffisait pas : ce repli l'aurait remis en
+  // ligne à la première erreur de base. Un catalogue tenu à deux endroits ne
+  // reste identique que tant que personne ne touche à l'un des deux.
 ];
 
 export class TutorialService {
