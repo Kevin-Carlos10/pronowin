@@ -298,7 +298,61 @@ C:\xampp\htdocs\PronoWin\mobile_new\build\app\outputs\bundle\release\app-release
 ```
 
 Avant chaque nouvel envoi, verifier que le `versionCode` Android augmente.
-Google Play refusera une version ayant le meme code.
+Google Play refusera une version ayant le meme code. Le numero se change a un
+seul endroit, `mobile_new/pubspec.yaml` : `version: 1.0.7+8`, ou `8` est le
+`versionCode`.
+
+### Signature : quelle cle est quoi
+
+Il existe deux modeles de signature, et la difference change ce qui arrive en
+cas de perte de fichier.
+
+| | Detenteur de la cle de signature | Perte du `.jks` local |
+| --- | --- | --- |
+| **Play App Signing** — obligatoire pour toute application creee apres aout 2021 | **Google** | recuperable |
+| Ancien modele | le developpeur | irreversible |
+
+PronoWin a ete creee en 2026 : **Play App Signing s'applique**, sans option
+pour s'en passer.
+
+Donc `C:\Users\1\pronowin-release.jks` **n'est pas** la cle de signature de
+l'application. C'est la **cle de televersement** : elle sert uniquement a
+prouver a Google que l'envoi vient bien de nous. Google re-signe ensuite l'AAB
+avec la vraie cle de signature, qu'il a generee et qu'il conserve.
+
+Sa partie privee n'a jamais quitte la machine. Google n'en detient que le
+certificat public, extrait du premier AAB televerse.
+
+**En cas de perte** : generer une nouvelle cle et demander une reinitialisation
+de la cle de televersement au support Play. Google remplace le certificat
+enregistre. Compter quelques jours.
+
+Ce n'est donc pas une perte definitive — mais quelques jours sans pouvoir
+televerser tombent tres mal au milieu des 14 jours de test ferme, pendant
+lesquels on veut pouvoir pousser une correction. Une copie du `.jks` sur un
+support externe ou dans un gestionnaire de mots de passe suffit.
+
+### Verifier quelle cle la console a enregistree
+
+Console : **Test et publication → Configuration → Integrite de l'application**.
+Deux entrees doivent apparaitre, « Cle de signature de l'application » et
+« Cle de televersement », chacune avec son certificat.
+
+Pour comparer avec le fichier local, dans un terminal — le mot de passe est
+demande de facon interactive, il ne passe donc pas par l'historique du shell :
+
+```powershell
+keytool -list -v -keystore "C:\Users\1\pronowin-release.jks"
+```
+
+L'empreinte SHA-256 affichee doit correspondre a celle de la « cle de
+televersement » dans la console.
+
+`mobile_new/android/key.properties` porte le chemin du keystore et les mots de
+passe. Il est dans `.gitignore` et doit y rester. Sans lui, le build bascule
+sur la cle de debogage — `build.gradle.kts` refuse explicitement de produire un
+tel artefact, parce qu'il s'installe et se lance normalement mais que Google
+Play le rejette.
 
 ## 8. Test ferme obligatoire avant la production
 
