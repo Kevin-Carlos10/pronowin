@@ -7,6 +7,12 @@ import '../../../../core/theme/app_theme.dart';
 import '../providers/referral_provider.dart';
 import '../../domain/recompense_premium.dart';
 import '../../../../core/config/distribution_channel.dart';
+import '../../../../shared/utils/retour.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/compte';
+
 
 class ParrainagePage extends ConsumerWidget {
   const ParrainagePage({super.key});
@@ -25,7 +31,7 @@ class ParrainagePage extends ConsumerWidget {
           ? IconButton(
               icon: Icon(Icons.arrow_back_ios_new_rounded,
                 size: 20, color: context.cl.textS),
-              onPressed: () => context.pop(),
+              onPressed: () => retourOuAller(context, repli: _repli),
             )
           : null,
         title: Row(children: [

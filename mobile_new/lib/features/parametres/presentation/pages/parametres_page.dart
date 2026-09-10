@@ -12,6 +12,12 @@ import '../../../../core/config/distribution_channel.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/security_provider.dart';
+import '../../../../shared/utils/retour.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/compte';
+
 
 /// L'année du copyright était figée à 2026 dans deux textes distincts.
 final _copyrightYear = DateTime.now().year;
@@ -31,7 +37,7 @@ class ParametresPage extends ConsumerWidget {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
+          onPressed: () => retourOuAller(context, repli: _repli),
         ),
         title: const Text('Paramètres'),
       ),

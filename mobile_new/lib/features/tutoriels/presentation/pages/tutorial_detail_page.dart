@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
@@ -13,6 +12,12 @@ import '../../../../shared/utils/premium_nav.dart';
 import '../../domain/entities/tutorial_entity.dart';
 import '../providers/tutorial_provider.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
+import '../../../../shared/utils/retour.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/tutoriels';
+
 
 class TutorialDetailPage extends ConsumerStatefulWidget {
   final String          tutorialId;
@@ -85,7 +90,7 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
         appBar: AppBar(
           leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-              onPressed: () => context.pop()),
+              onPressed: () => retourOuAller(context, repli: _repli)),
         ),
         body: Center(
           child: Text('Tutoriel introuvable',
@@ -268,7 +273,7 @@ class _HeroHeader extends StatelessWidget {
       leading: Padding(
         padding: const EdgeInsets.all(8),
         child: GestureDetector(
-          onTap: () => context.pop(),
+          onTap: () => retourOuAller(context, repli: _repli),
           child: Container(
             decoration: BoxDecoration(
               color: Colors.black.withValues(alpha: 0.35),

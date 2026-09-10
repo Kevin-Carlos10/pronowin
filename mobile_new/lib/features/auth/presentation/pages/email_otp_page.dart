@@ -8,6 +8,12 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/pw_button.dart';
 import '../providers/apres_connexion.dart';
 import '../providers/auth_provider.dart';
+import '../../../../shared/utils/retour.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/auth/email';
+
 
 class EmailOtpPage extends ConsumerStatefulWidget {
   final String email;
@@ -112,7 +118,7 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
               icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.cl.textS),
               onPressed: () {
                 ref.read(authProvider.notifier).reset();
-                context.pop();
+                retourOuAller(context, repli: _repli);
               },
             ),
           ),

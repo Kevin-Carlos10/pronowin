@@ -7,6 +7,12 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../shared/utils/retour.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/compte';
+
 
 // ── Modèle ────────────────────────────────────────────────────────────────────
 class PerformanceData {
@@ -123,7 +129,7 @@ class _PerformancePageState extends ConsumerState<PerformancePage> {
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop()),
+          onPressed: () => retourOuAller(context, repli: _repli)),
         title: RichText(text: TextSpan(
           style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.cl.textP),
           children: const [

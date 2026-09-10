@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import '../../../../core/widgets/image_distante.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -13,6 +12,12 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../shared/widgets/country_pill_selector.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/compte_provider.dart';
+import '../../../../shared/utils/retour.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/compte';
+
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -222,7 +227,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       await ref.read(authProvider.notifier).refreshUser();
       if (mounted) {
         _showSnack('Profil mis à jour ✅');
-        context.pop();
+        retourOuAller(context, repli: _repli);
       }
     } on DioException catch (e) {
       _showSnack(
@@ -244,7 +249,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
+          onPressed: () => retourOuAller(context, repli: _repli),
         ),
         title: const Text('Modifier le profil'),
         actions: [

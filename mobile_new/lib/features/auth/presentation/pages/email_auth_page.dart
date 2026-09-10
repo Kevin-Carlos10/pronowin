@@ -10,6 +10,12 @@ import '../../../../shared/widgets/pw_button.dart';
 import '../providers/apres_connexion.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/bouton_fournisseur.dart';
+import '../../../../shared/utils/retour.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/home';
+
 
 /// Écran de connexion — accessible uniquement à la demande (bouton « Se
 /// connecter » ou accès à une fonctionnalité réservée). L'application
@@ -104,9 +110,7 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
               alignment: Alignment.topLeft,
               child: IconButton(
                 icon: Icon(Icons.close_rounded, color: context.cl.textS),
-                onPressed: () => Navigator.of(context).canPop()
-                  ? context.pop()
-                  : context.go('/home'),
+                onPressed: () => retourOuAller(context, repli: _repli),
               ),
             ),
             Expanded(

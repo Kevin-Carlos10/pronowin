@@ -32,6 +32,8 @@ import '../widgets/prono_share_card.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
 import 'match_detail/bookmaker_cotes.dart';
 import '../../domain/entities/verdict_comparaison.dart';
+import '../../../../shared/utils/retour.dart';
+
 
 // Découpé en fichiers `part` : le fichier faisait 3 604 lignes pour une
 // quarantaine de classes privées, dont le State d'un bouton situé 500
@@ -46,6 +48,11 @@ part 'match_detail/forme.dart';
 part 'match_detail/miser.dart';
 part 'match_detail/statistiques.dart';
 part 'match_detail/analyse_modele.dart';
+
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/pronostics';
 
 class MatchDetailPage extends ConsumerStatefulWidget {
   final String       matchId;
@@ -153,7 +160,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         appBar: AppBar(
           leading: IconButton(
             icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-            onPressed: () => context.pop()),
+            onPressed: () => retourOuAller(context, repli: _repli)),
           title: Text('Détail du match')),
         body: matchAsync.isLoading
           ? Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -360,7 +367,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
       appBar: AppBar(
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop()),
+          onPressed: () => retourOuAller(context, repli: _repli)),
         title: Text(match.league,
           style: TextStyle(fontSize: 14, color: context.cl.textS)),
         centerTitle: true,

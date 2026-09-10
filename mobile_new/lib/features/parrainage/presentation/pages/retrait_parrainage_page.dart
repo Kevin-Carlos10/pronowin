@@ -7,6 +7,12 @@ import '../../../../core/theme/app_theme.dart';
 import '../providers/referral_provider.dart';
 import '../../domain/recompense_premium.dart';
 import '../../../../core/config/distribution_channel.dart';
+import '../../../../shared/utils/retour.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/parrainage';
+
 
 class RetraitParrainagePage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? data;
@@ -73,7 +79,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-            onPressed: () => context.pop(),
+            onPressed: () => retourOuAller(context, repli: _repli),
           ),
           title: const Text('Convertir mes récompenses'),
         ),
@@ -85,7 +91,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
+          onPressed: () => retourOuAller(context, repli: _repli),
         ),
         title: const Text('Retirer mes récompenses'),
         bottom: TabBar(
@@ -360,7 +366,8 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
               onPressed: () {
                 ref.read(withdrawProvider.notifier).reset();
                 ref.invalidate(referralStatsProvider);
-                context.pop(); context.pop();
+                context.pop();
+                retourOuAller(context, repli: _repli);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.success,

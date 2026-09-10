@@ -20,6 +20,12 @@ import '../providers/iap_provider.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../data/iap_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../shared/utils/retour.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/compte';
+
 
 // Aucun numéro n'est compilé dans ce fichier — et c'est délibéré.
 //
@@ -258,7 +264,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       onSelectDuration: (d) => setState(() => _duration = d),
       onSelectMethod:   (m) => setState(() => _method = m),
       onConfirm:        _goToForm,
-      onClose:          () => context.pop(),
+      onClose:          () => retourOuAller(context, repli: _repli),
       iapMode:          isStore,
       iapLoading:       isStore && ref.watch(iapReadyProvider).isLoading,
       iapUnavailable:   isStore && !iapReady,
@@ -845,7 +851,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
                 ref.read(submitProofProvider.notifier).reset();
                 ref.invalidate(currentSubscriptionProvider);
                 context.pop();
-                context.pop();
+                retourOuAller(context, repli: _repli);
               },
               icon: const Icon(Icons.check_rounded, size: 20),
               label: const Text('Compris, j\'attends la validation',
