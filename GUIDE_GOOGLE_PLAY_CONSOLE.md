@@ -332,6 +332,48 @@ televerser tombent tres mal au milieu des 14 jours de test ferme, pendant
 lesquels on veut pouvoir pousser une correction. Une copie du `.jks` sur un
 support externe ou dans un gestionnaire de mots de passe suffit.
 
+### Connexion Google : enregistrer l'empreinte de la cle de SIGNATURE
+
+**Symptome** : la connexion Google echoue pour les testeurs qui installent
+depuis Play, alors qu'elle fonctionne sur la machine de developpement et avec
+un APK installe a la main. Le selecteur de compte s'ouvre, l'utilisateur
+choisit son compte, et l'operation echoue aussitot sans message explicite
+(`ApiException: 10`, DEVELOPER_ERROR).
+
+**Cause** : Google Sign-In n'accepte une connexion que si l'empreinte SHA-1 du
+certificat ayant signe l'APK **installe** est enregistree dans le projet
+Firebase. Avec Play App Signing, l'APK que Play distribue n'est pas signe par
+la cle de televersement : Google le re-signe avec **sa** cle de signature. Son
+empreinte doit donc etre enregistree, et elle ne l'est pas par defaut —
+`google-services.json` est genere avant le premier envoi, quand cette cle
+n'existe pas encore.
+
+Constate le 10 septembre 2026. Trois empreintes etaient declarees — cle de
+debogage, cle de televersement, et une troisieme anterieure — et aucune n'etait
+celle de Play.
+
+**Correction**, sans reconstruire l'application :
+
+1. Play Console → Protege avec Play → Protection Play Store → deplier →
+   « Gerer la signature d'application Play »
+2. Bloc « Cle de signature d'applications », colonne **Cle classique** →
+   bouton « Empreinte du certificat SHA-1 » (la valeur n'est pas affichee, le
+   bouton la copie)
+3. Firebase Console → Parametres du projet → onglet General → application
+   Android `com.pronowin.app` → **Ajouter une empreinte** → coller
+4. Ajouter de meme l'empreinte de chaque **cle de signature precedente** listee
+   sur la meme page : les installations anterieures a une rotation portent
+   l'ancienne signature
+5. Attendre quelques minutes, puis retelecharger `google-services.json` et
+   remplacer celui du projet
+
+La correspondance empreinte ↔ projet se resout sur les serveurs de Google au
+moment de la connexion. Le binaire ne transporte pas cette information : les
+testeurs n'ont rien a reinstaller, ils reessaient.
+
+**A refaire** apres toute rotation de la cle de signature, et pour tout nouveau
+projet Firebase.
+
 ### Verifier quelle cle la console a enregistree
 
 Console : **Test et publication → Configuration → Integrite de l'application**.
