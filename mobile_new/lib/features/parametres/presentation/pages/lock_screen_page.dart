@@ -3,8 +3,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/pin_store.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 
 class LockScreenPage extends ConsumerStatefulWidget {
@@ -67,11 +68,8 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
   }
 
   Future<void> _validatePin() async {
-    final p    = await SharedPreferences.getInstance();
-    final saved = p.getString('pin_code') ?? '';
-
-    if (_pin == saved) {
-      _unlock();
+    if (await ref.read(pinStoreProvider).verify(_pin)) {
+      if (mounted) _unlock();
     } else {
       setState(() {
         _attempts++;
@@ -166,10 +164,60 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
                   : _buildKeypad(bioEnabled),
               ),
             ),
+
+            // Sortie de secours : sans elle, oublier son code enfermait
+            // définitivement l'utilisateur hors de l'app — bankroll comprise.
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: TextButton(
+                onPressed: _codeOublie,
+                child: Text('Code oublié ?',
+                    style: TextStyle(
+                        color: context.cl.textM,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ),
           ]),
         ),
       ),
     );
+  }
+
+  /// Déverrouillage impossible : la seule issue sûre est de fermer la session.
+  /// On ne propose surtout pas de « réinitialiser le code » sur place, ce qui
+  /// annulerait la protection pour quiconque tient l'appareil en main.
+  Future<void> _codeOublie() async {
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: dctx.cl.surface,
+        title: const Text('Code oublié'),
+        content: const Text(
+            'Pour retrouver l\'accès, il faut te déconnecter puis te '
+            'reconnecter avec ton compte. Tes données ne sont pas perdues.'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(dctx).pop(false),
+              child: const Text('Annuler')),
+          TextButton(
+              onPressed: () => Navigator.of(dctx).pop(true),
+              child: const Text('Se déconnecter')),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+
+    // Le code est effacé avec la session : le prochain démarrage repart d'un
+    // écran de connexion normal, sans verrou orphelin.
+    await ref.read(pinStoreProvider).clear();
+    await ref.read(settingsProvider.notifier).setPinEnabled(false);
+    await ref.read(authProvider.notifier).logout();
+    // `/auth` n'est pas une route : seuls `/auth/email` et `/auth/email/otp`
+    // existent. Se déconnecter depuis le verrou menait donc à la page d'erreur
+    // du routeur — au moment précis où l'utilisateur n'a plus que ce chemin,
+    // puisqu'il vient d'oublier son code.
+    if (mounted) context.go('/auth/email');
   }
 
   Widget _buildKeypad(bool bioEnabled) => Column(
@@ -212,7 +260,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
         textAlign: TextAlign.center),
       const SizedBox(height: 24),
       ElevatedButton(
-        onPressed: () => context.go('/auth/phone'),
+        onPressed: () => context.go('/auth/email'),
         style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
         child: const Text('Se reconnecter'),
       ),

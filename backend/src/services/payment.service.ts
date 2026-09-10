@@ -1,9 +1,25 @@
-﻿import { NotificationService } from './notification.service';
+import { NotificationService } from './notification.service';
 import { prisma } from '../lib/prisma';
+import { MIN_WITHDRAWAL } from './referral.service';
 
 const notifSvc = new NotificationService();
 
-// ─── Numéros MobCash affichés à l'utilisateur ─────────────────────────────────
+/**
+ * Versements Mobile Money.
+ *
+ * Ce service gérait un portefeuille dépôt/retrait générique : l'utilisateur
+ * demandait un dépôt vers son compte 1xBet ou un retrait, l'admin validait.
+ * L'écran mobile correspondant a été supprimé, plus rien n'appelait
+ * `POST /payments/request` — la fonctionnalité était devenue inatteignable.
+ *
+ * Ce qui reste alimente une seule chose : le **versement des gains de
+ * parrainage**. `ReferralService.requestWithdrawal` crée une transaction de
+ * type `withdrawal` portant `metadata.source = 'referral_earnings'`, que
+ * l'administrateur approuve ou rejette ici. Il n'existe plus aucun chemin
+ * capable de créer un dépôt.
+ */
+
+// ─── Numéros MobCash utilisés pour verser les gains ───────────────────────────
 export const MOBCASH_NUMBERS = {
   orange_money: process.env.MOBCASH_ORANGE  ?? '+22670000000',
   moov_money:   process.env.MOBCASH_MOOV    ?? '+22660000000',
@@ -14,59 +30,7 @@ export type PaymentMethodKey = keyof typeof MOBCASH_NUMBERS;
 
 export class PaymentService {
 
-  /** Créer une demande de dépôt/retrait — traitement MANUEL par l'admin */
-  async createRequest(params: {
-    userId:       string;
-    type:         'deposit' | 'withdrawal';
-    amount:       number;
-    method:       PaymentMethodKey;
-    xbetId:       string;
-    senderPhone:  string;
-  }) {
-    const { userId, type, amount, method, xbetId, senderPhone } = params;
-
-    if (amount < 500)     throw new Error('Montant minimum : 500 FCFA.');
-    if (!xbetId?.trim())  throw new Error('Votre ID 1xBet est requis.');
-    if (!senderPhone?.trim()) throw new Error('Votre numéro Mobile Money est requis.');
-
-    // Transaction atomique : créer la demande ET mettre à jour le profil ensemble
-    const [tx] = await prisma.$transaction([
-      prisma.transaction.create({
-        data: {
-          userId, type, amount, currency: 'XOF',
-          xbetId:        xbetId.trim(),
-          senderPhone:   senderPhone.trim(),
-          paymentMethod: method,
-          status: 'pending',
-          metadata: {
-            mobcash_number: MOBCASH_NUMBERS[method],
-            instructions:   `Envoyez ${amount} FCFA au ${MOBCASH_NUMBERS[method]} via ${method.replace('_', ' ').toUpperCase()}`,
-          },
-        },
-      }),
-      prisma.user.update({
-        where: { id: userId },
-        data:  { xbetId: xbetId.trim() },
-      }),
-    ]);
-
-    return {
-      transaction_id:   tx.id,
-      status:           'pending',
-      mobcash_number:   MOBCASH_NUMBERS[method],
-      method_label:     method.replace('_money','').replace('_momo','').replace('_', ' ').toUpperCase(),
-      amount,
-      instructions:     [
-        `1. Ouvrez votre application ${method.replace('_money','').replace('_momo','').replace('_',' ').toUpperCase()}`,
-        `2. Envoyez ${amount.toLocaleString()} FCFA au numéro ${MOBCASH_NUMBERS[method]}`,
-        `3. Utilisez comme référence votre ID 1xBet : ${xbetId}`,
-        `4. Votre demande sera traitée sous 30 minutes ouvrables`,
-      ],
-      estimated_processing: '30 minutes ouvrables',
-    };
-  }
-
-  /** Admin — traiter une demande (approuver / rejeter) */
+  /** Admin — traiter un versement (approuver / rejeter) */
   async processRequest(params: {
     transactionId: string;
     adminId:       string;
@@ -78,9 +42,9 @@ export class PaymentService {
     const tx = await prisma.transaction.findUnique({
       where: { id: transactionId }, include: { user: true },
     });
-    if (!tx) throw new Error('Transaction introuvable.');
+    if (!tx) throw new Error('Versement introuvable.');
     if (tx.status === 'completed' || tx.status === 'rejected') {
-      throw new Error('Cette transaction a déjà été traitée.');
+      throw new Error('Ce versement a déjà été traité.');
     }
 
     const updated = await prisma.transaction.update({
@@ -93,19 +57,22 @@ export class PaymentService {
       },
     });
 
-    // Notifier l'utilisateur
+    // Notifier l'utilisateur.
+    // Le lien profond pointait vers `/depot-retrait`, un écran supprimé du
+    // mobile : la notification ouvrait une route inexistante. Il mène
+    // désormais à la page parrainage, d'où part réellement la demande.
     if (tx.user.fcmToken) {
       if (status === 'completed') {
         await notifSvc.sendToUser(tx.userId, {
-          title: tx.type === 'deposit' ? '✅ Dépôt confirmé !' : '✅ Retrait effectué !',
-          body:  `${tx.amount.toLocaleString()} FCFA ${tx.type === 'deposit' ? 'crédité sur votre compte 1xBet' : 'envoyé sur votre Mobile Money'}.`,
-          data:  { deep_link: '/depot-retrait', type: 'payment' },
+          title: '✅ Versement effectué !',
+          body:  `${tx.amount.toLocaleString()} FCFA envoyés sur votre Mobile Money.`,
+          data:  { deep_link: '/parrainage', type: 'payment' },
         });
       } else {
         await notifSvc.sendToUser(tx.userId, {
-          title: '❌ Demande refusée',
+          title: '❌ Versement refusé',
           body:  adminNote ?? 'Votre demande n\'a pas pu être traitée. Contactez le support.',
-          data:  { deep_link: '/depot-retrait', type: 'payment' },
+          data:  { deep_link: '/parrainage', type: 'payment' },
         });
       }
     }
@@ -113,9 +80,9 @@ export class PaymentService {
     return updated;
   }
 
-  /** Admin — liste des demandes en attente */
+  /** Admin — versements en attente d'approbation */
   async getPendingRequests(page = 1, perPage = 20) {
-    const [items, total] = await Promise.all([
+    const [items, total, contexte] = await Promise.all([
       prisma.transaction.findMany({
         where:   { status: 'pending' },
         include: { user: { select: { pseudo: true, phoneNumber: true, xbetId: true } } },
@@ -124,45 +91,33 @@ export class PaymentService {
         take:    perPage,
       }),
       prisma.transaction.count({ where: { status: 'pending' } }),
+      this._contexteParrainage(),
     ]);
-    return { data: items, total, page, per_page: perPage };
+    return { data: items, total, page, per_page: perPage, contexte };
   }
 
-  /** Historique des transactions d'un utilisateur */
-  async getUserTransactions(userId: string, page = 1) {
-    const [items, total] = await Promise.all([
-      prisma.transaction.findMany({
-        where:   { userId },
-        orderBy: { createdAt: 'desc' },
-        skip:    (page - 1) * 20,
-        take:    20,
+  /**
+   * De quoi expliquer une file vide.
+   *
+   * « Aucun versement en attente » ne dit pas si le système fonctionne ou s'il
+   * est en panne : la page reste vide tant qu'aucun parrain n'a demandé son
+   * argent, ce qui peut durer des semaines. Ces trois chiffres répondent à la
+   * question « est-ce normal ? » sans quitter l'écran.
+   */
+  private async _contexteParrainage() {
+    const [parrains, eligibles, cumul] = await Promise.all([
+      prisma.user.count({ where: { referralEarnings: { gt: 0 } } }),
+      prisma.user.count({ where: { referralEarnings: { gte: MIN_WITHDRAWAL } } }),
+      prisma.user.aggregate({
+        where: { referralEarnings: { gt: 0 } },
+        _sum:  { referralEarnings: true },
       }),
-      prisma.transaction.count({ where: { userId } }),
     ]);
-    return { data: items.map(this._format), total, page };
-  }
-
-  async getWalletInfo(userId: string) {
-    const user = await prisma.user.findUnique({ where: { id: userId } });
-    const pending = await prisma.transaction.count({ where: { userId, status: 'pending' } });
     return {
-      xbet_id:         user?.xbetId ?? null,
-      pending_requests: pending,
-      mobcash_numbers:  MOBCASH_NUMBERS,
-      currency:         'XOF',
-      message: user?.xbetId
-        ? `Compte 1xBet lié : ${user.xbetId}`
-        : 'Liez votre ID 1xBet pour effectuer des transactions',
-    };
-  }
-
-  private _format(tx: any) {
-    return {
-      id: tx.id, type: tx.type, amount: tx.amount, currency: tx.currency,
-      xbet_id: tx.xbetId, sender_phone: tx.senderPhone,
-      payment_method: tx.paymentMethod, status: tx.status,
-      admin_note: tx.adminNote, created_at: tx.createdAt,
-      processed_at: tx.processedAt,
+      parrains_avec_gains: parrains,
+      parrains_eligibles:  eligibles,
+      total_gains:         Math.round(cumul._sum.referralEarnings ?? 0),
+      seuil_retrait:       MIN_WITHDRAWAL,
     };
   }
 }

@@ -1,4 +1,5 @@
 ﻿import { NotificationService } from './notification.service';
+import { nomDevise } from '../utils/devise';
 import { prisma } from '../lib/prisma';
 
 const notifSvc = new NotificationService();
@@ -100,9 +101,17 @@ export async function placeBet(
   const oddsUsed        = pro.oddsRecommended;
   const potentialGain   = parseFloat((stakedAmount * oddsUsed).toFixed(2));
 
-  // Déduire immédiatement la mise du solde
-  const [bet] = await prisma.$transaction([
-    prisma.bankrollBet.create({
+  // Déduction atomique et conditionnelle : le WHERE currentBalance>=stakedAmount est
+  // évalué par Postgres au moment de l'UPDATE (verrou ligne), pas au moment de la
+  // lecture ci-dessus — évite qu'un pari concurrent fasse passer le solde en négatif.
+  const bet = await prisma.$transaction(async (tx) => {
+    const decremented = await tx.userBankroll.updateMany({
+      where: { userId, currentBalance: { gte: stakedAmount } },
+      data:  { currentBalance: { decrement: stakedAmount } },
+    });
+    if (decremented.count === 0) throw new Error('Solde insuffisant.');
+
+    return tx.bankrollBet.create({
       data: {
         bankrollId:      bankroll.id,
         pronosticId,
@@ -111,74 +120,265 @@ export async function placeBet(
         oddsUsed,
         potentialGain,
       },
-    }),
-    prisma.userBankroll.update({
-      where: { userId },
-      data:  { currentBalance: { decrement: stakedAmount } },
-    }),
-  ]);
+    });
+  });
 
   return bet;
 }
 
-// ── SETTLE BETS (appelé quand un résultat est posté) ─────────────────────────
-export async function settleBets(pronosticId: string, result: 'WIN' | 'LOSS') {
-  const pendingBets = await prisma.bankrollBet.findMany({
-    where:   { pronosticId, result: null },
-    include: {
-      bankroll: { include: { user: { select: { id: true } } } },
-    },
+export type BankrollBetResult = 'WIN' | 'LOSS' | 'PUSH';
+type SettlementResult = BankrollBetResult | null;
+type SettlementAmounts = { stakedAmount: number; potentialGain: number };
+
+/** Amount that must be returned to the available bankroll for a settled bet. */
+export function _settlementCredit(result: SettlementResult, bet: SettlementAmounts): number {
+  if (result === 'WIN') return bet.potentialGain;
+  if (result === 'PUSH') return bet.stakedAmount;
+  return 0;
+}
+
+/** Net result displayed in the bankroll history. */
+export function _settlementProfit(result: SettlementResult, bet: SettlementAmounts): number | null {
+  if (result === null) return null;
+  if (result === 'WIN') return parseFloat((bet.potentialGain - bet.stakedAmount).toFixed(2));
+  if (result === 'PUSH') return 0;
+  return -bet.stakedAmount;
+}
+
+/**
+ * The stake is deducted when it is placed. A settlement therefore only moves
+ * the amount returned to the available bankroll. This also makes a manual
+ * correction (LOSS -> WIN, for example) safe to replay.
+ */
+export function _settlementBalanceDelta(
+  previousResult: SettlementResult,
+  nextResult: SettlementResult,
+  bet: SettlementAmounts,
+): number {
+  return parseFloat((_settlementCredit(nextResult, bet) - _settlementCredit(previousResult, bet)).toFixed(2));
+}
+
+// ── SETTLE OR CORRECT BETS ───────────────────────────────────────────────────
+// Called after a score sync or an admin override. Existing settled bets are
+// reconciled too, so correcting an erroneous verdict fixes both the history
+// and the bankroll balance.
+export async function settleBets(pronosticId: string, result: SettlementResult) {
+  const changedBets = await prisma.$transaction(async (tx) => {
+    const bets = await tx.bankrollBet.findMany({
+      where:   { pronosticId },
+      include: {
+        bankroll: { include: { user: { select: { id: true } } } },
+      },
+    });
+
+    const now = new Date();
+    const changes: Array<{
+      previousResult: SettlementResult;
+      userId: string;
+      currency: string;
+      profit: number | null;
+      stakedAmount: number;
+      potentialGain: number;
+    }> = [];
+
+    for (const bet of bets) {
+      const previousResult = bet.result as SettlementResult;
+      if (previousResult === result) continue;
+
+      const profit = _settlementProfit(result, bet);
+      // The conditional update protects the balance from a duplicate concurrent
+      // sync: only the call that changes the stored verdict may move the money.
+      const updated = await tx.bankrollBet.updateMany({
+        where: { id: bet.id, result: previousResult },
+        data:  { result, profit, settledAt: result === null ? null : now },
+      });
+      if (updated.count === 0) continue;
+
+      const balanceDelta = _settlementBalanceDelta(previousResult, result, bet);
+      if (balanceDelta !== 0) {
+        await tx.userBankroll.update({
+          where: { id: bet.bankrollId },
+          data:  { currentBalance: { increment: balanceDelta } },
+        });
+      }
+
+      changes.push({
+        previousResult,
+        userId:        bet.bankroll.user.id,
+        currency:      bet.bankroll.currency ?? 'XOF',
+        profit,
+        stakedAmount:  bet.stakedAmount,
+        potentialGain: bet.potentialGain,
+      });
+    }
+
+    return changes;
   });
 
-  // Récupérer les infos du pronostic pour le message de notif
+  if (changedBets.length === 0 || result === null) return changedBets.length;
+
+  // Notifications are intentionally sent after the transaction. A notification
+  // failure must never leave a corrected balance half-written.
   const pronostic = await prisma.pronostic.findUnique({
     where:   { id: pronosticId },
     include: { match: true },
   });
+  const matchStr = pronostic?.match
+    ? `${pronostic.match.homeTeam} vs ${pronostic.match.awayTeam}`
+    : 'votre pronostic';
 
-  for (const bet of pendingBets) {
-    const profit = result === 'WIN'
-      ? parseFloat((bet.potentialGain - bet.stakedAmount).toFixed(2))
-      : -bet.stakedAmount;
-
-    await prisma.$transaction([
-      prisma.bankrollBet.update({
-        where: { id: bet.id },
-        data:  { result, profit, settledAt: new Date() },
-      }),
-      ...(result === 'WIN'
-        ? [prisma.userBankroll.update({
-            where: { id: bet.bankrollId },
-            data:  { currentBalance: { increment: bet.potentialGain } },
-          })]
-        : []),
-    ]);
-
-    // Notification personnalisée pour l'utilisateur
-    const userId   = bet.bankroll.user.id;
-    const currency = bet.bankroll.currency ?? 'XOF';
-    const matchStr = pronostic?.match
-      ? `${pronostic.match.homeTeam} vs ${pronostic.match.awayTeam}`
-      : 'votre pronostic';
-
+  for (const bet of changedBets) {
+    const corrected = bet.previousResult !== null;
     if (result === 'WIN') {
-      const gain = profit.toLocaleString('fr-FR');
-      notifSvc.sendToUser(userId, {
-        title: '🏆 Pronostic Gagnant !',
-        body:  `+${gain} ${currency} sur ${matchStr}. Votre bankroll est mis à jour !`,
+      const gain = (bet.profit ?? 0).toLocaleString('fr-FR');
+      const retour = bet.potentialGain.toLocaleString('fr-FR');
+      notifSvc.sendToUser(bet.userId, {
+        title: corrected ? '🏆 Résultat corrigé : gagnant' : '🏆 Pronostic Gagnant !',
+        body:  corrected
+          ? `${matchStr} : retour de ${retour} ${nomDevise(bet.currency)} crédité, gain net +${gain} ${nomDevise(bet.currency)}.`
+          : `+${gain} ${nomDevise(bet.currency)} sur ${matchStr}. Votre bankroll est mise à jour !`,
+        data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
+      }).catch(() => {});
+    } else if (result === 'PUSH') {
+      const remb = bet.stakedAmount.toLocaleString('fr-FR');
+      notifSvc.sendToUser(bet.userId, {
+        title: corrected ? '🔄 Résultat corrigé : remboursé' : '🔄 Pronostic remboursé',
+        body:  corrected
+          ? `${matchStr} : la mise de ${remb} ${nomDevise(bet.currency)} a été remboursée après correction.`
+          : `${remb} ${nomDevise(bet.currency)} de mise remboursée sur ${matchStr}.`,
         data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
       }).catch(() => {});
     } else {
       const perte = bet.stakedAmount.toLocaleString('fr-FR');
-      notifSvc.sendToUser(userId, {
-        title: '❌ Pronostic Perdant',
-        body:  `-${perte} ${currency} sur ${matchStr}. Ne lâchez pas !`,
+      notifSvc.sendToUser(bet.userId, {
+        title: corrected ? '❌ Résultat corrigé : perdu' : '❌ Pronostic Perdant',
+        body:  corrected
+          ? `${matchStr} : le résultat a été corrigé. Mise de ${perte} ${nomDevise(bet.currency)} perdue.`
+          : `-${perte} ${nomDevise(bet.currency)} sur ${matchStr}. Ne lâchez pas !`,
         data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
       }).catch(() => {});
     }
   }
 
-  return pendingBets.length;
+  return changedBets.length;
+}
+
+// ── ADMIN — Liste de toutes les bankrolls ─────────────────────────────────────
+// Vue d'ensemble pour l'admin : un utilisateur n'apparaît que s'il a configuré
+// un budget (sinon rien à montrer). Les stats (taux de réussite, ROI) sont
+// recalculées ici plutôt que dénormalisées, cohérent avec getBankrollStats().
+export async function listBankrolls(params: {
+  page:     number;
+  perPage:  number;
+  search?:  string; // pseudo, téléphone ou email
+  sortBy?:  'currentBalance' | 'totalBudget' | 'createdAt' | 'pseudo';
+  sortDir?: 'asc' | 'desc';
+}) {
+  const { page, perPage, search, sortBy = 'currentBalance', sortDir = 'desc' } = params;
+
+  const where: any = {};
+  if (search) {
+    where.user = {
+      OR: [
+        { pseudo:      { contains: search, mode: 'insensitive' } },
+        { phoneNumber: { contains: search } },
+        { email:       { contains: search, mode: 'insensitive' } },
+      ],
+    };
+  }
+
+  // `sortBy` vient de la query string : sans liste blanche, une valeur inconnue
+  // fait lever Prisma (500) et n'importe quel champ du modèle devient un
+  // critère d'ordre. Même correctif que sur la liste des utilisateurs.
+  const SORTABLE = new Set(['currentBalance', 'totalBudget', 'createdAt', 'pseudo']);
+  const col = SORTABLE.has(sortBy) ? sortBy : 'currentBalance';
+  const dir = sortDir === 'asc' ? 'asc' : 'desc';
+
+  // Le tri par pseudo porte sur la relation user — reste séparé du tri sur
+  // les colonnes propres à UserBankroll pour garder un orderBy Prisma valide.
+  const orderBy: any = col === 'pseudo'
+    ? { user: { pseudo: dir } }
+    : { [col]: dir };
+
+  const [bankrolls, total] = await Promise.all([
+    prisma.userBankroll.findMany({
+      where, orderBy, skip: (page - 1) * perPage, take: perPage,
+      include: {
+        user: { select: { id: true, pseudo: true, phoneNumber: true, email: true, avatarUrl: true } },
+        bets: { select: { result: true, profit: true, stakedAmount: true } },
+      },
+    }),
+    prisma.userBankroll.count({ where }),
+  ]);
+
+  const data = bankrolls.map(b => {
+    const settled  = b.bets.filter(bet => bet.result !== null);
+    const decisive = settled.filter(bet => bet.result !== 'PUSH');
+    const wins     = decisive.filter(bet => bet.result === 'WIN').length;
+    const totalProfit = settled.reduce((sum, bet) => sum + (bet.profit ?? 0), 0);
+    const totalStaked = decisive.reduce((sum, bet) => sum + bet.stakedAmount, 0);
+
+    return {
+      user_id:         b.userId,
+      pseudo:          b.user.pseudo,
+      phone_number:    b.user.phoneNumber,
+      email:            b.user.email,
+      avatar_url:       b.user.avatarUrl,
+      total_budget:     b.totalBudget,
+      current_balance:  b.currentBalance,
+      currency:         b.currency,
+      total_bets:       b.bets.length,
+      pending_bets:     b.bets.length - settled.length,
+      wins,
+      losses:           decisive.length - wins,
+      win_rate:         decisive.length > 0 ? parseFloat(((wins / decisive.length) * 100).toFixed(1)) : null,
+      total_profit:     parseFloat(totalProfit.toFixed(2)),
+      roi:              totalStaked > 0 ? parseFloat(((totalProfit / totalStaked) * 100).toFixed(1)) : null,
+      last_reset_at:    b.lastResetAt,
+      created_at:       b.createdAt,
+    };
+  });
+
+  return { data, total, page, per_page: perPage, total_pages: Math.ceil(total / perPage) };
+}
+
+/**
+ * ADMIN — Agrégats sur l'ensemble des bankrolls.
+ *
+ * La page listait les comptes un par un sans jamais dire si la fonctionnalité
+ * marche : combien de budget est confié, combien de paris attendent leur
+ * règlement, et surtout si l'ensemble des utilisateurs gagne ou perd. Ces
+ * quatre chiffres se lisent en une seconde et remplacent une lecture ligne à
+ * ligne.
+ */
+export async function listBankrollsStats() {
+  const [agg, bets] = await Promise.all([
+    prisma.userBankroll.aggregate({
+      _count: { _all: true },
+      _sum:   { totalBudget: true, currentBalance: true },
+    }),
+    prisma.bankrollBet.findMany({ select: { result: true, profit: true, stakedAmount: true } }),
+  ]);
+
+  const settled  = bets.filter(b => b.result !== null);
+  const decisive = settled.filter(b => b.result !== 'PUSH');   // PUSH = mise rendue
+  const wins     = decisive.filter(b => b.result === 'WIN').length;
+  const profit   = settled.reduce((s, b) => s + (b.profit ?? 0), 0);
+  const staked   = decisive.reduce((s, b) => s + b.stakedAmount, 0);
+
+  return {
+    bankrolls:     agg._count._all,
+    total_budget:  Math.round(agg._sum.totalBudget    ?? 0),
+    total_balance: Math.round(agg._sum.currentBalance ?? 0),
+    total_bets:    bets.length,
+    pending_bets:  bets.length - settled.length,
+    wins, losses:  decisive.length - wins,
+    // Sur zéro pari réglé, un « 0 % » se lirait comme un mauvais résultat
+    // alors qu'il n'y a simplement rien à mesurer : on renvoie null.
+    win_rate:      decisive.length > 0 ? +((wins / decisive.length) * 100).toFixed(1) : null,
+    total_profit:  Math.round(profit),
+    roi:           staked > 0 ? +((profit / staked) * 100).toFixed(1) : null,
+  };
 }
 
 // ── STATS ─────────────────────────────────────────────────────────────────────
@@ -190,10 +390,15 @@ export async function getBankrollStats(userId: string) {
   if (!bankroll) return null;
 
   const settled = bankroll.bets;
-  const wins    = settled.filter(b => b.result === 'WIN').length;
-  const losses  = settled.filter(b => b.result === 'LOSS').length;
+  // Les remboursés (PUSH) ne sont ni des victoires ni des défaites — on les
+  // exclut du taux de réussite et de la base de calcul du ROI (la mise a été
+  // rendue, elle n'a jamais été réellement "à risque").
+  const decisive = settled.filter(b => b.result !== 'PUSH');
+  const wins     = decisive.filter(b => b.result === 'WIN').length;
+  const losses   = decisive.filter(b => b.result === 'LOSS').length;
+  const pushes   = settled.length - decisive.length;
   const totalProfit = settled.reduce((sum, b) => sum + (b.profit ?? 0), 0);
-  const totalStaked = settled.reduce((sum, b) => sum + b.stakedAmount, 0);
+  const totalStaked = decisive.reduce((sum, b) => sum + b.stakedAmount, 0);
   const roi = totalStaked > 0 ? (totalProfit / totalStaked) * 100 : 0;
 
   return {
@@ -203,7 +408,8 @@ export async function getBankrollStats(userId: string) {
     totalBets:      settled.length,
     wins,
     losses,
-    winRate:        settled.length > 0 ? (wins / settled.length) * 100 : 0,
+    pushes,
+    winRate:        decisive.length > 0 ? (wins / decisive.length) * 100 : 0,
     totalProfit:    parseFloat(totalProfit.toFixed(2)),
     totalStaked:    parseFloat(totalStaked.toFixed(2)),
     roi:            parseFloat(roi.toFixed(2)),

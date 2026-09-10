@@ -8,14 +8,13 @@ export class PaymentHistoryService {
     page:      number;
     perPage:   number;
     search?:   string;   // pseudo, téléphone, xbetId
-    type?:     string;   // deposit | withdrawal
     status?:   string;   // pending | processing | completed | rejected
     method?:   string;   // orange_money | moov_money | mtn_momo
     dateFrom?: string;   // YYYY-MM-DD
     dateTo?:   string;
     sortDir?:  'asc' | 'desc';
   }) {
-    const { page, perPage, search, type, status, method, dateFrom, dateTo, sortDir = 'desc' } = params;
+    const { page, perPage, search, status, method, dateFrom, dateTo, sortDir = 'desc' } = params;
 
     const where: any = {};
 
@@ -29,7 +28,6 @@ export class PaymentHistoryService {
       ];
     }
 
-    if (type)   where.type          = type;
     if (status) where.status        = status;
     if (method) where.paymentMethod = method;
 
@@ -62,40 +60,37 @@ export class PaymentHistoryService {
     };
   }
 
-  /** Stats globales dépôts/retraits */
+  /**
+   * Statistiques des versements.
+   *
+   * Huit compteurs sur dix portaient sur les dépôts. Ceux-ci ayant disparu,
+   * ils auraient affiché zéro à perpétuité : ne restent que les chiffres qui
+   * décrivent réellement la file de versements.
+   */
   async getStats() {
     const now   = new Date();
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const month = new Date(today.getTime() - 30 * 86400000);
 
-    const [
-      totalDeposits, totalWithdrawals,
-      completedDeposits, completedWithdrawals,
-      pendingAll,
-      todayDeposits, todayWithdrawals,
-      monthlyVolumeRaw,
-    ] = await Promise.all([
-      prisma.transaction.count({ where: { type: 'deposit' } }),
-      prisma.transaction.count({ where: { type: 'withdrawal' } }),
-      prisma.transaction.aggregate({ where: { type: 'deposit',    status: 'completed' }, _sum: { amount: true }, _count: true }),
-      prisma.transaction.aggregate({ where: { type: 'withdrawal', status: 'completed' }, _sum: { amount: true }, _count: true }),
-      prisma.transaction.count({ where: { status: 'pending' } }),
-      prisma.transaction.count({ where: { type: 'deposit',    createdAt: { gte: today } } }),
-      prisma.transaction.count({ where: { type: 'withdrawal', createdAt: { gte: today } } }),
-      prisma.transaction.aggregate({ where: { status: 'completed', createdAt: { gte: month } }, _sum: { amount: true } }),
-    ]);
+    const [total, completed, rejected, pendingAll, todayCount, monthlyVolumeRaw] =
+      await Promise.all([
+        prisma.transaction.count(),
+        prisma.transaction.aggregate({ where: { status: 'completed' }, _sum: { amount: true }, _count: true }),
+        prisma.transaction.count({ where: { status: 'rejected' } }),
+        prisma.transaction.aggregate({ where: { status: 'pending' }, _sum: { amount: true }, _count: true }),
+        prisma.transaction.count({ where: { createdAt: { gte: today } } }),
+        prisma.transaction.aggregate({ where: { status: 'completed', createdAt: { gte: month } }, _sum: { amount: true } }),
+      ]);
 
     return {
-      total_deposits:       totalDeposits,
-      total_withdrawals:    totalWithdrawals,
-      completed_deposits:   completedDeposits._count,
-      completed_withdrawals:completedWithdrawals._count,
-      volume_deposits:      completedDeposits._sum.amount ?? 0,
-      volume_withdrawals:   completedWithdrawals._sum.amount ?? 0,
-      pending_count:        pendingAll,
-      today_deposits:       todayDeposits,
-      today_withdrawals:    todayWithdrawals,
-      monthly_volume:       monthlyVolumeRaw._sum.amount ?? 0,
+      total_withdrawals:     total,
+      completed_withdrawals: completed._count,
+      rejected_withdrawals:  rejected,
+      volume_withdrawals:    completed._sum.amount ?? 0,
+      pending_count:         pendingAll._count,
+      pending_volume:        pendingAll._sum.amount ?? 0,
+      today_withdrawals:     todayCount,
+      monthly_volume:        monthlyVolumeRaw._sum.amount ?? 0,
     };
   }
 
@@ -105,7 +100,7 @@ export class PaymentHistoryService {
     adminNote?: string;
   }) {
     const tx = await prisma.transaction.findUnique({ where: { id: txId } });
-    if (!tx) throw new Error('Transaction introuvable.');
+    if (!tx) throw new Error('Versement introuvable.');
 
     return prisma.transaction.update({
       where: { id: txId },
@@ -119,9 +114,8 @@ export class PaymentHistoryService {
   }
 
   /** Exporter CSV */
-  async exportCsv(params: { type?: string; status?: string; dateFrom?: string; dateTo?: string }) {
+  async exportCsv(params: { status?: string; dateFrom?: string; dateTo?: string }) {
     const where: any = {};
-    if (params.type)   where.type   = params.type;
     if (params.status) where.status = params.status;
     if (params.dateFrom || params.dateTo) {
       where.createdAt = {};
@@ -135,12 +129,13 @@ export class PaymentHistoryService {
       orderBy: { createdAt: 'desc' },
     });
 
-    const header = 'ID,Utilisateur,Téléphone,Type,Montant,Méthode,ID 1xBet,N° Envoyeur,Statut,Note Admin,Date,Traité le';
+    // La colonne « Type » ne portait plus d'information : toutes les lignes
+    // sont des versements de gains de parrainage.
+    const header = 'ID,Utilisateur,Téléphone,Montant,Méthode,ID 1xBet,N° Envoyeur,Statut,Note Admin,Date,Traité le';
     const rows   = txs.map(t => [
       t.id,
       t.user.pseudo,
       t.user.phoneNumber,
-      t.type === 'deposit' ? 'Dépôt' : 'Retrait',
       t.amount,
       t.paymentMethod.replace(/_/g, ' '),
       t.xbetId ?? '',

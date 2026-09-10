@@ -1,0 +1,172 @@
+<%- include('layout_top', {page:'paiements'}) %>
+
+<style>
+.pm-card   { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+.pm-row    { display: grid; grid-template-columns: 1fr 1fr auto auto; gap: .75rem;
+             align-items: center; padding: .8rem 1.1rem; border-bottom: 1px solid var(--border); }
+.pm-row:last-child { border-bottom: 0; }
+.pm-row.off .pm-label, .pm-row.off .pm-phone { opacity: .45; }
+.pm-label  { font-weight: 700; font-size: .92rem; }
+.pm-key    { font-size: .7rem; color: var(--text-dim); font-family: monospace; margin-top: .1rem; }
+.pm-phone  { font-family: monospace; font-size: .95rem; color: var(--primary); font-weight: 700; letter-spacing: .02em; }
+.pm-acts   { display: flex; gap: .4rem; }
+.pm-form   { display: grid; grid-template-columns: 1fr 1fr 90px auto; gap: .6rem; align-items: end;
+             padding: 1rem 1.1rem; background: var(--surface-d); border-top: 1px solid var(--border); }
+.pm-form label { display: block; font-size: .7rem; font-weight: 700; color: var(--text-m);
+                 text-transform: uppercase; letter-spacing: .05em; margin-bottom: .3rem; }
+@media (max-width: 760px) {
+  .pm-row, .pm-form { grid-template-columns: 1fr; }
+  .pm-acts { justify-content: flex-end; }
+}
+</style>
+
+<%
+  const _liste = typeof methodes !== 'undefined' && Array.isArray(methodes) ? methodes : null;
+  const _err   = typeof erreur !== 'undefined' ? erreur : null;
+  const _actives = _liste ? _liste.filter(m => m.isActive).length : 0;
+%>
+
+<div class="topbar">
+  <div>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg> Méthodes de paiement</h2>
+    <small>
+      <% if (_liste) { %>
+        <%= _liste.length %> opérateur<%= _liste.length !== 1 ? 's' : '' %>,
+        <%= _actives %> actif<%= _actives !== 1 ? 's' : '' %> dans l'application
+      <% } else { %>Indisponible<% } %>
+    </small>
+  </div>
+</div>
+
+<%- include('_onglets_paiements', { actif: 'paiements' }) %>
+
+<% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+<% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+<div class="card" style="padding:.85rem 1.1rem;margin-bottom:1rem">
+  <p style="margin:0;font-size:.83rem;color:var(--text-m);line-height:1.6">
+    Ces numéros sont ceux que voit l'abonné sur l'écran de paiement Mobile Money, et
+    qu'il copie pour envoyer son argent. Ils sont lus par l'application à chaque
+    ouverture : <strong>aucune recompilation n'est nécessaire</strong>.
+    Un opérateur désactivé disparaît de l'application mais reste lisible dans l'historique.
+  </p>
+</div>
+
+<% if (!_liste) { %>
+  <div class="alert alert-error">
+    <strong><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> API injoignable</strong>
+    — impossible de lire les méthodes de paiement<%= _err ? ' : ' + _err : '.' %>
+  </div>
+<% } else { %>
+
+<div class="pm-card">
+  <% if (_liste.length === 0) { %>
+    <div style="padding:2.2rem 1rem;text-align:center;color:var(--text-dim)">
+      <div style="font-size:2rem;margin-bottom:.4rem">
+        <svg class="ic ic-xl" aria-hidden="true"><use href="#ic-card"/></svg>
+      </div>
+      Aucun opérateur enregistré. Ajoutez-en un ci-dessous — sans cela, l'écran de
+      paiement de l'application n'affiche aucun numéro.
+    </div>
+  <% } %>
+
+  <% _liste.forEach(m => { %>
+  <div class="pm-row <%= m.isActive ? '' : 'off' %>">
+    <div>
+      <div class="pm-label"><%= m.label %></div>
+      <div class="pm-key"><%= m.key %></div>
+    </div>
+    <div class="pm-phone"><%= m.phone %></div>
+
+    <span class="badge <%= m.isActive ? 'badge-ok' : 'badge-warn' %>">
+      <%= m.isActive ? 'Actif' : 'Masqué' %>
+    </span>
+
+    <div class="pm-acts">
+      <button type="button" class="btn btn-outline btn-sm"
+              onclick="modifier('<%= m.id %>', <%= JSON.stringify(m.label) %>, <%= JSON.stringify(m.phone) %>, <%= m.sortOrder %>)">
+        <svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier
+      </button>
+      <form method="POST" action="/admin/paiements/<%= m.id %>/toggle" style="display:inline">
+        <button type="submit" class="btn btn-outline btn-sm">
+          <svg class="ic" aria-hidden="true"><use href="#ic-<%= m.isActive ? 'eye-off' : 'eye' %>"/></svg>
+          <%= m.isActive ? 'Masquer' : 'Afficher' %>
+        </button>
+      </form>
+      <form method="POST" action="/admin/paiements/<%= m.id %>/supprimer" style="display:inline"
+            onsubmit="return confirm('Supprimer « <%= m.label %> » ?\n\nS\'il a déjà servi à un paiement, il sera seulement masqué pour ne pas rendre l\'historique illisible.')">
+        <button type="submit" class="btn btn-danger btn-sm" aria-label="Supprimer <%= m.label %>">
+          <svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg>
+        </button>
+      </form>
+    </div>
+  </div>
+  <% }) %>
+
+  <!-- Ajout -->
+  <form method="POST" action="/admin/paiements" class="pm-form" id="form-ajout">
+    <div>
+      <label for="pm-label">Opérateur</label>
+      <input class="input" type="text" id="pm-label" name="label" required maxlength="40"
+             placeholder="Ex : Orange Money">
+    </div>
+    <div>
+      <label for="pm-phone">Numéro</label>
+      <input class="input" type="text" id="pm-phone" name="phone" required
+             placeholder="22645568158">
+    </div>
+    <div>
+      <label for="pm-order">Ordre</label>
+      <input class="input" type="number" id="pm-order" name="sort_order" value="0" min="0" max="99">
+    </div>
+    <button class="btn btn-primary" type="submit">
+      <svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Ajouter
+    </button>
+  </form>
+</div>
+
+<!-- Modale de modification -->
+<div id="modal-edit" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.6);
+     align-items:center;justify-content:center;padding:1rem">
+  <form method="POST" id="form-edit" class="card" style="max-width:420px;width:100%;padding:1.4rem">
+    <h3 style="margin:0 0 1rem;font-size:1.05rem">Modifier l'opérateur</h3>
+
+    <div class="form-group" style="margin-bottom:.8rem">
+      <label style="font-size:.72rem;font-weight:700;color:var(--text-m)">OPÉRATEUR</label>
+      <input class="input" type="text" name="label" id="edit-label" required maxlength="40" style="margin-top:.3rem" aria-label="Libellé">
+    </div>
+    <div class="form-group" style="margin-bottom:.8rem">
+      <label style="font-size:.72rem;font-weight:700;color:var(--text-m)">NUMÉRO</label>
+      <input class="input" type="text" name="phone" id="edit-phone" required style="margin-top:.3rem" aria-label="Numéro">
+    </div>
+    <div class="form-group" style="margin-bottom:1.1rem">
+      <label style="font-size:.72rem;font-weight:700;color:var(--text-m)">ORDRE D'AFFICHAGE</label>
+      <input class="input" type="number" name="sort_order" id="edit-order" min="0" max="99" style="margin-top:.3rem" aria-label="Ordre d'affichage">
+    </div>
+
+    <div style="display:flex;gap:.5rem">
+      <button type="button" class="btn btn-outline" style="flex:1" onclick="fermerEdit()">Annuler</button>
+      <button type="submit" class="btn btn-primary" style="flex:1">Enregistrer</button>
+    </div>
+  </form>
+</div>
+
+<script>
+  function modifier(id, label, phone, ordre) {
+    document.getElementById('form-edit').action = '/admin/paiements/' + id;
+    document.getElementById('edit-label').value = label;
+    document.getElementById('edit-phone').value = phone;
+    document.getElementById('edit-order').value = ordre;
+    const m = document.getElementById('modal-edit');
+    m.style.display = 'flex';
+    document.getElementById('edit-label').focus();
+  }
+  function fermerEdit() { document.getElementById('modal-edit').style.display = 'none'; }
+  document.getElementById('modal-edit').addEventListener('click', e => {
+    if (e.target.id === 'modal-edit') fermerEdit();
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') fermerEdit(); });
+</script>
+<% } %>
+
+<%- include('layout_bottom') %>

@@ -59,6 +59,18 @@ class CacheService {
     return count;
   }
 
+  /**
+   * Vider entièrement le cache.
+   *
+   * Indispensable pour isoler les tests les uns des autres — le cache est un
+   * singleton de module, donc une entrée laissée par un test fausserait le
+   * suivant. Utile aussi en exploitation après un changement de tarif ou de
+   * visibilité de ligue, pour ne pas attendre l'expiration.
+   */
+  clear(): void {
+    this.store.clear();
+  }
+
   /** Purger toutes les entrées expirées (à appeler périodiquement si le cache grossit). */
   purgeExpired(): void {
     const now = Date.now();
@@ -71,19 +83,29 @@ class CacheService {
 // Singleton partagé entre tous les modules
 export const cache = new CacheService();
 
-// Purge automatique toutes les 10 minutes pour éviter les fuites mémoire
-setInterval(() => cache.purgeExpired(), 10 * 60 * 1000);
+// Purge automatique toutes les 10 minutes pour éviter les fuites mémoire.
+// `unref()` : ce minuteur ne doit pas maintenir le process en vie à lui seul —
+// il empêchait Jest de rendre la main en fin de suite, et retarderait tout
+// autant un arrêt propre du serveur.
+setInterval(() => cache.purgeExpired(), 10 * 60 * 1000).unref();
 
 // ── Clés de cache standardisées ──────────────────────────────────────────────
 export const CACHE_KEYS = {
-  pronostics:  (params: string) => `pronostics:${params}`,   // TTL 60s
-  publicStats: 'stats:public',                               // TTL 5min
-  adminStats:  'stats:admin',                                // TTL 5min
-  actualites:  'actualites:published',                       // TTL 2min
+  pronostics:   (params: string) => `pronostics:${params}`,  // TTL 60s
+  dayCounts:    'pronostics:day-counts',                     // TTL 2min
+  daySummary:   (dateFilter: string) => `pronostics:day-summary:${dateFilter}`, // TTL 60s
+  publicStats:  'stats:public',                              // TTL 5min
+  adminStats:   'stats:admin',                               // TTL 5min
+  actualites:   'actualites:published',                      // TTL 2min
+  leaderboard:  (period: string) => `leaderboard:${period}`, // TTL 2min
+  bilanPremium: (days: number) => `pronostics:bilan-premium:${days}`, // TTL 5min
 };
 
 export const CACHE_TTL = {
   pronostics:  60,        // 60 secondes
+  dayCounts:   2 * 60,    // 2 minutes
+  daySummary:  60,        // 60 secondes
   stats:       5 * 60,    // 5 minutes
   actualites:  2 * 60,    // 2 minutes
+  leaderboard: 2 * 60,    // 2 minutes — classement, pas besoin d'être temps réel
 };

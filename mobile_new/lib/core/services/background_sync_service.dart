@@ -60,10 +60,12 @@ Future<void> _syncMatches() async {
 class BackgroundSyncService {
   static Future<void> init() async {
     if (kIsWeb) return;
-    await Workmanager().initialize(
-      backgroundCallbackDispatcher,
-      isInDebugMode: kDebugMode,
-    );
+    // `isInDebugMode` retiré : la bibliothèque le déclare déprécié *et* sans
+    // effet depuis la 0.9. Il donnait l'impression d'activer les notifications
+    // de diagnostic en développement alors qu'il n'activait rien — un réglage
+    // qui ne règle rien coûte plus qu'il ne rapporte, parce qu'on cesse de
+    // chercher ailleurs quand le diagnostic ne s'affiche pas.
+    await Workmanager().initialize(backgroundCallbackDispatcher);
   }
 
   static Future<void> registerPeriodicSync() async {

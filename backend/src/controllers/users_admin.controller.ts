@@ -4,19 +4,49 @@ import { UsersAdminService } from '../services/users_admin.service';
 
 const svc = new UsersAdminService();
 
+export const getOnlineUsers = async (_req: AdminRequest, res: Response) => {
+  try {
+    const twoMinAgo = new Date(Date.now() - 2 * 60 * 1000);
+    const users = await (await import('../lib/prisma')).prisma.user.findMany({
+      where:   { isActive: true, lastSeenAt: { gte: twoMinAgo } },
+      orderBy: { lastSeenAt: 'desc' },
+      select:  { id: true, pseudo: true, phoneNumber: true, email: true, subscriptionPlan: true, lastSeenAt: true, countryCode: true },
+    });
+    res.json({ total: users.length, users });
+  } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
 export const getUsers = async (req: AdminRequest, res: Response) => {
   try {
     const result = await svc.getUsers({
       page:    parseInt(req.query.page    as string ?? '1'),
       perPage: parseInt(req.query.per_page as string ?? '20'),
-      search:  req.query.search  as string,
-      plan:    req.query.plan    as string,
-      status:  req.query.status  as string,
-      sortBy:  req.query.sort_by as string,
-      sortDir: (req.query.sort_dir as 'asc' | 'desc') ?? 'desc',
+      search:   req.query.search    as string,
+      plan:     req.query.plan      as string,
+      status:   req.query.status    as string,
+      dateFrom: req.query.date_from as string,
+      dateTo:   req.query.date_to   as string,
+      minTx:    parseInt(req.query.min_tx as string ?? '') || undefined,
+      sortBy:   req.query.sort_by   as string,
+      sortDir: (req.query.sort_dir  as 'asc' | 'desc') ?? 'desc',
     });
     res.json(result);
   } catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+/** PATCH /admin/users/bulk/suspend — suspendre / réactiver un lot de comptes */
+export const bulkSuspend = async (req: AdminRequest, res: Response) => {
+  try {
+    const suspend = req.body.suspend === true || req.body.suspend === 'true';
+    res.json(await svc.bulkSuspend(req.body.user_ids, suspend, req.body.reason));
+  } catch (e: any) { res.status(400).json({ message: e.message }); }
+};
+
+/** POST /admin/users/bulk/notify — notifier un lot de comptes */
+export const bulkNotify = async (req: AdminRequest, res: Response) => {
+  try {
+    res.json(await svc.bulkNotify(req.body.user_ids, req.body.title, req.body.body));
+  } catch (e: any) { res.status(400).json({ message: e.message }); }
 };
 
 export const getUserDetail = async (req: AdminRequest, res: Response) => {
@@ -57,11 +87,17 @@ export const updatePseudo = async (req: AdminRequest, res: Response) => {
 
 export const exportCsv = async (req: AdminRequest, res: Response) => {
   try {
-    const csv = await svc.exportCsv(req.query.plan as string);
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="pronowin_users_${new Date().toISOString().split('T')[0]}.csv"`);
-    res.send('\uFEFF' + csv); // BOM pour Excel
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+    res.write('\uFEFF' + svc.exportCsvHeader() + '\n'); // BOM pour Excel
+    for await (const row of svc.exportCsvRows(req.query.plan as string)) {
+      res.write(row + '\n');
+    }
+    res.end();
+  } catch (e: any) {
+    if (res.headersSent) res.end();
+    else res.status(500).json({ message: e.message });
+  }
 };
 
 export const getStats = async (_req: AdminRequest, res: Response) => {

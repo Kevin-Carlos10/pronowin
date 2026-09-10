@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sauvegarde et transfert d'appareil — Android 12 et suivants.
+
+  Même exclusion que `backup_rules.xml`, mais Android 12 sépare deux cas qu'il
+  faut traiter tous les deux :
+
+    cloud-backup    la sauvegarde vers Google Drive ;
+    device-transfer le transfert direct d'un téléphone à l'autre.
+
+  N'en couvrir qu'un laisserait le stock chiffré partir par l'autre chemin.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="FlutterSecureStorage.xml"/>
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="FlutterSecureStorage.xml"/>
+    </device-transfer>
+</data-extraction-rules>

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../pronostics/domain/entities/match_entity.dart' show MatchEntity;
 
 // ─── Entités ──────────────────────────────────────────────────────────────────
 class BankrollBet {
@@ -19,6 +20,7 @@ class BankrollBet {
   final String  league;
   final String  predictionLabel;
   final int     confidenceScore;
+  final String  currency;
 
   const BankrollBet({
     required this.id,
@@ -37,9 +39,12 @@ class BankrollBet {
     required this.league,
     required this.predictionLabel,
     required this.confidenceScore,
+    required this.currency,
   });
 
-  factory BankrollBet.fromJson(Map<String, dynamic> j) => BankrollBet(
+  // La devise n'est pas répétée dans le JSON de chaque pari — c'est une
+  // propriété du bankroll parent, transmise explicitement par l'appelant.
+  factory BankrollBet.fromJson(Map<String, dynamic> j, {required String currency}) => BankrollBet(
     id:              j['id'] as String,
     pronosticId:     j['pronostic_id'] as String,
     matchId:         (j['match'] as Map)['id'] as String? ?? '',
@@ -49,7 +54,7 @@ class BankrollBet {
     potentialGain:   (j['potential_gain'] as num).toDouble(),
     result:          j['result'] as String?,
     profit:          (j['profit'] as num?)?.toDouble(),
-    createdAt:       DateTime.parse(j['created_at'] as String),
+    createdAt:       DateTime.parse(j['created_at'] as String).toLocal(),
     settledAt:       j['settled_at'] != null
         ? DateTime.tryParse(j['settled_at'] as String) : null,
     homeTeam:        (j['match'] as Map)['home_team'] as String,
@@ -57,7 +62,13 @@ class BankrollBet {
     league:          (j['match'] as Map)['league'] as String,
     predictionLabel: j['prediction_label'] as String,
     confidenceScore: (j['confidence_score'] as num).toInt(),
+    currency:        currency,
   );
+
+  /// [predictionLabel] avec "Domicile"/"Extérieur" remplacés par le nom réel
+  /// de l'équipe — voir [MatchEntity.applyTeamNames].
+  String get displayPredictionLabel =>
+      MatchEntity.applyTeamNames(predictionLabel, homeTeam: homeTeam, awayTeam: awayTeam);
 }
 
 class BankrollData {
@@ -81,7 +92,7 @@ class BankrollData {
     currentBalance: (j['current_balance'] as num).toDouble(),
     currency:       j['currency'] as String,
     bets: (j['bets'] as List)
-        .map((b) => BankrollBet.fromJson(b as Map<String, dynamic>))
+        .map((b) => BankrollBet.fromJson(b as Map<String, dynamic>, currency: j['currency'] as String))
         .toList(),
   );
 

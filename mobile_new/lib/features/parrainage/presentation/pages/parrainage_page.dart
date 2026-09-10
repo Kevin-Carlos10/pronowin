@@ -5,6 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/referral_provider.dart';
+import '../../domain/recompense_premium.dart';
+import '../../../../core/config/distribution_channel.dart';
+import '../../../../shared/utils/retour.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/compte';
+
 
 class ParrainagePage extends ConsumerWidget {
   const ParrainagePage({super.key});
@@ -15,7 +23,17 @@ class ParrainagePage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        // Page atteinte par `push` depuis le Compte : sans flèche de retour
+        // (et avec `automaticallyImplyLeading: false`), elle était un
+        // cul-de-sac dès qu'on y arrivait.
         automaticallyImplyLeading: false,
+        leading: context.canPop()
+          ? IconButton(
+              icon: Icon(Icons.arrow_back_ios_new_rounded,
+                size: 20, color: context.cl.textS),
+              onPressed: () => retourOuAller(context, repli: _repli),
+            )
+          : null,
         title: Row(children: [
           Container(width: 32, height: 32,
             decoration: BoxDecoration(
@@ -46,6 +64,9 @@ class ParrainagePage extends ConsumerWidget {
           final minWithdraw = (stats['min_withdrawal'] as num?)?.toInt() ?? 2000;
           final commL1     = (stats['commission_l1'] as num?)?.toInt() ?? 500;
           final commL2     = (stats['commission_l2'] as num?)?.toInt() ?? 200;
+          // Le canal ne se lit qu'une fois : cet écran affiche le barème à
+          // quatre endroits, et trois d'entre eux l'écrivaient en francs.
+          final estStore   = ref.watch(isStoreBuildProvider);
           final s          = stats['stats'] as Map<String, dynamic>? ?? {};
           final totalL1    = (s['total_l1'] as num?)?.toInt() ?? 0;
           final premL1     = (s['premium_l1'] as num?)?.toInt() ?? 0;
@@ -63,9 +84,30 @@ class ParrainagePage extends ConsumerWidget {
               children: [
 
                 // ─── Solde + Code ──────────────────────────────────────────
+                // Le retrait en argent ne suit pas l'application sur Play.
+                //
+                // Le parrainage reste entier — seule la sortie en espèces
+                // disparaît, et la récompense se convertit en jours Premium.
+                //
+                // Ce n'est pas la générosité du programme qui pose problème,
+                // c'est la combinaison : pronostics sportifs, « gains »
+                // accumulés, retrait en argent réel. Séparément anodins,
+                // ensemble ils dessinent ce qu'un examinateur cherche quand il
+                // évalue la catégorie « jeux d'argent réel ».
+                //
+                // Le serveur décide déjà si le solde permet un retrait
+                // (`can_withdraw`) ; le canal décide s'il est proposé.
+                //
+                // Le canal était appliqué ici, en forçant `canWithdraw` à
+                // faux. Cela masquait bien le bouton — et faisait afficher le
+                // texte de repli, qui est précisément « Encore 2 000 FCFA pour
+                // retirer ». Éteindre la permission n'efface pas la promesse ;
+                // le drapeau descend donc entier dans l'encart, qui choisit
+                // son vocabulaire au lieu de subir un booléen mutilé.
                 _EarningsBanner(
                   earnings:   earnings,
                   canWithdraw: canWithdraw,
+                  estStore:   estStore,
                   minWithdraw: minWithdraw,
                   onWithdraw: () => context.push('/parrainage/retrait', extra: {
                     'earnings': earnings, 'min': minWithdraw,
@@ -87,7 +129,7 @@ class ParrainagePage extends ConsumerWidget {
                 ],
 
                 // ─── Comment ça marche ─────────────────────────────────────
-                _HowItWorksCard(commL1: commL1, commL2: commL2)
+                _HowItWorksCard(commL1: commL1, commL2: commL2, estStore: estStore)
                   .animate().fadeIn(duration: 300.ms, delay: 160.ms),
                 const SizedBox(height: 16),
 
@@ -106,6 +148,7 @@ class ParrainagePage extends ConsumerWidget {
                     isPaid:     e.value['is_paid']   as bool? ?? false,
                     joinedAt:   e.value['joined_at'] as String?,
                     level:      1,
+                    estStore:   estStore,
                   ).animate(delay: Duration(milliseconds: e.key * 50))
                     .fadeIn(duration: 300.ms)
                     .slideX(begin: -0.05, end: 0, duration: 280.ms, curve: Curves.easeOutCubic)),
@@ -122,6 +165,7 @@ class ParrainagePage extends ConsumerWidget {
                     isPaid:     e.value['is_paid']   as bool? ?? false,
                     joinedAt:   e.value['joined_at'] as String?,
                     level:      2,
+                    estStore:   estStore,
                   ).animate(delay: Duration(milliseconds: e.key * 50))
                     .fadeIn(duration: 300.ms)
                     .slideX(begin: -0.05, end: 0, duration: 280.ms, curve: Curves.easeOutCubic)),
@@ -151,12 +195,21 @@ class ParrainagePage extends ConsumerWidget {
 class _EarningsBanner extends StatelessWidget {
   final int earnings, minWithdraw;
   final bool canWithdraw;
+  final bool estStore;
   final VoidCallback onWithdraw;
 
   const _EarningsBanner({
     required this.earnings, required this.minWithdraw,
-    required this.canWithdraw, required this.onWithdraw,
+    required this.canWithdraw, required this.estStore,
+    required this.onWithdraw,
   });
+
+  /// Jours d'abonnement que le solde ouvre — seule unité du canal store.
+  int get _jours => joursPremiumPour(earnings);
+
+  /// Y a-t-il quelque chose à proposer ? Le canal store demande un jour
+  /// entier à créditer ; le canal direct demande le seuil de versement.
+  bool get _peutAgir => estStore ? _jours >= 1 : canWithdraw;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -168,37 +221,65 @@ class _EarningsBanner extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: const Color(0xFFA78BFA).withValues(alpha: 0.3), width: 1)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('MES GAINS PARRAINAGE', style: TextStyle(
-        color: Color(0xFFA78BFA), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1)),
-      const SizedBox(height: 8),
-      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        TweenAnimationBuilder<int>(
-          tween: IntTween(begin: 0, end: earnings),
-          duration: const Duration(milliseconds: 900),
-          curve: Curves.easeOutCubic,
-          builder: (_, v, _) => Text(
-            v.toLocaleString(),
-            style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.only(left: 6, bottom: 6),
-          child: Text('FCFA', style: TextStyle(color: Color(0xFFA78BFA), fontSize: 14, fontWeight: FontWeight.w600)),
-        ),
-      ]),
+      // Le compteur monte de 0 jusqu'au montant : lu tel quel, il annonçait
+      // une suite de nombres. Et le seuil de retrait n'était rattaché à rien.
+      // L'exclusion s'arrête ici — le bouton « Retirer » plus bas doit rester
+      // atteignable au lecteur d'écran.
+      Semantics(
+        label: estStore
+            ? 'Mes récompenses de parrainage : ${libelleJours(_jours)} '
+              'd\'abonnement Premium.'
+            : 'Mes récompenses de parrainage : $earnings FCFA. '
+              '${canWithdraw
+                  ? "Montant retirable."
+                  : "Retrait possible à partir de $minWithdraw FCFA."}',
+        excludeSemantics: true,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(estStore ? 'MES RÉCOMPENSES PARRAINAGE'
+                        : 'MES GAINS PARRAINAGE',
+            style: const TextStyle(
+              color: Color(0xFFA78BFA), fontSize: 11,
+              fontWeight: FontWeight.w600, letterSpacing: 1)),
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            TweenAnimationBuilder<int>(
+              tween: IntTween(begin: 0, end: estStore ? _jours : earnings),
+              duration: const Duration(milliseconds: 900),
+              curve: Curves.easeOutCubic,
+              builder: (_, v, _) => Text(
+                v.toLocaleString(),
+                style: const TextStyle(
+                  color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 6, bottom: 6),
+              child: Text(estStore ? 'jours Premium' : 'FCFA',
+                style: const TextStyle(
+                  color: Color(0xFFA78BFA), fontSize: 14, fontWeight: FontWeight.w600)),
+            ),
+          ]),
+        ]),
+      ),
       const SizedBox(height: 12),
       Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(
-            canWithdraw
-              ? '✅ Retrait disponible !'
-              : 'Encore ${(minWithdraw - earnings).toLocaleString()} FCFA pour retirer',
+            estStore
+              ? (_peutAgir
+                  ? '✅ Convertibles en jours Premium'
+                  : 'Parraine un ami pour gagner tes premiers jours Premium')
+              : (canWithdraw
+                  ? '✅ Retrait disponible !'
+                  : 'Encore ${(minWithdraw - earnings).toLocaleString()} FCFA pour retirer'),
             style: TextStyle(
-              color: canWithdraw ? AppColors.success : const Color(0xFFCBD5E1),
+              color: _peutAgir ? AppColors.success : const Color(0xFFCBD5E1),
               fontSize: 12,
             ),
           ),
-          if (!canWithdraw) ...[
+          // La barre mesure une progression vers un seuil de versement : elle
+          // n'a rien à mesurer dans un canal qui ne verse pas.
+          if (!estStore && !canWithdraw) ...[
             const SizedBox(height: 6),
             TweenAnimationBuilder<double>(
               tween: Tween(begin: 0, end: (earnings / minWithdraw).clamp(0.0, 1.0)),
@@ -216,14 +297,15 @@ class _EarningsBanner extends StatelessWidget {
             ),
           ],
         ])),
-        if (canWithdraw) ...[
+        if (_peutAgir) ...[
           const SizedBox(width: 12),
           ElevatedButton(
             onPressed: onWithdraw,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFA78BFA),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
-            child: const Text('Retirer', style: TextStyle(fontWeight: FontWeight.w700)),
+            child: Text(estStore ? 'Convertir' : 'Retirer',
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ]),
@@ -496,7 +578,9 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
 // ─── COMMENT ÇA MARCHE ───────────────────────────────────────────────────────
 class _HowItWorksCard extends StatelessWidget {
   final int commL1, commL2;
-  const _HowItWorksCard({required this.commL1, required this.commL2});
+  final bool estStore;
+  const _HowItWorksCard({
+    required this.commL1, required this.commL2, required this.estStore});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -514,9 +598,13 @@ class _HowItWorksCard extends StatelessWidget {
       _Step(num: '2', color: const Color(0xFFA78BFA),
         text: 'Ils s\'inscrivent sur PronoWin'),
       _Step(num: '3', color: AppColors.success,
-        text: 'Quand ils s\'abonnent Premium → +$commL1 FCFA pour toi'),
+        text: estStore
+          ? 'Quand ils s\'abonnent Premium → +${libelleJours(joursPremiumPour(commL1))} pour toi'
+          : 'Quand ils s\'abonnent Premium → +$commL1 FCFA pour toi'),
       _Step(num: '4', color: AppColors.info,
-        text: 'Leurs filleuls Premium → +$commL2 FCFA supplémentaires'),
+        text: estStore
+          ? 'Leurs filleuls Premium → +${libelleJours(joursPremiumPour(commL2))} en plus'
+          : 'Leurs filleuls Premium → +$commL2 FCFA supplémentaires'),
     ]),
   );
 }
@@ -559,7 +647,10 @@ class _StatChip extends StatelessWidget {
   const _StatChip({required this.label, required this.value, required this.sub, required this.color});
   @override
   Widget build(BuildContext context) => Expanded(
-    child: Container(
+    child: Semantics(
+      label: '$label : $value $sub',
+      excludeSemantics: true,
+      child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(14),
@@ -575,7 +666,7 @@ class _StatChip extends StatelessWidget {
         ),
         Text(sub, style: TextStyle(color: context.cl.textM, fontSize: 10)),
       ]),
-    ),
+    )),
   );
 }
 
@@ -583,8 +674,9 @@ class _StatChip extends StatelessWidget {
 class _FilleulTile extends StatelessWidget {
   final String pseudo, plan;
   final int commission; final bool isPaid; final int level;
+  final bool estStore;
   final String? joinedAt;
-  const _FilleulTile({required this.pseudo, required this.plan, required this.commission, required this.isPaid, required this.level, this.joinedAt});
+  const _FilleulTile({required this.pseudo, required this.plan, required this.commission, required this.isPaid, required this.level, required this.estStore, this.joinedAt});
 
   bool get _isNew {
     if (joinedAt == null) return false;
@@ -645,7 +737,9 @@ class _FilleulTile extends StatelessWidget {
             color: plan == 'premium' ? AppColors.warning : context.cl.textM,
             fontSize: 12, fontWeight: FontWeight.w500)),
         if (commission > 0)
-          Text('+${commission.toLocaleString()} FCFA',
+          Text(estStore
+              ? '+${libelleJours(joursPremiumPour(commission))}'
+              : '+${commission.toLocaleString()} FCFA',
             style: TextStyle(
               color: isPaid ? AppColors.success : context.cl.textM,
               fontSize: 12, fontWeight: FontWeight.w700)),
@@ -726,6 +820,7 @@ class _HistorySection extends ConsumerWidget {
             level:   (h['level'] as num?)?.toInt() ?? 1,
             amount:  (h['amount'] as num?)?.toInt() ?? 0,
             date:    h['date'] as String?,
+            estStore: ref.watch(isStoreBuildProvider),
           )),
         ]);
       },
@@ -735,7 +830,8 @@ class _HistorySection extends ConsumerWidget {
 
 class _HistoryTile extends StatelessWidget {
   final String pseudo; final int level, amount; final String? date;
-  const _HistoryTile({required this.pseudo, required this.level, required this.amount, this.date});
+  final bool estStore;
+  const _HistoryTile({required this.pseudo, required this.level, required this.amount, required this.estStore, this.date});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -758,7 +854,9 @@ class _HistoryTile extends StatelessWidget {
           style: TextStyle(color: context.cl.textM, fontSize: 11)),
       ])),
       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Text('+${amount.toLocaleString()} FCFA', style: const TextStyle(
+        Text(estStore
+            ? '+${libelleJours(joursPremiumPour(amount))}'
+            : '+${amount.toLocaleString()} FCFA', style: const TextStyle(
           color: AppColors.success, fontSize: 13, fontWeight: FontWeight.w700)),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),

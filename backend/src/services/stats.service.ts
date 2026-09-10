@@ -12,11 +12,10 @@ export class StatsService {
       // ─── Utilisateurs ──────────────────────────────────────────────────
       totalUsers, newUsers, newUsersPrev,
       premiumUsers, freeUsers,
-      // ─── Transactions ──────────────────────────────────────────────────
-      deposits, withdrawals, depositsPrev,
-      pendingTx,
+      // ─── Versements de parrainage ──────────────────────────────────────
+      withdrawals, pendingTx,
       // ─── Abonnements ───────────────────────────────────────────────────
-      newSubscriptions, subRevenue,
+      newSubscriptions, subRevenue, subRevenuePrev,
       // ─── Parrainage ────────────────────────────────────────────────────
       totalReferrals, paidCommissions,
     ] = await Promise.all([
@@ -28,25 +27,21 @@ export class StatsService {
         subscriptionExpiresAt: { gt: now } } }),
       prisma.user.count({ where: { subscriptionPlan: 'free' } }),
 
-      // Transactions dépôts
+      // Versements de gains de parrainage (sortie de trésorerie)
       prisma.transaction.aggregate({
-        where: { type: 'deposit', status: 'completed', createdAt: { gte: start } },
-        _sum: { amount: true }, _count: true,
-      }),
-      prisma.transaction.aggregate({
-        where: { type: 'withdrawal', status: 'completed', createdAt: { gte: start } },
-        _sum: { amount: true }, _count: true,
-      }),
-      prisma.transaction.aggregate({
-        where: { type: 'deposit', status: 'completed', createdAt: { gte: prev, lt: start } },
+        where: { status: 'completed', createdAt: { gte: start } },
         _sum: { amount: true }, _count: true,
       }),
       prisma.transaction.count({ where: { status: 'pending' } }),
 
-      // Abonnements
+      // Abonnements — désormais la seule entrée de revenu
       prisma.subscription.count({ where: { createdAt: { gte: start } } }).catch(() => 0),
       prisma.subscription.aggregate({
         where: { createdAt: { gte: start } },
+        _sum: { amountPaid: true },
+      }).catch(() => ({ _sum: { amountPaid: 0 } })),
+      prisma.subscription.aggregate({
+        where: { createdAt: { gte: prev, lt: start } },
         _sum: { amountPaid: true },
       }).catch(() => ({ _sum: { amountPaid: 0 } })),
 
@@ -58,18 +53,19 @@ export class StatsService {
       }).catch(() => ({ _sum: { commissionAmount: 0 } })),
     ]);
 
-    // Calcul croissance
-    const depositAmount     = deposits._sum.amount     ?? 0;
-    const withdrawalAmount  = withdrawals._sum.amount  ?? 0;
-    const depositAmountPrev = depositsPrev._sum.amount ?? 0;
-    const subRevenueAmount  = subRevenue._sum.amountPaid ?? 0;
-    const commissionsAmount = paidCommissions._sum.commissionAmount ?? 0;
-    const totalRevenue      = depositAmount + subRevenueAmount;
+    // Le revenu valait auparavant « dépôts + abonnements ». Les dépôts ayant
+    // disparu, la seule entrée reste l'abonnement Premium — et la croissance
+    // se calcule sur cette même base, sans quoi elle serait figée à 0.
+    const withdrawalAmount     = withdrawals._sum.amount ?? 0;
+    const subRevenueAmount     = subRevenue._sum.amountPaid ?? 0;
+    const subRevenueAmountPrev = subRevenuePrev._sum.amountPaid ?? 0;
+    const commissionsAmount    = paidCommissions._sum.commissionAmount ?? 0;
+    const totalRevenue         = subRevenueAmount;
 
     const userGrowth    = newUsersPrev > 0
       ? Math.round(((newUsers - newUsersPrev) / newUsersPrev) * 100) : 0;
-    const depositGrowth = depositAmountPrev > 0
-      ? Math.round(((depositAmount - depositAmountPrev) / depositAmountPrev) * 100) : 0;
+    const revenueGrowth = subRevenueAmountPrev > 0
+      ? Math.round(((subRevenueAmount - subRevenueAmountPrev) / subRevenueAmountPrev) * 100) : 0;
 
     return {
       period_days: days,
@@ -83,13 +79,11 @@ export class StatsService {
           ? Math.round((premiumUsers / totalUsers) * 100) : 0,
       },
       revenue: {
-        total:           Math.round(totalRevenue),
-        deposits:        Math.round(depositAmount),
-        subscriptions:   Math.round(subRevenueAmount),
-        withdrawals:     Math.round(withdrawalAmount),
-        net:             Math.round(depositAmount - withdrawalAmount),
-        deposit_growth:  depositGrowth,
-        deposit_count:   deposits._count,
+        total:            Math.round(totalRevenue),
+        subscriptions:    Math.round(subRevenueAmount),
+        withdrawals:      Math.round(withdrawalAmount),
+        net:              Math.round(subRevenueAmount - withdrawalAmount),
+        revenue_growth:   revenueGrowth,
         withdrawal_count: withdrawals._count,
       },
       subscriptions: {
@@ -106,16 +100,19 @@ export class StatsService {
     };
   }
 
-  // ─── Série temporelle — dépôts par jour ──────────────────────────────────
+  // ─── Série temporelle — revenu par jour ──────────────────────────────────
+  // Cette courbe sommait les dépôts. Sans dépôt possible, elle serait
+  // définitivement plate : elle suit désormais les abonnements Premium, qui
+  // sont la recette réelle de la plateforme.
   async getRevenueTimeSeries(days: number = 30) {
     const start = new Date(Date.now() - days * 86400000);
 
     try {
-      const txs = await prisma.transaction.findMany({
-        where: { type: 'deposit', status: 'completed', createdAt: { gte: start } },
-        select: { amount: true, createdAt: true },
+      const txs = (await prisma.subscription.findMany({
+        where: { createdAt: { gte: start } },
+        select: { amountPaid: true, createdAt: true },
         orderBy: { createdAt: 'asc' },
-      });
+      })).map(s => ({ amount: s.amountPaid, createdAt: s.createdAt }));
 
       // Grouper par jour
       const byDay: Record<string, number> = {};
@@ -133,8 +130,12 @@ export class StatsService {
         label: new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
         amount: Math.round(amount),
       }));
-    } catch (_) {
-      return [];
+    } catch (e: any) {
+      // Renvoyer un tableau vide en silence ferait passer une panne de base
+      // pour un chiffre d'affaires nul — la pire confusion possible sur un
+      // écran de revenus. L'erreur remonte, l'appelant décidera quoi afficher.
+      console.error('[stats] getRevenueTimeSeries :', e.message);
+      throw e;
     }
   }
 
@@ -173,15 +174,16 @@ export class StatsService {
     }
   }
 
-  // ─── Top utilisateurs (plus gros dépôts) ─────────────────────────────────
+  // ─── Top utilisateurs (plus grosses dépenses) ────────────────────────────
+  // Le classement portait sur les dépôts. Il porte maintenant sur le montant
+  // d'abonnement réellement payé — la seule dépense qui subsiste.
   async getTopUsers(limit = 10) {
     try {
-      const result = await prisma.transaction.groupBy({
+      const result = await prisma.subscription.groupBy({
         by:     ['userId'],
-        where:  { type: 'deposit', status: 'completed' },
-        _sum:   { amount: true },
+        _sum:   { amountPaid: true },
         _count: true,
-        orderBy:{ _sum: { amount: 'desc' } },
+        orderBy:{ _sum: { amountPaid: 'desc' } },
         take:   limit,
       });
 
@@ -194,9 +196,9 @@ export class StatsService {
       const userMap = Object.fromEntries(users.map(u => [u.id, u]));
 
       return result.map(r => ({
-        user:          userMap[r.userId] ?? { pseudo: 'Inconnu' },
-        total_deposits: Math.round(r._sum.amount ?? 0),
-        deposit_count:  r._count,
+        user:  userMap[r.userId] ?? { pseudo: 'Inconnu' },
+        total: Math.round(r._sum.amountPaid ?? 0),
+        count: r._count,
       }));
     } catch (_) { return []; }
   }

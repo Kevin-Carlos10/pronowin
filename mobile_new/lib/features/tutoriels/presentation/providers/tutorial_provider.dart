@@ -16,10 +16,10 @@ final tutorialRepoProvider = Provider<TutorialRepository>(
 
 // ─── Filtres ─────────────────────────────────────────────────────────────────
 class TutorialFilter {
-  final TutorialLevel?    level;
-  final TutorialCategory? category;
+  final TutorialLevel? level;
+  final String?        category;
   const TutorialFilter({this.level, this.category});
-  TutorialFilter copyWith({TutorialLevel? level, TutorialCategory? category, bool clearLevel = false, bool clearCategory = false}) =>
+  TutorialFilter copyWith({TutorialLevel? level, String? category, bool clearLevel = false, bool clearCategory = false}) =>
       TutorialFilter(
         level:    clearLevel    ? null : (level    ?? this.level),
         category: clearCategory ? null : (category ?? this.category),

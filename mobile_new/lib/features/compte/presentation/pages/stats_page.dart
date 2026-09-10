@@ -71,11 +71,11 @@ class _StatsBody extends StatelessWidget {
             )),
             const SizedBox(width: 10),
             Expanded(child: _KpiCard(
-              label: 'ROI',
+              label: 'Rentabilité',
               value: '${roi >= 0 ? '+' : ''}${roi.toStringAsFixed(1)}%',
               icon: Icons.trending_up_rounded,
               color: roi >= 0 ? Colors.green : Colors.red,
-              sub: 'Retour sur investissement',
+              sub: 'Gain net pour 100 F misés',
             )),
           ]),
           const SizedBox(height: 10),

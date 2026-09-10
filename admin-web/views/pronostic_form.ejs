@@ -43,6 +43,43 @@
   cursor:pointer; transition:all .15s; white-space:nowrap;
 }
 .type-pill:hover, .type-pill.active { background:rgba(var(--primary-rgb),.12); border-color:var(--primary); color:var(--primary); }
+.pill-odd { margin-left:.35rem; font-weight:800; }
+
+/* ── Tous les marchés (accordéon) ─────────────────────────────────────────────── */
+.markets-wrap { border:1px solid var(--border); border-radius:8px; overflow:hidden; }
+.markets-wrap > summary {
+  padding:.55rem .75rem; font-size:.8rem; font-weight:700; cursor:pointer;
+  background:var(--surface-d); list-style:none;
+  display:flex; align-items:center; gap:.5rem;
+}
+.markets-wrap > summary::-webkit-details-marker { display:none; }
+.markets-wrap > summary::after { content:'▾'; margin-left:auto; color:var(--text-dim); transition:transform .15s; }
+.markets-wrap[open] > summary::after { transform:rotate(180deg); }
+.market-group {
+  border:1px solid var(--border); border-radius:8px; margin-bottom:.5rem; overflow:hidden;
+}
+.market-group summary {
+  padding:.55rem .75rem; font-size:.8rem; font-weight:700; cursor:pointer;
+  background:var(--surface-d); list-style:none; display:flex; align-items:center; justify-content:space-between;
+}
+.market-group summary::-webkit-details-marker { display:none; }
+.market-group summary::after { content:'▾'; color:var(--text-dim); transition:transform .15s; }
+.market-group[open] summary::after { transform:rotate(180deg); }
+.market-chips { display:flex; flex-wrap:wrap; gap:.4rem; padding:.6rem .75rem; }
+.market-value-chip {
+  padding:.3rem .65rem; border-radius:14px; font-size:.75rem; font-weight:600;
+  background:var(--surface); border:1px solid var(--border); color:var(--text-m);
+  cursor:pointer; transition:all .15s; white-space:nowrap;
+}
+.market-value-chip:hover { border-color:var(--primary); color:var(--primary); }
+.market-value-chip.active { background:rgba(var(--primary-rgb),.15); border-color:var(--primary); color:var(--primary); }
+.custom-pick-banner {
+  display:none; align-items:center; gap:.6rem; padding:.6rem .8rem; margin-top:.6rem;
+  background:rgba(var(--primary-rgb),.08); border:1px solid var(--primary); border-radius:8px; font-size:.8rem;
+}
+.custom-pick-banner button {
+  margin-left:auto; background:none; border:none; color:var(--text-dim); cursor:pointer; font-size:.9rem;
+}
 
 /* ── Premium toggle ────────────────────────────────────────────────────────────── */
 .vip-toggle {
@@ -74,6 +111,22 @@
   const dateStr     = matchDate.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
   const timeStr     = matchDate.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   const isEdit      = !!pro.id;
+
+  // Match termine : le pronostic n'est plus modifiable.
+  //
+  // Le serveur le refusait deja — `upsertPronostic` leve « Impossible de creer
+  // un pronostic pour un match termine » — mais l'ecran laissait croire le
+  // contraire : tous les champs restaient actifs, et « Publier maintenant »
+  // echouait avec un message parlant de creation. On saisissait, on validait,
+  // et rien n'etait enregistre.
+  //
+  // Deux actions restent legitimes et ne passent pas par cette ecriture : la
+  // depublication (route dediee) et la correction du resultat.
+  const _termine = String(match.status || '').toUpperCase() === 'FINISHED';
+  // Même heuristique que la liste (pronostics.ejs) : le statut LIVE en base
+  // peut avoir jusqu'à 2 minutes de retard (fréquence du cron de sync).
+  const _diffMin    = Math.floor((matchDate.getTime() - Date.now()) / 60000);
+  const isLive      = match.status === 'LIVE' || (_diffMin < 0 && _diffMin > -120);
 %>
 
 <div class="topbar">
@@ -82,29 +135,71 @@
     <h2 style="margin-top:4px"><%= isEdit ? '✏️ Modifier' : '+ Créer' %> un pronostic</h2>
   </div>
   <% if(isEdit && pro.is_published) { %>
-  <span class="badge badge-ok" style="font-size:.78rem">✅ Publié</span>
+  <span class="badge badge-ok" style="font-size:.78rem"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Publié</span>
   <% } else if(isEdit) { %>
-  <span class="badge badge-warn" style="font-size:.78rem">✏️ Brouillon</span>
+  <span class="badge badge-warn" style="font-size:.78rem"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Brouillon</span>
   <% } %>
 </div>
 
 <% if(error){ %><div class="alert alert-error"><%= error %></div><% } %>
 
-<style>@media(max-width:860px){ .pf-main-grid { grid-template-columns:1fr !important; } }</style>
-<div class="pf-main-grid" style="display:grid;grid-template-columns:320px 1fr;gap:1rem;align-items:start">
+<style>
+/* La colonne gauche s'étire sur toute la hauteur de la ligne (align-items par
+   défaut) : c'est ce qui permet au bloc `.pf-side` de rester collé pendant que
+   la colonne de droite, beaucoup plus longue, défile. Sans cela le récap et
+   les boutons disparaissaient dès le premier scroll. */
+.pf-main-grid { display:grid; grid-template-columns:340px 1fr; gap:1rem; }
+.pf-side      { position:sticky; top:16px; }
+/* Deux colonnes internes pour les champs courts (label / confiance) : le
+   formulaire tenait sur une seule colonne et laissait ~40 % de la largeur vide. */
+.pf-two       { display:grid; grid-template-columns:1fr 1fr; gap:1rem; align-items:start; }
 
-  <!-- ── Colonne gauche : match info ──────────────────────────────────────────── -->
+/* Sous 1180 px la barre latérale du panel (260 px) + la colonne d'infos (340 px)
+   ne laissaient que ~350 px au formulaire — plus étroit que la version d'origine.
+   On empile alors : le formulaire récupère toute la largeur et garde ses deux
+   colonnes internes. */
+@media(max-width:1180px){
+  .pf-main-grid { grid-template-columns:1fr; }
+  .pf-side      { position:static; }
+}
+@media(max-width:760px){ .pf-two { grid-template-columns:1fr; gap:0; } }
+</style>
+
+<%# Un échec de dépublication doit se voir. L'opération échouait côté serveur
+    et la redirection ramenait ici sans rien dire : le pronostic restait publié,
+    l'écran ne le contestait pas, et l'administrateur croyait l'avoir retiré. %>
+<% if(typeof query !== 'undefined' && query.depublish_error) { %>
+<div class="alert alert-error" style="margin-bottom:1rem">
+  <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg>
+  Dépublication impossible : <%= query.depublish_error %>
+</div>
+<% } %>
+
+<form method="POST" action="/admin/pronostics/edit/<%= match.id %>" id="pro-form">
+<div class="pf-main-grid">
+
+  <!-- ── Colonne gauche : match info + récap + actions (collante) ─────────────── -->
   <div>
+   <div class="pf-side">
     <div class="card">
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.85rem">
-        <% if(match.leagueLogo){ %><img src="<%= match.leagueLogo %>" style="width:18px;height:18px;object-fit:contain" onerror="this.style.display='none'"><% } %>
+        <% if(match.leagueLogo){ %><img src="<%= match.leagueLogo %>" style="width:18px;height:18px;object-fit:contain" onerror="this.style.display='none'" alt=""><% } %>
         <span class="badge badge-info" style="font-size:.7rem"><%= match.league %></span>
+        <% if(isLive){ %>
+        <span class="badge" style="font-size:.7rem;background:color-mix(in srgb,var(--error) 15%,transparent);color:var(--error)"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-danger)"><use href="#ic-dot"/></svg> EN DIRECT</span>
+        <% } %>
       </div>
+
+      <% if(isLive){ %>
+      <div style="font-size:.72rem;color:var(--text-dim);margin-bottom:.6rem;padding:.5rem .6rem;background:color-mix(in srgb,var(--error) 6%,transparent);border:1px solid color-mix(in srgb,var(--error) 20%,transparent);border-radius:8px">
+        <svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Match en cours — les cotes pré-match peuvent être suspendues ou obsolètes chez certains bookmakers.
+      </div>
+      <% } %>
 
       <div class="match-preview">
         <div class="mp-team">
           <% if(match.homeTeamLogo){ %>
-          <img src="<%= match.homeTeamLogo %>" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <img src="<%= match.homeTeamLogo %>" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">
           <div class="initial" style="display:none"><%= homeInitial %></div>
           <% } else { %>
           <div class="initial"><%= homeInitial %></div>
@@ -114,7 +209,7 @@
         <div class="mp-sep">VS</div>
         <div class="mp-team">
           <% if(match.awayTeamLogo){ %>
-          <img src="<%= match.awayTeamLogo %>" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <img src="<%= match.awayTeamLogo %>" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'" alt="">
           <div class="initial" style="display:none"><%= awayInitial %></div>
           <% } else { %>
           <div class="initial"><%= awayInitial %></div>
@@ -126,28 +221,108 @@
       <div class="mp-meta">
         <div style="font-weight:700;margin-bottom:.25rem"><%= dateStr %></div>
         <div style="color:var(--text-dim);font-size:.82rem">⏰ Coup d'envoi à <strong><%= timeStr %></strong></div>
-        <div style="font-size:.72rem;color:var(--text-dim);margin-top:.4rem;font-family:monospace">ID match : <%= match.id %></div>
+        <!-- L'UUID n'a d'utilité qu'en cas de ticket support : replié par défaut. -->
+        <details style="margin-top:.5rem">
+          <summary style="font-size:.7rem;color:var(--text-dim);cursor:pointer;list-style:none;user-select:none"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg> Référence technique</summary>
+          <div style="font-size:.66rem;color:var(--text-dim);font-family:monospace;margin-top:.35rem;word-break:break-all"><%= match.id %></div>
+        </details>
       </div>
     </div>
 
     <% if(isEdit) { %>
     <div class="card" style="margin-top:.75rem;padding:.85rem 1rem">
       <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);font-weight:700;margin-bottom:.6rem">Historique</div>
-      <% if(pro.createdAt){ %><div style="font-size:.78rem;color:var(--text-m)">📝 Créé le <%= new Date(pro.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></div><% } %>
-      <% if(pro.updatedAt){ %><div style="font-size:.78rem;color:var(--text-m);margin-top:.3rem">🔄 Modifié le <%= new Date(pro.updatedAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></div><% } %>
-      <% if(pro.publishedAt){ %><div style="font-size:.78rem;color:var(--success);margin-top:.3rem">🚀 Publié le <%= new Date(pro.publishedAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></div><% } %>
+      <% if(pro.createdAt){ %><div style="font-size:.78rem;color:var(--text-m)"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Créé le <%= new Date(pro.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></div><% } %>
+      <% if(pro.updatedAt){ %><div style="font-size:.78rem;color:var(--text-m);margin-top:.3rem"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Modifié le <%= new Date(pro.updatedAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></div><% } %>
+      <% if(pro.publishedAt){ %><div style="font-size:.78rem;color:var(--success);margin-top:.3rem"><svg class="ic" aria-hidden="true"><use href="#ic-rocket"/></svg> Publié le <%= new Date(pro.publishedAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></div><% } %>
     </div>
     <% } %>
+
+    <!-- ── Ce que l'abonné verra (mis à jour en direct par updateRecap()) ────── -->
+    <div class="card" style="margin-top:.75rem;padding:.85rem 1rem">
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);font-weight:700;margin-bottom:.6rem">
+        Ce que l'abonné verra
+      </div>
+      <div id="recap-label" style="font-size:.88rem;font-weight:700;line-height:1.35;word-break:break-word">—</div>
+      <div style="display:flex;gap:1.25rem;margin-top:.55rem">
+        <div>
+          <div style="font-size:.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em">Cote</div>
+          <div id="recap-odd" style="font-size:1.05rem;font-weight:800">—</div>
+        </div>
+        <div>
+          <div style="font-size:.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em">Confiance</div>
+          <div id="recap-conf" style="font-size:1.05rem;font-weight:800">—</div>
+        </div>
+        <div>
+          <div style="font-size:.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em">Accès</div>
+          <div id="recap-access" style="font-size:.88rem;font-weight:700;margin-top:.15rem">Tous</div>
+        </div>
+      </div>
+
+      <!-- ── Actions (collées avec le récap : plus besoin de remonter/descendre) ── -->
+      <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:1rem;padding-top:.85rem;border-top:1px solid var(--border)">
+        <%# Sur un match termine, ces deux boutons ne peuvent que echouer : le
+            serveur refuse toute ecriture. Les afficher quand meme, c'est
+            promettre une action impossible. %>
+        <% if(_termine) { %>
+        <div style="font-size:.75rem;color:var(--text-m);line-height:1.55;padding:.6rem .75rem;background:var(--surface-d);border-radius:8px">
+          <strong style="color:var(--text-p)">Match terminé</strong> — le pronostic
+          n'est plus modifiable.<% if(isEdit) { %> Vous pouvez encore le dépublier,
+          ou corriger son résultat plus bas.<% } %>
+        </div>
+        <% } else { %>
+        <button type="submit" name="publish" value="true" class="btn btn-primary" style="justify-content:center">
+          <svg class="ic" aria-hidden="true"><use href="#ic-rocket"/></svg> Publier maintenant
+        </button>
+        <button type="submit" name="publish" value="false" class="btn btn-outline" style="justify-content:center">
+          <svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> Sauvegarder brouillon
+        </button>
+        <% } %>
+        <%# La depublication reste offerte, match termine ou non : elle passe par
+            sa propre route et ne reecrit pas le pronostic. %>
+        <% if(isEdit && pro.is_published) { %>
+        <button type="button" class="btn btn-danger btn-sm" style="justify-content:center"
+          onclick="askConfirm({icon:'trash',title:'Dépublier',msg:'Retirer ce pronostic de la liste publique ?',btnLabel:'Dépublier',btnClass:'btn-danger',onConfirm:()=>depublish()})">
+          <svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Dépublier
+        </button>
+        <% } %>
+      </div>
+    </div>
+   </div>
   </div>
 
   <!-- ── Colonne droite : formulaire ──────────────────────────────────────────── -->
   <div class="card">
-    <form method="POST" action="/admin/pronostics/edit/<%= match.id %>" id="pro-form">
+
+      <%# Un `fieldset` desactive neutralise d'un coup tous les controles qu'il
+          contient — champs, listes, boutons. Le faire champ par champ aurait
+          laisse passer le prochain ajout : c'est la structure qui garantit la
+          regle, pas la vigilance.
+
+          Il enveloppe la seule colonne des champs modifiables. La depublication
+          et la correction du resultat sont ailleurs, et restent actives. %>
+      <fieldset <%= _termine ? 'disabled' : '' %>
+                style="border:0;padding:0;margin:0;min-width:0">
+
+      <% if(_termine) { %>
+      <div class="alert" style="margin-bottom:1.1rem;background:color-mix(in srgb,var(--warning) 10%,transparent);border:1px solid color-mix(in srgb,var(--warning) 30%,transparent);color:var(--text-p)">
+        <svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg>
+        <div>
+          <strong>Ce match est terminé — le pronostic est verrouillé.</strong>
+          <div style="font-size:.78rem;color:var(--text-m);line-height:1.55;margin-top:.2rem">
+            Le résultat est joué : réécrire la prédiction après coup fausserait
+            le bilan public. Pour le retirer des statistiques, utilisez
+            « ↺ Retirer du bilan » dans la section Résultat, plus bas — le pronostic
+            et l'historique de vos utilisateurs restent intacts.
+          </div>
+        </div>
+      </div>
+      <% } %>
 
       <!-- Type de pronostic -->
       <div class="form-group" style="margin-bottom:1.1rem">
-        <label>Type de pronostic</label>
-        <div class="type-pills" id="type-pills">
+        <label id="lbl-type">Type de pronostic</label>
+        <div class="type-pills" id="type-pills" role="group" aria-labelledby="lbl-type">
           <% const types = [
             {v:'win1',  l:'🏠 Victoire dom.'},
             {v:'draw',  l:'🤝 Match nul'},
@@ -160,117 +335,217 @@
           ]; %>
           <% types.forEach(t => { %>
           <div class="type-pill <%= (pro.prediction_type||'win1')===t.v?'active':'' %>"
-               data-val="<%= t.v %>" onclick="setType('<%= t.v %>')"><%= t.l %></div>
+               data-val="<%= t.v %>" role="button" tabindex="0"
+               aria-pressed="<%= (pro.prediction_type||'win1')===t.v ? 'true':'false' %>"
+               onclick="setType('<%= t.v %>')"
+               onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setType('<%= t.v %>')}"><%= t.l %><span class="pill-odd" id="odd-<%= t.v %>"></span></div>
           <% }) %>
         </div>
         <input type="hidden" name="prediction_type" id="type-input" value="<%= pro.prediction_type||'win1' %>">
-      </div>
+        <input type="hidden" name="market_name" id="market-name-input" value="<%= pro.market_name||'' %>">
+        <input type="hidden" name="market_value" id="market-value-input" value="<%= pro.market_value||'' %>">
+        <%# Noms d'équipe repris tels quels dans le journal d'activité : sans eux,
+            il affichait « Match #09fa3d5a-a0c7-4011-a5f1… », un identifiant que
+            personne ne peut relier à une rencontre en le lisant. %>
+        <input type="hidden" name="home_team" value="<%= match.homeTeam %>">
+        <input type="hidden" name="away_team" value="<%= match.awayTeam %>">
+        <p style="font-size:.72rem;color:var(--text-dim);margin-top:.4rem">
+          <svg class="ic" aria-hidden="true"><use href="#ic-bulb"/></svg> Les cotes 1xBet se chargent automatiquement à l'ouverture : la cote réelle s'affiche sur chaque option,
+          et les marchés complets apparaissent plus bas.
+        </p>
 
-      <!-- Label affiché -->
-      <div class="form-group" style="margin-bottom:1.1rem">
-        <label>Label affiché <small style="font-weight:400;color:var(--text-dim)">(visible aux utilisateurs)</small></label>
-        <input class="input" type="text" name="prediction_label" id="pred-label"
-               value="<%= pro.prediction_label||'' %>" required
-               placeholder="Ex : PSG gagne, +2.5 buts…">
+        <div class="custom-pick-banner" id="custom-pick-banner"
+             style="<%= pro.prediction_type==='other' ? 'display:flex' : '' %>">
+          <svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Marché personnalisé : <strong id="custom-pick-text"></strong>
+          <button type="button" onclick="clearCustomPick()" aria-label="Retirer le marché personnalisé"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
+        </div>
+
+        <!-- Replié par défaut : les cotes se chargent désormais toutes seules, et
+             31 marchés dépliés d'office repousseraient le reste du formulaire
+             hors de l'écran. On l'ouvre quand on cherche un marché précis. -->
+        <details class="markets-wrap" style="margin-top:.9rem;display:none" id="all-markets-section">
+          <summary>
+            <span>Tous les marchés 1xBet</span>
+            <span style="font-size:.7rem;color:var(--text-dim);font-weight:600" id="markets-count"></span>
+          </summary>
+          <div id="markets-accordion" style="padding:.6rem .5rem 0"></div>
+        </details>
       </div>
 
       <!-- Cotes -->
       <div class="form-group" style="margin-bottom:1.1rem">
-        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem">
-          <label style="margin:0">Cotes</label>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;gap:.5rem;flex-wrap:wrap">
+          <label style="margin:0" id="lbl-odds">Cotes</label>
           <button type="button" id="btn-fetch-odds" onclick="fetchOdds()"
             style="display:flex;align-items:center;gap:.4rem;padding:.3rem .75rem;font-size:.78rem;
                    background:rgba(var(--primary-rgb),.12);border:1px solid var(--primary);
                    color:var(--primary);border-radius:8px;cursor:pointer;font-weight:600;transition:all .15s">
-            <span id="odds-btn-icon">⚡</span> Récupérer les cotes
+            <span id="odds-btn-icon"><svg class="ic" aria-hidden="true"><use href="#ic-zap"/></svg></span> <span id="odds-btn-text">Charger les cotes 1xBet</span>
           </button>
         </div>
         <div id="odds-msg" style="display:none;font-size:.75rem;margin-bottom:.4rem;padding:.35rem .6rem;border-radius:6px"></div>
+
+        <!-- Avis du modèle statistique externe : aide à la décision, pas automatisation.
+             Le choix du marché et la publication restent des gestes humains. -->
+        <div id="pred-box" style="display:none;margin-bottom:.9rem;padding:.7rem .8rem;border-radius:10px;
+                    background:rgba(99,102,241,.06);border:1px solid rgba(99,102,241,.22)">
+          <div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.55rem">
+            <svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg>
+            <strong style="font-size:.78rem;letter-spacing:.02em">AVIS DU MODÈLE</strong>
+            <span id="pred-advice" style="font-size:.74rem;color:var(--text-dim);margin-left:auto"></span>
+          </div>
+          <div id="pred-percent" style="display:flex;gap:.4rem;margin-bottom:.6rem"></div>
+          <div id="pred-axes" style="display:grid;gap:.28rem"></div>
+        </div>
         <div class="odds-grid">
           <div>
-            <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:.3rem">1 (domicile)</div>
-            <input class="input" type="number" name="odds_home" step="0.01" min="1" required
+            <label for="odds-home" style="display:block;font-size:.7rem;color:var(--text-dim);margin-bottom:.3rem;font-weight:500">1 (<%= match.homeTeam %>)</label>
+            <input class="input" type="number" id="odds-home" name="odds_home" step="0.01" min="1" required
                    value="<%= pro.odds_home||'' %>" placeholder="1.80">
           </div>
           <div>
-            <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:.3rem">X (nul)</div>
-            <input class="input" type="number" name="odds_draw" step="0.01" min="1" required
+            <label for="odds-draw" style="display:block;font-size:.7rem;color:var(--text-dim);margin-bottom:.3rem;font-weight:500">X (nul)</label>
+            <input class="input" type="number" id="odds-draw" name="odds_draw" step="0.01" min="1" required
                    value="<%= pro.odds_draw||'' %>" placeholder="3.50">
           </div>
           <div>
-            <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:.3rem">2 (extérieur)</div>
-            <input class="input" type="number" name="odds_away" step="0.01" min="1" required
+            <label for="odds-away" style="display:block;font-size:.7rem;color:var(--text-dim);margin-bottom:.3rem;font-weight:500">2 (<%= match.awayTeam %>)</label>
+            <input class="input" type="number" id="odds-away" name="odds_away" step="0.01" min="1" required
                    value="<%= pro.odds_away||'' %>" placeholder="4.20">
           </div>
           <div>
-            <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:.3rem">⭐ Cote recommandée</div>
-            <input class="input" type="number" name="odds_recommended" step="0.01" min="1" required
-                   value="<%= pro.odds_recommended||'' %>" placeholder="1.80" id="odds-rec">
+            <label for="odds-rec" style="display:block;font-size:.7rem;color:var(--text-dim);margin-bottom:.3rem;font-weight:500"><svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg> Cote recommandée</label>
+            <input class="input" type="number" id="odds-rec" name="odds_recommended" step="0.01" min="1" required
+                   value="<%= pro.odds_recommended||'' %>" placeholder="1.80">
           </div>
         </div>
+        <!-- Provenance de la cote recommandée : c'est le seul champ des quatre qui
+             est recopié automatiquement, et jusqu'ici rien ne le disait. -->
+        <p id="odds-rec-origin" style="font-size:.72rem;color:var(--text-m);margin-top:.45rem">
+          <svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg> La cote recommandée est celle du pronostic choisi — elle se met à jour quand tu changes d'option.
+        </p>
       </div>
 
-      <!-- Confiance -->
-      <div class="form-group" style="margin-bottom:1.1rem">
-        <label>Niveau de confiance</label>
-        <div class="stars" id="stars">
-          <% for(let i=1;i<=5;i++){ %>
-          <span class="star" data-v="<%= i %>" onclick="setStar(<%= i %>)">★</span>
-          <% } %>
+      <div class="pf-two">
+        <!-- Label affiché -->
+        <div class="form-group" style="margin-bottom:1.1rem">
+          <label for="pred-label">Label affiché <small style="font-weight:400;color:var(--text-dim)">(visible aux utilisateurs)</small></label>
+          <input class="input" type="text" name="prediction_label" id="pred-label"
+                 value="<%= pro.prediction_label||'' %>" required
+                 placeholder="Ex : PSG gagne, +2.5 buts…">
+          <p style="font-size:.72rem;color:var(--text-m);margin-top:.35rem" id="pred-label-hint">
+            Régénéré à chaque changement de pronostic. Tes retouches sont conservées
+            tant que tu ne changes pas d'option.
+          </p>
         </div>
-        <div style="font-size:.75rem;color:var(--text-dim)" id="star-label">Confiance : 3/5</div>
-        <input type="hidden" name="confidence_score" id="conf-input" value="<%= pro.confidence_score||3 %>">
+
+        <!-- Confiance -->
+        <div class="form-group" style="margin-bottom:1.1rem">
+          <label id="lbl-conf">Niveau de confiance</label>
+          <div class="stars" id="stars" role="radiogroup" aria-labelledby="lbl-conf">
+            <% for(let i=1;i<=5;i++){ %>
+            <span class="star" data-v="<%= i %>" role="radio" tabindex="0"
+                  aria-label="<%= i %> sur 5" aria-checked="false"
+                  onclick="setStar(<%= i %>)"
+                  onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setStar(<%= i %>)}"><svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg></span>
+            <% } %>
+          </div>
+          <!-- `--text-dim` tombe à 2,3:1 sur les deux thèmes : acceptable pour un
+               ornement, pas pour le pourcentage réellement promis à l'abonné. -->
+          <div style="font-size:.75rem;color:var(--text-m)" id="star-label">Confiance : 3/5</div>
+          <input type="hidden" name="confidence_score" id="conf-input" value="<%= pro.confidence_score||3 %>">
+        </div>
       </div>
 
       <!-- Note analyste -->
       <div class="form-group" style="margin-bottom:1.1rem">
-        <label>Note analyste <span class="badge badge-warn" style="font-size:.65rem;vertical-align:middle">👑 Premium</span></label>
-        <textarea class="input" name="analyst_note" rows="4"
+        <label for="analyst-note">Note analyste <span class="badge badge-warn" style="font-size:.65rem;vertical-align:middle"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span></label>
+        <textarea class="input" id="analyst-note" name="analyst_note" rows="4"
                   placeholder="Analyse détaillée du match, contexte, absents clés…"><%= pro.analyst_note||'' %></textarea>
       </div>
 
       <!-- VIP toggle -->
-      <div class="form-group" style="margin-bottom:1.4rem">
-        <div class="vip-toggle <%= (pro.is_premium)?'checked':'' %>" id="vip-toggle" onclick="toggleVip()">
-          <div class="vip-badge">👑</div>
+      <div class="form-group" style="margin-bottom:0">
+        <div class="vip-toggle <%= (pro.is_premium)?'checked':'' %>" id="vip-toggle"
+             role="switch" tabindex="0" aria-checked="<%= (pro.is_premium)?'true':'false' %>"
+             onclick="toggleVip()"
+             onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();toggleVip()}">
+          <div class="vip-badge"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></div>
           <div class="info">
             <div class="t">Pronostic VIP</div>
             <div class="s">Réservé aux abonnés Premium uniquement</div>
           </div>
-          <div class="checkmark" id="vip-check"><%= (pro.is_premium)?'✅':'○' %></div>
-          <input type="checkbox" name="is_premium" id="is-premium" <%= (pro.is_premium)?'checked':'' %>>
+          <div class="checkmark" id="vip-check"><%= (pro.is_premium)?'✓':'○' %></div>
+          <input type="checkbox" name="is_premium" id="is-premium" <%= (pro.is_premium)?'checked':'' %> aria-label="Réservé aux abonnés Premium">
         </div>
       </div>
 
-      <!-- Boutons -->
-      <div style="display:flex;gap:.75rem;flex-wrap:wrap">
-        <button type="submit" name="publish" value="false" class="btn btn-outline">
-          💾 Sauvegarder brouillon
-        </button>
-        <button type="submit" name="publish" value="true" class="btn btn-primary" onclick="setPublish(true)">
-          🚀 Publier maintenant
-        </button>
-        <% if(isEdit && pro.is_published) { %>
-        <button type="button" class="btn btn-danger btn-sm" style="margin-left:auto"
-          onclick="askConfirm({icon:'🗑️',title:'Dépublier',msg:'Retirer ce pronostic de la liste publique ?',btnLabel:'Dépublier',btnClass:'btn-danger',onConfirm:()=>depublish()})">
-          🗑️ Dépublier
-        </button>
-        <% } %>
-      </div>
-
-    </form>
+      </fieldset>
   </div>
 </div>
+</form>
+
+<%# Dépublication : formulaire séparé, et nécessairement hors du précédent —
+    un formulaire ne peut pas en contenir un autre. Il ne porte que l'identité
+    du pronostic : retirer de la vitrine ne doit rien réécrire, sans quoi
+    l'opération retombe sur le garde-fou des matchs terminés. %>
+<% if(isEdit && pro.is_published) { %>
+<form method="POST" action="/admin/pronostics/<%= pro.id %>/depublier"
+      id="form-depublier" hidden>
+  <input type="hidden" name="match_id" value="<%= match.id %>">
+  <input type="hidden" name="libelle"  value="<%= match.homeTeam %> – <%= match.awayTeam %>">
+</form>
+<% } %>
 
 <script>
-/* ── Étoiles ── */
-const _initStar = parseInt(document.getElementById('conf-input').value) || 3;
-setStar(_initStar);
+/* ── Étoiles ──
+   Le score 1-5 saisi ici n'est jamais montré tel quel à l'abonné : l'app mobile
+   le convertit en pourcentage (match_entity.dart, _confidencePercentByScore).
+   On affiche donc les deux, sinon l'admin note « 3/5 » sans savoir qu'il promet
+   80 % de confiance. Toute modification de la table côté mobile doit être
+   répercutée ici. */
+const CONF_PERCENT = { 1: 60, 2: 70, 3: 80, 4: 90, 5: 95 };
+
 function setStar(v) {
   document.getElementById('conf-input').value = v;
-  document.querySelectorAll('.star').forEach((s, i) => s.classList.toggle('active', i < v));
+  document.querySelectorAll('.star').forEach((s, i) => {
+    s.classList.toggle('active', i < v);
+    s.setAttribute('aria-checked', (i + 1) === v ? 'true' : 'false');
+  });
   const labels = ['','Très faible','Faible','Moyen','Bon','Excellent'];
-  document.getElementById('star-label').textContent = `Confiance : ${v}/5 — ${labels[v]||''}`;
+  document.getElementById('star-label').innerHTML =
+    `Confiance : ${v}/5 — ${labels[v]||''} · <strong>l'abonné verra ${CONF_PERCENT[v]} %</strong>`;
+  updateRecap();
+}
+const _initStar = parseInt(document.getElementById('conf-input').value) || 3;
+setStar(_initStar);
+
+/* ── Récapitulatif (colonne gauche) ── */
+function updateRecap() {
+  const label = document.getElementById('pred-label').value.trim();
+  const odd   = document.getElementById('odds-rec').value;
+  const conf  = parseInt(document.getElementById('conf-input').value) || 3;
+  const vip   = document.getElementById('is-premium').checked;
+
+  document.getElementById('recap-label').textContent  = label || '—';
+  document.getElementById('recap-odd').textContent    = odd ? Number(odd).toFixed(2) : '—';
+  document.getElementById('recap-conf').textContent   = (CONF_PERCENT[conf] || '—') + ' %';
+  const acc = document.getElementById('recap-access');
+  acc.textContent  = vip ? '👑 Premium' : 'Tous';
+  // --warning tombe à 2,15:1 sur fond clair ; --on-warning est le ton
+  // du socle calculé pour rester lisible dans les deux thèmes.
+  acc.style.color  = vip ? 'var(--on-warning)' : 'var(--text)';
+}
+document.getElementById('pred-label').addEventListener('input', updateRecap);
+
+/* Libellé public généré : il décrit le pronostic sélectionné, donc changer de
+   pronostic le régénère — comme la cote recommandée. Garder l'ancien texte
+   après un changement d'option publiait un libellé sans rapport avec ce qui
+   était réellement enregistré (cas vu en test : marché personnalisé puis
+   retour sur une option standard). */
+function setLabel(text) {
+  document.getElementById('pred-label').value = text;
+  updateRecap();
 }
 
 /* ── Type pills ── */
@@ -284,23 +559,200 @@ const typeLabels = {
   over35: '+3.5 buts',
   under35: '-3.5 buts'
 };
+/* Provenance de la cote recommandée : jusqu'ici elle était recopiée en
+   silence depuis l'option choisie, sans que rien ne le dise. Le texte sous la
+   grille l'indique désormais, et signale une saisie manuelle.
+   Règle appliquée partout : un geste explicite (changer de pronostic, cliquer
+   « Recharger ») réapplique la cote du choix courant — garder une cote saisie
+   pour un pronostic qu'on vient d'abandonner serait pire que le problème
+   d'origine. Seul le chargement AUTOMATIQUE à l'ouverture s'interdit d'écraser
+   un champ déjà rempli. */
+const ODDS_ORIGIN_AUTO =
+  "⭐ La cote recommandée est celle du pronostic choisi — elle se met à jour quand tu changes d'option.";
+
+function setRecommendedOdd(value, note) {
+  document.getElementById('odds-rec').value = value;
+  const el = document.getElementById('odds-rec-origin');
+  el.style.color = 'var(--text-m)';
+  el.textContent = note || ODDS_ORIGIN_AUTO;
+  updateRecap();
+}
+
+document.getElementById('odds-rec').addEventListener('input', () => {
+  const el = document.getElementById('odds-rec-origin');
+  el.style.color = 'var(--on-warning)';
+  el.textContent = '✏️ Cote saisie manuellement — elle ne suivra plus l\'option sélectionnée.';
+  updateRecap();
+});
+
 function setType(v) {
   document.getElementById('type-input').value = v;
-  document.querySelectorAll('.type-pill').forEach(p => p.classList.toggle('active', p.dataset.val === v));
-  const lbl = document.getElementById('pred-label');
-  if (!lbl.value || typeLabels[document.getElementById('type-input')._prev] === lbl.value) {
-    lbl.value = typeLabels[v] || '';
+  document.querySelectorAll('.type-pill').forEach(p => {
+    const on = p.dataset.val === v;
+    p.classList.toggle('active', on);
+    p.setAttribute('aria-pressed', on ? 'true' : 'false');
+  });
+  if (typeLabels[v]) setLabel(typeLabels[v]);
+  // Un pill standard désélectionne le marché personnalisé éventuel
+  clearCustomPick({ keepType: true });
+  // Cote recommandée : priorité à la cote 1xBet live si chargée, sinon repli sur odds_home/draw/away
+  if (window._xbetOdds && window._xbetOdds[v] != null) {
+    setRecommendedOdd(window._xbetOdds[v].toFixed(2),
+      '⭐ Cote 1xBet de l\'option sélectionnée (' + (typeLabels[v] || v) + ').');
+  } else {
+    const map = { win1:'odds-home', win2:'odds-away', draw:'odds-draw' };
+    const src = map[v] ? document.getElementById(map[v]) : null;
+    if (src && src.value) {
+      setRecommendedOdd(src.value, '⭐ Reprise de la cote ' + (v === 'draw' ? 'X' : v === 'win1' ? '1' : '2') + ' saisie ci-dessus.');
+    } else {
+      const el = document.getElementById('odds-rec-origin');
+      el.style.color = 'var(--text-m)';
+      el.textContent = 'ℹ Aucune cote connue pour cette option — saisis-la à la main.';
+    }
   }
-  document.getElementById('type-input')._prev = v;
-  // Auto-fill cote recommandée selon type
-  const rec = document.getElementById('odds-rec');
-  const map = { win1:'odds_home', win2:'odds_away', draw:'odds_draw' };
-  if (map[v]) {
-    const src = document.querySelector('[name="' + map[v] + '"]');
-    if (src && src.value) rec.value = src.value;
-  }
+  updateRecap();
 }
-document.getElementById('type-input')._prev = document.getElementById('type-input').value;
+/* Libellé public : sur un nouveau pronostic il était vide et bloquait l'envoi
+   (champ requis) alors qu'il se déduit du type et des noms d'équipes.
+   Au chargement en revanche on ne touche jamais à un libellé déjà enregistré :
+   il a été validé lors d'une publication précédente. */
+(function prefillLabel() {
+  const lbl = document.getElementById('pred-label');
+  const cur = document.getElementById('type-input').value;
+  if (!lbl.value && typeLabels[cur]) lbl.value = typeLabels[cur];
+  document.querySelectorAll('.type-pill').forEach(p =>
+    p.setAttribute('aria-pressed', p.dataset.val === cur ? 'true' : 'false'));
+  updateRecap();
+})();
+
+/* ── Traduction des marchés/valeurs brutes 1xBet (anglais) → français ──
+   Le nom brut anglais reste stocké en base (market_name/market_value —
+   cohérence avec l'API pour un futur rapprochement), seul l'affichage
+   (accordéon, bannière) ET le libellé public prediction_label (visible par
+   l'utilisateur final dans l'app mobile) sont traduits. */
+const MARKET_NAME_FR = {
+  'Match Winner':                      'Vainqueur du match',
+  'First Half Winner':                 'Vainqueur 1ère mi-temps',
+  'Second Half Winner':                'Vainqueur 2ème mi-temps',
+  'Asian Handicap':                    'Handicap asiatique',
+  'Asian Handicap First Half':         'Handicap asiatique — 1ère MT',
+  'Asian Handicap (2nd Half)':         'Handicap asiatique — 2ème MT',
+  'Goals Over/Under':                  'Total buts +/-',
+  'Goals Over/Under First Half':       'Total buts +/- — 1ère MT',
+  'Goals Over/Under - Second Half':    'Total buts +/- — 2ème MT',
+  'HT/FT Double':                      'Double mi-temps / fin de match',
+  'Both Teams Score':                  'Les deux équipes marquent',
+  'Both Teams Score - First Half':     'Les deux équipes marquent — 1ère MT',
+  'Both Teams To Score - Second Half': 'Les deux équipes marquent — 2ème MT',
+  'Exact Score':                       'Score exact',
+  'Highest Scoring Half':              'Mi-temps la plus prolifique',
+  'Correct Score - First Half':        'Score exact — 1ère MT',
+  'Correct Score - Second Half':       'Score exact — 2ème MT',
+  'Double Chance':                     'Double chance',
+  'Double Chance - First Half':        'Double chance — 1ère MT',
+  'Double Chance - Second Half':       'Double chance — 2ème MT',
+  'Total - Home':                      'Total buts domicile',
+  'Total - Away':                      'Total buts extérieur',
+  'Odd/Even':                          'Pair/Impair',
+  'Odd/Even - First Half':             'Pair/Impair — 1ère MT',
+  'Odd/Even - Second Half':            'Pair/Impair — 2ème MT',
+  'Home Odd/Even':                     'Pair/Impair domicile',
+  'Away Odd/Even':                     'Pair/Impair extérieur',
+  'To Qualify':                        'Qualification',
+  'Home Team Total Goals(1st Half)':   'Total buts domicile (1ère MT)',
+  'Away Team Total Goals(1st Half)':   'Total buts extérieur (1ère MT)',
+  'Home Team Total Goals(2nd Half)':   'Total buts domicile (2ème MT)',
+  'Away Team Total Goals(2nd Half)':   'Total buts extérieur (2ème MT)',
+};
+function translateMarketName(name) {
+  return MARKET_NAME_FR[name] || name;
+}
+// Noms réels des équipes — utilisés à la place de "Domicile"/"Extérieur"
+// pour que le libellé public (et l'aperçu des cotes ci-dessous) dise
+// directement "Bayern München" plutôt qu'un camp générique.
+const HOME_TEAM = <%- JSON.stringify(match.homeTeam) %>;
+const AWAY_TEAM = <%- JSON.stringify(match.awayTeam) %>;
+function translateMarketValue(value) {
+  return String(value)
+    .replace(/\b1st Half\b/gi, '1ère MT')
+    .replace(/\b2nd Half\b/gi, '2ème MT')
+    .replace(/\bHome\b/g,  HOME_TEAM)
+    .replace(/\bAway\b/g,  AWAY_TEAM)
+    .replace(/\bDraw\b/g,  'Nul')
+    .replace(/\bOver\b/g,  'Plus de')
+    .replace(/\bUnder\b/g, 'Moins de')
+    .replace(/\bYes\b/g,   'Oui')
+    .replace(/\bNo\b/g,    'Non')
+    .replace(/\bOdd\b/g,   'Impair')
+    .replace(/\bEven\b/g,  'Pair');
+}
+// Bannière "marché personnalisé" pré-remplie au chargement (édition d'un
+// pronostic existant) — traduite depuis les champs cachés déjà renseignés
+// côté serveur avec les valeurs brutes 1xBet.
+(function initCustomPickBanner() {
+  const rawName  = document.getElementById('market-name-input').value;
+  const rawValue = document.getElementById('market-value-input').value;
+  if (rawName && rawValue) {
+    document.getElementById('custom-pick-text').textContent =
+      translateMarketName(rawName) + ' — ' + translateMarketValue(rawValue);
+  }
+})();
+
+/* ── Marché personnalisé (hors des 8 types connus) ── */
+function selectCustomMarket(marketName, valueName, odd, chipEl) {
+  document.getElementById('type-input').value = 'other';
+  document.getElementById('market-name-input').value = marketName;
+  document.getElementById('market-value-input').value = valueName;
+  setLabel(translateMarketName(marketName) + ' : ' + translateMarketValue(valueName));
+  // Un marché personnalisé porte sa propre cote : elle prime même sur une
+  // saisie manuelle précédente, puisque c'est un choix explicite de l'admin.
+  setRecommendedOdd(odd.toFixed(2), '⭐ Cote 1xBet du marché personnalisé sélectionné.');
+
+  document.querySelectorAll('.type-pill').forEach(p => { p.classList.remove('active'); p.setAttribute('aria-pressed','false'); });
+  document.querySelectorAll('.market-value-chip').forEach(c => c.classList.remove('active'));
+  if (chipEl) chipEl.classList.add('active');
+
+  const banner = document.getElementById('custom-pick-banner');
+  banner.style.display = 'flex';
+  document.getElementById('custom-pick-text').textContent =
+    translateMarketName(marketName) + ' — ' + translateMarketValue(valueName) + ' (' + odd.toFixed(2) + ')';
+}
+
+function clearCustomPick(opts) {
+  document.getElementById('market-name-input').value = '';
+  document.getElementById('market-value-input').value = '';
+  document.getElementById('custom-pick-banner').style.display = 'none';
+  document.querySelectorAll('.market-value-chip').forEach(c => c.classList.remove('active'));
+  if (!opts || !opts.keepType) setType('win1');
+}
+
+/* ── Accordéon des 31 marchés 1xBet ── */
+function renderMarketsAccordion(markets) {
+  const container = document.getElementById('markets-accordion');
+  container.innerHTML = '';
+  (markets || []).forEach(m => {
+    const details = document.createElement('details');
+    details.className = 'market-group';
+    const summary = document.createElement('summary');
+    summary.textContent = translateMarketName(m.name) + ' (' + m.values.length + ')';
+    details.appendChild(summary);
+
+    const chipsWrap = document.createElement('div');
+    chipsWrap.className = 'market-chips';
+    m.values.forEach(v => {
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'market-value-chip';
+      chip.textContent = translateMarketValue(v.value) + ' · ' + v.odd.toFixed(2);
+      chip.onclick = () => selectCustomMarket(m.name, v.value, v.odd, chip);
+      chipsWrap.appendChild(chip);
+    });
+    details.appendChild(chipsWrap);
+    container.appendChild(details);
+  });
+  document.getElementById('markets-count').textContent = (markets || []).length + ' marchés';
+  document.getElementById('all-markets-section').style.display = markets && markets.length ? 'block' : 'none';
+}
 
 /* ── VIP toggle ── */
 function toggleVip() {
@@ -309,18 +761,75 @@ function toggleVip() {
   const chk  = document.getElementById('vip-check');
   cb.checked = !cb.checked;
   tog.classList.toggle('checked', cb.checked);
+  tog.setAttribute('aria-checked', cb.checked ? 'true' : 'false');
   chk.textContent = cb.checked ? '✅' : '○';
+  updateRecap();
 }
 
-/* ── Récupérer les cotes depuis The Odds API ── */
-async function fetchOdds() {
+/* ── Charger les cotes 1xBet ──
+   Chargées automatiquement à l'ouverture : les cotes sont la donnée qui sert
+   À DÉCIDER du pronostic, pas une vérification faite après coup. Le bouton
+   reste pour recharger si les marchés bougent. */
+// Le modèle est chargé en même temps que les cotes : c'est le même geste
+// (« montre-moi ce qu'on sait de ce match »), et l'échec de l'un ne doit pas
+// empêcher l'autre — d'où les deux appels indépendants.
+async function fetchPrediction() {
+  const box = document.getElementById('pred-box');
+  try {
+    const r = await fetch('/admin/pronostics/edit/<%= match.id %>/prediction',
+                          { credentials: 'include' });
+    if (!r.ok) return;                       // 503 = modèle indisponible : on n'affiche rien
+    const d = await r.json();
+
+    const advice = document.getElementById('pred-advice');
+    advice.textContent = d.advice || '';
+
+    // Barre 1X2 : trois parts proportionnelles, la plus forte mise en avant.
+    const parts = [
+      ['1', d.percent?.home ?? 0, '<%= match.homeTeam %>'],
+      ['X', d.percent?.draw ?? 0, 'Nul'],
+      ['2', d.percent?.away ?? 0, '<%= match.awayTeam %>'],
+    ];
+    const max = Math.max(...parts.map(p => p[1]));
+    document.getElementById('pred-percent').innerHTML = parts.map(([k, v, nom]) => `
+      <div style="flex:1;text-align:center;padding:.4rem .2rem;border-radius:8px;
+                  background:${v === max && v > 0 ? 'rgba(99,102,241,.18)' : 'var(--bg-soft)'};
+                  border:1px solid ${v === max && v > 0 ? 'rgba(99,102,241,.4)' : 'transparent'}">
+        <div style="font-size:.62rem;color:var(--text-dim)">${k}</div>
+        <div style="font-size:.95rem;font-weight:800">${v}%</div>
+        <div style="font-size:.58rem;color:var(--text-dim);white-space:nowrap;
+                    overflow:hidden;text-overflow:ellipsis">${nom}</div>
+      </div>`).join('');
+
+    // Les sept axes en barres opposées : d'un coup d'œil, qui domine sur quoi.
+    document.getElementById('pred-axes').innerHTML = (d.comparisons || []).map(c => `
+      <div style="display:flex;align-items:center;gap:.4rem;font-size:.66rem">
+        <span style="width:3.2rem;text-align:right;color:var(--text-dim)">${c.label}</span>
+        <span style="width:2.1rem;text-align:right;font-weight:700">${c.home}%</span>
+        <span style="flex:1;height:5px;border-radius:3px;overflow:hidden;display:flex;background:var(--bg-soft)">
+          <span style="width:${c.home}%;background:#6366f1"></span>
+          <span style="width:${c.away}%;background:#f59e0b"></span>
+        </span>
+        <span style="width:2.1rem;font-weight:700">${c.away}%</span>
+      </div>`).join('');
+
+    box.style.display = (d.comparisons || []).length ? 'block' : 'none';
+  } catch (_) {
+    // Silencieux : l'avis du modèle est un bonus, son absence ne doit pas
+    // parasiter la saisie du pronostic.
+  }
+}
+
+async function fetchOdds(auto) {
   const btn  = document.getElementById('btn-fetch-odds');
   const icon = document.getElementById('odds-btn-icon');
+  const txt  = document.getElementById('odds-btn-text');
   const msg  = document.getElementById('odds-msg');
   const matchId = '<%= match.id %>';
 
   btn.disabled = true;
   icon.textContent = '⏳';
+  txt.textContent  = 'Chargement…';
   msg.style.display = 'none';
 
   try {
@@ -331,41 +840,91 @@ async function fetchOdds() {
 
     if (!r.ok) throw new Error(data.message || 'Erreur inconnue');
 
-    // Remplir les 3 champs (pas la cote recommandée)
-    document.querySelector('[name="odds_home"]').value = data.home.toFixed(2);
-    document.querySelector('[name="odds_draw"]').value = data.draw.toFixed(2);
-    document.querySelector('[name="odds_away"]').value = data.away.toFixed(2);
+    // Stocker les cotes pour que setType() les réutilise au clic sur une pill
+    window._xbetOdds = {};
+    (data.options || []).forEach(o => { window._xbetOdds[o.type] = o.odd; });
 
-    // Auto-fill cote recommandée selon le type sélectionné
-    const type = document.getElementById('type-input').value;
-    const map  = { win1: data.home, win2: data.away, draw: data.draw };
-    if (map[type]) document.getElementById('odds-rec').value = map[type].toFixed(2);
+    // Afficher la cote directement sur chaque pill
+    document.querySelectorAll('.type-pill').forEach(p => {
+      const badge = document.getElementById('odd-' + p.dataset.val);
+      const odd   = window._xbetOdds[p.dataset.val];
+      if (badge) badge.textContent = odd != null ? '· ' + odd.toFixed(2) : '';
+    });
 
-    msg.style.cssText = 'display:block;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3)';
-    msg.textContent = `✅ Cotes récupérées — ${data.source}`;
-    icon.textContent = '✅';
+    // Remplir le tableau 1X2 (affiché dans l'app) depuis le marché Match Winner.
+    // En chargement automatique on ne remplit que les champs vides : rouvrir un
+    // pronostic déjà publié ne doit pas remplacer en douce les cotes qui y sont
+    // enregistrées par les cotes du moment. Le bouton « Recharger », lui, écrase.
+    const fill = (id, v) => {
+      if (v == null) return;
+      const el = document.getElementById(id);
+      if (auto && el.value) return;
+      el.value = v.toFixed(2);
+    };
+    fill('odds-home', window._xbetOdds.win1);
+    fill('odds-draw', window._xbetOdds.draw);
+    fill('odds-away', window._xbetOdds.win2);
+
+    // Rafraîchir la cote recommandée si le type déjà sélectionné a une cote 1xBet.
+    // On ne touche pas à une valeur saisie à la main : l'admin l'a voulue.
+    const currentType = document.getElementById('type-input').value;
+    const recEl = document.getElementById('odds-rec');
+    if (window._xbetOdds[currentType] != null && !(auto && recEl.value)) {
+      setRecommendedOdd(window._xbetOdds[currentType].toFixed(2),
+        '⭐ Cote 1xBet de l\'option sélectionnée (' + (typeLabels[currentType] || currentType) + ').');
+    }
+    updateRecap();
+
+    // Afficher tous les marchés (accordéon) pour le choix libre
+    renderMarketsAccordion(data.markets);
+
+    if (!data.markets || data.markets.length === 0) {
+      msg.style.cssText = 'display:block;background:rgba(245,158,11,.1);color:#f59e0b;border:1px solid rgba(245,158,11,.3)';
+      msg.textContent = '⚠️ Aucune cote disponible pour ce match pour le moment (marchés suspendus ou pas encore ouverts chez aucun bookmaker).';
+      icon.textContent = '⚠️';
+    } else {
+      msg.style.cssText = 'display:block;background:rgba(34,197,94,.1);color:#22c55e;border:1px solid rgba(34,197,94,.3)';
+      const sourceNote = data.source && data.source !== '1xBet' ? ` — ${data.source}` : ' — 1xBet';
+      msg.textContent = `✅ ${data.markets.length} marché(s) chargé(s)${sourceNote} — clique une option ci-dessus, ou ouvre « Tous les marchés » pour un choix libre.`;
+      icon.textContent = '✅';
+    }
   } catch(e) {
     msg.style.cssText = 'display:block;background:rgba(239,68,68,.1);color:#ef4444;border:1px solid rgba(239,68,68,.3)';
     msg.textContent = `❌ ${e.message}`;
     icon.textContent = '⚡';
+  } finally {
     btn.disabled = false;
+    txt.textContent = 'Recharger les cotes';
   }
 }
 
-/* ── Dépublier ── */
+// Chargement automatique à l'ouverture de la page (mode non destructif).
+// Les deux appels sont indépendants : un modèle indisponible ne doit pas
+// priver l'admin de ses cotes, et inversement.
+fetchOdds(true);
+fetchPrediction();
+
+/* ── Dépublier ──
+ *
+ * Un formulaire distinct, pas le formulaire d'édition.
+ *
+ * Cette fonction ajoutait `publish=false` au formulaire principal et le
+ * soumettait : une écriture complète du pronostic, qui traverse le garde-fou
+ * « Impossible de créer un pronostic pour un match terminé ». Sur un match
+ * fini — le cas où l'on veut justement retirer un pronostic — la dépublication
+ * echouait, avec un message parlant de création.
+ *
+ * Retirer de la vitrine n'est pas enregistrer : la bascule passe par sa propre
+ * route, qui ne touche qu'a l'indicateur de publication. */
 function depublish() {
-  const f = document.getElementById('pro-form');
-  const h = document.createElement('input');
-  h.type = 'hidden'; h.name = 'publish'; h.value = 'false';
-  f.appendChild(h);
-  f.submit();
+  document.getElementById('form-depublier').submit();
 }
 </script>
 
 <% if(isEdit && (match.status === 'FINISHED' || match.status === 'finished')) { %>
 <div class="card" style="margin-top:1.2rem">
   <div style="display:flex;align-items:center;gap:.6rem;margin-bottom:1rem">
-    <span style="font-size:1.1rem">🏁</span>
+    <span style="font-size:1.1rem"><svg class="ic" aria-hidden="true"><use href="#ic-flag"/></svg></span>
     <div>
       <div style="font-weight:700;font-size:.9rem">Résultat du pronostic</div>
       <div style="font-size:.75rem;color:var(--text-dim)">
@@ -373,19 +932,21 @@ function depublish() {
       </div>
     </div>
     <% if(pro.result === 'WIN') { %>
-      <span class="badge badge-ok" style="margin-left:auto;font-size:.82rem;padding:.3rem .75rem">✅ WIN</span>
+      <span class="badge badge-ok" style="margin-left:auto;font-size:.82rem;padding:.3rem .75rem"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> WIN</span>
     <% } else if(pro.result === 'LOSS') { %>
-      <span class="badge badge-error" style="margin-left:auto;font-size:.82rem;padding:.3rem .75rem">❌ LOSS</span>
+      <span class="badge badge-error" style="margin-left:auto;font-size:.82rem;padding:.3rem .75rem"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> LOSS</span>
+    <% } else if(pro.result === 'PUSH') { %>
+      <span class="badge" style="margin-left:auto;background:color-mix(in srgb,var(--info) 15%,transparent);color:var(--info);font-size:.82rem;padding:.3rem .75rem"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Remboursé</span>
     <% } else { %>
       <span class="badge" style="margin-left:auto;background:var(--surface-d);color:var(--text-dim);font-size:.82rem;padding:.3rem .75rem">— Non défini</span>
     <% } %>
   </div>
 
   <% if(typeof query !== 'undefined' && query.result_success) { %>
-  <div class="alert alert-success" style="margin-bottom:.75rem">✅ Résultat mis à jour.</div>
+  <div class="alert alert-success" style="margin-bottom:.75rem"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Résultat mis à jour.</div>
   <% } %>
   <% if(typeof query !== 'undefined' && query.result_error) { %>
-  <div class="alert alert-error" style="margin-bottom:.75rem">❌ <%= query.result_error %></div>
+  <div class="alert alert-error" style="margin-bottom:.75rem"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= query.result_error %></div>
   <% } %>
 
   <div style="display:flex;gap:.6rem;flex-wrap:wrap">
@@ -393,22 +954,35 @@ function depublish() {
       <input type="hidden" name="match_id" value="<%= match.id %>">
       <input type="hidden" name="result" value="WIN">
       <button type="submit" class="btn" style="background:#16a34a;color:#fff;border:none;padding:.5rem 1.25rem;border-radius:var(--radius-s);font-weight:700;cursor:pointer<%= pro.result==='WIN'?' box-shadow:0 0 0 3px rgba(22,163,74,.35)':'' %>">
-        ✅ Forcer WIN
+        <svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Forcer WIN
       </button>
     </form>
     <form method="POST" action="/admin/pronostics/result/<%= pro.id %>" style="display:contents">
       <input type="hidden" name="match_id" value="<%= match.id %>">
       <input type="hidden" name="result" value="LOSS">
       <button type="submit" class="btn" style="background:#dc2626;color:#fff;border:none;padding:.5rem 1.25rem;border-radius:var(--radius-s);font-weight:700;cursor:pointer">
-        ❌ Forcer LOSS
+        <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Forcer LOSS
+      </button>
+    </form>
+    <form method="POST" action="/admin/pronostics/result/<%= pro.id %>" style="display:contents">
+      <input type="hidden" name="match_id" value="<%= match.id %>">
+      <input type="hidden" name="result" value="PUSH">
+      <button type="submit" class="btn" style="background:#0284c7;color:#fff;border:none;padding:.5rem 1.25rem;border-radius:var(--radius-s);font-weight:700;cursor:pointer" title="Ni gain ni perte — la mise est remboursée">
+        <svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Forcer Remboursé
       </button>
     </form>
     <% if(pro.result) { %>
     <form method="POST" action="/admin/pronostics/result/<%= pro.id %>" style="display:contents">
       <input type="hidden" name="match_id" value="<%= match.id %>">
       <input type="hidden" name="result" value="null">
-      <button type="submit" class="btn btn-outline" style="padding:.5rem 1.25rem;border-radius:var(--radius-s);font-weight:600;cursor:pointer">
-        ↺ Réinitialiser
+      <%# Ce bouton est la reponse a « retirer de l'historique qui touche aux
+          statistiques ». Le bilan public ne compte que les `WIN` et les `LOSS` :
+          remettre le resultat a vide en sort le pronostic, sans rien detruire.
+          Son effet n'etait ecrit nulle part, et « Reinitialiser » ne le disait
+          pas — on ne pouvait pas deviner que c'etait la l'action cherchee. %>
+      <button type="submit" class="btn btn-outline" style="padding:.5rem 1.25rem;border-radius:var(--radius-s);font-weight:600;cursor:pointer"
+              title="Retire ce pronostic du taux de réussite affiché aux visiteurs. Le pronostic, les commentaires et les paris de vos utilisateurs restent intacts.">
+        ↺ Retirer du bilan
       </button>
     </form>
     <% } %>

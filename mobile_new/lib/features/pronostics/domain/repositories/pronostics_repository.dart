@@ -15,6 +15,8 @@ abstract class PronosticsRepository {
     String? leagueId,
     String? dateFilter,
     String? sport,
+    String? status,
+    bool?   hasPronostic,
     String? cursor,
     int     limit,
   });

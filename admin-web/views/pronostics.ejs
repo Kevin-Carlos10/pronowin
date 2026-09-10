@@ -1,88 +1,51 @@
 <%- include('layout_top', {page:'pronostics'}) %>
 
 <style>
+.pro-daily-actif { background:rgba(245,166,35,.14); color:#F5A623; border:1px solid rgba(245,166,35,.35);
+                   cursor:default; font-weight:700; }
+
 /* ── Stats ─────────────────────────────────────────────────────────────────── */
 .pro-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(130px,1fr)); gap:.7rem; margin-bottom:1.1rem; }
-.pro-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.8rem 1rem; }
-.pro-stat .v  { font-size:1.4rem; font-weight:800; line-height:1; margin-bottom:.2rem; }
-.pro-stat .l  { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
-.pro-stat.blue   .v { color:var(--info); }
-.pro-stat.green  .v { color:var(--success); }
-.pro-stat.orange .v { color:var(--warning); }
-.pro-stat.dim    .v { color:var(--text-m); }
+.pro-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1.1rem; transition:transform .2s,box-shadow .2s; }
+.pro-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.pro-stat .v  { font-size:1.7rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
+.pro-stat .l  { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
+.pro-stat.blue   { border-left-color:var(--info); }    .pro-stat.blue   .v { color:var(--info); }
+.pro-stat.green  { border-left-color:var(--success); } .pro-stat.green  .v { color:var(--success); }
+.pro-stat.orange { border-left-color:var(--warning); } .pro-stat.orange .v { color:var(--warning); }
+.pro-stat.dim    { border-left-color:var(--border-s); }.pro-stat.dim    .v { color:var(--text-m); }
 
-/* ── Filtre bar ─────────────────────────────────────────────────────────────── */
-.pro-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
-.pro-filter select, .pro-filter input {
-  background:var(--surface-d); border:1px solid var(--border);
-  border-radius:var(--radius-s); padding:.45rem .75rem;
-  color:var(--text); font-size:.83rem; font-family:inherit;
-  outline:none; transition:border-color .15s;
-}
-.pro-filter select:focus, .pro-filter input:focus { border-color:var(--primary); }
+/* Barre de filtres : voir .filterbar dans style.css (socle partagé). */
 
-/* ── Match cards ─────────────────────────────────────────────────────────────── */
-.pro-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:.9rem; }
-@media(max-width:680px){ .pro-grid { grid-template-columns:1fr; } }
 
-.pro-card {
-  background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius); overflow:hidden;
-  transition:box-shadow var(--transition), border-color var(--transition);
-  display:flex; flex-direction:column;
-}
-.pro-card:hover { box-shadow:var(--shadow-lg); border-color:var(--primary); }
-.pro-card.published  { border-left:3px solid var(--success); }
-.pro-card.draft      { border-left:3px solid var(--warning); }
-.pro-card.none       { border-left:3px solid var(--border); }
-.pro-card.live-match { border:1.5px solid var(--error); box-shadow:0 0 0 2px color-mix(in srgb,var(--error) 12%,transparent); }
 
-.pro-card-head {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:.6rem .9rem; border-bottom:1px solid var(--border);
-  gap:.5rem;
-}
-.pro-league { display:flex; align-items:center; gap:.35rem; font-size:.72rem; color:var(--text-m); font-weight:600; }
-.pro-league img { width:16px; height:16px; object-fit:contain; }
 .pro-date { font-size:.72rem; color:var(--text-dim); white-space:nowrap; }
 
-.pro-card-body { padding:.85rem .9rem; flex:1; }
-.pro-vs {
-  display:flex; align-items:center; justify-content:center;
-  gap:.75rem; text-align:center;
-}
-.pro-team { flex:1; display:flex; flex-direction:column; align-items:center; gap:.35rem; }
-.pro-team img { width:40px; height:40px; border-radius:50%; object-fit:contain; background:var(--surface-d); }
-.pro-team .team-initial {
-  width:40px; height:40px; border-radius:50%; background:var(--surface-d);
-  display:flex; align-items:center; justify-content:center;
-  font-weight:800; font-size:1rem; color:var(--text-m);
-}
-.pro-team .name { font-size:.8rem; font-weight:700; line-height:1.2; }
-.pro-vs-sep { font-size:1rem; font-weight:800; color:var(--text-dim); flex-shrink:0; }
 
-.pro-tip { margin-top:.75rem; padding:.5rem .7rem; background:var(--surface-d); border-radius:var(--radius-s); font-size:.78rem; }
-.pro-tip .label { color:var(--text-dim); font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; margin-bottom:.2rem; }
-.pro-tip .val { font-weight:700; color:var(--text); }
-.pro-tip .conf { float:right; color:var(--warning); letter-spacing:.05em; }
 
-.pro-card-foot {
-  display:flex; align-items:center; justify-content:space-between;
-  padding:.6rem .9rem; border-top:1px solid var(--border);
-  gap:.5rem; flex-wrap:wrap;
-}
 
 /* ── Countdown badge ────────────────────────────────────────────────────────── */
-.pro-countdown { font-size:.7rem; color:var(--text-dim); }
-.pro-countdown.soon { color:var(--warning); font-weight:700; }
-.pro-countdown.live { color:var(--error); font-weight:700; animation:pulse-live 1.5s ease-in-out infinite; }
+
+/* ── Groupe par championnat (Mes pronostics) ──────────────────────────────────── */
 </style>
 
 <%
   const _total     = matches.length;
   const _published = matches.filter(m => m.is_published).length;
   const _drafts    = matches.filter(m => m.has_pronostic && !m.is_published).length;
+  // Le pronostic gratuit du jour : sans repere visible, l'administrateur ne
+  // sait pas ce que voient les visiteurs non abonnes.
+  const _vitrine = matches.find(m => m.pronostic && m.pronostic.is_daily_free) ?? null;
   const _none      = matches.filter(m => !m.has_pronostic).length;
+
+  // Y a-t-il seulement de quoi alimenter la vitrine ?
+  //
+  // Le repli du serveur exige `isPremium: false`. Tout publier en premium et
+  // ne designer aucune vitrine, c'est ne rien montrer du tout aux visiteurs
+  // non abonnes — et le bandeau annoncait pourtant que « l'application affiche
+  // alors le premier pronostic gratuit du jour ».
+  const _gratuitsPublies = matches.filter(
+    m => m.is_published && m.pronostic && !m.pronostic.is_premium).length;
 
   // statusFilter est injecté par le serveur depuis req.query.status
   const _statusFilter = (typeof statusFilter !== 'undefined' ? statusFilter : '') || '';
@@ -98,183 +61,372 @@
 
 <div class="topbar">
   <div>
-    <h2>⚽ Pronostics</h2>
-    <small><%= _total %> match<%= _total!==1?'s':'' %> · Football-Data.org</small>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Pronostics</h2>
+    <%# Le total avant troncature vient de l'en-tête X-Total-Count. L'afficher
+        évite de laisser croire que la liste est complète quand elle est
+        plafonnée à 400. %>
+    <% const _totalReel = (typeof totalMatchs !== 'undefined' && totalMatchs) ? totalMatchs : _total; %>
+    <small>
+      <% if (_totalReel > _total) { %>
+        <%= _total %> affichés sur <%= _totalReel.toLocaleString('fr-FR') %> matchs
+      <% } else { %>
+        <%= _total %> match<%= _total!==1?'s':'' %>
+      <% } %>
+      · <%= (typeof live !== 'undefined' && live) ? 'Matchs en direct (base locale)' : (typeof mine !== 'undefined' && mine) ? 'Mes pronostics (base locale)' : 'Catalogue externe' %>
+    </small>
   </div>
   <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+    <%# Recours manuel : le cron peut echouer ou un match rester coince en LIVE.
+        L'endpoint existait, aucun bouton ne l'appelait. %>
+    <% if (hasPerm('pronostics', 'write')) { %>
+    <form method="POST" action="/admin/pronostics/sync-scores" style="display:inline">
+      <input type="hidden" name="retour" value="/admin/pronostics">
+      <button type="submit" class="btn btn-outline btn-sm"
+              title="Relancer la récupération des scores depuis la source de données">
+        <svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Resynchroniser les scores
+      </button>
+    </form>
+    <% } %>
     <a href="/admin/pronostics/export<%= competition ? '?competition='+competition : '' %>"
-       class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)">⬇️ Export CSV</a>
+       class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV</a>
   </div>
 </div>
 
+<!-- ── Onglets : découvrir de nouveaux matchs vs retrouver ce qui a déjà été pronostiqué ── -->
+<div style="display:flex;gap:.4rem;margin-bottom:1rem">
+  <a href="/admin/pronostics"
+     class="btn btn-sm <%= (typeof mine === 'undefined' || !mine) && (typeof live === 'undefined' || !live) ? 'btn-primary' : 'btn-outline' %>">
+    <svg class="ic" aria-hidden="true"><use href="#ic-globe"/></svg> Découvrir
+  </a>
+  <a href="/admin/pronostics?mine=1"
+     class="btn btn-sm <%= (typeof mine !== 'undefined' && mine) ? 'btn-primary' : 'btn-outline' %>">
+    <svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Mes pronostics
+  </a>
+  <a href="/admin/pronostics?live=1"
+     class="btn btn-sm <%= (typeof live !== 'undefined' && live) ? 'btn-primary' : 'btn-outline' %>">
+    <svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-danger)"><use href="#ic-dot"/></svg> Match en direct
+  </a>
+</div>
+
+<%# `data-toast="skip"` : le balayeur générique de layout_bottom transformait
+    déjà cette alerte en toast, et le script de la page en produisait un second.
+    Deux notifications identiques empilées pour un seul événement. %>
 <% if(typeof success !== 'undefined' && success){ %>
-<div class="alert alert-success" style="display:none" id="flash-success">✅ Pronostic publié avec succès !</div>
+<div class="alert alert-success" style="display:none" id="flash-success" data-toast="skip"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Pronostic publié avec succès !</div>
 <% } %>
 <% if(typeof error !== 'undefined' && error){ %>
 <div class="alert alert-error">
-  <strong>❌ Erreur Football-Data.org</strong> — <%= error %>
-  <% if(error.includes('email') || error.includes('vérifié')){ %>
-  <br><small>👉 Vérifiez l'email reçu de football-data.org et cliquez sur le lien de confirmation.</small>
-  <% } else if(error.includes('clé') || error.includes('API')){ %>
-  <br><small>👉 Vérifiez <code>FOOTBALL_DATA_API_KEY</code> dans le fichier <code>.env</code>.</small>
+  <strong><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Erreur du fournisseur de données</strong> — <%= error %>
+  <% if(error.includes('clé') || error.includes('API')){ %>
+  <br><small><svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"/></svg> Vérifiez <code>API_FOOTBALL_KEY</code> dans le fichier <code>.env</code>.</small>
   <% } %>
 </div>
 <% } %>
 
 <!-- ── Stats ─────────────────────────────────────────────────────────────────── -->
 <div class="pro-stats">
-  <div class="pro-stat blue"><div class="v"><%= _total %></div><div class="l">Matchs</div></div>
-  <div class="pro-stat green"><div class="v"><%= _published %></div><div class="l">Publiés</div></div>
-  <div class="pro-stat orange"><div class="v"><%= _drafts %></div><div class="l">Brouillons</div></div>
-  <div class="pro-stat dim"><div class="v"><%= _none %></div><div class="l">Sans prono</div></div>
+  <div class="pro-stat blue"><div class="l">Matchs</div><div class="v"><%= _total %></div></div>
+  <div class="pro-stat green"><div class="l">Publiés</div><div class="v"><%= _published %></div></div>
+  <div class="pro-stat" style="border-left-color:#F5A623"><div class="l">Vitrine du jour</div><div class="v" style="font-size:1.15rem;color:#F5A623"><%= _vitrine ? "1" : "—" %></div></div>
+  <div class="pro-stat orange"><div class="l">Brouillons</div><div class="v"><%= _drafts %></div></div>
+  <div class="pro-stat dim"><div class="l">Sans prono</div><div class="v"><%= _none %></div></div>
+</div>
+
+<%# Ce que voit un visiteur non abonne. Sans ce bandeau, rien n'indique quel
+    pronostic sert de vitrine, ni meme que ce reglage existe.
+
+    Ce bloc etait imbrique DANS la tuile « Brouillons », entre son libelle et
+    sa valeur. Une banniere pleine largeur enfermee dans une colonne de 150 px :
+    son texte debordait sur la tuile voisine, s'y faisait couper au milieu des
+    mots, et repoussait le compteur de brouillons hors de vue. Le gabarit
+    restait valide, la page se rendait sans erreur — seule la lecture revelait
+    le probleme. Sa place est ici, apres la rangee de statistiques. %>
+<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;border-left:3px solid #F5A623">
+  <svg class="ic ic-lg" aria-hidden="true" style="color:#F5A623;flex-shrink:0"><use href="#ic-star"/></svg>
+  <div style="flex:1;min-width:220px">
+    <div style="font-size:.8rem;font-weight:800;margin-bottom:.15rem">Pronostic gratuit du jour</div>
+    <div style="font-size:.79rem;color:var(--text-m);line-height:1.55">
+      <% if (_vitrine) { %>
+        <strong><%= _vitrine.homeTeam %> – <%= _vitrine.awayTeam %></strong>
+        — visible par tous les visiteurs, abonnés ou non.
+      <% } else if (_gratuitsPublies === 0) { %>
+        <strong style="color:#F5A623">Aucun pronostic gratuit publié.</strong>
+        Un visiteur non abonné ne voit donc <strong>rien</strong> : il n'y a pas de
+        repli possible, l'application ne peut afficher que des pronostics gratuits.
+        Décochez « Premium » sur l'un d'eux, ou désignez-en un avec l'étoile
+        dans la colonne Actions.
+      <% } else { %>
+        Aucun choisi. L'application affiche alors le premier des
+        <strong><%= _gratuitsPublies %></strong> pronostic(s) gratuit(s) publié(s),
+        par ordre d'heure de match — c'est le tri qui décide de votre vitrine, pas
+        vous. Utilisez l'étoile dans la colonne Actions.
+      <% } %>
+    </div>
+  </div>
 </div>
 
 <!-- ── Filtres ────────────────────────────────────────────────────────────────── -->
-<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem">
-  <form method="GET" action="/admin/pronostics" class="pro-filter">
-    <select name="competition" onchange="this.form.submit()">
-      <option value="">🌐 Toutes les ligues</option>
-      <option value="WC"  <%= competition==='WC'  ?'selected':'' %>>🌍 Coupe du Monde 2026</option>
-      <option value="PL"  <%= competition==='PL'  ?'selected':'' %>>🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</option>
-      <option value="FL1" <%= competition==='FL1' ?'selected':'' %>>🇫🇷 Ligue 1</option>
-      <option value="PD"  <%= competition==='PD'  ?'selected':'' %>>🇪🇸 La Liga</option>
-      <option value="SA"  <%= competition==='SA'  ?'selected':'' %>>🇮🇹 Serie A</option>
-      <option value="BL1" <%= competition==='BL1' ?'selected':'' %>>🇩🇪 Bundesliga</option>
-      <option value="CL"  <%= competition==='CL'  ?'selected':'' %>>🌍 Champions League</option>
+<form method="GET" action="/admin/pronostics" class="filterbar">
+    <input type="hidden" name="mine" value="<%= (typeof mine !== 'undefined' && mine) ? '1' : '0' %>">
+    <input type="hidden" name="live" value="<%= (typeof live !== 'undefined' && live) ? '1' : '0' %>">
+    <%
+      // « Tout » est désormais la valeur vide, donc le défaut : l'appel API
+      // ramène de toute façon l'intégralité des matchs, la vue restreinte
+      // jetait 90 % de ce qui était déjà payé.
+      //
+      // Les homonymes sont levés par le pays quand l'API le fournit : deux
+      // « Serie A » (Italie, Brésil) s'affichaient à l'identique.
+      const _ligues = typeof visibleLeagues !== 'undefined' ? visibleLeagues : [];
+      const _occurrences = _ligues.reduce((acc, l) => {
+        acc[l.league] = (acc[l.league] ?? 0) + 1; return acc;
+      }, {});
+      const _libelle = l => _occurrences[l.league] > 1
+        ? `${l.league} · ${l.leagueCountry || l.leagueCode}`
+        : l.league;
+    %>
+    <select name="competition" onchange="this.form.submit()" aria-label="Compétition">
+      <option value="">🌐 Tout</option>
+      <option value="MAJORS" <%= competition==='MAJORS' ?'selected':'' %>>⭐ Ligues principales + amicaux</option>
+      <% _ligues.forEach(l => { %>
+        <option value="<%= l.leagueCode %>" <%= competition===l.leagueCode ?'selected':'' %>><%= _libelle(l) %></option>
+      <% }) %>
     </select>
-    <select name="status" onchange="this.form.submit()">
+    <select name="status" onchange="this.form.submit()" aria-label="Statut">
       <option value="">Tous statuts</option>
       <option value="published" <%= _statusFilter==='published'?'selected':'' %>>✅ Publiés</option>
       <option value="draft"     <%= _statusFilter==='draft'    ?'selected':'' %>>✏️ Brouillons</option>
       <option value="none"      <%= _statusFilter==='none'     ?'selected':'' %>>— Sans prono</option>
     </select>
-    <% if(competition || _statusFilter) { %>
-    <a href="/admin/pronostics" class="btn btn-outline btn-sm">✕ Reset</a>
+    <input type="text" name="q" placeholder="🔍 Équipe ou ligue..." value="<%= typeof q !== 'undefined' ? q : '' %>" aria-label="Rechercher">
+    <% if((typeof mine === 'undefined' || !mine) && (typeof live === 'undefined' || !live)) { %>
+    <input type="date" name="date" title="Voir les matchs d'une date précise (passée ou à venir)" value="<%= typeof date !== 'undefined' ? date : '' %>">
     <% } %>
-    <span style="margin-left:auto;font-size:.78rem;color:var(--text-dim)"><%= visibleMatches.length %> affiché<%= visibleMatches.length!==1?'s':'' %></span>
-  </form>
-</div>
+    <button type="submit" class="btn btn-outline btn-sm">Filtrer</button>
+    <% if(competition || _statusFilter || (typeof q !== 'undefined' && q) || (typeof date !== 'undefined' && date)) { %>
+    <a href="/admin/pronostics<%= (typeof live !== 'undefined' && live) ? '?live=1' : (typeof mine !== 'undefined' && mine) ? '?mine=1' : '' %>" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a>
+    <% } %>
+  <span class="spacer"></span>
+  <span style="font-size:.78rem;color:var(--text-dim)"><%= visibleMatches.length %> affiché<%= visibleMatches.length!==1?'s':'' %></span>
+</form>
 
 <!-- ── Grille des matchs ──────────────────────────────────────────────────────── -->
+<% const _isMine = typeof mine !== 'undefined' && mine; %>
+<% const _isLive = typeof live !== 'undefined' && live; %>
+<% const _isGrouped = _isMine || _isLive; %>
+<%
+  // "Mes pronostics" / "Match en direct" : regroupé par championnat, chaque
+  // groupe trié par date ; les groupes suivent l'ordre du match le plus
+  // pertinent qu'ils contiennent, puisque visibleMatches arrive déjà trié.
+  let leagueGroups = null;
+  if (_isGrouped) {
+    const byLeague = new Map();
+    visibleMatches.forEach(m => {
+      const key = m.league || 'Autre';
+      if (!byLeague.has(key)) byLeague.set(key, { league: key, logo: m.leagueLogo, items: [] });
+      byLeague.get(key).items.push(m);
+    });
+    leagueGroups = [...byLeague.values()];
+  }
+%>
 <% if(visibleMatches.length === 0) { %>
 <div class="empty-state card">
-  <div style="font-size:2.5rem;margin-bottom:.5rem"><%= _total === 0 ? '⏳' : '🔍' %></div>
-  <p><%= _total === 0 ? 'Aucun match programmé cette semaine pour cette ligue.' : 'Aucun match ne correspond aux filtres.' %></p>
-  <% if(competition || _statusFilter) { %>
-  <a href="/admin/pronostics" class="btn btn-outline" style="margin-top:.75rem">Voir tous les matchs</a>
+  <div style="font-size:2.5rem;margin-bottom:.5rem"><%= _total === 0 ? (_isLive ? '🔴' : _isMine ? '📋' : '⏳') : '🔍' %></div>
+  <p><%= _total === 0
+    ? (_isLive ? 'Aucun match en direct actuellement.' : _isMine ? 'Aucun pronostic créé pour l\'instant.' : 'Aucun match programmé cette semaine pour cette ligue.')
+    : 'Aucun match ne correspond aux filtres.' %></p>
+  <% if(competition || _statusFilter || (typeof q !== 'undefined' && q) || (typeof date !== 'undefined' && date)) { %>
+  <a href="/admin/pronostics<%= _isLive ? '?live=1' : _isMine ? '?mine=1' : '' %>" class="btn btn-outline" style="margin-top:.75rem">Voir tous les matchs</a>
   <% } %>
 </div>
-<% } else { %>
-<div class="pro-grid">
-<% visibleMatches.forEach(m => {
-     const d = new Date(m.matchDate);
-     const now = Date.now();
-     const diffMin = Math.floor((d.getTime() - now) / 60000);
-     const dateStr = d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}) + ' · ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
-     const isLive = m.status === 'LIVE' || (diffMin < 0 && diffMin > -120);
-     const cardClass = (isLive ? 'live-match ' : '') + (m.is_published ? 'published' : m.has_pronostic ? 'draft' : 'none');
-     const homeInitial = (m.homeTeam||'?')[0].toUpperCase();
-     const awayInitial = (m.awayTeam||'?')[0].toUpperCase();
-     const stars = m.pronostic?.confidence_score ?? 0;
-     const starsStr = '★'.repeat(stars) + '☆'.repeat(5-stars);
-     let countdownClass = 'pro-countdown', countdownStr = dateStr;
-     if (isLive) { countdownClass += ' live'; countdownStr = '🔴 EN DIRECT'; }
-     else if (diffMin >= 0 && diffMin < 120) { countdownClass += ' soon'; countdownStr = `⚡ Dans ${diffMin}min`; }
+<% } else {
+     const sections = _isGrouped ? leagueGroups : [{ league: null, logo: null, items: visibleMatches }];
 %>
-<div class="pro-card <%= cardClass %>">
-
-  <!-- Head : ligue + date -->
-  <div class="pro-card-head">
-    <div class="pro-league">
-      <% if(m.leagueLogo){ %><img src="<%= m.leagueLogo %>" onerror="this.style.display='none'"><% } %>
-      <span class="badge badge-info" style="font-size:.65rem"><%= m.league %></span>
-    </div>
-    <div class="<%= countdownClass %>"><%= countdownStr %></div>
+<div class="dt-wrap" id="pro-table">
+  <div class="bulkbar" id="pro-bulk">
+    <span class="count" id="pro-bulk-n">0</span>&nbsp;pronostic(s) sélectionné(s)
+    <span class="spacer"></span>
+    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="WIN"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> WIN</button>
+    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="LOSS"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> LOSS</button>
+    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="PUSH"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Push</button>
+    <button type="button" class="btn btn-sm btn-outline" id="pro-bulk-clear">Annuler</button>
   </div>
-
-  <!-- Corps : équipes -->
-  <div class="pro-card-body">
-    <div class="pro-vs">
-      <div class="pro-team">
-        <% if(m.homeTeamLogo) { %>
-          <img src="<%= m.homeTeamLogo %>" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-          <div class="team-initial" style="display:none"><%= homeInitial %></div>
-        <% } else { %>
-          <div class="team-initial"><%= homeInitial %></div>
-        <% } %>
-        <span class="name"><%= m.homeTeam %></span>
-      </div>
-      <div class="pro-vs-sep">
-        <% if(isLive && m.homeScore != null && m.awayScore != null) { %>
-          <span style="color:var(--error);font-size:1.1rem;font-weight:900"><%= m.homeScore %> - <%= m.awayScore %></span>
-        <% } else { %>VS<% } %>
-      </div>
-      <div class="pro-team">
-        <% if(m.awayTeamLogo) { %>
-          <img src="<%= m.awayTeamLogo %>" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-          <div class="team-initial" style="display:none"><%= awayInitial %></div>
-        <% } else { %>
-          <div class="team-initial"><%= awayInitial %></div>
-        <% } %>
-        <span class="name"><%= m.awayTeam %></span>
-      </div>
-    </div>
-
-    <!-- Tip si existant -->
-    <% if(m.has_pronostic && m.pronostic) { %>
-    <div class="pro-tip">
-      <div class="label">Pronostic <% if(m.pronostic.is_premium){ %><span style="color:var(--warning)">👑 VIP</span><% } %>
-        <span class="conf" title="Confiance"><%= starsStr %></span>
-      </div>
-      <div class="val"><%= m.pronostic.prediction_label || m.pronostic.tip || '—' %></div>
-    </div>
-    <% } %>
+  <div class="dt-scroll">
+  <div class="table-wrap">
+    <table class="dt">
+      <thead>
+        <tr>
+          <th scope="col" class="col-check"><input type="checkbox" id="pro-all" aria-label="Tout sélectionner"></th>
+          <th scope="col">Coup d'envoi</th>
+          <% if(!_isGrouped) { %><th scope="col">Compétition</th><% } %>
+          <th scope="col">Match</th>
+          <th scope="col">Pronostic</th>
+          <th scope="col" class="num">Cote</th>
+          <th scope="col" class="num">Conf.</th>
+          <th scope="col">Statut</th>
+          <th scope="col" class="col-act">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+  <% const _cols = _isGrouped ? 8 : 9; %>
+  <% sections.forEach(section => { %>
+  <% if(_isGrouped) { %>
+        <tr class="dt-group"><td colspan="<%= _cols %>">
+          <% if(section.logo){ %><img src="<%= section.logo %>" onerror="this.style.display='none'" alt=""><% } %>
+          <%= section.league %>
+          <span class="n">· <%= section.items.length %> match<%= section.items.length!==1?'s':'' %></span>
+        </td></tr>
+  <% } %>
+  <% section.items.forEach(m => {
+       const d = new Date(m.matchDate);
+       const diffMin = Math.floor((d.getTime() - Date.now()) / 60000);
+       const dateStr = d.toLocaleDateString('fr-FR',{weekday:'short',day:'numeric',month:'short'}) + ' · ' + d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+       const isLive = m.status === 'LIVE' || (diffMin < 0 && diffMin > -120);
+       const isFinished = m.status === 'FINISHED';
+       const homeInitial = (m.homeTeam||'?')[0].toUpperCase();
+       const awayInitial = (m.awayTeam||'?')[0].toUpperCase();
+       const conf = m.pronostic?.confidence_score ?? 0;
+       const rowClass = isLive ? 'is-live' : m.is_published ? 'is-pub' : m.has_pronostic ? 'is-draft' : '';
+       let whenClass = 'when', whenStr = dateStr;
+       if (isLive) { whenClass += ' live'; whenStr = ' ' + dateStr; }
+       else if (isFinished) { whenStr = ' ' + dateStr; }
+       else if (diffMin >= 0 && diffMin < 120) { whenClass += ' soon'; whenStr = ' Dans ' + diffMin + ' min'; }
+  %>
+        <tr class="<%= rowClass %>">
+          <td class="col-check">
+            <% if(m.has_pronostic && m.pronostic) { %>
+              <input type="checkbox" class="pro-chk" value="<%= m.pronostic.id %>" aria-label="Sélectionner ce pronostic">
+            <% } %>
+          </td>
+          <td><span class="<%= whenClass %>"><%= whenStr %></span></td>
+          <% if(!_isGrouped) { %>
+          <td style="color:var(--text-m)">
+            <% if(m.leagueLogo){ %><img src="<%= m.leagueLogo %>" class="team-logo" onerror="this.style.display='none'" alt=""><% } %>
+            <%= m.league %>
+          </td>
+          <% } %>
+          <td>
+            <div class="matchcell">
+              <span class="team" title="<%= m.homeTeam %>">
+                <% if(m.homeTeamLogo) { %><img src="<%= m.homeTeamLogo %>" class="team-logo" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'team-logo',textContent:'<%= homeInitial %>'}))"><% } else { %><span class="team-logo"><%= homeInitial %></span><% } %>
+                <%= m.homeTeam %>
+              </span>
+              <% if((isLive || isFinished) && m.homeScore != null && m.awayScore != null) { %>
+                <span class="score" style="color:<%= isLive ? 'var(--error)' : 'var(--text)' %>"><%= m.homeScore %>–<%= m.awayScore %></span>
+              <% } else { %><span class="vs">vs</span><% } %>
+              <span class="team" title="<%= m.awayTeam %>">
+                <% if(m.awayTeamLogo) { %><img src="<%= m.awayTeamLogo %>" class="team-logo" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'team-logo',textContent:'<%= awayInitial %>'}))"><% } else { %><span class="team-logo"><%= awayInitial %></span><% } %>
+                <%= m.awayTeam %>
+              </span>
+            </div>
+          </td>
+          <td>
+            <% if(m.has_pronostic && m.pronostic) { %>
+              <% if(m.pronostic.is_premium){ %><span title="Premium" style="color:var(--warning)"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> <% } %>
+              <%= m.pronostic.prediction_label || m.pronostic.tip || '—' %>
+            <% } else { %><span style="color:var(--text-dim)">—</span><% } %>
+          </td>
+          <td class="num"><%= (m.has_pronostic && m.pronostic && m.pronostic.odds) ? m.pronostic.odds : '—' %></td>
+          <td class="num"><%= conf ? conf + '/5' : '—' %></td>
+          <td>
+            <% if(m.is_published) { %><span class="status pub">Publié</span>
+            <% } else if(m.has_pronostic) { %><span class="status draft">Brouillon</span>
+            <% } else { %><span class="status none">Sans prono</span><% } %>
+            <% if(isFinished && m.has_pronostic) { %>
+              <% const _r = m.pronostic?.result; %>
+              <% if(_r === 'WIN') { %><span class="badge badge-ok" style="margin-left:.4rem"><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg> Gagné</span>
+              <% } else if(_r === 'LOSS') { %><span class="badge badge-error" style="margin-left:.4rem"><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> Perdu</span>
+              <% } else if(_r === 'PUSH') { %><span class="badge badge-info" style="margin-left:.4rem"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Remboursé</span>
+              <% } else { %><span class="badge badge-warn" style="margin-left:.4rem">⏳ En attente</span><% } %>
+            <% } %>
+          </td>
+          <td class="col-act">
+            <div class="row-act">
+              <% if(m.has_pronostic && m.pronostic) { %>
+                <button class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="WIN"  title="Forcer le résultat à GAGNANT"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg></button>
+                <button class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="LOSS" title="Forcer le résultat à PERDANT"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
+                <button class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="PUSH" title="Forcer le résultat à REMBOURSÉ"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg></button>
+              <% } %>
+              <%# Vitrine gratuite : un seul pronostic a la fois. Propose uniquement
+                  sur un pronostic publie et non termine — designer un match fini
+                  n'aurait aucun effet visible pour les visiteurs. %>
+              <%# `m.pronostic.id` et non le seul `m.pronostic` : sans
+                  identifiant, l'action devient « /admin/pronostics/daily/ » et
+                  n'atteint aucune route. L'API en fournit toujours un, mais une
+                  URL ne doit pas dependre de cette promesse. %>
+              <% if (m.is_published && !isFinished && m.pronostic && m.pronostic.id) { %>
+                <% if (m.pronostic.is_daily_free) { %>
+                  <span class="btn btn-sm pro-daily-actif" title="Ce pronostic est la vitrine gratuite du jour">
+                    <svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg> Vitrine
+                  </span>
+                <% } else { %>
+                  <form method="POST" action="/admin/pronostics/daily/<%= m.pronostic.id %>" style="display:inline">
+                    <input type="hidden" name="retour" value="/admin/pronostics">
+                    <button type="submit" class="btn btn-sm btn-outline"
+                            title="Mettre ce pronostic en vitrine gratuite du jour"
+                            aria-label="Mettre « <%= m.homeTeam %> – <%= m.awayTeam %> » en vitrine gratuite">
+                      <svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg>
+                    </button>
+                  </form>
+                <% } %>
+              <% } %>
+              <a href="/admin/pronostics/edit/<%= m.id %>" class="btn btn-primary btn-sm"><%= m.has_pronostic ? '' : '+ Créer' %></a>
+            </div>
+          </td>
+        </tr>
+  <% }) %>
+  <% }) %>
+      </tbody>
+    </table>
   </div>
-
-  <!-- Pied : statut + boutons -->
-  <div class="pro-card-foot">
-    <% if(m.is_published) { %>
-      <span class="badge badge-ok">✅ Publié</span>
-    <% } else if(m.has_pronostic) { %>
-      <span class="badge badge-warn">✏️ Brouillon</span>
-    <% } else { %>
-      <span class="badge" style="background:var(--surface-d);color:var(--text-dim)">— Sans prono</span>
-    <% } %>
-    <div style="display:flex;gap:.35rem;align-items:center;margin-left:auto">
-      <% if(m.has_pronostic && m.pronostic) { %>
-        <button class="btn btn-sm force-result-btn"
-          style="background:color-mix(in srgb,var(--success) 15%,transparent);color:var(--success);border:1px solid color-mix(in srgb,var(--success) 35%,transparent);font-size:.72rem;padding:.3rem .6rem"
-          data-id="<%= m.pronostic.id %>" data-result="WIN"
-          title="Forcer le résultat à GAGNANT">✅ WIN</button>
-        <button class="btn btn-sm force-result-btn"
-          style="background:color-mix(in srgb,var(--error) 15%,transparent);color:var(--error);border:1px solid color-mix(in srgb,var(--error) 35%,transparent);font-size:.72rem;padding:.3rem .6rem"
-          data-id="<%= m.pronostic.id %>" data-result="LOSS"
-          title="Forcer le résultat à PERDANT">❌ LOSS</button>
-      <% } %>
-      <a href="/admin/pronostics/edit/<%= m.id %>" class="btn btn-primary btn-sm">
-        <%= m.has_pronostic ? '✏️ Modifier' : '+ Créer' %>
-      </a>
-    </div>
   </div>
 </div>
-<% }) %>
-</div>
+<% } %>
+
+<%# Les valeurs transitent par un attribut data plutôt que par une
+    interpolation dans du JavaScript : un nom d'équipe contenant une
+    apostrophe casserait le script. %>
+<% if (typeof flash !== 'undefined' && flash) { %>
+<div id="flash-prono" hidden
+     data-ok="<%= flash.ok %>" data-match="<%= flash.match %>" data-tip="<%= flash.tip %>"></div>
 <% } %>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+  const _fp = document.getElementById('flash-prono');
+  window.__flashProno = _fp ? {
+    ok: _fp.dataset.ok, match: _fp.dataset.match, tip: _fp.dataset.tip,
+  } : null;
+  // Confirmation de publication / brouillon.
   const flash = document.getElementById('flash-success');
-  if (flash && typeof showToast === 'function') {
-    showToast('✅ Pronostic publié avec succès !', 'success');
+  const info  = window.__flashProno ?? null;
+  if (typeof showToast === 'function' && (flash || info)) {
+    const brouillon = info && info.ok === 'brouillon';
+    const detail    = info
+      ? [info.match, info.tip].filter(Boolean).join('  ·  ')
+      : '';
+    showToast({
+      type:   brouillon ? 'warning' : 'success',
+      titre:  brouillon ? 'Brouillon enregistré' : 'Pronostic publié',
+      detail: detail || (brouillon
+        ? "Il n'apparaît pas encore dans l'application."
+        : "Visible dans l'application."),
+      action: brouillon ? null : { label: 'Voir les pronostics publiés →', href: '/admin/pronostics?mine=1' },
+      duree:  brouillon ? 6000 : 5000,
+    });
   }
 
-  // ── Forcer le résultat WIN / LOSS ──────────────────────────────────────────
+  // ── Forcer le résultat WIN / LOSS / PUSH ────────────────────────────────────
+  const forceResultLabel = r => r === 'WIN' ? '✅ GAGNANT' : r === 'PUSH' ? '🔄 REMBOURSÉ' : '❌ PERDANT';
+  const forceResultBtnText = r => r === 'WIN' ? '✅ WIN' : r === 'PUSH' ? '🔄 Push' : '❌ LOSS';
   document.querySelectorAll('.force-result-btn').forEach(btn => {
     btn.addEventListener('click', async function() {
       const id     = this.dataset.id;
       const result = this.dataset.result;
-      const label  = result === 'WIN' ? '✅ GAGNANT' : '❌ PERDANT';
-      if (!confirm(`Forcer ce pronostic comme ${label} ?\n\nTous les paris en attente seront réglés automatiquement.`)) return;
+      const label  = forceResultLabel(result);
+      const confirmMsg = result === 'PUSH'
+        ? `Forcer ce pronostic comme ${label} ?\n\nLa mise sera intégralement remboursée sur les paris en attente (ni gain ni perte).`
+        : `Forcer ce pronostic comme ${label} ?\n\nTous les paris en attente seront réglés automatiquement.`;
+      if (!confirm(confirmMsg)) return;
 
       this.disabled = true;
       this.textContent = '⏳';
@@ -295,7 +447,7 @@ document.addEventListener('DOMContentLoaded', function() {
           alert(`Pronostic forcé ${label} — paris réglés.`);
         }
         // Mettre à jour visuellement le bouton
-        this.textContent = result === 'WIN' ? '✅ WIN' : '❌ LOSS';
+        this.textContent = forceResultBtnText(result);
         this.disabled = false;
       } catch(e) {
         if (typeof showToast === 'function') {
@@ -303,11 +455,78 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           alert('Erreur : ' + e.message);
         }
-        this.textContent = result === 'WIN' ? '✅ WIN' : '❌ LOSS';
+        this.textContent = forceResultBtnText(result);
         this.disabled = false;
       }
     });
   });
+
+  // ── Sélection multiple + actions groupées ─────────────────────────────────
+  // Les cases ne sont proposées que sur les lignes qui ont un pronostic :
+  // forcer un résultat n'a pas de sens sans pronostic.
+  const chks    = () => [...document.querySelectorAll('.pro-chk')];
+  const bulk    = document.getElementById('pro-bulk');
+  const bulkN   = document.getElementById('pro-bulk-n');
+  const allBox  = document.getElementById('pro-all');
+  if (bulk) {
+    const sync = () => {
+      const sel = chks().filter(c => c.checked);
+      bulkN.textContent = sel.length;
+      bulk.toggleAttribute('data-on', sel.length > 0);
+      chks().forEach(c => c.closest('tr').toggleAttribute('data-selected', c.checked));
+      if (allBox) {
+        allBox.checked = sel.length > 0 && sel.length === chks().length;
+        allBox.indeterminate = sel.length > 0 && sel.length < chks().length;
+      }
+    };
+    document.addEventListener('change', e => {
+      if (e.target.classList.contains('pro-chk')) sync();
+    });
+    if (allBox) allBox.addEventListener('change', () => {
+      chks().forEach(c => c.checked = allBox.checked); sync();
+    });
+    document.getElementById('pro-bulk-clear')?.addEventListener('click', () => {
+      chks().forEach(c => c.checked = false); sync();
+    });
+
+    // Traitement séquentiel : le backend n'expose pas d'endpoint de lot, on
+    // réutilise force-result une fois par pronostic. Séquentiel et non
+    // parallèle pour ne pas déclencher le rate-limiter ni saturer le serveur.
+    document.querySelectorAll('.bulk-result').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const result = btn.dataset.result;
+        const ids    = chks().filter(c => c.checked).map(c => c.value);
+        if (!ids.length) return;
+        const label = forceResultLabel(result);
+        if (!confirm(`Forcer ${ids.length} pronostic(s) comme ${label} ?
+
+Les paris en attente seront réglés automatiquement.`)) return;
+
+        document.querySelectorAll('.bulk-result').forEach(b => b.disabled = true);
+        let ok = 0; const failed = [];
+        for (const id of ids) {
+          try {
+            const res = await fetch(`/admin/pronostics/force-result/${id}`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              credentials: 'include',
+              body: JSON.stringify({ result }),
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            ok++;
+            bulkN.textContent = `${ok}/${ids.length}`;
+          } catch (e) { failed.push(id); }
+        }
+        document.querySelectorAll('.bulk-result').forEach(b => b.disabled = false);
+        const msg = failed.length
+          ? `${ok} réglé(s), ${failed.length} en échec.`
+          : `${ok} pronostic(s) forcé(s) ${label} — paris réglés.`;
+        if (typeof showToast === 'function') showToast(msg, failed.length ? 'error' : 'success');
+        else alert(msg);
+        if (ok) setTimeout(() => location.reload(), 1200);
+      });
+    });
+  }
 });
 </script>
 

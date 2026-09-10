@@ -6,12 +6,16 @@ class GetMatchesParams {
   final String? leagueId;
   final String? dateFilter;
   final String? sport;
+  final String? status;
+  final bool?   hasPronostic;
   final String? cursor;
   final int     limit;
   const GetMatchesParams({
     this.leagueId,
     this.dateFilter,
     this.sport,
+    this.status,
+    this.hasPronostic,
     this.cursor,
     this.limit = 20,
   });
@@ -23,10 +27,12 @@ class GetMatchesUseCase {
 
   Future<Either<Failure, MatchesPageResult>> call(GetMatchesParams params) =>
       _repo.getMatches(
-        leagueId:   params.leagueId,
-        dateFilter: params.dateFilter,
-        sport:      params.sport,
-        cursor:     params.cursor,
-        limit:      params.limit,
+        leagueId:     params.leagueId,
+        dateFilter:   params.dateFilter,
+        sport:        params.sport,
+        status:       params.status,
+        hasPronostic: params.hasPronostic,
+        cursor:       params.cursor,
+        limit:        params.limit,
       );
 }

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Teinte appliquée par Android à la silhouette de la petite icône.
+         Sans elle, le système choisit un gris neutre. -->
+    <color name="couleur_notification">#E8541A</color>
+</resources>

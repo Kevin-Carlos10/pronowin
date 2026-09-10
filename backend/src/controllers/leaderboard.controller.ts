@@ -2,6 +2,7 @@
 import { AuthRequest } from '../middleware/auth.middleware';
 
 import { prisma } from '../lib/prisma';
+import { cache, CACHE_KEYS, CACHE_TTL } from '../services/cache.service';
 
 const MIN_SETTLED = 3; // paris réglés minimum pour apparaître
 
@@ -10,6 +11,12 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
   try {
     const period = (req.query.period as string) ?? 'monthly';
     const limit  = Math.min(parseInt(req.query.limit as string ?? '50'), 100);
+
+    // Le classement scanne toute la table bankroll_bets pour la période — coûteux
+    // et pas besoin d'être temps réel, donc mis en cache comme les autres endpoints publics.
+    const cacheKey = CACHE_KEYS.leaderboard(`${period}:${limit}`);
+    const cached   = cache.get<any>(cacheKey);
+    if (cached) { res.json(cached); return; }
 
     const since = periodToDate(period);
 
@@ -43,6 +50,7 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
       avatarUrl: string | null;
       isPremium: boolean;
       wins:     number;
+      losses:   number;
       settled:  number;
     }>();
 
@@ -56,39 +64,49 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
           avatarUrl: user.avatarUrl ?? null,
           isPremium: user.subscriptionPlan !== 'free',
           wins:      0,
+          losses:    0,
           settled:   0,
         });
       }
       const entry = map.get(uid)!;
       entry.settled++;
       if (b.result === 'WIN') entry.wins++;
+      else if (b.result === 'LOSS') entry.losses++;
     }
 
     // Filtrer seuil minimum, trier par taux de réussite desc, puis par paris gagnés desc
+    // Un remboursé (PUSH) n'est ni une victoire ni une défaite — exclu du taux.
     const sorted = [...map.values()]
       .filter(e => e.settled >= MIN_SETTLED)
       .sort((a, b) => {
-        const rateA = a.wins / a.settled;
-        const rateB = b.wins / b.settled;
+        const decisiveA = a.wins + a.losses, decisiveB = b.wins + b.losses;
+        const rateA = decisiveA > 0 ? a.wins / decisiveA : 0;
+        const rateB = decisiveB > 0 ? b.wins / decisiveB : 0;
         if (rateB !== rateA) return rateB - rateA;
         return b.wins - a.wins;
       })
       .slice(0, limit);
 
-    const data = sorted.map((e, i) => ({
-      rank:             i + 1,
-      user_id:          e.userId,
-      pseudo:           e.pseudo,
-      avatar_url:       e.avatarUrl,
-      total_predictions: e.settled,
-      won_predictions:  e.wins,
-      win_rate:         e.settled > 0 ? e.wins / e.settled : 0,
-      total_points:     e.wins * 10,  // 10 pts par pari gagné
-      is_premium:       e.isPremium,
-      badge:            resolveBadge(i, e.wins / e.settled, e.isPremium),
-    }));
+    const data = sorted.map((e, i) => {
+      const decisive = e.wins + e.losses;
+      const winRate  = decisive > 0 ? e.wins / decisive : 0;
+      return {
+        rank:              i + 1,
+        user_id:           e.userId,
+        pseudo:            e.pseudo,
+        avatar_url:        e.avatarUrl,
+        total_predictions: e.settled,
+        won_predictions:   e.wins,
+        win_rate:          winRate,
+        total_points:      e.wins * 10,  // 10 pts par pari gagné
+        is_premium:        e.isPremium,
+        badge:             resolveBadge(i, winRate, e.isPremium),
+      };
+    });
 
-    res.json({ data, period, total: data.length });
+    const payload = { data, period, total: data.length };
+    cache.set(cacheKey, payload, CACHE_TTL.leaderboard);
+    res.json(payload);
   } catch (err: any) {
     res.status(500).json({ message: err.message });
   }
