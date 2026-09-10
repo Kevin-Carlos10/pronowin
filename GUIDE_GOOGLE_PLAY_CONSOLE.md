@@ -286,6 +286,18 @@ pas ete accompli.
 
 Google Play attend un Android App Bundle (`.aab`), pas l'APK direct.
 
+**Toujours passer par `tool/build.ps1`.** Un `flutter build appbundle
+--release` nu compile sans erreur et produit un binaire inutilisable : sans les
+`--dart-define`, `API_BASE_URL` retombe sur `http://10.0.2.2:3000/api/v1`,
+l'alias par lequel un emulateur joint la machine de developpement. L'app
+s'installe, se lance, affiche l'accueil, et ne joint aucun serveur — « Impossible
+de joindre le serveur ». Arrive le 10 septembre 2026 sur deux versions d'affilee.
+
+Ni la compilation, ni `flutter analyze`, ni les tests ne peuvent le voir : ils
+lisent le code source, et le defaut ne vit que dans le binaire. `build.ps1`
+appelle donc `tool/verifier_bundle.py` sur le fichier produit, et refuse de le
+declarer publiable si l'adresse de production n'y figure pas.
+
 ```powershell
 cd C:\xampp\htdocs\PronoWin\mobile_new
 .\tool\build.ps1 -Canal play -ApiUrl https://pronowin.space/api/v1

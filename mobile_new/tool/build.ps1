@@ -90,6 +90,26 @@ if (Test-Path $sortie) {
   Write-Host "  Compilation reussie mais $sortie est introuvable." -ForegroundColor Yellow
 }
 
+# Verification de l'artefact, pas du code source.
+#
+# Le 10 septembre 2026, deux versions ont ete construites avec un
+# `flutter build appbundle --release` nu, sans passer par ce script. Sans les
+# `--dart-define`, `API_BASE_URL` retombe sur `http://10.0.2.2:3000/api/v1` —
+# l'alias par lequel un emulateur joint la machine de developpement. Le binaire
+# compilait, s'installait, se lancait, et ne joignait aucun serveur.
+#
+# Ni la compilation, ni `flutter analyze`, ni les 456 tests ne pouvaient le
+# voir : ils lisent le code source, et le defaut ne vit que dans le binaire.
+# Ce controle-la ouvre le bundle.
+if ($Canal -eq 'play' -and (Test-Path $sortie)) {
+  Write-Host ''
+  & python (Join-Path $PSScriptRoot 'verifier_bundle.py') $sortie
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host '  Ce bundle ne doit pas etre televerse.' -ForegroundColor Red
+    exit 1
+  }
+}
+
 if ($Canal -eq 'direct') {
   Write-Host ''
   Write-Host '  Rappel : cet APK ne se met pas a jour tout seul.' -ForegroundColor Yellow
