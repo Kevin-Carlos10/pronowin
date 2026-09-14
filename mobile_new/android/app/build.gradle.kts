@@ -52,6 +52,29 @@ android {
         versionName = flutter.versionName
     }
 
+    // ─── Variantes de distribution ───────────────────────────────────────────
+    //
+    // Le canal ne se limite pas a du code Dart : la variante « direct »
+    // telecharge et installe elle-meme ses mises a jour, ce qui exige
+    // REQUEST_INSTALL_PACKAGES. Cette permission ne doit jamais figurer dans le
+    // paquet publie sur Google Play — la politique « Device and Network Abuse »
+    // reserve l'installation d'APK hors Play aux boutiques d'applications, et
+    // la declarer ailleurs n'est pas une mise a jour refusee mais un motif de
+    // retrait.
+    //
+    // Un `--dart-define` ne peut rien ici : il ne change pas le manifeste. Il
+    // faut deux variantes, dont une seule fusionne
+    // `src/direct/AndroidManifest.xml`.
+    //
+    // Consequence pour le developpement : `flutter run` exige desormais
+    // `--flavor direct`. `tool/build.ps1` s'en charge pour les releases.
+    flavorDimensions += "canal"
+
+    productFlavors {
+        create("direct") { dimension = "canal" }
+        create("play")   { dimension = "canal" }
+    }
+
     signingConfigs {
         if (cleDisponible) {
             create("release") {

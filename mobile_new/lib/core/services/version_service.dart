@@ -4,12 +4,12 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../constants/app_constants.dart';
 import 'remote_config_service.dart';
 import '../config/bookmaker_affiliation.dart';
 import '../router/navigation_keys.dart';
+import '../widgets/ecran_mise_a_jour.dart';
 
 /// Vérification de version au démarrage.
 ///
@@ -41,7 +41,8 @@ class VersionService {
           message:  RemoteConfigService.maintenanceMsg,
           bloquant: true,
           titre:    'Maintenance en cours',
-          lien:     null);
+          lien:     null,
+          installationDirecte: false);
         return;
       }
 
@@ -77,9 +78,14 @@ class VersionService {
       final reponse = await _afficher(
         message:  seuils.message,
         bloquant: obligatoire,
-        lien:     seuils.lien);
+        lien:     seuils.lien,
+        // Le canal direct telecharge et installe lui-meme. Le paquet des
+        // boutiques ne le peut pas : installer un APK hors Play est reserve
+        // aux boutiques d'applications, et cette variante ne declare meme pas
+        // la permission.
+        installationDirecte: !estStore);
 
-      if (!obligatoire && reponse == _Reponse.plusTard) {
+      if (!obligatoire && reponse == ReponseMaj.plusTard) {
         await _memoriserIgnoree(seuils.latest);
       }
     } catch (e, pile) {
@@ -189,8 +195,10 @@ class VersionService {
     required bool bloquant,
     String? lien,
     String? titre,
+    bool installationDirecte = false,
   }) => _afficher(contexte: context,
-        message: message, bloquant: bloquant, lien: lien, titre: titre);
+        message: message, bloquant: bloquant, lien: lien, titre: titre,
+        installationDirecte: installationDirecte);
 
   // ─── Boîte de dialogue ─────────────────────────────────────────────────
 
@@ -213,65 +221,42 @@ class VersionService {
   /// impossible à refaire : il n'y a plus de mauvais contexte à passer.
   /// `contexte` n'existe que pour les tests, qui montent leur propre arbre.
   /// `FCMService._navigate` procède de même, pour la même raison.
-  static Future<_Reponse?> _afficher({
+  static Future<ReponseMaj?> _afficher({
     required String message,
     required bool bloquant,
     required String? lien,
+    required bool installationDirecte,
     String? titre,
     BuildContext? contexte,
   }) {
     final ctx = contexte ?? rootNavigatorKey.currentContext;
     if (ctx == null) {
-      debugPrint('[Version] aucun navigateur monté — fenêtre non affichée');
-      return Future<_Reponse?>.value(null);
+      debugPrint('[Version] aucun navigateur monté — écran non affiché');
+      return Future<ReponseMaj?>.value(null);
     }
-    return showDialog<_Reponse>(
-      context:            ctx,
-      barrierDismissible: !bloquant,
-      builder: (ctx) => PopScope(
-        canPop: !bloquant,
-        child: AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          title: Text(
-            titre ?? (bloquant ? 'Mise à jour requise' : 'Mise à jour disponible'),
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700)),
-          content: Text(message,
-            style: const TextStyle(fontSize: 14, height: 1.5)),
-          actions: [
-            if (!bloquant)
-              TextButton(
-                onPressed: () => Navigator.pop(ctx, _Reponse.plusTard),
-                child: const Text('Plus tard')),
-            FilledButton(
-              onPressed: () async {
-                if (lien != null && lien.isNotEmpty) {
-                  try {
-                    await launchUrl(Uri.parse(lien),
-                        mode: LaunchMode.externalApplication);
-                  } catch (_) { /* rien de mieux à proposer ici */ }
-                }
-                // Une mise à jour obligatoire ne se referme pas sur un appui.
-                //
-                // La barrière et le bouton retour étaient bien verrouillés,
-                // mais le seul bouton restant fermait la fenêtre après avoir
-                // lancé le téléchargement. L'utilisateur revenait du navigateur
-                // — ou de la boutique — dans une application débloquée, sur la
-                // version que l'on venait de déclarer trop ancienne. Le blocage
-                // tenait à tout, sauf à la seule action qu'on lui proposait.
-                //
-                // Sur le canal direct, l'écart est le plus long : télécharger
-                // 70 Mo puis installer prend plusieurs minutes, pendant
-                // lesquelles l'application restait entièrement utilisable.
-                //
-                // La fenêtre reste donc affichée. Elle disparaîtra au prochain
-                // lancement, quand la version installée passera le seuil — ce
-                // qui est exactement la condition qu'elle exprime.
-                if (!bloquant && ctx.mounted) {
-                  Navigator.pop(ctx, _Reponse.majFaite);
-                }
-              },
-              child: Text(lien == null ? 'OK' : 'Mettre à jour')),
-          ],
+
+    // Une route opaque, pas une `AlertDialog`.
+    //
+    // Le rectangle de deux cents pixels annonçait le remplacement de
+    // l'application et renvoyait vers le navigateur sans rien dire de plus.
+    // L'écran occupe désormais toute la surface, télécharge lui-même et montre
+    // son avancement — ce que seule une page peut faire.
+    //
+    // `barrierDismissible` n'existe pas sur une route opaque : il n'y a plus
+    // de barrière à toucher. Le verrouillage tient au `PopScope` de l'écran,
+    // qui refuse aussi le retour pendant le téléchargement.
+    return Navigator.of(ctx, rootNavigator: true).push<ReponseMaj>(
+      PageRouteBuilder<ReponseMaj>(
+        opaque: true,
+        transitionDuration: const Duration(milliseconds: 240),
+        transitionsBuilder: (_, animation, _, enfant) =>
+            FadeTransition(opacity: animation, child: enfant),
+        pageBuilder: (_, _, _) => EcranMiseAJour(
+          message:  message,
+          bloquant: bloquant,
+          lien:     lien,
+          titre:    titre,
+          installationDirecte: installationDirecte,
         ),
       ),
     );
@@ -293,8 +278,6 @@ class VersionService {
     return 0;
   }
 }
-
-enum _Reponse { plusTard, majFaite }
 
 class _Seuils {
   final String min;

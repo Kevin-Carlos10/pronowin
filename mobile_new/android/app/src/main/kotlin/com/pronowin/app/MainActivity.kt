@@ -1,6 +1,8 @@
 package com.pronowin.app
 
 import io.flutter.embedding.android.FlutterFragmentActivity
+import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodChannel
 
 /**
  * L'activité hôte doit être une [androidx.fragment.app.FragmentActivity].
@@ -26,4 +28,32 @@ import io.flutter.embedding.android.FlutterFragmentActivity
  * autrement comme `FlutterActivity`. Le thème `Theme.Black.NoTitleBar` reste
  * valable : `androidx.biometric:1.1.0` n'exige plus de thème AppCompat.
  */
-class MainActivity : FlutterFragmentActivity()
+class MainActivity : FlutterFragmentActivity() {
+
+    /**
+     * Le canal d'installation, seul ajout natif de cette application.
+     *
+     * Il est enregistré dans les deux variantes ; c'est [InstallateurApk] qui
+     * refuse d'agir quand la permission n'est pas déclarée, c'est-à-dire sur le
+     * paquet publié par les boutiques.
+     */
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
+        super.configureFlutterEngine(flutterEngine)
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, InstallateurApk.CANAL)
+            .setMethodCallHandler { appel, reponse ->
+                when (appel.method) {
+                    "peutInstaller" -> reponse.success(InstallateurApk.peutInstaller(this))
+                    "installer" -> {
+                        val chemin = appel.argument<String>("chemin")
+                        if (chemin.isNullOrEmpty()) {
+                            reponse.error("chemin_manquant", "Aucun chemin fourni", null)
+                        } else {
+                            InstallateurApk.installer(this, chemin, reponse)
+                        }
+                    }
+                    else -> reponse.notImplemented()
+                }
+            }
+    }
+}

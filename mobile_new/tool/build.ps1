@@ -38,16 +38,27 @@ param(
 $ErrorActionPreference = 'Stop'
 Set-Location (Join-Path $PSScriptRoot '..')
 
+# Le canal est aussi une variante Gradle, et pas seulement un drapeau Dart.
+#
+# La variante « direct » declare REQUEST_INSTALL_PACKAGES, sans quoi elle ne
+# peut pas installer la mise a jour qu'elle vient de telecharger. La variante
+# « play » ne la declare pas : la politique « Device and Network Abuse »
+# reserve l'installation d'APK hors Play aux boutiques d'applications, et sa
+# presence dans un AAB est un motif de retrait.
+#
+# Un `dart-define` ne pouvait pas faire cette difference : il ne touche pas au
+# manifeste. D'ou `--flavor`, et des chemins de sortie qui portent le nom de la
+# variante.
 if ($Canal -eq 'play') {
   $storeBuild = 'true'
   $cible      = 'appbundle'
-  $sortie     = 'build\app\outputs\bundle\release\app-release.aab'
+  $sortie     = 'build\app\outputs\bundle\playRelease\app-play-release.aab'
   $resume     = 'Google Play — achat integre, bookmakers masques'
 } else {
   $storeBuild = 'false'
   $cible      = 'apk'
-  $sortie     = 'build\app\outputs\flutter-apk\app-release.apk'
-  $resume     = 'Telechargement direct — Mobile Money, affiliation active'
+  $sortie     = 'build\app\outputs\flutter-apk\app-direct-release.apk'
+  $resume     = 'Telechargement direct — Mobile Money, installation en app'
 }
 
 Write-Host ''
@@ -71,7 +82,7 @@ if ([string]::IsNullOrEmpty($googleId)) {
   Write-Host ''
 }
 
-flutter build $cible --release `
+flutter build $cible --release --flavor $Canal `
   --dart-define=STORE_BUILD=$storeBuild `
   --dart-define=API_BASE_URL=$ApiUrl `
   --dart-define=GOOGLE_SERVER_CLIENT_ID=$googleId
@@ -108,7 +119,7 @@ if (Test-Path $sortie) {
 # `verifier_bundle.py` lit les deux formats.
 if (Test-Path $sortie) {
   Write-Host ''
-  & python (Join-Path $PSScriptRoot 'verifier_bundle.py') $sortie
+  & python (Join-Path $PSScriptRoot 'verifier_bundle.py') $sortie $Canal
   if ($LASTEXITCODE -ne 0) {
     Write-Host '  Cet artefact ne doit pas etre distribue.' -ForegroundColor Red
     exit 1

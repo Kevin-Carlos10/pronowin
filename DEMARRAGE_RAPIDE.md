@@ -119,3 +119,56 @@ curl -s -o /dev/null -w '%{http_code}\n' -L <APK_URL>
 
 La seconde ligne compte autant que la premiere : une URL qui repond 404 avec un
 blocage actif est le seul scenario qui ne se rattrape pas depuis l'application.
+
+## 6. Deux variantes de build, et ce que ca change au quotidien
+
+Depuis que l'application installe elle-meme ses mises a jour, le canal n'est
+plus seulement un drapeau Dart : c'est une **variante Gradle**.
+
+| Variante | Permission `REQUEST_INSTALL_PACKAGES` | Distribution |
+| --- | --- | --- |
+| `direct` | declaree | APK telecharge depuis le site |
+| `play` | **absente** | App Bundle publie sur Google Play |
+
+La permission autorise une application a installer un paquet. Elle est
+indispensable au canal direct, qui telecharge le nouvel APK et le remet a
+l'installateur du systeme. Elle est **interdite** au canal store : la politique
+« Device and Network Abuse » reserve l'installation d'APK hors Play aux
+boutiques d'applications, et sa presence dans un AAB n'est pas une mise a jour
+refusee mais un motif de retrait.
+
+Un `--dart-define` ne pouvait pas faire cette difference : il ne touche pas au
+manifeste. D'ou `productFlavors`, et un seul `src/direct/AndroidManifest.xml`.
+
+### Au quotidien
+
+`flutter run` refuse desormais de demarrer sans variante :
+
+```bash
+flutter run --flavor direct
+```
+
+Les releases passent par le script, qui choisit la variante lui-meme :
+
+```bash
+.\tool\build.ps1 -Canal direct -ApiUrl https://pronowin.space/api/v1
+.\tool\build.ps1 -Canal play   -ApiUrl https://pronowin.space/api/v1
+```
+
+Les artefacts portent le nom de leur variante :
+
+    build\app\outputs\flutter-apk\app-direct-release.apk
+    build\app\outputs\bundle\playRelease\app-play-release.aab
+
+### Deux controles, deux moments
+
+`test/canal_installation_test.dart` lit les sources : il attrape la permission
+deplacee dans `src/main`, ou une variante supprimee, au moment ou c'est ecrit.
+
+`tool/verifier_bundle.py` ouvre l'artefact produit et regarde ce qu'il contient
+vraiment ; c'est lui qui attrape un build lance a la main sans `--flavor`. Le
+script de build l'appelle pour les deux canaux.
+
+Les deux sont necessaires. Un defaut qui ne vit que dans le binaire ne se voit
+qu'en ouvrant le binaire ; un controle qui n'existe qu'a la fin arrive trop
+tard.

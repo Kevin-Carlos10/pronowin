@@ -1,107 +1,327 @@
+import 'dart:async';
+import 'dart:io';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pronowin/core/services/installateur_maj.dart';
 import 'package:pronowin/core/services/version_service.dart';
+import 'package:pronowin/core/widgets/ecran_mise_a_jour.dart';
 
-/// Une mise à jour obligatoire ne se referme sur aucun geste.
+/// Une mise à jour obligatoire ne se quitte sur aucun geste.
 ///
 /// L'APK distribué hors store ne se met jamais à jour tout seul : quand une
 /// version devient obligatoire, la seule chose qui protège l'utilisateur d'une
-/// version périmée est cette fenêtre.
+/// version périmée est cet écran.
 ///
-/// Elle verrouillait bien la barrière (`barrierDismissible: false`) et le
-/// bouton retour (`PopScope(canPop: false)`) — mais son unique bouton,
-/// « Mettre à jour », lançait le téléchargement puis **fermait la fenêtre**.
-/// L'utilisateur revenait du navigateur dans une application débloquée, sur la
-/// version qu'on venait de déclarer trop ancienne. Le blocage tenait à tout
-/// sauf à la seule action qu'il proposait.
+/// Il verrouillait bien la barrière et le bouton retour — mais son unique
+/// bouton, « Mettre à jour », lançait le téléchargement puis **fermait la
+/// fenêtre**. L'utilisateur revenait du navigateur dans une application
+/// débloquée, sur la version qu'on venait de déclarer trop ancienne. Le blocage
+/// tenait à tout sauf à la seule action qu'il proposait.
 ///
-/// Sur le canal direct, l'écart est le plus long : télécharger soixante-dix
-/// mégaoctets puis installer prend plusieurs minutes.
+/// ── Ce n'est plus une fenêtre ─────────────────────────────────────────────
 ///
-/// ── Pourquoi le lien est vide dans ces tests ──────────────────────────────
+/// L'`AlertDialog` est devenue un écran plein qui télécharge lui-même et montre
+/// son avancement. L'écart que le blocage devait couvrir était le plus long du
+/// parcours : soixante-dix mégaoctets, puis une installation, pendant lesquels
+/// l'utilisateur ne savait pas où il en était — et pendant lesquels
+/// l'application restait derrière, utilisable.
 ///
-/// `launchUrl` ne se termine jamais sans plateforme : le canal natif n'est pas
-/// enregistré sous `flutter test`, et l'`await` reste suspendu — la suite du
-/// gestionnaire n'est donc jamais atteinte. Un lien vide court-circuite le
-/// lancement (`lien.isNotEmpty` est faux) sans changer le libellé du bouton,
-/// qui ne dépend que de `lien != null`. On éprouve donc exactement la décision
-/// de fermeture, sans dépendre d'un greffon qu'un test ne peut pas fournir.
+/// Les garanties ne changent pas de nature : obligatoire, rien ne ferme ;
+/// facultative, tout ferme. S'y ajoute le téléchargement, qui verrouille aussi
+/// le retour — l'interrompre laisserait un fichier tronqué et une application
+/// qu'on vient de déclarer périmée.
 void main() {
-  /// Monte un écran d'où l'on peut ouvrir la fenêtre.
+  /// Monte un écran d'où l'on peut ouvrir celui de mise à jour.
+  ///
+  /// Le téléchargement et l'installation sont injectés : sans plateforme, ni le
+  /// réseau ni l'installateur ne répondent sous `flutter test`, et l'écran
+  /// resterait figé sur son premier état sans qu'aucune assertion ne le dise.
   Future<void> ouvrir(
     WidgetTester tester, {
     required bool bloquant,
     String lien = '',
+    bool installationDirecte = false,
+    Future<File> Function(
+      String, {
+      required void Function(double) progression,
+      CancelToken? annulation,
+    })? telechargeur,
+    Future<ResultatInstallation> Function(File)? installeur,
+    Future<bool> Function(Uri)? ouvreur,
   }) async {
     await tester.pumpWidget(MaterialApp(
-      home: Builder(builder: (context) => Scaffold(
-        body: Center(child: TextButton(
-          onPressed: () => VersionService.afficherPourTest(
-            context,
-            message:  'Une nouvelle version est disponible.',
-            bloquant: bloquant,
-            lien:     lien),
-          child: const Text('ouvrir'))))),
+      home: Builder(
+        builder: (context) => Scaffold(
+          body: Center(
+            child: TextButton(
+              onPressed: () => Navigator.of(context).push(
+                MaterialPageRoute<ReponseMaj>(
+                  builder: (_) => EcranMiseAJour(
+                    message: 'Une nouvelle version est disponible.',
+                    bloquant: bloquant,
+                    lien: lien,
+                    installationDirecte: installationDirecte,
+                    telechargeur: telechargeur,
+                    installeur: installeur,
+                    ouvreur: ouvreur,
+                  ),
+                ),
+              ),
+              child: const Text('ouvrir'),
+            ),
+          ),
+        ),
+      ),
     ));
     await tester.tap(find.text('ouvrir'));
     await tester.pumpAndSettle();
   }
 
-  testWidgets('obligatoire : le bouton ne referme pas la fenêtre', (tester) async {
+  final action = find.byKey(const Key('maj-action'));
+  final titre  = find.byKey(const Key('maj-titre'));
+
+  String texteDe(WidgetTester tester, Finder f) =>
+      (tester.widget(f) as Text).data!;
+
+  /// Le libellé du bouton d'action.
+  ///
+  /// La clé est posée sur le bouton, pas sur son `Text` : c'est le bouton que
+  /// les tests touchent, et une clé sur le libellé ne permettrait pas de le
+  /// viser.
+  String libelleAction(WidgetTester tester) => tester
+      .widget<Text>(find.descendant(
+        of: find.byKey(const Key('maj-action')),
+        matching: find.byType(Text)))
+      .data!;
+
+  // ── Verrouillage ────────────────────────────────────────────────────────
+
+  testWidgets('obligatoire : aucune échappatoire proposée', (tester) async {
     await ouvrir(tester, bloquant: true);
 
-    expect(find.text('Mise à jour requise'), findsOneWidget);
-    // Aucune échappatoire proposée.
-    expect(find.text('Plus tard'), findsNothing);
-
-    await tester.tap(find.text('Mettre à jour'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Mise à jour requise'), findsOneWidget,
-      reason: 'la fenêtre s\'est refermée : l\'utilisateur retrouve une '
-              'application utilisable sur la version qu\'on vient de refuser');
+    expect(texteDe(tester, titre), 'Mise à jour requise');
+    expect(find.byKey(const Key('maj-plus-tard')), findsNothing,
+        reason: 'un « Plus tard » sur une mise à jour obligatoire la rend '
+                'facultative');
   });
 
-  testWidgets('obligatoire : le bouton retour ne la referme pas non plus', (tester) async {
+  testWidgets('obligatoire : le bouton retour ne referme pas', (tester) async {
     await ouvrir(tester, bloquant: true);
-
-    // Le geste « retour » d'Android, celui qui ferme une boîte ordinaire.
-    final NavigatorState nav = tester.state(find.byType(Navigator).last);
-    nav.maybePop();
-    await tester.pumpAndSettle();
-
-    expect(find.text('Mise à jour requise'), findsOneWidget,
-      reason: 'PopScope ne retient plus la fenêtre');
-  });
-
-  testWidgets('facultative : les deux boutons la referment', (tester) async {
-    // Sans ce point, une fenêtre qui ne se fermerait jamais passerait les deux
-    // tests précédents — et rendrait toute mise à jour facultative bloquante,
-    // ce qui est le défaut symétrique et tout aussi grave.
-    await ouvrir(tester, bloquant: false);
-    expect(find.text('Mise à jour disponible'), findsOneWidget);
-
-    await tester.tap(find.text('Plus tard'));
-    await tester.pumpAndSettle();
-    expect(find.text('Mise à jour disponible'), findsNothing,
-      reason: '« Plus tard » doit refermer la fenêtre');
-
-    await ouvrir(tester, bloquant: false);
-    await tester.tap(find.text('Mettre à jour'));
-    await tester.pumpAndSettle();
-    expect(find.text('Mise à jour disponible'), findsNothing,
-      reason: 'sur une mise à jour facultative, « Mettre à jour » referme aussi');
-  });
-
-  testWidgets('facultative : la barrière et le retour la referment', (tester) async {
-    await ouvrir(tester, bloquant: false);
 
     final NavigatorState nav = tester.state(find.byType(Navigator).last);
     nav.maybePop();
     await tester.pumpAndSettle();
 
-    expect(find.text('Mise à jour disponible'), findsNothing,
-      reason: 'une mise à jour facultative doit rester refermable au retour');
+    expect(titre, findsOneWidget, reason: 'PopScope ne retient plus l\'écran');
+  });
+
+  testWidgets('facultative : « Plus tard » referme', (tester) async {
+    // Contrepartie : un écran qui ne se fermerait jamais passerait les deux
+    // tests précédents, et rendrait toute mise à jour facultative bloquante —
+    // le défaut symétrique, et tout aussi grave.
+    await ouvrir(tester, bloquant: false);
+    expect(texteDe(tester, titre), 'Mise à jour disponible');
+
+    await tester.tap(find.byKey(const Key('maj-plus-tard')));
+    await tester.pumpAndSettle();
+    expect(titre, findsNothing);
+  });
+
+  testWidgets('facultative : le retour referme aussi', (tester) async {
+    await ouvrir(tester, bloquant: false);
+
+    final NavigatorState nav = tester.state(find.byType(Navigator).last);
+    nav.maybePop();
+    await tester.pumpAndSettle();
+
+    expect(titre, findsNothing);
+  });
+
+  // ── Canal store : la boutique, rien d'autre ─────────────────────────────
+
+  testWidgets('canal store : le bouton ouvre la fiche, sans rien télécharger',
+      (tester) async {
+    // Installer un APK hors Play est réservé aux boutiques d'applications. La
+    // variante des boutiques ne déclare même pas la permission : si cet écran
+    // y tentait un téléchargement, il s'arrêterait sur une erreur au moment de
+    // l'installation, après soixante-dix mégaoctets.
+    Uri? demandee;
+    var telechargements = 0;
+
+    await ouvrir(tester,
+      bloquant: true,
+      lien: 'https://play.google.com/store/apps/details?id=com.pronowin.app',
+      installationDirecte: false,
+      ouvreur: (u) async { demandee = u; return true; },
+      telechargeur: (url, {required progression, annulation}) async {
+        telechargements++;
+        return File('jamais');
+      });
+
+    expect(libelleAction(tester), 'Mettre à jour');
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+
+    expect(demandee.toString(), contains('play.google.com'));
+    expect(telechargements, 0,
+        reason: 'le canal store ne doit rien télécharger lui-même');
+  });
+
+  // ── Canal direct : téléchargement et installation ───────────────────────
+
+  testWidgets('direct : la progression affichée est celle du téléchargement',
+      (tester) async {
+    final fin = Completer<File>();
+
+    await ouvrir(tester,
+      bloquant: true,
+      lien: 'https://pronowin.space/downloads/app-release.apk',
+      installationDirecte: true,
+      telechargeur: (url, {required progression, annulation}) {
+        progression(0.42);
+        return fin.future;
+      },
+      installeur: (f) async => ResultatInstallation.ouvert);
+
+    expect(libelleAction(tester), 'Installer');
+    await tester.tap(action);
+    await tester.pump();
+
+    expect(texteDe(tester, titre), 'Appli en cours de mise à jour');
+    expect(find.text('42 %'), findsOneWidget);
+    expect(find.text('L\'installation peut durer quelques minutes.'),
+        findsOneWidget);
+
+    // Pendant le téléchargement, le retour est refusé lui aussi : l'interrompre
+    // laisserait un fichier tronqué et une application déclarée périmée.
+    final NavigatorState nav = tester.state(find.byType(Navigator).last);
+    nav.maybePop();
+    await tester.pump();
+    expect(titre, findsOneWidget);
+
+    fin.complete(File('essai.apk'));
+    await tester.pumpAndSettle();
+    expect(texteDe(tester, titre), 'Installation en cours',
+        reason: 'l\'installateur a la main, l\'écran doit le dire');
+  });
+
+  testWidgets('direct : sans taille annoncée, aucun pourcentage inventé',
+      (tester) async {
+    // `onReceiveProgress` rend -1 quand le serveur n'annonce pas de taille.
+    // Afficher « 0 % » qui n'avance jamais serait pire que de ne rien promettre.
+    final fin = Completer<File>();
+
+    await ouvrir(tester,
+      bloquant: true,
+      lien: 'https://pronowin.space/downloads/app-release.apk',
+      installationDirecte: true,
+      telechargeur: (url, {required progression, annulation}) => fin.future);
+
+    await tester.tap(action);
+    await tester.pump();
+
+    expect(find.text('Préparation…'), findsOneWidget);
+    expect(find.textContaining('%'), findsNothing);
+
+    // Pas de `pumpAndSettle` ici : une barre indéterminée tourne sans fin, et
+    // l'attente ne rendrait jamais la main. C'est la contrepartie de ce que le
+    // test vérifie.
+    fin.complete(File('essai.apk'));
+    await tester.pump();
+    await tester.pump();
+  });
+
+  testWidgets('direct : un téléchargement qui échoue le dit et propose de recommencer',
+      (tester) async {
+    await ouvrir(tester,
+      bloquant: true,
+      lien: 'https://pronowin.space/downloads/app-release.apk',
+      installationDirecte: true,
+      telechargeur: (url, {required progression, annulation}) =>
+          Future<File>.error(DioException(
+            requestOptions: RequestOptions(path: url),
+            type: DioExceptionType.connectionError,
+          )));
+
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+
+    expect(texteDe(tester, titre), 'La mise à jour a échoué');
+    expect(find.textContaining('connexion'), findsOneWidget);
+    expect(libelleAction(tester), 'Réessayer',
+        reason: 'un écran bloquant qui échoue sans permettre de recommencer '
+                'enferme l\'utilisateur pour de bon');
+  });
+
+  testWidgets('direct : l\'autorisation manquante est expliquée', (tester) async {
+    // Depuis Android 8, l'autorisation d'installer se donne application par
+    // application. Sans elle, l'installateur ne s'ouvre pas — et rien, à
+    // l'écran, ne disait pourquoi.
+    await ouvrir(tester,
+      bloquant: true,
+      lien: 'https://pronowin.space/downloads/app-release.apk',
+      installationDirecte: true,
+      telechargeur: (url, {required progression, annulation}) async =>
+          File('essai.apk'),
+      installeur: (f) async => ResultatInstallation.autorisationDemandee);
+
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('Autorisez PronoWin'), findsOneWidget);
+    expect(libelleAction(tester), 'Réessayer');
+  });
+
+  testWidgets('direct : l\'autorisation accordée ne fait pas retélécharger',
+      (tester) async {
+    // Le parcours observé sur appareil : l'installation échoue faute
+    // d'autorisation, l'utilisateur la donne, revient, appuie sur
+    // « Réessayer » — et la première version repartait de zéro pour
+    // soixante-dix mégaoctets déjà sur le disque. Sur un forfait mobile, c'est
+    // payer deux fois la même chose pour une case à cocher.
+    final fichier = File('${Directory.systemTemp.path}/pronowin-essai.apk')
+      ..writeAsStringSync('artefact');
+    addTearDown(() {
+      if (fichier.existsSync()) fichier.deleteSync();
+    });
+
+    var telechargements = 0;
+    var installations = 0;
+
+    await ouvrir(tester,
+      bloquant: true,
+      lien: 'https://pronowin.space/downloads/app-release.apk',
+      installationDirecte: true,
+      telechargeur: (url, {required progression, annulation}) async {
+        telechargements++;
+        return fichier;
+      },
+      installeur: (f) async {
+        installations++;
+        return installations == 1
+            ? ResultatInstallation.autorisationDemandee
+            : ResultatInstallation.ouvert;
+      });
+
+    await tester.tap(action);
+    await tester.pumpAndSettle();
+    expect(telechargements, 1);
+    expect(libelleAction(tester), 'Réessayer');
+
+    await tester.tap(action);
+    // Pas de `pumpAndSettle` : l'étape d'installation affiche une barre
+    // indéterminée, qui tourne sans fin et ne rendrait jamais la main.
+    await tester.pump();
+    await tester.pump();
+
+    expect(telechargements, 1,
+        reason: 'le fichier est déjà complet sur le disque : le retélécharger '
+                'fait payer deux fois soixante-dix mégaoctets');
+    expect(installations, 2,
+        reason: 'le réessai doit bien relancer l\'installation');
+    expect(texteDe(tester, titre), 'Installation en cours');
   });
 
   // ── Quand la fenêtre doit-elle bloquer ──────────────────────────────────
