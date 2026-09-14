@@ -3,11 +3,52 @@ import 'package:flutter/material.dart';
 import '../../../../../core/config/bookmaker_affiliation.dart';
 import '../../../../../core/theme/app_theme.dart';
 
+/// Lequel des deux bandeaux de cotes afficher.
+enum BandeauCotes {
+  /// Sous la marque du partenaire, chaque cote ouvrant le lien d'affiliation.
+  partenaire,
+
+  /// En lecture seule, sans marque et sans lien.
+  neutre,
+}
+
+/// Un seul bandeau, jamais deux — et jamais aucun.
+///
+/// Les deux étaient empilés : les mêmes trois valeurs, à quarante pixels
+/// d'écart, l'une en lecture seule et l'autre cliquable. La raison était
+/// bonne — un appui de travers ne doit pas faire quitter l'application — mais
+/// à l'écran cela se lisait comme un défaut d'affichage. Pire : le bandeau du
+/// haut portait les cotes du même bookmaker sans son logo ni la mention
+/// « 18+ », c'est-à-dire des cotes commerciales présentées comme une donnée
+/// neutre.
+///
+/// ── Pourquoi le neutre ne disparaît pas ────────────────────────────────────
+///
+/// Le bandeau du partenaire ne s'affiche pas sur les paquets des boutiques —
+/// un lien d'affiliation vers un opérateur de paris y est le motif de retrait
+/// le plus direct. Il ne s'affiche pas non plus quand aucun partenariat n'est
+/// configuré : une marque posée au-dessus de trois tirets serait une publicité
+/// déguisée en information.
+///
+/// Supprimer le bandeau neutre aurait donc vidé l'onglet « Cotes » dans ces
+/// deux cas — aucune cote, aucun mot, sur l'onglet qui porte ce nom. Les cotes
+/// sont une information légitime ; c'est le lien vers le bookmaker qui ne l'est
+/// pas partout.
+BandeauCotes bandeauCotes({
+  required bool estStore,
+  required bool partenaireDisponible,
+}) =>
+    (!estStore && partenaireDisponible)
+        ? BandeauCotes.partenaire
+        : BandeauCotes.neutre;
+
 /// Bandeau de cotes du bookmaker partenaire.
 ///
-/// Les trois cotes 1/X/2 sont déjà affichées juste au-dessus, en lecture seule.
-/// Ce bandeau les répète sous la marque du partenaire, et chaque cote ouvre le
-/// lien d'affiliation : c'est la seule différence, mais c'est celle qui compte.
+/// Sur le canal direct, c'est le **seul** bandeau de cotes : il porte le nom
+/// du marché, la cote recommandée, la marque du partenaire, et chaque cote
+/// ouvre le lien d'affiliation. Ailleurs — boutiques, ou partenariat non
+/// configuré — c'est le bandeau neutre qui prend sa place. Voir
+/// [bandeauCotes].
 ///
 /// Deux règles tenues ici :
 ///
@@ -24,12 +65,21 @@ class BookmakerCotes extends StatelessWidget {
   /// Repère la cote correspondant au pronostic, quand il porte sur le 1X2.
   final int? indiceRecommande;
 
+  /// Le marché coté, écrit au-dessus du bandeau.
+  ///
+  /// « COTES » seul laissait croire que ces trois valeurs étaient celles du
+  /// pronostic ; le nom du marché avait été ajouté au bandeau neutre pour
+  /// cette raison. Ce bandeau devenant le seul sur le canal direct, il hérite
+  /// de cette mention — sans quoi la correction disparaissait avec lui.
+  final String? marche;
+
   const BookmakerCotes({
     super.key,
     required this.coteDomicile,
     required this.coteNul,
     required this.coteExterieur,
     this.indiceRecommande,
+    this.marche,
   });
 
   bool get _aDesCotes =>
@@ -54,6 +104,13 @@ class BookmakerCotes extends StatelessWidget {
     ];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      if (marche != null) ...[
+        Text(marche!,
+          style: TextStyle(
+            color: context.cl.textM, fontSize: 9.5,
+            fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+        const SizedBox(height: 8),
+      ],
       // Pas de `Semantics(button: true)` sur ce conteneur : il n'est pas
       // cliquable, seules les pastilles le sont. L'annoncer comme un bouton
       // promettrait à un lecteur d'écran une action qui n'existe pas à cet

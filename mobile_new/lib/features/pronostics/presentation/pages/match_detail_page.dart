@@ -33,6 +33,7 @@ import '../../../abonnement/presentation/providers/iap_provider.dart';
 import 'match_detail/bookmaker_cotes.dart';
 import '../../domain/entities/verdict_comparaison.dart';
 import '../../../../shared/utils/retour.dart';
+import '../../../../core/config/bookmaker_affiliation.dart';
 
 
 // Découpé en fichiers `part` : le fichier faisait 3 604 lignes pour une
@@ -1202,38 +1203,66 @@ class _OddsCard extends ConsumerWidget {
                                match.predictionType == PredictionType.draw ||
                                match.predictionType == PredictionType.win2;
 
+    const marche = 'VAINQUEUR DU MATCH';
+    final indiceRecommande = switch (match.predictionType) {
+      PredictionType.win1  => 0,
+      PredictionType.draw  => 1,
+      PredictionType.win2  => 2,
+      _                    => null,
+    };
+
+    // Un seul bandeau, décidé par le canal. Les deux étaient empilés : mêmes
+    // valeurs, à quarante pixels d'écart, et celui du haut portait les cotes
+    // du même bookmaker sans son logo ni la mention « 18+ ».
+    final bandeau = bandeauCotes(
+      estStore: ref.watch(isStoreBuildProvider),
+      partenaireDisponible: BookmakerAffiliation.disponible,
+    );
+
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (match.oddsRecommended > 0 && !surMarcheVainqueur) ...[
         _CoteRecommandee(match: match),
         const SizedBox(height: 12),
       ],
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-        decoration: BoxDecoration(
-          color: context.cl.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: context.cl.border, width: 0.5)),
-        child: Row(children: [
-          // Le marché est nommé : « COTES » seul laissait croire que ces trois
-          // valeurs étaient celles du pronostic.
-          Flexible(
-            child: Text('VAINQUEUR DU MATCH',
-              maxLines: 2,
-              style: TextStyle(
-                color: context.cl.textM, fontSize: 9.5,
-                fontWeight: FontWeight.w700, letterSpacing: 0.6)),
-          ),
-          const SizedBox(width: 10),
-          _OddPill(label: '1', value: match.oddsHome,
-            isRecommended: match.predictionType == PredictionType.win1),
-          const SizedBox(width: 8),
-          _OddPill(label: 'X', value: match.oddsDraw,
-            isRecommended: match.predictionType == PredictionType.draw),
-          const SizedBox(width: 8),
-          _OddPill(label: '2', value: match.oddsAway,
-            isRecommended: match.predictionType == PredictionType.win2),
-        ]),
-      ),
+
+      if (bandeau == BandeauCotes.partenaire)
+        BookmakerCotes(
+          marche:        marche,
+          coteDomicile:  match.oddsHome,
+          coteNul:       match.oddsDraw,
+          coteExterieur: match.oddsAway,
+          indiceRecommande: indiceRecommande,
+        )
+      else
+        // Sans partenaire affichable — paquet des boutiques, ou partenariat non
+        // configuré —, les cotes restent visibles, en lecture seule. C'est le
+        // lien vers le bookmaker qui n'a pas sa place partout, pas la donnée.
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: context.cl.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: context.cl.border, width: 0.5)),
+          child: Row(children: [
+            Flexible(
+              child: Text(marche,
+                maxLines: 2,
+                style: TextStyle(
+                  color: context.cl.textM, fontSize: 9.5,
+                  fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+            ),
+            const SizedBox(width: 10),
+            _OddPill(label: '1', value: match.oddsHome,
+              isRecommended: indiceRecommande == 0),
+            const SizedBox(width: 8),
+            _OddPill(label: 'X', value: match.oddsDraw,
+              isRecommended: indiceRecommande == 1),
+            const SizedBox(width: 8),
+            _OddPill(label: '2', value: match.oddsAway,
+              isRecommended: indiceRecommande == 2),
+          ]),
+        ),
+
       if (match.status == MatchStatus.live) ...[
         const SizedBox(height: 10),
         Row(children: [
@@ -1246,28 +1275,6 @@ class _OddsCard extends ConsumerWidget {
           ),
         ]),
       ],
-      const SizedBox(height: 14),
-      // Mêmes cotes, mais cliquables : elles ouvrent le bookmaker partenaire.
-      // Le bloc précédent reste en lecture seule — un utilisateur qui consulte
-      // ne doit pas quitter l'app au moindre appui de travers.
-      //
-      // ⚠️ Masqué sur les builds publiés : `distribution_channel.dart` annonce
-      // que le renvoi vers le bookmaker disparaît en canal store, mais seule
-      // la fenêtre de mise appliquait la règle. Cette barre-ci partait dans le
-      // paquet soumis à Google et Apple — un lien d'affiliation cliquable vers
-      // un opérateur de paris, c'est-à-dire le motif de retrait le plus direct.
-      if (!ref.watch(isStoreBuildProvider))
-      BookmakerCotes(
-        coteDomicile:  match.oddsHome,
-        coteNul:       match.oddsDraw,
-        coteExterieur: match.oddsAway,
-        indiceRecommande: switch (match.predictionType) {
-          PredictionType.win1  => 0,
-          PredictionType.draw  => 1,
-          PredictionType.win2  => 2,
-          _                    => null,
-        },
-      ),
     ]);
   }
 }
