@@ -477,6 +477,32 @@ test('la politique distingue les pratiques de la version Google Play', async () 
     'les données Firebase techniques doivent apparaître dans les données déclarées');
 });
 
+test('aucune page publique ne publie de texte de remplissage', async () => {
+  const pages = await rendre(API_COMPLETE);
+
+  // La page des mentions legales en portait deux, dont une consigne adressee
+  // au developpeur : « Contenu a completer avec vos informations d'editeur ».
+  // Elle se rendait parfaitement, donc aucun controle ne la regardait — et
+  // c'est la page qu'un examinateur Google ouvre juste apres l'URL de
+  // confidentialite.
+  const marqueurs = [
+    'a renseigner', 'a completer', 'a remplir',
+    'lorem ipsum', 'TODO', 'FIXME', 'XXX',
+  ];
+
+  for (const [nom, page] of Object.entries(pages)) {
+    if (!page || typeof page.html !== 'string') continue;
+    // Les commentaires EJS ne sont pas rendus ; on lit bien la sortie.
+    const nu = page.html
+      .normalize('NFD').replace(/[̀-ͯ]/g, '')   // sans accents
+      .toLowerCase();
+    for (const m of marqueurs) {
+      assert.ok(!nu.includes(m.toLowerCase()),
+        `la page « ${nom} » publie « ${m} » : un texte de remplissage visible du public`);
+    }
+  }
+});
+
 /* ─── Exécution ───────────────────────────────────────────────────────── */
 
 (async () => {

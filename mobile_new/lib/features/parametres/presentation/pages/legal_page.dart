@@ -148,8 +148,28 @@ List<LegalSection> sectionsLegales(LegalType type, {required bool estStore}) =>
     LegalType.confidentialite => [
       LegalSection(null, 'Responsable du traitement',
         'PronoWin est responsable du traitement des données personnelles collectées via l\'Application. Pour toute question relative à cette politique ou à l\'exercice de vos droits, vous pouvez nous contacter à : pronowin2026@gmail.com.'),
+      // Cette liste doit couvrir ce que le site declare, et l'inverse.
+      //
+      // Elle annoncait trois categories la ou le site en detaillait cinq. Y
+      // manquaient l'empreinte du mot de passe, le prenom et le nom, le pays,
+      // la photo de profil, les votes et commentaires, l'etat de l'abonnement,
+      // et surtout les rapports de plantage et mesures de performance —
+      // Crashlytics et Performance tournent pourtant depuis le premier jour.
+      //
+      // Sous-declarer est pire que sur-declarer : l'utilisateur lit une page
+      // qui lui promet moins que ce qui est reellement collecte, et le
+      // formulaire de surete des donnees envoye a Google dit encore autre
+      // chose. `confidentialite_coherente_test.dart` compare desormais les deux
+      // textes categorie par categorie.
       LegalSection(null, 'Données collectées',
-        'Nous collectons, selon votre usage de l\'Application : des données d\'identification (numéro de téléphone et/ou e-mail, pseudonyme, date de naissance pour vérifier votre majorité) ; des données de compte (pronostics suivis, favoris, historique, statistiques de bankroll saisies par vous) ; des données techniques (identifiant d\'appareil, token de notification push FCM, version de l\'application, journaux de connexion)${estStore ? "" : " ; et, le cas échéant, des justificatifs transmis volontairement (preuve de paiement d'abonnement, capture d'écran pour l'activation par code partenaire)"}.'),
+        'Nous collectons, selon votre usage de l\'Application :\n\n'
+        '• Compte et profil : adresse e-mail ou numéro de téléphone, empreinte de votre mot de passe, pseudonyme, prénom et nom, pays, date de naissance (pour vérifier votre majorité) et photo de profil si vous en ajoutez une.\n\n'
+        '• Utilisation du Service : formule d\'abonnement, pronostics suivis, favoris, votes, commentaires, historique d\'activité, données de bankroll que vous saisissez et informations de parrainage.\n\n'
+        '• Notifications : jeton de notification propre à votre appareil et préférences d\'alerte.\n\n'
+        '• Diagnostic technique : identifiant d\'installation, modèle de l\'appareil, version du système et de l\'Application, journaux de connexion, rapports de plantage et mesures de performance.\n\n'
+        '• Abonnement : état de votre abonnement et informations nécessaires à sa vérification.'
+        '${estStore ? " Les informations de paiement sont gérées par Google Play, jamais par PronoWin." : " Le cas échéant, les justificatifs que vous transmettez volontairement : preuve de paiement d'abonnement, capture d'écran pour l'activation par code partenaire."}\n\n'
+        'Nous ne collectons pas votre position GPS, vos contacts, vos SMS, vos journaux d\'appels ni le contenu de votre appareil. Une image n\'est lue que si vous choisissez volontairement une photo pour votre profil.'),
       LegalSection(null, 'Finalités du traitement',
         'Vos données sont traitées pour : créer et sécuriser votre compte (authentification) ; fournir et personnaliser le Service (pronostics, statistiques, recommandations) ; traiter vos demandes d\'abonnement et de parrainage ; vous envoyer des notifications pertinentes que vous avez autorisées ; assurer la sécurité de l\'Application et prévenir la fraude ; répondre à nos obligations légales ; et améliorer nos services à partir de statistiques d\'usage agrégées.'),
       LegalSection(null, 'Base légale des traitements',

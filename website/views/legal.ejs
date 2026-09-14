@@ -25,10 +25,30 @@
 
   <div class="container legal-page">
     <h1>Mentions légales</h1>
-    <p>Cette page présente les informations légales relatives au service PronoWin. Contenu à compléter avec vos informations d'éditeur, d'hébergeur et vos conditions générales définitives.</p>
+    <p>Cette page présente les informations légales relatives au service PronoWin.</p>
 
+    <%# Les deux paragraphes précédents publiaient des textes de remplissage —
+        dont une consigne adressée au développeur : « Contenu à compléter avec
+        vos informations d'éditeur ». Sur la page qu'un examinateur ouvre juste
+        après l'URL de confidentialité.
+
+        L'identité de l'éditeur vient maintenant de la configuration. Tant
+        qu'elle n'est pas renseignée, le bloc ne s'affiche pas : une mention
+        légale incomplète vaut mieux qu'une mention légale qui annonce
+        elle-même qu'elle n'est pas finie. %>
     <h2>Éditeur du site</h2>
-    <p>PronoWin — plateforme de pronostics sportifs. Coordonnées de l'éditeur à renseigner.</p>
+    <% if (site.editeurNom) { %>
+      <p>
+        <%= site.editeurNom %><% if (site.editeurStatut) { %> — <%= site.editeurStatut %><% } %><br>
+        <% if (site.editeurAdresse) { %><%= site.editeurAdresse %><br><% } %>
+        Contact : <a href="mailto:<%= site.contactEmail %>"><%= site.contactEmail %></a>
+      </p>
+    <% } else { %>
+      <p>PronoWin — plateforme d'information et d'analyse sportive. Contact : <a href="mailto:<%= site.contactEmail %>"><%= site.contactEmail %></a></p>
+    <% } %>
+
+    <h2>Hébergeur</h2>
+    <p><%= site.hebergeur %></p>
 
     <h2>Nature du service</h2>
     <p>PronoWin propose des analyses et pronostics sportifs à titre informatif. Les pronostics ne constituent pas une garantie de gain et n'engagent pas la responsabilité de PronoWin quant aux décisions de pari prises par l'utilisateur.</p>

@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:in_app_review/in_app_review.dart';
 import '../../../../core/config/contact_support.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -241,6 +242,20 @@ class ParametresPage extends ConsumerWidget {
               icon: Icons.casino_rounded, iconColor: AppColors.warning,
               title: 'Jeu responsable', subtitle: 'Ressources et aide',
               onTap: () => context.push('/parametres/jeu-responsable'),
+            ),
+            const _Divider(),
+            // Les mentions légales vivent sur le site, pas ici — c'est une
+            // obligation du site, et elles portent l'identité de l'éditeur.
+            // La dupliquer dans l'application créerait un second endroit où ce
+            // nom et cette adresse devraient rester à jour, et l'un des deux
+            // finirait par mentir. On y renvoie, on ne la recopie pas.
+            _NavTile(
+              icon: Icons.gavel_rounded, iconColor: context.cl.textM,
+              title: 'Mentions légales', subtitle: 'Éditeur et hébergeur',
+              onTap: () => context.push('/navigateur', extra: {
+                'url':   '${AppConstants.siteUrl}/mentions-legales',
+                'title': 'Mentions légales',
+              }),
             ),
             const _Divider(),
             _NavTile(

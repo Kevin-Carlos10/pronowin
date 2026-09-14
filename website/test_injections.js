@@ -163,6 +163,17 @@ const INJECTIONS = [
     de: 'PronoWin ne collecte aucune mise et ne tient aucun compte de paris.',
     vers: 'Les dépôts et retraits passent par Orange Money, Moov Money et MTN MoMo.',
   },
+  {
+    // La page publiait deux textes de remplissage, dont une consigne adressée
+    // au développeur : « Contenu à compléter avec vos informations d'éditeur ».
+    // Sur la page qu'un examinateur Google ouvre juste après l'URL de
+    // confidentialité — et qu'aucun test ne regardait, parce qu'elle se rendait
+    // parfaitement.
+    nom: 'les mentions légales publient un texte de remplissage',
+    fichier: 'views/legal.ejs',
+    de: '<p>Cette page présente les informations légales relatives au service PronoWin.</p>',
+    vers: '<p>Cette page présente les informations légales relatives au service PronoWin. Contenu à compléter avec vos informations d\'éditeur.</p>',
+  },
 ];
 
 /**

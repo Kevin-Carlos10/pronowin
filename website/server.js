@@ -54,6 +54,39 @@ const site = {
   contactEmail: process.env.CONTACT_EMAIL || 'pronowin2026@gmail.com',
 
   /**
+   * Identite de l'editeur, pour les mentions legales.
+   *
+   * Vide tant qu'elle n'est pas renseignee, et la page n'affiche alors rien —
+   * plutot qu'un texte de remplissage. Elle en publiait deux :
+   *
+   *   « Contenu a completer avec vos informations d'editeur, d'hebergeur et
+   *     vos conditions generales definitives. »
+   *   « Coordonnees de l'editeur a renseigner. »
+   *
+   * Le premier etait une consigne adressee au developpeur, publiee au public,
+   * sur la page qu'un examinateur Google ouvre en premier apres l'URL de
+   * confidentialite.
+   *
+   * Une mention legale incomplete vaut mieux qu'une mention legale qui annonce
+   * qu'elle n'est pas finie. Se renseigne dans le .env du site :
+   *
+   *   EDITEUR_NOM="Prenom Nom"
+   *   EDITEUR_ADRESSE="Secteur, ville, pays"
+   *   EDITEUR_STATUT="Personne physique"   (ou le numero RCCM / IFU)
+   */
+  editeurNom:     process.env.EDITEUR_NOM     || '',
+  editeurAdresse: process.env.EDITEUR_ADRESSE || '',
+  editeurStatut:  process.env.EDITEUR_STATUT  || '',
+
+  /**
+   * Hebergeur — obligation courante des mentions legales.
+   *
+   * Determine depuis le serveur lui-meme : l'IP publique resout en
+   * `vps-06935859.vps.ovh.ca`, AS16276 OVH SAS, centre de donnees de Montreal.
+   */
+  hebergeur: 'OVH SAS — centre de données de Montréal (Canada) — ovhcloud.com',
+
+  /**
    * Fiche Google Play — vide tant qu'elle n'existe pas.
    *
    * Vide : la page annonce seulement les stores « bientôt ». L'APK direct est
