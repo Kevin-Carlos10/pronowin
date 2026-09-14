@@ -37,8 +37,29 @@ DEFAUT = 'build/app/outputs/bundle/release/app-release.aab'
 
 
 def libs(z):
-    """Le code Dart compile, toutes architectures confondues."""
+    """Le code Dart compile, toutes architectures confondues.
+
+    Un AAB range ses bibliotheques sous `base/lib/<abi>/`, un APK sous
+    `lib/<abi>/`. Le suffixe suffit a couvrir les deux.
+    """
     return [n for n in z.namelist() if n.endswith('libapp.so')]
+
+
+def manifeste(z):
+    """Le manifeste, quel que soit le format d'archive.
+
+    AAB : `base/manifest/AndroidManifest.xml`, en protobuf.
+    APK : `AndroidManifest.xml` a la racine, en XML binaire Android.
+
+    Les deux gardent le nom du paquet et la version en clair, ce qui suffit
+    ici — on cherche des chaines, pas une lecture structuree.
+    """
+    for chemin in ('base/manifest/AndroidManifest.xml', 'AndroidManifest.xml'):
+        try:
+            return z.read(chemin)
+        except KeyError:
+            continue
+    return b''
 
 
 def main():
@@ -82,19 +103,23 @@ def main():
         ok('aucune adresse locale')
 
     # ── Version et paquet ──
-    try:
-        manifeste = z.read('base/manifest/AndroidManifest.xml')
-    except KeyError:
+    mf = manifeste(z)
+    if not mf:
         ko('manifeste introuvable')
-        manifeste = b''
 
-    if b'com.pronowin.app' in manifeste:
+    # Le manifeste d'un APK est en XML binaire : les chaines y sont encodees en
+    # UTF-16. On cherche donc dans les deux encodages.
+    def present(texte: str) -> bool:
+        return texte.encode() in mf or texte.encode('utf-16-le') in mf
+
+    if present('com.pronowin.app'):
         ok('paquet com.pronowin.app')
     else:
         ko('le paquet n\'est pas com.pronowin.app')
 
-    versions = sorted({m.decode() for m in re.findall(rb'\d+\.\d+\.\d+', manifeste)
-                       if m.decode().startswith('1.')})
+    brut = mf.replace(b'\x00', b'')     # aplatit l'UTF-16 pour la recherche
+    versions = sorted({m.decode() for m in re.findall(rb'\d+\.\d+\.\d+', brut)
+                       if m.decode().startswith('1.0.')})
     if versions:
         ok(f'versionName : {", ".join(versions)}')
 
