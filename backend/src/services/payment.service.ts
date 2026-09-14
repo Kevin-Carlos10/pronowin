@@ -64,13 +64,13 @@ export class PaymentService {
     if (tx.user.fcmToken) {
       if (status === 'completed') {
         await notifSvc.sendToUser(tx.userId, {
-          title: '✅ Versement effectué !',
+          title: 'Versement effectué !',
           body:  `${tx.amount.toLocaleString()} FCFA envoyés sur votre Mobile Money.`,
           data:  { deep_link: '/parrainage', type: 'payment' },
         });
       } else {
         await notifSvc.sendToUser(tx.userId, {
-          title: '❌ Versement refusé',
+          title: 'Versement refusé',
           body:  adminNote ?? 'Votre demande n\'a pas pu être traitée. Contactez le support.',
           data:  { deep_link: '/parrainage', type: 'payment' },
         });

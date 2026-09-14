@@ -172,7 +172,7 @@ export class UsersAdminService {
 
     if (suspend && user.fcmToken) {
       await notifSvc.sendToUser(userId, {
-        title: '⚠️ Compte suspendu',
+        title: 'Compte suspendu',
         body:  reason ?? 'Votre compte a été suspendu. Contactez le support.',
         data:  { type: 'system' },
       }).catch(() => {});
@@ -199,7 +199,7 @@ export class UsersAdminService {
     ]);
 
     await notifSvc.sendToUser(userId, {
-      title: '🎉 Premium activé !',
+      title: 'Premium activé !',
       body:  `Votre accès Premium a été activé pour ${durationDays} jours par l'équipe PronoWin.`,
       data:  { deep_link: '/pronostics', type: 'system' },
     }).catch(() => {});
@@ -246,7 +246,7 @@ export class UsersAdminService {
         select: { id: true },
       });
       await Promise.allSettled(cibles.map(u => notifSvc.sendToUser(u.id, {
-        title: '⚠️ Compte suspendu',
+        title: 'Compte suspendu',
         body:  reason ?? 'Votre compte a été suspendu. Contactez le support.',
         data:  { type: 'system' },
       })));

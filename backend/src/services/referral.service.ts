@@ -134,7 +134,7 @@ export class ReferralService {
 
     // Notifier le parrain
     await notifSvc.sendToUser(referrer.id, {
-      title: '👥 Nouveau filleul !',
+      title: 'Nouveau filleul !',
       body:  `${user.pseudo} vient de rejoindre PronoWin avec votre code. +${COMMISSION_L1} FCFA quand il s'abonne Premium !`,
       data:  { deep_link: '/compte', type: 'referral' },
     }, 'referral').catch(() => {});
@@ -167,7 +167,7 @@ export class ReferralService {
 
       // Notifier le parrain
       await notifSvc.sendToUser(ref.referrerId, {
-        title: `💰 Commission L${ref.level} reçue !`,
+        title: `Commission L${ref.level} reçue !`,
         body:  `${ref.referred.pseudo} vient de s'abonner Premium ! +${commission} FCFA crédités sur votre compte.`,
         data:  { deep_link: '/compte', type: 'referral' },
       }, 'referral').catch(() => {});

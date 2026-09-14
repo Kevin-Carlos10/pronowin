@@ -607,7 +607,7 @@ export class SubscriptionService {
     if (notify) {
       const days = Math.max(1, Math.ceil((endDate.getTime() - Date.now()) / 86400000));
       await notifSvc.sendToUser(userId, {
-        title: '🎉 Bienvenue Premium !',
+        title: 'Bienvenue Premium !',
         body:  `Votre accès Premium est activé pour ${days} jours !`,
         data:  { deep_link: '/pronostics', type: 'system' },
       }, 'premium').catch(() => {});
@@ -740,7 +740,7 @@ export class SubscriptionService {
       ]);
     } else {
       await prisma.subscriptionProof.update({ where: { id: proofId }, data: { status: 'rejected', adminNote, reviewedBy: adminId, reviewedAt: new Date() } });
-      await notifSvc.sendToUser(proof.userId, { title: '❌ Preuve refusée', body: adminNote ?? 'Votre preuve n\'a pas pu être validée.', data: { deep_link: '/compte', type: 'system' } }, 'premium').catch(() => {});
+      await notifSvc.sendToUser(proof.userId, { title: 'Preuve refusée', body: adminNote ?? 'Votre preuve n\'a pas pu être validée.', data: { deep_link: '/compte', type: 'system' } }, 'premium').catch(() => {});
     }
     return { success: true, approved };
   }

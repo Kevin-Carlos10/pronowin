@@ -567,7 +567,7 @@ export class PronosticsService {
         });
         for (const fav of favorites) {
           notifSvc.sendToUser(fav.userId, {
-            title: '⚽ Match en direct !',
+            title: 'Match en direct !',
             body:  `${match.homeTeam} vs ${match.awayTeam} vient de commencer.`,
             data:  {
               type:      'match_live',
@@ -625,11 +625,10 @@ export class PronosticsService {
             }).catch((err: any) => console.error("[PronoSvc]", err.message));
 
             // Notifier personnellement les utilisateurs favoris avec le résultat de leur prono
-            const emoji = result === 'WIN' ? '✅ ' : result === 'PUSH' ? '🔄' : '❌';
             const label = result === 'WIN' ? 'Pronostic gagnant !' : result === 'PUSH' ? 'Pronostic remboursé' : 'Pronostic perdant';
             for (const fav of favorites) {
               notifSvc.sendToUser(fav.userId, {
-                title: `${emoji} ${label}`,
+                title: label,
                 body:  `${match.homeTeam} ${homeScore}-${awayScore} ${match.awayTeam} · Prono : ${prono.predictionLabel}`,
                 data:  {
                   type:      'prono_result',

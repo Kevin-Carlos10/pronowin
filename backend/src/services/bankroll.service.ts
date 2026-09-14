@@ -233,7 +233,7 @@ export async function settleBets(pronosticId: string, result: SettlementResult) 
       const gain = (bet.profit ?? 0).toLocaleString('fr-FR');
       const retour = bet.potentialGain.toLocaleString('fr-FR');
       notifSvc.sendToUser(bet.userId, {
-        title: corrected ? '🏆 Résultat corrigé : gagnant' : '🏆 Pronostic Gagnant !',
+        title: corrected ? 'Résultat corrigé : gagnant' : 'Pronostic gagnant !',
         body:  corrected
           ? `${matchStr} : retour de ${retour} ${nomDevise(bet.currency)} crédité, gain net +${gain} ${nomDevise(bet.currency)}.`
           : `+${gain} ${nomDevise(bet.currency)} sur ${matchStr}. Votre bankroll est mise à jour !`,
@@ -242,7 +242,7 @@ export async function settleBets(pronosticId: string, result: SettlementResult) 
     } else if (result === 'PUSH') {
       const remb = bet.stakedAmount.toLocaleString('fr-FR');
       notifSvc.sendToUser(bet.userId, {
-        title: corrected ? '🔄 Résultat corrigé : remboursé' : '🔄 Pronostic remboursé',
+        title: corrected ? 'Résultat corrigé : remboursé' : 'Pronostic remboursé',
         body:  corrected
           ? `${matchStr} : la mise de ${remb} ${nomDevise(bet.currency)} a été remboursée après correction.`
           : `${remb} ${nomDevise(bet.currency)} de mise remboursée sur ${matchStr}.`,
@@ -251,7 +251,7 @@ export async function settleBets(pronosticId: string, result: SettlementResult) 
     } else {
       const perte = bet.stakedAmount.toLocaleString('fr-FR');
       notifSvc.sendToUser(bet.userId, {
-        title: corrected ? '❌ Résultat corrigé : perdu' : '❌ Pronostic Perdant',
+        title: corrected ? 'Résultat corrigé : perdu' : 'Pronostic perdant',
         body:  corrected
           ? `${matchStr} : le résultat a été corrigé. Mise de ${perte} ${nomDevise(bet.currency)} perdue.`
           : `-${perte} ${nomDevise(bet.currency)} sur ${matchStr}. Ne lâchez pas !`,

@@ -276,9 +276,9 @@
         <strong style="color:var(--text-m);display:block;margin-bottom:.35rem"><svg class="ic" aria-hidden="true"><use href="#ic-bulb"/></svg> Conseils</strong>
         <ul style="list-style:none;display:flex;flex-direction:column;gap:.3rem">
           <li><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Titre concis et accrocheur</li>
-          <li>⏰ Privilégiez 10h–12h ou 18h–20h</li>
+          <li><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg> Privilégiez 10h–12h ou 18h–20h</li>
           <li><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Max 1–2 notifs par jour</li>
-          <li>😀 Un emoji en tête de titre booste l'ouverture</li>
+          <li><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Pas d'emoji dans le titre : aucune notification de l'application n'en porte</li>
         </ul>
       </div>
     </div>
@@ -288,11 +288,11 @@
       <h3 style="font-size:.9rem;font-weight:700;margin-bottom:.75rem"><svg class="ic" aria-hidden="true"><use href="#ic-zap"/></svg> Modèles rapides</h3>
       <div style="display:flex;flex-direction:column;gap:.4rem">
         <% [
-          ['⚽ Pronostic', '🎯 Nouveau pronostic disponible !', 'Un pronostic Premium vient d\'être publié. Connectez-vous pour ne pas le manquer !'],
-          ['👑 Promo Premium', '👑 Offre Premium disponible !', 'Accédez à tous nos pronostics exclusifs avec Premium. Profitez de l\'offre dès maintenant !'],
-          ['🏆 Pronostic gagnant', '🏆 Pronostic gagnant !', 'Félicitations ! Le pronostic d\'aujourd\'hui était gagnant. Consultez les résultats.'],
-          [' Réengagement', '👋 On vous a manqué ?', 'Revenez découvrir les derniers pronostics et offres disponibles sur PronoWin !'],
-          ['📰 Nouvel article', '📰 Nouvelle actualité !', 'Un nouvel article vient d\'être publié. Découvrez les dernières infos PronoWin.'],
+          ['Pronostic', 'Nouveau pronostic disponible !', 'Un pronostic Premium vient d\'être publié. Connectez-vous pour ne pas le manquer !'],
+          ['Promo Premium', 'Offre Premium disponible !', 'Accédez à tous nos pronostics exclusifs avec Premium. Profitez de l\'offre dès maintenant !'],
+          ['Pronostic gagnant', 'Pronostic gagnant !', 'Félicitations ! Le pronostic d\'aujourd\'hui était gagnant. Consultez les résultats.'],
+          ['Réengagement', 'On vous a manqué ?', 'Revenez découvrir les derniers pronostics et offres disponibles sur PronoWin !'],
+          ['Nouvel article', 'Nouvelle actualité !', 'Un nouvel article vient d\'être publié. Découvrez les dernières infos PronoWin.'],
         ].forEach(([label, t, b]) => { %>
         <button class="btn btn-outline btn-sm" style="text-align:left;justify-content:flex-start" type="button"
           data-t="<%= t.replace(/"/g,'&quot;') %>"

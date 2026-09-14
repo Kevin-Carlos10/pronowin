@@ -437,7 +437,7 @@ export class NotificationService {
   /** Notif premium → token direct (données privées) */
   async notifyPremiumActivated(userId: string, durationDays: number) {
     return this.sendToUser(userId, {
-      title: '🎉 Premium activé !',
+      title: 'Premium activé !',
       body:  `Accès Premium actif pour ${durationDays} jours. Profitez des pronostics VIP !`,
       data:  { deep_link: '/pronostics', type: 'system' },
     }, 'premium');
@@ -446,7 +446,7 @@ export class NotificationService {
   /** Notif parrainage → token direct (données privées) */
   async notifyReferralConverted(referrerId: string, pseudo: string, commission: number) {
     return this.sendToUser(referrerId, {
-      title: '💰 Parrainage récompensé !',
+      title: 'Parrainage récompensé !',
       body:  `${pseudo} s'est abonné Premium ! +${commission} FCFA crédités.`,
       data:  { deep_link: '/compte', type: 'referral' },
     }, 'referral');
@@ -455,7 +455,7 @@ export class NotificationService {
   /** Notif match → topic global + topic par match (favoris) */
   async notifyMatchSoon(homeTeam: string, awayTeam: string, pronosticId: string, matchId?: string) {
     const payload = {
-      title: '⚽ Match dans 1 heure !',
+      title: 'Match dans 1 heure !',
       body:  `${homeTeam} vs ${awayTeam} — Consultez notre pronostic maintenant.`,
       data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
     };
@@ -474,7 +474,9 @@ export class NotificationService {
     matchStatus?:    string;
   }) {
     const isLive  = params.matchStatus === 'LIVE';
-    const prefix  = params.isPremium ? '👑 [VIP] ' : (isLive ? '🔴 ' : '⚽ ');
+    // « [VIP] » reste : il dit quelque chose que le titre ne dit pas.
+    // Les emojis qui l'accompagnaient, non — ils ne faisaient que decorer.
+    const prefix  = params.isPremium ? '[VIP] ' : '';
     const title   = isLive
       ? `${prefix}Pronostic EN DIRECT`
       : `${prefix}Nouveau pronostic publié`;
@@ -512,13 +514,12 @@ export class NotificationService {
     result:      'WIN' | 'LOSS' | 'PUSH';
     pronosticId: string;
   }) {
-    const emoji = params.result === 'WIN' ? '✅' : params.result === 'PUSH' ? '🔄' : '❌';
     const label = params.result === 'WIN' ? 'Pronostic gagnant !'
                 : params.result === 'PUSH' ? 'Pronostic remboursé'
                 : 'Pronostic perdant';
     const score  = `${params.homeScore}-${params.awayScore}`;
     return this.sendToTopic(FCM_TOPICS.match, {
-      title: `${emoji} Résultat : ${label}`,
+      title: `Résultat : ${label}`,
       body:  `${params.homeTeam} vs ${params.awayTeam} — Score final : ${score}`,
       data:  {
         deep_link: `/pronostics/${params.pronosticId}`,
