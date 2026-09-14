@@ -45,6 +45,13 @@ ATTENDU = 'https://pronowin.space/api/v1'
 # qu'en ouvrant le binaire.
 INSTALLATION = 'REQUEST_INSTALL_PACKAGES'
 
+# Une permission dont on sait qu'elle est declaree, dans les deux variantes.
+#
+# Elle ne sert qu'a prouver qu'on lit bien le manifeste : sans elle, un
+# manifeste illisible rendrait « permission absente » pour toutes les
+# permissions, y compris celle qu'on cherche.
+TEMOIN = 'android.permission.INTERNET'
+
 # Adresses qui n'ont rien a faire dans un binaire distribue.
 LOCALES = ['10.0.2.2', '127.0.0.1', 'localhost', '192.168.']
 
@@ -162,6 +169,19 @@ def main():
         if installe:
             ko(INSTALLATION + ' present dans un artefact Play : motif de '
                'retrait, la variante play ne doit pas le declarer')
+        elif not present(TEMOIN):
+            # Contrepartie indispensable.
+            #
+            # Le manifeste d'un AAB est en protobuf, celui d'un APK en XML
+            # binaire UTF-16. Si la lecture echouait — format change, chemin
+            # deplace, encodage different — la recherche ne trouverait rien, et
+            # « permission absente » serait annonce sur un manifeste qu'on n'a
+            # pas su lire. Le controle le plus important du fichier passerait
+            # alors au vert sans avoir rien regarde.
+            #
+            # On exige donc de retrouver une permission qu'on sait presente.
+            ko('manifeste illisible : ' + TEMOIN + ' introuvable, donc '
+               'l\'absence de ' + INSTALLATION + ' ne prouve rien')
         else:
             ok(INSTALLATION + ' absent, comme exige par Play')
     else:
