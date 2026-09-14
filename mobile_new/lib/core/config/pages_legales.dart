@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 
 import '../constants/app_constants.dart';
 
@@ -24,41 +24,51 @@ import '../constants/app_constants.dart';
 /// notre propre lien, exactement ce que ce build a retiré. Le site sert la
 /// version des boutiques par défaut ; la variante directe se demande.
 ///
-/// Regroupé ici pour la même raison que `BookmakerAffiliation.ouvrir` : quatre
-/// écrans mènent à ces pages, et quatre copies d'un même `launchUrl`
-/// divergeraient sur le mode d'ouverture ou sur ce qui se passe quand il
-/// échoue.
+/// Regroupé ici pour la même raison que `BookmakerAffiliation.ouvrir` : six
+/// liens, dans trois écrans, mènent à ces pages. Six copies de la même adresse
+/// et du même geste d'ouverture divergeraient — c'est d'ailleurs ce qui était
+/// arrivé, avec trois comportements différents pour trois liens qui font la
+/// même chose.
 class PagesLegales {
   /// Conditions générales d'utilisation, pour le canal donné.
   static String cgu({required bool estStore}) => estStore
       ? '${AppConstants.siteUrl}/cgu'
       : '${AppConstants.siteUrl}/cgu?canal=direct';
 
+  /// Mentions légales — elles vivent sur le site, et nulle part ailleurs.
+  ///
+  /// Elles portent l'identité de l'éditeur. La recopier dans
+  /// l'application créerait un second endroit où ce nom et cette adresse
+  /// devraient rester à jour, et l'un des deux finirait par mentir.
+  static String get mentionsLegales =>
+      '${AppConstants.siteUrl}/mentions-legales';
+
   /// Politique de confidentialité — l'URL déclarée à Google Play.
   static String get confidentialite => '${AppConstants.siteUrl}/confidentialite';
 
-  /// Ouvre une page légale dans le navigateur du système.
+  /// Ouvre une page légale dans la webview interne.
   ///
-  /// L'échec est dit, pas avalé. Un lien légal qui ne fait rien quand on le
-  /// touche est le défaut que ce projet a déjà corrigé deux fois : d'abord
-  /// trois mentions qui ressemblaient à des liens sans en être, puis un bouton
-  /// « Confirmer » sans gestionnaire. Hors connexion, `launchUrl` échoue ou
-  /// rend `false` — dans les deux cas l'utilisateur doit l'apprendre.
-  static Future<void> ouvrir(BuildContext context, String url) async {
+  /// La première version lançait le navigateur du système. C'était le mauvais
+  /// choix, et l'écran des Paramètres le montrait déjà : « Mentions légales »
+  /// y ouvrait `/navigateur`, une webview qui affiche la page du site sans
+  /// quitter l'application, avec son état d'erreur et son bouton « ouvrir à
+  /// l'extérieur ». Trois comportements coexistaient donc pour trois liens qui
+  /// font la même chose.
+  ///
+  /// Sur le paywall, l'écart comptait le plus : envoyer quelqu'un dans Chrome
+  /// au moment où il décide de payer, c'est le perdre. La webview satisfait la
+  /// même exigence — des conditions publiques, vérifiables, citables — sans
+  /// faire sortir de l'application.
+  ///
+  /// L'échec reste dit : la webview affiche son propre état d'erreur quand la
+  /// page ne charge pas. Un lien légal qui ne fait rien quand on le touche est
+  /// le défaut que ce projet a déjà corrigé deux fois.
+  static void ouvrir(BuildContext context, String url, {String titre = ''}) {
     HapticFeedback.selectionClick();
-    try {
-      final ouverte = await launchUrl(
-        Uri.parse(url),
-        mode: LaunchMode.externalApplication,
-      );
-      if (ouverte) return;
-      throw StateError('launchUrl a refusé $url');
-    } catch (e) {
-      debugPrint('[PagesLegales] Ouverture impossible : $e');
-      if (!context.mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Impossible de joindre le site. Vérifiez votre connexion.'),
-      ));
-    }
+    context.push('/navigateur', extra: {'url': url, 'title': titre});
   }
+
+  /// Le titre de la barre, pour chaque page.
+  static const String titreCgu = 'Conditions d\'utilisation';
+  static const String titreConfidentialite = 'Politique de confidentialité';
 }

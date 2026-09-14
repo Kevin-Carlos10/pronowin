@@ -7,13 +7,13 @@ import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:in_app_review/in_app_review.dart';
 import '../../../../core/config/contact_support.dart';
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
 import '../providers/security_provider.dart';
 import '../../../../shared/utils/retour.dart';
+import '../../../../core/config/pages_legales.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -226,16 +226,29 @@ class ParametresPage extends ConsumerWidget {
           _SectionHeader('Informations légales')
             .animate().fadeIn(duration: 300.ms, delay: 250.ms),
           _SettingsCard(children: [
+            // Les trois textes publics vivent sur le site, et l'application
+            // y renvoie — comme les mentions légales le faisaient déjà seules.
+            // Ce sont les documents qu'on cite, qu'un examinateur ouvre, et
+            // qu'un utilisateur doit pouvoir lire sans avoir l'application
+            // sous la main. Les recopier ici créerait un second original.
+            //
+            // « Jeu responsable » reste embarqué : le site n'en a pas de page,
+            // et ces ressources doivent rester atteignables même hors ligne.
             _NavTile(
               icon: Icons.description_rounded, iconColor: context.cl.textM,
               title: 'Conditions d\'utilisation',
-              onTap: () => context.push('/parametres/cgu'),
+              onTap: () => PagesLegales.ouvrir(
+                context,
+                PagesLegales.cgu(estStore: ref.read(isStoreBuildProvider)),
+                titre: PagesLegales.titreCgu),
             ),
             const _Divider(),
             _NavTile(
               icon: Icons.privacy_tip_rounded, iconColor: context.cl.textM,
               title: 'Politique de confidentialité',
-              onTap: () => context.push('/parametres/confidentialite'),
+              onTap: () => PagesLegales.ouvrir(
+                context, PagesLegales.confidentialite,
+                titre: PagesLegales.titreConfidentialite),
             ),
             const _Divider(),
             _NavTile(
@@ -252,10 +265,9 @@ class ParametresPage extends ConsumerWidget {
             _NavTile(
               icon: Icons.gavel_rounded, iconColor: context.cl.textM,
               title: 'Mentions légales', subtitle: 'Éditeur et hébergeur',
-              onTap: () => context.push('/navigateur', extra: {
-                'url':   '${AppConstants.siteUrl}/mentions-legales',
-                'title': 'Mentions légales',
-              }),
+              onTap: () => PagesLegales.ouvrir(
+                context, PagesLegales.mentionsLegales,
+                titre: 'Mentions légales'),
             ),
             const _Divider(),
             _NavTile(

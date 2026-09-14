@@ -222,16 +222,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (_, s) => slideRightPage(
           state: s, child: const PinSetupPage()),
       ),
-      GoRoute(
-        path: '/parametres/cgu',
-        pageBuilder: (_, s) => slideRightPage(
-          state: s, child: const LegalPage(type: LegalType.cgu)),
-      ),
-      GoRoute(
-        path: '/parametres/confidentialite',
-        pageBuilder: (_, s) => slideRightPage(
-          state: s, child: const LegalPage(type: LegalType.confidentialite)),
-      ),
+      // Plus de route vers les conditions ni la confidentialité : ces deux
+      // textes s'ouvrent sur le site, par `/navigateur`. `sectionsLegales`
+      // reste leur source — c'est elle que `tool/exporter_cgu.dart` publie
+      // vers `website/content/cgu.json`, et que les bancs comparent au site.
+      //
+      // « Jeu responsable » garde la sienne : le site n'a pas cette page, et
+      // ces ressources doivent rester atteignables hors ligne.
       GoRoute(
         path: '/parametres/jeu-responsable',
         pageBuilder: (_, s) => slideRightPage(

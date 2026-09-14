@@ -11,6 +11,8 @@ import '../providers/apres_connexion.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/bouton_fournisseur.dart';
 import '../../../../shared/utils/retour.dart';
+import '../../../../core/config/distribution_channel.dart';
+import '../../../../core/config/pages_legales.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -180,7 +182,11 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
                                 decoration: TextDecoration.underline,
                                 fontWeight: FontWeight.w600),
                               recognizer: TapGestureRecognizer()
-                                ..onTap = () => context.push('/parametres/cgu')),
+                                ..onTap = () => PagesLegales.ouvrir(
+                                    context,
+                                    PagesLegales.cgu(
+                                      estStore: ref.read(isStoreBuildProvider)),
+                                    titre: PagesLegales.titreCgu)),
                             const TextSpan(text: '.'),
                           ],
                         ),
