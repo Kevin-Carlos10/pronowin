@@ -158,11 +158,72 @@ export function codesPromoParPlateforme(
   );
 }
 
+/** Ordre sémantique de deux versions « x.y.z ». Le build après « + » est ignoré. */
+function comparerVersions(a: string, b: string): number {
+  const parse = (v: string) => {
+    const parts = v.split('+')[0].split('.').map(p => parseInt(p.trim(), 10) || 0);
+    while (parts.length < 3) parts.push(0);
+    return parts;
+  };
+  const [x, y] = [parse(a), parse(b)];
+  for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i];
+  return 0;
+}
+
+/**
+ * Une version exigée ne peut pas dépasser la version offerte.
+ *
+ * C'est la faute de configuration qui enferme les utilisateurs. Sur le canal
+ * direct, l'APK ne se met pas à jour tout seul : le blocage affiche une fenêtre
+ * dont l'unique bouton télécharge le fichier publié. Si le seuil minimal exige
+ * une version que ce fichier ne contient pas, l'utilisateur télécharge,
+ * installe, relance — et retrouve la même fenêtre. À chaque lancement, sans
+ * issue, jusqu'à ce qu'un administrateur s'en aperçoive.
+ *
+ * Aucune validation ne l'empêchait : le format de chaque champ était vérifié,
+ * mais jamais leur cohérence entre eux. Le contrôle vaut pour les deux canaux ;
+ * sur le canal store, l'utilisateur peut au moins attendre que le store
+ * rattrape, mais annoncer un minimum supérieur à ce qu'on publie reste faux.
+ */
+function verifierSeuils(effectives: Record<string, string>): void {
+  const paires: [string, string, string][] = [
+    ['APP_MIN_VERSION', 'APP_LATEST_VERSION', 'store'],
+    ['APK_MIN_VERSION', 'APK_LATEST_VERSION', 'APK direct'],
+  ];
+
+  for (const [cleMin, cleLatest, canal] of paires) {
+    const min    = effectives[cleMin];
+    const latest = effectives[cleLatest];
+    if (!min || !latest) continue;
+
+    if (comparerVersions(min, latest) > 0) {
+      throw new Error(
+        `Canal ${canal} : la version minimale exigée (${min}) dépasse la `
+      + `dernière version publiée (${latest}). Les utilisateurs seraient `
+      + `bloqués sur une mise à jour qui n'existe pas. Publiez d'abord la `
+      + `nouvelle version, puis relevez le minimum.`);
+    }
+  }
+}
+
 export async function ecrireConfig(
   entrees: Record<string, unknown>,
   parQui?: string,
 ): Promise<CleConfig[]> {
   const ecrites: CleConfig[] = [];
+
+  // Les seuils se valident ensemble, et AVANT toute écriture : une validation
+  // au fil de la boucle laisserait la moitié des clés enregistrées et l'autre
+  // refusée, donc une configuration à moitié appliquée — précisément l'état
+  // qu'on cherche à interdire.
+  const { valeurs: actuelles } = await lireConfig();
+  const effectives: Record<string, string> = { ...actuelles };
+  for (const cle of CLES_CONFIG) {
+    if (cle in entrees && entrees[cle] !== null && entrees[cle] !== undefined) {
+      effectives[cle] = String(entrees[cle]).trim();
+    }
+  }
+  verifierSeuils(effectives);
 
   for (const cle of CLES_CONFIG) {
     if (!(cle in entrees)) continue;

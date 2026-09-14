@@ -76,3 +76,46 @@ flutterfire configure --project=votre-projet-firebase
 # Génère automatiquement lib/firebase_options.dart
 flutter run
 ```
+
+## 5. Forcer une mise a jour sur l'APK direct
+
+L'APK telecharge depuis le site ne se met **jamais** a jour tout seul. Le
+mecanisme de blocage existe et se pilote depuis le panneau
+d'administration — Parametres → Mises a jour.
+
+### Les valeurs, et ce qu'elles font
+
+| Cle | Effet |
+| --- | --- |
+| `APK_LATEST_VERSION` | La derniere version publiee. Au-dessous, l'application propose la mise a jour **une fois par version**, avec un bouton « Plus tard ». |
+| `APK_MIN_VERSION` | Le plancher. Au-dessous, la fenetre **bloque** : ni bouton retour, ni fermeture, et elle ne se referme pas non plus quand on lance le telechargement. |
+| `APK_FORCE_UPDATE` | Bloque tout le monde, quelle que soit la version installee. A reserver a un defaut grave. |
+| `APK_URL` | Le fichier a telecharger. **Vide, aucune invitation n'est affichee** — plutot qu'un bouton menant a un lien mort. |
+
+Le canal store a ses propres cles (`APP_*`) : une release Play attend la
+validation de Google pendant que l'APK est deja en ligne, donc les deux jeux de
+versions divergent forcement. Les melanger enverrait la moitie des
+utilisateurs vers une mise a jour inexistante.
+
+### L'ordre, et pourquoi il n'est pas negociable
+
+1. Construire l'APK : `.\tool\build.ps1 -Canal direct -ApiUrl https://pronowin.space/api/v1`
+2. **Le mettre en ligne** dans `/var/www/pronowin/downloads/` et verifier qu'il se telecharge
+3. Passer `APK_LATEST_VERSION` a la nouvelle version
+4. **Seulement ensuite**, relever `APK_MIN_VERSION` si la mise a jour doit etre obligatoire
+
+Relever le minimum avant d'avoir publie le fichier enferme tout le monde :
+l'utilisateur telecharge, installe, relance — et retrouve la meme fenetre, a
+chaque lancement, sans issue. Le serveur refuse desormais cette configuration
+(« la version minimale exigee depasse la derniere version publiee »), mais
+l'ordre reste le bon reflexe.
+
+### Verifier avant et apres
+
+```bash
+curl -s https://pronowin.space/api/v1/config | python -m json.tool
+curl -s -o /dev/null -w '%{http_code}\n' -L <APK_URL>
+```
+
+La seconde ligne compte autant que la premiere : une URL qui repond 404 avec un
+blocage actif est le seul scenario qui ne se rattrape pas depuis l'application.

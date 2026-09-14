@@ -132,6 +132,27 @@ class VersionService {
     } catch (_) { /* sans mémoire, on redemandera : sans gravité */ }
   }
 
+  /// La fenêtre de mise à jour, exposée pour être éprouvée.
+  ///
+  /// `check()` n'est pas testable directement : il lit Firebase Remote Config
+  /// avant toute chose, et l'accès échoue hors application — la fonction
+  /// entière étant gardée par un `catch`, le test ne verrait jamais la fenêtre
+  /// et passerait sans rien vérifier.
+  ///
+  /// Ce qui doit être prouvé tient de toute façon à la fenêtre : une mise à
+  /// jour obligatoire ne se referme sur aucun geste, une facultative se ferme
+  /// sur les deux. Même couture explicite que `fabriqueDioRafraichissement`
+  /// dans `dio_client.dart`, pour la même raison.
+  @visibleForTesting
+  static Future<void> afficherPourTest(
+    BuildContext context, {
+    required String message,
+    required bool bloquant,
+    String? lien,
+    String? titre,
+  }) => _afficher(context,
+        message: message, bloquant: bloquant, lien: lien, titre: titre);
+
   // ─── Boîte de dialogue ─────────────────────────────────────────────────
   static Future<_Reponse?> _afficher(
     BuildContext context, {
@@ -165,7 +186,25 @@ class VersionService {
                         mode: LaunchMode.externalApplication);
                   } catch (_) { /* rien de mieux à proposer ici */ }
                 }
-                if (ctx.mounted) Navigator.pop(ctx, _Reponse.majFaite);
+                // Une mise à jour obligatoire ne se referme pas sur un appui.
+                //
+                // La barrière et le bouton retour étaient bien verrouillés,
+                // mais le seul bouton restant fermait la fenêtre après avoir
+                // lancé le téléchargement. L'utilisateur revenait du navigateur
+                // — ou de la boutique — dans une application débloquée, sur la
+                // version que l'on venait de déclarer trop ancienne. Le blocage
+                // tenait à tout, sauf à la seule action qu'on lui proposait.
+                //
+                // Sur le canal direct, l'écart est le plus long : télécharger
+                // 70 Mo puis installer prend plusieurs minutes, pendant
+                // lesquelles l'application restait entièrement utilisable.
+                //
+                // La fenêtre reste donc affichée. Elle disparaîtra au prochain
+                // lancement, quand la version installée passera le seuil — ce
+                // qui est exactement la condition qu'elle exprime.
+                if (!bloquant && ctx.mounted) {
+                  Navigator.pop(ctx, _Reponse.majFaite);
+                }
               },
               child: Text(lien == null ? 'OK' : 'Mettre à jour')),
           ],
