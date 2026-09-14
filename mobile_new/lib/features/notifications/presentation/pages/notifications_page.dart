@@ -133,7 +133,8 @@ class _FilterBar extends ConsumerWidget {
       NotificationType.match:    'Match',
       NotificationType.promo:    'Promo',
       NotificationType.system:   'Système',
-      NotificationType.payment:  'Paiement',
+      // « Paiement » a fusionné dans « Parrainage » : il ne contenait que le
+      // versement des gains de parrainage, et menait déjà à cette page.
       NotificationType.referral: 'Parrainage',
     };
 
@@ -181,22 +182,32 @@ class _FilterBar extends ConsumerWidget {
     );
   }
 
-  Color _typeColor(NotificationType t) => switch (t) {
-    NotificationType.match    => AppColors.success,
-    NotificationType.promo    => AppColors.primaryLight,
-    NotificationType.system   => AppColors.info,
-    NotificationType.payment  => AppColors.warning,
-    NotificationType.referral => const Color(0xFFA78BFA),
-  };
-
-  IconData _typeIcon(NotificationType t) => switch (t) {
-    NotificationType.match    => Icons.sports_soccer_rounded,
-    NotificationType.promo    => Icons.local_offer_rounded,
-    NotificationType.system   => Icons.notifications_rounded,
-    NotificationType.payment  => Icons.account_balance_wallet_rounded,
-    NotificationType.referral => Icons.people_rounded,
-  };
+  Color _typeColor(NotificationType t) => couleurDeType(t);
+  IconData _typeIcon(NotificationType t) => iconeDeType(t);
 }
+
+
+// ─── Apparence d'une rubrique ────────────────────────────────────────────────
+//
+// Ces deux tables étaient écrites deux fois dans ce fichier : une paire pour
+// les pastilles de filtre, une paire pour la vignette de chaque notification.
+// Retirer « Paiement » demandait donc quatre modifications pour un seul
+// changement — et rien n'obligeait les deux copies à rester d'accord sur la
+// couleur d'une rubrique.
+
+Color couleurDeType(NotificationType t) => switch (t) {
+  NotificationType.match    => AppColors.success,
+  NotificationType.promo    => AppColors.primaryLight,
+  NotificationType.system   => AppColors.info,
+  NotificationType.referral => const Color(0xFFA78BFA),
+};
+
+IconData iconeDeType(NotificationType t) => switch (t) {
+  NotificationType.match    => Icons.sports_soccer_rounded,
+  NotificationType.promo    => Icons.local_offer_rounded,
+  NotificationType.system   => Icons.notifications_rounded,
+  NotificationType.referral => Icons.people_rounded,
+};
 
 // ─── Corps principal (groupé par date) ───────────────────────────────────────
 class _NotifBody extends ConsumerWidget {
@@ -415,21 +426,8 @@ class _NotifTile extends StatelessWidget {
     ),
   );
 
-  Color get _typeColor => switch (notif.type) {
-    NotificationType.match    => AppColors.success,
-    NotificationType.promo    => AppColors.primaryLight,
-    NotificationType.system   => AppColors.info,
-    NotificationType.payment  => AppColors.warning,
-    NotificationType.referral => const Color(0xFFA78BFA),
-  };
-
-  IconData get _typeIcon => switch (notif.type) {
-    NotificationType.match    => Icons.sports_soccer_rounded,
-    NotificationType.promo    => Icons.local_offer_rounded,
-    NotificationType.system   => Icons.notifications_rounded,
-    NotificationType.payment  => Icons.account_balance_wallet_rounded,
-    NotificationType.referral => Icons.people_rounded,
-  };
+  Color get _typeColor => couleurDeType(notif.type);
+  IconData get _typeIcon => iconeDeType(notif.type);
 
   String _formatDate(DateTime d) {
     final now  = DateTime.now();

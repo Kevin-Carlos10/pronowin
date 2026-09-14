@@ -41,11 +41,21 @@ void main() {
     });
 
     test('parse correctement tous les types de notification', () {
+      // La rubrique « Paiement » a fusionné dans « Parrainage » : elle ne
+      // contenait que le versement des gains de parrainage. Et les trois
+      // types de match, qui tombaient dans le repli « Système », sont
+      // désormais nommés. Le détail de cette correspondance, comparé à ce que
+      // le serveur envoie réellement, vit dans
+      // `notifications_classement_test.dart`.
       for (final entry in {
         'match': NotificationType.match,
+        'match_live': NotificationType.match,
+        'match_finished': NotificationType.match,
+        'prono_result': NotificationType.match,
         'promo': NotificationType.promo,
-        'payment': NotificationType.payment,
+        'payment': NotificationType.referral,
         'referral': NotificationType.referral,
+        'premium': NotificationType.system,
         'system': NotificationType.system,
         'unknown': NotificationType.system,
       }.entries) {
