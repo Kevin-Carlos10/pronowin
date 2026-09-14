@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../constants/app_constants.dart';
 import 'remote_config_service.dart';
 import '../config/bookmaker_affiliation.dart';
+import '../router/navigation_keys.dart';
 
 /// Vérification de version au démarrage.
 ///
@@ -27,19 +28,16 @@ import '../config/bookmaker_affiliation.dart';
 /// pas le paiement Mobile Money par lequel il a payé.
 class VersionService {
   /// Seuils et destination de mise à jour, une fois le canal résolu.
-  static Future<void> check(
-    BuildContext context, {
+  static Future<void> check({
     required bool estStore,
     required Dio dio,
   }) async {
     try {
-      final pkg     = await PackageInfo.fromPlatform();
-      final courante = _parse(pkg.version);
+      final pkg = await PackageInfo.fromPlatform();
 
       // La maintenance vaut pour les deux canaux et prime sur tout le reste.
       if (RemoteConfigService.maintenanceMode) {
-        if (!context.mounted) return;
-        await _afficher(context,
+        await _afficher(
           message:  RemoteConfigService.maintenanceMsg,
           bloquant: true,
           titre:    'Maintenance en cours',
@@ -63,17 +61,20 @@ class VersionService {
       // pouvoir fournir le fichier n'aiderait personne.
       if (seuils == null || seuils.lien == null || seuils.lien!.isEmpty) return;
 
-      final obligatoire = _comparer(courante, _parse(seuils.min)) < 0 || seuils.force;
-      final disponible  = _comparer(courante, _parse(seuils.latest)) < 0;
-      if (!obligatoire && !disponible) return;
+      final verdict = decider(
+        courante: pkg.version,
+        min:      seuils.min,
+        latest:   seuils.latest,
+        force:    seuils.force);
+      final obligatoire = verdict.obligatoire;
+      if (!obligatoire && !verdict.disponible) return;
 
       // Une mise à jour facultative ne se rappelle qu'une fois par version :
       // la redemander à chaque lancement finit par apprendre à l'utilisateur
       // à fermer la fenêtre sans la lire.
       if (!obligatoire && await _dejaIgnoree(seuils.latest)) return;
 
-      if (!context.mounted) return;
-      final reponse = await _afficher(context,
+      final reponse = await _afficher(
         message:  seuils.message,
         bloquant: obligatoire,
         lien:     seuils.lien);
@@ -81,9 +82,47 @@ class VersionService {
       if (!obligatoire && reponse == _Reponse.plusTard) {
         await _memoriserIgnoree(seuils.latest);
       }
-    } catch (_) {
-      // Silencieux — la vérification de version ne doit jamais bloquer l'app.
+    } catch (e, pile) {
+      // Le contrôle de version ne doit jamais empêcher l'application de
+      // démarrer : tout ce qui échoue ici est rattrapé. Mais « rattrapé » ne
+      // veut pas dire « invisible » : ce `catch` vide a avalé pendant des mois
+      // l'échec décrit sous `_contexteNavigable`, sans laisser la moindre
+      // trace — ni à l'écran, ni dans les journaux. C'est ce silence, et non
+      // le défaut lui-même, qui l'a rendu introuvable.
+      debugPrint('[Version] contrôle interrompu : $e');
+      assert(() {
+        debugPrintStack(stackTrace: pile, label: '[Version]');
+        return true;
+      }());
     }
+  }
+
+  /// Faut-il bloquer, proposer, ou se taire.
+  ///
+  /// `force` ne bloque que s'il existe une version vers laquelle aller.
+  /// Auparavant il bloquait seul : activé alors que tout le monde était déjà
+  /// à jour, il enfermait l'ensemble des utilisateurs derrière une fenêtre
+  /// sans issue, dont l'unique bouton retéléchargeait la version déjà
+  /// installée. Relancer l'application ne changeait rien — la condition ne
+  /// dépendait pas de la version installée, donc aucune installation ne
+  /// pouvait la lever.
+  ///
+  /// C'est le pendant applicatif du contrôle serveur qui refuse
+  /// `MIN > LATEST` : la même erreur, par l'autre porte. Le serveur ne pouvait
+  /// pas l'attraper, `force` étant un booléen que rien ne contredit.
+  @visibleForTesting
+  static ({bool obligatoire, bool disponible}) decider({
+    required String courante,
+    required String min,
+    required String latest,
+    required bool force,
+  }) {
+    final v = _parse(courante);
+    final disponible = _comparer(v, _parse(latest)) < 0;
+    return (
+      obligatoire: _comparer(v, _parse(min)) < 0 || (force && disponible),
+      disponible:  disponible,
+    );
   }
 
   /// Seuils du canal direct, lus sur l'API publique.
@@ -150,19 +189,44 @@ class VersionService {
     required bool bloquant,
     String? lien,
     String? titre,
-  }) => _afficher(context,
+  }) => _afficher(contexte: context,
         message: message, bloquant: bloquant, lien: lien, titre: titre);
 
   // ─── Boîte de dialogue ─────────────────────────────────────────────────
-  static Future<_Reponse?> _afficher(
-    BuildContext context, {
+
+  /// Ouvre la fenêtre depuis le navigateur racine.
+  ///
+  /// Le contexte n'est pas un paramètre de `check()`, et c'est le fond du
+  /// correctif. `check()` recevait auparavant le `BuildContext` de l'État qui
+  /// l'appelle, dans `main.dart`. Or cet État **construit** le
+  /// `MaterialApp.router` : son contexte se situe au-dessus de lui, donc
+  /// au-dessus de tout `Navigator` et de toute `MaterialLocalizations`.
+  /// `showDialog` remonte l'arbre, ne trouve rien, et lève — droit dans le
+  /// `catch` de `check()`, qui était vide.
+  ///
+  /// Aucune fenêtre de mise à jour ne s'est donc jamais affichée, sur aucun
+  /// canal, pas plus que l'avis de maintenance. Tout le reste du mécanisme
+  /// était juste — seuils, comparaison sémantique, verrouillage, mémoire des
+  /// refus — et ne pouvait aboutir à rien.
+  ///
+  /// Résoudre la clé ici plutôt que de recevoir un contexte rend l'erreur
+  /// impossible à refaire : il n'y a plus de mauvais contexte à passer.
+  /// `contexte` n'existe que pour les tests, qui montent leur propre arbre.
+  /// `FCMService._navigate` procède de même, pour la même raison.
+  static Future<_Reponse?> _afficher({
     required String message,
     required bool bloquant,
     required String? lien,
     String? titre,
+    BuildContext? contexte,
   }) {
+    final ctx = contexte ?? rootNavigatorKey.currentContext;
+    if (ctx == null) {
+      debugPrint('[Version] aucun navigateur monté — fenêtre non affichée');
+      return Future<_Reponse?>.value(null);
+    }
     return showDialog<_Reponse>(
-      context:            context,
+      context:            ctx,
       barrierDismissible: !bloquant,
       builder: (ctx) => PopScope(
         canPop: !bloquant,

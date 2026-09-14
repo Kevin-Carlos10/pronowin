@@ -103,4 +103,69 @@ void main() {
     expect(find.text('Mise à jour disponible'), findsNothing,
       reason: 'une mise à jour facultative doit rester refermable au retour');
   });
+
+  // ── Quand la fenêtre doit-elle bloquer ──────────────────────────────────
+  //
+  // `APK_FORCE_UPDATE` bloquait seul, sans regarder la version installée.
+  // Activé alors que tout le monde était déjà à jour, il enfermait l'ensemble
+  // des utilisateurs derrière une fenêtre sans issue, dont l'unique bouton
+  // retéléchargeait la version déjà installée. Relancer n'y changeait rien :
+  // la condition ne dépendait pas de ce qui était installé, donc aucune
+  // installation ne pouvait la lever.
+  //
+  // C'est le même piège que `MIN > LATEST`, arrivé par l'autre porte. Le
+  // contrôle serveur ne pouvait pas l'attraper : un booléen n'a rien à
+  // contredire.
+  group('décision de blocage', () {
+    ({bool obligatoire, bool disponible}) d({
+      required String courante,
+      String min    = '1.0.0',
+      String latest = '1.0.0',
+      bool force    = false,
+    }) => VersionService.decider(
+        courante: courante, min: min, latest: latest, force: force);
+
+    test('en dessous du minimum : bloquant', () {
+      expect(d(courante: '1.0.4', min: '1.0.9', latest: '1.0.9').obligatoire,
+          isTrue);
+    });
+
+    test('au-dessus du minimum mais pas à jour : proposé, pas imposé', () {
+      final r = d(courante: '1.0.5', min: '1.0.0', latest: '1.0.9');
+      expect(r.obligatoire, isFalse);
+      expect(r.disponible,  isTrue);
+    });
+
+    test('déjà à jour : rien du tout', () {
+      final r = d(courante: '1.0.9', min: '1.0.9', latest: '1.0.9');
+      expect(r.obligatoire, isFalse);
+      expect(r.disponible,  isFalse);
+    });
+
+    test('force ne bloque pas un utilisateur déjà à jour', () {
+      // Le défaut : la fenêtre s'ouvrait, ne se fermait pas, et proposait de
+      // télécharger la version déjà installée.
+      expect(d(courante: '1.0.9', min: '1.0.0', latest: '1.0.9', force: true)
+          .obligatoire, isFalse);
+    });
+
+    test('force bloque quand une version existe vraiment', () {
+      // Contrepartie : sans ce point, neutraliser `force` entièrement
+      // passerait le test précédent.
+      expect(d(courante: '1.0.4', min: '1.0.0', latest: '1.0.9', force: true)
+          .obligatoire, isTrue);
+    });
+
+    test('les nombres, pas les chaînes', () {
+      // « 1.10.0 » est postérieur à « 1.9.0 » ; l'ordre lexicographique dit
+      // l'inverse et laisserait passer une version périmée.
+      expect(d(courante: '1.9.0', min: '1.10.0', latest: '1.10.0').obligatoire,
+          isTrue);
+    });
+
+    test('le numéro de build ne participe pas au classement', () {
+      expect(d(courante: '1.0.9+42', min: '1.0.9', latest: '1.0.9').obligatoire,
+          isFalse);
+    });
+  });
 }

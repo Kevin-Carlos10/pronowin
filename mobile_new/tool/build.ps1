@@ -101,11 +101,16 @@ if (Test-Path $sortie) {
 # Ni la compilation, ni `flutter analyze`, ni les 456 tests ne pouvaient le
 # voir : ils lisent le code source, et le defaut ne vit que dans le binaire.
 # Ce controle-la ouvre le bundle.
-if ($Canal -eq 'play' -and (Test-Path $sortie)) {
+#
+# Ce controle s'applique aux deux canaux. Il ne portait d'abord que sur l'AAB,
+# parce que c'est la qu'on s'etait trompe -- alors que l'APK direct court
+# exactement le meme risque, et qu'il est distribue sans relecture de Google.
+# `verifier_bundle.py` lit les deux formats.
+if (Test-Path $sortie) {
   Write-Host ''
   & python (Join-Path $PSScriptRoot 'verifier_bundle.py') $sortie
   if ($LASTEXITCODE -ne 0) {
-    Write-Host '  Ce bundle ne doit pas etre televerse.' -ForegroundColor Red
+    Write-Host '  Cet artefact ne doit pas etre distribue.' -ForegroundColor Red
     exit 1
   }
 }

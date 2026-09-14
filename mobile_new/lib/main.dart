@@ -205,8 +205,11 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
     // Le canal décide de la destination : fiche du store, ou téléchargement
     // de l'APK. Un build direct renvoyé vers Play tomberait sur une fiche qui
     // n'héberge pas sa version.
+    // Le contexte n'est volontairement plus transmis : celui de cet État se
+    // situe au-dessus du `MaterialApp.router` qu'il construit, donc au-dessus
+    // de tout `Navigator`. Le service résout lui-même la clé du navigateur
+    // racine, seul contexte d'où une fenêtre peut s'ouvrir.
     await VersionService.check(
-      context,
       estStore: ref.read(isStoreBuildProvider),
       dio:      ref.read(dioProvider),
     );
