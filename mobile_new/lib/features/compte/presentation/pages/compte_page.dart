@@ -22,6 +22,31 @@ import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
 import '../../../../shared/utils/bilan_paris.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
+import '../../../../shared/utils/age.dart';
+
+
+/// Tout ce que l'ecran du compte lit pour cet utilisateur.
+///
+/// Le geste « tirer pour rafraichir » n'invalidait que le profil, l'abonnement
+/// et le parrainage — c'est-a-dire rien de ce que l'onglet Apercu affiche. Le
+/// solde de bankroll et les statistiques de paris, les deux cartes du haut,
+/// restaient telles quelles : le geste tournait, et l'ecran ne changeait pas.
+///
+/// La liste complete existait pourtant deux cents lignes plus bas, dans la
+/// deconnexion. Deux listes ecrites a la main pour la meme notion : celle du
+/// haut oubliait les stats et la bankroll, celle du bas oubliait l'abonnement
+/// et le parrainage. Il n'y en a plus qu'une.
+///
+/// `isStoreBuildProvider` n'y figure pas, et c'est deliberе : il ne lit rien,
+/// il rend une constante de compilation.
+void rafraichirDonneesCompte(WidgetRef ref) {
+  ref.invalidate(profileProvider);
+  ref.invalidate(currentSubscriptionProvider);
+  ref.invalidate(referralStatsProvider);
+  ref.invalidate(userStatsProvider);
+  ref.invalidate(bankrollProvider);
+  ref.invalidate(bankrollStatsProvider);
+}
 
 class ComptePage extends ConsumerStatefulWidget {
   const ComptePage({super.key});
@@ -115,11 +140,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
         return Scaffold(
           body: RefreshIndicator(
             color: AppColors.primary,
-            onRefresh: () async {
-              ref.invalidate(profileProvider);
-              ref.invalidate(currentSubscriptionProvider);
-              ref.invalidate(referralStatsProvider);
-            },
+            onRefresh: () async => rafraichirDonneesCompte(ref),
             child: NestedScrollView(
             headerSliverBuilder: (context, _) => [
               SliverAppBar(
@@ -287,12 +308,13 @@ class _ComptePageState extends ConsumerState<ComptePage>
             child: ElevatedButton(
               onPressed: () async {
                 await ref.read(authProvider.notifier).logout();
-                // Invalider tous les providers mis en cache pour cet utilisateur
+                // Tout ce qui a ete lu pour cet utilisateur doit repartir :
+                // la meme liste que le geste de rafraichissement, plus l'etat
+                // de connexion. Deux listes ecrites a la main divergeaient —
+                // celle-ci oubliait l'abonnement et le parrainage, qui
+                // seraient restes ceux du compte precedent.
+                rafraichirDonneesCompte(ref);
                 ref.invalidate(isLoggedInProvider);
-                ref.invalidate(bankrollProvider);
-                ref.invalidate(bankrollStatsProvider);
-                ref.invalidate(profileProvider);
-                ref.invalidate(userStatsProvider);
                 if (context.mounted) {
                   Navigator.pop(context);
                   context.go('/home');
@@ -319,6 +341,13 @@ class _ComptePageState extends ConsumerState<ComptePage>
 // ══════════════════════════════════════════════════════
 // ONGLET APERÇU
 // ══════════════════════════════════════════════════════
+/// Ce qu'affiche une ligne dont la donnee manque.
+///
+/// Une seule constante : trois formulations differentes pour la meme absence
+/// finissaient par se contredire, et deux lignes sur cinq n'affichaient rien du
+/// tout.
+const String _absent = 'Non renseigné';
+
 class _ApercuTab extends ConsumerWidget {
   final String pseudo, phone, email, country;
   final String firstName, lastName, fullName;
@@ -395,15 +424,20 @@ class _ApercuTab extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(14),
                     border: Border.all(color: context.cl.border, width: 0.5)),
                   child: Column(children: [
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                      _StatPill(
+                    // `spaceEvenly` distribue l'espace libre, mais ne
+                    // contraint pas les enfants : trois libellés un peu longs
+                    // — « Série en cours » au premier chef — depassaient la
+                    // carte sur un ecran etroit ou a grande taille de texte.
+                    // Les pastilles se partagent donc la largeur.
+                    Row(children: [
+                      Expanded(child: _StatPill(
                         icon: Icons.savings_rounded,
                         rawValue: suivis.toDouble(),
                         suffix: '',
                         label: 'Paris joués',
-                        color: AppColors.primary),
+                        color: AppColors.primary)),
                       Container(height: 32, width: 0.5, color: context.cl.border),
-                      _StatPill(
+                      Expanded(child: _StatPill(
                         icon: Icons.percent_rounded,
                         rawValue: bilan.taux,
                         suffix: '%',
@@ -412,9 +446,9 @@ class _ApercuTab extends ConsumerWidget {
                             ? context.cl.textM
                             : (bilan.tauxBrut >= 60
                                 ? AppColors.success
-                                : AppColors.warning)),
+                                : AppColors.warning))),
                       Container(height: 32, width: 0.5, color: context.cl.border),
-                      _StatPill(
+                      Expanded(child: _StatPill(
                         icon: Icons.local_fire_department_rounded,
                         rawValue: vierge ? null : serie.toDouble(),
                         suffix: '',
@@ -422,7 +456,7 @@ class _ApercuTab extends ConsumerWidget {
                         // Une série à zéro n'est pas une faute : c'est une
                         // série qui n'a pas commencé. Le rouge était réservé
                         // aux pertes, il n'a rien à faire ici.
-                        color: serie > 0 ? AppColors.success : context.cl.textM),
+                        color: serie > 0 ? AppColors.success : context.cl.textM)),
                     ]),
                     const SizedBox(height: 10),
                     Divider(color: context.cl.border, height: 1),
@@ -442,7 +476,7 @@ class _ApercuTab extends ConsumerWidget {
                           style: TextStyle(color: context.cl.textM, fontSize: 12,
                             fontWeight: FontWeight.w600))),
                       ])
-                    else
+                    else ...[
                       Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                         Row(children: [
                           Container(width: 8, height: 8,
@@ -464,34 +498,69 @@ class _ApercuTab extends ConsumerWidget {
                             fontWeight: FontWeight.w700)),
                         ]),
                       ]),
+                      // Pourquoi le taux affiche un tiret.
+                      //
+                      // En deca de cinq paris tranches, le pourcentage est
+                      // retenu : « 100 % » sur un pari gagne est exact et sans
+                      // aucun sens. La retenue est juste — c'est le silence qui
+                      // ne l'etait pas. La branche voisine, elle, nomme son
+                      // etat (« 2 paris en attente de resultat ») ; celle-ci
+                      // laissait un tiret nu, sur l'ecran de quelqu'un qui a
+                      // trois paris gagnes et se demande pourquoi rien ne
+                      // s'affiche.
+                      if (!bilan.echantillonSuffisant) ...[
+                        const SizedBox(height: 8),
+                        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                          Icon(Icons.info_outline_rounded,
+                            size: 12, color: context.cl.textM),
+                          const SizedBox(width: 6),
+                          Flexible(child: Text(
+                            bilan.avantLeTaux == 1
+                              ? 'Taux de réussite dès le prochain pari tranché'
+                              : 'Taux de réussite dès '
+                                '${BilanParis.echantillonMinimal} paris tranchés '
+                                '— encore ${bilan.avantLeTaux}',
+                            style: TextStyle(color: context.cl.textM,
+                              fontSize: 11, fontWeight: FontWeight.w500))),
+                        ]),
+                      ],
+                    ],
                     const SizedBox(height: 10),
-                    Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                      GestureDetector(
+                    // Meme cause, meme remede : deux libelles et trois icones
+                    // dans une rangee qui ne contraignait rien.
+                    Row(children: [
+                      Expanded(child: GestureDetector(
                         onTap: () => context.push('/historique'),
-                        child: Row(children: [
-                          Text('Historique',
-                            style: TextStyle(color: AppColors.primary,
-                              fontSize: 12, fontWeight: FontWeight.w600)),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.arrow_forward_ios_rounded,
-                            color: AppColors.primary, size: 11),
-                        ]),
-                      ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Flexible(child: Text('Historique',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppColors.primary,
+                                fontSize: 12, fontWeight: FontWeight.w600))),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.arrow_forward_ios_rounded,
+                              color: AppColors.primary, size: 11),
+                          ]),
+                      )),
                       Container(height: 14, width: 0.5, color: context.cl.border),
-                      GestureDetector(
+                      Expanded(child: GestureDetector(
                         onTap: () => context.push('/compte/stats'),
-                        child: Row(children: [
-                          const Icon(Icons.bar_chart_rounded,
-                            color: AppColors.primary, size: 14),
-                          const SizedBox(width: 4),
-                          const Text('Stats avancées',
-                            style: TextStyle(color: AppColors.primary,
-                              fontSize: 12, fontWeight: FontWeight.w600)),
-                          const SizedBox(width: 4),
-                          const Icon(Icons.arrow_forward_ios_rounded,
-                            color: AppColors.primary, size: 11),
-                        ]),
-                      ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.bar_chart_rounded,
+                              color: AppColors.primary, size: 14),
+                            const SizedBox(width: 4),
+                            const Flexible(child: Text('Stats avancées',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(color: AppColors.primary,
+                                fontSize: 12, fontWeight: FontWeight.w600))),
+                            const SizedBox(width: 4),
+                            const Icon(Icons.arrow_forward_ios_rounded,
+                              color: AppColors.primary, size: 11),
+                          ]),
+                      )),
                     ]),
                   ]),
                 ),
@@ -510,19 +579,26 @@ class _ApercuTab extends ConsumerWidget {
             _InfoRow(label: 'Nom complet',  value: fullName),
           if (birthDate != null)
             _InfoRow(label: 'Date de naissance', value: _formatBirthDate(birthDate!)),
+          // La meme regle pour toutes les lignes.
+          //
+          // Elle etait ecrite pour le pays — « on l'annonce comme pour
+          // l'email plutot que de laisser une ligne blanche » — et appliquee a
+          // deux lignes sur cinq. Un compte cree par email n'a pas de
+          // telephone : il voyait un libelle avec rien a cote, ce qui se lit
+          // comme un affichage casse plutot que comme une donnee absente.
           _InfoRow(label: 'Pseudo',
-            value: pseudo.isNotEmpty ? pseudo : ''),
+            value: pseudo.isNotEmpty ? pseudo : _absent),
           _InfoRow(label: 'Téléphone',
-            value: phone.isNotEmpty ? phone : ''),
+            value: phone.isNotEmpty ? phone : _absent),
           _InfoRow(label: 'Email',
-            value: email.isNotEmpty ? email : 'Non renseigné'),
+            value: email.isNotEmpty ? email : _absent),
           // Le pays peut légitimement être vide (colonne nullable depuis la
           // suppression du défaut « BF ») : on l'annonce comme pour l'email
           // plutôt que de laisser une ligne blanche.
           _InfoRow(label: 'Pays',
-            value: country.isEmpty ? 'Non renseigné' : _countryLabel(context, country)),
+            value: country.isEmpty ? _absent : _countryLabel(context, country)),
           _InfoRow(label: 'Membre depuis',
-            value: createdAt != null ? _formatDate(createdAt!) : ''),
+            value: createdAt != null ? _formatDate(createdAt!) : _absent),
         ]),
         const SizedBox(height: 20),
 
@@ -572,7 +648,7 @@ class _ApercuTab extends ConsumerWidget {
   String _formatBirthDate(String iso) {
     try {
       final d   = DateTime.parse(iso).toLocal();
-      final age = ((DateTime.now().difference(d).inDays) / 365.25).floor();
+      final age = ageRevolu(d);
       return '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year} ($age ans)';
     } catch (_) { return iso; }
   }
@@ -1338,11 +1414,19 @@ class _InfoRow extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     decoration: BoxDecoration(
       border: Border(bottom: BorderSide(color: context.cl.border, width: 0.3))),
-    child: Row(children: [
+    // `Spacer` + `Text` nu debordait : une adresse email un peu longue
+    // depassait la largeur d'un ecran de 360 px, a taille de texte normale,
+    // et peignait les rayures de debordement en travers de la fiche.
+    //
+    // La valeur est donc elastique et peut passer a la ligne. Pas d'ellipse :
+    // un email tronque cache precisement ce qu'on vient lire.
+    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(label, style: TextStyle(color: context.cl.textM, fontSize: 13)),
-      const Spacer(),
-      Text(value, style: TextStyle(
-        color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w500)),
+      const SizedBox(width: 16),
+      Expanded(child: Text(value,
+        textAlign: TextAlign.right,
+        style: TextStyle(
+          color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w500))),
     ]));
 }
 
@@ -1363,9 +1447,12 @@ class _LinkRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(8)),
           child: Icon(icon, color: color, size: 18)),
         const SizedBox(width: 12),
-        Text(label, style: TextStyle(
-          color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w500)),
-        const Spacer(),
+        // Meme defaut que la fiche d'informations : un `Text` nu suivi d'un
+        // `Spacer` ne cede rien. « Historique des resultats » et « Programme
+        // parrainage » sont les deux libelles les plus longs de la page.
+        Expanded(child: Text(label, style: TextStyle(
+          color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w500))),
+        const SizedBox(width: 8),
         Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 18),
       ])));
 }
@@ -1421,8 +1508,9 @@ class _StatPill extends StatelessWidget {
             style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w800)),
         ),
       const SizedBox(height: 2),
-      Text(label, style: TextStyle(
-        color: context.cl.textM, fontSize: 10)),
+      Text(label,
+        textAlign: TextAlign.center,
+        style: TextStyle(color: context.cl.textM, fontSize: 10)),
     ]);
   }
 }

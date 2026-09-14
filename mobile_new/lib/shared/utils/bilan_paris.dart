@@ -71,6 +71,14 @@ class BilanParis {
   /// L'échantillon permet-il d'énoncer un pourcentage ?
   bool get echantillonSuffisant => regles >= echantillonMinimal;
 
+  /// Combien de paris tranchés manquent avant que le taux ait un sens.
+  ///
+  /// L'écran affichait un tiret sans rien dire de plus. Le tiret est le bon
+  /// choix — un pourcentage sur deux paris ment par précision — mais il laisse
+  /// l'utilisateur devant une case vide sans raison. Compter ce qui manque
+  /// transforme une absence en attente.
+  int get avantLeTaux => (echantillonMinimal - regles).clamp(0, echantillonMinimal);
+
   /// Taux de réussite, ou `null` tant qu'il ne veut rien dire.
   ///
   /// Les comptes bruts — « 1 gagné, 0 perdu » — restent affichés en dessous du
