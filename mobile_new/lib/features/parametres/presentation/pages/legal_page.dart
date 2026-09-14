@@ -182,8 +182,18 @@ List<LegalSection> sectionsLegales(LegalType type, {required bool estStore}) =>
         'Le jeu peut devenir problématique de façon progressive. Soyez attentif si vous :\n• Pariez avec de l\'argent destiné à des dépenses essentielles (loyer, factures, nourriture)\n• Empruntez de l\'argent pour parier ou pour rembourser des dettes de jeu\n• Mentez à vos proches sur vos habitudes ou vos pertes de jeu\n• Ressentez de l\'anxiété, de l\'irritabilité ou de la culpabilité liées au jeu\n• Essayez, sans succès répété, de réduire ou d\'arrêter de parier\n• Passez un temps croissant à penser aux paris ou à en parler\n\nSi plusieurs de ces situations vous concernent, il est recommandé de solliciter l\'aide d\'un professionnel.'),
       LegalSection('🛡️', 'Outils de protection disponibles',
         'De nombreux opérateurs de paris sportifs${estStore ? "" : ", dont 1xBet,"} proposent des outils de jeu responsable directement sur leur plateforme : fixation de limites de dépôt ou de mise, plafonnement de session, auto-exclusion temporaire ou définitive. PronoWin vous encourage à activer ces outils directement auprès de l\'opérateur avec lequel vous pariez. Depuis l\'Application, vous pouvez également mettre votre compte PronoWin en pause à tout moment en contactant notre support.'),
+      // L'ordre de cette liste compte autant que son contenu.
+      //
+      // Elle ouvrait sur « 🇫🇷 France — Joueurs Info Service », suivi d'un
+      // « hors France, rapprochez-vous d'un professionnel » sans indication de
+      // qui aller voir. Pour la très grande majorité des utilisateurs de cette
+      // application, la seule entrée concrète était donc celle qu'ils ne
+      // peuvent pas appeler, et la leur se résumait à une phrase vague.
+      //
+      // Quelqu'un qui ouvre cette page va mal. On lui donne d'abord ce qui
+      // marche là où il est, puis les ressources particulières à un pays.
       LegalSection('📞', 'Ressources d\'aide',
-        'Si vous pensez, pour vous-même ou pour un proche, avoir un problème avec le jeu, n\'hésitez pas à solliciter une aide professionnelle et confidentielle :\n\n🇫🇷 France — Joueurs Info Service : 09 74 75 13 13 (appel non surtaxé, anonyme et gratuit)\n🌐 Gamblers Anonymous (international) : www.gamblersanonymous.org\n🌍 Hors France : rapprochez-vous d\'un professionnel de santé, d\'une structure d\'écoute locale ou de l\'autorité de régulation des jeux de votre pays\n\nVous pouvez également contacter notre support depuis l\'Application pour mettre votre compte PronoWin en pause ou le clôturer temporairement.'),
+        'Si vous pensez, pour vous-même ou pour un proche, avoir un problème avec le jeu, une aide existe — et en parler est le premier pas.\n\n🌍 Où que vous soyez : parlez-en à un médecin, à un psychologue, au service de psychiatrie d\'un hôpital ou à un centre de santé de votre localité. Ces professionnels sont tenus au secret.\n\n👥 En parler à quelqu\'un de confiance — un proche, un ami — change souvent davantage qu\'un numéro. Le silence est ce qui aggrave le plus les choses.\n\n🌐 Gamblers Anonymous, groupes d\'entraide présents dans de nombreux pays : www.gamblersanonymous.org\n\n📞 France — Joueurs Info Service : 09 74 75 13 13 (anonyme, gratuit, non surtaxé)\n\nDepuis l\'Application, vous pouvez à tout moment demander la mise en pause ou la clôture de votre compte PronoWin en contactant notre support.'),
       LegalSection('✅', 'Engagement de PronoWin',
         'PronoWin s\'engage à :\n• Afficher des messages clairs sur le caractère informatif de ses pronostics et sur les risques liés aux paris sportifs\n• Ne jamais cibler ou solliciter des utilisateurs identifiés comme vulnérables\n• Vérifier l\'âge de ses utilisateurs (18 ans ou plus requis) à la création de compte\n• Fournir un outil de suivi de bankroll pour aider à une gestion responsable\n• Permettre la mise en pause ou la clôture d\'un compte sur simple demande, sans condition'),
     ],
