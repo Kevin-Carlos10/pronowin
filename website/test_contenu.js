@@ -67,9 +67,15 @@ async function rendre(reponsesApi) {
   const confidentialite   = await recuperer(site.address().port, '/confidentialite');
   const suppressionCompte = await recuperer(site.address().port, '/suppression-compte');
 
+  // Les conditions generales existent en deux versions, comme dans
+  // l'application : le canal des boutiques ne publie pas l'article consacre a
+  // l'activation contre l'ouverture d'un compte chez le bookmaker partenaire.
+  const cgu       = await recuperer(site.address().port, '/cgu');
+  const cguDirect = await recuperer(site.address().port, '/cgu?canal=direct');
+
   site.close();
   if (api) api.close();
-  return { accueil, legal, confidentialite, suppressionCompte };
+  return { accueil, legal, confidentialite, suppressionCompte, cgu, cguDirect };
 }
 
 /* ─── Fixtures ────────────────────────────────────────────────────────── */
@@ -475,6 +481,95 @@ test('la politique distingue les pratiques de la version Google Play', async () 
     'les notifications doivent apparaître dans les données déclarées');
   assert.ok(confidentialite.html.includes('Diagnostic technique'),
     'les données Firebase techniques doivent apparaître dans les données déclarées');
+});
+
+/**
+ * Les conditions generales publiees dependent du canal.
+ *
+ * Elles n'existaient que dans l'application. Le site n'en avait aucune page --
+ * alors que c'est le lien donne depuis le paywall, la ou Apple exige des liens
+ * *fonctionnels* vers les conditions d'utilisation, et la premiere page qu'un
+ * examinateur ouvre apres l'URL de confidentialite.
+ *
+ * Les publier sur le site sans distinguer le canal aurait rendu public, pour
+ * la premiere fois, l'article decrivant l'activation Premium contre
+ * l'ouverture d'un compte chez un bookmaker partenaire. Le site ne nomme ce
+ * partenaire nulle part, et c'est deliberе : c'est cet article qui ferait
+ * classer l'application dans une categorie reservee aux organisations. La
+ * version canonique est donc celle des boutiques ; la variante directe se
+ * demande explicitement et ne s'indexe pas.
+ */
+test('les CGU ne publient l\'article partenaire que pour le canal direct', async () => {
+  const { cgu, cguDirect } = await rendre(API_COMPLETE);
+
+  assert.strictEqual(cgu.statut, 200, '/cgu doit repondre');
+  assert.strictEqual(cguDirect.statut, 200, '/cgu?canal=direct doit repondre');
+
+  const numeros = (page) =>
+    [...page.html.matchAll(/<h2>(\d+)\. /g)].map((m) => Number(m[1]));
+
+  for (const mot of ['1xBet', 'code promotionnel', 'bookmaker partenaire']) {
+    assert.ok(!cgu.html.includes(mot),
+      `/cgu publie « ${mot} » : cet article ne concerne pas la version des boutiques`);
+  }
+
+  // Contrepartie : sans elle, une page vide -- ou un canal ignore -- passerait
+  // le controle ci-dessus sans que rien ne bronche.
+  assert.ok(cguDirect.html.includes('1xBet'),
+    "/cgu?canal=direct doit decrire l'activation partenaire, faute de quoi les "
+    + 'utilisateurs du telechargement direct n\'ont pas leurs conditions');
+
+  const nStore = numeros(cgu).length;
+  const nDirect = numeros(cguDirect).length;
+  assert.strictEqual(nDirect, nStore + 1,
+    `le canal direct doit publier exactement un article de plus : ${nStore} contre ${nDirect}`);
+
+  assert.ok(/name="robots"[^>]*noindex/.test(cguDirect.html),
+    '/cgu?canal=direct doit porter noindex : le site public ne mentionne pas le partenaire');
+  assert.ok(!/name="robots"[^>]*noindex/.test(cgu.html),
+    "/cgu doit rester indexable : c'est la page que l'on cite");
+
+  // Le numero vient du rang, pas d'une chaine ecrite a la main. Retirer un
+  // article ne doit pas laisser de trou -- un contrat dont l'article 8 manque
+  // se lit comme un contrat tronque.
+  for (const [nom, page] of [['/cgu', cgu], ['/cgu?canal=direct', cguDirect]]) {
+    const nums = numeros(page);
+    assert.ok(nums.length > 10, `${nom} : ${nums.length} articles seulement`);
+    assert.deepStrictEqual(nums, nums.map((_, i) => i + 1),
+      `${nom} : numerotation discontinue -- ${nums.join(', ')}`);
+  }
+});
+
+/**
+ * Un document juridique n'echappe pas aux regles du site.
+ *
+ * Les CGU annonçaient « analyse par intelligence artificielle » alors que le
+ * service lui-meme ecrit dans son en-tete : « Aucun modele generatif
+ * n'intervient ici ». L'application ne dit jamais « IA » a l'utilisateur, et
+ * le site refusait deja le mot -- les conditions generales etaient le seul
+ * texte du produit a le promettre, et c'est celui qu'on cite en cas de litige.
+ *
+ * Elles annonçaient aussi une verification « sous 24 heures ouvrees », delai
+ * qui vit dans un reglage du serveur que le paywall lit et affiche. Meme
+ * defaut que le « 87 % » : une valeur a deux endroits, dont un seul suit.
+ */
+test('les CGU respectent les regles appliquees au reste du site', async () => {
+  const { cgu, cguDirect } = await rendre(API_COMPLETE);
+
+  for (const [nom, page] of [['/cgu', cgu], ['/cgu?canal=direct', cguDirect]]) {
+    const texte = page.html.replace(/<[^>]*>/g, ' ');
+
+    for (const [motif, pourquoi] of PROMESSES) {
+      assert.ok(!motif.test(texte), `${nom} : ${pourquoi}`);
+    }
+    for (const [motif, pourquoi] of CHIFFRES_OPERATIONNELS) {
+      assert.ok(!motif.test(texte), `${nom} : ${pourquoi}`);
+    }
+    for (const [phrase, pourquoi] of INTERDITS) {
+      assert.ok(!texte.includes(phrase),
+        `${nom} publie « ${phrase} » -- ${pourquoi}`);
+    }
+  }
 });
 
 test('aucune page publique ne publie de texte de remplissage', async () => {

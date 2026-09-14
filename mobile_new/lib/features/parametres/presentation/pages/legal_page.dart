@@ -42,10 +42,21 @@ class LegalPage extends ConsumerWidget {
     LegalType.jeuResponsable   => 'Ressources et bonnes pratiques',
   };
 
-  /// Date alignée sur la politique de confidentialité publiée sur le site :
-  /// deux dates différentes pour un même texte, c'est la première chose qu'on
-  /// remarque quand on compare les deux.
-  static const String _lastUpdated = 'Septembre 2026';
+  /// Date de révision, par document.
+  ///
+  /// Une seule date servait les trois. Modifier les conditions générales
+  /// faisait donc vieillir la politique de confidentialité, dont la date doit
+  /// rester celle publiée sur le site — c'est l'URL déclarée à Google, et deux
+  /// dates différentes pour un même texte sont la première chose qu'on
+  /// remarque en comparant les deux.
+  ///
+  /// Un document juridique dont la date de révision bouge sans que son texte
+  /// change ne dit plus rien de sa dernière révision.
+  String get _lastUpdated => switch (type) {
+    LegalType.cgu             => '14 septembre 2026',
+    LegalType.confidentialite => '4 septembre 2026',
+    LegalType.jeuResponsable  => 'Septembre 2026',
+  };
 
   List<LegalSection> _sections(bool estStore) =>
       sectionsLegales(type, estStore: estStore);
@@ -101,7 +112,7 @@ List<LegalSection> sectionsLegales(LegalType type, {required bool estStore}) =>
       LegalSection(null, 'Création et gestion du compte',
         'La création d\'un compte nécessite la fourniture d\'informations exactes, à jour et complètes (notamment un numéro de téléphone ou une adresse e-mail valide). Vous êtes seul responsable de la confidentialité de vos identifiants et de toute activité réalisée depuis votre compte. Vous vous engagez à informer immédiatement PronoWin de toute utilisation non autorisée de votre compte. Un utilisateur ne peut détenir qu\'un seul compte actif ; la création de comptes multiples peut entraîner leur suspension.'),
       LegalSection(null, 'Description des services',
-        'PronoWin met à disposition : des pronostics et analyses sportives (gratuits et Premium), des outils d\'aide à la décision (analyse par intelligence artificielle, statistiques, historiques de confrontations), un suivi de bankroll personnel, des tutoriels pédagogiques sur les paris sportifs, ainsi qu\'un programme de parrainage. La disponibilité, le contenu et la présentation de ces services peuvent évoluer sans préavis, notamment pour les améliorer.'),
+        'PronoWin met à disposition : des pronostics et analyses sportives (gratuits et Premium), des outils d\'aide à la décision (modèle statistique, historiques de confrontations, indicateurs de forme), un suivi de bankroll personnel, des tutoriels pédagogiques sur les paris sportifs, ainsi qu\'un programme de parrainage. La disponibilité, le contenu et la présentation de ces services peuvent évoluer sans préavis, notamment pour les améliorer.'),
       LegalSection(null, 'Pronostics — caractère purement informatif',
         'Les pronostics, analyses et scores de confiance publiés sur PronoWin sont établis à partir de données statistiques et d\'algorithmes d\'analyse ; ils sont fournis à titre purement indicatif et ne constituent en aucun cas une garantie de résultat, un conseil financier ou une incitation à parier. Le sport comportant une part d\'aléa intrinsèque, aucun pronostic ne peut être certain. Toute décision de pari, ainsi que ses conséquences financières, relève de la seule et entière responsabilité de l\'utilisateur qui la prend, sur la plateforme de son choix.'),
       LegalSection(null, 'Abonnement Premium',
@@ -125,7 +136,7 @@ List<LegalSection> sectionsLegales(LegalType type, {required bool estStore}) =>
       // rang, plus d'une chaîne écrite à la main.
       if (!estStore)
         LegalSection(null, 'Activation par code 1xBet',
-          'PronoWin propose une voie d\'activation Premium gratuite pour les utilisateurs disposant d\'un compte actif chez le partenaire 1xBet, sous réserve de remplir les conditions affichées dans l\'Application (code promotionnel, capture d\'écran de vérification). Chaque demande fait l\'objet d\'une vérification manuelle par notre équipe, généralement sous 24 heures ouvrées. Toute tentative de fraude (faux comptes, documents falsifiés, contournement des conditions du partenaire) entraîne le rejet de la demande et peut entraîner la suspension définitive du compte PronoWin concerné.'),
+          'PronoWin propose une voie d\'activation Premium gratuite pour les utilisateurs disposant d\'un compte actif chez le partenaire 1xBet, sous réserve de remplir les conditions affichées dans l\'Application (code promotionnel, capture d\'écran de vérification). Chaque demande fait l\'objet d\'une vérification manuelle par notre équipe, le délai indicatif de traitement étant affiché au moment de la demande. Toute tentative de fraude (faux comptes, documents falsifiés, contournement des conditions du partenaire) entraîne le rejet de la demande et peut entraîner la suspension définitive du compte PronoWin concerné.'),
       LegalSection(null, 'Programme de parrainage',
         'PronoWin propose un programme de parrainage permettant à un utilisateur (« le parrain ») d\'inviter de nouveaux utilisateurs (« les filleuls ») et de percevoir une récompense selon les règles affichées dans l\'Application. Les récompenses ne sont créditées qu\'après validation des conditions d\'éligibilité (ex. activation d\'un abonnement par le filleul). Toute fraude avérée (auto-parrainage, comptes fictifs, manipulation du système) entraîne l\'annulation des récompenses concernées et peut donner lieu à la suspension des comptes impliqués.'),
       LegalSection(null, 'Usages interdits',

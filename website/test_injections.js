@@ -174,6 +174,43 @@ const INJECTIONS = [
     de: '<p>Cette page présente les informations légales relatives au service PronoWin.</p>',
     vers: '<p>Cette page présente les informations légales relatives au service PronoWin. Contenu à compléter avec vos informations d\'éditeur.</p>',
   },
+  {
+    // Le controle du canal cesse de choisir. Sans cette injection, il pourrait
+    // verdir sur un `if` qui rend toujours la meme liste -- et on ne le
+    // decouvrirait qu'en voyant l'article partenaire dans les CGU publiques,
+    // c'est-a-dire au moment ou un examinateur l'y trouve.
+    nom: 'les CGU publiques decrivent le partenaire bookmaker',
+    fichier: 'server.js',
+    de: "    sections: CGU[canalDirect ? 'direct' : 'store'],",
+    vers: '    sections: CGU.direct,',
+  },
+  {
+    // La variante partenaire redevient indexable. Elle serait alors la page
+    // qu'un moteur remonte pour « CGU PronoWin » -- celle que le site evite
+    // deliberement de publier.
+    nom: 'la variante partenaire des CGU redevient indexable',
+    fichier: 'views/cgu.ejs',
+    de: '  <meta name="robots" content="noindex, nofollow">',
+    vers: '  <meta name="robots" content="all">',
+  },
+  {
+    // Les regles du site s'appliquent-elles vraiment a cette page ? Le mot
+    // etait dans les CGU de l'application, et nulle part ailleurs dans le
+    // produit : le service dit lui-meme qu'aucun modele generatif n'intervient.
+    nom: 'les CGU repromettent de l\'intelligence artificielle',
+    fichier: 'views/cgu.ejs',
+    de: "      connexion, depuis l'application et le site.",
+    vers: "      connexion, depuis l'application et le site. Les analyses sont\n"
+        + '      produites par intelligence artificielle.',
+  },
+  {
+    // Le numero vient du rang. S'il decale, le contrat publie commence a
+    // l'article 2 : un lecteur -- ou un avocat -- le lit comme tronque.
+    nom: 'la numerotation des articles decale',
+    fichier: 'views/cgu.ejs',
+    de: '<h2><%= i + 1 %>. <%= s.titre %></h2>',
+    vers: '<h2><%= i + 2 %>. <%= s.titre %></h2>',
+  },
 ];
 
 /**

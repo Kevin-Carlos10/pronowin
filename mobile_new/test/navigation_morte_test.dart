@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pronowin/core/config/pages_legales.dart';
 
 /// Toute navigation littérale doit viser une route qui existe.
 ///
@@ -94,9 +95,59 @@ void main() {
     test('chaque mention mène quelque part', () {
       final pied = piedDePage();
 
-      expect(pied, contains("context.push('/parametres/cgu')"));
-      expect(pied, contains("context.push('/parametres/confidentialite')"));
+      // Les deux pages légales ont quitté l'application pour le site. Sur
+      // l'écran où l'on décide de payer, les conditions que l'on accepte
+      // doivent être celles que tout le monde peut lire, relire et citer — y
+      // compris sans l'application, et y compris un examinateur.
+      expect(pied, contains('PagesLegales.cgu(estStore:'));
+      expect(pied, contains('PagesLegales.confidentialite'));
       expect(pied, contains('ContactSupport.ouvrirEmail'));
+    });
+
+    test('les pages visées existent sur le site', () {
+      // Le défaut d'origine était une mention sans destination. Une adresse
+      // qui répond 404 en est la version distante — et celle-là ne se voit pas
+      // depuis l'application : le navigateur s'ouvre, la page est vide, et
+      // rien dans le code ne le signalait.
+      final liens = File('lib/core/config/pages_legales.dart').readAsStringSync();
+      final serveur = File('../website/server.js').readAsStringSync();
+
+      for (final chemin in ['/cgu', '/confidentialite']) {
+        expect(liens, contains(chemin),
+          reason: 'PagesLegales ne construit aucune adresse vers $chemin');
+        expect(serveur, contains("app.get('$chemin'"),
+          reason: 'le site ne sert pas $chemin : le lien du paywall mènerait '
+                  'à un 404, dans le navigateur, hors de toute surveillance');
+      }
+
+      // Le nom du paramètre est un contrat entre deux dépôts. Le renommer d'un
+      // seul côté ferait servir la version des boutiques aux utilisateurs du
+      // téléchargement direct : des conditions qui ne décrivent pas la voie
+      // d'activation qu'on leur propose réellement.
+      expect(liens, contains('canal=direct'),
+        reason: 'le canal direct doit demander sa variante');
+      expect(serveur, contains("req.query.canal === 'direct'"),
+        reason: 'le site doit lire le paramètre que l\'application envoie');
+    });
+
+    test('les adresses construites sont exactement celles servies', () {
+      // Ces quatre chaînes ont été vérifiées en 200 sur la production. Les
+      // figer ici n'est pas de la redondance : un `?canal=direct` devenu
+      // `?channel=direct`, ou un `/cgu` devenu `/conditions`, se compile, se
+      // lance, ouvre le navigateur — et affiche un 404 que l'application ne
+      // voit pas passer.
+      expect(PagesLegales.cgu(estStore: true),
+        'https://pronowin.space/cgu');
+      expect(PagesLegales.cgu(estStore: false),
+        'https://pronowin.space/cgu?canal=direct');
+      expect(PagesLegales.confidentialite,
+        'https://pronowin.space/confidentialite');
+
+      // Le canal doit changer quelque chose. Une fonction qui rendrait la même
+      // adresse dans les deux cas passerait les deux premiers contrôles si
+      // l'un d'eux était un jour relâché.
+      expect(PagesLegales.cgu(estStore: true),
+        isNot(PagesLegales.cgu(estStore: false)));
     });
 
     test('la cible tactile dépasse la taille du texte', () {

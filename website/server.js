@@ -1,3 +1,4 @@
+const CGU = require('./content/cgu.json');
 const express = require('express');
 const path = require('path');
 const https = require('https');
@@ -498,6 +499,37 @@ app.get('/', async (req, res) => {
 
 app.get('/mentions-legales', (req, res) => {
   res.render('legal', { site });
+});
+
+/**
+ * Conditions generales d'utilisation.
+ *
+ * Le texte vient de `content/cgu.json`, genere depuis `sectionsLegales()` dans
+ * l'application. Une seule redaction, deux rendus : la page qui existait dans
+ * l'application etait la seule version du contrat, et le site n'en avait
+ * aucune -- alors que c'est le lien qu'on donne depuis le paywall, et celui
+ * qu'un examinateur ouvre.
+ *
+ * Le canal decide du contenu, exactement comme dans l'application. La version
+ * distribuee par les boutiques ne publie pas l'article consacre a l'activation
+ * contre l'ouverture d'un compte chez un bookmaker partenaire : il decrit une
+ * offre qui n'existe pas dans ce build, et c'est precisement celui qui ferait
+ * classer l'application dans une categorie reservee aux organisations.
+ *
+ * `?canal=direct` sert cette variante, et elle porte `noindex` : le site
+ * public ne mentionne le partenaire nulle part, et cette page ne doit pas etre
+ * la premiere exception.
+ */
+const MAJ_CGU = '14 septembre 2026';
+
+app.get('/cgu', (req, res) => {
+  const canalDirect = req.query.canal === 'direct';
+  res.render('cgu', {
+    site,
+    dateMaj: MAJ_CGU,
+    canalDirect,
+    sections: CGU[canalDirect ? 'direct' : 'store'],
+  });
 });
 
 /**

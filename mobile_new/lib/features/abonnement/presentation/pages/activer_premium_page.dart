@@ -21,6 +21,7 @@ import '../../../../core/config/distribution_channel.dart';
 import '../../data/iap_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/utils/retour.dart';
+import '../../../../core/config/pages_legales.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -1772,14 +1773,27 @@ class _PaywallPage extends StatelessWidget {
                   // manquait le geste — sur l'écran précisément où Apple exige
                   // des liens *fonctionnels* vers les conditions d'utilisation
                   // et la politique de confidentialité (3.1.2).
+                  //
+                  // Ils ouvrent désormais les pages publiées sur le site, et
+                  // non la copie embarquée. Sur l'écran où l'on décide de
+                  // payer, les conditions que l'on accepte doivent être celles
+                  // que tout le monde peut lire, relire et citer — y compris
+                  // sans l'application.
+                  //
+                  // `iapMode` vaut le canal : il est construit avec `isStore`,
+                  // et c'est le canal qui décide du texte des CGU. La version
+                  // des boutiques ne publie pas l'article consacré à
+                  // l'activation par code partenaire, absente de ce build.
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     _LienLegal(
                       libelle: 'CGU',
-                      onTap: () => context.push('/parametres/cgu')),
+                      onTap: () => PagesLegales.ouvrir(
+                        context, PagesLegales.cgu(estStore: iapMode))),
                     const _PointSeparateur(),
                     _LienLegal(
                       libelle: 'Confidentialité',
-                      onTap: () => context.push('/parametres/confidentialite')),
+                      onTap: () => PagesLegales.ouvrir(
+                        context, PagesLegales.confidentialite)),
                     const _PointSeparateur(),
                     _LienLegal(
                       libelle: 'Contact',
