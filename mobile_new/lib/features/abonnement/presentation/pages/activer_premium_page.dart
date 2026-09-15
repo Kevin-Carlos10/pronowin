@@ -273,6 +273,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       iapBusy:          _iapBusy,
       onIapBuy:         _startIapPurchase,
       onIapRestore:     _restoreIap,
+      onIapRetry:       _retryIap,
     );
   }
 
@@ -300,6 +301,13 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       }
     }
   }
+
+  /// Recharge le catalogue du store.
+  ///
+  /// `init()` ne court-circuite plus quand le catalogue est vide : invalider
+  /// le provider relance donc une vraie tentative, au lieu de rendre
+  /// instantanement le meme echec.
+  void _retryIap() => ref.invalidate(iapReadyProvider);
 
   Future<void> _restoreIap() async {
     setState(() => _iapBusy = true);
@@ -1651,6 +1659,7 @@ class _PaywallPage extends StatelessWidget {
   final bool iapBusy;
   final VoidCallback onIapBuy;
   final VoidCallback onIapRestore;
+  final VoidCallback onIapRetry;
 
   const _PaywallPage({
     required this.monthlyPrice,
@@ -1667,6 +1676,7 @@ class _PaywallPage extends StatelessWidget {
     this.iapBusy        = false,
     required this.onIapBuy,
     required this.onIapRestore,
+    required this.onIapRetry,
     required this.method,
     required this.onSelectDuration,
     required this.onSelectMethod,
@@ -1710,6 +1720,7 @@ class _PaywallPage extends StatelessWidget {
                       busy:        iapBusy,
                       onBuy:       onIapBuy,
                       onRestore:   onIapRestore,
+                      onRetry:     onIapRetry,
                     )
                   else ...[
                     _MethodCard(
@@ -1979,12 +1990,12 @@ class _IapSection extends StatelessWidget {
   final String duration;
   final bool loading, unavailable, busy;
   final ProductDetails? product;
-  final VoidCallback onBuy, onRestore;
+  final VoidCallback onBuy, onRestore, onRetry;
 
   const _IapSection({
     required this.duration, required this.loading, required this.unavailable,
     required this.product, required this.busy,
-    required this.onBuy, required this.onRestore,
+    required this.onBuy, required this.onRestore, required this.onRetry,
   });
 
   @override
@@ -1997,19 +2008,50 @@ class _IapSection extends StatelessWidget {
     }
 
     if (unavailable || product == null) {
+      // Le message demandait de vérifier sa connexion — et rétablir la
+      // connexion ne changeait rien : rien ne rechargeait le catalogue avant
+      // un redémarrage complet de l'application. Il faut donc un bouton qui
+      // fasse réellement ce que la phrase suggère.
       return Container(
+        key: const Key('iap-indisponible'),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.warning.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: AppColors.warning.withValues(alpha: 0.25))),
-        child: Row(children: [
-          const Icon(Icons.storefront_outlined, color: AppColors.warning, size: 20),
-          const SizedBox(width: 12),
-          const Expanded(child: Text(
-            'Les achats ne sont pas disponibles sur cet appareil pour le moment. '
-            'Vérifie ta connexion et que ton compte store est bien configuré.',
-            style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.5))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.storefront_outlined, color: AppColors.warning, size: 20),
+            const SizedBox(width: 12),
+            const Expanded(child: Text(
+              'Les achats ne sont pas disponibles sur cet appareil pour le moment. '
+              'Vérifie ta connexion, puis réessaie.',
+              style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.5))),
+          ]),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              key: const Key('iap-reessayer'),
+              onPressed: busy ? null : onRetry,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Réessayer'),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.warning,
+                side: BorderSide(color: AppColors.warning.withValues(alpha: 0.45)),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          // Un achat déjà payé se rattrape ici, même si le catalogue reste
+          // illisible : la restauration ne dépend pas du catalogue.
+          Center(child: TextButton(
+            key: const Key('iap-restaurer-indisponible'),
+            onPressed: busy ? null : onRestore,
+            child: const Text('Restaurer mes achats',
+              style: TextStyle(color: Colors.white54, fontSize: 12)),
+          )),
         ]),
       );
     }

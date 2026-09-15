@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
+import 'file_verifications.dart';
+
 /// Identifiants produits — doivent correspondre exactement à ceux créés dans
 /// App Store Connect et la Play Console, et à `IAP_PRODUCTS` côté backend.
 /// Le backend les expose sur `/subscriptions/iap/products` : on les récupère
@@ -68,10 +70,19 @@ class IapFailure extends IapResult {
 /// Le reçu n'est jamais interprété côté client : il est transmis au backend,
 /// qui interroge le store. Un client peut mentir, le store non.
 class IapService {
-  IapService(this._dio);
+  IapService(this._dio, {FileVerifications? file})
+      : _file = file ?? FileVerifications(StockagePreferences());
 
   final Dio _dio;
-  final InAppPurchase _iap = InAppPurchase.instance;
+  /// Les achats payés dont le serveur n'a pas encore accusé réception.
+  final FileVerifications _file;
+  /// Le store, atteint seulement quand on en a besoin.
+  ///
+  /// `InAppPurchase.instance` ouvre une connexion au service de facturation dès
+  /// qu'on y touche. En faire un champ non différé revenait à l'ouvrir à la
+  /// construction du service — y compris dans les chemins qui ne parlent qu'à
+  /// notre serveur, comme la reprise des vérifications en attente.
+  late final InAppPurchase _iap = InAppPurchase.instance;
 
   StreamSubscription<List<PurchaseDetails>>? _sub;
   final _results = StreamController<IapResult>.broadcast();
@@ -85,23 +96,37 @@ class IapService {
   bool _ready = false;
   bool get isReady => _ready;
 
-  /// À appeler une fois au démarrage du paywall.
+  /// À appeler au démarrage du paywall, et à chaque fois qu'on réessaie.
   ///
   /// Le flux d'achat doit être écouté **avant** tout achat : sur iOS, une
   /// transaction interrompue (crash, coupure réseau) est rejouée par StoreKit
   /// dès l'abonnement au flux, et il faut pouvoir la finaliser.
+  ///
+  /// « Prêt » veut dire qu'il y a quelque chose à acheter. Cette méthode
+  /// rendait `true` même avec un catalogue vide : le paywall affichait alors
+  /// « Vérifie ta connexion » — et rétablir la connexion ne changeait rien,
+  /// puisque le premier `if` empêchait toute nouvelle tentative. L'écran
+  /// demandait une action qui ne pouvait pas le débloquer.
   Future<bool> init() async {
-    if (_ready) return true;
+    // On ne court-circuite que si on est vraiment prêt, catalogue compris.
+    if (_ready && _products.isNotEmpty) {
+      await _reprendreVerifications();
+      return true;
+    }
     if (!await _iap.isAvailable()) return false;
 
-    _sub = _iap.purchaseStream.listen(
+    _sub ??= _iap.purchaseStream.listen(
       _onPurchases,
       onError: (Object e) => _results.add(IapFailure('$e')),
     );
 
     await _loadProducts();
-    _ready = true;
-    return true;
+    _ready = _products.isNotEmpty;
+
+    // Un achat payé mais jamais confirmé par notre serveur attend ici.
+    await _reprendreVerifications();
+
+    return _ready;
   }
 
   Future<void> _loadProducts() async {
@@ -115,11 +140,31 @@ class IapService {
       // présenter un paywall vide.
     }
 
-    final resp = await _iap.queryProductDetails(ids);
-    if (resp.notFoundIDs.isNotEmpty) {
-      debugPrint('[IAP] Produits introuvables sur le store : ${resp.notFoundIDs}');
+    try {
+      final resp = await _iap.queryProductDetails(ids);
+      if (resp.notFoundIDs.isNotEmpty) {
+        debugPrint('[IAP] Produits introuvables sur le store : ${resp.notFoundIDs}');
+      }
+      _products = resp.productDetails;
+    } catch (e) {
+      // Store injoignable. On laisse le catalogue vide : `init` rendra `false`
+      // et le paywall proposera de réessayer, au lieu d'afficher un forfait
+      // dont on ne connaît ni le prix ni la disponibilité.
+      debugPrint('[IAP] Catalogue illisible : $e');
+      _products = const [];
     }
-    _products = resp.productDetails;
+  }
+
+  /// Rejoue les vérifications qu'on doit encore au serveur.
+  ///
+  /// L'achat est encaissé et finalisé côté appareil : le store ne le rejouera
+  /// pas. Sans cette reprise, « rouvre l'app dans un instant » — ce que
+  /// l'écran promet après un échec — ne produisait rien du tout.
+  Future<void> _reprendreVerifications() async {
+    final enAttente = await _file.lire();
+    for (final charge in enAttente) {
+      await envoyerVerification(charge, estReprise: true);
+    }
   }
 
   ProductDetails? productFor(String id) {
@@ -175,26 +220,53 @@ class IapService {
       _results.add(const IapFailure('Reçu vide.'));
       return;
     }
+    await envoyerVerification(charge);
+  }
 
+  /// Fait confirmer un achat par le serveur, et gère ce qu'on doit à l'acheteur
+  /// quand ça échoue.
+  ///
+  /// [estReprise] distingue la tentative d'origine d'une reprise au démarrage :
+  /// une reprise qui échoue à nouveau ne doit pas réafficher un message à
+  /// quelqu'un qui n'a rien demandé — la charge reste simplement en file.
+  ///
+  /// Exposée pour les bancs : c'est ici que se décide si un achat payé reste
+  /// rattrapable, et cette décision doit être éprouvée directement plutôt qu'à
+  /// travers le plugin du store.
+  @visibleForTesting
+  Future<void> envoyerVerification(
+    ChargeVerification charge, {
+    bool estReprise = false,
+  }) async {
     try {
       final r = await _dio.post('/subscriptions/iap/verify', data: {
         'store':   charge.store,
         'receipt': charge.receipt,
       });
+
+      // Le serveur a répondu : il n'y a plus rien à reprendre, que la réponse
+      // nous plaise ou non. Un abonnement inactif ne deviendra pas actif en
+      // renvoyant le même reçu.
+      await _file.retirer(charge);
+
       final expires = r.data['expires_at'] as String?;
       if (r.data['active'] == true && expires != null) {
         _results.add(IapSuccess(DateTime.parse(expires)));
-      } else {
+      } else if (!estReprise) {
         _results.add(IapFailure(
           'Abonnement inactif (statut : ${r.data['status'] ?? 'inconnu'}).'));
       }
     } catch (e) {
-      // L'achat est encaissé par le store mais notre serveur n'a pas pu le
-      // valider. Ne surtout pas le présenter comme un échec définitif : la
-      // restauration au prochain lancement le rattrapera.
-      _results.add(const IapFailure(
-        'Paiement reçu, activation en attente. Rouvre l\'app dans un instant '
-        'ou touche « Restaurer mes achats ».'));
+      // L'achat est encaissé par le store, mais notre serveur n'a pas pu le
+      // confirmer. On garde de quoi réessayer : l'achat est finalisé côté
+      // appareil, donc le store ne le rejouera jamais de lui-même.
+      await _file.ajouter(charge);
+
+      if (!estReprise) {
+        _results.add(const IapFailure(
+          'Paiement reçu, activation en attente. Rouvre l\'app dans un instant '
+          'ou touche « Restaurer mes achats ».'));
+      }
     }
   }
 
