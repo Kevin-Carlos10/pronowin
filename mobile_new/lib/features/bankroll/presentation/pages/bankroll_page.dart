@@ -241,6 +241,25 @@ class _BankrollView extends StatelessWidget {
             )),
           ]).animate(delay: 100.ms).fadeIn(duration: 300.ms),
 
+          // Pourquoi le « win rate » affiche un tiret.
+          //
+          // En deçà de cinq paris tranchés, le pourcentage est retenu : sur
+          // deux paris il ment par précision. La retenue est juste — c'est le
+          // silence qui ne l'était pas. Cette phrase existait sur l'écran du
+          // compte ; la carte qui la portait en est partie, et cet écran, qui
+          // est désormais le seul endroit où ce bilan se lit, laissait un
+          // tiret nu.
+          if (bilan.mentionAvantLeTaux != null) ...[
+            const SizedBox(height: 10),
+            Row(children: [
+              Icon(Icons.info_outline_rounded, size: 13, color: context.cl.textM),
+              const SizedBox(width: 6),
+              Expanded(child: Text(bilan.mentionAvantLeTaux!,
+                style: TextStyle(color: context.cl.textM,
+                  fontSize: 11, height: 1.3))),
+            ]).animate(delay: 140.ms).fadeIn(duration: 300.ms),
+          ],
+
           const SizedBox(height: 14),
 
           // ── Alerte dérive ─────────────────────────────────────────────

@@ -424,8 +424,17 @@ class _BankrollMiniWidget extends ConsumerWidget {
                   ]),
                   const SizedBox(height: 4),
                   Row(mainAxisSize: MainAxisSize.min, children: [
-                    Text('$winRate win',
-                        style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                    // « — win » ne dit rien du tout.
+                    //
+                    // Sous le seuil, le taux est retenu ; cette carte est trop
+                    // étroite pour en expliquer la raison, et un tiret suivi
+                    // de « win » occupe la place sans rien apprendre. On
+                    // n'affiche donc rien : l'écran Bankroll, qu'un appui sur
+                    // la carte ouvre, porte la phrase complète.
+                    if (bilanCarte.taux != null)
+                      Text('$winRate win',
+                          style: TextStyle(
+                              color: context.cl.textM, fontSize: 10)),
                     if (pending > 0) ...[
                       const SizedBox(width: 6),
                       Container(

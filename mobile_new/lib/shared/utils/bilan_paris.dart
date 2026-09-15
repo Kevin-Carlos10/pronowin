@@ -85,6 +85,30 @@ class BilanParis {
   /// seuil : ils informent sans prétendre à une mesure.
   double? get taux => echantillonSuffisant ? tauxBrut : null;
 
+  /// Ce qu'il faut dire quand le taux n'est pas affiché.
+  ///
+  /// `null` dès que le taux a un sens : il n'y a alors rien à expliquer, et
+  /// une explication affichée en permanence serait un reproche permanent.
+  ///
+  /// Le tiret est le bon choix — « 100 % » sur trois paris est exact et sans
+  /// aucun sens — mais il laisse l'utilisateur devant une case vide sans
+  /// raison. Cette phrase a d'abord été écrite sur l'écran du compte ; la carte
+  /// qui la portait a été retirée, et les deux autres écrans qui affichent le
+  /// même tiret, eux, ne disaient toujours rien. Elle vit donc ici, une fois,
+  /// pour les trois.
+  String? get mentionAvantLeTaux {
+    if (echantillonSuffisant) return null;
+    if (vierge) {
+      return enAttente > 1
+          ? '$enAttente paris en attente de résultat'
+          : 'Pari en attente de résultat';
+    }
+    return avantLeTaux == 1
+        ? 'Taux de réussite dès le prochain pari tranché'
+        : 'Taux de réussite dès $echantillonMinimal paris tranchés '
+          '— encore $avantLeTaux';
+  }
+
   /// Aucun pari du tout : la carte n'a pas lieu d'être affichée.
   bool get sansAucunPari => suivis == 0;
 }
