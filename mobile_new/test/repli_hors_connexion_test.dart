@@ -177,6 +177,7 @@ class _DepotVariable implements PronosticsRepository {
     String? sport,
     String? status,
     bool? hasPronostic,
+    String? recherche,
     String? cursor,
     int limit = 20,
   }) async =>
@@ -198,6 +199,7 @@ class _DepotFixe implements PronosticsRepository {
     String? sport,
     String? status,
     bool? hasPronostic,
+    String? recherche,
     String? cursor,
     int limit = 20,
   }) async =>

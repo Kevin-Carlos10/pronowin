@@ -64,6 +64,7 @@ export const getPronostics = async (req: AuthRequest, res: Response) => {
       leagueCode:    req.query.league_code as string,
       status:        req.query.status as string,
       hasPronostic:  req.query.has_pronostic === 'true' ? true : undefined,
+      recherche:     req.query.q as string | undefined,
       cursor,
       limit,
     };
@@ -77,7 +78,7 @@ export const getPronostics = async (req: AuthRequest, res: Response) => {
 
     // Pas de cache sur les requêtes avec cursor (résultats dépendent du curseur)
     const cacheKey = cursor ? null : CACHE_KEYS.pronostics(
-      `${tier}:${includeAll}:${params.dateFilter ?? ''}:${params.sport ?? ''}:${params.leagueCode ?? ''}:${params.status ?? ''}:${params.hasPronostic ?? ''}:${limit}`
+      `${tier}:${includeAll}:${params.dateFilter ?? ''}:${params.sport ?? ''}:${params.leagueCode ?? ''}:${params.status ?? ''}:${params.hasPronostic ?? ''}:${params.recherche ?? ''}:${limit}`
     );
     if (cacheKey) {
       const cached = cache.get<any>(cacheKey);

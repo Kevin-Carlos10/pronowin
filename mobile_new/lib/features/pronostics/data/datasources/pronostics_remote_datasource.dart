@@ -14,7 +14,7 @@ class MatchesPage {
 }
 
 abstract class PronosticsRemoteDataSource {
-  Future<MatchesPage>       getMatches({String? leagueId, String? dateFilter, String? sport, String? status, bool? hasPronostic, String? cursor, int limit});
+  Future<MatchesPage>       getMatches({String? leagueId, String? dateFilter, String? sport, String? status, bool? hasPronostic, String? recherche, String? cursor, int limit});
   Future<MatchModel>        getMatchDetail(String matchId);
   Future<List<LeagueModel>> getLeagues();
 }
@@ -30,6 +30,7 @@ class PronosticsRemoteDataSourceImpl implements PronosticsRemoteDataSource {
     String? sport,
     String? status,
     bool?   hasPronostic,
+    String? recherche,
     String? cursor,
     int     limit = 20,
   }) async {
@@ -42,6 +43,9 @@ class PronosticsRemoteDataSourceImpl implements PronosticsRemoteDataSource {
           'sport':       ?sport,
           'status':      ?status,
           if (hasPronostic == true) 'has_pronostic': 'true',
+          // La recherche est faite par la base, pas par le téléphone : filtrer
+          // la page chargée annonçait absentes des équipes qui existent.
+          'q':           ?recherche,
           'cursor':      ?cursor,
           'limit':       limit,
           'include_all': 'true',

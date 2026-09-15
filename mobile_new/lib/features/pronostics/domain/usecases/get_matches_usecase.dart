@@ -8,6 +8,7 @@ class GetMatchesParams {
   final String? sport;
   final String? status;
   final bool?   hasPronostic;
+  final String? recherche;
   final String? cursor;
   final int     limit;
   const GetMatchesParams({
@@ -16,6 +17,7 @@ class GetMatchesParams {
     this.sport,
     this.status,
     this.hasPronostic,
+    this.recherche,
     this.cursor,
     this.limit = 20,
   });
@@ -32,6 +34,7 @@ class GetMatchesUseCase {
         sport:        params.sport,
         status:       params.status,
         hasPronostic: params.hasPronostic,
+        recherche:    params.recherche,
         cursor:       params.cursor,
         limit:        params.limit,
       );

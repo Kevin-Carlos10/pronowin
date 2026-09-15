@@ -7,6 +7,7 @@ import { settleBets } from './bankroll.service';
 // sans base de données (cf. settlement.ts).
 import { _resolvePronosticResult, type ScoreLine } from './settlement';
 import { estVerrouille } from './verrou_pronostic';
+import { construireRecherche } from './recherche_matchs';
 
 const notifSvc  = new NotificationService();
 
@@ -820,6 +821,16 @@ export class PronosticsService {
     tzOffsetMin?: number;
     sport?:      string;
     leagueCode?: string;
+    /**
+     * Terme de recherche, appliqué par la base.
+     *
+     * La recherche filtrait la liste **déjà chargée** dans le provider mobile
+     * — vingt matchs, ceux de la page courante et des filtres courants. Une
+     * équipe qui existe mais dont la page n'avait pas été téléchargée était
+     * annoncée absente. Chercher revient à interroger l'ensemble, pas ce
+     * qu'on a sous la main.
+     */
+    recherche?:  string;
     cursor?:     string;
     limit:       number;
   }) {
@@ -837,6 +848,7 @@ export class PronosticsService {
         match: {
           ...dateWhere,
           ...(params.leagueCode ? { leagueCode: params.leagueCode } : {}),
+          ...construireRecherche(params.recherche),
         },
       },
       include: {

@@ -1088,3 +1088,31 @@ final topScorersProvider =
       .map((e) => TopScorer.fromJson(e as Map<String, dynamic>))
       .toList();
 });
+
+/// Les résultats d'une recherche, demandés au serveur.
+///
+/// La recherche filtrait la liste **déjà chargée** du provider paginé : vingt
+/// matchs, ceux de la page courante et des filtres courants. Elle ne demandait
+/// ni les pages suivantes, ni le serveur avec le terme saisi. Une équipe qui
+/// existe mais dont la page n'avait pas été téléchargée était annoncée absente,
+/// et le résultat dépendait du nombre de fois qu'on avait fait défiler la
+/// liste — un compte qui venait d'ouvrir l'application ne trouvait presque rien.
+///
+/// Le périmètre est volontairement large : aucun filtre de date, de sport ni de
+/// statut. Chercher, c'est regarder partout ; les filtres servent à parcourir,
+/// pas à chercher.
+final rechercheMatchsProvider =
+    FutureProvider.autoDispose.family<List<MatchEntity>, String>((ref, terme) async {
+  final t = terme.trim();
+  // Même seuil que le serveur : en deçà, il ne cherche pas, et l'appel ne
+  // ramènerait que les vingt premiers matchs sans rapport avec la saisie.
+  if (t.length < 2) return const [];
+
+  final usecase = GetMatchesUseCase(ref.read(pronosticsRepoProvider));
+  final r = await usecase(GetMatchesParams(recherche: t, limit: 50));
+
+  return r.fold(
+    (failure) => throw Exception(failure.message),
+    (page) => page.data..sort((a, b) => a.matchDate.compareTo(b.matchDate)),
+  );
+});
