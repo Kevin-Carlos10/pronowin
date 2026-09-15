@@ -34,13 +34,31 @@ import '../../../../shared/widgets/bottom_nav_metrics.dart';
 ///
 /// `isStoreBuildProvider` n'y figure pas, et c'est deliberе : il ne lit rien,
 /// il rend une constante de compilation.
-void rafraichirDonneesCompte(WidgetRef ref) {
+/// Rend la main quand les nouvelles réponses sont arrivées.
+///
+/// `invalidate` ne fait que marquer les providers comme périmés : il rend la
+/// main tout de suite. L'indicateur de rafraîchissement s'arrêtait donc avant
+/// que la moindre donnée ne soit revenue — le geste paraissait n'avoir servi à
+/// rien, puis l'écran changeait tout seul une seconde plus tard.
+///
+/// Les erreurs sont absorbées ici : chaque carte affiche déjà la sienne, et
+/// laisser remonter l'échec ferait planter le geste au lieu de le terminer.
+Future<void> rafraichirDonneesCompte(WidgetRef ref) async {
   ref.invalidate(profileProvider);
   ref.invalidate(currentSubscriptionProvider);
   ref.invalidate(referralStatsProvider);
   ref.invalidate(userStatsProvider);
   ref.invalidate(bankrollProvider);
   ref.invalidate(bankrollStatsProvider);
+
+  await Future.wait([
+    ref.read(profileProvider.future),
+    ref.read(currentSubscriptionProvider.future),
+    ref.read(referralStatsProvider.future),
+    ref.read(userStatsProvider.future),
+    ref.read(bankrollProvider.future),
+    ref.read(bankrollStatsProvider.future),
+  ].map((f) => f.catchError((Object _) => null as dynamic)));
 }
 
 class ComptePage extends ConsumerStatefulWidget {
@@ -854,7 +872,49 @@ class _ParrainageTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final refAsync = ref.watch(referralStatsProvider);
-    final stats    = refAsync.valueOrNull ?? const <String, dynamic>{};
+
+    // Un chargement et une panne ne sont pas « zéro filleul ».
+    //
+    // `valueOrNull ?? {}` les rendait identiques : chaque champ retombait sur
+    // sa valeur par défaut, et l'écran affichait un barème complet — 500 F,
+    // 200 F, seuil à 2 000 — avec « 0 filleul » et « 0 FCFA de gains », comme
+    // si le serveur l'avait dit. Un parrain qui a dix filleuls voyait donc son
+    // compte à zéro pendant une coupure, sans un mot.
+    //
+    // Les valeurs par défaut restent en dessous : elles couvrent une clé
+    // manquante dans une réponse reçue, ce qui est un autre cas.
+    if (refAsync.isLoading && !refAsync.hasValue) {
+      return const Center(
+        key: Key('parrainage-chargement'),
+        child: Padding(
+          padding: EdgeInsets.symmetric(vertical: 48),
+          child: CircularProgressIndicator(color: AppColors.primary),
+        ),
+      );
+    }
+    if (refAsync.hasError && !refAsync.hasValue) {
+      return Center(
+        key: const Key('parrainage-erreur'),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Icon(Icons.cloud_off_rounded, size: 36, color: context.cl.textM),
+            const SizedBox(height: 12),
+            Text('Tes données de parrainage n\'ont pas pu être chargées.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: context.cl.textS, fontSize: 14)),
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () => ref.invalidate(referralStatsProvider),
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Réessayer'),
+            ),
+          ]),
+        ),
+      );
+    }
+
+    final stats = refAsync.valueOrNull ?? const <String, dynamic>{};
 
     // Barème lu depuis l'API (REFERRAL_COMMISSION_L1/L2 et REFERRAL_MIN_WITHDRAWAL
     // côté backend) plutôt que codé en dur : il est pilotable par variable

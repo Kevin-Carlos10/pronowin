@@ -180,8 +180,12 @@ void main() {
       'lib/features/compte/presentation/pages/compte_page.dart',
     ).readAsStringSync();
 
+    // Le type de retour est laissé ouvert : la fonction est devenue
+    // `Future<void> … async` pour que le geste attende les réponses, et un
+    // motif figé sur `void` la rendait introuvable — ce contrôle tombait
+    // alors pour une raison qui n'a rien à voir avec ce qu'il mesure.
     final fonction = RegExp(
-      r'void rafraichirDonneesCompte\(WidgetRef ref\) \{([\s\S]*?)\n\}',
+      r'rafraichirDonneesCompte\(WidgetRef ref\)[^{]*\{([\s\S]*?)\n\}',
     ).firstMatch(source);
     expect(fonction, isNotNull,
         reason: 'rafraichirDonneesCompte introuvable');
