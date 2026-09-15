@@ -12,6 +12,7 @@ import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/send_otp_usecase.dart';
 import '../../domain/usecases/verify_otp_usecase.dart';
 import '../../../../core/cache/cache_service.dart';
+import '../../../../shared/providers/favoris_provider.dart';
 
 // ... (Gardez tes classes AuthState et AuthNotifier identiques)
 
@@ -95,6 +96,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         // Effacer le cache de l'éventuel ancien compte avant de charger le
         // nouveau — seulement une fois la connexion confirmée réussie.
         await CacheService.clearAll();
+        await effacerFavorisLocaux();
         state = AuthAuthenticated(user);
       },
     );
@@ -104,6 +106,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     await _repository.logout();
     // Effacer tout le cache local lié à l'utilisateur
     await CacheService.clearAll();
+    await effacerFavorisLocaux();
     state = AuthInitial();
   }
 
@@ -117,6 +120,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
         // de session au démarrage repartait dessus. Jamais vu jusqu'ici, cet
         // écran n'ayant jamais été atteignable.
         await CacheService.clearAll();
+        await effacerFavorisLocaux();
         state = AuthInitial();
       },
     );
@@ -170,6 +174,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       }
       final data = await _repository.googleLogin(idToken);
       await CacheService.clearAll();
+      await effacerFavorisLocaux();
       state = AuthAuthenticated(data);
       return true;
     } catch (e) {
@@ -193,6 +198,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     try {
       final data = await _repository.verifyEmailOtp(email: email, otp: otp);
       await CacheService.clearAll();
+      await effacerFavorisLocaux();
       state = AuthAuthenticated(data);
     } catch (e) {
       state = AuthError(e.toString().replaceFirst('Exception: ', ''));

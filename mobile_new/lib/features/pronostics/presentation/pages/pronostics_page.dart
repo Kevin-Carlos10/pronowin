@@ -12,10 +12,10 @@ import '../../../../features/notifications/presentation/providers/notification_s
 import '../../../../shared/utils/premium_nav.dart';
 import '../../domain/entities/match_entity.dart';
 import '../providers/pronostics_provider.dart';
-import '../providers/favorites_provider.dart';
 import '../widgets/match_card_widget.dart';
 import '../../../../shared/widgets/skeletons.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
+import '../../../../shared/providers/favoris_provider.dart';
 
 class PronosticsPage extends ConsumerStatefulWidget {
   const PronosticsPage({super.key});
@@ -153,9 +153,10 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
     final oddsRange     = ref.watch(oddsRangeFilterProvider);
     final pagedState    = ref.watch(matchesPaginatedProvider);
     final authState     = ref.watch(authProvider);
-    final favState      = ref.watch(favoritesProvider);
+    final favState      = ref.watch(favorisProvider).valueOrNull
+        ?? const EtatFavoris();
     final isPremium     = authState is AuthAuthenticated && authState.user.isPremium;
-    final favCount      = favState.matchIds.length + favState.leagues.length;
+    final favCount      = favState.matchIds.length + favState.ligues.length;
     final allMatches    = pagedState.matches;
     final showFavorites = _tab == _PronosticsTab.favorites;
     final showForYou    = _tab == _PronosticsTab.forYou;
@@ -232,7 +233,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
 
         // ── Vue Favoris ───────────────────────────────────────────────────────
         if (showFavorites) Expanded(
-          child: ref.watch(favoritesMatchesProvider).when(
+          child: ref.watch(favorisMatchsProvider).when(
             loading: () => _ShimmerList(),
             error: (e, _) {
               // /favorites exige juste une connexion (pas de Premium) — 401 seul à gérer.
@@ -248,13 +249,14 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
               }
               return _ErrorView(
                 message: e.toString().replaceAll('Exception:', '').trim(),
-                onRetry: () => ref.invalidate(favoritesMatchesProvider));
+                onRetry: () => ref.invalidate(favorisMatchsProvider));
             },
             data: (favMatches) => _FavoritesView(
               favMatches: favMatches,
               favState:   favState,
               isPremium:  isPremium,
-              onToggleLeague: (l) => ref.read(favoritesProvider.notifier).toggleLeague(l),
+              onToggleLeague: (l) =>
+                  ref.read(favorisProvider.notifier).basculerLigue(l),
             ),
           ),
         ),
@@ -407,28 +409,28 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                       icon:     Icons.radio_button_checked_rounded,
                       color:    AppColors.error,
                       matches:  liveMatches,
-                      favLeagues: favState.leagues,
+                      favLeagues: favState.ligues,
                       isPremium: isPremium),
                   ..._buildTierSection(context,
                       label:    'Pronostics du jour',
                       icon:     Icons.analytics_outlined,
                       color:    AppColors.primary,
                       matches:  upcomingPronoMatches,
-                      favLeagues: favState.leagues,
+                      favLeagues: favState.ligues,
                       isPremium: isPremium),
                   ..._buildTierSection(context,
                       label:    'Analyse en cours',
                       icon:     Icons.hourglass_top_rounded,
                       color:    context.cl.textM,
                       matches:  analysisMatches,
-                      favLeagues: favState.leagues,
+                      favLeagues: favState.ligues,
                       isPremium: isPremium),
                   ..._buildTierSection(context,
                       label:    'Terminés',
                       icon:     Icons.check_circle_outline_rounded,
                       color:    AppColors.success,
                       matches:  finishedMatches,
-                      favLeagues: favState.leagues,
+                      favLeagues: favState.ligues,
                       isPremium: isPremium),
                 ];
 
@@ -557,7 +559,8 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
           leagueCode:  byLeague[league]!.first.leagueCountry,
           count:       byLeague[league]!.length,
           isFav:       favLeagues.contains(league),
-          onToggleFav: () => ref.read(favoritesProvider.notifier).toggleLeague(league),
+          onToggleFav: () =>
+              ref.read(favorisProvider.notifier).basculerLigue(league),
         ),
       );
       widgets.addAll(byLeague[league]!.map((m) =>
@@ -1767,7 +1770,7 @@ class _ForYouEmpty extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 class _FavoritesView extends StatelessWidget {
   final List<MatchEntity> favMatches;
-  final FavoritesState favState;
+  final EtatFavoris favState;
   final bool isPremium;
   final void Function(String) onToggleLeague;
 
@@ -1785,7 +1788,7 @@ class _FavoritesView extends StatelessWidget {
       ..sort((a, b) => a.matchDate.compareTo(b.matchDate));
 
     // Ligues épinglées — matchs de ces ligues qui ne sont pas déjà épinglés individuellement
-    final pinnedLeagues = favState.leagues;
+    final pinnedLeagues = favState.ligues;
     final pinnedIds     = favState.matchIds;
     final Map<String, List<MatchEntity>> byPinnedLeague = {};
     for (final league in pinnedLeagues) {

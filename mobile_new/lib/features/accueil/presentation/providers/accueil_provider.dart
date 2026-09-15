@@ -27,55 +27,16 @@ Future<T?> _fetchWithCache<T>({
   }
 }
 
-// ─── Favoris ──────────────────────────────────────────────────────────────────
-
-class FavoritesNotifier extends AsyncNotifier<Set<String>> {
-  static const _key = 'favorites_ids';
-
-  @override
-  Future<Set<String>> build() async {
-    final data = await _fetchWithCache<List<dynamic>>(
-      ref:      ref,
-      cacheKey: _key,
-      fetchFn:  () async {
-        final r = await ref.read(dioProvider).get('/favorites');
-        return (r.data as List<dynamic>?) ?? [];
-      },
-      fromJson: (d) => (d as List<dynamic>),
-    );
-    if (data == null) return {};
-    return data
-        .map((e) => (e as Map<String, dynamic>)['match_id'] as String)
-        .toSet();
-  }
-
-  Future<void> toggle(String matchId) async {
-    final current = state.valueOrNull ?? {};
-    final isFav   = current.contains(matchId);
-
-    state = AsyncData(
-      isFav ? (Set<String>.from(current)..remove(matchId))
-            : (Set<String>.from(current)..add(matchId)),
-    );
-
-    try {
-      final dio = ref.read(dioProvider);
-      if (isFav) {
-        await dio.delete('/favorites/$matchId');
-      } else {
-        await dio.post('/favorites/$matchId');
-      }
-      ref.invalidateSelf();
-    } catch (_) {
-      state = AsyncData(current);
-    }
-  }
-}
-
-final favoritesProvider =
-    AsyncNotifierProvider<FavoritesNotifier, Set<String>>(
-  FavoritesNotifier.new,
-);
+// ─── Favoris ─────────────────────────────────────────────────────────
+//
+// Les favoris vivent dans `shared/providers/favoris_provider.dart`.
+//
+// Il y avait ici un `FavoritesNotifier`, et un autre dans le module
+// Pronostics — tous deux exposés sous le nom `favoritesProvider`. Selon le
+// fichier importé, le même nom rendait deux types différents, et les deux ne
+// s'invalidaient jamais l'un l'autre : une étoile allumée ici restait éteinte
+// là-bas. Celui-ci lisait `match_id`, l'autre lisait `id` — deux ensembles
+// d'identifiants différents pour les mêmes favoris.
 
 final favoritesListProvider =
     FutureProvider.autoDispose<List<Map<String, dynamic>>>((ref) async {

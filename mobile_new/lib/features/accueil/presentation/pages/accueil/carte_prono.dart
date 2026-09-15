@@ -53,8 +53,8 @@ class _PronosticCard extends ConsumerWidget {
     final hasScore   = homeScore != null && awayScore != null;
     final result     = prono['result'] as String?; // 'WIN' | 'LOSS' | null
     final matchId    = prono['match_id'] as String? ?? '';
-    final favorites  = ref.watch(favoritesProvider).valueOrNull ?? {};
-    final isFav      = favorites.contains(matchId);
+    final favoris    = ref.watch(favorisProvider).valueOrNull;
+    final isFav      = favoris?.matchIds.contains(matchId) ?? false;
 
     // « Total buts +/- : Plus de 2.5 » → marché discret + choix mis en avant.
     // Même hiérarchie que la carte « Top prono du jour » de cet écran.
@@ -233,7 +233,7 @@ class _PronosticCard extends ConsumerWidget {
                   GestureDetector(
                     onTap: () {
                       HapticFeedback.lightImpact();
-                      ref.read(favoritesProvider.notifier).toggle(matchId);
+                      ref.read(favorisProvider.notifier).basculerMatch(matchId);
                     },
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),

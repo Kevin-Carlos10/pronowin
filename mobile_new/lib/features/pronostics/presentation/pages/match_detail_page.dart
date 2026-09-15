@@ -22,10 +22,10 @@ import '../../../bankroll/presentation/widgets/miser_dialog.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../../core/widgets/image_distante.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
+import '../../../../shared/providers/favoris_provider.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../domain/entities/match_entity.dart';
-import '../providers/favorites_provider.dart';
 import '../providers/pronostics_provider.dart';
 import '../widgets/comments_section.dart';
 import '../widgets/prono_share_card.dart';
@@ -186,7 +186,9 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
       utilisateurPremium: isPremium,
     );
     final isRefreshing = matchAsync.isLoading && match.status == MatchStatus.live;
-    final isFav = ref.watch(favoritesProvider).matchIds.contains(match.id);
+    final isFav = ref.watch(favorisProvider).valueOrNull
+            ?.matchIds.contains(match.id) ??
+        false;
 
     // Onglets style Sofascore — surveillés ici (en plus des cartes elles-mêmes,
     // Riverpod dédoublonne l'appel) pour savoir lesquels construire : un onglet
@@ -395,7 +397,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
                   '/auth/email?from=${Uri.encodeComponent('/pronostics/${match.id}')}');
                 return;
               }
-              ref.read(favoritesProvider.notifier).toggleMatch(match.id);
+              ref.read(favorisProvider.notifier).basculerMatch(match.id);
             },
           ),
           // Fraîcheur de la donnée : l'écran se rafraîchit toutes les 30 s,

@@ -165,7 +165,7 @@ class _FavoriteTile extends ConsumerWidget {
                 GestureDetector(
                   onTap: () {
                     HapticFeedback.lightImpact();
-                    ref.read(favoritesProvider.notifier).toggle(matchId);
+                    ref.read(favorisProvider.notifier).basculerMatch(matchId);
                     ref.invalidate(favoritesListProvider);
                   },
                   child: const Icon(Icons.bookmark_rounded,

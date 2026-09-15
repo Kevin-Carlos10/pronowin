@@ -10,9 +10,9 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/verrou_pronostic.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../domain/entities/match_entity.dart';
-import '../providers/favorites_provider.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../../shared/widgets/premium_gate_sheet.dart';
+import '../../../../shared/providers/favoris_provider.dart';
 
 class MatchCardWidget extends ConsumerStatefulWidget {
   final MatchEntity match;
@@ -145,7 +145,9 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
 
   // ─── HEADER ────────────────────────────────────────────────────────────────
   Widget _buildHeader(BuildContext context) {
-    final isFav   = ref.watch(favoritesProvider).matchIds.contains(widget.match.id);
+    final isFav   = ref.watch(favorisProvider).valueOrNull
+            ?.matchIds.contains(widget.match.id) ??
+        false;
     final hasBet  = ref.watch(betMatchIdsProvider).contains(widget.match.id);
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 11, 14, 0),
@@ -213,7 +215,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.selectionClick();
-                ref.read(favoritesProvider.notifier).toggleMatch(widget.match.id);
+                ref.read(favorisProvider.notifier).basculerMatch(widget.match.id);
               },
               child: ExcludeSemantics(
                 child: AnimatedSwitcher(

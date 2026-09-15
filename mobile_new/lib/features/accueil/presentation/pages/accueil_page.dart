@@ -25,6 +25,7 @@ import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/utils/devise.dart';
 import '../../../../shared/utils/bilan_paris.dart';
+import '../../../../shared/providers/favoris_provider.dart';
 import '../../../../shared/utils/verrou_pari.dart';
 import '../../../../shared/utils/verrou_pronostic.dart';
 
