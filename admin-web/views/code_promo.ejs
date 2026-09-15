@@ -46,8 +46,21 @@
   // l'ecran mobile annonce que l'offre est indisponible.
   const _general = (_val.PROMO_CODE ?? '').trim();
 
+  // Nommer une cle, pas decider laquelle existe : la carte garde les trois.
   const _libelles = { '1xbet': '1xBet', 'melbet': 'Melbet', 'betwinner': 'Betwinner' };
   const _cleDe    = p => 'PROMO_CODE_' + p.toUpperCase();
+
+  // Les enseignes viennent du serveur. Cette vue en listait trois, ecrites
+  // ici : reduire le partenariat cote serveur aurait laisse deux champs sans
+  // usage, dont les valeurs saisies n'auraient plus ete lues nulle part — un
+  // panneau qui accepte un reglage sans effet est pire qu'un panneau qui ne
+  // l'offre pas.
+  //
+  // Repli sur la carte si une API plus ancienne ne publie pas la liste : mieux
+  // vaut trop de champs qu'une page vide.
+  const _plateformes = Array.isArray(_cfg && _cfg.plateformes) && _cfg.plateformes.length
+    ? _cfg.plateformes
+    : Object.keys(_libelles);
 %>
 
 <div class="topbar">
@@ -114,9 +127,9 @@
   </p>
 
   <div class="cp-grille">
-    <% Object.keys(_libelles).forEach(p => { const cle = _cleDe(p); %>
+    <% _plateformes.forEach(p => { const cle = _cleDe(p); %>
     <div class="cp-champ">
-      <label for="<%= cle %>"><%= _libelles[p] %></label>
+      <label for="<%= cle %>"><%= _libelles[p] || p %></label>
       <input type="text" id="<%= cle %>" name="<%= cle %>" maxlength="40"
              value="<%= _val[cle] ?? '' %>" placeholder="hérite du général" autocomplete="off">
     </div>

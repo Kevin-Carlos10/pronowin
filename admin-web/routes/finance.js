@@ -189,17 +189,26 @@ module.exports = (app, ctx) => {
 
   app.post('/admin/code-promo', requireAuth, requireMain, async (req, res) => {
     try {
-      // Seules ces quatre cles sont transmises. `ecrireConfig` ignore de toute
-      // facon les autres, mais on ne compte pas sur la protection d'en face
-      // pour decider ce que cette page a le droit d'ecrire.
+      // Liste blanche : `ecrireConfig` ignore de toute facon les cles qu'il ne
+      // connait pas, mais on ne compte pas sur la protection d'en face pour
+      // decider ce que cette page a le droit d'ecrire.
       const corps = {
-        PROMO_CODE:           sanitize(req.body.PROMO_CODE ?? '', 40),
-        PROMO_CODE_1XBET:     sanitize(req.body.PROMO_CODE_1XBET ?? '', 40),
-        PROMO_CODE_MELBET:    sanitize(req.body.PROMO_CODE_MELBET ?? '', 40),
-        PROMO_CODE_BETWINNER: sanitize(req.body.PROMO_CODE_BETWINNER ?? '', 40),
-        AFFILIATE_NAME:       sanitize(req.body.AFFILIATE_NAME ?? '', 40),
-        AFFILIATE_URL:        (req.body.AFFILIATE_URL ?? '').trim(),
+        PROMO_CODE:     sanitize(req.body.PROMO_CODE ?? '', 40),
+        AFFILIATE_NAME: sanitize(req.body.AFFILIATE_NAME ?? '', 40),
+        AFFILIATE_URL:  (req.body.AFFILIATE_URL ?? '').trim(),
       };
+
+      // Les codes d'enseigne suivent le formulaire, ils ne sont plus listes
+      // ici. Les trois enseignes etaient ecrites en dur : le jour ou la page
+      // n'en affiche plus que deux, les champs absents arrivent `undefined`,
+      // `?? ''` les transforme en chaine vide, et le code de l'enseigne
+      // retiree est efface — sans que personne ne l'ait demande, et sans que
+      // rien ne l'indique.
+      for (const [cle, valeur] of Object.entries(req.body)) {
+        if (/^PROMO_CODE_[A-Z0-9]+$/.test(cle)) {
+          corps[cle] = sanitize(valeur ?? '', 40);
+        }
+      }
       await api(req.cookies.admin_token).put('/admin/app-config', corps);
       logAction(req, 'settings_changed', 'Code promo partenaire mis a jour',
         { general: corps.PROMO_CODE });

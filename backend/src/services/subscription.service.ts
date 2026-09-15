@@ -98,7 +98,19 @@ export const PREMIUM_PRICE_USD_STORE_ANNUAL  = parseFloat(process.env.PREMIUM_PR
  * credite personne.
  */
 export const XBET_PROMO_CODE    = process.env.XBET_PROMO_CODE ?? '';
-export const BETTING_PLATFORMS  = ['1xbet', 'melbet', 'betwinner'] as const;
+/**
+ * Les enseignes partenaires proposées dans le parcours « code promo ».
+ *
+ * Réduite à 1xBet sur décision : c'est le seul partenariat en vigueur.
+ *
+ * Cette liste gouverne trois choses à la fois — le sélecteur de l'application,
+ * les codes propres à une enseigne (`PROMO_CODE_<X>`, ignorés pour toute
+ * enseigne absente d'ici) et les champs offerts par le panneau. Les textes de
+ * l'écran mobile en dérivent également : ils nommaient les trois enseignes en
+ * toutes lettres, si bien qu'en retirer une du serveur l'aurait fait
+ * disparaître du sélecteur tout en continuant de la promettre juste au-dessus.
+ */
+export const BETTING_PLATFORMS  = ['1xbet'] as const;
 export type BettingPlatform = typeof BETTING_PLATFORMS[number];
 
 /**

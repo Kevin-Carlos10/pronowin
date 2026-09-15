@@ -43,7 +43,33 @@ class TarifsPremium {
   /// « code » : ni mensuel, ni annuel, ni remise à calculer.
   static const joursOffreCodeDefaut = 30;
 
-  static const plateformesDefaut = ['1xbet', 'melbet', 'betwinner'];
+  /// Les enseignes partenaires, quand le serveur ne répond pas.
+  ///
+  /// Le partenariat se limite à 1xBet. Melbet et Betwinner figuraient ici, et
+  /// surtout dans trois phrases de l'écran qui les nommaient en toutes lettres
+  /// — « Crée un compte sur 1xBet, Melbet ou Betwinner ». Ces phrases ne
+  /// dépendaient d'aucune liste : retirer une enseigne du serveur l'aurait
+  /// fait disparaître du sélecteur tout en continuant de la promettre trois
+  /// lignes plus haut.
+  ///
+  /// C'est le défaut déjà corrigé pour les opérateurs Mobile Money, dont le
+  /// commentaire de [libelleOperateurs] garde la trace : « L'écran d'accroche
+  /// annonçait quatre opérateurs en dur pendant que le serveur n'en publiait
+  /// qu'un ». Les textes dérivent désormais de [libellePlateformes].
+  static const plateformesDefaut = ['1xbet'];
+
+  /// Nom d'affichage des enseignes connues.
+  ///
+  /// La carte garde les trois : elle sert à *nommer* une clé publiée, pas à
+  /// décider laquelle l'est. Si un partenariat reprend, seul le serveur change.
+  static const _nomsPlateformes = {
+    '1xbet': '1xBet', 'melbet': 'Melbet', 'betwinner': 'Betwinner',
+  };
+
+  /// « 1xbet » → « 1xBet ». Une clé inconnue est capitalisée plutôt que cachée.
+  static String nomPlateforme(String cle) =>
+      _nomsPlateformes[cle] ??
+      (cle.isEmpty ? cle : '${cle[0].toUpperCase()}${cle.substring(1)}');
 
   static const delaiDirectDefaut = '30 minutes ouvrables';
   static const delaiCodeDefaut   = '2 heures ouvrables';
@@ -196,6 +222,23 @@ class TarifsPremium {
     final propre = codesParPlateforme[plateforme]?.trim() ?? '';
     return propre.isNotEmpty ? propre : promoCode.trim();
   }
+
+  /// Les enseignes réellement proposées — « 1xBet », ou « 1xBet, Melbet ou
+  /// Betwinner » si le partenariat s'élargit.
+  ///
+  /// C'est cette chaîne que les textes emploient, pour qu'aucune phrase ne
+  /// promette une enseigne que le sélecteur n'offre pas.
+  String get libellePlateformes {
+    final noms = plateformes.map(nomPlateforme).toList();
+    if (noms.isEmpty)     return '';
+    if (noms.length == 1) return noms.single;
+    return '${noms.sublist(0, noms.length - 1).join(', ')} ou ${noms.last}';
+  }
+
+  /// Y a-t-il un choix à faire, ou une seule enseigne ?
+  ///
+  /// Un sélecteur à une seule pastille demande de choisir sans rien offrir.
+  bool get plusieursPlateformes => plateformes.length > 1;
 
   /// Les opérateurs réellement proposés — « Orange Money · Wave ».
   ///

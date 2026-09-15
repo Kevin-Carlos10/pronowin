@@ -524,6 +524,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
             amount:  double.tryParse(_amountCtrl.text) ?? 0,
             phone:   '+${_selectedCountry.phoneCode}${_phoneCtrl.text}',
             xbetId:  '',
+            plateforme: _platform,
           ),
         const SizedBox(height: 20),
 
@@ -603,9 +604,9 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
               fontWeight: FontWeight.w800, letterSpacing: -0.3)),
             const SizedBox(height: 6),
             Text(
-              'Crée un compte sur 1xBet, Melbet ou Betwinner avec notre code, '
-              'fais ton premier dépôt, et ton premier mois de Premium est '
-              'offert.',
+              'Crée un compte sur ${_tarifs.libellePlateformes} avec notre '
+              'code, fais ton premier dépôt, et ton premier mois de Premium '
+              'est offert.',
               style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.5),
               textAlign: TextAlign.center),
           ]),
@@ -614,7 +615,8 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         const SizedBox(height: 20),
 
         // ── Sélecteur de plateforme ─────────────────────────────
-        _FieldLabel('Plateforme partenaire'),
+        if (_tarifs.plusieursPlateformes)
+          _FieldLabel('Plateforme partenaire'),
         _PlatformSelector(
           platforms: platforms,
           selected: _platform,
@@ -935,10 +937,10 @@ class _PlatformSelector extends StatelessWidget {
   final ValueChanged<String> onSelect;
   const _PlatformSelector({required this.platforms, required this.selected, required this.onSelect});
 
-  static const _labels = {'1xbet': '1xBet', 'melbet': 'Melbet', 'betwinner': 'Betwinner'};
+  // Les noms d'enseigne vivent dans `TarifsPremium` : une seconde carte ici
+  // aurait pu nommer autrement une clé que les textes nomment déjà.
 
-  static String _labelFor(String id) =>
-    _labels[id] ?? (id.isEmpty ? id : '${id[0].toUpperCase()}${id.substring(1)}');
+  static String _labelFor(String id) => TarifsPremium.nomPlateforme(id);
 
   @override
   Widget build(BuildContext context) {
@@ -1376,7 +1378,15 @@ class _AucunMoyenPaiement extends StatelessWidget {
 
 class _RecapCard extends StatelessWidget {
   final double amount; final String phone, xbetId;
-  const _RecapCard({required this.amount, required this.phone, required this.xbetId});
+
+  /// L'enseigne choisie — le récapitulatif annonçait « ID 1xBet » quelle
+  /// qu'elle soit. Exact tant qu'elle est seule, faux le jour où une autre
+  /// s'ajoute, et faux au pire moment : sur l'écran qui récapitule ce qu'on
+  /// s'apprête à envoyer.
+  final String plateforme;
+
+  const _RecapCard({required this.amount, required this.phone,
+    required this.xbetId, required this.plateforme});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -1395,7 +1405,8 @@ class _RecapCard extends StatelessWidget {
       const SizedBox(height: 10),
       _RecapRow('Montant',      '${montantExact(amount)} FCFA'),
       _RecapRow('N° envoyeur',  phone),
-      if (xbetId.isNotEmpty) _RecapRow('ID 1xBet', xbetId),
+      if (xbetId.isNotEmpty)
+        _RecapRow('ID ${TarifsPremium.nomPlateforme(plateforme)}', xbetId),
     ]),
   );
 }
@@ -1656,7 +1667,7 @@ class _XbetSteps extends StatelessWidget {
   /// *est* la contrepartie, et l'étape suivante n'a plus lieu d'être.
   List<(IconData, String, String)> get _steps => [
     (Icons.language_rounded,   'Choisis une plateforme',
-     'Rendez-vous sur 1xBet, Melbet ou Betwinner'),
+     'Rendez-vous sur ${tarifs.libellePlateformes}'),
     (Icons.person_add_rounded, 'Crée ton compte',
      "Entrez le code promo lors de l'inscription"),
     (Icons.account_balance_wallet_rounded, 'Effectue ton premier dépôt',
@@ -2334,10 +2345,10 @@ class _PaywallFaq extends StatelessWidget {
       ),
       (
         "C'est quoi l'option « Code Promo » ?",
-        "Tu crées un compte sur une plateforme partenaire (1xBet, Melbet, "
-        "Betwinner) avec le code $promoCode, tu fais ton premier dépôt, et tu "
-        "envoies une capture de ton compte où le dépôt apparaît. Ton premier "
-        "mois de Premium est alors offert — tu n'as rien à nous verser.",
+        "Tu crées un compte sur ${tarifs.libellePlateformes} avec le code "
+        "$promoCode, tu fais ton premier dépôt, et tu envoies une capture de "
+        "ton compte où le dépôt apparaît. Ton premier mois de Premium est "
+        "alors offert — tu n'as rien à nous verser.",
       ),
       (
         "Le mois offert, c'est valable à chaque fois ?",

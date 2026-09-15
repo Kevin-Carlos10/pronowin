@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { AdminAuthService } from '../services/admin_auth.service';
 import { adminMiddleware, AdminRequest } from '../middleware/admin.middleware';
 import { lireConfig, ecrireConfig } from '../services/app_config.service';
-import { SubscriptionService } from '../services/subscription.service';
+import { SubscriptionService, BETTING_PLATFORMS } from '../services/subscription.service';
 import * as Methodes from '../services/payment_method.service';
 const r   = Router();
 const svc = new AdminAuthService();
@@ -30,7 +30,11 @@ r.patch('/profile/password', adminMiddleware, async (req: AdminRequest, res) => 
  */
 r.get('/app-config', adminMiddleware, async (_req: AdminRequest, res) => {
   try {
-    res.json(await lireConfig());
+    // La liste des enseignes accompagne la configuration : le panneau
+    // n'offrait un champ « code propre » que pour trois enseignes écrites en
+    // dur dans sa vue. Réduire le partenariat côté serveur aurait laissé deux
+    // champs sans usage, dont les valeurs n'auraient plus été lues.
+    res.json({ ...(await lireConfig()), plateformes: BETTING_PLATFORMS });
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 });
 

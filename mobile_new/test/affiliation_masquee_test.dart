@@ -60,13 +60,19 @@ void main() {
         //
         //  - `legal_page` cite l'opérateur dans un texte réglementaire sur le
         //    jeu responsable — une obligation, pas une étiquette de marque ;
-        //  - `activer_premium_page` énumère les plateformes du parcours code
-        //    promo. Cet ensemble est fixe et structurel : le serveur porte une
-        //    clé par plateforme (PROMO_CODE_1XBET, _MELBET, _BETWINNER). C'est
-        //    une autre chose que le partenaire d'affiliation, qui est unique et
-        //    servi par `/config`.
+        //  - `tarifs_premium` porte la carte qui *nomme* les clés publiées
+        //    (`1xbet` → « 1xBet »). Elle traduit ce que le serveur annonce,
+        //    elle ne décide pas ce qu'il annonce. C'est une autre chose que le
+        //    partenaire d'affiliation, unique et servi par `/config`.
+        //
+        // `activer_premium_page` figurait ici, parce qu'il énumérait lui-même
+        // les trois enseignes. Il ne les nomme plus : ses phrases dérivent de
+        // `libellePlateformes`, et le récapitulatif de la plateforme choisie.
+        // L'exemption est donc levée, et l'écran de nouveau surveillé — c'est
+        // celui qui nommait « Melbet » et « Betwinner » dans trois phrases que
+        // la liste publiée ne gouvernait pas.
         if (chemin.endsWith('legal_page.dart')) continue;
-        if (chemin.endsWith('activer_premium_page.dart')) continue;
+        if (chemin.endsWith('domain/tarifs_premium.dart')) continue;
 
         // Recherche littérale : les commentaires sont déjà retirés, donc toute
         // occurrence restante est du code. C'est plus strict qu'un motif sur
