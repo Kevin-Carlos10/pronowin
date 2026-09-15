@@ -97,12 +97,21 @@ describe('la requête applique la recherche', () => {
   const service = fs.readFileSync(
     path.resolve(__dirname, '..', 'services', 'pronostics.service.ts'), 'utf8');
 
-  it('le `where` du match porte le fragment', () => {
-    expect(service).toContain('construireRecherche(params.recherche)');
+  it('les **deux** chemins de liste l\'appliquent', () => {
+    // Il y a deux fonctions de liste, et le contrôleur choisit selon
+    // `include_all` : `getPublishedPronostics` d'un côté, `getAllMatches` de
+    // l'autre. Le mobile envoie toujours `include_all=true`.
+    //
+    // La première version ne touchait que `getPublishedPronostics`. Le banc
+    // cherchait `construireRecherche` n'importe où dans le fichier, le trouvait
+    // là, et restait vert — pendant qu'en production un terme inexistant
+    // rendait cinquante matchs. Constaté sur le serveur, pas déduit du code.
+    expect((service.match(/construireRecherche\(params\.recherche\)/g) ?? []))
+      .toHaveLength(2);
   });
 
-  it('le paramètre existe dans la signature', () => {
-    expect(service).toContain('recherche?:');
+  it('les deux signatures portent le paramètre', () => {
+    expect((service.match(/recherche\?:/g) ?? [])).toHaveLength(2);
   });
 });
 

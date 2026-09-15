@@ -1138,6 +1138,16 @@ export class PronosticsService {
     leagueCode?:   string;
     status?:       string; // 'upcoming' | 'live' | 'finished' — filtre serveur, cohérent avec la pagination
     hasPronostic?: boolean; // true = uniquement les matchs avec un pronostic publié par l'admin
+    /**
+     * Terme de recherche. Voir `recherche_matchs.ts`.
+     *
+     * Le mobile appelle **toujours** cette fonction-ci : il passe
+     * `include_all=true`, et le contrôleur aiguille alors vers `getAllMatches`
+     * plutôt que vers `getPublishedPronostics`. Oublier le paramètre ici
+     * revenait à n'avoir rien fait — vérifié en production, où un terme
+     * inexistant rendait quand même cinquante matchs.
+     */
+    recherche?:    string;
     cursor?:       string;
     limit:         number;
   }) {
@@ -1163,6 +1173,7 @@ export class PronosticsService {
         status: statusWhere ?? { notIn: ['POSTPONED', 'SUSPENDED'] },
         ...(params.leagueCode ? { leagueCode: params.leagueCode } : {}),
         ...(params.hasPronostic ? { pronostic: { isPublished: true } } : {}),
+        ...construireRecherche(params.recherche),
       },
       include: {
         pronostic: {
