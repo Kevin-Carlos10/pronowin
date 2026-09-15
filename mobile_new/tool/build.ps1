@@ -21,8 +21,8 @@
   joindre quoi que ce soit sur un vrai téléphone.
 
 .EXAMPLE
-  .\tool\build.ps1 -Canal play   -ApiUrl https://api.pronowin.com/api/v1
-  .\tool\build.ps1 -Canal direct -ApiUrl https://api.pronowin.com/api/v1
+  .\tool\build.ps1 -Canal play   -ApiUrl https://pronowin.space/api/v1
+  .\tool\build.ps1 -Canal direct -ApiUrl https://pronowin.space/api/v1
 #>
 [CmdletBinding()]
 param(

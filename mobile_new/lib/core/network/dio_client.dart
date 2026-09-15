@@ -100,30 +100,60 @@ class DioClient {
   }
 
   // ════════════════════════════════════════════════════════════════════════════
-  // CERTIFICATE PINNING
+  // ÉPINGLAGE DE CERTIFICAT — INERTE, ET NE FONCTIONNERAIT PAS TEL QUEL
   // ════════════════════════════════════════════════════════════════════════════
   //
-  // Stratégie : on pine les empreintes SHA-256 du certificat DER (leaf pinning).
-  // Pour obtenir l'empreinte du certificat de production :
+  // ⚠️  Ce bloc ne protège rien aujourd'hui, et remplir `_pinnedSha256` ne
+  //     suffirait pas à le faire fonctionner. Lire ce qui suit avant de s'y
+  //     fier.
   //
-  //   openssl s_client -connect api.pronowin.com:443 -servername api.pronowin.com \
-  //     </dev/null 2>/dev/null \
-  //     | openssl x509 -outform DER \
-  //     | openssl dgst -sha256
+  // ── Pourquoi le mécanisme ne peut pas marcher ─────────────────────────────
   //
-  // Exemple de sortie : SHA2-256(stdin)= a1b2c3d4e5f6...
-  // Copier la valeur hex (sans espaces) dans _pinnedSha256.
+  // Tout repose sur `badCertificateCallback`. Or Dart ne l'appelle **que
+  // lorsque la validation a déjà échoué** : certificat non signé par une
+  // autorité de confiance, ou nom d'hôte qui ne correspond pas.
   //
-  // ⚠️  Règles importantes :
-  //   • Toujours mettre AU MOINS 2 empreintes (cert actuel + cert de rotation)
-  //     avant de déployer pour éviter de bloquer tous les utilisateurs lors
-  //     d'un renouvellement de certificat.
-  //   • Le pinning ne s'applique QU'au host de production (_productionHost).
-  //     Les envs de dev/staging ne sont pas concernés.
-  //   • En cas de compromission, changer l'empreinte + forcer une mise à jour
-  //     via APP_FORCE_UPDATE=true dans le backend.
+  // C'est l'exact inverse de ce qu'il faudrait. La menace contre laquelle
+  // l'épinglage existe est un attaquant présentant un certificat *valablement
+  // signé* par une autorité que l'appareil accepte — autorité compromise, ou
+  // racine d'un proxy d'entreprise ou d'État installée sur le téléphone. Dans
+  // ce cas la validation **réussit**, le callback n'est jamais appelé, et le
+  // code ci-dessous ne s'exécute pas.
+  //
+  // Ce que ce callback sait faire, c'est *ré-autoriser* un certificat déjà
+  // rejeté dont l'empreinte figure dans la liste. Avec une liste vide — ou
+  // avec les vraies empreintes du certificat légitime, qui n'a aucune raison
+  // d'échouer à la validation — il renvoie `false` et se comporte donc
+  // exactement comme le défaut de Dart. Il n'ajoute rien.
+  //
+  // ── Ce que coûterait un vrai épinglage ────────────────────────────────────
+  //
+  // Il faut valider la chaîne soi-même (un `SecurityContext` ne faisant
+  // confiance qu'à l'autorité épinglée, ou une bibliothèque dédiée), et non
+  // se greffer sur le chemin d'erreur.
+  //
+  // Et surtout : le certificat de `pronowin.space` est émis par Let's Encrypt
+  // via Certbot, donc renouvelé automatiquement tous les ~60 jours. Épingler
+  // l'empreinte de la feuille couperait **tous** les utilisateurs au premier
+  // renouvellement, sans recours autre qu'une nouvelle version. Sur le canal
+  // direct, où rien ne se met à jour tout seul, ce serait définitif. Un
+  // épinglage utile viserait l'autorité intermédiaire, pas la feuille — et
+  // resterait fragile, Let's Encrypt changeant les siennes.
+  //
+  // Décision à prendre avant d'y toucher : soit un vrai épinglage assumé avec
+  // sa procédure de rotation, soit la suppression de ce bloc. L'état actuel —
+  // un dispositif qui paraît actif et ne l'est pas — est le pire des trois.
+  //
+  // `_productionHost` portait `api.pronowin.com` : un domaine qui n'existe
+  // pas. Nginx ne sert que `pronowin.space`, `www.pronowin.space` et l'IP, et
+  // l'API vit sous `pronowin.space/api/`. Corrigé, mais cela ne change rien
+  // tant que ce qui précède n'est pas tranché.
+  //
+  // Il est *lu* sur [AppConstants.domaine] et non réécrit ici : c'est une
+  // copie à la main qui avait laissé survivre le domaine mort, et le premier
+  // réflexe en le corrigeant a été d'en écrire une seconde.
 
-  static const _productionHost = 'api.pronowin.com';
+  static const _productionHost = AppConstants.domaine;
 
   // Empreintes SHA-256 (hex lowercase, sans séparateurs) des certificats autorisés.
   // Laisser vide = pinning désactivé (ne bloquer aucun utilisateur avant d'avoir
