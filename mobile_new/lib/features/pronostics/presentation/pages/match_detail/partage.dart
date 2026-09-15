@@ -19,12 +19,26 @@ part of '../match_detail_page.dart';
 /// Le destinataire lisait donc tout en double, et le lien — la seule chose
 /// qu'une image ne peut pas porter — se retrouvait noyé en huitième ligne.
 ///
-/// Ce qui reste ici est ce que l'image ne sait pas faire : une ligne de sujet,
-/// et deux liens cliquables. Les équipes sont la seule répétition assumée : un
-/// message qui n'annoncerait que des liens se lit comme un envoi douteux, et
+/// Ce qui reste ici est ce que l'image ne sait pas faire : une ligne de sujet
+/// et un lien cliquable. Les équipes sont la seule répétition assumée : un
+/// message qui n'annoncerait qu'un lien se lit comme un envoi douteux, et
 /// certains clients n'affichent pas les images.
+///
+/// ── Le lien « voir le détail » était mort ─────────────────────────────────
+///
+/// Le message renvoyait vers `pronowin.space/pronostics/<id>`. Cette route
+/// n'existe pas : le site ne sert que l'accueil et les pages légales, et
+/// **toute** adresse sous `/pronostics` répond 404 — vérifié sur le serveur,
+/// avec l'identifiant réel d'un pronostic partagé.
+///
+/// Chaque pronostic partagé depuis que ce message existe portait donc un lien
+/// qui ne menait nulle part. Un lien mort dans un partage coûte plus qu'un
+/// lien absent : le destinataire le suit, tombe sur une erreur, et c'est
+/// l'application qu'il juge.
+///
+/// Le détail vit dans l'application, pas sur le site. Le message le dit et
+/// n'envoie qu'là où il y a quelque chose à trouver.
 String _buildShareText(MatchEntity match) {
-  final lien = '${AppConstants.siteUrl}/pronostics/${match.id}';
   final duel = '${match.homeTeam} vs ${match.awayTeam}';
 
   final sujet = switch (match.result) {
@@ -35,8 +49,9 @@ String _buildShareText(MatchEntity match) {
   };
 
   return '$sujet\n\n'
-      '📲 Le détail : $lien\n'
-      '⬇️ L\'application : ${AppConstants.apkDownloadUrl}';
+      '📲 Pour consulter le détail et plein d\'autres pronostics, '
+      'télécharge l\'application :\n'
+      '⬇️ ${AppConstants.apkDownloadUrl}';
 }
 
 Future<void> _launchShare(String url) async {

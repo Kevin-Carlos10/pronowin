@@ -109,9 +109,25 @@ void main() {
       }
     });
 
-    test('il garde les deux liens, que l\'image ne peut pas porter', () {
-      expect(partage, contains('/pronostics/\${match.id}'));
+    test('il ne porte plus le lien de détail, qui était mort', () {
+      // `pronowin.space/pronostics/<id>` n'existe pas : le site ne sert que
+      // l'accueil et les pages légales, et toute adresse sous `/pronostics`
+      // répond 404 — vérifié sur le serveur avec l'identifiant réel d'un
+      // pronostic partagé. Chaque partage envoyait donc le destinataire sur
+      // une erreur, et c'est l'application qu'il jugeait.
+      final code = codeSeul(partage);
+      expect(code, isNot(contains('/pronostics/')),
+          reason: 'cette route n\'existe pas sur le site');
+    });
+
+    test('il garde le seul lien qui mène quelque part', () {
       expect(partage, contains('AppConstants.apkDownloadUrl'));
+    });
+
+    test('il dit où trouver le détail', () {
+      // Retirer le lien sans rien mettre à la place laisserait le lecteur
+      // sans réponse à la question que l'image lui pose.
+      expect(partage, contains('consulter le détail'));
     });
 
     test('il garde une ligne de sujet', () {
