@@ -18,6 +18,7 @@ import '../../../../shared/utils/devise.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
+import '../../../../shared/utils/partage_parrainage.dart';
 
 
 /// Tout ce que l'ecran du compte lit pour cet utilisateur.
@@ -861,13 +862,11 @@ class _ParrainageTab extends ConsumerWidget {
 
   static const _purple = Color(0xFFA78BFA);
 
-  /// Message pré-rédigé, identique à celui de ParrainagePage : l'utilisateur
-  /// n'a plus à composer son propre texte ni à copier-coller le code.
-  static String _shareMessage(String code) =>
-      '🏆 Rejoins PronoWin et gagne avec les meilleurs pronostics !\n'
-      'Utilise mon code de parrainage : *$code*\n'
-      '👉 Télécharge l\'app : pronowin.com/download\n'
-      '💰 Tu m\'aides aussi à gagner des commissions !';
+  /// Message pré-rédigé — une seule source, partagée avec ParrainagePage.
+  ///
+  /// Les deux écrans en portaient chacun une copie recopiée à la main, avec la
+  /// même adresse de téléchargement fausse. Voir `partage_parrainage.dart`.
+  static String _shareMessage(String code) => messageParrainage(code);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {

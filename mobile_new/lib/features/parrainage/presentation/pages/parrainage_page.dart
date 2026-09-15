@@ -8,6 +8,7 @@ import '../providers/referral_provider.dart';
 import '../../domain/recompense_premium.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../../../shared/utils/retour.dart';
+import '../../../../shared/utils/partage_parrainage.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -375,10 +376,7 @@ class _ReferralCodeCard extends StatelessWidget {
 
   void _showShareSheet(BuildContext context, String code) {
     const purple = Color(0xFFA78BFA);
-    final message = '🏆 Rejoins PronoWin et gagne avec les meilleurs pronostics !\n'
-                    'Utilise mon code de parrainage : *$code*\n'
-                    '👉 Télécharge l\'app : pronowin.com/download\n'
-                    '💰 Tu m\'aides aussi à gagner des commissions !';
+    final message = messageParrainage(code);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,

@@ -5,49 +5,38 @@
 // imposé de les rendre publiques, donc visibles depuis n'importe où.
 part of '../match_detail_page.dart';
 
+/// Le texte qui accompagne l'image — et rien de plus.
+///
+/// ── Il répétait l'image, ligne pour ligne ─────────────────────────────────
+///
+/// Le message portait les équipes, la compétition, la date, le pronostic, la
+/// confiance et la cote. La carte partagée juste au-dessus porte **exactement
+/// les mêmes** : la ligue en pastille, les deux écussons avec les noms, le
+/// pronostic en grand, la cote et la confiance en encadrés, la date et le
+/// domaine en pied. Pour un match joué, elle affiche même le score et un
+/// bandeau « Pronostic GAGNANT ».
+///
+/// Le destinataire lisait donc tout en double, et le lien — la seule chose
+/// qu'une image ne peut pas porter — se retrouvait noyé en huitième ligne.
+///
+/// Ce qui reste ici est ce que l'image ne sait pas faire : une ligne de sujet,
+/// et deux liens cliquables. Les équipes sont la seule répétition assumée : un
+/// message qui n'annoncerait que des liens se lit comme un envoi douteux, et
+/// certains clients n'affichent pas les images.
 String _buildShareText(MatchEntity match) {
-  final date = DateFormat('dd/MM/yyyy à HH:mm', 'fr_FR').format(match.matchDate);
-  final link = '${AppConstants.siteUrl}/pronostics/${match.id}';
-  final cote = match.oddsRecommended.toStringAsFixed(2);
+  final lien = '${AppConstants.siteUrl}/pronostics/${match.id}';
+  final duel = '${match.homeTeam} vs ${match.awayTeam}';
 
-  // Un pronostic clos et un pronostic à venir ne se partagent pas pareil.
-  // Le message unique annonçait « Cote recommandée » et « Confiance 95 % » sur
-  // un match déjà joué, sans jamais dire qu'il était gagné — c'est-à-dire en
-  // taisant la seule chose qui donne envie de suivre le compte.
-  if (match.result != null) {
-    final score = '${match.homeScore ?? 0} - ${match.awayScore ?? 0}';
-    final (entete, issue) = switch (match.result!) {
-      PronosticResult.win => (
-        '✅ *PronoWin — Pronostic gagnant*',
-        '💚 *Validé* — cote $cote',
-      ),
-      PronosticResult.loss => (
-        '📊 *PronoWin — Résultat*',
-        '❌ Pronostic perdant — cote $cote',
-      ),
-      PronosticResult.push => (
-        '📊 *PronoWin — Résultat*',
-        '↩️ Pronostic remboursé — cote $cote',
-      ),
-    };
-    return '$entete\n\n'
-        '🏟️ ${match.homeTeam} $score ${match.awayTeam}\n'
-        '🏆 ${match.league}\n\n'
-        '🔮 *Pronostic :* ${match.displayPredictionLabel}\n'
-        '$issue\n\n'
-        '📲 Voir le détail : $link\n'
-        '⬇️ Télécharge PronoWin pour tous les pronos !';
-  }
+  final sujet = switch (match.result) {
+    PronosticResult.win  => '✅ *Pronostic gagnant* — $duel',
+    PronosticResult.loss => '📊 *Résultat* — $duel',
+    PronosticResult.push => '↩️ *Pronostic remboursé* — $duel',
+    null                 => '⚽ *Pronostic PronoWin* — $duel',
+  };
 
-  return '⚽ *PronoWin — Pronostic*\n\n'
-      '🏟️ ${match.homeTeam} vs ${match.awayTeam}\n'
-      '🏆 ${match.league}\n'
-      '📅 $date\n\n'
-      '🔮 *Pronostic :* ${match.displayPredictionLabel}\n'
-      '📊 Confiance : ${match.confidencePercent}%\n'
-      '💰 Cote recommandée : $cote\n\n'
-      '📲 Voir le pronostic complet : $link\n'
-      '⬇️ Télécharge PronoWin pour tous les pronos !';
+  return '$sujet\n\n'
+      '📲 Le détail : $lien\n'
+      '⬇️ L\'application : ${AppConstants.apkDownloadUrl}';
 }
 
 Future<void> _launchShare(String url) async {

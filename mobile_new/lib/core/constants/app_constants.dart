@@ -26,6 +26,21 @@ class AppConstants {
   static const String domaine = 'pronowin.space';
   static const String siteUrl = 'https://$domaine';
 
+  /// Où l'on télécharge l'APK, pour le canal direct.
+  ///
+  /// Les messages de partage écrivaient `pronowin.com/download` : mauvais
+  /// domaine — celui-ci n'est pas le nôtre — et chemin qui répond 404 sur le
+  /// vrai site. Sans schéma non plus, donc pas même cliquable. Trois façons
+  /// d'échouer dans une seule ligne, recopiée à deux endroits.
+  ///
+  /// L'adresse réelle est servie par le site et vérifiée : elle rend un APK de
+  /// 71 Mo en `application/octet-stream`.
+  ///
+  /// Comme [domaine], elle vit ici une fois. Un lien de partage vit pour
+  /// toujours dans une conversation : c'est l'endroit de l'application où se
+  /// tromper coûte le plus longtemps.
+  static const String apkDownloadUrl = '$siteUrl/downloads/app-release.apk';
+
   static const String playStoreUrl = 'https://play.google.com/store/apps/details?id=com.pronowin.app';
   static const String appStoreUrl  = 'https://apps.apple.com/app/pronowin/id0000000000'; // ← remplacer l'ID réel
 }
