@@ -142,21 +142,43 @@ class _BankrollView extends StatelessWidget {
     final wins     = settled.where((b) => b.result == 'WIN').length;
     // Un remboursé (PUSH) n'est ni une victoire ni une défaite — exclu du taux.
     final decisive = settled.where((b) => b.result != 'PUSH').length;
-    // Le taux passe désormais par `BilanParis`, la règle partagée.
+    // Le bilan vient du serveur, qui compte tout l'historique.
     //
-    // Cette ligne calculait son propre pourcentage, avec un garde-fou à zéro
-    // seulement — exactement le défaut que `BilanParis` documente et qu'il
-    // avait été écrit pour supprimer : avec un seul pari gagné, l'écran
-    // annonçait « 100 % ». La règle avait été appliquée à l'onglet Compte et
-    // oubliée ici, si bien que les deux écrans affichaient deux vérités sur
-    // les mêmes paris — « — » d'un côté, « 50 % » de l'autre.
-    final bilan = BilanParis(
-      suivis:   bankroll.bets.length,
-      gagnes:   wins,
-      perdus:   settled.where((b) => b.result == 'LOSS').length,
-      tauxBrut: decisive > 0 ? wins / decisive * 100 : 0.0,
-      serie:    0,
-    );
+    // Deux corrections successives au même endroit, et il vaut mieux les
+    // garder toutes les deux en mémoire :
+    //
+    //   * le taux se calculait ici à la main, avec un garde-fou à zéro
+    //     seulement. Avec un seul pari gagné, l'écran annonçait « 100 % ».
+    //     La règle `BilanParis` avait été appliquée à l'onglet Compte et
+    //     oubliée ici : les deux écrans affichaient deux vérités sur les mêmes
+    //     paris — « — » d'un côté, « 50 % » de l'autre ;
+    //
+    //   * puis ce bilan, même passé par la règle partagée, portait sur
+    //     `bankroll.bets` — une liste plafonnée à cinquante lignes. Au
+    //     cinquante-et-unième pari, les compteurs et le taux devenaient faux
+    //     sans que rien ne l'indique : ni avertissement, ni « 50 derniers ».
+    //
+    // Le repli local reste pour le jour où le mobile tourne devant un backend
+    // plus ancien : mieux vaut les anciens chiffres qu'une page vide. Il porte
+    // les remboursés, que `BilanParis` ne compte que si on les lui donne.
+    final resume = bankroll.resume;
+    final bilan = resume != null
+        ? BilanParis(
+            suivis:     resume.total,
+            gagnes:     resume.gagnes,
+            perdus:     resume.perdus,
+            rembourses: resume.rembourses,
+            tauxBrut:   resume.tauxBrut,
+            serie:      0,
+          )
+        : BilanParis(
+            suivis:     bankroll.bets.length,
+            gagnes:     wins,
+            perdus:     settled.where((b) => b.result == 'LOSS').length,
+            rembourses: settled.where((b) => b.result == 'PUSH').length,
+            tauxBrut:   decisive > 0 ? wins / decisive * 100 : 0.0,
+            serie:      0,
+          );
     final winRate = bilan.taux;
     final profit   = bankroll.currentBalance - bankroll.totalBudget;
     final pending  = bankroll.bets.where((b) => b.result == null).toList();
@@ -299,11 +321,14 @@ class _BankrollView extends StatelessWidget {
           // ── Filtres ───────────────────────────────────────────────────
           _FilterRow(
             filter:   filter,
+            // Les pastilles comptent ce que la liste montre, pas tout
+            // l'historique : un onglet « Gagnés 64 » qui n'en présente que 30
+            // mentirait autrement. Le bilan complet est au-dessus, nommé.
+            //
+            // `settled.length - wins` comptait les remboursés parmi les perdus :
+            // la pastille annonçait déjà un nombre que la liste ne montrait pas.
             pending:  pending.length,
             wins:     wins,
-            // `settled.length - wins` comptait les remboursés parmi les perdus :
-            // la pastille annonçait un nombre que la liste filtrée ne montrait
-            // pas. On compte ce qu'on affiche.
             losses:   bankroll.bets.where((b) => b.result == 'LOSS').length,
             refunded: bankroll.bets.where((b) => b.result == 'PUSH').length,
             total:    bankroll.bets.length,
@@ -322,6 +347,27 @@ class _BankrollView extends StatelessWidget {
                 .fadeIn(duration: 280.ms)
                 .slideY(begin: 0.06, end: 0, duration: 280.ms),
             ),
+
+          // L'historique montré s'arrête ; le bilan, non.
+          //
+          // La liste est plafonnée, et rien ne le disait : un utilisateur
+          // assidu voyait ses paris s'arrêter net sans savoir s'il les avait
+          // tous, ni sur quoi son taux portait. La phrase relie les deux.
+          if (bankroll.historiqueTronque) ...[
+            const SizedBox(height: 8),
+            Padding(
+              key: const Key('bankroll-historique-tronque'),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+              child: Text(
+                '${bankroll.parisAffiches} paris les plus récents sur '
+                '${bankroll.resume!.total}. Le bilan ci-dessus porte sur '
+                'la totalité.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: context.cl.textM, fontSize: 11, height: 1.4),
+              ),
+            ),
+          ],
 
           SizedBox(height: bottomNavSpace(context)),
         ]),

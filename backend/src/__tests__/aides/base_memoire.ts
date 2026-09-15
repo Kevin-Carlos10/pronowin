@@ -18,8 +18,23 @@
  * le code ne poursuive que si elle a effectivement changé une ligne.
  */
 
-/** Une relation : la clé étrangère qui la porte, et la table visée. */
-type Liens = Record<string, { cle: string; vers: Map<string, any> }>;
+/**
+ * Une relation, dans les deux sens que ces bancs emploient.
+ *
+ * `vers-un` : la ligne porte la clé étrangère (`pronostic.matchId` → `match`).
+ * `plusieurs` : les lignes de la table visée portent la clé (`bankroll.bets`),
+ * avec leurs propres `orderBy`, `take` et `include` imbriqués.
+ */
+type Lien =
+  | { cle: string; vers: Map<string, any> }
+  | {
+      plusieurs: true;
+      cleEtrangere: string;
+      vers: Map<string, any>;
+      liens?: Liens;
+    };
+
+type Liens = Record<string, Lien>;
 
 export interface BaseMemoire {
   users:         Map<string, any>;
@@ -103,15 +118,31 @@ export function creerBase() {
    * autre relation revenait alors `null` en silence, et un banc bâti dessus
    * mesurait une règle à qui on n'avait rien donné à lire.
    */
-  const joindre = (ligne: any, include: any, liens: Liens) => {
+  const joindre = (ligne: any, include: any, liens: Liens): any => {
     if (!include) return ligne;
     const enrichie = { ...ligne };
+
     for (const nom of Object.keys(include)) {
-      if (!include[nom] || !liens[nom]) continue;
-      const { cle, vers } = liens[nom];
-      const cible = vers.get(ligne[cle]);
+      const lien = liens[nom];
+      if (!include[nom] || !lien) continue;
+
+      if ('plusieurs' in lien) {
+        // Les options de l'include portent ici : `orderBy`, `take`, et les
+        // relations imbriquées de chaque élément.
+        const opts = typeof include[nom] === 'object' ? include[nom] : {};
+        let liste = [...lien.vers.values()]
+          .filter((x) => x[lien.cleEtrangere] === ligne.id);
+        liste = ordonner(liste, opts.orderBy);
+        if (typeof opts.take === 'number') liste = liste.slice(0, opts.take);
+        enrichie[nom] = liste.map(
+          (x) => joindre({ ...x }, opts.include, lien.liens ?? {}));
+        continue;
+      }
+
+      const cible = lien.vers.get(ligne[lien.cle]);
       enrichie[nom] = cible ? { ...cible } : null;
     }
+
     return enrichie;
   };
 
@@ -136,9 +167,16 @@ export function creerBase() {
         const l = ordonner(filtrer(where), orderBy)[0];
         return l ? joindre({ ...l }, include, liens) : null;
       },
-      findMany: async ({ where, include, orderBy }: any = {}) =>
-        ordonner(filtrer(where), orderBy)
-          .map((x) => joindre({ ...x }, include, liens)),
+      // `skip` et `take` sont honorés : sans eux, un banc portant sur une
+      // lecture paginée lisait tout, et ne pouvait donc pas distinguer un
+      // calcul fait sur la page affichée d'un calcul fait sur l'ensemble —
+      // précisément ce que `resume_paris.test.ts` doit mesurer.
+      findMany: async ({ where, include, orderBy, skip, take }: any = {}) => {
+        let lignes = ordonner(filtrer(where), orderBy);
+        if (typeof skip === 'number') lignes = lignes.slice(skip);
+        if (typeof take === 'number') lignes = lignes.slice(0, take);
+        return lignes.map((x) => joindre({ ...x }, include, liens));
+      },
       count: async ({ where }: any = {}) => filtrer(where).length,
       update: async ({ where, data }: any) => {
         const l = filtrer(where)[0];
@@ -165,6 +203,26 @@ export function creerBase() {
         magasin.set(id, neuf);
         return { ...neuf };
       },
+      groupBy: async ({ by, where, _count, _sum }: any) => {
+        const groupes = new Map<string, any[]>();
+        for (const l of filtrer(where)) {
+          const cle = JSON.stringify((by as string[]).map((c) => l[c] ?? null));
+          (groupes.get(cle) ?? groupes.set(cle, []).get(cle)!).push(l);
+        }
+        return [...groupes.entries()].map(([cle, lignes]) => {
+          const valeurs = JSON.parse(cle) as any[];
+          const g: any = {};
+          (by as string[]).forEach((c, i) => { g[c] = valeurs[i]; });
+          if (_count) g._count = { _all: lignes.length };
+          if (_sum) {
+            g._sum = {};
+            for (const champ of Object.keys(_sum)) {
+              g._sum[champ] = lignes.reduce((n, l) => n + (l[champ] ?? 0), 0);
+            }
+          }
+          return g;
+        });
+      },
       aggregate: async ({ where, _sum }: any) => {
         const lignes = filtrer(where);
         const somme: any = {};
@@ -185,7 +243,15 @@ export function creerBase() {
     transaction:  table(base.transactions, { user: { cle: 'userId', vers: base.users } }),
     subscription: table(base.subscriptions, { user: { cle: 'userId', vers: base.users } }),
     iapPurchase:  table(base.iapPurchases, { user: { cle: 'userId', vers: base.users } }),
-    userBankroll: table(base.bankrolls, { user: { cle: 'userId', vers: base.users } }),
+    userBankroll: table(base.bankrolls, {
+      user: { cle: 'userId', vers: base.users },
+      bets: {
+        plusieurs: true,
+        cleEtrangere: 'bankrollId',
+        vers: base.bankrollBets,
+        liens: { pronostic: { cle: 'pronosticId', vers: base.pronostics } },
+      },
+    }),
     bankrollBet:  table(base.bankrollBets, {
       pronostic: { cle: 'pronosticId', vers: base.pronostics },
     }),

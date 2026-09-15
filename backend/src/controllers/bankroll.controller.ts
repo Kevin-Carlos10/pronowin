@@ -9,11 +9,22 @@ export const getBankroll = async (req: AuthRequest, res: Response) => {
     const bankroll = await svc.getBankroll(req.userId!);
     if (!bankroll) { res.json(null); return; }
 
+    // Le bilan porte sur tout l'historique, la liste sur ce qu'on affiche.
+    //
+    // L'écran calculait ses compteurs, son taux et sa courbe depuis les
+    // cinquante paris renvoyés, et les présentait comme le bilan complet. Au
+    // cinquante-et-unième, les chiffres devenaient faux en silence.
+    const resume = await svc.resumeParis(bankroll.id);
+
     res.json({
       id:             bankroll.id,
       total_budget:   bankroll.totalBudget,
       current_balance: bankroll.currentBalance,
       currency:       bankroll.currency,
+      resume,
+      // Combien de lignes accompagnent ce bilan — pour que l'écran puisse dire
+      // « 50 des 128 paris » au lieu de laisser croire qu'il les montre tous.
+      paris_affiches: bankroll.bets.length,
       bets: bankroll.bets.map(b => ({
         id:              b.id,
         pronostic_id:    b.pronosticId,

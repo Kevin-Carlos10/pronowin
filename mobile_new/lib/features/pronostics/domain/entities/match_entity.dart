@@ -85,6 +85,23 @@ class MatchEntity extends Equatable {
   /// plus lisible et plus "data" que des étoiles. Plafonné à 95% (jamais 100%) :
   /// aucun résultat sportif n'est certain, un "100%" affiché sonnerait comme
   /// une garantie absolue plutôt qu'une estimation de confiance.
+  ///
+  /// ── Réserve connue, décision en attente ──────────────────────────────────
+  ///
+  /// « plus "data" que des étoiles » dit exactement le problème : ce nombre
+  /// emprunte l'apparence d'une mesure sans en être une. Il ne vient ni du
+  /// modèle statistique ni d'un historique de calibration — c'est la note que
+  /// l'analyste a cochée à la publication, convertie par la table ci-dessous.
+  /// Un lecteur qui voit « 95 % » comprend « 95 chances sur 100 ».
+  ///
+  /// L'audit de septembre 2026 recommande de présenter cette donnée comme une
+  /// appréciation éditoriale (« Confiance de l'analyste : très élevée ») et de
+  /// réserver un pourcentage à un calcul évalué sur des résultats passés.
+  ///
+  /// La décision est différée : c'est un choix de produit, il touche neuf
+  /// écrans, et il appartient à l'éditeur. Cette note reste pour que le choix
+  /// demeure visible plutôt que de se perdre — et pour que personne ne prenne
+  /// cette table pour une probabilité en la relisant.
   int get confidencePercent => percentForConfidence(confidenceScore);
 
   static const Map<int, int> _confidencePercentByScore = {1: 60, 2: 70, 3: 80, 4: 90, 5: 95};

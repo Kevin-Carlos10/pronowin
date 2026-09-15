@@ -39,6 +39,21 @@ export function suggestStake(
 }
 
 // ── GET ou CREATE bankroll ────────────────────────────────────────────────────
+/**
+ * Combien de paris l'historique renvoie au plus.
+ *
+ * La limite n'est pas le problème — charger mille paris sur un téléphone n'a
+ * pas de sens. Le problème était qu'elle ne se voyait pas : l'écran calculait
+ * ses compteurs, son taux de réussite et sa courbe à partir de ces cinquante
+ * lignes, et les présentait comme le bilan complet. Au cinquante-et-unième
+ * pari, les chiffres devenaient faux sans que rien ne l'indique.
+ *
+ * Le bilan vient désormais de `resumeParis`, qui compte **tout**. Cette
+ * constante ne borne plus que la liste affichée, et le nombre total
+ * l'accompagne dans la réponse.
+ */
+export const PARIS_AFFICHES_MAX = 50;
+
 export async function getBankroll(userId: string) {
   return prisma.userBankroll.findUnique({
     where: { userId },
@@ -46,10 +61,51 @@ export async function getBankroll(userId: string) {
       bets: {
         include: { pronostic: { include: { match: true } } },
         orderBy: { createdAt: 'desc' },
-        take: 50,
+        take: PARIS_AFFICHES_MAX,
       },
     },
   });
+}
+
+/**
+ * Le bilan de **tous** les paris d'une bankroll, sans limite de lecture.
+ *
+ * Compté par la base plutôt que reconstitué depuis la page chargée : c'est la
+ * seule façon que les compteurs restent vrais quand l'historique dépasse ce
+ * que l'écran montre.
+ */
+export async function resumeParis(bankrollId: string) {
+  const parStatut = await prisma.bankrollBet.groupBy({
+    by:     ['result'],
+    where:  { bankrollId },
+    _count: { _all: true },
+    _sum:   { profit: true },
+  });
+
+  const compte = (r: string | null) =>
+    parStatut.find((g) => g.result === r)?._count._all ?? 0;
+
+  const gagnes     = compte('WIN');
+  const perdus     = compte('LOSS');
+  const rembourses = compte('PUSH');
+  const enAttente  = compte(null);
+  const total      = gagnes + perdus + rembourses + enAttente;
+
+  // Un remboursé ne départage pas : il reste hors du taux de réussite.
+  const departagent = gagnes + perdus;
+
+  return {
+    total,
+    gagnes,
+    perdus,
+    rembourses,
+    en_attente: enAttente,
+    taux_reussite: departagent > 0
+      ? Math.round((gagnes / departagent) * 100)
+      : 0,
+    profit_net: Math.round(
+      parStatut.reduce((n, g) => n + (g._sum.profit ?? 0), 0) * 100) / 100,
+  };
 }
 
 // ── SET budget (crée ou met à jour) ──────────────────────────────────────────

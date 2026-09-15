@@ -303,6 +303,15 @@ void main() {
           reason: "l'onglet Remboursés ne filtre plus sur PUSH");
     });
 
+    test('la page renseigne les remboursés au bilan', () {
+      // `BilanParis` ne protège que les appelants qui le renseignent. Cette
+      // page construit son bilan à la main, à partir de ses propres paris :
+      // sans cette ligne, les remboursés y retombaient dans « en attente »,
+      // et le correctif ne valait que pour l'onglet Compte.
+      expect(page, contains('rembourses:'),
+          reason: 'le bilan de cet écran ignore de nouveau les remboursés');
+    });
+
     test("l'API fournit bien le compte", () {
       // Le mobile retombe sur 0 quand la clé manque — c'est voulu, un décalage
       // de version ne doit rien casser. Mais ce repli rend l'oubli invisible :

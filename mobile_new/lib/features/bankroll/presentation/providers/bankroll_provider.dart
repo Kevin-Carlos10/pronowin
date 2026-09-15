@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../shared/utils/resume_paris.dart';
 import '../../../pronostics/domain/entities/match_entity.dart' show MatchEntity;
 
 // ─── Entités ──────────────────────────────────────────────────────────────────
@@ -78,12 +79,30 @@ class BankrollData {
   final String currency;
   final List<BankrollBet> bets;
 
+  /// Le bilan de **tous** les paris, compté par le serveur.
+  ///
+  /// [bets] est plafonnée : l'écran calculait pourtant ses compteurs, son taux
+  /// de réussite et sa courbe à partir de cette liste, et les présentait comme
+  /// le bilan complet. Au cinquante-et-unième pari, les chiffres devenaient
+  /// faux sans que rien ne l'indique.
+  ///
+  /// `null` quand le serveur ne l'envoie pas encore : l'écran retombe alors sur
+  /// son calcul local, c'est-à-dire l'ancien comportement. Un décalage de
+  /// version ne doit pas vider la page.
+  final ResumeParis? resume;
+
+  /// Combien de paris [bets] contient réellement — pour pouvoir dire
+  /// « 50 des 128 » au lieu de laisser croire qu'on les montre tous.
+  final int parisAffiches;
+
   const BankrollData({
     required this.id,
     required this.totalBudget,
     required this.currentBalance,
     required this.currency,
     required this.bets,
+    this.resume,
+    this.parisAffiches = 0,
   });
 
   factory BankrollData.fromJson(Map<String, dynamic> j) => BankrollData(
@@ -91,10 +110,19 @@ class BankrollData {
     totalBudget:    (j['total_budget'] as num).toDouble(),
     currentBalance: (j['current_balance'] as num).toDouble(),
     currency:       j['currency'] as String,
+    resume: j['resume'] is Map
+        ? ResumeParis.depuisApi((j['resume'] as Map).cast<String, dynamic>())
+        : null,
+    parisAffiches: (j['paris_affiches'] as num?)?.toInt()
+        ?? (j['bets'] as List).length,
     bets: (j['bets'] as List)
         .map((b) => BankrollBet.fromJson(b as Map<String, dynamic>, currency: j['currency'] as String))
         .toList(),
   );
+
+  /// L'historique montré est-il partiel ?
+  bool get historiqueTronque =>
+      resume != null && resume!.total > parisAffiches;
 
   double get progressPct =>
       totalBudget > 0 ? (currentBalance / totalBudget).clamp(0.0, 2.0) : 0.0;
