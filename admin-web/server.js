@@ -400,12 +400,24 @@ const LOG_MAX     = 5000;   // garder les 5000 dernières entrées
 /**
  * `secure` sur les cookies de session.
  *
- * Sans lui, `admin_token` part en clair dès que le panneau est servi en HTTP :
- * sur un réseau partagé, le jeton d'administration est lisible au passage.
- * Conditionné à la production pour ne pas casser le développement en
- * http://localhost, où le navigateur refuserait un cookie `secure`.
+ * Sans lui, `admin_token` part en clair dès qu'une requête atteint le panneau
+ * en HTTP : sur un réseau partagé, le jeton d'administration est lisible au
+ * passage.
+ *
+ * Il était conditionné à `NODE_ENV === 'production'`. Cette variable n'est
+ * définie nulle part sur le serveur — ni dans `.env`, ni dans le processus
+ * pm2. Le panneau est servi en HTTPS et ses cookies partaient sans l'attribut
+ * `secure`, tandis que ce commentaire expliquait pourquoi c'était prudent.
+ *
+ * La condition vient désormais de l'adresse déclarée du panneau : si
+ * `ADMIN_ORIGIN` est en `https://`, les cookies sont `secure`. La même
+ * variable dit où le panneau vit et s'il est servi en TLS — elles ne peuvent
+ * plus diverger. `NODE_ENV` reste accepté pour les déploiements qui le
+ * posent.
  */
-const COOKIE_SECURE = process.env.NODE_ENV === 'production';
+const COOKIE_SECURE =
+  (process.env.ADMIN_ORIGIN ?? '').startsWith('https://')
+  || process.env.NODE_ENV === 'production';
 if (!fs.existsSync(LOG_FILE)) fs.writeFileSync(LOG_FILE, '[]');
 
 function loadLogs()  { try { return JSON.parse(fs.readFileSync(LOG_FILE, 'utf8')); } catch { return []; } }
@@ -631,18 +643,52 @@ function sanitize(str, maxLen = 500) {
   return str.trim().replace(/<[^>]*>/g, '').slice(0, maxLen);
 }
 
+/**
+ * L'origine d'une adresse, ou `null` si elle ne s'analyse pas.
+ *
+ * `new URL(...).origin` rend « schéma://hôte:port » et rien d'autre : c'est
+ * exactement l'unité que deux origines doivent partager pour être la même.
+ */
+function origineDe(valeur) {
+  try { return new URL(valeur).origin; } catch { return null; }
+}
+
 // ─── CSRF : vérification Origin/Referer sur toutes les mutations ─────────────
+//
+// La comparaison se faisait avec `startsWith` :
+//
+//     if (origin && !origin.startsWith(allowed)) …
+//
+// `https://pronowin.space.exemple.com` commence par `https://pronowin.space`.
+// Un domaine appartenant à n'importe qui passait donc le contrôle, et la même
+// erreur portait sur le `Referer`, où la comparaison portait en plus sur une
+// adresse complète et non sur son origine.
+//
+// Deux origines sont identiques ou ne le sont pas : il n'y a pas de préfixe
+// qui vaille.
 app.use((req, res, next) => {
   if (!['POST', 'PUT', 'DELETE', 'PATCH'].includes(req.method)) return next();
   if (req.path === '/admin/login') return next(); // page de login exemptée
 
+  // Sans `ADMIN_ORIGIN`, on retombe sur l'hôte de la requête — commodité de
+  // développement, où le panneau tourne en http://localhost. En production la
+  // variable est posée, et c'est elle qui fait autorité.
   const host    = req.headers['host'] ?? '';
-  const allowed = process.env.ADMIN_ORIGIN ?? `http://${host}`;
+  const attendue = origineDe(process.env.ADMIN_ORIGIN ?? `http://${host}`);
   const origin  = req.headers['origin'];
   const referer = req.headers['referer'];
 
-  if (origin  && !origin.startsWith(allowed))  return res.status(403).send('Requête inter-origines refusée.');
-  if (!origin && referer && !referer.startsWith(allowed)) return res.status(403).send('Requête inter-origines refusée.');
+  // Une origine attendue illisible ne peut rien autoriser. Refuser est la
+  // seule suite correcte : laisser passer reviendrait à supprimer le contrôle
+  // le jour d'une faute de frappe dans une variable d'environnement.
+  if (!attendue) return res.status(403).send('Requête refusée (origine attendue illisible).');
+
+  if (origin && origineDe(origin) !== attendue) {
+    return res.status(403).send('Requête inter-origines refusée.');
+  }
+  if (!origin && referer && origineDe(referer) !== attendue) {
+    return res.status(403).send('Requête inter-origines refusée.');
+  }
   // Fail-closed : si Origin ET Referer sont tous les deux absents, on ne peut pas
   // vérifier la provenance de la requête — on la refuse plutôt que de la laisser passer.
   if (!origin && !referer) return res.status(403).send('Requête refusée (origine indéterminable).');
