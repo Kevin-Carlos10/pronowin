@@ -7,6 +7,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../../../shared/utils/premium_nav.dart';
 import '../../domain/entities/tutorial_entity.dart';
@@ -50,57 +51,143 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
     super.dispose();
   }
 
-  Future<void> _markComplete() async {
+  Future<void> _markComplete(TutorialEntity t) async {
     if (_completed) return;
     HapticFeedback.heavyImpact();
+
+    // L'état local est posé d'abord : l'écran doit répondre au doigt, et la
+    // coche sous une animation qui attend le réseau paraîtrait cassée.
     setState(() => _completed = true);
     _checkCtrl.forward();
 
-    // Persister côté API
+    var enregistre = false;
     try {
-      await ref.read(videoProgressProvider.notifier)
-          .updateProgress(widget.tutorialId, widget.preloaded?.durationSeconds ?? 0, true);
+      enregistre = await ref
+          .read(videoProgressProvider.notifier)
+          .updateProgress(widget.tutorialId, t.durationSeconds, true);
     } catch (_) {
-      // Ignorer les erreurs réseau silencieusement — l'état local est déjà mis à jour
+      enregistre = false;
+    }
+    if (!mounted) return;
+
+    if (enregistre) {
+      // La liste porte la coche « terminé » : sans invalidation, elle
+      // continuait d'afficher le tutoriel comme non fait jusqu'au prochain
+      // démarrage.
+      ref.invalidate(tutorialsProvider);
+      ref.invalidate(tutorialDetailProvider(widget.tutorialId));
+    } else {
+      // Le résultat de l'enregistrement était jeté, et le message de réussite
+      // s'affichait quand même. Au lancement suivant, la coche avait disparu
+      // sans que rien ne l'ait annoncé. On garde la coche — l'utilisateur a
+      // bien terminé — mais on cesse de prétendre qu'elle est enregistrée.
+      setState(() => _completed = false);
+      _checkCtrl.reverse();
     }
 
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: const Row(children: [
-            Icon(Icons.check_circle_rounded, color: Colors.white, size: 18),
-            SizedBox(width: 10),
-            Text('Tutoriel marqué comme terminé ! 🎉',
-                style: TextStyle(fontWeight: FontWeight.w600)),
-          ]),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          duration: const Duration(seconds: 2),
-        ),
-      );
-    }
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        key: Key(enregistre ? 'tutoriel-termine' : 'tutoriel-non-enregistre'),
+        content: Row(children: [
+          Icon(
+              enregistre
+                  ? Icons.check_circle_rounded
+                  : Icons.cloud_off_rounded,
+              color: Colors.white,
+              size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              enregistre
+                  ? 'Tutoriel marqué comme terminé !'
+                  : 'Progression non enregistrée : vérifie ta connexion '
+                    'et retouche « Terminé ».',
+              style: const TextStyle(fontWeight: FontWeight.w600)),
+          ),
+        ]),
+        backgroundColor: enregistre ? AppColors.success : AppColors.warning,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        duration: Duration(seconds: enregistre ? 2 : 4),
+      ),
+    );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final t = widget.preloaded;
-    if (t == null) {
-      return Scaffold(
+  /// Une page d'état, avec le même retour que la page pleine.
+  Widget _cadre(BuildContext context, Widget contenu) => Scaffold(
+        backgroundColor: context.cl.bg,
         appBar: AppBar(
+          backgroundColor: context.cl.bg,
+          elevation: 0,
           leading: IconButton(
               icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
               onPressed: () => retourOuAller(context, repli: _repli)),
         ),
-        body: Center(
-          child: Text('Tutoriel introuvable',
-              style: TextStyle(color: context.cl.textS)),
-        ),
+        body: Center(child: contenu),
       );
-    }
 
+  @override
+  Widget build(BuildContext context) {
+    // Un tutoriel ouvert sans objet préchargé se charge par son identifiant.
+    //
+    // La page ne lisait que `widget.preloaded`, c'est-à-dire l'objet Dart
+    // passé en `extra` par la liste. Un lien partagé, une notification, une
+    // reprise après redémarrage — rien de tout cela ne transporte un objet
+    // Dart : la page affichait « Tutoriel introuvable » alors que le tutoriel
+    // existait, et que `tutorialDetailProvider` était là, inutilisé.
+    final precharge = widget.preloaded;
+    if (precharge != null) return _contenu(context, precharge);
+
+    return ref.watch(tutorialDetailProvider(widget.tutorialId)).when(
+          data: (t) => _contenu(context, t),
+          loading: () => _cadre(context,
+              const CircularProgressIndicator(color: AppColors.primary)),
+          error: (_, _) => _cadre(
+            context,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Icon(Icons.cloud_off_rounded, size: 40, color: context.cl.textM),
+                const SizedBox(height: 12),
+                Text('Ce tutoriel n\'a pas pu être chargé.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: context.cl.textS, fontSize: 14)),
+                const SizedBox(height: 4),
+                // « Introuvable » désignait le tutoriel ; le plus souvent,
+                // c'est la connexion qui manque. Et rien ne permettait de
+                // réessayer sans quitter l'écran.
+                Text('Vérifie ta connexion, puis réessaie.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: context.cl.textM, fontSize: 12)),
+                const SizedBox(height: 16),
+                OutlinedButton.icon(
+                  key: const Key('tutoriel-reessayer'),
+                  onPressed: () =>
+                      ref.invalidate(tutorialDetailProvider(widget.tutorialId)),
+                  icon: const Icon(Icons.refresh, size: 18),
+                  label: const Text('Réessayer'),
+                ),
+              ]),
+            ),
+          ),
+        );
+  }
+
+  Widget _contenu(BuildContext context, TutorialEntity t) {
     final catColor = _categoryColor(t.category);
-    final isPremiumLocked = t.isPremium;
+    // Le verrou regardait le tutoriel, jamais le lecteur.
+    //
+    // `isPremiumLocked = t.isPremium` : un abonné se voyait donc refuser un
+    // contenu qu'il a payé. Le défaut est latent tant que tous les tutoriels
+    // restent gratuits — il ne l'est plus le jour où l'un ne l'est pas, et ce
+    // jour-là personne ne pensera à cette ligne.
+    //
+    // Même forme que `estVerrouille` pour les pronostics : payant, oui ; mais
+    // pas pour qui a payé.
+    final authState = ref.watch(authProvider);
+    final lecteurPremium =
+        authState is AuthAuthenticated && authState.user.isPremium;
+    final isPremiumLocked = t.isPremium && !lecteurPremium;
 
     return Scaffold(
       backgroundColor: context.cl.bg,
@@ -223,7 +310,7 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
                 completed: _completed,
                 checkAnim: _checkAnim,
                 catColor:  catColor,
-                onComplete: _markComplete,
+                onComplete: () => _markComplete(t),
               ),
             ),
         ],
