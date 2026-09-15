@@ -286,18 +286,57 @@ export class IapService {
    * Mobile Money, et cette échéance-là ne regarde pas le store.
    */
   private async _revokeIfExpired(userId: string) {
-    const stillActive = await prisma.iapPurchase.findFirst({
-      where: { userId, status: { in: ['active', 'grace_period'] }, expiresAt: { gt: new Date() } },
-    });
-    if (stillActive) return;
+    const maintenant = new Date();
 
-    const user = await prisma.user.findUnique({
-      where: { id: userId }, select: { subscriptionExpiresAt: true },
+    // Un autre achat store encore actif : rembourser le mensuel ne doit pas
+    // fermer l'accès ouvert par l'annuel.
+    const autreAchat = await prisma.iapPurchase.findFirst({
+      where: {
+        userId, status: { in: ['active', 'grace_period'] },
+        expiresAt: { gt: maintenant },
+      },
     });
-    if (user?.subscriptionExpiresAt && user.subscriptionExpiresAt > new Date()) return;
+    if (autreAchat) return;
 
+    /**
+     * Un accès acquis ailleurs que sur un store ?
+     *
+     * La version précédente posait la question à `subscriptionExpiresAt` :
+     *
+     *     if (user.subscriptionExpiresAt > new Date()) return;
+     *
+     * L'intention était juste — le store ne décide pas d'un accès qu'il n'a
+     * pas vendu. Mais `grantPremium` écrit ce champ avec la date **du store** :
+     * après un achat intégré, elle est toujours dans le futur. La condition
+     * était donc vraie pour exactement les comptes qu'elle devait laisser
+     * révoquer. Aucun abonnement store n'était jamais fermé — ni après un
+     * remboursement, ni même à son terme normal.
+     *
+     * La question se pose maintenant à l'historique, qui sait par quel moyen
+     * chaque accès a été payé.
+     */
+    const enCours = await prisma.subscription.findMany({
+      where: { userId, endDate: { gt: maintenant } },
+    });
+    const horsStore = enCours
+      .filter((s) => !s.paymentMethod.startsWith('iap_'))
+      .sort((a, b) => b.endDate.getTime() - a.endDate.getTime())[0];
+
+    if (horsStore) {
+      // L'accès survit, mais à SA date — conserver celle du store qu'on vient
+      // de perdre offrirait les jours qui viennent d'être remboursés.
+      await prisma.user.update({
+        where: { id: userId },
+        data:  { subscriptionPlan: 'premium', subscriptionExpiresAt: horsStore.endDate },
+      });
+      return;
+    }
+
+    // L'échéance part avec l'accès : une date future sur un compte gratuit se
+    // lit « Premium jusqu'au… » sur l'écran du profil, qui affiche ce champ.
     await prisma.user.update({
-      where: { id: userId }, data: { subscriptionPlan: 'free' },
+      where: { id: userId },
+      data:  { subscriptionPlan: 'free', subscriptionExpiresAt: null },
     });
   }
 

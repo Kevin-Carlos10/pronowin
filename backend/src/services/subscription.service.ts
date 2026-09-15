@@ -589,15 +589,25 @@ export class SubscriptionService {
       durationDays * 86400000
     );
 
-    await Promise.all([
-      prisma.subscription.create({ data: {
+    /**
+     * L'accès et sa justification s'écrivent ensemble.
+     *
+     * C'étaient deux écritures indépendantes lancées par un `Promise.all` :
+     * si la création de l'historique échouait, la mise à jour du compte avait
+     * déjà eu lieu. Le compte passait Premium sans qu'aucune ligne ne dise ce
+     * qui avait été payé, par quel moyen, ni jusqu'à quand — un accès que la
+     * comptabilité ne peut ni expliquer ni rapprocher. L'échec inverse
+     * laissait une vente enregistrée sans accès ouvert.
+     */
+    await prisma.$transaction(async (t) => {
+      await t.subscription.create({ data: {
         userId, plan: 'premium', amountPaid, paymentMethod, promoCodeUsed,
         startDate, endDate,
-      } }),
-      prisma.user.update({ where: { id: userId }, data: {
+      } });
+      await t.user.update({ where: { id: userId }, data: {
         subscriptionPlan: 'premium', subscriptionExpiresAt: endDate,
-      } }),
-    ]);
+      } });
+    });
 
     // ── DÉCLENCHER LES COMMISSIONS DE PARRAINAGE ────────────────────────────
     await referralSvc().triggerCommissions(userId).catch(e =>

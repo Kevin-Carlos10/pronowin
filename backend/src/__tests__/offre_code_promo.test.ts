@@ -21,8 +21,8 @@
 const proofs: any[] = [];
 const subscriptions: any[] = [];
 
-jest.mock('../lib/prisma', () => ({
-  prisma: {
+jest.mock('../lib/prisma', () => {
+  const prisma: any = {
     subscriptionProof: {
       findFirst: jest.fn(async ({ where }: any) =>
         proofs.find(p =>
@@ -49,8 +49,14 @@ jest.mock('../lib/prisma', () => ({
       findUnique: jest.fn(async () => ({ subscriptionExpiresAt: null })),
       update:     jest.fn(async () => ({})),
     },
-  },
-}));
+  };
+  // `grantPremium` écrit l'historique et le compte dans une seule transaction :
+  // deux écritures indépendantes laissaient un compte Premium sans ligne
+  // expliquant ce qui avait été payé. Ce banc ne mesure pas l'atomicité — il a
+  // seulement besoin que la suite s'exécute.
+  prisma.$transaction = async (fn: any) => fn(prisma);
+  return { prisma };
+});
 
 jest.mock('../services/notification.service', () => ({
   NotificationService: class { async sendToUser() { return {}; } },

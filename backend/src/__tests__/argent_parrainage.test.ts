@@ -36,94 +36,11 @@
  * échouerait en production.
  */
 
-// ── Une base en mémoire, avant tout import de service ────────────────────────
-jest.mock('../lib/prisma', () => {
-  const base = {
-    users:        new Map<string, any>(),
-    referrals:    new Map<string, any>(),
-    transactions: new Map<string, any>(),
-  };
-
-  /** Une ligne satisfait-elle une clause `where` plate ? */
-  const correspond = (ligne: any, where: any): boolean =>
-    Object.entries(where ?? {}).every(([cle, cond]: [string, any]) => {
-      if (cond !== null && typeof cond === 'object') {
-        if ('gte' in cond) return ligne[cle] >= cond.gte;
-        if ('equals' in cond) return ligne[cle] === cond.equals;
-        return false;
-      }
-      return ligne[cle] === cond;
-    });
-
-  /** Applique un `data` Prisma (valeurs directes ou `increment`/`decrement`). */
-  const appliquer = (ligne: any, data: any) => {
-    for (const [cle, val] of Object.entries(data ?? {})) {
-      if (val !== null && typeof val === 'object' && !(val instanceof Date)) {
-        const v: any = val;
-        if ('increment' in v) { ligne[cle] = (ligne[cle] ?? 0) + v.increment; continue; }
-        if ('decrement' in v) { ligne[cle] = (ligne[cle] ?? 0) - v.decrement; continue; }
-      }
-      ligne[cle] = val;
-    }
-  };
-
-  /**
-   * Résout les relations demandées par `include`.
-   *
-   * [liens] associe un nom de relation à la clé étrangère qui la porte ; la
-   * cible est toujours `users` ici, seules tables reliées dans ce banc.
-   */
-  const joindre = (ligne: any, include: any, liens: Record<string, string>) => {
-    if (!include) return ligne;
-    const enrichie = { ...ligne };
-    for (const nom of Object.keys(include)) {
-      if (!include[nom] || !liens[nom]) continue;
-      const cible = base.users.get(ligne[liens[nom]]);
-      enrichie[nom] = cible ? { ...cible } : null;
-    }
-    return enrichie;
-  };
-
-  /** Les opérations d'une table. Toutes asynchrones : elles cèdent la main. */
-  const table = (magasin: Map<string, any>, liens: Record<string, string> = {}) => ({
-    findUnique: async ({ where, include }: any) => {
-      const l = [...magasin.values()].find((x) => correspond(x, where));
-      return l ? joindre({ ...l }, include, liens) : null;
-    },
-    findMany: async ({ where, include }: any = {}) =>
-      [...magasin.values()]
-        .filter((x) => correspond(x, where))
-        .map((x) => joindre({ ...x }, include, liens)),
-    update: async ({ where, data }: any) => {
-      const l = [...magasin.values()].find((x) => correspond(x, where));
-      if (!l) throw new Error('ligne introuvable');
-      appliquer(l, data);
-      return { ...l };
-    },
-    updateMany: async ({ where, data }: any) => {
-      const lignes = [...magasin.values()].filter((x) => correspond(x, where));
-      lignes.forEach((l) => appliquer(l, data));
-      return { count: lignes.length };
-    },
-    create: async ({ data }: any) => {
-      const id = data.id ?? `id-${magasin.size + 1}`;
-      const l = { id, ...data };
-      magasin.set(id, l);
-      return { ...l };
-    },
-  });
-
-  const prisma: any = {
-    user:        table(base.users),
-    referral:    table(base.referrals, { referrer: 'referrerId', referred: 'referredId' }),
-    transaction: table(base.transactions, { user: 'userId' }),
-    // Une transaction simulée : elle exécute la suite, sans isolation. Voir la
-    // note en tête de fichier sur ce que cela permet d'établir ou non.
-    $transaction: async (fn: any) => fn(prisma),
-  };
-
-  return { prisma, _base: base };
-});
+// ── Une base en mémoire, avant tout import de service ──────────────────────
+//
+// Le `require` est à l'intérieur de la fabrique : jest.mock est hissé au-dessus
+// des imports, et ne peut donc pas fermer sur une variable du module.
+jest.mock('../lib/prisma', () => require('./aides/base_memoire').creerBase());
 
 jest.mock('../services/notification.service', () => ({
   NotificationService: class {
