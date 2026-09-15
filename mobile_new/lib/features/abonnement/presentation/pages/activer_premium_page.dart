@@ -75,12 +75,46 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   File?  _imageAccount;
   String _platform = '1xbet';
 
-  /// Tarifs, délais et moyens de paiement — une seule lecture de `subData`.
+  /// Tarifs, délais, code promo et moyens de paiement.
   ///
   /// Les quatre prix étaient relus ici avec leurs propres replis (`?? 6000`…),
   /// en double du fournisseur, et ni l'un ni l'autre ne contrôlait le
   /// « 5 000 FCFA » écrit en dur dans la feuille d'accroche.
-  TarifsPremium get _tarifs => TarifsPremium.depuis(widget.subData);
+  ///
+  /// ── Ils ne venaient que de `subData`, donc de qui ouvrait l'écran ─────────
+  ///
+  /// Cinq chemins mènent ici ; un seul passait les données. `performance_page`
+  /// et `premium_gate_sheet` poussent la route nue, et le retour depuis
+  /// « compléter le profil » aussi. Dans ces cas `subData` valait `null`, et
+  /// l'écran annonçait **tout** indisponible : « Offre momentanément
+  /// indisponible » pour le code promo, « Momentanément indisponible » pour le
+  /// paiement direct.
+  ///
+  /// Le défaut ne ressemblait pas à un défaut. Ces deux messages existent
+  /// exprès — ils disent l'absence plutôt que d'inventer un code qui ne
+  /// crédite personne — donc un écran vide passait pour un écran honnête. Le
+  /// code `PRONOWIN2026` était pourtant en base et publié par l'API.
+  ///
+  /// Les données viennent maintenant du serveur, quel que soit l'appelant.
+  /// `subData` ne sert plus qu'à éviter un clignotement quand il est là.
+  ///
+  /// `read` et non `watch` : cet accesseur est aussi atteint depuis les
+  /// rappels d'envoi. Le redessin est assuré par le `watch` explicite en tête
+  /// de `build`.
+  TarifsPremium get _tarifs => TarifsPremium.depuis(_donnees);
+
+  /// La réponse de `/subscriptions/current`, d'où qu'elle vienne.
+  ///
+  /// Le fournisseur d'abord — il interroge le serveur, retombe sur son cache,
+  /// puis sur ses valeurs de repli. `subData` ensuite, quand l'appelant a pris
+  /// la peine de le passer, pour éviter un clignotement.
+  ///
+  /// Tout ce que cet écran affiche doit passer par ici. Les prix en dollars le
+  /// contournaient encore, avec leurs propres replis compilés (`?? 10`,
+  /// `?? 90`…) : c'est ce « $10 » qui s'affichait quand `subData` manquait,
+  /// pendant que le serveur en publiait un autre.
+  Map<String, dynamic>? get _donnees =>
+      ref.read(currentSubscriptionProvider).valueOrNull ?? widget.subData;
 
   // Prix FCFA à collecter selon durée × méthode — c'est le SEUL endroit de
   // l'app où le FCFA est affiché à l'utilisateur.
@@ -201,6 +235,11 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   Widget build(BuildContext context) {
     final submitState = ref.watch(submitProofProvider);
 
+    // Redessine quand les tarifs et le code promo arrivent du serveur. Sans
+    // cela, un écran ouvert sans `subData` resterait figé sur « momentanément
+    // indisponible » alors que la réponse est déjà là.
+    ref.watch(currentSubscriptionProvider);
+
     ref.listen<SubmitProofState>(submitProofProvider, (_, state) {
       if (state is ProofSubmitted) _showSuccessDialog(state.estimatedTime);
       if (state is ProofError)     _showSnack(state.message, isError: true);
@@ -241,10 +280,11 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   // PAGE PAYWALL (landing d'activation premium)
   // ══════════════════════════════════════════════════════
   Widget _buildPaywallPage() {
-    final monthlyUsd     = (widget.subData?['premium_price_monthly_usd']      as num?)?.toDouble() ?? 10;
-    final annualUsd      = (widget.subData?['premium_price_annual_usd']       as num?)?.toDouble() ?? 90;
-    final monthlyCodeUsd = (widget.subData?['premium_price_monthly_code_usd'] as num?)?.toDouble() ?? 7;
-    final annualCodeUsd  = (widget.subData?['premium_price_annual_code_usd']  as num?)?.toDouble() ?? 63;
+    final d = _donnees;
+    final monthlyUsd     = (d?['premium_price_monthly_usd']      as num?)?.toDouble() ?? 10;
+    final annualUsd      = (d?['premium_price_annual_usd']       as num?)?.toDouble() ?? 90;
+    final monthlyCodeUsd = (d?['premium_price_monthly_code_usd'] as num?)?.toDouble() ?? 7;
+    final annualCodeUsd  = (d?['premium_price_annual_code_usd']  as num?)?.toDouble() ?? 63;
 
     // Sur un build store, Apple (3.1.1) et Google imposent l'achat intégré
     // pour déverrouiller du contenu numérique — et interdisent d'afficher un
@@ -346,15 +386,14 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   // ══════════════════════════════════════════════════════'
   /// Méthodes de paiement servies par l'API, filtrées de tout ce qui serait
   /// inexploitable (numéro vide) plutôt que d'afficher une ligne creuse.
-  List<Map<String, dynamic>> get _methodesPaiement {
-    final brut = widget.subData?['payment_methods'];
-    if (brut is! List) return const [];
-    return brut
-        .whereType<Map>()
-        .map((m) => Map<String, dynamic>.from(m))
-        .where((m) => (m['phone'] ?? '').toString().trim().isNotEmpty)
-        .toList();
-  }
+  ///
+  /// Ce filtrage existait ici **et** dans `TarifsPremium.moyensPaiement`, mot
+  /// pour mot. Le doublon n'était pas seulement inutile : cette copie-ci lisait
+  /// `widget.subData` en direct, donc elle rendait une liste vide pour les
+  /// quatre chemins qui ouvrent l'écran sans données — d'où le « Paiement
+  /// Direct · Momentanément indisponible » affiché alors que rien ne
+  /// manquait au serveur.
+  List<Map<String, dynamic>> get _methodesPaiement => _tarifs.moyensPaiement;
 
   /// [etapeTransfert] : numéro de l'étape « envoie l'argent ».
   ///

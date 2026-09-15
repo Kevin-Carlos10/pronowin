@@ -111,4 +111,35 @@ void main() {
                 'copie ici recrée deux sources de vérité qui divergent');
     }
   });
+
+  test('rien n\'est lu sur la carte de route en direct', () {
+    // Le défaut le plus coûteux de cet écran, et le plus discret.
+    //
+    // Tarifs, code promo et moyens de paiement venaient de `subData`, passé en
+    // `extra` au moment de pousser la route. Cinq chemins mènent ici ; un seul
+    // la passait. Ouvert depuis l'onglet Performance, depuis la feuille de
+    // blocage, ou au retour de « compléter le profil », l'écran annonçait
+    // « Offre momentanément indisponible » et « Momentanément indisponible »,
+    // et affichait « $10 » — le repli `?? 10`, pas un tarif.
+    //
+    // Rien ne le signalait : ces messages d'indisponibilité existent exprès,
+    // donc un écran entièrement vide passait pour un écran honnête, alors que
+    // `PROMO_CODE` était en base et publié par l'API.
+    //
+    // La correction a d'abord porté sur les FCFA, et les quatre prix en
+    // dollars sont restés en arrière avec leurs propres replis. C'est
+    // exactement ce que ce contrôle empêche de se reproduire, champ par champ.
+    final code = codeSeul(module['activer_premium']!);
+
+    final lectures = RegExp(r'widget\.subData\s*\??\[')
+        .allMatches(code)
+        .length;
+    expect(lectures, 0,
+      reason: 'un champ est relu sur la carte de route : il sera vide pour '
+              'les quatre chemins qui ne la passent pas. Tout doit passer '
+              'par `_donnees`, qui interroge le serveur d\'abord');
+
+    expect(code, contains('currentSubscriptionProvider'),
+      reason: 'l\'écran doit tenir ses données du serveur, pas de qui l\'ouvre');
+  });
 }
