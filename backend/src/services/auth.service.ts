@@ -12,11 +12,33 @@ import {
 import logger from '../utils/logger';
 
 import { prisma } from '../lib/prisma';
+import { decisionEnvoiOtp, OTP_FENETRE_MS, QuotaOtpDepasse } from '../utils/quota_otp';
 
 export class AuthService {
 
   /** Envoie un OTP SMS au numéro donné */
+  /**
+   * Refuse un envoi de plus quand le quota de l'adresse est atteint.
+   *
+   * Lu dans la base plutôt qu'en mémoire : le compteur du contrôleur ne
+   * survit ni à un redémarrage ni à une seconde instance, et c'est justement
+   * sur la durée qu'un envoi en boucle fait mal.
+   */
+  private async _verifierQuotaEnvoi(destinataire: string): Promise<void> {
+    const recents = await prisma.otpCode.findMany({
+      where: {
+        phoneNumber: destinataire,
+        createdAt:   { gt: new Date(Date.now() - OTP_FENETRE_MS) },
+      },
+      select: { createdAt: true },
+    });
+    const decision = decisionEnvoiOtp(recents.map((r) => r.createdAt));
+    if (!decision.autorise) throw new QuotaOtpDepasse(decision.attendreMinutes);
+  }
+
   async sendOtp(phoneNumber: string): Promise<void> {
+    await this._verifierQuotaEnvoi(phoneNumber);
+
     // Invalider les anciens OTPs
     await prisma.otpCode.updateMany({
       where: { phoneNumber, used: false },
@@ -133,6 +155,11 @@ export class AuthService {
       // is sent and no temporary OTP record is created for this account.
       return { isNewUser: false };
     }
+
+    // Le quota est vérifié après l'échappatoire du relecteur Play : son compte
+    // n'envoie aucun courriel et ne crée aucun code, il n'a donc rien à
+    // consommer.
+    await this._verifierQuotaEnvoi(email);
 
     await prisma.otpCode.updateMany({
       where: { phoneNumber: email, used: false },

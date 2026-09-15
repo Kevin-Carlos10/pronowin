@@ -76,12 +76,20 @@ const keyGenerator = (req: express.Request) => {
   const authHeader = req.headers['authorization'];
   if (authHeader?.startsWith('Bearer ')) {
     try {
-      // Utiliser jwt.decode (sans vérifier la signature) uniquement pour le rate-limiting
-      // La vérification de signature se fait dans authMiddleware
+      // La signature est vérifiée ici, et pas seulement dans authMiddleware.
+      //
+      // Ce générateur utilisait `jwt.decode`, qui lit un jeton sans vérifier
+      // qu'il vient de nous. Fabriquer un jeton non signé portant un `userId`
+      // au hasard donnait donc un compteur neuf à chaque requête, depuis la
+      // même adresse : la limite ne limitait plus rien pour qui savait qu'elle
+      // existait.
+      //
+      // Un jeton invalide retombe sur l'adresse IP, comme une requête non
+      // authentifiée — c'est-à-dire le comportement le plus strict.
       const token   = authHeader.split(' ')[1];
-      const decoded = jwt.decode(token) as { userId?: string } | null;
-      if (decoded?.userId) return `user:${decoded.userId}`;
-    } catch (_) { /* token malformé → fallback IP */ }
+      const verifie = jwt.verify(token, process.env.JWT_SECRET!) as { userId?: string };
+      if (verifie?.userId) return `user:${verifie.userId}`;
+    } catch (_) { /* jeton absent, expiré ou forgé → on limite par IP */ }
   }
   return req.ip ?? 'unknown';
 };
@@ -178,10 +186,15 @@ app.get('/api/img', async (req, res) => {
 
 const v1 = '/api/v1';
 app.use(`${v1}/auth/send-otp`,       otpLim);
-// `/login` et `/register` ont été supprimées ; le code par e-mail est le seul
-// chemin d'entrée et il passe déjà par `otpLim` côté envoi et par le
-// compteur anti-force-brute côté vérification.
+// Le commentaire qui occupait cette place affirmait que le code par e-mail
+// « passe déjà par `otpLim` côté envoi ». Il ne le faisait pas : `otpLim`
+// n'était branché que sur `/send-otp`, le chemin par téléphone. Une phrase
+// qui décrit une protection absente la rend introuvable.
+app.use(`${v1}/auth/send-email-otp`, otpLim);
 app.use(`${v1}/auth/verify-email-otp`, authLim);
+// La connexion d'administration n'avait aucune limite dédiée : seule la
+// limite globale, à mille requêtes par quart d'heure, s'y appliquait.
+app.use(`${v1}/admin/login`,         authLim);
 app.use(`${v1}/auth`,                authRoutes);
 app.use(`${v1}/profile`,             profileRoutes);
 app.use(`${v1}/admin`,               adminRoutes);

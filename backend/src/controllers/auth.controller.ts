@@ -130,7 +130,10 @@ export async function sendEmailOtp(req: Request, res: Response): Promise<void> {
     const { isNewUser } = await authService.sendEmailOtp(req.body.email);
     res.json({ message: 'Code OTP envoyé par email.', isNewUser });
   } catch (e: any) {
-    res.status(500).json({ message: e.message ?? 'Erreur lors de l\'envoi.' });
+    // Un quota atteint n'est pas une panne : le dire en 500 ferait croire à
+    // l'utilisateur que le serveur est cassé, et l'inviterait à réessayer.
+    res.status(e?.statut ?? 500)
+       .json({ message: e.message ?? 'Erreur lors de l\'envoi.' });
   }
 }
 
