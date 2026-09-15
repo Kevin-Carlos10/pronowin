@@ -270,6 +270,19 @@ model PaymentMethod {
   key       String   @unique
   label     String
   phone     String
+  /// Modèle de code USSD propre à l'opérateur, saisi dans l'administration.
+  ///
+  /// Exemple Orange Money Burkina : `*144*10*{numero}*{montant}#`.
+  ///
+  /// `{numero}` et `{montant}` sont substitués par l'application. Le numéro
+  /// n'est donc **jamais** recopié dans ce modèle : il vit dans `phone`, et
+  /// cette table est sa source unique. Une copie ici prendrait du retard le
+  /// jour où le numéro change — et un code USSD périmé ne se voit pas : il
+  /// compose, il aboutit, et l'argent part chez quelqu'un d'autre.
+  ///
+  /// Nul tant qu'aucun modèle n'est saisi : l'écran affiche alors le numéro
+  /// seul, comme avant.
+  ussdTemplate String? @map("ussd_template")
   /// Désactiver plutôt que supprimer : les transactions passées gardent la clé.
   isActive  Boolean  @default(true) @map("is_active")
   sortOrder Int      @default(0)    @map("sort_order")

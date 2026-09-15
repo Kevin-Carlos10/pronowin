@@ -9,6 +9,8 @@
 .pm-label  { font-weight: 700; font-size: .92rem; }
 .pm-key    { font-size: .7rem; color: var(--text-dim); font-family: monospace; margin-top: .1rem; }
 .pm-phone  { font-family: monospace; font-size: .95rem; color: var(--primary); font-weight: 700; letter-spacing: .02em; }
+.pm-ussd   { font-family: monospace; font-size: .78rem; color: var(--text-m); margin-top: .2rem; }
+.pm-ussd.vide { font-style: italic; }
 .pm-acts   { display: flex; gap: .4rem; }
 .pm-form   { display: grid; grid-template-columns: 1fr 1fr 90px auto; gap: .6rem; align-items: end;
              padding: 1rem 1.1rem; background: var(--surface-d); border-top: 1px solid var(--border); }
@@ -76,7 +78,12 @@
       <div class="pm-label"><%= m.label %></div>
       <div class="pm-key"><%= m.key %></div>
     </div>
-    <div class="pm-phone"><%= m.phone %></div>
+    <div>
+      <div class="pm-phone"><%= m.phone %></div>
+      <div class="pm-ussd <%= m.ussdTemplate ? '' : 'vide' %>">
+        <%= m.ussdTemplate || 'pas de code USSD' %>
+      </div>
+    </div>
 
     <span class="badge <%= m.isActive ? 'badge-ok' : 'badge-warn' %>">
       <%= m.isActive ? 'Actif' : 'Masqué' %>
@@ -84,7 +91,7 @@
 
     <div class="pm-acts">
       <button type="button" class="btn btn-outline btn-sm"
-              onclick="modifier('<%= m.id %>', <%= JSON.stringify(m.label) %>, <%= JSON.stringify(m.phone) %>, <%= m.sortOrder %>)">
+              onclick="modifier('<%= m.id %>', <%= JSON.stringify(m.label) %>, <%= JSON.stringify(m.phone) %>, <%= m.sortOrder %>, <%= JSON.stringify(m.ussdTemplate || '') %>)">
         <svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier
       </button>
       <form method="POST" action="/admin/paiements/<%= m.id %>/toggle" style="display:inline">
@@ -116,6 +123,11 @@
              placeholder="22645568158">
     </div>
     <div>
+      <label for="pm-ussd">Code USSD</label>
+      <input class="input" type="text" id="pm-ussd" name="ussd_template" maxlength="64"
+             placeholder="*144*10*{numero}*{montant}#">
+    </div>
+    <div>
       <label for="pm-order">Ordre</label>
       <input class="input" type="number" id="pm-order" name="sort_order" value="0" min="0" max="99">
     </div>
@@ -139,6 +151,17 @@
       <label style="font-size:.72rem;font-weight:700;color:var(--text-m)">NUMÉRO</label>
       <input class="input" type="text" name="phone" id="edit-phone" required style="margin-top:.3rem" aria-label="Numéro">
     </div>
+    <div class="form-group" style="margin-bottom:.8rem">
+      <label style="font-size:.72rem;font-weight:700;color:var(--text-m)">CODE USSD</label>
+      <input class="input" type="text" name="ussd_template" id="edit-ussd" maxlength="64"
+             style="margin-top:.3rem;font-family:monospace"
+             placeholder="*144*10*{numero}*{montant}#" aria-label="Code USSD">
+      <p style="margin:.35rem 0 0;font-size:.72rem;color:var(--text-m);line-height:1.5">
+        <code>{numero}</code> et <code>{montant}</code> sont remplacés par l'application.
+        Laissez vide si cet opérateur n'a pas de code composable : l'écran
+        affichera le numéro seul.
+      </p>
+    </div>
     <div class="form-group" style="margin-bottom:1.1rem">
       <label style="font-size:.72rem;font-weight:700;color:var(--text-m)">ORDRE D'AFFICHAGE</label>
       <input class="input" type="number" name="sort_order" id="edit-order" min="0" max="99" style="margin-top:.3rem" aria-label="Ordre d'affichage">
@@ -152,11 +175,12 @@
 </div>
 
 <script>
-  function modifier(id, label, phone, ordre) {
+  function modifier(id, label, phone, ordre, ussd) {
     document.getElementById('form-edit').action = '/admin/paiements/' + id;
     document.getElementById('edit-label').value = label;
     document.getElementById('edit-phone').value = phone;
     document.getElementById('edit-order').value = ordre;
+    document.getElementById('edit-ussd').value  = ussd || '';
     const m = document.getElementById('modal-edit');
     m.style.display = 'flex';
     document.getElementById('edit-label').focus();

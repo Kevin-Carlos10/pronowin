@@ -59,7 +59,21 @@ describe('source unique du numéro de paiement', () => {
     // La forme `lignes.length ? lignes : X` est précisément celle qui ne sait
     // pas distinguer « table vide » de « tout masqué ».
     expect(code).not.toMatch(/lignes\.length\s*\?/);
-    expect(code).toMatch(/return\s+lignes\s*;/);
+
+    // Le contrôle exigeait auparavant `return lignes;` au mot près. Il tenait
+    // donc deux choses : l'absence de repli, qui est son objet, et le fait que
+    // les lignes ne soient pas transformées, qui ne l'est pas. Ajouter un
+    // `.map` pour renommer un champ le faisait tomber sans qu'aucun repli
+    // n'ait reparu.
+    //
+    // Ce qui compte est que la valeur rendue dérive de `lignes`, et de rien
+    // d'autre : pas d'un `||`, pas d'un `??`, pas d'une constante.
+    // `codeSeul()` retire les commentaires : l'ancrage doit porter sur le code.
+    const debut = code.indexOf('return lignes');
+    expect(debut).toBeGreaterThan(-1);
+
+    const instruction = code.slice(debut, code.indexOf(';', debut) + 1);
+    expect(instruction).not.toMatch(/\|\||\?\?/);
   });
 
   it('une base injoignable ne devine pas un numéro', () => {

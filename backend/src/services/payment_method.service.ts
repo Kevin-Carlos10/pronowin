@@ -16,8 +16,56 @@ export interface MethodePaiement {
   key:       string;
   label:     string;
   phone:     string;
+  /** Modèle de code USSD, ou `null` si l'opérateur n'en a pas. */
+  ussd:      string | null;
   isActive:  boolean;
   sortOrder: number;
+}
+
+/** Les seuls marqueurs substitués dans un modèle USSD. */
+export const MARQUEURS_USSD = ['{numero}', '{montant}'] as const;
+
+/**
+ * Valide un modèle de code USSD — « *144*10*{numero}*{montant}# ».
+ *
+ * Vide ⇒ `null` : l'opérateur n'en a pas, et l'écran affiche le numéro seul.
+ *
+ * Le contrôle central est l'interdiction d'une longue suite de chiffres. Un
+ * administrateur qui recopie le numéro dans le modèle obtient quelque chose
+ * qui fonctionne le jour même, et qui devient faux dès que le numéro change
+ * dans `phone` — sans rien casser de visible : le code compose, il aboutit, et
+ * l'argent part chez quelqu'un d'autre. C'est la seule erreur de cet écran qui
+ * ne se rattrape pas.
+ */
+export function validerUssd(brut: string | null | undefined): string | null {
+  const t = (brut ?? '').trim();
+  if (!t) return null;
+
+  if (t.length > 64) {
+    throw new Error('Code USSD trop long (64 caractères maximum).');
+  }
+  if (!/^[*#]/.test(t) || !t.endsWith('#')) {
+    throw new Error('Un code USSD commence par « * » et se termine par « # ».');
+  }
+
+  const inconnus = (t.match(/\{[^}]*\}/g) ?? [])
+    .filter(m => !MARQUEURS_USSD.includes(m as typeof MARQUEURS_USSD[number]));
+  if (inconnus.length) {
+    throw new Error(
+      `Marqueur inconnu ${inconnus.join(', ')} — seuls ${MARQUEURS_USSD.join(' et ')} sont remplacés.`);
+  }
+
+  const sansMarqueurs = t.replace(/\{[^}]*\}/g, '');
+  if (/[^0-9*#]/.test(sansMarqueurs)) {
+    throw new Error('Un code USSD ne contient que des chiffres, « * » et « # ».');
+  }
+  if (/\d{8,}/.test(sansMarqueurs)) {
+    throw new Error(
+      'Ce code contient un numéro écrit à la main. Utilisez {numero} : sinon il '
+      + 'restera en arrière le jour où le numéro de réception changera, et '
+      + "l'argent partira ailleurs.");
+  }
+  return t;
 }
 
 // Il y avait ici un repli sur `process.env.MOBCASH_ORANGE`, pour le cas d'une
@@ -48,10 +96,13 @@ export async function listerPubliques(): Promise<MethodePaiement[]> {
     const lignes = await prisma.paymentMethod.findMany({
       where:   { isActive: true },
       orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
-      select:  { key: true, label: true, phone: true, isActive: true, sortOrder: true },
+      select: {
+        key: true, label: true, phone: true,
+        ussdTemplate: true, isActive: true, sortOrder: true,
+      },
     });
     // Aucune ligne active ⇒ aucune méthode. C'est une réponse, pas un échec.
-    return lignes;
+    return lignes.map(({ ussdTemplate, ...reste }) => ({ ...reste, ussd: ussdTemplate }));
   } catch {
     // Base injoignable : on ne devine pas un numéro. L'écran de paiement
     // annoncera qu'aucun moyen n'est disponible, ce qui est vrai à cet instant.
@@ -81,9 +132,11 @@ function _valider(label: string, phone: string) {
 }
 
 export async function creer(params: {
-  key?: string; label: string; phone: string; isActive?: boolean; sortOrder?: number;
+  key?: string; label: string; phone: string; ussd?: string | null;
+  isActive?: boolean; sortOrder?: number;
 }) {
   const phone = _valider(params.label, params.phone);
+  const ussd  = validerUssd(params.ussd);
   const key   = normaliserCle(params.key?.trim() || params.label);
   if (!key) throw new Error('Impossible de dériver un identifiant depuis ce nom.');
 
@@ -93,6 +146,7 @@ export async function creer(params: {
   return prisma.paymentMethod.create({
     data: {
       key, label: params.label.trim(), phone,
+      ussdTemplate: ussd,
       isActive:  params.isActive  ?? true,
       sortOrder: params.sortOrder ?? 0,
     },
@@ -100,7 +154,8 @@ export async function creer(params: {
 }
 
 export async function modifier(id: string, params: {
-  label?: string; phone?: string; isActive?: boolean; sortOrder?: number;
+  label?: string; phone?: string; ussd?: string | null;
+  isActive?: boolean; sortOrder?: number;
 }) {
   const actuel = await prisma.paymentMethod.findUnique({ where: { id } });
   if (!actuel) throw new Error('Méthode introuvable.');
@@ -115,6 +170,11 @@ export async function modifier(id: string, params: {
     data: {
       label: label.trim(),
       phone,
+      // `undefined` = champ absent du formulaire (bascule actif/inactif), on
+      // garde l'existant. Une chaîne vide, elle, efface volontairement.
+      ussdTemplate: params.ussd === undefined
+        ? actuel.ussdTemplate
+        : validerUssd(params.ussd),
       isActive:  params.isActive  ?? actuel.isActive,
       sortOrder: params.sortOrder ?? actuel.sortOrder,
     },

@@ -74,6 +74,8 @@ r.post('/payment-methods', adminMiddleware, async (req: AdminRequest, res) => {
       key:       req.body.key,
       label:     String(req.body.label ?? ''),
       phone:     String(req.body.phone ?? ''),
+      ussd:      req.body.ussd_template !== undefined
+                   ? String(req.body.ussd_template) : undefined,
       isActive:  req.body.is_active !== false,
       sortOrder: Number(req.body.sort_order ?? 0),
     }));
@@ -85,6 +87,10 @@ r.put('/payment-methods/:id', adminMiddleware, async (req: AdminRequest, res) =>
     res.json(await Methodes.modifier(req.params.id, {
       label:     req.body.label !== undefined ? String(req.body.label) : undefined,
       phone:     req.body.phone !== undefined ? String(req.body.phone) : undefined,
+      // `undefined` distingue « champ absent » (la bascule actif/inactif
+      // n'envoie que `is_active`) de « champ vidé », qui efface le modèle.
+      ussd:      req.body.ussd_template !== undefined
+                   ? String(req.body.ussd_template) : undefined,
       isActive:  req.body.is_active !== undefined ? req.body.is_active === true || req.body.is_active === 'true' : undefined,
       sortOrder: req.body.sort_order !== undefined ? Number(req.body.sort_order) : undefined,
     }));

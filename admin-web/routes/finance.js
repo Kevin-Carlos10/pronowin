@@ -230,6 +230,7 @@ module.exports = (app, ctx) => {
       const r = await api(req.cookies.admin_token).post('/admin/payment-methods', {
         label:      sanitize(req.body.label ?? '', 40),
         phone:      (req.body.phone ?? '').trim(),
+        ussd_template: (req.body.ussd_template ?? '').trim(),
         sort_order: clampInt(req.body.sort_order, 0, 99, 0),
       });
       logAction(req, 'settings_changed', `Opérateur ajouté : ${r.data?.label ?? ''}`,
@@ -245,6 +246,7 @@ module.exports = (app, ctx) => {
       const r = await api(req.cookies.admin_token).put('/admin/payment-methods/' + req.params.id, {
         label:      sanitize(req.body.label ?? '', 40),
         phone:      (req.body.phone ?? '').trim(),
+        ussd_template: (req.body.ussd_template ?? '').trim(),
         sort_order: clampInt(req.body.sort_order, 0, 99, 0),
       });
       logAction(req, 'settings_changed', `Opérateur modifié : ${r.data?.label ?? ''}`,

@@ -10,8 +10,10 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/config/contact_support.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/utils/code_ussd.dart';
 import '../../../../shared/utils/montant.dart';
 import '../../../../shared/widgets/country_pill_selector.dart';
 import '../../domain/tarifs_premium.dart';
@@ -1024,6 +1026,19 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
       ? ''
       : (widget.methodes[_choix]['label'] ?? '').toString();
 
+  /// Le code à composer pour cet opérateur et cette formule, s'il y en a un.
+  ///
+  /// Nul quand l'opérateur n'a pas de modèle configuré : l'écran affiche alors
+  /// le numéro seul, comme avant.
+  String? get _codeUssd {
+    final n = _numero;
+    if (n == null) return null;
+    return construireCodeUssd(
+      modele:  (widget.methodes[_choix]['ussd'] as String?),
+      numero:  n,
+      montant: (widget.price as num).round());
+  }
+
   /// `22645568158` → `+226 45 56 81 58`.
   ///
   /// Onze chiffres d'affilée se recopient mal et se vérifient encore plus mal
@@ -1033,16 +1048,53 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
     final chiffres = brut.replaceAll(RegExp(r'\D'), '');
     if (chiffres.length < 8) return brut;
     // Indicatif UEMOA à trois chiffres (226, 225, 221…) suivi de l'abonné.
-    final indicatif = chiffres.length > 8
-        ? chiffres.substring(0, chiffres.length - 8)
-        : '';
-    final abonne = chiffres.substring(chiffres.length - 8);
+    //
+    // La découpe vient de `numeroAbonne`, celle-là même qui alimente le code
+    // USSD. Deux découpes — une pour montrer, une pour composer — laisseraient
+    // l'écran afficher un numéro et en composer un autre.
+    final abonne    = numeroAbonne(brut);
+    final indicatif = chiffres.substring(0, chiffres.length - abonne.length);
     final paires = <String>[];
     for (var i = 0; i < abonne.length; i += 2) {
       paires.add(abonne.substring(i, i + 2));
     }
     final corps = paires.join(' ');
     return indicatif.isEmpty ? corps : '+$indicatif $corps';
+  }
+
+  /// Ouvre le composeur avec le code déjà saisi.
+  ///
+  /// `ACTION_DIAL` — le code est prêt, l'abonné appuie sur appeler. Composer
+  /// lui-même exigerait la permission d'appeler, que cette application n'a pas
+  /// et n'a aucune raison de demander.
+  ///
+  /// Le repli est copié, pas silencieux : un bouton qui ne fait rien sur un
+  /// écran de paiement laisse croire que le versement a échoué.
+  Future<void> _composer() async {
+    final code = _codeUssd;
+    if (code == null) return;
+    HapticFeedback.selectionClick();
+    final messager = ScaffoldMessenger.maybeOf(context);
+
+    // Le « # » doit être encodé : laissé tel quel, il est lu comme un fragment
+    // d'URL et le code arrive tronqué dans le composeur — sans erreur, juste
+    // incomplet. `encodeComponent` conserve les « * », qui ne sont pas réservés.
+    var ouvert = false;
+    try {
+      ouvert = await launchUrl(
+        Uri.parse('tel:${Uri.encodeComponent(code)}'),
+        mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('[USSD] composeur indisponible : $e');
+    }
+    if (ouvert) return;
+
+    await Clipboard.setData(ClipboardData(text: code));
+    messager?.showSnackBar(SnackBar(
+      content: Text('Code copié : $code\nCollez-le dans votre composeur.'),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 6),
+    ));
   }
 
   void _copier() {
@@ -1167,6 +1219,52 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
             ),
           ]),
         ),
+
+      // Le code composable, quand l'opérateur en publie un.
+      //
+      // Il porte déjà le numéro et le montant : c'est trois erreurs de saisie
+      // en moins sur le seul écran où une erreur envoie l'argent ailleurs.
+      if (_codeUssd != null) ...[
+        const SizedBox(height: 10),
+        GestureDetector(
+          onTap: _composer,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.4))),
+            child: Row(children: [
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(_codeUssd!, style: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    fontFamily: 'monospace')),
+                  const SizedBox(height: 2),
+                  Text('Numéro et montant déjà inclus',
+                    style: TextStyle(fontSize: 11, color: context.cl.textS)),
+                ])),
+              const SizedBox(width: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: AppColors.primary,
+                  borderRadius: BorderRadius.circular(8)),
+                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  Icon(Icons.dialpad_rounded, color: Colors.white, size: 14),
+                  SizedBox(width: 6),
+                  Text('Composer', style: TextStyle(
+                    color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
+                ]),
+              ),
+            ]),
+          ),
+        ),
+      ],
 
       if (_numero != null) ...[
         const SizedBox(height: 8),
