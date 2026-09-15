@@ -576,8 +576,14 @@ class _DisciplineReminder extends StatelessWidget {
       // calcule une mise et en tient le registre, il ne la place nulle part,
       // et un build destiné à Google Play n'a pas à désigner un guichet de
       // paris.
+      // « Respecte toujours la mise calculée » donnait un ordre au nom d'un
+      // calcul qui n'est pas une science : une part fixe du capital selon la
+      // note que l'analyste a cochée. Le garde-fou utile — ne pas dépasser —
+      // reste ; l'injonction de s'y conformer, non. Un repère qu'on présente
+      // comme un plafond se discute ; un ordre, non.
       Expanded(child: Text(
-        'Respecte toujours la mise calculée. Ne la dépasse jamais.',
+        'La mise suggérée est un plafond, pas une consigne : '
+        'ne la dépasse pas.',
         style: TextStyle(color: context.cl.textS, fontSize: 11, height: 1.4),
       )),
     ]),

@@ -1,6 +1,7 @@
 ﻿import { NotificationService } from './notification.service';
 import { nomDevise } from '../utils/devise';
 import { prisma } from '../lib/prisma';
+import { miseSuggeree } from './mise_suggeree';
 import { MESSAGE_REFUS, RefusPari, refusDePari } from './verrou_pari';
 
 const notifSvc = new NotificationService();
@@ -21,16 +22,20 @@ export class PariFerme extends Error {
   }
 }
 
-// ── Calcul de la mise suggérée (Kelly simplifié) ──────────────────────────────
-// confidenceScore est l'échelle 1-5 cochée par l'admin à la publication.
-export function suggestStake(balance: number, confidenceScore: number): number {
-  const pct = confidenceScore >= 5 ? 0.05   // 5/5 → 5%
-            : confidenceScore >= 4 ? 0.03   // 4/5 → 3%
-            : confidenceScore >= 3 ? 0.03   // 3/5 → 3%
-            : 0.015;                         // 1-2/5 → 1.5%
-  const raw = balance * pct;
-  // Arrondir à la centaine la plus proche (pratique pour XOF)
-  return Math.max(100, Math.round(raw / 100) * 100);
+// ── Mise suggérée ─────────────────────────────────────────────────────────────
+//
+// Le calcul vit dans `mise_suggeree.ts`, avec le détail de ce qu'il fait et de
+// ce qu'il ne fait pas — il s'appelait « Kelly simplifié » sans employer ni
+// probabilité ni cote, imposait un plancher de 100 sans regarder le solde, et
+// arrondissait à la centaine quelle que soit la devise.
+//
+// `confidenceScore` est l'échelle 1-5 cochée par l'analyste à la publication.
+export function suggestStake(
+  balance: number,
+  confidenceScore: number,
+  devise: string | null | undefined = 'XOF',
+): number {
+  return miseSuggeree(balance, confidenceScore, devise);
 }
 
 // ── GET ou CREATE bankroll ────────────────────────────────────────────────────
@@ -127,7 +132,8 @@ export async function placeBet(
   });
   if (refus) throw new PariFerme(refus);
 
-  const suggestedAmount = suggestStake(bankroll.currentBalance, pro.confidenceScore);
+  const suggestedAmount = suggestStake(
+    bankroll.currentBalance, pro.confidenceScore, bankroll.currency);
   const oddsUsed        = pro.oddsRecommended;
   const potentialGain   = parseFloat((stakedAmount * oddsUsed).toFixed(2));
 

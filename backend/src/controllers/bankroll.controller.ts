@@ -96,8 +96,14 @@ export const getSuggestedStake = async (req: AuthRequest, res: Response) => {
     const bankroll = await svc.getBankroll(req.userId!);
     if (!bankroll) { res.status(404).json({ message: 'Pas de bankroll configurée.' }); return; }
 
-    const confidenceScore = parseInt(req.query.confidence as string ?? '60');
-    const suggested = svc.suggestStake(bankroll.currentBalance, confidenceScore);
+    // Le défaut valait `'60'` — un pourcentage, là où l'on attend une note de
+    // 1 à 5. `60 >= 5` retenait donc la part la plus élevée : en l'absence du
+    // paramètre, l'API conseillait la mise maximale. Un défaut doit être
+    // prudent, pas généreux.
+    const brut = parseInt(req.query.confidence as string, 10);
+    const confidenceScore = Number.isFinite(brut) ? brut : 3;
+    const suggested = svc.suggestStake(
+      bankroll.currentBalance, confidenceScore, bankroll.currency);
     res.json({
       suggested_amount: suggested,
       current_balance:  bankroll.currentBalance,
