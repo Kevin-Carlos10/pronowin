@@ -13,11 +13,22 @@ import 'package:pronowin/core/config/pages_legales.dart';
 ///    dans une webview interne.
 ///
 /// Aucun de ces trois n'était accidentel pris isolément ; ensemble ils ne
-/// suivaient aucune règle. La webview interne l'emporte : elle montre la page
-/// publique — celle qu'on cite, qu'un examinateur ouvre, qu'un utilisateur peut
-/// lire sans avoir l'application — sans le faire sortir de l'application. Sur
-/// le paywall, l'écart comptait le plus : envoyer quelqu'un dans son navigateur
-/// au moment où il décide de payer, c'est le perdre.
+/// suivaient aucune règle. Ils ouvrent désormais tous le navigateur du
+/// système, sur la page publique — celle qu'on cite, qu'un examinateur ouvre,
+/// qu'un utilisateur peut lire sans avoir l'application.
+///
+/// ── Pourquoi plus la webview interne ──────────────────────────────────────
+///
+/// Elle l'avait d'abord emporté, pour ne pas faire sortir de l'application au
+/// moment du paiement. Mais les pages du site portent leur propre en-tête :
+/// empilé sous la barre de l'application, cela faisait deux en-têtes, et
+/// surtout une sortie. « Retour à l'accueil » chargeait la page commerciale
+/// *dans* l'application, dont l'appel à l'action est « Télécharger l'app » —
+/// l'application déjà en cours d'exécution.
+///
+/// La contrepartie assumée : sur le paywall, le lecteur quitte l'application
+/// pour lire les conditions. C'est le prix d'une page qui s'affiche chez elle,
+/// avec un retour que tout le monde sait faire.
 ///
 /// « Jeu responsable » fait exception, et c'est dit : le site n'a pas cette
 /// page, et ces ressources doivent rester atteignables hors ligne.
@@ -48,13 +59,29 @@ void main() {
     }
   });
 
-  test('l\'ouverture passe par la webview interne, pas par le navigateur', () {
+  test('l\'ouverture passe par le navigateur du système', () {
     final source = lire(liens);
-    expect(source, contains("context.push('/navigateur'"),
-        reason: 'les pages légales doivent s\'ouvrir dans l\'application');
-    expect(source, isNot(contains('launchUrl')),
-        reason: 'la première version quittait l\'application pour le '
-                'navigateur du système, y compris depuis le paywall');
+    expect(source, contains('LaunchMode.externalApplication'),
+        reason: 'les pages légales doivent s\'ouvrir hors de l\'application');
+    expect(source, isNot(contains("context.push('/navigateur'")),
+        reason: 'la webview interne empilait son en-tête sous celui du site, '
+                'dont le « Retour à l\'accueil » ramenait la page commerciale '
+                'dans l\'application');
+  });
+
+  test('l\'ouverture ne se fie pas à canLaunchUrl', () {
+    // Il répond faux sur Android dès qu'aucune requête de visibilité de paquet
+    // ne couvre le schéma, alors même que l'ouverture aurait réussi. S'en
+    // servir comme garde transformerait un lien qui marche en lien mort — la
+    // leçon est déjà écrite dans `BookmakerAffiliation.ouvrir`.
+    //
+    // Seules les lignes actives comptent : le commentaire du fichier *doit*
+    // nommer `canLaunchUrl` pour expliquer pourquoi il est écarté.
+    final actif = lire(liens)
+        .split('\n')
+        .where((l) => !l.trimLeft().startsWith('//'))
+        .join('\n');
+    expect(actif, isNot(contains('canLaunchUrl')));
   });
 
   test('aucun lien légal ne contourne PagesLegales', () {

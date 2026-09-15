@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:go_router/go_router.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../constants/app_constants.dart';
 
@@ -46,26 +46,73 @@ class PagesLegales {
   /// Politique de confidentialité — l'URL déclarée à Google Play.
   static String get confidentialite => '${AppConstants.siteUrl}/confidentialite';
 
-  /// Ouvre une page légale dans la webview interne.
+  /// Ouvre une page légale dans le navigateur du système.
   ///
-  /// La première version lançait le navigateur du système. C'était le mauvais
-  /// choix, et l'écran des Paramètres le montrait déjà : « Mentions légales »
-  /// y ouvrait `/navigateur`, une webview qui affiche la page du site sans
-  /// quitter l'application, avec son état d'erreur et son bouton « ouvrir à
-  /// l'extérieur ». Trois comportements coexistaient donc pour trois liens qui
-  /// font la même chose.
+  /// ── Ce que la webview interne faisait à la place ──────────────────────────
   ///
-  /// Sur le paywall, l'écart comptait le plus : envoyer quelqu'un dans Chrome
-  /// au moment où il décide de payer, c'est le perdre. La webview satisfait la
-  /// même exigence — des conditions publiques, vérifiables, citables — sans
-  /// faire sortir de l'application.
+  /// Ces liens passaient par `/navigateur`, une webview affichant la page sans
+  /// quitter l'application. L'argument était le paywall : envoyer quelqu'un
+  /// dans Chrome au moment où il décide de payer, c'est le perdre.
   ///
-  /// L'échec reste dit : la webview affiche son propre état d'erreur quand la
-  /// page ne charge pas. Un lien légal qui ne fait rien quand on le touche est
-  /// le défaut que ce projet a déjà corrigé deux fois.
-  static void ouvrir(BuildContext context, String url, {String titre = ''}) {
+  /// Ce que cet arbitrage n'avait pas vu, c'est ce que la webview montre
+  /// réellement. Les pages du site portent leur propre en-tête, avec le logo
+  /// et « Retour à l'accueil ». Empilé sous la barre de l'application, cela
+  /// donnait deux en-têtes — et surtout une sortie : la toucher chargeait la
+  /// page d'accueil commerciale *dans* l'application, dont l'appel à l'action
+  /// est « Télécharger l'app ». On proposait de télécharger l'application
+  /// depuis l'intérieur de l'application.
+  ///
+  /// Le navigateur du système n'a pas ce défaut : la page s'ouvre chez elle,
+  /// avec son en-tête à sa place, et revenir se fait par le geste système que
+  /// tout le monde connaît.
+  ///
+  /// ── L'échec doit rester visible ───────────────────────────────────────────
+  ///
+  /// C'est la contrepartie de sortir de l'application, et la seule chose qui
+  /// pouvait mal tourner dans cette bascule. Un lien légal qui ne fait rien
+  /// quand on le touche est un défaut que ce projet a déjà corrigé deux fois.
+  ///
+  /// Deux précautions, donc :
+  ///
+  ///  - **pas de `canLaunchUrl`.** Sur Android il répond faux dès qu'aucune
+  ///    requête de visibilité de paquet ne couvre le schéma, alors même que
+  ///    l'ouverture aurait réussi. S'y fier transformerait un lien qui marche
+  ///    en lien mort. On tente, et on ne retient l'échec que s'il se produit.
+  ///  - **un échec dit à l'écran.** `launchUrl` peut aussi renvoyer `false`
+  ///    sans lever. Dans les deux cas l'utilisateur voit l'adresse et peut la
+  ///    copier : il reste un chemin vers le texte légal, ce qui est
+  ///    précisément ce qu'on doit lui garantir.
+  static Future<void> ouvrir(BuildContext context, String url,
+      {String titre = ''}) async {
     HapticFeedback.selectionClick();
-    context.push('/navigateur', extra: {'url': url, 'title': titre});
+
+    // Capturé avant le premier `await` : `context` ne survit pas forcément à
+    // la coupure, le messager si.
+    final messager = ScaffoldMessenger.maybeOf(context);
+
+    var ouverte = false;
+    try {
+      ouverte = await launchUrl(Uri.parse(url),
+          mode: LaunchMode.externalApplication);
+    } catch (e) {
+      debugPrint('[Légal] ouverture de $url impossible : $e');
+    }
+    if (ouverte) return;
+
+    debugPrint('[Légal] aucun navigateur n\'a pris $url');
+    messager?.showSnackBar(SnackBar(
+      content: Text(
+        titre.isEmpty
+            ? 'Impossible d\'ouvrir le navigateur.\n$url'
+            : 'Impossible d\'ouvrir « $titre ».\n$url',
+      ),
+      behavior: SnackBarBehavior.floating,
+      duration: const Duration(seconds: 8),
+      action: SnackBarAction(
+        label: 'Copier',
+        onPressed: () => Clipboard.setData(ClipboardData(text: url)),
+      ),
+    ));
   }
 
   /// Le titre de la barre, pour chaque page.
