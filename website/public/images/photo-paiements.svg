@@ -1,0 +1,17 @@
+<svg width="1200" height="900" viewBox="0 0 1200 900" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#101f16"/>
+      <stop offset="100%" stop-color="#02100a"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="900" fill="url(#bg2)"/>
+  <g transform="translate(380,260)">
+    <rect x="0" y="0" width="440" height="280" rx="24" fill="#123422" stroke="#22c56b" stroke-width="3"/>
+    <rect x="0" y="70" width="440" height="46" fill="#0d1512"/>
+    <circle cx="380" cy="220" r="26" fill="#f2b705" opacity="0.85"/>
+    <text x="34" y="180" font-family="-apple-system,Segoe UI,Arial,sans-serif" font-size="30" fill="#eef3ee">•••• •••• •••• 4821</text>
+  </g>
+  <text x="600" y="660" text-anchor="middle" font-family="-apple-system,Segoe UI,Arial,sans-serif" font-size="40" font-weight="700" fill="#eef3ee">Photo — emplacement</text>
+  <text x="600" y="704" text-anchor="middle" font-family="-apple-system,Segoe UI,Arial,sans-serif" font-size="22" fill="#8fae9c">À remplacer par une vraie capture Mobile Money</text>
+</svg>

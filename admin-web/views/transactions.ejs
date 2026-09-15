@@ -1,14 +1,13 @@
 <%- include('layout_top', {page:'transactions'}) %>
 
 <style>
-/* ── Cards transaction ───────────────────────────────────────────────────── */
+/* ── Cartes de versement ─────────────────────────────────────────────────── */
 .tx-card {
   background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius); overflow: hidden;
-  transition: box-shadow var(--transition), border-color var(--transition);
+  border-radius: 16px; overflow: hidden;
+  transition: box-shadow .2s, border-color .2s, transform .2s;
 }
-.tx-card:hover { box-shadow: var(--shadow-lg); }
-.tx-card.deposit  { border-left: 3px solid var(--success); }
+.tx-card:hover { box-shadow: 0 10px 32px rgba(0,0,0,.25); transform: translateY(-2px); }
 .tx-card.withdrawal { border-left: 3px solid var(--warning); }
 
 .tx-header {
@@ -29,7 +28,6 @@
   font-size: 1.5rem; font-weight: 800; line-height: 1;
   color: var(--text);
 }
-.tx-amount.deposit    { color: var(--success); }
 .tx-amount.withdrawal { color: var(--warning); }
 
 .tx-body {
@@ -76,13 +74,14 @@
 
 /* ── Stats cards ─────────────────────────────────────────────────────────── */
 .tx-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px,1fr)); gap: .75rem; margin-bottom: 1.25rem; }
-.tx-stat  { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-s); padding: .85rem 1rem; }
-.tx-stat .val  { font-size: 1.35rem; font-weight: 800; line-height: 1; margin-bottom: .2rem; }
-.tx-stat .lbl  { font-size: .72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
-.tx-stat.green .val { color: var(--success); }
-.tx-stat.orange .val { color: var(--warning); }
-.tx-stat.red .val   { color: var(--error); }
-.tx-stat.blue .val  { color: var(--info); }
+.tx-stat  { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border-s); border-radius: 14px; padding: .85rem 1rem; transition: transform .2s, box-shadow .2s; }
+.tx-stat:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.2); }
+.tx-stat .lbl  { font-size: .7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-bottom: 2px; }
+.tx-stat .val  { font-size: 1.7rem; font-weight: 900; line-height: 1; letter-spacing: -.03em; }
+.tx-stat.green  { border-left-color: var(--success); } .tx-stat.green  .val { color: var(--success); }
+.tx-stat.orange { border-left-color: var(--warning); } .tx-stat.orange .val { color: var(--warning); }
+.tx-stat.red    { border-left-color: var(--error);   } .tx-stat.red    .val { color: var(--error); }
+.tx-stat.blue   { border-left-color: var(--info);    } .tx-stat.blue   .val { color: var(--info); }
 
 /* ── Instructions box ────────────────────────────────────────────────────── */
 .tx-instr {
@@ -92,6 +91,44 @@
 }
 .tx-instr strong { color: var(--text); }
 .tx-instr .hi    { color: var(--primary); font-weight: 700; }
+
+/* -- Etat vide explicatif ------------------------------------------------- */
+.tx-vide      { text-align: center; padding: 2.6rem 1.5rem 2rem; }
+.tx-vide-ic   { width: 62px; height: 62px; border-radius: 50%; margin: 0 auto .9rem;
+                background: rgba(34,197,94,.10); display: flex; align-items: center;
+                justify-content: center; color: var(--success); }
+.tx-vide-ic.attente { background: rgba(148,163,184,.12); color: var(--text-dim); }
+.tx-vide h3   { margin: 0 0 .35rem; font-size: 1.12rem; font-weight: 800; letter-spacing: -.01em; }
+.tx-vide .diag{ margin: 0 auto; max-width: 46ch; font-size: .87rem; line-height: 1.65; color: var(--text-m); }
+.tx-vide .diag strong { color: var(--text); font-weight: 700; }
+
+.tx-flux      { display: flex; align-items: stretch; justify-content: center; gap: 0;
+                flex-wrap: wrap; margin: 1.6rem auto 0; max-width: 660px; }
+.tx-etape     { flex: 1 1 150px; min-width: 140px; padding: .85rem .7rem; position: relative; }
+.tx-etape + .tx-etape::before {
+                content: ""; position: absolute; left: 0; top: 28px; bottom: 28px;
+                width: 1px; background: var(--border); }
+.tx-etape .n  { width: 24px; height: 24px; border-radius: 50%; margin: 0 auto .5rem;
+                background: var(--surface-d); border: 1px solid var(--border);
+                display: flex; align-items: center; justify-content: center;
+                font-size: .72rem; font-weight: 800; color: var(--text-dim); }
+.tx-etape.ici .n { background: var(--primary); border-color: var(--primary); color: #fff; }
+.tx-etape .t  { font-size: .8rem; font-weight: 700; margin-bottom: .2rem; }
+.tx-etape.ici .t { color: var(--primary); }
+.tx-etape .d  { font-size: .72rem; line-height: 1.5; color: var(--text-dim); }
+
+.tx-jauge     { margin: 1.5rem auto 0; max-width: 480px; display: grid;
+                grid-template-columns: repeat(3, 1fr); gap: .6rem; }
+.tx-jauge > div { background: var(--surface-d); border: 1px solid var(--border);
+                border-radius: 12px; padding: .6rem .5rem; }
+.tx-jauge .v  { font-size: 1.15rem; font-weight: 900; line-height: 1.1; letter-spacing: -.02em; }
+.tx-jauge .l  { font-size: .66rem; text-transform: uppercase; letter-spacing: .05em;
+                color: var(--text-dim); font-weight: 700; margin-top: .2rem; }
+@media (max-width: 560px) {
+  .tx-etape + .tx-etape::before { display: none; }
+  .tx-etape { border-top: 1px solid var(--border); }
+  .tx-flux .tx-etape:first-child { border-top: 0; }
+}
 
 @media (max-width: 640px) {
   .tx-body { grid-template-columns: 1fr 1fr; }
@@ -103,6 +140,13 @@
   const _items = data.data ?? [];
   const _total = data.total ?? 0;
   const _ls    = localStats;
+  const _methodCfg = {
+    orange_money: { emoji:'🟠', label:'Orange Money' },
+    moov_money:   { emoji:'🔵', label:'Moov Money' },
+    mtn_momo:     { emoji:'🟡', label:'MTN MoMo' },
+    wave:         { emoji:'🌊', label:'Wave' },
+  };
+  function _methodLabel(m) { const c = _methodCfg[m] || { emoji:'💳', label:m }; return c.emoji + ' ' + c.label; }
   function _fq(obj) {
     return Object.entries(obj).filter(([,v])=>v).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join('&');
   }
@@ -110,13 +154,15 @@
 
 <div class="topbar">
   <div>
-    <h2>💰 Transactions en attente</h2>
-    <small id="tx-count"><%= _total %> demande<%= _total!==1?'s':'' %> en attente</small>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Versements à effectuer</h2>
+    <small id="tx-count"><%= _total %> versement<%= _total!==1?'s':'' %> de gains de parrainage en attente</small>
   </div>
   <div style="display:flex;gap:.5rem">
-    <a href="/admin/historique" class="btn btn-outline btn-sm">📋 Historique complet</a>
+    <a href="/admin/historique" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Historique complet</a>
   </div>
 </div>
+
+<%- include('_onglets_paiements', { actif: 'transactions' }) %>
 
 <% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
 <% if (error)   { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
@@ -124,64 +170,122 @@
 <!-- ── Stats rapides ─────────────────────────────────────────────────────── -->
 <div class="tx-stats">
   <div class="tx-stat blue">
-    <div class="val"><%= _total %></div>
     <div class="lbl">En attente</div>
-  </div>
-  <div class="tx-stat green">
-    <div class="val"><%= _ls.deposits %></div>
-    <div class="lbl">Dépôts</div>
+    <div class="val"><%= _total %></div>
   </div>
   <div class="tx-stat orange">
-    <div class="val"><%= _ls.withdrawals %></div>
-    <div class="lbl">Retraits</div>
-  </div>
-  <div class="tx-stat blue">
-    <div class="val"><%= _ls.totalAmount.toLocaleString() %></div>
-    <div class="lbl">Total FCFA</div>
+    <div class="lbl">Total à verser</div>
+    <div class="val"><%= _ls.totalAmount.toLocaleString() %> <span style="font-size:.8rem;font-weight:600">FCFA</span></div>
   </div>
 </div>
 
 <!-- ── Filtres ───────────────────────────────────────────────────────────── -->
 <div class="card" style="padding:.85rem 1.25rem;margin-bottom:1rem">
   <form method="GET" action="/admin/transactions" class="tx-filter-row">
-    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, 1xBet ID…">
-    <select name="type">
-      <option value="">Tous types</option>
-      <option value="deposit"    <%= type==='deposit'    ?'selected':'' %>>⬇️ Dépôt</option>
-      <option value="withdrawal" <%= type==='withdrawal' ?'selected':'' %>>⬆️ Retrait</option>
-    </select>
-    <select name="method">
+    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, 1xBet ID…" aria-label="Rechercher">
+
+    <select name="method" aria-label="Méthode">
       <option value="">Toutes méthodes</option>
-      <option value="orange_money"  <%= method==='orange_money'  ?'selected':'' %>>Orange Money</option>
-      <option value="mtn_momo"      <%= method==='mtn_momo'      ?'selected':'' %>>MTN MoMo</option>
-      <option value="wave"          <%= method==='wave'          ?'selected':'' %>>Wave</option>
-      <option value="moov_money"    <%= method==='moov_money'    ?'selected':'' %>>Moov Money</option>
+      <% (typeof methods !== 'undefined' ? methods : []).forEach(m => { %>
+      <option value="<%= m %>" <%= method===m ?'selected':'' %>><%= _methodLabel(m) %></option>
+      <% }) %>
     </select>
     <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
-    <% if (search || type || method) { %>
-    <a href="/admin/transactions" class="btn btn-outline btn-sm">✕ Reset</a>
+    <% if (search || method) { %>
+    <a href="/admin/transactions" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a>
     <% } %>
   </form>
 </div>
 
-<!-- ── Liste des transactions ────────────────────────────────────────────── -->
-<% if (_items.length === 0) { %>
+<!-- ── Liste des versements ──────────────────────────────────────────────── -->
+<% if (_items.length === 0 && (search || method)) { %>
 <div class="empty-state card">
-  <div style="font-size:2.5rem;margin-bottom:.5rem"><%= (search||type||method) ? '🔍' : '✅' %></div>
-  <p><%= (search||type||method) ? 'Aucune transaction ne correspond aux filtres.' : 'Aucune demande en attente. Tout est à jour !' %></p>
-  <% if (search||type||method) { %>
-  <a href="/admin/transactions" class="btn btn-outline" style="margin-top:.75rem">Voir toutes les transactions</a>
+  <p>Aucun versement ne correspond aux filtres.</p>
+  <a href="/admin/transactions" class="btn btn-outline" style="margin-top:.75rem">Voir tous les versements</a>
+</div>
+
+<% } else if (_items.length === 0) { %>
+<%
+  // Une file vide ne dit pas si le systeme marche ou s'il est casse. On explique
+  // donc d'ou viennent ces lignes, et a quelle etape la chaine est arretee.
+  const _c    = typeof contexte !== 'undefined' && contexte ? contexte : null;
+  const _avec = _c ? (_c.parrains_avec_gains ?? 0) : null;
+  const _elig = _c ? (_c.parrains_eligibles  ?? 0) : null;
+  const _cum  = _c ? (_c.total_gains         ?? 0) : null;
+  const _seuil= _c ? (_c.seuil_retrait     ?? 2000) : 2000;
+  // Etape ou la chaine s'arrete : 1 aucun gain, 2 gains sous le seuil, 3 pret a demander.
+  const _etape = !_c ? 0 : (_avec === 0 ? 1 : (_elig === 0 ? 2 : 3));
+%>
+<div class="card tx-vide">
+  <div class="tx-vide-ic <%= _etape === 3 ? '' : 'attente' %>">
+    <svg class="ic ic-xl" aria-hidden="true"><use href="#ic-<%= _etape === 3 ? 'check' : 'clock' %>"/></svg>
+  </div>
+
+  <h3>Aucun versement en attente</h3>
+
+  <p class="diag">
+    <% if (_etape === 0) { %>
+      Rien à traiter pour le moment. Les demandes de versement des gains de
+      parrainage s’affichent ici dès qu’un parrain en fait la demande.
+    <% } else if (_etape === 1) { %>
+      C’est normal : <strong>aucun parrain n’a encore de gains</strong>.
+      La commission n’est créditée qu’au moment où un filleul devient Premium —
+      tant qu’aucun parrainage n’a abouti à un abonnement, cette file reste vide.
+    <% } else if (_etape === 2) { %>
+      <strong><%= _avec %> parrain<%= _avec !== 1 ? 's' : '' %></strong> cumule<%= _avec !== 1 ? 'nt' : '' %>
+      <strong><%= _cum.toLocaleString() %>&nbsp;FCFA</strong>, mais aucun n’atteint encore le
+      seuil de <strong><%= _seuil.toLocaleString() %>&nbsp;FCFA</strong> requis pour demander un versement.
+    <% } else { %>
+      <strong><%= _elig %> parrain<%= _elig !== 1 ? 's' : '' %></strong> peu<%= _elig !== 1 ? 'vent' : 't' %>
+      déjà demander un versement (<%= _cum.toLocaleString() %>&nbsp;FCFA cumulés),
+      mais aucun ne l’a fait. Rien à traiter de votre côté.
+    <% } %>
+  </p>
+
+  <div class="tx-flux">
+    <div class="tx-etape <%= _etape === 1 ? 'ici' : '' %>">
+      <div class="n">1</div>
+      <div class="t">Un filleul s’abonne</div>
+      <div class="d">La commission du parrain est créditée à ce moment-là, pas à l’inscription.</div>
+    </div>
+    <div class="tx-etape <%= _etape === 2 ? 'ici' : '' %>">
+      <div class="n">2</div>
+      <div class="t">Le parrain atteint <%= _seuil.toLocaleString() %>&nbsp;FCFA</div>
+      <div class="d">En dessous du seuil, le bouton de retrait reste inactif dans l’application.</div>
+    </div>
+    <div class="tx-etape <%= _etape === 3 ? 'ici' : '' %>">
+      <div class="n">3</div>
+      <div class="t">Il demande son versement</div>
+      <div class="d">La demande arrive ici. Vous envoyez l’argent, puis vous l’approuvez.</div>
+    </div>
+  </div>
+
+  <% if (_c) { %>
+  <div class="tx-jauge">
+    <div>
+      <div class="v"><%= _avec %></div>
+      <div class="l">Parrains avec gains</div>
+    </div>
+    <div>
+      <div class="v"><%= _cum.toLocaleString() %></div>
+      <div class="l">FCFA cumulés</div>
+    </div>
+    <div>
+      <div class="v"><%= _elig %></div>
+      <div class="l">Au-dessus du seuil</div>
+    </div>
+  </div>
   <% } %>
 </div>
+
 <% } else { %>
 
 <div style="display:flex;flex-direction:column;gap:.75rem">
 <% _items.forEach((tx, idx) => {
-     const isDeposit = tx.type === 'deposit';
      const initials  = (tx.user?.pseudo ?? '?')[0].toUpperCase();
      const method    = (tx.paymentMethod ?? '').replace(/_/g,' ');
 %>
-<div class="tx-card <%= isDeposit ? 'deposit' : 'withdrawal' %>" id="tx-<%= tx.id %>">
+<div class="tx-card withdrawal" id="tx-<%= tx.id %>">
 
   <!-- En-tête -->
   <div class="tx-header">
@@ -197,8 +301,8 @@
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
-      <span class="badge <%= isDeposit ? 'badge-ok' : 'badge-warn' %>"><%= isDeposit ? '⬇️ Dépôt' : '⬆️ Retrait' %></span>
-      <div class="tx-amount <%= isDeposit ? 'deposit' : 'withdrawal' %>">
+      <span class="badge badge-warn"><svg class="ic" aria-hidden="true"><use href="#ic-gift"/></svg> Gains de parrainage</span>
+      <div class="tx-amount withdrawal">
         <%= (tx.amount ?? 0).toLocaleString() %> <span style="font-size:.9rem;font-weight:600">FCFA</span>
       </div>
     </div>
@@ -216,7 +320,7 @@
     </div>
     <div class="tx-field">
       <div class="tx-field-lbl">ID 1xBet</div>
-      <div class="tx-field-val accent"><%= tx.xbetId ?? '⚠️ Non renseigné' %></div>
+      <div class="tx-field-val accent"><%= tx.xbetId ?? '⚠ Non renseigné' %></div>
     </div>
     <div class="tx-field">
       <div class="tx-field-lbl">Date demande</div>
@@ -225,17 +329,11 @@
     <div class="tx-field" style="grid-column: span 2">
       <div class="tx-field-lbl">Instructions</div>
       <div class="tx-instr">
-        <% if (isDeposit) { %>
-          Vérifier réception de <strong><%= (tx.amount??0).toLocaleString() %> FCFA</strong>
-          via <strong><%= method %></strong>
-          depuis le <strong><%= tx.senderPhone ?? '—' %></strong>
-          → compte 1xBet <span class="hi"><%= tx.xbetId ?? '⚠️' %></span>
-        <% } else { %>
-          Envoyer <strong><%= (tx.amount??0).toLocaleString() %> FCFA</strong>
-          via <strong><%= method %></strong>
-          sur le <strong><%= tx.senderPhone ?? '—' %></strong>
-          (compte 1xBet <span class="hi"><%= tx.xbetId ?? '⚠️' %></span>)
-        <% } %>
+        <%# La branche « dépôt » (vérifier une réception) n'a plus lieu d'être :
+            un versement de gains part toujours de la plateforme vers le parrain. %>
+        Envoyer <strong><%= (tx.amount??0).toLocaleString() %> FCFA</strong>
+        via <strong><%= method %></strong>
+        sur le <strong><%= tx.senderPhone ?? '—' %></strong>
       </div>
     </div>
   </div>
@@ -245,27 +343,27 @@
   <div class="tx-actions">
     <form method="POST" action="/admin/transactions/<%= tx.id %>" id="form-<%= tx.id %>" style="display:contents">
       <div class="tx-note">
-        <textarea name="admin_note" placeholder="Note admin (optionnelle)…" rows="2"></textarea>
+        <textarea name="admin_note" placeholder="Note admin (optionnelle)…" rows="2" aria-label="Note administrateur"></textarea>
       </div>
       <div class="tx-btns">
         <button type="button" class="btn btn-success btn-sm"
           onclick="askConfirm({
-            icon:'✅',
-            title:'Confirmer la transaction',
+            icon:'check',
+            title:'Confirmer le versement',
             msg:'Valider <strong><%= (tx.amount??0).toLocaleString() %> FCFA</strong> pour <strong><%= tx.user?.pseudo ?? tx.id %></strong> ?',
             btnLabel:'Confirmer',
             btnClass:'btn-success',
             onConfirm: () => submitTx('<%= tx.id %>', 'completed')
-          })">✅ Approuver</button>
+          })"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Approuver</button>
         <button type="button" class="btn btn-danger btn-sm"
           onclick="askConfirm({
-            icon:'❌',
-            title:'Rejeter la transaction',
+            icon:'x',
+            title:'Rejeter le versement',
             msg:'Rejeter la demande de <strong><%= tx.user?.pseudo ?? tx.id %></strong> ?',
             btnLabel:'Rejeter',
             btnClass:'btn-danger',
             onConfirm: () => submitTx('<%= tx.id %>', 'rejected')
-          })">❌ Rejeter</button>
+          })"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Rejeter</button>
       </div>
       <input type="hidden" name="status" id="status-<%= tx.id %>">
     </form>
@@ -282,10 +380,10 @@
   <p style="color:var(--text-m);font-size:.78rem">Page <%= page %> / <%= totalPages %></p>
   <div style="display:flex;gap:.4rem">
     <% if (page > 1) { %>
-    <a href="/admin/transactions?<%= _fq({search,type,method,page:page-1}) %>" class="btn btn-sm btn-outline">← Préc.</a>
+    <a href="/admin/transactions?<%= _fq({search,method,page:page-1}) %>" class="btn btn-sm btn-outline">← Préc.</a>
     <% } %>
     <% if (page < totalPages) { %>
-    <a href="/admin/transactions?<%= _fq({search,type,method,page:page+1}) %>" class="btn btn-sm btn-outline">Suiv. →</a>
+    <a href="/admin/transactions?<%= _fq({search,method,page:page+1}) %>" class="btn btn-sm btn-outline">Suiv. →</a>
     <% } %>
   </div>
 </div>

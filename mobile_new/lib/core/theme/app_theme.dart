@@ -21,8 +21,8 @@ class AppColors {
   static const borderSoft  = Color(0xFF2A3050);
 
   static const textPrimary   = Color(0xFFE2E8F0);
-  static const textSecondary = Color(0xFF8892AA);
-  static const textMuted = Color(0xFF4A5568);
+  static const textSecondary = Color(0xFF95A0B8);
+  static const textMuted     = Color(0xFF7D8592);
 }
 
 // ─── Couleurs dynamiques selon le thème ───────────────────────────────────────
@@ -41,9 +41,26 @@ class AppCl {
   Color get borderS   => isDark ? const Color(0xFF2A3050) : const Color(0xFFEBEFF5);
 
   // Textes
+  //
+  // ── Pourquoi ces valeurs, et pas les précédentes ─────────────────────
+  //
+  // `textM` valait #4A5568 en sombre et #A0AEC0 en clair. Sur les fonds de
+  // l'application, cela donnait **2,27:1** et **2,26:1** — la moitié du
+  // minimum. Or ces gris ne servent pas qu'à décorer : ils portent les
+  // libellés, les dates, les légendes et les onglets.
+  //
+  // La référence est WCAG AA, 4,5:1 pour du texte courant. C'est un repère
+  // d'accessibilité sur ces couleurs-ci, pas une certification de
+  // l'application.
+  //
+  // Relever `textM` le rapprochait de `textS` au point d'effacer la
+  // hiérarchie : `textS` a donc été éclairci en sombre pour conserver un
+  // écart comparable à celui du thème clair. `app_contraste_test.dart`
+  // recalcule les rapports depuis ce fichier — une palette qui repasserait
+  // sous le seuil fait tomber le banc.
   Color get textP     => isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1A202C);
-  Color get textS     => isDark ? const Color(0xFF8892AA) : const Color(0xFF4A5568);
-  Color get textM     => isDark ? const Color(0xFF4A5568) : const Color(0xFFA0AEC0);
+  Color get textS     => isDark ? const Color(0xFF95A0B8) : const Color(0xFF4A5568);
+  Color get textM     => isDark ? const Color(0xFF7D8592) : const Color(0xFF666F7B);
 
   // Icône de section
   Color get sectionIcon => isDark ? const Color(0xFF8892AA) : const Color(0xFF4A5568);

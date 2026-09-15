@@ -1,0 +1,196 @@
+<%- include('layout_top', {page:'bankroll'}) %>
+
+<%
+  function qParam(obj) {
+    return Object.entries(obj).filter(([,v])=>v).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join('&');
+  }
+  const _filterQs = qParam({ search, sort_by: sortBy, sort_dir: sortDir });
+  const _st       = locals.stats ?? null;
+  const fmtN      = n => Math.round(n ?? 0).toLocaleString('fr-FR');
+%>
+
+<div class="topbar">
+  <div>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Bankroll</h2>
+    <small><%= total %> utilisateur<%= total>1?'s':'' %> avec un budget configuré</small>
+  </div>
+  <a href="/admin/bankroll/export?<%= _filterQs %>" class="btn btn-outline"
+     title="Exporter les lignes correspondant aux filtres">
+    <svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV
+  </a>
+</div>
+
+<% if(error){ %>
+  <div class="alert alert-error" style="margin-bottom:12px">
+    <svg class="ic" aria-hidden="true"><use href="#ic-x-circle"/></svg> <%= error %>
+  </div>
+<% } %>
+
+<%# ── Agrégats ──
+    La page listait les comptes sans jamais dire si la fonctionnalité marche :
+    budget confié, encours, résultat global et paris en attente de règlement. %>
+<% if(_st){ %>
+<div class="stats-grid" style="margin-bottom:16px">
+  <div class="stat-card s-blue">
+    <div class="lbl">Budget confié</div>
+    <div class="val"><%= fmtN(_st.total_budget) %></div>
+  </div>
+  <div class="stat-card s-teal">
+    <div class="lbl">Encours actuel</div>
+    <div class="val"><%= fmtN(_st.total_balance) %></div>
+  </div>
+  <div class="stat-card <%= (_st.total_profit ?? 0) >= 0 ? 's-green' : 's-red' %>">
+    <div class="lbl">Résultat global</div>
+    <div class="val" style="color:var(--<%= (_st.total_profit ?? 0) >= 0 ? 'on-success' : 'on-danger' %>)">
+      <%= (_st.total_profit ?? 0) >= 0 ? '+' : '' %><%= fmtN(_st.total_profit) %>
+    </div>
+  </div>
+  <div class="stat-card s-purple">
+    <div class="lbl">ROI moyen</div>
+    <div class="val"><%= _st.roi === null ? '—' : (_st.roi >= 0 ? '+' : '') + _st.roi + '%' %></div>
+  </div>
+  <div class="stat-card s-orange">
+    <div class="lbl">Taux de réussite</div>
+    <div class="val"><%= _st.win_rate === null ? '—' : _st.win_rate + '%' %></div>
+  </div>
+  <div class="stat-card <%= _st.pending_bets > 0 ? 's-orange' : 's-blue' %>">
+    <div class="lbl">Paris en attente</div>
+    <div class="val"><%= fmtN(_st.pending_bets) %></div>
+  </div>
+</div>
+<% } %>
+
+<%# Le tri se fait par en-têtes cliquables (gestionnaire global th[data-sort]),
+    comme sur Utilisateurs — les deux `<select>` faisaient double emploi. %>
+<div class="filterbar">
+  <form method="GET" action="/admin/bankroll" style="display:contents">
+    <input type="hidden" name="sort_by"  value="<%= sortBy %>">
+    <input type="hidden" name="sort_dir" value="<%= sortDir %>">
+    <input type="search" name="search" value="<%= search %>"
+           aria-label="Rechercher un utilisateur"
+           placeholder="Rechercher pseudo, téléphone, email…">
+    <button type="submit" class="btn btn-sm btn-primary">
+      <svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg> Filtrer
+    </button>
+    <% if(search){ %>
+      <a href="/admin/bankroll" class="btn btn-sm btn-outline">
+        <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Effacer
+      </a>
+    <% } %>
+  </form>
+</div>
+
+<div class="dt-wrap">
+  <% if(!data || data.length === 0){ %>
+    <div class="empty-state" style="padding:40px">
+      <div class="empty-state-icon">
+        <svg class="ic ic-xl" aria-hidden="true"><use href="#ic-target"/></svg>
+      </div>
+      <div class="empty-state-title">
+        <%= search ? 'Aucun résultat pour cette recherche' : 'Aucune bankroll configurée' %>
+      </div>
+      <div class="empty-state-desc">
+        <%= search
+              ? 'Essaie un autre pseudo, numéro ou email.'
+              : 'Les bankrolls apparaissent ici dès qu\'un utilisateur définit son budget dans l\'application.' %>
+      </div>
+      <% if(search){ %>
+        <a href="/admin/bankroll" class="btn btn-outline" style="margin-top:12px">Effacer la recherche</a>
+      <% } %>
+    </div>
+  <% } else { %>
+  <div class="dt-scroll">
+    <div class="table-wrap">
+      <table class="dt">
+        <thead>
+          <tr>
+            <th scope="col" data-sort="pseudo">Utilisateur</th>
+            <th scope="col" class="num" data-sort="currentBalance">Solde</th>
+            <th scope="col" class="num" data-sort="totalBudget">Budget</th>
+            <th scope="col" class="num">Paris</th>
+            <th scope="col" class="num">Réussite</th>
+            <th scope="col" class="num">Profit</th>
+            <th scope="col" class="num" title="Profit rapporté au total misé sur les paris tranchés">ROI</th>
+            <th scope="col" class="col-act">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+        <% data.forEach(b => { %>
+        <tr>
+          <td>
+            <div class="team">
+              <span class="team-logo"><%= (b.pseudo||'?')[0].toUpperCase() %></span>
+              <span style="min-width:0">
+                <span style="font-weight:600;color:var(--text);display:block"><%= b.pseudo %></span>
+                <span style="font-size:11px;color:var(--text-m)"><%= b.phone_number || b.email || '—' %></span>
+              </span>
+            </div>
+          </td>
+          <td class="num" style="font-weight:700;color:<%= b.current_balance >= b.total_budget ? 'var(--on-success)' : 'var(--text)' %>">
+            <%= fmtN(b.current_balance) %>
+            <div style="font-size:10px;color:var(--text-m);font-weight:400"><%= b.currency %></div>
+          </td>
+          <td class="num" style="color:var(--text-m)"><%= fmtN(b.total_budget) %></td>
+          <td class="num">
+            <%= b.total_bets %>
+            <% if(b.pending_bets > 0){ %>
+              <div style="font-size:10px;color:var(--on-warning)"><%= b.pending_bets %> en attente</div>
+            <% } %>
+          </td>
+          <td class="num">
+            <% if(b.win_rate === null){ %>
+              <span style="color:var(--text-m)">—</span>
+            <% } else { %>
+              <span class="badge <%= b.win_rate >= 50 ? 'badge-ok' : 'badge-err' %>"><%= b.win_rate %>%</span>
+              <%# « 0V / 2D » était cryptique. %>
+              <div style="font-size:10px;color:var(--text-m)"><%= b.wins %> gagné<%= b.wins>1?'s':'' %> · <%= b.losses %> perdu<%= b.losses>1?'s':'' %></div>
+            <% } %>
+          </td>
+          <td class="num" style="font-weight:600;color:var(--<%= b.total_profit >= 0 ? 'on-success' : 'on-danger' %>)">
+            <%= b.total_profit >= 0 ? '+' : '' %><%= fmtN(b.total_profit) %>
+          </td>
+          <td class="num">
+            <% if(b.roi === null){ %>
+              <span style="color:var(--text-m)">—</span>
+            <% } else { %>
+              <span style="font-weight:600;color:var(--<%= b.roi >= 0 ? 'on-success' : 'on-danger' %>)"><%= b.roi >= 0 ? '+' : '' %><%= b.roi %>%</span>
+            <% } %>
+          </td>
+          <td class="col-act">
+            <a href="/admin/bankroll/<%= b.user_id %>" class="btn btn-sm btn-outline">
+              Voir <svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"/></svg>
+            </a>
+          </td>
+        </tr>
+        <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <% if(total_pages > 1){ %>
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-top:1px solid var(--border)">
+    <p style="color:var(--text-m);font-size:12px">
+      <%= ((page-1)*per_page)+1 %>–<%= Math.min(page*per_page, total) %> sur <%= total %>
+    </p>
+    <div style="display:flex;gap:6px;align-items:center">
+      <% if(page > 1){ %>
+        <a href="/admin/bankroll?page=<%= page-1 %>&<%= _filterQs %>" class="btn btn-sm btn-outline">
+          <svg class="ic" aria-hidden="true"><use href="#ic-arrow-left"/></svg> Préc.
+        </a>
+      <% } %>
+      <span style="padding:5px 12px;background:var(--surface-d);border-radius:6px;font-size:12px;color:var(--text)">
+        Page <%= page %> / <%= total_pages %>
+      </span>
+      <% if(page < total_pages){ %>
+        <a href="/admin/bankroll?page=<%= page+1 %>&<%= _filterQs %>" class="btn btn-sm btn-outline">
+          Suiv. <svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"/></svg>
+        </a>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+  <% } %>
+</div>
+
+<%- include('layout_bottom') %>

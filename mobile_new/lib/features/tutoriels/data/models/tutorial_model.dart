@@ -15,7 +15,8 @@ class TutorialModel extends TutorialEntity {
     title:           j['title'] as String,
     description:     j['description'] as String? ?? '',
     level:           _parseLevel(j['level'] as String?),
-    category:        _parseCategory(j['category'] as String?),
+    category:        (j['category'] as String?)?.trim().isNotEmpty == true
+      ? (j['category'] as String).trim() : 'valuebet',
     thumbnailUrl:    j['thumbnail_url'] as String? ?? '',
     videoUrl:        j['video_url'] as String?,
     articleContent:  j['article_content'] as String?,
@@ -27,21 +28,12 @@ class TutorialModel extends TutorialEntity {
     isCompleted:     j['is_completed'] as bool? ?? false,
     authorName:      j['author_name'] as String? ?? 'Expert PronoWin',
     authorAvatar:    j['author_avatar'] as String?,
-    publishedAt:     DateTime.parse(j['published_at'] as String? ?? DateTime.now().toIso8601String()),
+    publishedAt:     DateTime.parse(j['published_at'] as String? ?? DateTime.now().toIso8601String()).toLocal(),
   );
 
   static TutorialLevel _parseLevel(String? s) => switch (s) {
     'intermediate' => TutorialLevel.intermediate,
     'advanced'     => TutorialLevel.advanced,
     _              => TutorialLevel.beginner,
-  };
-
-  static TutorialCategory _parseCategory(String? s) => switch (s) {
-    'bankroll'   => TutorialCategory.bankroll,
-    'martingale' => TutorialCategory.martingale,
-    'trading'    => TutorialCategory.trading,
-    'psychology' => TutorialCategory.psychology,
-    'statistics' => TutorialCategory.statistics,
-    _            => TutorialCategory.valuebet,
   };
 }

@@ -8,7 +8,7 @@ class TutorialRepositoryImpl implements TutorialRepository {
   final TutorialRemoteDataSource _remote;
   TutorialRepositoryImpl(this._remote);
 
-  @override Future<Either<Failure, List<TutorialEntity>>> getTutorials({TutorialLevel? level, TutorialCategory? category, bool? premiumOnly}) async {
+  @override Future<Either<Failure, List<TutorialEntity>>> getTutorials({TutorialLevel? level, String? category, bool? premiumOnly}) async {
     try { return Right(await _remote.getTutorials(level: level, category: category)); }
     on Failure catch (f) { return Left(f); } catch (_) { return Left(UnknownFailure()); }
   }

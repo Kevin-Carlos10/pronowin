@@ -1,0 +1,36 @@
+<%#
+  Sous-navigation des écrans de paiement.
+
+  « Versements », « Historique » et « Méthodes de paiement » occupaient trois
+  entrées de la barre latérale alors qu'ils traitent d'un même sujet : l'argent
+  qui entre et qui sort. On les regroupe sous une seule entrée, avec ces onglets
+  pour circuler entre eux — les trois pages restent des routes à part entière,
+  rien n'est supprimé ni déplacé.
+
+  L'onglet actif est passé explicitement en paramètre (`actif`), jamais déduit
+  du local `page` : `transactions.ejs` et `historique.ejs` s'en servent déjà
+  comme numéro de pagination, si bien qu'il y vaut `1` et non le nom de la
+  section. Le repère d'onglet actif n'apparaissait donc sur aucune des deux.
+
+  Chaque onglet n'apparaît que si la permission correspondante est accordée.
+%>
+<nav class="sous-onglets" aria-label="Sections paiements">
+  <% if (hasPerm('transactions')) { %>
+  <a class="sous-onglet <%= actif === 'transactions' ? 'on' : '' %>" href="/admin/transactions"
+     aria-current="<%= actif === 'transactions' ? 'page' : 'false' %>">
+    <svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg> À verser
+  </a>
+  <% } %>
+  <% if (hasPerm('historique')) { %>
+  <a class="sous-onglet <%= actif === 'historique' ? 'on' : '' %>" href="/admin/historique"
+     aria-current="<%= actif === 'historique' ? 'page' : 'false' %>">
+    <svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Historique
+  </a>
+  <% } %>
+  <% if (typeof isMain !== 'undefined' && isMain) { %>
+  <a class="sous-onglet <%= actif === 'paiements' ? 'on' : '' %>" href="/admin/paiements"
+     aria-current="<%= actif === 'paiements' ? 'page' : 'false' %>">
+    <svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Méthodes
+  </a>
+  <% } %>
+</nav>

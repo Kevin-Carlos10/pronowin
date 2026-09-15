@@ -1,7 +1,7 @@
 import { Router } from 'express';
-import { authMiddleware } from '../middleware/auth.middleware';
+import { optionalAuthMiddleware } from '../middleware/auth.middleware';
 import { getLeaderboard } from '../controllers/leaderboard.controller';
 
 const r = Router();
-r.get('/', authMiddleware, getLeaderboard);
+r.get('/', optionalAuthMiddleware, getLeaderboard);
 export default r;

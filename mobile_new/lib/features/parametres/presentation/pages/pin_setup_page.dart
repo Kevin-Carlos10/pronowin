@@ -1,10 +1,15 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/pin_store.dart';
 import '../providers/settings_provider.dart';
+import '../../../../shared/utils/retour.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/parametres';
+
 
 class PinSetupPage extends ConsumerStatefulWidget {
   const PinSetupPage({super.key});
@@ -51,8 +56,7 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
   Future<void> _validate() async {
     if (_pin == _confirm) {
       HapticFeedback.mediumImpact();
-      final p = await SharedPreferences.getInstance();
-      await p.setString('pin_code', _pin);
+      await ref.read(pinStoreProvider).save(_pin);
       await ref.read(settingsProvider.notifier).setPinEnabled(true);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -60,7 +64,7 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ));
-        context.pop();
+        retourOuAller(context, repli: _repli);
       }
     } else {
       HapticFeedback.heavyImpact();
@@ -81,7 +85,7 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
+          onPressed: () => retourOuAller(context, repli: _repli),
         ),
         title: Text(_step2 ? 'Confirmer le PIN' : 'Créer un code PIN'),
       ),

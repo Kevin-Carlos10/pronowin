@@ -3,19 +3,19 @@
 <style>
 /* ── KPI avancés ── */
 .kpi-row       { display: grid; grid-template-columns: repeat(auto-fill, minmax(175px,1fr)); gap: .9rem; margin-bottom: 1.25rem; }
-.kpi-box       { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.1rem 1.25rem; position: relative; overflow: hidden; transition: transform var(--transition), box-shadow var(--transition); }
-.kpi-box:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
-.kpi-box::after{ content:''; position:absolute; bottom:0;left:0;right:0; height:2px; }
-.kpi-box.c-blue::after   { background:var(--info); }
-.kpi-box.c-orange::after { background:var(--primary); }
-.kpi-box.c-green::after  { background:var(--success); }
-.kpi-box.c-red::after    { background:var(--error); }
-.kpi-box.c-purple::after { background:var(--purple); }
-.kpi-box.c-teal::after   { background:#14B8A6; }
-.kpi-emoji  { font-size: 1.3rem; margin-bottom: .35rem; }
-.kpi-v      { font-size: 1.75rem; font-weight: 800; line-height: 1; letter-spacing: -.5px; }
-.kpi-l      { font-size: .72rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; margin-top: .25rem; }
-.kpi-delta  { font-size: .75rem; margin-top: .4rem; font-weight: 500; }
+.kpi-box       { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 1.15rem 1.3rem; position: relative; overflow: hidden; transition: transform .2s, box-shadow .2s; }
+.kpi-box:hover { transform: translateY(-3px); box-shadow: 0 10px 32px rgba(0,0,0,.25); }
+.kpi-box::before { content:''; position:absolute; left:0;top:0;bottom:0; width:3px; border-radius:14px 0 0 14px; }
+.kpi-box.c-blue::before   { background:var(--info); box-shadow:0 0 10px var(--info); }
+.kpi-box.c-orange::before { background:var(--primary); box-shadow:0 0 10px rgba(var(--primary-rgb),.4); }
+.kpi-box.c-green::before  { background:var(--success); box-shadow:0 0 10px var(--success); }
+.kpi-box.c-red::before    { background:var(--error); box-shadow:0 0 10px var(--error); }
+.kpi-box.c-purple::before { background:var(--purple); }
+.kpi-box.c-teal::before   { background:#14B8A6; }
+.kpi-emoji  { font-size: 1.2rem; position:absolute; top:1rem; right:1rem; opacity:.6; }
+.kpi-v      { font-size: 2rem; font-weight: 900; line-height: 1; letter-spacing: -.04em; margin-top:.15rem; }
+.kpi-l      { font-size: .7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-bottom:2px; }
+.kpi-delta  { font-size: .75rem; margin-top: .45rem; font-weight: 500; }
 .delta-up   { color: var(--success); }
 .delta-down { color: var(--error); }
 .delta-neu  { color: var(--text-dim); }
@@ -24,7 +24,7 @@
 .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem; }
 .g3 { display: grid; grid-template-columns: 2fr 1fr; gap: 1rem; margin-bottom: 1rem; }
 .g3b{ display: grid; grid-template-columns: 1fr 2fr; gap: 1rem; margin-bottom: 1rem; }
-.ch-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
+.ch-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 1.3rem 1.4rem; }
 .ch-card h3 { font-size: .9rem; font-weight: 700; margin-bottom: .9rem; display:flex;align-items:center;justify-content:space-between; }
 .ch-card h3 small { font-weight: 400; color: var(--text-dim); font-size: .75rem; }
 
@@ -45,16 +45,29 @@
 .top-table tr:hover td { background:var(--surface-d); }
 .rank-badge { width:26px;height:26px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:.75rem;font-weight:700; }
 
+.top-table .bar { background:var(--surface-d); border-radius:99px; height:6px; overflow:hidden; }
+.top-table .bar > i { display:block; height:6px; border-radius:99px; }
+
+/* ── États vide / erreur ──
+   Une panne backend laissait les KPI sur « — » et les graphiques vides, sans
+   rien distinguer d'un jeu de données réellement vide. */
+.ch-msg { display:none; padding:1.5rem 1rem; text-align:center; font-size:.83rem; color:var(--text-m); }
+.ch-msg[data-on] { display:block; }
+.ch-msg.err { color:var(--on-danger); }
+.ch-card.is-msg .ch-plot,
+.ch-card.is-msg .top-table { display:none !important; }
+
 /* ── Switcher période ── */
 .period-bar { display:flex;gap:.4rem;flex-wrap:wrap; }
 .period-bar .btn.active { background:var(--btn-primary);color:#fff;border-color:var(--btn-primary); }
+.period-bar .btn[disabled] { opacity:.55; cursor:progress; }
 
 @media (max-width: 900px) { .g2,.g3,.g3b { grid-template-columns:1fr; } }
 </style>
 
 <div class="topbar">
   <div>
-    <h2>📈 Statistiques avancées</h2>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg> Statistiques avancées</h2>
     <small id="period-label">Chargement…</small>
   </div>
   <div class="period-bar">
@@ -62,14 +75,14 @@
     <button onclick="setPeriod(30)" id="btn-30"  class="btn btn-outline btn-sm">30j</button>
     <button onclick="setPeriod(90)" id="btn-90"  class="btn btn-outline btn-sm">90j</button>
     <button onclick="setPeriod(0)"  id="btn-all" class="btn btn-outline btn-sm">Tout</button>
-    <button onclick="refreshAll()"  class="btn btn-outline btn-sm" title="Actualiser">🔄</button>
+    <button onclick="refreshAll()"  class="btn btn-outline btn-sm" title="Actualiser" aria-label="Actualiser les statistiques"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg></button>
   </div>
 </div>
 
 <!-- ── KPI ligne 1 ─────────────────────────────────────────────────────────── -->
 <div class="kpi-row">
   <div class="kpi-box c-blue">
-    <div class="kpi-emoji">👥</div>
+    <div class="kpi-emoji"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></div>
     <div class="kpi-v" id="k-users">—</div>
     <div class="kpi-l">Utilisateurs total</div>
     <div class="kpi-delta delta-neu" id="k-users-d">—</div>
@@ -81,119 +94,133 @@
     <div class="kpi-delta delta-neu" id="k-new-d">—</div>
   </div>
   <div class="kpi-box c-orange">
-    <div class="kpi-emoji">👑</div>
+    <div class="kpi-emoji"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></div>
     <div class="kpi-v" id="k-premium">—</div>
     <div class="kpi-l">Premium actifs</div>
     <div class="kpi-delta delta-neu" id="k-conv">—</div>
   </div>
-  <div class="kpi-box c-red">
-    <div class="kpi-emoji">💰</div>
-    <div class="kpi-v" id="k-revenue">—</div>
-    <div class="kpi-l">Revenus FCFA</div>
-    <div class="kpi-delta delta-neu" id="k-revenue-d">—</div>
-  </div>
-  <div class="kpi-box c-teal">
-    <div class="kpi-emoji">📤</div>
-    <div class="kpi-v" id="k-withdrawals">—</div>
-    <div class="kpi-l">Retraits FCFA</div>
-    <div class="kpi-delta delta-neu" id="k-net">—</div>
-  </div>
   <div class="kpi-box c-purple">
-    <div class="kpi-emoji">🎯</div>
+    <div class="kpi-emoji"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg></div>
     <div class="kpi-v" id="k-winrate">—</div>
     <div class="kpi-l">Taux de réussite pronos</div>
     <div class="kpi-delta delta-neu" id="k-pronos-total">—</div>
   </div>
 </div>
 
-<!-- ── Revenus + Inscriptions (grands graphiques) ──────────────────────────── -->
-<div class="g2">
-  <div class="ch-card">
-    <h3>💰 Revenus par jour <small id="rev-total-lbl"></small></h3>
-    <div style="height:200px"><canvas id="c-revenue"></canvas></div>
-  </div>
-  <div class="ch-card">
-    <h3>👥 Inscriptions par jour <small id="users-total-lbl"></small></h3>
-    <div style="height:200px"><canvas id="c-signups"></canvas></div>
-  </div>
-</div>
-
-<!-- ── Répartition revenus + méthodes ─────────────────────────────────────── -->
-<div class="g3">
-  <div class="ch-card">
-    <h3>📊 Flux financiers par méthode de paiement</h3>
-    <div style="height:200px"><canvas id="c-methods"></canvas></div>
-  </div>
-  <div class="ch-card">
-    <h3>💳 Sources de revenus</h3>
-    <div style="height:200px;display:flex;align-items:center;justify-content:center"><canvas id="c-sources" style="max-height:190px"></canvas></div>
-  </div>
+<!-- ── Inscriptions ────────────────────────────────────────────────────────── -->
+<div class="ch-card" style="margin-bottom:1rem">
+  <h3><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Inscriptions par jour <small id="users-total-lbl"></small></h3>
+  <div class="ch-plot" style="height:200px"><canvas id="c-signups"></canvas></div>
+  <div class="ch-msg" id="msg-signups"></div>
 </div>
 
 <!-- ── Pronostics + Répartition users ─────────────────────────────────────── -->
 <div class="g3b">
   <div class="ch-card">
-    <h3>🎯 Performances pronostics <small id="pronos-period-lbl"></small></h3>
-    <div style="height:190px;display:flex;align-items:center;justify-content:center"><canvas id="c-pronos" style="max-height:180px"></canvas></div>
+    <h3><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Performances pronostics <small id="pronos-period-lbl"></small></h3>
+    <div class="ch-plot" style="height:190px;display:flex;align-items:center;justify-content:center"><canvas id="c-pronos" style="max-height:180px"></canvas></div>
+    <div class="ch-msg" id="msg-pronos"></div>
   </div>
   <div class="ch-card">
-    <h3>📦 Répartition utilisateurs</h3>
+    <h3><svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg> Répartition utilisateurs</h3>
     <div id="user-breakdown" style="padding-top:.25rem"></div>
   </div>
 </div>
 
 <!-- ── Évolution mensuelle (12 derniers mois) ──────────────────────────────── -->
 <div class="ch-card" style="margin-bottom:1rem">
-  <h3>📅 Évolution sur 12 mois <small>Inscriptions vs Revenus</small></h3>
-  <div style="height:200px"><canvas id="c-monthly"></canvas></div>
+  <h3><svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg> Évolution sur 12 mois <small>Inscriptions et revenus</small></h3>
+  <div class="ch-plot" style="height:220px;position:relative"><canvas id="c-monthly"></canvas></div>
+  <div class="ch-msg" id="msg-monthly"></div>
 </div>
 
-<!-- ── Top utilisateurs ───────────────────────────────────────────────────── -->
-<div class="ch-card" style="margin-bottom:1rem;padding:0;overflow:hidden">
-  <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border)">
-    <h3 style="margin:0;font-size:.95rem;">🏆 Top 10 utilisateurs — dépôts</h3>
+<!-- ── Taux de réussite par compétition ───────────────────────────────────── -->
+<div class="g3">
+  <div class="ch-card">
+    <h3><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg> Réussite par compétition <small id="leagues-lbl"></small></h3>
+    <div id="leagues-wrap">
+      <div class="table-wrap">
+        <table class="top-table" id="t-leagues">
+          <thead>
+            <tr><th scope="col">Compétition</th><th scope="col" style="text-align:right">Réglés</th>
+                <th scope="col" style="text-align:right">Cote moy.</th><th scope="col" style="width:150px">Réussite</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="ch-msg" id="msg-leagues"></div>
   </div>
-  <div class="table-wrap">
-    <table class="top-table">
-      <thead>
-        <tr>
-          <th>#</th><th>Utilisateur</th><th>Téléphone</th><th>Plan</th>
-          <th style="text-align:right">Nb dépôts</th><th style="text-align:right">Total FCFA</th>
-        </tr>
-      </thead>
-      <tbody id="top-body">
-        <tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">Chargement…</td></tr>
-      </tbody>
-    </table>
+
+  <!-- ── Top utilisateurs (l'endpoint existait, la page ne l'appelait pas) ── -->
+  <div class="ch-card">
+    <h3><svg class="ic" aria-hidden="true"><use href="#ic-medal"/></svg> Top utilisateurs <small>par abonnements cumulés</small></h3>
+    <div id="top-wrap">
+      <div class="table-wrap">
+        <table class="top-table" id="t-top"><tbody></tbody></table>
+      </div>
+    </div>
+    <div class="ch-msg" id="msg-top"></div>
   </div>
 </div>
 
 <!-- ── Chart.js ────────────────────────────────────────────────────────────── -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script src="/admin/vendor/chart.js/chart.umd.js"></script>
 <script>
-/* ── Config globale Chart.js ── */
-Chart.defaults.color        = '#8892AA';
-Chart.defaults.borderColor  = '#1E2A42';
-Chart.defaults.font.family  = "'Inter', system-ui, sans-serif";
-Chart.defaults.font.size    = 11;
-Chart.defaults.plugins.legend.labels.boxWidth = 10;
-Chart.defaults.plugins.legend.labels.padding  = 14;
-Chart.defaults.plugins.tooltip.backgroundColor = '#141926';
-Chart.defaults.plugins.tooltip.borderColor     = '#1E2A42';
-Chart.defaults.plugins.tooltip.borderWidth     = 1;
-Chart.defaults.plugins.tooltip.titleColor      = '#E2E8F0';
-Chart.defaults.plugins.tooltip.bodyColor       = '#8892AA';
-Chart.defaults.plugins.tooltip.padding         = 10;
+/* ── Config globale Chart.js ──
+   Les couleurs étaient figées sur la palette sombre : en thème clair les
+   libellés d'axes tombaient sous le seuil de lisibilité et l'infobulle était
+   une boîte noire au milieu d'une page blanche. On lit désormais les tokens du
+   socle, et on redessine quand le thème change. */
+function tok(name, fallback) {
+  const v = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  return v || fallback;
+}
+
+/* Chart.js absent (fichier non déployé, `npm install` oublié, serveur non
+   redémarré après ajout de la route) : sans ce garde-fou, la première ligne
+   qui touche `Chart` levait et TOUT le script mourait — les KPI restaient sur
+   « — » et le titre sur « Chargement… », sans un mot d'explication.
+   On dégrade au lieu de se taire : chiffres et tableaux restent servis, seuls
+   les trois graphiques annoncent ce qui manque. */
+const CHART_OK = typeof Chart !== 'undefined';
+
+function applyChartTheme() {
+  if (!CHART_OK) return;
+  Chart.defaults.color       = tok('--text-m', '#8892AA');
+  Chart.defaults.borderColor = tok('--border', '#1E2A42');
+  Chart.defaults.font.family = "'Inter', system-ui, sans-serif";
+  Chart.defaults.font.size   = 11;
+  Chart.defaults.plugins.legend.labels.boxWidth = 10;
+  Chart.defaults.plugins.legend.labels.padding  = 14;
+  Chart.defaults.plugins.tooltip.backgroundColor = tok('--surface',  '#141926');
+  Chart.defaults.plugins.tooltip.borderColor     = tok('--border',   '#1E2A42');
+  Chart.defaults.plugins.tooltip.borderWidth     = 1;
+  Chart.defaults.plugins.tooltip.titleColor      = tok('--text',     '#E2E8F0');
+  Chart.defaults.plugins.tooltip.bodyColor       = tok('--text-m',   '#8892AA');
+  Chart.defaults.plugins.tooltip.padding         = 10;
+}
+applyChartTheme();
+
+// Le sélecteur de thème n'agit que sur la classe de <html> : les graphiques
+// déjà rendus gardaient leurs couleurs jusqu'au prochain rechargement. On
+// redessine à partir du dernier jeu de données — rebasculer le thème ne doit
+// pas relancer six appels réseau.
+new MutationObserver(() => {
+  applyChartTheme();
+  if (lastPayload) render(lastPayload);
+}).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
 
 const COLORS = { blue:'#3B82F6', orange:'#F5A623', green:'#22C55E', red:'#EF4444', purple:'#A78BFA', teal:'#14B8A6', pink:'#EC4899' };
 function rgba(hex,a){ const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16); return `rgba(${r},${g},${b},${a})`; }
 function fmt(n){ return Math.round(n??0).toLocaleString('fr-FR'); }
 function fmtK(n){ n=Math.round(n??0); return n>=1000000?`${(n/1000000).toFixed(1)}M`:n>=1000?`${(n/1000).toFixed(0)}k`:String(n); }
 
-let charts = {};
+let charts      = {};
 let currentDays = 30;
+let lastPayload = null;   // dernier jeu de données rendu, pour redessiner sans refetch
 
-function destroyAll(){ Object.values(charts).forEach(c=>{try{c.destroy()}catch{}}); charts={}; }
+function destroyAll(){ if(!CHART_OK) return; Object.values(charts).forEach(c=>{try{c.destroy()}catch{}}); charts={}; }
 
 /* ── Switcher période ── */
 function setPeriod(days){
@@ -207,58 +234,80 @@ function setPeriod(days){
 }
 function refreshAll(){ loadStats(currentDays); }
 
-/* ── Helpers graphiques ── */
+/* ── États d'une carte ──
+   Un graphique vide ne dit pas s'il n'y a rien à montrer ou si le backend est
+   tombé. On l'énonce, au lieu de laisser des axes nus. */
+function cardMsg(msgId, text, isError){
+  const el = document.getElementById(msgId);
+  if(!el) return;
+  const card = el.closest('.ch-card');
+  if(text){
+    el.textContent = text;
+    el.className = 'ch-msg' + (isError ? ' err' : '');
+    el.setAttribute('data-on','');
+    card?.classList.add('is-msg');
+  } else {
+    el.removeAttribute('data-on');
+    card?.classList.remove('is-msg');
+  }
+}
+
+/* ── Helpers graphiques ──
+   `precision:0` : avec un maximum de 1, Chart.js générait des graduations
+   fractionnaires que fmtK arrondissait toutes à 0 ou 1 — l'axe affichait
+   « 1 1 1 1 1 0 0 0 0 0 ». */
+const yAxis = (extra={}) => ({
+  grid:{ color: tok('--border','#1E2A42') }, beginAtZero:true,
+  ticks:{ precision:0, callback:v=>fmtK(v) }, ...extra,
+});
+
 function lineChart(id, labels, datasets){
+  if(!CHART_OK) return;
   charts[id]?.destroy();
-  const ctx = document.getElementById(id).getContext('2d');
-  charts[id] = new Chart(ctx, {
+  charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
     type:'line',
     data:{ labels, datasets },
     options:{
       responsive:true, maintainAspectRatio:false,
       plugins:{ legend:{ display: datasets.length>1 } },
-      scales:{
-        x:{ grid:{display:false}, ticks:{maxTicksLimit:8} },
-        y:{ grid:{color:'#1E2A42'}, beginAtZero:true, ticks:{callback:v=>fmtK(v)} },
-      }
-    }
-  });
-}
-
-function barChart(id, labels, datasets){
-  charts[id]?.destroy();
-  const ctx = document.getElementById(id).getContext('2d');
-  charts[id] = new Chart(ctx, {
-    type:'bar',
-    data:{ labels, datasets },
-    options:{
-      responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{ display: datasets.length>1 } },
-      scales:{
-        x:{ grid:{display:false}, ticks:{maxTicksLimit:10} },
-        y:{ grid:{color:'#1E2A42'}, beginAtZero:true, ticks:{callback:v=>fmtK(v)}, stacked: datasets.length>1 },
-      }
+      scales:{ x:{ grid:{display:false}, ticks:{maxTicksLimit:8} }, y: yAxis() }
     }
   });
 }
 
 function doughnutChart(id, labels, data, colors){
+  if(!CHART_OK) return;
   charts[id]?.destroy();
-  const ctx = document.getElementById(id).getContext('2d');
-  charts[id] = new Chart(ctx, {
+  charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
     type:'doughnut',
-    data:{
-      labels,
-      datasets:[{
-        data, hoverOffset:6,
-        backgroundColor: colors.map(c=>rgba(c,.55)),
-        borderColor:     colors,
-        borderWidth: 1.5,
-      }]
-    },
+    data:{ labels, datasets:[{ data, hoverOffset:6,
+      backgroundColor: colors.map(c=>rgba(c,.55)), borderColor: colors, borderWidth:1.5 }] },
+    options:{ responsive:true, maintainAspectRatio:false, cutout:'65%',
+      plugins:{ legend:{ position:'right' } } }
+  });
+}
+
+/* Deux séries d'unités différentes (personnes / FCFA) : deux axes, sinon les
+   inscriptions sont écrasées à zéro par l'échelle des revenus. */
+function monthlyChart(id, labels, users, revenue){
+  if(!CHART_OK) return;
+  charts[id]?.destroy();
+  charts[id] = new Chart(document.getElementById(id).getContext('2d'), {
+    data:{ labels, datasets:[
+      { type:'bar', label:'Inscriptions', data:users, yAxisID:'y',
+        backgroundColor:rgba(COLORS.blue,.4), borderColor:COLORS.blue, borderWidth:1.5, borderRadius:4 },
+      { type:'line', label:'Revenus (FCFA)', data:revenue, yAxisID:'y1',
+        borderColor:COLORS.green, backgroundColor:'transparent', tension:.35, pointRadius:2, borderWidth:2 },
+    ]},
     options:{
-      responsive:true, maintainAspectRatio:false, cutout:'65%',
-      plugins:{ legend:{ position:'right' } }
+      responsive:true, maintainAspectRatio:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{ legend:{ display:true } },
+      scales:{
+        x:{ grid:{display:false} },
+        y:  yAxis({ position:'left'  }),
+        y1: yAxis({ position:'right', grid:{ drawOnChartArea:false } }),
+      }
     }
   });
 }
@@ -277,171 +326,196 @@ function setKpi(id, val, deltaId, delta, isUp){
   document.getElementById(id).textContent = val;
   if(deltaId){
     const el = document.getElementById(deltaId);
-    el.textContent = delta;
+    el.textContent = delta ?? '—';
     el.className = `kpi-delta ${isUp===true?'delta-up':isUp===false?'delta-down':'delta-neu'}`;
   }
 }
 
-/* ── Charger les statistiques ── */
+/* Échappement : ces valeurs viennent de la base (pseudo, nom de compétition). */
+function esc(s){ return String(s ?? '').replace(/[&<>"']/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+/* ── Chargement ── */
 async function loadStats(days){
-  const qs = days>0 ? `days=${days}` : 'all=1';
+  const qs   = days>0 ? `days=${days}` : 'all=1';
+  const btns = document.querySelectorAll('.period-bar .btn');
+  btns.forEach(b => b.disabled = true);
 
-  try {
-    const [dash, revSeries, userSeries, methods, monthly, topUsers, pronos] = await Promise.allSettled([
-      fetch(`/admin/api/stats/dashboard?${qs}`).then(r=>r.json()),
-      fetch(`/admin/api/stats/revenue?${qs}`).then(r=>r.json()),
-      fetch(`/admin/api/stats/signups?${qs}`).then(r=>r.json()),
-      fetch(`/admin/api/stats/methods?${qs}`).then(r=>r.json()),
-      fetch('/admin/api/stats/monthly').then(r=>r.json()),
-      fetch('/admin/api/stats/top-users').then(r=>r.json()),
-      fetch('/admin/api/stats/pronostics').then(r=>r.json()),
-    ]);
+  const grab = async (url) => {
+    const r = await fetch(url, { credentials:'include' });
+    const d = await r.json().catch(() => null);
+    if(!r.ok || (d && d.error)) throw new Error((d && (d.error||d.message)) || `Erreur ${r.status}`);
+    return d;
+  };
 
-    destroyAll();
+  const [dash, userSeries, monthly, pronos, leagues, top] = await Promise.allSettled([
+    grab(`/admin/api/stats/dashboard?${qs}`),
+    grab(`/admin/api/stats/signups?${qs}`),
+    grab('/admin/api/stats/monthly'),
+    // Ces deux-là ignoraient la période : le taux de réussite affiché portait
+    // sur tout l'historique alors que le titre annonçait « 30 derniers jours ».
+    grab(`/admin/api/stats/pronostics?${qs}`),
+    grab(`/admin/api/stats/leagues?${qs}`),
+    grab('/admin/api/stats/top-users'),
+  ]);
 
-    /* ── KPIs ── */
-    if(dash.status==='fulfilled'){
-      const d = dash.value;
-      setKpi('k-users',   fmt(d.users?.total ?? 0),   'k-users-d',  d.users?.new>0?`+${fmt(d.users.new)} nouveaux`:null, true);
-      setKpi('k-new',     `+${fmt(d.users?.new ?? 0)}`,'k-new-d',   d.users?.growth_pct!=null?(d.users.growth_pct>=0?'+':'')+d.users.growth_pct+'% vs période préc.':null, d.users?.growth_pct>=0);
-      setKpi('k-premium', fmt(d.users?.premium ?? 0),  'k-conv',    d.users?.conversion_rate!=null?`Taux : ${d.users.conversion_rate}%`:null, null);
-      setKpi('k-revenue', fmtK(d.revenue?.deposits ?? 0) + ' F', 'k-revenue-d', d.revenue?.net!=null?`Net : ${fmtK(d.revenue.net)} F`:null, (d.revenue?.net??0)>=0);
-      setKpi('k-withdrawals', fmtK(d.revenue?.withdrawals ?? 0) + ' F', 'k-net', null, null);
-      document.getElementById('rev-total-lbl').textContent   = fmt(d.revenue?.deposits ?? 0) + ' FCFA total';
-      document.getElementById('users-total-lbl').textContent = fmt(d.users?.new ?? 0) + ' nouveaux';
+  btns.forEach(b => b.disabled = false);
+  lastPayload = { dash, userSeries, monthly, pronos, leagues, top };
+  render(lastPayload);
+}
 
-      /* Répartition users */
-      const uTotal = Math.max(d.users?.total ?? 1, 1);
-      document.getElementById('user-breakdown').innerHTML =
-        progRow('Premium actifs',    d.users?.premium ?? 0,    uTotal, COLORS.orange) +
-        progRow('Gratuits',          d.users?.free ?? 0,       uTotal, COLORS.blue)   +
-        progRow('Nouveaux (période)',d.users?.new ?? 0,        uTotal, COLORS.green)  +
-        `<div style="display:flex;justify-content:space-between;padding-top:.75rem;border-top:1px solid var(--border);margin-top:.5rem;font-size:.82rem">
-          <span style="color:var(--text-dim)">Taux de conversion</span>
-          <span style="color:var(--primary);font-weight:700">${d.users?.conversion_rate ?? 0}%</span>
-        </div>`;
+const LIB_KO = 'Bibliothèque graphique non chargée — les chiffres ci-dessus restent à jour.';
 
-      /* Sources revenus doughnut */
-      const src = d.revenue ?? {};
-      doughnutChart('c-sources',
-        ['Dépôts','Abonnements','Commissions'],
-        [src.deposits??0, src.subscriptions??0, src.commissions??0],
-        [COLORS.red, COLORS.orange, COLORS.purple]
-      );
-    }
+function render({ dash, userSeries, monthly, pronos, leagues, top }){
+  destroyAll();
+  if(!CHART_OK){
+    ['msg-signups','msg-pronos','msg-monthly'].forEach(id => cardMsg(id, LIB_KO, true));
+  }
 
-    /* ── Graphique revenus ── */
-    if(revSeries.status==='fulfilled'){
-      const s = revSeries.value;
-      const labels = (s.labels ?? s).map ? (s.labels ?? s.map(d=>d.label??d.date)) : [];
-      const values = s.values ?? s.map?.(d=>d.amount??d.value) ?? [];
-      const ctx    = document.getElementById('c-revenue').getContext('2d');
-      const grad   = ctx.createLinearGradient(0,0,0,200);
-      grad.addColorStop(0, rgba(COLORS.red,.4));
-      grad.addColorStop(1, rgba(COLORS.red,.02));
-      lineChart('c-revenue', labels, [{
-        label:'Revenus FCFA', data: values,
-        borderColor: COLORS.red, backgroundColor: grad,
-        fill:true, tension:.4, pointRadius:2, pointBackgroundColor:COLORS.red,
-      }]);
-    }
+  /* ── KPIs + répartition ── */
+  if(dash.status==='fulfilled'){
+    const d = dash.value;
+    setKpi('k-users',   fmt(d.users?.total ?? 0),   'k-users-d',  d.users?.new>0?`+${fmt(d.users.new)} nouveaux`:null, true);
+    setKpi('k-new',     `+${fmt(d.users?.new ?? 0)}`,'k-new-d',   d.users?.growth_pct!=null?(d.users.growth_pct>=0?'+':'')+d.users.growth_pct+'% vs période préc.':null, d.users?.growth_pct>=0);
+    setKpi('k-premium', fmt(d.users?.premium ?? 0),  'k-conv',    d.users?.conversion_rate!=null?`Taux : ${d.users.conversion_rate}%`:null, null);
+    document.getElementById('users-total-lbl').textContent = fmt(d.users?.new ?? 0) + ' nouveaux';
 
-    /* ── Graphique inscriptions ── */
-    if(userSeries.status==='fulfilled'){
-      const s = userSeries.value;
-      const labels = s.labels ?? s.map?.(d=>d.label??d.date) ?? [];
-      const total   = s.values ?? s.map?.(d=>d.total??d.value??d) ?? [];
-      const premium = s.premium ?? s.map?.(d=>d.premium??0) ?? [];
-      const ctxU    = document.getElementById('c-signups').getContext('2d');
-      const gU      = ctxU.createLinearGradient(0,0,0,200);
+    const uTotal = Math.max(d.users?.total ?? 1, 1);
+    document.getElementById('user-breakdown').innerHTML =
+      progRow('Premium actifs',    d.users?.premium ?? 0, uTotal, COLORS.orange) +
+      progRow('Gratuits',          d.users?.free ?? 0,    uTotal, COLORS.blue)   +
+      progRow('Nouveaux (période)',d.users?.new ?? 0,     uTotal, COLORS.green)  +
+      `<div style="display:flex;justify-content:space-between;padding-top:.75rem;border-top:1px solid var(--border);margin-top:.5rem;font-size:.82rem">
+        <span style="color:var(--text-m)">Taux de conversion</span>
+        <span style="color:var(--on-warning);font-weight:700">${d.users?.conversion_rate ?? 0}%</span>
+      </div>`;
+  } else {
+    ['k-users','k-new','k-premium'].forEach(id => document.getElementById(id).textContent = '!');
+    ['k-users-d','k-new-d','k-conv'].forEach(id => setKpi(id, document.getElementById(id).textContent, null));
+    document.getElementById('user-breakdown').innerHTML =
+      `<p style="color:var(--on-danger);font-size:.83rem">Indicateurs indisponibles : ${esc(dash.reason?.message)}</p>`;
+  }
+
+  /* ── Inscriptions par jour ── */
+  if(userSeries.status==='fulfilled'){
+    const s       = userSeries.value;
+    const labels  = s.labels ?? [];
+    const total   = s.values ?? [];
+    const premium = s.premium ?? [];
+    if(total.some(v=>v>0)){
+      if(CHART_OK) cardMsg('msg-signups', null);
+      const ctxU = document.getElementById('c-signups').getContext('2d');
+      const gU   = ctxU.createLinearGradient(0,0,0,200);
       gU.addColorStop(0, rgba(COLORS.blue,.35));
       gU.addColorStop(1, rgba(COLORS.blue,.02));
       lineChart('c-signups', labels, [
         { label:'Total', data:total, borderColor:COLORS.blue, backgroundColor:gU, fill:true, tension:.4, pointRadius:2 },
         ...(premium.some(v=>v>0) ? [{ label:'→ Premium', data:premium, borderColor:COLORS.orange, backgroundColor:'transparent', tension:.4, pointRadius:2, borderDash:[4,3] }] : [])
       ]);
+    } else {
+      cardMsg('msg-signups', 'Aucune inscription sur la période sélectionnée.');
     }
+  } else {
+    cardMsg('msg-signups', `Chargement impossible : ${userSeries.reason?.message}`, true);
+  }
 
-    /* ── Méthodes de paiement ── */
-    if(methods.status==='fulfilled'){
-      const m = methods.value;
-      const methLabels  = m.map?.(x=>x.method?.replace(/_/g,' ')??x.label??'?') ?? [];
-      const methDeposits = m.map?.(x=>x.deposits??x.amount??0) ?? [];
-      const methWith     = m.map?.(x=>x.withdrawals??0) ?? [];
-      barChart('c-methods', methLabels, [
-        { label:'Dépôts',   data:methDeposits, backgroundColor:rgba(COLORS.green,.55), borderColor:COLORS.green, borderWidth:1.5, borderRadius:5 },
-        ...(methWith.some(v=>v>0)?[{ label:'Retraits', data:methWith, backgroundColor:rgba(COLORS.red,.45), borderColor:COLORS.red, borderWidth:1.5, borderRadius:5 }]:[]),
-      ]);
+  /* ── Performances pronostics ── */
+  if(pronos.status==='fulfilled'){
+    const p = pronos.value;
+    const won=p.won??0, lost=p.lost??0, pend=p.pending??0;
+    const total=won+lost+pend, decided=won+lost;
+    const wr = decided>0 ? Math.round(won/decided*100) : null;
+    setKpi('k-winrate', wr!=null?wr+'%':'—', 'k-pronos-total', `${total} pronostic${total>1?'s':''} sur la période`, wr!=null?wr>=60:null);
+    document.getElementById('pronos-period-lbl').textContent = total ? `${total} sur la période` : '';
+    if(total>0){
+      if(CHART_OK) cardMsg('msg-pronos', null);
+      doughnutChart('c-pronos', ['Gagnés','Perdus','En cours'], [won, lost, pend],
+        [COLORS.green, COLORS.red, COLORS.orange]);
+    } else {
+      cardMsg('msg-pronos', 'Aucun pronostic sur la période sélectionnée.');
     }
+  } else {
+    setKpi('k-winrate', '!', 'k-pronos-total', 'indisponible', null);
+    cardMsg('msg-pronos', `Chargement impossible : ${pronos.reason?.message}`, true);
+  }
 
-    /* ── Pronostics ── */
-    if(pronos.status==='fulfilled'){
-      const p = pronos.value;
-      const won=p.won??0, lost=p.lost??0, pend=p.pending??0;
-      const total=won+lost+pend;
-      const wr = total>0?Math.round(won/(won+lost||1)*100):0;
-      setKpi('k-winrate', wr+'%', 'k-pronos-total', `${total} pronostics`, wr>=60);
-      document.getElementById('pronos-period-lbl').textContent = `${total} au total`;
-      doughnutChart('c-pronos',
-        ['Gagnés','Perdus','En cours'],
-        [won, lost, pend],
-        [COLORS.green, COLORS.red, COLORS.orange]
-      );
+  /* ── Évolution 12 mois ── */
+  if(monthly.status==='fulfilled' && Array.isArray(monthly.value)){
+    const m   = monthly.value;
+    const lab = m.map(x=>x.label ?? x.month ?? '');
+    const usr = m.map(x=>x.new_users ?? 0);
+    const rev = m.map(x=>x.revenue ?? 0);
+    if(usr.some(v=>v>0) || rev.some(v=>v>0)){
+      if(CHART_OK) cardMsg('msg-monthly', null);
+      monthlyChart('c-monthly', lab, usr, rev);
+    } else {
+      cardMsg('msg-monthly', 'Aucune inscription ni recette sur les 12 derniers mois.');
     }
+  } else {
+    cardMsg('msg-monthly', `Chargement impossible : ${monthly.reason?.message ?? 'réponse inattendue'}`, true);
+  }
 
-    /* ── Évolution mensuelle (12 mois) ── */
-    if(monthly.status==='fulfilled'){
-      const m = monthly.value;
-      const mlabels = m.map?.(x=>x.month??x.label??'') ?? [];
-      const musers  = m.map?.(x=>x.new_users??x.users??0) ?? [];
-      const mrev    = m.map?.(x=>x.revenue??x.amount??0) ?? [];
-      // Double axe Y
-      charts['c-monthly']?.destroy();
-      const ctxM = document.getElementById('c-monthly').getContext('2d');
-      charts['c-monthly'] = new Chart(ctxM, {
-        data:{
-          labels: mlabels,
-          datasets:[
-            { type:'bar',  label:'Inscriptions', data:musers, backgroundColor:rgba(COLORS.blue,.4), borderColor:COLORS.blue, borderWidth:1.5, borderRadius:4, yAxisID:'yU' },
-            { type:'line', label:'Revenus (FCFA)', data:mrev, borderColor:COLORS.orange, backgroundColor:rgba(COLORS.orange,.1), fill:true, tension:.4, pointRadius:3, yAxisID:'yR' },
-          ]
-        },
-        options:{
-          responsive:true, maintainAspectRatio:false,
-          plugins:{ legend:{ display:true, position:'top' } },
-          scales:{
-            x:{ grid:{display:false} },
-            yU:{ position:'left',  beginAtZero:true, ticks:{precision:0}, grid:{color:'#1E2A42'} },
-            yR:{ position:'right', beginAtZero:true, ticks:{callback:v=>fmtK(v)}, grid:{display:false} },
-          }
-        }
-      });
+  /* ── Réussite par compétition ── */
+  const tbLeagues = document.querySelector('#t-leagues tbody');
+  if(leagues.status==='fulfilled' && Array.isArray(leagues.value)){
+    const rows = leagues.value;
+    document.getElementById('leagues-lbl').textContent = rows.length ? `${rows.length} compétition(s)` : '';
+    if(rows.length){
+      cardMsg('msg-leagues', null);
+      tbLeagues.innerHTML = rows.slice(0,10).map(r => {
+        const wr = r.win_rate;
+        // Vert au-dessus de 60 %, orange entre 45 et 60, rouge en dessous :
+        // le seuil de rentabilité dépend de la cote, 60 % est le repère interne.
+        const col = wr==null ? COLORS.purple : wr>=60 ? COLORS.green : wr>=45 ? COLORS.orange : COLORS.red;
+        return `<tr>
+          <td>${r.logo?`<img src="${esc(r.logo)}" alt="" style="width:16px;height:16px;object-fit:contain;vertical-align:-3px;margin-right:.4rem" onerror="this.remove()">`:''}${esc(r.league)}</td>
+          <td style="text-align:right">${r.total}${r.push?` <span style="color:var(--text-m)">(${r.push} remb.)</span>`:''}</td>
+          <td style="text-align:right">${r.avg_odds ?? '—'}</td>
+          <td>
+            <div style="display:flex;align-items:center;gap:.5rem">
+              <div class="bar" style="flex:1"><i style="width:${wr ?? 0}%;background:${col}"></i></div>
+              <span style="font-weight:700;min-width:34px;text-align:right">${wr==null?'—':wr+'%'}</span>
+            </div>
+          </td></tr>`;
+      }).join('');
+    } else {
+      tbLeagues.innerHTML = '';
+      cardMsg('msg-leagues', 'Aucun pronostic réglé sur la période — le taux n\'a pas encore de sens.');
     }
+  } else {
+    tbLeagues.innerHTML = '';
+    cardMsg('msg-leagues', `Chargement impossible : ${leagues.reason?.message ?? 'réponse inattendue'}`, true);
+  }
 
-    /* ── Top utilisateurs ── */
-    if(topUsers.status==='fulfilled'){
-      const list = topUsers.value ?? [];
-      const colors = ['#F5A623','#8892AA','#CD7F32'];
-      document.getElementById('top-body').innerHTML = list.length===0
-        ? '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--text-dim)">Aucune transaction</td></tr>'
-        : list.map((u,i)=>{
-          const color = i<3?colors[i]:'var(--text-dim)';
-          return `<tr>
-            <td><span class="rank-badge" style="background:${rgba(color,.15)};color:${color}">${i+1}</span></td>
-            <td><strong>${u.user?.pseudo??'—'}</strong>${u.user?.email?`<div style="font-size:.72rem;color:var(--text-dim)">${u.user.email}</div>`:''}</td>
-            <td style="color:var(--text-dim);font-size:.8rem">${u.user?.phoneNumber??'—'}</td>
-            <td><span class="badge ${u.user?.subscriptionPlan==='premium'?'badge-warn':'badge-info'}">${u.user?.subscriptionPlan??'free'}</span></td>
-            <td style="text-align:right;font-weight:600">${u.deposit_count??0}</td>
-            <td style="text-align:right;color:var(--success);font-weight:700">${fmt(u.total_deposits??0)} F</td>
-          </tr>`;
-        }).join('');
+  /* ── Top utilisateurs ── */
+  const tbTop = document.querySelector('#t-top tbody');
+  if(top.status==='fulfilled' && Array.isArray(top.value)){
+    const rows = top.value;
+    if(rows.length){
+      cardMsg('msg-top', null);
+      const medal = ['#F5A623','#B8C0D0','#CD7F32'];
+      tbTop.innerHTML = rows.slice(0,8).map((u,i) => `<tr>
+        <td style="width:34px"><span class="rank-badge" style="background:${i<3?rgba(medal[i],.2):'var(--surface-d)'};color:${i<3?medal[i]:'var(--text-m)'}">${i+1}</span></td>
+        <td>${esc(u.pseudo ?? u.name ?? '—')}</td>
+        <td style="text-align:right;font-weight:600">${fmt(u.total ?? u.amount ?? 0)}</td>
+      </tr>`).join('');
+    } else {
+      tbTop.innerHTML = '';
+      cardMsg('msg-top', 'Aucun abonnement encaissé pour le moment.');
     }
-
-  } catch(e){ console.error('Stats error:', e); }
+  } else {
+    tbTop.innerHTML = '';
+    cardMsg('msg-top', `Chargement impossible : ${top.reason?.message ?? 'réponse inattendue'}`, true);
+  }
 }
 
 /* ── Init ── */
 setPeriod(30);
+if(!CHART_OK){
+  const l = document.getElementById('period-label');
+  l.textContent = l.textContent + ' — graphiques indisponibles';
+  l.style.color = 'var(--on-danger)';
+}
 </script>
 
 <%- include('layout_bottom') %>

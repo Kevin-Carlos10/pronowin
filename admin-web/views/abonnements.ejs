@@ -1,19 +1,206 @@
 <%- include('layout_top', {page:'abonnements'}) %>
+
+<style>
+/* ── Onglets de statut ───────────────────────────────────────────────────── */
+.pf-tabs   { display: flex; gap: .35rem; flex-wrap: wrap; margin-bottom: 1rem;
+             border-bottom: 1px solid var(--border); padding-bottom: .1rem; }
+.pf-tab    { display: inline-flex; align-items: center; gap: .45rem;
+             padding: .55rem .9rem; border-radius: 10px 10px 0 0;
+             font-size: .85rem; font-weight: 700; color: var(--text-m);
+             text-decoration: none; border: 1px solid transparent;
+             border-bottom: 2px solid transparent; transition: color .15s, background .15s; }
+.pf-tab:hover  { color: var(--text); background: var(--surface-d); }
+.pf-tab.on     { color: var(--primary); border-bottom-color: var(--primary); background: var(--surface); }
+.pf-tab .n     { font-size: .72rem; font-weight: 800; padding: .1rem .4rem;
+                 border-radius: 999px; background: var(--surface-h); color: var(--text-m); }
+.pf-tab.on .n  { background: var(--primary); color: #fff; }
+
+/* ── Historique (preuves déjà tranchées) ─────────────────────────────────── */
+.pf-hist   { background: var(--surface); border: 1px solid var(--border);
+             border-radius: 14px; overflow: hidden; }
+.pf-hrow   { display: grid; grid-template-columns: 1.4fr .9fr .8fr 1fr 1.6fr;
+             gap: .75rem; align-items: center; padding: .8rem 1.1rem;
+             border-bottom: 1px solid var(--border); font-size: .84rem; }
+.pf-hrow:last-child { border-bottom: 0; }
+.pf-hrow:hover      { background: var(--surface-d); }
+.pf-hhead  { font-size: .68rem; text-transform: uppercase; letter-spacing: .06em;
+             font-weight: 800; color: var(--text-dim); background: var(--surface-d); }
+.pf-hwho   { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.pf-havatar{ width: 30px; height: 30px; border-radius: 50%; flex-shrink: 0;
+             background: var(--surface-h); display: flex; align-items: center;
+             justify-content: center; font-weight: 800; font-size: .8rem; color: var(--primary); }
+.pf-hname  { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-hsub   { font-size: .72rem; color: var(--text-dim); }
+.pf-hnote  { color: var(--text-m); font-size: .78rem; line-height: 1.45; }
+.pf-hnote em { color: var(--text-dim); }
+.pf-hlink  { color: var(--primary); font-size: .74rem; text-decoration: none; font-weight: 700; }
+.pf-hlink:hover { text-decoration: underline; }
+.pf-hscroll{ overflow-x: auto; }
+@media (max-width: 900px) {
+  .pf-hrow  { grid-template-columns: 1fr 1fr; row-gap: .4rem; }
+  .pf-hhead { display: none; }
+}
+
+/* ── État vide explicatif ────────────────────────────────────────────────── */
+.pf-vide     { text-align: center; padding: 2.6rem 1.5rem 2rem; }
+.pf-vide-ic  { width: 62px; height: 62px; border-radius: 50%; margin: 0 auto .9rem;
+               background: rgba(148,163,184,.12); color: var(--text-dim);
+               display: flex; align-items: center; justify-content: center; }
+.pf-vide-ic.ok { background: rgba(34,197,94,.10); color: var(--success); }
+.pf-vide h3  { margin: 0 0 .35rem; font-size: 1.12rem; font-weight: 800; }
+.pf-vide .diag { margin: 0 auto; max-width: 48ch; font-size: .87rem;
+                 line-height: 1.65; color: var(--text-m); }
+.pf-vide .diag strong { color: var(--text); font-weight: 700; }
+.pf-flux     { display: flex; justify-content: center; flex-wrap: wrap;
+               margin: 1.6rem auto 0; max-width: 640px; }
+.pf-etape    { flex: 1 1 150px; min-width: 140px; padding: .85rem .7rem; position: relative; }
+.pf-etape + .pf-etape::before { content: ""; position: absolute; left: 0; top: 26px;
+               bottom: 26px; width: 1px; background: var(--border); }
+.pf-etape .n { width: 24px; height: 24px; border-radius: 50%; margin: 0 auto .5rem;
+               background: var(--surface-d); border: 1px solid var(--border);
+               display: flex; align-items: center; justify-content: center;
+               font-size: .72rem; font-weight: 800; color: var(--text-dim); }
+.pf-etape.ici .n { background: var(--primary); border-color: var(--primary); color: #fff; }
+.pf-etape .t { font-size: .8rem; font-weight: 700; margin-bottom: .2rem; }
+.pf-etape.ici .t { color: var(--primary); }
+.pf-etape .d { font-size: .72rem; line-height: 1.5; color: var(--text-dim); }
+@media (max-width: 560px) {
+  .pf-etape + .pf-etape::before { display: none; }
+  .pf-etape { border-top: 1px solid var(--border); }
+  .pf-flux .pf-etape:first-child { border-top: 0; }
+}
+</style>
+
+<%
+  const _rows  = data.data ?? [];
+  const _stat  = typeof statut    !== 'undefined' ? statut    : 'pending';
+  const _q     = typeof recherche !== 'undefined' ? recherche : '';
+  const _c     = typeof contexte  !== 'undefined' && contexte ? contexte : null;
+  const _enAttente = _stat === 'pending';
+
+  // Ancienneté : dans une file de validation de paiement, c'est l'information
+  // prioritaire — une preuve qui attend depuis 3 jours, c'est un client qui a
+  // payé et qui s'impatiente. Rien ne l'affichait.
+  const _ageH = pr => Math.max(0, Math.floor((Date.now() - new Date(pr.createdAt).getTime()) / 3600000));
+  const _ageLabel = h => h < 1 ? "à l'instant"
+                       : h < 24 ? `il y a ${h} h`
+                       : `il y a ${Math.floor(h / 24)} j`;
+  // Au-delà de 24 h on alerte, au-delà de 72 h on signale en rouge.
+  const _ageTone = h => h >= 72 ? 'on-danger' : h >= 24 ? 'on-warning' : 'text-m';
+  const _oldest  = _rows.length ? Math.max(..._rows.map(_ageH)) : 0;
+  const _byType  = t => _rows.filter(pr => pr.type === t).length;
+  // Le plus ancien d'abord : on traite dans l'ordre d'attente, pas dans
+  // l'ordre où la base les renvoie. L'historique garde l'ordre de l'API
+  // (décision la plus récente en tête).
+  const _sorted  = _enAttente
+    ? [..._rows].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt))
+    : _rows;
+
+  const _dt = v => v ? new Date(v).toLocaleString('fr-FR', {
+    day:'2-digit', month:'short', year:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+  const _lien = (s, q) => '/admin/abonnements?statut=' + s + (q ? '&q=' + encodeURIComponent(q) : '');
+  const _onglets = [
+    ['pending',  'En attente', _c ? _c.en_attente : null],
+    ['approved', 'Approuvées', _c ? _c.approuvees : null],
+    ['rejected', 'Rejetées',   _c ? _c.rejetees   : null],
+    ['all',      'Toutes',     _c ? _c.total      : null],
+  ];
+%>
+
 <div class="topbar">
   <div>
-    <h2>👑 Preuves Premium</h2>
-    <small>Validation manuelle — Paiement direct & Code 1xBet</small>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Preuves Premium</h2>
+    <small>Validation manuelle — paiement direct &amp; code partenaire</small>
   </div>
-  <a href="/admin/abonnements/export" class="btn btn-outline" id="export-btn-abonnements"
-     onclick="exportBtnFeedback(this)">⬇️ Export CSV</a>
+  <a href="/admin/abonnements/export?statut=<%= _stat %><%= _q ? '&q=' + encodeURIComponent(_q) : '' %>"
+     class="btn btn-outline" id="export-btn-abonnements" onclick="exportBtnFeedback(this)">
+    <svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV
+  </a>
 </div>
 
 <% if(typeof success !== 'undefined' && success){ %>
-  <div class="alert alert-success">✅ Preuve traitée avec succès !</div>
+  <div class="alert alert-success"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg>
+    Preuve traitée avec succès.
+  </div>
 <% } %>
 <% if(typeof error !== 'undefined' && error){ %>
-  <div class="alert alert-error">❌ <%= error %></div>
+  <div class="alert alert-error"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg>
+    <%= error %>
+  </div>
 <% } %>
+
+<!-- ── Onglets : la file de travail, puis l'historique des décisions ──────── -->
+<nav class="pf-tabs" aria-label="Filtrer par statut">
+  <% _onglets.forEach(([cle, label, n]) => { %>
+  <a class="pf-tab <%= _stat === cle ? 'on' : '' %>" href="<%= _lien(cle, _q) %>"
+     aria-current="<%= _stat === cle ? 'page' : 'false' %>">
+    <%= label %><% if (n !== null) { %><span class="n"><%= n %></span><% } %>
+  </a>
+  <% }) %>
+</nav>
+
+<!-- ── Chiffres d'ensemble ────────────────────────────────────────────────── -->
+<% if (_c) { %>
+<div class="stats-grid" style="margin-bottom:14px">
+  <div class="stat-card <%= _c.en_attente > 0 ? 's-orange' : 's-blue' %>">
+    <div class="lbl">En attente</div><div class="val"><%= _c.en_attente %></div>
+  </div>
+  <div class="stat-card s-green">
+    <div class="lbl">Approuvées</div><div class="val"><%= _c.approuvees %></div>
+  </div>
+  <div class="stat-card s-red">
+    <div class="lbl">Rejetées</div><div class="val"><%= _c.rejetees %></div>
+  </div>
+  <div class="stat-card s-purple">
+    <div class="lbl">Encaissé (approuvé)</div>
+    <div class="val" style="font-size:1.15rem"><%= _c.revenu_approuve.toLocaleString() %> <span style="font-size:.75rem">FCFA</span></div>
+  </div>
+  <div class="stat-card s-blue">
+    <div class="lbl">Délai de traitement</div>
+    <div class="val" style="font-size:1.15rem">
+      <% if (_c.delai_moyen_h === null) { %>—<% } else { %>
+        <%= _c.delai_moyen_h < 1 ? '< 1 h' : _c.delai_moyen_h + ' h' %>
+      <% } %>
+    </div>
+    <% if (_c.delai_echantillon) { %>
+    <div style="font-size:.66rem;color:var(--text-dim);margin-top:2px">
+      moyenne sur les <%= _c.delai_echantillon %> dernières
+    </div>
+    <% } %>
+  </div>
+</div>
+<% } %>
+
+<!-- ── Recherche (côté serveur : porte sur toutes les preuves, pas seulement
+        celles affichées) ────────────────────────────────────────────────── -->
+<form method="GET" action="/admin/abonnements" class="filterbar">
+  <input type="hidden" name="statut" value="<%= _stat %>">
+  <svg class="ic" aria-hidden="true" style="color:var(--text-m)"><use href="#ic-search"/></svg>
+  <input type="search" name="q" value="<%= _q %>" autocomplete="off"
+         aria-label="Rechercher une preuve"
+         placeholder="Pseudo, téléphone, ID de compte, numéro envoyeur…">
+  <% if (_enAttente) { %>
+  <select id="pf-type" onchange="pfFilter()" aria-label="Filtrer par type">
+    <option value="">Tous les types</option>
+    <option value="payment_screenshot">Paiement direct</option>
+    <option value="xbet_account_screenshot">Code partenaire</option>
+  </select>
+  <% } %>
+  <button type="submit" class="btn btn-primary btn-sm">Rechercher</button>
+  <% if (_q) { %>
+  <a href="<%= _lien(_stat, '') %>" class="btn btn-outline btn-sm">
+    <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Effacer
+  </a>
+  <% } %>
+  <span class="spacer"></span>
+  <span style="font-size:.8rem;color:var(--text-m)" id="pf-count"><%= _rows.length %> preuve(s)</span>
+</form>
+<div id="pf-none" style="display:none" class="card">
+  <div class="empty-state" style="padding:32px">
+    <div class="empty-state-title">Aucune preuve de ce type</div>
+    <div class="empty-state-desc">Choisissez un autre type, ou revenez à « Tous les types ».</div>
+  </div>
+</div>
 
 <!-- Modal image plein écran -->
 <div class="modal-bg" id="img-modal" onclick="this.classList.remove('open')">
@@ -21,83 +208,273 @@
   <p style="color:rgba(255,255,255,.6);margin-top:8px;font-size:12px">Cliquez n'importe où pour fermer</p>
 </div>
 
-<% if(!data.data || data.data.length === 0){ %>
-  <div class="card"><p class="empty">✅ Aucune preuve en attente. Tout est à jour !</p></div>
+<% if(_rows.length === 0){ %>
+<%
+  // Une liste vide ne dit pas si le système marche ou s'il est en panne. On
+  // explique donc d'où viennent ces lignes, et à quelle étape la chaîne est
+  // arrêtée. Le cas « recherche infructueuse » est distinct : là, l'écran ne
+  // doit surtout pas laisser croire qu'il n'y a rien du tout.
+  const _jamais = _c && _c.total === 0;
+  const _etape  = !_c ? 0 : (_jamais ? 1 : 3);
+%>
+<div class="card pf-vide">
+  <% if (_q) { %>
+    <div class="pf-vide-ic"><svg class="ic ic-xl" aria-hidden="true"><use href="#ic-search"/></svg></div>
+    <h3>Aucun résultat</h3>
+    <p class="diag">
+      Rien ne correspond à <strong><%= _q %></strong>
+      <% if (_stat !== 'all') { %> parmi les preuves « <%= _onglets.find(o => o[0] === _stat)[1].toLowerCase() %> »<% } %>.
+      La recherche porte sur le pseudo, le téléphone, l'ID de compte et le numéro envoyeur.
+    </p>
+    <div style="margin-top:1.1rem;display:flex;gap:.5rem;justify-content:center;flex-wrap:wrap">
+      <a href="<%= _lien(_stat, '') %>" class="btn btn-outline btn-sm">Effacer la recherche</a>
+      <% if (_stat !== 'all') { %>
+      <a href="<%= _lien('all', _q) %>" class="btn btn-primary btn-sm">Chercher dans toutes les preuves</a>
+      <% } %>
+    </div>
+
+  <% } else if (!_enAttente) { %>
+    <div class="pf-vide-ic"><svg class="ic ic-xl" aria-hidden="true"><use href="#ic-clipboard"/></svg></div>
+    <h3>Aucune preuve <%= _stat === 'approved' ? 'approuvée' : _stat === 'rejected' ? 'rejetée' : 'enregistrée' %></h3>
+    <p class="diag">
+      <%# `_c` peut être absent : l'API ne renvoie les compteurs que depuis une
+          version récente, et le panneau doit rester utilisable en attendant. %>
+      <% if (!_c) { %>
+        Aucune décision de ce type pour l'instant.
+      <% } else if (_jamais) { %>
+        Aucun utilisateur n'a encore soumis de preuve de paiement.
+        L'historique se remplira dès la première validation.
+      <% } else { %>
+        Aucune décision de ce type pour l'instant.
+        <%= _c.en_attente %> preuve<%= _c.en_attente !== 1 ? 's' : '' %> attend<%= _c.en_attente !== 1 ? 'ent' : '' %> d'être traitée<%= _c.en_attente !== 1 ? 's' : '' %>.
+      <% } %>
+    </p>
+
+  <% } else { %>
+    <div class="pf-vide-ic <%= _etape === 3 ? 'ok' : '' %>">
+      <svg class="ic ic-xl" aria-hidden="true"><use href="#ic-<%= _etape === 3 ? 'check-circle' : 'clock' %>"/></svg>
+    </div>
+    <h3>Aucune preuve en attente</h3>
+    <p class="diag">
+      <% if (_etape === 0) { %>
+        Rien à valider pour le moment. Les preuves arrivent ici dès qu'un
+        utilisateur soumet son paiement depuis l'application.
+      <% } else if (_etape === 1) { %>
+        C'est normal : <strong>aucun utilisateur n'a encore soumis de preuve</strong>.
+        Une preuve n'est créée qu'au moment où quelqu'un envoie son paiement
+        depuis l'écran Premium de l'application.
+      <% } else { %>
+        <strong>Tout est traité.</strong>
+        <%= _c.approuvees %> preuve<%= _c.approuvees !== 1 ? 's' : '' %> approuvée<%= _c.approuvees !== 1 ? 's' : '' %>
+        et <%= _c.rejetees %> rejetée<%= _c.rejetees !== 1 ? 's' : '' %> à ce jour<% if (_c.derniere_decision) { %>,
+        la dernière <%= _dt(_c.derniere_decision) %><% } %>.
+      <% } %>
+    </p>
+
+    <div class="pf-flux">
+      <div class="pf-etape <%= _etape === 1 ? 'ici' : '' %>">
+        <div class="n">1</div>
+        <div class="t">L'utilisateur paie</div>
+        <div class="d">Mobile Money, ou création d'un compte partenaire avec le code promo.</div>
+      </div>
+      <div class="pf-etape <%= _etape === 1 ? 'ici' : '' %>">
+        <div class="n">2</div>
+        <div class="t">Il envoie sa capture</div>
+        <div class="d">Depuis l'écran Premium de l'application. La preuve arrive ici.</div>
+      </div>
+      <div class="pf-etape <%= _etape === 3 ? 'ici' : '' %>">
+        <div class="n">3</div>
+        <div class="t">Vous tranchez</div>
+        <div class="d">Approuver accorde le Premium. Toute décision reste dans l'historique.</div>
+      </div>
+    </div>
+
+    <% if (_c && _c.total > 0) { %>
+    <div style="margin-top:1.4rem">
+      <a href="<%= _lien('all', '') %>" class="btn btn-outline btn-sm">
+        <svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg>
+        Voir l'historique des <%= _c.total %> preuves
+      </a>
+    </div>
+    <% } %>
+  <% } %>
+</div>
+
+<% } else if (!_enAttente) { %>
+
+<!-- ── Historique : décisions déjà prises, sans formulaire ────────────────── -->
+<div class="pf-hscroll">
+  <div class="pf-hist" style="min-width:760px">
+    <div class="pf-hrow pf-hhead">
+      <div>Utilisateur</div><div>Type</div><div>Montant</div><div>Décision</div><div>Note admin</div>
+    </div>
+    <% _sorted.forEach(p => {
+         const _decide = p.status === 'approved';
+         const _delai  = p.reviewedAt
+           ? Math.max(0, Math.round((new Date(p.reviewedAt) - new Date(p.createdAt)) / 3600000))
+           : null;
+    %>
+    <div class="pf-hrow">
+      <div class="pf-hwho">
+        <div class="pf-havatar"><%= (p.user?.pseudo ?? '?')[0].toUpperCase() %></div>
+        <div style="min-width:0">
+          <div class="pf-hname"><%= p.user?.pseudo ?? '—' %></div>
+          <div class="pf-hsub"><%= p.user?.phoneNumber ?? '—' %></div>
+        </div>
+      </div>
+
+      <div>
+        <span class="badge <%= p.type === 'payment_screenshot' ? 'badge-ok' : 'badge-info' %>" style="font-size:11px">
+          <%= p.type === 'payment_screenshot' ? 'Paiement direct' : 'Code partenaire' %>
+        </span>
+        <div class="pf-hsub" style="margin-top:.25rem">soumise <%= _dt(p.createdAt) %></div>
+      </div>
+
+      <div style="font-weight:700"><%= p.amount != null ? p.amount.toLocaleString() + ' F' : '—' %></div>
+
+      <div>
+        <span class="badge <%= _decide ? 'badge-ok' : 'badge-danger' %>">
+          <svg class="ic ic-sm" aria-hidden="true"><use href="#ic-<%= _decide ? 'check' : 'x' %>"/></svg>
+          <%= _decide ? 'Approuvée' : 'Rejetée' %>
+        </span>
+        <div class="pf-hsub" style="margin-top:.25rem">
+          <%= _dt(p.reviewedAt) %><% if (_delai !== null) { %> · <%= _delai < 1 ? '< 1 h' : _delai + ' h' %> d'attente<% } %>
+        </div>
+      </div>
+
+      <div class="pf-hnote">
+        <% if (p.adminNote) { %><%= p.adminNote %><% } else { %><em>Aucune note</em><% } %>
+        <% if (p.screenshotUrl) { %>
+        <div style="margin-top:.3rem">
+          <a href="#" class="pf-hlink"
+             onclick="document.getElementById('modal-img').src=<%= JSON.stringify(p.screenshotUrl) %>;document.getElementById('img-modal').classList.add('open');return false">
+            <svg class="ic ic-sm" aria-hidden="true"><use href="#ic-eye"/></svg> Revoir la capture
+          </a>
+        </div>
+        <% } %>
+      </div>
+    </div>
+    <% }) %>
+  </div>
+</div>
+
+<% if (data.total > _rows.length) { %>
+<p style="text-align:center;color:var(--warning);margin-top:8px;font-size:13px">
+  <svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg>
+  <%= _rows.length %> preuves affichées sur <%= data.total %>.
+</p>
+<% } %>
+
 <% } else { %>
 
-<% data.data.forEach(p => { %>
-<div class="card" style="padding:0;overflow:hidden;margin-bottom:20px">
+<% _sorted.forEach(p => { const _h = _ageH(p); %>
+<div class="card pf-card" style="padding:0;overflow:hidden;margin-bottom:20px"
+     data-type="<%= p.type %>">
 
   <!-- En-tête de la carte -->
-  <div style="background:#0D1220;padding:14px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid #1E2A42">
-    <div style="width:38px;height:38px;border-radius:50%;background:#151B2E;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:#F5A623">
+  <div style="background:var(--surface-d);padding:14px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)">
+    <div style="width:38px;height:38px;border-radius:50%;background:var(--surface-h);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--primary)">
       <%= (p.user?.pseudo ?? '?')[0].toUpperCase() %>
     </div>
     <div style="flex:1">
-      <p style="font-weight:600;color:#fff"><%= p.user?.pseudo ?? '—' %></p>
-      <p style="font-size:12px;color:#8892AA"><%= p.user?.phoneNumber %></p>
+      <p style="font-weight:600;color:var(--text)"><%= p.user?.pseudo ?? '—' %></p>
+      <p style="font-size:12px;color:var(--text-m)"><%= p.user?.phoneNumber %></p>
     </div>
     <span class="badge <%= p.type==='payment_screenshot' ? 'badge-ok' : 'badge-info' %>" style="font-size:12px">
-      <%= p.type==='payment_screenshot' ? '💳 Paiement direct' : '🎮 Compte 1xBet' %>
+      <%# Sortie non échappée : le balisage SVG y est légitime. %>
+      <%- p.type==='payment_screenshot'
+        ? '<svg class="ic ic-sm" aria-hidden="true"><use href="#ic-card"/></svg> Paiement direct'
+        : '<svg class="ic ic-sm" aria-hidden="true"><use href="#ic-gamepad"/></svg> Compte partenaire' %>
     </span>
-    <p style="font-size:11px;color:#8892AA;margin-left:8px">
-      <%= new Date(p.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %>
+    <p style="font-size:11px;color:var(--<%= _ageTone(_h) %>);margin-left:8px;font-weight:<%= _h >= 24 ? '700' : '400' %>;white-space:nowrap"
+       title="<%= new Date(p.createdAt).toLocaleString('fr-FR') %>">
+      <svg class="ic ic-sm" aria-hidden="true"><use href="#ic-clock"/></svg> <%= _ageLabel(_h) %>
     </p>
   </div>
 
   <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:0">
 
     <!-- Colonne 1 : Infos utilisateur -->
-    <div style="padding:18px;border-right:1px solid #1E2A42">
-      <p style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Informations</p>
+    <div style="padding:18px;border-right:1px solid var(--border)">
+      <p style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;font-weight:700">Informations</p>
 
-      <div style="margin-bottom:8px">
-        <p style="font-size:11px;color:#8892AA">ID 1xBet</p>
-        <p style="font-size:15px;font-weight:600;color:#F5A623"><%= p.xbetId ?? '⚠️ Non renseigné' %></p>
-      </div>
+      <% const platformLabels = {'1xbet':'1xBet','melbet':'Melbet','betwinner':'Betwinner'}; %>
 
       <% if(p.type === 'payment_screenshot'){ %>
         <div style="margin-bottom:8px">
-          <p style="font-size:11px;color:#8892AA">Montant déclaré</p>
-          <p style="font-size:20px;font-weight:700;color:#fff"><%= p.amount?.toLocaleString() ?? '—' %> FCFA</p>
+          <p style="font-size:11px;color:var(--text-dim)">Montant déclaré</p>
+          <p style="font-size:20px;font-weight:700;color:var(--text)"><%= p.amount?.toLocaleString() ?? '—' %> FCFA</p>
         </div>
         <div>
-          <p style="font-size:11px;color:#8892AA">Numéro envoyeur</p>
-          <p style="font-size:13px;color:#E2E8F0"><%= p.senderPhone ?? '—' %></p>
+          <p style="font-size:11px;color:var(--text-dim)">Numéro envoyeur</p>
+          <p style="font-size:13px;color:var(--text)"><%= p.senderPhone ?? '—' %></p>
         </div>
       <% } else { %>
         <div style="margin-bottom:8px">
-          <p style="font-size:11px;color:#8892AA">Code promo utilisé</p>
-          <p style="font-size:13px;color:#A78BFA;font-weight:600"><%= process.env.XBET_PROMO_CODE ?? 'PRONOWIN2025' %></p>
+          <p style="font-size:11px;color:var(--text-dim)">Plateforme partenaire</p>
+          <p style="font-size:15px;font-weight:700;color:var(--purple)"><%= platformLabels[p.platform] ?? p.platform ?? '⚠ Non renseignée' %></p>
+        </div>
+        <div style="margin-bottom:8px">
+          <p style="font-size:11px;color:var(--text-dim)">ID de compte</p>
+          <p style="font-size:15px;font-weight:600;color:var(--primary)"><%= p.xbetId ?? '⚠ Non renseigné' %></p>
+        </div>
+        <div style="margin-bottom:8px">
+          <p style="font-size:11px;color:var(--text-dim)">Code promo utilisé</p>
+          <p style="font-size:13px;color:var(--purple);font-weight:600"><%= data.promo_code || '— non configure' %></p>
+        </div>
+        <div style="margin-bottom:8px">
+          <p style="font-size:11px;color:var(--text-dim)">Montant déclaré (tarif réduit)</p>
+          <p style="font-size:20px;font-weight:700;color:var(--text)"><%= p.amount?.toLocaleString() ?? '—' %> FCFA</p>
+        </div>
+        <div>
+          <p style="font-size:11px;color:var(--text-dim)">Numéro envoyeur</p>
+          <p style="font-size:13px;color:var(--text)"><%= p.senderPhone ?? '—' %></p>
         </div>
         <div style="background:rgba(167,139,250,.08);border:0.5px solid rgba(167,139,250,.2);border-radius:8px;padding:10px;margin-top:8px">
-          <p style="font-size:11px;color:#A78BFA">Vérifiez que le compte 1xBet a bien été créé avec notre code promo</p>
+          <p style="font-size:11px;color:var(--purple)">Vérifiez que le compte a bien été créé avec notre code promo sur <%= platformLabels[p.platform] ?? p.platform %></p>
         </div>
       <% } %>
     </div>
 
-    <!-- Colonne 2 : Capture d'écran -->
-    <div style="padding:18px;border-right:1px solid #1E2A42">
-      <p style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px">Capture d'écran</p>
+    <!-- Colonne 2 : Capture(s) d'écran -->
+    <div style="padding:18px;border-right:1px solid var(--border)">
+      <p style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;font-weight:700">
+        <%= p.type === 'xbet_account_screenshot' ? 'Capture du compte' : "Capture d'écran" %>
+      </p>
       <% if(p.screenshotUrl){ %>
         <img
           src="<%= p.screenshotUrl %>"
           alt="Preuve"
-          style="width:100%;max-height:220px;object-fit:cover;border-radius:10px;cursor:pointer;border:1px solid #1E2A42"
+          style="width:100%;max-height:<%= p.type === 'xbet_account_screenshot' ? '150' : '220' %>px;object-fit:cover;border-radius:10px;cursor:pointer;border:1px solid #1E2A42"
           onclick="document.getElementById('modal-img').src=this.src;document.getElementById('img-modal').classList.add('open')"
           onerror="this.parentElement.innerHTML='<p style=color:#EF4444;font-size:12px>❌ Image non accessible</p>'"
         >
-        <p style="font-size:11px;color:#8892AA;margin-top:6px;text-align:center">Cliquez pour agrandir</p>
       <% } else { %>
         <div style="height:120px;display:flex;align-items:center;justify-content:center;background:#0D1220;border-radius:10px;border:1px dashed #2A3050">
-          <p style="color:#EF4444;font-size:12px">⚠️ Aucune image soumise</p>
+          <p style="color:#EF4444;font-size:12px"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Aucune image soumise</p>
         </div>
       <% } %>
+
+      <%# Le parcours « code promo » ne comporte plus de versement : la seconde
+          capture, qui prouvait un paiement Mobile Money, n'a plus d'objet. Les
+          preuves anciennes en portent encore une — on continue de l'afficher
+          pour elles plutôt que de rendre l'historique illisible. %>
+      <% if(p.type === 'xbet_account_screenshot' && p.paymentScreenshotUrl){ %>
+        <p style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 10px;font-weight:700">Capture du paiement (ancienne offre)</p>
+        <img
+          src="<%= p.paymentScreenshotUrl %>"
+          alt="Preuve de paiement"
+          style="width:100%;max-height:150px;object-fit:cover;border-radius:10px;cursor:pointer;border:1px solid #1E2A42"
+          onclick="document.getElementById('modal-img').src=this.src;document.getElementById('img-modal').classList.add('open')"
+          onerror="this.parentElement.innerHTML='<p style=color:#EF4444;font-size:12px>❌ Image non accessible</p>'"
+        >
+      <% } %>
+      <p style="font-size:11px;color:#8892AA;margin-top:6px;text-align:center">Cliquez sur une image pour l'agrandir</p>
     </div>
 
     <!-- Colonne 3 : Actions -->
     <div style="padding:18px">
-      <p style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px">Décision</p>
+      <p style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;font-weight:700">Décision</p>
       <form method="POST" action="/admin/abonnements/<%= p.id %>" style="display:flex;flex-direction:column;gap:10px">
 
         <% if(p.type === 'payment_screenshot'){ %>
@@ -109,30 +486,51 @@
         <% } else { %>
         <div style="background:rgba(167,139,250,.06);border:0.5px solid rgba(167,139,250,.2);border-radius:8px;padding:10px;font-size:11px;color:#8892AA">
           <strong style="color:#A78BFA">À vérifier :</strong><br>
-          Confirmez que l'ID 1xBet <strong><%= p.xbetId %></strong> est bien un nouveau compte créé avec votre code promo.
+          1) L'ID <strong><%= p.xbetId %></strong> est bien un <strong>nouveau</strong> compte créé sur <strong><%= platformLabels[p.platform] ?? p.platform %></strong> avec notre code promo.<br>
+          2) Le <strong>dépôt initial</strong> apparaît sur la capture. Sans dépôt, l'offre n'est pas due.<br>
+          <span style="color:#6B7690">Aucun versement n'est attendu de votre côté : ce parcours offre le premier mois.</span>
+        </div>
+        <% } %>
+
+        <%# La durée du parcours « code promo » est fixée par le serveur
+            (`OFFRE_CODE_JOURS`) et non par ce formulaire. Laisser un champ
+            modifiable qui n'a aucun effet, c'est promettre un réglage qui
+            n'existe pas : on affiche l'information au lieu de la saisir. %>
+        <% if(p.type === 'xbet_account_screenshot'){ %>
+        <div style="background:#0D1220;border:0.5px solid #1E2A42;border-radius:8px;padding:10px">
+          <p style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px;margin:0">Durée Premium</p>
+          <p style="font-size:12px;color:var(--text);margin:4px 0 0">
+            Fixée par l'offre, côté serveur — identique pour toutes les demandes de ce type.
+          </p>
+        </div>
+        <% } else { %>
+        <div>
+          <label style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px"
+                 for="dd-<%= p.id %>">Durée Premium (jours)</label>
+          <input type="number" id="dd-<%= p.id %>" name="duration_days"
+            value="<%= p.planId === 'premium_annual' ? 365 : 30 %>" min="1" max="365"
+            style="width:100%;margin-top:4px" aria-label="Durée en jours">
+          <% if(p.planId){ %>
+            <p style="font-size:10px;color:#8892AA;margin-top:3px"><svg class="ic" aria-hidden="true"><use href="#ic-bulb"/></svg> Plan <%= p.planId === 'premium_annual' ? 'annuel (365j)' : 'mensuel (30j)' %> déclaré à la souscription</p>
+          <% } %>
         </div>
         <% } %>
 
         <div>
-          <label style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px">Durée Premium (jours)</label>
-          <input type="number" name="duration_days" value="30" min="1" max="365"
-            style="width:100%;margin-top:4px">
-        </div>
-
-        <div>
-          <label style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px">Note pour l'utilisateur (optionnel)</label>
-          <textarea name="admin_note" rows="2" style="width:100%;margin-top:4px;font-size:12px"
-            placeholder="Message envoyé par notification..."></textarea>
+          <label style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px"
+                 for="an-<%= p.id %>">Note pour l'utilisateur (optionnel)</label>
+          <textarea id="an-<%= p.id %>" name="admin_note" rows="2" style="width:100%;margin-top:4px;font-size:12px"
+            placeholder="Message envoyé par notification..." aria-label="Note administrateur"></textarea>
         </div>
 
         <div style="display:flex;gap:8px">
           <button type="submit" name="action" value="approve"
             class="btn btn-success" style="flex:1;justify-content:center">
-            ✅ Approuver
+            <svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Approuver
           </button>
           <button type="submit" name="action" value="reject"
             class="btn btn-danger" style="flex:1;justify-content:center">
-            ❌ Rejeter
+            <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Rejeter
           </button>
         </div>
 
@@ -142,10 +540,33 @@
 </div>
 <% }) %>
 
-<% if(data.total > data.data.length){ %>
-  <p style="text-align:center;color:#8892AA;margin-top:8px;font-size:13px">
-    Affichage de <%= data.data.length %> sur <%= data.total %> preuves
+<% if(data.total > _rows.length){ %>
+  <p style="text-align:center;color:var(--warning);margin-top:8px;font-size:13px">
+    <svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg>
+    <%= _rows.length %> preuves affichées sur <%= data.total %>.
   </p>
 <% } %>
+
 <% } %>
+
+<script>
+/* Le filtre par type reste côté client : la route charge la totalité des
+   preuves du statut affiché (per_page 5000), donc restreindre en place ne
+   masque rien qui existerait ailleurs. La recherche texte, elle, est passée
+   côté serveur — elle doit porter sur toutes les preuves, pas seulement sur
+   celles qui se trouvent dans la page. */
+function pfFilter() {
+  var champ = document.getElementById("pf-type");
+  if (!champ) return;
+  var type  = champ.value;
+  var shown = 0;
+  document.querySelectorAll(".pf-card").forEach(function (c) {
+    var ok = !type || c.dataset.type === type;
+    c.hidden = !ok;
+    if (ok) shown++;
+  });
+  document.getElementById("pf-count").textContent = shown + " preuve(s)";
+  document.getElementById("pf-none").style.display = shown === 0 ? "block" : "none";
+}
+</script>
 <%- include('layout_bottom') %>

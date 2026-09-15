@@ -21,6 +21,7 @@ export async function sendEmailOtp(email: string, code: string): Promise<void> {
     from:    `"PronoWin" <${process.env.SMTP_USER}>`,
     to:      email,
     subject: 'Votre code de vérification PronoWin',
+    text: `PronoWin\n\nVotre code de vérification est : ${code}\n\nCe code expire dans 10 minutes. Ne le partagez avec personne.`,
     html: `
       <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto">
         <h2 style="color:#1a1a2e">PronoWin</h2>

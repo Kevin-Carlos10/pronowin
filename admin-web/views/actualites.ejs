@@ -3,9 +3,10 @@
 <style>
 /* ── Stats ──────────────────────────────────────────────────────────────────── */
 .ac-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(120px,1fr)); gap:.65rem; margin-bottom:1rem; }
-.ac-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.75rem .9rem; }
-.ac-stat .v { font-size:1.3rem; font-weight:800; line-height:1; margin-bottom:.15rem; }
-.ac-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+.ac-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1rem; transition:transform .2s,box-shadow .2s; }
+.ac-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.ac-stat .v { font-size:1.6rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
+.ac-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
 
 /* ── Filtres ─────────────────────────────────────────────────────────────────── */
 .ac-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
@@ -24,11 +25,11 @@
 
 .ac-card {
   background:var(--surface); border:1px solid var(--border);
-  border-radius:var(--radius); overflow:hidden;
+  border-radius:16px; overflow:hidden;
   display:flex; flex-direction:column;
-  transition:box-shadow var(--transition), border-color var(--transition);
+  transition:box-shadow .2s, border-color .2s, transform .2s;
 }
-.ac-card:hover { box-shadow:var(--shadow-lg); border-color:var(--primary); }
+.ac-card:hover { box-shadow:0 10px 32px rgba(0,0,0,.22); border-color:var(--primary); transform:translateY(-2px); }
 .ac-card.draft   { border-left:3px solid var(--text-dim); opacity:.85; }
 .ac-card.pinned  { border-left:3px solid var(--warning); }
 .ac-card.published { border-left:3px solid var(--success); }
@@ -65,7 +66,7 @@
     promo:  { emoji:'🎁', label:'Promo',     cls:'cat-promo' },
     update: { emoji:'🔄', label:'Mise à jour',cls:'cat-update' },
     tip:    { emoji:'💡', label:'Conseil',   cls:'cat-tip' },
-    alert:  { emoji:'🚨', label:'Alerte',    cls:'cat-alert' },
+    alert:  { emoji:'⚠', label:'Alerte',    cls:'cat-alert' },
   };
   const _hasFilter = !!(search || category || status);
 
@@ -87,11 +88,13 @@
 
 <div class="topbar">
   <div>
-    <h2>📰 Actualités</h2>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg> Actualités</h2>
     <small><%= stats.total %> article<%= stats.total!==1?'s':'' %> · <%= stats.published %> publié<%= stats.published!==1?'s':'' %></small>
   </div>
   <% if(hasPerm('actualites','write')) { %>
-  <a href="/admin/actualites/new" class="btn btn-primary btn-sm">+ Nouvel article</a>
+  <a href="/admin/actualites/new" class="btn btn-primary btn-sm">
+    <svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Nouvel article
+  </a>
   <% } %>
 </div>
 
@@ -99,35 +102,40 @@
 <% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
 
 <!-- ── Stats ──────────────────────────────────────────────────────────────────── -->
+<%# Les trois premiers chiffres correspondent à un sous-ensemble de la liste :
+    ils deviennent des liens. « Vues totales » n'en est pas un — rien à filtrer. %>
 <div class="ac-stats">
-  <div class="ac-stat"><div class="v" style="color:var(--info)"><%= stats.total %></div><div class="l">Total</div></div>
-  <div class="ac-stat"><div class="v" style="color:var(--success)"><%= stats.published %></div><div class="l">Publiés</div></div>
-  <div class="ac-stat"><div class="v" style="color:var(--text-dim)"><%= stats.draft %></div><div class="l">Brouillons</div></div>
-  <div class="ac-stat"><div class="v" style="color:var(--warning)"><%= stats.pinned %></div><div class="l">Épinglés</div></div>
-  <div class="ac-stat"><div class="v" style="color:#A78BFA"><%= stats.premium %></div><div class="l">Premium only</div></div>
-  <div class="ac-stat"><div class="v" style="color:var(--primary)"><%= stats.totalViews.toLocaleString() %></div><div class="l">Vues totales</div></div>
+  <a href="/admin/actualites" class="ac-stat stat-link" aria-current="<%= !_hasFilter ? 'true':'false' %>">
+    <div class="v" style="color:var(--on-info)"><%= stats.total %></div><div class="l">Total</div></a>
+  <a href="/admin/actualites?status=published" class="ac-stat stat-link" aria-current="<%= status==='published' ? 'true':'false' %>">
+    <div class="v" style="color:var(--on-success)"><%= stats.published %></div><div class="l">Publiés</div></a>
+  <a href="/admin/actualites?status=draft" class="ac-stat stat-link" aria-current="<%= status==='draft' ? 'true':'false' %>">
+    <div class="v" style="color:var(--text-m)"><%= stats.draft %></div><div class="l">Brouillons</div></a>
+  <div class="ac-stat"><div class="v" style="color:var(--on-warning)"><%= stats.pinned %></div><div class="l">Épinglés</div></div>
+  <div class="ac-stat"><div class="v" style="color:var(--purple)"><%= stats.premium %></div><div class="l">Premium only</div></div>
+  <div class="ac-stat"><div class="v" style="color:var(--on-warning)"><%= stats.totalViews.toLocaleString() %></div><div class="l">Vues totales</div></div>
 </div>
 
 <!-- ── Filtres ─────────────────────────────────────────────────────────────────── -->
-<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem">
-  <form method="GET" action="/admin/actualites" class="ac-filter">
-    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Titre, résumé…">
-    <select name="category" onchange="this.form.submit()">
+<div class="filterbar">
+  <form method="GET" action="/admin/actualites" style="display:contents">
+    <svg class="ic" aria-hidden="true" style="color:var(--text-m)"><use href="#ic-search"/></svg>
+    <input type="search" name="search" value="<%= search %>"
+           aria-label="Rechercher un article" placeholder="Titre, résumé…">
+    <select name="category" onchange="this.form.submit()" aria-label="Catégorie">
       <option value="">Toutes catégories</option>
-      <option value="news"   <%= category==='news'   ?'selected':'' %>>📰 News</option>
-      <option value="promo"  <%= category==='promo'  ?'selected':'' %>>🎁 Promo</option>
-      <option value="update" <%= category==='update' ?'selected':'' %>>🔄 Mise à jour</option>
-      <option value="tip"    <%= category==='tip'    ?'selected':'' %>>💡 Conseil</option>
-      <option value="alert"  <%= category==='alert'  ?'selected':'' %>>🚨 Alerte</option>
+      <% (typeof categories !== 'undefined' ? categories : []).forEach(c => { const cfg = _catCfg[c] || { emoji:'📰', label:c }; %>
+      <option value="<%= c %>" <%= category===c ?'selected':'' %>><%= cfg.emoji %> <%= cfg.label %></option>
+      <% }) %>
     </select>
-    <select name="status" onchange="this.form.submit()">
+    <select name="status" onchange="this.form.submit()" aria-label="Statut">
       <option value="">Tous statuts</option>
       <option value="published" <%= status==='published' ?'selected':'' %>>✅ Publiés</option>
       <option value="draft"     <%= status==='draft'     ?'selected':'' %>>📝 Brouillons</option>
       <option value="pinned"    <%= status==='pinned'    ?'selected':'' %>>📌 Épinglés</option>
     </select>
     <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
-    <% if(_hasFilter){ %><a href="/admin/actualites" class="btn btn-outline btn-sm">✕ Reset</a><% } %>
+    <% if(_hasFilter){ %><a href="/admin/actualites" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a><% } %>
     <span style="margin-left:auto;font-size:.78rem;color:var(--text-dim)"><%= total %> résultat<%= total!==1?'s':'' %></span>
   </form>
 </div>
@@ -156,29 +164,29 @@
     <img src="<%= art.imageUrl %>" alt="" loading="lazy" onerror="this.parentElement.innerHTML='<span style=font-size:2.5rem><%= cat.emoji %></span>'">
     <% } else { %><%= cat.emoji %><% } %>
     <span class="ac-cat-badge badge <%= cat.cls %>"><%= cat.emoji %> <%= cat.label %></span>
-    <% if(art.isPinned) { %><span class="ac-pin-badge">📌</span><% } %>
+    <% if(art.isPinned) { %><span class="ac-pin-badge"><svg class="ic" aria-hidden="true"><use href="#ic-pin"/></svg></span><% } %>
   </div>
 
   <!-- Corps -->
   <div class="ac-body">
     <div style="display:flex;align-items:center;gap:.4rem;margin-bottom:.35rem;flex-wrap:wrap">
-      <% if(art.isPublished) { %><span class="badge badge-ok" style="font-size:.65rem">✅ Publié</span><% } else { %><span class="badge" style="font-size:.65rem;background:var(--surface-d);color:var(--text-dim)">📝 Brouillon</span><% } %>
-      <% if(art.isPremiumOnly) { %><span class="badge badge-warn" style="font-size:.65rem">👑 Premium</span><% } %>
+      <% if(art.isPublished) { %><span class="badge badge-ok" style="font-size:.65rem"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Publié</span><% } else { %><span class="badge" style="font-size:.65rem;background:var(--surface-d);color:var(--text-dim)"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Brouillon</span><% } %>
+      <% if(art.isPremiumOnly) { %><span class="badge badge-warn" style="font-size:.65rem"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span><% } %>
     </div>
     <div class="ac-title"><%= art.title %></div>
     <% if(art.summary) { %><div class="ac-summary"><%= art.summary %></div><% } %>
     <div class="ac-meta">
-      <span>✍️ <%= art.authorName || 'Admin' %></span>
-      <span>👁 <%= (art.viewCount||0).toLocaleString() %></span>
-      <span>❤️ <%= art.likeCount||0 %></span>
-      <span>🗓 <%= relDate(art.createdAt) %></span>
+      <span><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> <%= art.authorName || 'Admin' %></span>
+      <span><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> <%= (art.viewCount||0).toLocaleString() %></span>
+      <span><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> <%= art.likeCount||0 %></span>
+      <span><svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg> <%= relDate(art.createdAt) %></span>
     </div>
   </div>
 
   <!-- Pied -->
   <div class="ac-foot">
     <% if(hasPerm('actualites','write')) { %>
-    <a href="/admin/actualites/<%= art.id %>/edit" class="btn btn-sm btn-outline">✏️ Modifier</a>
+    <a href="/admin/actualites/<%= art.id %>/edit" class="btn btn-sm btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier</a>
     <form method="POST" action="/admin/actualites/<%= art.id %>/publish" style="margin:0">
       <button class="btn btn-sm btn-outline" title="<%= art.isPublished ? 'Dépublier' : 'Publier' %>">
         <%= art.isPublished ? '🔒 Dépublier' : '✅ Publier' %>
@@ -194,7 +202,7 @@
     <button class="btn btn-sm btn-danger" style="margin-left:auto"
       data-id="<%= art.id %>"
       data-title="<%= art.title.replace(/"/g,'&quot;') %>"
-      onclick="delArt(this.dataset.id, this.dataset.title)">🗑️</button>
+      onclick="delArt(this.dataset.id, this.dataset.title)"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg></button>
     <form method="POST" action="/admin/actualites/<%= art.id %>/delete" id="del-<%= art.id %>" style="display:none"></form>
     <% } %>
   </div>

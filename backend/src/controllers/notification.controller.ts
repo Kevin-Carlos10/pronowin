@@ -62,6 +62,51 @@ export const sendToUser = async (req: AdminRequest, res: Response) => {
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };
 
+/**
+ * GET /admin/notifications/preview?segment=
+ *
+ * La page campagne de l'admin appelait cet endpoint depuis toujours ; il
+ * n'existait pas, et l'interface retombait silencieusement sur une estimation
+ * tirée de /admin/users/stats — laquelle ignorait les comptes sans token FCM
+ * et ceux ayant coupé les notifications promo.
+ */
+export const previewSegment = async (req: AdminRequest, res: Response) => {
+  try {
+    res.json(await svc.previewSegment((req.query.segment as string) ?? 'all'));
+  } catch (e: any) { res.status(422).json({ message: e.message }); }
+};
+
+/**
+ * POST /admin/notifications/send
+ *
+ * Idem : l'interface postait ici et tombait systématiquement dans son `catch`
+ * (« Erreur lors de l'envoi »), aucune campagne n'ayant jamais pu partir.
+ */
+export const sendSegment = async (req: AdminRequest, res: Response) => {
+  const { title, body, segment = 'all', data, image, target_user } = req.body;
+  if (!title?.trim() || !body?.trim()) {
+    res.status(422).json({ message: 'title et body requis.' }); return;
+  }
+
+  const charge = {
+    title:    title.trim(),
+    body:     body.trim(),
+    deepLink: data?.url,
+    imageUrl: image,
+  };
+
+  try {
+    // Cible unique : le formulaire admin propose ce mode pour tester un message
+    // avant diffusion. `target_user` n'était pas transmis et « user » n'existe
+    // pas comme segment — l'envoi échouait systématiquement.
+    if (segment === 'user') {
+      res.json(await svc.sendToHandle(String(target_user ?? ''), charge));
+      return;
+    }
+    res.json(await svc.sendToSegment(segment, charge));
+  } catch (e: any) { res.status(422).json({ message: e.message }); }
+};
+
 export const sendToTopic = async (req: AdminRequest, res: Response) => {
   const { topic, title, body, deep_link } = req.body;
   if (!topic || !title || !body) { res.status(422).json({ message: 'topic, title et body requis.' }); return; }

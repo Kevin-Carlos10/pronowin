@@ -6,7 +6,7 @@ import '../../domain/entities/tutorial_entity.dart';
 import '../models/tutorial_model.dart';
 
 abstract class TutorialRemoteDataSource {
-  Future<List<TutorialModel>> getTutorials({TutorialLevel? level, TutorialCategory? category});
+  Future<List<TutorialModel>> getTutorials({TutorialLevel? level, String? category});
   Future<TutorialModel>       getTutorialDetail(String id);
   Future<void>                markProgress(String id, int watchedSeconds, bool completed);
   Future<List<TutorialModel>> getProgress();
@@ -17,11 +17,11 @@ class TutorialRemoteDataSourceImpl implements TutorialRemoteDataSource {
   TutorialRemoteDataSourceImpl(this._dio);
 
   @override
-  Future<List<TutorialModel>> getTutorials({TutorialLevel? level, TutorialCategory? category}) async {
+  Future<List<TutorialModel>> getTutorials({TutorialLevel? level, String? category}) async {
     try {
       final r = await _dio.get(ApiEndpoints.tutorials, queryParameters: {
-        if (level    != null) 'level':    level.name,
-        if (category != null) 'category': category.name,
+        if (level != null) 'level': level.name,
+        'category': ?category,
       });
       return (r.data as List).map((e) => TutorialModel.fromJson(e as Map<String, dynamic>)).toList();
     } on DioException catch (e) { throw _handle(e); }

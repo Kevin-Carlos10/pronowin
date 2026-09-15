@@ -6,7 +6,11 @@ jest.mock('@prisma/client', () => {
   const mockOtpUpdate     = jest.fn().mockResolvedValue({});
   const mockUserFindUnique = jest.fn();
   const mockUserCreate     = jest.fn();
-  const mockUserUpdate     = jest.fn().mockResolvedValue({});
+  // Renvoie l'objet mis à jour plutôt qu'un {} vide : le service réassigne
+  // `user` au retour de update() dans la branche « marquer comme vérifié »,
+  // et un mock qui rend {} faisait perdre l'utilisateur en silence.
+  const mockUserUpdate     = jest.fn().mockImplementation(
+    ({ where, data }: any) => Promise.resolve({ id: where?.id, ...data }));
   const mockRefreshCreate  = jest.fn().mockResolvedValue({});
   const mockRefreshFindUnique = jest.fn();
   const mockRefreshUpdate  = jest.fn().mockResolvedValue({});
@@ -19,11 +23,15 @@ jest.mock('@prisma/client', () => {
     refreshToken: { create: mockRefreshCreate, findUnique: mockRefreshFindUnique, update: mockRefreshUpdate, delete: mockRefreshDelete, deleteMany: mockRefreshDeleteMany },
   }));
 
-  return { PrismaClient, _mocks: { mockOtpFindFirst, mockUserFindUnique, mockUserCreate, mockRefreshFindUnique } };
+  return { PrismaClient, _mocks: { mockOtpCreate, mockOtpFindFirst, mockUserFindUnique, mockUserCreate, mockUserUpdate, mockRefreshFindUnique } };
 });
 
 jest.mock('../services/sms.service', () => ({
   sendSmsOtp: jest.fn().mockResolvedValue(undefined),
+}));
+
+jest.mock('../services/email.service', () => ({
+  sendEmailOtp: jest.fn().mockResolvedValue(undefined),
 }));
 
 import { AuthService } from '../services/auth.service';
@@ -32,6 +40,7 @@ import { PrismaClient } from '@prisma/client';
 // Récupérer les mocks après import
 const prismaInstance   = new (PrismaClient as jest.MockedClass<typeof PrismaClient>)();
 const { _mocks }       = require('@prisma/client');
+const { sendEmailOtp: mockSendEmailOtp } = require('../services/email.service');
 
 // Variables d'env minimales pour JWT
 process.env.JWT_SECRET         = 'test-secret-access';
@@ -45,6 +54,9 @@ describe('AuthService', () => {
   beforeEach(() => {
     service = new AuthService();
     jest.clearAllMocks();
+    delete process.env.GOOGLE_PLAY_REVIEW_ENABLED;
+    delete process.env.GOOGLE_PLAY_REVIEW_EMAIL;
+    delete process.env.GOOGLE_PLAY_REVIEW_OTP;
   });
 
   // ─── verifyOtp ────────────────────────────────────────────────────────────
@@ -70,7 +82,7 @@ describe('AuthService', () => {
     });
 
     it('connecte un utilisateur existant sans le recréer', async () => {
-      const existingUser = { id: 'user-existing', phoneNumber: '+22670000000', pseudo: 'Parieur_A', referralCode: 'XYZ123' };
+      const existingUser = { id: 'user-existing', phoneNumber: '+22670000000', pseudo: 'Parieur_A', referralCode: 'XYZ123', phoneVerified: true };
       _mocks.mockOtpFindFirst.mockResolvedValueOnce({ id: 'otp-1', used: false, expiresAt: new Date(Date.now() + 60000) });
       _mocks.mockUserFindUnique.mockResolvedValueOnce(existingUser);
 
@@ -78,6 +90,22 @@ describe('AuthService', () => {
 
       expect(_mocks.mockUserCreate).not.toHaveBeenCalled();
       expect(result.user).toMatchObject({ id: 'user-existing' });
+    });
+
+    it('marque comme vérifié un compte existant non encore vérifié', async () => {
+      _mocks.mockOtpFindFirst.mockResolvedValueOnce({ id: 'otp-1', used: false, expiresAt: new Date(Date.now() + 60000) });
+      _mocks.mockUserFindUnique.mockResolvedValueOnce({
+        id: 'user-unverified', phoneNumber: '+22670000000', pseudo: 'Parieur_B',
+        referralCode: 'ABC123', phoneVerified: false,
+      });
+
+      const result = await service.verifyOtp('+22670000000', '123456');
+
+      expect(_mocks.mockUserCreate).not.toHaveBeenCalled();
+      expect(_mocks.mockUserUpdate).toHaveBeenCalledWith(
+        expect.objectContaining({ data: { phoneVerified: true } }));
+      // L'utilisateur ne doit pas être perdu au passage dans cette branche.
+      expect(result.user).toMatchObject({ id: 'user-unverified', phoneVerified: true });
     });
 
     it('détecte le code pays Burkina Faso (+226)', async () => {
@@ -100,6 +128,50 @@ describe('AuthService', () => {
 
       const createCall = _mocks.mockUserCreate.mock.calls[0][0];
       expect(createCall.data.countryCode).toBe('CI');
+    });
+  });
+
+  // ─── Google Play review access ──────────────────────────────────────────
+
+  describe('Google Play review access', () => {
+    const reviewEmail = 'review-googleplay@pronowin.space';
+    const reviewOtp = '482917';
+
+    beforeEach(() => {
+      process.env.GOOGLE_PLAY_REVIEW_ENABLED = 'true';
+      process.env.GOOGLE_PLAY_REVIEW_EMAIL = reviewEmail;
+      process.env.GOOGLE_PLAY_REVIEW_OTP = reviewOtp;
+    });
+
+    it('does not send email or create a temporary OTP for the review account', async () => {
+      const result = await service.sendEmailOtp(reviewEmail.toUpperCase());
+
+      expect(result).toEqual({ isNewUser: false });
+      expect(mockSendEmailOtp).not.toHaveBeenCalled();
+      expect(_mocks.mockOtpCreate).not.toHaveBeenCalled();
+    });
+
+    it('accepts the fixed code only for the active review account', async () => {
+      _mocks.mockUserFindUnique.mockResolvedValueOnce({
+        id: 'review-user', email: reviewEmail, isActive: true, deletedAt: null,
+      });
+
+      const result = await service.verifyEmailOtp(reviewEmail, reviewOtp);
+
+      expect(_mocks.mockOtpFindFirst).not.toHaveBeenCalled();
+      expect(_mocks.mockUserUpdate).toHaveBeenCalledWith(expect.objectContaining({
+        where: { id: 'review-user' },
+        data: expect.objectContaining({ lastLoginAt: expect.any(Date) }),
+      }));
+      expect(result).toHaveProperty('access_token');
+      expect(result).toHaveProperty('refresh_token');
+    });
+
+    it('rejects a wrong code without falling back to regular OTP lookup', async () => {
+      await expect(service.verifyEmailOtp(reviewEmail, '000000'))
+        .rejects.toThrow('Code OTP invalide ou expire.');
+
+      expect(_mocks.mockOtpFindFirst).not.toHaveBeenCalled();
     });
   });
 

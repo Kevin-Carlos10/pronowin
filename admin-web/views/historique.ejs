@@ -3,9 +3,10 @@
 <style>
 /* ── Stats ─────────────────────────────────────────────────────────────────── */
 .hi-stats { display:grid; grid-template-columns:repeat(auto-fill,minmax(140px,1fr)); gap:.7rem; margin-bottom:1rem; }
-.hi-stat  { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.8rem 1rem; }
-.hi-stat .v { font-size:1.3rem; font-weight:800; line-height:1; margin-bottom:.15rem; }
-.hi-stat .l { font-size:.7rem; text-transform:uppercase; letter-spacing:.05em; font-weight:600; color:var(--text-dim); }
+.hi-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1.1rem; transition:transform .2s,box-shadow .2s; }
+.hi-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
+.hi-stat .v { font-size:1.7rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
+.hi-stat .l { font-size:.7rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
 
 /* ── Filter bar ─────────────────────────────────────────────────────────────── */
 .hi-filter { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
@@ -57,57 +58,61 @@
   function _hq(obj) {
     return Object.entries(obj).filter(([,v])=>v).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join('&');
   }
-  const _qs = _hq({ search, type, status, method, date_from:dateFrom, date_to:dateTo, amount_min, amount_max, sort_by:sortBy });
-  const _hasFilter = !!(search || type || status || method || dateFrom || dateTo || amount_min || amount_max);
+  const _qs = _hq({ search, status, method, date_from:dateFrom, date_to:dateTo, amount_min, amount_max, sort_by:sortBy });
+  const _hasFilter = !!(search || status || method || dateFrom || dateTo || amount_min || amount_max);
   const _hasAdv    = !!(dateFrom || dateTo || amount_min || amount_max);
 
-  function pageUrl(p) { return '/admin/historique?' + _hq({ search, type, status, method, date_from:dateFrom, date_to:dateTo, amount_min, amount_max, page:String(p) }); }
+  function pageUrl(p) { return '/admin/historique?' + _hq({ search, status, method, date_from:dateFrom, date_to:dateTo, amount_min, amount_max, page:String(p) }); }
+
+  const _methodCfg = {
+    orange_money: { emoji:'🟠', label:'Orange Money' },
+    moov_money:   { emoji:'🔵', label:'Moov Money' },
+    mtn_momo:     { emoji:'🟡', label:'MTN MoMo' },
+    wave:         { emoji:'🌊', label:'Wave' },
+  };
+  function _methodLabel(m) { const c = _methodCfg[m] || { emoji:'💳', label:m }; return c.emoji + ' ' + c.label; }
 %>
 
 <div class="topbar">
   <div>
-    <h2>📋 Historique des transactions</h2>
-    <small><%= total %> transaction<%= total>1?'s':'' %><%= _hasFilter ? ' (filtrées)' : '' %></small>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Historique des versements</h2>
+    <small><%= total %> versement<%= total>1?'s':'' %> de gains de parrainage<%= _hasFilter ? ' (filtrés)' : '' %></small>
   </div>
-  <a href="/admin/historique/export?<%= _qs %>" class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)">⬇️ Export CSV</a>
+  <a href="/admin/historique/export?<%= _qs %>" class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV</a>
 </div>
+
+<%- include('_onglets_paiements', { actif: 'historique' }) %>
 
 <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
 <% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
 
 <!-- ── Stats ─────────────────────────────────────────────────────────────────── -->
 <div class="hi-stats">
-  <div class="hi-stat">
-    <div class="v" style="color:var(--success)"><%= stats.volume_deposits ? (stats.volume_deposits/1000).toFixed(0)+'k' : '0' %></div>
-    <div class="l">FCFA déposés</div>
-  </div>
+  <%# Cinq des huit cartes comptaient des dépôts : elles auraient affiché zéro
+      indéfiniment. Restent les chiffres qui décrivent la file de versements. %>
   <div class="hi-stat">
     <div class="v" style="color:var(--warning)"><%= stats.volume_withdrawals ? (stats.volume_withdrawals/1000).toFixed(0)+'k' : '0' %></div>
-    <div class="l">FCFA retirés</div>
-  </div>
-  <div class="hi-stat">
-    <div class="v" style="color:var(--info)"><%= stats.completed_deposits || 0 %></div>
-    <div class="l">Dépôts confirmés</div>
+    <div class="l">FCFA versés</div>
   </div>
   <div class="hi-stat">
     <div class="v" style="color:#A78BFA"><%= stats.completed_withdrawals || 0 %></div>
-    <div class="l">Retraits effectués</div>
+    <div class="l">Versements effectués</div>
   </div>
   <div class="hi-stat">
     <div class="v" style="color:var(--error)"><%= stats.pending_count || 0 %></div>
     <div class="l">En attente</div>
   </div>
   <div class="hi-stat">
+    <div class="v" style="color:var(--error)"><%= stats.pending_volume ? (stats.pending_volume/1000).toFixed(0)+'k' : '0' %></div>
+    <div class="l">FCFA à verser</div>
+  </div>
+  <div class="hi-stat">
+    <div class="v" style="color:var(--text-dim)"><%= stats.rejected_withdrawals || 0 %></div>
+    <div class="l">Rejetés</div>
+  </div>
+  <div class="hi-stat">
     <div class="v" style="color:var(--primary)"><%= stats.monthly_volume ? (stats.monthly_volume/1000).toFixed(0)+'k' : '0' %></div>
     <div class="l">Volume 30 jours</div>
-  </div>
-  <div class="hi-stat">
-    <div class="v" style="color:var(--success)"><%= stats.today_deposits || 0 %></div>
-    <div class="l">Dépôts auj.</div>
-  </div>
-  <div class="hi-stat">
-    <div class="v" style="color:var(--warning)"><%= stats.today_withdrawals || 0 %></div>
-    <div class="l">Retraits auj.</div>
   </div>
 </div>
 
@@ -117,15 +122,10 @@
 
     <!-- Ligne principale -->
     <div class="hi-filter" style="margin-bottom:<%= _hasAdv ? '.75rem' : '0' %>">
-      <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, ID 1xBet…">
+      <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, ID 1xBet…" aria-label="Rechercher">
 
-      <select name="type" onchange="this.form.submit()">
-        <option value="">Tous types</option>
-        <option value="deposit"    <%= type==='deposit'    ?'selected':'' %>>⬇️ Dépôts</option>
-        <option value="withdrawal" <%= type==='withdrawal' ?'selected':'' %>>⬆️ Retraits</option>
-      </select>
 
-      <select name="status" onchange="this.form.submit()">
+      <select name="status" onchange="this.form.submit()" aria-label="Statut">
         <option value="">Tous statuts</option>
         <option value="pending"    <%= status==='pending'    ?'selected':'' %>>⏳ En attente</option>
         <option value="processing" <%= status==='processing' ?'selected':'' %>>🔄 En cours</option>
@@ -133,19 +133,18 @@
         <option value="rejected"   <%= status==='rejected'   ?'selected':'' %>>❌ Rejeté</option>
       </select>
 
-      <select name="method" onchange="this.form.submit()">
+      <select name="method" onchange="this.form.submit()" aria-label="Méthode">
         <option value="">Toutes méthodes</option>
-        <option value="orange_money" <%= method==='orange_money' ?'selected':'' %>>🟠 Orange Money</option>
-        <option value="moov_money"   <%= method==='moov_money'   ?'selected':'' %>>🔵 Moov Money</option>
-        <option value="mtn_momo"     <%= method==='mtn_momo'     ?'selected':'' %>>🟡 MTN MoMo</option>
-        <option value="wave"         <%= method==='wave'         ?'selected':'' %>>🌊 Wave</option>
+        <% (typeof methods !== 'undefined' ? methods : []).forEach(m => { %>
+        <option value="<%= m %>" <%= method===m ?'selected':'' %>><%= _methodLabel(m) %></option>
+        <% }) %>
       </select>
 
       <button type="button" class="btn btn-outline btn-sm" onclick="toggleAdv()" id="adv-btn">
-        📅 <%= _hasAdv ? 'Dates ▲' : 'Dates ▼' %>
+        <svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg> <%= _hasAdv ? 'Dates ▲' : 'Dates ▼' %>
       </button>
       <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
-      <% if(_hasFilter){ %><a href="/admin/historique" class="btn btn-outline btn-sm">✕ Reset</a><% } %>
+      <% if(_hasFilter){ %><a href="/admin/historique" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a><% } %>
     </div>
 
     <!-- Panneau avancé -->
@@ -153,25 +152,25 @@
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:.6rem;margin-bottom:.6rem">
         <div>
           <div style="font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:.3rem">Du</div>
-          <input type="date" name="date_from" value="<%= dateFrom %>">
+          <input type="date" name="date_from" value="<%= dateFrom %>" aria-label="Date de début">
         </div>
         <div>
           <div style="font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:.3rem">Au</div>
-          <input type="date" name="date_to" value="<%= dateTo %>">
+          <input type="date" name="date_to" value="<%= dateTo %>" aria-label="Date de fin">
         </div>
         <div>
           <div style="font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:.3rem">Montant min</div>
-          <input type="number" name="amount_min" value="<%= amount_min %>" min="0" placeholder="5 000">
+          <input type="number" name="amount_min" value="<%= amount_min %>" min="0" placeholder="5 000" aria-label="Montant minimum">
         </div>
         <div>
           <div style="font-size:.68rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;font-weight:700;margin-bottom:.3rem">Montant max</div>
-          <input type="number" name="amount_max" value="<%= amount_max %>" min="0" placeholder="100 000">
+          <input type="number" name="amount_max" value="<%= amount_max %>" min="0" placeholder="100 000" aria-label="Montant maximum">
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:.5rem;flex-wrap:wrap">
         <span style="font-size:.72rem;color:var(--text-dim)">Presets :</span>
         <div id="presets-list"></div>
-        <button type="button" class="btn btn-outline btn-sm" onclick="savePreset()">💾 Sauvegarder</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="savePreset()"><svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> Sauvegarder</button>
       </div>
     </div>
 
@@ -181,14 +180,13 @@
   <% if(_hasFilter){ %>
   <div class="hi-tags">
     <span style="font-size:.72rem;color:var(--text-dim)">Filtres actifs :</span>
-    <% if(search){ %><span class="hi-tag">🔍 <%= search %> <a href="/admin/historique?<%= _hq({type,status,method,date_from:dateFrom,date_to:dateTo}) %>">×</a></span><% } %>
-    <% if(type){ %><span class="hi-tag">Type: <%= type %> <a href="/admin/historique?<%= _hq({search,status,method,date_from:dateFrom,date_to:dateTo}) %>">×</a></span><% } %>
-    <% if(status){ %><span class="hi-tag">Statut: <%= status %> <a href="/admin/historique?<%= _hq({search,type,method,date_from:dateFrom,date_to:dateTo}) %>">×</a></span><% } %>
-    <% if(method){ %><span class="hi-tag">Méthode: <%= method %> <a href="/admin/historique?<%= _hq({search,type,status,date_from:dateFrom,date_to:dateTo}) %>">×</a></span><% } %>
-    <% if(dateFrom){ %><span class="hi-tag">Du: <%= dateFrom %> <a href="/admin/historique?<%= _hq({search,type,status,method,date_to:dateTo}) %>">×</a></span><% } %>
-    <% if(dateTo){ %><span class="hi-tag">Au: <%= dateTo %> <a href="/admin/historique?<%= _hq({search,type,status,method,date_from:dateFrom}) %>">×</a></span><% } %>
-    <% if(amount_min){ %><span class="hi-tag">Min: <%= parseInt(amount_min).toLocaleString() %> FCFA <a href="/admin/historique?<%= _hq({search,type,status,method,date_from:dateFrom,date_to:dateTo,amount_max}) %>">×</a></span><% } %>
-    <% if(amount_max){ %><span class="hi-tag">Max: <%= parseInt(amount_max).toLocaleString() %> FCFA <a href="/admin/historique?<%= _hq({search,type,status,method,date_from:dateFrom,date_to:dateTo,amount_min}) %>">×</a></span><% } %>
+    <% if(search){ %><span class="hi-tag"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg> <%= search %> <a href="/admin/historique?<%= _hq({status,method,date_from:dateFrom,date_to:dateTo}) %>">×</a></span><% } %>
+    <% if(status){ %><span class="hi-tag">Statut: <%= status %> <a href="/admin/historique?<%= _hq({search,method,date_from:dateFrom,date_to:dateTo}) %>">×</a></span><% } %>
+    <% if(method){ %><span class="hi-tag">Méthode: <%= method %> <a href="/admin/historique?<%= _hq({search,status,date_from:dateFrom,date_to:dateTo}) %>">×</a></span><% } %>
+    <% if(dateFrom){ %><span class="hi-tag">Du: <%= dateFrom %> <a href="/admin/historique?<%= _hq({search,status,method,date_to:dateTo}) %>">×</a></span><% } %>
+    <% if(dateTo){ %><span class="hi-tag">Au: <%= dateTo %> <a href="/admin/historique?<%= _hq({search,status,method,date_from:dateFrom}) %>">×</a></span><% } %>
+    <% if(amount_min){ %><span class="hi-tag">Min: <%= parseInt(amount_min).toLocaleString() %> FCFA <a href="/admin/historique?<%= _hq({search,status,method,date_from:dateFrom,date_to:dateTo,amount_max}) %>">×</a></span><% } %>
+    <% if(amount_max){ %><span class="hi-tag">Max: <%= parseInt(amount_max).toLocaleString() %> FCFA <a href="/admin/historique?<%= _hq({search,status,method,date_from:dateFrom,date_to:dateTo,amount_min}) %>">×</a></span><% } %>
   </div>
   <% } %>
 </div>
@@ -206,21 +204,20 @@
     <table class="hi-table">
       <thead>
         <tr>
-          <th>Utilisateur</th>
-          <th>Type</th>
-          <th>Montant</th>
-          <th>Méthode</th>
-          <th>ID 1xBet</th>
-          <th>N° Envoyeur</th>
-          <th>Statut</th>
-          <th>Date</th>
-          <% if(hasPerm('historique','write')) { %><th style="width:40px"></th><% } %>
+          <th scope="col">Utilisateur</th>
+          <th scope="col">Type</th>
+          <th scope="col">Montant</th>
+          <th scope="col">Méthode</th>
+          <th scope="col">ID 1xBet</th>
+          <th scope="col">N° Envoyeur</th>
+          <th scope="col">Statut</th>
+          <th scope="col">Date</th>
+          <% if(hasPerm('historique','write')) { %><th scope="col" style="width:40px"></th><% } %>
         </tr>
       </thead>
       <tbody>
       <% data.forEach(function(tx) {
-           const isDeposit   = tx.type === 'deposit';
-           const statusLabel = tx.status==='completed'?'✅ Confirmé':tx.status==='rejected'?'❌ Rejeté':tx.status==='processing'?'🔄 En cours':'⏳ Attente';
+           const statusLabel = tx.status==='completed'?'✓ Confirmé':tx.status==='rejected'?'✕ Rejeté':tx.status==='processing'?' En cours':'⏳ Attente';
            const statusCls   = tx.status==='completed'?'badge-ok':tx.status==='rejected'?'badge-err':tx.status==='processing'?'badge-info':'badge-warn';
            const methodLabel = tx.paymentMethod==='orange_money'?'🟠 Orange':tx.paymentMethod==='moov_money'?'🔵 Moov':tx.paymentMethod==='wave'?'🌊 Wave':'🟡 MTN';
            const dateStr     = new Date(tx.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});
@@ -235,9 +232,8 @@
           </div>
           <div style="font-size:.75rem;color:var(--text-dim)"><%= tx.user ? tx.user.phoneNumber : '' %></div>
         </td>
-        <td><span class="badge <%= isDeposit?'badge-ok':'badge-warn' %>"><%= isDeposit?'⬇️ Dépôt':'⬆️ Retrait' %></span></td>
         <td>
-          <div class="hi-amount <%= isDeposit?'dep':'with' %>"><%= (tx.amount||0).toLocaleString() %><span style="font-size:.75rem;font-weight:400;color:var(--text-dim)"> F</span></div>
+          <div class="hi-amount with"><%= (tx.amount||0).toLocaleString() %><span style="font-size:.75rem;font-weight:400;color:var(--text-dim)"> F</span></div>
         </td>
         <td style="color:var(--text-m);font-size:.8rem"><%= methodLabel %></td>
         <td style="color:var(--primary);font-size:.8rem;font-weight:600;font-family:monospace"><%= tx.xbetId || '—' %></td>
@@ -248,7 +244,7 @@
         </td>
         <td style="color:var(--text-m);font-size:.78rem;white-space:nowrap">
           <%= dateStr %>
-          <% if(procStr){ %><div style="color:var(--text-dim);font-size:.72rem">✓ <%= procStr %></div><% } %>
+          <% if(procStr){ %><div style="color:var(--text-dim);font-size:.72rem"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> <%= procStr %></div><% } %>
         </td>
         <% if(hasPerm('historique','write')) { %>
         <td>
@@ -256,7 +252,7 @@
             data-id="<%= tx.id %>"
             data-status="<%= tx.status %>"
             data-note="<%= (tx.adminNote||'').replace(/"/g,'&quot;') %>"
-            onclick="openEdit(this)" title="Modifier">✏️</button>
+            onclick="openEdit(this)" title="Modifier"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg></button>
         </td>
         <% } %>
       </tr>
@@ -284,11 +280,11 @@
 <!-- ── Modal modification ─────────────────────────────────────────────────────── -->
 <div class="hi-modal" id="edit-modal">
   <div class="hi-modal-box">
-    <h3>✏️ Modifier la transaction</h3>
+    <h3><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier la transaction</h3>
     <form id="edit-form" method="POST">
       <div class="form-group" style="margin-bottom:.9rem">
         <label>Statut</label>
-        <select class="input" name="status" id="edit-status">
+        <select class="input" name="status" id="edit-status" aria-label="Statut">
           <option value="pending">⏳ En attente</option>
           <option value="processing">🔄 En cours</option>
           <option value="completed">✅ Confirmé</option>
@@ -297,11 +293,11 @@
       </div>
       <div class="form-group" style="margin-bottom:1.25rem">
         <label>Note admin</label>
-        <textarea class="input" name="admin_note" id="edit-note" rows="3" placeholder="Note visible dans l'historique…"></textarea>
+        <textarea class="input" name="admin_note" id="edit-note" rows="3" placeholder="Note visible dans l'historique…" aria-label="Note administrateur"></textarea>
       </div>
       <div style="display:flex;gap:.75rem">
         <button type="button" class="btn btn-outline" onclick="closeEditModal()" style="flex:1">Annuler</button>
-        <button type="submit" class="btn btn-primary" style="flex:1">💾 Sauvegarder</button>
+        <button type="submit" class="btn btn-primary" style="flex:1"><svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> Sauvegarder</button>
       </div>
     </form>
   </div>

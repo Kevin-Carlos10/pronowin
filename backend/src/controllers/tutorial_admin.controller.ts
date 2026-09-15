@@ -16,6 +16,16 @@ export const getAll = async (req: AdminRequest, res: Response) => {
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };
 
+export const getCategories = async (_req: AdminRequest, res: Response) => {
+  try { res.json(await svc.getDistinctCategories()); }
+  catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
+export const getLevels = async (_req: AdminRequest, res: Response) => {
+  try { res.json(await svc.getDistinctLevels()); }
+  catch (e: any) { res.status(500).json({ message: e.message }); }
+};
+
 export const getOne = async (req: AdminRequest, res: Response) => {
   try { res.json(await svc.getOne(req.params.id)); }
   catch (e: any) { res.status(404).json({ message: e.message }); }

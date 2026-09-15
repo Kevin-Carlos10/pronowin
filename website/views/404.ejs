@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Page introuvable — <%= site.name %></title>
+  <%# Aucun favicon n'etait declare : l'onglet affichait l'icone generique
+      du navigateur, sur un site dont c'est la marque qu'on vend. %>
+  <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
+  <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="navbar">
+    <div class="container">
+      <a href="/" class="brand">
+        <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
+        <span class="brand-name">Prono<span class="brand-win">Win</span></span>
+      </a>
+    </div>
+  </header>
+  <div class="container simple-page">
+    <h1>404 — Page introuvable</h1>
+    <p>La page que vous cherchez n'existe pas ou a été déplacée.</p>
+    <a href="/" class="btn btn-primary">Retour à l'accueil</a>
+  </div>
+</body>
+</html>
