@@ -19,6 +19,22 @@ class TarifsPremium {
   static const mensuelDirectDefaut = 6000;
   static const annuelDirectDefaut  = 54000;
 
+  /// Les mêmes formules, en dollars.
+  ///
+  /// Deux monnaies pour un seul abonnement, et deux réglages serveur distincts
+  /// (`PREMIUM_PRICE_USD_*` et `PREMIUM_PRICE_FCFA_*`) que rien ne lie : ils
+  /// coïncident aujourd'hui (≈ 600 FCFA pour un dollar) parce que quelqu'un
+  /// les a saisis ensemble, pas parce qu'un calcul les tient. Changer l'un
+  /// laisse l'autre en arrière sans qu'aucune erreur ne se produise.
+  ///
+  /// Les deux ont un rôle distinct, et c'est pourquoi aucune n'est dérivée de
+  /// l'autre : le dollar est ce qu'on **annonce**, le FCFA ce qui est
+  /// réellement **viré** par Mobile Money. Un montant converti à la volée
+  /// donnerait un virement au centime près, impossible à reproduire chez
+  /// l'opérateur.
+  static const mensuelUsdDefaut = 10;
+  static const annuelUsdDefaut  = 90;
+
   /// Durée offerte par le parcours « code promo ».
   ///
   /// Ce parcours donnait −30 % sur l'abonnement ; il donne désormais le
@@ -34,6 +50,10 @@ class TarifsPremium {
 
   final int mensuelDirect;
   final int annuelDirect;
+
+  /// Les mêmes formules en dollars — voir [mensuelUsdDefaut].
+  final num mensuelUsd;
+  final num annuelUsd;
 
   /// Jours offerts par le parcours « code promo », publiés par le serveur.
   final int joursOffreCode;
@@ -58,6 +78,8 @@ class TarifsPremium {
   const TarifsPremium({
     required this.mensuelDirect,
     required this.annuelDirect,
+    required this.mensuelUsd,
+    required this.annuelUsd,
     required this.joursOffreCode,
     required this.promoCode,
     required this.codesParPlateforme,
@@ -71,12 +93,16 @@ class TarifsPremium {
     int entier(String cle, int defaut) =>
         (d?[cle] as num?)?.toInt() ?? defaut;
 
+    num decimal(String cle, num defaut) => (d?[cle] as num?) ?? defaut;
+
     String texte(String cle, String defaut) {
       final v = d?[cle];
       return (v is String && v.trim().isNotEmpty) ? v : defaut;
     }
 
     return TarifsPremium(
+      mensuelUsd:     decimal('premium_price_monthly_usd', mensuelUsdDefaut),
+      annuelUsd:      decimal('premium_price_annual_usd',  annuelUsdDefaut),
       mensuelDirect:  entier('premium_price_monthly_fcfa', mensuelDirectDefaut),
       annuelDirect:   entier('premium_price_annual_fcfa',  annuelDirectDefaut),
       joursOffreCode: entier('code_offer_days',            joursOffreCodeDefaut),
@@ -116,6 +142,17 @@ class TarifsPremium {
   /// facture rien, il offre le premier mois. Garder un paramètre `avecCode`
   /// aurait laissé croire à un tarif qui n'existe plus.
   int prix({required bool annuel}) => annuel ? annuelDirect : mensuelDirect;
+
+  /// Le même abonnement, annoncé en dollars.
+  ///
+  /// [prix] dit ce qui est **viré** ; celui-ci dit ce qui est **annoncé**. Les
+  /// deux décrivent la même formule et ne se déduisent pas l'un de l'autre —
+  /// voir [mensuelUsdDefaut].
+  num prixUsd({required bool annuel}) => annuel ? annuelUsd : mensuelUsd;
+
+  /// « $90 », prêt à afficher.
+  String prixUsdFormate({required bool annuel}) =>
+      montantDollars(prixUsd(annuel: annuel));
 
   /// Le plus bas coût mensuel réellement payable — l'annuel est ramené au mois
   /// pour être comparable.

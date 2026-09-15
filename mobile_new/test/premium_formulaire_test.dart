@@ -75,9 +75,33 @@ void main() {
 
   group('la numérotation compte à partir de la première action', () {
     test('le transfert porte un numéro', () {
-      expect(RegExp(r'\$\{?widget\.etape\}?\.\s*Envoie').hasMatch(codeSeul(page)),
+      // Le contrôle exigeait le verbe : `${widget.etape}. Envoie`. Il tenait
+      // donc deux choses à la fois — la numérotation, qui est son objet, et la
+      // formulation, qui ne l'est pas. Reformuler le titre en « Paiement de
+      // $90 » le faisait tomber sans qu'aucun numéro n'ait disparu.
+      //
+      // Seule la numérotation est vérifiée ici. Ce qui suit le numéro relève
+      // de la rédaction, et le titre est de toute façon lu par le test
+      // « le titre annonce le tarif en dollars ».
+      expect(RegExp(r'\$\{?widget\.etape\}?\.\s').hasMatch(codeSeul(page)),
         isTrue,
         reason: 'envoyer l\'argent est l\'étape 1 ; elle n\'en portait aucune');
+    });
+
+    test('le titre annonce le tarif en dollars, le virement reste en FCFA', () {
+      // Le paywall annonce « $90 », l'écran de paiement disait « Envoie
+      // 54 000 FCFA » : deux monnaies pour une même formule, sans lien
+      // apparent pour qui les lit à la suite. Le titre parle désormais la
+      // langue du paywall.
+      //
+      // Mais un virement Mobile Money se fait en FCFA, au franc près. Le
+      // montant exact doit donc rester affiché là où l'utilisateur agit,
+      // c'est-à-dire à côté du numéro de réception.
+      final code = codeSeul(page);
+      expect(code, contains('montantDollars(widget.priceUsd)'),
+        reason: 'le titre doit annoncer le tarif en dollars');
+      expect(code, contains('Montant à envoyer : \${montantExact(widget.price)} FCFA'),
+        reason: 'sans le montant exact en FCFA, le virement est irréalisable');
     });
 
     test('les étapes suivantes ne se chevauchent plus', () {

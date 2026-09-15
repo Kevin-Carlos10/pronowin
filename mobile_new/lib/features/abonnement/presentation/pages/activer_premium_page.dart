@@ -280,11 +280,16 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   // PAGE PAYWALL (landing d'activation premium)
   // ══════════════════════════════════════════════════════
   Widget _buildPaywallPage() {
-    final d = _donnees;
-    final monthlyUsd     = (d?['premium_price_monthly_usd']      as num?)?.toDouble() ?? 10;
-    final annualUsd      = (d?['premium_price_annual_usd']       as num?)?.toDouble() ?? 90;
-    final monthlyCodeUsd = (d?['premium_price_monthly_code_usd'] as num?)?.toDouble() ?? 7;
-    final annualCodeUsd  = (d?['premium_price_annual_code_usd']  as num?)?.toDouble() ?? 63;
+    // Les tarifs en dollars vivaient ici, relus à la main avec leurs propres
+    // replis, alors que les FCFA passaient déjà par `TarifsPremium`. Une seule
+    // source pour les deux monnaies, désormais.
+    //
+    // Les deux « tarifs code » qui figuraient ici sont supprimés : le serveur
+    // ne publie ni `premium_price_monthly_code_usd` ni son annuel — un test du
+    // backend vérifie même leur absence, le parcours « code promo » ne
+    // facturant rien. Leurs replis `?? 7` et `?? 63` étaient donc les seules
+    // valeurs possibles : deux prix qui n'existaient nulle part ailleurs, et
+    // que `_PaywallPage` recevait sans jamais les afficher.
 
     // Sur un build store, Apple (3.1.1) et Google imposent l'achat intégré
     // pour déverrouiller du contenu numérique — et interdisent d'afficher un
@@ -294,10 +299,8 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     final iapReady = isStore ? (ref.watch(iapReadyProvider).value ?? false) : false;
 
     return _PaywallPage(
-      monthlyPrice:     monthlyUsd,
-      annualPrice:      annualUsd,
-      monthlyCodePrice: monthlyCodeUsd,
-      annualCodePrice:  annualCodeUsd,
+      monthlyPrice:     _tarifs.mensuelUsd,
+      annualPrice:      _tarifs.annuelUsd,
       promoCode:        _tarifs.promoCode,
       tarifs:           _tarifs,
       duration:         _duration,
@@ -407,6 +410,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     return [
       _PaymentRecipientCard(
         price: price, planLabel: planLabel, methodes: _methodesPaiement,
+        priceUsd: _tarifs.prixUsd(annuel: _duration == 'annuel'),
         etape: etapeTransfert),
       const SizedBox(height: 20),
 
@@ -973,15 +977,23 @@ class _PlatformSelector extends StatelessWidget {
 /// servie par l'API : un seul opérateur se comporte comme avant, plusieurs font
 /// apparaître un sélecteur, aucun retombe sur la constante de repli.
 class _PaymentRecipientCard extends StatefulWidget {
+  /// Le montant réellement viré, en FCFA. C'est celui que l'utilisateur doit
+  /// saisir chez son opérateur, au franc près.
   final dynamic price;
+
+  /// Le même abonnement, tel qu'on l'annonce. Le titre parle en dollars pour
+  /// s'accorder au paywall ; le FCFA reste affiché à côté du numéro, parce
+  /// qu'un virement Mobile Money ne se fait pas en dollars.
+  final num priceUsd;
+
   final String  planLabel;
   final List<Map<String, dynamic>> methodes;
   /// Numéro de cette étape dans le parcours — c'est la **première** action que
   /// l'utilisateur accomplit, et elle n'en portait aucun.
   final int etape;
   const _PaymentRecipientCard({
-    required this.price, required this.planLabel, required this.methodes,
-    required this.etape});
+    required this.price, required this.priceUsd, required this.planLabel,
+    required this.methodes, required this.etape});
 
   @override
   State<_PaymentRecipientCard> createState() => _PaymentRecipientCardState();
@@ -1067,10 +1079,8 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
         const Icon(Icons.send_to_mobile_rounded, color: AppColors.primary, size: 16),
         const SizedBox(width: 8),
         Expanded(child: Text(
-          // `montantExact` : « 54 000 », pas « 54000 ». C'est le seul écran de
-          // l'app où l'utilisateur doit recopier un montant.
-          '${widget.etape}. Envoie ${montantExact(widget.price)} FCFA '
-          'à ce numéro (${widget.planLabel})',
+          '${widget.etape}. Paiement de ${montantDollars(widget.priceUsd)} '
+          '(${widget.planLabel})',
           style: const TextStyle(
             color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w700))),
       ]),
@@ -1129,6 +1139,16 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
               const SizedBox(height: 2),
               Text(_operateur, style: TextStyle(
                 fontSize: 11, color: context.cl.textS)),
+              const SizedBox(height: 6),
+              // Le titre annonce le tarif en dollars ; ceci est le montant à
+              // virer. `montantExact` : « 54 000 », pas « 54000 » — c'est le
+              // seul endroit de l'app où l'utilisateur recopie un montant, et
+              // il doit le saisir au franc près chez son opérateur.
+              Text('Montant à envoyer : ${montantExact(widget.price)} FCFA',
+                style: const TextStyle(
+                  fontSize: 12.5,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.primary)),
             ])),
             GestureDetector(
               onTap: _copier,
@@ -1670,10 +1690,8 @@ class _XbetSubmitButton extends StatelessWidget {
 // PAYWALL PAGE
 // ══════════════════════════════════════════════════════════════════════════════
 class _PaywallPage extends StatelessWidget {
-  final double monthlyPrice;
-  final double annualPrice;
-  final double monthlyCodePrice;
-  final double annualCodePrice;
+  final num monthlyPrice;
+  final num annualPrice;
   final String promoCode;
 
   /// Ce que le serveur publie réellement : opérateurs disponibles, délais de
@@ -1703,8 +1721,6 @@ class _PaywallPage extends StatelessWidget {
   const _PaywallPage({
     required this.monthlyPrice,
     required this.annualPrice,
-    required this.monthlyCodePrice,
-    required this.annualCodePrice,
     required this.promoCode,
     required this.tarifs,
     required this.duration,
@@ -2357,7 +2373,7 @@ class _DurationTab extends StatelessWidget {
 // ─── CARTE MÉTHODE DE PAIEMENT (direct ou code promo) ─────────────────────────
 class _MethodCard extends StatelessWidget {
   final String title, subtitle;
-  final double price;
+  final num price;
   final String period;
   final String? badge;
   final Color color;
@@ -2406,7 +2422,7 @@ class _MethodCard extends StatelessWidget {
               Text(subtitle, style: const TextStyle(color: Colors.white54, fontSize: 12)),
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-              Text('\$${price.toStringAsFixed(0)}', style: TextStyle(
+              Text(montantDollars(price), style: TextStyle(
                 color: color, fontSize: 22, fontWeight: FontWeight.w900)),
               Text(period, style: const TextStyle(color: Colors.white38, fontSize: 11)),
             ]),

@@ -32,6 +32,19 @@ String montantExact(num valeur) {
   return negatif ? '-$tampon' : tampon.toString();
 }
 
+/// Montant en dollars — « $90 ».
+///
+/// Les tarifs existent en deux monnaies : le dollar est ce qu'on annonce, le
+/// FCFA ce qui est réellement viré par Mobile Money. Les deux doivent s'écrire
+/// chacun d'une seule façon, d'où cette fonction à côté de [montantExact].
+///
+/// Pas de décimales quand il n'y en a pas : « $90 » et non « $90.00 ». Un
+/// tarif publié à 9,99 les garde, lui — les tronquer afficherait un prix que
+/// personne ne paie.
+String montantDollars(num valeur) => valeur == valeur.roundToDouble()
+    ? '\$${valeur.round()}'
+    : '\$${valeur.toStringAsFixed(2)}';
+
 /// Nombre décimal à la française — la virgule, pas le point.
 ///
 /// `1.6` → `1,6`. La règle est déjà appliquée côté serveur (`seuilButs`, qui
