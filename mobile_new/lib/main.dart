@@ -37,6 +37,29 @@ import 'features/parametres/presentation/providers/settings_provider.dart';
 /// Android/iOS ne le passent pas et ne sont donc pas concernés.
 const bool _kForceSemantics = bool.fromEnvironment('FORCE_SEMANTICS');
 
+/// Attend [travail], sans laisser le démarrage en dépendre.
+///
+/// Rend la main au bout de [delai] si le travail n'a pas abouti. Le travail
+/// n'est pas annulé : il se poursuit et prendra effet quand il aboutira.
+///
+/// Les erreurs sont absorbées. Ces initialisations ont toutes un repli —
+/// valeurs par défaut, état invité, tâches non programmées — et aucune ne
+/// justifie d'empêcher l'application de s'ouvrir.
+Future<void> _sansBloquer(
+  Future<void> travail,
+  String quoi, [
+  Duration delai = const Duration(seconds: 3),
+]) async {
+  try {
+    await travail.timeout(delai);
+  } on TimeoutException {
+    debugPrint('[Démarrage] $quoi dépasse ${delai.inSeconds}s '
+               '— on continue sans attendre');
+  } catch (e) {
+    debugPrint('[Démarrage] $quoi a échoué : $e');
+  }
+}
+
 void main() async {
   final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
   if (_kForceSemantics) SemanticsBinding.instance.ensureSemantics();
@@ -47,8 +70,31 @@ void main() async {
 
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   await CrashlyticsService.init();
-  await RemoteConfigService.init();
-  await BackgroundSyncService.init();
+
+  // ── Rien ne retient le premier écran plus de quelques secondes ────────────
+  //
+  // Ces initialisations touchent le réseau, et elles étaient attendues sans
+  // borne, avant `FlutterNativeSplash.remove()`. Le splash **natif** restait
+  // donc affiché tout le temps qu'elles prenaient : pas d'indicateur, pas de
+  // message, rien à toucher.
+  //
+  // Mesuré sur émulateur, connexion lente mais fonctionnelle : **37 secondes**
+  // entre le démarrage du moteur Flutter et le premier écran. Réseau coupé, la
+  // même application démarrait en quelques secondes — l'échec immédiat rendait
+  // la main tout de suite. Autrement dit, le cas le plus fréquent du marché
+  // visé était le pire des trois.
+  //
+  // Aucune de ces deux initialisations n'est nécessaire au premier écran :
+  //
+  //   * `RemoteConfigService` a déjà ses valeurs par défaut en mémoire, et
+  //     elles ne sont lues qu'au contrôle de version, plus tard ;
+  //   * `BackgroundSyncService` programme des tâches de fond — par définition,
+  //     rien que l'utilisateur attend maintenant.
+  //
+  // On leur laisse un délai court, puis on avance. Elles continuent en
+  // arrière-plan : le délai écourte l'attente, il n'annule pas le travail.
+  await _sansBloquer(RemoteConfigService.init(), 'RemoteConfig');
+  await _sansBloquer(BackgroundSyncService.init(), 'BackgroundSync');
 
   // Capturer les erreurs Flutter (widgets, layout, etc.)
   if (!kIsWeb) {
@@ -99,7 +145,18 @@ void main() async {
       onboardingDoneProvider.overrideWith((ref) => onboardingDone),
     ],
   );
-  await container.read(authProvider.notifier).restoreSession();
+  // La restauration de session est attendue à dessein : sans elle, un
+  // démarrage à froid affiche brièvement l'écran invité alors qu'une session
+  // valide existe. Mais elle interroge le serveur, et l'attendre sans borne
+  // rendait ce défaut d'affichage pire que ce qu'il évitait.
+  //
+  // Quatre secondes : au-delà, un bref passage par l'état invité coûte moins
+  // qu'un splash immobile. La session se rétablit dès que la réponse arrive.
+  await _sansBloquer(
+    container.read(authProvider.notifier).restoreSession(),
+    'restoreSession',
+    const Duration(seconds: 4),
+  );
 
   // Retirer le splash natif → l'app Flutter prend le relais
   if (!kIsWeb) FlutterNativeSplash.remove();

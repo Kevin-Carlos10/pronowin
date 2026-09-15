@@ -279,7 +279,11 @@ class _BankrollView extends StatelessWidget {
             )),
             const SizedBox(width: 10),
             Expanded(child: _StatChip(
-              label: 'Win rate',
+              // « Win rate » sur un écran entièrement en français. La phrase
+              // juste en dessous dit déjà « Taux de réussite dès le prochain
+              // pari tranché » : l'étiquette et son explication ne parlaient
+              // pas la même langue.
+              label: 'Taux de réussite',
               // Sous le seuil, un tiret plutôt qu'un chiffre : les comptes
               // bruts « 1 gagné / 1 perdu » restent affichés juste à côté.
               value: winRate == null ? '—' : '${winRate.toStringAsFixed(0)}%',
@@ -549,10 +553,17 @@ class _BalanceChart extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
+        // La légende disait « Solde » et « Budget initial ».
+        //
+        // Elle décrivait l'ancienne courbe, qui partait du budget et prétendait
+        // suivre le solde. Renommer le titre sans toucher à la légende laissait
+        // l'écran se contredire à deux centimètres d'écart — et c'est la
+        // légende, plus près de la ligne, qu'on croit.
         Row(children: [
           Container(width: 12, height: 2, color: lineColor),
           const SizedBox(width: 4),
-          Text('Solde', style: TextStyle(color: context.cl.textM, fontSize: 9)),
+          Text('Gains et pertes cumulés',
+              style: TextStyle(color: context.cl.textM, fontSize: 9)),
           const SizedBox(width: 12),
           Container(width: 12, height: 2,
             decoration: BoxDecoration(
@@ -563,7 +574,8 @@ class _BalanceChart extends StatelessWidget {
               )),
             )),
           const SizedBox(width: 4),
-          Text('Budget initial', style: TextStyle(color: context.cl.textM, fontSize: 9)),
+          Text('Point de départ (0)',
+              style: TextStyle(color: context.cl.textM, fontSize: 9)),
         ]),
       ]),
     );
