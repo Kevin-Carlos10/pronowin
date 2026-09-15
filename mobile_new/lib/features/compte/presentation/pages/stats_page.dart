@@ -2,6 +2,7 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/utils/bilan_paris.dart';
 import '../providers/compte_provider.dart';
 
 class StatsPage extends ConsumerWidget {
@@ -42,6 +43,10 @@ class _StatsBody extends StatelessWidget {
     final suivis      = (stats['pronostics_suivis'] as num?)?.toInt()  ?? 0;
     final gagnes      = (stats['paris_gagnes']      as num?)?.toInt()  ?? 0;
     final perdus      = (stats['paris_perdus']      as num?)?.toInt()  ?? 0;
+    // `suivis - gagnés - perdus` comptait les remboursés comme « en attente » :
+    // des paris dont le résultat était tombé, et dont la mise avait été
+    // recréditée. La règle vit dans `BilanParis`, pas ici.
+    final bilan       = BilanParis.depuisApi(stats);
     final taux        = (stats['taux_reussite']     as num?)?.toDouble() ?? 0.0;
     final serie       = (stats['serie_gagnante']    as num?)?.toInt()  ?? 0;
     final bestSerie   = (stats['meilleure_serie']   as num?)?.toInt()  ?? 0;
@@ -111,7 +116,7 @@ class _StatsBody extends StatelessWidget {
               value: '$suivis',
               icon: Icons.sports_score_rounded,
               color: const Color(0xFF6C63FF),
-              sub: '${suivis - gagnes - perdus} en attente',
+              sub: bilan.mentionRepartition,
             )),
           ]),
 

@@ -192,6 +192,139 @@ void main() {
 
   // ── Les deux écrans qui retiennent le taux ──────────────────────────────
   //
+  /// Un remboursement est tranché. Il ne départage pas, mais il n'attend plus.
+  ///
+  /// `enAttente = suivis - gagnés - perdus` absorbait les paris `PUSH` : un
+  /// pari terminé, dont la mise avait été recréditée, s'affichait « en attente
+  /// de résultat ». Exclure un remboursement du taux de réussite est juste ;
+  /// l'appeler « en attente » ne l'est pas.
+  group('les remboursés sont tranchés, pas en attente', () {
+    BilanParis bilan({
+      required int suivis,
+      int gagnes = 0,
+      int perdus = 0,
+      int rembourses = 0,
+      double taux = 0.0,
+    }) =>
+        BilanParis.depuisApi({
+          'pronostics_suivis': suivis,
+          'paris_gagnes': gagnes,
+          'paris_perdus': perdus,
+          'paris_rembourses': rembourses,
+          'taux_reussite': taux,
+          'serie_gagnante': 0,
+        });
+
+    test('un remboursé ne compte plus comme en attente', () {
+      final b = bilan(suivis: 3, gagnes: 1, perdus: 1, rembourses: 1);
+
+      expect(b.rembourses, 1);
+      expect(b.tranches, 3, reason: 'les trois ont une issue connue');
+      expect(b.enAttente, 0, reason: 'aucun ne reste à jouer');
+    });
+
+    test('il reste exclu du dénominateur du taux', () {
+      // Contrepartie : la correction ne doit pas faire entrer les remboursés
+      // dans le taux de réussite. Un remboursement ne dit rien de la justesse
+      // d'un pronostic.
+      final b = bilan(suivis: 3, gagnes: 1, perdus: 1, rembourses: 1);
+
+      expect(b.regles, 2, reason: 'seuls gagnés et perdus départagent');
+    });
+
+    test('ce qui attend vraiment est encore compté', () {
+      final b = bilan(suivis: 5, gagnes: 1, perdus: 1, rembourses: 1);
+
+      expect(b.enAttente, 2);
+    });
+
+    test('une API muette sur les remboursés ne casse rien', () {
+      // Le mobile est publié avant le backend, ou l'inverse : la clé peut
+      // manquer. Sans valeur par défaut, tous les paris basculeraient en
+      // attente — le défaut d'origine, ressuscité par un décalage de version.
+      final b = BilanParis.depuisApi(const {
+        'pronostics_suivis': 3,
+        'paris_gagnes': 1,
+        'paris_perdus': 1,
+        'taux_reussite': 50.0,
+        'serie_gagnante': 0,
+      });
+
+      expect(b.rembourses, 0);
+      expect(b.enAttente, 1);
+    });
+
+    test('la répartition nomme chaque catégorie', () {
+      expect(bilan(suivis: 5, gagnes: 1, perdus: 1, rembourses: 1).mentionRepartition,
+          '2 en attente · 1 remboursé');
+      expect(bilan(suivis: 4, gagnes: 1, perdus: 1, rembourses: 2).mentionRepartition,
+          '2 remboursés');
+      expect(bilan(suivis: 2, gagnes: 1, perdus: 1).mentionRepartition,
+          'tous tranchés');
+      expect(bilan(suivis: 3, gagnes: 1, perdus: 1).mentionRepartition,
+          '1 en attente');
+    });
+
+    test('un compte fait de remboursés seuls ne dit pas « en attente »', () {
+      // Rien n'attend, rien n'est départagé : les deux phrases possibles
+      // étaient fausses.
+      final b = bilan(suivis: 2, rembourses: 2);
+
+      expect(b.vierge, isTrue);
+      expect(b.enAttente, 0);
+      expect(b.mentionAvantLeTaux, '2 paris remboursés : aucun ne départage');
+    });
+  });
+
+  /// L'historique doit pouvoir montrer un pari remboursé.
+  ///
+  /// Les onglets étaient « Tous / En attente / Gagnés / Perdus » : un `PUSH`
+  /// n'apparaissait sous aucun d'eux. Et la pastille « Perdus » comptait
+  /// `réglés - gagnés`, donc les remboursés — elle annonçait un nombre que la
+  /// liste filtrée ne montrait pas.
+  group("l'historique range les remboursés", () {
+    late String page;
+
+    setUpAll(() {
+      page = File('lib/features/bankroll/presentation/pages/bankroll_page.dart')
+          .readAsStringSync();
+    });
+
+    test('un onglet leur est réservé', () {
+      // Vérifier que « PUSH » figure quelque part dans le fichier ne suffit
+      // pas : la pastille de comptage l'emploie aussi, si bien qu'un onglet
+      // vidé de son contenu passait le contrôle. On regarde donc ce que la
+      // branche du filtre fait réellement — vérifié en la vidant.
+      final i = page.indexOf('case _BetFilter.refunded:');
+      expect(i, greaterThan(-1), reason: "l'onglet n'existe plus");
+
+      final branche = page.substring(i, i + 140);
+      expect(branche, contains("b.result == 'PUSH'"),
+          reason: "l'onglet Remboursés ne filtre plus sur PUSH");
+    });
+
+    test("l'API fournit bien le compte", () {
+      // Le mobile retombe sur 0 quand la clé manque — c'est voulu, un décalage
+      // de version ne doit rien casser. Mais ce repli rend l'oubli invisible :
+      // sans ce contrôle, retirer la clé côté serveur ramènerait le défaut
+      // d'origine sans faire tomber un seul test.
+      final ctrl = File('../backend/src/controllers/profile.controller.ts')
+          .readAsStringSync();
+      expect(ctrl, contains('paris_rembourses:'),
+          reason: "l'API ne compte plus les remboursés : le mobile les "
+                  'recomptera comme « en attente »');
+    });
+
+    test("la pastille « Perdus » ne compte plus qu'eux", () {
+      expect(
+        page.contains('losses:   settled.length - wins'),
+        isFalse,
+        reason: 'ce calcul incluait les remboursés',
+      );
+      expect(page, contains("b.result == 'LOSS').length"));
+    });
+  });
+
   // Contrôle de source, et il faut le dire : aucun banc ne monte ces écrans,
   // donc rien ne prouve ici que la phrase s'affiche vraiment. Il attrape une
   // suppression, pas une régression d'affichage. C'est peu — c'est mieux que

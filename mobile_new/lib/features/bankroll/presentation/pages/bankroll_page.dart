@@ -14,7 +14,12 @@ import '../../../../shared/utils/montant.dart';
 import '../../../../shared/utils/bilan_paris.dart';
 
 // ── Filtre actif ───────────────────────────────────────────────────────────────
-enum _BetFilter { all, pending, win, loss }
+/// Les onglets de l'historique.
+///
+/// `refunded` manquait : un pari remboursé (PUSH) est tranché sans être ni
+/// gagné ni perdu, il n'apparaîtrait donc que sous « Tous ». Sa mise a pourtant
+/// été recréditée, et son absence des onglets le rendait introuvable.
+enum _BetFilter { all, pending, win, loss, refunded }
 
 class BankrollPage extends ConsumerStatefulWidget {
   const BankrollPage({super.key});
@@ -125,6 +130,8 @@ class _BankrollView extends StatelessWidget {
       case _BetFilter.pending: return bankroll.bets.where((b) => b.result == null).toList();
       case _BetFilter.win:     return bankroll.bets.where((b) => b.result == 'WIN').toList();
       case _BetFilter.loss:    return bankroll.bets.where((b) => b.result == 'LOSS').toList();
+      case _BetFilter.refunded:
+        return bankroll.bets.where((b) => b.result == 'PUSH').toList();
       case _BetFilter.all:     return bankroll.bets;
     }
   }
@@ -294,7 +301,11 @@ class _BankrollView extends StatelessWidget {
             filter:   filter,
             pending:  pending.length,
             wins:     wins,
-            losses:   settled.length - wins,
+            // `settled.length - wins` comptait les remboursés parmi les perdus :
+            // la pastille annonçait un nombre que la liste filtrée ne montrait
+            // pas. On compte ce qu'on affiche.
+            losses:   bankroll.bets.where((b) => b.result == 'LOSS').length,
+            refunded: bankroll.bets.where((b) => b.result == 'PUSH').length,
             total:    bankroll.bets.length,
             onFilter: onFilter,
           ).animate(delay: 160.ms).fadeIn(duration: 300.ms),
@@ -576,7 +587,7 @@ class _DisciplineReminder extends StatelessWidget {
 // ── Filtres ───────────────────────────────────────────────────────────────────
 class _FilterRow extends StatelessWidget {
   final _BetFilter   filter;
-  final int pending, wins, losses, total;
+  final int pending, wins, losses, refunded, total;
   final ValueChanged<_BetFilter> onFilter;
 
   const _FilterRow({
@@ -584,6 +595,7 @@ class _FilterRow extends StatelessWidget {
     required this.pending,
     required this.wins,
     required this.losses,
+    required this.refunded,
     required this.total,
     required this.onFilter,
   });
@@ -595,6 +607,10 @@ class _FilterRow extends StatelessWidget {
       (_BetFilter.pending, 'En attente', pending, AppColors.warning),
       (_BetFilter.win,     'Gagnés',    wins,    AppColors.success),
       (_BetFilter.loss,    'Perdus',    losses,  AppColors.error),
+      // Masqué tant qu'il n'y en a aucun : un onglet toujours à zéro occupe la
+      // largeur d'un écran étroit pour ne rien apprendre.
+      if (refunded > 0)
+        (_BetFilter.refunded, 'Remboursés', refunded, context.cl.textM),
     ];
 
     return SingleChildScrollView(
@@ -653,6 +669,7 @@ class _EmptyFilter extends StatelessWidget {
       _BetFilter.pending => 'Aucun pari en attente',
       _BetFilter.win     => 'Aucun pari gagné pour l\'instant',
       _BetFilter.loss    => 'Aucun pari perdu 🎉',
+      _BetFilter.refunded => 'Aucun pari remboursé',
       _BetFilter.all     => 'Aucun pari enregistré',
     };
     return Container(

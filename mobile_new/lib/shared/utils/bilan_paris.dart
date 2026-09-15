@@ -18,6 +18,13 @@ class BilanParis {
   /// Paris perdus.
   final int perdus;
 
+  /// Paris remboursés (statut PUSH) : réglés, mais sans vainqueur.
+  ///
+  /// Ils n'étaient comptés nulle part. [enAttente] les absorbait donc, et
+  /// l'écran annonçait « en attente de résultat » pour des paris dont le
+  /// résultat était tombé.
+  final int rembourses;
+
   /// Taux de réussite tel que renvoyé par l'API, en pourcentage.
   final double tauxBrut;
 
@@ -28,6 +35,7 @@ class BilanParis {
     required this.suivis,
     required this.gagnes,
     required this.perdus,
+    this.rembourses = 0,
     required this.tauxBrut,
     required this.serie,
   });
@@ -37,19 +45,27 @@ class BilanParis {
         suivis:   (stats['pronostics_suivis'] as num?)?.toInt()    ?? 0,
         gagnes:   (stats['paris_gagnes']      as num?)?.toInt()    ?? 0,
         perdus:   (stats['paris_perdus']      as num?)?.toInt()    ?? 0,
+        rembourses: (stats['paris_rembourses'] as num?)?.toInt()   ?? 0,
         tauxBrut: (stats['taux_reussite']     as num?)?.toDouble() ?? 0.0,
         serie:    (stats['serie_gagnante']    as num?)?.toInt()    ?? 0,
       );
 
-  /// Paris dont l'issue est connue — le dénominateur du taux de réussite.
+  /// Paris dont l'issue **départage** — le dénominateur du taux de réussite.
   ///
-  /// Les paris remboursés (statut PUSH) ne comptent ni comme gagnés ni comme
-  /// perdus : ils ne figurent donc pas ici, et ils gonflent [enAttente]. C'est
-  /// volontaire — un remboursement ne dit rien de la justesse d'un pronostic.
+  /// Les remboursés (PUSH) n'y figurent pas : un remboursement ne dit rien de
+  /// la justesse d'un pronostic. Cette exclusion-là est juste, et elle reste.
   int get regles => gagnes + perdus;
 
+  /// Paris dont l'issue est connue, remboursés compris.
+  ///
+  /// À distinguer de [regles] : un remboursé est tranché sans départager.
+  int get tranches => regles + rembourses;
+
   /// Paris posés dont l'issue n'est pas encore connue.
-  int get enAttente => (suivis - regles).clamp(0, suivis);
+  ///
+  /// Le calcul partait de [regles], donc les remboursés tombaient ici : un
+  /// pari terminé et crédité s'affichait « en attente de résultat ».
+  int get enAttente => (suivis - tranches).clamp(0, suivis);
 
   /// Aucun pari tranché : le taux de réussite et la série n'ont pas de valeur
   /// mesurée, seulement une valeur par défaut. Rien ne doit être chiffré.
@@ -99,6 +115,14 @@ class BilanParis {
   String? get mentionAvantLeTaux {
     if (echantillonSuffisant) return null;
     if (vierge) {
+      // Un compte dont tous les paris ont été remboursés n'a rien en attente et
+      // rien de départagé : annoncer « en attente de résultat » serait faux, et
+      // ne rien dire laisserait le tiret sans explication.
+      if (enAttente == 0) {
+        return rembourses > 1
+            ? '$rembourses paris remboursés : aucun ne départage'
+            : 'Pari remboursé : il ne départage pas';
+      }
       return enAttente > 1
           ? '$enAttente paris en attente de résultat'
           : 'Pari en attente de résultat';
@@ -107,6 +131,21 @@ class BilanParis {
         ? 'Taux de réussite dès le prochain pari tranché'
         : 'Taux de réussite dès $echantillonMinimal paris tranchés '
           '— encore $avantLeTaux';
+  }
+
+  /// Ce qui reste à trancher, sous la ligne « Paris suivis ».
+  ///
+  /// L'écran écrivait `suivis - gagnés - perdus` suivi de « en attente » : les
+  /// remboursés tombaient dans ce reste, alors que leur résultat est tombé et
+  /// que la mise a été recréditée. Ils sont désormais nommés.
+  String get mentionRepartition {
+    if (enAttente == 0 && rembourses == 0) return 'tous tranchés';
+    final bouts = <String>[];
+    if (enAttente > 0) bouts.add('$enAttente en attente');
+    if (rembourses > 0) {
+      bouts.add(rembourses > 1 ? '$rembourses remboursés' : '1 remboursé');
+    }
+    return bouts.join(' · ');
   }
 
   /// Aucun pari du tout : la carte n'a pas lieu d'être affichée.

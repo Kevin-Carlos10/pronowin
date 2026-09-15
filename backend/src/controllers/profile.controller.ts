@@ -399,6 +399,11 @@ export const getStats = async (req: AuthRequest, res: Response) => {
       pronostics_suivis: bets.length,
       paris_gagnes:      wins.length,
       paris_perdus:      losses.length,
+      // Les remboursés (PUSH) étaient réglés sans être comptés nulle part. Le
+      // mobile les déduisait donc de « en attente » — il annonçait un pari en
+      // attente de résultat alors que le résultat était tombé. Les exclure du
+      // taux de réussite est juste ; les appeler « en attente » ne l'est pas.
+      paris_rembourses:  settled.length - decisive,
       taux_reussite:     taux,
       serie_gagnante:    serie,
       transactions:      txCompleted,
