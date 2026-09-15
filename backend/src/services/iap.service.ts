@@ -27,6 +27,52 @@ export const IAP_PRODUCTS: Record<string, { plan: string; fallbackDays: number }
 
 export type IapStoreName = 'apple' | 'google';
 
+/**
+ * Ramène ce que le mobile a envoyé à un identifiant de transaction Apple.
+ *
+ * ── Ce que les deux stores envoient n'a pas la même nature ─────────────────
+ *
+ * Sur Android, `serverVerificationData` **est** le `purchaseToken`, exactement
+ * ce que l'API Google attend. La symétrie s'arrête là : sur iOS, le même champ
+ * porte le reçu App Store encodé en base64 (StoreKit 1) ou la représentation
+ * JWS de la transaction (StoreKit 2). Ni l'un ni l'autre n'est un identifiant
+ * de transaction — or c'est un identifiant que l'API serveur d'Apple attend
+ * dans le chemin de `/inApps/v1/subscriptions/{transactionId}`.
+ *
+ * Le mobile envoyait donc le reçu entier. Apple répondait 404, le code
+ * essayait l'autre environnement, obtenait 404 aussi, et concluait
+ * « Transaction introuvable chez Apple ». Autrement dit : **aucun achat Apple
+ * n'aurait pu être validé**, et le message n'aurait désigné ni la cause ni le
+ * responsable. L'acheteur, lui, était débité.
+ *
+ * Le mobile envoie désormais `purchaseID`. Cette fonction reste tolérante —
+ * un JWS reste accepté, pour que passer à StoreKit 2 ne casse rien — et elle
+ * refuse explicitement un reçu StoreKit 1 plutôt que de le faire passer pour
+ * une transaction inconnue.
+ */
+export function identifiantTransactionApple(valeur: string): string {
+  const v = (valeur ?? '').trim();
+  if (!v) throw new Error('Reçu Apple vide.');
+
+  // Un identifiant de transaction Apple est une suite de chiffres.
+  if (/^\d+$/.test(v)) return v;
+
+  // JWS : trois parties base64url séparées par des points.
+  const parties = v.split('.');
+  if (parties.length === 3) {
+    try {
+      const charge = JSON.parse(Buffer.from(parties[1], 'base64url').toString('utf8'));
+      const id = charge?.transactionId ?? charge?.originalTransactionId;
+      if (id) return String(id);
+    } catch { /* charge illisible : on tombe dans le refus ci-dessous */ }
+    throw new Error('JWS Apple sans identifiant de transaction.');
+  }
+
+  throw new Error(
+    'Reçu Apple non exploitable : l\'API serveur attend un identifiant de '
+  + 'transaction (purchaseID), pas le reçu App Store encodé.');
+}
+
 /** Forme normalisée, commune aux deux stores. */
 export interface VerifiedPurchase {
   store:                 IapStoreName;
@@ -112,7 +158,8 @@ export class IapService {
    * On interroge les deux environnements : un build TestFlight produit des
    * transactions Sandbox alors que l'app pointe sur l'API de production.
    */
-  async verifyApple(transactionId: string): Promise<VerifiedPurchase> {
+  async verifyApple(recu: string): Promise<VerifiedPurchase> {
+    const transactionId = identifiantTransactionApple(recu);
     const token = this._appleToken();
     const hosts = [
       ['Production', 'https://api.storekit.itunes.apple.com'],

@@ -14,6 +14,36 @@ const kIapFallbackProductIds = <String>{
   'com.pronowin.premium.annual',
 };
 
+/// Ce que le backend attend pour chaque store — et ce n'est pas la même chose.
+///
+/// Sur Android, `serverVerificationData` **est** le `purchaseToken`, exactement
+/// ce que l'API Google attend. La symétrie s'arrête là.
+///
+/// Sur iOS, le même champ porte le reçu App Store encodé en base64 (StoreKit 1)
+/// ou la représentation JWS de la transaction (StoreKit 2). L'API serveur
+/// d'Apple, elle, attend un **identifiant de transaction** dans le chemin de
+/// `/inApps/v1/subscriptions/{transactionId}`.
+///
+/// On envoyait `serverVerificationData` des deux côtés. Apple répondait 404, le
+/// backend essayait l'autre environnement, obtenait 404 aussi, et concluait
+/// « Transaction introuvable ». Aucun achat iOS n'aurait pu aboutir — et
+/// l'acheteur était débité.
+///
+/// Rend `null` quand la valeur attendue manque : mieux vaut un échec nommé
+/// qu'un appel qui ne peut pas réussir.
+({String store, String receipt})? chargeDeVerification({
+  required bool estIOS,
+  required String? identifiantTransaction,
+  required String donneeServeur,
+}) {
+  if (estIOS) {
+    final id = identifiantTransaction?.trim() ?? '';
+    return id.isEmpty ? null : (store: 'apple', receipt: id);
+  }
+  final jeton = donneeServeur.trim();
+  return jeton.isEmpty ? null : (store: 'google', receipt: jeton);
+}
+
 /// Résultat d'une tentative d'achat, tel que l'UI a besoin de le connaître.
 sealed class IapResult {
   const IapResult();
@@ -136,16 +166,20 @@ class IapService {
   }
 
   Future<void> _verify(PurchaseDetails p) async {
-    final receipt = p.verificationData.serverVerificationData;
-    if (receipt.isEmpty) {
+    final charge = chargeDeVerification(
+      estIOS: Platform.isIOS,
+      identifiantTransaction: p.purchaseID,
+      donneeServeur: p.verificationData.serverVerificationData,
+    );
+    if (charge == null) {
       _results.add(const IapFailure('Reçu vide.'));
       return;
     }
 
     try {
       final r = await _dio.post('/subscriptions/iap/verify', data: {
-        'store':   Platform.isIOS ? 'apple' : 'google',
-        'receipt': receipt,
+        'store':   charge.store,
+        'receipt': charge.receipt,
       });
       final expires = r.data['expires_at'] as String?;
       if (r.data['active'] == true && expires != null) {
