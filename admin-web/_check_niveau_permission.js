@@ -181,6 +181,7 @@ async function autorisationReelle() {
     cwd: __dirname,
     env: { ...process.env, ADMIN_PORT: String(PORT), ADMIN_DATA_DIR: DIR,
       ADMIN_PERM_SECRET: SECRET_BANC,
+      ADMIN_DELEGATION_SECRET: 'delegation-de-banc',
            ADMIN_API_TOKEN: 'jeton-de-banc', NODE_ENV: 'test' },
     stdio: 'ignore',
   });

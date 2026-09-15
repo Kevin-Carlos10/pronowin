@@ -74,6 +74,7 @@ const refusee = (r) => r.statut === 403 && /origine|inter-origines/i.test(r.corp
       ADMIN_DATA_DIR: DIR,
       ADMIN_ORIGIN: ORIGINE,
       ADMIN_PERM_SECRET: 'secret-de-banc-non-publie',
+      ADMIN_DELEGATION_SECRET: 'delegation-de-banc',
       ADMIN_API_TOKEN: 'jeton-de-banc',
       ADMIN_SERVICE_EMAIL: '', ADMIN_SERVICE_PASSWORD: '',
     },

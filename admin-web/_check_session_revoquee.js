@@ -117,6 +117,7 @@ const ouvert = (r) => !(r.status === 302 && (r.location ?? '').startsWith('/admi
       // signature : un banc qui tournerait avec le secret par defaut
       // publie n'eprouverait pas la configuration qu'on exige.
       ADMIN_PERM_SECRET: SECRET_BANC,
+      ADMIN_DELEGATION_SECRET: 'delegation-de-banc',
       ADMIN_API_TOKEN: 'jeton-de-banc',
       ADMIN_SERVICE_EMAIL: '', ADMIN_SERVICE_PASSWORD: '',
       NODE_ENV: 'test',
@@ -364,6 +365,8 @@ function requeteSurServeurSansJeton() {
       env: {
         ...process.env,
         ADMIN_PORT: String(PORT2), ADMIN_DATA_DIR: DIR,
+        ADMIN_PERM_SECRET: SECRET_BANC,
+        ADMIN_DELEGATION_SECRET: 'delegation-de-banc',
         ADMIN_API_TOKEN: '',
         ADMIN_SERVICE_EMAIL: '', ADMIN_SERVICE_PASSWORD: '',
         NODE_ENV: 'test',

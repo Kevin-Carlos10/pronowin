@@ -118,6 +118,27 @@ function checkPwd(pwd, hash) { return bcrypt.compareSync(pwd, hash); }
 // détail de la panne qu'elle corrige. Elle est réexportée dans le contexte des
 // routes pour que la création et la connexion appliquent la même règle.
 const { normaliserIdentifiant } = require('./lib/identifiant');
+const {
+  acteurCourant, executerAvecActeur, signerDelegation, ENTETE_DELEGATION,
+} = require('./lib/acteur');
+
+/**
+ * Le secret partagé avec le backend.
+ *
+ * Il signe l'identité de la personne qui agit derrière le jeton du compte de
+ * service — le même pour tous les sous-administrateurs. Sans lui, le backend
+ * ne peut ni attribuer une action, ni distinguer un appel venu d'ici d'un
+ * appel direct fait avec un jeton lu dans un navigateur.
+ *
+ * La même valeur doit figurer dans `backend/.env`.
+ */
+const SECRET_DELEGATION = process.env.ADMIN_DELEGATION_SECRET ?? '';
+if (!SECRET_DELEGATION) {
+  console.error('ADMIN_DELEGATION_SECRET est absent.');
+  console.error('Ce secret signe l identite de qui agit derriere le compte de service.');
+  console.error('La meme valeur doit etre posee dans admin-web/.env et backend/.env.');
+  process.exit(1);
+}
 // Signer les permissions avec HMAC pour empêcher la falsification côté client
 function signPerms(perms) {
   const data = Buffer.from(JSON.stringify(perms)).toString('base64');
@@ -609,10 +630,27 @@ app.use('/admin/vendor/chart.js', express.static(
   path.join(__dirname, 'node_modules/chart.js/dist'), { maxAge: '30d', immutable: true }));
 
 // ─── HELPERS ─────────────────────────────────────────────────────────────────
+/**
+ * Un client vers l'API du backend, qui dit qui agit.
+ *
+ * L'en-tête de délégation est ajouté ici, une fois, plutôt qu'aux
+ * soixante-trois endroits qui appellent cette fabrique. L'acteur vient du
+ * contexte de la requête en cours (`lib/acteur.js`), pas d'un paramètre : ces
+ * soixante-trois appels n'ont pas eu à changer.
+ */
 function api(token) {
+  const acteur = acteurCourant();
   const instance = axios.create({
     baseURL: API_URL,
-    headers: { Authorization: `Bearer ${token}` },
+    headers: {
+      Authorization: `Bearer ${token}`,
+      // Hors requête — une tâche de fond, un script — il n'y a personne à
+      // déclarer. Le backend refusera alors toute écriture, ce qui est la
+      // réponse correcte : une écriture sans auteur ne doit pas avoir lieu.
+      ...(acteur
+        ? { [ENTETE_DELEGATION]: signerDelegation(acteur, SECRET_DELEGATION) }
+        : {}),
+    },
     timeout: 15000,
   });
 
@@ -839,7 +877,19 @@ app.use((req, res, next) => {
   // Injecter les paramètres globaux (annonce, titre…)
   const settings = loadSettings();
   res.locals.settings = settings;
-  next();
+
+  // ── Qui agit, pour toute la suite de la requête ──
+  //
+  // Posé ici, et pas plus tôt : le rôle et les permissions viennent d'être
+  // établis juste au-dessus, à partir du cookie signé et du fichier des
+  // comptes. Les poser avant reviendrait à déclarer une identité qu'on n'a pas
+  // encore vérifiée.
+  executerAvecActeur({
+    id:    role === 'main' ? 'main' : (req.cookies?.admin_sub_id ?? 'inconnu'),
+    nom:   res.locals.adminName,
+    role:  role === 'main' ? 'main' : 'sub',
+    perms: role === 'main' ? [] : perms,
+  }, next);
 });
 
 // Middleware d'authentification
