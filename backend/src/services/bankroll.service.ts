@@ -79,11 +79,13 @@ export async function resumeParis(bankrollId: string) {
     by:     ['result'],
     where:  { bankrollId },
     _count: { _all: true },
-    _sum:   { profit: true },
+    _sum:   { profit: true, stakedAmount: true },
   });
 
   const compte = (r: string | null) =>
     parStatut.find((g) => g.result === r)?._count._all ?? 0;
+  const mise = (r: string | null) =>
+    parStatut.find((g) => g.result === r)?._sum.stakedAmount ?? 0;
 
   const gagnes     = compte('WIN');
   const perdus     = compte('LOSS');
@@ -105,6 +107,18 @@ export async function resumeParis(bankrollId: string) {
       : 0,
     profit_net: Math.round(
       parStatut.reduce((n, g) => n + (g._sum.profit ?? 0), 0) * 100) / 100,
+
+    /**
+     * Ce qui est engagé sur des paris non tranchés.
+     *
+     * Cette somme est **déjà déduite** du solde disponible : la mise part au
+     * moment où le pari est posé. L'écran l'ignorait et affichait
+     * `solde − budget` comme un « gain » — si bien que poser un pari se
+     * lisait comme une perte, flèche rouge comprise, alors que rien n'était
+     * perdu. Les trois grandeurs ne mesurent pas la même chose et doivent
+     * être nommées séparément.
+     */
+    mises_en_cours: Math.round(mise(null) * 100) / 100,
   };
 }
 

@@ -128,6 +128,27 @@ describe('le bilan compte tout l\'historique', () => {
     expect(r.profit_net).toBe(1000);
   });
 
+  it('les mises en cours sont comptées à part', async () => {
+    // L'écran affichait `solde − budget` sous une flèche verte ou rouge. Or la
+    // mise part du solde au moment où le pari est posé : engager de l'argent
+    // se lisait donc comme une perte. Il faut pouvoir nommer cette somme.
+    poserParis({ WIN: 3, LOSS: 2, null: 4 });
+
+    const r = await resumeParis('b1');
+
+    expect(r.mises_en_cours).toBe(4000); // 4 paris à 1 000
+  });
+
+  it('un pari réglé n\'est plus engagé', async () => {
+    // Contrepartie : compter les mises de tous les paris ferait apparaître
+    // comme « en jeu » de l'argent déjà rendu ou déjà perdu.
+    poserParis({ WIN: 5, LOSS: 3, PUSH: 2 });
+
+    const r = await resumeParis('b1');
+
+    expect(r.mises_en_cours).toBe(0);
+  });
+
   it('ne compte que les paris de cette bankroll', async () => {
     // Contrepartie qui compte : un bilan qui déborderait sur les paris
     // d'autrui serait pire que tronqué.

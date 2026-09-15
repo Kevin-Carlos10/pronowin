@@ -31,7 +31,17 @@ class ResumeParis {
   final double tauxBrut;
 
   /// Résultat net réalisé, sur les paris réglés.
+  ///
+  /// C'est le seul des trois montants qui dit si l'on gagne ou si l'on perd.
   final double profitNet;
+
+  /// Ce qui est engagé sur des paris non tranchés.
+  ///
+  /// Cette somme est **déjà déduite** du solde disponible : la mise part au
+  /// moment où le pari est posé. L'écran l'ignorait et affichait
+  /// `solde − budget` comme un « gain » — si bien que poser un pari se lisait
+  /// comme une perte, flèche rouge comprise, alors que rien n'était perdu.
+  final double misesEnCours;
 
   const ResumeParis({
     required this.total,
@@ -41,6 +51,7 @@ class ResumeParis {
     required this.enAttente,
     required this.tauxBrut,
     required this.profitNet,
+    this.misesEnCours = 0,
   });
 
   factory ResumeParis.depuisApi(Map<String, dynamic> j) => ResumeParis(
@@ -51,5 +62,7 @@ class ResumeParis {
         enAttente:  (j['en_attente']    as num?)?.toInt()    ?? 0,
         tauxBrut:   (j['taux_reussite'] as num?)?.toDouble() ?? 0.0,
         profitNet:  (j['profit_net']    as num?)?.toDouble() ?? 0.0,
+        misesEnCours:
+            (j['mises_en_cours'] as num?)?.toDouble() ?? 0.0,
       );
 }

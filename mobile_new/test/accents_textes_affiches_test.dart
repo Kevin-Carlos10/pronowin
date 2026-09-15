@@ -48,6 +48,12 @@ void main() {
         final s = m.group(1)!;
         // Chemins, clés de stockage, noms de fichiers : pas de la prose.
         if (s.contains('/') || s.contains('_') || s.contains('.dart')) continue;
+        // Les identifiants en tirets non plus — `Key('bankroll-resultat-net')`
+        // ne s'affiche jamais. Le commentaire en tête annonçait déjà que les
+        // clés étaient écartées ; seules celles en `_` l'étaient réellement,
+        // et une clé en tirets faisait tomber ce contrôle pour un mot que
+        // personne ne lit.
+        if (RegExp(r'^[a-z0-9]+(-[a-z0-9]+)+$').hasMatch(s)) continue;
         chaines.add(s);
       }
     }

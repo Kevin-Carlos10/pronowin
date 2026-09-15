@@ -180,8 +180,24 @@ class _BankrollView extends StatelessWidget {
             serie:      0,
           );
     final winRate = bilan.taux;
-    final profit   = bankroll.currentBalance - bankroll.totalBudget;
     final pending  = bankroll.bets.where((b) => b.result == null).toList();
+
+    // Trois grandeurs, trois noms.
+    //
+    // L'écran affichait `solde − budget` sous une flèche verte ou rouge,
+    // comme un gain. Or la mise part du solde **au moment où le pari est
+    // posé** : engager 2 000 sur un budget de 10 000 faisait afficher
+    // « −2 000 » en rouge alors que rien n'était perdu, et que les paris
+    // pouvaient tous être gagnants. Le chiffre le plus visible de l'écran
+    // disait le contraire de la situation.
+    //
+    //   * le **disponible**, ce qu'on peut encore miser ;
+    //   * l'**engagé**, ce qui est en jeu — déjà sorti du disponible ;
+    //   * le **résultat net réalisé**, seul des trois à dire si l'on gagne.
+    final misesEnCours = resume?.misesEnCours
+        ?? pending.fold<double>(0, (n, b) => n + b.stakedAmount);
+    final resultatNet = resume?.profitNet
+        ?? bankroll.bets.fold<double>(0, (n, b) => n + (b.profit ?? 0));
     final filtered = _filtered;
 
     return CustomScrollView(slivers: [
@@ -224,7 +240,11 @@ class _BankrollView extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
           // ── Carte solde principal ────────────────────────────────────────
-          _BalanceCard(bankroll: bankroll, profit: profit).animate()
+          _BalanceCard(
+            bankroll:     bankroll,
+            resultatNet:  resultatNet,
+            misesEnCours: misesEnCours,
+          ).animate()
             .fadeIn(duration: 350.ms).slideY(begin: 0.05, end: 0),
 
           const SizedBox(height: 14),
@@ -383,22 +403,44 @@ class _BalanceChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Construire les points : budget initial + chaque paris réglé dans l'ordre
+    // Ce que cette courbe montre, et ce qu'elle ne peut pas montrer.
+    //
+    // Elle partait du budget initial et y ajoutait le profit de chaque pari
+    // réglé, sous le titre « Évolution du solde ». Trois choses fausses :
+    //
+    //   * le solde réel déduit aussi les mises en cours — le dernier point ne
+    //     correspondait donc pas au solde affiché juste au-dessus ;
+    //   * les réinitialisations et les ajustements de budget n'y figuraient
+    //     pas : après un « Réinitialiser », la courbe partait toujours de
+    //     l'ancien budget comme si rien ne s'était passé ;
+    //   * elle ne voyait que les paris chargés, soit cinquante au plus.
+    //
+    // Une vraie courbe de solde demanderait un journal des mouvements, qui
+    // n'existe pas — et qu'on ne peut pas reconstituer pour le passé, faute
+    // d'avoir enregistré les réinitialisations. Elle montre donc ce qu'elle
+    // sait vraiment : le **résultat net cumulé** sur les paris réglés qu'elle
+    // a, en partant de zéro. Le titre et le sous-titre le disent.
     final settled = bankroll.bets
         .where((b) => b.result != null && b.profit != null)
         .toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-    double running = bankroll.totalBudget;
-    final spots = <FlSpot>[FlSpot(0, running)];
+    double running = 0;
+    final spots = <FlSpot>[const FlSpot(0, 0)];
     for (var i = 0; i < settled.length; i++) {
       running += settled[i].profit!;
-      spots.add(FlSpot((i + 1).toDouble(), running.clamp(0, double.infinity)));
+      spots.add(FlSpot((i + 1).toDouble(), running));
     }
 
-    final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b) * 0.95;
-    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b) * 1.05;
-    final isProfit = bankroll.currentBalance >= bankroll.totalBudget;
+    // Une marge relative s'effondrait autour de zéro : `0 × 1.05` vaut 0, et
+    // la courbe touchait alors le bord du cadre.
+    final basse = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
+    final haute = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+    final marge = ((haute - basse).abs() * 0.1).clamp(1.0, double.infinity);
+    final minY = basse - marge;
+    final maxY = haute + marge;
+
+    final isProfit  = running >= 0;
     final lineColor = isProfit ? AppColors.success : AppColors.error;
 
     return Container(
@@ -411,12 +453,18 @@ class _BalanceChart extends StatelessWidget {
         Row(children: [
           Icon(Icons.show_chart_rounded, size: 14, color: lineColor),
           const SizedBox(width: 6),
-          Text('Évolution du solde',
+          Text('Résultat net cumulé',
+            key: const Key('bankroll-titre-courbe'),
             style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           const Spacer(),
-          Text('${settled.length} paris',
+          Text('${settled.length} paris réglés',
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
+        const SizedBox(height: 2),
+        // Sans cette ligne, un utilisateur ayant réinitialisé sa bankroll
+        // pouvait lire cette courbe comme l'histoire de son solde.
+        Text('Cumul des gains et pertes des paris tranchés, hors mises en cours',
+          style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.3)),
         const SizedBox(height: 14),
         SizedBox(
           height: 110,
@@ -739,25 +787,48 @@ class _EmptyFilter extends StatelessWidget {
 // ── Carte solde ───────────────────────────────────────────────────────────────
 class _BalanceCard extends StatelessWidget {
   final BankrollData bankroll;
-  final double profit;
-  const _BalanceCard({required this.bankroll, required this.profit});
+
+  /// Résultat net réalisé — le seul des trois montants qui dit si l'on gagne.
+  final double resultatNet;
+
+  /// Ce qui est engagé sur des paris non tranchés, déjà sorti du disponible.
+  final double misesEnCours;
+
+  const _BalanceCard({
+    required this.bankroll,
+    required this.resultatNet,
+    required this.misesEnCours,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isProfit    = profit >= 0;
+    final isProfit    = resultatNet >= 0;
     final profitColor = isProfit ? AppColors.success : AppColors.error;
-    final pct         = bankroll.progressPct;
+
+    // Le capital, c'est ce qui est disponible **plus** ce qui est en jeu.
+    //
+    // La barre mesurait `disponible / budget` : poser un pari la faisait
+    // reculer, comme si l'argent avait été perdu. Il a seulement changé de
+    // poche.
+    final capital = bankroll.currentBalance + misesEnCours;
+    final pct     = bankroll.totalBudget > 0
+        ? (capital / bankroll.totalBudget).clamp(0.0, 2.0)
+        : 0.0;
+
+    final d = nomDevise(bankroll.currency);
 
     // Lue widget par widget, la carte donnait « Solde actuel », « 12 500 »,
     // « FCFA », « Budget total », « 10 000 », « FCFA », « +2 500 », « 125 % du
     // budget » : huit fragments dont aucun ne dit lequel est quoi, sur l'écran
     // où l'utilisateur suit son argent.
-    final annonce = 'Solde actuel '
-        '${montantExact(bankroll.currentBalance)} ${nomDevise(bankroll.currency)}, '
-        'sur un budget de ${montantExact(bankroll.totalBudget)} ${nomDevise(bankroll.currency)}. '
-        '${isProfit ? 'Bénéfice' : 'Perte'} de '
-        '${montantExact(profit.abs())} ${nomDevise(bankroll.currency)}, '
-        'soit ${(pct * 100).toStringAsFixed(0)} pour cent du budget.';
+    final annonce = 'Disponible ${montantExact(bankroll.currentBalance)} $d, '
+        'sur un budget de ${montantExact(bankroll.totalBudget)} $d. '
+        '${misesEnCours > 0
+            ? '${montantExact(misesEnCours)} $d engagés sur des paris en cours. '
+            : ''}'
+        'Résultat net réalisé : '
+        '${isProfit ? 'bénéfice' : 'perte'} de '
+        '${montantExact(resultatNet.abs())} $d.';
 
     return Semantics(
       label: annonce,
@@ -777,11 +848,13 @@ class _BalanceCard extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Solde actuel', style: TextStyle(
+            // « Solde actuel » ne disait pas que les mises en cours en sont
+            // déjà sorties. « Disponible » le dit.
+            Text('Disponible', style: TextStyle(
                 color: context.cl.textM, fontSize: 12, fontWeight: FontWeight.w500)),
             const SizedBox(height: 4),
             Text(
-              '${montantExact(bankroll.currentBalance)} ${nomDevise(bankroll.currency)}',
+              '${montantExact(bankroll.currentBalance)} $d',
               style: TextStyle(
                 color: context.cl.textP, fontSize: 28,
                 fontWeight: FontWeight.w800, letterSpacing: -0.5)),
@@ -791,8 +864,19 @@ class _BalanceCard extends StatelessWidget {
             Text('Budget total', style: TextStyle(color: context.cl.textM, fontSize: 11)),
             const SizedBox(height: 2),
             Text(
-              '${montantExact(bankroll.totalBudget)} ${nomDevise(bankroll.currency)}',
+              '${montantExact(bankroll.totalBudget)} $d',
               style: TextStyle(color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600)),
+            // L'engagé n'apparaissait nulle part : cet argent semblait avoir
+            // disparu du disponible sans explication.
+            if (misesEnCours > 0) ...[
+              const SizedBox(height: 4),
+              Text(
+                key: const Key('bankroll-engage'),
+                '${montantExact(misesEnCours)} $d engagés',
+                style: TextStyle(
+                    color: AppColors.warning, fontSize: 11,
+                    fontWeight: FontWeight.w600)),
+            ],
           ]),
         ]),
         const SizedBox(height: 16),
@@ -816,10 +900,14 @@ class _BalanceCard extends StatelessWidget {
           Icon(isProfit ? Icons.trending_up_rounded : Icons.trending_down_rounded,
               color: profitColor, size: 15),
           const SizedBox(width: 4),
-          Text(
-            '${isProfit ? '+' : ''}${montantExact(profit)} ${nomDevise(bankroll.currency)}',
-            style: TextStyle(color: profitColor, fontSize: 13, fontWeight: FontWeight.w700)),
-          const Spacer(),
+          // Nommé, parce que trois montants différents cohabitent sur cette
+          // carte et que celui-ci est le seul qui parle de gain ou de perte.
+          Expanded(child: Text(
+            key: const Key('bankroll-resultat-net'),
+            '${isProfit ? '+' : ''}${montantExact(resultatNet)} $d '
+            'de résultat net',
+            style: TextStyle(
+                color: profitColor, fontSize: 13, fontWeight: FontWeight.w700))),
           Text(
             '${(pct * 100).toStringAsFixed(0)}% du budget',
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
