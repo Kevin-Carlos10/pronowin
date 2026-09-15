@@ -67,17 +67,81 @@ void main() {
     });
   });
 
-  test('la page du compte utilise le calcul partagé', () {
-    // Les deux contrôles ci-dessus éprouvent la fonction ; celui-ci vérifie
-    // qu'elle est bien celle qu'on emploie. Un calcul local recopié passerait
-    // inaperçu : la ligne s'afficherait, avec un an de moins.
+  test('aucun écran ne recalcule un âge par division', () {
+    // La première version de ce contrôle ne regardait que l'écran du compte.
+    // Il y en avait une **troisième** copie, dans l'écran de modification du
+    // profil — sous la date de naissance, en vert, précisément là où la ligne
+    // sert à confirmer qu'on est majeur. Elle est restée intacte pendant que
+    // je corrigeais l'autre.
+    //
+    // Un contrôle attaché à un fichier ne protège que ce fichier. Celui-ci
+    // balaie tout `lib/`, et c'est ce qu'il aurait fallu dès le départ.
+    final fautifs = <String>[];
+    var emplois = 0;
+    for (final f in Directory('lib').listSync(recursive: true).whereType<File>()) {
+      if (!f.path.endsWith('.dart')) continue;
+      final source = f.readAsStringSync();
+      // `age.dart` cite la formule qu'il remplace, dans sa documentation :
+      // c'est le seul fichier où ces cinq caractères sont attendus.
+      final estLeCalculPartage = f.path.endsWith('age.dart');
+      if (!estLeCalculPartage && source.contains('365.25')) fautifs.add(f.path);
+      if (source.contains('ageRevolu(')) emplois++;
+    }
+
+    expect(fautifs, isEmpty,
+        reason: 'la division approximative est revenue : elle se trompe d\'un '
+                'an le jour de l\'anniversaire');
+    // Contrepartie : un dépôt où plus personne n'appelle le calcul partagé
+    // passerait le contrôle ci-dessus sans rien garder.
+    expect(emplois, greaterThan(1),
+        reason: 'le calcul calendaire doit être celui qu\'on emploie, '
+                'et pas seulement celui qui existe');
+  });
+
+  test('l\'onglet Aperçu ne double plus la barre du bas', () {
+    // Sept liens, dont trois menaient là où un seul appui menait déjà :
+    // « Pronostics » vers l'onglet Pronos, « Tutoriels » vers l'onglet
+    // Tutoriels, « Programme parrainage » vers l'onglet juste au-dessus. Et
+    // `/historique` était atteignable **trois fois** sur le même écran.
+    //
+    // Le fichier portait déjà la règle, écrite pour la bande « Actions
+    // rapides » qui avait été retirée pour cette raison : « ses quatre tuiles
+    // dupliquaient toutes un accès déjà présent à l'écran ». Elle n'avait pas
+    // été appliquée aux deux listes qui l'ont remplacée.
     final source = File(
       'lib/features/compte/presentation/pages/compte_page.dart',
     ).readAsStringSync();
-    expect(source, isNot(contains('365.25')),
-        reason: 'la division approximative est revenue');
-    expect(source, contains('ageRevolu('),
-        reason: 'la page doit passer par le calcul calendaire partagé');
+    final onglet = source.substring(
+      source.indexOf('class _ApercuTab'),
+      source.indexOf('// ONGLET ABONNEMENT'),
+    );
+
+    for (final ailleurs in ['/pronostics', '/tutoriels', '/parrainage']) {
+      expect(onglet.contains("('$ailleurs')"), isFalse,
+          reason: '$ailleurs est déjà à un appui : deux onglets de la barre '
+                  'du bas, et le troisième onglet de cette page même');
+    }
+
+    final versHistorique =
+        RegExp(r"push\('/historique'\)").allMatches(onglet).length;
+    expect(versHistorique, 1,
+        reason: 'il y avait trois chemins vers la même page sur cet écran : '
+                'la carte entière, son lien « Historique », et une ligne '
+                '« Historique des résultats »');
+  });
+
+  test('la fiche en lecture seule a laissé place à un accès en écriture', () {
+    // Sept lignes que l'utilisateur connaît par cœur, un tiers de l'écran, et
+    // aucune modifiable depuis là : le seul accès à l'édition était le crayon
+    // de la photo, dont le libellé d'accessibilité annonce « Modifier la photo
+    // de profil ».
+    final source = File(
+      'lib/features/compte/presentation/pages/compte_page.dart',
+    ).readAsStringSync();
+    expect(source, contains("label: 'Mes informations'"));
+    expect(source, contains("push('/compte/edit')"));
+    expect(source, isNot(contains("_InfoRow(label: 'Téléphone'")),
+        reason: 'la fiche en lecture seule est revenue');
   });
 
   // ── Ce qui manque avant le taux ──────────────────────────────────────────
@@ -223,20 +287,11 @@ void main() {
           reason: 'la valeur doit pouvoir passer à la ligne');
     });
 
-    testWidgets('une donnée absente est nommée, jamais laissée vide',
-        (tester) async {
-      // Un compte créé par email n'a pas de téléphone. La ligne affichait un
-      // libellé avec rien à côté — ce qui se lit comme un affichage cassé
-      // plutôt que comme une donnée absente.
-      await monter(tester, sousTest(phone: ''));
-
-      final ligne = find.ancestor(
-        of: find.text('Téléphone'),
-        matching: find.byType(Row),
-      ).first;
-      expect(find.descendant(of: ligne, matching: find.text('Non renseigné')),
-          findsOneWidget);
-    });
+    // Le contrôle « une donnée absente est nommée » a été retiré avec son
+    // sujet : la fiche d'informations n'est plus sur cet écran, et l'écran de
+    // modification qui la remplace présente des champs de saisie — un champ
+    // vide y est correct, il attend une saisie. La règle n'a plus de sens ici,
+    // et un contrôle sans sujet finit par être contourné plutôt que compris.
 
     testWidgets('le tiret de réussite dit ce qui manque', (tester) async {
       // Quatre paris tranchés : le pourcentage est retenu, à juste titre. Mais

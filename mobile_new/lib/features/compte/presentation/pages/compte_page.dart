@@ -1,5 +1,3 @@
-import 'package:country_picker/country_picker.dart'
-    show CountryService, CountryLocalizations;
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/image_distante.dart';
 import '../../../../core/utils/motion.dart';
@@ -22,7 +20,6 @@ import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
 import '../../../../shared/utils/bilan_paris.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
-import '../../../../shared/utils/age.dart';
 
 
 /// Tout ce que l'ecran du compte lit pour cet utilisateur.
@@ -120,17 +117,12 @@ class _ComptePageState extends ConsumerState<ComptePage>
         )),
       data: (profile) {
         final pseudo      = profile['pseudo']           as String? ?? 'Parieur';
-        final phone       = profile['phone_number']     as String? ?? '';
-        final email       = profile['email']            as String? ?? '';
-        final country     = profile['country_code']     as String? ?? '';
         final firstName   = profile['first_name']       as String? ?? '';
         final lastName    = profile['last_name']        as String? ?? '';
-        final birthDate   = profile['birth_date']       as String?;
         final fullName    = firstName.isNotEmpty && lastName.isNotEmpty
                               ? '$firstName $lastName' : '';
         final plan        = profile['subscription_plan'] as String? ?? 'free';
         final isPremium   = plan == 'premium';
-        final createdAt   = profile['created_at']       as String?;
         final referralCode = profile['referral_code']   as String? ?? '------';
         final earnings    = (profile['referral_earnings'] as num?)?.toInt() ?? 0;
         final avatarUrl   = profile['avatar_url']       as String?;
@@ -255,12 +247,11 @@ class _ComptePageState extends ConsumerState<ComptePage>
             body: TabBarView(
               controller: _tab,
               children: [
-                _ApercuTab(
-                  pseudo: pseudo, phone: phone, email: email,
-                  country: country, createdAt: createdAt,
-                  firstName: firstName, lastName: lastName,
-                  fullName: fullName, birthDate: birthDate,
-                  onAbonnementTap: () => _tab.animateTo(1)),
+                // Plus aucun paramètre : l'onglet n'affiche plus les
+                // informations en lecture seule, il renvoie vers l'écran qui
+                // permet de les modifier. `onAbonnementTap` était déjà mort —
+                // transmis, jamais lu.
+                const _ApercuTab(),
                 _AbonnementTab(isPremium: isPremium),
                 _ParrainageTab(refCode: referralCode, earnings: earnings),
               ],
@@ -341,332 +332,355 @@ class _ComptePageState extends ConsumerState<ComptePage>
 // ══════════════════════════════════════════════════════
 // ONGLET APERÇU
 // ══════════════════════════════════════════════════════
-/// Ce qu'affiche une ligne dont la donnee manque.
-///
-/// Une seule constante : trois formulations differentes pour la meme absence
-/// finissaient par se contredire, et deux lignes sur cinq n'affichaient rien du
-/// tout.
-const String _absent = 'Non renseigné';
-
 class _ApercuTab extends ConsumerWidget {
-  final String pseudo, phone, email, country;
-  final String firstName, lastName, fullName;
-  final String? createdAt, birthDate;
-  final VoidCallback onAbonnementTap;
-
-  const _ApercuTab({
-    required this.pseudo,    required this.phone,
-    required this.email,     required this.country,
-    required this.firstName, required this.lastName,
-    required this.fullName,  required this.createdAt,
-    required this.birthDate, required this.onAbonnementTap,
-  });
+  const _ApercuTab();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final statsAsync = ref.watch(userStatsProvider);
-
     return ListView(
       padding: EdgeInsets.fromLTRB(16, 16, 16, bottomNavSpace(context)),
       children: [
-        // La carte « Streak & XP » occupait cette place — la meilleure de la
-        // page. Elle a été retirée pour deux raisons.
+        // Une seule carte, parce que c'est une seule histoire.
         //
-        // D'abord, elle ne servait à rien : l'XP n'était consommé **nulle
-        // part**, aucun palier ne débloquait quoi que ce soit, et le streak
-        // s'incrémentait à la simple connexion. Elle récompensait l'ouverture
-        // de l'application, pas une compétence de l'utilisateur.
-        //
-        // Ensuite, et surtout : récompenser le retour quotidien dans une
-        // application liée aux paris est le motif même que les régulateurs et
-        // les relecteurs de stores examinent. Cumulé à la bannière
-        // d'affiliation et au parcours promo qui exige un dépôt, l'ensemble se
-        // lit comme un dispositif de fidélisation autour de la mise.
-        //
-        // À la place : le solde de bankroll, la donnée que l'utilisateur vient
-        // réellement consulter et qui n'était visible nulle part sur cet écran.
-        const _SoldeBankroll(),
+        // L'écran disait « 101 004 FCFA », « +1 004 depuis le départ »,
+        // « 4 paris joués », « 3 gagnés, 1 perdu » — quatre morceaux d'une même
+        // phrase, répartis sur deux cartes séparées par un titre de section.
+        // La phrase que l'utilisateur vient lire, « +1 004 FCFA en 4 paris »,
+        // n'était écrite nulle part.
+        const _CarteBankroll(),
         const SizedBox(height: 20),
 
-        // La bande « Actions rapides » a été retirée : ses quatre tuiles
-        // dupliquaient toutes un accès déjà présent à l'écran — le crayon de
-        // l'avatar, les onglets Abonnement et Parrainage, l'engrenage de
-        // l'en-tête — sans ouvrir la moindre destination nouvelle.
-
-        // Stats pronostics (depuis API)
-        statsAsync.when(
-          loading: () => const SizedBox.shrink(),
-          error: (_, _) => const SizedBox.shrink(),
-          data: (stats) {
-            // Un taux de réussite n'existe qu'à partir d'un pari tranché. Tant
-            // qu'aucun n'est réglé, l'API renvoie 0 — ce 0 était affiché tel
-            // quel, en orange, à côté d'une série à 0 en rouge : quelqu'un qui
-            // vient de poser son premier pari lisait donc un avertissement et
-            // une erreur, alors qu'il n'a simplement pas encore de résultat.
-            // `BilanParis` porte la règle, et elle est testée.
-            final bilan = BilanParis.depuisApi(stats);
-            if (bilan.sansAucunPari) return const SizedBox.shrink();
-
-            final suivis    = bilan.suivis;
-            final gagnes    = bilan.gagnes;
-            final perdus    = bilan.perdus;
-            final serie     = bilan.serie;
-            final enAttente = bilan.enAttente;
-            final vierge    = bilan.vierge;
-            return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const _SectionLabel('MES STATS BANKROLL'),
-              GestureDetector(
-                onTap: () => context.push('/historique'),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                  decoration: BoxDecoration(
-                    color: context.cl.surface,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: context.cl.border, width: 0.5)),
-                  child: Column(children: [
-                    // `spaceEvenly` distribue l'espace libre, mais ne
-                    // contraint pas les enfants : trois libellés un peu longs
-                    // — « Série en cours » au premier chef — depassaient la
-                    // carte sur un ecran etroit ou a grande taille de texte.
-                    // Les pastilles se partagent donc la largeur.
-                    Row(children: [
-                      Expanded(child: _StatPill(
-                        icon: Icons.savings_rounded,
-                        rawValue: suivis.toDouble(),
-                        suffix: '',
-                        label: 'Paris joués',
-                        color: AppColors.primary)),
-                      Container(height: 32, width: 0.5, color: context.cl.border),
-                      Expanded(child: _StatPill(
-                        icon: Icons.percent_rounded,
-                        rawValue: bilan.taux,
-                        suffix: '%',
-                        label: 'Réussite',
-                        color: vierge
-                            ? context.cl.textM
-                            : (bilan.tauxBrut >= 60
-                                ? AppColors.success
-                                : AppColors.warning))),
-                      Container(height: 32, width: 0.5, color: context.cl.border),
-                      Expanded(child: _StatPill(
-                        icon: Icons.local_fire_department_rounded,
-                        rawValue: vierge ? null : serie.toDouble(),
-                        suffix: '',
-                        label: 'Série en cours',
-                        // Une série à zéro n'est pas une faute : c'est une
-                        // série qui n'a pas commencé. Le rouge était réservé
-                        // aux pertes, il n'a rien à faire ici.
-                        color: serie > 0 ? AppColors.success : context.cl.textM)),
-                    ]),
-                    const SizedBox(height: 10),
-                    Divider(color: context.cl.border, height: 1),
-                    const SizedBox(height: 10),
-                    // Aligner « 0 Gagnés / 0 Perdus » sous trois tirets ne dit
-                    // rien : le compte est exact mais la raison manque. On
-                    // nomme l'état réel — des paris posés, aucun tranché.
-                    if (vierge)
-                      Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                        Icon(Icons.hourglass_empty_rounded,
-                          size: 13, color: context.cl.textM),
-                        const SizedBox(width: 6),
-                        Flexible(child: Text(
-                          enAttente > 1
-                            ? '$enAttente paris en attente de résultat'
-                            : 'Pari en attente de résultat',
-                          style: TextStyle(color: context.cl.textM, fontSize: 12,
-                            fontWeight: FontWeight.w600))),
-                      ])
-                    else ...[
-                      Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                        Row(children: [
-                          Container(width: 8, height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppColors.success, shape: BoxShape.circle)),
-                          const SizedBox(width: 6),
-                          Text('$gagnes Gagnés', style: TextStyle(
-                            color: AppColors.success, fontSize: 12,
-                            fontWeight: FontWeight.w700)),
-                        ]),
-                        Container(height: 14, width: 0.5, color: context.cl.border),
-                        Row(children: [
-                          Container(width: 8, height: 8,
-                            decoration: const BoxDecoration(
-                              color: AppColors.error, shape: BoxShape.circle)),
-                          const SizedBox(width: 6),
-                          Text('$perdus Perdus', style: TextStyle(
-                            color: AppColors.error, fontSize: 12,
-                            fontWeight: FontWeight.w700)),
-                        ]),
-                      ]),
-                      // Pourquoi le taux affiche un tiret.
-                      //
-                      // En deca de cinq paris tranches, le pourcentage est
-                      // retenu : « 100 % » sur un pari gagne est exact et sans
-                      // aucun sens. La retenue est juste — c'est le silence qui
-                      // ne l'etait pas. La branche voisine, elle, nomme son
-                      // etat (« 2 paris en attente de resultat ») ; celle-ci
-                      // laissait un tiret nu, sur l'ecran de quelqu'un qui a
-                      // trois paris gagnes et se demande pourquoi rien ne
-                      // s'affiche.
-                      if (!bilan.echantillonSuffisant) ...[
-                        const SizedBox(height: 8),
-                        Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                          Icon(Icons.info_outline_rounded,
-                            size: 12, color: context.cl.textM),
-                          const SizedBox(width: 6),
-                          Flexible(child: Text(
-                            bilan.avantLeTaux == 1
-                              ? 'Taux de réussite dès le prochain pari tranché'
-                              : 'Taux de réussite dès '
-                                '${BilanParis.echantillonMinimal} paris tranchés '
-                                '— encore ${bilan.avantLeTaux}',
-                            style: TextStyle(color: context.cl.textM,
-                              fontSize: 11, fontWeight: FontWeight.w500))),
-                        ]),
-                      ],
-                    ],
-                    const SizedBox(height: 10),
-                    // Meme cause, meme remede : deux libelles et trois icones
-                    // dans une rangee qui ne contraignait rien.
-                    Row(children: [
-                      Expanded(child: GestureDetector(
-                        onTap: () => context.push('/historique'),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Flexible(child: Text('Historique',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: AppColors.primary,
-                                fontSize: 12, fontWeight: FontWeight.w600))),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.arrow_forward_ios_rounded,
-                              color: AppColors.primary, size: 11),
-                          ]),
-                      )),
-                      Container(height: 14, width: 0.5, color: context.cl.border),
-                      Expanded(child: GestureDetector(
-                        onTap: () => context.push('/compte/stats'),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            const Icon(Icons.bar_chart_rounded,
-                              color: AppColors.primary, size: 14),
-                            const SizedBox(width: 4),
-                            const Flexible(child: Text('Stats avancées',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(color: AppColors.primary,
-                                fontSize: 12, fontWeight: FontWeight.w600))),
-                            const SizedBox(width: 4),
-                            const Icon(Icons.arrow_forward_ios_rounded,
-                              color: AppColors.primary, size: 11),
-                          ]),
-                      )),
-                    ]),
-                  ]),
-                ),
-              ),
-              const SizedBox(height: 20),
-            ]).animate().fadeIn(duration: 350.ms);
-          },
-        ),
-
-        // Informations
-        const _SectionLabel('INFORMATIONS DU COMPTE'),
+        // ── Les sept lignes d'informations sont devenues une ──────────────
+        //
+        // Nom complet, date de naissance, pseudo, téléphone, email, pays,
+        // membre depuis : sept lignes en lecture seule, un tiers de l'écran
+        // visible, pour des données que l'utilisateur connaît par cœur. Et
+        // aucune ne pouvait être modifiée depuis là : le seul accès à
+        // l'édition était le crayon de la photo, dont le libellé
+        // d'accessibilité annonce « Modifier la photo de profil ».
+        //
+        // Le sous-titre nomme ce que contient l'écran sans l'exposer. Afficher
+        // le numéro ici aurait refait le défaut corrigé dans l'en-tête : « son
+        // numéro sous son nom l'expose dès qu'on montre son écran ».
+        const _SectionLabel('MON COMPTE'),
         _InfoCard(children: [
-          // « Prénom » et « Nom » ont été retirés : ils répétaient à la ligne
-          // près ce que « Nom complet » affiche déjà juste au-dessus.
-          if (fullName.isNotEmpty)
-            _InfoRow(label: 'Nom complet',  value: fullName),
-          if (birthDate != null)
-            _InfoRow(label: 'Date de naissance', value: _formatBirthDate(birthDate!)),
-          // La meme regle pour toutes les lignes.
-          //
-          // Elle etait ecrite pour le pays — « on l'annonce comme pour
-          // l'email plutot que de laisser une ligne blanche » — et appliquee a
-          // deux lignes sur cinq. Un compte cree par email n'a pas de
-          // telephone : il voyait un libelle avec rien a cote, ce qui se lit
-          // comme un affichage casse plutot que comme une donnee absente.
-          _InfoRow(label: 'Pseudo',
-            value: pseudo.isNotEmpty ? pseudo : _absent),
-          _InfoRow(label: 'Téléphone',
-            value: phone.isNotEmpty ? phone : _absent),
-          _InfoRow(label: 'Email',
-            value: email.isNotEmpty ? email : _absent),
-          // Le pays peut légitimement être vide (colonne nullable depuis la
-          // suppression du défaut « BF ») : on l'annonce comme pour l'email
-          // plutôt que de laisser une ligne blanche.
-          _InfoRow(label: 'Pays',
-            value: country.isEmpty ? _absent : _countryLabel(context, country)),
-          _InfoRow(label: 'Membre depuis',
-            value: createdAt != null ? _formatDate(createdAt!) : _absent),
+          _LinkRow(
+            icon: Icons.badge_outlined, label: 'Mes informations',
+            sousTitre: 'Nom, pseudo, contact, pays',
+            color: AppColors.primary,
+            onTap: () => context.push('/compte/edit')),
         ]),
         const SizedBox(height: 20),
 
-        // Raccourcis, séparés en deux groupes : sept lignes identiques à la
-        // suite ne donnaient aucun repère. « Mon activité » regroupe ce qui
-        // dépend des paris de l'utilisateur, « Ressources » le reste.
+        // ── Trois liens au lieu de sept ───────────────────────────────────
+        //
+        // Quatre ont été retirés, pour la raison qui avait déjà fait
+        // disparaître la bande « Actions rapides » de cet écran : ils
+        // n'ouvraient aucune destination nouvelle.
+        //
+        //   « Pronostics »           → l'onglet Pronos de la barre du bas
+        //   « Tutoriels »            → l'onglet Tutoriels de la barre du bas
+        //   « Programme parrainage » → l'onglet Parrainage, juste au-dessus
+        //   « Historique des résultats » → déjà dans la carte ci-dessus
+        //
+        // `/historique` était atteignable trois fois sur ce seul écran.
         const _SectionLabel('MON ACTIVITÉ'),
         _InfoCard(children: [
-          _LinkRow(icon: Icons.trending_up_rounded, label: 'Pronostics',
-            color: AppColors.success, onTap: () => context.go('/pronostics'))
-            .animate(delay: 0.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-          _LinkRow(icon: Icons.history_rounded, label: 'Historique des résultats',
-            color: AppColors.primary, onTap: () => context.push('/historique'))
-            .animate(delay: 40.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
           _LinkRow(icon: Icons.insights_rounded, label: 'Performance',
             color: const Color(0xFF6C63FF), onTap: () => context.push('/performance'))
-            .animate(delay: 45.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+            .animate(delay: 0.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
           _LinkRow(icon: Icons.emoji_events_rounded, label: 'Classement',
             color: const Color(0xFFFFD700), onTap: () => context.push('/classement'))
             .animate(delay: 50.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-        ]),
-        const SizedBox(height: 20),
-
-        const _SectionLabel('RESSOURCES'),
-        _InfoCard(children: [
-          _LinkRow(icon: Icons.school_rounded, label: 'Tutoriels',
-            color: AppColors.info, onTap: () => context.go('/tutoriels'))
-            .animate(delay: 100.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-          _LinkRow(icon: Icons.people_alt_rounded, label: 'Programme parrainage',
-            color: const Color(0xFFA78BFA), onTap: () => context.push('/parrainage'))
-            .animate(delay: 140.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
           _LinkRow(icon: Icons.notifications_outlined, label: 'Notifications',
             color: AppColors.primary, onTap: () => context.push('/notifications'))
-            .animate(delay: 180.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+            .animate(delay: 100.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
         ]),
       ],
     );
   }
+}
 
-  String _formatDate(String iso) {
-    try {
-      final d = DateTime.parse(iso).toLocal();
-      return '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
-    } catch (_) { return iso; }
+// ══════════════════════════════════════════════════════
+// LA CARTE BANKROLL
+// ══════════════════════════════════════════════════════
+
+/// Le solde et le bilan, dans une seule carte.
+///
+/// Ils vivaient dans deux cartes, séparées par un titre de section. Le solde
+/// disait combien il reste, le bilan combien de paris ont été joués, et ni l'un
+/// ni l'autre ne disait ce que l'un a fait à l'autre.
+///
+/// ── Ce qui est cliquable, et ce qui ne l'est pas ───────────────────────────
+///
+/// La carte de statistiques était **entièrement** cliquable vers
+/// `/historique`, tout en contenant un lien « Historique » qui menait au même
+/// endroit, sur un écran qui portait en plus une ligne « Historique des
+/// résultats ». Trois chemins vers la même page.
+///
+/// Ici un seul geste est implicite — le solde ouvre la bankroll, et porte son
+/// chevron pour le dire. Le reste de la carte ne réagit pas ; les deux liens du
+/// bas sont explicites.
+class _CarteBankroll extends ConsumerWidget {
+  const _CarteBankroll();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final bankroll = ref.watch(bankrollProvider).valueOrNull;
+    final stats    = ref.watch(userStatsProvider).valueOrNull;
+    final bilan    = stats == null ? null : BilanParis.depuisApi(stats);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: context.cl.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.cl.borderSoft, width: 0.8)),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: [
+        _ZoneSolde(data: bankroll),
+        if (bilan != null && !bilan.sansAucunPari) ...[
+          Divider(color: context.cl.border, height: 1),
+          _ZoneBilan(bilan: bilan),
+        ],
+      ]),
+    );
+  }
+}
+
+/// Le solde, seul geste implicite de la carte.
+class _ZoneSolde extends StatelessWidget {
+  final BankrollData? data;
+  const _ZoneSolde({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final d = data;
+
+    // Aucune bankroll configuree : on invite plutot que d'afficher un zero,
+    // qui se lirait comme un solde epuise.
+    final contenu = d == null
+        ? Row(children: [
+            Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(12)),
+              child: const Icon(Icons.savings_rounded,
+                color: AppColors.primary, size: 22)),
+            const SizedBox(width: 14),
+            Expanded(child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Suivre ma bankroll', style: TextStyle(
+                  color: context.cl.textP, fontSize: 15,
+                  fontWeight: FontWeight.w800)),
+                const SizedBox(height: 2),
+                Text('Definis ton budget et suis tes gains reels',
+                  style: TextStyle(color: context.cl.textM, fontSize: 12)),
+              ])),
+            Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 20),
+          ])
+        : _soldeRenseigne(context, d);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => context.push('/bankroll'),
+        child: Padding(padding: const EdgeInsets.all(16), child: contenu),
+      ),
+    );
   }
 
-  String _formatBirthDate(String iso) {
-    try {
-      final d   = DateTime.parse(iso).toLocal();
-      final age = ageRevolu(d);
-      return '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year} ($age ans)';
-    } catch (_) { return iso; }
-  }
+  Widget _soldeRenseigne(BuildContext context, BankrollData d) {
+    final devise = nomDevise(d.currency);
+    final ecart  = d.currentBalance - d.totalBudget;
+    // Un ecart nul n'est ni un gain ni une perte : aucune couleur, aucun signe.
+    final neutre = ecart.abs() < 0.5;
+    final couleur = neutre
+        ? context.cl.textM
+        : (ecart > 0 ? AppColors.success : AppColors.error);
 
-  /// « BF » → « 🇧🇫 Burkina Faso ». Le profil ne stocke que le code ISO ; on le
-  /// résout via la même base que le sélecteur d'indicatif, avec le nom traduit
-  /// par `CountryLocalizations`. Un code inconnu est renvoyé tel quel plutôt
-  /// que masqué.
-  String _countryLabel(BuildContext context, String code) {
-    if (code.isEmpty) return '';
-    try {
-      final c = CountryService().findByCode(code);
-      if (c == null) return code;
-      final name = CountryLocalizations.of(context)
-          ?.countryName(countryCode: c.countryCode) ?? c.name;
-      return '${c.flagEmoji}  $name';
-    } catch (_) { return code; }
+    return Row(children: [
+      Expanded(child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('SOLDE ACTUEL', style: TextStyle(
+            color: context.cl.textM, fontSize: 10,
+            fontWeight: FontWeight.w700, letterSpacing: 0.8)),
+          const SizedBox(height: 6),
+          Text('${montantExact(d.currentBalance)} $devise',
+            style: TextStyle(
+              color: context.cl.textP, fontSize: 26,
+              fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+          const SizedBox(height: 4),
+          Text(
+            neutre
+              ? 'Identique au budget de depart'
+              : '${ecart > 0 ? '+' : '-'}${montantExact(ecart.abs())} $devise '
+                'depuis le depart',
+            style: TextStyle(
+              color: couleur, fontSize: 12, fontWeight: FontWeight.w600)),
+        ])),
+      Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 20),
+    ]);
   }
+}
+
+/// Le bilan des paris, sous le solde.
+class _ZoneBilan extends StatelessWidget {
+  final BilanParis bilan;
+  const _ZoneBilan({required this.bilan});
+
+  @override
+  Widget build(BuildContext context) {
+    final vierge = bilan.vierge;
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Column(children: [
+        Row(children: [
+          Expanded(child: _StatPill(
+            icon: Icons.savings_rounded,
+            rawValue: bilan.suivis.toDouble(),
+            suffix: '',
+            label: 'Paris joués',
+            color: AppColors.primary)),
+          Container(height: 32, width: 0.5, color: context.cl.border),
+          Expanded(child: _StatPill(
+            icon: Icons.percent_rounded,
+            rawValue: bilan.taux,
+            suffix: '%',
+            label: 'Réussite',
+            color: vierge
+                ? context.cl.textM
+                : (bilan.tauxBrut >= 60 ? AppColors.success : AppColors.warning))),
+          Container(height: 32, width: 0.5, color: context.cl.border),
+          Expanded(child: _StatPill(
+            icon: Icons.local_fire_department_rounded,
+            rawValue: vierge ? null : bilan.serie.toDouble(),
+            suffix: '',
+            label: 'Série en cours',
+            // Une série à zéro n'est pas une faute : c'est une série qui n'a
+            // pas commencé. Le rouge était réservé aux pertes.
+            color: bilan.serie > 0 ? AppColors.success : context.cl.textM)),
+        ]),
+        const SizedBox(height: 12),
+        if (!vierge) ...[
+          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+            _Pastille(
+              couleur: AppColors.success,
+              texte: '${bilan.gagnes} Gagnés'),
+            Container(height: 14, width: 0.5, color: context.cl.border),
+            _Pastille(
+              couleur: AppColors.error,
+              texte: '${bilan.perdus} Perdus'),
+          ]),
+          const SizedBox(height: 10),
+        ],
+
+        // Ce qui manque, nommé.
+        //
+        // Le tiret de réussite ne disait pas pourquoi, et les paris en attente
+        // n'étaient annoncés que lorsque *aucun* n'était tranché — alors que
+        // c'est la seule chose de cet écran qui bouge dans la journée.
+        if (vierge)
+          _Mention(
+            icone: Icons.hourglass_empty_rounded,
+            texte: bilan.enAttente > 1
+                ? '${bilan.enAttente} paris en attente de résultat'
+                : 'Pari en attente de résultat')
+        else ...[
+          if (bilan.enAttente > 0)
+            _Mention(
+              icone: Icons.hourglass_empty_rounded,
+              texte: bilan.enAttente > 1
+                  ? '${bilan.enAttente} paris en attente de résultat'
+                  : '1 pari en attente de résultat'),
+          if (!bilan.echantillonSuffisant) ...[
+            if (bilan.enAttente > 0) const SizedBox(height: 6),
+            _Mention(
+              icone: Icons.info_outline_rounded,
+              texte: bilan.avantLeTaux == 1
+                  ? 'Taux de réussite dès le prochain pari tranché'
+                  : 'Taux de réussite dès ${BilanParis.echantillonMinimal} '
+                    'paris tranchés — encore ${bilan.avantLeTaux}'),
+          ],
+        ],
+
+        const SizedBox(height: 12),
+        Divider(color: context.cl.border, height: 1),
+        const SizedBox(height: 10),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
+          Expanded(child: _LienBilan(
+            label: 'Historique',
+            onTap: () => context.push('/historique'))),
+          Container(height: 14, width: 0.5, color: context.cl.border),
+          Expanded(child: _LienBilan(
+            icone: Icons.bar_chart_rounded,
+            label: 'Stats avancées',
+            onTap: () => context.push('/compte/stats'))),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _Pastille extends StatelessWidget {
+  final Color couleur;
+  final String texte;
+  const _Pastille({required this.couleur, required this.texte});
+
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(width: 8, height: 8,
+        decoration: BoxDecoration(color: couleur, shape: BoxShape.circle)),
+      const SizedBox(width: 6),
+      Flexible(child: Text(texte, style: TextStyle(
+        color: couleur, fontSize: 12, fontWeight: FontWeight.w700))),
+    ]);
+}
+
+class _Mention extends StatelessWidget {
+  final IconData icone;
+  final String texte;
+  const _Mention({required this.icone, required this.texte});
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisAlignment: MainAxisAlignment.center,
+    children: [
+      Icon(icone, size: 12, color: context.cl.textM),
+      const SizedBox(width: 6),
+      Flexible(child: Text(texte,
+        textAlign: TextAlign.center,
+        style: TextStyle(color: context.cl.textM,
+          fontSize: 11, fontWeight: FontWeight.w500))),
+    ]);
+}
+
+class _LienBilan extends StatelessWidget {
+  final IconData? icone;
+  final String label;
+  final VoidCallback onTap;
+  const _LienBilan({this.icone, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+      if (icone != null) ...[
+        Icon(icone, color: AppColors.primary, size: 14),
+        const SizedBox(width: 4),
+      ],
+      Flexible(child: Text(label,
+        textAlign: TextAlign.center,
+        style: const TextStyle(color: AppColors.primary,
+          fontSize: 12, fontWeight: FontWeight.w600))),
+      const SizedBox(width: 4),
+      const Icon(Icons.arrow_forward_ios_rounded,
+        color: AppColors.primary, size: 11),
+    ]));
 }
 
 // ══════════════════════════════════════════════════════
@@ -1406,35 +1420,15 @@ class _InfoCard extends StatelessWidget {
     child: Column(children: children));
 }
 
-class _InfoRow extends StatelessWidget {
-  final String label, value;
-  const _InfoRow({required this.label, required this.value});
-  @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    decoration: BoxDecoration(
-      border: Border(bottom: BorderSide(color: context.cl.border, width: 0.3))),
-    // `Spacer` + `Text` nu debordait : une adresse email un peu longue
-    // depassait la largeur d'un ecran de 360 px, a taille de texte normale,
-    // et peignait les rayures de debordement en travers de la fiche.
-    //
-    // La valeur est donc elastique et peut passer a la ligne. Pas d'ellipse :
-    // un email tronque cache precisement ce qu'on vient lire.
-    child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: TextStyle(color: context.cl.textM, fontSize: 13)),
-      const SizedBox(width: 16),
-      Expanded(child: Text(value,
-        textAlign: TextAlign.right,
-        style: TextStyle(
-          color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w500))),
-    ]));
-}
-
 class _LinkRow extends StatelessWidget {
   final IconData icon; final Color color;
   final String label; final VoidCallback onTap;
+
+  /// Ce que la destination contient, quand le libellé ne suffit pas.
+  final String? sousTitre;
+
   const _LinkRow({required this.icon, required this.color,
-    required this.label, required this.onTap});
+    required this.label, required this.onTap, this.sousTitre});
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap, borderRadius: BorderRadius.circular(14),
@@ -1447,11 +1441,20 @@ class _LinkRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(8)),
           child: Icon(icon, color: color, size: 18)),
         const SizedBox(width: 12),
-        // Meme defaut que la fiche d'informations : un `Text` nu suivi d'un
-        // `Spacer` ne cede rien. « Historique des resultats » et « Programme
-        // parrainage » sont les deux libelles les plus longs de la page.
-        Expanded(child: Text(label, style: TextStyle(
-          color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w500))),
+        // Un `Text` nu suivi d'un `Spacer` ne cede rien : sur un ecran
+        // etroit ou a grande taille de texte, le libelle deborde.
+        Expanded(child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(label, style: TextStyle(
+              color: context.cl.textP, fontSize: 13,
+              fontWeight: FontWeight.w500)),
+            if (sousTitre != null) ...[
+              const SizedBox(height: 2),
+              Text(sousTitre!, style: TextStyle(
+                color: context.cl.textM, fontSize: 11)),
+            ],
+          ])),
         const SizedBox(width: 8),
         Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 18),
       ])));
@@ -1776,101 +1779,3 @@ class _StatBox extends StatelessWidget {
 /// Le solde, lui, existait deja cote serveur et n'apparaissait sur aucun ecran
 /// de cette page — seules les statistiques de paris y figuraient, sans jamais
 /// dire combien il reste.
-class _SoldeBankroll extends ConsumerWidget {
-  const _SoldeBankroll();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final async = ref.watch(bankrollProvider);
-    final data  = async.valueOrNull;
-
-    // Aucune bankroll configuree : on invite plutot que d'afficher un zero,
-    // qui se lirait comme un solde epuise.
-    if (data == null) {
-      return _CarteCompte(
-        onTap: () => context.push('/bankroll'),
-        enfant: Row(children: [
-          Container(
-            width: 44, height: 44,
-            decoration: BoxDecoration(
-              color: AppColors.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12)),
-            child: const Icon(Icons.savings_rounded,
-              color: AppColors.primary, size: 22)),
-          const SizedBox(width: 14),
-          Expanded(child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Suivre ma bankroll', style: TextStyle(
-                color: context.cl.textP, fontSize: 15,
-                fontWeight: FontWeight.w800)),
-              const SizedBox(height: 2),
-              Text('Definis ton budget et suis tes gains reels',
-                style: TextStyle(color: context.cl.textM, fontSize: 12)),
-            ])),
-          Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 20),
-        ]),
-      );
-    }
-
-    final devise  = nomDevise(data.currency);
-    final ecart   = data.currentBalance - data.totalBudget;
-    // Un ecart nul n'est ni un gain ni une perte : aucune couleur, aucun signe.
-    final neutre  = ecart.abs() < 0.5;
-    final couleur = neutre
-        ? context.cl.textM
-        : (ecart > 0 ? AppColors.success : AppColors.error);
-
-    return _CarteCompte(
-      onTap: () => context.push('/bankroll'),
-      enfant: Row(children: [
-        Expanded(child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('SOLDE ACTUEL', style: TextStyle(
-              color: context.cl.textM, fontSize: 10,
-              fontWeight: FontWeight.w700, letterSpacing: 0.8)),
-            const SizedBox(height: 6),
-            Text('${montantExact(data.currentBalance)} $devise',
-              style: TextStyle(
-                color: context.cl.textP, fontSize: 26,
-                fontWeight: FontWeight.w900, letterSpacing: -0.5)),
-            const SizedBox(height: 4),
-            Text(
-              neutre
-                ? 'Budget de départ : ${montantExact(data.totalBudget)} $devise'
-                : '${montantSigne(ecart)} $devise depuis le départ',
-              style: TextStyle(
-                color: couleur, fontSize: 12.5, fontWeight: FontWeight.w700)),
-          ])),
-        Container(
-          width: 44, height: 44,
-          decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12)),
-          child: const Icon(Icons.savings_rounded,
-            color: AppColors.primary, size: 22)),
-      ]),
-    );
-  }
-}
-
-/// Cadre commun aux cartes de la page Compte.
-class _CarteCompte extends StatelessWidget {
-  final Widget enfant;
-  final VoidCallback onTap;
-  const _CarteCompte({required this.enfant, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.borderSoft, width: 0.8)),
-      child: enfant,
-    ),
-  );
-}

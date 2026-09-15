@@ -13,6 +13,7 @@ import '../../../../shared/widgets/country_pill_selector.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/compte_provider.dart';
 import '../../../../shared/utils/retour.dart';
+import '../../../../shared/utils/age.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -463,8 +464,14 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     );
   }
 
-  int _getAge(DateTime dob) =>
-    ((DateTime.now().difference(dob).inDays) / 365.25).floor();
+  /// L'age affiche sous la date de naissance.
+  ///
+  /// Cette page portait sa propre division par 365,25 — la troisieme copie du
+  /// meme calcul approximatif, apres celle de l'ecran du compte et celle du
+  /// serveur. Elle se trompe d'un an le jour de l'anniversaire, et c'est ici
+  /// que l'ecart compte le plus : la ligne est verte, elle sert a confirmer
+  /// qu'on est majeur.
+  int _getAge(DateTime dob) => ageRevolu(dob);
 
   void _showSnack(String msg, {bool isError = false}) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
