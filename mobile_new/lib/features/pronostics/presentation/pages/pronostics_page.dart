@@ -127,6 +127,19 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
+  /// L'âge d'une copie, dit comme on le dirait à voix haute.
+  ///
+  /// « copie du 14/09 à 21:03 » n'aide pas à juger si c'est vieux. Ce qui
+  /// compte, c'est le temps écoulé.
+  String _dateCache(DateTime t) {
+    final ecoule = DateTime.now().difference(t);
+    if (ecoule.inMinutes < 1)  return 'à l\'instant';
+    if (ecoule.inMinutes < 60) return 'il y a ${ecoule.inMinutes} min';
+    if (ecoule.inHours   < 24) return 'il y a ${ecoule.inHours} h';
+    final j = ecoule.inDays;
+    return j == 1 ? 'hier' : 'il y a $j jours';
+  }
+
   String _dateFilterStr(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
       '${d.month.toString().padLeft(2, '0')}-'
       '${d.day.toString().padLeft(2, '0')}';
@@ -270,6 +283,37 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
               ref.read(statusFilterProvider.notifier).state = s;
             },
           ),
+          // Ces matchs viennent-ils d'une copie ?
+          //
+          // Le repli de cache existait, mais dans une branche que rien
+          // n'atteignait : une coupure réseau donnait un écran d'erreur. Il
+          // fonctionne désormais — et il faut le dire, sinon des pronostics
+          // d'hier s'affichent comme ceux du jour.
+          if (pagedState.cacheDe != null)
+            Container(
+              key: const Key('pronostics-hors-connexion'),
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: AppColors.warning.withValues(alpha: 0.10),
+              child: Row(children: [
+                const Icon(Icons.cloud_off_rounded,
+                    size: 14, color: AppColors.warning),
+                const SizedBox(width: 8),
+                Expanded(child: Text(
+                  'Hors connexion — copie du ${_dateCache(pagedState.cacheDe!)}',
+                  style: TextStyle(color: context.cl.textS, fontSize: 11))),
+                TextButton(
+                  onPressed: () =>
+                      ref.read(matchesPaginatedProvider.notifier).refresh(),
+                  style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                  child: const Text('Actualiser',
+                      style: TextStyle(fontSize: 11, color: AppColors.warning)),
+                ),
+              ]),
+            ),
           Expanded(
             child: pagedState.isInitialLoading
               ? _ShimmerList()

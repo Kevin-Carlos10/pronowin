@@ -76,6 +76,13 @@ class MatchesPaginatedState {
   final bool              isLoadingMore;
   final String?           error;
 
+  /// Quand ces données ont été mises en cache, si elles en viennent.
+  ///
+  /// `null` quand elles sortent du réseau. L'écran doit pouvoir dire qu'il
+  /// montre une copie, et de quand elle date : des pronostics d'hier
+  /// présentés comme ceux du jour valent moins qu'une liste vide.
+  final DateTime?         cacheDe;
+
   const MatchesPaginatedState({
     this.matches          = const [],
     this.nextCursor,
@@ -83,6 +90,7 @@ class MatchesPaginatedState {
     this.isInitialLoading = true,
     this.isLoadingMore    = false,
     this.error,
+    this.cacheDe,
   });
 
   MatchesPaginatedState copyWith({
@@ -92,8 +100,10 @@ class MatchesPaginatedState {
     bool?              isInitialLoading,
     bool?              isLoadingMore,
     String?            error,
+    DateTime?          cacheDe,
     bool               clearError = false,
     bool               clearCursor = false,
+    bool               clearCache = false,
   }) => MatchesPaginatedState(
     matches:          matches          ?? this.matches,
     nextCursor:       clearCursor ? null : (nextCursor ?? this.nextCursor),
@@ -101,6 +111,7 @@ class MatchesPaginatedState {
     isInitialLoading: isInitialLoading ?? this.isInitialLoading,
     isLoadingMore:    isLoadingMore    ?? this.isLoadingMore,
     error:            clearError ? null : (error ?? this.error),
+    cacheDe:          clearCache ? null : (cacheDe ?? this.cacheDe),
   );
 }
 
@@ -145,11 +156,14 @@ class MatchesPaginatedNotifier extends StateNotifier<MatchesPaginatedState> {
         limit:        _limit,
       ));
 
-      result.fold(
-        (failure) => state = state.copyWith(
-          isInitialLoading: false,
-          error:            failure.message,
-        ),
+      await result.fold(
+        // Le repli de cache était placé dans le `catch` ci-dessous.
+        //
+        // Or le dépôt ne lève jamais : il convertit toute erreur réseau en
+        // `Left(Failure)`. Ce `catch` ne recevait donc rien, et le repli était
+        // du code mort — une coupure réseau donnait un écran d'erreur alors
+        // qu'une copie utilisable dormait dans les préférences.
+        (failure) => _replierSurLeCache(cacheKey, failure.message),
         (page) async {
           await CacheService.save(cacheKey,
               page.data.map((m) => (m as MatchModel).toJson()).toList());
@@ -158,28 +172,49 @@ class MatchesPaginatedNotifier extends StateNotifier<MatchesPaginatedState> {
             nextCursor:       page.nextCursor,
             hasMore:          page.hasMore,
             isInitialLoading: false,
+            clearCache:       true,
           );
         },
       );
     } catch (e) {
-      // Fallback cache
-      final cached = await CacheService.load<List<MatchEntity>>(
-        cacheKey,
-        (d) => (d as List).map((e) => MatchModel.fromJson(e as Map<String, dynamic>)).toList(),
-      );
-      if (cached != null) {
-        state = state.copyWith(
-          matches:          cached,
-          hasMore:          false,
-          isInitialLoading: false,
-        );
-      } else {
-        state = state.copyWith(
-          isInitialLoading: false,
-          error:            e.toString().replaceAll('Exception:', '').trim(),
-        );
-      }
+      // Ceinture : une exception inattendue (décodage, cache illisible) ne
+      // doit pas laisser l'écran en chargement perpétuel.
+      await _replierSurLeCache(
+          cacheKey, e.toString().replaceAll('Exception:', '').trim());
     }
+  }
+
+  /// Montre la dernière copie connue, ou l'erreur s'il n'y en a pas.
+  ///
+  /// `loadWithMeta` et non `load` : hors connexion, une copie périmée vaut
+  /// mieux qu'un écran vide — à condition de dire de quand elle date.
+  /// `load` rendait `null` dès le TTL dépassé, c'est-à-dire au bout de cinq
+  /// minutes pour les pronostics : le repli n'aurait presque jamais servi,
+  /// même placé au bon endroit.
+  Future<void> _replierSurLeCache(String cacheKey, String message) async {
+    final entree = await CacheService.loadWithMeta<List<MatchEntity>>(
+      cacheKey,
+      (d) => (d as List)
+          .map((e) => MatchModel.fromJson(e as Map<String, dynamic>))
+          .toList(),
+    );
+
+    if (entree == null || entree.data.isEmpty) {
+      state = state.copyWith(
+        isInitialLoading: false,
+        error:            message,
+        clearCache:       true,
+      );
+      return;
+    }
+
+    state = state.copyWith(
+      matches:          entree.data,
+      hasMore:          false,
+      isInitialLoading: false,
+      clearError:       true,
+      cacheDe:          entree.cachedAt,
+    );
   }
 
   Future<void> loadMore() async {
