@@ -149,21 +149,44 @@ export class ReferralService {
       include: { referrer: true, referred: true },
     });
 
+    let versees = 0;
+
     for (const ref of referrals) {
       const commission = ref.level === 1 ? COMMISSION_L1 : COMMISSION_L2;
 
-      await Promise.all([
-        // Mettre à jour le montant et marquer comme payé
-        prisma.referral.update({
-          where: { id: ref.id },
+      /**
+       * C'est le marquage qui décide, pas la lecture.
+       *
+       * `findMany` ci-dessus et l'écriture ci-dessous sont deux instants
+       * distincts. Un second appel — deux validations du même reçu d'achat
+       * intégré qui se croisent, une revue de preuve pendant une
+       * synchronisation — lisait les mêmes lignes encore non payées, et
+       * créditait une seconde fois.
+       *
+       * `updateMany` avec `isPaid: false` dans le `where` fait trancher la
+       * base : elle n'a qu'une ligne à changer, donc un seul appel obtient
+       * `count: 1`. Les autres obtiennent `0` et ne créditent rien.
+       *
+       * Les deux écritures sont dans la même transaction : un crédit sans
+       * marquage se reverserait indéfiniment, un marquage sans crédit perdrait
+       * la commission.
+       */
+      const verse = await prisma.$transaction(async (t) => {
+        const marquee = await t.referral.updateMany({
+          where: { id: ref.id, isPaid: false },
           data:  { commissionAmount: commission, isPaid: true },
-        }),
-        // Créditer les gains du parrain
-        prisma.user.update({
+        });
+        if (marquee.count === 0) return false;
+
+        await t.user.update({
           where: { id: ref.referrerId },
           data:  { referralEarnings: { increment: commission } },
-        }),
-      ]);
+        });
+        return true;
+      });
+
+      if (!verse) continue;
+      versees++;
 
       // Notifier le parrain
       await notifSvc.sendToUser(ref.referrerId, {
@@ -173,7 +196,8 @@ export class ReferralService {
       }, 'referral').catch(() => {});
     }
 
-    return { commissions_paid: referrals.length };
+    // Ce que l'appel a réellement versé — et non ce qu'il avait lu à l'entrée.
+    return { commissions_paid: versees };
   }
 
   /** Demande de retrait des gains */
