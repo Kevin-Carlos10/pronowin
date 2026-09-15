@@ -15,10 +15,8 @@ import '../../../../features/parrainage/domain/recompense_premium.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../providers/compte_provider.dart';
 import '../../../../shared/utils/devise.dart';
-import '../../../../shared/utils/montant.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
-import '../../../../shared/utils/bilan_paris.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 
 
@@ -340,15 +338,17 @@ class _ApercuTab extends ConsumerWidget {
     return ListView(
       padding: EdgeInsets.fromLTRB(16, 16, 16, bottomNavSpace(context)),
       children: [
-        // Une seule carte, parce que c'est une seule histoire.
+        // Le solde et le bilan ont quitté cet onglet.
         //
-        // L'écran disait « 101 004 FCFA », « +1 004 depuis le départ »,
-        // « 4 paris joués », « 3 gagnés, 1 perdu » — quatre morceaux d'une même
-        // phrase, répartis sur deux cartes séparées par un titre de section.
-        // La phrase que l'utilisateur vient lire, « +1 004 FCFA en 4 paris »,
-        // n'était écrite nulle part.
-        const _CarteBankroll(),
-        const SizedBox(height: 20),
+        // Ils vivent dans l'onglet Bankroll, à un appui de la barre du bas, où
+        // ils sont chez eux : le solde, le profit, l'historique des mises et le
+        // même bilan de paris. Les répéter ici, c'était exactement ce qui avait
+        // fait retirer « Pronostics » et « Tutoriels » de la liste ci-dessous —
+        // un accès déjà présent à l'écran, redonné une seconde fois.
+        //
+        // L'onglet Aperçu ne garde donc que ce qu'aucun autre écran n'offre :
+        // l'accès à ses informations, et les trois destinations qui n'ont pas
+        // de place ailleurs.
 
         // ── Les sept lignes d'informations sont devenues une ──────────────
         //
@@ -399,295 +399,6 @@ class _ApercuTab extends ConsumerWidget {
       ],
     );
   }
-}
-
-// ══════════════════════════════════════════════════════
-// LA CARTE BANKROLL
-// ══════════════════════════════════════════════════════
-
-/// Le solde et le bilan, dans une seule carte.
-///
-/// Ils vivaient dans deux cartes, séparées par un titre de section. Le solde
-/// disait combien il reste, le bilan combien de paris ont été joués, et ni l'un
-/// ni l'autre ne disait ce que l'un a fait à l'autre.
-///
-/// ── Ce qui est cliquable, et ce qui ne l'est pas ───────────────────────────
-///
-/// La carte de statistiques était **entièrement** cliquable vers
-/// `/historique`, tout en contenant un lien « Historique » qui menait au même
-/// endroit, sur un écran qui portait en plus une ligne « Historique des
-/// résultats ». Trois chemins vers la même page.
-///
-/// Ici un seul geste est implicite — le solde ouvre la bankroll, et porte son
-/// chevron pour le dire. Le reste de la carte ne réagit pas ; les deux liens du
-/// bas sont explicites.
-class _CarteBankroll extends ConsumerWidget {
-  const _CarteBankroll();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final bankroll = ref.watch(bankrollProvider).valueOrNull;
-    final stats    = ref.watch(userStatsProvider).valueOrNull;
-    final bilan    = stats == null ? null : BilanParis.depuisApi(stats);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: context.cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: context.cl.borderSoft, width: 0.8)),
-      clipBehavior: Clip.antiAlias,
-      child: Column(children: [
-        _ZoneSolde(data: bankroll),
-        if (bilan != null && !bilan.sansAucunPari) ...[
-          Divider(color: context.cl.border, height: 1),
-          _ZoneBilan(bilan: bilan),
-        ],
-      ]),
-    );
-  }
-}
-
-/// Le solde, seul geste implicite de la carte.
-class _ZoneSolde extends StatelessWidget {
-  final BankrollData? data;
-  const _ZoneSolde({required this.data});
-
-  @override
-  Widget build(BuildContext context) {
-    final d = data;
-
-    // Aucune bankroll configuree : on invite plutot que d'afficher un zero,
-    // qui se lirait comme un solde epuise.
-    final contenu = d == null
-        ? Row(children: [
-            Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.savings_rounded,
-                color: AppColors.primary, size: 22)),
-            const SizedBox(width: 14),
-            Expanded(child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Suivre ma bankroll', style: TextStyle(
-                  color: context.cl.textP, fontSize: 15,
-                  fontWeight: FontWeight.w800)),
-                const SizedBox(height: 2),
-                Text('Définis ton budget et suis tes gains réels',
-                  style: TextStyle(color: context.cl.textM, fontSize: 12)),
-              ])),
-            Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 20),
-          ])
-        : _soldeRenseigne(context, d);
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => context.push('/bankroll'),
-        child: Padding(padding: const EdgeInsets.all(16), child: contenu),
-      ),
-    );
-  }
-
-  Widget _soldeRenseigne(BuildContext context, BankrollData d) {
-    final devise = nomDevise(d.currency);
-    final ecart  = d.currentBalance - d.totalBudget;
-    // Un ecart nul n'est ni un gain ni une perte : aucune couleur, aucun signe.
-    final neutre = ecart.abs() < 0.5;
-    final couleur = neutre
-        ? context.cl.textM
-        : (ecart > 0 ? AppColors.success : AppColors.error);
-
-    return Row(children: [
-      Expanded(child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('SOLDE ACTUEL', style: TextStyle(
-            color: context.cl.textM, fontSize: 10,
-            fontWeight: FontWeight.w700, letterSpacing: 0.8)),
-          const SizedBox(height: 6),
-          Text('${montantExact(d.currentBalance)} $devise',
-            style: TextStyle(
-              color: context.cl.textP, fontSize: 26,
-              fontWeight: FontWeight.w900, letterSpacing: -0.5)),
-          const SizedBox(height: 4),
-          Text(
-            neutre
-              ? 'Identique au budget de départ'
-              : '${ecart > 0 ? '+' : '-'}${montantExact(ecart.abs())} $devise '
-                'depuis le départ',
-            style: TextStyle(
-              color: couleur, fontSize: 12, fontWeight: FontWeight.w600)),
-        ])),
-      Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 20),
-    ]);
-  }
-}
-
-/// Le bilan des paris, sous le solde.
-class _ZoneBilan extends StatelessWidget {
-  final BilanParis bilan;
-  const _ZoneBilan({required this.bilan});
-
-  @override
-  Widget build(BuildContext context) {
-    final vierge = bilan.vierge;
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
-      child: Column(children: [
-        Row(children: [
-          Expanded(child: _StatPill(
-            icon: Icons.savings_rounded,
-            rawValue: bilan.suivis.toDouble(),
-            suffix: '',
-            label: 'Paris joués',
-            color: AppColors.primary)),
-          Container(height: 32, width: 0.5, color: context.cl.border),
-          Expanded(child: _StatPill(
-            icon: Icons.percent_rounded,
-            rawValue: bilan.taux,
-            suffix: '%',
-            label: 'Réussite',
-            // La couleur suit la valeur affichée, pas celle qu'on retient.
-            //
-            // Elle ne devenait neutre que si *aucun* pari n'était tranché.
-            // En deçà du seuil, le taux est remplacé par un tiret — mais le
-            // tiret restait coloré par `tauxBrut` : vert à trois paris gagnés
-            // sur trois, orange au premier perdu. La couleur disait donc
-            // exactement ce que le chiffre refusait de dire.
-            color: bilan.taux == null
-                ? context.cl.textM
-                : (bilan.tauxBrut >= 60 ? AppColors.success : AppColors.warning))),
-          Container(height: 32, width: 0.5, color: context.cl.border),
-          Expanded(child: _StatPill(
-            icon: Icons.local_fire_department_rounded,
-            rawValue: vierge ? null : bilan.serie.toDouble(),
-            suffix: '',
-            label: 'Série en cours',
-            // Une série à zéro n'est pas une faute : c'est une série qui n'a
-            // pas commencé. Le rouge était réservé aux pertes.
-            color: bilan.serie > 0 ? AppColors.success : context.cl.textM)),
-        ]),
-        const SizedBox(height: 12),
-        if (!vierge) ...[
-          Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-            _Pastille(
-              couleur: AppColors.success,
-              texte: '${bilan.gagnes} Gagnés'),
-            Container(height: 14, width: 0.5, color: context.cl.border),
-            _Pastille(
-              couleur: AppColors.error,
-              texte: '${bilan.perdus} Perdus'),
-          ]),
-          const SizedBox(height: 10),
-        ],
-
-        // Ce qui manque, nommé.
-        //
-        // Le tiret de réussite ne disait pas pourquoi, et les paris en attente
-        // n'étaient annoncés que lorsque *aucun* n'était tranché — alors que
-        // c'est la seule chose de cet écran qui bouge dans la journée.
-        if (vierge)
-          _Mention(
-            icone: Icons.hourglass_empty_rounded,
-            texte: bilan.enAttente > 1
-                ? '${bilan.enAttente} paris en attente de résultat'
-                : 'Pari en attente de résultat')
-        else ...[
-          if (bilan.enAttente > 0)
-            _Mention(
-              icone: Icons.hourglass_empty_rounded,
-              texte: bilan.enAttente > 1
-                  ? '${bilan.enAttente} paris en attente de résultat'
-                  : '1 pari en attente de résultat'),
-          if (!bilan.echantillonSuffisant) ...[
-            if (bilan.enAttente > 0) const SizedBox(height: 6),
-            _Mention(
-              icone: Icons.info_outline_rounded,
-              texte: bilan.avantLeTaux == 1
-                  ? 'Taux de réussite dès le prochain pari tranché'
-                  : 'Taux de réussite dès ${BilanParis.echantillonMinimal} '
-                    'paris tranchés — encore ${bilan.avantLeTaux}'),
-          ],
-        ],
-
-        const SizedBox(height: 12),
-        Divider(color: context.cl.border, height: 1),
-        const SizedBox(height: 10),
-        Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-          Expanded(child: _LienBilan(
-            label: 'Historique',
-            onTap: () => context.push('/historique'))),
-          Container(height: 14, width: 0.5, color: context.cl.border),
-          Expanded(child: _LienBilan(
-            icone: Icons.bar_chart_rounded,
-            label: 'Stats avancées',
-            onTap: () => context.push('/compte/stats'))),
-        ]),
-      ]),
-    );
-  }
-}
-
-class _Pastille extends StatelessWidget {
-  final Color couleur;
-  final String texte;
-  const _Pastille({required this.couleur, required this.texte});
-
-  @override
-  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min,
-    children: [
-      Container(width: 8, height: 8,
-        decoration: BoxDecoration(color: couleur, shape: BoxShape.circle)),
-      const SizedBox(width: 6),
-      Flexible(child: Text(texte, style: TextStyle(
-        color: couleur, fontSize: 12, fontWeight: FontWeight.w700))),
-    ]);
-}
-
-class _Mention extends StatelessWidget {
-  final IconData icone;
-  final String texte;
-  const _Mention({required this.icone, required this.texte});
-
-  @override
-  Widget build(BuildContext context) => Row(
-    mainAxisAlignment: MainAxisAlignment.center,
-    children: [
-      Icon(icone, size: 12, color: context.cl.textM),
-      const SizedBox(width: 6),
-      Flexible(child: Text(texte,
-        textAlign: TextAlign.center,
-        style: TextStyle(color: context.cl.textM,
-          fontSize: 11, fontWeight: FontWeight.w500))),
-    ]);
-}
-
-class _LienBilan extends StatelessWidget {
-  final IconData? icone;
-  final String label;
-  final VoidCallback onTap;
-  const _LienBilan({this.icone, required this.label, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-      if (icone != null) ...[
-        Icon(icone, color: AppColors.primary, size: 14),
-        const SizedBox(width: 4),
-      ],
-      Flexible(child: Text(label,
-        textAlign: TextAlign.center,
-        style: const TextStyle(color: AppColors.primary,
-          fontSize: 12, fontWeight: FontWeight.w600))),
-      const SizedBox(width: 4),
-      const Icon(Icons.arrow_forward_ios_rounded,
-        color: AppColors.primary, size: 11),
-    ]));
 }
 
 // ══════════════════════════════════════════════════════
@@ -1488,43 +1199,6 @@ class _PendingBanner extends StatelessWidget {
 // _FeatureRow remplacé par _FreeState/_PremiumState inline
 
 // ─── Stat pill dans section stats ────────────────────────────────────────────
-class _StatPill extends StatelessWidget {
-  /// [rawValue] vaut `null` quand la mesure n'a pas de sens faute de données —
-  /// un taux de réussite sans pari tranché, par exemple. On affiche alors un
-  /// tiret : compter zéro et ne rien savoir sont deux choses différentes, et
-  /// afficher « 0 % » à la place d'un tiret revient à annoncer un échec qui
-  /// n'a pas eu lieu.
-  final IconData icon; final double? rawValue; final String suffix, label; final Color color;
-  const _StatPill({required this.icon, required this.rawValue, required this.suffix,
-    required this.label, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    final v = rawValue;
-    return Column(children: [
-      Icon(icon, color: color, size: 18),
-      const SizedBox(height: 4),
-      if (v == null)
-        // Pas de compteur animé : il partirait de 0 pour arriver à 0, ce qui
-        // laisserait croire à une valeur mesurée.
-        Text('—', style: TextStyle(
-          color: color, fontSize: 15, fontWeight: FontWeight.w800))
-      else
-        TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: v),
-          duration: const Duration(milliseconds: 800),
-          curve: Curves.easeOutCubic,
-          builder: (_, x, _) => Text('${x.toStringAsFixed(0)}$suffix',
-            style: TextStyle(color: color, fontSize: 15, fontWeight: FontWeight.w800)),
-        ),
-      const SizedBox(height: 2),
-      Text(label,
-        textAlign: TextAlign.center,
-        style: TextStyle(color: context.cl.textM, fontSize: 10)),
-    ]);
-  }
-}
-
 // ─── AVATAR PROFIL AVEC BADGE NIVEAU ─────────────────────────────────────────
 class _ProfileAvatar extends StatelessWidget {
   final String initiale;

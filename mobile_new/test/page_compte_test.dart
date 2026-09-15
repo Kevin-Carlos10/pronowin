@@ -116,18 +116,22 @@ void main() {
       source.indexOf('// ONGLET ABONNEMENT'),
     );
 
-    for (final ailleurs in ['/pronostics', '/tutoriels', '/parrainage']) {
+    for (final ailleurs in [
+      '/pronostics', '/tutoriels', '/parrainage', '/bankroll',
+    ]) {
       expect(onglet.contains("('$ailleurs')"), isFalse,
-          reason: '$ailleurs est déjà à un appui : deux onglets de la barre '
+          reason: '$ailleurs est déjà à un appui : trois onglets de la barre '
                   'du bas, et le troisième onglet de cette page même');
     }
 
+    // Le solde et le bilan ont quitté cet onglet pour celui qui porte leur
+    // nom. Les liens qui les accompagnaient — « Historique », « Stats
+    // avancées » — sont partis avec eux : ils ne menaient nulle part
+    // que Bankroll ne rende déjà.
     final versHistorique =
         RegExp(r"push\('/historique'\)").allMatches(onglet).length;
-    expect(versHistorique, 1,
-        reason: 'il y avait trois chemins vers la même page sur cet écran : '
-                'la carte entière, son lien « Historique », et une ligne '
-                '« Historique des résultats »');
+    expect(versHistorique, 0,
+        reason: 'l\'historique se lit depuis l\'onglet Bankroll');
   });
 
   test('la fiche en lecture seule a laissé place à un accès en écriture', () {
@@ -214,7 +218,7 @@ void main() {
   });
 
   // ── La page montée ────────────────────────────────────────────────────────
-  group('fiche d\'informations', () {
+  group('la page montée', () {
     Widget sousTest({
       String email = 'a@b.co',
       String phone = '+22670000000',
@@ -293,52 +297,17 @@ void main() {
     // vide y est correct, il attend une saisie. La règle n'a plus de sens ici,
     // et un contrôle sans sujet finit par être contourné plutôt que compris.
 
-    testWidgets('le tiret de réussite dit ce qui manque', (tester) async {
-      // Quatre paris tranchés : le pourcentage est retenu, à juste titre. Mais
-      // la branche voisine nomme son état et celle-ci laissait un tiret nu.
-      await monter(tester, sousTest());
-
-      expect(find.text('—'), findsWidgets);
-      expect(find.text('Taux de réussite dès le prochain pari tranché'),
-          findsOneWidget);
-    });
-
-    testWidgets('un taux retenu reste sans couleur', (tester) async {
-      // La couleur ne devenait neutre que si *aucun* pari n'était tranché. En
-      // deçà du seuil, le chiffre est remplacé par un tiret — mais le tiret
-      // restait coloré par le taux brut : vert à trois gagnés sur trois,
-      // orange au premier perdu. La couleur disait donc exactement ce que le
-      // chiffre refusait de dire.
-      await monter(tester, sousTest(stats: {
-        'pronostics_suivis': 3,
-        'paris_gagnes': 3,
-        'paris_perdus': 0,
-        'taux_reussite': 100,
-        'serie_gagnante': 3,
-      }));
-
-      final tiret = tester.widget<Text>(find.text('—'));
-      final couleur = tiret.style?.color;
-      expect(couleur, isNotNull);
-      expect(couleur, isNot(AppColors.success),
-          reason: 'trois paris gagnés sur trois : le vert annonce le taux '
-                  'que le tiret retient');
-      expect(couleur, isNot(AppColors.warning));
-    });
-
-    testWidgets('au-dessus du seuil, aucune explication ne traîne',
-        (tester) async {
-      // Contrepartie : une explication affichée en permanence serait un
-      // reproche permanent.
-      await monter(tester, sousTest(stats: {
-        'pronostics_suivis': 8,
-        'paris_gagnes': 6,
-        'paris_perdus': 2,
-        'taux_reussite': 75,
-        'serie_gagnante': 2,
-      }));
-
-      expect(find.textContaining('Taux de réussite dès'), findsNothing);
-    });
+    // Trois contrôles ont été retirés avec leur sujet : le tiret de réussite,
+    // sa couleur, et l'explication qui l'accompagnait. La carte qui les portait
+    // a quitté cet onglet pour celui de la bankroll.
+    //
+    // Le dernier des trois affirmait qu'aucune explication ne traîne au-dessus
+    // du seuil. Il passerait encore aujourd'hui — mais parce qu'il ne reste
+    // plus rien à trouver. Un contrôle vert pour cette raison-là est pire que
+    // pas de contrôle : il donne l'impression de garder quelque chose.
+    //
+    // Ces garanties doivent reparaître là où la donnée se lit désormais.
+    // `bankroll_page.dart:236` et `encarts.dart:357` affichent le même tiret,
+    // sans un mot, et sans couleur neutre.
   });
 }
