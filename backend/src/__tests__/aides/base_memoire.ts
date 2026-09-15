@@ -18,12 +18,19 @@
  * le code ne poursuive que si elle a effectivement changé une ligne.
  */
 
+/** Une relation : la clé étrangère qui la porte, et la table visée. */
+type Liens = Record<string, { cle: string; vers: Map<string, any> }>;
+
 export interface BaseMemoire {
   users:         Map<string, any>;
   referrals:     Map<string, any>;
   transactions:  Map<string, any>;
   subscriptions: Map<string, any>;
   iapPurchases:  Map<string, any>;
+  bankrolls:     Map<string, any>;
+  bankrollBets:  Map<string, any>;
+  pronostics:    Map<string, any>;
+  matches:       Map<string, any>;
 }
 
 /** Une ligne satisfait-elle une clause `where` ? */
@@ -41,7 +48,12 @@ function correspond(ligne: any, where: any): boolean {
       if ('in'  in c) return (c.in as any[]).includes(ligne[cle]);
       if ('not' in c) return ligne[cle] !== c.not;
       if ('equals' in c) return ligne[cle] === c.equals;
-      return false;
+
+      // Clé unique composée : Prisma la nomme `champA_champB` et passe un objet
+      // portant chaque champ. Sans ce cas, la comparaison portait sur une
+      // colonne inexistante et ne correspondait jamais — un contrôle de doublon
+      // bâti dessus aurait semblé fonctionner tout en ne voyant rien.
+      return correspond(ligne, c);
     }
     return ligne[cle] === cond;
   });
@@ -77,20 +89,27 @@ export function creerBase() {
     transactions:  new Map(),
     subscriptions: new Map(),
     iapPurchases:  new Map(),
+    bankrolls:     new Map(),
+    bankrollBets:  new Map(),
+    pronostics:    new Map(),
+    matches:       new Map(),
   };
 
   /**
    * Résout les relations demandées par `include`.
    *
-   * [liens] associe un nom de relation à la clé étrangère qui la porte ; la
-   * cible est toujours `users`, seule table reliée dans ces bancs.
+   * [liens] associe un nom de relation à la clé étrangère qui la porte **et** à
+   * la table visée. La cible a d'abord été codée en dur sur `users` : toute
+   * autre relation revenait alors `null` en silence, et un banc bâti dessus
+   * mesurait une règle à qui on n'avait rien donné à lire.
    */
-  const joindre = (ligne: any, include: any, liens: Record<string, string>) => {
+  const joindre = (ligne: any, include: any, liens: Liens) => {
     if (!include) return ligne;
     const enrichie = { ...ligne };
     for (const nom of Object.keys(include)) {
       if (!include[nom] || !liens[nom]) continue;
-      const cible = base.users.get(ligne[liens[nom]]);
+      const { cle, vers } = liens[nom];
+      const cible = vers.get(ligne[cle]);
       enrichie[nom] = cible ? { ...cible } : null;
     }
     return enrichie;
@@ -103,7 +122,7 @@ export function creerBase() {
    * bien que deux appels lancés ensemble s'entrelacent comme deux requêtes
    * concurrentes le feraient.
    */
-  const table = (magasin: Map<string, any>, liens: Record<string, string> = {}) => {
+  const table = (magasin: Map<string, any>, liens: Liens = {}) => {
     let compteur = 0;
     const filtrer = (where: any) =>
       [...magasin.values()].filter((x) => correspond(x, where));
@@ -159,10 +178,19 @@ export function creerBase() {
 
   const prisma: any = {
     user:         table(base.users),
-    referral:     table(base.referrals, { referrer: 'referrerId', referred: 'referredId' }),
-    transaction:  table(base.transactions, { user: 'userId' }),
-    subscription: table(base.subscriptions, { user: 'userId' }),
-    iapPurchase:  table(base.iapPurchases, { user: 'userId' }),
+    referral:     table(base.referrals, {
+      referrer: { cle: 'referrerId', vers: base.users },
+      referred: { cle: 'referredId', vers: base.users },
+    }),
+    transaction:  table(base.transactions, { user: { cle: 'userId', vers: base.users } }),
+    subscription: table(base.subscriptions, { user: { cle: 'userId', vers: base.users } }),
+    iapPurchase:  table(base.iapPurchases, { user: { cle: 'userId', vers: base.users } }),
+    userBankroll: table(base.bankrolls, { user: { cle: 'userId', vers: base.users } }),
+    bankrollBet:  table(base.bankrollBets, {
+      pronostic: { cle: 'pronosticId', vers: base.pronostics },
+    }),
+    pronostic:    table(base.pronostics, { match: { cle: 'matchId', vers: base.matches } }),
+    match:        table(base.matches),
     // Sans isolation : voir la note en tête de fichier.
     $transaction: async (fn: any) => fn(prisma),
   };

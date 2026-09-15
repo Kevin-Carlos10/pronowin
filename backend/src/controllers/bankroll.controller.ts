@@ -66,6 +66,16 @@ export const placeBet = async (req: AuthRequest, res: Response) => {
     const bet = await svc.placeBet(req.userId!, pronostic_id, parseFloat(staked_amount));
     res.status(201).json(bet);
   } catch (e: any) {
+    // La saisie fermée n'est pas une demande malformée : l'état du match a
+    // changé. Le code permet au mobile de rafraîchir sa liste plutôt que
+    // d'afficher une erreur que l'utilisateur ne peut pas corriger.
+    if (e instanceof svc.PariFerme) {
+      res.status(e.statut).json({
+        message: e.message,
+        code:    `BET_CLOSED_${e.motif.toUpperCase()}`,
+      });
+      return;
+    }
     const isDuplicate = e.message?.includes('déjà misé');
     res.status(isDuplicate ? 409 : 400).json({
       message: e.message,

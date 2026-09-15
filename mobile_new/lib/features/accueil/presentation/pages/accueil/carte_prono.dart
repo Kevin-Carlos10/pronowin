@@ -42,6 +42,12 @@ class _PronosticCard extends ConsumerWidget {
       utilisateurPremium: isPremium,
     );
     final isLive     = status == 'live';
+    // Ce que le serveur accepte encore d'enregistrer.
+    final pariOuvert = pariEncoreOuvert(
+      resultat:    prono['result'] as String?,
+      statutMatch: status,
+      dateMatch:   DateTime.tryParse(prono['match_date'] as String? ?? ''),
+    );
     final homeScore  = prono['home_score'];
     final awayScore  = prono['away_score'];
     final hasScore   = homeScore != null && awayScore != null;
@@ -183,7 +189,11 @@ class _PronosticCard extends ConsumerWidget {
                 // Raccourci vers la bankroll : le pronostic et la mise
                 // vivaient dans deux modules séparés, l'utilisateur devait
                 // ressaisir équipe, marché et cote à la main.
-                if (!isLocked && !isFinished && odds != null) ...[
+                //
+                // La condition ne regardait que `isFinished` : pendant un match
+                // en direct, score affiché juste à côté, le bouton restait là.
+                // La règle est celle du serveur, qui refuse désormais ces mises.
+                if (!isLocked && odds != null && pariOuvert) ...[
                   const SizedBox(width: 6),
                   Semantics(
                     button: true,

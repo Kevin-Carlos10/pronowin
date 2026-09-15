@@ -1,8 +1,25 @@
 ﻿import { NotificationService } from './notification.service';
 import { nomDevise } from '../utils/devise';
 import { prisma } from '../lib/prisma';
+import { MESSAGE_REFUS, RefusPari, refusDePari } from './verrou_pari';
 
 const notifSvc = new NotificationService();
+
+/**
+ * La saisie est fermée pour ce pronostic.
+ *
+ * Une classe distincte plutôt qu'un `Error` nu : le contrôleur répond 409 —
+ * l'état du match a changé, la demande n'est pas malformée — et le mobile peut
+ * reconnaître `code` pour rafraîchir sa liste au lieu d'afficher un message
+ * d'erreur générique.
+ */
+export class PariFerme extends Error {
+  readonly statut = 409;
+  constructor(readonly motif: RefusPari) {
+    super(MESSAGE_REFUS[motif]);
+    this.name = 'PariFerme';
+  }
+}
 
 // ── Calcul de la mise suggérée (Kelly simplifié) ──────────────────────────────
 // confidenceScore est l'échelle 1-5 cochée par l'admin à la publication.
@@ -96,6 +113,19 @@ export async function placeBet(
     include: { match: true },
   });
   if (!pro) throw new Error('Pronostic introuvable.');
+
+  // La saisie ferme au coup d'envoi.
+  //
+  // Rien ne le vérifiait : on pouvait enregistrer une mise sur un pronostic
+  // déjà réglé, dont le résultat est public. L'écran lui-même laissait le
+  // bouton « Miser » pendant un match en direct. Un historique où l'on peut
+  // ajouter après coup les paris gagnants rend le classement invérifiable.
+  const refus = refusDePari({
+    resultat:    pro.result,
+    statutMatch: pro.match?.status,
+    dateMatch:   pro.match?.matchDate,
+  });
+  if (refus) throw new PariFerme(refus);
 
   const suggestedAmount = suggestStake(bankroll.currentBalance, pro.confidenceScore);
   const oddsUsed        = pro.oddsRecommended;
