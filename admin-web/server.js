@@ -10,10 +10,20 @@ const path         = require('path');
 const app     = express();
 const PORT    = process.env.ADMIN_PORT ?? 4000;
 const API_URL = process.env.API_URL    ?? 'http://localhost:3000/api/v1';
-const PERM_HMAC_SECRET = process.env.ADMIN_PERM_SECRET ?? process.env.ADMIN_SECRET ?? 'pronowin_perm_hmac_2025';
-if (!process.env.ADMIN_PERM_SECRET && !process.env.ADMIN_SECRET) {
-  console.warn('⚠️  ADMIN_PERM_SECRET non défini — utilisation d\'un secret par défaut connu publiquement. ' +
-    'Les cookies de permissions sous-admin peuvent être forgés. Définissez ADMIN_PERM_SECRET dans admin-web/.env.');
+// Ce secret signe le rôle et les permissions de la session. Il n'a plus de
+// valeur par défaut, et le serveur refuse de démarrer sans lui.
+//
+// Il en avait une, écrite en clair dans ce fichier, accompagnée d'un
+// avertissement dans la console. Autrement dit : la serrure existait, sa clé
+// était publiée, et le serveur démarrait quand même. Un avertissement au
+// démarrage n'est lu qu'une fois, le jour de l'installation.
+const PERM_HMAC_SECRET = process.env.ADMIN_PERM_SECRET ?? process.env.ADMIN_SECRET ?? '';
+if (!PERM_HMAC_SECRET) {
+  console.error('ADMIN_PERM_SECRET (ou ADMIN_SECRET) est absent.');
+  console.error('Ce secret signe le rôle et les permissions de chaque session ;');
+  console.error('sans lui, un cookie forgé ouvre le panneau en administrateur principal.');
+  console.error('Definissez-le dans admin-web/.env avant de demarrer.');
+  process.exit(1);
 }
 
 // ─── SOUS-ADMINS : stockage local ────────────────────────────────────────────
@@ -114,6 +124,54 @@ function signPerms(perms) {
   const sig  = crypto.createHmac('sha256', PERM_HMAC_SECRET).update(data).digest('hex');
   return `${data}.${sig}`;
 }
+/**
+ * Signe le rôle de la session.
+ *
+ * Le rôle vivait dans un cookie en clair :
+ *
+ *     const role = req.cookies.admin_role === 'main' ? 'main' : 'sub';
+ *
+ * N'importe quelle requête portant `admin_role=main` devenait donc
+ * administrateur principal. `requireAuth` ne regardait que la présence du
+ * jeton, `requirePerm` rendait la main immédiatement sur `isMain`, et toute la
+ * revalidation ajoutée pour les sous-administrateurs — compte désactivé,
+ * compte supprimé, permissions relues dans le fichier — était enfermée dans
+ * `if (role === 'sub')`, donc contournée.
+ *
+ * `httpOnly` n'y changeait rien : il empêche un script de lire le cookie dans
+ * le navigateur, pas un client HTTP d'en envoyer un.
+ */
+function signerRole(role) {
+  const data = Buffer.from(role).toString('base64');
+  const sig  = crypto.createHmac('sha256', PERM_HMAC_SECRET).update(data).digest('hex');
+  return `${data}.${sig}`;
+}
+
+/**
+ * Le rôle porté par le cookie, ou `null` s'il n'a pas été émis par ce serveur.
+ *
+ * `null` n'est pas « sous-administrateur » : c'est « session illisible ». La
+ * différence compte — retomber silencieusement sur le rôle le moins privilégié
+ * laisserait une session forgée circuler sans droits plutôt que la fermer.
+ */
+function lireRole(cookie) {
+  try {
+    const [data, sig] = (cookie ?? '').split('.');
+    if (!data || !sig) return null;
+    const attendu = crypto.createHmac('sha256', PERM_HMAC_SECRET).update(data).digest('hex');
+    // Comparaison à temps constant : `!==` sur deux chaînes hexadécimales
+    // s'arrête au premier caractère différent, ce qui se mesure.
+    const a = Buffer.from(sig, 'hex');
+    const b = Buffer.from(attendu, 'hex');
+    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+    const role = Buffer.from(data, 'base64').toString();
+    return role === 'main' || role === 'sub' ? role : null;
+  } catch { return null; }
+}
+
+/** Le rôle vérifié de la requête. Seule source autorisée. */
+function roleDeSession(req) { return lireRole(req.cookies?.admin_role); }
+
 function verifyPerms(cookie) {
   try {
     const [data, sig] = (cookie ?? '').split('.');
@@ -375,7 +433,9 @@ function logAction(req, action, target = '', details = {}) {
       target,
       details,
       adminName: req.cookies?.admin_name ?? 'Inconnu',
-      adminRole: req.cookies?.admin_role ?? 'main',
+      // Le défaut était « main » : une session sans rôle lisible était
+      // journalisée comme administrateur principal.
+      adminRole: roleDeSession(req) ?? 'inconnu',
       ip:        getClientIP(req),
     });
     if (logs.length > LOG_MAX) logs.splice(LOG_MAX);
@@ -408,7 +468,7 @@ function logAction(req, action, target = '', details = {}) {
  * l'administrateur principal.
  */
 function journalVisiblePar(logs, req) {
-  if (req.cookies?.admin_role === 'main') return logs;
+  if (roleDeSession(req) === 'main') return logs;
   return logs.filter((l) => estMoi(l, req));
 }
 
@@ -426,7 +486,7 @@ function journalVisiblePar(logs, req) {
  * principal — et les lirait.
  */
 function estMoi(l, req) {
-  const role = req.cookies?.admin_role === 'main' ? 'main' : 'sub';
+  const role = roleDeSession(req) ?? 'inconnu';
   return (l.adminRole ?? 'main') === role
       && l.adminName === (req.cookies?.admin_name ?? '');
 }
@@ -606,18 +666,16 @@ const CHEMINS_SANS_REVALIDATION = new Set(['/admin/login', '/admin/logout']);
  * bord, plutôt que de se fier à la seule présence d'un cookie.
  */
 function sessionEncoreValable(req) {
-  if (req.cookies?.admin_role === 'main') return true;
+  if (roleDeSession(req) === 'main') return true;
   const compte = loadSubs().find(s => s.id === req.cookies?.admin_sub_id);
   return !!compte && compte.isActive !== false;
 }
 
 // Données communes injectées dans tous les templates via res.locals
 app.use((req, res, next) => {
-  // Le rôle par défaut est le moins privilégié : seul un cookie admin_role
-  // valant explicitement 'main' donne les pleins pouvoirs. Un cookie absent,
-  // supprimé ou altéré (ex: via les DevTools) retombe sur 'sub' sans permission,
-  // au lieu de devenir admin principal par défaut.
-  const role  = req.cookies?.admin_role === 'main' ? 'main' : 'sub';
+  // Le rôle est lu dans une valeur signée par ce serveur, jamais déclaré par
+  // le client. `null` signifie « session illisible » : elle se ferme.
+  const role = roleDeSession(req);
 
   // ── Inactivité ──
   //
@@ -647,6 +705,23 @@ app.use((req, res, next) => {
       return res.status(401).json({ error: 'Session expirée.' });
     }
     return res.redirect('/admin/login?expired=1');
+  }
+
+  // ── Session illisible : on ferme ──
+  //
+  // Un jeton présent avec un rôle qu'on ne sait pas relire, c'est soit un
+  // cookie forgé, soit une session émise avant ce correctif, soit un secret
+  // qui a changé. Dans les trois cas, se reconnecter est la seule suite
+  // correcte — continuer avec une identité qu'on ne peut pas établir ne l'est
+  // dans aucun.
+  if (req.cookies?.admin_token && role === null
+      && !CHEMINS_SANS_REVALIDATION.has(req.path)) {
+    ['admin_token', 'admin_name', 'admin_role', 'admin_perms',
+     'admin_sub_id', 'admin_last_active'].forEach(c => res.clearCookie(c));
+    if (req.path.startsWith('/admin/api/')) {
+      return res.status(401).json({ error: 'Session illisible.' });
+    }
+    return res.redirect('/admin/login?fin=illisible');
   }
 
   let   perms = [];
@@ -697,15 +772,19 @@ app.use((req, res, next) => {
       perms = compte.permissions ?? [];
     }
   }
-  res.locals.adminRole  = role;
+  // « Différent de sub » valait « main ». Un rôle absent ou illisible passait
+  // donc pour l'administrateur principal — le défaut symétrique de celui du
+  // cookie, au même endroit. C'est désormais « main » qu'il faut être.
+  res.locals.sessionValide = role !== null;
+  res.locals.adminRole  = role ?? 'inconnu';
   res.locals.adminName  = req.cookies?.admin_name ?? 'Admin';
   res.locals.adminPerms = perms;
-  res.locals.isMain     = role !== 'sub';
+  res.locals.isMain     = role === 'main';
   res.locals.hasPerm = (key, level = 'read') => {
-    if (role !== 'sub') return true;
+    if (role === 'main') return true;
     return permLevelOk(getPermLevel(perms, key), level);
   };
-  res.locals.getPermLevel = (key) => role !== 'sub' ? 'delete' : getPermLevel(perms, key);
+  res.locals.getPermLevel = (key) => role === 'main' ? 'delete' : getPermLevel(perms, key);
   // Pour les vues qui lisent les permissions d'un AUTRE compte que la session
   // en cours — la fenetre d'edition des sous-admins. `_perm_table.ejs` en
   // gardait sa propre copie, qui renvoyait le premier niveau au lieu du plus
@@ -720,6 +799,9 @@ app.use((req, res, next) => {
 // Middleware d'authentification
 function requireAuth(req, res, next) {
   if (!req.cookies?.admin_token) return res.redirect('/admin/login');
+  // La présence d'un jeton ne prouvait rien : n'importe quelle chaîne passait.
+  // Le rôle signé, lui, n'est posé qu'à la connexion.
+  if (!res.locals.sessionValide) return res.redirect('/admin/login');
   next();
 }
 
@@ -949,11 +1031,11 @@ app.post('/admin/login', async (req, res) => {
     saveSubsSi(subs, empSubs);
     res.cookie('admin_token',   apiToken,                              { httpOnly: true,  maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
     res.cookie('admin_name',    sub.name,                              { httpOnly: true,  maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
-    res.cookie('admin_role',    'sub',                                 { httpOnly: true,  maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
+    res.cookie('admin_role',    signerRole('sub'),                     { httpOnly: true,  maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
     res.cookie('admin_perms',   signPerms(sub.permissions ?? []),       { maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
     res.cookie('admin_sub_id',  sub.id,                                { maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
     res.cookie('admin_last_active', Date.now().toString(),             { maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax', httpOnly: false });
-    req.cookies = { ...req.cookies, admin_name: sub.name, admin_role: 'sub' };
+    req.cookies = { ...req.cookies, admin_name: sub.name, admin_role: signerRole('sub') };
     logAction(req, 'login', `Sous-admin: ${sub.name}`, { username: sub.username });
     return res.redirect('/admin/dashboard');
   }
@@ -972,11 +1054,11 @@ app.post('/admin/login', async (req, res) => {
     clearAttempts(ip);
     res.cookie('admin_token',   r.data.token,      { httpOnly: true, maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
     res.cookie('admin_name',    r.data.admin.name, { httpOnly: true, maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
-    res.cookie('admin_role',    'main',            { httpOnly: true, maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
+    res.cookie('admin_role',    signerRole('main'), { httpOnly: true, maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
     res.cookie('admin_last_active', Date.now().toString(), { maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax', httpOnly: false });
     res.clearCookie('admin_perms');
     res.clearCookie('admin_sub_id');
-    req.cookies = { ...req.cookies, admin_name: r.data.admin.name, admin_role: 'main' };
+    req.cookies = { ...req.cookies, admin_name: r.data.admin.name, admin_role: signerRole('main') };
     logAction(req, 'login', `Admin principal: ${r.data.admin.name}`);
     res.redirect('/admin/dashboard');
   } catch (e) {

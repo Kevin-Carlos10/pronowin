@@ -31,6 +31,7 @@
  *   node _check_niveau_permission.js
  */
 const { spawn } = require('child_process');
+const SECRET_BANC = 'secret-de-banc-non-publie';
 const bcrypt = require('bcryptjs');
 const ejs  = require('ejs');
 const fs   = require('fs');
@@ -179,6 +180,7 @@ async function autorisationReelle() {
   const srv = spawn(process.execPath, ['server.js'], {
     cwd: __dirname,
     env: { ...process.env, ADMIN_PORT: String(PORT), ADMIN_DATA_DIR: DIR,
+      ADMIN_PERM_SECRET: SECRET_BANC,
            ADMIN_API_TOKEN: 'jeton-de-banc', NODE_ENV: 'test' },
     stdio: 'ignore',
   });

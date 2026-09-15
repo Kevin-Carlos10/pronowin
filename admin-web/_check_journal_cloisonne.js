@@ -19,6 +19,10 @@
  *   node _check_journal_cloisonne.js
  */
 const { spawn } = require('child_process');
+// Le serveur refuse de demarrer sans secret de signature : un banc qui
+// tournerait avec le secret par defaut publie n'eprouverait pas la
+// configuration qu'on exige en production.
+const SECRET_BANC = 'secret-de-banc-non-publie';
 const bcrypt = require('bcryptjs');
 const fs   = require('fs');
 const http = require('http');
@@ -101,6 +105,7 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
     //     s'ouvre, et les appels échouent sans réponse HTTP — donc sans 401 et
     //     sans redirection. La page se rend.
     env: { ...process.env, ADMIN_PORT: String(PORT), ADMIN_DATA_DIR: DIR,
+      ADMIN_PERM_SECRET: SECRET_BANC,
            ADMIN_API_TOKEN: 'jeton-de-banc', NODE_ENV: 'test' },
     stdio: ['ignore', 'ignore', 'pipe'],
   });

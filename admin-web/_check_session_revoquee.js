@@ -27,6 +27,28 @@
  *   node _check_session_revoquee.js
  */
 const { spawn } = require('child_process');
+const crypto = require('crypto');
+
+// Le serveur refuse de demarrer sans secret de signature : un banc qui
+// tournerait avec le secret par defaut publie n'eprouverait pas la
+// configuration qu'on exige en production.
+const SECRET_BANC = 'secret-de-banc-non-publie';
+
+/**
+ * Le role d'une session est signe par le serveur.
+ *
+ * Ce banc fabriquait ses cookies a la main, dont `admin_role=main` en clair.
+ * C'etait exactement le defaut : n'importe quelle requete portant cette
+ * chaine devenait administrateur principal. Le banc reproduit donc la
+ * signature du serveur pour ouvrir une session legitime — et verifie juste
+ * apres qu'une session non signee, elle, est refusee.
+ */
+const signerRole = (role) => {
+  const data = Buffer.from(role).toString('base64');
+  const sig = crypto.createHmac('sha256', SECRET_BANC)
+    .update(data).digest('hex');
+  return `${data}.${sig}`;
+};
 const bcrypt = require('bcryptjs');
 const fs   = require('fs');
 const http = require('http');
@@ -91,6 +113,10 @@ const ouvert = (r) => !(r.status === 302 && (r.location ?? '').startsWith('/admi
     env: {
       ...process.env,
       ADMIN_PORT: String(PORT), ADMIN_DATA_DIR: DIR,
+      // Le serveur refuse desormais de demarrer sans secret de
+      // signature : un banc qui tournerait avec le secret par defaut
+      // publie n'eprouverait pas la configuration qu'on exige.
+      ADMIN_PERM_SECRET: SECRET_BANC,
       ADMIN_API_TOKEN: 'jeton-de-banc',
       ADMIN_SERVICE_EMAIL: '', ADMIN_SERVICE_PASSWORD: '',
       NODE_ENV: 'test',
@@ -258,13 +284,44 @@ const ouvert = (r) => !(r.status === 302 && (r.location ?? '').startsWith('/admi
   // principal ne figure pas : le rattacher à cette règle par inadvertance le
   // déconnecterait à chaque requête, c'est-à-dire fermerait le panneau à tout
   // le monde. Ce point le vérifie explicitement.
-  const cookiesMain = 'admin_token=jeton-de-banc; admin_role=main; admin_name=Principal; '
-                    + 'admin_last_active=' + Date.now();
+  const cookiesMain = 'admin_token=jeton-de-banc; admin_role=' + signerRole('main')
+                    + '; admin_name=Principal; admin_last_active=' + Date.now();
   if (ouvert(await requete(VIVANT, { cookies: cookiesMain }))) {
     ok('la session de l\'admin principal n\'est pas révoquée');
   } else {
     ko('l\'admin principal est déconnecté par la revalidation : il n\'a pas de '
      + 'ligne dans sub_admins.json et n\'a pas à en avoir');
+  }
+
+  // ── 5 ter. Un rôle déclaré, et non signé, n'ouvre rien ──
+  //
+  // Le défaut central : `const role = req.cookies?.admin_role === 'main' ...`.
+  // Deux cookies posés à la main — un jeton quelconque et ce mot — donnaient
+  // les pleins pouvoirs, et sautaient toute la revalidation ci-dessus, qui
+  // était enfermée dans la branche « sous-administrateur ».
+  //
+  // `httpOnly` n'y changeait rien : il empêche un script de lire le cookie
+  // dans le navigateur, pas un client HTTP d'en envoyer un.
+  const cookiesForges = 'admin_token=n_importe_quoi; admin_role=main; '
+                      + 'admin_name=Intrus; admin_last_active=' + Date.now();
+  if (!ouvert(await requete(VIVANT, { cookies: cookiesForges }))) {
+    ok('un rôle « main » non signé n\'ouvre pas le panneau');
+  } else {
+    ko('un cookie admin_role=main forgé ouvre encore le panneau en '
+     + 'administrateur principal');
+  }
+
+  // Contrepartie : sans elle, un serveur qui refuserait *toutes* les sessions
+  // passerait le contrôle ci-dessus sans rien prouver. La session signée
+  // ci-dessus l'établit déjà ; on le redit ici avec un jeton différent pour
+  // que la comparaison porte sur la signature, et sur elle seule.
+  const cookiesSignes = 'admin_token=un_autre_jeton; admin_role=' + signerRole('main')
+                      + '; admin_name=Principal; admin_last_active=' + Date.now();
+  if (ouvert(await requete(VIVANT, { cookies: cookiesSignes }))) {
+    ok('c\'est bien la signature qui décide, pas le jeton');
+  } else {
+    ko('une session correctement signée est refusée : le contrôle précédent '
+     + 'ne prouve rien');
   }
 
   // ── 6. L'activité réelle doit reposer le jalon ──
