@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.StatFs
 import android.provider.Settings
 import androidx.core.content.FileProvider
 import io.flutter.plugin.common.MethodChannel
@@ -53,6 +54,30 @@ object InstallateurApk {
      * application, et pas globalement comme le réglage « sources inconnues »
      * d'autrefois. Déclarer la permission ne suffit donc pas.
      */
+    /**
+     * Octets libres là où le téléchargement va écrire.
+     *
+     * L'application écrit l'APK dans son cache, puis l'installateur du système
+     * en fait sa propre copie. Il faut donc de la place deux fois, et
+     * l'appelant en tient compte.
+     *
+     * Sans ce contrôle, un téléphone plein laissait le téléchargement partir,
+     * consommer soixante-dix mégaoctets de données mobiles, et échouer à
+     * l'écriture. Un utilisateur a répété l'opération cinq fois — plus de
+     * trois cents mégaoctets dépensés pour découvrir un manque de place
+     * connaissable avant de commencer.
+     *
+     * Renvoie `-1` si la mesure échoue : l'appelant laisse alors le
+     * téléchargement tenter sa chance plutôt que de le refuser sur une
+     * information qu'il n'a pas.
+     */
+    fun espaceDisponible(activite: Activity): Long =
+        try {
+            StatFs(activite.cacheDir.absolutePath).availableBytes
+        } catch (e: Exception) {
+            -1L
+        }
+
     fun peutInstaller(activite: Activity): Boolean {
         if (!permissionDeclaree(activite)) return false
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return true

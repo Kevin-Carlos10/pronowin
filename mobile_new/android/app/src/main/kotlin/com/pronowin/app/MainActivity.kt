@@ -44,6 +44,7 @@ class MainActivity : FlutterFragmentActivity() {
             .setMethodCallHandler { appel, reponse ->
                 when (appel.method) {
                     "peutInstaller" -> reponse.success(InstallateurApk.peutInstaller(this))
+                    "espaceDisponible" -> reponse.success(InstallateurApk.espaceDisponible(this))
                     "installer" -> {
                         val chemin = appel.argument<String>("chemin")
                         if (chemin.isNullOrEmpty()) {

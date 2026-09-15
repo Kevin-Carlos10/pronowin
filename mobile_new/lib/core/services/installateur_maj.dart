@@ -130,6 +130,25 @@ class InstallateurMaj {
     }
 
     final dio = client ?? Dio();
+
+    // Mesurer avant de dépenser.
+    //
+    // Sans ce contrôle, un téléphone plein laissait le téléchargement partir,
+    // consommer soixante-dix mégaoctets de données mobiles, et échouer à
+    // l'écriture — en accusant la connexion. Un utilisateur a recommencé cinq
+    // fois : plus de trois cents mégaoctets pour découvrir un manque de place
+    // que le téléphone connaissait dès le départ.
+    //
+    // Chaque étape peut ne pas répondre : une taille inconnue ou un espace non
+    // mesurable laissent passer. On refuse seulement quand on *sait* que ça ne
+    // tiendra pas.
+    final annonce = await _tailleAnnoncee(dio, url, annulation);
+    final libre = await espaceDisponible();
+    if (annonce != null && libre != null && libre < placeNecessaire(annonce)) {
+      throw EchecTelechargement(RaisonEchec.espace,
+          'il faut ${placeNecessaire(annonce)} octets, il en reste $libre');
+    }
+
     try {
       await dio.download(
         url,
@@ -158,6 +177,43 @@ class InstallateurMaj {
     }
     return cible;
   }
+
+  /// Taille annoncée par le serveur, ou `null` s'il ne la donne pas.
+  ///
+  /// Une requête `HEAD` : quelques octets, contre soixante-dix mégaoctets
+  /// dépensés pour rien. Toute erreur ici est avalée — ce contrôle ne doit
+  /// jamais empêcher un téléchargement qui aurait abouti.
+  static Future<int?> _tailleAnnoncee(
+      Dio dio, String url, CancelToken? annulation) async {
+    try {
+      final r = await dio.head<void>(url, cancelToken: annulation);
+      final brut = r.headers.value(Headers.contentLengthHeader);
+      final n = int.tryParse(brut ?? '');
+      return (n != null && n > 0) ? n : null;
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Octets libres là où le fichier sera écrit, ou `null` si on ne sait pas.
+  static Future<int?> espaceDisponible() async {
+    try {
+      final octets = await canal.invokeMethod<int>('espaceDisponible');
+      return (octets == null || octets < 0) ? null : octets;
+    } catch (_) {
+      // Ni Android, ni banc : on ne sait pas, et on le dit.
+      return null;
+    }
+  }
+
+  /// Combien de place il faut vraiment pour [taille] octets d'APK.
+  ///
+  /// Deux fois le fichier, plus une marge. L'application écrit sa copie dans
+  /// le cache, puis l'installateur du système en fait une seconde : ne
+  /// réserver que la taille du fichier laisserait l'installation échouer après
+  /// un téléchargement pourtant réussi — le pire des deux moments.
+  @visibleForTesting
+  static int placeNecessaire(int taille) => taille * 2 + 32 * 1024 * 1024;
 
   /// Ce qu'on peut honnêtement déduire d'une erreur.
   ///

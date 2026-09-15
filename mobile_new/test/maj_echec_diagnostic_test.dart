@@ -30,6 +30,7 @@ import 'package:pronowin/core/widgets/ecran_mise_a_jour.dart';
 /// Et « Réessayer » relance exactement ce qui vient d'échouer. Sans seconde
 /// voie, la boucle est fermée — c'est ce qu'a vécu cet utilisateur.
 void main() {
+  _place();
   Future<void> ouvrir(
     WidgetTester tester, {
     required Object erreur,
@@ -185,6 +186,36 @@ void main() {
       await tester.pump();
 
       expect(navigateur, findsNothing);
+    });
+  });
+}
+
+/// Mesurer avant de dépenser.
+///
+/// Le manque de place était réel — confirmé par l'utilisateur. Mais il n'a été
+/// découvert qu'après cinq téléchargements complets de 68 Mo, soit plus de
+/// 300 Mo de données mobiles, pour une information que le téléphone
+/// connaissait avant même de commencer.
+///
+/// Le contrôle refuse **seulement** quand il sait que ça ne tiendra pas. Une
+/// taille non annoncée ou un espace non mesurable laissent passer : mieux vaut
+/// un téléchargement qui échoue qu'un téléchargement refusé à tort, sur un
+/// écran dont l'utilisateur ne peut pas sortir.
+void _place() {
+  group('la place nécessaire', () {
+    test('compte deux copies, plus une marge', () {
+      // L'application écrit sa copie dans le cache, l'installateur du système
+      // en fait une seconde. Ne réserver que la taille du fichier laisserait
+      // l'installation échouer après un téléchargement réussi.
+      final taille = 71120949;
+      expect(InstallateurMaj.placeNecessaire(taille),
+          greaterThan(taille * 2));
+    });
+
+    test('68 Mo en réclament un peu plus de 170', () {
+      final mo = InstallateurMaj.placeNecessaire(71120949) / (1024 * 1024);
+      expect(mo, greaterThan(160));
+      expect(mo, lessThan(200));
     });
   });
 }
