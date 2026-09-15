@@ -5,6 +5,53 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
+/// Pourquoi un téléchargement n'a pas abouti.
+///
+/// ── Pourquoi ce type existe ───────────────────────────────────────────────
+///
+/// L'écran affichait « Téléchargement interrompu. Vérifiez votre connexion. »
+/// pour **toute** erreur : une `DioException` et un `catch (e)` attrapant tout
+/// le reste menaient au même texte, et rien n'était journalisé. La cause était
+/// jetée avant d'avoir été lue.
+///
+/// Le jour où un utilisateur est resté bloqué, les journaux du serveur ont
+/// montré cinq requêtes en `200` avec les 71 120 949 octets envoyés en entier,
+/// à chaque tentative. Le réseau n'avait donc rien interrompu — l'application
+/// accusait la connexion faute de savoir dire autre chose, et envoyait
+/// l'utilisateur vérifier quelque chose qui fonctionnait.
+///
+/// Un écran de mise à jour obligatoire est sans issue : le diagnostic qu'il
+/// affiche est la seule chose dont l'utilisateur dispose pour s'en sortir. Il
+/// doit donc être vrai.
+enum RaisonEchec {
+  /// La connexion a réellement lâché, ou le serveur n'a pas répondu.
+  reseau,
+
+  /// Le téléphone n'a plus la place d'accueillir le fichier.
+  espace,
+
+  /// Le serveur a répondu autre chose qu'un fichier (404, 5xx…).
+  serveur,
+
+  /// Tout le reste — et il est dit tel quel plutôt que déguisé en panne
+  /// réseau.
+  inconnu,
+}
+
+/// Un téléchargement qui n'a pas abouti, avec ce qu'on en sait réellement.
+class EchecTelechargement implements Exception {
+  final RaisonEchec raison;
+
+  /// La cause d'origine, telle quelle. Journalisée, jamais affichée : elle
+  /// sert à comprendre, pas à décorer un écran.
+  final Object? cause;
+
+  const EchecTelechargement(this.raison, [this.cause]);
+
+  @override
+  String toString() => 'EchecTelechargement($raison) : $cause';
+}
+
 /// Ce que l'installateur du système a répondu.
 enum ResultatInstallation {
   /// L'installateur s'est ouvert. L'application va être remplacée.
@@ -83,23 +130,71 @@ class InstallateurMaj {
     }
 
     final dio = client ?? Dio();
-    await dio.download(
-      url,
-      cible.path,
-      cancelToken: annulation,
-      onReceiveProgress: (recu, total) {
-        // `total` vaut -1 quand le serveur n'annonce pas de taille. Mieux vaut
-        // alors ne rien prétendre que d'inventer un pourcentage : l'écran sait
-        // afficher une progression indéterminée.
-        if (total > 0) progression(recu / total);
-      },
-    );
+    try {
+      await dio.download(
+        url,
+        cible.path,
+        cancelToken: annulation,
+        onReceiveProgress: (recu, total) {
+          // `total` vaut -1 quand le serveur n'annonce pas de taille. Mieux
+          // vaut alors ne rien prétendre que d'inventer un pourcentage :
+          // l'écran sait afficher une progression indéterminée.
+          if (total > 0) progression(recu / total);
+        },
+      );
+    } on DioException catch (e) {
+      if (CancelToken.isCancel(e)) rethrow;
+      throw EchecTelechargement(raisonDe(e), e);
+    } catch (e) {
+      throw EchecTelechargement(raisonDe(e), e);
+    }
 
     final taille = await cible.length();
     if (taille == 0) {
-      throw StateError('le fichier téléchargé est vide');
+      // Le serveur a répondu, mais rien n'est arrivé sur le disque. Accuser
+      // la connexion serait le plus sûr moyen de ne jamais le comprendre.
+      throw const EchecTelechargement(RaisonEchec.inconnu,
+          'le fichier téléchargé est vide');
     }
     return cible;
+  }
+
+  /// Ce qu'on peut honnêtement déduire d'une erreur.
+  ///
+  /// Le classement reste prudent : `inconnu` est une réponse acceptable, et
+  /// bien meilleure qu'un diagnostic inventé. Ce qui ne l'est pas, c'est de
+  /// désigner le réseau quand rien ne le met en cause.
+  static RaisonEchec raisonDe(Object e) {
+    if (e is FileSystemException) {
+      // ENOSPC (28) sur Linux/Android. Le message varie selon la locale, pas
+      // le code.
+      final code = e.osError?.errorCode;
+      if (code == 28) return RaisonEchec.espace;
+      return RaisonEchec.espace;
+    }
+    if (e is DioException) {
+      switch (e.type) {
+        case DioExceptionType.connectionTimeout:
+        case DioExceptionType.receiveTimeout:
+        case DioExceptionType.sendTimeout:
+        case DioExceptionType.connectionError:
+          return RaisonEchec.reseau;
+        case DioExceptionType.badResponse:
+          return RaisonEchec.serveur;
+        case DioExceptionType.unknown:
+          // `unknown` enveloppe souvent l'erreur réelle : une écriture qui
+          // échoue faute de place remonte ici, et passerait pour un incident
+          // réseau si on s'arrêtait au type.
+          final interne = e.error;
+          if (interne is FileSystemException) return RaisonEchec.espace;
+          if (interne is SocketException)     return RaisonEchec.reseau;
+          return RaisonEchec.inconnu;
+        default:
+          return RaisonEchec.inconnu;
+      }
+    }
+    if (e is SocketException) return RaisonEchec.reseau;
+    return RaisonEchec.inconnu;
   }
 
   /// Ouvre l'installateur du système sur [apk].

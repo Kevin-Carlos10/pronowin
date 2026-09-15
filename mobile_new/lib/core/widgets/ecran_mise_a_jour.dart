@@ -187,19 +187,46 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
       }
     } on DioException catch (e) {
       if (!mounted || CancelToken.isCancel(e)) return;
-      _fichier = null;
-      setState(() {
-        _etape = _Etape.echec;
-        _erreur = 'Téléchargement interrompu. Vérifiez votre connexion.';
-      });
+      _echouer(EchecTelechargement(InstallateurMaj.raisonDe(e), e));
+    } on EchecTelechargement catch (e) {
+      if (!mounted) return;
+      _echouer(e);
     } catch (e) {
       if (!mounted) return;
-      _fichier = null;
-      setState(() {
-        _etape = _Etape.echec;
-        _erreur = 'Téléchargement interrompu. Vérifiez votre connexion.';
-      });
+      _echouer(EchecTelechargement(InstallateurMaj.raisonDe(e), e));
     }
+  }
+
+  /// Affiche l'échec en disant ce qui s'est réellement passé.
+  ///
+  /// L'écran annonçait « Téléchargement interrompu. Vérifiez votre
+  /// connexion. » quelle que soit la cause, et n'en journalisait aucune. Les
+  /// journaux du serveur ont montré, pour un utilisateur bloqué, cinq
+  /// requêtes en `200` avec le fichier envoyé **en entier** à chaque fois : le
+  /// réseau n'y était pour rien, et l'utilisateur était envoyé vérifier une
+  /// connexion qui marchait.
+  ///
+  /// Sur un écran de mise à jour obligatoire, le diagnostic affiché est la
+  /// seule prise que l'utilisateur ait sur son problème.
+  void _echouer(EchecTelechargement e) {
+    debugPrint('[Maj] $e');
+    _fichier = null;
+    setState(() {
+      _etape = _Etape.echec;
+      _erreur = switch (e.raison) {
+        RaisonEchec.reseau =>
+          'Téléchargement interrompu. Vérifiez votre connexion.',
+        RaisonEchec.espace =>
+          'Espace insuffisant sur le téléphone. Libérez environ 150 Mo, '
+          'puis réessayez.',
+        RaisonEchec.serveur =>
+          "Le fichier n'est pas disponible pour le moment. Réessayez dans "
+          "quelques minutes.",
+        RaisonEchec.inconnu =>
+          "La mise à jour n'a pas pu s'installer. Vous pouvez la "
+          "télécharger depuis le site.",
+      };
+    });
   }
 
   // ─── Rendu ─────────────────────────────────────────────────────────────────
@@ -296,6 +323,7 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
                       onLancer: _lancer,
                       onPlusTard: () =>
                           Navigator.of(context).pop(ReponseMaj.plusTard),
+                      onNavigateur: () => _ouvrirLien(widget.lien ?? ''),
                     ),
                   const Spacer(),
                 ],
@@ -391,6 +419,7 @@ class _Boutons extends StatelessWidget {
   final bool installationDirecte;
   final VoidCallback onLancer;
   final VoidCallback onPlusTard;
+  final VoidCallback onNavigateur;
 
   const _Boutons({
     required this.bloquant,
@@ -399,6 +428,7 @@ class _Boutons extends StatelessWidget {
     required this.installationDirecte,
     required this.onLancer,
     required this.onPlusTard,
+    required this.onNavigateur,
   });
 
   String get _libelle {
@@ -433,6 +463,33 @@ class _Boutons extends StatelessWidget {
             ),
           ),
         ),
+        // Une seconde voie, quand la première a échoué.
+        //
+        // « Réessayer » relance exactement ce qui vient de ne pas marcher. Sur
+        // une mise à jour obligatoire, l'utilisateur qui boucle n'a alors plus
+        // aucune issue : il ne peut ni fermer l'écran, ni contourner le
+        // téléchargement intégré. Un utilisateur a répété ce cycle cinq fois,
+        // pendant que le serveur lui envoyait le fichier entier à chaque
+        // tentative.
+        //
+        // Le navigateur du système sait télécharger et reprendre là où il en
+        // était ; il reste joignable même quand notre téléchargeur échoue.
+        if (echec && installationDirecte && (lien?.isNotEmpty ?? false)) ...[
+          const SizedBox(height: 8),
+          TextButton(
+            key: const Key('maj-navigateur'),
+            onPressed: onNavigateur,
+            child: Text(
+              'Télécharger depuis le site',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: context.cl.textS,
+              ),
+            ),
+          ),
+        ],
+
         // Aucune échappatoire quand la mise à jour est obligatoire : c'est
         // toute la différence entre les deux, et elle ne tient qu'à ce bouton.
         if (!bloquant) ...[
