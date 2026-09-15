@@ -97,7 +97,7 @@ class InstallateurMaj {
 
     final taille = await cible.length();
     if (taille == 0) {
-      throw StateError('le fichier telecharge est vide');
+      throw StateError('le fichier téléchargé est vide');
     }
     return cible;
   }

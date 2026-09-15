@@ -475,7 +475,7 @@ class _ZoneSolde extends StatelessWidget {
                   color: context.cl.textP, fontSize: 15,
                   fontWeight: FontWeight.w800)),
                 const SizedBox(height: 2),
-                Text('Definis ton budget et suis tes gains reels',
+                Text('Définis ton budget et suis tes gains réels',
                   style: TextStyle(color: context.cl.textM, fontSize: 12)),
               ])),
             Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 20),
@@ -515,9 +515,9 @@ class _ZoneSolde extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             neutre
-              ? 'Identique au budget de depart'
+              ? 'Identique au budget de départ'
               : '${ecart > 0 ? '+' : '-'}${montantExact(ecart.abs())} $devise '
-                'depuis le depart',
+                'depuis le départ',
             style: TextStyle(
               color: couleur, fontSize: 12, fontWeight: FontWeight.w600)),
         ])),
@@ -551,7 +551,14 @@ class _ZoneBilan extends StatelessWidget {
             rawValue: bilan.taux,
             suffix: '%',
             label: 'Réussite',
-            color: vierge
+            // La couleur suit la valeur affichée, pas celle qu'on retient.
+            //
+            // Elle ne devenait neutre que si *aucun* pari n'était tranché.
+            // En deçà du seuil, le taux est remplacé par un tiret — mais le
+            // tiret restait coloré par `tauxBrut` : vert à trois paris gagnés
+            // sur trois, orange au premier perdu. La couleur disait donc
+            // exactement ce que le chiffre refusait de dire.
+            color: bilan.taux == null
                 ? context.cl.textM
                 : (bilan.tauxBrut >= 60 ? AppColors.success : AppColors.warning))),
           Container(height: 32, width: 0.5, color: context.cl.border),

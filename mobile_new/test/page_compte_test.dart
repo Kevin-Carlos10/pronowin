@@ -303,6 +303,29 @@ void main() {
           findsOneWidget);
     });
 
+    testWidgets('un taux retenu reste sans couleur', (tester) async {
+      // La couleur ne devenait neutre que si *aucun* pari n'était tranché. En
+      // deçà du seuil, le chiffre est remplacé par un tiret — mais le tiret
+      // restait coloré par le taux brut : vert à trois gagnés sur trois,
+      // orange au premier perdu. La couleur disait donc exactement ce que le
+      // chiffre refusait de dire.
+      await monter(tester, sousTest(stats: {
+        'pronostics_suivis': 3,
+        'paris_gagnes': 3,
+        'paris_perdus': 0,
+        'taux_reussite': 100,
+        'serie_gagnante': 3,
+      }));
+
+      final tiret = tester.widget<Text>(find.text('—'));
+      final couleur = tiret.style?.color;
+      expect(couleur, isNotNull);
+      expect(couleur, isNot(AppColors.success),
+          reason: 'trois paris gagnés sur trois : le vert annonce le taux '
+                  'que le tiret retient');
+      expect(couleur, isNot(AppColors.warning));
+    });
+
     testWidgets('au-dessus du seuil, aucune explication ne traîne',
         (tester) async {
       // Contrepartie : une explication affichée en permanence serait un
