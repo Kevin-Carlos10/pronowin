@@ -11,6 +11,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/config/bookmaker_affiliation.dart';
 import '../../../../core/config/contact_support.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/code_ussd.dart';
@@ -592,58 +593,53 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     // le sien, et un code d'une autre enseigne ne credite rien.
     final promoCode = _tarifs.codePour(_platform);
     final platforms = _tarifs.plateformes;
-    const purple    = Color(0xFFA78BFA);
-    const purpleDark = Color(0xFF7C3AED);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
       children: [
 
-        // ── Header ────────────────────────────────────────────────
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.fromLTRB(20, 22, 20, 22),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [purpleDark.withValues(alpha: 0.18), purple.withValues(alpha: 0.06)],
-              begin: Alignment.topLeft, end: Alignment.bottomRight),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: purple.withValues(alpha: 0.25), width: 0.8)),
-          child: Column(children: [
-            Container(
-              width: 56, height: 56,
-              decoration: BoxDecoration(
-                color: purple.withValues(alpha: 0.15),
-                shape: BoxShape.circle),
-              child: const Icon(Icons.diversity_3_rounded, color: purple, size: 28)),
-            const SizedBox(height: 12),
-            Text('Rejoins un partenaire', style: TextStyle(
-              color: context.cl.textP, fontSize: 17,
-              fontWeight: FontWeight.w800, letterSpacing: -0.3)),
-            const SizedBox(height: 6),
-            Text(
-              'Crée un compte sur ${_tarifs.libellePlateformes} avec notre '
-              'code, fais ton premier dépôt, et ton premier mois de Premium '
-              'est offert.',
-              style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.5),
-              textAlign: TextAlign.center),
-          ]),
-        ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.05, end: 0),
+        // ── L'offre, en deux phrases ──────────────────────────────
+        //
+        // Un bandeau haut de 120 pixels occupait cette place : grande pastille
+        // ronde, dégradé violet, « Rejoins un partenaire ». Il annonçait une
+        // action — rejoindre — au lieu de l'avantage, et repoussait le
+        // formulaire si bas qu'il fallait défiler longuement pour soumettre.
+        //
+        // Ce qui décide quelqu'un tient en une ligne : ce qu'il gagne, et à
+        // quelle condition.
+        Text('Active ton mois Premium avec ${_tarifs.libellePlateformes}',
+          style: TextStyle(
+            color: context.cl.textP, fontSize: 19,
+            fontWeight: FontWeight.w800, letterSpacing: -0.3, height: 1.25)),
+        const SizedBox(height: 8),
+        Text(
+          '${_tarifs.libelleOffreCode} après ton premier dépôt. '
+          "Une seule fois par compte ; ensuite, le tarif normal s'applique.",
+          style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5)),
 
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
 
-        // ── Sélecteur de plateforme ─────────────────────────────
-        if (_tarifs.plusieursPlateformes)
+        // ── Le choix de plateforme, seulement s'il en est un ──────
+        //
+        // Avec une seule enseigne, le sélecteur affichait une pastille isolée
+        // sans libellé : cela ressemblait à un champ vide, pas à une
+        // information. L'enseigne est nommée dans le titre ci-dessus et dans
+        // le bouton ci-dessous, là où elle sert.
+        if (_tarifs.plusieursPlateformes) ...[
           _FieldLabel('Plateforme partenaire'),
-        _PlatformSelector(
-          platforms: platforms,
-          selected: _platform,
-          onSelect: (p) => setState(() => _platform = p),
-        ).animate(delay: 60.ms).fadeIn(duration: 300.ms),
+          _PlatformSelector(
+            platforms: platforms,
+            selected: _platform,
+            onSelect: (p) => setState(() => _platform = p),
+          ).animate(delay: 60.ms).fadeIn(duration: 300.ms),
+          const SizedBox(height: 22),
+        ],
 
-        const SizedBox(height: 20),
-
-        // ── Code promo ────────────────────────────────────────────
+        // ── La seule carte violette de l'écran ────────────────────
+        //
+        // Elle en portait quatre, chacune avec son dégradé et son halo : plus
+        // rien ne ressortait. Le violet est réservé à ce qui doit l'être — le
+        // code à recopier chez le partenaire, qui est l'objet de cet écran.
         //
         // Vide, on le dit. Le repli valait `PRONOWIN2025` alors que le code en
         // service etait `PRONOWIN2026` : l'ecran affichait donc celui de l'an
@@ -652,28 +648,37 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         // n'avait plus de justification.
         if (promoCode.isEmpty)
           const _CodePromoIndisponible()
-        else
+        else ...[
           _PromoCodeCard(promoCode: promoCode)
             .animate(delay: 80.ms).fadeIn(duration: 300.ms).slideY(begin: 0.04, end: 0),
 
-        const SizedBox(height: 20),
+          // Ouvrir le partenaire depuis ici, avec le lien d'affiliation.
+          //
+          // `BookmakerAffiliation.ouvrir` et non une adresse écrite ici : le
+          // lien porte l'identifiant de compte et l'étiquette de campagne. Un
+          // lien nu ouvrirait la même page sans rien créditer, et cela ne se
+          // verrait que des semaines plus tard, sur le relevé.
+          //
+          // Absent quand le serveur ne publie aucun lien : un bouton mort sur
+          // l'écran qui demande d'ouvrir un compte vaut moins que pas de
+          // bouton.
+          if (BookmakerAffiliation.disponible) ...[
+            const SizedBox(height: 10),
+            _BoutonSecondaire(
+              icone: Icons.open_in_new_rounded,
+              libelle: 'Ouvrir ${BookmakerAffiliation.nom}',
+              onTap: BookmakerAffiliation.ouvrir,
+            ).animate(delay: 110.ms).fadeIn(duration: 300.ms),
+          ],
+        ],
 
-        // ── Timeline des étapes ───────────────────────────────────
+        const SizedBox(height: 26),
+
+        // ── Ce qui se passe hors de l'application ─────────────────
         _XbetSteps(tarifs: _tarifs)
           .animate(delay: 140.ms).fadeIn(duration: 300.ms),
 
-        const SizedBox(height: 24),
-
-        // ── Séparateur "Ta soumission" ─────────────────────────
-        Row(children: [
-          Expanded(child: Divider(color: context.cl.border, height: 1)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12),
-            child: Text('VOTRE SOUMISSION', style: TextStyle(
-              color: context.cl.textM, fontSize: 10,
-              fontWeight: FontWeight.w700, letterSpacing: 1))),
-          Expanded(child: Divider(color: context.cl.border, height: 1)),
-        ]).animate(delay: 180.ms).fadeIn(duration: 250.ms),
+        const SizedBox(height: 26),
 
         const SizedBox(height: 20),
 
@@ -708,12 +713,22 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
           enabled:   _imageAccount != null,
           onTap:     _submitCode,
         ).animate(delay: 240.ms).fadeIn(duration: 300.ms).slideY(begin: 0.06, end: 0),
-        if (_raisonBlocageCode != null) ...[
-          const SizedBox(height: 8),
-          Text(_raisonBlocageCode!,
-            textAlign: TextAlign.center,
-            style: TextStyle(color: context.cl.textM, fontSize: 12)),
-        ],
+        const SizedBox(height: 8),
+        // Ce qui manque, ou ce qui va se passer — jamais les deux.
+        //
+        // Le délai attendait sur l'écran de confirmation, après l'envoi. Il
+        // répond pourtant à la question qu'on se pose *avant* d'appuyer :
+        // combien de temps vais-je attendre. L'annoncer là évite le message de
+        // support qui arrive dix minutes plus tard.
+        //
+        // `tarifs.delaiCode` et non « 30 minutes » : c'est le serveur qui le
+        // publie, et quatre copies manuelles de ce délai ont déjà été retirées
+        // de cet écran. La dernière annonçait « 2h » sans lien avec la valeur
+        // réelle.
+        Text(
+          _raisonBlocageCode ?? 'Validation sous ${_tarifs.delaiCode}.',
+          textAlign: TextAlign.center,
+          style: TextStyle(color: context.cl.textM, fontSize: 12)),
 
         const SizedBox(height: 18),
         const _SortieDeSecours(),
@@ -1542,6 +1557,37 @@ class _SubmitButton extends StatelessWidget {
 /// regle que pour les numeros de paiement, et pour la meme raison. Un code
 /// invente ne produit aucune erreur — il produit une inscription qui ne
 /// credite personne.
+/// Action secondaire : visible, mais qui ne dispute rien au bouton d'envoi.
+///
+/// L'orange est réservé à l'action principale et aux alertes. Un second bouton
+/// plein, de la même couleur, mettrait « Ouvrir 1xBet » et « Envoyer ma
+/// preuve » au même rang alors que l'un précède l'autre de plusieurs jours.
+class _BoutonSecondaire extends StatelessWidget {
+  final IconData icone;
+  final String   libelle;
+  final VoidCallback onTap;
+  const _BoutonSecondaire({
+    required this.icone, required this.libelle, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: double.infinity,
+    child: OutlinedButton.icon(
+      onPressed: () { HapticFeedback.selectionClick(); onTap(); },
+      icon: Icon(icone, size: 17),
+      label: Text(libelle),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: const Color(0xFFA78BFA),
+        side: BorderSide(
+          color: const Color(0xFFA78BFA).withValues(alpha: 0.45), width: 1),
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+        textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+      ),
+    ),
+  );
+}
+
 class _CodePromoIndisponible extends StatelessWidget {
   const _CodePromoIndisponible();
 
@@ -1644,7 +1690,7 @@ class _PromoCodeCardState extends State<_PromoCodeCard>
             child: Row(mainAxisSize: MainAxisSize.min, children: const [
               Icon(Icons.copy_rounded, color: Colors.white, size: 14),
               SizedBox(width: 6),
-              Text('Appuyer pour copier',
+              Text('Copier le code',
                 style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
             ]),
           ),
@@ -1659,24 +1705,22 @@ class _XbetSteps extends StatelessWidget {
   final TarifsPremium tarifs;
   const _XbetSteps({required this.tarifs});
 
-  /// Le parcours ne comporte plus d'étape de paiement.
+  /// Trois étapes, et ce sont celles que l'utilisateur accomplit.
   ///
-  /// Il en comptait six, dont « Envoie ton paiement — tarif réduit à partir de
-  /// 7 $/mois ». L'offre remplace le versement : le dépôt chez le partenaire
-  /// *est* la contrepartie, et l'étape suivante n'a plus lieu d'être.
+  /// Il y en avait cinq. « Choisis une plateforme » n'en est plus une depuis
+  /// qu'il n'y a qu'une enseigne, et « Soumets ci-dessous » décrivait le
+  /// formulaire situé juste dessous — une étape qui ne s'exécute pas ailleurs
+  /// n'a pas à occuper une ligne au-dessus de lui.
+  ///
+  /// Ce qui reste se fait **hors de l'application**, chez le partenaire :
+  /// c'est précisément ce qu'une liste d'étapes sert à rappeler.
   List<(IconData, String, String)> get _steps => [
-    (Icons.language_rounded,   'Choisis une plateforme',
-     'Rendez-vous sur ${tarifs.libellePlateformes}'),
-    (Icons.person_add_rounded, 'Crée ton compte',
-     "Entrez le code promo lors de l'inscription"),
+    (Icons.person_add_rounded, 'Crée ton compte avec le code',
+     "Saisis-le au moment de l'inscription"),
     (Icons.account_balance_wallet_rounded, 'Effectue ton premier dépôt',
      "C'est lui qui ouvre droit au mois offert"),
-    (Icons.photo_camera_rounded, 'Capture ton compte',
-     'Ton ID et le dépôt doivent être visibles'),
-    // Quatrième et dernière copie manuelle du délai — elle annonçait « 2h »
-    // sans lien avec la valeur du serveur.
-    (Icons.card_giftcard_rounded, 'Soumets ci-dessous',
-     'Validation sous ${tarifs.delaiCode}, puis ${tarifs.libelleOffreCode}'),
+    (Icons.photo_camera_rounded, 'Envoie une capture',
+     'Ton ID et le dépôt doivent y être visibles'),
   ];
 
   @override
@@ -1783,7 +1827,7 @@ class _XbetSubmitButton extends StatelessWidget {
             else
               const Icon(Icons.send_rounded, color: Colors.white, size: 20),
             const SizedBox(width: 10),
-            Text(isLoading ? 'Envoi en cours…' : 'Soumettre la preuve',
+            Text(isLoading ? 'Envoi en cours…' : 'Envoyer ma preuve',
               style: TextStyle(
                 color: enabled ? Colors.white : context.cl.textM,
                 fontSize: 15, fontWeight: FontWeight.w700)),

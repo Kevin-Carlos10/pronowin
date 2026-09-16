@@ -112,6 +112,38 @@ void main() {
     }
   });
 
+  test("le bouton vers le partenaire porte le lien d'affiliation", () {
+    // Le plus coûteux des liens en dur, et le plus silencieux.
+    //
+    // La refonte ajoute « Ouvrir 1xBet » sur l'écran qui demande d'ouvrir un
+    // compte — l'endroit exact où se joue la commission. Une adresse écrite
+    // ici ouvrirait la même page, l'utilisateur s'inscrirait, et personne ne
+    // serait crédité : aucune erreur, aucun écran cassé, et un manque qui ne
+    // se découvre qu'au relevé, des semaines plus tard.
+    //
+    // `BookmakerAffiliation.ouvrir` porte l'identifiant de compte et
+    // l'étiquette de campagne, et vient du serveur.
+    final code = codeSeul(module['activer_premium']!);
+
+    expect(code, isNot(contains('1xbet.com')),
+      reason: 'une adresse partenaire en dur ne crédite personne');
+    expect(code, contains('BookmakerAffiliation.ouvrir'),
+      reason: "l'ouverture doit passer par le lien d'affiliation publié");
+  });
+
+  test('le délai de validation vient du serveur', () {
+    // Cinquième copie évitée. Quatre écritures manuelles de ce délai ont déjà
+    // été retirées de cet écran, dont une qui annonçait « 2h » sans lien avec
+    // la valeur réelle. La refonte le rapproche du bouton d'envoi, là où la
+    // question se pose — la tentation de l'écrire à la main y est maximale.
+    final code = codeSeul(module['activer_premium']!);
+
+    expect(code, contains('delaiCode'),
+      reason: 'le délai affiché doit être celui que le serveur publie');
+    expect(RegExp("[0-9]+ (minutes|heures) ouvrables").hasMatch(code), isFalse,
+      reason: 'un délai écrit à la main dément le serveur sans le savoir');
+  });
+
   test('rien n\'est lu sur la carte de route en direct', () {
     // Le défaut le plus coûteux de cet écran, et le plus discret.
     //

@@ -111,12 +111,22 @@ void main() {
     test('et les textes passent bien par le libellé dérivé', () {
       // Le contre-test du précédent : supprimer les mentions sans les
       // remplacer donnerait une page verte et un écran muet.
+      //
+      // Le contrôle exigeait **trois** emplois — le nombre de phrases qui
+      // citaient les enseignes à l'époque. Ce n'était pas la propriété, juste
+      // son décompte du jour : réduire le parcours de cinq étapes à trois en a
+      // supprimé une, et le test est tombé sans qu'aucune enseigne ne soit
+      // revenue en dur.
+      //
+      // Ce qui doit être tenu, c'est qu'aucun nom d'enseigne ne soit écrit à
+      // la main — et c'est l'objet du test précédent, qui relit tout `lib/`.
+      // Ici on vérifie seulement que l'écran s'en sert réellement.
       final ecran = File(
         'lib/features/abonnement/presentation/pages/activer_premium_page.dart',
       ).readAsStringSync();
 
-      expect('libellePlateformes'.allMatches(ecran).length, greaterThanOrEqualTo(3),
-          reason: 'les trois phrases doivent dériver de la liste publiée');
+      expect(ecran, contains('libellePlateformes'),
+          reason: "l'écran doit nommer l'enseigne d'après la liste publiée");
     });
   });
 }
