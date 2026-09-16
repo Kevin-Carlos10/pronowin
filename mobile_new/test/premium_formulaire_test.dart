@@ -88,6 +88,24 @@ void main() {
         reason: 'envoyer l\'argent est l\'étape 1 ; elle n\'en portait aucune');
     });
 
+    test('sans code USSD, le numéro reste affiché', () {
+      // Le numéro en grand a été retiré : le code composable le contient déjà,
+      // et proposer de copier un numéro que plus personne n'a à saisir faisait
+      // lire deux fois la même chose.
+      //
+      // Mais il ne disparaît que *là où il y a un code*. Tous les opérateurs
+      // n'ont pas de modèle configuré — le champ est facultatif dans
+      // l'administration — et sans code composable ce bloc est le seul moyen
+      // de payer. Le masquer partout rendrait le paiement impossible chez eux,
+      // sans qu'aucune erreur ne se produise : l'écran s'afficherait
+      // normalement, simplement sans destination.
+      final code = codeSeul(page);
+      expect(code, contains('else if (_codeUssd == null)'),
+        reason: 'le numéro doit rester quand rien ne peut être composé');
+      expect(code, contains('formaterNumero(_numero!)'),
+        reason: "le bloc du numéro a disparu au lieu d'être conditionné");
+    });
+
     test('le titre annonce le tarif en dollars, le virement reste en FCFA', () {
       // Le paywall annonce « $90 », l'écran de paiement disait « Envoie
       // 54 000 FCFA » : deux monnaies pour une même formule, sans lien

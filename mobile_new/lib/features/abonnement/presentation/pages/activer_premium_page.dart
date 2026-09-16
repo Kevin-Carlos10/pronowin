@@ -1200,7 +1200,18 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
       // configuré envoyait l'argent vers un numéro qu'il refusait de publier.
       if (_numero == null)
         _AucunMoyenPaiement()
-      else
+
+      // Le numéro, quand il n'y a pas de code à composer.
+      //
+      // Le code USSD le contient déjà — « *144*10*45568158*6000# ». L'afficher
+      // en grand juste au-dessus faisait lire deux fois la même chose, et
+      // proposait de copier un numéro que plus personne n'a à saisir.
+      //
+      // Il reste indispensable dans l'autre cas : tous les opérateurs n'ont
+      // pas de modèle configuré, et sans code composable ce bloc est le seul
+      // moyen de payer. Le masquer partout aurait rendu le paiement
+      // impossible chez eux.
+      else if (_codeUssd == null)
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
           decoration: BoxDecoration(
@@ -1279,8 +1290,11 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
                         fontFamily: 'monospace')),
                   ),
                   const SizedBox(height: 2),
-                  Text('Numéro et montant déjà inclus',
-                    style: TextStyle(fontSize: 11, color: context.cl.textS)),
+                  // Ce que le code ne dit pas de lui-même : chez quel
+                  // opérateur composer, et quelle somme part réellement. Les
+                  // deux vivaient dans le bloc du numéro, retiré ici.
+                  Text('$_operateur · ${montantExact(widget.price)} FCFA',
+                    style: TextStyle(fontSize: 11.5, color: context.cl.textS)),
                 ])),
               const SizedBox(width: 10),
               Container(
