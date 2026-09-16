@@ -93,7 +93,6 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       deviceDefaultCountry();
 
   // Onglet "Code Promo" — spécifique au compte partenaire
-  final _accountIdCtrl = TextEditingController();
   File?  _imageAccount;
   String _platform = '1xbet';
 
@@ -190,7 +189,6 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     _tab.removeListener(_onTabChanged);
     _tab.dispose();
     _amountCtrl.dispose(); _phoneCtrl.dispose();
-    _accountIdCtrl.dispose();
     super.dispose();
   }
 
@@ -679,67 +677,27 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
 
         const SizedBox(height: 20),
 
-        // ── Champ ID de compte stylisé ────────────────────────────
-        _FieldLabel('1. ID de ton compte'),
-        Container(
-          decoration: BoxDecoration(
-            color: context.cl.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: _accountIdCtrl.text.isNotEmpty
-                ? purple.withValues(alpha: 0.5)
-                : context.cl.border,
-              width: _accountIdCtrl.text.isNotEmpty ? 1.5 : 0.5)),
-          child: Row(children: [
-            Container(
-              width: 48, height: 56,
-              decoration: BoxDecoration(
-                color: purple.withValues(alpha: 0.08),
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(13),
-                  bottomLeft: Radius.circular(13))),
-              child: const Icon(Icons.badge_rounded, color: purple, size: 22)),
-            Expanded(
-              child: TextField(
-                controller: _accountIdCtrl,
-                keyboardType: TextInputType.number,
-                onChanged: (_) => setState(() {}),
-                style: TextStyle(
-                  color: context.cl.textP, fontSize: 16,
-                  fontWeight: FontWeight.w600, letterSpacing: 1),
-                decoration: InputDecoration(
-                  hintText: 'Ton ID de compte',
-                  hintStyle: TextStyle(color: context.cl.textM,
-                    fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0),
-                  border: InputBorder.none,
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16)),
-              ),
-            ),
-            if (_accountIdCtrl.text.isNotEmpty)
-              Padding(
-                padding: const EdgeInsets.only(right: 14),
-                child: const Icon(Icons.check_circle_rounded,
-                  color: purple, size: 20))
-                  .animate().scale(
-                    begin: const Offset(0, 0), end: const Offset(1, 1),
-                    duration: 200.ms, curve: Curves.easeOutBack),
-          ]),
-        ).animate(delay: 200.ms).fadeIn(duration: 280.ms),
-
-        Padding(
-          padding: const EdgeInsets.only(top: 6, left: 4),
-          child: Text('Visible dans Profil → Mon compte sur la plateforme choisie',
-            style: TextStyle(color: context.cl.textM, fontSize: 11))),
-
-        const SizedBox(height: 20),
-
+        // ── L'identifiant du compte n'est plus demandé ───────────────
+        //
+        // Un champ « 1. ID de ton compte » précédait la capture. Il réclamait
+        // une information **déjà lisible sur l'image** que l'utilisateur joint
+        // juste après : deux fois le même travail, sur le dernier écran avant
+        // la conversion, là où chaque champ supplémentaire fait renoncer.
+        //
+        // Il est relevé à la validation par l'administrateur, qui regarde la
+        // capture de toute façon. Le serveur l'exige pour approuver — pas pour
+        // refuser — afin que ce travail déplacé soit réellement fait :
+        // déplacer sans exiger, c'est supprimer.
         // ── Zone upload capture du compte ───────────────────────────
         //
         // Une seule capture désormais. La seconde prouvait un versement Mobile
         // Money vers nous ; ce parcours n'en comporte plus. Ce qu'il faut voir
         // sur l'image, c'est l'identifiant **et** le dépôt : c'est le dépôt qui
         // ouvre droit au mois offert, pas l'inscription seule.
-        _FieldLabel('2. Capture de ton compte (ID et dépôt visibles)'),
+        // Sans numéro : c'est la seule étape de cette soumission depuis
+        // que l'identifiant n'est plus demandé, et un « 1. » solitaire
+        // annonce un « 2. » qui n'existe pas.
+        _FieldLabel('Capture de ton compte (ID et dépôt visibles)'),
         _ImagePickerWidget(image: _imageAccount, onTap: () => _showImagePicker((f) => _imageAccount = f)),
 
         const SizedBox(height: 20),
@@ -747,7 +705,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         // ── Bouton soumettre ──────────────────────────────────────
         _XbetSubmitButton(
           isLoading: submitState is ProofLoading,
-          enabled:   _imageAccount != null && _accountIdCtrl.text.isNotEmpty,
+          enabled:   _imageAccount != null,
           onTap:     _submitCode,
         ).animate(delay: 240.ms).fadeIn(duration: 300.ms).slideY(begin: 0.06, end: 0),
         if (_raisonBlocageCode != null) ...[
@@ -764,7 +722,6 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   }
 
   String? get _raisonBlocageCode {
-    if (_accountIdCtrl.text.isEmpty) return 'Entrez l\'ID de ton compte partenaire pour continuer';
     if (_imageAccount == null)       return 'Ajoutez la capture de ton compte pour continuer';
     return null;
   }
@@ -801,9 +758,6 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   /// restent que ce qui la justifie — l'identifiant du compte partenaire, la
   /// plateforme, et une capture où le premier dépôt apparaît.
   Future<void> _submitCode() async {
-    if (_accountIdCtrl.text.trim().isEmpty) {
-      _showSnack('ID de compte requis.', isError: true); return;
-    }
     if (_imageAccount == null) {
       _showSnack('Ajoute la capture de ton compte partenaire.', isError: true);
       return;
@@ -814,7 +768,6 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     ref.read(submitProofProvider.notifier).submit(
       type:        'xbet_account_screenshot',
       imageBase64: accountBase64,
-      xbetId:      _accountIdCtrl.text.trim(),
       platform:    _platform,
       // Ni `amount`, ni `senderPhone`, ni `planId` : l'offre porte sur une
       // durée fixe décidée par le serveur, pas sur une formule choisie ici.

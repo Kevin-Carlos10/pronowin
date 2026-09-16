@@ -445,7 +445,15 @@ module.exports = (app, ctx) => {
     const a = api(req.cookies.admin_token);
     try {
       const approved = req.body.action === 'approve';
-      await a.patch('/subscriptions/admin/proofs/' + req.params.id, { approved, admin_note: req.body.admin_note ?? null, duration_days: parseInt(req.body.duration_days ?? '30') });
+      await a.patch('/subscriptions/admin/proofs/' + req.params.id, {
+        approved,
+        admin_note:    req.body.admin_note ?? null,
+        duration_days: parseInt(req.body.duration_days ?? '30'),
+        // Releve sur la capture par l'administrateur : l'utilisateur ne le
+        // saisit plus. Absent du formulaire pour un versement Mobile Money,
+        // ou le champ n'existe pas.
+        xbet_id:       sanitize(req.body.xbet_id ?? '', 40),
+      });
       const proofAction = approved ? 'proof_approved' : 'proof_rejected';
       logAction(req, proofAction, `Preuve #${req.params.id}`, { proofId: req.params.id, days: req.body.duration_days });
       sseBroadcast('action', { type: proofAction, adminName: req.cookies.admin_name ?? 'Admin', ts: Date.now() });

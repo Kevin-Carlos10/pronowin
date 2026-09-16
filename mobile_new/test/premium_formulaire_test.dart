@@ -159,9 +159,18 @@ void main() {
       expect(corps.contains('paymentImageBase64:'), isFalse);
       expect(corps.contains('planId:'), isFalse,
         reason: 'l\'offre porte une durée fixe, pas une formule choisie ici');
-      // Et ce qui la justifie reste exigé.
-      expect(corps.contains('xbetId:'), isTrue);
-      expect(corps.contains('platform:'), isTrue);
+      // L'identifiant du compte n'est plus envoyé : il est lisible sur la
+      // capture jointe, et le réclamer en plus faisait abandonner des
+      // utilisateurs sur le dernier écran avant la conversion.
+      //
+      // L'exigence n'a pas disparu, elle a changé de couche : le serveur la
+      // pose désormais à l'approbation, où quelqu'un regarde l'image. Voir
+      // `identifiant_releve_a_la_validation.test.ts`.
+      expect(corps.contains('xbetId:'), isFalse,
+        reason: "le champ a été retiré du formulaire : l'envoyer encore "
+                "signifierait qu'il est resté quelque part");
+      expect(corps.contains('platform:'), isTrue,
+        reason: 'la plateforme, elle, ne se lit pas sur la capture');
     });
   });
 

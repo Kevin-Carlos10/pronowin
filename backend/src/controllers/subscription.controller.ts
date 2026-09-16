@@ -92,6 +92,7 @@ export const reviewProof = async (req: AdminRequest, res: Response) => {
       approved:     req.body.approved === true || req.body.approved === 'true',
       adminNote:    req.body.admin_note,
       durationDays: req.body.duration_days ? parseInt(req.body.duration_days) : 30,
+      xbetId:       req.body.xbet_id,
     });
     res.json(result);
   } catch (e: any) { res.status(400).json({ message: e.message }); }

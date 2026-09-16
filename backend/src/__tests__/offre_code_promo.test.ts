@@ -98,12 +98,37 @@ describe('offre « premier mois offert »', () => {
     expect(proofs[0].senderPhone).toBeNull();
   });
 
-  it('l\'identifiant de compte et la plateforme restent exigés', async () => {
-    await expect(svc.submitProof({ ...SOUMISSION, xbetId: '  ' }))
-      .rejects.toThrow(/ID de compte/);
-
+  it('la plateforme reste exigée à la soumission', async () => {
     await expect(svc.submitProof({ ...SOUMISSION, platform: 'inconnu' }))
       .rejects.toThrow(/[Pp]lateforme/);
+  });
+
+  it("l'identifiant, lui, n'est plus réclamé à la soumission", async () => {
+    // Il est lisible sur la capture jointe. Le saisir en plus faisait
+    // abandonner des utilisateurs sur le dernier écran avant conversion.
+    await expect(svc.submitProof({ ...SOUMISSION, xbetId: '  ' }))
+      .resolves.toBeDefined();
+  });
+
+  it("mais il est exigé pour approuver", async () => {
+    // L'exigence n'a pas disparu, elle a changé de couche : elle se pose
+    // là où quelqu'un regarde l'image. Déplacer un travail sans l'exiger,
+    // c'est le supprimer — il serait sauté une fois, puis toujours.
+    const r = await svc.submitProof({ ...SOUMISSION, xbetId: undefined });
+
+    await expect(svc.reviewProof({
+      proofId: r.proof_id, adminId: 'a1', approved: true,
+    })).rejects.toThrow(/requis pour approuver/);
+  });
+
+  it("et un refus n'en réclame aucun", async () => {
+    // C'est justement quand la capture est illisible que l'identifiant
+    // manque : l'exiger ici rendrait ce refus-là impossible.
+    const r = await svc.submitProof({ ...SOUMISSION, xbetId: undefined });
+
+    await expect(svc.reviewProof({
+      proofId: r.proof_id, adminId: 'a1', approved: false,
+    })).resolves.toBeDefined();
   });
 
   it('l\'approbation accorde exactement la durée de l\'offre', async () => {

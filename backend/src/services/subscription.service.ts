@@ -418,7 +418,16 @@ export class SubscriptionService {
       if (!senderPhone) throw new Error('Numéro Mobile Money requis.');
     }
     if (type === 'xbet_account_screenshot') {
-      if (!xbetId?.trim()) throw new Error('ID de compte requis.');
+      // L'identifiant n'est plus demandé à l'utilisateur.
+      //
+      // Il figure sur la capture qu'il joint de toute façon, et le saisir en
+      // plus allongeait un formulaire de conversion sans rien apprendre à
+      // personne. Il est relevé à la validation, par l'administrateur qui
+      // regarde déjà l'image.
+      //
+      // Le champ reste accepté ici : une version plus ancienne de
+      // l'application continue de l'envoyer, et le refuser casserait sa
+      // soumission.
       if (!platform || !BETTING_PLATFORMS.includes(platform as BettingPlatform))
         throw new Error('Plateforme partenaire invalide.');
 
@@ -728,11 +737,45 @@ export class SubscriptionService {
     };
   }
 
-  async reviewProof(params: { proofId: string; adminId: string; approved: boolean; adminNote?: string; durationDays?: number }) {
-    const { proofId, adminId, approved, adminNote, durationDays = 30 } = params;
+  async reviewProof(params: { proofId: string; adminId: string; approved: boolean; adminNote?: string; durationDays?: number; xbetId?: string }) {
+    const { proofId, adminId, approved, adminNote, durationDays = 30, xbetId } = params;
     const proof = await prisma.subscriptionProof.findUnique({ where: { id: proofId }, include: { user: true } });
     if (!proof)                    throw new Error('Preuve introuvable.');
     if (proof.status !== 'pending') throw new Error('Preuve déjà traitée.');
+
+    // L'identifiant du compte partenaire se relève ici.
+    //
+    // L'utilisateur ne le saisit plus : il est lisible sur la capture, et le
+    // réclamer en plus faisait abandonner. Le travail est donc déplacé vers
+    // celui qui regarde l'image — mais déplacer un travail sans l'exiger, c'est
+    // le supprimer : il serait passé une fois, puis toujours, et l'identifiant
+    // aurait disparu des dossiers sans que rien ne le signale.
+    //
+    // Il sert à retrouver un abonné dans l'historique, et à prouver qu'un
+    // compte a bien été ouvert avec notre code le jour où le partenaire
+    // conteste une commission. Approuver, c'est attester de ce compte-là.
+    //
+    // Exigé à l'approbation seulement : un refus n'atteste de rien, et une
+    // capture illisible doit pouvoir être refusée sans inventer un numéro.
+    const identifiant = (xbetId ?? '').trim() || proof.xbetId?.trim() || '';
+    if (approved && proof.type === 'xbet_account_screenshot' && !identifiant) {
+      throw new Error(
+        "L'identifiant du compte partenaire est requis pour approuver : "
+        + 'relevez-le sur la capture.');
+    }
+    if (identifiant && identifiant !== proof.xbetId) {
+      await prisma.subscriptionProof.update({
+        where: { id: proofId }, data: { xbetId: identifiant },
+      }).catch(() => {});
+    }
+    // `proof.user?` et non `proof.user` : la relation n'est pas garantie
+    // résolue sur tous les chemins, et une comparaison n'a pas à faire
+    // échouer une approbation.
+    if (identifiant && identifiant !== proof.user?.xbetId) {
+      await prisma.user.update({
+        where: { id: proof.userId }, data: { xbetId: identifiant },
+      }).catch(() => {});
+    }
 
     if (approved) {
       // La durée du parcours « code promo » est celle de l'offre, jamais celle
