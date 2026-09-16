@@ -122,7 +122,11 @@ void main() {
     // tests précédents, et rendrait toute mise à jour facultative bloquante —
     // le défaut symétrique, et tout aussi grave.
     await ouvrir(tester, bloquant: false);
-    expect(texteDe(tester, titre), 'Mise à jour disponible');
+    // Le titre de la maquette, réservé au cas facultatif : sur un écran
+    // bloquant, annoncer une montée en gamme cacherait à l'utilisateur qu'il
+    // n'a pas le choix. C'est ce que vérifie « obligatoire : aucune
+    // échappatoire proposée », juste au-dessus.
+    expect(texteDe(tester, titre), 'PronoWin passe au niveau supérieur');
 
     await tester.tap(find.byKey(const Key('maj-plus-tard')));
     await tester.pumpAndSettle();

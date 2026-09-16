@@ -237,8 +237,13 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
       _Etape.telechargement => 'Appli en cours de mise à jour',
       _Etape.installation   => 'Installation en cours',
       _Etape.echec          => 'La mise à jour a échoué',
-      _Etape.invitation     =>
-        widget.bloquant ? 'Mise à jour requise' : 'Mise à jour disponible',
+      // Le titre de la maquette — mais seulement quand l'utilisateur a le
+      // choix. Sur une mise à jour obligatoire il n'y a ni retour ni « Plus
+      // tard » : annoncer gaiement une montée en gamme à quelqu'un qu'on vient
+      // d'enfermer lui cacherait la seule chose qu'il doit comprendre.
+      _Etape.invitation     => widget.bloquant
+        ? 'Mise à jour requise'
+        : 'PronoWin passe au niveau supérieur',
     };
   }
 
@@ -262,74 +267,100 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
       canPop: !widget.bloquant && !enCours,
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: Container(
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              // Le noir bleuté de l'écran de lancement, réchauffé vers l'orange
-              // de la marque en bas — là où se trouvent la barre et le bouton.
-              colors: [
-                AppColors.background,
-                Color(0xFF16121C),
-                Color(0xFF2A1408),
-              ],
-              stops: [0.0, 0.55, 1.0],
+        // ── La photo occupe le haut, le texte tient le bas ─────────────
+        //
+        // L'écran empilait un logo de 88 px, un titre et un sous-titre centrés
+        // au milieu d'un dégradé. Il ressemblait à une boîte de dialogue, pas à
+        // l'application qu'il propose d'installer.
+        //
+        // La photo porte déjà le logo : le carré « P » dessiné ici a été
+        // retiré, il en aurait fait un second.
+        body: Stack(
+          children: [
+            // Le fond, calé en haut et fondu vers la couleur de l'application.
+            //
+            // `maj_fond.webp` est la maquette **recadrée** : le panneau sombre
+            // et son texte en ont été retirés. Les laisser aurait affiché deux
+            // fois le titre et deux boutons — l'un peint dans l'image, inerte,
+            // et impossible à distinguer du vrai.
+            //
+            // WebP et non PNG : 138 Ko contre 1,4 Mo pour la même photo, sur
+            // une application déjà distribuée en 68 Mo par données mobiles.
+            Positioned(
+              top: 0, left: 0, right: 0,
+              height: MediaQuery.of(context).size.height * 0.62,
+              child: Stack(fit: StackFit.expand, children: [
+                Image.asset(
+                  'assets/images/maj_fond.webp',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                  // Une image absente ne doit pas remplacer l'écran par une
+                  // icône cassée : le fond uni suffit, le texte reste lisible.
+                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                ),
+                const DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.center,
+                      end: Alignment.bottomCenter,
+                      colors: [Colors.transparent, AppColors.background],
+                      stops: [0.45, 1.0],
+                    ),
+                  ),
+                ),
+              ]),
             ),
-          ),
-          child: SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 28),
-              child: Column(
-                children: [
-                  const Spacer(flex: 3),
-                  const _Logo(),
-                  const SizedBox(height: 36),
-                  Text(
-                    _titre,
-                    key: const Key('maj-titre'),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 26,
-                      height: 1.25,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.5,
+
+            SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const Spacer(),
+                    Text(
+                      _titre,
+                      key: const Key('maj-titre'),
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 30,
+                        height: 1.15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.8,
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 14),
-                  Text(
-                    _sousTitre,
-                    key: const Key('maj-sous-titre'),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: _etape == _Etape.echec
-                          ? AppColors.warning
-                          : AppColors.textSecondary,
-                      fontSize: 14,
-                      height: 1.55,
+                    const SizedBox(height: 12),
+                    Text(
+                      _sousTitre,
+                      key: const Key('maj-sous-titre'),
+                      style: TextStyle(
+                        color: _etape == _Etape.echec
+                            ? AppColors.warning
+                            : AppColors.textSecondary,
+                        fontSize: 15,
+                        height: 1.5,
+                      ),
                     ),
-                  ),
-                  const Spacer(flex: 2),
-                  if (enCours)
-                    _Progression(avancement: _avancement)
-                  else
-                    _Boutons(
-                      bloquant: widget.bloquant,
-                      echec: _etape == _Etape.echec,
-                      lien: widget.lien,
-                      installationDirecte: widget.installationDirecte,
-                      onLancer: _lancer,
-                      onPlusTard: () =>
-                          Navigator.of(context).pop(ReponseMaj.plusTard),
-                      onNavigateur: () => _ouvrirLien(widget.lien ?? ''),
-                    ),
-                  const Spacer(),
-                ],
+                    const SizedBox(height: 28),
+                    if (enCours)
+                      _Progression(avancement: _avancement)
+                    else
+                      _Boutons(
+                        bloquant: widget.bloquant,
+                        echec: _etape == _Etape.echec,
+                        lien: widget.lien,
+                        installationDirecte: widget.installationDirecte,
+                        onLancer: _lancer,
+                        onPlusTard: () =>
+                            Navigator.of(context).pop(ReponseMaj.plusTard),
+                        onNavigateur: () => _ouvrirLien(widget.lien ?? ''),
+                      ),
+                    const SizedBox(height: 12),
+                  ],
+                ),
               ),
             ),
-          ),
+          ],
         ),
       ),
     );
@@ -337,41 +368,6 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
 }
 
 // ─── Morceaux ────────────────────────────────────────────────────────────────
-
-class _Logo extends StatelessWidget {
-  const _Logo();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 88,
-      height: 88,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [AppColors.primary, AppColors.primaryLight],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.35),
-            blurRadius: 32,
-            spreadRadius: 2,
-          ),
-        ],
-      ),
-      alignment: Alignment.center,
-      child: const Text(
-        'P',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 44,
-          fontWeight: FontWeight.w900,
-          height: 1,
-        ),
-      ),
-    );
-  }
-}
 
 /// La barre d'avancement, et le pourcentage quand il est connu.
 class _Progression extends StatelessWidget {
