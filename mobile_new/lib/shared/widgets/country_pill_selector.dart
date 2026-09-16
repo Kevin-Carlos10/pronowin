@@ -23,6 +23,53 @@ Country deviceDefaultCountry() {
   return CountryService().findByCode('BF')!;
 }
 
+/// Le pays d'un numéro Mobile Money de réception — « 22645568158 » → Burkina.
+///
+/// ── Pourquoi la locale ne convient pas à ce champ-là ──────────────────────
+///
+/// [deviceDefaultCountry] suit la langue de l'appareil. C'est raisonnable pour
+/// un profil, et faux pour le champ « numéro depuis lequel vous avez envoyé
+/// l'argent » : un téléphone réglé en anglais américain y proposait **+1**,
+/// juste à côté d'un exemple « 70 00 00 00 » qui est burkinabè. L'écran se
+/// contredisait.
+///
+/// La conséquence n'est pas cosmétique. L'utilisateur vire son argent depuis
+/// un `+226 70…` et en déclare un `+1 70…` : le versement est réel, mais plus
+/// rapprochable de personne au moment de la vérification. Il faudrait le
+/// réclamer à quelqu'un qui a payé.
+///
+/// Le bon défaut n'est pas « Burkina Faso » écrit en dur — c'est le pays du
+/// numéro **qui reçoit**. L'expéditeur est chez le même opérateur, par
+/// construction : c'est ce qui rend le transfert possible. Ajouter demain un
+/// numéro sénégalais déplacera le défaut sans que personne n'y touche.
+///
+/// `null` quand le numéro ne dit rien d'exploitable : l'appelant retombe alors
+/// sur la locale, plutôt que sur un pays inventé.
+Country? paysDuNumero(String? numeroReception) {
+  final chiffres = (numeroReception ?? '').replaceAll(RegExp(r'\D'), '');
+
+  // Un numéro national seul ne porte aucun pays. Neuf chiffres ou moins, on
+  // s'abstient : la première version retranchait « les huit derniers chiffres »
+  // pour isoler l'indicatif, ce qui vaut au Burkina et nulle part
+  // ailleurs — le Sénégal en compte neuf, la Côte d'Ivoire dix. Le banc l'a
+  // montré en réclamant « SN » et en recevant « null ».
+  //
+  // Et s'abstenir est la bonne réponse, pas un aveu : « 45568158 » commence
+  // par « 45 », l'indicatif du Danemark. Deviner ici reviendrait à réinventer
+  // la valeur en dur qu'on cherche à supprimer.
+  if (chiffres.length <= 9) return null;
+
+  // Le plus long indicatif qui laisse un numéro national plausible derrière
+  // lui. Les indicatifs font un à quatre chiffres, et « 1 » ne doit pas
+  // l'emporter sur « 1242 ».
+  for (var n = 4; n >= 1; n--) {
+    if (chiffres.length - n < 7) continue;
+    final pays = CountryService().findByPhoneCode(chiffres.substring(0, n));
+    if (pays != null) return pays;
+  }
+  return null;
+}
+
 /// Pastille compacte (drapeau + indicatif) qui ouvre le sélecteur de pays
 /// exhaustif (tous les pays ISO, avec recherche) au tap.
 class CountryPillSelector extends StatelessWidget {

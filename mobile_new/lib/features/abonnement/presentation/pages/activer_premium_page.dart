@@ -70,7 +70,27 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   final _amountCtrl = TextEditingController();
   final _phoneCtrl  = TextEditingController();
   File?   _imagePayment;
-  Country _selectedCountry = deviceDefaultCountry();
+  /// Le pays que l'utilisateur a explicitement choisi, ou `null` s'il n'a
+  /// rien touché. Distinguer les deux est ce qui permet de proposer un défaut
+  /// sensé sans jamais écraser une décision.
+  Country? _paysChoisi;
+
+  /// Le pays du champ « numéro Mobile Money utilisé pour le transfert ».
+  ///
+  /// Il valait la locale de l'appareil. Un téléphone réglé en anglais
+  /// américain affichait donc **+1** juste au-dessus d'un exemple
+  /// « 70 00 00 00 » qui est burkinabè — et l'utilisateur déclarait un numéro
+  /// que la vérification ne pouvait rapprocher de rien.
+  ///
+  /// Il suit désormais le numéro **qui reçoit** l'argent : l'expéditeur est
+  /// chez le même opérateur, par construction. La locale ne reste qu'en
+  /// dernier recours, quand le serveur ne publie aucun numéro.
+  Country get _selectedCountry =>
+      _paysChoisi ??
+      paysDuNumero(_methodesPaiement.isEmpty
+          ? null
+          : (_methodesPaiement.first['phone'] ?? '').toString()) ??
+      deviceDefaultCountry();
 
   // Onglet "Code Promo" — spécifique au compte partenaire
   final _accountIdCtrl = TextEditingController();
@@ -460,7 +480,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         CountryPillSelector(
           country: _selectedCountry,
           onSelect: (c) => setState(() {
-            _selectedCountry = c;
+            _paysChoisi = c;
             _phoneCtrl.clear();
           }),
         ),
@@ -1241,11 +1261,23 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
               Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(_codeUssd!, style: const TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.5,
-                    fontFamily: 'monospace')),
+                  // Sur un écran étroit, « *144*10*45568158*6000# » se
+                  // coupait au milieu du montant : « …*60 » puis « 00# ». Un
+                  // code qu'on lit pour le vérifier avant de composer ne doit
+                  // pas être scindé — il se rétrécit plutôt que de passer à
+                  // la ligne.
+                  FittedBox(
+                    fit: BoxFit.scaleDown,
+                    alignment: Alignment.centerLeft,
+                    child: Text(_codeUssd!,
+                      maxLines: 1,
+                      softWrap: false,
+                      style: const TextStyle(
+                        fontSize: 17,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 0.5,
+                        fontFamily: 'monospace')),
+                  ),
                   const SizedBox(height: 2),
                   Text('Numéro et montant déjà inclus',
                     style: TextStyle(fontSize: 11, color: context.cl.textS)),
