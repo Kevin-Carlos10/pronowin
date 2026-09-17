@@ -296,7 +296,7 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
                   alignment: Alignment.topCenter,
                   // Une image absente ne doit pas remplacer l'écran par une
                   // icône cassée : le fond uni suffit, le texte reste lisible.
-                  errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+                  errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 ),
                 const DecoratedBox(
                   decoration: BoxDecoration(

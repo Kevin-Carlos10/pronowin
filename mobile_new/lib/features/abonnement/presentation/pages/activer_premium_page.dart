@@ -45,6 +45,24 @@ const _repli = '/compte';
 // Les numéros viennent désormais uniquement de `payment_methods`, géré depuis
 // l'administration. Liste vide ⇒ l'écran le dit.
 
+/// La méthode réellement proposée, pour une durée et un état donnés.
+///
+/// L'offre « code promo » porte sur le **premier mois** : elle n'a pas de sens
+/// en face d'une formule annuelle, et sa carte y est masquée.
+///
+/// Masquer ne suffit pas. Remettre `_method` à « direct » au changement de
+/// durée ne suffit pas non plus : l'onglet « Code Promo » du formulaire repose
+/// cet état, et revenir en arrière ramène au paywall sans repasser par le
+/// sélecteur de durée. L'écran affichait alors aucune option sélectionnée et
+/// un bouton « Continuer avec le code (annuel) » — un libellé qui existait
+/// déjà, preuve que la combinaison avait été anticipée sans être empêchée.
+///
+/// D'où une valeur **dérivée** plutôt que mémorisée : il n'y a plus d'état à
+/// penser à remettre, quel que soit le chemin emprunté.
+@visibleForTesting
+String methodeProposee({required String duree, required String choisie}) =>
+    duree == 'annuel' ? 'direct' : choisie;
+
 class ActiverPremiumPage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? subData;
   const ActiverPremiumPage({super.key, this.subData});
@@ -316,6 +334,18 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     // pour déverrouiller du contenu numérique — et interdisent d'afficher un
     // moyen de paiement externe à côté. Les deux chemins ne coexistent donc
     // jamais sur le même écran.
+    // Sur l'annuel, la méthode est nécessairement le paiement direct.
+    //
+    // La réinitialisation au changement de durée ne suffit pas : l'onglet
+    // « Code Promo » du formulaire repose `_method` à « code », et revenir en
+    // arrière ramène ici avec une durée annuelle et une méthode qui n'a plus
+    // de carte. L'écran affichait alors aucune option sélectionnée et un
+    // bouton « Continuer avec le code (annuel) » — pour une offre qui ne
+    // porte que sur le premier mois.
+    //
+    // Dérivée plutôt que mémorisée : il n'y a plus d'état à penser à remettre.
+    final methode = methodeProposee(duree: _duration, choisie: _method);
+
     final isStore = ref.watch(isStoreBuildProvider);
     final iapReady = isStore ? (ref.watch(iapReadyProvider).value ?? false) : false;
 
@@ -325,8 +355,15 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       promoCode:        _tarifs.promoCode,
       tarifs:           _tarifs,
       duration:         _duration,
-      method:           _method,
-      onSelectDuration: (d) => setState(() => _duration = d),
+      method:           methode,
+      // Passer à l'annuel retire l'offre « code promo » : elle ne vaut que
+      // pour le premier mois. La méthode revient donc sur le paiement direct
+      // — laissée sur « code », elle serait sélectionnée sans être affichée,
+      // et le bouton emmènerait vers un parcours que l'écran ne propose plus.
+      onSelectDuration: (d) => setState(() {
+        _duration = d;
+        if (d == 'annuel' && _method == 'code') _method = 'direct';
+      }),
       onSelectMethod:   (m) => setState(() => _method = m),
       onConfirm:        _goToForm,
       onClose:          () => retourOuAller(context, repli: _repli),
@@ -1948,20 +1985,33 @@ class _PaywallPage extends StatelessWidget {
                       isSelected: method == 'direct',
                       onTap:      () => onSelectMethod('direct'),
                     ),
-                    const SizedBox(height: 10),
-                    _MethodCard(
-                      title:      'Avec Code Promo',
-                      subtitle:   'Compte partenaire + premier dépôt — rien à payer',
-                      // Ce parcours ne facture plus rien : afficher un prix
-                      // barré, un « /mois » ou une remise décrirait une offre
-                      // qui n'existe plus.
-                      price:      0,
-                      period:     '',
-                      badge:      tarifs.libelleOffreCode,
-                      color:      const Color(0xFF7C3AED),
-                      isSelected: method == 'code',
-                      onTap:      () => onSelectMethod('code'),
-                    ),
+                    // L'offre porte sur le **premier mois**, pas sur l'année.
+                    //
+                    // Elle s'affichait en face de « Annuel · 2 mois offerts »,
+                    // à 0 $ et « 1 mois offert » : deux promesses côte à côte
+                    // qui ne parlaient pas de la même chose, et dont la moins
+                    // chère ne délivrait pas ce que la formule annonçait.
+                    //
+                    // Elle disparaît donc sur l'annuel. Et le parent remet la
+                    // méthode sur « direct » en même temps : masquer une carte
+                    // encore sélectionnée aurait laissé l'écran suivant ouvrir
+                    // le parcours code promo pour une formule annuelle.
+                    if (duration != 'annuel') ...[
+                      const SizedBox(height: 10),
+                      _MethodCard(
+                        title:      'Avec Code Promo',
+                        subtitle:   'Compte partenaire + premier dépôt — rien à payer',
+                        // Ce parcours ne facture plus rien : afficher un prix
+                        // barré, un « /mois » ou une remise décrirait une offre
+                        // qui n'existe plus.
+                        price:      0,
+                        period:     '',
+                        badge:      tarifs.libelleOffreCode,
+                        color:      const Color(0xFF7C3AED),
+                        isSelected: method == 'code',
+                        onTap:      () => onSelectMethod('code'),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     _PaywallCTA(duration: duration, method: method, onTap: onConfirm),
                   ],
