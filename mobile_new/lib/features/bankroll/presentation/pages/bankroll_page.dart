@@ -1085,11 +1085,26 @@ class _SetupView extends StatelessWidget {
             child: const Icon(Icons.savings_rounded,
                 color: AppColors.success, size: 44)),
           const SizedBox(height: 24),
-          Text('Configure ton bankroll', style: TextStyle(
+          Text('Configure ta bankroll', style: TextStyle(
               color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
           const SizedBox(height: 10),
+          // Le mot est expliqué là où il apparaît pour la première fois.
+          //
+          // Ce paragraphe employait « bankroll » trois fois — dont « la
+          // discipline bankroll » — sans jamais dire ce que c'était. Il
+          // expliquait la fonction avec le terme que la fonction doit
+          // justement apprendre.
+          //
+          // Il promettait aussi des mises « optimales ». La suggestion vaut
+          // une part fixe du solde selon la note de l'analyste : ni
+          // probabilité, ni cote, aucune optimisation. C'est le même mot de
+          // trop que le « Kelly simplifié » déjà retiré du service — et la
+          // liste juste en dessous, elle, le disait déjà correctement.
           Text(
-            'Définis ton budget de référence pour que PronoWin calcule automatiquement les mises optimales selon la discipline bankroll.',
+            "Ta bankroll, c'est l'argent que tu réserves aux paris. "
+            "Tu fixes ce budget une fois, et PronoWin te suggère ensuite "
+            "une part à miser — plus large quand la confiance de "
+            "l'analyste est élevée — puis suit ce qu'il devient.",
             style: TextStyle(color: context.cl.textS, fontSize: 14, height: 1.55),
             textAlign: TextAlign.center),
           const SizedBox(height: 32),

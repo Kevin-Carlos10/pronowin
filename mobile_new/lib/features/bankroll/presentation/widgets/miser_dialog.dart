@@ -132,7 +132,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
           msg = 'Tu as déjà placé un pari sur ce match.';
           _alreadyBet = true;
         } else if (srvMsg?.contains('Solde insuffisant') == true) {
-          msg = 'Solde insuffisant dans ton bankroll.';
+          msg = 'Solde insuffisant dans ta bankroll.';
         } else {
           msg = srvMsg ?? 'Erreur lors de la mise.';
         }

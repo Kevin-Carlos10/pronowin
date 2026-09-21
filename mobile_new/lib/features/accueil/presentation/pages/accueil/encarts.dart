@@ -398,7 +398,7 @@ class _BankrollMiniWidget extends ConsumerWidget {
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Mon Bankroll', style: TextStyle(
+                    Text('Ma bankroll', style: TextStyle(
                         color: context.cl.textM, fontSize: 11,
                         fontWeight: FontWeight.w500)),
                     const SizedBox(height: 2),

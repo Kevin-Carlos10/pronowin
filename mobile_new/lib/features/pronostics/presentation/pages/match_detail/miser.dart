@@ -30,7 +30,7 @@ class _MiserButtonState extends ConsumerState<_MiserButton> {
         child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.check_circle_rounded, color: AppColors.success, size: 18),
           SizedBox(width: 8),
-          Text('Mise enregistrée dans ton bankroll',
+          Text('Mise enregistrée dans ta bankroll',
               style: TextStyle(color: AppColors.success,
                   fontSize: 13, fontWeight: FontWeight.w600)),
         ]),
@@ -82,7 +82,7 @@ class _MiserButtonState extends ConsumerState<_MiserButton> {
             Text('Valider ma mise',
                 style: TextStyle(color: Colors.white,
                     fontSize: 15, fontWeight: FontWeight.w700)),
-            Text('Ajouter à mon bankroll',
+            Text('Ajouter à ma bankroll',
                 style: TextStyle(color: Colors.white70, fontSize: 11)),
           ]),
           const Spacer(),
