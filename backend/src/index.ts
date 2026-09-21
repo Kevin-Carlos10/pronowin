@@ -12,6 +12,7 @@ import axios from 'axios';
 
 import authRoutes            from './routes/auth.routes';
 import { PronosticsService } from './services/pronostics.service';
+import { signalerAchatsEnRetard, SEUIL_ATTENTE_HEURES, INTERVALLE_CONTROLE_MS } from './services/alerte_achats.service';
 import { SubscriptionService } from './services/subscription.service';
 import pronosticsRoutes      from './routes/pronostics.routes';
 import paymentRoutes         from './routes/payment.routes';
@@ -283,4 +284,27 @@ app.listen(PORT, () => {
   } else {
     logger.warn('FOOTBALL_DATA_API_KEY manquante — score sync désactivé');
   }
+
+  // ─── ACHATS NON ACTIVÉS ───────────────────────────────────────────────────
+  // Délibérément hors du bloc ci-dessus : celui-ci ne tourne que si la clé
+  // API football est posée. Une alerte de paiement rangée dedans deviendrait
+  // muette le jour où cette clé changerait — et personne ne s'en apercevrait,
+  // puisque le propre d'une alerte silencieuse est de ne rien dire.
+  const runAchatsEnRetard = () => {
+    signalerAchatsEnRetard()
+      .then(({ enRetard, alerteEnvoyee }) => {
+        if (enRetard > 0) {
+          logger.warn(
+            `[AchatsEnRetard] ${enRetard} en attente — alerte ${alerteEnvoyee ? 'envoyée' : 'NON envoyée'}`,
+          );
+        }
+      })
+      .catch((err: Error) =>
+        logger.error('[AchatsEnRetard] Erreur', { message: err.message }));
+  };
+  setTimeout(runAchatsEnRetard, 180_000);
+  setInterval(runAchatsEnRetard, INTERVALLE_CONTROLE_MS);
+  logger.info(
+    `Alerte achats non activés — contrôle toutes les ${SEUIL_ATTENTE_HEURES} h`,
+  );
 });
