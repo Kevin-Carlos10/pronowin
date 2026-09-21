@@ -1,5 +1,6 @@
 ﻿import { NotificationService } from './notification.service';
 import { prisma } from '../lib/prisma';
+import logger from '../utils/logger';
 import { Prisma } from '@prisma/client';
 import { ReferralService } from './referral.service';
 import { listerPubliques } from './payment_method.service';
@@ -400,10 +401,39 @@ export class SubscriptionService {
         } catch (e: any) {
           throw new Error(`Erreur upload image: ${e.message}`);
         }
-      } else {
-        // Sans S3 → stocker l'URL en placeholder (dev)
+      } else if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
+        // Hors production seulement, et jamais par défaut.
         screenshotUrl = `dev://proof/${userId}/${Date.now()}`;
-        console.warn('[Subscription] S3 non configuré, URL placeholder utilisée');
+        logger.warn('[Subscription] S3 absent — URL factice (hors production)');
+      } else {
+        // Sans stockage, la capture est perdue : il ne faut pas accepter.
+        //
+        // ── Ce que faisait le repli ─────────────────────────────────────────
+        //
+        // Il écrivait `dev://proof/...`, une URL qui ne pointe sur rien, et la
+        // soumission réussissait. L'image, elle, était jetée — le base64 n'est
+        // conservé nulle part.
+        //
+        // L'utilisateur voyait « preuve envoyée » et attendait. L'administrateur
+        // recevait une preuve sans preuve, et devait décider d'activer ou non un
+        // abonnement payé en regardant un lien mort. Depuis que l'identifiant
+        // 1xBet est relevé à la validation, il devait même y lire un numéro
+        // « lisible sur la capture » — celle qui n'existe pas.
+        //
+        // ── Pourquoi refuser vaut mieux ─────────────────────────────────────
+        //
+        // Un utilisateur qui ne peut pas envoyer sa capture recommence dans dix
+        // minutes. Un utilisateur dont la capture a disparu en silence a payé
+        // pour rien, et personne ne peut le lui prouver ni le lui rendre.
+        //
+        // C'est d'ailleurs déjà la règle pour les avatars, qui répondent 503
+        // dans exactement cette situation. Elle avait été écrite pour la photo
+        // de profil et oubliée pour l'argent.
+        logger.error('[Subscription] S3 non configuré — preuve refusée', { userId });
+        throw new Error(
+          "L'envoi de votre capture est momentanément indisponible. " +
+          'Réessayez dans quelques minutes — aucun paiement ne sera perdu.',
+        );
       }
     }
     if (!screenshotUrl) throw new Error('Image requise.');

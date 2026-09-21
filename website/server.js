@@ -230,10 +230,23 @@ const productBlocks = [
       { value: '%',       label: 'confiance chiffrée, pas un mot' },
       { value: 'Gratuit', label: 'une sélection chaque jour' },
     ],
+    // 78 %, 55 % et 71 % figuraient ici. L'application ne peut afficher aucun
+    // de ces trois nombres : la confiance est un score entier de 1 à 5, converti
+    // par une table fixe (60, 70, 80, 90, 95) dans `match_entity.dart`. En
+    // production seuls 3, 4 et 5 sont publiés, donc 80, 90 et 95.
+    //
+    // La règle est écrite quinze lignes plus haut — « chaque chiffre cité ici
+    // doit exister dans le produit » — et n'avait pas été appliquée juste en
+    // dessous. Un aperçu illustre une mise en page ; dès qu'il porte un nombre,
+    // il affirme, et sur une page qui vend du pari un pourcentage de confiance
+    // est la dernière chose à inventer.
+    //
+    // Un banc lit maintenant cette liste et la table de l'application, et refuse
+    // tout pourcentage que le produit ne saurait pas produire.
     apercu: [
-      { badge: 'green', icone: 'ball', titre: 'Real Madrid vs Barcelone', sous: 'Confiance 78 %  ·  Cote 1.72' },
-      { badge: 'green', icone: 'ball', titre: 'Bayern vs Dortmund',       sous: 'Confiance 55 %  ·  Cote 2.10' },
-      { badge: 'green', icone: 'ball', titre: 'Juventus vs Milan',        sous: 'Confiance 71 %  ·  Cote 1.95' },
+      { badge: 'green', icone: 'ball', titre: 'Real Madrid vs Barcelone', sous: 'Confiance 90 %  ·  Cote 1.72' },
+      { badge: 'green', icone: 'ball', titre: 'Bayern vs Dortmund',       sous: 'Confiance 80 %  ·  Cote 2.10' },
+      { badge: 'green', icone: 'ball', titre: 'Juventus vs Milan',        sous: 'Confiance 95 %  ·  Cote 1.95' },
     ],
   },
   {

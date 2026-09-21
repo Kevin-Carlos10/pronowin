@@ -2,6 +2,7 @@
 import { AuthRequest } from '../middleware/auth.middleware';
 
 import { prisma } from '../lib/prisma';
+import logger from '../utils/logger';
 import { NOTIF_CATEGORIES } from '../services/notification.service';
 import { estMajeur, AGE_MINIMUM } from '../utils/age';
 
@@ -77,8 +78,13 @@ export const updateAvatar = async (req: AuthRequest, res: Response) => {
 
   const s3 = await getS3();
   if (!s3) {
+    // Le refus est juste ; c'est le message qui ne l'était pas. Il nommait la
+    // variable d'environnement manquante à qui essayait de changer sa photo :
+    // l'utilisateur ne peut rien en faire, et il apprend au passage comment le
+    // service est monté. Le détail va au journal, où il sert vraiment.
+    logger.error('[Profil] S3 non configuré - envoi d\'avatar refusé');
     res.status(503).json({
-      message: 'Stockage d\'images non configuré. Ajoutez AWS_ACCESS_KEY_ID dans .env',
+      message: "L'envoi de photo est momentanément indisponible. Réessayez plus tard.",
     });
     return;
   }
