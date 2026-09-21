@@ -40,11 +40,21 @@
  *   node _check_boutons.js
  */
 const ejs = require('ejs');
+const fs = require('fs');
+const path = require('path');
 const { views, opts } = require('./test_all_views.js');
 
-const scriptsDe = (html) =>
-  [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)]
-    .map((m) => m[1]).join('\n');
+// Inspecter aussi les scripts locaux réellement inclus par chaque vue.
+function scriptsDe(html) {
+  const inline = [...html.matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]);
+  const publicRoot = path.resolve(__dirname, 'public');
+  for (const m of html.matchAll(/<script\b[^>]*\bsrc=["']([^"']+)["'][^>]*>/g)) {
+    if (!m[1].startsWith('/') || m[1].startsWith('//')) continue;
+    const file = path.resolve(publicRoot, '.' + m[1].split('?')[0]);
+    if (file.startsWith(publicRoot + path.sep) && fs.existsSync(file) && fs.statSync(file).isFile()) inline.push(fs.readFileSync(file, 'utf8'));
+  }
+  return inline.join('\n');
+}
 
 /** Tout ce que les scripts désignent puis écoutent. */
 function cibles(js) {

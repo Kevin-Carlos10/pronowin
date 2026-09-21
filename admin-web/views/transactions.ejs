@@ -315,7 +315,7 @@
       <div class="tx-field-val"><%= method.toUpperCase() || '—' %></div>
     </div>
     <div class="tx-field">
-      <div class="tx-field-lbl">N° envoyeur</div>
+      <div class="tx-field-lbl">Numéro destinataire</div>
       <div class="tx-field-val"><%= tx.senderPhone ?? '—' %></div>
     </div>
     <div class="tx-field">
@@ -349,12 +349,12 @@
         <button type="button" class="btn btn-success btn-sm"
           onclick="askConfirm({
             icon:'check',
-            title:'Confirmer le versement',
-            msg:'Valider <strong><%= (tx.amount??0).toLocaleString() %> FCFA</strong> pour <strong><%= tx.user?.pseudo ?? tx.id %></strong> ?',
+            title:'Confirmer le versement effectué',
+            msg:'Je confirme avoir envoyé <strong><%= (tx.amount??0).toLocaleString() %> FCFA</strong> à <strong><%= tx.user?.pseudo ?? tx.id %></strong>, sur le <%= tx.senderPhone ?? 'numéro indiqué' %>. Cette action enregistre le versement ; elle ne transfère pas l’argent.',
             btnLabel:'Confirmer',
             btnClass:'btn-success',
             onConfirm: () => submitTx('<%= tx.id %>', 'completed')
-          })"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Approuver</button>
+          })"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Marquer comme versé</button>
         <button type="button" class="btn btn-danger btn-sm"
           onclick="askConfirm({
             icon:'x',

@@ -32,12 +32,12 @@
 
 <!-- ── Confirm dialog ── -->
 <div class="confirm-overlay" id="confirm-overlay">
-  <div class="confirm-box">
+  <div class="confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-msg" tabindex="-1">
     <div class="confirm-icon" id="confirm-icon"><svg class="ic ic-xl" aria-hidden="true"><use href="#ic-alert"/></svg></div>
     <h3 id="confirm-title">Confirmer l'action</h3>
     <p id="confirm-msg">Êtes-vous sûr de vouloir effectuer cette action ?</p>
     <div class="confirm-actions">
-      <button class="btn btn-outline" onclick="closeConfirm()">Annuler</button>
+      <button type="button" class="btn btn-outline" id="confirm-cancel-btn" onclick="closeConfirm()">Annuler</button>
       <%# Ce bouton n'appelait rien depuis le commit initial. « Annuler » avait
           son `onclick`, pas lui : la boîte s'ouvrait, on cliquait, il ne se
           passait rien — et comme aucune erreur n'apparaissait, on croyait le
@@ -46,7 +46,7 @@
           un versement, supprimer un sous-admin, un tutoriel, une actualité, un
           pronostic, vider le journal d'audit. Aucune de ces actions ne pouvait
           aboutir depuis l'interface. %>
-      <button class="btn btn-primary" id="confirm-ok-btn" onclick="submitConfirm()">Confirmer</button>
+      <button type="button" class="btn btn-primary" id="confirm-ok-btn" onclick="submitConfirm()">Confirmer</button>
     </div>
   </div>
 </div>

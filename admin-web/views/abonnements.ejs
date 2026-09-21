@@ -324,7 +324,7 @@
       </div>
 
       <div>
-        <span class="badge <%= p.type === 'payment_screenshot' ? 'badge-ok' : 'badge-info' %>" style="font-size:11px">
+        <span class="badge <%= p.type === 'payment_screenshot' ? 'badge-ok' : 'badge-info' %>" style="font-size:12px">
           <%= p.type === 'payment_screenshot' ? 'Paiement direct' : 'Code partenaire' %>
         </span>
         <div class="pf-hsub" style="margin-top:.25rem">soumise <%= _dt(p.createdAt) %></div>
@@ -367,12 +367,24 @@
 
 <% } else { %>
 
-<% _sorted.forEach(p => { const _h = _ageH(p); %>
+<div class="proof-workspace" id="proof-workspace">
+  <aside class="proof-queue" aria-label="Demandes Premium">
+    <h3>Demandes · les plus anciennes d'abord</h3>
+    <% _sorted.forEach((p, i) => { %>
+    <button type="button" class="proof-select" data-proof-index="<%= i %>" data-type="<%= p.type %>" aria-pressed="false" aria-controls="proof-dossier-<%= i %>">
+      <strong><%= p.user?.pseudo ?? 'Compte sans pseudo' %></strong>
+      <small><%= p.type === 'payment_screenshot' ? 'Paiement direct' : 'Compte partenaire' %> · <%= _ageLabel(_ageH(p)) %></small>
+      <span><%= p.amount?.toLocaleString('fr-FR') ?? '—' %> FCFA déclarés</span>
+    </button>
+    <% }) %>
+  </aside>
+  <div class="proof-detail">
+<% _sorted.forEach((p, i) => { const _h = _ageH(p); %>
 <div class="card pf-card" style="padding:0;overflow:hidden;margin-bottom:20px"
-     data-type="<%= p.type %>">
+     id="proof-dossier-<%= i %>" data-proof-index="<%= i %>" data-type="<%= p.type %>">
 
   <!-- En-tête de la carte -->
-  <div style="background:var(--surface-d);padding:14px 20px;display:flex;align-items:center;gap:12px;border-bottom:1px solid var(--border)">
+  <div class="proof-heading">
     <div style="width:38px;height:38px;border-radius:50%;background:var(--surface-h);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--primary)">
       <%= (p.user?.pseudo ?? '?')[0].toUpperCase() %>
     </div>
@@ -386,71 +398,71 @@
         ? '<svg class="ic ic-sm" aria-hidden="true"><use href="#ic-card"/></svg> Paiement direct'
         : '<svg class="ic ic-sm" aria-hidden="true"><use href="#ic-gamepad"/></svg> Compte partenaire' %>
     </span>
-    <p style="font-size:11px;color:var(--<%= _ageTone(_h) %>);margin-left:8px;font-weight:<%= _h >= 24 ? '700' : '400' %>;white-space:nowrap"
+    <p style="font-size:12px;color:var(--<%= _ageTone(_h) %>);margin-left:8px;font-weight:<%= _h >= 24 ? '700' : '400' %>;white-space:nowrap"
        title="<%= new Date(p.createdAt).toLocaleString('fr-FR') %>">
       <svg class="ic ic-sm" aria-hidden="true"><use href="#ic-clock"/></svg> <%= _ageLabel(_h) %>
     </p>
   </div>
 
-  <div style="display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:0">
+  <div class="proof-columns">
 
     <!-- Colonne 1 : Infos utilisateur -->
     <div style="padding:18px;border-right:1px solid var(--border)">
-      <p style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;font-weight:700">Informations</p>
+      <p style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;font-weight:700">Informations</p>
 
       <% const platformLabels = {'1xbet':'1xBet','melbet':'Melbet','betwinner':'Betwinner'}; %>
 
       <% if(p.type === 'payment_screenshot'){ %>
         <div style="margin-bottom:8px">
-          <p style="font-size:11px;color:var(--text-dim)">Montant déclaré</p>
+          <p style="font-size:12px;color:var(--text-dim)">Montant déclaré</p>
           <p style="font-size:20px;font-weight:700;color:var(--text)"><%= p.amount?.toLocaleString() ?? '—' %> FCFA</p>
         </div>
         <div>
-          <p style="font-size:11px;color:var(--text-dim)">Numéro envoyeur</p>
+          <p style="font-size:12px;color:var(--text-dim)">Numéro envoyeur</p>
           <p style="font-size:13px;color:var(--text)"><%= p.senderPhone ?? '—' %></p>
         </div>
       <% } else { %>
         <div style="margin-bottom:8px">
-          <p style="font-size:11px;color:var(--text-dim)">Plateforme partenaire</p>
+          <p style="font-size:12px;color:var(--text-dim)">Plateforme partenaire</p>
           <p style="font-size:15px;font-weight:700;color:var(--purple)"><%= platformLabels[p.platform] ?? p.platform ?? '⚠ Non renseignée' %></p>
         </div>
         <div style="margin-bottom:8px">
-          <p style="font-size:11px;color:var(--text-dim)">ID de compte</p>
+          <p style="font-size:12px;color:var(--text-dim)">ID de compte</p>
           <p style="font-size:15px;font-weight:600;color:var(--primary)"><%= p.xbetId ?? '⚠ Non renseigné' %></p>
         </div>
         <div style="margin-bottom:8px">
-          <p style="font-size:11px;color:var(--text-dim)">Code promo utilisé</p>
+          <p style="font-size:12px;color:var(--text-dim)">Code promo utilisé</p>
           <p style="font-size:13px;color:var(--purple);font-weight:600"><%= data.promo_code || '— non configure' %></p>
         </div>
         <div style="margin-bottom:8px">
-          <p style="font-size:11px;color:var(--text-dim)">Montant déclaré (tarif réduit)</p>
+          <p style="font-size:12px;color:var(--text-dim)">Montant déclaré (tarif réduit)</p>
           <p style="font-size:20px;font-weight:700;color:var(--text)"><%= p.amount?.toLocaleString() ?? '—' %> FCFA</p>
         </div>
         <div>
-          <p style="font-size:11px;color:var(--text-dim)">Numéro envoyeur</p>
+          <p style="font-size:12px;color:var(--text-dim)">Numéro envoyeur</p>
           <p style="font-size:13px;color:var(--text)"><%= p.senderPhone ?? '—' %></p>
         </div>
         <div style="background:rgba(167,139,250,.08);border:0.5px solid rgba(167,139,250,.2);border-radius:8px;padding:10px;margin-top:8px">
-          <p style="font-size:11px;color:var(--purple)">Vérifiez que le compte a bien été créé avec notre code promo sur <%= platformLabels[p.platform] ?? p.platform %></p>
+          <p style="font-size:12px;color:var(--purple)">Vérifiez que le compte a bien été créé avec notre code promo sur <%= platformLabels[p.platform] ?? p.platform %></p>
         </div>
       <% } %>
     </div>
 
     <!-- Colonne 2 : Capture(s) d'écran -->
     <div style="padding:18px;border-right:1px solid var(--border)">
-      <p style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;font-weight:700">
+      <p style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px;font-weight:700">
         <%= p.type === 'xbet_account_screenshot' ? 'Capture du compte' : "Capture d'écran" %>
       </p>
       <% if(p.screenshotUrl){ %>
         <img
           src="<%= p.screenshotUrl %>"
           alt="Preuve"
-          style="width:100%;max-height:<%= p.type === 'xbet_account_screenshot' ? '150' : '220' %>px;object-fit:cover;border-radius:10px;cursor:pointer;border:1px solid #1E2A42"
+          style="width:100%;max-height:<%= p.type === 'xbet_account_screenshot' ? '150' : '220' %>px;object-fit:cover;border-radius:10px;cursor:pointer;border:1px solid var(--border)"
           onclick="document.getElementById('modal-img').src=this.src;document.getElementById('img-modal').classList.add('open')"
           onerror="this.parentElement.innerHTML='<p style=color:#EF4444;font-size:12px>❌ Image non accessible</p>'"
         >
       <% } else { %>
-        <div style="height:120px;display:flex;align-items:center;justify-content:center;background:#0D1220;border-radius:10px;border:1px dashed #2A3050">
+        <div style="height:120px;display:flex;align-items:center;justify-content:center;background:var(--surface-d);border-radius:10px;border:1px dashed #2A3050">
           <p style="color:#EF4444;font-size:12px"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Aucune image soumise</p>
         </div>
       <% } %>
@@ -460,35 +472,35 @@
           preuves anciennes en portent encore une — on continue de l'afficher
           pour elles plutôt que de rendre l'historique illisible. %>
       <% if(p.type === 'xbet_account_screenshot' && p.paymentScreenshotUrl){ %>
-        <p style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 10px;font-weight:700">Capture du paiement (ancienne offre)</p>
+        <p style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin:14px 0 10px;font-weight:700">Capture du paiement (ancienne offre)</p>
         <img
           src="<%= p.paymentScreenshotUrl %>"
           alt="Preuve de paiement"
-          style="width:100%;max-height:150px;object-fit:cover;border-radius:10px;cursor:pointer;border:1px solid #1E2A42"
+          style="width:100%;max-height:150px;object-fit:cover;border-radius:10px;cursor:pointer;border:1px solid var(--border)"
           onclick="document.getElementById('modal-img').src=this.src;document.getElementById('img-modal').classList.add('open')"
           onerror="this.parentElement.innerHTML='<p style=color:#EF4444;font-size:12px>❌ Image non accessible</p>'"
         >
       <% } %>
-      <p style="font-size:11px;color:#8892AA;margin-top:6px;text-align:center">Cliquez sur une image pour l'agrandir</p>
+      <p style="font-size:12px;color:var(--text-m);margin-top:6px;text-align:center">Cliquez sur une image pour l'agrandir</p>
     </div>
 
     <!-- Colonne 3 : Actions -->
-    <div style="padding:18px">
-      <p style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;font-weight:700">Décision</p>
-      <form method="POST" action="/admin/abonnements/<%= p.id %>" style="display:flex;flex-direction:column;gap:10px">
+    <div class="proof-decision" style="padding:18px">
+      <p style="font-size:12px;color:var(--text-dim);text-transform:uppercase;letter-spacing:.5px;margin-bottom:14px;font-weight:700">Décision</p>
+      <form method="POST" action="/admin/abonnements/<%= p.id %>" class="proof-review" data-user="<%= p.user?.pseudo ?? p.id %>" data-type="<%= p.type %>" style="display:flex;flex-direction:column;gap:10px">
 
         <% if(p.type === 'payment_screenshot'){ %>
-        <div style="background:rgba(245,166,35,.06);border:0.5px solid rgba(245,166,35,.2);border-radius:8px;padding:10px;font-size:11px;color:#8892AA">
-          <strong style="color:#F5A623">À vérifier :</strong><br>
+        <div style="background:rgba(245,166,35,.06);border:0.5px solid rgba(245,166,35,.2);border-radius:8px;padding:10px;font-size:12px;color:var(--text-m)">
+          <strong style="color:var(--primary)">À vérifier :</strong><br>
           Confirmez que vous avez reçu <strong><%= p.amount?.toLocaleString() %> FCFA</strong>
           de <strong><%= p.senderPhone %></strong> sur votre numéro MobCash.
         </div>
         <% } else { %>
-        <div style="background:rgba(167,139,250,.06);border:0.5px solid rgba(167,139,250,.2);border-radius:8px;padding:10px;font-size:11px;color:#8892AA">
-          <strong style="color:#A78BFA">À vérifier :</strong><br>
+        <div style="background:rgba(167,139,250,.06);border:0.5px solid rgba(167,139,250,.2);border-radius:8px;padding:10px;font-size:12px;color:var(--text-m)">
+          <strong style="color:var(--purple)">À vérifier :</strong><br>
           1) Relevez <strong>l'ID du compte</strong> sur la capture et saisissez-le ci-dessous. C'est bien un <strong>nouveau</strong> compte créé sur <strong><%= platformLabels[p.platform] ?? p.platform %></strong> avec notre code promo.<br>
           2) Le <strong>dépôt initial</strong> apparaît sur la capture. Sans dépôt, l'offre n'est pas due.<br>
-          <span style="color:#6B7690">Aucun versement n'est attendu de votre côté : ce parcours offre le premier mois.</span>
+          <span style="color:var(--text-m)">Aucun versement n'est attendu de votre côté : ce parcours offre le premier mois.</span>
         </div>
         <% } %>
 
@@ -503,48 +515,61 @@
             illisible doit pouvoir etre refusee sans inventer un numero. %>
         <% if(p.type === 'xbet_account_screenshot'){ %>
         <div>
-          <label style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px"
+          <label style="font-size:12px;color:var(--text-m);text-transform:uppercase;letter-spacing:.3px"
                  for="xid-<%= p.id %>">ID du compte partenaire</label>
           <input type="text" id="xid-<%= p.id %>" name="xbet_id" maxlength="40"
             value="<%= p.xbetId ?? '' %>" placeholder="Lisible sur la capture"
             style="width:100%;margin-top:4px" aria-label="ID du compte partenaire">
-          <p style="font-size:10px;color:#8892AA;margin-top:3px">
+          <p style="font-size:12px;color:var(--text-m);margin-top:3px">
             Requis pour approuver. Il sert à retrouver l'abonné, et à prouver
             l'ouverture du compte si le partenaire conteste la commission.
           </p>
         </div>
-        <div style="background:#0D1220;border:0.5px solid #1E2A42;border-radius:8px;padding:10px">
-          <p style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px;margin:0">Durée Premium</p>
+        <div style="background:var(--surface-d);border:0.5px solid var(--border);border-radius:8px;padding:10px">
+          <p style="font-size:12px;color:var(--text-m);text-transform:uppercase;letter-spacing:.3px;margin:0">Durée Premium</p>
           <p style="font-size:12px;color:var(--text);margin:4px 0 0">
             Fixée par l'offre, côté serveur — identique pour toutes les demandes de ce type.
           </p>
         </div>
         <% } else { %>
         <div>
-          <label style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px"
+          <label style="font-size:12px;color:var(--text-m);text-transform:uppercase;letter-spacing:.3px"
                  for="dd-<%= p.id %>">Durée Premium (jours)</label>
           <input type="number" id="dd-<%= p.id %>" name="duration_days"
             value="<%= p.planId === 'premium_annual' ? 365 : 30 %>" min="1" max="365"
             style="width:100%;margin-top:4px" aria-label="Durée en jours">
           <% if(p.planId){ %>
-            <p style="font-size:10px;color:#8892AA;margin-top:3px"><svg class="ic" aria-hidden="true"><use href="#ic-bulb"/></svg> Plan <%= p.planId === 'premium_annual' ? 'annuel (365j)' : 'mensuel (30j)' %> déclaré à la souscription</p>
+            <p style="font-size:12px;color:var(--text-m);margin-top:3px"><svg class="ic" aria-hidden="true"><use href="#ic-bulb"/></svg> Plan <%= p.planId === 'premium_annual' ? 'annuel (365j)' : 'mensuel (30j)' %> déclaré à la souscription</p>
           <% } %>
         </div>
         <% } %>
 
         <div>
-          <label style="font-size:11px;color:#8892AA;text-transform:uppercase;letter-spacing:.3px"
-                 for="an-<%= p.id %>">Note pour l'utilisateur (optionnel)</label>
+          <label style="font-size:12px;color:var(--text-m);text-transform:uppercase;letter-spacing:.3px"
+                 for="an-<%= p.id %>">Message pour l'utilisateur</label>
           <textarea id="an-<%= p.id %>" name="admin_note" rows="2" style="width:100%;margin-top:4px;font-size:12px"
             placeholder="Message envoyé par notification..." aria-label="Note administrateur"></textarea>
         </div>
 
-        <div style="display:flex;gap:8px">
+        <div>
+          <label for="reason-<%= p.id %>">Motif en cas de rejet</label>
+          <select id="reason-<%= p.id %>" class="proof-reason" aria-label="Motif du rejet">
+            <option value="">Choisir un motif…</option>
+            <option>La capture est illisible ou incomplète.</option>
+            <option>Le paiement n'a pas été retrouvé.</option>
+            <option>Les informations ne correspondent pas à la demande.</option>
+            <option>Les conditions de l'offre partenaire ne sont pas remplies.</option>
+            <option value="autre">Autre : préciser dans le message</option>
+          </select>
+          <p class="proof-hint">Un motif ou un message est nécessaire pour expliquer un rejet.</p>
+        </div>
+        <p class="proof-error" role="alert" hidden></p>
+        <div class="proof-actions">
           <button type="submit" name="action" value="approve"
             class="btn btn-success" style="flex:1;justify-content:center">
             <svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Approuver
           </button>
-          <button type="submit" name="action" value="reject"
+          <button type="submit" name="action" value="reject" formnovalidate
             class="btn btn-danger" style="flex:1;justify-content:center">
             <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Rejeter
           </button>
@@ -555,6 +580,8 @@
   </div>
 </div>
 <% }) %>
+  </div>
+</div>
 
 <% if(data.total > _rows.length){ %>
   <p style="text-align:center;color:var(--warning);margin-top:8px;font-size:13px">
@@ -581,6 +608,7 @@ function pfFilter() {
     c.hidden = !ok;
     if (ok) shown++;
   });
+  if (window.filterProofQueue) window.filterProofQueue(type);
   document.getElementById("pf-count").textContent = shown + " preuve(s)";
   document.getElementById("pf-none").style.display = shown === 0 ? "block" : "none";
 }

@@ -9,13 +9,13 @@
   --border-s:      #2A3454;
   /* Texte */
   --text:          #E2E8F0;
-  --text-m:        #8892AA;
-  --text-dim:      #4A5568;
+  --text-m:        #B6C1D4;
+  --text-dim:      #98A6BE;
   /* Accents (thème orange par défaut) */
   --primary:       #F5A623;
   --primary-rgb:   245,166,35;
-  --btn-primary:   #E8541A;
-  --btn-primary-h: #d14818;
+  --btn-primary:   #BC4212;
+  --btn-primary-h: #A5370D;
   /* États */
   --success:       #22C55E;
   --error:         #EF4444;
@@ -43,7 +43,7 @@ html.light {
   --border-s:      #BEC9E4;
   --text:          #111827;
   --text-m:        #374151;
-  --text-dim:      #9CA3AF;
+  --text-dim:      #5E6B80;
   --shadow:        0 1px 4px rgba(0,0,0,.08);
   --shadow-lg:     0 4px 24px rgba(0,0,0,.12);
   color-scheme: light;
@@ -59,8 +59,8 @@ html.light tr:hover td       { background: var(--surface-d); }
 html[data-accent="orange"] {
   --primary:       #F5A623;
   --primary-rgb:   245,166,35;
-  --btn-primary:   #E8541A;
-  --btn-primary-h: #d14818;
+  --btn-primary:   #BC4212;
+  --btn-primary-h: #A5370D;
 }
 /* Bleu */
 html[data-accent="blue"] {
@@ -1159,3 +1159,50 @@ html.light {
 .sous-onglet:hover { color: var(--text); background: var(--surface-d); }
 .sous-onglet.on    { color: var(--primary); border-bottom-color: var(--primary);
                      background: var(--surface); }
+
+
+/* Lisibilité et parcours de traitement — commun aux deux thèmes. */
+.sidebar-section, .sidebar-logo small { font-size: 11px; letter-spacing: 1px; }
+.nav-item { font-size: 14px; }
+.bottom-nav-item, .bottom-nav-fab-lbl { font-size: 11px; text-transform: none; }
+.btn-success, .btn-success:hover { color: var(--on-success); }
+.btn-danger, .btn-danger:hover { color: var(--on-danger); }
+.btn-warning, .btn-warning:hover { color: var(--on-warning); }
+.row-act { opacity: 1; }
+.form-dirty { color: var(--on-warning); padding: .65rem 0; font-size: 13px; }
+.proof-workspace { display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.proof-queue { display: none; }
+.proof-workspace[data-enhanced] .proof-queue { display: block; position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow: auto; }
+.proof-queue h3 { font-size: 14px; margin-bottom: 10px; }
+.proof-select { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 16px; margin-bottom: 8px; text-align: left; border: 1px solid var(--border-s); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.proof-select small { color: var(--text-m); font-size: 12px; }
+.proof-select[aria-pressed=true] { border-color: var(--primary); box-shadow: inset 3px 0 var(--primary); background: var(--surface-h); }
+.proof-select[hidden] { display: none; }
+.proof-workspace[data-enhanced] .pf-card:not([data-current]) { display: none; }
+.proof-detail { min-width: 0; }
+.proof-heading { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 16px; background: var(--surface-d); border-bottom: 1px solid var(--border); }
+.proof-columns { display: grid; grid-template-columns: 1fr 1fr; }
+.proof-decision { grid-column: 1 / -1; border-top: 1px solid var(--border); }
+.proof-decision form { max-width: 680px; }
+.proof-decision input, .proof-decision textarea, .proof-decision select { font-size: 14px; }
+.proof-actions { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 10px; }
+.proof-error { color: var(--on-danger); font-size: 13px; }
+.proof-hint { color: var(--text-m); font-size: 13px; }
+@media(max-width:1100px) {
+  .proof-workspace { grid-template-columns: 1fr; }
+  .proof-workspace[data-enhanced] .proof-queue { position: static; max-height: 260px; }
+}
+@media(max-width:600px) {
+  .proof-columns { grid-template-columns: 1fr; }
+  .proof-actions .btn { flex: 1 1 100%; min-height: 44px; }
+  .btn-sm, .btn-xs { min-height: 44px; }
+}
+
+.proof-workspace:not([data-enhanced]) { display: block; }
+/* Accents lisibles sur les surfaces claires. */
+html.light { --primary: #A23D0C; --purple: #6D28D9; }
+html.light[data-accent="orange"] { --primary: #A23D0C; }
+html.light[data-accent="blue"] { --primary: #1D4ED8; }
+html.light[data-accent="green"] { --primary: #047857; }
+html.light[data-accent="purple"] { --primary: #6D28D9; }
+html.light[data-accent="pink"] { --primary: #BE185D; }

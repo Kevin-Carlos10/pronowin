@@ -141,7 +141,8 @@
         </div>
 
         <div style="margin-top:.75rem;font-size:.82rem;color:var(--text-dim)">
-          Destinataires estimés : <strong id="total-count" style="color:var(--primary);font-size:1rem">…</strong>
+          Destinataires estimés : <strong role="status" id="total-count" style="color:var(--primary);font-size:1rem">…</strong>
+          <button type="button" class="btn btn-outline btn-sm" id="retry-count" hidden onclick="loadCount(document.querySelector('input[name=segment]:checked').value)">Réessayer</button>
         </div>
       </div>
 
@@ -338,7 +339,7 @@ function onSegChange(key) {
   document.getElementById('seg-user-wrap')?.classList.toggle('active', key === 'user');
   document.getElementById('user-target-panel').style.display = key === 'user' ? '' : 'none';
   if (key !== 'user') loadCount(key);
-  else document.getElementById('total-count').textContent = '1';
+  else { countRequest++; audience = null; document.getElementById('retry-count').hidden = true; updateDestDisplay(); }
 }
 
 function toggleUserTarget() {
@@ -352,16 +353,28 @@ function updateDestDisplay() {
   document.getElementById('total-count').textContent = val ? '1 utilisateur' : '—';
 }
 
+let countRequest = 0;
+let audience = null;
 async function loadCount(key) {
-  document.getElementById('total-count').textContent = '…';
+  const request = ++countRequest;
+  audience = null;
+  const total = document.getElementById('total-count');
+  const retry = document.getElementById('retry-count');
+  total.textContent = 'Chargement…';
+  retry.hidden = true;
   try {
-    const r = await fetch('/admin/api/notifications/preview?segment=' + key);
-    const d = await r.json();
-    const n = typeof d.count === 'number' ? d.count.toLocaleString('fr-FR') : d.count;
-    document.getElementById('total-count').textContent = n + (d.estimated ? ' (estimé)' : '');
-    const cntEl = document.getElementById('count-' + key);
-    if (cntEl) cntEl.textContent = n;
-  } catch { document.getElementById('total-count').textContent = '—'; }
+    const d = await apiFetch('/admin/api/notifications/preview?segment=' + encodeURIComponent(key));
+    if (!d || !Number.isInteger(d.count) || d.count < 0) throw new Error('Décompte indisponible');
+    if (request !== countRequest) return;
+    audience = { key, count: d.count, estimated: !!d.estimated };
+    total.textContent = d.count.toLocaleString('fr-FR') + (d.estimated ? ' (estimé)' : '');
+    const badge = document.getElementById('count-' + key);
+    if (badge) badge.textContent = d.count.toLocaleString('fr-FR');
+  } catch {
+    if (request !== countRequest) return;
+    total.textContent = 'Décompte indisponible';
+    retry.hidden = false;
+  }
 }
 
 /* ── Templates ── */
@@ -384,8 +397,15 @@ function confirmSend() {
 
   if (!title || !body) { showToast('Remplissez le titre et le message.', 'error'); return; }
 
+  const form = document.getElementById('notif-form');
+  if (!form.reportValidity()) return;
+  const target = document.getElementById('inp-target-user').value.trim();
+  if (segKey === 'user' && !target) { showToast('Indiquez le destinataire du test.', 'error'); return; }
+  if (segKey !== 'user' && (!audience || audience.key !== segKey || audience.count === 0)) {
+    showToast('Vérifiez le décompte des destinataires avant l’envoi.', 'error'); return;
+  }
   const dest = segKey === 'user'
-    ? '1 utilisateur spécifique'
+    ? 'l’utilisateur ' + target
     : count + ' utilisateurs (' + segMeta.label + ')';
 
   askConfirm({
@@ -413,16 +433,17 @@ function delHist(idx, title) {
 /* ── Init ── */
 document.addEventListener('DOMContentLoaded', function() {
   const checkedSeg = document.querySelector('input[name=segment]:checked')?.value ?? 'all';
+  document.getElementById('notif-form').addEventListener('submit', function(event) { event.preventDefault(); confirmSend(); });
   loadCount(checkedSeg);
   // Charger tous les comptes en arrière-plan
   setTimeout(() => {
     SEGMENTS_DATA.forEach(s => {
       if (s.key !== checkedSeg) {
         fetch('/admin/api/notifications/preview?segment=' + s.key)
-          .then(r => r.json())
+          .then(r => { if (!r.ok) throw new Error('Décompte indisponible'); return r.json(); })
           .then(d => {
             const el = document.getElementById('count-' + s.key);
-            if (el) el.textContent = typeof d.count === 'number' ? d.count.toLocaleString('fr-FR') : d.count;
+            if (el) el.textContent = Number.isInteger(d.count) && d.count >= 0 ? d.count.toLocaleString('fr-FR') : '—';
           }).catch(() => {});
       }
     });

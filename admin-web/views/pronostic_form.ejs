@@ -150,6 +150,11 @@
    les boutons disparaissaient dès le premier scroll. */
 .pf-main-grid { display:grid; grid-template-columns:340px 1fr; gap:1rem; }
 .pf-side      { position:sticky; top:16px; }
+.prono-mobile-summary { display:none; flex-direction:column; gap:4px; padding:12px; margin-bottom:12px; border:1px solid var(--border); border-radius:10px; background:var(--surface); }
+.prono-mobile-summary span { font-size:13px; color:var(--text-m); }
+.prono-actions { display:flex; flex-wrap:wrap; gap:10px; position:sticky; bottom:0; padding:14px; border:1px solid var(--border-s); border-radius:12px; background:var(--surface); z-index:40; margin-top:16px; }
+.prono-actions .btn { min-height:44px; }
+@media(max-width:900px) { #pro-form { padding-bottom:150px; } .prono-actions { position:fixed; left:12px; right:12px; bottom:calc(90px + env(safe-area-inset-bottom)); box-shadow:var(--shadow-lg); } .prono-actions .btn { flex:1; white-space:normal; } }
 /* Deux colonnes internes pour les champs courts (label / confiance) : le
    formulaire tenait sur une seule colonne et laissait ~40 % de la largeur vide. */
 .pf-two       { display:grid; grid-template-columns:1fr 1fr; gap:1rem; align-items:start; }
@@ -161,6 +166,11 @@
 @media(max-width:1180px){
   .pf-main-grid { grid-template-columns:1fr; }
   .pf-side      { position:static; }
+  .pf-main-grid > :first-child { order: 2; }
+  .pf-main-grid > :last-child { order: 1; }
+  .prono-mobile-summary { display:flex !important; }
+  .pf-side .match-preview { padding:.5rem; }
+  .pf-side .mp-team img, .pf-side .mp-team .initial { width:36px; height:36px; }
 }
 @media(max-width:760px){ .pf-two { grid-template-columns:1fr; gap:0; } }
 </style>
@@ -176,6 +186,7 @@
 <% } %>
 
 <form method="POST" action="/admin/pronostics/edit/<%= match.id %>" id="pro-form">
+<div class="prono-mobile-summary"><strong><%= match.homeTeam %> — <%= match.awayTeam %></strong><span><%= match.league %> · <%= dateStr %> · <%= timeStr %></span></div>
 <div class="pf-main-grid">
 
   <!-- ── Colonne gauche : match info + récap + actions (collante) ─────────────── -->
@@ -259,34 +270,7 @@
         </div>
       </div>
 
-      <!-- ── Actions (collées avec le récap : plus besoin de remonter/descendre) ── -->
-      <div style="display:flex;flex-direction:column;gap:.5rem;margin-top:1rem;padding-top:.85rem;border-top:1px solid var(--border)">
-        <%# Sur un match termine, ces deux boutons ne peuvent que echouer : le
-            serveur refuse toute ecriture. Les afficher quand meme, c'est
-            promettre une action impossible. %>
-        <% if(_termine) { %>
-        <div style="font-size:.75rem;color:var(--text-m);line-height:1.55;padding:.6rem .75rem;background:var(--surface-d);border-radius:8px">
-          <strong style="color:var(--text-p)">Match terminé</strong> — le pronostic
-          n'est plus modifiable.<% if(isEdit) { %> Vous pouvez encore le dépublier,
-          ou corriger son résultat plus bas.<% } %>
-        </div>
-        <% } else { %>
-        <button type="submit" name="publish" value="true" class="btn btn-primary" style="justify-content:center">
-          <svg class="ic" aria-hidden="true"><use href="#ic-rocket"/></svg> Publier maintenant
-        </button>
-        <button type="submit" name="publish" value="false" class="btn btn-outline" style="justify-content:center">
-          <svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> Sauvegarder brouillon
-        </button>
-        <% } %>
-        <%# La depublication reste offerte, match termine ou non : elle passe par
-            sa propre route et ne reecrit pas le pronostic. %>
-        <% if(isEdit && pro.is_published) { %>
-        <button type="button" class="btn btn-danger btn-sm" style="justify-content:center"
-          onclick="askConfirm({icon:'trash',title:'Dépublier',msg:'Retirer ce pronostic de la liste publique ?',btnLabel:'Dépublier',btnClass:'btn-danger',onConfirm:()=>depublish()})">
-          <svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Dépublier
-        </button>
-        <% } %>
-      </div>
+
     </div>
    </div>
   </div>
@@ -483,6 +467,34 @@
       </fieldset>
   </div>
 </div>
+      <!-- ── Actions (collées avec le récap : plus besoin de remonter/descendre) ── -->
+      <div class="prono-actions">
+        <%# Sur un match termine, ces deux boutons ne peuvent que echouer : le
+            serveur refuse toute ecriture. Les afficher quand meme, c'est
+            promettre une action impossible. %>
+        <% if(_termine) { %>
+        <div style="font-size:.75rem;color:var(--text-m);line-height:1.55;padding:.6rem .75rem;background:var(--surface-d);border-radius:8px">
+          <strong style="color:var(--text-p)">Match terminé</strong> — le pronostic
+          n'est plus modifiable.<% if(isEdit) { %> Vous pouvez encore le dépublier,
+          ou corriger son résultat plus bas.<% } %>
+        </div>
+        <% } else { %>
+        <button type="submit" name="publish" value="true" class="btn btn-primary" style="justify-content:center">
+          <svg class="ic" aria-hidden="true"><use href="#ic-rocket"/></svg> <%= isEdit && pro.is_published ? 'Enregistrer les modifications' : 'Publier maintenant' %>
+        </button>
+        <button type="submit" name="publish" value="false" class="btn btn-outline" style="justify-content:center">
+          <svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> Sauvegarder brouillon
+        </button>
+        <% } %>
+        <%# La depublication reste offerte, match termine ou non : elle passe par
+            sa propre route et ne reecrit pas le pronostic. %>
+        <% if(isEdit && pro.is_published) { %>
+        <button type="button" class="btn btn-danger btn-sm" style="justify-content:center"
+          onclick="askConfirm({icon:'trash',title:'Dépublier',msg:'Retirer ce pronostic de la liste publique ?',btnLabel:'Dépublier',btnClass:'btn-danger',onConfirm:()=>depublish()})">
+          <svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Dépublier
+        </button>
+        <% } %>
+      </div>
 </form>
 
 <%# Dépublication : formulaire séparé, et nécessairement hors du précédent —

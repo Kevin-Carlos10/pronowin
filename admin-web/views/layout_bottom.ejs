@@ -197,6 +197,8 @@ window.addEventListener('DOMContentLoaded', () => {
    CONFIRM DIALOG
 ═══════════════════════════════════════════════════════════════ */
 let _confirmCallback = null;
+let _confirmOrigin = null;
+let _confirmOverflow = "";
 
 // `icon` est un identifiant du sprite ('trash', 'ban'…), jamais du balisage :
 // écrire du HTML dans un onclick="" oblige à imbriquer des guillemets, ce qui
@@ -226,11 +228,21 @@ function askConfirm({ icon = 'alert', title = 'Confirmer', msg = 'Êtes-vous sû
   btn.textContent = btnLabel;
   btn.className   = `btn ${btnClass}`;
   _confirmCallback = onConfirm;
+  _confirmOrigin = document.activeElement;
+  _confirmOverflow = document.body.style.overflow;
+  document.body.style.overflow = 'hidden';
+  document.querySelector('.layout').inert = true;
   document.getElementById('confirm-overlay').classList.add('open');
+  document.getElementById('confirm-cancel-btn').focus();
 }
 function closeConfirm() {
-  document.getElementById('confirm-overlay').classList.remove('open');
+  const overlay = document.getElementById('confirm-overlay');
+  if (!overlay.classList.contains('open')) return;
+  overlay.classList.remove('open');
+  document.querySelector('.layout').inert = false;
+  document.body.style.overflow = _confirmOverflow;
   _confirmCallback = null;
+  if (_confirmOrigin?.isConnected) _confirmOrigin.focus();
 }
 function submitConfirm() {
   const callback = _confirmCallback;
@@ -239,7 +251,14 @@ function submitConfirm() {
 }
 // Fermer sur Escape
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') closeConfirm();
+  if (!document.getElementById('confirm-overlay').classList.contains('open')) return;
+  if (e.key === 'Escape') { e.preventDefault(); closeConfirm(); }
+  if (e.key === 'Tab') {
+    const cancel = document.getElementById('confirm-cancel-btn');
+    const confirm = document.getElementById('confirm-ok-btn');
+    if (e.shiftKey && document.activeElement === cancel) { e.preventDefault(); confirm.focus(); }
+    else if (!e.shiftKey && document.activeElement === confirm) { e.preventDefault(); cancel.focus(); }
+  }
 });
 
 /* ═══════════════════════════════════════════════════════════════
@@ -908,6 +927,11 @@ setInterval(refreshBadges, 30000);
 
   // Indicateur visuel SSE dans la page (petite pastille dans le footer sidebar)
   function _sseSetStatus(online) {
+    const indicator = document.getElementById('live-indicator');
+    if (indicator) {
+      indicator.textContent = online ? 'Temps réel connecté' : 'Reconnexion…';
+      indicator.style.color = online ? 'var(--on-success)' : 'var(--on-warning)';
+    }
     let dot = document.getElementById('sse-status-dot');
     if (!dot) {
       dot = document.createElement('span');
@@ -976,5 +1000,6 @@ document.addEventListener('DOMContentLoaded', function() {
   _updateAccentUI(accent);
 });
 </script>
+<script src="/admin-ux.js"></script>
 </body>
 </html>

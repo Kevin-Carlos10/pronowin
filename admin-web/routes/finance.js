@@ -444,7 +444,11 @@ module.exports = (app, ctx) => {
   app.post('/admin/abonnements/:id', requireAuth, requirePerm('abonnements', 'write'), async (req, res) => {
     const a = api(req.cookies.admin_token);
     try {
+      if (!['approve', 'reject'].includes(req.body.action)) throw new Error('Décision invalide');
       const approved = req.body.action === 'approve';
+      if (!approved && !String(req.body.admin_note ?? '').trim()) {
+        return res.redirect('/admin/abonnements?error=' + encodeURIComponent('Indiquez un motif pour expliquer le rejet.'));
+      }
       await a.patch('/subscriptions/admin/proofs/' + req.params.id, {
         approved,
         admin_note:    req.body.admin_note ?? null,
