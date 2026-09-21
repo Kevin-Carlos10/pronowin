@@ -1,6 +1,5 @@
 ﻿import 'dart:ui';
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
@@ -27,7 +26,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   late int _currentIndex;
   late List<AnimationController> _iconControllers;
   late List<Animation<double>> _iconScales;
-  bool _navVisible = true;
 
   static const _guestPages = {
     2: GuestLockedView(
@@ -109,37 +107,31 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
       body: Column(
         children: [
           const OfflineBanner(),
+          // La barre ne réagit plus au défilement, et le mécanisme qui le
+          // faisait est retiré plutôt que débranché : un `NotificationListener`
+          // qui n'alimente qu'un champ que personne ne lit se remet en service
+          // tout seul le jour où quelqu'un le croit encore utile.
           Expanded(
-            child: NotificationListener<UserScrollNotification>(
-              // Rétrécit la barre au scroll vers le bas (plus de place pour le
-              // contenu), la ramène à sa taille normale au scroll vers le haut
-              // — les notifications de scroll remontent naturellement depuis
-              // n'importe quelle liste de la page active, pas besoin d'y toucher.
-              onNotification: (notification) {
-                if (notification.direction == ScrollDirection.reverse) {
-                  if (_navVisible) setState(() => _navVisible = false);
-                } else if (notification.direction == ScrollDirection.forward) {
-                  if (!_navVisible) setState(() => _navVisible = true);
-                }
-                return false;
-              },
-              child: IndexedStack(index: _currentIndex, children: _pages(loggedIn)),
-            ),
+            child: IndexedStack(index: _currentIndex, children: _pages(loggedIn)),
           ),
         ],
       ),
-      bottomNavigationBar: AnimatedScale(
-        duration: const Duration(milliseconds: 220),
-        curve: Curves.easeOutCubic,
-        alignment: Alignment.bottomCenter,
-        scale: _navVisible ? 1.0 : 0.82,
-        child: _FloatingNavBar(
-          currentIndex: _currentIndex,
-          items: _navItems,
-          iconScales: _iconScales,
-          bottomPadding: bottomPadding,
-          onTap: _onTap,
-        ),
+      // La barre garde sa taille, quoi qu'il arrive au défilement.
+      //
+      // Elle tombait à 82 % au scroll vers le bas, pour « laisser plus de
+      // place au contenu ». Le gain réel est d'une dizaine de pixels ; le coût
+      // était un libellé de 10 px lu autour de 8, et des cibles amputées de
+      // près d'un cinquième de leur surface — au moment précis où l'on
+      // parcourt une liste, et donc où l'on peut vouloir changer d'onglet.
+      //
+      // Un élément de navigation est soit pleinement utilisable, soit absent.
+      // Entre les deux, il occupe la place sans se laisser atteindre.
+      bottomNavigationBar: _FloatingNavBar(
+        currentIndex: _currentIndex,
+        items: _navItems,
+        iconScales: _iconScales,
+        bottomPadding: bottomPadding,
+        onTap: _onTap,
       ),
     );
   }
@@ -178,7 +170,7 @@ class _FloatingNavBar extends StatelessWidget {
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
-            height: BottomNavMetrics.hauteur,
+            height: BottomNavMetrics.hauteur(context),
             decoration: BoxDecoration(
               color: context.cl.surface.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(22),
@@ -278,7 +270,7 @@ class _NavItemWidget extends StatelessWidget {
                   duration: const Duration(milliseconds: 220),
                   style: TextStyle(
                     color: isSelected ? AppColors.primary : context.cl.textM,
-                    fontSize: 10,
+                    fontSize: BottomNavMetrics.taillePolice,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                   ),
                   child: Text(item.label),
