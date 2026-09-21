@@ -152,9 +152,32 @@ export async function resetBankroll(userId: string) {
     }
   }
 
+  // Les paris encore en attente restent engagés.
+  //
+  // Le solde repartait du budget entier, mises en cours comprises. Or leur
+  // montant avait déjà été déduit, et le règlement crédite ensuite le gain
+  // **complet** (`_settlementCredit`) : la mise se retrouvait remboursée deux
+  // fois.
+  //
+  // Mise de 2 000 à la cote 2 sur un budget de 10 000 : solde 8 000,
+  // réinitialisation à 10 000, le pari gagne et crédite 4 000 — 14 000 au lieu
+  // de 12 000. Et s'il perd, la perte disparaît au lieu de coûter 2 000. Le
+  // suivi devenait faux dans les deux sens, à volonté, tous les trente jours.
+  //
+  // Repartir du budget **moins ce qui est encore engagé** laisse l'arithmétique
+  // du règlement juste, quel que soit le moment de la remise à zéro.
+  const { _sum } = await prisma.bankrollBet.aggregate({
+    where: { bankrollId: bankroll.id, result: null },
+    _sum:  { stakedAmount: true },
+  });
+  const engage = _sum.stakedAmount ?? 0;
+
   return prisma.userBankroll.update({
     where: { userId },
-    data:  { currentBalance: bankroll.totalBudget, lastResetAt: new Date() } as any,
+    data:  {
+      currentBalance: parseFloat((bankroll.totalBudget - engage).toFixed(2)),
+      lastResetAt:    new Date(),
+    } as any,
   });
 }
 

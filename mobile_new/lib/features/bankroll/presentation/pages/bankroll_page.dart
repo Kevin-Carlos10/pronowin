@@ -46,7 +46,6 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
                 filter:      _filter,
                 onFilter:    (f) => setState(() => _filter = f),
                 onSetBudget: () => _showBudgetDialog(context, bankroll),
-                onReset:     () => _confirmReset(context, ref),
               ),
       ),
     );
@@ -57,7 +56,12 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _BudgetSheet(existing: existing),
+      builder: (_) => _BudgetSheet(
+        existing: existing,
+        // Une seule confirmation, partagée : une seconde copie du texte
+        // finirait par ne plus dire la même chose que le serveur fait.
+        onReset: () => _confirmReset(context, ref),
+      ),
     );
   }
 
@@ -70,7 +74,16 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
         title: Text('Réinitialiser ?',
             style: TextStyle(color: context.cl.textP, fontWeight: FontWeight.w700)),
         content: Text(
-          'Ton solde sera remis à ton budget initial. L\'historique des paris reste conservé.',
+          // Ce qu'elle taisait, et qui décide de la réponse :
+          //
+          //  - le délai de trente jours, que le serveur applique et que
+          //    l'utilisateur ne découvrait qu'au refus suivant ;
+          //  - le sort des paris en cours, dont la mise reste engagée —
+          //    sans quoi la réinitialisation la rembourserait, puis le
+          //    règlement créditerait le gain entier.
+          'Ton solde repart de ton budget initial, moins les mises encore '
+          'en jeu. L\'historique des paris est conservé.\n\n'
+          'Une seule réinitialisation tous les 30 jours.',
           style: TextStyle(color: context.cl.textS, fontSize: 14)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false),
@@ -115,14 +128,12 @@ class _BankrollView extends StatelessWidget {
   final _BetFilter   filter;
   final ValueChanged<_BetFilter> onFilter;
   final VoidCallback onSetBudget;
-  final VoidCallback onReset;
 
   const _BankrollView({
     required this.bankroll,
     required this.filter,
     required this.onFilter,
     required this.onSetBudget,
-    required this.onReset,
   });
 
   List<BankrollBet> get _filtered {
@@ -319,27 +330,14 @@ class _BankrollView extends StatelessWidget {
           _DisciplineReminder()
             .animate(delay: 120.ms).fadeIn(duration: 300.ms),
 
-          const SizedBox(height: 16),
-
-          // ── Reset ─────────────────────────────────────────────────────
-          GestureDetector(
-            onTap: onReset,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color:  AppColors.error.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.error.withValues(alpha: 0.2), width: 0.8)),
-              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.refresh_rounded, color: AppColors.error, size: 16),
-                SizedBox(width: 6),
-                Text('Réinitialiser le solde', style: TextStyle(
-                  color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w600)),
-              ]),
-            ),
-          ).animate(delay: 140.ms).fadeIn(duration: 300.ms),
-
+          // « Réinitialiser le solde » occupait ici toute la largeur, cerclé
+          // de rouge, entre le bilan et les filtres — aussi visible qu'une
+          // action principale, alors qu'elle efface un suivi et ne peut être
+          // refaite que trente jours plus tard.
+          //
+          // Elle a rejoint la feuille de réglages, derrière l'icône de
+          // l'en-tête où l'on va déjà changer son budget. Le geste reste
+          // accessible ; il n'est plus à portée de pouce distrait.
           const SizedBox(height: 24),
 
           // ── Filtres ───────────────────────────────────────────────────
@@ -1146,7 +1144,17 @@ class _SetupView extends StatelessWidget {
 // ── Bottom sheet budget ───────────────────────────────────────────────────────
 class _BudgetSheet extends ConsumerStatefulWidget {
   final BankrollData? existing;
-  const _BudgetSheet({this.existing});
+
+  /// Réinitialiser le solde, depuis les réglages.
+  ///
+  /// Le geste vivait en pleine page, pleine largeur et cerclé de rouge, entre
+  /// le bilan et les filtres. Il est ici parce que c'est un réglage de la
+  /// bankroll, au même titre que le budget — et parce qu'une action qui efface
+  /// un suivi pour trente jours n'a pas à se trouver sous le pouce de
+  /// quelqu'un qui parcourt ses paris.
+  final VoidCallback? onReset;
+
+  const _BudgetSheet({this.existing, this.onReset});
   @override
   ConsumerState<_BudgetSheet> createState() => _BudgetSheetState();
 }
@@ -1321,6 +1329,37 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
                     color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700))),
           ),
         ),
+        // Réinitialiser : proposé seulement si une bankroll existe déjà, et
+        // présenté comme ce qu'il est — discret, et suivi de ses conséquences.
+        if (widget.existing != null && widget.onReset != null) ...[
+          const SizedBox(height: 18),
+          Divider(color: context.cl.border, height: 1),
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: () {
+              Navigator.pop(context);
+              widget.onReset!();
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Row(children: [
+              Icon(Icons.refresh_rounded, color: context.cl.textM, size: 17),
+              const SizedBox(width: 9),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Réinitialiser le solde',
+                    style: TextStyle(
+                      color: context.cl.textS, fontSize: 13.5,
+                      fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Repart du budget, moins les mises en jeu. '
+                    'Une fois tous les 30 jours.',
+                    style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
+                ])),
+            ]),
+          ),
+        ],
       ]),
     );
   }
