@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'aides/code_seul.dart';
 
 /// La page qui demande 15 $ par mois ne doit rien promettre qu'elle ne livre.
 ///
@@ -26,7 +27,7 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   final source = File(
     'lib/features/compte/presentation/pages/compte_page.dart',
-  ).readAsStringSync();
+  ).readAsStringSync().pipeCodeSeul();
 
   /// Les seules lignes d'avantage, commentaires exclus.
   ///

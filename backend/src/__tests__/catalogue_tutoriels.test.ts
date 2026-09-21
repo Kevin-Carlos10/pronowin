@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import { codeSeul } from './aides/code_seul';
 
 /**
  * Le catalogue de repli a été retiré, et il ne doit pas revenir.
@@ -44,7 +45,7 @@ import * as path from 'path';
 const FICHIER = path.resolve(__dirname, '..', 'services', 'tutorial.service.ts');
 
 describe('catalogue des tutoriels', () => {
-  const source = fs.readFileSync(FICHIER, 'utf8');
+  const source = codeSeul(fs.readFileSync(FICHIER, 'utf8'));
 
   it('aucun catalogue écrit en dur ne subsiste', () => {
     expect(source).not.toContain('const DEMO_TUTORIALS');

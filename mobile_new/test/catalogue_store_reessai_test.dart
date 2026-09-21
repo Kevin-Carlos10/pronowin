@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'aides/code_seul.dart';
 
 /// Quand le catalogue du store ne se charge pas, l'écran doit pouvoir s'en
 /// remettre.
@@ -29,7 +30,7 @@ void main() {
     String lire(String chemin) {
       final f = File(chemin);
       if (!f.existsSync()) fail('Fichier introuvable : $chemin');
-      return f.readAsStringSync();
+      return f.readAsStringSync().pipeCodeSeul();
     }
 
     service = lire('lib/features/abonnement/data/iap_service.dart');

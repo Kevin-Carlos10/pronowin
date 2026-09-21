@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'aides/code_seul.dart';
 
 /// Toute ressource créée par un `State` doit être libérée.
 ///
@@ -53,7 +54,7 @@ void main() {
       .whereType<File>()
       .where((f) => f.path.endsWith('.dart'))
       .where((f) {
-        final s = f.readAsStringSync();
+        final s = f.readAsStringSync().pipeCodeSeul();
         return s.contains('extends State<') ||
                s.contains('extends ConsumerState<');
       })
@@ -64,7 +65,7 @@ void main() {
     // vacuité — c'est le mode de panne le plus courant de ce genre de test.
     var suivies = 0;
     for (final f in etats) {
-      suivies += creation.allMatches(f.readAsStringSync()).length;
+      suivies += creation.allMatches(f.readAsStringSync().pipeCodeSeul()).length;
     }
 
     expect(etats.length, greaterThanOrEqualTo(15),
@@ -77,7 +78,7 @@ void main() {
     final fuites = <String>[];
 
     for (final f in etats) {
-      final src = f.readAsStringSync();
+      final src = f.readAsStringSync().pipeCodeSeul();
       final chemin = f.path.replaceAll(RegExp(r'\\'), '/');
 
       for (final m in creation.allMatches(src)) {
@@ -101,7 +102,7 @@ void main() {
     final sansDispose = <String>[];
 
     for (final f in etats) {
-      final src = f.readAsStringSync();
+      final src = f.readAsStringSync().pipeCodeSeul();
       if (creation.allMatches(src).isEmpty) continue;
       if (src.contains('void dispose()')) continue;
 

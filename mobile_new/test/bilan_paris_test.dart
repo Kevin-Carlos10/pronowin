@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pronowin/shared/utils/bilan_paris.dart';
+import 'aides/code_seul.dart';
 
 /// Ce que la carte « Mes stats bankroll » a le droit d'affirmer.
 ///
@@ -287,7 +288,7 @@ void main() {
 
     setUpAll(() {
       page = File('lib/features/bankroll/presentation/pages/bankroll_page.dart')
-          .readAsStringSync();
+          .readAsStringSync().pipeCodeSeul();
     });
 
     test('un onglet leur est réservé', () {
@@ -318,7 +319,7 @@ void main() {
       // sans ce contrôle, retirer la clé côté serveur ramènerait le défaut
       // d'origine sans faire tomber un seul test.
       final ctrl = File('../backend/src/controllers/profile.controller.ts')
-          .readAsStringSync();
+          .readAsStringSync().pipeCodeSeul();
       expect(ctrl, contains('paris_rembourses:'),
           reason: "l'API ne compte plus les remboursés : le mobile les "
                   'recomptera comme « en attente »');
@@ -341,14 +342,14 @@ void main() {
   test('les écrans qui retiennent le taux ne laissent pas un tiret nu', () {
     final bankroll = File(
       'lib/features/bankroll/presentation/pages/bankroll_page.dart',
-    ).readAsStringSync();
+    ).readAsStringSync().pipeCodeSeul();
     expect(bankroll, contains('mentionAvantLeTaux'),
         reason: 'cet écran est désormais le seul endroit où ce bilan se lit ; '
                 'il doit dire pourquoi le taux est retenu');
 
     final accueil = File(
       'lib/features/accueil/presentation/pages/accueil/encarts.dart',
-    ).readAsStringSync();
+    ).readAsStringSync().pipeCodeSeul();
     expect(accueil, contains('if (bilanCarte.taux != null)'),
         reason: 'la carte est trop étroite pour expliquer : elle masque le '
                 'taux plutôt que de montrer un « — win » qui reste muet');

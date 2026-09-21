@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'aides/code_seul.dart';
 
 /// Un lien vers un tutoriel doit ouvrir ce tutoriel.
 ///
@@ -29,7 +30,7 @@ void main() {
     String lire(String chemin) {
       final f = File(chemin);
       if (!f.existsSync()) fail('Fichier introuvable : $chemin');
-      return f.readAsStringSync();
+      return f.readAsStringSync().pipeCodeSeul();
     }
 
     page = lire(

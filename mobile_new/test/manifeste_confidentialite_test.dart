@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
+import 'aides/code_seul.dart';
 
 /// Le manifeste de confidentialité iOS, et sa présence dans le bundle.
 ///
@@ -30,7 +31,7 @@ void main() {
     });
 
     test('les quatre clés attendues par Apple sont présentes', () {
-      final src = manifeste.readAsStringSync();
+      final src = manifeste.readAsStringSync().pipeCodeSeul();
 
       for (final cle in const [
         'NSPrivacyTracking',
@@ -43,7 +44,7 @@ void main() {
     });
 
     test('chaque type de donnée déclare son usage et son rattachement', () {
-      final src = manifeste.readAsStringSync();
+      final src = manifeste.readAsStringSync().pipeCodeSeul();
 
       // Un type déclaré sans `Purposes` fait rejeter le manifeste entier.
       final types  = RegExp(r'<string>NSPrivacyCollectedDataType[A-Z]\w*</string>')
@@ -67,7 +68,7 @@ void main() {
     test('le manifeste est membre du projet Xcode', () {
       // Les quatre endroits où Xcode inscrit une ressource. En oublier un seul
       // suffit à ce que le fichier ne parte pas dans le bundle.
-      final src = pbxproj.readAsStringSync();
+      final src = pbxproj.readAsStringSync().pipeCodeSeul();
 
       final ref = RegExp(
         r'([0-9A-F]{24}) /\* PrivacyInfo\.xcprivacy \*/ = \{isa = PBXFileReference')
@@ -92,7 +93,7 @@ void main() {
       // Un pbxproj mal formé casse toute compilation iOS, et cette machine ne
       // peut pas la lancer. Le contrôle est faible mais il attrape la faute la
       // plus probable d'une édition à la main.
-      final src = pbxproj.readAsStringSync();
+      final src = pbxproj.readAsStringSync().pipeCodeSeul();
 
       expect('{'.allMatches(src).length, '}'.allMatches(src).length);
       expect('('.allMatches(src).length, ')'.allMatches(src).length);

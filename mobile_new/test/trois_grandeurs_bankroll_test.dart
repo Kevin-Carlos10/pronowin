@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pronowin/shared/utils/resume_paris.dart';
+import 'aides/code_seul.dart';
 
 /// Disponible, engagé, résultat net : trois grandeurs, trois noms.
 ///
@@ -53,7 +54,7 @@ void main() {
 
     setUpAll(() {
       page = File('lib/features/bankroll/presentation/pages/bankroll_page.dart')
-          .readAsStringSync();
+          .readAsStringSync().pipeCodeSeul();
     });
 
     test('« solde − budget » ne sert plus de résultat', () {
@@ -89,7 +90,7 @@ void main() {
 
     setUpAll(() {
       page = File('lib/features/bankroll/presentation/pages/bankroll_page.dart')
-          .readAsStringSync();
+          .readAsStringSync().pipeCodeSeul();
     });
 
     test('elle ne s\'intitule plus « Évolution du solde »', () {

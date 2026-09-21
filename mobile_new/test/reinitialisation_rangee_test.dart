@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'aides/code_seul.dart';
 
 /// Où vit « Réinitialiser le solde », et ce que sa confirmation annonce.
 ///
@@ -40,7 +41,8 @@ void main() {
 
   setUpAll(() {
     page = File('lib/features/bankroll/presentation/pages/bankroll_page.dart')
-        .readAsStringSync();
+        .readAsStringSync()
+        .pipeCodeSeul();
 
     final debut = page.indexOf('_confirmReset(BuildContext');
     expect(debut, greaterThan(-1), reason: '_confirmReset est introuvable');

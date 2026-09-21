@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'aides/code_seul.dart';
 
 /// Absence, chargement et panne ne se ressemblent pas.
 ///
@@ -28,7 +29,7 @@ void main() {
   setUpAll(() {
     final f = File('lib/features/compte/presentation/pages/compte_page.dart');
     if (!f.existsSync()) fail('Page introuvable : ${f.path}');
-    page = f.readAsStringSync();
+    page = f.readAsStringSync().pipeCodeSeul();
   });
 
   group('le rafraîchissement attend les réponses', () {
