@@ -10,6 +10,7 @@ import '../../features/bankroll/presentation/pages/bankroll_page.dart';
 import '../../features/tutoriels/presentation/pages/tutoriels_page.dart';
 import '../../features/compte/presentation/pages/compte_page.dart';
 import 'bottom_nav_metrics.dart';
+import 'pile_onglets_paresseuse.dart';
 import 'guest_locked_view.dart';
 import 'offline_banner.dart';
 
@@ -112,7 +113,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
           // qui n'alimente qu'un champ que personne ne lit se remet en service
           // tout seul le jour où quelqu'un le croit encore utile.
           Expanded(
-            child: IndexedStack(index: _currentIndex, children: _pages(loggedIn)),
+            child: PileOngletsParesseuse(
+              index:    _currentIndex,
+              children: _pages(loggedIn),
+            ),
           ),
         ],
       ),

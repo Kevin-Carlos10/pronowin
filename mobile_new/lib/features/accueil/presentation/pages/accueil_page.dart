@@ -23,6 +23,7 @@ import '../../../bankroll/presentation/widgets/miser_dialog.dart';
 import '../providers/accueil_provider.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
+import '../../../../shared/widgets/pile_onglets_paresseuse.dart';
 import '../../../../shared/utils/devise.dart';
 import '../../../../shared/utils/bilan_paris.dart';
 import '../../../../shared/providers/favoris_provider.dart';
@@ -64,24 +65,75 @@ class AccueilPage extends ConsumerStatefulWidget {
   ConsumerState<AccueilPage> createState() => _AccueilPageState();
 }
 
-class _AccueilPageState extends ConsumerState<AccueilPage> {
+/// Faut-il redemander les pronostics du jour ?
+///
+/// ── Ce que le minuteur ne regardait pas ───────────────────────────────────
+///
+/// Il ne posait qu'une question : y a-t-il un match en direct ? Si oui, il
+/// rechargeait la liste, toutes les 45 secondes, sans fin.
+///
+/// Or `AccueilPage` reste vivante quand on passe à un autre onglet, et un
+/// minuteur Dart continue quand l'application part en arrière-plan. Un match
+/// en cours pendant que le téléphone est dans une poche, c'est donc une
+/// requête toutes les 45 secondes — 80 par heure — pour rafraîchir un écran
+/// que personne ne regarde.
+///
+/// ── Ce qu'il regarde maintenant ───────────────────────────────────────────
+///
+/// Les trois conditions doivent tenir ensemble : il y a quelque chose à
+/// suivre, l'onglet est celui qu'on affiche, et l'application est au premier
+/// plan. `resumed` est le seul état vraiment visible ; `inactive` couvre aussi
+/// les instants où un appel arrive ou où l'on tire le volet des réglages.
+///
+/// ── Ce que les journaux montrent, et ne montrent pas ──────────────────────
+///
+/// Aucune trace de ce trafic dans les journaux nginx du jour, pour une raison
+/// simple : aucun pronostic n'était publié, donc `enDirect` était faux partout.
+/// Le correctif est préventif — il porte sur les jours où il y a du contenu en
+/// direct, qui sont précisément ceux où l'application sert à quelque chose.
+@visibleForTesting
+bool doitRafraichirEnDirect({
+  required bool enDirect,
+  required bool ongletVisible,
+  required AppLifecycleState cycle,
+}) =>
+    enDirect && ongletVisible && cycle == AppLifecycleState.resumed;
+
+class _AccueilPageState extends ConsumerState<AccueilPage>
+    with WidgetsBindingObserver {
   Timer? _liveTimer;
   String? _selectedLeague; // null = tous
+  AppLifecycleState _cycle = AppLifecycleState.resumed;
+  bool _ongletVisible = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _liveTimer = Timer.periodic(const Duration(seconds: 45), (_) {
       final pronostics = ref.read(pronosticsJourProvider).valueOrNull;
       final hasLive = pronostics?.any(
         (p) => (p as Map<String, dynamic>)['status'] == 'live',
       ) ?? false;
-      if (hasLive) ref.invalidate(pronosticsJourProvider);
+      if (doitRafraichirEnDirect(
+        enDirect:      hasLive,
+        ongletVisible: _ongletVisible,
+        cycle:         _cycle,
+      )) {
+        ref.invalidate(pronosticsJourProvider);
+      }
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState etat) {
+    super.didChangeAppLifecycleState(etat);
+    _cycle = etat;
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _liveTimer?.cancel();
     super.dispose();
   }
@@ -103,6 +155,11 @@ class _AccueilPageState extends ConsumerState<AccueilPage> {
 
   @override
   Widget build(BuildContext context) {
+    // Lu ici, et pas ailleurs : `dependOnInheritedWidgetOfExactType` crée la
+    // dépendance qui ramène cette page quand la pile change d'onglet. Le
+    // minuteur lit ensuite le champ, sans avoir besoin d'un `BuildContext`.
+    _ongletVisible = OngletVisible.de(context);
+
     final authState  = ref.watch(authProvider);
     final pronostics = ref.watch(pronosticsJourProvider);
     final actualites = ref.watch(actualitesProvider);
