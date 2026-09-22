@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import { AdminRequest } from '../middleware/admin.middleware';
 import { prisma } from '../lib/prisma';
 import * as svc from '../services/bankroll.service';
+import { partSelonConfiance } from '../services/mise_suggeree';
 
 export const getBankroll = async (req: AuthRequest, res: Response) => {
   try {
@@ -87,6 +88,9 @@ export const placeBet = async (req: AuthRequest, res: Response) => {
       });
       return;
     }
+    if (e instanceof svc.MiseAActualiser) {
+      res.status(409).json({message:e.message, code:'STAKE_CHANGED'}); return;
+    }
     const isDuplicate = e.message?.includes('déjà misé');
     res.status(isDuplicate ? 409 : 400).json({
       message: e.message,
@@ -107,16 +111,30 @@ export const getSuggestedStake = async (req: AuthRequest, res: Response) => {
     const bankroll = await svc.getBankroll(req.userId!);
     if (!bankroll) { res.status(404).json({ message: 'Pas de bankroll configurée.' }); return; }
 
-    // Le défaut valait `'60'` — un pourcentage, là où l'on attend une note de
-    // 1 à 5. `60 >= 5` retenait donc la part la plus élevée : en l'absence du
-    // paramètre, l'API conseillait la mise maximale. Un défaut doit être
-    // prudent, pas généreux.
-    const brut = parseInt(req.query.confidence as string, 10);
-    const confidenceScore = Number.isFinite(brut) ? brut : 3;
+    // Le nouveau mobile transmet le pronostic : la note vient du serveur.
+    // Compatibilité avec les versions déjà installées : confidence ne sert
+    // qu'à l'aperçu ; placeBet impose toujours la vraie note du pronostic.
+    let confidenceScore = Number(req.query.confidence ?? 3);
+    if (req.query.pronostic_id != null) {
+      if (typeof req.query.pronostic_id !== 'string' || req.query.pronostic_id.length > 80) {
+        res.status(400).json({message:'Pronostic invalide.'}); return;
+      }
+      const id = req.query.pronostic_id;
+      const pro = await prisma.pronostic.findUnique({where:{id}}) ??
+        await prisma.pronostic.findUnique({where:{matchId:id}});
+      if (!pro) { res.status(404).json({message:'Pronostic introuvable.'}); return; }
+      confidenceScore = pro.confidenceScore;
+    }
+    if (!Number.isInteger(confidenceScore) || confidenceScore < 1 || confidenceScore > 5) {
+      res.status(400).json({message:'Confiance invalide : note attendue de 1 à 5.'}); return;
+    }
     const suggested = svc.suggestStake(
       bankroll.currentBalance, confidenceScore, bankroll.currency);
     res.json({
       suggested_amount: suggested,
+      stake_percent:    partSelonConfiance(confidenceScore) * 100,
+      confidence_score: confidenceScore,
+      stake_rule:       "analyst_confidence",
       current_balance:  bankroll.currentBalance,
       currency:         bankroll.currency,
     });

@@ -472,7 +472,11 @@ export const fetchUpcoming = async (req: AdminRequest, res: Response) => {
 
 export const upsertPronostic = async (req: AdminRequest, res: Response) => {
   try {
-    const b       = req.body;
+    const b = req.body;
+    const confidence = Number(b.confidence_score);
+    if (!Number.isInteger(confidence) || confidence < 1 || confidence > 5) {
+      res.status(400).json({message:'La confiance doit être une note entière de 1 à 5.'}); return;
+    }
     const publish = b.publish === true || b.publish === 'true';
     const p = await svc.upsertPronostic({
       matchId:         b.match_id,
@@ -485,7 +489,7 @@ export const upsertPronostic = async (req: AdminRequest, res: Response) => {
       oddsDraw:        parseFloat(b.odds_draw),
       oddsAway:        parseFloat(b.odds_away),
       oddsRecommended: parseFloat(b.odds_recommended),
-      confidenceScore: parseInt(b.confidence_score),
+      confidenceScore: confidence,
       analystNote:     b.analyst_note,
       isPremium:       b.is_premium === true || b.is_premium === 'true',
       publish,

@@ -857,8 +857,8 @@ class _PronosticCard extends StatelessWidget {
       null                 => '',
     };
     return 'Pronostic : $marche$_pick.$cote '
-        'Indice de confiance ${MatchEntity.percentForConfidence(match.confidenceScore)} '
-        'pour cent, ${MatchEntity.labelForConfidence(match.confidenceScore)}.$verdict';
+        'Confiance de l’analyste ${MatchEntity.confidenceDisplay(match.confidenceScore)} '
+        '${MatchEntity.labelForConfidence(match.confidenceScore)}.$verdict';
   }
 
   @override
@@ -988,7 +988,7 @@ class _ConfianceRappel extends StatelessWidget {
           fontWeight: FontWeight.w700,
           letterSpacing: 0.8)),
       const SizedBox(height: 7),
-      Text('${MatchEntity.percentForConfidence(score)} %',
+      Text(MatchEntity.confidenceDisplay(score),
         style: TextStyle(
           color: couleur.withValues(alpha: 0.75),
           fontSize: 15,
@@ -1653,7 +1653,7 @@ class _DetailConfidenceBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final percent = MatchEntity.percentForConfidence(score);
+    final level = score.clamp(0, 5);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1666,10 +1666,10 @@ class _DetailConfidenceBar extends StatelessWidget {
                   letterSpacing: 0.8)),
           const Spacer(),
           TweenAnimationBuilder<int>(
-            tween: IntTween(begin: 0, end: percent),
+            tween: IntTween(begin: level, end: level),
             duration: const Duration(milliseconds: 900),
             curve: Curves.easeOutCubic,
-            builder: (_, val, child) => Text('$val%',
+            builder: (_, val, child) => Text('$val/5',
                 style: TextStyle(
                     color: _color, fontSize: 15, fontWeight: FontWeight.w800,
                     height: 1)),
@@ -1677,7 +1677,7 @@ class _DetailConfidenceBar extends StatelessWidget {
         ]),
         const SizedBox(height: 7),
         TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: percent / 100),
+          tween: Tween(begin: 0, end: level / 5),
           duration: const Duration(milliseconds: 900),
           curve: Curves.easeOutCubic,
           builder: (_, val, child) => ClipRRect(

@@ -3,7 +3,10 @@ import { authMiddleware, optionalAuthMiddleware, premiumMiddleware, premiumSaufM
 import { adminMiddleware } from '../middleware/admin.middleware';
 import * as C from '../controllers/pronostics.controller';
 
+import { getAdminScores } from '../controllers/admin_scores.controller';
+
 const r = Router();
+r.post('/admin/scores', adminMiddleware, getAdminScores);
 
 // ── Public (sans auth) ────────────────────────────────────────────────────────
 r.get ('/daily',     C.getDailyFree);

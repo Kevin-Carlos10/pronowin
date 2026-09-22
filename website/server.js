@@ -223,11 +223,11 @@ const productBlocks = [
     // « Football, basketball et tennis » : il n'existe aucune notion de sport
     // dans le schéma, ni rien hors football. Le site vendait deux sports que
     // l'application ne traite pas.
-    text: "Chaque pronostic porte sa cote, les statistiques du match et un niveau de confiance exprimé en pourcentage — le même que celui affiché dans l'application.",
+    text: "Chaque pronostic porte sa cote, les statistiques du match et une note de confiance de l’analyste sur 5 — la même que celle affichée dans l'application.",
     photo: '/images/banner-analysis.png',
     stats: [
       { value: 'Cotes',   label: 'affichées par match' },
-      { value: '%',       label: 'confiance chiffrée, pas un mot' },
+      { value: '/5',      label: 'confiance de l’analyste' },
       { value: 'Gratuit', label: 'une sélection chaque jour' },
     ],
     // 78 %, 55 % et 71 % figuraient ici. L'application ne peut afficher aucun
@@ -244,9 +244,9 @@ const productBlocks = [
     // Un banc lit maintenant cette liste et la table de l'application, et refuse
     // tout pourcentage que le produit ne saurait pas produire.
     apercu: [
-      { badge: 'green', icone: 'ball', titre: 'Real Madrid vs Barcelone', sous: 'Confiance 90 %  ·  Cote 1.72' },
-      { badge: 'green', icone: 'ball', titre: 'Bayern vs Dortmund',       sous: 'Confiance 80 %  ·  Cote 2.10' },
-      { badge: 'green', icone: 'ball', titre: 'Juventus vs Milan',        sous: 'Confiance 95 %  ·  Cote 1.95' },
+      { badge: 'green', icone: 'ball', titre: 'Real Madrid vs Barcelone', sous: 'Confiance 4/5  ·  Cote 1.72' },
+      { badge: 'green', icone: 'ball', titre: 'Bayern vs Dortmund',       sous: 'Confiance 3/5  ·  Cote 2.10' },
+      { badge: 'green', icone: 'ball', titre: 'Juventus vs Milan',        sous: 'Confiance 5/5  ·  Cote 1.95' },
     ],
   },
   {

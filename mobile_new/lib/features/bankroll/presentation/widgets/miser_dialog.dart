@@ -70,34 +70,6 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
   double? _confirmedStake;
   String? _confirmedCurrency;
 
-  // confidenceScore = 1-5 (étoiles choisies par l'admin à la publication)
-  String get _ruleLabel {
-    // « Confiance maximale / moyenne / faible » disait en mots ce que la
-    // tuile voisine disait en fraction. Deux formes pour une grandeur, et
-    // aucune des deux n'etait celle du reste de l'application.
-    final p = MatchEntity.percentForConfidence(widget.confidenceScore);
-    if (widget.confidenceScore >= 5) return '5% du solde  ·  Confiance $p %';
-    if (widget.confidenceScore >= 3) return '3% du solde  ·  Confiance $p %';
-    return '1,5% du solde  ·  Confiance $p %';
-  }
-
-  Color get _confColor {
-    if (widget.confidenceScore >= 5) return AppColors.success;
-    if (widget.confidenceScore >= 3) return AppColors.warning;
-    return AppColors.error;
-  }
-
-  /// Le pourcentage, comme partout ailleurs dans l'application.
-  ///
-  /// Cette boite affichait « 4/5 ». Trois branches rendaient d'ailleurs la
-  /// meme chaine — un reste de remaniement que personne n'avait retire, et
-  /// qui donnait l'illusion d'un choix.
-  ///
-  /// La conversion vient de `MatchEntity.percentForConfidence` : la recopier
-  /// ici aurait cree un second bareme, muet le jour ou le premier change.
-  String get _confLabel =>
-      '${MatchEntity.percentForConfidence(widget.confidenceScore)} %';
-
   /// Passe par le chemin unique d'ouverture.
   ///
   /// Cet ecran avait sa propre copie de `launchUrl` — celle-la meme que le
@@ -128,7 +100,11 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
       if (e is DioException) {
         final code    = e.response?.data?['code']    as String?;
         final srvMsg  = e.response?.data?['message'] as String?;
-        if (code == 'BET_ALREADY_PLACED' || srvMsg?.contains('déjà misé') == true) {
+        if (code == 'STAKE_CHANGED') {
+          ref.invalidate(suggestedStakeProvider(widget.pronosticId));
+          ref.invalidate(bankrollProvider);
+          msg = 'Le solde ou le pronostic a changé. Vérifie le montant recalculé puis confirme à nouveau.';
+        } else if (code == 'BET_ALREADY_PLACED' || srvMsg?.contains('déjà misé') == true) {
           msg = 'Tu as déjà placé un pari sur ce match.';
           _alreadyBet = true;
         } else if (srvMsg?.contains('Solde insuffisant') == true) {
@@ -139,13 +115,13 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
       } else {
         msg = 'Erreur lors de la mise.';
       }
-      setState(() { _error = msg; _loading = false; });
+      if (mounted) setState(() { _error = msg; _loading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final suggestAsync = ref.watch(suggestedStakeProvider(widget.confidenceScore));
+    final suggestAsync = ref.watch(suggestedStakeProvider(widget.pronosticId));
 
     // ── Vue post-confirmation ────────────────────────────────────────────────
     if (_confirmed && _confirmedStake != null) {
@@ -291,8 +267,15 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
           final balance  = (s['current_balance']  as num).toDouble();
           final currency = s['currency'] as String;
           final gain     = stake * widget.oddsRecommended;
+          final confidence = (s['confidence_score'] as num?)?.toInt() ?? widget.confidenceScore;
+          final percent = (s['stake_percent'] as num?)?.toDouble() ?? (confidence >= 5 ? 5.0 : confidence >= 3 ? 3.0 : 1.5);
+          final confColor = confidence >= 4 ? AppColors.success : AppColors.warning;
+          final confLabel = MatchEntity.confidenceDisplay(confidence);
+          final percentLabel = percent == percent.roundToDouble() ? percent.toStringAsFixed(0) : percent.toString();
+          final ruleLabel = '${percentLabel.replaceAll('.', ',')} % du solde';
+          final canSubmit = stake.isFinite && stake > 0 && stake <= balance;
 
-          return Column(mainAxisSize: MainAxisSize.min, children: [
+          return SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
 
             // Handle
             Container(width: 40, height: 4,
@@ -346,10 +329,10 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                   Text('Confiance', style: TextStyle(color: context.cl.textM, fontSize: 10)),
                   Row(children: [
                     Container(width: 6, height: 6,
-                      decoration: BoxDecoration(color: _confColor, shape: BoxShape.circle)),
+                      decoration: BoxDecoration(color: confColor, shape: BoxShape.circle)),
                     const SizedBox(width: 4),
-                    Text(_confLabel, style: TextStyle(
-                      color: _confColor, fontSize: 12, fontWeight: FontWeight.w700)),
+                    Text(confLabel, style: TextStyle(
+                      color: confColor, fontSize: 12, fontWeight: FontWeight.w700)),
                   ]),
                 ]),
               ]),
@@ -370,7 +353,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                 border: Border.all(
                   color: AppColors.success.withValues(alpha: 0.3), width: 1)),
               child: Column(children: [
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Wrap(spacing: 12, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text('Mise calculée', style: TextStyle(
                       color: context.cl.textS, fontSize: 12)),
@@ -383,12 +366,12 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _confColor.withValues(alpha: 0.12),
+                      color: confColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: _confColor.withValues(alpha: 0.3), width: 0.7)),
-                    child: Text(_ruleLabel, style: TextStyle(
-                      color: _confColor, fontSize: 10, fontWeight: FontWeight.w700)),
+                        color: confColor.withValues(alpha: 0.3), width: 0.7)),
+                    child: Text(ruleLabel, style: TextStyle(
+                      color: confColor, fontSize: 10, fontWeight: FontWeight.w700)),
                   ),
                 ]),
                 const SizedBox(height: 10),
@@ -399,7 +382,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                     color: AppColors.success, size: 13),
                   const SizedBox(width: 6),
                   Expanded(child: Text(
-                    'Montant fixé par la discipline bankroll — non modifiable.',
+                    'Barème imposé : 1–2/5 → 1,5 % · 3–4/5 → 3 % · 5/5 → 5 %. Calcul sur le solde disponible, arrondi à l’unité monétaire inférieure.',
                     style: TextStyle(color: context.cl.textS, fontSize: 11))),
                 ]),
               ]),
@@ -410,8 +393,8 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
             // Gain potentiel + solde restant
             Row(children: [
               Expanded(child: _InfoChip(
-                label: 'Gain potentiel',
-                value: '+${montantExact(gain)} $currency',
+                label: 'Retour si gagné',
+                value: '${montantExact(gain)} $currency',
                 color: AppColors.primary)),
               const SizedBox(width: 10),
               Expanded(child: _InfoChip(
@@ -420,6 +403,10 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                 color: context.cl.textS)),
             ]),
 
+            if (!canSubmit) ...[
+              const SizedBox(height: 12),
+              const Text('Le montant calculé est inférieur à l’unité monétaire disponible. Aucune mise ne peut être enregistrée.', style: TextStyle(color: AppColors.warning)),
+            ],
             if (_error != null) ...[
               const SizedBox(height: 12),
               Container(
@@ -452,13 +439,13 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
 
             // Bouton confirmer
             GestureDetector(
-              onTap: (_loading || _alreadyBet) ? null : () => _submit(stake, currency),
+              onTap: (_loading || _alreadyBet || !canSubmit) ? null : () => _submit(stake, currency),
               child: AnimatedContainer(
                 duration: 200.ms,
                 width: double.infinity, height: 54,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: (_loading || _alreadyBet)
+                    colors: (_loading || _alreadyBet || !canSubmit)
                       ? [AppColors.success.withValues(alpha: 0.5),
                          const Color(0xFF059669).withValues(alpha: 0.5)]
                       : [AppColors.success, const Color(0xFF059669)]),
@@ -474,9 +461,9 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                       Icon(Icons.check_circle_rounded,
                         color: Colors.white, size: 20),
                       SizedBox(width: 8),
-                      Text('Confirmer la mise', style: TextStyle(
+                      Flexible(child: Text('Confirmer la mise', textAlign: TextAlign.center, style: TextStyle(
                         color: Colors.white, fontSize: 16,
-                        fontWeight: FontWeight.w700)),
+                        fontWeight: FontWeight.w700))),
                     ])),
               ),
             ),
@@ -487,7 +474,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
               child: Text('Annuler', style: TextStyle(
                 color: context.cl.textM, fontSize: 13)),
             ),
-          ]);
+          ]));
         },
       ),
     );

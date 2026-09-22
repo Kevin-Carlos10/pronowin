@@ -510,23 +510,16 @@
 <% } %>
 
 <script>
-/* ── Étoiles ──
-   Le score 1-5 saisi ici n'est jamais montré tel quel à l'abonné : l'app mobile
-   le convertit en pourcentage (match_entity.dart, _confidencePercentByScore).
-   On affiche donc les deux, sinon l'admin note « 3/5 » sans savoir qu'il promet
-   80 % de confiance. Toute modification de la table côté mobile doit être
-   répercutée ici. */
-const CONF_PERCENT = { 1: 60, 2: 70, 3: 80, 4: 90, 5: 95 };
-
+/* Note éditoriale de l’analyste, sans conversion en probabilité. */
 function setStar(v) {
   document.getElementById('conf-input').value = v;
   document.querySelectorAll('.star').forEach((s, i) => {
     s.classList.toggle('active', i < v);
     s.setAttribute('aria-checked', (i + 1) === v ? 'true' : 'false');
   });
-  const labels = ['','Très faible','Faible','Moyen','Bon','Excellent'];
+  const labels = ['','Très faible','Faible','Modérée','Élevée','Très élevée'];
   document.getElementById('star-label').innerHTML =
-    `Confiance : ${v}/5 — ${labels[v]||''} · <strong>l'abonné verra ${CONF_PERCENT[v]} %</strong>`;
+    `Confiance de l’analyste : ${v}/5 — ${labels[v]||''}. Cette note ne représente pas une probabilité de victoire.`;
   updateRecap();
 }
 const _initStar = parseInt(document.getElementById('conf-input').value) || 3;
@@ -541,7 +534,7 @@ function updateRecap() {
 
   document.getElementById('recap-label').textContent  = label || '—';
   document.getElementById('recap-odd').textContent    = odd ? Number(odd).toFixed(2) : '—';
-  document.getElementById('recap-conf').textContent   = (CONF_PERCENT[conf] || '—') + ' %';
+  document.getElementById('recap-conf').textContent   = conf + '/5';
   const acc = document.getElementById('recap-access');
   acc.textContent  = vip ? '👑 Premium' : 'Tous';
   // --warning tombe à 2,15:1 sur fond clair ; --on-warning est le ton

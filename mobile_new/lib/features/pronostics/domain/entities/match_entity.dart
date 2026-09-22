@@ -81,35 +81,10 @@ class MatchEntity extends Equatable {
     return ConfidenceLevel.low;
   }
 
-  /// Score de confiance (1-5, fixé par l'admin) exprimé en pourcentage rond,
-  /// plus lisible et plus "data" que des étoiles. Plafonné à 95% (jamais 100%) :
-  /// aucun résultat sportif n'est certain, un "100%" affiché sonnerait comme
-  /// une garantie absolue plutôt qu'une estimation de confiance.
-  ///
-  /// ── Réserve connue, décision en attente ──────────────────────────────────
-  ///
-  /// « plus "data" que des étoiles » dit exactement le problème : ce nombre
-  /// emprunte l'apparence d'une mesure sans en être une. Il ne vient ni du
-  /// modèle statistique ni d'un historique de calibration — c'est la note que
-  /// l'analyste a cochée à la publication, convertie par la table ci-dessous.
-  /// Un lecteur qui voit « 95 % » comprend « 95 chances sur 100 ».
-  ///
-  /// L'audit de septembre 2026 recommande de présenter cette donnée comme une
-  /// appréciation éditoriale (« Confiance de l'analyste : très élevée ») et de
-  /// réserver un pourcentage à un calcul évalué sur des résultats passés.
-  ///
-  /// La décision est différée : c'est un choix de produit, il touche neuf
-  /// écrans, et il appartient à l'éditeur. Cette note reste pour que le choix
-  /// demeure visible plutôt que de se perdre — et pour que personne ne prenne
-  /// cette table pour une probabilité en la relisant.
-  int get confidencePercent => percentForConfidence(confidenceScore);
+  /// Appréciation éditoriale de l'analyste, pas une probabilité de victoire.
+  static bool validConfidence(int score) => score >= 1 && score <= 5;
+  static String confidenceDisplay(int score) => validConfidence(score) ? '$score/5' : 'Non évaluée';
 
-  static const Map<int, int> _confidencePercentByScore = {1: 60, 2: 70, 3: 80, 4: 90, 5: 95};
-
-  /// Même conversion que [confidencePercent], utilisable sans instance de
-  /// [MatchEntity] (ex: un score lu depuis une Map brute d'API).
-  static int percentForConfidence(int score) =>
-      _confidencePercentByScore[score.clamp(1, 5)]!;
 
   /// Libellé de confiance — **source unique**.
   ///
@@ -118,11 +93,11 @@ class MatchEntity extends Equatable {
   /// « Fort » sur la carte de partage. On garde les cinq paliers, qui sont
   /// les seuls à correspondre au score réellement stocké (1 à 5).
   static const Map<int, String> _confidenceLabelByScore = {
-    1: 'Risqué', 2: 'Faible', 3: 'Moyen', 4: 'Bon', 5: 'Excellent',
+    1: 'Très faible', 2: 'Faible', 3: 'Modérée', 4: 'Élevée', 5: 'Très élevée',
   };
 
   static String labelForConfidence(int score) =>
-      _confidenceLabelByScore[score.clamp(1, 5)]!;
+      _confidenceLabelByScore[score] ?? 'Non évaluée';
 
   String get confidenceLabel => labelForConfidence(confidenceScore);
 

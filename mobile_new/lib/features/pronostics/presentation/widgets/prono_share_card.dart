@@ -359,7 +359,7 @@ class PronoShareCard extends StatelessWidget {
                       // chiffres. Le mot ne disait pas ce que « Bon » vaut.
                       const SizedBox(height: 4),
                       Text(
-                        '${match.confidencePercent} %',
+                        MatchEntity.confidenceDisplay(match.confidenceScore),
                         style: TextStyle(
                           color: _confColor,
                           fontSize: 22,

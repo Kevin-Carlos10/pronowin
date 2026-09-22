@@ -101,23 +101,13 @@ void main() {
     });
   });
 
-  group('confiance — une seule échelle dans toute l\'app', () {
-    test('le score 3 vaut 80 %, pas 60 %', () {
-      // La page « Détail du pari » affichait « 3/5 ». Lu comme une fraction,
-      // c'est 60 % — vingt points sous ce que la page du match annonce pour la
-      // même donnée.
-      expect(MatchEntity.percentForConfidence(3), 80);
-      expect(MatchEntity.percentForConfidence(3), isNot(60));
+  group('confiance sur cinq', () {
+    test('les cinq notes restent des notes', () {
+      expect([1,2,3,4,5].map(MatchEntity.confidenceDisplay).toList(), ['1/5','2/5','3/5','4/5','5/5']);
     });
-
-    test('la table couvre les cinq paliers', () {
-      expect([1, 2, 3, 4, 5].map(MatchEntity.percentForConfidence).toList(),
-          [60, 70, 80, 90, 95]);
-    });
-
-    test('un score hors bornes est ramené dans l\'échelle', () {
-      expect(MatchEntity.percentForConfidence(0), 60);
-      expect(MatchEntity.percentForConfidence(9), 95);
+    test('un score invalide reste non évalué', () {
+      expect(MatchEntity.confidenceDisplay(0), 'Non évaluée');
+      expect(MatchEntity.confidenceDisplay(9), 'Non évaluée');
     });
   });
 

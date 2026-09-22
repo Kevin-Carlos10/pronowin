@@ -14,6 +14,10 @@ const notifSvc = new NotificationService();
  * reconnaître `code` pour rafraîchir sa liste au lieu d'afficher un message
  * d'erreur générique.
  */
+export class MiseAActualiser extends Error {
+  constructor() { super('La mise calculée ou le solde a changé. Vérifiez le nouveau montant avant de confirmer.'); this.name = 'MiseAActualiser'; }
+}
+
 export class PariFerme extends Error {
   readonly statut = 409;
   constructor(readonly motif: RefusPari) {
@@ -24,12 +28,8 @@ export class PariFerme extends Error {
 
 // ── Mise suggérée ─────────────────────────────────────────────────────────────
 //
-// Le calcul vit dans `mise_suggeree.ts`, avec le détail de ce qu'il fait et de
-// ce qu'il ne fait pas — il s'appelait « Kelly simplifié » sans employer ni
-// probabilité ni cote, imposait un plancher de 100 sans regarder le solde, et
-// arrondissait à la centaine quelle que soit la devise.
-//
-// `confidenceScore` est l'échelle 1-5 cochée par l'analyste à la publication.
+// La note 1–5 fixe la part obligatoire du solde disponible.
+// Le calcul est partagé par l’aperçu et la validation de la mise.
 export function suggestStake(
   balance: number,
   confidenceScore: number,
@@ -189,7 +189,7 @@ export async function placeBet(
 ) {
   const bankroll = await prisma.userBankroll.findUnique({ where: { userId } });
   if (!bankroll) throw new Error('Configure ton budget d\'abord.');
-  if (stakedAmount <= 0) throw new Error('La mise doit être positive.');
+  if (!Number.isFinite(stakedAmount) || stakedAmount <= 0) throw new Error('La mise doit être positive.');
   if (stakedAmount > bankroll.currentBalance) throw new Error('Solde insuffisant.');
 
   const pronostic = await prisma.pronostic.findUnique({ where: { id: pronosticId } });
@@ -225,20 +225,25 @@ export async function placeBet(
   });
   if (refus) throw new PariFerme(refus);
 
+  const balanceAtCalculation = bankroll.currentBalance;
   const suggestedAmount = suggestStake(
     bankroll.currentBalance, pro.confidenceScore, bankroll.currency);
+  if (suggestedAmount <= 0) throw new Error('Le solde ou la confiance ne permet pas de calculer une mise valide.');
+  if (Math.abs(stakedAmount - suggestedAmount) > 1e-8) throw new MiseAActualiser();
+  stakedAmount = suggestedAmount; // montant canonique, sans décimales supplémentaires du client
   const oddsUsed        = pro.oddsRecommended;
   const potentialGain   = parseFloat((stakedAmount * oddsUsed).toFixed(2));
 
-  // Déduction atomique et conditionnelle : le WHERE currentBalance>=stakedAmount est
+  // Déduction atomique : le solde doit encore être celui utilisé pour le calcul.
+  // Le WHERE currentBalance=balanceAtCalculation est
   // évalué par Postgres au moment de l'UPDATE (verrou ligne), pas au moment de la
   // lecture ci-dessus — évite qu'un pari concurrent fasse passer le solde en négatif.
   const bet = await prisma.$transaction(async (tx) => {
     const decremented = await tx.userBankroll.updateMany({
-      where: { userId, currentBalance: { gte: stakedAmount } },
+      where: { userId, currentBalance: balanceAtCalculation },
       data:  { currentBalance: { decrement: stakedAmount } },
     });
-    if (decremented.count === 0) throw new Error('Solde insuffisant.');
+    if (decremented.count === 0) throw new MiseAActualiser();
 
     return tx.bankrollBet.create({
       data: {

@@ -175,9 +175,9 @@ export async function getPersonalizedPronostics(
     }
 
     // ── Confiance de l'analyste ─────────────────────────────────────────
-    const confNorm = Math.min(p.confidenceScore, 100) / 100;
+    const confNorm = Math.max(0, Math.min(p.confidenceScore, 5)) / 5;
     score += Math.round(confNorm * 10);
-    if (p.confidenceScore >= 80) reasons.push('Forte confiance de l\'analyste');
+    if (p.confidenceScore >= 4) reasons.push('Forte confiance de l\'analyste');
 
     // ── Probabilité statistique ─────────────────────────────────────────
     const aiProb = p.aiProbability ?? computeProbability(
@@ -191,7 +191,7 @@ export async function getPersonalizedPronostics(
 
     // Fallback si l'utilisateur n'a pas d'historique
     if (profile.isEmpty && reasons.length === 0) {
-      if (p.confidenceScore >= 75) reasons.push('Sélection haute confiance');
+      if (p.confidenceScore >= 4) reasons.push('Sélection haute confiance');
       if (p.isPremium) reasons.push('Pronostic VIP');
     }
 

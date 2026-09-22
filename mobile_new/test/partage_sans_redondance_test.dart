@@ -99,7 +99,7 @@ void main() {
       final code = codeSeul(partage);
       for (final champ in [
         'match.league',              // la pastille de ligue
-        'confidencePercent',         // l'encadré Confiance
+        'confidenceDisplay',         // l'encadré Confiance
         'oddsRecommended',           // l'encadré Cote
         'displayPredictionLabel',    // le pronostic en grand
         'homeScore',                 // le score, quand le match est joué

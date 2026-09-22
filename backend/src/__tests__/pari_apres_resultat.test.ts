@@ -65,10 +65,10 @@ describe('la saisie ferme au coup d\'envoi', () => {
     // inutilisable.
     poser({ dansCombienDHeures: 24 });
 
-    const pari = await miser(1000);
+    const pari = await miser(300);
 
     expect(pari).toBeDefined();
-    expect(solde()).toBe(9000);
+    expect(solde()).toBe(9700);
     expect(_base.bankrollBets.size).toBe(1);
   });
 
@@ -190,5 +190,27 @@ describe('la règle, cas par cas', () => {
       expect(MESSAGE_REFUS[motif]).toBeTruthy();
       expect(MESSAGE_REFUS[motif].length).toBeGreaterThan(20);
     }
+  });
+});
+
+describe('le barème est obligatoire côté serveur', () => {
+  it.each([1, 299, 301, 1000, NaN, Infinity])('refuse une mise différente du calcul : %s', async montant => {
+    poser({});
+    await expect(miser(montant)).rejects.toThrow();
+    expect(solde()).toBe(10000);
+    expect(_base.bankrollBets.size).toBe(0);
+  });
+  it('une note changée impose de confirmer le nouveau montant', async () => {
+    poser({}); _base.pronostics.get('p1').confidenceScore = 5;
+    await expect(miser(300)).rejects.toThrow('changé');
+    await miser(500); expect(solde()).toBe(9500);
+  });
+  it('deux mises concurrentes ne réutilisent pas le même solde de calcul', async () => {
+    poser({});
+    _base.matches.set('m2', {..._base.matches.get('m1'), id:'m2'});
+    _base.pronostics.set('p2', {..._base.pronostics.get('p1'), id:'p2', matchId:'m2'});
+    const results = await Promise.allSettled([placeBet('u1','p1',300),placeBet('u1','p2',300)]);
+    expect(results.filter(r => r.status === 'fulfilled')).toHaveLength(1);
+    expect(solde()).toBe(9700);
   });
 });

@@ -94,7 +94,7 @@ class _PronosticCard extends ConsumerWidget {
       final c = prono['odds_recommended'] as num?;
       if (c != null) annonce.write(', cote ${c.toStringAsFixed(2)}');
       if (conf > 0) {
-        annonce.write(', confiance ${MatchEntity.percentForConfidence(conf)} %');
+        annonce.write(', confiance ${MatchEntity.confidenceDisplay(conf)}');
       }
     }
 

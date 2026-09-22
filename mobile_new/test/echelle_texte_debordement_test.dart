@@ -30,6 +30,7 @@ void main() {
     String league = 'UEFA Champions League',
     MatchStatus status = MatchStatus.upcoming,
     bool avecPronostic = true,
+    int confiance = 4,
   }) =>
       MatchEntity(
         id: 'm1',
@@ -45,7 +46,13 @@ void main() {
         oddsHome: 1.34,
         oddsDraw: 4.5,
         oddsAway: 8.0,
-        confidenceScore: 80,
+        // 4, et non 80 : la confiance est une note de 1 a 5. La valeur 80
+        // venait de l'epoque ou l'ecran affichait un pourcentage, et la table
+        // de conversion la ramenait silencieusement a 5 par `clamp`. Le jour
+        // ou la note est devenue « n/5 », elle est sortie de l'echelle et la
+        // carte a debordé — le gabarit testait un etat que la production ne
+        // produit pas.
+        confidenceScore: confiance,
         isPremium: false,
         homeFormPoints: 9,
         awayFormPoints: 4,
@@ -101,6 +108,57 @@ void main() {
 
           // Un débordement de mise en page remonte comme exception : c'est la
           // bande rayée jaune et noire, en version testable.
+          expect(tester.takeException(), isNull);
+        });
+      }
+    }
+
+    // Toutes les notes, pas une seule.
+    //
+    // C'est le trou par lequel le defaut est passe : le banc balayait quatre
+    // echelles et trois largeurs, mais toujours avec la meme note. Or c'est la
+    // note qui decide du libelle, et le libelle va de « Bon » (trois lettres)
+    // a « Tres elevee » (onze). Mesure : les notes 1 et 5 faisaient deborder
+    // la carte de 6,8 px a 320 px / echelle 1,5 — les notes 2, 3 et 4 non.
+    //
+    // En production seules les notes 3, 4 et 5 sont publiees. Tout pronostic
+    // a cinq etoiles cassait donc la mise en page sur un Android d'entree de
+    // gamme dont l'utilisateur a grossi les caracteres.
+    for (final note in [1, 2, 3, 4, 5]) {
+      testWidgets('note $note · 320 px · échelle 1.5', (tester) async {
+        await rendre(
+          tester,
+          MatchCardWidget(match: fabriquer(confiance: note)),
+          echelle: 1.5,
+          largeur: 320,
+        );
+        expect(tester.takeException(), isNull,
+            reason: 'le libellé « ${MatchEntity.labelForConfidence(note)} » '
+                'ne doit pas imposer une largeur que la rangée n a pas');
+      });
+    }
+
+    // Une note hors echelle existe dans le code : `confidenceDisplay` rend
+    // alors « Non évaluée ». C'est en corrigeant le gabarit ci-dessus qu'on
+    // s'en est apercu — ces onze caracteres en corps 15 gras faisaient deborder
+    // la carte de 15 px a 320 px / echelle 1,15, et de 47 px a l'echelle 1,3.
+    //
+    // Le gabarit se trompait, mais il exercait un cas reel : la colonne
+    // `confidence_score` est un entier sans contrainte, et rien n'empeche une
+    // valeur hors bornes d'arriver. Une protection qui, en se declenchant,
+    // casse l'ecran qu'elle protege n'en est pas une.
+    //
+    // On garde donc le cas, cette fois volontairement.
+    for (final echelle in echelles) {
+      for (final largeur in largeurs) {
+        testWidgets('note hors échelle · $echelle · ${largeur.toInt()} px',
+            (tester) async {
+          await rendre(
+            tester,
+            MatchCardWidget(match: fabriquer(confiance: 80)),
+            echelle: echelle,
+            largeur: largeur,
+          );
           expect(tester.takeException(), isNull);
         });
       }

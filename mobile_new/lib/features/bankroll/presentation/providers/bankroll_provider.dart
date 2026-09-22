@@ -184,12 +184,12 @@ final bankrollStatsProvider = FutureProvider.autoDispose<BankrollStats?>((ref) a
   return BankrollStats.fromJson(r.data as Map<String, dynamic>);
 });
 
-// Mise suggérée pour un pronostic donné (confidence score)
+// Mise obligatoire calculée avec la note actuelle du pronostic côté serveur.
 final suggestedStakeProvider = FutureProvider.autoDispose
-    .family<Map<String, dynamic>, int>((ref, confidenceScore) async {
+    .family<Map<String, dynamic>, String>((ref, pronosticId) async {
   final dio = ref.read(dioProvider);
   final r   = await dio.get('/bankroll/suggest',
-      queryParameters: {'confidence': confidenceScore});
+      queryParameters: {'pronostic_id': pronosticId});
   return r.data as Map<String, dynamic>;
 });
 

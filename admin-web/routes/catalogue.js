@@ -24,6 +24,21 @@ module.exports = (app, ctx) => {
     SA_FILE, BANS_FILE, NEWS_FILE, LOG_FILE, NOTIF_FILE, SETTINGS_FILE,
   } = ctx;
 
+  // Lecture seule groupée, avec les mêmes droits que la liste des pronostics.
+  app.post('/admin/api/pronostics/scores', requireAuth, requirePerm('pronostics'), async (req, res) => {
+    const ids = req.body?.ids;
+    if (!Array.isArray(ids) || !ids.length || ids.length > 400 || ids.some(id => typeof id !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(id))) {
+      return res.status(400).json({message:'Liste de matchs invalide.'});
+    }
+    try {
+      const r = await api(req.cookies.admin_token).post('/pronostics/admin/scores', {ids});
+      res.setHeader('Cache-Control','no-store');
+      res.json(r.data);
+    } catch(e) {
+      res.status(e.response?.status === 401 ? 401 : 503).json({message:'Actualisation des scores indisponible.'});
+    }
+  });
+
   app.get('/admin/pronostics', requireAuth, requirePerm('pronostics'), async (req, res) => {
     const a = api(req.cookies.admin_token);
     const competition   = req.query.competition ?? '';

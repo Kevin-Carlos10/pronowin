@@ -238,7 +238,7 @@ app.listen(PORT, () => {
     // excluait avant ; avec la marge de quota dégagée par le throttle du
     // filet de sécurité, plus besoin de ce blackout.
     const runSync = async () => {
-      pronoSvc.syncMatchScores().catch((err: Error) =>
+      await pronoSvc.syncMatchScores().catch((err: Error) =>
         logger.error('[ScoreSync] Erreur', { message: err.message }));
     };
 

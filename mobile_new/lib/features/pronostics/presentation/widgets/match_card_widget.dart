@@ -340,7 +340,11 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
             ),
             const SizedBox(width: 10),
             // Score confiance (jauge)
-            ConfidenceIndicator(score: widget.match.confidenceScore),
+            // Flexible, et non figé : sans cela la rangée réserve d'abord la
+            // largeur du libellé, puis déborde quand il n'en reste plus assez.
+            Flexible(
+              child: ConfidenceIndicator(score: widget.match.confidenceScore),
+            ),
           ]),
 
           const SizedBox(height: 8),
