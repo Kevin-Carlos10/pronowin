@@ -27,8 +27,13 @@ process.env.ADMIN_DELEGATION_SECRET ??= 'delegation-de-banc';
  * base qui en accepte 100. Les bancs qui écrivent en base se prenaient alors
  * les connexions les uns des autres, et échouaient au hasard — « Unable to
  * start a transaction in the given time », ou un délai de Jest dépassé —
- * sans que le code en cause y soit pour rien. Quatre par processus : 84 au
- * plus, sous la limite.
+ * sans que le code en cause y soit pour rien. Trois par processus : 63 au
+ * plus, sous la limite, avec la marge des connexions déjà ouvertes.
+ *
+ * Et un délai de connexion de 20 s au lieu de 5 : au démarrage, les 21
+ * processus ouvrent leurs connexions ensemble, et certaines attendaient plus
+ * de 5 s leur tour — « Can't reach database server » alors que la base
+ * tournait.
  */
 // Seulement DATABASE_URL : charger tout le fichier .env ici rendrait le
 // stockage S3 configuré pour chaque banc, y compris ceux qui éprouvent son
@@ -39,5 +44,5 @@ const fichierEnv = path.join(__dirname, '.env');
 const url = process.env.DATABASE_URL
   ?? (fs.existsSync(fichierEnv) ? require('dotenv').parse(fs.readFileSync(fichierEnv)).DATABASE_URL : undefined);
 if (url && !/[?&]connection_limit=/.test(url)) {
-  process.env.DATABASE_URL = url + (url.includes('?') ? '&' : '?') + 'connection_limit=4';
+  process.env.DATABASE_URL = url + (url.includes('?') ? '&' : '?') + 'connection_limit=3&connect_timeout=20';
 }

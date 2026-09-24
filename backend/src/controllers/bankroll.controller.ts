@@ -4,7 +4,7 @@ import { AdminRequest } from '../middleware/admin.middleware';
 import { prisma } from '../lib/prisma';
 import * as svc from '../services/bankroll.service';
 import { partSelonConfiance } from '../services/mise_suggeree';
-import { repondreErreur } from '../utils/erreurs';
+import { ErreurMetier, repondreErreur } from '../utils/erreurs';
 
 export const getBankroll = async (req: AuthRequest, res: Response) => {
   try {
@@ -17,6 +17,7 @@ export const getBankroll = async (req: AuthRequest, res: Response) => {
     // cinquante paris renvoyés, et les présentait comme le bilan complet. Au
     // cinquante-et-unième, les chiffres devenaient faux en silence.
     const resume = await svc.resumeParis(bankroll.id);
+    const plafond = await svc.plafondExposition();
 
     res.json({
       id:             bankroll.id,
@@ -24,6 +25,9 @@ export const getBankroll = async (req: AuthRequest, res: Response) => {
       current_balance: bankroll.currentBalance,
       currency:       bankroll.currency,
       resume,
+      // Part de la bankroll que les paris en cours peuvent engager ensemble
+      // (B2) ; null : pas de plafond.
+      plafond_exposition: plafond,
       // Combien de lignes accompagnent ce bilan — pour que l'écran puisse dire
       // « 50 des 128 paris » au lieu de laisser croire qu'il les montre tous.
       paris_affiches: bankroll.bets.length,
@@ -38,6 +42,9 @@ export const getBankroll = async (req: AuthRequest, res: Response) => {
         profit:          b.profit,
         settled_at:      b.settledAt,
         created_at:      b.createdAt,
+        // M1 : la mise réelle se confirme au résultat, pendant quelques jours.
+        mise_confirmee:  b.miseConfirmeeLe !== null,
+        a_confirmer:     svc.miseAConfirmer(b),
         match: {
           id:          b.pronostic.match.id,
           home_team:   b.pronostic.match.homeTeam,
@@ -54,11 +61,14 @@ export const getBankroll = async (req: AuthRequest, res: Response) => {
 
 export const setBudget = async (req: AuthRequest, res: Response) => {
   try {
-    const { total_budget, currency } = req.body;
-    if (!total_budget || total_budget <= 0) {
+    const { total_budget, currency } = req.body ?? {};
+    const budget = Number(total_budget);
+    if (!Number.isFinite(budget) || budget <= 0 || budget > 1e12) {
       res.status(400).json({ message: 'Budget invalide.' }); return;
     }
-    const b = await svc.setBudget(req.userId!, parseFloat(total_budget), currency);
+    // Sans devise dans la demande, la bankroll garde la sienne : le défaut
+    // « XOF » d'avant ré-étiquetait une bankroll en euros.
+    const b = await svc.setBudget(req.userId!, budget, typeof currency === 'string' ? currency : undefined);
     res.json({ total_budget: b.totalBudget, current_balance: b.currentBalance, currency: b.currency });
   } catch (e: any) { repondreErreur(res, e, 400); }
 };
@@ -92,12 +102,21 @@ export const placeBet = async (req: AuthRequest, res: Response) => {
     if (e instanceof svc.MiseAActualiser) {
       res.status(409).json({message:e.message, code:'STAKE_CHANGED'}); return;
     }
+    if (e instanceof ErreurMetier) { repondreErreur(res, e); return; }
     const isDuplicate = e.message?.includes('déjà misé');
     res.status(isDuplicate ? 409 : 400).json({
       message: e.message,
       ...(isDuplicate ? { code: 'BET_ALREADY_PLACED' } : {}),
     });
   }
+};
+
+/** POST /bankroll/bet/:id/confirmer — { mise_reelle? } ; sans montant : « oui ». */
+export const confirmerMise = async (req: AuthRequest, res: Response) => {
+  try {
+    const r = await svc.confirmerMise(req.userId!, req.params.id, req.body?.mise_reelle);
+    res.json(r);
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getStats = async (req: AuthRequest, res: Response) => {
@@ -176,6 +195,13 @@ export const adminGetBankrollDetail = async (req: AdminRequest, res: Response) =
       svc.getBankroll(req.params.userId),
       svc.getBankrollStats(req.params.userId),
     ]);
+    // Le journal des mouvements (B1) : ce qui permet de répondre à une
+    // contestation, et la preuve qu'aucune écriture n'est passée à côté.
+    const [journal, mouvements] = bankroll ? await Promise.all([
+      svc.verifierMouvements(bankroll.id),
+      prisma.bankrollMouvement.findMany({
+        where: { bankrollId: bankroll.id }, orderBy: { creeLe: 'desc' }, take: 50 }),
+    ]) : [null, []];
 
     res.json({
       user,
@@ -186,6 +212,11 @@ export const adminGetBankrollDetail = async (req: AdminRequest, res: Response) =
         currency:        bankroll.currency,
         last_reset_at:   bankroll.lastResetAt,
         created_at:      bankroll.createdAt,
+        journal,
+        mouvements: mouvements.map(m => ({
+          type: m.type, montant: m.montant, solde_apres: m.soldeApres,
+          pari_id: m.pariId, motif: m.motif, cree_le: m.creeLe,
+        })),
         bets: bankroll.bets.map(b => ({
           id:               b.id,
           staked_amount:    b.stakedAmount,

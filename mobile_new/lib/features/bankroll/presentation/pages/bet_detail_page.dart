@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/bankroll_provider.dart';
+import '../widgets/confirmation_mise.dart';
 import '../../../../shared/utils/devise.dart';
 import '../../../../shared/utils/montant.dart';
 import '../../../pronostics/domain/entities/match_entity.dart';
@@ -73,6 +74,12 @@ class BetDetailPage extends StatelessWidget {
             ]),
           ),
           const SizedBox(height: 24),
+
+          // ── Mise réelle, au résultat (M1) ─────────────────────────────────
+          if (bet.aConfirmer) ...[
+            ConfirmationMise(bet: bet),
+            const SizedBox(height: 12),
+          ],
 
           // ── Carte match ───────────────────────────────────────────────────
           _Card(

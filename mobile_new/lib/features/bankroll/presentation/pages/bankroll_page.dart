@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/utils/motion.dart';
 import 'package:flutter/material.dart';
@@ -992,7 +993,8 @@ class _BetCard extends StatelessWidget {
       button: true,
       label: '${bet.homeTeam} contre ${bet.awayTeam}. '
              '${bet.displayPredictionLabel}. Pari $etat. '
-             'Mise ${montantExact(bet.stakedAmount)}. $montant.',
+             'Mise ${montantExact(bet.stakedAmount)}. $montant.'
+             '${bet.aConfirmer ? ' Mise à confirmer.' : ''}',
       excludeSemantics: true,
       child: GestureDetector(
       onTap: () => context.push('/bankroll/bet/${bet.id}', extra: bet),
@@ -1020,6 +1022,13 @@ class _BetCard extends StatelessWidget {
             const SizedBox(height: 3),
             Text(bet.displayPredictionLabel,
               style: TextStyle(color: context.cl.textM, fontSize: 11)),
+            // M1 : la question attend dans le détail du pari.
+            if (bet.aConfirmer) ...[
+              const SizedBox(height: 4),
+              Text('Mise à confirmer',
+                style: TextStyle(color: AppColors.primaryBouton, fontSize: 11,
+                    fontWeight: FontWeight.w700)),
+            ],
           ])),
           const SizedBox(width: 8),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -1189,6 +1198,10 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
     _     => [5000, 10000, 25000, 50000, 100000],
   };
 
+  /// Des paris sont enregistrés : la devise ne change plus, les montants ne
+  /// se convertissent pas (100 000 XOF devenaient 100 000 EUR).
+  bool get _deviseFixee => widget.existing?.bets.isNotEmpty ?? false;
+
   @override
   void initState() {
     super.initState();
@@ -1216,7 +1229,12 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
       ref.invalidate(bankrollProvider);
       Navigator.pop(context);
     } catch (e) {
-      setState(() { _error = 'Erreur : $e'; _loading = false; });
+      // Le message du serveur, pas le texte de l'exception Dio.
+      final message = e is DioException ? (e.response?.data?['message'] as String?) : null;
+      setState(() {
+        _error = message ?? 'Budget non enregistré. Vérifie ta connexion et réessaie.';
+        _loading = false;
+      });
     }
   }
 
@@ -1249,8 +1267,8 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
         Row(children: [
           Text('Devise :', style: TextStyle(color: context.cl.textM, fontSize: 13)),
           const SizedBox(width: 12),
-          ..._currencies.map((c) => GestureDetector(
-            onTap: () {
+          ...(_deviseFixee ? [_currency] : _currencies).map((c) => GestureDetector(
+            onTap: _deviseFixee ? null : () {
               HapticFeedback.selectionClick();
               setState(() { _currency = c; _ctrl.clear(); });
             },
@@ -1273,6 +1291,14 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
             ),
           )),
         ]),
+        if (_deviseFixee) ...[
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('La devise est fixée par tes paris enregistrés.',
+              style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
+          ),
+        ],
 
         const SizedBox(height: 14),
 

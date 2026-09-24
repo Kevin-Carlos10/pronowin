@@ -489,6 +489,47 @@ const views = [
     total:0, page:1, per_page:20, total_pages:0, search:'zz', sortBy:'currentBalance', sortDir:'desc',
   }],
 
+  // Détail : mise réelle corrigée (M1) et journal des mouvements (B1).
+  ['bankroll_detail (journal cohérent, mise corrigée)', 'bankroll_detail', {
+    ...base, page: 'bankroll', error: null,
+    user: { id:'u1', pseudo:'Parieur_9CSPX', phoneNumber:null, email:'a@b.c', avatarUrl:null, createdAt:now },
+    stats: { totalBudget:100000, currentBalance:103000, currency:'XOF', totalBets:1, wins:1, losses:0, pushes:0,
+             winRate:100, totalProfit:3000, totalStaked:3000, roi:100 },
+    bankroll: { id:'br1', total_budget:100000, current_balance:103000, currency:'XOF', last_reset_at:null, created_at:now,
+      bets: [{ id:'b1', staked_amount:3000, suggested_amount:5000, odds_used:2, potential_gain:6000, result:'WIN', profit:3000,
+            settled_at:now, created_at:now, prediction_label:'Victoire Domicile', confidence_score:5,
+            match:{ id:'m1', home_team:'Lyon', away_team:'Nice', match_date:now, league:'Ligue 1' } }],
+      journal: { coherent:true, solde:103000, reconstitue:103000, ecart:0, mouvements:4 },
+      mouvements: [ { type:'correction_mise', montant:-2000, solde_apres:103000, pari_id:'b1', motif:'Mise réelle 3000 au lieu de 5000', cree_le:now },
+         { type:'reglement', montant:10000, solde_apres:105000, pari_id:'b1', motif:'Résultat WIN', cree_le:now },
+         { type:'mise', montant:-5000, solde_apres:95000, pari_id:'b1', motif:null, cree_le:now },
+         { type:'reprise', montant:100000, solde_apres:100000, pari_id:null, motif:'Solde repris', cree_le:now } ] },
+  }],
+  ['bankroll_detail (écart de journal)', 'bankroll_detail', {
+    ...base, page: 'bankroll', error: null,
+    user: { id:'u1', pseudo:'Parieur_9CSPX', phoneNumber:null, email:'a@b.c', avatarUrl:null, createdAt:now },
+    stats: { totalBudget:100000, currentBalance:103000, currency:'XOF', totalBets:1, wins:1, losses:0, pushes:0,
+             winRate:100, totalProfit:3000, totalStaked:3000, roi:100 },
+    bankroll: { id:'br1', total_budget:100000, current_balance:103000, currency:'XOF', last_reset_at:null, created_at:now,
+      bets: [{ id:'b1', staked_amount:3000, suggested_amount:5000, odds_used:2, potential_gain:6000, result:'WIN', profit:3000,
+            settled_at:now, created_at:now, prediction_label:'Victoire Domicile', confidence_score:5,
+            match:{ id:'m1', home_team:'Lyon', away_team:'Nice', match_date:now, league:'Ligue 1' } }],
+      journal: { coherent:false, solde:103000, reconstitue:102000, ecart:1000, mouvements:1 },
+      mouvements: [] },
+  }],
+  ['bankroll_detail (ancienne API, sans journal)', 'bankroll_detail', {
+    ...base, page: 'bankroll', error: null,
+    user: { id:'u1', pseudo:'Parieur_9CSPX', phoneNumber:null, email:'a@b.c', avatarUrl:null, createdAt:now },
+    stats: { totalBudget:100000, currentBalance:103000, currency:'XOF', totalBets:1, wins:1, losses:0, pushes:0,
+             winRate:100, totalProfit:3000, totalStaked:3000, roi:100 },
+    bankroll: { id:'br1', total_budget:100000, current_balance:103000, currency:'XOF', last_reset_at:null, created_at:now,
+      bets: [{ id:'b1', staked_amount:3000, suggested_amount:5000, odds_used:2, potential_gain:6000, result:'WIN', profit:3000,
+            settled_at:now, created_at:now, prediction_label:'Victoire Domicile', confidence_score:5,
+            match:{ id:'m1', home_team:'Lyon', away_team:'Nice', match_date:now, league:'Ligue 1' } }],
+      journal: undefined,
+      mouvements: undefined },
+  }],
+
   // ── Statistiques (page entièrement pilotée en JS : rien d'autre à injecter) ──
   ['statistiques', 'statistiques', { ...base, page: 'statistiques' }],
 
@@ -890,6 +931,7 @@ const views = [
         APK_MIN_VERSION: '1.0.0', APK_LATEST_VERSION: '1.3.1', APK_FORCE_UPDATE: 'true',
         APK_URL: 'https://pronowin.com/telecharger/pronowin.apk',
         APP_UPDATE_MESSAGE: 'Nouvelle version disponible.',
+        BANKROLL_PLAFOND_EXPOSITION: '15',
       },
       origine: {
         APP_MIN_VERSION: 'env', APP_LATEST_VERSION: 'base', APP_FORCE_UPDATE: 'env',

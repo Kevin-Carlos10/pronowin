@@ -1,7 +1,12 @@
-﻿import { NotificationService } from './notification.service';
+﻿import crypto from 'crypto';
+import { Prisma } from '@prisma/client';
+
+import { NotificationService } from './notification.service';
 import { nomDevise } from '../utils/devise';
 import { prisma } from '../lib/prisma';
-import { miseSuggeree } from './mise_suggeree';
+import { ErreurMetier } from '../utils/erreurs';
+import { lireConfig } from './app_config.service';
+import { miseSuggeree, pasDeDevise } from './mise_suggeree';
 import { MESSAGE_REFUS, RefusPari, refusDePari } from './verrou_pari';
 
 const notifSvc = new NotificationService();
@@ -23,6 +28,125 @@ export class PariFerme extends Error {
   constructor(readonly motif: RefusPari) {
     super(MESSAGE_REFUS[motif]);
     this.name = 'PariFerme';
+  }
+}
+
+// ── Montants exacts et journal des mouvements (constat B1) ───────────────────
+
+/** Les devises que la bankroll accepte — celles que l'application propose. */
+export const DEVISES_BANKROLL = ['XOF', 'XAF', 'GNF', 'EUR'] as const;
+
+/**
+ * Un montant ramené à l'unité de la devise, par défaut.
+ *
+ * Le franc CFA n'a pas de centimes. Un gain potentiel de 1 234 × 1,73 était
+ * gardé à 2 134,82 FCFA — une somme qu'aucun bookmaker ne verse —, et ces
+ * centimes fictifs, additionnés en virgule flottante, rendaient le solde
+ * inexact. En unités entières, un nombre à virgule flottante est exact : les
+ * additions répétées du solde ne dérivent plus.
+ */
+export function aLUnite(montant: number, devise: string | null | undefined): number {
+  const facteur = 1 / pasDeDevise(devise);
+  return Math.floor(montant * facteur + 1e-9) / facteur;
+}
+
+/** Le solde à la précision de la devise : au centime près pour l'euro. */
+function soldeExact(solde: number, devise: string | null | undefined): number {
+  const facteur = 1 / pasDeDevise(devise);
+  return Math.round(solde * facteur) / facteur;
+}
+
+type Tx = Prisma.TransactionClient;
+export type TypeMouvement =
+  'ouverture' | 'budget' | 'devise' | 'mise' | 'reglement' | 'correction_mise' | 'reinitialisation';
+
+/**
+ * Déplace le solde disponible et l'inscrit au journal, dans la transaction de
+ * l'appelant. C'est le seul chemin qui modifie `currentBalance` : la somme
+ * des mouvements d'une bankroll vaut ainsi son solde.
+ *
+ * `siSolde` : ne bouge que si le solde vaut encore ce montant — la garde de
+ * placeBet contre deux mises simultanées. Renvoie le solde après le
+ * mouvement, ou `null` si la garde a refusé.
+ */
+async function mouvoir(
+  tx: Tx, bankrollId: string, devise: string, montant: number, type: TypeMouvement,
+  opts: { pariId?: string; motif?: string; siSolde?: number } = {},
+): Promise<number | null> {
+  const where: Prisma.UserBankrollWhereInput = { id: bankrollId };
+  if (opts.siSolde !== undefined) where.currentBalance = opts.siSolde;
+  const r = await tx.userBankroll.updateMany({ where, data: { currentBalance: { increment: montant } } });
+  if (r.count === 0) return null;
+
+  // La ligne est verrouillée par l'UPDATE jusqu'à la fin de la transaction :
+  // ce qu'on relit est notre écriture, pas celle d'un autre.
+  const lu = await tx.userBankroll.findUnique({ where: { id: bankrollId } });
+  let solde = lu!.currentBalance;
+  const exact = soldeExact(solde, devise);
+  if (exact !== solde) {
+    await tx.userBankroll.update({ where: { id: bankrollId }, data: { currentBalance: exact } });
+    solde = exact;
+  }
+  await tx.bankrollMouvement.create({ data: {
+    bankrollId, type, montant, soldeApres: solde, pariId: opts.pariId ?? null, motif: opts.motif ?? null,
+    creeLe: new Date(),
+  } });
+  return solde;
+}
+
+/**
+ * Le journal d'une bankroll rend-il compte de son solde ?
+ *
+ * La somme des mouvements doit valoir le solde : un écart dit qu'une
+ * écriture est passée hors du journal. (Pas le « dernier » `soldeApres` :
+ * deux mouvements de la même milliseconde n'ont pas d'ordre sûr.)
+ */
+export async function verifierMouvements(bankrollId: string) {
+  const [bankroll, somme, nombre] = await Promise.all([
+    prisma.userBankroll.findUnique({ where: { id: bankrollId } }),
+    prisma.bankrollMouvement.aggregate({ where: { bankrollId }, _sum: { montant: true } }),
+    prisma.bankrollMouvement.count({ where: { bankrollId } }),
+  ]);
+  if (!bankroll) return null;
+  const devise = bankroll.currency;
+  const reconstitue = soldeExact(somme._sum.montant ?? 0, devise);
+  const ecart = soldeExact(bankroll.currentBalance - reconstitue, devise);
+  return {
+    coherent: ecart === 0,
+    solde: bankroll.currentBalance,
+    reconstitue,
+    ecart,
+    mouvements: nombre,
+  };
+}
+
+// ── Plafond d'exposition (constat B2) ────────────────────────────────────────
+
+/**
+ * La part de la bankroll que les mises en cours peuvent engager ensemble, ou
+ * `null` : pas de plafond.
+ *
+ * Chaque mise respecte le barème, mais rien ne limitait leur somme : cinq
+ * pronostics notés 5 le même soir engageaient 25 % du solde. Le seuil est une
+ * décision produit, réglée dans le panneau (BANKROLL_PLAFOND_EXPOSITION) ;
+ * vide, il n'y a pas de plafond.
+ */
+export async function plafondExposition(): Promise<number | null> {
+  const { valeurs } = await lireConfig();
+  const brut = (valeurs as Record<string, string>).BANKROLL_PLAFOND_EXPOSITION ?? '';
+  const pct = Number(brut);
+  return brut.trim() !== '' && Number.isFinite(pct) && pct > 0 && pct <= 100 ? pct / 100 : null;
+}
+
+export class PlafondExposition extends ErreurMetier {
+  constructor(plafond: number, engage: number, capital: number, devise: string) {
+    const fmt = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} ${nomDevise(devise)}`;
+    super(
+      `Tes paris en cours engagent déjà ${fmt(engage)} sur ${fmt(capital)}. ` +
+      `Le plafond est de ${Math.round(plafond * 100)} % de ta bankroll : ` +
+      'attends le résultat d\'un pari en cours avant d\'en ajouter un.',
+      409, 'EXPOSURE_CAP');
+    this.name = 'PlafondExposition';
   }
 }
 
@@ -123,17 +247,56 @@ export async function resumeParis(bankrollId: string) {
 }
 
 // ── SET budget (crée ou met à jour) ──────────────────────────────────────────
-export async function setBudget(userId: string, totalBudget: number, currency = 'XOF') {
-  const existing = await prisma.userBankroll.findUnique({ where: { userId } });
-  if (existing) {
-    // Ne touche pas au solde courant si c'est juste un ajustement du budget total
-    return prisma.userBankroll.update({
-      where: { userId },
-      data:  { totalBudget, currency },
-    });
+export async function setBudget(userId: string, totalBudget: number, currency?: string) {
+  if (currency !== undefined && currency !== null
+      && !(DEVISES_BANKROLL as readonly string[]).includes(String(currency).toUpperCase())) {
+    throw new ErreurMetier(`Devise non prise en charge : ${String(currency)}.`, 400);
   }
-  return prisma.userBankroll.create({
-    data: { userId, totalBudget, currentBalance: totalBudget, currency },
+  return prisma.$transaction(async (tx) => {
+    const existing = await tx.userBankroll.findUnique({ where: { userId } });
+    const devise = (currency ? String(currency).toUpperCase() : existing?.currency) ?? 'XOF';
+    const budget = aLUnite(totalBudget, devise);
+    if (!(budget > 0)) throw new ErreurMetier('Budget invalide.', 400);
+
+    if (!existing) {
+      const cree = await tx.userBankroll.create({
+        data: { userId, totalBudget: budget, currentBalance: budget, currency: devise },
+      });
+      await tx.bankrollMouvement.create({ data: {
+        bankrollId: cree.id, type: 'ouverture', montant: budget, soldeApres: budget,
+        motif: 'Budget initial', creeLe: new Date(),
+      } });
+      return cree;
+    }
+
+    if (devise !== existing.currency) {
+      // Changer la devise ré-étiquetait les montants sans les convertir :
+      // 100 000 XOF devenaient 100 000 EUR. Aucun taux n'est fiable ici ; la
+      // devise est donc fixée dès le premier pari. Avant, rien n'est engagé :
+      // on repart simplement du nouveau budget.
+      const paris = await tx.bankrollBet.count({ where: { bankrollId: existing.id } });
+      if (paris > 0) {
+        throw new ErreurMetier(
+          'La devise est fixée par tes paris enregistrés : les montants ne se convertissent pas. ' +
+          'Garde ta devise actuelle.', 409, 'CURRENCY_LOCKED');
+      }
+      await tx.userBankroll.update({ where: { id: existing.id }, data: { totalBudget: budget, currency: devise } });
+      await mouvoir(tx, existing.id, devise, budget - existing.currentBalance, 'devise',
+        { motif: `Devise ${existing.currency} → ${devise}, nouveau départ à ${budget}` });
+      return tx.userBankroll.findUnique({ where: { id: existing.id } }) as any;
+    }
+
+    // Le budget est la référence de la réinitialisation ; il ne déplace pas le
+    // solde disponible. Le journal le note quand même : c'est une décision de
+    // l'utilisateur qui changera son prochain départ.
+    const maj = await tx.userBankroll.update({ where: { id: existing.id }, data: { totalBudget: budget } });
+    if (budget !== existing.totalBudget) {
+      await tx.bankrollMouvement.create({ data: {
+        bankrollId: existing.id, type: 'budget', montant: 0, soldeApres: existing.currentBalance,
+        motif: `Budget de référence ${existing.totalBudget} → ${budget}`, creeLe: new Date(),
+      } });
+    }
+    return maj;
   });
 }
 
@@ -166,18 +329,20 @@ export async function resetBankroll(userId: string) {
   //
   // Repartir du budget **moins ce qui est encore engagé** laisse l'arithmétique
   // du règlement juste, quel que soit le moment de la remise à zéro.
-  const { _sum } = await prisma.bankrollBet.aggregate({
-    where: { bankrollId: bankroll.id, result: null },
-    _sum:  { stakedAmount: true },
-  });
-  const engage = _sum.stakedAmount ?? 0;
+  return prisma.$transaction(async (tx) => {
+    const { _sum } = await tx.bankrollBet.aggregate({
+      where: { bankrollId: bankroll.id, result: null },
+      _sum:  { stakedAmount: true },
+    });
+    const engage = _sum.stakedAmount ?? 0;
+    const cible  = soldeExact(bankroll.totalBudget - engage, bankroll.currency);
 
-  return prisma.userBankroll.update({
-    where: { userId },
-    data:  {
-      currentBalance: parseFloat((bankroll.totalBudget - engage).toFixed(2)),
-      lastResetAt:    new Date(),
-    } as any,
+    // Garde sur le solde lu : une mise posée entre-temps a déjà déplacé le
+    // solde, et l'écart calculé ne vaudrait plus.
+    const solde = await mouvoir(tx, bankroll.id, bankroll.currency, cible - bankroll.currentBalance,
+      'reinitialisation', { siSolde: bankroll.currentBalance, motif: `Retour au budget ${bankroll.totalBudget}, moins ${engage} engagés` });
+    if (solde === null) throw new MiseAActualiser();
+    return tx.userBankroll.update({ where: { id: bankroll.id }, data: { lastResetAt: new Date() } });
   });
 }
 
@@ -232,21 +397,37 @@ export async function placeBet(
   if (Math.abs(stakedAmount - suggestedAmount) > 1e-8) throw new MiseAActualiser();
   stakedAmount = suggestedAmount; // montant canonique, sans décimales supplémentaires du client
   const oddsUsed        = pro.oddsRecommended;
-  const potentialGain   = parseFloat((stakedAmount * oddsUsed).toFixed(2));
+  const potentialGain   = aLUnite(stakedAmount * oddsUsed, bankroll.currency);
+
+  const plafond = await plafondExposition();
+  if (plafond !== null) {
+    const { _sum } = await prisma.bankrollBet.aggregate({
+      where: { bankrollId: bankroll.id, result: null },
+      _sum:  { stakedAmount: true },
+    });
+    const engage  = _sum.stakedAmount ?? 0;
+    // Rapporté à tout ce que la bankroll contient : le disponible plus ce qui
+    // est déjà engagé. Rapporté au seul disponible, le plafond se resserrerait
+    // à chaque mise.
+    const capital = bankroll.currentBalance + engage;
+    if (engage + stakedAmount > plafond * capital + 1e-9) {
+      throw new PlafondExposition(plafond, engage, capital, bankroll.currency);
+    }
+  }
 
   // Déduction atomique : le solde doit encore être celui utilisé pour le calcul.
-  // Le WHERE currentBalance=balanceAtCalculation est
-  // évalué par Postgres au moment de l'UPDATE (verrou ligne), pas au moment de la
-  // lecture ci-dessus — évite qu'un pari concurrent fasse passer le solde en négatif.
+  // La condition sur le solde est évaluée par Postgres au moment de l'UPDATE
+  // (verrou ligne), pas au moment de la lecture ci-dessus — évite qu'un pari
+  // concurrent fasse passer le solde en négatif, ou dépasse le plafond.
   const bet = await prisma.$transaction(async (tx) => {
-    const decremented = await tx.userBankroll.updateMany({
-      where: { userId, currentBalance: balanceAtCalculation },
-      data:  { currentBalance: { decrement: stakedAmount } },
-    });
-    if (decremented.count === 0) throw new MiseAActualiser();
+    const id = crypto.randomUUID();
+    const solde = await mouvoir(tx, bankroll.id, bankroll.currency, -stakedAmount, 'mise',
+      { pariId: id, siSolde: balanceAtCalculation });
+    if (solde === null) throw new MiseAActualiser();
 
     return tx.bankrollBet.create({
       data: {
+        id,
         bankrollId:      bankroll.id,
         pronosticId,
         stakedAmount,
@@ -258,6 +439,104 @@ export async function placeBet(
   });
 
   return bet;
+}
+
+// ── Mise réelle (constat M1) ──────────────────────────────────────────────────
+
+/** Combien de jours après le résultat l'application pose la question. */
+export const JOURS_POUR_CONFIRMER = 14;
+
+/**
+ * La question n'est posée que pour les paris réglés depuis sa mise en
+ * service : l'afficher d'un coup sur les dizaines de paris des deux semaines
+ * passées serait une corvée, pour des mises dont on se souvient moins. Ces
+ * paris restent confirmables ; on ne les réclame simplement pas.
+ */
+export const CONFIRMATION_DEPUIS = new Date('2026-09-24T17:00:00Z');
+
+/** L'application doit-elle demander la mise réelle de ce pari ? */
+export function miseAConfirmer(
+  pari: { result: string | null; miseConfirmeeLe: Date | null; settledAt: Date | null },
+  maintenant = new Date(),
+): boolean {
+  if (pari.result == null || pari.miseConfirmeeLe != null || pari.settledAt == null) return false;
+  const depuis = Math.max(maintenant.getTime() - JOURS_POUR_CONFIRMER * 86400000, CONFIRMATION_DEPUIS.getTime());
+  return pari.settledAt.getTime() >= depuis;
+}
+
+/**
+ * Le parieur confirme la mise placée chez son bookmaker — ou la corrige.
+ *
+ * La mise calculée restait la seule connue : les 140 paris enregistrés
+ * portaient exactement la mise conseillée, et le solde pouvait être faux sans
+ * que rien ne le montre. On ne rend pas la mise libre — elle reste calculée et
+ * verrouillée à la pose ; on demande, au résultat, si c'est bien elle. Une
+ * seule fois : une réponse n'est pas modifiable ensuite.
+ *
+ * Corriger rejoue le pari avec la mise réelle : la différence de mise, et la
+ * différence de ce que le règlement rend. Le pari reste compté au classement,
+ * qui ne porte que sur les résultats — une mise déclarée nulle n'efface pas
+ * une défaite.
+ */
+export async function confirmerMise(userId: string, pariId: string, miseReelle?: unknown) {
+  return prisma.$transaction(async (tx) => {
+    const pari = await tx.bankrollBet.findUnique({ where: { id: pariId }, include: { bankroll: true } });
+    if (!pari || pari.bankroll.userId !== userId) throw new ErreurMetier('Pari introuvable.', 404);
+    if (pari.result == null) {
+      throw new ErreurMetier('La mise se confirme au résultat du pari.', 409, 'BET_PENDING');
+    }
+    if (pari.miseConfirmeeLe) {
+      throw new ErreurMetier('Cette mise est déjà confirmée.', 409, 'STAKE_ALREADY_CONFIRMED');
+    }
+
+    const devise = pari.bankroll.currency;
+    let mise = pari.stakedAmount;
+    if (miseReelle !== undefined && miseReelle !== null && miseReelle !== '') {
+      const n = typeof miseReelle === 'number' ? miseReelle : Number(miseReelle);
+      if (!Number.isFinite(n) || n < 0 || n > 1e12) throw new ErreurMetier('Mise invalide.', 400);
+      mise = aLUnite(n, devise);
+    }
+
+    const resultat = pari.result as BankrollBetResult;
+    const avant = { stakedAmount: pari.stakedAmount, potentialGain: pari.potentialGain };
+    const apres = { stakedAmount: mise, potentialGain: aLUnite(mise * pari.oddsUsed, devise) };
+    const corrigee = mise !== pari.stakedAmount;
+
+    // La mise part à la pose, le règlement rend ce qui revient : corriger la
+    // mise, c'est rejouer les deux.
+    const delta = corrigee
+      ? soldeExact((avant.stakedAmount - apres.stakedAmount)
+          + (_settlementCredit(resultat, apres) - _settlementCredit(resultat, avant)), devise)
+      : 0;
+    if (delta < 0 && -delta > pari.bankroll.currentBalance + 1e-9) {
+      throw new ErreurMetier(
+        'Cette mise dépasse ce que ta bankroll contenait : le solde deviendrait négatif.', 409, 'INSUFFICIENT_BALANCE');
+    }
+
+    // Conditionnel : deux réponses simultanées ne comptent qu'une fois.
+    const maj = await tx.bankrollBet.updateMany({
+      where: { id: pariId, miseConfirmeeLe: null },
+      data:  {
+        miseConfirmeeLe: new Date(),
+        ...(corrigee ? {
+          stakedAmount:  apres.stakedAmount,
+          potentialGain: apres.potentialGain,
+          profit:        _settlementProfit(resultat, apres) || 0,
+        } : {}),
+      },
+    });
+    if (maj.count === 0) {
+      throw new ErreurMetier('Cette mise est déjà confirmée.', 409, 'STAKE_ALREADY_CONFIRMED');
+    }
+
+    let solde = pari.bankroll.currentBalance;
+    if (delta !== 0) {
+      solde = (await mouvoir(tx, pari.bankrollId, devise, delta, 'correction_mise', {
+        pariId, motif: `Mise réelle ${mise} au lieu de ${pari.stakedAmount}`,
+      }))!;
+    }
+    return { pari_id: pariId, mise: apres.stakedAmount, corrigee, current_balance: solde };
+  });
 }
 
 export type BankrollBetResult = 'WIN' | 'LOSS' | 'PUSH';
@@ -330,9 +609,9 @@ export async function settleBets(pronosticId: string, result: SettlementResult) 
 
       const balanceDelta = _settlementBalanceDelta(previousResult, result, bet);
       if (balanceDelta !== 0) {
-        await tx.userBankroll.update({
-          where: { id: bet.bankrollId },
-          data:  { currentBalance: { increment: balanceDelta } },
+        await mouvoir(tx, bet.bankrollId, bet.bankroll.currency ?? 'XOF', balanceDelta, 'reglement', {
+          pariId: bet.id,
+          motif:  previousResult === null ? `Résultat ${result}` : `Correction ${previousResult} → ${result ?? 'en attente'}`,
         });
       }
 

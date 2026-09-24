@@ -52,6 +52,10 @@ export const CLES_CONFIG = [
   // changer le lien exigeait de republier l'application.
   'AFFILIATE_NAME',
   'AFFILIATE_URL',
+
+  // Part de la bankroll que les paris en cours peuvent engager ensemble, en
+  // pourcentage ; vide : pas de plafond (constat B2).
+  'BANKROLL_PLAFOND_EXPOSITION',
 ] as const;
 
 export type CleConfig = (typeof CLES_CONFIG)[number];
@@ -107,6 +111,8 @@ export async function lireConfig(): Promise<{
     // sans rien rapporter, et il use la confiance au passage.
     AFFILIATE_NAME:        process.env.AFFILIATE_NAME ?? '',
     AFFILIATE_URL:         process.env.AFFILIATE_URL  ?? '',
+
+    BANKROLL_PLAFOND_EXPOSITION: '',
   };
 
   const valeurs = {} as Record<CleConfig, string>;
@@ -245,6 +251,13 @@ export async function ecrireConfig(
     if ((cle === 'APK_URL' || cle === 'AFFILIATE_URL')
         && valeur !== '' && !/^https?:\/\//i.test(valeur)) {
       throw new Error(`${cle} doit commencer par http:// ou https://, ou rester vide.`);
+    }
+
+    // Un plafond est un pourcentage entier, ou rien. En dessous de 5 %, un
+    // seul pari noté 5 (5 % du solde) ne passerait plus jamais.
+    if (cle === 'BANKROLL_PLAFOND_EXPOSITION' && valeur !== ''
+        && !(/^\d+$/.test(valeur) && Number(valeur) >= 5 && Number(valeur) <= 100)) {
+      throw new Error('Le plafond d\'exposition est un pourcentage entier de 5 à 100, ou vide.');
     }
 
     // Les versions suivent « x.y.z ». Un champ mal saisi ferait comparer à

@@ -26,7 +26,7 @@
  * avec leurs propres `orderBy`, `take` et `include` imbriqués.
  */
 type Lien =
-  | { cle: string; vers: Map<string, any> }
+  | { cle: string; vers: Map<string, any>; liens?: Liens }
   | {
       plusieurs: true;
       cleEtrangere: string;
@@ -44,6 +44,7 @@ export interface BaseMemoire {
   iapPurchases:  Map<string, any>;
   bankrolls:     Map<string, any>;
   bankrollBets:  Map<string, any>;
+  mouvements:    Map<string, any>;
   pronostics:    Map<string, any>;
   matches:       Map<string, any>;
 }
@@ -75,6 +76,9 @@ function correspond(ligne: any, where: any): boolean {
       // bâti dessus aurait semblé fonctionner tout en ne voyant rien.
       return correspond(ligne, c);
     }
+    // Une colonne absente de la ligne vaut NULL, comme en base : `{ result:
+    // null }` doit trouver un pari créé sans résultat.
+    if (cond === null) return ligne[cle] === null || ligne[cle] === undefined;
     return ligne[cle] === cond;
   });
 }
@@ -111,6 +115,7 @@ export function creerBase() {
     iapPurchases:  new Map(),
     bankrolls:     new Map(),
     bankrollBets:  new Map(),
+    mouvements:    new Map(),
     pronostics:    new Map(),
     matches:       new Map(),
   };
@@ -144,8 +149,11 @@ export function creerBase() {
         continue;
       }
 
+      // Les relations imbriquées aussi : `bet.bankroll.user`, que lit le
+      // règlement des paris.
       const cible = lien.vers.get(ligne[lien.cle]);
-      enrichie[nom] = cible ? { ...cible } : null;
+      const sous = typeof include[nom] === 'object' ? include[nom].include : undefined;
+      enrichie[nom] = cible ? joindre({ ...cible }, sous, lien.liens ?? {}) : null;
     }
 
     return enrichie;
@@ -276,7 +284,9 @@ export function creerBase() {
     }),
     bankrollBet:  table(base.bankrollBets, {
       pronostic: { cle: 'pronosticId', vers: base.pronostics },
+      bankroll:  { cle: 'bankrollId', vers: base.bankrolls, liens: { user: { cle: 'userId', vers: base.users } } },
     }),
+    bankrollMouvement: table(base.mouvements),
     pronostic:    table(base.pronostics, { match: { cle: 'matchId', vers: base.matches } }),
     match:        table(base.matches),
     // Sans isolation : voir la note en tête de fichier.

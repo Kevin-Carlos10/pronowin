@@ -22,6 +22,11 @@ class BankrollBet {
   final String  predictionLabel;
   final int     confidenceScore;
   final String  currency;
+  /// La mise réelle a été confirmée ou corrigée au résultat (M1).
+  final bool    miseConfirmee;
+  /// Le serveur demande de confirmer la mise réelle : pari réglé depuis peu,
+  /// sans réponse encore.
+  final bool    aConfirmer;
 
   const BankrollBet({
     required this.id,
@@ -41,6 +46,8 @@ class BankrollBet {
     required this.predictionLabel,
     required this.confidenceScore,
     required this.currency,
+    this.miseConfirmee = false,
+    this.aConfirmer = false,
   });
 
   // La devise n'est pas répétée dans le JSON de chaque pari — c'est une
@@ -64,6 +71,9 @@ class BankrollBet {
     predictionLabel: j['prediction_label'] as String,
     confidenceScore: (j['confidence_score'] as num).toInt(),
     currency:        currency,
+    // Absents d'un serveur plus ancien : rien à demander.
+    miseConfirmee:   j['mise_confirmee'] == true,
+    aConfirmer:      j['a_confirmer'] == true,
   );
 
   /// [predictionLabel] avec "Domicile"/"Extérieur" remplacés par le nom réel

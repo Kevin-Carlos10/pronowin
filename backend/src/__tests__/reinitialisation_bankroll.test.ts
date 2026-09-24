@@ -1,20 +1,11 @@
-let bankroll: any;
-let misesEnCours = 0;
-let ecrit: any = null;
-
-jest.mock('../lib/prisma', () => ({
-  prisma: {
-    userBankroll: {
-      findUnique: jest.fn(async () => bankroll),
-      update:     jest.fn(async ({ data }: any) => { ecrit = data; return data; }),
-    },
-    bankrollBet: {
-      aggregate: jest.fn(async () => ({ _sum: { stakedAmount: misesEnCours } })),
-    },
-  },
-}));
+// Base en mémoire : la réinitialisation passe par une transaction et par le
+// journal des mouvements (B1), qu'une doublure écrite à la main ne suit pas.
+jest.mock('../lib/prisma', () => require('./aides/base_memoire').creerBase());
 
 import { _settlementCredit, resetBankroll } from '../services/bankroll.service';
+
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const { _base } = require('../lib/prisma');
 
 /**
  * Réinitialiser le solde ne doit pas rembourser les paris en cours.
@@ -106,40 +97,50 @@ describe('réinitialisation avec des paris en cours', () => {
 });
 
 describe('resetBankroll, exécutée', () => {
-  beforeEach(() => {
-    bankroll = { id: 'b1', userId: 'u1', totalBudget: 10000, lastResetAt: null };
-    ecrit = null;
-  });
+  /** Une bankroll de 10 000 descendue à 3 000, avec [enCours] encore engagés. */
+  const poser = (enCours: number[]) => {
+    for (const t of Object.values(_base) as Map<string, any>[]) t.clear();
+    _base.bankrolls.set('b1', {
+      id: 'b1', userId: 'u1', totalBudget: 10000, currentBalance: 3000, currency: 'XOF', lastResetAt: null });
+    enCours.forEach((mise, i) => _base.bankrollBets.set(`p${i}`, {
+      id: `p${i}`, bankrollId: 'b1', stakedAmount: mise, result: null }));
+    // Une mise réglée ne compte pas dans ce qui est engagé.
+    _base.bankrollBets.set('regle', { id: 'regle', bankrollId: 'b1', stakedAmount: 999, result: 'LOSS' });
+  };
+  const solde = () => _base.bankrolls.get('b1').currentBalance;
 
   it('retire les mises encore engagées', async () => {
-    misesEnCours = 2000;
+    poser([1500, 500]);
     await resetBankroll('u1');
-    expect(ecrit.currentBalance).toBe(8000);
+    expect(solde()).toBe(8000);
   });
 
   it("rend le budget entier quand rien n'est engagé", async () => {
-    misesEnCours = 0;
+    // Aucune ligne en attente : `_sum.stakedAmount` vaut `null`, et le lire
+    // sans repli produirait `NaN` comme solde, ce qu'aucun écran ne
+    // rattraperait.
+    poser([]);
     await resetBankroll('u1');
-    expect(ecrit.currentBalance).toBe(10000);
+    expect(solde()).toBe(10000);
   });
 
-  it('supporte une agrégation vide', async () => {
-    // `_sum.stakedAmount` vaut `null` quand aucune ligne ne correspond : le
-    // lire sans repli produirait `NaN` comme solde, ce qu'aucun écran ne
-    // rattraperait.
-    misesEnCours = null as any;
+  it('inscrit au journal l\'écart exact, et le solde qui en résulte', async () => {
+    poser([2000]);
     await resetBankroll('u1');
-    expect(ecrit.currentBalance).toBe(10000);
+    const [m] = [..._base.mouvements.values()];
+    expect(m).toMatchObject({ bankrollId: 'b1', type: 'reinitialisation', montant: 5000, soldeApres: 8000 });
   });
 
   it('note la date, pour le délai de trente jours', async () => {
-    misesEnCours = 0;
+    poser([]);
     await resetBankroll('u1');
-    expect(ecrit.lastResetAt).toBeInstanceOf(Date);
+    expect(_base.bankrolls.get('b1').lastResetAt).toBeInstanceOf(Date);
   });
 
   it("refuse avant l'expiration du délai", async () => {
-    bankroll.lastResetAt = new Date(Date.now() - 5 * 86400000);
+    poser([]);
+    _base.bankrolls.get('b1').lastResetAt = new Date(Date.now() - 5 * 86400000);
     await expect(resetBankroll('u1')).rejects.toThrow(/25 jours/);
+    expect(solde()).toBe(3000);
   });
 });

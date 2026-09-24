@@ -9,6 +9,7 @@ r.get   ('/',          authMiddleware, C.getBankroll);
 r.post  ('/budget',    authMiddleware, C.setBudget);
 r.post  ('/reset',     authMiddleware, C.resetBankroll);
 r.post  ('/bet',       authMiddleware, C.placeBet);
+r.post  ('/bet/:id/confirmer', authMiddleware, C.confirmerMise);
 r.get   ('/stats',     authMiddleware, C.getStats);
 r.get   ('/suggest',   authMiddleware, C.getSuggestedStake);
 

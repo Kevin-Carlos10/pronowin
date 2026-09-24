@@ -71,18 +71,45 @@ model User {
 }
 
 model UserBankroll {
-  id             String        @id @default(uuid())
-  userId         String        @unique @map("user_id")
-  totalBudget    Float         @map("total_budget")
-  currentBalance Float         @map("current_balance")
-  currency       String        @default("XOF")
-  lastResetAt    DateTime?     @map("last_reset_at")
-  createdAt      DateTime      @default(now()) @map("created_at")
-  updatedAt      DateTime      @updatedAt @map("updated_at")
+  id             String              @id @default(uuid())
+  userId         String              @unique @map("user_id")
+  totalBudget    Float               @map("total_budget")
+  currentBalance Float               @map("current_balance")
+  currency       String              @default("XOF")
+  lastResetAt    DateTime?           @map("last_reset_at")
+  createdAt      DateTime            @default(now()) @map("created_at")
+  updatedAt      DateTime            @updatedAt @map("updated_at")
   bets           BankrollBet[]
-  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mouvements     BankrollMouvement[]
+  user           User                @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_bankrolls")
+}
+
+/// Chaque variation du solde disponible d'une bankroll (constat B1 de l'audit
+/// du 24 septembre 2026).
+///
+/// Le solde n'était qu'un nombre mis à jour sur place : en cas de
+/// contestation, rien ne permettait de le reconstituer. La somme des
+/// `montant` d'une bankroll vaut son solde ; `soldeApres` le vérifie ligne
+/// à ligne. Les bankrolls existantes commencent par une ligne « reprise ».
+model BankrollMouvement {
+  id         String       @id @default(uuid())
+  bankrollId String       @map("bankroll_id")
+  /// ouverture | reprise | budget | devise | mise | reglement |
+  /// correction_mise | reinitialisation
+  type       String
+  /// Variation du solde disponible, signée. Zéro pour un événement qui ne
+  /// déplace rien (budget de référence modifié).
+  montant    Float
+  soldeApres Float        @map("solde_apres")
+  pariId     String?      @map("pari_id")
+  motif      String?
+  creeLe     DateTime     @default(now()) @map("cree_le")
+  bankroll   UserBankroll @relation(fields: [bankrollId], references: [id], onDelete: Cascade)
+
+  @@index([bankrollId, creeLe])
+  @@map("bankroll_mouvements")
 }
 
 model BankrollBet {
@@ -96,6 +123,9 @@ model BankrollBet {
   result          String?
   profit          Float?
   settledAt       DateTime?    @map("settled_at")
+  /// Le parieur a confirmé — ou corrigé — la mise réellement placée chez son
+  /// bookmaker, au résultat (constat M1). Nul : pas encore demandé.
+  miseConfirmeeLe DateTime?    @map("mise_confirmee_le")
   createdAt       DateTime     @default(now()) @map("created_at")
   bankroll        UserBankroll @relation(fields: [bankrollId], references: [id], onDelete: Cascade)
   pronostic       Pronostic    @relation(fields: [pronosticId], references: [id], onDelete: Cascade)

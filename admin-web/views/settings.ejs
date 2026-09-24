@@ -261,6 +261,36 @@
     <% } %>
   </div>
 
+  <!-- ── Bankroll : plafond d'exposition ─────────────────────────────────────── -->
+  <div class="st-card">
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Bankroll des utilisateurs</h2>
+    <p class="desc">
+      Chaque mise suit le barème (1,5 à 5 % du solde selon la note), mais sans plafond
+      rien ne limite leur somme : cinq pronostics notés 5 le même soir engagent 25 %
+      de la bankroll. Au-delà du plafond, une nouvelle mise est refusée jusqu'au
+      résultat d'un pari en cours. Vide : pas de plafond.
+    </p>
+    <% if (typeof appConfig !== 'undefined' && appConfig) { %>
+    <% const _plafond = (appConfig.valeurs ?? {}).BANKROLL_PLAFOND_EXPOSITION ?? ''; %>
+    <form method="POST" action="/admin/settings/bankroll">
+      <div class="form-group">
+        <label for="plafond-exposition" style="font-size:.75rem;font-weight:700;color:var(--text-m)">
+          Plafond des mises en cours, en % de la bankroll
+        </label>
+        <input class="input" id="plafond-exposition" type="number" inputmode="numeric" min="5" max="100" step="1"
+               name="BANKROLL_PLAFOND_EXPOSITION" value="<%= _plafond %>" placeholder="Aucun" style="margin-top:.3rem;max-width:10rem">
+        <small style="display:block;margin-top:.3rem;color:var(--text-dim)">
+          <%= _plafond ? 'Actuellement : ' + _plafond + ' %.' : 'Actuellement : aucun plafond.' %>
+          De 5 à 100.
+        </small>
+      </div>
+      <button class="btn btn-primary" type="submit">Enregistrer</button>
+    </form>
+    <% } else { %>
+      <p class="desc">Réglage indisponible : l'API n'a pas répondu.</p>
+    <% } %>
+  </div>
+
   <!-- ── Maintenance ────────────────────────────────────────────────────────── -->
   <div class="st-card">
     <h2><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Mode maintenance</h2>
