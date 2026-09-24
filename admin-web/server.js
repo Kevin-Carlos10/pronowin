@@ -1748,7 +1748,16 @@ app.use((req, res) => {
   });
 });
 
-app.listen(PORT, () => {
+// Interface d'écoute.
+//
+// Le service écoutait sur toutes les interfaces : seul le pare-feu empêchait
+// de le joindre sans passer par nginx, donc sans TLS ni en-têtes du proxy
+// (constat O5 de l'audit du 24 septembre 2026). Servi en HTTPS (`ADMIN_ORIGIN`),
+// il n'écoute plus que la boucle locale, où nginx le rejoint. En développement, toutes
+// les interfaces restent ouvertes : un téléphone du réseau local doit pouvoir
+// joindre le panneau. `HOST` force l'un ou l'autre.
+const HOTE = process.env.HOST ?? (COOKIE_SECURE ? '127.0.0.1' : '0.0.0.0');
+app.listen(PORT, HOTE, () => {
   console.log(`\n🖥️  PronoWin Admin — http://localhost:${PORT}/admin`);
   console.log(`📡 dashboard | users | pronostics | transactions | historique | abonnements | tutoriels | sub-admins | audit | notifications\n`);
 });

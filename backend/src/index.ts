@@ -258,8 +258,18 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
   repondreErreur(res, err);
 });
 
-const serveur = app.listen(PORT, () => {
-  logger.info(`PronoWin API démarrée — port ${PORT}`);
+// Interface d'écoute.
+//
+// Le service écoutait sur toutes les interfaces : seul le pare-feu empêchait
+// de le joindre sans passer par nginx, donc sans TLS ni en-têtes du proxy
+// (constat O5 de l'audit du 24 septembre 2026). En production, il n'écoute
+// plus que la boucle locale, où nginx le rejoint. En développement, toutes
+// les interfaces restent ouvertes : un téléphone du réseau local doit pouvoir
+// joindre l'API. `HOST` force l'un ou l'autre.
+const HOTE = process.env.HOST
+  ?? (process.env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0');
+const serveur = app.listen(Number(PORT), HOTE, () => {
+  logger.info(`PronoWin API démarrée — ${HOTE}:${PORT}`);
   logger.info('admin/tutorials actif');
 
   // ─── SYNC AUTOMATIQUE DES SCORES ──────────────────────────────────────────

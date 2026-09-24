@@ -578,7 +578,17 @@ app.use((req, res) => {
 // garde, `require('./server')` depuis le test ouvrirait un port et laisserait
 // le processus vivant — un test qui ne rend jamais la main.
 if (require.main === module) {
-  app.listen(PORT, () => {
+  // Interface d'écoute.
+  //
+  // Le service écoutait sur toutes les interfaces : seul le pare-feu empêchait
+  // de le joindre sans passer par nginx, donc sans TLS ni en-têtes du proxy
+  // (constat O5 de l'audit du 24 septembre 2026). En production, il n'écoute
+  // plus que la boucle locale, où nginx le rejoint. En développement, toutes
+  // les interfaces restent ouvertes : un téléphone du réseau local doit pouvoir
+  // joindre le site. `HOST` force l'un ou l'autre.
+  const HOTE = process.env.HOST
+    ?? (process.env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0');
+  app.listen(PORT, HOTE, () => {
     console.log(`PronoWin website running on http://localhost:${PORT}`);
   });
 }
