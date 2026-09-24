@@ -17,3 +17,27 @@
  * absence de configuration.
  */
 process.env.ADMIN_DELEGATION_SECRET ??= 'delegation-de-banc';
+
+/**
+ * Un pool de connexions à la mesure des bancs.
+ *
+ * Jest lance un processus par cœur moins un — 21 sur un poste de 22 —, et
+ * chacun ouvre son client Prisma, dont le pool vaut par défaut deux
+ * connexions par cœur plus une : 45. Soit jusqu'à 945 connexions pour une
+ * base qui en accepte 100. Les bancs qui écrivent en base se prenaient alors
+ * les connexions les uns des autres, et échouaient au hasard — « Unable to
+ * start a transaction in the given time », ou un délai de Jest dépassé —
+ * sans que le code en cause y soit pour rien. Quatre par processus : 84 au
+ * plus, sous la limite.
+ */
+// Seulement DATABASE_URL : charger tout le fichier .env ici rendrait le
+// stockage S3 configuré pour chaque banc, y compris ceux qui éprouvent son
+// absence.
+const fs = require('fs');
+const path = require('path');
+const fichierEnv = path.join(__dirname, '.env');
+const url = process.env.DATABASE_URL
+  ?? (fs.existsSync(fichierEnv) ? require('dotenv').parse(fs.readFileSync(fichierEnv)).DATABASE_URL : undefined);
+if (url && !/[?&]connection_limit=/.test(url)) {
+  process.env.DATABASE_URL = url + (url.includes('?') ? '&' : '?') + 'connection_limit=4';
+}

@@ -255,9 +255,13 @@ export async function getStreakHandler(req: AuthRequest, res: Response): Promise
 }
 
 export async function logout(req: AuthRequest, res: Response): Promise<void> {
-  const { refresh_token } = req.body;
-  await authService.logout(req.userId!, refresh_token);
-  res.json({ message: 'Déconnexion réussie.' });
+  // Sans try : une erreur ici n'était attrapée par personne, et la requête
+  // restait sans réponse jusqu'au délai de l'application.
+  try {
+    const { refresh_token } = req.body ?? {};
+    await authService.logout(req.userId!, refresh_token);
+    res.json({ message: 'Déconnexion réussie.' });
+  } catch (e: any) { repondreErreur(res, e); }
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────

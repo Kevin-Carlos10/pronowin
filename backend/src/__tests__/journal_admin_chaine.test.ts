@@ -8,6 +8,12 @@ import { prisma } from '../lib/prisma';
 import { ajouterAuJournal, verifierChaine } from '../services/journal_admin.service';
 import { BASE_LOCALE, decrireSurBaseLocale } from './aides/base_locale';
 
+// Vingt transactions qui s'attendent derrière un même verrou, pendant que les
+// autres bancs occupent la base : le service leur accorde jusqu'à 15 s pour
+// obtenir une connexion ; les 5 s par défaut de Jest faisaient échouer le banc
+// une fois sur trois en suite complète, sans que rien ne soit faux.
+jest.setTimeout(40_000);
+
 const acteur = { id: 'banc-journal', nom: 'Banc journal', role: 'sub' as const, perms: [] };
 
 afterAll(async () => {

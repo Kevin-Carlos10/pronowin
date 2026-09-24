@@ -86,6 +86,26 @@ decrireSurBaseLocale('refresh tokens (S11)', () => {
   });
 });
 
+decrireSurBaseLocale('déconnexion', () => {
+  it('sans refresh token — ce qu\'envoie l\'application — toutes les sessions sont révoquées', async () => {
+    // C'est l'appel réel du mobile : POST /auth/logout sans corps. Calculer
+    // l'empreinte d'un jeton absent levait une erreur, et plus rien n'était
+    // révoqué.
+    await (auth as any)._generateTokens(userId);
+    await (auth as any)._generateTokens(userId);
+    await expect(auth.logout(userId, undefined)).resolves.toBeUndefined();
+    expect(await prisma.refreshToken.count({ where: { userId } })).toBe(0);
+  });
+
+  it('avec un refresh token, seule sa session est révoquée', async () => {
+    const a = await (auth as any)._generateTokens(userId);
+    await (auth as any)._generateTokens(userId);
+    await auth.logout(userId, a.refresh_token);
+    expect(await prisma.refreshToken.count({ where: { userId } })).toBe(1);
+    await prisma.refreshToken.deleteMany({ where: { userId } });
+  });
+});
+
 decrireSurBaseLocale('codes de connexion (S11)', () => {
   const dest = `${marque}-otp`;
   const poser = (code: string, brut = false) => prisma.otpCode.create({ data: {
