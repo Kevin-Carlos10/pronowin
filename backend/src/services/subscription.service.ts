@@ -623,9 +623,16 @@ export class SubscriptionService {
     paymentMethod: string;
     promoCodeUsed?: string | null;
     notify?:       boolean;
+    /**
+     * Exécutée dans la même transaction, avant l'écriture de l'accès. Si elle
+     * lève, rien n'est écrit — ni historique, ni échéance, ni commission.
+     * C'est ce qui permet à l'approbation d'une preuve de réserver la preuve
+     * et d'accorder l'accès en un seul geste.
+     */
+    garde?:        (t: Prisma.TransactionClient) => Promise<void>;
   }) {
     const { userId, durationDays = 30, expiresAt, amountPaid = 0,
-            paymentMethod, promoCodeUsed = null, notify = true } = params;
+            paymentMethod, promoCodeUsed = null, notify = true, garde } = params;
 
     const user = await prisma.user.findUnique({
       where: { id: userId }, select: { subscriptionExpiresAt: true },
@@ -651,6 +658,7 @@ export class SubscriptionService {
      * laissait une vente enregistrée sans accès ouvert.
      */
     await prisma.$transaction(async (t) => {
+      if (garde) await garde(t);
       await t.subscription.create({ data: {
         userId, plan: 'premium', amountPaid, paymentMethod, promoCodeUsed,
         startDate, endDate,
@@ -816,25 +824,52 @@ export class SubscriptionService {
         ? OFFRE_CODE_JOURS
         : durationDays;
 
-      await Promise.all([
-        this.grantPremium({
-          userId:        proof.userId,
-          durationDays:  jours,
-          amountPaid:    proof.amount ?? 0,
-          paymentMethod: proof.type === 'payment_screenshot'
-            ? 'manual_mobcash'
-            : `promo_${proof.platform ?? 'code'}`,
-          // Le code enregistre est celui de **la plateforme choisie**, pas un
-          // code general : c'est lui qui devra correspondre au relevé du
-          // partenaire quand on rapprochera les comptes.
-          promoCodeUsed: proof.type === 'xbet_account_screenshot'
-            ? codePromoPour((await lireConfig()).valeurs, proof.platform)
-            : null,
-        }),
-        prisma.subscriptionProof.update({ where: { id: proofId }, data: { status: 'approved', adminNote, reviewedBy: adminId, reviewedAt: new Date() } }),
-      ]);
+      // ── Réserver la preuve et accorder l'accès, d'un seul geste ──
+      //
+      // La preuve était lue « en attente », puis approuvée par une écriture
+      // sans condition (`update where id`), en parallèle de l'octroi. Deux
+      // administrateurs qui validaient la même preuve à quelques secondes
+      // d'écart passaient tous deux le contrôle : deux lignes d'abonnement,
+      // deux prolongations, et deux commissions de parrainage versées pour
+      // un seul paiement (constat I1).
+      //
+      // L'approbation est maintenant un « comparer puis échanger » : elle ne
+      // s'applique qu'à une preuve encore en attente, dans la transaction qui
+      // écrit l'accès. La seconde attend le verrou de la ligne, relit un
+      // statut qui n'est plus « en attente », ne modifie rien et annule sa
+      // transaction — la commission, déclenchée après validation, ne part
+      // qu'une fois.
+      const promoCodeUsed = proof.type === 'xbet_account_screenshot'
+        ? codePromoPour((await lireConfig()).valeurs, proof.platform)
+        : null;
+      await this.grantPremium({
+        garde: async (t) => {
+          const { count } = await t.subscriptionProof.updateMany({
+            where: { id: proofId, status: 'pending' },
+            data:  { status: 'approved', adminNote, reviewedBy: adminId, reviewedAt: new Date() },
+          });
+          if (count === 0) throw new Error('Preuve déjà traitée.');
+        },
+        userId:        proof.userId,
+        durationDays:  jours,
+        amountPaid:    proof.amount ?? 0,
+        paymentMethod: proof.type === 'payment_screenshot'
+          ? 'manual_mobcash'
+          : `promo_${proof.platform ?? 'code'}`,
+        // Le code enregistre est celui de **la plateforme choisie**, pas un
+        // code general : c'est lui qui devra correspondre au relevé du
+        // partenaire quand on rapprochera les comptes.
+        promoCodeUsed,
+      });
     } else {
-      await prisma.subscriptionProof.update({ where: { id: proofId }, data: { status: 'rejected', adminNote, reviewedBy: adminId, reviewedAt: new Date() } });
+      // Même garde pour un refus : sans elle, un refus arrivé juste après une
+      // approbation réécrivait la preuve en « refusée » — un abonné payant
+      // avec un accès ouvert et une preuve rejetée au dossier.
+      const { count } = await prisma.subscriptionProof.updateMany({
+        where: { id: proofId, status: 'pending' },
+        data:  { status: 'rejected', adminNote, reviewedBy: adminId, reviewedAt: new Date() },
+      });
+      if (count === 0) throw new Error('Preuve déjà traitée.');
       await notifSvc.sendToUser(proof.userId, { title: 'Preuve refusée', body: adminNote ?? 'Votre preuve n\'a pas pu être validée.', data: { deep_link: '/compte', type: 'system' } }, 'premium').catch(() => {});
     }
     return { success: true, approved };

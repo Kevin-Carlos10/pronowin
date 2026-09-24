@@ -41,6 +41,14 @@ jest.mock('../lib/prisma', () => {
         Object.assign(p, data);
         return p;
       }),
+      // L'approbation est un « comparer puis échanger » : elle ne touche
+      // qu'une preuve encore dans le statut attendu.
+      updateMany: jest.fn(async ({ where, data }: any) => {
+        const cibles = proofs.filter(x => x.id === where.id
+          && (where.status === undefined || x.status === where.status));
+        cibles.forEach(p => Object.assign(p, data));
+        return { count: cibles.length };
+      }),
     },
     subscription: {
       create: jest.fn(async ({ data }: any) => { subscriptions.push(data); return data; }),

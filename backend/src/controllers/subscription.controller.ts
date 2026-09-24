@@ -88,12 +88,22 @@ export const reviewProof = async (req: AdminRequest, res: Response) => {
   try {
     const result = await svc.reviewProof({
       proofId:      req.params.id,
-      adminId:      req.adminId!,
+      // Qui a réellement tranché. Le jeton est celui du compte de service,
+      // partagé par tous les sous-admins : `req.adminId` inscrivait donc le
+      // même auteur sur chaque preuve. La délégation nomme la personne.
+      adminId:      req.acteurAdmin?.role === 'sub'
+        ? `sub:${req.acteurAdmin.id}`
+        : req.adminId!,
       approved:     req.body.approved === true || req.body.approved === 'true',
       adminNote:    req.body.admin_note,
       durationDays: req.body.duration_days ? parseInt(req.body.duration_days) : 30,
       xbetId:       req.body.xbet_id,
     });
     res.json(result);
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) {
+    // 409 : la preuve a été traitée entre l'affichage et le clic — par un
+    // collègue, ou par un double envoi du formulaire. Ce n'est pas une saisie
+    // invalide.
+    res.status(/déjà traitée/.test(e.message) ? 409 : 400).json({ message: e.message });
+  }
 };
