@@ -281,6 +281,47 @@ a:hover { color: var(--btn-primary); }
   padding: 2px; flex-shrink: 0;
 }
 
+/* ── Zones tactiles ──────────────────────────────────────────────────────────
+   Mesuré sur un écran de 390 px : le menu faisait 26 × 26, la recherche
+   34 × 26, la bascule de thème 28 × 20 et le lien du bandeau de maintenance
+   79 × 19. Le menu est le contrôle le plus tapé sur mobile — c'est l'accès à
+   tout ce que la barre du bas ne montre pas — et il n'avait que 2 px de marge
+   autour d'une icône de 22 px.
+
+   On agrandit la zone qu'on touche, pas ce qu'on voit : une taille minimale
+   de 44 px (la recommandation des deux grandes plateformes mobiles), rattrapée
+   par une marge négative égale. L'icône reste exactement à sa place et la
+   barre garde sa hauteur ; seul le doigt trouve plus facilement sa cible.
+
+   La bascule de thème et le lien du bandeau restent visibles sur ordinateur,
+   où 44 px déformerait le dessin. Ils reçoivent donc le plancher WCAG 2.5.8
+   (24 px) partout, et les 44 px seulement sur un écran tactile. */
+.hamburger,
+.search-trigger-btn {
+  min-width: 44px; min-height: 44px;
+  align-items: center; justify-content: center;
+}
+.hamburger          { display: inline-flex; margin: -9px; }
+.search-trigger-btn { margin: -9px -5px; }
+.mode-btn           { min-height: 24px; }
+.bandeau-lien       { display: inline-flex; align-items: center; min-height: 24px; padding: 0 .3rem; }
+@media (pointer: coarse) {
+  .mode-btn     { min-height: 44px; min-width: 44px; }
+  .bandeau-lien { min-height: 44px; }
+
+  /* Safari sur iPhone zoome toute la page dès qu'on touche un champ dont le
+     texte fait moins de 16 px, et il faut dézoomer à la main avant de
+     continuer. La règle de base ci-dessus fixait 13 px pour tous les champs du
+     panneau : chaque formulaire, à chaque champ. Sur la file des preuves de
+     paiement — identifiant, note, motif de rejet —, c'était à chaque dossier.
+
+     `!important` à dessein : plusieurs pages redéfinissent la taille par
+     classe, ce qui l'emporterait sur un simple sélecteur d'élément. Un plancher
+     d'accessibilité doit tenir quelle que soit la page, et il est borné aux
+     écrans tactiles — l'affichage sur ordinateur ne change pas. */
+  input, select, textarea { font-size: 16px !important; }
+}
+
 /* ── Topbar ──────────────────────────────────────────────────────────────── */
 .topbar {
   display: flex; justify-content: space-between; align-items: center;
