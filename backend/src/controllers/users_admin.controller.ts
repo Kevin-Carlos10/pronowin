@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AdminRequest } from '../middleware/admin.middleware';
-import { UsersAdminService } from '../services/users_admin.service';
+import { FiltresUtilisateurs, UsersAdminService } from '../services/users_admin.service';
+import { lirePagination } from '../utils/pagination';
 
 const svc = new UsersAdminService();
 
@@ -16,17 +17,24 @@ export const getOnlineUsers = async (_req: AdminRequest, res: Response) => {
   } catch (e: any) { res.status(500).json({ message: e.message }); }
 };
 
+/** Les filtres de la liste, lus de la même façon pour l'écran et l'export. */
+function filtresDe(req: AdminRequest): FiltresUtilisateurs {
+  const texte = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim() : undefined);
+  return {
+    search:   texte(req.query.search),
+    plan:     texte(req.query.plan),
+    status:   texte(req.query.status),
+    dateFrom: texte(req.query.date_from),
+    dateTo:   texte(req.query.date_to),
+    minTx:    parseInt(req.query.min_tx as string ?? '') || undefined,
+  };
+}
+
 export const getUsers = async (req: AdminRequest, res: Response) => {
   try {
     const result = await svc.getUsers({
-      page:    parseInt(req.query.page    as string ?? '1'),
-      perPage: parseInt(req.query.per_page as string ?? '20'),
-      search:   req.query.search    as string,
-      plan:     req.query.plan      as string,
-      status:   req.query.status    as string,
-      dateFrom: req.query.date_from as string,
-      dateTo:   req.query.date_to   as string,
-      minTx:    parseInt(req.query.min_tx as string ?? '') || undefined,
+      ...lirePagination(req.query),
+      ...filtresDe(req),
       sortBy:   req.query.sort_by   as string,
       sortDir: (req.query.sort_dir  as 'asc' | 'desc') ?? 'desc',
     });
@@ -90,7 +98,8 @@ export const exportCsv = async (req: AdminRequest, res: Response) => {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="pronowin_users_${new Date().toISOString().split('T')[0]}.csv"`);
     res.write('\uFEFF' + svc.exportCsvHeader() + '\n'); // BOM pour Excel
-    for await (const row of svc.exportCsvRows(req.query.plan as string)) {
+    // Les mêmes filtres que la liste : l'export ne recevait que le plan.
+    for await (const row of svc.exportCsvRows(filtresDe(req))) {
       res.write(row + '\n');
     }
     res.end();

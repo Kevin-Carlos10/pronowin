@@ -11,7 +11,7 @@
  */
 module.exports = (app, ctx) => {
   const {
-    api, requireAuth, requireMain, requirePerm, logAction, sendCSV,
+    api, requireAuth, requireMain, requirePerm, logAction, sendCSV, relayerExportCsv,
     loadSubs, saveSubs, empreinteSubs, saveSubsSi,
     loadSettings, saveSettings, empreinteSettings, saveSettingsSi,
     loadNews, saveNews, loadBans, saveBans, loadLogs, saveLogs,
@@ -339,43 +339,12 @@ module.exports = (app, ctx) => {
     } catch (e) { res.redirect('/admin/historique?error=' + encodeURIComponent(e.response?.data?.message ?? e.message)); }
   });
 
-  app.get('/admin/historique/export', requireAuth, requirePerm('historique'), async (req, res) => {
-    const a = api(req.admin.jeton);
-    try {
-      try {
-        const r = await a.get('/admin/history/export/csv', { params: req.query, responseType: 'text' });
-        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-        res.setHeader('Content-Disposition', r.headers['content-disposition'] ?? 'attachment; filename="historique_export.csv"');
-        return res.send(r.data);
-      } catch (apiErr) {
-        if (apiErr.response?.status !== 404) throw apiErr;
-      }
-      // Fallback : générer localement
-      const { search='', status='', method='', date_from='', date_to='',
-              amount_min='', amount_max='' } = req.query;
-      const r = await a.get('/admin/history', { params: {
-        search, status, method, date_from, date_to, amount_min, amount_max,
-        page: 1, per_page: 5000,
-      }});
-      const txs  = r.data.data ?? [];
-      const date = new Date().toISOString().slice(0,10);
-      const headers = ['ID','Utilisateur','Téléphone','Montant (FCFA)','Méthode','Statut','ID 1xBet','N° Envoyeur','Note admin','Date création','Date traitement'];
-      const rows = txs.map(tx => [
-        tx.id,
-        tx.user?.pseudo ?? '',
-        tx.user?.phoneNumber ?? '',
-        tx.amount ?? 0,
-        tx.paymentMethod ?? '',
-        tx.status ?? '',
-        tx.xbetId ?? '',
-        tx.senderPhone ?? '',
-        tx.adminNote ?? '',
-        tx.createdAt   ? new Date(tx.createdAt).toLocaleString('fr-FR')   : '',
-        tx.processedAt ? new Date(tx.processedAt).toLocaleString('fr-FR') : '',
-      ]);
-      sendCSV(res, `historique_${date}.csv`, headers, rows);
-    } catch (e) { res.redirect('/admin/historique?error=' + encodeURIComponent('Erreur export : ' + (e.friendlyMessage ?? e.message))); }
-  });
+  // L'API applique les mêmes filtres que l'écran — recherche, méthode et
+  // montants compris, que l'export ignorait (constat A16).
+  app.get('/admin/historique/export', requireAuth, requirePerm('historique'), (req, res) =>
+    relayerExportCsv(req, res, {
+      chemin: '/admin/history/export/csv', repli: '/admin/historique', nomParDefaut: 'historique.csv',
+    }));
 
   // ─── ABONNEMENTS ──────────────────────────────────────────────────────────────
 

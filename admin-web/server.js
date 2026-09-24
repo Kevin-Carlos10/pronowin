@@ -536,18 +536,48 @@ const permLevelOk  = niveauSuffisant;
  * Gère l'échappement des virgules, guillemets et retours à la ligne.
  */
 function generateCSV(headers, rows) {
+  /**
+   * Une cellule qu'un tableur lit comme du texte.
+   *
+   * Une valeur qui commence par `=`, `+`, `-` ou `@` est une formule pour
+   * Excel, LibreOffice ou Google Sheets, guillemets ou pas — et les pseudos,
+   * motifs de ban ou notes que ces exports contiennent sont en partie saisis
+   * par des utilisateurs. Même règle que `backend/src/utils/csv.ts` : une
+   * apostrophe en tête force le texte ; les nombres restent des nombres.
+   */
   function escCell(v) {
     if (v === null || v === undefined) return '';
-    const s = String(v).replace(/\r\n|\r|\n/g, ' ');
-    return s.includes(',') || s.includes('"') || s.includes('\n')
-      ? '"' + s.replace(/"/g, '""') + '"'
-      : s;
+    if (typeof v === 'number') return String(v);
+    let s = String(v).replace(/\r\n|\r|\n/g, ' ');
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s;
+    return '"' + s.replace(/"/g, '""') + '"';
   }
   const lines = [
     headers.map(escCell).join(','),
     ...rows.map(row => row.map(escCell).join(',')),
   ];
   return '﻿' + lines.join('\r\n'); // BOM UTF-8 pour Excel
+}
+
+/**
+ * Relaie un export CSV produit par l'API, en flux.
+ *
+ * Les relais chargeaient toute la réponse en mémoire (`responseType: 'text'`)
+ * avant de la renvoyer, et retombaient, si la route manquait, sur une liste
+ * de 5 000 lignes mise en forme ici avec d'autres filtres et d'autres
+ * colonnes. Deux exports différents pour un même bouton : on ne garde que
+ * celui de l'API, où liste et export partagent désormais leur filtre.
+ */
+async function relayerExportCsv(req, res, { chemin, repli, nomParDefaut }) {
+  try {
+    const r = await api(req.admin.jeton).get(chemin, { params: req.query, responseType: 'stream' });
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', r.headers['content-disposition'] ?? `attachment; filename="${nomParDefaut}"`);
+    r.data.on('error', () => res.end());
+    r.data.pipe(res);
+  } catch (e) {
+    res.redirect(repli + '?error=' + encodeURIComponent('Erreur export CSV : ' + (e.friendlyMessage ?? e.message)));
+  }
 }
 
 /**
@@ -1683,7 +1713,7 @@ async function fetchTutorialLevels(a) {
 // diverger — à commencer par STATS_ENDPOINTS, qui est une liste blanche de
 // sécurité.
 const contexteRoutes = {
-  api, requireAuth, requireMain, requirePerm, logAction, sendCSV,
+  api, requireAuth, requireMain, requirePerm, logAction, sendCSV, relayerExportCsv,
   loadSubs, saveSubs, empreinteSubs, saveSubsSi,
   loadSettings, saveSettings, empreinteSettings, saveSettingsSi,
   loadNews, saveNews, loadBans, saveBans, loadLogs, saveLogs,

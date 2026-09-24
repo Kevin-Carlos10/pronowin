@@ -1,21 +1,30 @@
 ﻿
 import { prisma } from '../lib/prisma';
+import { ligneCsv } from '../utils/csv';
+
+/** Les filtres de l'historique, partagés par l'écran et l'export. */
+export interface FiltresHistorique {
+  search?:    string;   // pseudo, téléphone, xbetId, numéro d'envoi
+  status?:    string;   // pending | processing | completed | rejected
+  method?:    string;   // orange_money | moov_money | mtn_momo
+  dateFrom?:  string;   // YYYY-MM-DD
+  dateTo?:    string;
+  amountMin?: number;
+  amountMax?: number;
+}
 
 export class PaymentHistoryService {
 
-  /** Historique paginé avec tous les filtres */
-  async getHistory(params: {
-    page:      number;
-    perPage:   number;
-    search?:   string;   // pseudo, téléphone, xbetId
-    status?:   string;   // pending | processing | completed | rejected
-    method?:   string;   // orange_money | moov_money | mtn_momo
-    dateFrom?: string;   // YYYY-MM-DD
-    dateTo?:   string;
-    sortDir?:  'asc' | 'desc';
-  }) {
-    const { page, perPage, search, status, method, dateFrom, dateTo, sortDir = 'desc' } = params;
-
+  /**
+   * Le filtre de l'historique — le même pour l'écran et pour l'export.
+   *
+   * L'export ne lisait que le statut et les dates : recherche et méthode
+   * étaient ignorées. Et les bornes de montant, envoyées par le panneau
+   * depuis toujours, n'étaient lues nulle part — le filtre s'affichait actif
+   * sans rien restreindre.
+   */
+  filtreHistorique(params: FiltresHistorique) {
+    const { search, status, method, dateFrom, dateTo, amountMin, amountMax } = params;
     const where: any = {};
 
     // Filtre recherche
@@ -37,6 +46,24 @@ export class PaymentHistoryService {
       if (dateFrom) where.createdAt.gte = new Date(dateFrom);
       if (dateTo)   where.createdAt.lte = new Date(dateTo + 'T23:59:59');
     }
+
+    if (amountMin !== undefined || amountMax !== undefined) {
+      where.amount = {};
+      if (amountMin !== undefined) where.amount.gte = amountMin;
+      if (amountMax !== undefined) where.amount.lte = amountMax;
+    }
+    return where;
+  }
+
+  /** Historique paginé avec tous les filtres */
+  async getHistory(params: FiltresHistorique & {
+    page:      number;
+    perPage:   number;
+    sortDir?:  'asc' | 'desc';
+  }) {
+    const { page, perPage } = params;
+    const sortDir = params.sortDir === 'asc' ? 'asc' : 'desc';
+    const where = this.filtreHistorique(params);
 
     const [items, total] = await Promise.all([
       prisma.transaction.findMany({
@@ -114,14 +141,8 @@ export class PaymentHistoryService {
   }
 
   /** Exporter CSV */
-  async exportCsv(params: { status?: string; dateFrom?: string; dateTo?: string }) {
-    const where: any = {};
-    if (params.status) where.status = params.status;
-    if (params.dateFrom || params.dateTo) {
-      where.createdAt = {};
-      if (params.dateFrom) where.createdAt.gte = new Date(params.dateFrom);
-      if (params.dateTo)   where.createdAt.lte = new Date(params.dateTo + 'T23:59:59');
-    }
+  async exportCsv(params: FiltresHistorique) {
+    const where = this.filtreHistorique(params);
 
     const txs = await prisma.transaction.findMany({
       where,
@@ -132,7 +153,7 @@ export class PaymentHistoryService {
     // La colonne « Type » ne portait plus d'information : toutes les lignes
     // sont des versements de gains de parrainage.
     const header = 'ID,Utilisateur,Téléphone,Montant,Méthode,ID 1xBet,N° Envoyeur,Statut,Note Admin,Date,Traité le';
-    const rows   = txs.map(t => [
+    const rows   = txs.map(t => ligneCsv([
       t.id,
       t.user.pseudo,
       t.user.phoneNumber,
@@ -144,7 +165,7 @@ export class PaymentHistoryService {
       t.adminNote ?? '',
       t.createdAt.toISOString().replace('T', ' ').slice(0, 16),
       t.processedAt?.toISOString().replace('T', ' ').slice(0, 16) ?? '',
-    ].map(v => `"${v}"`).join(','));
+    ]));
 
     return [header, ...rows].join('\n');
   }

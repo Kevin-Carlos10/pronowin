@@ -11,7 +11,7 @@
  */
 module.exports = (app, ctx) => {
   const {
-    api, requireAuth, requireMain, requirePerm, logAction, sendCSV,
+    api, requireAuth, requireMain, requirePerm, logAction, sendCSV, relayerExportCsv,
     loadSubs, saveSubs, empreinteSubs, saveSubsSi,
     loadSettings, saveSettings, empreinteSettings, saveSettingsSi,
     loadNews, saveNews, loadBans, saveBans, loadLogs, saveLogs,
@@ -90,40 +90,11 @@ module.exports = (app, ctx) => {
     }
   });
 
-  app.get('/admin/users/export', requireAuth, requirePerm('users'), async (req, res) => {
-    const a = api(req.admin.jeton);
-    try {
-      // Essayer d'abord la route export dédiée de l'API
-      try {
-        const r = await a.get('/admin/users/export/csv', { params: req.query, responseType: 'text' });
-        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
-        res.setHeader('Content-Disposition', r.headers['content-disposition'] ?? 'attachment; filename="users_export.csv"');
-        return res.send(r.data);
-      } catch (apiErr) {
-        if (apiErr.response?.status !== 404) throw apiErr; // erreur autre que "route inexistante"
-      }
-      // Fallback : récupérer les données et générer le CSV nous-mêmes
-      const { search='', plan='', status='', sort_by='createdAt', sort_dir='desc',
-              date_from='', date_to='', min_tx='' } = req.query;
-      const r = await a.get('/admin/users', { params: {
-        search, plan, status, sort_by, sort_dir, date_from, date_to, min_tx,
-        page: 1, per_page: 5000,
-      }});
-      const users = r.data.data ?? [];
-      const date  = new Date().toISOString().slice(0,10);
-      const headers = ['ID','Pseudo','Téléphone','Email','ID 1xBet','Plan','Statut','Inscrit le','Dernière connexion','Transactions','Jours Premium restants'];
-      const rows = users.map(u => [
-        u.id, u.pseudo, u.phoneNumber, u.email ?? '', u.xbetId ?? '',
-        u.is_premium ? 'Premium' : 'Gratuit',
-        u.isActive ? 'Actif' : 'Suspendu',
-        u.createdAt ? new Date(u.createdAt).toLocaleDateString('fr-FR') : '',
-        u.lastLoginAt ? new Date(u.lastLoginAt).toLocaleDateString('fr-FR') : '',
-        u.transaction_count ?? 0,
-        u.days_left ?? 0,
-      ]);
-      sendCSV(res, `users_${date}.csv`, headers, rows);
-    } catch (e) { res.redirect('/admin/users?error=' + encodeURIComponent('Erreur export CSV : ' + (e.friendlyMessage ?? e.message))); }
-  });
+  // L'API applique les mêmes filtres que la liste (constat A16).
+  app.get('/admin/users/export', requireAuth, requirePerm('users'), (req, res) =>
+    relayerExportCsv(req, res, {
+      chemin: '/admin/users/export/csv', repli: '/admin/users', nomParDefaut: 'utilisateurs.csv',
+    }));
 
   app.get('/admin/users/:id', requireAuth, requirePerm('users'), async (req, res) => {
     const a = api(req.admin.jeton);

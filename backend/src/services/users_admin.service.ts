@@ -1,7 +1,18 @@
 ﻿import { NotificationService } from './notification.service';
 import { prisma } from '../lib/prisma';
+import { ligneCsv } from '../utils/csv';
 
 const notifSvc = new NotificationService();
+
+/** Les filtres de la liste des utilisateurs, partagés par l'écran et l'export. */
+export interface FiltresUtilisateurs {
+  search?:   string;   // pseudo, téléphone, courriel, nom, identifiant partenaire
+  plan?:     string;   // 'free' | 'premium'
+  status?:   string;   // 'active' | 'suspended'
+  dateFrom?: string;   // inscrit à partir de (AAAA-MM-JJ)
+  dateTo?:   string;   // inscrit jusqu'à (AAAA-MM-JJ, borne incluse)
+  minTx?:    number;   // au moins N transactions
+}
 
 export class UsersAdminService {
 
@@ -16,21 +27,16 @@ export class UsersAdminService {
     'createdAt', 'pseudo', 'lastLoginAt', 'subscriptionPlan', 'isActive', 'email',
   ]);
 
-  /** Liste paginée avec recherche + filtres */
-  async getUsers(params: {
-    page:     number;
-    perPage:  number;
-    search?:  string;   // pseudo ou téléphone
-    plan?:    string;   // 'free' | 'premium'
-    status?:  string;   // 'active' | 'suspended'
-    dateFrom?: string;  // inscrit à partir de (AAAA-MM-JJ)
-    dateTo?:   string;  // inscrit jusqu'à (AAAA-MM-JJ, borne incluse)
-    minTx?:    number;  // au moins N transactions
-    sortBy?:  string;
-    sortDir?: 'asc' | 'desc';
-  }) {
-    const { page, perPage, search, plan, status, dateFrom, dateTo, minTx,
-            sortBy = 'createdAt', sortDir = 'desc' } = params;
+  /**
+   * Le filtre de la liste des utilisateurs — le même pour l'écran et pour
+   * l'export.
+   *
+   * L'export ne recevait que le plan : le bouton « Exporter les résultats
+   * filtrés » sortait toute la base quand l'écran en montrait trois lignes
+   * (constat A16). Une seule fonction construit désormais le filtre des deux.
+   */
+  async filtreUtilisateurs(params: FiltresUtilisateurs) {
+    const { search, plan, status, dateFrom, dateTo, minTx } = params;
 
     const where: any = {};
     if (search) {
@@ -71,6 +77,18 @@ export class UsersAdminService {
       });
       where.id = { in: grouped.filter(g => g._count._all >= minTx).map(g => g.userId) };
     }
+    return where;
+  }
+
+  /** Liste paginée avec recherche + filtres */
+  async getUsers(params: FiltresUtilisateurs & {
+    page:     number;
+    perPage:  number;
+    sortBy?:  string;
+    sortDir?: 'asc' | 'desc';
+  }) {
+    const { page, perPage, sortBy = 'createdAt', sortDir = 'desc' } = params;
+    const where = await this.filtreUtilisateurs(params);
 
     const col = UsersAdminService.SORTABLE.has(sortBy) ? sortBy : 'createdAt';
     const orderBy: any = { [col]: sortDir === 'asc' ? 'asc' : 'desc' };
@@ -297,9 +315,8 @@ export class UsersAdminService {
    * toute la table users en mémoire et construire la chaîne CSV d'un bloc —
    * la table n'a pas de limite naturelle de croissance.
    */
-  async *exportCsvRows(plan?: string, pageSize = 1000): AsyncGenerator<string> {
-    const where: any = {};
-    if (plan) where.subscriptionPlan = plan;
+  async *exportCsvRows(filtres: FiltresUtilisateurs = {}, pageSize = 1000): AsyncGenerator<string> {
+    const where = await this.filtreUtilisateurs(filtres);
 
     let cursor: string | undefined;
     while (true) {
@@ -319,7 +336,7 @@ export class UsersAdminService {
       if (users.length === 0) return;
 
       for (const u of users) {
-        yield [
+        yield ligneCsv([
           u.id, u.pseudo, u.firstName ?? '', u.lastName ?? '',
           u.phoneNumber, u.email ?? '', u.countryCode, u.xbetId ?? '',
           (u.birthDate as Date)?.toISOString().split('T')[0] ?? '',
@@ -329,7 +346,7 @@ export class UsersAdminService {
           u.isActive ? 'Oui' : 'Non',
           u.createdAt.toISOString().split('T')[0],
           u.lastLoginAt?.toISOString().split('T')[0] ?? '',
-        ].map(v => `"${v}"`).join(',');
+        ]);
       }
 
       cursor = users[users.length - 1].id;
