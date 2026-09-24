@@ -4,6 +4,7 @@ import { ApiFootballInsights } from './api_football_insights.service';
 import { zoneDepuisDescription } from './zones_classement';
 import { traduireAbsence, estSuspension } from './traduction_absences';
 import { noterQuota } from './etat_taches';
+import { journal } from '../utils/logger';
 
 // Mapping Football-Data.org codes → API-Football league IDs + saison de repli.
 //
@@ -77,17 +78,17 @@ export async function saisonCourante(leagueCode: string): Promise<number | null>
 
     if (typeof courante === 'number') {
       if (courante !== league.season) {
-        console.info(
+        journal.info(
           `[ApiFootball] ${leagueCode} : saison courante ${courante} ` +
           `(repli codé en dur : ${league.season}).`);
       }
       saisonCache.set(leagueCode, { annee: courante, ts: Date.now() });
       return courante;
     }
-    console.warn(`[ApiFootball] ${leagueCode} : aucune saison « current » renvoyée.`);
+    journal.warn(`[ApiFootball] ${leagueCode} : aucune saison « current » renvoyée.`);
   } catch (err) {
     const e = err as AxiosError;
-    console.warn(`[ApiFootball] ${leagueCode} : saison courante illisible —`,
+    journal.warn(`[ApiFootball] ${leagueCode} : saison courante illisible —`,
                  (e.response?.data as any) ?? e.message);
   }
   return league.season;
@@ -364,7 +365,7 @@ export class ApiFootballService {
     if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
 
     if (!this._hasKey()) {
-      console.warn('[ApiFootball] Clé API_FOOTBALL_KEY manquante dans .env');
+      journal.warn('[ApiFootball] Clé API_FOOTBALL_KEY manquante dans .env');
       return null;
     }
 
@@ -416,7 +417,7 @@ export class ApiFootballService {
       return result;
 
     } catch (err: any) {
-      console.error('[ApiFootball] Erreur:', err.response?.data ?? err.message);
+      journal.error('[ApiFootball] Erreur:', err.response?.data ?? err.message);
       return null;
     }
   }
@@ -458,10 +459,10 @@ export class ApiFootballService {
       } catch (err) {
         const e = err as AxiosError;
         if (e.response?.status === 429) {
-          console.warn('[ApiFootball] Rate limit atteint');
+          journal.warn('[ApiFootball] Rate limit atteint');
           break;
         }
-        console.error(`[ApiFootball] Erreur fixtures ${day}:`, (e.response?.data as any) ?? e.message);
+        journal.error(`[ApiFootball] Erreur fixtures ${day}:`, (e.response?.data as any) ?? e.message);
       }
     }
     return all;
@@ -511,7 +512,7 @@ export class ApiFootballService {
       return (r.data?.response ?? [])[0] ?? null;
     } catch (err) {
       const e = err as AxiosError;
-      console.error('[ApiFootball] Erreur getFixtureById:', (e.response?.data as any) ?? e.message);
+      journal.error('[ApiFootball] Erreur getFixtureById:', (e.response?.data as any) ?? e.message);
       return null;
     }
   }
@@ -644,7 +645,7 @@ export class ApiFootballService {
       };
     } catch (err) {
       const e = err as AxiosError;
-      console.error('[ApiFootball] Erreur H2H:', (e.response?.data as any) ?? e.message);
+      journal.error('[ApiFootball] Erreur H2H:', (e.response?.data as any) ?? e.message);
       return null;
     }
   }
@@ -713,7 +714,7 @@ export class ApiFootballService {
       return result;
     } catch (err) {
       const e = err as AxiosError;
-      console.error('[ApiFootball] Erreur lineups:', (e.response?.data as any) ?? e.message);
+      journal.error('[ApiFootball] Erreur lineups:', (e.response?.data as any) ?? e.message);
       return null;
     }
   }
@@ -766,7 +767,7 @@ export class ApiFootballService {
       return result;
     } catch (err) {
       const e = err as AxiosError;
-      console.error('[ApiFootball] Erreur injuries:', (e.response?.data as any) ?? e.message);
+      journal.error('[ApiFootball] Erreur injuries:', (e.response?.data as any) ?? e.message);
       return null;
     }
   }
@@ -866,7 +867,7 @@ export class ApiFootballService {
       return result;
     } catch (err) {
       const e = err as AxiosError;
-      console.error('[ApiFootball] Erreur odds:', (e.response?.data as any) ?? e.message);
+      journal.error('[ApiFootball] Erreur odds:', (e.response?.data as any) ?? e.message);
       return null;
     }
   }
@@ -900,7 +901,7 @@ export class ApiFootballService {
         params: { league: league.id, season: saison },
       });
       if (r.data?.errors && Object.keys(r.data.errors).length > 0) {
-        console.warn('[ApiFootball] Classement indisponible (plan) :', JSON.stringify(r.data.errors));
+        journal.warn('[ApiFootball] Classement indisponible (plan) :', JSON.stringify(r.data.errors));
         return null;
       }
 
@@ -927,7 +928,7 @@ export class ApiFootballService {
       return result;
     } catch (err) {
       const e = err as AxiosError;
-      console.error('[ApiFootball] Erreur standings:', (e.response?.data as any) ?? e.message);
+      journal.error('[ApiFootball] Erreur standings:', (e.response?.data as any) ?? e.message);
       return null;
     }
   }

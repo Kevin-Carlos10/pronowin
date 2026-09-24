@@ -1,6 +1,6 @@
 ﻿import { NotificationService } from './notification.service';
 import { prisma } from '../lib/prisma';
-import logger from '../utils/logger';
+import logger, { journal } from '../utils/logger';
 import { Prisma } from '@prisma/client';
 import { ReferralService } from './referral.service';
 import { listerPubliques } from './payment_method.service';
@@ -312,7 +312,7 @@ export class SubscriptionService {
         } : null,
       };
     } catch (e: any) {
-      console.error('[SubscriptionService] getCurrentSubscription:', e.message);
+      journal.error('[SubscriptionService] getCurrentSubscription:', e.message);
       // Retourner un état par défaut plutôt que de crasher
       return {
         plan:          'free',
@@ -712,7 +712,7 @@ export class SubscriptionService {
 
     // ── DÉCLENCHER LES COMMISSIONS DE PARRAINAGE ────────────────────────────
     await referralSvc().triggerCommissions(userId).catch(e =>
-      console.error('[Parrainage] Erreur triggerCommissions:', e.message)
+      journal.error('[Parrainage] Erreur triggerCommissions:', e.message)
     );
 
     if (notify) {

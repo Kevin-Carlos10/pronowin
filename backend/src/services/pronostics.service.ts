@@ -8,6 +8,7 @@ import { settleBets } from './bankroll.service';
 import { _resolvePronosticResult, type ScoreLine } from './settlement';
 import { estVerrouille } from './verrou_pronostic';
 import { construireRecherche } from './recherche_matchs';
+import { journal } from '../utils/logger';
 
 const notifSvc  = new NotificationService();
 
@@ -105,7 +106,7 @@ export class PronosticsService {
         await prisma.match.update({ where: { id: m.id }, data: { alertSent: true } });
         notified++;
       } catch (err: any) {
-        console.error(`[MatchSoon] Erreur notif ${m.homeTeam} vs ${m.awayTeam}:`, err.message);
+        journal.error(`[MatchSoon] Erreur notif ${m.homeTeam} vs ${m.awayTeam}:`, err.message);
       }
     }
 
@@ -625,7 +626,7 @@ export class PronosticsService {
               deep_link: liveProno ? `/pronostics/${liveProno.id}` : '',
               match_id:  match.id,
             },
-          }, 'match').catch((err: any) => console.error("[PronoSvc]", err.message));
+          }, 'match').catch((err: any) => journal.error("[PronoSvc]", err.message));
         }
       }
 
@@ -647,7 +648,7 @@ export class PronosticsService {
                 deep_link: prono ? `/pronostics/${prono.id}` : '',
                 match_id:  match.id,
               },
-            }, 'match').catch((err: any) => console.error("[PronoSvc]", err.message));
+            }, 'match').catch((err: any) => journal.error("[PronoSvc]", err.message));
           }
         }
 
@@ -664,8 +665,8 @@ export class PronosticsService {
               data:  { result },
             });
             resolved++;
-            settleBets(prono.id, result).catch((err: any) => console.error("[PronoSvc]", err.message));
-            console.log(`[ScoreSync] Pronostic ${prono.id} → ${result} (${homeScore}-${awayScore})`);
+            settleBets(prono.id, result).catch((err: any) => journal.error("[PronoSvc]", err.message));
+            journal.info(`[ScoreSync] Pronostic ${prono.id} → ${result} (${homeScore}-${awayScore})`);
             notifSvc.notifyMatchResult({
               homeTeam:    match.homeTeam,
               awayTeam:    match.awayTeam,
@@ -673,7 +674,7 @@ export class PronosticsService {
               awayScore,
               result,
               pronosticId: prono.id,
-            }).catch((err: any) => console.error("[PronoSvc]", err.message));
+            }).catch((err: any) => journal.error("[PronoSvc]", err.message));
 
             // Notifier personnellement les utilisateurs favoris avec le résultat de leur prono
             const label = result === 'WIN' ? 'Pronostic gagnant !' : result === 'PUSH' ? 'Pronostic remboursé' : 'Pronostic perdant';
@@ -686,7 +687,7 @@ export class PronosticsService {
                   deep_link: `/pronostics/${prono.id}`,
                   match_id:  match.id,
                 },
-              }, 'match').catch((err: any) => console.error("[PronoSvc]", err.message));
+              }, 'match').catch((err: any) => journal.error("[PronoSvc]", err.message));
             }
           }
         }
@@ -716,8 +717,8 @@ export class PronosticsService {
       if (result) {
         await prisma.pronostic.update({ where: { id: prono.id }, data: { result } });
         resolved++;
-        settleBets(prono.id, result).catch((err: any) => console.error("[PronoSvc]", err.message));
-        console.log(`[ScoreSync] Pronostic ${prono.id} → ${result} (backfill ${homeScore}-${awayScore})`);
+        settleBets(prono.id, result).catch((err: any) => journal.error("[PronoSvc]", err.message));
+        journal.info(`[ScoreSync] Pronostic ${prono.id} → ${result} (backfill ${homeScore}-${awayScore})`);
         notifSvc.notifyMatchResult({
           homeTeam:    prono.match.homeTeam,
           awayTeam:    prono.match.awayTeam,
@@ -725,11 +726,11 @@ export class PronosticsService {
           awayScore:   awayScore!,
           result,
           pronosticId: prono.id,
-        }).catch((err: any) => console.error("[PronoSvc]", err.message));
+        }).catch((err: any) => journal.error("[PronoSvc]", err.message));
       }
     }
 
-    console.log(`[ScoreSync] ✅ ${updated} matchs mis à jour, ${resolved} résultats calculés`);
+    journal.info(`[ScoreSync] ✅ ${updated} matchs mis à jour, ${resolved} résultats calculés`);
     return { updated, resolved };
   }
 

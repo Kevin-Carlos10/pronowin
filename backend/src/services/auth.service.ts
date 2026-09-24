@@ -10,7 +10,7 @@ import {
   getGooglePlayReviewConfig,
   normaliseEmail,
 } from '../config/google_play_review';
-import logger from '../utils/logger';
+import logger, { journal } from '../utils/logger';
 
 import { prisma } from '../lib/prisma';
 import { decisionEnvoiOtp, OTP_FENETRE_MS, QuotaOtpDepasse } from '../utils/quota_otp';
@@ -132,7 +132,7 @@ export class AuthService {
     // ── Détection de réutilisation (Token Theft Detection) ──────────────────
     // Si le token est déjà marqué "used", quelqu'un l'a réutilisé → vol probable
     if (record.used) {
-      console.warn(`[Auth] ⚠️  Refresh token réutilisé pour userId=${record.userId} — révocation de toutes les sessions`);
+      journal.warn(`[Auth] ⚠️  Refresh token réutilisé pour userId=${record.userId} — révocation de toutes les sessions`);
       // Révoquer TOUS les tokens de cet utilisateur (compromission détectée)
       await prisma.refreshToken.deleteMany({ where: { userId: record.userId } });
       throw new Error('Session compromise détectée. Veuillez vous reconnecter.');
@@ -156,7 +156,7 @@ export class AuthService {
       data:  { used: true },
     });
     if (count === 0) {
-      console.warn(`[Auth] ⚠️  Refresh token consommé deux fois pour userId=${record.userId} — révocation de toutes les sessions`);
+      journal.warn(`[Auth] ⚠️  Refresh token consommé deux fois pour userId=${record.userId} — révocation de toutes les sessions`);
       await prisma.refreshToken.deleteMany({ where: { userId: record.userId } });
       throw new Error('Session compromise détectée. Veuillez vous reconnecter.');
     }

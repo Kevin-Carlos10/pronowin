@@ -1,3 +1,4 @@
+import { journal } from '../utils/logger';
 /**
  * Zones de qualification et de relégation d'un classement.
  *
@@ -63,7 +64,7 @@ export function zoneDepuisDescription(description: unknown): Zone | null {
 
   if (!inconnues.has(texte)) {
     inconnues.add(texte);
-    console.warn(`[Classement] zone non reconnue : « ${texte} »`);
+    journal.warn(`[Classement] zone non reconnue : « ${texte} »`);
   }
   return null;
 }

@@ -1,4 +1,5 @@
 import { ecrireConfig, lireConfig } from '../services/app_config.service';
+import { BASE_LOCALE, decrireSurBaseLocale } from './aides/base_locale';
 
 /**
  * On ne peut pas exiger une version qu'on ne publie pas.
@@ -22,7 +23,7 @@ import { ecrireConfig, lireConfig } from '../services/app_config.service';
  * envoie : relever le minimum seul, sans toucher au reste, doit être refusé en
  * le comparant à la dernière version déjà enregistrée.
  */
-describe('seuils de mise à jour', () => {
+decrireSurBaseLocale('seuils de mise à jour', () => {
   // Toutes les clés que ce banc écrit — pas seulement celles qu'il vérifie.
   //
   // La première version n'en restaurait que quatre et oubliait

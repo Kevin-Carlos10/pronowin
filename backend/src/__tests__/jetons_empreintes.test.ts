@@ -23,6 +23,7 @@ import { prisma } from '../lib/prisma';
 import { AuthService, empreinteJeton, empreinteOtp } from '../services/auth.service';
 import { AdminAuthService } from '../services/admin_auth.service';
 import { signerDelegation, ENTETE_DELEGATION } from '../utils/delegation_admin';
+import { BASE_LOCALE, decrireSurBaseLocale } from './aides/base_locale';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const { adminMiddleware } = require('../middleware/admin.middleware');
@@ -34,6 +35,7 @@ let adminId = '';
 const courriel = `${marque}@banc.invalid`;
 
 beforeAll(async () => {
+  if (!BASE_LOCALE) return;
   const u = await prisma.user.create({
     data: { pseudo: marque, referralCode: marque.slice(-12).toUpperCase() },
   });
@@ -45,6 +47,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  if (!BASE_LOCALE) return;
   await prisma.refreshToken.deleteMany({ where: { userId } });
   await prisma.otpCode.deleteMany({ where: { phoneNumber: { startsWith: marque } } });
   await prisma.user.delete({ where: { id: userId } }).catch(() => {});
@@ -52,7 +55,7 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe('refresh tokens (S11)', () => {
+decrireSurBaseLocale('refresh tokens (S11)', () => {
   it('la base ne garde que l\'empreinte', async () => {
     const { refresh_token } = await (auth as any)._generateTokens(userId);
     expect(await prisma.refreshToken.count({ where: { token: refresh_token } })).toBe(0);
@@ -83,7 +86,7 @@ describe('refresh tokens (S11)', () => {
   });
 });
 
-describe('codes de connexion (S11)', () => {
+decrireSurBaseLocale('codes de connexion (S11)', () => {
   const dest = `${marque}-otp`;
   const poser = (code: string, brut = false) => prisma.otpCode.create({ data: {
     phoneNumber: dest, code: brut ? code : empreinteOtp(dest, code),
@@ -108,7 +111,7 @@ describe('codes de connexion (S11)', () => {
   });
 });
 
-describe('sessions administrateur (S12)', () => {
+decrireSurBaseLocale('sessions administrateur (S12)', () => {
   const app = express();
   app.get('/pronostics/admin/upcoming', adminMiddleware, (_req, res) => res.json({ ok: true }));
   const appel = (jeton: string) => request(app).get('/pronostics/admin/upcoming')

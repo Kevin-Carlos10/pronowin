@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { journal } from '../utils/logger';
 
 const BASE = 'https://api.football-data.org/v4';
 
@@ -93,7 +94,7 @@ export class FootballDataService {
 
     // Retourner le cache si valide
     if (this._isCacheValid(cacheKey)) {
-      console.log(`[FootballData] Cache HIT pour ${code}`);
+      journal.info(`[FootballData] Cache HIT pour ${code}`);
       return cache.get(cacheKey)!.data;
     }
 
@@ -111,12 +112,12 @@ export class FootballDataService {
 
   private async _fetchCompetition(code: string, dateFrom: string, dateTo: string): Promise<FDMatch[]> {
     try {
-      console.log(`[FootballData] Fetch ${code} (${dateFrom} → ${dateTo})`);
+      journal.info(`[FootballData] Fetch ${code} (${dateFrom} → ${dateTo})`);
       const r = await this.client.get(`/competitions/${code}/matches`, {
         params: { status: 'SCHEDULED', dateFrom, dateTo },
       });
       const matches = r.data.matches ?? [];
-      console.log(`[FootballData] ${code}: ${matches.length} matchs`);
+      journal.info(`[FootballData] ${code}: ${matches.length} matchs`);
       return matches;
     } catch (err) {
       const e      = err as AxiosError;
@@ -130,10 +131,10 @@ export class FootballDataService {
         );
       }
       if (status === 429) {
-        console.warn(`[FootballData] Rate limit pour ${code} — données mises en cache à vide`);
+        journal.warn(`[FootballData] Rate limit pour ${code} — données mises en cache à vide`);
         return [];
       }
-      console.error(`[FootballData] Erreur ${status} pour ${code}:`, data?.message ?? e.message);
+      journal.error(`[FootballData] Erreur ${status} pour ${code}:`, data?.message ?? e.message);
       return [];
     }
   }
@@ -153,7 +154,7 @@ export class FootballDataService {
       return r.data;
     } catch (err) {
       const e = err as AxiosError;
-      console.error(`[FootballData] H2H error for match ${matchId}:`, e.response?.data ?? e.message);
+      journal.error(`[FootballData] H2H error for match ${matchId}:`, e.response?.data ?? e.message);
       return null;
     }
   }
@@ -180,14 +181,14 @@ export class FootballDataService {
         });
         const matches: FDMatch[] = r.data.matches ?? [];
         all.push(...matches);
-        console.log(`[ScoreSync] ${code}: ${matches.length} matchs live/terminés`);
+        journal.info(`[ScoreSync] ${code}: ${matches.length} matchs live/terminés`);
       } catch (err) {
         const e = err as any;
         if (e.response?.status === 429) {
-          console.warn(`[ScoreSync] Rate limit pour ${code}, passage au suivant`);
+          journal.warn(`[ScoreSync] Rate limit pour ${code}, passage au suivant`);
           await new Promise(res => setTimeout(res, 2000));
         } else if (e.response?.status !== 404) {
-          console.error(`[ScoreSync] Erreur ${code}:`, e.response?.data?.message ?? e.message);
+          journal.error(`[ScoreSync] Erreur ${code}:`, e.response?.data?.message ?? e.message);
         }
       }
       // Pause 700ms entre chaque ligue pour respecter la limite 10 req/min

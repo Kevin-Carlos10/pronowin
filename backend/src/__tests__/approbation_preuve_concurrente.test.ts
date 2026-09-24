@@ -22,12 +22,14 @@ jest.mock('../services/notification.service', () => ({
 
 import { prisma } from '../lib/prisma';
 import { SubscriptionService } from '../services/subscription.service';
+import { BASE_LOCALE, decrireSurBaseLocale } from './aides/base_locale';
 
 const svc = new SubscriptionService();
 const marque = `banc-i1-${Date.now()}`;
 let userId = '';
 
 beforeAll(async () => {
+  if (!BASE_LOCALE) return;
   const u = await prisma.user.create({
     data: { pseudo: marque, referralCode: marque.slice(-12).toUpperCase() },
   });
@@ -35,6 +37,7 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
+  if (!BASE_LOCALE) return;
   await prisma.subscriptionProof.deleteMany({ where: { userId } });
   await prisma.subscription.deleteMany({ where: { userId } });
   await prisma.user.delete({ where: { id: userId } }).catch(() => {});
@@ -45,7 +48,7 @@ const nouvellePreuve = () => prisma.subscriptionProof.create({
   data: { userId, type: 'payment_screenshot', screenshotUrl: 'banc://preuve', amount: 2000 },
 });
 
-describe('approbation d\'une preuve : une seule fois', () => {
+decrireSurBaseLocale('approbation d\'une preuve : une seule fois', () => {
   it('deux approbations simultanées : une réussit, l\'autre est refusée', async () => {
     const preuve = await nouvellePreuve();
     commissions = 0;

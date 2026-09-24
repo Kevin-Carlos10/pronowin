@@ -1,4 +1,5 @@
 import { traduireRecommandation } from '../services/traduction_recommandation';
+import { journal } from '../utils/logger';
 
 /**
  * Les six formes ci-dessous ont été relevées sur des réponses réelles
@@ -83,7 +84,9 @@ describe('traduireRecommandation', () => {
     });
 
     it('journalise la forme manquante pour qu\'elle remonte', () => {
-      const espion = jest.spyOn(console, 'warn').mockImplementation(() => {});
+      // Le journal structuré, et non plus `console` : c'est là que l'API écrit
+      // désormais, avec l'identifiant de la requête.
+      const espion = jest.spyOn(journal, 'warn').mockImplementation(() => undefined as any);
       traduireRecommandation('Une forme totalement nouvelle');
       expect(espion).toHaveBeenCalledWith(
         expect.stringContaining('Forme non traduite'));

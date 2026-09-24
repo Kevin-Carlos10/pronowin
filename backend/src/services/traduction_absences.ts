@@ -1,3 +1,4 @@
+import { journal } from '../utils/logger';
 /**
  * Motifs d'absence, traduits à la frontière du fournisseur.
  *
@@ -101,7 +102,7 @@ export function traduireAbsence(motif: unknown): string {
 
   if (!inconnus.has(cle)) {
     inconnus.add(cle);
-    console.warn(`[Absences] motif non traduit : « ${texte} »`);
+    journal.warn(`[Absences] motif non traduit : « ${texte} »`);
   }
   return texte;
 }

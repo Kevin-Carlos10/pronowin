@@ -16,7 +16,12 @@ import request from 'supertest';
 const journal: string[] = [];
 jest.mock('../utils/logger', () => {
   const noter = (...a: any[]) => { journal.push(a.map(String).join(' ')); };
-  return { __esModule: true, default: { error: noter, warn: noter, info: noter, http: noter } };
+  return {
+    __esModule: true,
+    default: { error: noter, warn: noter, info: noter, http: noter },
+    journal: { error: noter, warn: noter, info: noter },
+    requeteCourante: () => null,
+  };
 });
 
 const findUnique = jest.fn();

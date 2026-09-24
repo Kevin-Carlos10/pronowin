@@ -1,3 +1,4 @@
+import { journal } from '../utils/logger';
 /**
  * Cotes en direct : ne montrer que ce qui se lit sans ambiguïté.
  *
@@ -128,7 +129,7 @@ export function traduireMarche(nom: string): string {
 
   if (cle && !inconnus.has(cle)) {
     inconnus.add(cle);
-    console.warn(`[CotesLive] marché non traduit : « ${nom} »`);
+    journal.warn(`[CotesLive] marché non traduit : « ${nom} »`);
   }
   return nom;
 }

@@ -2,6 +2,7 @@ import type { AxiosInstance } from 'axios';
 import { traduireRecommandation } from './traduction_recommandation';
 import { extraireLigne, libelleSansLigne, marcheLisible, traduireMarche } from './cotes_live';
 import { evaluerFiabilite } from './fiabilite_modele';
+import { journal } from '../utils/logger';
 
 /**
  * Second volet du client API-Football : les données que le plan Pro débloque
@@ -245,14 +246,14 @@ export class ApiFootballInsights {
       const verdict = evaluerFiabilite(data);
       data.modeleExploitable = verdict.exploitable;
       if (!verdict.exploitable) {
-        console.warn(
+        journal.warn(
           `[ApiFootball] prédiction inexploitable pour la fixture ${fixtureId} : ${verdict.raison}`);
       }
 
       predictionCache.set(fixtureId, { data, ts: Date.now() });
       return data;
     } catch (e) {
-      console.error('[ApiFootball] /predictions indisponible:', (e as Error).message);
+      journal.error('[ApiFootball] /predictions indisponible:', (e as Error).message);
       return null;
     }
   }
@@ -309,7 +310,7 @@ export class ApiFootballInsights {
       seasonStatsCache.set(cle, { data, ts: Date.now() });
       return data;
     } catch (e) {
-      console.error('[ApiFootball] /teams/statistics indisponible:', (e as Error).message);
+      journal.error('[ApiFootball] /teams/statistics indisponible:', (e as Error).message);
       return null;
     }
   }
@@ -371,7 +372,7 @@ export class ApiFootballInsights {
       liveOddsCache = { data: map, ts: Date.now() };
       return map;
     } catch (e) {
-      console.error('[ApiFootball] /odds/live indisponible:', (e as Error).message);
+      journal.error('[ApiFootball] /odds/live indisponible:', (e as Error).message);
       return null;
     }
   }
@@ -422,7 +423,7 @@ export class ApiFootballInsights {
       ratingsCache.set(fixtureId, { data: out, ts: Date.now() });
       return out;
     } catch (e) {
-      console.error('[ApiFootball] /fixtures/players indisponible:', (e as Error).message);
+      journal.error('[ApiFootball] /fixtures/players indisponible:', (e as Error).message);
       return null;
     }
   }
@@ -462,7 +463,7 @@ export class ApiFootballInsights {
       scorersCache.set(cle, { data, ts: Date.now() });
       return data.slice(0, limit);
     } catch (e) {
-      console.error('[ApiFootball] /players/topscorers indisponible:', (e as Error).message);
+      journal.error('[ApiFootball] /players/topscorers indisponible:', (e as Error).message);
       return null;
     }
   }

@@ -5,6 +5,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import crypto from 'crypto';
 
 import { ErreurMetier } from '../utils/erreurs';
+import { journal } from '../utils/logger';
 
 const REGION = process.env.AWS_REGION ?? 'eu-west-1';
 
@@ -148,7 +149,7 @@ export class S3Service {
       if (!key) return;
       await s3.send(new DeleteObjectCommand({ Bucket: BUCKET, Key: key }));
     } catch (e) {
-      console.error('[S3] Erreur suppression:', e);
+      journal.error('[S3] Erreur suppression:', e);
     }
   }
 }

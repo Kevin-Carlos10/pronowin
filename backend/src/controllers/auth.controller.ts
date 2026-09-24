@@ -3,9 +3,13 @@ import { prisma } from '../lib/prisma';
 import { body, validationResult } from 'express-validator';
 import { AuthService } from '../services/auth.service';
 import { AuthRequest } from '../middleware/auth.middleware';
-import bcrypt from 'bcrypt';
+// bcryptjs, comme le reste de l'API : deux implémentations de la même
+// primitive cohabitaient, dont une native à recompiler à chaque montée de
+// version de Node (constat S5). Les empreintes sont compatibles.
+import bcrypt from 'bcryptjs';
 import { updateStreak, getStreak } from '../services/streak.service';
 import { repondreErreur } from '../utils/erreurs';
+import { journal } from '../utils/logger';
 
 const authService = new AuthService();
 
@@ -35,7 +39,7 @@ function _recordOtpFailure(phone: string): void {
   rec.count++;
   if (rec.count >= OTP_MAX_ATTEMPTS) {
     rec.blockedUntil = now + OTP_BLOCK_MS;
-    console.warn(`[OTP] Brute-force détecté pour ${phone} — bloqué 15 min`);
+    journal.warn(`[OTP] Brute-force détecté pour ${phone} — bloqué 15 min`);
   }
   _otpAttempts.set(phone, rec);
 }

@@ -10,6 +10,7 @@ import {
 } from '../utils/delegation_admin';
 import { acteurAutorise, cheminRelatif } from '../utils/permissions_admin';
 import { repondreErreur } from '../utils/erreurs';
+import { journal } from '../utils/logger';
 
 // Interface étendue pour les requêtes admin
 export interface AdminRequest extends Request {
@@ -32,10 +33,10 @@ export interface AdminRequest extends Request {
  */
 const SECRET_DELEGATION = process.env.ADMIN_DELEGATION_SECRET ?? '';
 if (!SECRET_DELEGATION) {
-  console.error('ADMIN_DELEGATION_SECRET est absent.');
-  console.error('Ce secret etablit qui agit derriere le compte de service du panneau ;');
-  console.error('sans lui, une action d administration ne peut etre attribuee a personne.');
-  console.error('La meme valeur doit etre posee dans backend/.env et admin-web/.env.');
+  journal.error('ADMIN_DELEGATION_SECRET est absent.');
+  journal.error('Ce secret etablit qui agit derriere le compte de service du panneau ;');
+  journal.error('sans lui, une action d administration ne peut etre attribuee a personne.');
+  journal.error('La meme valeur doit etre posee dans backend/.env et admin-web/.env.');
   process.exit(1);
 }
 
@@ -102,7 +103,7 @@ export async function adminMiddleware(
     );
 
     if (!lecture.ok) {
-      console.warn(
+      journal.warn(
         `[admin] ${req.method} ${req.originalUrl} refusé — délégation `
         + `${lecture.cause}. Appel direct à l'API avec un jeton d'administration ?`);
       res.status(403).json({
@@ -122,7 +123,7 @@ export async function adminMiddleware(
     // elle-même (`utils/permissions_admin.ts`).
     const verdict = acteurAutorise(lecture.acteur, req.method, cheminRelatif(req.originalUrl));
     if (!verdict.ok) {
-      console.warn(`[admin] ${req.method} ${req.originalUrl} refusé à `
+      journal.warn(`[admin] ${req.method} ${req.originalUrl} refusé à `
         + `${lecture.acteur.nom} (${lecture.acteur.id}) — ${verdict.raison}.`);
       res.status(403).json({
         message: `Accès refusé : ${verdict.raison}.`,

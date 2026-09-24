@@ -29,6 +29,7 @@ jest.mock('../services/notification.service', () => ({
 import { prisma } from '../lib/prisma';
 import { IapService } from '../services/iap.service';
 import { FileNotificationsIap, TENTATIVES_MAX } from '../services/iap_notifications.service';
+import { BASE_LOCALE, decrireSurBaseLocale } from './aides/base_locale';
 
 const marque = `banc-iap-${Date.now()}`;
 const comptes: string[] = [];
@@ -58,6 +59,7 @@ function storeRepond(v: ReturnType<typeof verdict>) {
 }
 
 afterAll(async () => {
+  if (!BASE_LOCALE) return;
   await prisma.iapPurchase.deleteMany({ where: { userId: { in: comptes } } });
   await prisma.subscription.deleteMany({ where: { userId: { in: comptes } } });
   await prisma.iapNotification.deleteMany({ where: { evenementId: { startsWith: marque } } });
@@ -65,7 +67,7 @@ afterAll(async () => {
   await prisma.$disconnect();
 });
 
-describe('I9 — un reçu n\'ouvre qu\'un accès', () => {
+decrireSurBaseLocale('I9 — un reçu n\'ouvre qu\'un accès', () => {
   it('deux comptes, même reçu, au même instant : un seul Premium', async () => {
     const [a, b] = [await compte('a'), await compte('b')];
     storeRepond(verdict(`${marque}-t1`, `${marque}-o1`));
@@ -113,7 +115,7 @@ describe('I9 — un reçu n\'ouvre qu\'un accès', () => {
   });
 });
 
-describe('I11 et A17 — échéance et montant', () => {
+decrireSurBaseLocale('I11 et A17 — échéance et montant', () => {
   it('un achat store ne raccourcit pas un Premium payé plus loin', async () => {
     const a = await compte('f');
     const soixante = new Date(Date.now() + 60 * JOUR);
@@ -144,7 +146,7 @@ describe('I11 et A17 — échéance et montant', () => {
   });
 });
 
-describe('I10 — un événement n\'est jamais perdu', () => {
+decrireSurBaseLocale('I10 — un événement n\'est jamais perdu', () => {
   const faux = { handleAppleNotification: jest.fn(), handleGoogleNotification: jest.fn() };
   const file = new FileNotificationsIap(faux as any);
   const charge = { message: { data: 'e30=' } };

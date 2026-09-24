@@ -1,7 +1,7 @@
 import crypto from 'crypto';
 import { Response } from 'express';
 
-import logger from './logger';
+import logger, { requeteCourante } from './logger';
 
 /**
  * Une erreur dont le message est destiné à l'utilisateur.
@@ -86,7 +86,9 @@ export function repondreErreur(res: Response, e: unknown, statut = 500): void {
     res.status(typeof propre === 'number' ? propre : statut).json({ message: (e as Error).message });
     return;
   }
-  const reference = crypto.randomBytes(4).toString('hex');
+  // La référence est l'identifiant de la requête quand il existe : c'est lui
+  // que portent toutes les lignes du journal écrites pendant son traitement.
+  const reference = requeteCourante() ?? crypto.randomBytes(4).toString('hex');
   const req = res.req;
   logger.error(`[API] réf. ${reference} — ${req?.method ?? '?'} ${req?.originalUrl ?? '?'} — `
     + ((e as Error)?.stack ?? String(e)));

@@ -2,7 +2,7 @@
 import { AuthRequest } from '../middleware/auth.middleware';
 
 import { prisma } from '../lib/prisma';
-import logger from '../utils/logger';
+import logger, { journal } from '../utils/logger';
 import { NOTIF_CATEGORIES } from '../services/notification.service';
 import { estMajeur, AGE_MINIMUM } from '../utils/age';
 import { repondreErreur } from '../utils/erreurs';
@@ -106,7 +106,7 @@ export const updateAvatar = async (req: AuthRequest, res: Response) => {
     // un fichier orphelin facturé indéfiniment.
     if (previous?.avatarUrl) {
       await s3.deleteImage(previous.avatarUrl).catch((e: any) =>
-        console.warn('[Avatar] Ancienne image non supprimée :', e.message));
+        journal.warn('[Avatar] Ancienne image non supprimée :', e.message));
     }
 
     res.json({ success: true, avatar_url: url });

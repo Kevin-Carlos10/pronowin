@@ -1,5 +1,6 @@
 ﻿
 import { prisma } from '../lib/prisma';
+import { journal } from '../utils/logger';
 
 // Topics FCM — correspondent aux préférences utilisateur côté Flutter
 export const FCM_TOPICS = {
@@ -81,7 +82,7 @@ let admin: any = null;
 async function getAdmin() {
   if (admin) return admin;
   if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_PRIVATE_KEY) {
-    console.warn('[FCM] Firebase non configuré — mode console');
+    journal.warn('[FCM] Firebase non configuré — mode console');
     return null;
   }
   try {
@@ -96,10 +97,10 @@ async function getAdmin() {
       });
     }
     admin = fa.default;
-    console.log('[FCM] firebase-admin initialisé ✅');
+    journal.info('[FCM] firebase-admin initialisé ✅');
     return admin;
   } catch (e: any) {
-    console.error('[FCM] Erreur init:', e.message);
+    journal.error('[FCM] Erreur init:', e.message);
     return null;
   }
 }
@@ -115,7 +116,7 @@ async function getAdmin() {
  */
 function sansFirebase(): { success: false; error: string } | null {
   if (process.env.NODE_ENV !== 'production') return null;
-  console.error('[FCM] Firebase non configuré en production : notification NON envoyée.');
+  journal.error('[FCM] Firebase non configuré en production : notification NON envoyée.');
   return { success: false, error: 'firebase_non_configure' };
 }
 
@@ -123,7 +124,7 @@ export class NotificationService {
 
   async registerToken(userId: string, fcmToken: string, platform: string) {
     await prisma.user.update({ where: { id: userId }, data: { fcmToken } });
-    console.log(`[FCM] Token enregistré — user ${userId}`);
+    journal.info(`[FCM] Token enregistré — user ${userId}`);
     return { success: true };
   }
 
@@ -196,11 +197,11 @@ export class NotificationService {
       deepLink: payload.data?.['deep_link'],
     });
     if (category && !isNotifEnabled(user?.notificationPrefs, category)) {
-      console.log(`[FCM] user ${userId} a coupé « ${category} » — push non envoyée`);
+      journal.info(`[FCM] user ${userId} a coupé « ${category} » — push non envoyée`);
       return { success: false, reason: 'muted' };
     }
     if (!user?.fcmToken) {
-      console.log(`[FCM] Pas de token pour user ${userId} — notif sauvegardée en base`);
+      journal.info(`[FCM] Pas de token pour user ${userId} — notif sauvegardée en base`);
       return { success: false, reason: 'no_token' };
     }
     return this._sendToToken(user.fcmToken, payload);
@@ -214,7 +215,7 @@ export class NotificationService {
     if (!fa) {
       const refus = sansFirebase();
       if (refus) return refus;
-      console.log(`\n📢 [FCM Topic "${topic}"] ${payload.title}\n   ${payload.body}\n`);
+      journal.info(`\n📢 [FCM Topic "${topic}"] ${payload.title}\n   ${payload.body}\n`);
       return { success: true, simulated: true };
     }
     try {
@@ -239,10 +240,10 @@ export class NotificationService {
         },
         apns: { payload: { aps: { sound: 'default', badge: 1 } } },
       });
-      console.log(`[FCM] Topic "${topic}" ✅`);
+      journal.info(`[FCM] Topic "${topic}" ✅`);
       return { success: true, result: r };
     } catch (e: any) {
-      console.error('[FCM] Erreur topic:', e.message);
+      journal.error('[FCM] Erreur topic:', e.message);
       return { success: false, error: e.message };
     }
   }
@@ -254,7 +255,7 @@ export class NotificationService {
     if (!fa) {
       const refus = sansFirebase();
       if (refus) return refus;
-      console.log(`\n📱 [FCM] ${payload.title}\n   ${payload.body}\n`);
+      journal.info(`\n📱 [FCM] ${payload.title}\n   ${payload.body}\n`);
       return { success: true, simulated: true };
     }
     try {
@@ -268,12 +269,12 @@ export class NotificationService {
         },
         apns: { payload: { aps: { sound: 'default', badge: 1 } } },
       });
-      console.log(`[FCM] ✅ Token — messageId: ${messageId}`);
+      journal.info(`[FCM] ✅ Token — messageId: ${messageId}`);
       return { success: true, messageId };
     } catch (e: any) {
       if (e.code === 'messaging/registration-token-not-registered') {
         await prisma.user.updateMany({ where: { fcmToken }, data: { fcmToken: null } });
-        console.warn('[FCM] Token invalide supprimé');
+        journal.warn('[FCM] Token invalide supprimé');
       }
       return { success: false, error: e.message };
     }
@@ -328,7 +329,7 @@ export class NotificationService {
         // s'est réellement passé côté push.
         return { segment, sent: 0, failed: users.length, pruned: 0, error: 'firebase_non_configure' };
       }
-      console.log(`\n📢 [FCM Segment "${segment}" — ${users.length} destinataires] ${payload.title}\n   ${payload.body}\n`);
+      journal.info(`\n📢 [FCM Segment "${segment}" — ${users.length} destinataires] ${payload.title}\n   ${payload.body}\n`);
       return { segment, sent: users.length, failed: 0, pruned: 0, simulated: true };
     }
 
@@ -363,7 +364,7 @@ export class NotificationService {
           if (!resp.success && DEAD_TOKEN_CODES.has(resp.error?.code)) dead.push(tokens[k]);
         });
       } catch (e: any) {
-        console.error('[FCM] Erreur lot segment:', e.message);
+        journal.error('[FCM] Erreur lot segment:', e.message);
         failed += tokens.length;
       }
     }
@@ -374,10 +375,10 @@ export class NotificationService {
       await prisma.user.updateMany({
         where: { fcmToken: { in: dead } }, data: { fcmToken: null },
       });
-      console.warn(`[FCM] ${dead.length} token(s) invalide(s) purgé(s)`);
+      journal.warn(`[FCM] ${dead.length} token(s) invalide(s) purgé(s)`);
     }
 
-    console.log(`[FCM] Segment "${segment}" — ${sent} envoyée(s), ${failed} échec(s)`);
+    journal.info(`[FCM] Segment "${segment}" — ${sent} envoyée(s), ${failed} échec(s)`);
     return { segment, sent, failed, pruned: dead.length };
   }
 

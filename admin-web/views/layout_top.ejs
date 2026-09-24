@@ -107,7 +107,7 @@
   </div>
 
   <nav>
-    <a href="/admin/dashboard" class="nav-item <%= page==='dashboard' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg></span> Dashboard</a>
+    <a href="/admin/dashboard" class="nav-item <%= page==='dashboard' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg></span> Tableau de bord</a>
 
     <% if (hasPerm('statistiques')) { %>
     <a href="/admin/statistiques" class="nav-item <%= page==='statistiques' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg></span> Statistiques</a>
@@ -136,7 +136,7 @@
 
     <% if (hasPerm('abonnements')) { %>
     <a href="/admin/abonnements" class="nav-item <%= page==='abonnements' ?'active':'' %>">
-      <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> Abonnements
+      <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> Preuves Premium
       <span class="nav-badge" id="badge-proofs"></span>
     </a>
     <a href="/admin/code-promo" class="nav-item <%= page==='code_promo' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg></span> Code promo</a>
@@ -214,9 +214,9 @@
 <!-- ── Bottom Navigation Bar (mobile) ── -->
 <nav class="bottom-nav" id="bottom-nav" aria-label="Navigation mobile">
   <div class="bottom-nav-items">
-    <a href="/admin/dashboard" class="bottom-nav-item <%= page==='dashboard'?'active':'' %>" aria-label="Dashboard">
+    <a href="/admin/dashboard" class="bottom-nav-item <%= page==='dashboard'?'active':'' %>" aria-label="Tableau de bord">
       <span class="bottom-nav-icon"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg></span>
-      <span>Dashboard</span>
+      <span>Accueil</span>
     </a>
     <%# « Utilisateurs » et « Stats » s'excluaient mutuellement — un `if/else`
         qui gaspillait un créneau alors que la barre n'en compte que cinq pour

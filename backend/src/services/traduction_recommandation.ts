@@ -1,3 +1,4 @@
+import { journal } from '../utils/logger';
 /**
  * Traduction des recommandations d'API-Football.
  *
@@ -82,6 +83,6 @@ export function traduireRecommandation(advice: string | null | undefined): strin
     return s.charAt(0).toUpperCase() + s.slice(1);
   }
 
-  console.warn(`[Recommandation] Forme non traduite : « ${texte} »`);
+  journal.warn(`[Recommandation] Forme non traduite : « ${texte} »`);
   return texte;
 }

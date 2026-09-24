@@ -1,5 +1,6 @@
 ﻿
 import { prisma } from '../lib/prisma';
+import { journal } from '../utils/logger';
 
 // Le catalogue de démonstration a été retiré.
 //
@@ -70,7 +71,7 @@ export class TutorialService {
       // d'autres identifiants — et personne n'était averti de la panne. Une
       // table vide, elle, rend `[]` sans passer par ici : c'est un état vide
       // légitime, et l'écran sait le dire.
-      console.error('[Tutoriels] lecture du catalogue impossible :', e?.message);
+      journal.error('[Tutoriels] lecture du catalogue impossible :', e?.message);
       throw e;
     }
   }
@@ -95,7 +96,7 @@ export class TutorialService {
     } catch (e: any) {
       // Même raison qu'au-dessus : un identifiant demandé doit rendre le
       // tutoriel demandé, ou un échec. Pas un autre tutoriel.
-      console.error('[Tutoriels] lecture de %s impossible :', id, e?.message);
+      journal.error('[Tutoriels] lecture de %s impossible :', id, e?.message);
       throw e;
     }
   }

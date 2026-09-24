@@ -2,8 +2,9 @@
 import { prisma } from './lib/prisma';
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import logger from './utils/logger';
+import logger, { identifiantDeRequete } from './utils/logger';
 import { repondreErreur } from './utils/erreurs';
+import { monterAnalyseursJson } from './utils/analyseurs_json';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -60,13 +61,20 @@ const PORT = process.env.PORT ?? 3000;
  */
 app.set('trust proxy', 1);
 
+// Premier maillon : chaque ligne du journal écrite pendant la requête porte
+// son identifiant, renvoyé au client dans X-Request-Id (constat Q1).
+app.use(identifiantDeRequete);
 app.use(helmet());
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
   : (process.env.NODE_ENV === 'production' ? [] : ['http://localhost:4000']);
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-app.use(express.json({ limit: '10mb' }));
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev', {
+// Taille des corps JSON par route : voir utils/analyseurs_json.ts (constat S4).
+monterAnalyseursJson(app);
+morgan.token('id', (req: any) => req.id ?? '-');
+app.use(morgan(process.env.NODE_ENV === 'production'
+  ? ':id :remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"'
+  : 'dev', {
   // Au niveau `info` et non `http` : le logger filtre en dessous de `info`
   // par défaut, et `LOG_LEVEL` n'est pas réglé en production. Les lignes
   // 4xx et 5xx qu'on croyait journalisées ne l'étaient donc pas (constat Q3).
