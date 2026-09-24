@@ -1,0 +1,91 @@
+# Les trois suites de tests, à chaque envoi et sur chaque demande de fusion.
+#
+# Aucune intégration continue n'exécutait les tests : Codemagic ne construisait
+# que des binaires de vérification, avec un seul test de configuration. Une
+# régression poussée depuis une autre machine passait sans filet (constats M10
+# et O3 de l'audit du 24 septembre 2026).
+#
+# Les secrets ci-dessous sont des valeurs de banc, pas ceux de la production :
+# ils n'ouvrent rien. La base est un PostgreSQL jetable, créé pour le job.
+name: Tests
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  api:
+    name: API (TypeScript + Jest)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pronowin
+          POSTGRES_PASSWORD: banc
+          POSTGRES_DB: pronowin_banc
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U pronowin" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      # « localhost » : les bancs qui écrivent en base ne s'exécutent que sur
+      # une base locale (src/__tests__/aides/base_locale.ts).
+      DATABASE_URL: postgresql://pronowin:banc@localhost:5432/pronowin_banc
+      NODE_ENV: test
+      JWT_SECRET: banc-jwt
+      JWT_REFRESH_SECRET: banc-refresh
+      ADMIN_JWT_SECRET: banc-admin-jwt
+      ADMIN_DELEGATION_SECRET: banc-delegation
+      OTP_SECRET: banc-otp
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npx prisma migrate deploy
+      - run: npx tsc --noEmit
+      - run: npx jest --ci
+
+  panneau:
+    name: Panneau d'administration
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: admin-web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: admin-web/package-lock.json
+      - run: npm ci
+      - run: npm test
+
+  mobile:
+    name: Application mobile (analyse + tests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: mobile_new
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.9
+          channel: stable
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze --no-fatal-infos
+      - run: flutter test

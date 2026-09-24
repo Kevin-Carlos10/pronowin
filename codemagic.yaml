@@ -69,6 +69,9 @@ definitions:
       # compilation iOS de plusieurs minutes pour découvrir une clé manquante.
       flutter test test/ios_google_config_test.dart
       flutter analyze --no-fatal-infos
+      # Puis toute la suite : le seul test de configuration ne protégeait pas
+      # le reste de l'application (constat M10).
+      flutter test
 
 workflows:
 
@@ -151,7 +154,7 @@ workflows:
   # Reprend ce que fait tool/build.ps1, pour que les deux plateformes se
   # construisent de la même façon.
   android-release:
-    name: Android — APK de vérification
+    name: Android — compilation des deux variantes
     max_build_duration: 30
     instance_type: linux_x2
     environment: *env_flutter
@@ -162,20 +165,31 @@ workflows:
       - *script_config
       - *script_verifs
 
-      - name: Compiler l'APK
+      # ── Les deux variantes, pas une troisième qui n'existe pas ──
+      #
+      # Gradle définit deux variantes, `direct` et `play`. Sans `--flavor`,
+      # la compilation ne produisait pas `app-release.apk` et l'étape de
+      # vérification cherchait un fichier absent (constat O8). Et une version
+      # release exige la clé de signature, que ce workflow ne restaure pas —
+      # Gradle refuse à juste titre de signer en débogage. Ce workflow prouve
+      # donc que les deux variantes compilent, en mode debug ; les paquets
+      # signés restent produits par tool/build.ps1, là où la clé existe.
+      - name: Compiler les deux variantes
         script: |
           set -e
           cd mobile_new
-          flutter build apk --release \
-            --dart-define=API_BASE_URL="$API_BASE_URL" \
-            --dart-define=STORE_BUILD="$STORE_BUILD" \
-            --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
+          for VARIANTE in direct play; do
+            flutter build apk --debug --flavor "$VARIANTE" \
+              --dart-define=API_BASE_URL="$API_BASE_URL" \
+              --dart-define=STORE_BUILD="$STORE_BUILD" \
+              --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
+          done
 
       - name: Vérifier l'APK
         script: |
           set -e
           cd mobile_new
-          APK=build/app/outputs/flutter-apk/app-release.apk
+          APK=build/app/outputs/flutter-apk/app-direct-debug.apk
           unzip -l "$APK" | grep -q "assets/flutter_assets/assets/images/bookmakers/" \
             || echo "  (avertissement) le logo partenaire n'est pas dans l'APK"
           echo "  APK produit : $(du -h "$APK" | cut -f1)"
