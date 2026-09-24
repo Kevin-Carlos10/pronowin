@@ -114,21 +114,26 @@ export class StatsService {
         orderBy: { createdAt: 'asc' },
       })).map(s => ({ amount: s.amountPaid, createdAt: s.createdAt }));
 
-      // Grouper par jour
-      const byDay: Record<string, number> = {};
+      // Grouper par jour. Un montant inconnu (achat store non rapproché) ne
+      // compte pas pour zéro : il est dénombré à part, pour que l'écran dise
+      // qu'une partie des ventes n'a pas encore de montant (constat A17).
+      const byDay: Record<string, { amount: number; inconnus: number }> = {};
       for (let i = 0; i < days; i++) {
         const d = new Date(start.getTime() + i * 86400000);
-        byDay[d.toISOString().split('T')[0]] = 0;
+        byDay[d.toISOString().split('T')[0]] = { amount: 0, inconnus: 0 };
       }
       for (const tx of txs) {
-        const key = tx.createdAt.toISOString().split('T')[0];
-        if (byDay[key] !== undefined) byDay[key] += tx.amount;
+        const jour = byDay[tx.createdAt.toISOString().split('T')[0]];
+        if (!jour) continue;
+        if (tx.amount === null) jour.inconnus++;
+        else jour.amount += tx.amount;
       }
 
-      return Object.entries(byDay).map(([date, amount]) => ({
+      return Object.entries(byDay).map(([date, { amount, inconnus }]) => ({
         date,
         label: new Date(date).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' }),
         amount: Math.round(amount),
+        montants_inconnus: inconnus,
       }));
     } catch (e: any) {
       // Renvoyer un tableau vide en silence ferait passer une panne de base

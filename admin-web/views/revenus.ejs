@@ -176,6 +176,15 @@
   <% }) %>
 </div>
 
+<% const _inconnus = (serie ?? []).reduce((n, j) => n + (j.montants_inconnus ?? 0), 0); %>
+<% if (_inconnus > 0) { %>
+<p class="rv-inconnus" style="font-size:.8rem;margin-top:.9rem;line-height:1.6">
+  <strong><%= _inconnus %> achat<%= _inconnus > 1 ? 's' : '' %> par un store</strong> sur la période
+  n'<%= _inconnus > 1 ? 'ont' : 'a' %> pas encore de montant : le store ne le communique pas à la validation.
+  Ces ventes ne sont pas comptées dans les totaux ci-dessus — elles ne valent pas zéro, elles restent à rapprocher
+  des relevés du store.
+</p>
+<% } %>
 <p style="font-size:.75rem;color:var(--text-dim);margin-top:.9rem;line-height:1.6">
   Source : les abonnements enregistrés (<code>Subscription.amountPaid</code>) — un revenu est compté
   au moment où l'abonnement est accordé, c'est-à-dire à l'approbation de la preuve ou à la validation

@@ -4,6 +4,7 @@ import { JWT } from 'google-auth-library';
 import { prisma } from '../lib/prisma';
 import { SubscriptionService } from './subscription.service';
 import { NotificationService } from './notification.service';
+import { ErreurMetier } from '../utils/erreurs';
 
 const notifSvc = new NotificationService();
 // Même motif que dans referral.service : instanciation différée pour ne pas
@@ -275,48 +276,89 @@ export class IapService {
       throw new Error('Reçu de test refusé en production.');
     }
 
-    const existing = await prisma.iapPurchase.findUnique({
-      where: { transactionId: v.transactionId },
-    });
+    const active = v.status === 'active' || v.status === 'grace_period';
+    const donnees = {
+      userId, store: v.store, productId: v.productId,
+      transactionId: v.transactionId, originalTransactionId: v.originalTransactionId,
+      expiresAt: v.expiresAt, status: v.status, environment: v.environment,
+      payload: v.payload as any,
+    };
 
-    // Déjà enregistré pour quelqu'un d'autre : un même achat ne peut pas
-    // déverrouiller deux comptes (partage de reçu entre amis).
-    if (existing && existing.userId !== userId) {
-      throw new Error('Cet achat est déjà rattaché à un autre compte.');
+    // ── Un abonnement appartient au compte qui l'a acheté ──
+    //
+    // Le contrôle ne portait que sur la transaction en cours. Un
+    // renouvellement crée une nouvelle transaction : présenté par un autre
+    // compte, il passait. La chaîne entière (`originalTransactionId`) reste
+    // désormais attachée à son premier propriétaire.
+    const autreCompte = await prisma.iapPurchase.findFirst({
+      where: {
+        NOT: { userId },
+        OR: [{ transactionId: v.transactionId }, { originalTransactionId: v.originalTransactionId }],
+      },
+      select: { id: true },
+    });
+    if (autreCompte) throw new ErreurMetier('Cet achat est déjà rattaché à un autre compte.', 409);
+
+    // ── Première fois qu'on voit cette transaction : l'inscrire et ouvrir
+    //    l'accès d'un seul geste ──
+    //
+    // La lecture « jamais vue », l'enregistrement et l'octroi étaient trois
+    // opérations séparées. Deux appels simultanés avec le même reçu lisaient
+    // tous deux « jamais vue » : deux octrois, deux commissions — et pour deux
+    // comptes différents qui se partageaient un reçu, deux Premium pour un
+    // paiement (constat I9).
+    //
+    // L'inscription se fait maintenant dans la transaction qui écrit l'accès,
+    // et la contrainte d'unicité de `transactionId` départage : le second
+    // appel échoue sur elle, sa transaction est annulée — aucun accès, aucune
+    // commission — et il repasse par le chemin « déjà vue » ci-dessous.
+    if (active) {
+      try {
+        await subSvc().grantPremium({
+          garde: async (t) => { await t.iapPurchase.create({ data: donnees }); },
+          userId,
+          expiresAt:     v.expiresAt,
+          // Le store ne dit pas ce qui a été payé au moment de la validation :
+          // le montant est inconnu tant qu'il n'est pas rapproché des relevés
+          // du store. Un zéro passait pour un accès offert (constat A17).
+          amountPaid:    null,
+          paymentMethod: `iap_${v.store}`,
+          notify:        true,
+        });
+        return this._reponse(v, true);
+      } catch (e: any) {
+        if (e?.code !== 'P2002') throw e;
+        // Déjà inscrite — par un appel concurrent, ou lors d'une restauration.
+      }
     }
 
-    await prisma.iapPurchase.upsert({
+    // ── Déjà vue, ou inactive : mettre l'état à jour, sans rien accorder ──
+    const enregistre = await prisma.iapPurchase.upsert({
       where:  { transactionId: v.transactionId },
       update: { status: v.status, expiresAt: v.expiresAt, payload: v.payload as any },
-      create: {
-        userId, store: v.store, productId: v.productId,
-        transactionId: v.transactionId, originalTransactionId: v.originalTransactionId,
-        expiresAt: v.expiresAt, status: v.status, environment: v.environment,
-        payload: v.payload as any,
-      },
+      create: donnees,
     });
+    // L'appel concurrent a pu inscrire la transaction pour un autre compte
+    // entre notre contrôle et ici.
+    if (enregistre.userId !== userId) {
+      throw new ErreurMetier('Cet achat est déjà rattaché à un autre compte.', 409);
+    }
 
-    const active = v.status === 'active' || v.status === 'grace_period';
-
-    // Ne recréer une ligne Subscription (et ne renotifier) que la première fois
-    // qu'on voit cette transaction — sinon une restauration d'achats
-    // dupliquerait l'historique et redéclencherait les commissions.
-    if (active && !existing) {
-      await subSvc().grantPremium({
-        userId,
-        expiresAt:     v.expiresAt,
-        paymentMethod: `iap_${v.store}`,
-        notify:        true,
-      });
-    } else if (active) {
+    if (active) {
+      // Un renouvellement prolonge ; il ne raccourcit jamais un accès payé
+      // par ailleurs (constat I11).
       await prisma.user.update({
         where: { id: userId },
-        data:  { subscriptionPlan: 'premium', subscriptionExpiresAt: v.expiresAt },
+        data:  { subscriptionPlan: 'premium', subscriptionExpiresAt: await this._echeanceProjetee(userId) },
       });
     } else {
       await this._revokeIfExpired(userId);
     }
 
+    return this._reponse(v, active);
+  }
+
+  private _reponse(v: { productId: string; expiresAt: Date; status: string }, active: boolean) {
     return {
       success:    true,
       active,
@@ -324,6 +366,33 @@ export class IapService {
       expires_at: v.expiresAt.toISOString(),
       status:     v.status,
     };
+  }
+
+  /**
+   * L'échéance du compte : la plus lointaine des périodes encore valables,
+   * qu'elles viennent d'un store ou d'un paiement Mobile Money.
+   *
+   * Chaque source écrivait sa propre date sur le compte, la dernière arrivée
+   * gagnant — un renouvellement mensuel pouvait effacer une échéance annuelle
+   * payée ailleurs.
+   */
+  private async _echeanceProjetee(userId: string): Promise<Date> {
+    const maintenant = new Date();
+    const [store, autres] = await Promise.all([
+      prisma.iapPurchase.findFirst({
+        where:   { userId, status: { in: ['active', 'grace_period'] }, expiresAt: { gt: maintenant } },
+        orderBy: { expiresAt: 'desc' }, select: { expiresAt: true },
+      }),
+      prisma.subscription.findFirst({
+        where:   { userId, endDate: { gt: maintenant }, NOT: { paymentMethod: { startsWith: 'iap_' } } },
+        orderBy: { endDate: 'desc' }, select: { endDate: true },
+      }),
+    ]);
+    return new Date(Math.max(
+      store?.expiresAt.getTime() ?? 0,
+      autres?.endDate.getTime() ?? 0,
+      maintenant.getTime(),
+    ));
   }
 
   /**

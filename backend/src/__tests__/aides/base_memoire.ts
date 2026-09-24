@@ -54,6 +54,10 @@ function correspond(ligne: any, where: any): boolean {
     if (cle === 'OR') {
       return (cond as any[]).some((sous) => correspond(ligne, sous));
     }
+    if (cle === 'NOT') {
+      const sous = Array.isArray(cond) ? cond : [cond];
+      return !sous.some((s: any) => correspond(ligne, s));
+    }
     if (cond !== null && typeof cond === 'object' && !(cond instanceof Date)) {
       const c: any = cond;
       if ('gte' in c) return ligne[cle] >= c.gte;
@@ -63,6 +67,7 @@ function correspond(ligne: any, where: any): boolean {
       if ('in'  in c) return (c.in as any[]).includes(ligne[cle]);
       if ('not' in c) return ligne[cle] !== c.not;
       if ('equals' in c) return ligne[cle] === c.equals;
+      if ('startsWith' in c) return String(ligne[cle] ?? '').startsWith(c.startsWith);
 
       // Clé unique composée : Prisma la nomme `champA_champB` et passe un objet
       // portant chaque champ. Sans ce cas, la comparaison portait sur une
@@ -153,8 +158,23 @@ export function creerBase() {
    * bien que deux appels lancés ensemble s'entrelacent comme deux requêtes
    * concurrentes le feraient.
    */
-  const table = (magasin: Map<string, any>, liens: Liens = {}) => {
+  const table = (magasin: Map<string, any>, liens: Liens = {}, uniques: string[] = []) => {
     let compteur = 0;
+    /**
+     * Les contraintes d'unicité, comme Postgres les appliquerait : une
+     * insertion en double lève l'erreur que Prisma rend (`P2002`). Sans elle,
+     * un code qui s'appuie sur la contrainte pour départager deux appels
+     * concurrents ne pourrait pas être éprouvé ici.
+     */
+    const verifierUnicite = (ligne: any) => {
+      for (const champ of uniques) {
+        if (ligne[champ] === undefined || ligne[champ] === null) continue;
+        if ([...magasin.values()].some((x) => x[champ] === ligne[champ])) {
+          throw Object.assign(new Error(`Unique constraint failed on the fields: (\`${champ}\`)`),
+            { code: 'P2002' });
+        }
+      }
+    };
     const filtrer = (where: any) =>
       [...magasin.values()].filter((x) => correspond(x, where));
 
@@ -190,6 +210,7 @@ export function creerBase() {
         return { count: lignes.length };
       },
       create: async ({ data }: any) => {
+        verifierUnicite(data);
         const id = data.id ?? `auto-${++compteur}`;
         const l = { id, ...data };
         magasin.set(id, l);
@@ -198,6 +219,7 @@ export function creerBase() {
       upsert: async ({ where, create, update }: any) => {
         const l = filtrer(where)[0];
         if (l) { appliquer(l, update); return { ...l }; }
+        verifierUnicite(create);
         const id = create.id ?? `auto-${++compteur}`;
         const neuf = { id, ...create };
         magasin.set(id, neuf);
@@ -242,7 +264,7 @@ export function creerBase() {
     }),
     transaction:  table(base.transactions, { user: { cle: 'userId', vers: base.users } }),
     subscription: table(base.subscriptions, { user: { cle: 'userId', vers: base.users } }),
-    iapPurchase:  table(base.iapPurchases, { user: { cle: 'userId', vers: base.users } }),
+    iapPurchase:  table(base.iapPurchases, { user: { cle: 'userId', vers: base.users } }, ['transactionId']),
     userBankroll: table(base.bankrolls, {
       user: { cle: 'userId', vers: base.users },
       bets: {

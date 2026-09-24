@@ -374,7 +374,10 @@ model Subscription {
   id            String             @id @default(uuid())
   userId        String             @map("user_id")
   plan          SubscriptionPlan
-  amountPaid    Float              @map("amount_paid")
+  /// Montant encaissé, en FCFA. `null` = inconnu : un achat par un store
+  /// n'en dit rien au moment où il est validé, et un zéro inventé passait pour
+  /// un accès gratuit dans les revenus (constat A17).
+  amountPaid    Float?             @map("amount_paid")
   paymentMethod String             @map("payment_method")
   promoCodeUsed String?            @map("promo_code_used")
   startDate     DateTime           @map("start_date")
@@ -423,6 +426,33 @@ model IapPurchase {
   @@index([userId, expiresAt(sort: Desc)])
   @@index([originalTransactionId])
   @@map("iap_purchases")
+}
+
+/// Notifications des stores, enregistrées avant d'être acquittées.
+///
+/// Les webhooks répondaient 200 même quand le traitement échouait : une panne
+/// de la base pendant un renouvellement ou un remboursement, et le store ne
+/// renvoyait jamais l'événement (constat I10). L'événement est désormais écrit
+/// ici d'abord, puis traité — et retraité en cas d'échec — par une tâche de
+/// fond.
+model IapNotification {
+  id                 String    @id @default(uuid())
+  store              IapStore
+  /// Identifiant de l'événement chez le store : Apple notificationUUID,
+  /// Google messageId. Un même événement reçu deux fois n'est traité qu'une.
+  evenementId        String    @map("evenement_id")
+  charge             Json
+  /// recue | traitee | ignoree | echec | abandonnee
+  statut             String    @default("recue")
+  tentatives         Int       @default(0)
+  prochaineTentative DateTime  @default(now()) @map("prochaine_tentative")
+  derniereErreur     String?   @map("derniere_erreur")
+  recueLe            DateTime  @default(now()) @map("recue_le")
+  traiteeLe          DateTime? @map("traitee_le")
+
+  @@unique([store, evenementId])
+  @@index([statut, prochaineTentative])
+  @@map("iap_notifications")
 }
 
 model SubscriptionProof {

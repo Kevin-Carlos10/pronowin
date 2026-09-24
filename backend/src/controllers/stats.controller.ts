@@ -135,7 +135,8 @@ export const getMonthly = async (_req: AdminRequest, res: Response) => {
       });
     }
     for (const u of users)  { const s = slots.get(key(u.createdAt)); if (s) s.new_users++; }
-    for (const t of txs)    { const s = slots.get(key(t.createdAt)); if (s) s.revenue += t.amountPaid; }
+    // Un montant inconnu (achat store non rapproché) n'est pas un zéro.
+    for (const t of txs)    { const s = slots.get(key(t.createdAt)); if (s) s.revenue += t.amountPaid ?? 0; }
 
     res.json([...slots.values()].map(s => ({ ...s, revenue: Math.round(s.revenue) })));
   } catch (e: any) { repondreErreur(res, e); }

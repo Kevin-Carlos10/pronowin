@@ -15,6 +15,7 @@ import authRoutes            from './routes/auth.routes';
 import { PronosticsService } from './services/pronostics.service';
 import { signalerAchatsEnRetard, SEUIL_ATTENTE_HEURES, INTERVALLE_CONTROLE_MS } from './services/alerte_achats.service';
 import { SubscriptionService } from './services/subscription.service';
+import { FileNotificationsIap } from './services/iap_notifications.service';
 import pronosticsRoutes      from './routes/pronostics.routes';
 import paymentRoutes         from './routes/payment.routes';
 import subscriptionRoutes    from './routes/subscription.routes';
@@ -333,6 +334,15 @@ const serveur = app.listen(Number(PORT), HOTE, () => {
   setTimeout(runExpiryReminder, 120_000);
   setInterval(runExpiryReminder, 24 * 60 * 60 * 1000);
   logger.info('Rappel expiration Premium actif — 1×/jour (J-7, J-3, J-1)');
+
+  // ─── NOTIFICATIONS DES STORES ─────────────────────────────────────────────
+  // Le webhook inscrit l'événement puis acquitte ; le traitement a lieu ici,
+  // et se refait avec un délai croissant tant qu'il échoue (constat I10).
+  const fileIap = new FileNotificationsIap();
+  setInterval(() => {
+    fileIap.traiterEnAttente().catch((err: Error) =>
+      logger.error('[IAP] File de notifications', { message: err.message }));
+  }, 60_000);
 
   // ─── ACHATS NON ACTIVÉS ───────────────────────────────────────────────────
   // Délibérément hors du bloc ci-dessus : celui-ci ne tourne que si la clé

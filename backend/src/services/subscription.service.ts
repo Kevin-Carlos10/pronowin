@@ -647,7 +647,8 @@ export class SubscriptionService {
     userId:        string;
     durationDays?: number;
     expiresAt?:    Date;
-    amountPaid?:   number;
+    /** `null` = montant inconnu (achat store non rapproché), jamais 0 inventé. */
+    amountPaid?:   number | null;
     paymentMethod: string;
     promoCodeUsed?: string | null;
     notify?:       boolean;
@@ -675,6 +676,19 @@ export class SubscriptionService {
       durationDays * 86400000
     );
 
+    // L'échéance du compte ne recule jamais à l'octroi d'un nouveau droit.
+    //
+    // Un achat store impose sa propre date (`expiresAt`) : elle était écrite
+    // telle quelle sur le compte. Un abonné à qui il restait 60 jours payés en
+    // Mobile Money achetait un mois sur le store et se retrouvait à 30 jours
+    // (constat I11). L'historique garde la période de chaque droit ; le
+    // compte garde la plus lointaine.
+    const echeanceCompte = new Date(Math.max(
+      endDate.getTime(),
+      user.subscriptionExpiresAt && user.subscriptionExpiresAt > new Date()
+        ? user.subscriptionExpiresAt.getTime() : 0,
+    ));
+
     /**
      * L'accès et sa justification s'écrivent ensemble.
      *
@@ -692,7 +706,7 @@ export class SubscriptionService {
         startDate, endDate,
       } });
       await t.user.update({ where: { id: userId }, data: {
-        subscriptionPlan: 'premium', subscriptionExpiresAt: endDate,
+        subscriptionPlan: 'premium', subscriptionExpiresAt: echeanceCompte,
       } });
     });
 
