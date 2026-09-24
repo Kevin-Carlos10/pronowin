@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { authMiddleware, optionalAuthMiddleware, premiumMiddleware, premiumSaufMatchTermine }  from '../middleware/auth.middleware';
 import { adminMiddleware } from '../middleware/admin.middleware';
 import * as C from '../controllers/pronostics.controller';
+import { valider } from '../middleware/valider';
+import { pronosticAdmin } from '../schemas/entrees';
 
 import { getAdminScores } from '../controllers/admin_scores.controller';
 
@@ -64,7 +66,7 @@ r.get ('/admin/stats',                     adminMiddleware, C.getAdminStats);
 r.get ('/admin/match/:matchId/odds',       adminMiddleware, C.getMatchOdds);
 r.get ('/admin/match/:matchId/prediction', adminMiddleware, C.getAdminPrediction);
 r.get ('/admin/match/:matchId',            adminMiddleware, C.getMatchFromDB);
-r.post('/admin/pronostic',                 adminMiddleware, C.upsertPronostic);
+r.post('/admin/pronostic',                 adminMiddleware, valider({ body: pronosticAdmin }), C.upsertPronostic);
 r.patch('/admin/pronostic/:id/publish',    adminMiddleware, C.togglePublish);
 r.patch('/admin/pronostic/:id/result',     adminMiddleware, C.setPronosticResult);
 r.patch('/admin/pronostic/:id/set-daily',  adminMiddleware, C.setDailyFree);

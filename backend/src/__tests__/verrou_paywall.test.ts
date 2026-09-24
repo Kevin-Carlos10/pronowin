@@ -55,6 +55,13 @@ const EXCEPTIONS: Record<string, { ligne: string; raison: string }[]> = {
             + 'décision, la lui cacher rendrait son propre historique illisible',
     },
   ],
+  'schemas/entrees.ts': [
+    {
+      ligne:  "prediction_label: z.string({ required_error: 'Indiquez le libellé du pronostic.' })",
+      raison: 'schéma d\'entrée du formulaire d\'administration : le libellé y est '
+            + 'reçu de l\'analyste, jamais renvoyé à un client',
+    },
+  ],
   'controllers/pronostics.controller.ts': [
     {
       ligne:  'prediction_label:  p.predictionLabel,',
