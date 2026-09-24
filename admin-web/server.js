@@ -17,6 +17,8 @@ const API_URL = process.env.API_URL    ?? 'http://localhost:3000/api/v1';
 // avertissement dans la console. Autrement dit : la serrure existait, sa clé
 // était publiée, et le serveur démarrait quand même. Un avertissement au
 // démarrage n'est lu qu'une fois, le jour de l'installation.
+// Il chiffre aujourd'hui les secrets de double authentification
+// (`double_auth.json`) : sans lui, ce fichier ne sert à rien à qui le copie.
 const PERM_HMAC_SECRET = process.env.ADMIN_PERM_SECRET ?? process.env.ADMIN_SECRET ?? '';
 if (!PERM_HMAC_SECRET) {
   console.error('ADMIN_PERM_SECRET (ou ADMIN_SECRET) est absent.');
@@ -111,6 +113,25 @@ const sessions = creerMagasinSessions({
 });
 /** Le seul cookie de session : un identifiant aléatoire, sans contenu. */
 const COOKIE_SESSION = 'admin_session';
+
+// ─── SECOND FACTEUR (lib/deux_facteurs.js) ───────────────────────────────────
+const { creerMagasin2fa, genererSecret, uriOtpauth } = require('./lib/deux_facteurs');
+const { empreinteId } = require('./lib/sessions');
+const deuxFacteurs = creerMagasin2fa({
+  fichier: path.join(DATA_DIR, 'double_auth.json'), secretPanneau: PERM_HMAC_SECRET, ecrireJson,
+});
+/**
+ * Connexions en attente de leur second facteur : le mot de passe est bon,
+ * le code n'a pas encore été donné. Rien n'est ouvert tant que le code n'est
+ * pas vérifié ; l'attente expire en 5 minutes et après 5 codes faux.
+ */
+const attentes2fa = new Map();
+const COOKIE_2FA = 'admin_2fa';
+const ATTENTE_2FA_MS = 5 * 60 * 1000;
+setInterval(() => {
+  const t = Date.now();
+  for (const [cle, a] of attentes2fa) if (a.expireLe < t) attentes2fa.delete(cle);
+}, 60000).unref();
 
 function loadSubs()       { try { return JSON.parse(fs.readFileSync(SA_FILE, 'utf8')); } catch { return []; } }
 function saveSubs(data)   { return ecrireJson(SA_FILE, data); }
@@ -328,6 +349,8 @@ const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
 const DEFAULT_SETTINGS = {
   maintenanceMode:     false,
+  // Double authentification exigée de tous les comptes du panneau (A1).
+  exiger2fa:           false,
   maintenanceMessage:  '',
   announcementEnabled: false,
   announcementText:    '',
@@ -760,7 +783,7 @@ app.use((req, res, next) => {
  * périmés — sans quoi une session révoquée redirigerait vers la page de
  * connexion, qui la révoquerait à nouveau : une boucle.
  */
-const CHEMINS_SANS_REVALIDATION = new Set(['/admin/login', '/admin/logout']);
+const CHEMINS_SANS_REVALIDATION = new Set(['/admin/login', '/admin/login/2fa', '/admin/logout']);
 
 /**
  * La session portée par ces cookies désigne-t-elle encore un accès existant ?
@@ -788,10 +811,10 @@ function sessionEncoreValable(req) {
 const COOKIES_HERITES = ['admin_token', 'admin_name', 'admin_role', 'admin_perms', 'admin_sub_id'];
 
 /** Ouvre une session serveur et pose son identifiant dans le navigateur. */
-function ouvrirSession(req, res, { role, subId = null, nom, jeton = null, dureeMs }) {
+function ouvrirSession(req, res, { role, subId = null, nom, jeton = null, dureeMs, cle2fa = null, doitActiver2fa = false }) {
   // Une session déjà ouverte dans ce navigateur est remplacée, pas empilée.
   if (req.admin?.session) sessions.fermer(req.admin.session);
-  const { id, session } = sessions.ouvrir({ role, subId, nom, jeton, dureeMs });
+  const { id, session } = sessions.ouvrir({ role, subId, nom, jeton, dureeMs, cle2fa, doitActiver2fa });
   const commun = { maxAge: dureeMs, secure: COOKIE_SECURE, sameSite: 'lax' };
   res.cookie(COOKIE_SESSION, id, { ...commun, httpOnly: true });
   res.cookie('admin_last_active', Date.now().toString(), { ...commun, httpOnly: false });
@@ -1173,7 +1196,8 @@ app.post('/admin/login', async (req, res) => {
   const saisi = normaliserIdentifiant(username);
   const sub  = subs.find(s => normaliserIdentifiant(s.username) === saisi && s.isActive !== false && checkPwd(password, s.passwordHash));
   if (sub) {
-    clearAttempts(ip);
+    // Le compteur de tentatives n'est remis à zéro qu'une fois la connexion
+    // complète : avec un second facteur, le mot de passe seul ne suffit pas.
     // Le jeton du compte de service reste dans ce processus : la session du
     // sous-admin n'en porte pas, et son navigateur encore moins. On vérifie
     // seulement qu'il est disponible — une session ouverte sans lui ne
@@ -1215,9 +1239,9 @@ app.post('/admin/login', async (req, res) => {
     // Ecriture gardee : sans empreinte, l'enregistrement de la date de
     // connexion ecrasait une modification de permissions faite entre-temps.
     saveSubsSi(subs, empSubs);
-    ouvrirSession(req, res, { role: 'sub', subId: sub.id, nom: sub.name, dureeMs: cookieMaxAge });
-    logAction(req, 'login', `Sous-admin: ${sub.name}`, { username: sub.username });
-    return res.redirect('/admin/dashboard');
+    return finirConnexion(req, res, ip, {
+      role: 'sub', subId: sub.id, nom: sub.name, dureeMs: cookieMaxAge, cle2fa: 'sub:' + sub.id,
+    }, { cible: `Sous-admin: ${sub.name}`, details: { username: sub.username } });
   }
 
   // ── Vérifier si le username ressemble à un sous-admin inactif ──
@@ -1252,15 +1276,13 @@ app.post('/admin/login', async (req, res) => {
       });
     }
 
-    clearAttempts(ip);
-    ouvrirSession(req, res, {
+    return finirConnexion(req, res, ip, {
       role: 'main', nom: r.data.admin.name, jeton: r.data.token,
       // Le jeton d'API de l'administrateur expire en 8 heures : une session
       // plus longue ne ferait que durer sur un jeton mort.
       dureeMs: Math.min(cookieMaxAge, 8 * 3600000),
-    });
-    logAction(req, 'login', `Admin principal: ${r.data.admin.name}`);
-    res.redirect('/admin/dashboard');
+      cle2fa: 'main:' + r.data.admin.id,
+    }, { cible: `Admin principal: ${r.data.admin.name}`, details: {} });
   } catch (e) {
     const entry     = recordFailedAttempt(ip);
     const remaining = Math.max(0, getLoginMaxAttempts() - (entry.count ?? 0));
@@ -1279,6 +1301,95 @@ app.post('/admin/login', async (req, res) => {
     }
     res.render('login', { error: errMsg, expired: false, locked: null, remaining, maxAttempts: getLoginMaxAttempts(), blockedUntilMs: null, username });
   }
+});
+
+/**
+ * Termine une connexion dont le mot de passe est vérifié.
+ *
+ * Avec un second facteur actif, rien n'est ouvert : la connexion attend son
+ * code (`/admin/login/2fa`). Sans second facteur, la session s'ouvre — et si
+ * le réglage « double authentification obligatoire » est actif, elle ne mène
+ * qu'à la page d'activation tant qu'il n'est pas configuré (constat A1).
+ */
+function finirConnexion(req, res, ip, ouverture, journal) {
+  if (deuxFacteurs.estActive(ouverture.cle2fa)) {
+    const id = crypto.randomBytes(32).toString('base64url');
+    attentes2fa.set(empreinteId(id), { ouverture, journal, expireLe: Date.now() + ATTENTE_2FA_MS, essais: 0 });
+    res.cookie(COOKIE_2FA, id, { httpOnly: true, secure: COOKIE_SECURE, sameSite: 'lax', maxAge: ATTENTE_2FA_MS });
+    return res.render('login', etapeCode(null));
+  }
+  clearAttempts(ip);
+  const doitActiver2fa = !!loadSettings().exiger2fa;
+  ouvrirSession(req, res, { ...ouverture, doitActiver2fa });
+  logAction(req, 'login', journal.cible, { ...journal.details, deuxFacteurs: false });
+  return res.redirect(doitActiver2fa ? '/admin/profile/2fa?obligatoire=1' : '/admin/dashboard');
+}
+
+/** Les variables de la page de connexion, à l'étape du code. */
+function etapeCode(error) {
+  const max = getLoginMaxAttempts();
+  return { etape2fa: true, error, expired: false, locked: null, remaining: max,
+           maxAttempts: max, blockedUntilMs: null, username: '' };
+}
+
+app.post('/admin/login/2fa', (req, res) => {
+  const ip = getClientIP(req);
+  const rl = checkRateLimit(ip);
+  if (rl.blocked) {
+    return res.render('login', {
+      error: null, expired: false,
+      locked: `Trop de tentatives. Réessayez dans ${rl.remainMin} minute${rl.remainMin > 1 ? 's' : ''}.`,
+      blockedUntilMs: loginAttempts.get(ip)?.blockedUntil ?? null,
+      remaining: 0, maxAttempts: getLoginMaxAttempts(), username: '',
+    });
+  }
+  const id = req.cookies?.[COOKIE_2FA];
+  const cle = typeof id === 'string' ? empreinteId(id) : null;
+  const attente = cle ? attentes2fa.get(cle) : null;
+  if (!attente || attente.expireLe < Date.now()) {
+    if (cle) attentes2fa.delete(cle);
+    res.clearCookie(COOKIE_2FA);
+    const max = getLoginMaxAttempts();
+    return res.render('login', { error: 'La vérification a expiré. Reconnectez-vous.', expired: false,
+      locked: null, remaining: max, maxAttempts: max, blockedUntilMs: null, username: '' });
+  }
+
+  const moyen = deuxFacteurs.verifier(attente.ouverture.cle2fa, req.body.code);
+  if (!moyen) {
+    attente.essais++;
+    recordFailedAttempt(ip);
+    req.admin = { ...req.admin, nom: attente.ouverture.nom, role: null };
+    logAction(req, 'login_failed', attente.journal.cible, { ip, cause: 'code_2fa' });
+    if (attente.essais >= 5) {
+      attentes2fa.delete(cle);
+      res.clearCookie(COOKIE_2FA);
+      const max = getLoginMaxAttempts();
+      return res.render('login', { error: 'Trop de codes erronés. Reconnectez-vous.', expired: false,
+        locked: null, remaining: max, maxAttempts: max, blockedUntilMs: null, username: '' });
+    }
+    return res.render('login', etapeCode('Code incorrect ou déjà utilisé.'));
+  }
+
+  attentes2fa.delete(cle);
+  res.clearCookie(COOKIE_2FA);
+  clearAttempts(ip);
+  ouvrirSession(req, res, attente.ouverture);
+  logAction(req, 'login', attente.journal.cible, { ...attente.journal.details, deuxFacteurs: moyen });
+  // Un code de secours consommé : on le dit, et combien il en reste.
+  return res.redirect(moyen === 'secours' ? '/admin/profile/2fa?secours=1' : '/admin/dashboard');
+});
+
+/**
+ * « Double authentification obligatoire » : une session ouverte sans second
+ * facteur ne mène qu'à sa page d'activation.
+ */
+app.use((req, res, next) => {
+  if (!req.admin?.session?.doitActiver2fa) return next();
+  if (/^\/admin\/(profile\/2fa|logout)(\/|$)/.test(req.path)) return next();
+  if (req.path.startsWith('/admin/api/')) {
+    return res.status(403).json({ error: 'Activez la double authentification pour continuer.' });
+  }
+  return res.redirect('/admin/profile/2fa?obligatoire=1');
 });
 
 app.get('/admin/logout', (req, res) => {
@@ -1730,7 +1841,7 @@ const contexteRoutes = {
   loadNews, saveNews, loadBans, saveBans, loadLogs, saveLogs,
   loadNotifHistory, saveNotifHistory, getNewsCategories,
   uid, hashPwd, checkPwd, normaliserIdentifiant, journalVisiblePar, estMoi,
-  getClientIP, ecrireJson, sessions,
+  getClientIP, ecrireJson, sessions, deuxFacteurs, genererSecret, uriOtpauth,
   ERR_ECRITURE, ERR_CONFLIT, PERMISSIONS, DATA_DIR, LOG_MAX,
   STATS_ENDPOINTS, NEWS_DEFAULT_CATEGORIES,
   fs, path, slugify, sanitize, clampInt, sseBroadcast,
@@ -1740,7 +1851,7 @@ const contexteRoutes = {
   SEGMENTS, back, fetchTutorialCategories, fetchTutorialLevels,
 };
 
-for (const domaine of ['utilisateurs', 'catalogue', 'contenu', 'finance', 'exploitation']) {
+for (const domaine of ['utilisateurs', 'catalogue', 'contenu', 'finance', 'exploitation', 'securite']) {
   require('./routes/' + domaine)(app, contexteRoutes);
 }
 

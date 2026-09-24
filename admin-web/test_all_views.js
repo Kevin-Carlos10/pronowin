@@ -219,6 +219,28 @@ const views = [
     activeBansCount: 0, recentBans: [], recentLogs: [], settings: {}, file: [],
     compteService: null, sante: null,
   }],
+  // Double authentification (constat A1) : à activer, active, codes de secours.
+  ['profile_2fa (à activer)', 'profile_2fa', {
+    ...base, page: 'profile', active: false, secret: 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP',
+    qr: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1"></svg>', uri: 'otpauth://totp/x',
+    restants: 0, obligatoire: true, doitActiver: true, codesSecours: null, disponible: true,
+    success: null, error: null, secoursUtilise: false,
+  }],
+  ['profile_2fa (active)', 'profile_2fa', {
+    ...base, page: 'profile', active: true, secret: null, qr: null, uri: null,
+    restants: 2, obligatoire: false, doitActiver: false, codesSecours: null, disponible: true,
+    success: null, error: null, secoursUtilise: true,
+  }],
+  ['profile_2fa (codes de secours)', 'profile_2fa', {
+    ...base, page: 'profile', active: true, secret: null, qr: null, uri: null,
+    restants: 8, obligatoire: false, doitActiver: false, disponible: true,
+    codesSecours: ['a1b2c-3d4e5', 'f6a7b-8c9d0', '11111-22222', '33333-44444', '55555-66666', '77777-88888', '99999-00000', 'abcde-f0123'],
+    success: 'Double authentification activée.', error: null, secoursUtilise: false,
+  }],
+  ['login (code de vérification)', 'login', {
+    etape2fa: true, error: 'Code incorrect ou déjà utilisé.', expired: false, locked: null,
+    remaining: 5, maxAttempts: 5, blockedUntilMs: null, username: '',
+  }],
   ['dashboard (rien à traiter)', 'dashboard', {
     ...base, page: 'dashboard',
     stats: { totalUsers: 412, premiumUsers: 38, pendingTx: 0, publishedToday: 5, activeUsers: 7 },

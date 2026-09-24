@@ -66,12 +66,15 @@ function creerMagasinSessions({ fichier, ecrireJson, maintenant = () => Date.now
      * Ouvre une session et rend l'identifiant à poser dans le cookie.
      * C'est la seule fois où il existe en clair côté serveur.
      */
-    ouvrir({ role, subId = null, nom, jeton = null, dureeMs }) {
+    ouvrir({ role, subId = null, nom, jeton = null, dureeMs, cle2fa = null, doitActiver2fa = false }) {
       if (role !== 'main' && role !== 'sub') throw new Error('Rôle de session inconnu.');
       const id = crypto.randomBytes(32).toString('base64url');
       const t = maintenant();
       const session = {
         empreinte: empreinteId(id), role, subId, nom, jeton,
+        // Le compte dont relève le second facteur, et l'obligation de
+        // l'activer avant d'aller plus loin (réglage « 2FA obligatoire »).
+        cle2fa, doitActiver2fa,
         ouverteLe: t, expireLe: t + dureeMs,
       };
       table.set(session.empreinte, session);
@@ -110,6 +113,15 @@ function creerMagasinSessions({ fichier, ecrireJson, maintenant = () => Date.now
       }
       if (n) persister();
       return n;
+    },
+
+    /** Modifie des champs d'une session (second facteur en cours d'activation…). */
+    modifier(session, champs) {
+      const s = session && table.get(session.empreinte);
+      if (!s) return false;
+      Object.assign(s, champs);
+      persister();
+      return true;
     },
 
     /** Remplace le jeton d'API d'une session — après un changement de mot de passe. */

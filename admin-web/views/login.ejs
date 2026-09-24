@@ -540,9 +540,15 @@
 
     <div class="form-wrap">
 
+      <% const _etape2fa = typeof etape2fa !== 'undefined' && etape2fa; %>
       <div class="form-head rise" style="--d:.1s">
+        <% if (_etape2fa) { %>
+        <h1>Vérification en deux étapes</h1>
+        <p>Saisissez le code affiché par votre application d'authentification, ou un code de secours.</p>
+        <% } else { %>
         <h1>Bon retour <span class="wave" aria-hidden="true">👋</span></h1>
         <p>Connectez-vous pour accéder au panneau d'administration.</p>
+        <% } %>
       </div>
 
       <% if (_isExpired && !_isLocked && !error) { %>
@@ -594,7 +600,27 @@
       </div>
       <% } %>
 
-      <% if (!_isLocked) { %>
+      <% if (!_isLocked && _etape2fa) { %>
+      <%# Seconde étape : le mot de passe est vérifié, aucune session n'est
+          ouverte tant que ce code ne l'est pas (constat A1). %>
+      <form method="POST" action="/admin/login/2fa" id="code-form" autocomplete="off">
+        <div class="field rise" style="--d:.22s">
+          <label for="code">Code de vérification</label>
+          <div class="control">
+            <span class="lead"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg></span>
+            <input type="text" id="code" name="code" inputmode="numeric" autocomplete="one-time-code"
+                   placeholder="123 456" required autofocus maxlength="12">
+          </div>
+        </div>
+        <button type="submit" class="submit rise" style="--d:.3s">
+          <span>Vérifier</span>
+          <svg class="ic arrow" aria-hidden="true"><use href="#ic-arrow-right"/></svg>
+        </button>
+        <p style="margin-top:1rem;font-size:.82rem"><a href="/admin/login">← Recommencer la connexion</a></p>
+      </form>
+      <% } %>
+
+      <% if (!_isLocked && !_etape2fa) { %>
       <form method="POST" action="/admin/login" id="login-form" autocomplete="on">
 
         <div class="field rise" style="--d:<%= _showGauge ? '.28s' : '.22s' %>">

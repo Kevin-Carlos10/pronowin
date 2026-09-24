@@ -389,6 +389,12 @@
             <div style="font-size:.68rem;color:var(--text-dim);margin-top:.2rem">1–120</div>
           </div>
         </div>
+        <label style="display:flex;gap:.6rem;align-items:flex-start;margin-top:.9rem;font-size:.82rem;color:var(--text-m);cursor:pointer">
+          <input type="checkbox" name="exiger2fa" value="1" <%= settings.exiger2fa ? 'checked' : '' %> style="margin-top:.15rem">
+          <span><strong style="color:var(--text)">Double authentification obligatoire</strong> — chaque compte devra
+          configurer un code d'application à sa prochaine connexion avant d'accéder au panneau.
+          Activez d'abord la vôtre dans <a href="/admin/profile/2fa">Mon profil → Double authentification</a>.</span>
+        </label>
         <div style="font-size:.7rem;color:var(--text-dim);margin-top:.6rem"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Les paramètres de sécurité prennent effet au prochain redémarrage.</div>
       </div>
 

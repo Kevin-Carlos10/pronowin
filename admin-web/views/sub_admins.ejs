@@ -245,6 +245,13 @@
       <svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg> <%= lastLogin ? 'Dernière connexion : ' + lastLogin : 'Jamais connecté' %>
     </div>
 
+    <!-- Double authentification (constat A1) -->
+    <% const _a2fa = typeof etat2fa !== 'undefined' && etat2fa && etat2fa[sub.id]; %>
+    <div class="sa-last-login <%= _a2fa ? 'recent' : 'old' %>">
+      <svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg>
+      <%= _a2fa ? 'Double authentification active' : 'Double authentification non configurée' %>
+    </div>
+
     <!-- Activité récente -->
     <% if (subLogs.length > 0) { %>
     <div style="margin-top:.75rem">
@@ -279,6 +286,14 @@
         <%= isActive ? '⏸ Désactiver' : '▶️ Activer' %>
       </button>
     </form>
+    <% if (_a2fa) { %>
+    <%# Un sous-admin qui a perdu son téléphone et ses codes de secours ne peut
+        plus se connecter : seul l'administrateur principal le débloque. %>
+    <form method="POST" action="/admin/sub-admins/<%= sub.id %>/2fa/reinitialiser" style="margin:0;"
+          onsubmit="event.preventDefault(); const f = this; askConfirm({ icon: 'lock', title: 'Réinitialiser la double authentification', msg: 'Le compte devra la configurer de nouveau, et ses sessions ouvertes seront fermées.', btnLabel: 'Réinitialiser', btnClass: 'btn-warning', onConfirm: () => f.submit() })">
+      <button class="btn btn-sm btn-outline" type="submit"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Réinitialiser la 2FA</button>
+    </form>
+    <% } %>
     <button class="btn btn-sm btn-danger" data-sa-del="<%= sub.id %>" style="margin-left:auto"
             title="Supprimer <%= sub.name %>" aria-label="Supprimer <%= sub.name %>"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg></button>
   </div>
