@@ -63,7 +63,9 @@ const api = http.createServer((req, res) => {
     const delegation = req.headers['x-admin-acteur'] ?? null;
     let acteur = null;
     try { acteur = JSON.parse(Buffer.from(delegation.split('.')[0], 'base64url').toString()); } catch {}
-    appelsApi.push({ methode: req.method, url: req.url, acteur, jeton: req.headers.authorization ?? null });
+    let lu = null;
+    try { lu = JSON.parse(corps || 'null'); } catch { /* corps non JSON */ }
+    appelsApi.push({ methode: req.method, url: req.url, acteur, jeton: req.headers.authorization ?? null, corps: lu });
     res.setHeader('Content-Type', 'application/json');
     // Changement de mot de passe de l'administrateur principal : l'API
     // révoque les jetons émis avant et en rend un neuf.
@@ -196,7 +198,17 @@ const ouvert = (r) => !(r.status === 302 && (r.location ?? '').startsWith('/admi
   else ko('le tableau de bord demande au nom du lecteur : ' + horsDroits.map((a) => a.url).join(', '));
 
   // ── Le journal nomme la session, pas le cookie ──
+  appelsApi.length = 0;
   await requete('/admin/logout', { cookies: ckL + '; admin_name=Intrus' });
+  // La copie chaînée part vers l'API sans attendre la réponse : on lui laisse
+  // le temps d'arriver.
+  await attendre(300);
+  const copie = appelsApi.find((a) => a.methode === 'POST' && a.url === '/api/v1/admin/journal');
+  if (copie && copie.corps?.action === 'logout' && copie.acteur?.id === LECTEUR.id && copie.acteur?.nom === LECTEUR.name) {
+    ok('l\'entrée est recopiée dans le journal chaîné de l\'API, au nom attesté par la délégation');
+  } else {
+    ko('copie vers le journal de l\'API : ' + JSON.stringify(copie && { action: copie.corps?.action, acteur: copie.acteur }));
+  }
   const journal = JSON.parse(fs.readFileSync(path.join(DIR, 'audit_log.json'), 'utf8'));
   const sortie = journal.find((l) => l.action === 'logout');
   if (sortie && sortie.adminName === LECTEUR.name && sortie.adminId === LECTEUR.id) {

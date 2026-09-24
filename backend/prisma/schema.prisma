@@ -431,6 +431,34 @@ model IapPurchase {
   @@map("iap_purchases")
 }
 
+/// Journal des actions d'administration, chaîné.
+///
+/// Le journal vivait dans un fichier JSON du panneau, modifiable par quiconque
+/// accède au serveur, limité aux 5 000 dernières entrées, et hors de la
+/// sauvegarde de la base (constats A3 et D02). Chaque entrée porte ici
+/// l'empreinte de la précédente : modifier, retirer ou insérer une ligne
+/// casse la chaîne, et la vérification le montre.
+///
+/// L'auteur n'est pas déclaré par le panneau : il vient de la délégation
+/// signée qui accompagne l'appel.
+model JournalAdmin {
+  id                  Int      @id @default(autoincrement())
+  horodatage          DateTime @map("horodatage")
+  action              String
+  cible               String   @default("")
+  details             Json?
+  acteurId            String   @map("acteur_id")
+  acteurNom           String   @map("acteur_nom")
+  acteurRole          String   @map("acteur_role")
+  ip                  String?
+  empreintePrecedente String   @map("empreinte_precedente")
+  empreinte           String   @unique
+
+  @@index([horodatage])
+  @@index([acteurId, horodatage])
+  @@map("journal_admin")
+}
+
 /// Notifications des stores, enregistrées avant d'être acquittées.
 ///
 /// Les webhooks répondaient 200 même quand le traitement échouait : une panne

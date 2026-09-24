@@ -80,6 +80,10 @@
 /* ── Pagination ───────────────────────────────────────────────────────────── */
 .au-pager { display:flex;justify-content:space-between;align-items:center;padding:.9rem 1.25rem;border-top:1px solid var(--border); }
 .au-pager-nums { display:flex;gap:.35rem;align-items:center; }
+.audit-chaine { display:flex; align-items:center; gap:.4rem; font-size:.8rem; font-weight:600; margin:.45rem 0 0; }
+.audit-chaine.ok      { color: var(--on-success); }
+.audit-chaine.rompu   { color: var(--on-danger); }
+.audit-chaine.inconnu { color: var(--text-dim); }
 </style>
 
 <%
@@ -102,12 +106,25 @@
   <div>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Journal d'activité</h1>
     <small><%= totalAll %> entrée<%= totalAll > 1 ? 's' : '' %> au total<%= _hasFilter ? ' · ' + total + ' filtrée' + (total>1?'s':'') : '' %></small>
+    <%# La copie en base, chaînée par empreintes (constats A3, D02) : ce qui
+        fait foi en cas de contestation. %>
+    <% const _ch = typeof chaine !== 'undefined' ? chaine : null; %>
+    <p class="audit-chaine <%= !_ch ? 'inconnu' : (_ch.ok ? 'ok' : 'rompu') %>" role="status">
+      <svg class="ic" aria-hidden="true"><use href="#ic-<%= _ch && _ch.ok ? 'check' : 'alert' %>"/></svg>
+      <% if (!_ch) { %>
+        Copie en base : état illisible (API injoignable).
+      <% } else if (_ch.ok) { %>
+        Copie en base : <%= _ch.total %> entrée<%= _ch.total > 1 ? 's' : '' %>, chaîne d'empreintes intacte.
+      <% } else { %>
+        Copie en base : chaîne rompue à l'entrée n°<%= _ch.rupture.id %> (<%= _ch.rupture.action %>, <%= new Date(_ch.rupture.horodatage).toLocaleString('fr-FR') %>) — une entrée a été modifiée, retirée ou insérée.
+      <% } %>
+    </p>
   </div>
   <div style="display:flex;gap:.5rem;flex-wrap:wrap">
     <a href="/admin/audit/export?<%= [filters.cat?'cat='+filters.cat:'', filters.admin?'admin='+filters.admin:'', filters.date?'date='+filters.date:'', filters.action?'action='+filters.action:''].filter(Boolean).join('&') %>"
        class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV</a>
     <button class="btn btn-danger btn-sm"
-      onclick="askConfirm({icon:'trash',title:'Vider le journal',msg:'Cette action est <strong>irréversible</strong>. Toutes les entrées seront supprimées.',btnLabel:'Vider',btnClass:'btn-danger',onConfirm:()=>document.getElementById('clear-form').submit()})">
+      onclick="askConfirm({icon:'trash',title:'Vider le journal',msg:'Vide la copie locale affichée ici. La copie chaînée en base est <strong>conservée</strong> : elle ne peut pas être effacée depuis le panneau.',btnLabel:'Vider',btnClass:'btn-danger',onConfirm:()=>document.getElementById('clear-form').submit()})">
       <svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Vider
     </button>
   </div>

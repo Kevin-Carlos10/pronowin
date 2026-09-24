@@ -55,6 +55,11 @@ const REGLES: Regle[] = [
   [LIRE,   /^\/admin\/stats\/online$/,                          { acces: 'toute_session' }],
   [LIRE,   /^\/pronostics\/admin\/stats$/,                      { acces: 'toute_session' }],
 
+  // ── Journal : toute session écrit ses propres actions ; l'auteur vient de
+  //    la délégation, pas du corps. La vérification est réservée au principal.
+  [ECRIRE, /^\/admin\/journal$/,                              { acces: 'toute_session' }],
+  [LIRE,   /^\/admin\/journal\/verification$/,                { acces: 'principal' }],
+
   // ── Réservé à l'administrateur principal ──
   [TOUT,   /^\/admin\/(app-config|promo-stats|profile\/password|sante)$/, { acces: 'principal' }],
   [TOUT,   /^\/admin\/payment-methods(\/[^/]+)?$/,              { acces: 'principal' }],

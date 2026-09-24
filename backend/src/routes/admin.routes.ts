@@ -6,6 +6,7 @@ import { SubscriptionService, BETTING_PLATFORMS } from '../services/subscription
 import * as Methodes from '../services/payment_method.service';
 import { repondreErreur } from '../utils/erreurs';
 import { lireSante } from '../services/sante.service';
+import { ajouterAuJournal, verifierChaine } from '../services/journal_admin.service';
 const r   = Router();
 const svc = new AdminAuthService();
 const subSvc = new SubscriptionService();
@@ -23,6 +24,33 @@ r.patch('/profile/password', adminMiddleware, async (req: AdminRequest, res) => 
       req.adminId!, req.body.current_password, req.body.new_password));
   } catch (e: any) { repondreErreur(res, e, 422); }
 });
+/**
+ * POST /admin/journal — une action d'administration, au nom de l'acteur
+ * délégué. Le corps dit ce qui a été fait ; l'auteur vient de la délégation,
+ * jamais du corps (constats A3 et D02).
+ */
+r.post('/journal', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    if (!req.acteurAdmin) { res.status(403).json({ message: 'Auteur inconnu.' }); return; }
+    const { action, cible, details, ip, horodatage } = req.body ?? {};
+    if (typeof action !== 'string' || !action.trim()) {
+      res.status(422).json({ message: 'action requise.' }); return;
+    }
+    const h = horodatage ? new Date(horodatage) : new Date();
+    // Une date d'action dans le futur, ou vieille de plus d'une heure, n'est
+    // pas celle d'une action qui vient d'avoir lieu.
+    const date = Number.isFinite(h.getTime()) && Math.abs(Date.now() - h.getTime()) < 3600_000 ? h : new Date();
+    const e = await ajouterAuJournal(req.acteurAdmin, { action, cible, details, ip, horodatage: date });
+    res.status(201).json({ id: e.id, empreinte: e.empreinte });
+  } catch (e: any) { repondreErreur(res, e); }
+});
+
+/** GET /admin/journal/verification — la chaîne est-elle intacte ? */
+r.get('/journal/verification', adminMiddleware, async (_req: AdminRequest, res) => {
+  try { res.json(await verifierChaine()); }
+  catch (e: any) { repondreErreur(res, e); }
+});
+
 /**
  * GET /admin/sante — ce que le tableau de bord doit montrer de la machine.
  *

@@ -480,12 +480,44 @@ function logAction(req, action, target = '', details = {}) {
     });
     if (logs.length > LOG_MAX) logs.splice(LOG_MAX);
     saveLogs(logs);
+    journaliserDansApi(req, logs[0]);
   } catch (e) {
     // Le journal est la trace de responsabilite du panneau : une entree perdue
     // en silence, c'est une action administrative sans preuve. On ne peut pas
     // interrompre l'action pour autant, mais on le signale.
     console.error("[admin] Échec d'écriture du journal d'audit :", e.message);
   }
+}
+
+/**
+ * Recopie une entrée du journal dans le journal chaîné de l'API.
+ *
+ * Le fichier local reste la source des écrans ; la copie en base est la
+ * trace probante : chaînée par empreintes, sans limite de 5 000 entrées,
+ * sauvegardée avec la base, et dont l'auteur est attesté par la délégation
+ * signée — pas par ce que le panneau écrit dans le corps (constats A3, D02).
+ *
+ * Sans attendre : une API momentanément injoignable ne doit pas bloquer
+ * l'action administrative. L'échec est journalisé.
+ */
+function journaliserDansApi(req, entree) {
+  const role = roleDeSession(req);
+  const acteur = role
+    ? { id: role === 'main' ? 'main' : (req.admin?.subId ?? 'inconnu'), nom: req.admin?.nom ?? 'Inconnu', role, perms: [] }
+    // Hors session — une connexion refusée : l'auteur est l'identifiant saisi.
+    : { id: 'anonyme', nom: String(req.admin?.nom ?? 'Anonyme').slice(0, 80), role: 'sub', perms: [] };
+  Promise.resolve(req.admin?.jeton || jetonService())
+    .then((jeton) => {
+      if (!jeton) return null;
+      return axios.post(`${API_URL}/admin/journal`, {
+        action: entree.action, cible: entree.target, details: entree.details,
+        ip: entree.ip, horodatage: entree.timestamp,
+      }, {
+        headers: { Authorization: `Bearer ${jeton}`, [ENTETE_DELEGATION]: signerDelegation(acteur, SECRET_DELEGATION) },
+        timeout: 5000,
+      });
+    })
+    .catch((e) => console.warn('[journal] entrée non transmise à l\'API :', e.response?.status ?? e.message));
 }
 
 /**

@@ -41,6 +41,7 @@ jest.mock('../services/subscription.service', () => ({
 // import charge Prisma, donc le `.env`, donc `ADMIN_SETUP_SECRET` — et le cas
 // « aucun secret configuré » répond 403 au lieu de 404.
 jest.mock('../services/sante.service', () => ({ lireSante: async () => ({}) }));
+jest.mock('../services/journal_admin.service', () => ({ ajouterAuJournal: async () => ({}), verifierChaine: async () => ({}) }));
 
 const ENV_INITIAL = { ...process.env };
 afterEach(() => { process.env = { ...ENV_INITIAL }; });

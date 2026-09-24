@@ -594,6 +594,7 @@ const views = [
     adminCounts: { Carlos: 3, Inconnu: 1 },
     adminList:   ['Carlos'],
     totalAll:    25,
+    chaine:      { ok: true, total: 412, rupture: null },
   }],
   // Semaine sans activité : le graphique doit le dire, pas rester muet.
   ['audit (semaine vide)', 'audit', {
@@ -607,6 +608,8 @@ const views = [
     adminCounts: { Admin: 358 },
     adminList:   ['Admin'],
     totalAll:    358,
+    // Chaîne rompue : la page doit le dire, avec l'entrée en cause.
+    chaine:      { ok: false, total: 120, rupture: { id: 121, action: 'proof_approved', horodatage: '2026-09-24T10:00:00Z' } },
   }],
   ['audit (filtré)', 'audit', {
     ...base, page: 'audit',
