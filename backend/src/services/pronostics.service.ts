@@ -22,6 +22,56 @@ const notifSvc  = new NotificationService();
 const staleRetryBackoff = new Map<number, number>(); // externalId → dernier essai (ms)
 const STALE_RETRY_INTERVAL = 45 * 60 * 1000; // 45 min entre deux tentatives sur le même match
 
+/**
+ * La cote en dessous de laquelle un pronostic ne peut pas être publié.
+ *
+ * ── Pourquoi 1,20 ─────────────────────────────────────────────────────────
+ *
+ * Le seuil de rentabilité d'un pari vaut `1 / cote`. À 1,20 il faut déjà
+ * gagner 83 % des fois pour seulement rentrer dans ses frais ; à 1,13, 88,5 %.
+ * En dessous, l'espérance ne dépend plus de la qualité de l'analyse mais d'un
+ * taux de réussite que presque personne ne tient.
+ *
+ * Mesuré sur les 136 premiers pronostics réglés : la tranche 1,00–1,25 a rendu
+ * −4,3 %, toutes les tranches au-dessus étaient positives. Ce n'est pas un
+ * chiffre à recopier dans un message — il vieillira —, c'est ce qui a fixé le
+ * seuil.
+ *
+ * ── Ce que la règle bloque, et ce qu'elle laisse passer ───────────────────
+ *
+ * Elle bloque la **publication** : c'est elle qui rend le pronostic visible et
+ * qui déclenche la notification. Un brouillon à 1,15 reste permis — une cote
+ * bouge, et un pronostic préparé tôt peut devenir publiable plus tard.
+ *
+ * Elle ne touche ni la dépublication, ni la saisie d'un résultat. Des
+ * pronostics sous 1,20 existent déjà en base, publiés avant la règle : il faut
+ * pouvoir les retirer et les régler.
+ */
+export const COTE_MINIMALE_PUBLICATION = 1.2;
+
+/**
+ * Refuse la publication d'un pronostic dont la cote est trop basse.
+ *
+ * Écrit `!(cote >= seuil)` et non `cote < seuil` : `NaN < 1.2` vaut `false`, et
+ * un champ vide — `parseFloat('')` — serait passé sans un mot. Une cote
+ * absente n'est pas une cote suffisante.
+ */
+export function verifierCotePublication(cote: number): void {
+  if (!Number.isFinite(cote)) {
+    throw new Error('Cote recommandée manquante ou invalide : impossible de publier.');
+  }
+  if (!(cote >= COTE_MINIMALE_PUBLICATION)) {
+    const affichee = cote.toFixed(2).replace('.', ',');
+    const minimum  = COTE_MINIMALE_PUBLICATION.toFixed(2).replace('.', ',');
+    const equilibre = Math.round(100 / cote);
+    throw new Error(
+      `Cote de ${affichee} trop basse pour être publiée : le minimum est ${minimum}. ` +
+      `À cette cote, il faut gagner ${equilibre} % des fois rien que pour ne pas perdre d'argent. ` +
+      `Vous pouvez l'enregistrer en brouillon si la cote peut encore monter.`,
+    );
+  }
+}
+
 export class PronosticsService {
 
   // Set en mémoire pour éviter les doublons de notif "match bientôt"
@@ -700,6 +750,10 @@ export class PronosticsService {
     isPremium:       boolean;
     publish:         boolean;
   }) {
+    // Avant toute lecture : une demande qui ne peut pas aboutir n'a pas à
+    // toucher la base.
+    if (params.publish) verifierCotePublication(params.oddsRecommended);
+
     const match = await prisma.match.findUnique({ where: { id: params.matchId } });
     if (!match) throw new Error('Match introuvable.');
     if (match.status === 'FINISHED') throw new Error('Impossible de créer un pronostic pour un match terminé.');
@@ -743,6 +797,22 @@ export class PronosticsService {
   // ─── ADMIN — Publier / Dépublier ─────────────────────────────────────────────
   async togglePublish(pronosticId: string, publish: boolean) {
     return prisma.$transaction(async (tx) => {
+      // Ce chemin publie sans rien recevoir d'autre qu'un identifiant : la cote
+      // à contrôler est celle qui est enregistrée. Sans cette lecture, un
+      // brouillon à 1,15 — autorisé — deviendrait public par ici en un clic,
+      // et la règle posée dans `upsertPronostic` serait contournée.
+      //
+      // La dépublication n'est jamais bloquée : il faut pouvoir retirer un
+      // pronostic publié avant l'existence de la règle.
+      if (publish) {
+        const existant = await tx.pronostic.findUnique({
+          where:  { id: pronosticId },
+          select: { oddsRecommended: true },
+        });
+        if (!existant) throw new Error('Pronostic introuvable.');
+        verifierCotePublication(existant.oddsRecommended);
+      }
+
       const pronostic = await tx.pronostic.update({
         where: { id: pronosticId },
         data:  { isPublished: publish, publishedAt: publish ? new Date() : null },

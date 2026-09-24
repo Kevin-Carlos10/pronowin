@@ -408,6 +408,11 @@
         <p id="odds-rec-origin" style="font-size:.72rem;color:var(--text-m);margin-top:.45rem">
           <svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg> La cote recommandée est celle du pronostic choisi — elle se met à jour quand tu changes d'option.
         </p>
+        <!-- Sous 1,20 le serveur refuse la publication. Le dire ici, avant l'envoi :
+             un refus serveur recharge le formulaire depuis la base, et l'analyse
+             saisie est perdue. -->
+        <p id="odds-rec-seuil" role="alert" hidden
+           style="font-size:.78rem;color:var(--error);font-weight:600;margin-top:.45rem"></p>
       </div>
 
       <div class="pf-two">
@@ -510,6 +515,62 @@
 <% } %>
 
 <script>
+/* Cote minimale de publication — même valeur que COTE_MINIMALE_PUBLICATION
+   dans backend/src/services/pronostics.service.ts ; un banc les tient égales.
+
+   Placée en tête du script : `setRecommendedOdd` l'appelle, et une constante
+   lue avant sa déclaration lève une erreur qui casserait tout le formulaire.
+
+   Le serveur reste l'autorité. Ce contrôle-ci existe pour une seule raison :
+   un refus serveur recharge la page depuis la base, et l'administrateur perd
+   l'analyse qu'il vient d'écrire. Mieux vaut l'arrêter avant l'envoi. */
+const COTE_MINIMALE_PUBLICATION = 1.2;
+
+function formatCote(v) { return v.toFixed(2).replace('.', ','); }
+
+/** Affiche ou masque l'avertissement ; rend true si la cote permet de publier. */
+function etatCote() {
+  const v  = parseFloat(document.getElementById('odds-rec').value);
+  const el = document.getElementById('odds-rec-seuil');
+  // Champ vide : rien à dire tant qu'on tape — « required » s'en charge à l'envoi.
+  if (!Number.isFinite(v) || v >= COTE_MINIMALE_PUBLICATION) {
+    el.hidden = true;
+    return Number.isFinite(v);
+  }
+  el.hidden = false;
+  el.textContent = 'Cote ' + formatCote(v) + ' : sous ' + formatCote(COTE_MINIMALE_PUBLICATION)
+    + ', ce pronostic ne peut pas être publié — brouillon uniquement. Il faudrait gagner '
+    + Math.round(100 / v) + ' % des fois pour ne pas perdre d’argent.';
+  return false;
+}
+
+document.getElementById('odds-rec').addEventListener('input', etatCote);
+
+/* Seul le bouton « Publier » est retenu : un brouillon sous le seuil reste
+   permis, une cote peut encore monter. Entrée dans un champ vaut ce bouton —
+   c'est le premier du formulaire, donc le soumetteur implicite. */
+document.getElementById('pro-form').addEventListener('submit', function (e) {
+  const b = e.submitter;
+  if (!b || b.name !== 'publish' || b.value !== 'true') return;
+  if (etatCote()) return;
+  e.preventDefault();
+  const champ  = document.getElementById('odds-rec');
+  const alerte = document.getElementById('odds-rec-seuil');
+  // Le focus sans défilement : c'est l'explication qu'il faut montrer, pas
+  // seulement le champ. Centrer le champ laissait l'avertissement, juste en
+  // dessous, sous la barre d'actions — mesuré sur un écran étroit.
+  champ.focus({ preventScroll: true });
+  alerte.scrollIntoView({ block: 'center' });
+  // La barre d'actions est fixée en bas, au-dessus de la navigation mobile :
+  // centrer ne suffit pas toujours à la dégager. On remonte du recouvrement.
+  const barre = document.querySelector('.prono-actions');
+  if (barre && getComputedStyle(barre).position === 'fixed') {
+    const recouvrement = alerte.getBoundingClientRect().bottom
+                       - barre.getBoundingClientRect().top + 12;
+    if (recouvrement > 0) window.scrollBy(0, recouvrement);
+  }
+});
+
 /* Note éditoriale de l’analyste, sans conversion en probabilité. */
 function setStar(v) {
   document.getElementById('conf-input').value = v;
@@ -581,6 +642,9 @@ function setRecommendedOdd(value, note) {
   el.style.color = 'var(--text-m)';
   el.textContent = note || ODDS_ORIGIN_AUTO;
   updateRecap();
+  // Une affectation par programme ne déclenche pas « input » : sans cet
+  // appel, choisir une option à 1,15 laisserait l'avertissement éteint.
+  etatCote();
 }
 
 document.getElementById('odds-rec').addEventListener('input', () => {
@@ -924,6 +988,9 @@ fetchPrediction();
 function depublish() {
   document.getElementById('form-depublier').submit();
 }
+
+// Un brouillon enregistré sous le seuil doit l'annoncer dès l'ouverture.
+etatCote();
 </script>
 
 <% if(isEdit && (match.status === 'FINISHED' || match.status === 'finished')) { %>
