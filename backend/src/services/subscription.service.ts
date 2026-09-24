@@ -6,6 +6,8 @@ import { ReferralService } from './referral.service';
 import { listerPubliques } from './payment_method.service';
 import { estProfilComplet } from '../middleware/profile.middleware';
 import { lireConfig, codePromoPour, codesPromoParPlateforme } from './app_config.service';
+import { cleDe } from './s3.service';
+import { ErreurMetier, ServiceIndisponible } from '../utils/erreurs';
 
 // Import S3 de façon lazy pour éviter le crash si AWS pas configuré
 let s3Svc: any = null;
@@ -380,6 +382,18 @@ export class SubscriptionService {
     const { userId, type, imageBase64, xbetId, platform, amount, senderPhone, planId } = params;
     let screenshotUrl        = params.screenshotUrl;
 
+    // Une adresse de capture fournie par le client n'est acceptée que si elle
+    // désigne un objet déposé par ce compte dans son dossier de preuves — le
+    // parcours d'envoi direct (`/upload-url`) la lui a donnée. Sans ce
+    // contrôle, une « preuve » pouvait pointer n'importe où : l'image d'un
+    // autre, ou une page qui n'a rien d'une capture (constat S10).
+    if (screenshotUrl) {
+      const cle = cleDe(screenshotUrl);
+      if (!cle || !cle.startsWith(`proofs/${userId}/`)) {
+        throw new ErreurMetier('Adresse de capture refusée : envoyez l\'image depuis l\'application.', 422);
+      }
+    }
+
     // Vérifier preuve en attente
     try {
       const existing = await prisma.subscriptionProof.findFirst({
@@ -399,7 +413,12 @@ export class SubscriptionService {
         try {
           screenshotUrl = await s3.uploadImage({ base64: imageBase64, folder: 'proofs', userId });
         } catch (e: any) {
-          throw new Error(`Erreur upload image: ${e.message}`);
+          // Un format refusé se dit tel quel ; une panne de S3 ne dit pas
+          // ce que S3 a répondu.
+          if (e instanceof ErreurMetier) throw e;
+          logger.error('[Subscription] Échec du dépôt de la capture', { userId, message: e?.message });
+          throw new ServiceIndisponible(
+            "L'envoi de votre capture a échoué. Réessayez dans quelques minutes — aucun paiement ne sera perdu.");
         }
       } else if (process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test') {
         // Hors production seulement, et jamais par défaut.
@@ -553,7 +572,16 @@ export class SubscriptionService {
       this._contexteProofs(),
     ]);
 
-    return { data: items, total, page, per_page: perPage, statut, recherche: q,
+    // Les captures sont privées : chaque affichage reçoit une adresse de
+    // lecture signée, valable dix minutes.
+    const s3 = await getS3();
+    const data = s3 ? await Promise.all(items.map(async (p) => ({
+      ...p,
+      screenshotUrl:        await s3.urlLectureSignee(p.screenshotUrl) ?? p.screenshotUrl,
+      paymentScreenshotUrl: await s3.urlLectureSignee(p.paymentScreenshotUrl),
+    }))) : items;
+
+    return { data, total, page, per_page: perPage, statut, recherche: q,
              promo_code: codePromoPour((await lireConfig()).valeurs), contexte };
   }
 
