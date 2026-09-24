@@ -70,8 +70,50 @@ class MatchDetailPage extends ConsumerStatefulWidget {
 }
 
 class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
-    with TickerProviderStateMixin {
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   Timer? _liveTimer;
+
+  /// L'application est-elle au premier plan ?
+  bool _premierPlan = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  /// Le suivi du score s'arrête quand l'application passe en arrière-plan.
+  ///
+  /// La minuterie de 30 secondes tournait sans condition : application fermée
+  /// ou page recouverte par une autre, le téléphone continuait d'interroger
+  /// l'API (constat M12 de l'audit du 24 septembre 2026) — ce que l'accueil,
+  /// lui, ne fait plus depuis longtemps.
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState etat) {
+    final avant = _premierPlan;
+    _premierPlan = etat == AppLifecycleState.resumed;
+    if (_premierPlan && !avant && _liveTimer != null) {
+      // De retour : un relevé tout de suite plutôt qu'au prochain tic.
+      _releverScore();
+    }
+  }
+
+  /// Relève le score, sauf si personne ne le regarde : application en
+  /// arrière-plan, ou page recouverte par une autre.
+  Future<void> _releverScore() async {
+    if (!mounted || !_premierPlan) return;
+    if (!(ModalRoute.of(context)?.isCurrent ?? true)) return;
+    ref.invalidate(liveScoreProvider(widget.matchId));
+    try {
+      await ref.read(liveScoreProvider(widget.matchId).future);
+      // L'horodatage n'avance qu'après une réponse reçue : il était posé au
+      // déclenchement de la minuterie, et rajeunissait donc même quand la
+      // requête échouait — un score vieux d'une heure affiché « à l'instant ».
+      if (mounted) setState(() => _dernierRefresh = DateTime.now());
+    } catch (_) {
+      // Échec réseau : la donnée affichée reste celle d'avant, avec sa date.
+    }
+  }
 
   // ── Onglets à composition variable ──────────────────────────────────────────
   // Les onglets secondaires (compositions, blessures, classements, face-à-face,
@@ -117,6 +159,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _liveTimer?.cancel();
     _tabCtrl?.dispose();
     super.dispose();
@@ -129,10 +172,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
 
   void _startLivePolling() {
     _liveTimer?.cancel();
-    _liveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
-      ref.invalidate(liveScoreProvider(widget.matchId));
-      if (mounted) setState(() => _dernierRefresh = DateTime.now());
-    });
+    _liveTimer = Timer.periodic(const Duration(seconds: 30), (_) => _releverScore());
   }
 
   void _stopLivePolling() {

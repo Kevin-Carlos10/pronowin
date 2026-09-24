@@ -92,10 +92,12 @@ void main() {
   /// 320 px, c'est un Android d'entrée de gamme — exactement le matériel visé.
   /// Vérifier à 400 px seulement reviendrait à ne rien vérifier.
   ///
-  /// 1,5 est la borne mesurée : au-delà, la carte tient encore à 360 et 411 px
-  /// mais cède à 320. C'est ce qui fixe `maxScaleFactor` dans `main.dart` —
-  /// une valeur mesurée, plus une estimation.
-  const echelles = [1.0, 1.15, 1.3, 1.5];
+  /// 1,8 est la borne mesurée le 24 septembre 2026 : la carte tient à 1,8 sur
+  /// les trois largeurs, et cède à 2,0 sur 320 px. C'est ce qui fixe
+  /// `maxScaleFactor` dans `main.dart` — une valeur mesurée, pas une
+  /// estimation. (Elle valait 1,5 : les débordements corrigés depuis ont
+  /// dégagé la marge.)
+  const echelles = [1.0, 1.15, 1.3, 1.5, 1.8];
   const largeurs = [320.0, 360.0, 411.0];
 
   group('la carte de match ne déborde pas', () {
@@ -125,11 +127,11 @@ void main() {
     // a cinq etoiles cassait donc la mise en page sur un Android d'entree de
     // gamme dont l'utilisateur a grossi les caracteres.
     for (final note in [1, 2, 3, 4, 5]) {
-      testWidgets('note $note · 320 px · échelle 1.5', (tester) async {
+      testWidgets('note $note · 320 px · échelle 1.8', (tester) async {
         await rendre(
           tester,
           MatchCardWidget(match: fabriquer(confiance: note)),
-          echelle: 1.5,
+          echelle: 1.8,
           largeur: 320,
         );
         expect(tester.takeException(), isNull,

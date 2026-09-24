@@ -5,6 +5,8 @@
 class AppColors {
   // Primaires
   static const primary      = Color(0xFFE8541A);
+  /// Fond des boutons pleins : blanc dessus à 5,18:1 (voir plus bas).
+  static const primaryBouton = Color(0xFFC2410C);
   static const primaryLight = Color(0xFFF5A623);
 
   // Sémantiques
@@ -127,7 +129,10 @@ class AppTheme {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
+        // Une nuance plus sombre de l'orange de la marque pour le fond des
+        // boutons : blanc sur #E8541A tombait à 3,68:1 pour un libellé de
+        // 15 px, sous le seuil de 4,5:1 (constat M13). Sur #C2410C : 5,18:1.
+        backgroundColor: AppColors.primaryBouton,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -205,7 +210,10 @@ class AppTheme {
     ),
     elevatedButtonTheme: ElevatedButtonThemeData(
       style: ElevatedButton.styleFrom(
-        backgroundColor: AppColors.primary,
+        // Une nuance plus sombre de l'orange de la marque pour le fond des
+        // boutons : blanc sur #E8541A tombait à 3,68:1 pour un libellé de
+        // 15 px, sous le seuil de 4,5:1 (constat M13). Sur #C2410C : 5,18:1.
+        backgroundColor: AppColors.primaryBouton,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

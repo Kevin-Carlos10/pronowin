@@ -65,7 +65,7 @@ void main() {
 
   /// Les mêmes bornes que la carte de match : c'est `maxScaleFactor` qui les
   /// fixe, et un widget partagé n'a pas le droit d'être le maillon faible.
-  const echelles = [1.0, 1.3, 1.5];
+  const echelles = [1.0, 1.3, 1.5, 1.8];
   const largeurs = [320.0, 360.0, 411.0];
 
   /// Déclare la même batterie pour un widget donné.

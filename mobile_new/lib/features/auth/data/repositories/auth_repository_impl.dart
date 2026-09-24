@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:dartz/dartz.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/network/failures.dart';
-import '../../../../core/services/background_sync_service.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -37,7 +36,6 @@ class AuthRepositoryImpl implements AuthRepository {
       final refreshToken = data['refresh_token'] as String;
       await _storage.write(AppConstants.accessTokenKey,  accessToken);
       await _storage.write(AppConstants.refreshTokenKey, refreshToken);
-      BackgroundSyncService.saveTokenForBackground(accessToken); // fire-and-forget
       final user = UserModel.fromJson(data['user'] as Map<String, dynamic>);
       return Right(user);
     } on Failure catch (f) {
@@ -58,7 +56,6 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<UserEntity> _saveTokensAndReturn(Map<String, dynamic> data) async {
     await _storage.write(AppConstants.accessTokenKey,  data['access_token'] as String);
     await _storage.write(AppConstants.refreshTokenKey, data['refresh_token'] as String);
-    BackgroundSyncService.saveTokenForBackground(data['access_token'] as String);
     return UserModel.fromJson(data['user'] as Map<String, dynamic>);
   }
 
@@ -83,7 +80,6 @@ class AuthRepositoryImpl implements AuthRepository {
   Future<Either<Failure, void>> logout() async {
     await _remote.logout();
     await _storage.deleteAll();
-    BackgroundSyncService.clearTokenForBackground(); // fire-and-forget
     return const Right(null);
   }
 

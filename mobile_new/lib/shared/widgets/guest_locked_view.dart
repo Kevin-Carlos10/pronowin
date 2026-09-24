@@ -43,10 +43,12 @@ class GuestLockedView extends StatelessWidget {
               ],
             )
           : null,
+      // Défilant : à 180 % de taille de texte sur un écran de 320 px, le
+      // contenu dépassait la hauteur disponible de 83 px (constat M13).
       body: SafeArea(
         child: Center(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -69,14 +71,17 @@ class GuestLockedView extends StatelessWidget {
                 Text(message, textAlign: TextAlign.center, style: TextStyle(
                   color: context.cl.textS, fontSize: 13.5, height: 1.5)),
                 const SizedBox(height: 28),
-                SizedBox(
-                  width: double.infinity, height: 52,
+                // Hauteur minimale, pas fixe : à grande taille de texte, le
+                // libellé passe sur deux lignes au lieu d'être coupé.
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: 52, minWidth: double.infinity),
                   child: ElevatedButton(
                     onPressed: () => context.push('/auth/email?from=${Uri.encodeComponent(from)}'),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
+                      backgroundColor: AppColors.primaryBouton,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                     child: const Text('Se connecter / Créer un compte',
+                      textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
                   ),
                 ),

@@ -191,7 +191,9 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
       await _checkLockOnStart();
       await _checkVersion();
       ReviewService.onSessionStart();                  // fire-and-forget
-      BackgroundSyncService.registerPeriodicSync();    // fire-and-forget
+      // La synchronisation de fond est retirée : on annule celle qu'avaient
+      // enregistrée les versions précédentes (constats M4, M8).
+      BackgroundSyncService.retirer();                 // fire-and-forget
     });
   }
 
@@ -319,7 +321,9 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
       // La borne haute est **mesurée**, pas estimée : `echelle_texte_
       // debordement_test.dart` rend la carte de match — le widget le plus
       // répété de l'application — à trois largeurs réelles, dont 320 px. Elle
-      // tient jusqu'à 1,5 partout ; à 1,8 elle cède sur 320 px.
+      // tient jusqu'à 1,8 partout ; à 2,0 elle cède sur 320 px (mesure du
+      // 24 septembre 2026, constat M13 : le plafond de 1,5 ignorait une
+      // partie du réglage d'accessibilité du téléphone).
       //
       // La première version de cette borne valait 1,3, choisie à l'estime.
       // Deux débordements corrigés depuis — un nom de ligue et un libellé sans
@@ -328,7 +332,7 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
         final systeme = MediaQuery.textScalerOf(context);
         return MediaQuery(
           data: MediaQuery.of(context).copyWith(
-            textScaler: systeme.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.5),
+            textScaler: systeme.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.8),
           ),
           child: child!,
         );

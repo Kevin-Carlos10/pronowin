@@ -153,9 +153,11 @@ void main() {
       final max = double.parse(m!.group(1)!);
       // Assez pour couvrir les réglages « Grand » des deux systèmes…
       expect(max, greaterThanOrEqualTo(1.3));
-      // …sans faire déborder les cartes à hauteur fixe, où la promesse serait
-      // tenue par un texte tronqué.
-      expect(max, lessThanOrEqualTo(1.6));
+      // …sans dépasser ce que les bancs de débordement vérifient : la carte de
+      // match et les widgets partagés sont rendus jusqu'à 1,8, à 320 px
+      // (constat M13). Relever cette borne exige de relever d'abord celles de
+      // ces deux bancs.
+      expect(max, lessThanOrEqualTo(1.8));
     });
   });
 }

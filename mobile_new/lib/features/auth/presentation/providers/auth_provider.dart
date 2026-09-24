@@ -215,7 +215,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
-  void reset() => state = AuthInitial();
+  /// Retour à l'état invité — après un refus de rafraîchissement du jeton.
+  ///
+  /// Le cache n'était pas vidé ici, contrairement à la déconnexion : après
+  /// une session expirée, le compte suivant sur le même téléphone pouvait voir
+  /// les données privées du précédent (constat M11).
+  void reset() {
+    state = AuthInitial();
+    CacheService.clearAll();      // sans attendre : l'état invité est immédiat
+    effacerFavorisLocaux();
+  }
 }
 
 // Assurez-vous d'utiliser ref.watch au lieu de ref.read à l'intérieur d'un provider
