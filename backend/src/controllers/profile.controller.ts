@@ -308,6 +308,9 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
       where: { userId: req.userId! },
       data:  { used: true },
     });
+    // Et les appareils : un compte supprimé ne reçoit plus rien. La ligne du
+    // compte reste (anonymisée), la cascade ne les emporterait donc pas.
+    await prisma.appareilNotification.deleteMany({ where: { userId: req.userId! } });
     res.json({ message: 'Compte supprimé. Vos données personnelles ont été anonymisées.' });
   } catch (e: any) { repondreErreur(res, e); }
 };

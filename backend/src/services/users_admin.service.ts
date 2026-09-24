@@ -135,7 +135,8 @@ export class UsersAdminService {
         xbetId: true, birthDate: true, avatarUrl: true,
         subscriptionPlan: true, subscriptionExpiresAt: true,
         referralCode: true, referralEarnings: true,
-        isActive: true, createdAt: true, lastLoginAt: true, fcmToken: true,
+        isActive: true, createdAt: true, lastLoginAt: true,
+        _count: { select: { appareils: true } },
       },
     });
     if (!user) throw new Error('Utilisateur introuvable.');
@@ -188,7 +189,7 @@ export class UsersAdminService {
       data:  { isActive: !suspend },
     });
 
-    if (suspend && user.fcmToken) {
+    if (suspend) {
       await notifSvc.sendToUser(userId, {
         title: 'Compte suspendu',
         body:  reason ?? 'Votre compte a été suspendu. Contactez le support.',
@@ -236,8 +237,8 @@ export class UsersAdminService {
 
   /** Envoyer notification push */
   async sendNotification(userId: string, title: string, body: string) {
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
-    if (!user?.fcmToken) throw new Error('Cet utilisateur n\'a pas de token FCM enregistré.');
+    const appareils = await prisma.appareilNotification.count({ where: { userId } });
+    if (appareils === 0) throw new Error('Cet utilisateur n\'a pas de token FCM enregistré.');
     await notifSvc.sendToUser(userId, { title, body, data: { type: 'system' } });
     return { success: true };
   }
@@ -260,7 +261,7 @@ export class UsersAdminService {
 
     if (suspend) {
       const cibles = await prisma.user.findMany({
-        where:  { id: { in: ids }, fcmToken: { not: null } },
+        where:  { id: { in: ids }, appareils: { some: {} } },
         select: { id: true },
       });
       await Promise.allSettled(cibles.map(u => notifSvc.sendToUser(u.id, {
@@ -285,7 +286,7 @@ export class UsersAdminService {
     if (!body?.trim())      throw new Error('Message requis.');
 
     const cibles = await prisma.user.findMany({
-      where:  { id: { in: ids }, fcmToken: { not: null } },
+      where:  { id: { in: ids }, appareils: { some: {} } },
       select: { id: true },
     });
     const res = await Promise.allSettled(cibles.map(u =>

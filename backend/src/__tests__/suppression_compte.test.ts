@@ -152,6 +152,13 @@ describe('suppression de compte — ce que l\'écran promet', () => {
     expect(corps).toMatch(/used:\s*true/);
   });
 
+  it('les appareils de notification sont effacés', () => {
+    // Ils vivent dans leur propre table depuis le constat I12. Effacer
+    // `fcmToken` sur la ligne ne les touche pas, et la cascade non plus : la
+    // ligne du compte est anonymisée, jamais supprimée.
+    expect(corpsDeleteAccount()).toMatch(/appareilNotification\.deleteMany\(\{\s*where:\s*\{\s*userId:/);
+  });
+
   it('il n\'existe qu\'une seule implémentation de la suppression', () => {
     // `ProfileService` portait un second `deleteAccount`, plus ancien et
     // incomplet — il laissait nom, prénom, date de naissance, xbetId et le

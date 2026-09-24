@@ -13,6 +13,7 @@ import '../../domain/usecases/send_otp_usecase.dart';
 import '../../domain/usecases/verify_otp_usecase.dart';
 import '../../../../core/cache/cache_service.dart';
 import '../../../../shared/providers/favoris_provider.dart';
+import '../../../notifications/presentation/providers/fcm_service.dart';
 
 // ... (Gardez tes classes AuthState et AuthNotifier identiques)
 
@@ -24,6 +25,7 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) =>
     AuthRepositoryImpl(
       ref.read(authRemoteDataSourceProvider),
       ref.read(secureStorageProvider),
+      jetonAppareil: FCMService.getToken,
     ));
 
 final sendOtpUseCaseProvider = Provider<SendOtpUseCase>((ref) =>

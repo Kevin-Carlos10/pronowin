@@ -112,20 +112,20 @@ export class PaymentService {
     // Le lien profond pointait vers `/depot-retrait`, un écran supprimé du
     // mobile : la notification ouvrait une route inexistante. Il mène
     // désormais à la page parrainage, d'où part réellement la demande.
-    if (tx.user.fcmToken) {
-      if (status === 'completed') {
-        await notifSvc.sendToUser(tx.userId, {
-          title: 'Versement effectué !',
-          body:  `${tx.amount.toLocaleString()} FCFA envoyés sur votre Mobile Money.`,
-          data:  { deep_link: '/parrainage', type: 'payment' },
-        });
-      } else {
-        await notifSvc.sendToUser(tx.userId, {
-          title: 'Versement refusé',
-          body:  adminNote ?? 'Votre demande n\'a pas pu être traitée. Contactez le support.',
-          data:  { deep_link: '/parrainage', type: 'payment' },
-        });
-      }
+    // Sans condition sur un appareil : sendToUser garde la notification dans
+    // l'historique de l'application, même quand aucune push ne peut partir.
+    if (status === 'completed') {
+      await notifSvc.sendToUser(tx.userId, {
+        title: 'Versement effectué !',
+        body:  `${tx.amount.toLocaleString()} FCFA envoyés sur votre Mobile Money.`,
+        data:  { deep_link: '/parrainage', type: 'payment' },
+      });
+    } else {
+      await notifSvc.sendToUser(tx.userId, {
+        title: 'Versement refusé',
+        body:  adminNote ?? 'Votre demande n\'a pas pu être traitée. Contactez le support.',
+        data:  { deep_link: '/parrainage', type: 'payment' },
+      });
     }
 
     return updated;

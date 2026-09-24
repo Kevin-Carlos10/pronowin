@@ -382,20 +382,27 @@ export class AuthService {
   }
 
   /** Déconnecte l'utilisateur */
-  async logout(userId: string, refreshToken?: unknown): Promise<void> {
+  async logout(userId: string, refreshToken?: unknown, jetonAppareil?: unknown): Promise<void> {
     // L'application n'envoie pas son refresh token à la déconnexion. Avant
     // les empreintes, `token: undefined` ne filtrait rien, et la déconnexion
     // révoquait toutes les sessions du compte ; calculer l'empreinte d'un
     // jeton absent levait une erreur, la requête restait sans réponse et plus
     // rien n'était révoqué. Sans jeton : toutes les sessions, comme avant.
+    //
+    // Les appareils suivent les sessions : une session fermée ne reçoit plus
+    // les notifications privées du compte (constat I12).
     if (typeof refreshToken !== 'string' || !refreshToken) {
       await prisma.refreshToken.deleteMany({ where: { userId } });
+      await prisma.appareilNotification.deleteMany({ where: { userId } });
       return;
     }
     // Par empreinte, et en clair pour un jeton émis avant qu'elles existent.
     await prisma.refreshToken.deleteMany({
       where: { userId, token: { in: [empreinteJeton(refreshToken), refreshToken] } },
     });
+    if (typeof jetonAppareil === 'string' && jetonAppareil) {
+      await prisma.appareilNotification.deleteMany({ where: { userId, jeton: jetonAppareil } });
+    }
   }
 
   // ─── Privé ────────────────────────────────────────────────────────────────

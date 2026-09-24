@@ -120,12 +120,42 @@ function sansFirebase(): { success: false; error: string } | null {
   return { success: false, error: 'firebase_non_configure' };
 }
 
+/** Au-delà, les appareils d'un compte vus le moins récemment sont oubliés. */
+export const APPAREILS_PAR_COMPTE = 10;
+
 export class NotificationService {
 
-  async registerToken(userId: string, fcmToken: string, platform: string) {
-    await prisma.user.update({ where: { id: userId }, data: { fcmToken } });
-    journal.info(`[FCM] Token enregistré — user ${userId}`);
+  /**
+   * Rattache l'appareil au compte qui y est connecté.
+   *
+   * Le jeton est unique : l'enregistrer le retire au compte qui l'avait. Un
+   * téléphone repris par un autre compte cesse donc de recevoir les
+   * notifications du précédent (constat I12).
+   */
+  async registerToken(userId: string, jeton: string, plateforme: string) {
+    await prisma.appareilNotification.upsert({
+      where:  { jeton },
+      create: { userId, jeton, plateforme },
+      update: { userId, plateforme, vuLe: new Date() },
+    });
+    // Un jeton qui n'est jamais signalé mort par Firebase — appareil perdu,
+    // application jamais rouverte — resterait sinon indéfiniment.
+    const anciens = await prisma.appareilNotification.findMany({
+      where: { userId }, orderBy: { vuLe: 'desc' }, skip: APPAREILS_PAR_COMPTE, select: { id: true },
+    });
+    if (anciens.length > 0) {
+      await prisma.appareilNotification.deleteMany({ where: { id: { in: anciens.map(a => a.id) } } });
+    }
+    journal.info(`[FCM] Appareil enregistré — user ${userId}`);
     return { success: true };
+  }
+
+  /**
+   * Détache un appareil du compte à la déconnexion — ou tous, quand la
+   * déconnexion ferme toutes les sessions du compte.
+   */
+  async oublierAppareils(userId: string, jeton?: string) {
+    await prisma.appareilNotification.deleteMany({ where: jeton ? { userId, jeton } : { userId } });
   }
 
   // ─── Historique notifications ────────────────────────────────────────────
@@ -187,7 +217,8 @@ export class NotificationService {
     title: string; body: string; data?: Record<string, string>;
   }, category?: NotifCategory) {
     const user = await prisma.user.findUnique({
-      where: { id: userId }, select: { fcmToken: true, notificationPrefs: true },
+      where:  { id: userId },
+      select: { notificationPrefs: true, appareils: { select: { jeton: true } } },
     });
     // Toujours sauvegarder en base pour l'historique
     await this._saveNotification(userId, {
@@ -200,11 +231,11 @@ export class NotificationService {
       journal.info(`[FCM] user ${userId} a coupé « ${category} » — push non envoyée`);
       return { success: false, reason: 'muted' };
     }
-    if (!user?.fcmToken) {
+    if (!user?.appareils.length) {
       journal.info(`[FCM] Pas de token pour user ${userId} — notif sauvegardée en base`);
       return { success: false, reason: 'no_token' };
     }
-    return this._sendToToken(user.fcmToken, payload);
+    return this._envoyerAuxAppareils(user.appareils.map(a => a.jeton), payload);
   }
 
   /** Envoyer à un topic FCM (tous les abonnés à ce type de notif) */
@@ -248,19 +279,23 @@ export class NotificationService {
     }
   }
 
-  private async _sendToToken(fcmToken: string, payload: {
+  /**
+   * Tous les appareils d'un compte. Réussi dès qu'un appareil a reçu ; les
+   * jetons que Firebase déclare morts sont oubliés.
+   */
+  private async _envoyerAuxAppareils(jetons: string[], payload: {
     title: string; body: string; data?: Record<string, string>;
   }) {
     const fa = await getAdmin();
     if (!fa) {
       const refus = sansFirebase();
       if (refus) return refus;
-      journal.info(`\n📱 [FCM] ${payload.title}\n   ${payload.body}\n`);
+      journal.info(`\n📱 [FCM ${jetons.length} appareil(s)] ${payload.title}\n   ${payload.body}\n`);
       return { success: true, simulated: true };
     }
     try {
-      const messageId = await fa.messaging().send({
-        token:        fcmToken,
+      const r = await fa.messaging().sendEachForMulticast({
+        tokens:       jetons,
         notification: { title: payload.title, body: payload.body },
         data:         payload.data ?? {},
         android: {
@@ -269,13 +304,18 @@ export class NotificationService {
         },
         apns: { payload: { aps: { sound: 'default', badge: 1 } } },
       });
-      journal.info(`[FCM] ✅ Token — messageId: ${messageId}`);
-      return { success: true, messageId };
-    } catch (e: any) {
-      if (e.code === 'messaging/registration-token-not-registered') {
-        await prisma.user.updateMany({ where: { fcmToken }, data: { fcmToken: null } });
-        journal.warn('[FCM] Token invalide supprimé');
+      const morts = jetons.filter((_, k: number) =>
+        !r.responses[k]?.success && DEAD_TOKEN_CODES.has(r.responses[k]?.error?.code));
+      if (morts.length > 0) {
+        await prisma.appareilNotification.deleteMany({ where: { jeton: { in: morts } } });
+        journal.warn(`[FCM] ${morts.length} appareil(s) au jeton invalide oublié(s)`);
       }
+      if (r.successCount === 0) {
+        return { success: false, error: r.responses.find((x: any) => x.error)?.error?.message ?? 'echec' };
+      }
+      journal.info(`[FCM] ✅ ${r.successCount}/${jetons.length} appareil(s)`);
+      return { success: true, envoyes: r.successCount, echecs: r.failureCount };
+    } catch (e: any) {
       return { success: false, error: e.message };
     }
   }
@@ -333,13 +373,17 @@ export class NotificationService {
       return { segment, sent: users.length, failed: 0, pruned: 0, simulated: true };
     }
 
-    let sent = 0, failed = 0;
+    // Un compte peut avoir plusieurs appareils : on envoie par jeton, mais le
+    // compte rendu compte des personnes — une personne est atteinte dès qu'un
+    // de ses appareils a reçu.
+    const envois = users.flatMap(u => u.appareils.map(a => ({ userId: u.id, jeton: a.jeton })));
+    const atteints = new Set<string>();
     const dead: string[] = [];
 
     // FCM plafonne le multicast à 500 jetons par appel.
-    for (let i = 0; i < users.length; i += 500) {
-      const batch  = users.slice(i, i + 500);
-      const tokens = batch.map(u => u.fcmToken!);
+    for (let i = 0; i < envois.length; i += 500) {
+      const lot    = envois.slice(i, i + 500);
+      const tokens = lot.map(e => e.jeton);
       try {
         const r = await fa.messaging().sendEachForMulticast({
           tokens,
@@ -358,23 +402,21 @@ export class NotificationService {
           },
           apns: { payload: { aps: { sound: 'default', badge: 1 } } },
         });
-        sent   += r.successCount;
-        failed += r.failureCount;
         r.responses.forEach((resp: any, k: number) => {
-          if (!resp.success && DEAD_TOKEN_CODES.has(resp.error?.code)) dead.push(tokens[k]);
+          if (resp.success) atteints.add(lot[k].userId);
+          else if (DEAD_TOKEN_CODES.has(resp.error?.code)) dead.push(tokens[k]);
         });
       } catch (e: any) {
         journal.error('[FCM] Erreur lot segment:', e.message);
-        failed += tokens.length;
       }
     }
+    const sent = atteints.size;
+    const failed = users.length - sent;
 
     // Sans ce nettoyage, les jetons morts s'accumulent et le compteur
     // d'audience surestime de plus en plus la portée réelle.
     if (dead.length > 0) {
-      await prisma.user.updateMany({
-        where: { fcmToken: { in: dead } }, data: { fcmToken: null },
-      });
+      await prisma.appareilNotification.deleteMany({ where: { jeton: { in: dead } } });
       journal.warn(`[FCM] ${dead.length} token(s) invalide(s) purgé(s)`);
     }
 
@@ -415,7 +457,7 @@ export class NotificationService {
           { email:       { equals: recherche, mode: 'insensitive' } },
         ],
       },
-      select: { id: true, pseudo: true, fcmToken: true, notificationPrefs: true },
+      select: { id: true, pseudo: true, notificationPrefs: true, _count: { select: { appareils: true } } },
     });
 
     if (!user) throw new Error(`Aucun compte ne correspond à « ${recherche} ».`);
@@ -425,7 +467,7 @@ export class NotificationService {
         `${user.pseudo} a désactivé les notifications « Offres & Promotions ». ` +
         'Le message est enregistré dans son application mais aucune push ne part.');
     }
-    if (!user.fcmToken) {
+    if (user._count.appareils === 0) {
       throw new Error(
         `${user.pseudo} n'a pas de jeton de notification : l'application n'a ` +
         'jamais été ouverte sur cet appareil, ou les notifications y sont refusées.');
@@ -452,8 +494,8 @@ export class NotificationService {
 
   private async _reachableUsers(segment: string) {
     const users = await prisma.user.findMany({
-      where:  { ...segmentWhere(segment), fcmToken: { not: null } },
-      select: { id: true, fcmToken: true, notificationPrefs: true },
+      where:  { ...segmentWhere(segment), appareils: { some: {} } },
+      select: { id: true, notificationPrefs: true, appareils: { select: { jeton: true } } },
     });
     return users.filter(u => isNotifEnabled(u.notificationPrefs, CAMPAIGN_CATEGORY));
   }

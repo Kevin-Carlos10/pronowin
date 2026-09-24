@@ -12,7 +12,10 @@ abstract class AuthRemoteDataSource {
   Future<Map<String, dynamic>> verifyEmailOtp({required String email, required String otp});
   Future<Map<String, dynamic>> googleLogin(String idToken);
   Future<UserModel> getProfile();
-  Future<void> logout();
+  /// Ferme la session de ce refresh token et détache cet appareil des
+  /// notifications du compte. Sans refresh token, le serveur ferme toutes les
+  /// sessions du compte, et détache tous ses appareils.
+  Future<void> logout({String? refreshToken, String? fcmToken});
   Future<void> deleteAccount();
   Future<DateTime> acceptTerms();
 }
@@ -86,9 +89,12 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
   }
 
   @override
-  Future<void> logout() async {
+  Future<void> logout({String? refreshToken, String? fcmToken}) async {
     try {
-      await _dio.post(ApiEndpoints.logout);
+      await _dio.post(ApiEndpoints.logout, data: {
+        if (refreshToken != null && refreshToken.isNotEmpty) 'refresh_token': refreshToken,
+        if (fcmToken != null && fcmToken.isNotEmpty) 'fcm_token': fcmToken,
+      });
     } on DioException catch (_) {
       // On ignore l'erreur réseau au logout
     }

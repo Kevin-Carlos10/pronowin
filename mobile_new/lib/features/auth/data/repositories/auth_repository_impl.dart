@@ -12,7 +12,13 @@ class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource _remote;
   final SecureStorageService _storage;
 
-  AuthRepositoryImpl(this._remote, this._storage);
+  /// Le jeton de notification de cet appareil, s'il en a un.
+  final Future<String?> Function() _jetonAppareil;
+
+  AuthRepositoryImpl(this._remote, this._storage, {Future<String?> Function()? jetonAppareil})
+      : _jetonAppareil = jetonAppareil ?? _aucunJeton;
+
+  static Future<String?> _aucunJeton() async => null;
 
   @override
   Future<Either<Failure, void>> sendOtp(String phoneNumber) async {
@@ -78,7 +84,19 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Either<Failure, void>> logout() async {
-    await _remote.logout();
+    // Cette session, et cet appareil. Sans rien dans le corps, le serveur
+    // fermait toutes les sessions du compte : se déconnecter d'un téléphone
+    // déconnectait les autres. Et le téléphone gardait les notifications
+    // privées du compte après la déconnexion (constat I12).
+    final refresh = await _storage.read(AppConstants.refreshTokenKey);
+    String? appareil;
+    try {
+      appareil = await _jetonAppareil().timeout(const Duration(seconds: 3));
+    } catch (_) {
+      // Firebase absent ou muet : la déconnexion ne l'attend pas. Le serveur
+      // oubliera ce jeton au premier envoi qui le déclarera mort.
+    }
+    await _remote.logout(refreshToken: refresh, fcmToken: appareil);
     await _storage.deleteAll();
     return const Right(null);
   }

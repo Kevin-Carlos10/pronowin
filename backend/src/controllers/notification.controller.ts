@@ -40,10 +40,14 @@ export const markAllRead = async (req: AuthRequest, res: Response) => {
 // ── Token FCM ─────────────────────────────────────────────────────────────────
 
 export const registerToken = async (req: AuthRequest, res: Response) => {
-  const { fcm_token, platform } = req.body;
-  if (!fcm_token) { res.status(422).json({ message: 'fcm_token requis.' }); return; }
+  const { fcm_token, platform } = req.body ?? {};
+  // Un jeton Firebase fait quelque 160 caractères ; la borne écarte ce qui
+  // n'en est pas un avant qu'il ne devienne une ligne en base.
+  if (typeof fcm_token !== 'string' || !fcm_token.trim() || fcm_token.length > 4096) {
+    res.status(422).json({ message: 'fcm_token requis.' }); return;
+  }
   try {
-    await svc.registerToken(req.userId!, fcm_token, platform ?? 'android');
+    await svc.registerToken(req.userId!, fcm_token.trim(), platform === 'ios' ? 'ios' : 'android');
     res.json({ success: true });
   } catch (e: any) { repondreErreur(res, e); }
 };

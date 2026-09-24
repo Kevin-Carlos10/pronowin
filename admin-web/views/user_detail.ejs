@@ -215,7 +215,8 @@
         <% row('Gains parrainage', (user.referralEarnings||0).toLocaleString()+' FCFA', 'success') %>
         <% row('Inscrit le', new Date(user.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})) %>
         <% row('Dernière connexion', user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : 'Jamais') %>
-        <% row('Token FCM', user.fcmToken ? '✓ Enregistré' : '✕ Absent', user.fcmToken ? 'success' : 'error') %>
+        <% const nbAppareils = user._count ? user._count.appareils : (user.fcmToken ? 1 : 0); %>
+        <% row('Appareils notifiés', nbAppareils > 0 ? '✓ ' + nbAppareils : '✕ Aucun', nbAppareils > 0 ? 'success' : 'error') %>
       </div>
 
       <!-- Onglet : Abonnements -->

@@ -8,50 +8,54 @@ datasource db {
 }
 
 model User {
-  id                    String              @id @default(uuid())
-  phoneNumber           String?             @unique @map("phone_number")
-  email                 String?             @unique
-  passwordHash          String?             @map("password_hash")
+  id                    String                 @id @default(uuid())
+  phoneNumber           String?                @unique @map("phone_number")
+  email                 String?                @unique
+  passwordHash          String?                @map("password_hash")
   pseudo                String
-  avatarUrl             String?             @map("avatar_url")
+  avatarUrl             String?                @map("avatar_url")
   // Nullable et sans défaut : l'ancien `@default("BF")` enregistrait tout le
   // monde comme burkinabè, y compris les utilisateurs qui n'avaient jamais
   // renseigné leur pays — une valeur fausse, indiscernable d'un vrai choix, et
   // qui faussait aussi les statistiques admin. « Non renseigné » se dit null.
-  countryCode           String?             @map("country_code")
-  subscriptionPlan      SubscriptionPlan    @default(free) @map("subscription_plan")
-  subscriptionExpiresAt DateTime?           @map("subscription_expires_at")
-  referralCode          String              @unique @map("referral_code")
-  referredBy            String?             @map("referred_by")
-  referralEarnings      Float               @default(0) @map("referral_earnings")
-  isActive              Boolean             @default(true) @map("is_active")
-  createdAt             DateTime            @default(now()) @map("created_at")
-  updatedAt             DateTime            @updatedAt @map("updated_at")
-  lastLoginAt           DateTime?           @map("last_login_at")
-  lastSeenAt            DateTime?           @map("last_seen_at")
-  fcmToken              String?             @map("fcm_token")
+  countryCode           String?                @map("country_code")
+  subscriptionPlan      SubscriptionPlan       @default(free) @map("subscription_plan")
+  subscriptionExpiresAt DateTime?              @map("subscription_expires_at")
+  referralCode          String                 @unique @map("referral_code")
+  referredBy            String?                @map("referred_by")
+  referralEarnings      Float                  @default(0) @map("referral_earnings")
+  isActive              Boolean                @default(true) @map("is_active")
+  createdAt             DateTime               @default(now()) @map("created_at")
+  updatedAt             DateTime               @updatedAt @map("updated_at")
+  lastLoginAt           DateTime?              @map("last_login_at")
+  lastSeenAt            DateTime?              @map("last_seen_at")
+  /// Remplacé par AppareilNotification (constat I12) : plus lu ni écrit, sauf
+  /// effacé à la suppression du compte. Gardé le temps qu'un retour arrière
+  /// du code reste possible ; à retirer par une migration ultérieure.
+  fcmToken              String?                @map("fcm_token")
   // Préférences de notification par catégorie : { match, promo, referral, premium }.
   // Les topics FCM ne suffisaient pas — les notifs personnelles (parrainage,
   // premium) partent par token, donc se désabonner d'un topic ne les coupait
   // pas. Une clé absente vaut « activé » (modèle opt-out).
-  notificationPrefs     Json?               @map("notification_prefs")
-  xbetId                String?             @map("xbet_id")
-  birthDate             DateTime?           @map("birth_date")
-  firstName             String?             @map("first_name")
-  lastName              String?             @map("last_name")
-  acceptedTermsAt       DateTime?           @map("accepted_terms_at")
-  termsVersion          Int                 @default(1) @map("terms_version")
-  phoneVerified         Boolean             @default(false) @map("phone_verified")
-  emailVerified         Boolean             @default(false) @map("email_verified")
-  deletedAt             DateTime?           @map("deleted_at")
-  streakDays            Int                 @default(0) @map("streak_days")
-  streakLastDate        DateTime?           @map("streak_last_date")
-  xpTotal               Int                 @default(0) @map("xp_total")
+  notificationPrefs     Json?                  @map("notification_prefs")
+  xbetId                String?                @map("xbet_id")
+  birthDate             DateTime?              @map("birth_date")
+  firstName             String?                @map("first_name")
+  lastName              String?                @map("last_name")
+  acceptedTermsAt       DateTime?              @map("accepted_terms_at")
+  termsVersion          Int                    @default(1) @map("terms_version")
+  phoneVerified         Boolean                @default(false) @map("phone_verified")
+  emailVerified         Boolean                @default(false) @map("email_verified")
+  deletedAt             DateTime?              @map("deleted_at")
+  streakDays            Int                    @default(0) @map("streak_days")
+  streakLastDate        DateTime?              @map("streak_last_date")
+  xpTotal               Int                    @default(0) @map("xp_total")
   iapPurchases          IapPurchase[]
   notifications         Notification[]
+  appareils             AppareilNotification[]
   otpCodes              OtpCode[]
-  referredUsers         Referral[]          @relation("ReferredRelation")
-  referrals             Referral[]          @relation("ReferrerRelation")
+  referredUsers         Referral[]             @relation("ReferredRelation")
+  referrals             Referral[]             @relation("ReferrerRelation")
   refreshTokens         RefreshToken[]
   proofSubmissions      SubscriptionProof[]
   subscriptions         Subscription[]
@@ -156,67 +160,67 @@ model RefreshToken {
 }
 
 model Admin {
-  id           String      @id @default(uuid())
-  email        String      @unique
-  passwordHash String      @map("password_hash")
-  name         String
-  role         AdminRole   @default(analyst)
-  isActive     Boolean     @default(true) @map("is_active")
-  createdAt    DateTime    @default(now()) @map("created_at")
-  lastLoginAt  DateTime?   @map("last_login_at")
+  id             String      @id @default(uuid())
+  email          String      @unique
+  passwordHash   String      @map("password_hash")
+  name           String
+  role           AdminRole   @default(analyst)
+  isActive       Boolean     @default(true) @map("is_active")
+  createdAt      DateTime    @default(now()) @map("created_at")
+  lastLoginAt    DateTime?   @map("last_login_at")
   /// Incrémentée à chaque changement de mot de passe : les jetons émis avant
   /// portent l'ancienne valeur et sont refusés (constat S12).
-  sessionVersion Int       @default(0) @map("session_version")
-  pronostics   Pronostic[]
+  sessionVersion Int         @default(0) @map("session_version")
+  pronostics     Pronostic[]
 
   @@map("admins")
 }
 
 model Match {
-  id             String              @id @default(uuid())
-  externalId     Int                 @map("external_id")
-  source         MatchSource         @default(FOOTBALL_DATA)
-  league         String
-  leagueCode     String              @map("league_code")
-  leagueLogo     String?             @map("league_logo")
+  id                    String              @id @default(uuid())
+  externalId            Int                 @map("external_id")
+  source                MatchSource         @default(FOOTBALL_DATA)
+  league                String
+  leagueCode            String              @map("league_code")
+  leagueLogo            String?             @map("league_logo")
   /// Pays de la compétition, quand l'API le fournit. Distingue les homonymes :
   /// deux « Serie A » (Italie, Brésil) s'affichaient à l'identique dans le
   /// filtre admin, sans moyen de savoir laquelle on choisissait.
-  leagueCountry  String?             @map("league_country")
-  homeTeam       String              @map("home_team")
-  homeTeamFull   String?             @map("home_team_full")
-  homeTeamLogo   String?             @map("home_team_logo")
-  awayTeam       String              @map("away_team")
-  awayTeamFull   String?             @map("away_team_full")
-  awayTeamLogo   String?             @map("away_team_logo")
-  matchDate      DateTime            @map("match_date")
-  status         MatchStatus         @default(SCHEDULED)
-  homeScore      Int?                @map("home_score")
-  awayScore      Int?                @map("away_score")
+  leagueCountry         String?             @map("league_country")
+  homeTeam              String              @map("home_team")
+  homeTeamFull          String?             @map("home_team_full")
+  homeTeamLogo          String?             @map("home_team_logo")
+  awayTeam              String              @map("away_team")
+  awayTeamFull          String?             @map("away_team_full")
+  awayTeamLogo          String?             @map("away_team_logo")
+  matchDate             DateTime            @map("match_date")
+  status                MatchStatus         @default(SCHEDULED)
+  homeScore             Int?                @map("home_score")
+  awayScore             Int?                @map("away_score")
   // Minute de jeu pendant un direct (null hors match en cours). Stockée
   // plutôt que calculée depuis matchDate : le temps écoulé au chronomètre
   // ignore la mi-temps et les arrêts de jeu.
-  elapsedMinutes Int?                @map("elapsed_minutes")
-  homeScoreHT    Int?                @map("home_score_ht")
-  awayScoreHT    Int?                @map("away_score_ht")
-  homeFormPoints Int                 @default(0) @map("home_form_points")
-  awayFormPoints Int                 @default(0) @map("away_form_points")
-  fetchedAt      DateTime            @default(now()) @map("fetched_at")
-  alertSent      Boolean             @default(false) @map("alert_sent")
+  elapsedMinutes        Int?                @map("elapsed_minutes")
+  homeScoreHT           Int?                @map("home_score_ht")
+  awayScoreHT           Int?                @map("away_score_ht")
+  homeFormPoints        Int                 @default(0) @map("home_form_points")
+  awayFormPoints        Int                 @default(0) @map("away_form_points")
+  fetchedAt             DateTime            @default(now()) @map("fetched_at")
+  alertSent             Boolean             @default(false) @map("alert_sent")
   // Copie dénormalisée de pronostic.isPublished — un orderBy Prisma à travers
   // une relation 1-1 optionnelle ne gère pas correctement le placement des
   // NULL (matchs sans pronostic), ce qui empêchait de trier "prono d'abord"
   // au niveau de la requête (donc de la pagination). Tenue à jour dans
   // upsertPronostic()/togglePublish() (pronostics.service.ts).
-  hasPublishedPronostic Boolean      @default(false) @map("has_published_pronostic")
+  hasPublishedPronostic Boolean             @default(false) @map("has_published_pronostic")
   // Rang dénormalisé du statut (LIVE=0, SCHEDULED=1, FINISHED=2, autre=3) —
   // même limite Prisma que hasPublishedPronostic : trier par heure seule
   // laissait les matchs LIVE hors des premières pages de pagination. Tenu à
   // jour dans matchStatusPriority() (api_football.service.ts), utilisé à
   // chaque écriture de `status` (découverte admin + syncMatchScores).
-  statusPriority Int                 @default(1) @map("status_priority")
-  pronostic      Pronostic?
-  favoritedBy    UserFavoriteMatch[]
+  statusPriority        Int                 @default(1) @map("status_priority")
+  pronostic             Pronostic?
+  favoritedBy           UserFavoriteMatch[]
 
   @@unique([externalId, source])
   @@index([matchDate])
@@ -267,12 +271,12 @@ model AppSetting {
 /// Source unique désormais : l'application lit cette table, l'administration
 /// l'édite. Ajouter un opérateur ne demande plus de release.
 model PaymentMethod {
-  id        String   @id @default(uuid())
+  id           String   @id @default(uuid())
   /// Identifiant stable, stocké dans Transaction.paymentMethod — ne pas
   /// renommer après coup sans migrer l'historique.
-  key       String   @unique
-  label     String
-  phone     String
+  key          String   @unique
+  label        String
+  phone        String
   /// Modèle de code USSD propre à l'opérateur, saisi dans l'administration.
   ///
   /// Exemple Orange Money Burkina : `*144*10*{numero}*{montant}#`.
@@ -285,12 +289,12 @@ model PaymentMethod {
   ///
   /// Nul tant qu'aucun modèle n'est saisi : l'écran affiche alors le numéro
   /// seul, comme avant.
-  ussdTemplate String? @map("ussd_template")
+  ussdTemplate String?  @map("ussd_template")
   /// Désactiver plutôt que supprimer : les transactions passées gardent la clé.
-  isActive  Boolean  @default(true) @map("is_active")
-  sortOrder Int      @default(0)    @map("sort_order")
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt      @map("updated_at")
+  isActive     Boolean  @default(true) @map("is_active")
+  sortOrder    Int      @default(0) @map("sort_order")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
 
   @@index([isActive, sortOrder])
   @@map("payment_methods")
@@ -314,36 +318,36 @@ enum MatchSource {
 }
 
 model Pronostic {
-  id              String         @id @default(uuid())
-  matchId         String         @unique @map("match_id")
-  analystId       String         @map("analyst_id")
-  predictionType  PredictionType @map("prediction_type")
-  predictionLabel String         @map("prediction_label")
+  id              String          @id @default(uuid())
+  matchId         String          @unique @map("match_id")
+  analystId       String          @map("analyst_id")
+  predictionType  PredictionType  @map("prediction_type")
+  predictionLabel String          @map("prediction_label")
   // Marché/valeur bruts 1xBet quand le pronostic ne correspond à aucun des 8
   // types connus (predictionType = 'other') — ex. "Asian Handicap" / "Home +0".
   // Le résultat WIN/LOSS de ces pronostics doit être forcé manuellement.
-  marketName      String?        @map("market_name")
-  marketValue     String?        @map("market_value")
-  oddsHome        Float          @default(0) @map("odds_home")
-  oddsDraw        Float          @default(0) @map("odds_draw")
-  oddsAway        Float          @default(0) @map("odds_away")
-  oddsRecommended Float          @map("odds_recommended")
-  confidenceScore Int            @map("confidence_score")
-  analystNote     String?        @map("analyst_note")
-  isPremium       Boolean        @default(false) @map("is_premium")
-  isPublished     Boolean        @default(false) @map("is_published")
-  isDailyFree     Boolean        @default(false) @map("is_daily_free")
+  marketName      String?         @map("market_name")
+  marketValue     String?         @map("market_value")
+  oddsHome        Float           @default(0) @map("odds_home")
+  oddsDraw        Float           @default(0) @map("odds_draw")
+  oddsAway        Float           @default(0) @map("odds_away")
+  oddsRecommended Float           @map("odds_recommended")
+  confidenceScore Int             @map("confidence_score")
+  analystNote     String?         @map("analyst_note")
+  isPremium       Boolean         @default(false) @map("is_premium")
+  isPublished     Boolean         @default(false) @map("is_published")
+  isDailyFree     Boolean         @default(false) @map("is_daily_free")
   result          String?
-  publishedAt     DateTime?      @map("published_at")
-  createdAt       DateTime       @default(now()) @map("created_at")
-  updatedAt       DateTime       @updatedAt @map("updated_at")
-  aiExplanation   String?        @map("ai_explanation")
-  aiProbability   Float?         @map("ai_probability")
+  publishedAt     DateTime?       @map("published_at")
+  createdAt       DateTime        @default(now()) @map("created_at")
+  updatedAt       DateTime        @updatedAt @map("updated_at")
+  aiExplanation   String?         @map("ai_explanation")
+  aiProbability   Float?          @map("ai_probability")
   bankrollBets    BankrollBet[]
   comments        Comment[]
   votes           PronosticVote[]
-  analyst         Admin          @relation(fields: [analystId], references: [id])
-  match           Match          @relation(fields: [matchId], references: [id])
+  analyst         Admin           @relation(fields: [analystId], references: [id])
+  match           Match           @relation(fields: [matchId], references: [id])
 
   @@map("pronostics")
 }
@@ -466,6 +470,31 @@ model JournalAdmin {
 /// renvoyait jamais l'événement (constat I10). L'événement est désormais écrit
 /// ici d'abord, puis traité — et retraité en cas d'échec — par une tâche de
 /// fond.
+/// Un appareil qui reçoit les notifications push d'un compte (constat I12 de
+/// l'audit du 24 septembre 2026).
+///
+/// Un seul jeton par compte, dans `users.fcm_token`, avait deux défauts. Le
+/// compte ne recevait que sur son dernier appareil. Et un téléphone repris par
+/// un autre compte gardait son jeton sur l'ancien : les notifications privées
+/// du premier (versements, parrainage, Premium) arrivaient chez le second.
+/// Ici un jeton est unique — il n'appartient qu'au compte qui l'a enregistré
+/// en dernier.
+model AppareilNotification {
+  id         String   @id @default(uuid())
+  userId     String   @map("user_id")
+  jeton      String   @unique
+  /// android | ios
+  plateforme String   @default("android")
+  creeLe     DateTime @default(now()) @map("cree_le")
+  /// Dernier enregistrement du jeton : l'application le renvoie à chaque
+  /// lancement. Les plus anciens partent quand un compte dépasse la limite.
+  vuLe       DateTime @default(now()) @map("vu_le")
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("appareils_notification")
+}
+
 model IapNotification {
   id                 String    @id @default(uuid())
   store              IapStore
@@ -623,18 +652,18 @@ enum AdminRole {
 }
 
 model Comment {
-  id          String    @id @default(uuid())
-  pronosticId String    @map("pronostic_id")
-  userId      String    @map("user_id")
+  id          String   @id @default(uuid())
+  pronosticId String   @map("pronostic_id")
+  userId      String   @map("user_id")
   content     String
-  isExpert    Boolean   @default(false) @map("is_expert")
-  parentId    String?   @map("parent_id")
-  createdAt   DateTime  @default(now()) @map("created_at")
+  isExpert    Boolean  @default(false) @map("is_expert")
+  parentId    String?  @map("parent_id")
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  pronostic   Pronostic @relation(fields: [pronosticId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent      Comment?  @relation("replies", fields: [parentId], references: [id])
-  replies     Comment[] @relation("replies")
+  pronostic Pronostic @relation(fields: [pronosticId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent    Comment?  @relation("replies", fields: [parentId], references: [id])
+  replies   Comment[] @relation("replies")
 
   @@index([pronosticId, createdAt])
   @@index([userId])
@@ -642,14 +671,14 @@ model Comment {
 }
 
 model PronosticVote {
-  id          String    @id @default(uuid())
-  pronosticId String    @map("pronostic_id")
-  userId      String    @map("user_id")
-  type        String    // "AGREE" | "DISAGREE"
-  createdAt   DateTime  @default(now()) @map("created_at")
+  id          String   @id @default(uuid())
+  pronosticId String   @map("pronostic_id")
+  userId      String   @map("user_id")
+  type        String // "AGREE" | "DISAGREE"
+  createdAt   DateTime @default(now()) @map("created_at")
 
-  pronostic   Pronostic @relation(fields: [pronosticId], references: [id], onDelete: Cascade)
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  pronostic Pronostic @relation(fields: [pronosticId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([pronosticId, userId])
   @@map("pronostic_votes")

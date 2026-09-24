@@ -258,8 +258,8 @@ export async function logout(req: AuthRequest, res: Response): Promise<void> {
   // Sans try : une erreur ici n'était attrapée par personne, et la requête
   // restait sans réponse jusqu'au délai de l'application.
   try {
-    const { refresh_token } = req.body ?? {};
-    await authService.logout(req.userId!, refresh_token);
+    const { refresh_token, fcm_token } = req.body ?? {};
+    await authService.logout(req.userId!, refresh_token, fcm_token);
     res.json({ message: 'Déconnexion réussie.' });
   } catch (e: any) { repondreErreur(res, e); }
 }
