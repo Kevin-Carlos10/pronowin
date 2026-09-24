@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 
 import { prisma } from '../lib/prisma';
 import { estVerrouille } from '../services/verrou_pronostic';
+import { repondreErreur } from '../utils/erreurs';
 
 export const getFavorites = async (req: AuthRequest, res: Response) => {
   try {
@@ -76,7 +77,7 @@ export const getFavorites = async (req: AuthRequest, res: Response) => {
     });
     res.json(result);
   } catch (e: any) {
-    res.status(500).json({ message: e.message });
+    repondreErreur(res, e);
   }
 };
 
@@ -111,7 +112,7 @@ export const addFavorite = async (req: AuthRequest, res: Response) => {
     });
     res.json({ success: true });
   } catch (e: any) {
-    res.status(500).json({ message: e.message });
+    repondreErreur(res, e);
   }
 };
 
@@ -125,6 +126,6 @@ export const removeFavorite = async (req: AuthRequest, res: Response) => {
     });
     res.json({ success: true });
   } catch (e: any) {
-    res.status(500).json({ message: e.message });
+    repondreErreur(res, e);
   }
 };

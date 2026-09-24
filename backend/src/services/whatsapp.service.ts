@@ -1,5 +1,6 @@
 import axios from 'axios';
 import logger from '../utils/logger';
+import { ServiceIndisponible } from '../utils/erreurs';
 
 const WA_API_VERSION = 'v21.0';
 const WA_BASE_URL    = `https://graph.facebook.com/${WA_API_VERSION}`;
@@ -22,8 +23,16 @@ export async function sendWhatsAppOtp(phoneNumber: string, code: string): Promis
   const templateName  = process.env.WHATSAPP_TEMPLATE_NAME ?? 'authentication';
   const templateLang  = process.env.WHATSAPP_TEMPLATE_LANG ?? 'fr';
 
-  // Sans credentials configurés : log uniquement (dev / CI)
+  // Sans identifiants : le code n'est écrit dans le journal qu'en
+  // développement. En production, il ne part pas, et on le dit — le repli
+  // annonçait un envoi qui n'avait pas eu lieu (constat I8).
   if (!phoneNumberId || !accessToken) {
+    if (process.env.NODE_ENV === 'production') {
+      logger.error('[WhatsApp] Identifiants absents : code de connexion non envoyé.');
+      throw new ServiceIndisponible(
+        'L\'envoi du code par WhatsApp est momentanément indisponible. '
+        + 'Réessayez plus tard ou utilisez l\'e-mail.', 'CANAL_WHATSAPP_INDISPONIBLE');
+    }
     logger.warn(`[WhatsApp DEV] OTP pour ${phoneNumber} : ${code}`);
     return;
   }
@@ -61,7 +70,11 @@ export async function sendWhatsAppOtp(phoneNumber: string, code: string): Promis
   } catch (err: any) {
     const detail = err.response?.data?.error?.message ?? err.message;
     logger.error(`[WhatsApp] Échec envoi OTP à ${waPhone} : ${detail}`);
-    throw new Error(`WhatsApp OTP failed: ${detail}`);
+    // Le détail de Meta reste dans le journal ; l'utilisateur apprend ce
+    // qu'il peut faire.
+    throw new ServiceIndisponible(
+      'Le code n\'a pas pu être envoyé par WhatsApp. Vérifiez le numéro ou utilisez l\'e-mail.',
+      'CANAL_WHATSAPP_ECHEC');
   }
 }
 

@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { IapService, IAP_PRODUCTS, IapStoreName } from '../services/iap.service';
+import { repondreErreur } from '../utils/erreurs';
 
 const svc = new IapService();
 
@@ -44,7 +45,7 @@ export const verify = async (req: AuthRequest, res: Response) => {
   } catch (e: any) {
     // 422 et non 500 : ces échecs sont presque toujours dus au reçu lui-même
     // (produit inconnu, reçu de test, achat déjà rattaché), pas au serveur.
-    res.status(422).json({ message: e.message });
+    repondreErreur(res, e, 422);
   }
 };
 

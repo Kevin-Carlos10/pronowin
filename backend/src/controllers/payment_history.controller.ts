@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AdminRequest } from '../middleware/admin.middleware';
 import { FiltresHistorique, PaymentHistoryService } from '../services/payment_history.service';
 import { lirePagination } from '../utils/pagination';
+import { repondreErreur } from '../utils/erreurs';
 
 const svc = new PaymentHistoryService();
 
@@ -30,12 +31,12 @@ export const getHistory = async (req: AdminRequest, res: Response) => {
       ...filtresDe(req),
       sortDir:  req.query.sort_dir === 'asc' ? 'asc' : 'desc',
     }));
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getStats = async (_req: AdminRequest, res: Response) => {
   try { res.json(await svc.getStats()); }
-  catch (e: any) { res.status(500).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e); }
 };
 
 export const updateTransaction = async (req: AdminRequest, res: Response) => {
@@ -44,7 +45,7 @@ export const updateTransaction = async (req: AdminRequest, res: Response) => {
       status:    req.body.status,
       adminNote: req.body.admin_note,
     }));
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 export const exportCsv = async (req: AdminRequest, res: Response) => {
@@ -55,5 +56,5 @@ export const exportCsv = async (req: AdminRequest, res: Response) => {
     res.setHeader('Content-Type', 'text/csv; charset=utf-8');
     res.setHeader('Content-Disposition', `attachment; filename="transactions_${date}.csv"`);
     res.send('\uFEFF' + csv);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };

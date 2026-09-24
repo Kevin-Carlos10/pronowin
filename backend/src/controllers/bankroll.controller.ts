@@ -4,6 +4,7 @@ import { AdminRequest } from '../middleware/admin.middleware';
 import { prisma } from '../lib/prisma';
 import * as svc from '../services/bankroll.service';
 import { partSelonConfiance } from '../services/mise_suggeree';
+import { repondreErreur } from '../utils/erreurs';
 
 export const getBankroll = async (req: AuthRequest, res: Response) => {
   try {
@@ -48,7 +49,7 @@ export const getBankroll = async (req: AuthRequest, res: Response) => {
         confidence_score: b.pronostic.confidenceScore,
       })),
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const setBudget = async (req: AuthRequest, res: Response) => {
@@ -59,14 +60,14 @@ export const setBudget = async (req: AuthRequest, res: Response) => {
     }
     const b = await svc.setBudget(req.userId!, parseFloat(total_budget), currency);
     res.json({ total_budget: b.totalBudget, current_balance: b.currentBalance, currency: b.currency });
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 export const resetBankroll = async (req: AuthRequest, res: Response) => {
   try {
     const b = await svc.resetBankroll(req.userId!);
     res.json({ current_balance: b.currentBalance });
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 export const placeBet = async (req: AuthRequest, res: Response) => {
@@ -103,7 +104,7 @@ export const getStats = async (req: AuthRequest, res: Response) => {
   try {
     const stats = await svc.getBankrollStats(req.userId!);
     res.json(stats);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getSuggestedStake = async (req: AuthRequest, res: Response) => {
@@ -138,7 +139,7 @@ export const getSuggestedStake = async (req: AuthRequest, res: Response) => {
       current_balance:  bankroll.currentBalance,
       currency:         bankroll.currency,
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 // ── ADMIN ──────────────────────────────────────────────────────────────────────
@@ -153,13 +154,13 @@ export const adminListBankrolls = async (req: AdminRequest, res: Response) => {
       sortDir: (req.query.sort_dir as 'asc' | 'desc') ?? 'desc',
     });
     res.json(result);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /** GET /bankroll/admin/stats — agrégats sur toutes les bankrolls */
 export const adminBankrollStats = async (_req: AdminRequest, res: Response) => {
   try { res.json(await svc.listBankrollsStats()); }
-  catch (e: any) { res.status(500).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e); }
 };
 
 /** GET /bankroll/admin/:userId — détail complet de la bankroll d'un utilisateur */
@@ -208,5 +209,5 @@ export const adminGetBankrollDetail = async (req: AdminRequest, res: Response) =
       } : null,
       stats,
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };

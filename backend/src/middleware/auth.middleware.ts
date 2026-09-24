@@ -3,6 +3,35 @@ import jwt from 'jsonwebtoken';
 
 import { prisma } from '../lib/prisma';
 import { matchTermine } from '../services/verrou_pronostic';
+import { repondreErreur } from '../utils/erreurs';
+
+/**
+ * Au plus une écriture de `lastSeenAt` par fenêtre.
+ *
+ * Chaque requête authentifiée écrivait l'horodatage — une écriture en base
+ * pour chaque lecture d'écran (constat P6). « Vu il y a moins de deux
+ * minutes » suffit à tous les usages : compteur d'utilisateurs en ligne,
+ * segments « actifs ce mois ».
+ */
+const FENETRE_ACTIVITE_MS = 2 * 60 * 1000;
+function noterActivite(userId: string, dejaVu: Date | null | undefined) {
+  if (dejaVu && Date.now() - dejaVu.getTime() < FENETRE_ACTIVITE_MS) return;
+  prisma.user.update({ where: { id: userId }, data: { lastSeenAt: new Date() } }).catch(() => {});
+}
+
+/**
+ * L'erreur vient-elle du jeton, ou d'ailleurs ?
+ *
+ * Tout ce qui échouait dans ce middleware répondait 401 « Token invalide » —
+ * y compris une base injoignable. Or l'application traite un 401 comme une
+ * session morte : elle tente un rafraîchissement, qui échoue aussi, et
+ * déconnecte l'utilisateur. Une coupure de PostgreSQL de quelques secondes
+ * vidait ainsi les sessions de tous ceux qui ouvraient l'application à ce
+ * moment-là (constat P5). Seul un jeton refusé mérite un 401.
+ */
+function estErreurDeJeton(e: unknown): boolean {
+  return e instanceof jwt.JsonWebTokenError || e instanceof jwt.NotBeforeError;
+}
 
 export interface AuthRequest extends Request {
   userId?: string;
@@ -37,14 +66,17 @@ export async function authMiddleware(
     }
 
     req.userId = payload.userId;
-    // Fire-and-forget — ne bloque pas la réponse
-    prisma.user.update({ where: { id: payload.userId }, data: { lastSeenAt: new Date() } }).catch(() => {});
+    // Sans attendre : l'horodatage ne doit pas retarder la réponse.
+    noterActivite(payload.userId, (user as any).lastSeenAt);
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
       res.status(401).json({ message: 'Session expirée. Veuillez vous reconnecter.', code: 'TOKEN_EXPIRED' });
-    } else {
+    } else if (estErreurDeJeton(error)) {
       res.status(401).json({ message: 'Token invalide.' });
+    } else {
+      // Base injoignable ou panne : 503, pas 401 — la session est intacte.
+      repondreErreur(res, error);
     }
   }
 }
@@ -68,7 +100,7 @@ export async function optionalAuthMiddleware(
     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
     if (user && !(user as any).deletedAt && user.isActive) {
       req.userId = payload.userId;
-      prisma.user.update({ where: { id: payload.userId }, data: { lastSeenAt: new Date() } }).catch(() => {});
+      noterActivite(payload.userId, (user as any).lastSeenAt);
     }
   } catch {
     // Token invalide/expiré → on continue en anonyme plutôt que de bloquer.
@@ -80,7 +112,16 @@ export async function optionalAuthMiddleware(
 export async function premiumMiddleware(
   req: AuthRequest, res: Response, next: NextFunction,
 ): Promise<void> {
-  const user = await prisma.user.findUnique({ where: { id: req.userId } });
+  // Une erreur de base levée ici n'était attrapée par personne : Express 4
+  // n'attend pas les promesses d'un middleware, et la requête restait sans
+  // réponse jusqu'au délai du client.
+  let user;
+  try {
+    user = await prisma.user.findUnique({ where: { id: req.userId } });
+  } catch (e) {
+    repondreErreur(res, e);
+    return;
+  }
   if (user?.subscriptionPlan !== 'premium' || 
       (user.subscriptionExpiresAt && user.subscriptionExpiresAt < new Date())) {
     res.status(403).json({ message: 'Accès réservé aux membres Premium.', code: 'PREMIUM_REQUIRED' });

@@ -13,6 +13,7 @@ import { settleBets }      from '../services/bankroll.service';
 import { apiFootballService, apiFootballInsights } from '../services/api_football.service';
 import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
 import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
+import { repondreErreur } from '../utils/erreurs';
 
 const svc      = new PronosticsService();
 const fdSvc    = new FootballDataService();
@@ -91,7 +92,7 @@ export const getPronostics = async (req: AuthRequest, res: Response) => {
 
     if (cacheKey) cache.set(cacheKey, result, CACHE_TTL.pronostics);
     res.json(result);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 // GET /pronostics/counts-by-day — comptage par jour pour le sélecteur de dates mobile
@@ -104,7 +105,7 @@ export const getCountsByDay = async (_req: AuthRequest, res: Response) => {
     const counts = await svc.getMatchCountsByDay();
     cache.set(cacheKey, counts, CACHE_TTL.dayCounts);
     res.json(counts);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 // GET /pronostics/day-summary — totaux réels (matchs / avec prono / live) pour un jour,
@@ -123,7 +124,7 @@ export const getDaySummary = async (req: AuthRequest, res: Response) => {
     const summary = await svc.getDaySummary(dateFilter, decalage);
     cache.set(cacheKey, summary, CACHE_TTL.daySummary);
     res.json(summary);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /**
@@ -187,7 +188,7 @@ export const getBilanPremium = async (req: AuthRequest, res: Response) => {
 
     cache.set(cacheKey, reponse, CACHE_TTL.stats);
     res.json(reponse);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getPerformance = async (req: AuthRequest, res: Response) => {
@@ -287,7 +288,7 @@ export const getPerformance = async (req: AuthRequest, res: Response) => {
         win_rate: thisWeekDecisive.length > 0 ? Math.round(weekWins / thisWeekDecisive.length * 100) : 0,
       },
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getDailyFree = async (_req: Request, res: Response) => {
@@ -295,14 +296,14 @@ export const getDailyFree = async (_req: Request, res: Response) => {
     const prono = await svc.getDailyFreePronostic();
     if (!prono) { res.status(404).json({ message: 'Aucun prono du jour disponible.' }); return; }
     res.json(prono);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const setDailyFree = async (req: AdminRequest, res: Response) => {
   try {
     const result = await svc.setDailyFreePronostic(req.params.id);
     res.json(result);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 // GET /pronostics/for-you — recommandations IA personnalisées
@@ -326,12 +327,12 @@ export const getForYou = async (req: AuthRequest, res: Response) => {
       },
       recommendations: recs,
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getLeagues = async (_req: AuthRequest, res: Response) => {
   try { res.json(await apiFootballService.getCompetitions()); }
-  catch (e: any) { res.status(500).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
@@ -406,7 +407,7 @@ export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
       // précisément l'argument de vente.
       result:           prono.result,
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /** GET /pronostics/:id/score — score + statut uniquement (polling live léger) */
@@ -425,7 +426,7 @@ export const getPronosticScore = async (req: AuthRequest, res: Response) => {
       // où on en était dans le match.
       elapsed:   prono.match.elapsedMinutes,
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 // ── ADMIN ─────────────────────────────────────────────────────────────────────
@@ -511,7 +512,7 @@ export const upsertPronostic = async (req: AdminRequest, res: Response) => {
     cache.del('pronostics:');
     cache.del(CACHE_KEYS.publicStats);
     res.status(201).json(p);
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 export const togglePublish = async (req: AdminRequest, res: Response) => {
@@ -539,7 +540,7 @@ export const togglePublish = async (req: AdminRequest, res: Response) => {
     cache.del('pronostics:');
     cache.del(CACHE_KEYS.publicStats);
     res.json(p);
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 /** GET /pronostics/admin/leagues — liste blanche des compétitions visibles dans le flux public */
@@ -547,7 +548,7 @@ export const getLeagueVisibility = async (_req: AdminRequest, res: Response) => 
   try {
     const leagues = await svc.listLeagueVisibility();
     res.json(leagues);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /** POST /pronostics/admin/leagues/:code — active/désactive une compétition */
@@ -564,7 +565,7 @@ export const setLeagueVisibility = async (req: AdminRequest, res: Response) => {
     // pour que le changement soit immédiat.
     cache.del('pronostics:');
     res.json(row);
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 /** POST /pronostics/admin/leagues-bulk — bascule un lot de compétitions d'un coup */
@@ -578,7 +579,7 @@ export const setLeagueVisibilityBulk = async (req: AdminRequest, res: Response) 
     const result = await svc.setLeagueVisibilityBulk(leagues, isVisible);
     cache.del('pronostics:');
     res.json(result);
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 /** PATCH /pronostics/admin/pronostic/:id/result — forcer WIN/LOSS/null manuellement */
@@ -599,7 +600,7 @@ export const setPronosticResult = async (req: AdminRequest, res: Response) => {
     // result is being corrected by an administrator.
     await settleBets(req.params.id, result);
     res.json(p);
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 // ── SYNC SCORES (admin ou cron interne) ───────────────────────────────────────
@@ -611,7 +612,7 @@ export const syncScores = async (_req: AdminRequest, res: Response) => {
     cache.del(CACHE_KEYS.publicStats);
     cache.del(CACHE_KEYS.adminStats);
     res.json({ message: 'Sync terminée.', ...result });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /** GET /pronostics/history?days=30 — résultats des 30 derniers jours */
@@ -649,7 +650,7 @@ export const getHistory = async (req: AuthRequest, res: Response) => {
       result:          p.result,   // 'WIN' | 'LOSS'
       match:           p.match,
     })));
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getPublicStats = async (_req: Request, res: Response) => {
@@ -659,7 +660,7 @@ export const getPublicStats = async (_req: Request, res: Response) => {
     const data = await svc.getPublicStats();
     cache.set(CACHE_KEYS.publicStats, data, CACHE_TTL.stats);
     res.json(data);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getAdminStats = async (_req: AdminRequest, res: Response) => {
@@ -669,7 +670,7 @@ export const getAdminStats = async (_req: AdminRequest, res: Response) => {
     const data = await svc.getAdminStats();
     cache.set(CACHE_KEYS.adminStats, data, CACHE_TTL.stats);
     res.json(data);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /** GET /admin/match/:matchId/odds — cotes 1xBet live via API-Football */
@@ -682,7 +683,7 @@ export const getMatchOdds = async (req: AdminRequest, res: Response) => {
     const odds = await apiFootballService.getOdds1xBet(match.homeTeam, match.awayTeam, dateStr, fixtureId);
     if (!odds) { res.status(422).json({ message: 'Cotes indisponibles pour ce match.' }); return; }
     res.json(odds);
-  } catch (e: any) { res.status(422).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 422); }
 };
 
 // H2H — historique des confrontations directes
@@ -798,7 +799,7 @@ export const getMatchInsights = async (req: AuthRequest, res: Response) => {
       home_team: prono.match.homeTeam,
       away_team: prono.match.awayTeam,
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /**
@@ -828,7 +829,7 @@ export const getLiveOdds = async (req: AuthRequest, res: Response) => {
       // Cote d'ouverture du pronostic, pour situer la variation.
       opening_odd: prono.oddsRecommended,
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /** GET /pronostics/:id/ratings — notes des joueurs d'un match terminé. */
@@ -852,7 +853,7 @@ export const getPlayerRatings = async (req: AuthRequest, res: Response) => {
       away_team: prono.match.awayTeam,
       players:   ratings,
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /** GET /pronostics/top-scorers?league=PL — meilleurs buteurs d'une compétition. */
@@ -869,7 +870,7 @@ export const getTopScorers = async (req: AuthRequest, res: Response) => {
     const scorers = await apiFootballInsights.getTopScorers(info.id, saison);
     if (!scorers) { res.status(503).json({ message: 'Classement des buteurs indisponible.' }); return; }
     res.json(scorers);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /**
@@ -890,7 +891,7 @@ export const getAdminPrediction = async (req: AdminRequest, res: Response) => {
     const prediction = await apiFootballInsights.getPrediction(fixtureId);
     if (!prediction) { res.status(503).json({ message: 'Avis du modèle indisponible.' }); return; }
     res.json(prediction);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getH2H = async (req: AuthRequest, res: Response) => {
@@ -932,7 +933,7 @@ export const getH2H = async (req: AuthRequest, res: Response) => {
       home_team:   prono.match.homeTeam,
       away_team:   prono.match.awayTeam,
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 // Compositions d'équipe — uniquement disponibles côté API-Football (source unique désormais)
@@ -953,7 +954,7 @@ export const getLineups = async (req: AuthRequest, res: Response) => {
 
     if (!lineups) { res.status(503).json({ message: 'Compositions indisponibles.' }); return; }
     res.json(lineups);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 // Blessures / suspensions — uniquement disponibles côté API-Football
@@ -971,7 +972,7 @@ export const getInjuries = async (req: AuthRequest, res: Response) => {
 
     if (injuries === null) { res.status(503).json({ message: 'Blessures indisponibles.' }); return; }
     res.json(injuries);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 // Classement de la ligue du match — grandes ligues suivies uniquement
@@ -983,7 +984,7 @@ export const getStandings = async (req: AuthRequest, res: Response) => {
     const standings = await apiFootballService.getStandings(prono.match.leagueCode);
     if (standings === null) { res.status(503).json({ message: 'Classement indisponible.' }); return; }
     res.json(standings);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 // Analyse statistique d'un pronostic : probabilité calculée à partir de la
@@ -994,7 +995,8 @@ export const getAiAnalysis = async (req: AuthRequest, res: Response) => {
     const result = await analyzePronostic(req.params.id);
     res.json(result);
   } catch (e: any) {
-    res.status(e.message === 'Pronostic not found' ? 404 : 500).json({ message: e.message });
+    if (e.message === 'Pronostic not found') { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+    repondreErreur(res, e);
   }
 };
 
@@ -1033,7 +1035,7 @@ export const getMatchFromDB = async (req: AdminRequest, res: Response) => {
         publishedAt:       p.publishedAt,
       } : null,
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 // GET /pronostics/:id/match-stats — stats détaillées d'un match terminé via API-Football
@@ -1068,5 +1070,5 @@ export const getMatchStats = async (req: AuthRequest, res: Response) => {
 
     if (!stats) { res.status(404).json({ message: 'Stats non disponibles pour ce match.' }); return; }
     res.json(stats);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };

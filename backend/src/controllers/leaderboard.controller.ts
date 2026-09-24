@@ -3,6 +3,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 
 import { prisma } from '../lib/prisma';
 import { cache, CACHE_KEYS, CACHE_TTL } from '../services/cache.service';
+import { repondreErreur } from '../utils/erreurs';
 
 const MIN_SETTLED = 3; // paris réglés minimum pour apparaître
 
@@ -108,7 +109,7 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
     cache.set(cacheKey, payload, CACHE_TTL.leaderboard);
     res.json(payload);
   } catch (err: any) {
-    res.status(500).json({ message: err.message });
+    repondreErreur(res, err);
   }
 };
 

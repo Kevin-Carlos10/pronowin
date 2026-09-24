@@ -104,6 +104,21 @@ async function getAdmin() {
   }
 }
 
+/**
+ * Firebase absent : que répondre à l'appelant ?
+ *
+ * En développement, l'envoi est simulé et affiché dans la console — c'est son
+ * rôle. En production, la simulation répondait `success: true` : le panneau
+ * annonçait « notification envoyée à 1 240 personnes » quand aucune n'était
+ * partie, et une clé Firebase perdue ne se voyait nulle part (constat I12 de
+ * l'audit du 24 septembre 2026). Ce n'est plus un succès.
+ */
+function sansFirebase(): { success: false; error: string } | null {
+  if (process.env.NODE_ENV !== 'production') return null;
+  console.error('[FCM] Firebase non configuré en production : notification NON envoyée.');
+  return { success: false, error: 'firebase_non_configure' };
+}
+
 export class NotificationService {
 
   async registerToken(userId: string, fcmToken: string, platform: string) {
@@ -197,6 +212,8 @@ export class NotificationService {
   }) {
     const fa = await getAdmin();
     if (!fa) {
+      const refus = sansFirebase();
+      if (refus) return refus;
       console.log(`\n📢 [FCM Topic "${topic}"] ${payload.title}\n   ${payload.body}\n`);
       return { success: true, simulated: true };
     }
@@ -235,6 +252,8 @@ export class NotificationService {
   }) {
     const fa = await getAdmin();
     if (!fa) {
+      const refus = sansFirebase();
+      if (refus) return refus;
       console.log(`\n📱 [FCM] ${payload.title}\n   ${payload.body}\n`);
       return { success: true, simulated: true };
     }
@@ -303,6 +322,12 @@ export class NotificationService {
 
     const fa = await getAdmin();
     if (!fa) {
+      if (sansFirebase()) {
+        // Les destinataires sont déjà inscrits dans leur historique : ils
+        // liront le message dans l'application. Le compte rendu dit ce qui
+        // s'est réellement passé côté push.
+        return { segment, sent: 0, failed: users.length, pruned: 0, error: 'firebase_non_configure' };
+      }
       console.log(`\n📢 [FCM Segment "${segment}" — ${users.length} destinataires] ${payload.title}\n   ${payload.body}\n`);
       return { segment, sent: users.length, failed: 0, pruned: 0, simulated: true };
     }

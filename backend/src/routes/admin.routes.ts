@@ -4,6 +4,7 @@ import { adminMiddleware, AdminRequest } from '../middleware/admin.middleware';
 import { lireConfig, ecrireConfig } from '../services/app_config.service';
 import { SubscriptionService, BETTING_PLATFORMS } from '../services/subscription.service';
 import * as Methodes from '../services/payment_method.service';
+import { repondreErreur } from '../utils/erreurs';
 const r   = Router();
 const svc = new AdminAuthService();
 const subSvc = new SubscriptionService();
@@ -19,7 +20,7 @@ r.patch('/profile/password', adminMiddleware, async (req: AdminRequest, res) => 
   try {
     res.json(await svc.changePassword(
       req.adminId!, req.body.current_password, req.body.new_password));
-  } catch (e: any) { res.status(422).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 422); }
 });
 /**
  * GET /admin/app-config — réglages de version et de mise à jour.
@@ -35,7 +36,7 @@ r.get('/app-config', adminMiddleware, async (_req: AdminRequest, res) => {
     // dur dans sa vue. Réduire le partenariat côté serveur aurait laissé deux
     // champs sans usage, dont les valeurs n'auraient plus été lues.
     res.json({ ...(await lireConfig()), plateformes: BETTING_PLATFORMS });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 });
 
 /** PUT /admin/app-config — enregistre les clés reconnues, ignore les autres. */
@@ -44,7 +45,7 @@ r.put('/app-config', adminMiddleware, async (req: AdminRequest, res) => {
     const ecrites = await ecrireConfig(req.body ?? {}, req.adminId);
     const { valeurs, origine } = await lireConfig();
     res.json({ updated: ecrites, valeurs, origine });
-  } catch (e: any) { res.status(422).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 422); }
 });
 
 /**
@@ -58,7 +59,7 @@ r.get('/promo-stats', adminMiddleware, async (req: AdminRequest, res) => {
   try {
     const jours = Math.min(parseInt((req.query.days as string) ?? '30') || 30, 365);
     res.json(await subSvc.statistiquesCodePromo(jours));
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 });
 
 // ─── Méthodes de paiement Mobile Money ───────────────────────────────────────
@@ -69,7 +70,7 @@ r.get('/promo-stats', adminMiddleware, async (req: AdminRequest, res) => {
 
 r.get('/payment-methods', adminMiddleware, async (_req: AdminRequest, res) => {
   try { res.json(await Methodes.listerToutes()); }
-  catch (e: any) { res.status(500).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e); }
 });
 
 r.post('/payment-methods', adminMiddleware, async (req: AdminRequest, res) => {
@@ -83,7 +84,7 @@ r.post('/payment-methods', adminMiddleware, async (req: AdminRequest, res) => {
       isActive:  req.body.is_active !== false,
       sortOrder: Number(req.body.sort_order ?? 0),
     }));
-  } catch (e: any) { res.status(422).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 422); }
 });
 
 r.put('/payment-methods/:id', adminMiddleware, async (req: AdminRequest, res) => {
@@ -98,12 +99,12 @@ r.put('/payment-methods/:id', adminMiddleware, async (req: AdminRequest, res) =>
       isActive:  req.body.is_active !== undefined ? req.body.is_active === true || req.body.is_active === 'true' : undefined,
       sortOrder: req.body.sort_order !== undefined ? Number(req.body.sort_order) : undefined,
     }));
-  } catch (e: any) { res.status(422).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 422); }
 });
 
 r.delete('/payment-methods/:id', adminMiddleware, async (req: AdminRequest, res) => {
   try { res.json(await Methodes.supprimer(req.params.id)); }
-  catch (e: any) { res.status(422).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e, 422); }
 });
 
 r.post('/login',  async (req, res) => {
@@ -138,6 +139,6 @@ r.post('/create', async (req, res) => {
   const secret = req.headers['x-admin-setup-secret'];
   if (!secret || secret !== attendu) { res.status(403).json({ message: 'Interdit.' }); return; }
   try { res.status(201).json(await svc.createAdmin(req.body)); }
-  catch (e: any) { res.status(400).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e, 400); }
 });
 export default r;

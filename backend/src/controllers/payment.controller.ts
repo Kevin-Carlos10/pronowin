@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AdminRequest } from '../middleware/admin.middleware';
 import { PaymentService } from '../services/payment.service';
 import { listerPubliques } from '../services/payment_method.service';
+import { repondreErreur } from '../utils/erreurs';
 
 /**
  * Versements Mobile Money — administration seulement.
@@ -17,7 +18,7 @@ const svc = new PaymentService();
 export const getPending = async (req: AdminRequest, res: Response) => {
   try {
     res.json(await svc.getPendingRequests(parseInt((req.query.page as string) ?? '1')));
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /** Clés des méthodes actives — alimente les filtres de l'administration. */
@@ -39,5 +40,5 @@ export const processRequest = async (req: AdminRequest, res: Response) => {
       adminNote:     admin_note,
     });
     res.json(r);
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };

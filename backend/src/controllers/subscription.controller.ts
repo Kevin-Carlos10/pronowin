@@ -3,6 +3,7 @@ import { Request }  from 'express';
 import { AuthRequest }  from '../middleware/auth.middleware';
 import { AdminRequest } from '../middleware/admin.middleware';
 import { SubscriptionService } from '../services/subscription.service';
+import { repondreErreur } from '../utils/erreurs';
 
 const svc = new SubscriptionService();
 
@@ -12,14 +13,14 @@ export const getPlans = async (_: Request, res: Response) => res.json(await svc.
 // ── UTILISATEUR ───────────────────────────────────────────────────────────────
 export const getCurrent = async (req: AuthRequest, res: Response) => {
   try { res.json(await svc.getCurrentSubscription(req.userId!)); }
-  catch (e: any) { res.status(500).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getProofStatus = async (req: AuthRequest, res: Response) => {
   try {
     const status = await svc.getProofStatus(req.userId!);
     res.json(status ?? { status: 'none' });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /** Obtenir une URL pré-signée S3 pour upload depuis le mobile */
@@ -32,7 +33,7 @@ export const getUploadUrl = async (req: AuthRequest, res: Response) => {
   try {
     const result = await svc.getUploadUrl(req.userId!, mime_type);
     res.json(result);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /** Soumettre une preuve (base64 ou URL déjà uploadée) */
@@ -61,7 +62,7 @@ export const submitProof = async (req: AuthRequest, res: Response) => {
       planId:             plan_id,
     });
     res.status(201).json(result);
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 // ── ADMIN ─────────────────────────────────────────────────────────────────────
@@ -81,7 +82,7 @@ export const getPendingProofs = async (req: AdminRequest, res: Response) => {
       page, perPage, statut,
       recherche: (req.query.search as string) ?? '',
     }));
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const reviewProof = async (req: AdminRequest, res: Response) => {

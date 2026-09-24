@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { AdminRequest } from '../middleware/admin.middleware';
 import { CommentsService } from '../services/comments.service';
+import { repondreErreur } from '../utils/erreurs';
 
 const svc = new CommentsService();
 
@@ -9,7 +10,7 @@ export const getComments = async (req: AuthRequest, res: Response) => {
   try {
     const result = await svc.getComments(req.params.pronosticId, req.userId!);
     res.json(result);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const postComment = async (req: AuthRequest, res: Response) => {
@@ -19,7 +20,7 @@ export const postComment = async (req: AuthRequest, res: Response) => {
       req.params.pronosticId, req.userId!, content, parent_id
     );
     res.status(201).json(comment);
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 export const voteOnPronostic = async (req: AuthRequest, res: Response) => {
@@ -31,14 +32,14 @@ export const voteOnPronostic = async (req: AuthRequest, res: Response) => {
     }
     const result = await svc.vote(req.params.pronosticId, req.userId!, type);
     res.json(result);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const deleteComment = async (req: AuthRequest, res: Response) => {
   try {
     await svc.deleteComment(req.params.commentId, req.userId!);
     res.json({ message: 'Commentaire supprimé.' });
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 export const postExpertReply = async (req: AdminRequest, res: Response) => {
@@ -48,5 +49,5 @@ export const postExpertReply = async (req: AdminRequest, res: Response) => {
       req.params.pronosticId, req.adminId!, content, parent_id
     );
     res.status(201).json(comment);
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };

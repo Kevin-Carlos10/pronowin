@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import logger from '../utils/logger';
 import { NOTIF_CATEGORIES } from '../services/notification.service';
 import { estMajeur, AGE_MINIMUM } from '../utils/age';
+import { repondreErreur } from '../utils/erreurs';
 
 /**
  * PATCH /profile/notification-prefs
@@ -43,7 +44,7 @@ export const updateNotificationPrefs = async (req: AuthRequest, res: Response) =
     });
     res.json({ success: true, notification_prefs: merged });
   } catch (e: any) {
-    res.status(500).json({ message: e.message });
+    repondreErreur(res, e);
   }
 };
 
@@ -112,7 +113,7 @@ export const updateAvatar = async (req: AuthRequest, res: Response) => {
   } catch (e: any) {
     // uploadImage lève sur un format invalide ou une image > 5 Mo : ce sont
     // des erreurs d'entrée, pas des pannes serveur.
-    res.status(422).json({ message: e.message });
+    repondreErreur(res, e, 422);
   }
 };
 
@@ -153,7 +154,7 @@ export const getProfile = async (req: AuthRequest, res: Response) => {
       created_at:              user.createdAt,
       last_login_at:           user.lastLoginAt,
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /** PATCH /profile */
@@ -273,7 +274,7 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         created_at:        updated.createdAt,
       },
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /** DELETE /profile — Droit à l'oubli RGPD : anonymise les données personnelles */
@@ -308,7 +309,7 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
       data:  { used: true },
     });
     res.json({ message: 'Compte supprimé. Vos données personnelles ont été anonymisées.' });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /** GET /profile/stats */
@@ -424,5 +425,5 @@ export const getStats = async (req: AuthRequest, res: Response) => {
       bankroll_history:  bankrollHistory,
       league_stats:      leagueStats,
     });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };

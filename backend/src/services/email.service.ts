@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import logger from '../utils/logger';
+import { ServiceIndisponible } from '../utils/erreurs';
 
 const transporter = nodemailer.createTransport({
   host:   process.env.SMTP_HOST   ?? 'smtp.gmail.com',
@@ -11,12 +12,45 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+/**
+ * Envoie un code de connexion par courriel.
+ *
+ * Sans identifiants SMTP, la fonction écrivait le code dans le journal et
+ * rendait la main comme si l'envoi avait eu lieu — en production aussi, rien
+ * ne limitait ce repli au développement. L'application annonçait « code
+ * envoyé » alors que rien n'était parti, et le code de connexion devenait
+ * lisible par quiconque lit les journaux (constat I8 de l'audit du
+ * 24 septembre 2026).
+ *
+ * Le repli reste pour le développement et les bancs d'essai. En production,
+ * un canal non configuré se dit : 503, et aucun code dans le journal.
+ */
 export async function sendEmailOtp(email: string, code: string): Promise<void> {
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    if (process.env.NODE_ENV === 'production') {
+      logger.error('[Email] SMTP non configuré : code de connexion non envoyé.');
+      throw new ServiceIndisponible(
+        'L\'envoi du code par e-mail est momentanément indisponible. '
+        + 'Réessayez plus tard ou utilisez WhatsApp.', 'CANAL_EMAIL_INDISPONIBLE');
+    }
     logger.warn(`[Email DEV] OTP pour ${email} : ${code}`);
     return;
   }
 
+  try {
+    await envoyerCode(email, code);
+  } catch (e: any) {
+    // Le message du serveur SMTP (« Invalid login: 535… ») n'a rien à faire
+    // dans une réponse d'API : il reste dans le journal.
+    logger.error(`[Email] Échec d'envoi du code à ${email} : ${e?.message ?? e}`);
+    throw new ServiceIndisponible(
+      'Le code n\'a pas pu être envoyé par e-mail. Réessayez dans un instant.',
+      'CANAL_EMAIL_ECHEC');
+  }
+  logger.info(`[Email] OTP envoyé à ${email}`);
+}
+
+async function envoyerCode(email: string, code: string): Promise<void> {
   await transporter.sendMail({
     from:    `"PronoWin" <${process.env.SMTP_USER}>`,
     to:      email,
@@ -33,8 +67,6 @@ export async function sendEmailOtp(email: string, code: string): Promise<void> {
       </div>
     `,
   });
-
-  logger.info(`[Email] OTP envoyé à ${email}`);
 }
 
 /**

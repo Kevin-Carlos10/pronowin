@@ -194,11 +194,21 @@ describe('le contrôle est réellement branché', () => {
     // controle disparaitrait avec cette cle sans que rien ne le dise. Une
     // alerte muette est pire que pas d'alerte : on croit etre couvert.
     const bloc = index.indexOf('if (process.env.API_FOOTBALL_KEY)');
-    const finBloc = index.indexOf("FOOTBALL_DATA_API_KEY manquante");
+    // L'avertissement du bloc « sinon » nomme désormais la bonne variable
+    // (il annonçait FOOTBALL_DATA_API_KEY, qui n'est lue nulle part).
+    const finBloc = index.indexOf('API_FOOTBALL_KEY manquante');
     const appel = index.indexOf('setInterval(runAchatsEnRetard');
 
     expect(bloc).toBeGreaterThan(-1);
     expect(finBloc).toBeGreaterThan(bloc);
+    expect(appel).toBeGreaterThan(finBloc);
+  });
+
+  it("le rappel d'expiration Premium non plus", () => {
+    // Il était rangé dans le bloc football : sans cette clé, plus aucun
+    // abonné n'était prévenu de la fin de son accès (constat I13).
+    const finBloc = index.indexOf('API_FOOTBALL_KEY manquante');
+    const appel = index.indexOf('setInterval(runExpiryReminder');
     expect(appel).toBeGreaterThan(finBloc);
   });
 });

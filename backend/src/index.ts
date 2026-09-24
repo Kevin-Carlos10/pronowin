@@ -3,6 +3,7 @@ import { prisma } from './lib/prisma';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import logger from './utils/logger';
+import { repondreErreur } from './utils/erreurs';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -64,7 +65,10 @@ const allowedOrigins = process.env.ALLOWED_ORIGINS
 app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev', {
-  stream: { write: (msg: string) => logger.http(msg.trim()) },
+  // Au niveau `info` et non `http` : le logger filtre en dessous de `info`
+  // par défaut, et `LOG_LEVEL` n'est pas réglé en production. Les lignes
+  // 4xx et 5xx qu'on croyait journalisées ne l'étaient donc pas (constat Q3).
+  stream: { write: (msg: string) => logger.info(msg.trim()) },
   // En production : ne logger que les erreurs (4xx/5xx) pour réduire le bruit
   skip: (_req, res) => process.env.NODE_ENV === 'production' && res.statusCode < 400,
 }));
@@ -124,7 +128,30 @@ const publicLim = rateLimit({
 });
 app.use(globalLim);
 
-app.get('/health', (_, res) => res.json({ status: 'ok', app: 'PronoWin API', version: '1.0.0', timestamp: new Date().toISOString() }));
+/**
+ * Santé de l'API.
+ *
+ * `/health` répondait « ok » sans rien vérifier : pendant une panne de
+ * PostgreSQL, la veille (`exploitation/pronowin-veille.sh`) voyait une API
+ * en bonne santé, et personne n'était prévenu (constat O7). Elle interroge
+ * désormais la base, avec un délai court, et répond 503 si celle-ci ne suit
+ * pas. `/health/live` dit seulement que le processus répond.
+ */
+app.get('/health/live', (_, res) => res.json({ status: 'ok' }));
+app.get('/health', async (_, res) => {
+  const debut = Date.now();
+  try {
+    await Promise.race([
+      prisma.$queryRaw`SELECT 1`,
+      new Promise((_r, rejeter) => setTimeout(() => rejeter(new Error('délai')), 2000)),
+    ]);
+    res.json({ status: 'ok', base: 'ok', latence_ms: Date.now() - debut,
+               app: 'PronoWin API', timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: 'degrade', base: 'injoignable',
+                           app: 'PronoWin API', timestamp: new Date().toISOString() });
+  }
+});
 
 // ── Deep links verification files ─────────────────────────────────────────────
 // Android App Links : https://pronowin.app/.well-known/assetlinks.json
@@ -219,11 +246,19 @@ app.use(`${v1}/leaderboard`,         leaderboardRoutes);
 
 app.use((req, res) => res.status(404).json({ message: `Route introuvable : ${req.method} ${req.path}` }));
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  logger.error('[ERROR]', { message: err.message, stack: err.stack });
-  res.status(500).json({ message: 'Erreur interne.' });
+  // Un corps JSON illisible est une requête invalide, pas une panne.
+  if ((err as any)?.type === 'entity.parse.failed') {
+    res.status(400).json({ message: 'Corps de requête illisible : JSON attendu.' });
+    return;
+  }
+  if ((err as any)?.type === 'entity.too.large') {
+    res.status(413).json({ message: 'Requête trop volumineuse.' });
+    return;
+  }
+  repondreErreur(res, err);
 });
 
-app.listen(PORT, () => {
+const serveur = app.listen(PORT, () => {
   logger.info(`PronoWin API démarrée — port ${PORT}`);
   logger.info('admin/tutorials actif');
 
@@ -267,23 +302,27 @@ app.listen(PORT, () => {
     setTimeout(runMatchSoon, 60_000);
     setInterval(runMatchSoon, 15 * 60 * 1000);
     logger.info('Notif "match bientôt" actif — toutes les 15 min');
-
-    // Rappel d'expiration Premium (J-7, J-3, J-1). L'interrupteur
-    // « Abonnement Premium » des Paramètres annonçait cette notification alors
-    // qu'aucun job ne la produisait. Une fois par jour : l'idempotence des
-    // paliers suppose exactement une exécution quotidienne.
-    const subSvc = new SubscriptionService();
-    const runExpiryReminder = () => {
-      subSvc.notifyExpiringSubscriptions().then(({ notified }) => {
-        if (notified > 0) logger.info(`[PremiumExpiry] ${notified} rappel(s) envoyé(s)`);
-      }).catch(err => logger.error('[PremiumExpiry] Erreur', { message: err.message }));
-    };
-    setTimeout(runExpiryReminder, 120_000);
-    setInterval(runExpiryReminder, 24 * 60 * 60 * 1000);
-    logger.info('Rappel expiration Premium actif — 1×/jour (J-7, J-3, J-1)');
   } else {
-    logger.warn('FOOTBALL_DATA_API_KEY manquante — score sync désactivé');
+    // Le message nommait FOOTBALL_DATA_API_KEY, alors que la variable lue est
+    // API_FOOTBALL_KEY : il envoyait chercher la mauvaise (constat I7).
+    logger.warn('API_FOOTBALL_KEY manquante — synchronisation des scores désactivée');
   }
+
+  // ─── RAPPEL D'EXPIRATION PREMIUM ──────────────────────────────────────────
+  // Sorti du bloc ci-dessus, pour la même raison que l'alerte d'achats plus
+  // bas : il ne concerne pas le football, et il se taisait le jour où la clé
+  // football manquait (constat I13). L'interrupteur « Abonnement Premium »
+  // des Paramètres annonçait cette notification. Une fois par jour :
+  // l'idempotence des paliers suppose exactement une exécution quotidienne.
+  const subSvc = new SubscriptionService();
+  const runExpiryReminder = () => {
+    subSvc.notifyExpiringSubscriptions().then(({ notified }) => {
+      if (notified > 0) logger.info(`[PremiumExpiry] ${notified} rappel(s) envoyé(s)`);
+    }).catch(err => logger.error('[PremiumExpiry] Erreur', { message: err.message }));
+  };
+  setTimeout(runExpiryReminder, 120_000);
+  setInterval(runExpiryReminder, 24 * 60 * 60 * 1000);
+  logger.info('Rappel expiration Premium actif — 1×/jour (J-7, J-3, J-1)');
 
   // ─── ACHATS NON ACTIVÉS ───────────────────────────────────────────────────
   // Délibérément hors du bloc ci-dessus : celui-ci ne tourne que si la clé
@@ -308,3 +347,26 @@ app.listen(PORT, () => {
     `Alerte achats non activés — contrôle toutes les ${SEUIL_ATTENTE_HEURES} h`,
   );
 });
+
+/**
+ * Arrêt propre.
+ *
+ * pm2 envoie SIGINT à un redémarrage, puis tue le processus s'il traîne. Rien
+ * n'était prévu : un déploiement coupait net les requêtes en cours — une
+ * activation de Premium à mi-chemin, par exemple (constat O7). Le serveur
+ * cesse d'accepter des connexions, laisse finir celles qui sont ouvertes,
+ * ferme la base, puis sort ; au-delà de huit secondes, il sort quand même.
+ */
+let arretEnCours = false;
+function arreter(signal: string) {
+  if (arretEnCours) return;
+  arretEnCours = true;
+  logger.info(`[Arrêt] ${signal} reçu — fin des requêtes en cours`);
+  const limite = setTimeout(() => process.exit(0), 8000);
+  limite.unref();
+  serveur.close(() => {
+    prisma.$disconnect().finally(() => process.exit(0));
+  });
+}
+process.on('SIGTERM', () => arreter('SIGTERM'));
+process.on('SIGINT',  () => arreter('SIGINT'));

@@ -2,30 +2,31 @@ import { Response } from 'express';
 import { AdminRequest } from '../middleware/admin.middleware';
 import { StatsService } from '../services/stats.service';
 import { prisma } from '../lib/prisma';
+import { repondreErreur } from '../utils/erreurs';
 
 const svc = new StatsService();
 
 export const getDashboard = async (req: AdminRequest, res: Response) => {
   const days = parseInt(req.query.days as string ?? '30');
   try { res.json(await svc.getDashboardStats(days)); }
-  catch (e: any) { res.status(500).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getRevenueSeries = async (req: AdminRequest, res: Response) => {
   const days = parseInt(req.query.days as string ?? '30');
   try { res.json(await svc.getRevenueTimeSeries(days)); }
-  catch (e: any) { res.status(500).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getUsersSeries = async (req: AdminRequest, res: Response) => {
   const days = parseInt(req.query.days as string ?? '30');
   try { res.json(await svc.getUsersTimeSeries(days)); }
-  catch (e: any) { res.status(500).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getTopUsers = async (req: AdminRequest, res: Response) => {
   try { res.json(await svc.getTopUsers(10)); }
-  catch (e: any) { res.status(500).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e); }
 };
 
 // GET /admin/stats/online — utilisateurs actifs ces 2 dernières minutes (jamais caché)
@@ -68,7 +69,7 @@ export const getSignups = async (req: AdminRequest, res: Response) => {
     const newThisWeek = users.filter(u => u.createdAt >= oneWeekAgo).length;
 
     res.json({ labels, values, newThisWeek });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /**
@@ -96,7 +97,7 @@ export const getPronosticsStats = async (req: AdminRequest, res: Response) => {
       prisma.pronostic.count({ where: { ...period, result: null, isPublished: true } }),
     ]);
     res.json({ won, lost, pending });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /**
@@ -137,7 +138,7 @@ export const getMonthly = async (_req: AdminRequest, res: Response) => {
     for (const t of txs)    { const s = slots.get(key(t.createdAt)); if (s) s.revenue += t.amountPaid; }
 
     res.json([...slots.values()].map(s => ({ ...s, revenue: Math.round(s.revenue) })));
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 /**
@@ -181,5 +182,5 @@ export const getLeaguePerformance = async (req: AdminRequest, res: Response) => 
     .sort((a, b) => b.total - a.total || (b.win_rate ?? 0) - (a.win_rate ?? 0));
 
     res.json(out);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };

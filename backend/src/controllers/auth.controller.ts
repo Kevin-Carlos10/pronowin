@@ -5,6 +5,7 @@ import { AuthService } from '../services/auth.service';
 import { AuthRequest } from '../middleware/auth.middleware';
 import bcrypt from 'bcrypt';
 import { updateStreak, getStreak } from '../services/streak.service';
+import { repondreErreur } from '../utils/erreurs';
 
 const authService = new AuthService();
 
@@ -84,7 +85,7 @@ export async function sendOtp(req: Request, res: Response): Promise<void> {
     await authService.sendOtp(req.body.phone_number);
     res.json({ message: 'Code OTP envoyé sur WhatsApp.' });
   } catch (error: any) {
-    res.status(500).json({ message: error.message ?? 'Erreur lors de l\'envoi du SMS.' });
+    repondreErreur(res, error);
   }
 }
 
@@ -132,8 +133,8 @@ export async function sendEmailOtp(req: Request, res: Response): Promise<void> {
   } catch (e: any) {
     // Un quota atteint n'est pas une panne : le dire en 500 ferait croire à
     // l'utilisateur que le serveur est cassé, et l'inviterait à réessayer.
-    res.status(e?.statut ?? 500)
-       .json({ message: e.message ?? 'Erreur lors de l\'envoi.' });
+    // `repondreErreur` respecte le statut porté par l'erreur.
+    repondreErreur(res, e);
   }
 }
 
@@ -246,7 +247,7 @@ export async function getStreakHandler(req: AuthRequest, res: Response): Promise
   try {
     const data = await getStreak(req.userId!);
     res.json(data);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 }
 
 export async function logout(req: AuthRequest, res: Response): Promise<void> {
@@ -289,7 +290,7 @@ export async function acceptTerms(req: AuthRequest, res: Response): Promise<void
     });
     res.json({ accepted_terms_at: user.acceptedTermsAt, terms_version: CURRENT_TERMS_VERSION });
   } catch (e: any) {
-    res.status(500).json({ message: e.message });
+    repondreErreur(res, e);
   }
 }
 
@@ -345,7 +346,6 @@ export async function createAdmin(req: Request, res: Response): Promise<void> {
     });
 
   } catch (error: any) {
-    console.error('[CREATE_ADMIN_ERROR]', error);
-    res.status(500).json({ message: error.message ?? 'Erreur interne lors de la création de l\'admin.' });
+    repondreErreur(res, error);
   }
 }

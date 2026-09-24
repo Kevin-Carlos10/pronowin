@@ -9,6 +9,7 @@ import {
   lireDelegation,
 } from '../utils/delegation_admin';
 import { acteurAutorise, cheminRelatif } from '../utils/permissions_admin';
+import { repondreErreur } from '../utils/erreurs';
 
 // Interface étendue pour les requêtes admin
 export interface AdminRequest extends Request {
@@ -129,8 +130,12 @@ export async function adminMiddleware(
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
       res.status(401).json({ message: 'Session admin expirée.', code: 'TOKEN_EXPIRED' });
-    } else {
+    } else if (error instanceof jwt.JsonWebTokenError) {
       res.status(401).json({ message: 'Token admin invalide.' });
+    } else {
+      // Base injoignable : le panneau traite un 401 comme une session morte
+      // et renvoie l'administrateur à l'écran de connexion. Ce n'en est pas une.
+      repondreErreur(res, error);
     }
   }
 }
