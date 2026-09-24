@@ -37,6 +37,10 @@ jest.mock('../services/payment_method.service', () => ({}));
 jest.mock('../services/subscription.service', () => ({
   SubscriptionService: class { async statistiquesCodePromo() { return {}; } },
 }));
+// Même piège pour la route de santé, qui lit la base : sans doublure, son
+// import charge Prisma, donc le `.env`, donc `ADMIN_SETUP_SECRET` — et le cas
+// « aucun secret configuré » répond 403 au lieu de 404.
+jest.mock('../services/sante.service', () => ({ lireSante: async () => ({}) }));
 
 const ENV_INITIAL = { ...process.env };
 afterEach(() => { process.env = { ...ENV_INITIAL }; });
