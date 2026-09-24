@@ -57,7 +57,7 @@ export async function adminMiddleware(
     const payload = jwt.verify(
       token,
       process.env.ADMIN_JWT_SECRET ?? process.env.JWT_SECRET!
-    ) as { adminId: string; role: string };
+    ) as { adminId: string; role: string; v?: number };
 
     // Vérifier que le payload contient adminId (≠ token user qui contient userId)
     if (!payload.adminId) {
@@ -71,6 +71,12 @@ export async function adminMiddleware(
 
     if (!admin) {
       res.status(401).json({ message: 'Admin introuvable ou désactivé.' });
+      return;
+    }
+
+    // Un jeton émis avant le dernier changement de mot de passe ne vaut plus.
+    if ((payload.v ?? 0) !== ((admin as any).sessionVersion ?? 0)) {
+      res.status(401).json({ message: 'Session admin révoquée.', code: 'SESSION_REVOQUEE' });
       return;
     }
 

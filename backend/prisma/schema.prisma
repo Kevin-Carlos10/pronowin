@@ -164,6 +164,9 @@ model Admin {
   isActive     Boolean     @default(true) @map("is_active")
   createdAt    DateTime    @default(now()) @map("created_at")
   lastLoginAt  DateTime?   @map("last_login_at")
+  /// Incrémentée à chaque changement de mot de passe : les jetons émis avant
+  /// portent l'ancienne valeur et sont refusés (constat S12).
+  sessionVersion Int       @default(0) @map("session_version")
   pronostics   Pronostic[]
 
   @@map("admins")

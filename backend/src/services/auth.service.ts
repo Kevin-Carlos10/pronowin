@@ -1,6 +1,7 @@
 ﻿import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
+import crypto from 'crypto';
 import { generateReferralCode, generateOtp } from '../utils/generators';
 import { sendWhatsAppOtp } from './whatsapp.service';
 import { sendEmailOtp } from './email.service';
@@ -13,6 +14,27 @@ import logger from '../utils/logger';
 
 import { prisma } from '../lib/prisma';
 import { decisionEnvoiOtp, OTP_FENETRE_MS, QuotaOtpDepasse } from '../utils/quota_otp';
+
+/**
+ * Ce qui est conservé en base : des empreintes, pas des secrets.
+ *
+ * Les refresh tokens et les codes de connexion étaient stockés en clair. Une
+ * fuite de la base — ou d'une sauvegarde, qui vit sur le même disque — donnait
+ * trente jours de sessions valables pour chaque compte, et les codes en cours
+ * (constat S11 de l'audit du 24 septembre 2026).
+ *
+ * Un refresh token est un jeton aléatoire long : SHA-256 suffit. Un code de
+ * connexion n'a que six chiffres, un million de valeurs : son empreinte est un
+ * HMAC avec un secret du serveur, et le destinataire y entre — sans le secret,
+ * on ne peut pas retrouver le code en essayant toutes les valeurs.
+ */
+export const empreinteJeton = (jeton: string) =>
+  crypto.createHash('sha256').update(jeton).digest('hex');
+
+export function empreinteOtp(destinataire: string, code: string): string {
+  const secret = process.env.OTP_SECRET ?? process.env.JWT_SECRET ?? '';
+  return crypto.createHmac('sha256', secret).update(`${destinataire}:${code}`).digest('hex');
+}
 
 export class AuthService {
 
@@ -49,7 +71,7 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
     await prisma.otpCode.create({
-      data: { phoneNumber, code, expiresAt },
+      data: { phoneNumber, code: empreinteOtp(phoneNumber, code), expiresAt },
     });
 
     await sendWhatsAppOtp(phoneNumber, code);
@@ -57,25 +79,9 @@ export class AuthService {
 
   /** Vérifie l'OTP et crée/connecte l'utilisateur */
   async verifyOtp(phoneNumber: string, code: string) {
-    const otpRecord = await prisma.otpCode.findFirst({
-      where: {
-        phoneNumber,
-        code,
-        used: false,
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (!otpRecord) {
+    if (!await this._consommerOtp(phoneNumber, code)) {
       throw new Error('Code OTP invalide ou expiré.');
     }
-
-    // Marquer l'OTP comme utilisé
-    await prisma.otpCode.update({
-      where: { id: otpRecord.id },
-      data:  { used: true },
-    });
 
     // Créer ou récupérer l'utilisateur
     let user = await prisma.user.findUnique({ where: { phoneNumber } });
@@ -113,7 +119,10 @@ export class AuthService {
 
   /** Rafraîchit l'access token avec rotation complète du refresh token */
   async refreshToken(token: string) {
-    const record = await prisma.refreshToken.findUnique({ where: { token } });
+    // Par empreinte ; en clair pour les jetons émis avant ce changement, qui
+    // disparaissent d'eux-mêmes à leur échéance (30 jours).
+    const record = await prisma.refreshToken.findUnique({ where: { token: empreinteJeton(token) } })
+      ?? await prisma.refreshToken.findUnique({ where: { token } });
 
     // Token introuvable
     if (!record) {
@@ -135,11 +144,22 @@ export class AuthService {
       throw new Error('Session expirée. Veuillez vous reconnecter.');
     }
 
-    // ── Rotation : marquer l'ancien comme "used", émettre une nouvelle paire ─
-    await prisma.refreshToken.update({
-      where: { id: record.id },
+    // ── Rotation : consommer l'ancien, émettre une nouvelle paire ──
+    //
+    // Lecture puis marquage sans condition : deux rafraîchissements
+    // simultanés du même jeton réussissaient tous les deux, et la détection
+    // de réutilisation ci-dessus se contournait par une course (constat S11).
+    // Le marquage ne réussit plus que pour un jeton encore inutilisé ; le
+    // perdant est traité comme une réutilisation.
+    const { count } = await prisma.refreshToken.updateMany({
+      where: { id: record.id, used: false },
       data:  { used: true },
     });
+    if (count === 0) {
+      console.warn(`[Auth] ⚠️  Refresh token consommé deux fois pour userId=${record.userId} — révocation de toutes les sessions`);
+      await prisma.refreshToken.deleteMany({ where: { userId: record.userId } });
+      throw new Error('Session compromise détectée. Veuillez vous reconnecter.');
+    }
 
     const newTokens = await this._generateTokens(record.userId);
     return newTokens; // { access_token, refresh_token }
@@ -170,7 +190,7 @@ export class AuthService {
     const expiresAt = new Date(Date.now() + 10 * 60 * 1000);
 
     await prisma.otpCode.create({
-      data: { phoneNumber: email, code, expiresAt },
+      data: { phoneNumber: email, code: empreinteOtp(email, code), expiresAt },
     });
 
     await sendEmailOtp(email, code);
@@ -201,22 +221,7 @@ export class AuthService {
       return { user: activeUser, ...tokens };
     }
 
-    const otpRecord = await prisma.otpCode.findFirst({
-      where: {
-        phoneNumber: email,
-        code,
-        used:      false,
-        expiresAt: { gt: new Date() },
-      },
-      orderBy: { createdAt: 'desc' },
-    });
-
-    if (!otpRecord) throw new Error('Code OTP invalide ou expiré.');
-
-    await prisma.otpCode.update({
-      where: { id: otpRecord.id },
-      data:  { used: true },
-    });
+    if (!await this._consommerOtp(email, code)) throw new Error('Code OTP invalide ou expiré.');
 
     /*
      * Consentement aux CGU.
@@ -346,13 +351,7 @@ export class AuthService {
     }
 
     // Vérifier l'OTP
-    const otpRecord = await prisma.otpCode.findFirst({
-      where: { phoneNumber, code, used: false, expiresAt: { gt: new Date() } },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (!otpRecord) throw new Error('Code OTP invalide ou expiré.');
-
-    await prisma.otpCode.update({ where: { id: otpRecord.id }, data: { used: true } });
+    if (!await this._consommerOtp(phoneNumber, code)) throw new Error('Code OTP invalide ou expiré.');
 
     const user = await prisma.user.update({
       where: { id: userId },
@@ -373,13 +372,7 @@ export class AuthService {
     }
 
     // Vérifier l'OTP (stocké dans phoneNumber pour réutiliser le modèle existant)
-    const otpRecord = await prisma.otpCode.findFirst({
-      where: { phoneNumber: email, code, used: false, expiresAt: { gt: new Date() } },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (!otpRecord) throw new Error('Code OTP invalide ou expiré.');
-
-    await prisma.otpCode.update({ where: { id: otpRecord.id }, data: { used: true } });
+    if (!await this._consommerOtp(email, code)) throw new Error('Code OTP invalide ou expiré.');
 
     const user = await prisma.user.update({
       where: { id: userId },
@@ -390,24 +383,55 @@ export class AuthService {
 
   /** Déconnecte l'utilisateur */
   async logout(userId: string, refreshToken: string): Promise<void> {
+    // Par empreinte, et en clair pour un jeton émis avant qu'elles existent.
     await prisma.refreshToken.deleteMany({
-      where: { userId, token: refreshToken },
+      where: { userId, token: { in: [empreinteJeton(refreshToken), refreshToken] } },
     });
   }
 
   // ─── Privé ────────────────────────────────────────────────────────────────
 
+  /**
+   * Consomme un code de connexion, une seule fois.
+   *
+   * Lecture puis marquage sans condition : deux vérifications simultanées du
+   * même code ouvraient deux sessions. Le marquage ne réussit plus que pour
+   * un code encore inutilisé. Les codes émis juste avant ce changement,
+   * stockés en clair, restent acceptés pendant leurs dix minutes de validité.
+   */
+  private async _consommerOtp(destinataire: string, code: string): Promise<boolean> {
+    const candidat = await prisma.otpCode.findFirst({
+      where: {
+        phoneNumber: destinataire,
+        code:        { in: [empreinteOtp(destinataire, code), code] },
+        used:        false,
+        expiresAt:   { gt: new Date() },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!candidat) return false;
+    const { count } = await prisma.otpCode.updateMany({
+      where: { id: candidat.id, used: false },
+      data:  { used: true },
+    });
+    return count === 1;
+  }
+
   private async _generateTokens(userId: string) {
     const accessToken  = this._generateAccessToken(userId);
+    // Un identifiant propre à chaque jeton : sans lui, deux émissions dans la
+    // même seconde pour le même compte produisaient le même jeton, que la
+    // contrainte d'unicité refusait — une connexion qui échouait sans raison
+    // visible.
     const refreshToken = jwt.sign(
-      { userId },
+      { userId, jti: crypto.randomUUID() },
       process.env.JWT_REFRESH_SECRET!,
       { expiresIn: process.env.JWT_REFRESH_EXPIRES_IN ?? '30d' } as jwt.SignOptions,
     );
 
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await prisma.refreshToken.create({
-      data: { userId, token: refreshToken, expiresAt },
+      data: { userId, token: empreinteJeton(refreshToken), expiresAt },
     });
 
     return { access_token: accessToken, refresh_token: refreshToken };

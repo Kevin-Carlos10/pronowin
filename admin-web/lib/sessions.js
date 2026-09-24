@@ -112,6 +112,15 @@ function creerMagasinSessions({ fichier, ecrireJson, maintenant = () => Date.now
       return n;
     },
 
+    /** Remplace le jeton d'API d'une session — après un changement de mot de passe. */
+    remplacerJeton(session, jeton) {
+      const s = session && table.get(session.empreinte);
+      if (!s) return false;
+      s.jeton = jeton;
+      persister();
+      return true;
+    },
+
     /** Nombre de sessions ouvertes, pour les contrôles. */
     taille() { return table.size; },
   };

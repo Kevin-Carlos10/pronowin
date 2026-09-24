@@ -63,8 +63,13 @@ const api = http.createServer((req, res) => {
     const delegation = req.headers['x-admin-acteur'] ?? null;
     let acteur = null;
     try { acteur = JSON.parse(Buffer.from(delegation.split('.')[0], 'base64url').toString()); } catch {}
-    appelsApi.push({ methode: req.method, url: req.url, acteur });
+    appelsApi.push({ methode: req.method, url: req.url, acteur, jeton: req.headers.authorization ?? null });
     res.setHeader('Content-Type', 'application/json');
+    // Changement de mot de passe de l'administrateur principal : l'API
+    // révoque les jetons émis avant et en rend un neuf.
+    if (req.method === 'PATCH' && req.url === '/api/v1/admin/profile/password') {
+      return res.end(JSON.stringify({ success: true, token: 'jeton-neuf-apres-changement' }));
+    }
     if (req.method === 'POST' && req.url === '/api/v1/admin/login') {
       const { email } = JSON.parse(corps || '{}');
       const role = { 'principal@banc': 'super_admin', 'analyste@banc': 'analyst' }[email];
@@ -238,6 +243,26 @@ const ouvert = (r) => !(r.status === 302 && (r.location ?? '').startsWith('/admi
     ok('changer le mot de passe d\'un sous-admin ferme sa session en cours');
   } else {
     ko(`session du rédacteur : ${avant.status} avant, ${apres.status} après le changement de mot de passe`);
+  }
+
+  // ── S12 : changer son mot de passe garde cette session, ferme les autres ──
+  const coP2 = await requete('/admin/login', { methode: 'POST', corps: { username: 'principal@banc', password: 'x' } });
+  await requete('/admin/profile/password', {
+    methode: 'POST', cookies: cookiesDe(coP),
+    corps: { current_password: 'x', new_password: 'NouveauMotDePasse2', confirm_password: 'NouveauMotDePasse2' },
+  });
+  appelsApi.length = 0;
+  const apresChangement = await requete('/admin/dashboard', { cookies: cookiesDe(coP) });
+  const jetons = [...new Set(appelsApi.map((a) => a.jeton))];
+  if (apresChangement.status === 200 && jetons.length === 1 && jetons[0] === 'Bearer jeton-neuf-apres-changement') {
+    ok('après un changement de mot de passe, la session continue avec le jeton neuf rendu par l\'API');
+  } else {
+    ko(`après changement de mot de passe : ${apresChangement.status}, jetons envoyés ${JSON.stringify(jetons)}`);
+  }
+  if (!ouvert(await requete('/admin/sub-admins', { cookies: cookiesDe(coP2) }))) {
+    ok('les autres sessions de l\'administrateur principal sont fermées');
+  } else {
+    ko('une autre session de l\'administrateur principal reste ouverte après le changement de mot de passe');
   }
 
   // ── S9 : la limite de tentatives ne se contourne pas par l'en-tête ──

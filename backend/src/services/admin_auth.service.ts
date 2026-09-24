@@ -18,11 +18,7 @@ export class AdminAuthService {
     // Mise à jour de la date de dernière connexion
     await prisma.admin.update({ where: { id: admin.id }, data: { lastLoginAt: new Date() } });
 
-    const token = jwt.sign(
-      { adminId: admin.id, role: admin.role },
-      process.env.ADMIN_JWT_SECRET ?? process.env.JWT_SECRET!,
-      { expiresIn: '8h' }
-    );
+    const token = this._jeton(admin);
     return { token, admin: { id: admin.id, name: admin.name, email: admin.email, role: admin.role } };
   }
 
@@ -54,11 +50,31 @@ export class AdminAuthService {
       throw new Error('Le nouveau mot de passe doit être différent de l\'actuel.');
     }
 
-    await prisma.admin.update({
+    // ── Changer de mot de passe ferme les autres sessions ──
+    //
+    // Le jeton d'administration dure 8 heures et ne se révoquait qu'en
+    // désactivant le compte : après une fuite, changer son mot de passe ne
+    // coupait pas l'accès de qui était déjà connecté (constat S12). La
+    // version de session augmente ; les jetons qui portent l'ancienne sont
+    // refusés par le middleware. Un jeton neuf est rendu pour la session d'où
+    // part la demande, qui reste ouverte.
+    const misAJour = await prisma.admin.update({
       where: { id: adminId },
-      data:  { passwordHash: await bcrypt.hash(newPassword, 12) },
+      data:  {
+        passwordHash:   await bcrypt.hash(newPassword, 12),
+        sessionVersion: { increment: 1 },
+      },
     });
-    return { success: true };
+    return { success: true, token: this._jeton(misAJour) };
+  }
+
+  /** Un jeton d'administration, porteur de la version de session du compte. */
+  private _jeton(admin: { id: string; role: string; sessionVersion?: number }) {
+    return jwt.sign(
+      { adminId: admin.id, role: admin.role, v: admin.sessionVersion ?? 0 },
+      process.env.ADMIN_JWT_SECRET ?? process.env.JWT_SECRET!,
+      { expiresIn: '8h' },
+    );
   }
 
   async createAdmin(data: { email: string; password: string; name: string; role?: 'super_admin' | 'analyst' }) {

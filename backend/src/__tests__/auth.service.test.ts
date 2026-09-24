@@ -1,6 +1,8 @@
 // Mock Prisma et SMS avant tout import du service
 jest.mock('@prisma/client', () => {
-  const mockOtpUpdateMany = jest.fn().mockResolvedValue({});
+  // Rend un compte, comme Prisma : la consommation d'un code n'aboutit que si
+  // une ligne a effectivement changé.
+  const mockOtpUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
   const mockOtpCreate     = jest.fn().mockResolvedValue({ id: 'otp-1' });
   const mockOtpFindFirst  = jest.fn();
   const mockOtpUpdate     = jest.fn().mockResolvedValue({});
@@ -16,14 +18,15 @@ jest.mock('@prisma/client', () => {
   const mockRefreshUpdate  = jest.fn().mockResolvedValue({});
   const mockRefreshDelete  = jest.fn().mockResolvedValue({});
   const mockRefreshDeleteMany = jest.fn().mockResolvedValue({});
+  const mockRefreshUpdateMany = jest.fn().mockResolvedValue({ count: 1 });
 
   const PrismaClient = jest.fn().mockImplementation(() => ({
     otpCode:      { updateMany: mockOtpUpdateMany, create: mockOtpCreate, findFirst: mockOtpFindFirst, update: mockOtpUpdate },
     user:         { findUnique: mockUserFindUnique, create: mockUserCreate, update: mockUserUpdate },
-    refreshToken: { create: mockRefreshCreate, findUnique: mockRefreshFindUnique, update: mockRefreshUpdate, delete: mockRefreshDelete, deleteMany: mockRefreshDeleteMany },
+    refreshToken: { create: mockRefreshCreate, findUnique: mockRefreshFindUnique, update: mockRefreshUpdate, updateMany: mockRefreshUpdateMany, delete: mockRefreshDelete, deleteMany: mockRefreshDeleteMany },
   }));
 
-  return { PrismaClient, _mocks: { mockOtpCreate, mockOtpFindFirst, mockUserFindUnique, mockUserCreate, mockUserUpdate, mockRefreshFindUnique } };
+  return { PrismaClient, _mocks: { mockOtpUpdateMany, mockRefreshUpdateMany, mockRefreshCreate, mockOtpCreate, mockOtpFindFirst, mockUserFindUnique, mockUserCreate, mockUserUpdate, mockRefreshFindUnique } };
 });
 
 jest.mock('../services/sms.service', () => ({
