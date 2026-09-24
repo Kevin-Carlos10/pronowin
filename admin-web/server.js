@@ -371,7 +371,7 @@ const SETTINGS_FILE = path.join(DATA_DIR, 'settings.json');
 
 const DEFAULT_SETTINGS = {
   maintenanceMode:     false,
-  maintenanceMessage:  'Le panel est en cours de maintenance. Revenez dans quelques instants.',
+  maintenanceMessage:  '',
   announcementEnabled: false,
   announcementText:    '',
   announcementType:    'info',
@@ -392,9 +392,30 @@ function clampInt(raw, min, max, fallback) {
   return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
 }
 
+/**
+ * L'ancien message d'usine du mode maintenance.
+ *
+ * Il affirmait « Le panel est en cours de maintenance. Revenez dans quelques
+ * instants. » — or ce mode n'a jamais rien bloqué : il affiche un bandeau, et
+ * le blocage des utilisateurs se règle ailleurs, par Firebase Remote Config. Le
+ * bandeau disait donc à des administrateurs en train d'utiliser le panneau de
+ * revenir plus tard.
+ *
+ * Ce texte n'a jamais été écrit par personne : c'est le défaut de création du
+ * fichier, et il est encore stocké en production. On le neutralise à la
+ * lecture plutôt que de réécrire `settings.json`, qui est une donnée
+ * d'exploitation : le fichier se nettoie de lui-même au prochain
+ * enregistrement des réglages.
+ */
+const MESSAGE_MAINTENANCE_HERITE =
+  'Le panel est en cours de maintenance. Revenez dans quelques instants.';
+
 function loadSettings() {
-  try { return { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) }; }
+  let s;
+  try { s = { ...DEFAULT_SETTINGS, ...JSON.parse(fs.readFileSync(SETTINGS_FILE, 'utf8')) }; }
   catch { return { ...DEFAULT_SETTINGS }; }
+  if (s.maintenanceMessage === MESSAGE_MAINTENANCE_HERITE) s.maintenanceMessage = '';
+  return s;
 }
 function saveSettings(s) { return ecrireJson(SETTINGS_FILE, s); }
 

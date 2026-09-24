@@ -14,6 +14,19 @@
 .pf-tab .n     { font-size: .72rem; font-weight: 800; padding: .1rem .4rem;
                  border-radius: 999px; background: var(--surface-h); color: var(--text-m); }
 .pf-tab.on .n  { background: var(--primary); color: #fff; }
+/* Sur mobile, un ruban qui défile au lieu de se replier.
+   Mesuré à 390 px : les quatre onglets demandaient 388 px pour 366 de place,
+   et « Toutes » tombait seul sur une seconde ligne — sous un soulignement qui,
+   lui, restait sur la première. Avec les compteurs de production (« En attente
+   2 », « Approuvées 14 »…), il en fallait plus de 500.
+   L'onglet coupé au bord droit dit qu'il y en a d'autres ; le script qui suit
+   la barre amène l'onglet actif à l'écran. */
+@media (max-width: 640px) {
+  .pf-tabs { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none;
+             -webkit-overflow-scrolling: touch; }
+  .pf-tabs::-webkit-scrollbar { display: none; }
+  .pf-tab  { flex: 0 0 auto; white-space: nowrap; }
+}
 
 /* ── Historique (preuves déjà tranchées) ─────────────────────────────────── */
 .pf-hist   { background: var(--surface); border: 1px solid var(--border);
@@ -138,6 +151,40 @@
   </a>
   <% }) %>
 </nav>
+<script>
+/* Choisir « Toutes » recharge la page : sans ceci, le ruban repartait du début
+   et l'onglet actif — le dernier — restait hors de l'écran. On ne fait défiler
+   que le ruban, jamais la page.
+
+   Relancé au chargement complet et une fois les polices prêtes : exécuté
+   seulement pendant l'analyse de la page, le calcul portait sur une mise en
+   page provisoire — la police Inter arrive après coup et élargit les onglets —
+   et l'onglet actif restait hors champ. Vérifié en test : le ruban n'avait pas
+   bougé. Centrer est idempotent, le relancer ne coûte rien. */
+(function () {
+  function centrer() {
+    var ruban = document.querySelector('.pf-tabs');
+    var actif = ruban && ruban.querySelector('.pf-tab.on');
+    if (!actif || ruban.scrollWidth <= ruban.clientWidth) return;
+    var x = actif.offsetLeft - ruban.offsetLeft;
+    ruban.scrollLeft = x - (ruban.clientWidth - actif.offsetWidth) / 2;
+  }
+  centrer();
+  window.addEventListener('load', centrer);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(centrer);
+  /* Un téléphone qu'on tourne change la largeur après le chargement : le
+     ruban se met à déborder et l'onglet actif peut sortir du champ. On
+     recentre sur un changement de largeur uniquement — sur mobile, la barre
+     d'adresse qui paraît et disparaît au défilement émet des « resize » en
+     hauteur, et recentrer à chacun ramènerait le ruban sous le doigt. */
+  var largeur = window.innerWidth;
+  window.addEventListener('resize', function () {
+    if (window.innerWidth === largeur) return;
+    largeur = window.innerWidth;
+    centrer();
+  });
+})();
+</script>
 
 <!-- ── Chiffres d'ensemble ────────────────────────────────────────────────── -->
 <% if (_c) { %>

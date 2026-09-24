@@ -154,7 +154,36 @@
 .prono-mobile-summary span { font-size:13px; color:var(--text-m); }
 .prono-actions { display:flex; flex-wrap:wrap; gap:10px; position:sticky; bottom:0; padding:14px; border:1px solid var(--border-s); border-radius:12px; background:var(--surface); z-index:40; margin-top:16px; }
 .prono-actions .btn { min-height:44px; }
-@media(max-width:900px) { #pro-form { padding-bottom:150px; } .prono-actions { position:fixed; left:12px; right:12px; bottom:calc(90px + env(safe-area-inset-bottom)); box-shadow:var(--shadow-lg); } .prono-actions .btn { flex:1; white-space:normal; } }
+@media(max-width:900px) { .prono-actions { position:fixed; left:12px; right:12px; bottom:calc(90px + env(safe-area-inset-bottom)); box-shadow:var(--shadow-lg); } .prono-actions .btn { flex:1; white-space:normal; } }
+/* Une seule rangée sur mobile.
+   Mesuré à 390 × 844 en modifiant un pronostic publié : la barre faisait 133 px
+   sur deux rangées — « Enregistrer les modifications » et « Sauvegarder
+   brouillon » cassaient chacun sur deux lignes, et « Dépublier » occupait seul
+   la seconde. Avec la navigation du bas, 26 % de l'écran était masqué en
+   permanence, pendant toute la saisie.
+   Les libellés courts ne remplacent les longs que sur ce format : l'action
+   reste nommée, seul le complément tombe. */
+.lbl-court { display:none; }
+@media(max-width:900px) {
+  /* Une rangée seulement quand la barre ne porte que des boutons. Sur un match
+     terminé elle porte une note et « Dépublier » : forcés côte à côte, le
+     bouton était écrasé en un filet et son libellé débordait — vu en test. */
+  .prono-actions:not(.termine)      { flex-wrap:nowrap; }
+  .prono-actions:not(.termine) .btn { white-space:nowrap; min-width:0; }
+  .prono-actions.termine .note-termine { flex:1 1 100%; }
+  .lbl-long                 { display:none; }
+  .lbl-court                { display:inline; }
+
+  /* La réserve sous le contenu, et non plus sous le formulaire.
+     Elle était posée sur `#pro-form` (150 px) alors que les boutons de
+     résultat viennent *après* lui : on obtenait un vide au milieu de la page,
+     et « Retirer du bilan », tout en bas, restait sous la barre fixe même en
+     défilant jusqu'au bout — mesuré, `elementFromPoint` renvoyait la barre.
+     La hauteur de la barre varie (une rangée de boutons, ou une note sur un
+     match terminé) : le script qui suit la mesure. 90 px = son décalage
+     au-dessus de la navigation du bas. */
+  .main { padding-bottom:calc(var(--barre-actions, 150px) + 90px + 16px + env(safe-area-inset-bottom)); }
+}
 /* Deux colonnes internes pour les champs courts (label / confiance) : le
    formulaire tenait sur une seule colonne et laissait ~40 % de la largeur vide. */
 .pf-two       { display:grid; grid-template-columns:1fr 1fr; gap:1rem; align-items:start; }
@@ -473,22 +502,22 @@
   </div>
 </div>
       <!-- ── Actions (collées avec le récap : plus besoin de remonter/descendre) ── -->
-      <div class="prono-actions">
+      <div class="prono-actions<%= _termine ? ' termine' : '' %>">
         <%# Sur un match termine, ces deux boutons ne peuvent que echouer : le
             serveur refuse toute ecriture. Les afficher quand meme, c'est
             promettre une action impossible. %>
         <% if(_termine) { %>
-        <div style="font-size:.75rem;color:var(--text-m);line-height:1.55;padding:.6rem .75rem;background:var(--surface-d);border-radius:8px">
+        <div class="note-termine" style="font-size:.75rem;color:var(--text-m);line-height:1.55;padding:.6rem .75rem;background:var(--surface-d);border-radius:8px">
           <strong style="color:var(--text-p)">Match terminé</strong> — le pronostic
           n'est plus modifiable.<% if(isEdit) { %> Vous pouvez encore le dépublier,
           ou corriger son résultat plus bas.<% } %>
         </div>
         <% } else { %>
         <button type="submit" name="publish" value="true" class="btn btn-primary" style="justify-content:center">
-          <svg class="ic" aria-hidden="true"><use href="#ic-rocket"/></svg> <%= isEdit && pro.is_published ? 'Enregistrer les modifications' : 'Publier maintenant' %>
+          <svg class="ic" aria-hidden="true"><use href="#ic-rocket"/></svg> <span class="lbl-long"><%= isEdit && pro.is_published ? 'Enregistrer les modifications' : 'Publier maintenant' %></span><span class="lbl-court"><%= isEdit && pro.is_published ? 'Enregistrer' : 'Publier' %></span>
         </button>
         <button type="submit" name="publish" value="false" class="btn btn-outline" style="justify-content:center">
-          <svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> Sauvegarder brouillon
+          <svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> <span class="lbl-long">Sauvegarder brouillon</span><span class="lbl-court">Brouillon</span>
         </button>
         <% } %>
         <%# La depublication reste offerte, match termine ou non : elle passe par
@@ -991,6 +1020,19 @@ function depublish() {
 
 // Un brouillon enregistré sous le seuil doit l'annoncer dès l'ouverture.
 etatCote();
+
+/* Hauteur réelle de la barre d'actions, pour la réserve en bas de page : elle
+   passe d'une rangée de boutons à une note sur plusieurs lignes selon l'état
+   du match, et change encore quand la largeur change. */
+(function () {
+  var barre = document.querySelector('.prono-actions');
+  if (!barre) return;
+  function maj() {
+    document.documentElement.style.setProperty('--barre-actions', barre.offsetHeight + 'px');
+  }
+  maj();
+  if (typeof ResizeObserver === 'function') new ResizeObserver(maj).observe(barre);
+})();
 </script>
 
 <% if(isEdit && (match.status === 'FINISHED' || match.status === 'finished')) { %>

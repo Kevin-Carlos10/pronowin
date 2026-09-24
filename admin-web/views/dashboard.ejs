@@ -216,14 +216,13 @@
   // versements, et n'indiquaient jamais depuis combien de temps quelque chose
   // attendait. Un compteur ne dit pas quoi faire.
   const _file = (typeof file !== 'undefined' && Array.isArray(file)) ? [...file] : [];
-  // Le mode maintenance est un etat du systeme, pas une tache : il ferme la liste.
-  if (locals.settings?.maintenanceMode) {
-    _file.push({ cle:'maintenance', urgence:'haute', icone:'settings',
-      titre:'Mode maintenance actif',
-      detail:"Avertissement interne aux administrateurs : il ne bloque pas les utilisateurs, "
-           + "ce blocage est géré séparément via Firebase Remote Config.",
-      action:'Désactiver', lien:'/admin/settings' });
-  }
+  // Le mode maintenance n'entre plus dans cette liste.
+  //
+  // Le commentaire qui précédait le disait lui-même — « un état du système, pas
+  // une tâche » — et la ligne suivante l'y ajoutait quand même, en urgence
+  // haute : « 2 urgents » s'affichait pour une seule vraie urgence, et l'état
+  // apparaissait deux fois sur cette page, puisque le bandeau commun le porte
+  // déjà en tête de chaque écran.
   const _urgent = _file.filter(t => t.urgence === 'haute').length;
 %>
 
@@ -511,7 +510,7 @@ function signalerGraphiquesIndisponibles() {
     zone.innerHTML =
       '<div style="height:100%;display:flex;align-items:center;justify-content:center;'
     + 'text-align:center;padding:1rem;color:var(--text-dim);font-size:.82rem;line-height:1.6">'
-    + 'Graphiques indisponibles.<br>La bibliotheque n\'a pas pu etre chargee.'
+    + 'Graphiques indisponibles.<br>La bibliothèque de graphiques n’a pas pu être chargée.'
     + '</div>';
   });
   document.querySelectorAll('.chart-stat-badge').forEach((b) => { b.textContent = '—'; });

@@ -287,7 +287,11 @@
 <% if (_s.maintenanceMode) { %>
 <div style="background:rgba(245,158,11,.15);border-bottom:1px solid rgba(245,158,11,.3);padding:.6rem 1.25rem;display:flex;align-items:center;gap:.6rem;font-size:.83rem;color:var(--warning)">
   <span><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg></span>
-  <span style="flex:1"><strong>Mode maintenance actif</strong> — <%= _s.maintenanceMessage || 'Le panel est en maintenance.' %></span>
+  <%# Ce mode ne bloque rien : ni le panneau, ni l'application. Le bandeau le
+      disait mal — « Le panel est en maintenance » à qui s'en servait. La partie
+      fixe énonce le fait ; le message saisi dans les réglages suit, présenté
+      comme la note d'un administrateur, pas comme un état du système. %>
+  <span style="flex:1"><strong>Mode maintenance actif</strong> — avertissement interne : l'application et le panneau restent accessibles.<% if (_s.maintenanceMessage) { %> <span style="font-weight:400">Note : « <%= _s.maintenanceMessage %> »</span><% } %></span>
   <% if (isMain) { %>
   <a href="/admin/settings" class="bandeau-lien" style="color:var(--warning);font-weight:600;font-size:.78rem;text-decoration:underline">Désactiver →</a>
   <% } %>
