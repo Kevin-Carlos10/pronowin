@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../constants/app_constants.dart';
+import 'apk_par_abi.dart';
 import 'remote_config_service.dart';
 import '../config/bookmaker_affiliation.dart';
 import '../router/navigation_keys.dart';
@@ -153,7 +154,12 @@ class VersionService {
         force:   (d['apkForceUpdate']   as bool?)   ?? false,
         message: (d['updateMessage']    as String?) ??
             'Une nouvelle version de PronoWin est disponible.',
-        lien:    d['apkUrl'] as String?,
+        // L'APK de l'architecture du téléphone, l'universel à défaut (M3).
+        lien:    lienApkPour(
+          universel: d['apkUrl'] as String?,
+          parAbi:    d['apkUrls'],
+          abi:       abiAndroid(),
+        ),
       );
     } catch (_) {
       return null;

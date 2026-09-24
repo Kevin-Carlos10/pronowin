@@ -36,6 +36,12 @@ router.get('/', async (_req, res) => {
     apkLatestVersion: valeurs.APK_LATEST_VERSION,
     apkForceUpdate:   valeurs.APK_FORCE_UPDATE === 'true',
     apkUrl:           valeurs.APK_URL || null,
+    // Par architecture Android, noms de `Build.SUPPORTED_ABIS`. L'application
+    // prend celui de son architecture, et l'universel à défaut (M3).
+    apkUrls: {
+      ...(valeurs.APK_URL_ARM64 ? { 'arm64-v8a':   valeurs.APK_URL_ARM64 } : {}),
+      ...(valeurs.APK_URL_ARMV7 ? { 'armeabi-v7a': valeurs.APK_URL_ARMV7 } : {}),
+    },
 
     // ── Partenariat bookmaker ────────────────────────────────────────────
     //

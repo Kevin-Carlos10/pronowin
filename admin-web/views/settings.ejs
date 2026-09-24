@@ -248,6 +248,25 @@
         </div>
       </div>
 
+      <%# M3 : l'APK universel pèse 68 Mo, l'arm64 seul 25. La mise à jour intégrée
+          télécharge celui de l'architecture du téléphone, l'universel à défaut. %>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem">
+        <div class="form-group" style="margin-bottom:.7rem">
+          <label for="apk-arm64" style="font-size:.75rem;font-weight:700;color:var(--text-m)">APK arm64-v8a (téléphones récents)<%- src('APK_URL_ARM64') %></label>
+          <input class="input" id="apk-arm64" type="url" name="APK_URL_ARM64" value="<%= v.APK_URL_ARM64 || '' %>"
+                 placeholder="https://pronowin.space/downloads/pronowin-arm64-v8a.apk" style="margin-top:.3rem">
+        </div>
+        <div class="form-group" style="margin-bottom:.7rem">
+          <label for="apk-armv7" style="font-size:.75rem;font-weight:700;color:var(--text-m)">APK armeabi-v7a (téléphones 32 bits)<%- src('APK_URL_ARMV7') %></label>
+          <input class="input" id="apk-armv7" type="url" name="APK_URL_ARMV7" value="<%= v.APK_URL_ARMV7 || '' %>"
+                 placeholder="https://pronowin.space/downloads/pronowin-armeabi-v7a.apk" style="margin-top:.3rem">
+        </div>
+      </div>
+      <div style="font-size:.71rem;color:var(--text-dim);margin:-.2rem 0 .7rem">
+        Vides, la mise à jour intégrée télécharge l'APK universel ci-dessus. Les trois fichiers
+        d'une même version doivent être en ligne ensemble.
+      </div>
+
       <div class="form-group" style="margin-bottom:1rem">
         <label style="font-size:.75rem;font-weight:700;color:var(--text-m)">Message affiché<%- src('APP_UPDATE_MESSAGE') %></label>
         <textarea class="input" name="APP_UPDATE_MESSAGE" rows="2" maxlength="300" style="margin-top:.3rem" aria-label="APP_UPDATE_MESSAGE"><%= v.APP_UPDATE_MESSAGE %></textarea>

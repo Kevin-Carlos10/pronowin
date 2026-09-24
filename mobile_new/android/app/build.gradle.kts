@@ -97,6 +97,26 @@ android {
 }
 
 /**
+ * APK par architecture (constat M3) : même versionCode que l'APK universel.
+ *
+ * Avec `--split-per-abi`, Flutter numérote chaque architecture à part :
+ * 1000 + versionCode pour armeabi-v7a, 2000 + versionCode pour arm64-v8a.
+ * Un téléphone mis à jour par l'APK arm64 (2017) refusait ensuite l'APK
+ * universel du site (18) comme une rétrogradation — « Application non
+ * installée ». Hors de Google Play, rien n'exige des numéros distincts : un
+ * seul numéro par version rend les trois APK interchangeables.
+ *
+ * Inscrit après le greffon Flutter, ce rappel passe après le sien.
+ */
+android.applicationVariants.all {
+    val variante = this
+    outputs.all {
+        (this as com.android.build.gradle.internal.api.ApkVariantOutputImpl)
+            .versionCodeOverride = variante.versionCode
+    }
+}
+
+/**
  * Interdit de produire une version *release* signée avec la clé de débogage.
  *
  * Un tel paquet s'installe, se lance et se teste normalement : rien ne le

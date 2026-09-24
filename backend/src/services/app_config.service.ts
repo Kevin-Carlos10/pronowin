@@ -23,6 +23,10 @@ export const CLES_CONFIG = [
   'APK_LATEST_VERSION',
   'APK_FORCE_UPDATE',
   'APK_URL',
+  // APK par architecture (constat M3) : l'universel pèse 68 Mo, l'arm64 seul
+  // 25. Vides, l'application retombe sur APK_URL.
+  'APK_URL_ARM64',
+  'APK_URL_ARMV7',
   'APP_UPDATE_MESSAGE',
 
   // ── Code d'affiliation partenaire ─────────────────────────────────────────
@@ -96,6 +100,8 @@ export async function lireConfig(): Promise<{
     APK_LATEST_VERSION: process.env.APP_LATEST_VERSION ?? '1.0.0',
     APK_FORCE_UPDATE:   'false',
     APK_URL:            '',
+    APK_URL_ARM64:      '',
+    APK_URL_ARMV7:      '',
     APP_UPDATE_MESSAGE: 'Une nouvelle version de PronoWin est disponible avec des améliorations et corrections.',
 
     // Aucun code par defaut. Un code d'affiliation invente ne credite personne :
@@ -248,7 +254,7 @@ export async function ecrireConfig(
 
     // Une URL doit être une adresse http(s) ou vide. Enregistrer autre chose
     // produirait un bouton qui n'ouvre rien.
-    if ((cle === 'APK_URL' || cle === 'AFFILIATE_URL')
+    if ((cle === 'APK_URL' || cle === 'APK_URL_ARM64' || cle === 'APK_URL_ARMV7' || cle === 'AFFILIATE_URL')
         && valeur !== '' && !/^https?:\/\//i.test(valeur)) {
       throw new Error(`${cle} doit commencer par http:// ou https://, ou rester vide.`);
     }

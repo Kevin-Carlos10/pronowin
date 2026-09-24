@@ -127,9 +127,41 @@ if (Test-Path $sortie) {
 }
 
 if ($Canal -eq 'direct') {
+  # APK par architecture (constat M3). L'universel pese 68 Mo, l'arm64 seul
+  # 25 : un public qui paie chaque megaoctet, et une mise a jour deja ratee
+  # faute d'espace. L'universel reste, en secours sur le site.
+  #
+  # Meme versionCode que l'universel : voir android/app/build.gradle.kts.
   Write-Host ''
-  Write-Host '  Rappel : cet APK ne se met pas a jour tout seul.' -ForegroundColor Yellow
-  Write-Host '  Publiez-le, puis mettez a jour APK_LATEST_VERSION et APK_URL'
-  Write-Host '  dans le .env du backend, sinon personne ne saura qu''il existe.'
+  Write-Host '  APK par architecture...' -ForegroundColor Cyan
+  flutter build apk --release --flavor $Canal --split-per-abi `
+    --target-platform android-arm,android-arm64 `
+    --dart-define=STORE_BUILD=$storeBuild `
+    --dart-define=API_BASE_URL=$ApiUrl `
+    --dart-define=GOOGLE_SERVER_CLIENT_ID=$googleId
+  if ($LASTEXITCODE -ne 0) {
+    Write-Host "  Echec de la compilation par architecture (code $LASTEXITCODE)." -ForegroundColor Red
+    exit $LASTEXITCODE
+  }
+  foreach ($abi in @('arm64-v8a', 'armeabi-v7a')) {
+    $apk = "build\app\outputs\flutter-apk\app-$abi-direct-release.apk"
+    if (-not (Test-Path $apk)) {
+      Write-Host "  $apk introuvable." -ForegroundColor Red
+      exit 1
+    }
+    $mo = [math]::Round((Get-Item $apk).Length / 1MB, 1)
+    Write-Host "  OK  $apk  ($mo Mo)" -ForegroundColor Green
+    & python (Join-Path $PSScriptRoot 'verifier_bundle.py') $apk $Canal
+    if ($LASTEXITCODE -ne 0) {
+      Write-Host '  Cet artefact ne doit pas etre distribue.' -ForegroundColor Red
+      exit 1
+    }
+  }
+
+  Write-Host ''
+  Write-Host '  Rappel : ces APK ne se mettent pas a jour tout seuls.' -ForegroundColor Yellow
+  Write-Host '  Publiez les trois dans /downloads, puis renseignez dans le panneau'
+  Write-Host '  (Parametres > Mise a jour) APK_URL, les deux URL par architecture,'
+  Write-Host '  et APK_LATEST_VERSION — sinon personne ne saura qu''ils existent.'
 }
 Write-Host ''
