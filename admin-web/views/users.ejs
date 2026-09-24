@@ -20,7 +20,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Utilisateurs</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Utilisateurs</h1>
     <small id="result-count"><%= total %> résultat<%= total>1?'s':'' %></small>
   </div>
   <div style="display:flex;gap:8px">
@@ -218,7 +218,7 @@
         <% if(u.xbetId){ %>
           <span style="color:var(--btn-primary);font-weight:600;font-size:12px"><%= u.xbetId %></span>
         <% } else { %>
-          <span style="color:var(--border);font-size:12px">—</span>
+          <span style="color:var(--text-dim);font-size:12px">—</span>
         <% } %>
       </td>
       <td>

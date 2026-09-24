@@ -10,9 +10,9 @@
 /* ── Avatar ──────────────────────────────────────────────────────────────── */
 .ud-avatar-wrap { position:relative; flex-shrink:0; }
 .ud-avatar { width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:800; }
-.ud-avatar.premium { background:rgba(245,158,11,.15); color:var(--warning); }
+.ud-avatar.premium { background:rgba(245,158,11,.15); color:var(--on-warning); }
 .ud-avatar.normal  { background:var(--surface-d); color:var(--text-m); }
-.ud-avatar.banned  { background:rgba(239,68,68,.15); color:var(--error); }
+.ud-avatar.banned  { background:rgba(239,68,68,.15); color:var(--on-danger); }
 .ud-status-dot { position:absolute; bottom:2px; right:2px; width:14px; height:14px; border-radius:50%; border:2px solid var(--surface); }
 .ud-status-dot.active   { background:var(--success); }
 .ud-status-dot.inactive { background:var(--error); }
@@ -26,13 +26,13 @@
 .ud-id-row { display:flex; align-items:center; gap:.4rem; margin-top:.3rem; }
 .ud-id { font-size:.72rem; color:var(--text-dim); font-family:monospace; background:var(--surface-d); padding:.15rem .45rem; border-radius:4px; }
 .ud-copy-btn { background:none; border:none; cursor:pointer; color:var(--text-dim); font-size:.75rem; padding:.1rem .3rem; border-radius:4px; transition:all .15s; }
-.ud-copy-btn:hover { background:var(--surface-h); color:var(--primary); }
+.ud-copy-btn:hover { background:var(--surface-h); color:var(--primary-texte); }
 
 /* ── Onglets ─────────────────────────────────────────────────────────────── */
 .ud-tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:1.25rem; overflow-x:auto; }
 .ud-tab  { padding:.6rem 1.1rem; font-size:.83rem; font-weight:600; color:var(--text-m); border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; transition:color .15s, border-color .15s; background:none; border-top:none; border-left:none; border-right:none; font-family:inherit; }
 .ud-tab:hover   { color:var(--text); }
-.ud-tab.active  { color:var(--primary); border-bottom-color:var(--primary); }
+.ud-tab.active  { color:var(--primary-texte); border-bottom-color:var(--primary); }
 .ud-panel       { display:none; }
 .ud-panel.active { display:block; }
 
@@ -41,10 +41,10 @@
 .ud-row:last-child { border-bottom:0; }
 .ud-row-lbl { font-size:.8rem; color:var(--text-m); flex-shrink:0; }
 .ud-row-val { font-size:.83rem; font-weight:500; color:var(--text); text-align:right; word-break:break-all; }
-.ud-row-val.primary { color:var(--primary); }
-.ud-row-val.success { color:var(--success); }
-.ud-row-val.error   { color:var(--error); }
-.ud-row-val.purple  { color:#A78BFA; }
+.ud-row-val.primary { color:var(--primary-texte); }
+.ud-row-val.success { color:var(--on-success); }
+.ud-row-val.error   { color:var(--on-danger); }
+.ud-row-val.purple  { color:var(--on-purple); }
 
 /* ── Stats mini ──────────────────────────────────────────────────────────── */
 .ud-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:.6rem; margin-bottom:1rem; }
@@ -64,7 +64,7 @@
 .ud-ban-box .meta   { color:var(--text-dim); line-height:1.5; }
 
 /* ── Premium box ─────────────────────────────────────────────────────────── */
-.ud-premium-box { background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.2); border-radius:var(--radius-s); padding:.75rem .9rem; margin-bottom:.75rem; font-size:.83rem; color:var(--warning); font-weight:600; }
+.ud-premium-box { background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.2); border-radius:var(--radius-s); padding:.75rem .9rem; margin-bottom:.75rem; font-size:.83rem; color:var(--on-warning); font-weight:600; }
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 .ud-layout { display:grid; grid-template-columns:1fr 300px; gap:1rem; align-items:start; }
@@ -74,11 +74,11 @@
 <!-- ── Modals ───────────────────────────────────────────────────────────── -->
 <div class="ud-modal" id="modal-ban">
   <div class="ud-modal-box">
-    <div class="ud-modal-title" style="color:var(--error)"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir <%= user.pseudo %></div>
+    <div class="ud-modal-title" style="color:var(--on-danger)"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir <%= user.pseudo %></div>
     <form method="POST" action="/admin/users/<%= user.id %>/ban">
       <input type="hidden" name="pseudo" value="<%= user.pseudo %>">
       <div class="form-group" style="margin-bottom:.9rem">
-        <label>Raison <span style="color:var(--error)">*</span></label>
+        <label>Raison <span style="color:var(--on-danger)">*</span></label>
         <textarea class="input" name="reason" rows="3" placeholder="Ex : Arnaque, comportement abusif, fraude…" required aria-label="Raison"></textarea>
       </div>
       <div class="form-group" style="margin-bottom:1.25rem">
@@ -132,8 +132,8 @@
 <div class="topbar">
   <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
     <a href="/admin/users" style="color:var(--text-dim);font-size:.82rem;text-decoration:none">← Utilisateurs</a>
-    <span style="color:var(--border)">/</span>
-    <h2 style="margin:0"><%= user.full_name || user.pseudo %></h2>
+    <span aria-hidden="true" style="color:var(--text-dim)">/</span>
+    <h1 style="margin:0"><%= user.full_name || user.pseudo %></h1>
     <span class="badge <%= user.isActive ? 'badge-ok' : 'badge-err' %>"><%= user.isActive ? '✓ Actif' : '✕ Suspendu' %></span>
     <% if(user.is_premium) { %><span class="badge badge-warn"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span><% } %>
     <% if(typeof activeBan !== 'undefined' && activeBan) { %><span class="badge badge-err"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Banni</span><% } %>
@@ -164,17 +164,17 @@
           <div class="ud-id-row">
             <span class="ud-id" id="user-id-display"><%= user.id %></span>
             <button class="ud-copy-btn" onclick="copyId()" title="Copier l'ID" aria-label="Copier l'identifiant"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg></button>
-            <span id="copy-confirm" style="font-size:.7rem;color:var(--success);display:none"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Copié</span>
+            <span id="copy-confirm" style="font-size:.7rem;color:var(--on-success);display:none"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Copié</span>
           </div>
         </div>
         <!-- Stats rapides -->
         <div class="ud-stats" style="min-width:200px">
           <div class="ud-stat">
-            <div class="v" style="color:var(--warning)"><%= (user.days_left&&user.is_premium) ? user.days_left+'j' : '—' %></div>
+            <div class="v" style="color:var(--on-warning)"><%= (user.days_left&&user.is_premium) ? user.days_left+'j' : '—' %></div>
             <div class="l">Premium</div>
           </div>
           <div class="ud-stat">
-            <div class="v" style="color:var(--success)"><%= (user.referralEarnings||0) > 0 ? ((user.referralEarnings/1000).toFixed(0)+'k') : (referrals ? referrals.length : 0) %></div>
+            <div class="v" style="color:var(--on-success)"><%= (user.referralEarnings||0) > 0 ? ((user.referralEarnings/1000).toFixed(0)+'k') : (referrals ? referrals.length : 0) %></div>
             <div class="l"><%= (user.referralEarnings||0) > 0 ? 'FCFA' : 'Filleuls' %></div>
           </div>
         </div>
@@ -265,7 +265,7 @@
               <td style="color:var(--text-m);font-size:.78rem"><%= r.referred.phoneNumber %></td>
               <td><span class="badge <%= r.referred.subscriptionPlan==='premium'?'badge-warn':'badge-info' %>"><%= r.referred.subscriptionPlan %></span></td>
               <td style="text-align:center;font-weight:600">N<%= r.level %></td>
-              <td style="color:var(--success);font-weight:700"><%= (r.commissionAmount||0).toLocaleString() %> FCFA</td>
+              <td style="color:var(--on-success);font-weight:700"><%= (r.commissionAmount||0).toLocaleString() %> FCFA</td>
             </tr>
             <% }) %>
             </tbody>

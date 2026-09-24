@@ -9,9 +9,9 @@
 .rv-stat .l { font-size:.68rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.06em; font-weight:700; }
 .rv-stat .v { font-size:1.55rem; font-weight:900; line-height:1.1; letter-spacing:-.03em; margin-top:.2rem; }
 .rv-stat .s { font-size:.68rem; color:var(--text-dim); margin-top:.25rem; }
-.rv-stat.or   { border-left-color:var(--warning); } .rv-stat.or   .v { color:var(--warning); }
-.rv-stat.vert { border-left-color:var(--success); } .rv-stat.vert .v { color:var(--success); }
-.rv-stat.bleu { border-left-color:var(--info);    } .rv-stat.bleu .v { color:var(--info); }
+.rv-stat.or   { border-left-color:var(--warning); } .rv-stat.or   .v { color:var(--on-warning); }
+.rv-stat.vert { border-left-color:var(--success); } .rv-stat.vert .v { color:var(--on-success); }
+.rv-stat.bleu { border-left-color:var(--info);    } .rv-stat.bleu .v { color:var(--on-info); }
 
 /* ── Histogramme, rendu côté serveur ──────────────────────────────────────── */
 .rv-graph   { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.1rem 1.25rem 1rem; margin-bottom:1.25rem; }
@@ -44,7 +44,7 @@
 .rv-periode  { padding:.35rem .75rem; border-radius:99px; font-size:.78rem; font-weight:700;
                border:1px solid var(--border); color:var(--text-m); text-decoration:none; }
 .rv-periode:hover { background:var(--surface-d); color:var(--text); }
-.rv-periode.on    { background:var(--primary); border-color:var(--primary); color:#fff; }
+.rv-periode.on    { background:var(--btn-primary); border-color:var(--btn-primary); color:#fff; }
 </style>
 
 <%
@@ -71,7 +71,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Revenus</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Revenus</h1>
     <small>Encaissements d'abonnements — <%= _jours %> derniers jours</small>
   </div>
   <div class="rv-periodes">
@@ -116,7 +116,7 @@
   </div>
   <div class="rv-stat">
     <div class="l">Mois couverts</div>
-    <div class="v" style="color:var(--primary)"><%= _mensuel.length %></div>
+    <div class="v" style="color:var(--primary-texte)"><%= _mensuel.length %></div>
     <div class="s">historique mensuel disponible</div>
   </div>
 </div>
@@ -167,7 +167,7 @@
   <% _mensuel.slice().reverse().forEach(m => { %>
   <div class="rv-ligne">
     <div style="font-weight:700"><%= m.label ?? m.month ?? '—' %></div>
-    <div style="font-weight:800;color:var(--success)"><%= _fcfa(m.revenue) %> F</div>
+    <div style="font-weight:800;color:var(--on-success)"><%= _fcfa(m.revenue) %> F</div>
     <div><%= m.new_users ?? 0 %></div>
     <div>
       <div class="rv-jauge"><div style="width:<%= Math.round(((m.revenue ?? 0) / _picMois) * 100) %>%"></div></div>
@@ -189,7 +189,7 @@
   Source : les abonnements enregistrés (<code>Subscription.amountPaid</code>) — un revenu est compté
   au moment où l'abonnement est accordé, c'est-à-dire à l'approbation de la preuve ou à la validation
   d'un achat par un store. Les demandes de versement de parrainage ne sont pas déduites ici ;
-  elles figurent dans <a href="/admin/historique" style="color:var(--primary)">Historique</a>.
+  elles figurent dans <a href="/admin/historique" style="color:var(--primary-texte)">Historique</a>.
 </p>
 
 <% } %>

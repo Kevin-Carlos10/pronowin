@@ -46,6 +46,7 @@
               <input type="checkbox"
                 class="perm-cb"
                 id="<%= _prefix %>-<%= p.key %>-read"
+                aria-label="<%= p.label %> — <%= levels.read %>"
                 name="permissions"
                 value="<%= p.key %>:read"
                 <%= _levelOk(p.key, 'read') ? 'checked' : '' %>
@@ -63,6 +64,7 @@
               <input type="checkbox"
                 class="perm-cb"
                 id="<%= _prefix %>-<%= p.key %>-write"
+                aria-label="<%= p.label %> — <%= levels.write %>"
                 name="permissions"
                 value="<%= p.key %>:write"
                 <%= _levelOk(p.key, 'write') ? 'checked' : '' %>
@@ -80,6 +82,7 @@
               <input type="checkbox"
                 class="perm-cb"
                 id="<%= _prefix %>-<%= p.key %>-delete"
+                aria-label="<%= p.label %> — <%= levels.delete %>"
                 name="permissions"
                 value="<%= p.key %>:delete"
                 <%= _levelOk(p.key, 'delete') ? 'checked' : '' %>

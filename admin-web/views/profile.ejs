@@ -8,12 +8,12 @@
 /* ── Avatar card ─────────────────────────────────────────────────────────────── */
 .pf-avatar-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.75rem; text-align:center; }
 .pf-avatar { width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.75rem; font-weight:800; margin:0 auto .9rem; }
-.pf-avatar.pf-principal { background:rgba(34,197,94,.12); color:var(--success); }
-.pf-avatar.pf-adjoint  { background:rgba(245,158,11,.12); color:var(--warning); }
+.pf-avatar.pf-principal { background:rgba(34,197,94,.12); color:var(--on-success); }
+.pf-avatar.pf-adjoint  { background:rgba(245,158,11,.12); color:var(--on-warning); }
 .pf-name  { font-size:1.15rem; font-weight:800; margin-bottom:.25rem; }
 .pf-role  { display:inline-block; font-size:.75rem; padding:.2rem .7rem; border-radius:99px; font-weight:600; margin-bottom:1.25rem; }
-.pf-role.pf-principal { background:rgba(34,197,94,.12); color:var(--success); }
-.pf-role.pf-adjoint  { background:rgba(245,158,11,.12); color:var(--warning); }
+.pf-role.pf-principal { background:rgba(34,197,94,.12); color:var(--on-success); }
+.pf-role.pf-adjoint  { background:rgba(245,158,11,.12); color:var(--on-warning); }
 
 /* ── Info rows ───────────────────────────────────────────────────────────────── */
 .pf-row { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.82rem; gap:.5rem; }
@@ -30,9 +30,9 @@
 /* ── Permission tags ─────────────────────────────────────────────────────────── */
 .perm-tags { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.6rem; }
 .perm-tag  { font-size:.68rem; padding:.18rem .5rem; border-radius:99px; font-weight:600; }
-.perm-tag.read   { background:rgba(59,130,246,.12); color:var(--info); }
-.perm-tag.write  { background:rgba(245,158,11,.12);  color:var(--warning); }
-.perm-tag.delete { background:rgba(239,68,68,.12);   color:var(--error); }
+.perm-tag.read   { background:rgba(59,130,246,.12); color:var(--on-info); }
+.perm-tag.write  { background:rgba(245,158,11,.12);  color:var(--on-warning); }
+.perm-tag.delete { background:rgba(239,68,68,.12);   color:var(--on-danger); }
 
 /* ── Connexions history ──────────────────────────────────────────────────────── */
 .pf-login-item { display:flex; align-items:center; gap:.6rem; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.8rem; }
@@ -58,7 +58,7 @@
 /* ── Préférences visuelles ───────────────────────────────────────────────────── */
 .pf-theme-btns { display:flex; gap:.5rem; }
 .pf-theme-btn  { flex:1; padding:.55rem; border:1px solid var(--border); border-radius:var(--radius-s); background:var(--surface-d); cursor:pointer; font-size:.78rem; font-weight:600; color:var(--text-m); transition:all .15s; text-align:center; }
-.pf-theme-btn:hover, .pf-theme-btn.active { border-color:var(--primary); color:var(--primary); background:rgba(var(--primary-rgb),.08); }
+.pf-theme-btn:hover, .pf-theme-btn.active { border-color:var(--primary); color:var(--primary-texte); background:rgba(var(--primary-rgb),.08); }
 .accent-dots { display:flex; gap:.5rem; flex-wrap:wrap; }
 .accent-dot  { width:28px; height:28px; border-radius:50%; cursor:pointer; transition:transform .15s, box-shadow .15s; border:2px solid transparent; }
 .accent-dot:hover   { transform:scale(1.15); }
@@ -66,7 +66,7 @@
 
 /* ── Copy btn ────────────────────────────────────────────────────────────────── */
 .pf-copy { background:none; border:none; cursor:pointer; color:var(--text-dim); font-size:.75rem; padding:.1rem .3rem; border-radius:4px; transition:all .15s; }
-.pf-copy:hover { background:var(--surface-h); color:var(--primary); }
+.pf-copy:hover { background:var(--surface-h); color:var(--primary-texte); }
 </style>
 
 <%
@@ -85,7 +85,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> Mon profil</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> Mon profil</h1>
     <small>Informations, sécurité et préférences</small>
   </div>
   <a href="/admin/logout" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> Déconnexion</a>
@@ -116,9 +116,9 @@
         <div class="pf-row">
           <span class="pf-lbl">Identifiant</span>
           <div style="display:flex;align-items:center;gap:.3rem">
-            <code style="font-size:.78rem;background:var(--surface-d);padding:.12rem .4rem;border-radius:4px;color:var(--primary)" id="pf-username"><%= sub.username %></code>
+            <code style="font-size:.78rem;background:var(--surface-d);padding:.12rem .4rem;border-radius:4px;color:var(--primary-texte)" id="pf-username"><%= sub.username %></code>
             <button class="pf-copy" onclick="copyText('<%= sub.username %>','pf-username-check')" title="Copier"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg></button>
-            <span id="pf-username-check" style="font-size:.68rem;color:var(--success);display:none"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg></span>
+            <span id="pf-username-check" style="font-size:.68rem;color:var(--on-success);display:none"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg></span>
           </div>
         </div>
         <div class="pf-row">
@@ -132,7 +132,7 @@
         <% } else { %>
         <div class="pf-row">
           <span class="pf-lbl">Rôle</span>
-          <span class="pf-val" style="color:var(--success)">Administrateur principal</span>
+          <span class="pf-val" style="color:var(--on-success)">Administrateur principal</span>
         </div>
         <div class="pf-row">
           <span class="pf-lbl">Accès</span>
@@ -147,9 +147,9 @@
 
       <!-- Mes stats personnelles -->
       <div class="pf-stats">
-        <div class="pf-stat"><div class="v" style="color:var(--primary)"><%= statsMe.total %></div><div class="l">Actions</div></div>
-        <div class="pf-stat"><div class="v" style="color:var(--info)"><%= statsMe.week %></div><div class="l">Ce mois</div></div>
-        <div class="pf-stat"><div class="v" style="color:var(--success)"><%= statsMe.today %></div><div class="l">Auj.</div></div>
+        <div class="pf-stat"><div class="v" style="color:var(--primary-texte)"><%= statsMe.total %></div><div class="l">Actions</div></div>
+        <div class="pf-stat"><div class="v" style="color:var(--on-info)"><%= statsMe.week %></div><div class="l">Ce mois</div></div>
+        <div class="pf-stat"><div class="v" style="color:var(--on-success)"><%= statsMe.today %></div><div class="l">Auj.</div></div>
       </div>
 
       <!-- Permissions sous-admin -->
@@ -276,7 +276,7 @@
     <!-- Session + sécurité -->
     <div class="pf-card">
       <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> Session &amp; Sécurité</div>
-      <div class="pf-row"><span class="pf-lbl">Statut</span><span style="color:var(--success);font-weight:600"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg> Connecté</span></div>
+      <div class="pf-row"><span class="pf-lbl">Statut</span><span style="color:var(--on-success);font-weight:600"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg> Connecté</span></div>
       <div class="pf-row"><span class="pf-lbl">IP actuelle</span><span class="pf-val" style="font-family:monospace;font-size:.78rem"><%= currentIp %></span></div>
       <div class="pf-row"><span class="pf-lbl">Timeout inactivité</span><span class="pf-val">30 min</span></div>
       <div class="pf-row" style="border-bottom:0"><span class="pf-lbl">Durée max.</span><span class="pf-val">8 h (30 j si "Se souvenir")</span></div>
@@ -285,7 +285,7 @@
         <div style="font-size:.78rem;color:var(--text-m);line-height:1.7;display:flex;flex-direction:column;gap:.35rem">
           <div><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Utilisez un mot de passe de <strong>12+ caractères</strong> avec chiffres et symboles</div>
           <div><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Ne réutilisez pas ce mot de passe ailleurs</div>
-          <div><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Après <strong style="color:var(--warning)">5 tentatives</strong> échouées, l'IP est bloquée 15 min</div>
+          <div><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Après <strong style="color:var(--on-warning)">5 tentatives</strong> échouées, l'IP est bloquée 15 min</div>
         </div>
       </div>
     </div>
@@ -336,7 +336,7 @@ document.getElementById('confirm-pwd').addEventListener('input', function() {
   if (!this.value) { ml.textContent = ''; return; }
   const match = this.value === document.getElementById('new-pwd').value;
   ml.textContent = match ? '✅ Les mots de passe correspondent' : '❌ Ne correspondent pas';
-  ml.style.color = match ? 'var(--success)' : 'var(--error)';
+  ml.style.color = match ? 'var(--on-success)' : 'var(--on-danger)';
 });
 document.getElementById('pwd-form').addEventListener('submit', function(e) {
   if (document.getElementById('new-pwd').value !== document.getElementById('confirm-pwd').value) {

@@ -8,7 +8,7 @@
 .pm-row.off .pm-label, .pm-row.off .pm-phone { opacity: .45; }
 .pm-label  { font-weight: 700; font-size: .92rem; }
 .pm-key    { font-size: .7rem; color: var(--text-dim); font-family: monospace; margin-top: .1rem; }
-.pm-phone  { font-family: monospace; font-size: .95rem; color: var(--primary); font-weight: 700; letter-spacing: .02em; }
+.pm-phone  { font-family: monospace; font-size: .95rem; color: var(--primary-texte); font-weight: 700; letter-spacing: .02em; }
 .pm-ussd   { font-family: monospace; font-size: .78rem; color: var(--text-m); margin-top: .2rem; }
 .pm-ussd.vide { font-style: italic; }
 .pm-acts   { display: flex; gap: .4rem; }
@@ -30,7 +30,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg> Méthodes de paiement</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg> Méthodes de paiement</h1>
     <small>
       <% if (_liste) { %>
         <%= _liste.length %> opérateur<%= _liste.length !== 1 ? 's' : '' %>,

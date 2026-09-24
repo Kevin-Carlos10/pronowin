@@ -10,8 +10,8 @@
 .af-field label { display:block; font-size:.78rem; font-weight:700; color:var(--text-m); margin-bottom:.35rem; text-transform:uppercase; letter-spacing:.04em; }
 .af-field .hint { font-size:.72rem; color:var(--text-dim); margin-top:.3rem; }
 .af-counter { font-size:.7rem; color:var(--text-dim); float:right; transition:color .2s; }
-.af-counter.warn { color:var(--warning); }
-.af-counter.over { color:var(--error); font-weight:700; }
+.af-counter.warn { color:var(--on-warning); }
+.af-counter.over { color:var(--on-danger); font-weight:700; }
 
 /* ── Type pills ───────────────────────────────────────────────────────────────── */
 .af-cat-pills { display:flex; gap:.5rem; flex-wrap:wrap; }
@@ -21,8 +21,8 @@
   border:1.5px solid var(--border); color:var(--text-m); font-size:.82rem; font-weight:600;
   transition:all .18s;
 }
-.af-cat-pill:hover { border-color:var(--primary); color:var(--primary); }
-.af-cat-pill.active { border-color:var(--primary); background:rgba(var(--primary-rgb),.1); color:var(--primary); }
+.af-cat-pill:hover { border-color:var(--primary); color:var(--primary-texte); }
+.af-cat-pill.active { border-color:var(--primary); background:rgba(var(--primary-rgb),.1); color:var(--primary-texte); }
 input[name=category] { display:none; }
 
 /* ── Toggle switch ───────────────────────────────────────────────────────────── */
@@ -85,7 +85,7 @@ input[name=category] { display:none; }
 
 <div class="topbar">
   <div>
-    <h2><%= isNew ? '📰 Nouvel article' : '✏️ Modifier l\'article' %></h2>
+    <h1><%= isNew ? '📰 Nouvel article' : '✏️ Modifier l\'article' %></h1>
     <% if(!isNew) { %><small><%= art.title %></small><% } %>
   </div>
   <a href="/admin/actualites" class="btn btn-outline btn-sm">← Retour</a>
@@ -103,7 +103,7 @@ input[name=category] { display:none; }
     <!-- Titre -->
     <div class="card" style="padding:1.25rem;margin-bottom:1rem">
       <div class="af-field">
-        <label>Titre <span style="color:var(--error)">*</span> <span class="af-counter" id="cnt-title">0/120</span></label>
+        <label>Titre <span style="color:var(--on-danger)">*</span> <span class="af-counter" id="cnt-title">0/120</span></label>
         <input class="input" type="text" name="title" id="inp-title" value="<%= art.title||'' %>"
           placeholder="Ex : Grosse cote du week-end 🔥"
           oninput="updateCounter('inp-title','cnt-title',120);updatePreview()" required aria-label="Titre">
@@ -252,8 +252,8 @@ input[name=category] { display:none; }
     <% if(isEdit) { %>
     <div class="card" style="padding:1.1rem">
       <div style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.7rem">Informations</div>
-      <div class="af-stat-row"><span class="k">Vues</span><span class="v" style="color:var(--primary)"><%= (art.viewCount||0).toLocaleString() %></span></div>
-      <div class="af-stat-row"><span class="k">Likes</span><span class="v" style="color:var(--error)"><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> <%= art.likeCount||0 %></span></div>
+      <div class="af-stat-row"><span class="k">Vues</span><span class="v" style="color:var(--primary-texte)"><%= (art.viewCount||0).toLocaleString() %></span></div>
+      <div class="af-stat-row"><span class="k">Likes</span><span class="v" style="color:var(--on-danger)"><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> <%= art.likeCount||0 %></span></div>
       <div class="af-stat-row"><span class="k">Auteur</span><span class="v"><%= art.authorName||'Admin' %></span></div>
       <div class="af-stat-row"><span class="k">Créé le</span><span class="v"><%= fmtDate(art.createdAt) %></span></div>
       <div class="af-stat-row"><span class="k">Modifié le</span><span class="v"><%= fmtDate(art.updatedAt) %></span></div>

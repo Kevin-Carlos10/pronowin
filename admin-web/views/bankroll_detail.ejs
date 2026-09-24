@@ -14,7 +14,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Bankroll de <%= user.pseudo %></h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Bankroll de <%= user.pseudo %></h1>
     <small><a href="/admin/bankroll" style="color:var(--text-dim)">← Retour à la liste</a></small>
   </div>
   <a href="/admin/users/<%= user.id %>" class="btn btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> Voir le profil</a>
@@ -93,7 +93,7 @@
           <span class="badge" style="background:var(--surface-d);color:var(--text-dim)">⏳ En attente</span>
         <% } %>
         <% if(bet.profit !== null){ %>
-          <p style="font-size:10px;margin-top:2px;color:<%= bet.profit >= 0 ? 'var(--success)' : 'var(--error)' %>">
+          <p style="font-size:10px;margin-top:2px;color:<%= bet.profit >= 0 ? 'var(--on-success)' : 'var(--on-danger)' %>">
             <%= bet.profit >= 0 ? '+' : '' %><%= Math.round(bet.profit).toLocaleString('fr-FR') %>
           </p>
         <% } %>

@@ -43,7 +43,7 @@ html.light {
   --border-s:      #BEC9E4;
   --text:          #111827;
   --text-m:        #374151;
-  --text-dim:      #5E6B80;
+  --text-dim:      #525E72;   /* 4,5:1 sur --surface-h, où #5E6B80 tombait à 4,24 */
   --shadow:        0 1px 4px rgba(0,0,0,.08);
   --shadow-lg:     0 4px 24px rgba(0,0,0,.12);
   color-scheme: light;
@@ -53,6 +53,19 @@ html.light .nav-item:hover   { background: rgba(var(--primary-rgb), .07); }
 html.light .nav-item.active  { background: linear-gradient(90deg, rgba(var(--primary-rgb), .14) 0%, rgba(var(--primary-rgb), .03) 100%); }
 html.light .nav-item .icon   { background: var(--surface-d); }
 html.light tr:hover td       { background: var(--surface-d); }
+
+/* ── L'accent écrit en texte ─────────────────────────────────────────────
+   --primary est une teinte vive, faite pour les fonds, jauges et bordures.
+   Écrite en texte sur le thème clair, elle tombait à 2,03:1 (orange sur
+   blanc). --primary-texte en est la nuance lisible : l'accent lui-même sur
+   fond sombre, une nuance foncée — au moins 4,5:1 sur tous les fonds et
+   teintes du thème — sur fond clair. */
+:root { --primary-texte: var(--primary); }
+html.light                          { --primary-texte: #9A3412; }
+html.light[data-accent="blue"]      { --primary-texte: #1D4ED8; }
+html.light[data-accent="green"]     { --primary-texte: #065F46; }
+html.light[data-accent="purple"]    { --primary-texte: #6B21A8; }
+html.light[data-accent="pink"]      { --primary-texte: #9D174D; }
 
 /* ── THÈMES DE COULEUR D'ACCENT ──────────────────────────────────────────── */
 /* Orange (défaut) */
@@ -110,7 +123,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
-a { color: var(--primary); text-decoration: none; }
+a { color: var(--primary-texte); text-decoration: none; }
 a:hover { color: var(--btn-primary); }
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
@@ -138,11 +151,11 @@ a:hover { color: var(--btn-primary); }
   margin-bottom: 6px;
   flex-shrink: 0;
 }
-.sidebar-logo h1 {
+.sidebar-logo .logo-titre {
   font-size: 20px; font-weight: 900; color: var(--text);
   letter-spacing: -.6px; line-height: 1.1;
 }
-.sidebar-logo span { color: var(--primary); }
+.sidebar-logo span { color: var(--primary-texte); }
 .sidebar-logo small {
   display: block; color: var(--text-dim); font-size: 9px;
   margin-top: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;
@@ -184,7 +197,7 @@ a:hover { color: var(--btn-primary); }
 }
 .nav-item.active {
   background: linear-gradient(90deg, rgba(var(--primary-rgb), .18) 0%, rgba(var(--primary-rgb), .04) 100%);
-  color: var(--primary);
+  color: var(--primary-texte);
   font-weight: 700;
 }
 .nav-item.active::before {
@@ -244,7 +257,7 @@ a:hover { color: var(--btn-primary); }
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
-.nav-logout { color: var(--error) !important; }
+.nav-logout { color: var(--on-danger) !important; }
 .nav-logout:hover { background: rgba(239,68,68,.08) !important; }
 
 /* ── Overlay mobile ──────────────────────────────────────────────────────── */
@@ -274,7 +287,7 @@ a:hover { color: var(--btn-primary); }
   position: sticky; top: 0; z-index: 50;
 }
 .mobile-bar-title { font-size: 15px; font-weight: 700; color: var(--text); }
-.mobile-bar-title span { color: var(--primary); }
+.mobile-bar-title span { color: var(--primary-texte); }
 .hamburger {
   background: none; border: none; cursor: pointer;
   color: var(--text); font-size: 22px; line-height: 1;
@@ -320,14 +333,35 @@ a:hover { color: var(--btn-primary); }
      d'accessibilité doit tenir quelle que soit la page, et il est borné aux
      écrans tactiles — l'affichage sur ordinateur ne change pas. */
   input, select, textarea { font-size: 16px !important; }
+
+  /* ── Cibles au doigt ──
+     Mesurées à 390 px le 24 septembre 2026 (constat A13) : la croix d'une
+     notification faisait 17 × 18 px, « Revoir la capture » sur une preuve de
+     paiement 14 px de haut, les boutons « Copier » 22 × 17, les liens de
+     retour 16 px, et les cases à cocher des listes 13 px de large. Le seuil
+     retenu est celui des boutons de la barre du haut : 44 px. */
+  .toast-close, .ud-copy-btn, .pf-copy { min-width: 44px; min-height: 44px; }
+  .toast-action, .pf-hlink, .topbar a[href]:not(.btn) {
+    display: inline-flex; align-items: center; min-height: 44px;
+  }
+  /* Les cases à cocher gardent leur dessin, agrandi ; leur cellule absorbe
+     le reste de la zone. */
+  /* min-width et non width : plusieurs pages fixent la largeur par classe
+     (.u-check, .pro-chk…), et un minimum l'emporte sur une largeur. */
+  input[type="checkbox"] { min-width: 24px; min-height: 24px; }
+  .filter-tag a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
 }
+
+/* Hors écran tactile aussi, WCAG 2.2 (2.5.8) demande 24 × 24 px au moins. */
+.toast-close, .ud-copy-btn, .pf-copy { min-width: 24px; min-height: 24px; }
 
 /* ── Topbar ──────────────────────────────────────────────────────────────── */
 .topbar {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 24px; gap: 12px; flex-wrap: wrap;
 }
-.topbar h2 { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -.4px; }
+/* Le titre de l'écran est son h1 ; les vues qui en gardent un h2 sont stylées pareil. */
+.topbar h1, .topbar h2 { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -.4px; margin: 0; }
 .topbar small { color: var(--text-m); font-size: 13px; display: block; margin-top: 2px; }
 
 /* ── Page header (pages internes) ───────────────────────────────────────── */
@@ -397,11 +431,11 @@ tr:hover td { background: rgba(255,255,255,.018); }
   padding: 3px 8px; border-radius: 20px;
   font-size: 11px; font-weight: 600; white-space: nowrap;
 }
-.badge-warn   { background: rgba(245,166,35,.12); color: var(--primary);  border: 0.5px solid rgba(245,166,35,.22); }
-.badge-ok     { background: rgba(34,197,94,.12);  color: var(--success);  border: 0.5px solid rgba(34,197,94,.22); }
-.badge-err    { background: rgba(239,68,68,.12);  color: var(--error);    border: 0.5px solid rgba(239,68,68,.22); }
-.badge-info   { background: rgba(59,130,246,.12); color: var(--info);     border: 0.5px solid rgba(59,130,246,.22); }
-.badge-purple { background: rgba(167,139,250,.12);color: var(--purple);   border: 0.5px solid rgba(167,139,250,.22); }
+.badge-warn   { background: rgba(245,166,35,.12); color: var(--primary-texte);  border: 0.5px solid rgba(245,166,35,.22); }
+.badge-ok     { background: rgba(34,197,94,.12);  color: var(--on-success);  border: 0.5px solid rgba(34,197,94,.22); }
+.badge-err    { background: rgba(239,68,68,.12);  color: var(--on-danger);    border: 0.5px solid rgba(239,68,68,.22); }
+.badge-info   { background: rgba(59,130,246,.12); color: var(--on-info);     border: 0.5px solid rgba(59,130,246,.22); }
+.badge-purple { background: rgba(167,139,250,.12);color: var(--on-purple);   border: 0.5px solid rgba(167,139,250,.22); }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .btn {
@@ -415,12 +449,12 @@ tr:hover td { background: rgba(255,255,255,.018); }
 .btn:active { transform: scale(.97); }
 .btn-primary { background: var(--btn-primary); color: #fff; }
 .btn-primary:hover { background: var(--btn-primary-h); color: #fff; }
-.btn-success { background: rgba(34,197,94,.12); color: var(--success); border: 0.5px solid rgba(34,197,94,.25); }
-.btn-success:hover { background: rgba(34,197,94,.22); color: var(--success); }
-.btn-danger  { background: rgba(239,68,68,.12);  color: var(--error);   border: 0.5px solid rgba(239,68,68,.25); }
-.btn-danger:hover  { background: rgba(239,68,68,.22);  color: var(--error); }
-.btn-warning { background: rgba(245,158,11,.12); color: var(--warning); border: 0.5px solid rgba(245,158,11,.25); }
-.btn-warning:hover { background: rgba(245,158,11,.22); color: var(--warning); }
+.btn-success { background: rgba(34,197,94,.12); color: var(--on-success); border: 0.5px solid rgba(34,197,94,.25); }
+.btn-success:hover { background: rgba(34,197,94,.22); color: var(--on-success); }
+.btn-danger  { background: rgba(239,68,68,.12);  color: var(--on-danger);   border: 0.5px solid rgba(239,68,68,.25); }
+.btn-danger:hover  { background: rgba(239,68,68,.22);  color: var(--on-danger); }
+.btn-warning { background: rgba(245,158,11,.12); color: var(--on-warning); border: 0.5px solid rgba(245,158,11,.25); }
+.btn-warning:hover { background: rgba(245,158,11,.22); color: var(--on-warning); }
 .btn-outline { background: transparent; color: var(--text-m); border: 0.5px solid var(--border-s); }
 .btn-outline:hover { background: var(--surface-h); color: var(--text); border-color: var(--border); }
 .btn-sm  { padding: 5px 10px; font-size: 12px; }
@@ -458,8 +492,8 @@ textarea { resize: vertical; }
 
 /* ── Stars ───────────────────────────────────────────────────────────────── */
 .stars { display: flex; gap: 3px; cursor: pointer; }
-.star { font-size: 20px; color: var(--border-s); transition: color var(--transition); }
-.star.active { color: var(--primary); }
+.star { font-size: 20px; color: var(--text-dim); transition: color var(--transition); }
+.star.active { color: var(--primary-texte); }
 
 /* ── Alerts ──────────────────────────────────────────────────────────────── */
 .alert {
@@ -467,10 +501,10 @@ textarea { resize: vertical; }
   margin-bottom: 16px; font-size: 13px;
   display: flex; align-items: center; gap: 8px;
 }
-.alert-success { background: rgba(34,197,94,.07); color: var(--success); border: 0.5px solid rgba(34,197,94,.25); }
-.alert-error   { background: rgba(239,68,68,.07);  color: var(--error);   border: 0.5px solid rgba(239,68,68,.25); }
+.alert-success { background: rgba(34,197,94,.07); color: var(--on-success); border: 0.5px solid rgba(34,197,94,.25); }
+.alert-error   { background: rgba(239,68,68,.07);  color: var(--on-danger);   border: 0.5px solid rgba(239,68,68,.25); }
 /* Ni un succès ni une panne : un état à corriger côté exploitation. */
-.alert-warning { background: rgba(245,158,11,.07); color: var(--warning); border: 0.5px solid rgba(245,158,11,.25); }
+.alert-warning { background: rgba(245,158,11,.07); color: var(--on-warning); border: 0.5px solid rgba(245,158,11,.25); }
 
 /* ── Toast notifications ─────────────────────────────────────────────────── */
 .toast-container {
@@ -510,11 +544,11 @@ textarea { resize: vertical; }
 .toast-ic {
   width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
   display: grid; place-items: center; font-size: .95rem;
-  background: rgba(59,130,246,.12); color: var(--info);
+  background: rgba(59,130,246,.12); color: var(--on-info);
 }
-.toast-success .toast-ic { background: rgba(34,197,94,.12);  color: var(--success); }
-.toast-error   .toast-ic { background: rgba(239,68,68,.12);  color: var(--error); }
-.toast-warning .toast-ic { background: rgba(245,158,11,.12); color: var(--warning); }
+.toast-success .toast-ic { background: rgba(34,197,94,.12);  color: var(--on-success); }
+.toast-error   .toast-ic { background: rgba(239,68,68,.12);  color: var(--on-danger); }
+.toast-warning .toast-ic { background: rgba(245,158,11,.12); color: var(--on-warning); }
 
 .toast-body   { min-width: 0; }
 .toast-title  { font-size: 13.5px; font-weight: 700; color: var(--text); line-height: 1.35; }
@@ -524,7 +558,7 @@ textarea { resize: vertical; }
 }
 .toast-action {
   display: inline-block; margin-top: 8px;
-  font-size: 12px; font-weight: 700; color: var(--primary);
+  font-size: 12px; font-weight: 700; color: var(--primary-texte);
   text-decoration: none; border-bottom: 1px solid transparent;
   transition: border-color .15s;
 }
@@ -572,14 +606,14 @@ textarea { resize: vertical; }
   box-shadow: 0 0 40px rgba(245,158,11,.2), var(--shadow-lg);
   animation: confirmIn .2s ease forwards;
 }
-.session-box h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: .5rem; color: var(--warning); }
+.session-box h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: .5rem; color: var(--on-warning); }
 .session-box p  { color: var(--text-m); font-size: .875rem; line-height: 1.6; }
-.session-box p strong { color: var(--warning); font-size: 1.25rem; }
+.session-box p strong { color: var(--on-warning); font-size: 1.25rem; }
 
 /* ── Alert de blocage login ───────────────────────────────────────────────── */
 .alert-locked {
   background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3);
-  color: var(--error); border-radius: var(--radius-s);
+  color: var(--on-danger); border-radius: var(--radius-s);
   padding: .75rem 1rem; font-size: .875rem; margin-bottom: 1rem;
   display: flex; align-items: center; gap: .5rem;
 }
@@ -670,21 +704,21 @@ textarea { resize: vertical; }
 .filter-tag            { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-d); border: 1px solid var(--border); border-radius: 99px; padding: 2px 10px; font-size: .75rem; color: var(--text-m); white-space: nowrap; }
 .filter-tag em         { font-style: normal; color: var(--text); font-weight: 600; }
 .filter-tag a          { color: var(--text-dim); text-decoration: none; margin-left: 2px; font-size: .8rem; line-height: 1; }
-.filter-tag a:hover    { color: var(--error); }
+.filter-tag a:hover    { color: var(--on-danger); }
 
 /* ── API offline / erreur de connexion ───────────────────────────────────── */
 .api-offline-banner {
   display:flex; align-items:center; gap:.75rem;
   background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.25);
   border-radius:var(--radius-s); padding:.75rem 1rem;
-  font-size:.85rem; color:var(--error); margin-bottom:1rem;
+  font-size:.85rem; color:var(--on-danger); margin-bottom:1rem;
 }
 .api-offline-banner strong { font-weight:700; }
 
 /* ── Formulaire : états ───────────────────────────────────────────────────── */
 .input.invalid { border-color:var(--error) !important; }
 .input.valid   { border-color:var(--success) !important; }
-.field-error   { font-size:.75rem; color:var(--error); margin-top:.25rem; display:none; }
+.field-error   { font-size:.75rem; color:var(--on-danger); margin-top:.25rem; display:none; }
 .field-error.visible { display:block; }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
@@ -822,7 +856,10 @@ textarea { resize: vertical; }
 .bottom-nav-item > span:not(.bottom-nav-icon):not(.bottom-nav-badge) {
   max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.bottom-nav-item:hover, .bottom-nav-item.active { color: var(--btn-primary); }
+/* --btn-primary est une teinte de fond de bouton : en texte sur le thème
+   sombre, 3,28:1. Le texte prend --primary en sombre, --btn-primary en clair. */
+.bottom-nav-item:hover, .bottom-nav-item.active { color: var(--primary-texte); }
+html.light .bottom-nav-item:hover, html.light .bottom-nav-item.active { color: var(--btn-primary); }
 .bottom-nav-icon { font-size: 20px; line-height: 1; transition: transform .15s; }
 .bottom-nav-item.active .bottom-nav-icon { transform: scale(1.12); }
 .bottom-nav-badge {
@@ -876,7 +913,7 @@ textarea { resize: vertical; }
 
   /* Topbar */
   .topbar { flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 16px; }
-  .topbar h2 { font-size: 18px; }
+  .topbar h1, .topbar h2 { font-size: 18px; }
   .topbar > div:last-child { width: 100%; display: flex; gap: 6px; flex-wrap: wrap; }
 
   /* Les boutons se partagent la ligne — mais seulement s'ils sont plusieurs.
@@ -972,7 +1009,7 @@ textarea { resize: vertical; }
   canvas { max-height: 200px !important; }
 
   /* Sidebar logo petit */
-  .sidebar-logo h1 { font-size: 18px; }
+  .sidebar-logo .logo-titre { font-size: 18px; }
 
   /* Page header */
   .page-header { flex-direction: column; gap: .5rem; }
@@ -1015,19 +1052,27 @@ textarea { resize: vertical; }
 /* Icône seule dans un bouton : on rétablit un peu d'air autour. */
 .btn > .ic:only-child { vertical-align: -0.15em; }
 
-/* ── Couleurs de texte sur fond teinté ────────────────────────────────────
-   Les pastels écrits en dur dans dashboard.ejs (#FCA5A5, #FCD34D…) sont
-   conçus pour un fond sombre : sur le thème clair ils tombent entre 1,2 et
-   1,7:1, soit illisibles (seuil WCAG AA : 4,5:1). Ces tokens portent, pour
-   chaque thème, la teinte la plus vive qui atteigne encore 4,5:1 — vérifié
-   sur les DEUX fonds clairs de l'app (--surface #FFF et --bg #F1F4FB). */
+/* ── Couleurs d'état écrites en texte ─────────────────────────────────────
+   Les tokens de base (--success, --error, --warning, --info, --purple) sont
+   des teintes de remplissage : pastilles, bordures, jauges. Écrits en texte,
+   ils tombaient sur le thème clair entre 2,0 et 3,8:1 — « 0 FCFA » en vert
+   sur blanc à 2,28:1 — et 188 endroits les employaient ainsi (analyse du
+   24 septembre 2026, constat A10). Toute couleur d'état écrite en texte passe
+   désormais par ces tokens-ci.
+
+   Chaque valeur est la teinte la plus vive qui atteigne 4,5:1 (WCAG AA) sur
+   TOUS les fonds du thème — --surface, --bg, --surface-d, --surface-h — ET
+   sur les fonds teintés de sa propre couleur (12 à 20 % d'opacité), où
+   s'écrivent les pastilles « Actif », « Banni », « Publié ». */
 :root {
-  --on-danger:  #EE4E4E;  --on-warning: #F59E0B;
-  --on-info:    #4286F6;  --on-success: #22C55E;
+  --on-danger:  #F87171;  --on-warning: #F59E0B;
+  --on-info:    #60A5FA;  --on-success: #22C55E;
+  --on-purple:  #A78BFA;
 }
 html.light {
-  --on-danger:  #BC3A3D;  --on-warning: #916317;
-  --on-info:    #3168C2;  --on-success: #1B7B46;
+  --on-danger:  #B42318;  --on-warning: #8A5A00;
+  --on-info:    #2459B3;  --on-success: #17703F;
+  --on-purple:  #6D4AC9;
 }
 
 /* ── Accessibilité : anneau de focus ──────────────────────────────────────
@@ -1084,16 +1129,16 @@ html.light {
    `badge-error` est utilisé dans pronostic_form.ejs mais n'était défini
    nulle part : le badge « LOSS » s'affichait sans style d'échec. Alias de
    badge-err, conservé pour ne pas casser les usages existants. */
-.badge-error { background: rgba(239,68,68,.15); color: var(--error); }
+.badge-error { background: rgba(239,68,68,.15); color: var(--on-danger); }
 
 /* ── Statut : point coloré + libellé ──────────────────────────────────────
    Moins bruyant qu'une pastille pleine répétée sur chaque ligne. */
 .status { display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap; }
 .status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-.status.ok, .status.pub      { color: var(--success); }
-.status.warn, .status.draft  { color: var(--warning); }
+.status.ok, .status.pub      { color: var(--on-success); }
+.status.warn, .status.draft  { color: var(--on-warning); }
 .status.off, .status.none    { color: var(--text-dim); }
-.status.err, .status.live    { color: var(--error); }
+.status.err, .status.live    { color: var(--on-danger); }
 .status.live::before { animation: status-pulse 1.6s infinite; }
 @keyframes status-pulse { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
 @media (prefers-reduced-motion: reduce) { .status.live::before { animation: none } }
@@ -1114,7 +1159,7 @@ html.light {
 .dt th.sortable { cursor: pointer; user-select: none; }
 .dt th.sortable:hover { color: var(--text); }
 .dt th .arrow { opacity: .3; margin-left: 4px; }
-.dt th[aria-sort] .arrow { opacity: 1; color: var(--primary); }
+.dt th[aria-sort] .arrow { opacity: 1; color: var(--primary-texte); }
 .dt td { padding: 6px 12px; border-bottom: .5px solid var(--border);
          vertical-align: middle; line-height: 1.35; }
 /* Le padding par défaut de .btn est pensé pour les formulaires ; dans une
@@ -1182,8 +1227,8 @@ html.light {
 .dt tbody tr.is-pub   td:first-child { box-shadow: inset 3px 0 0 var(--success); }
 .dt tbody tr.is-draft td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
 .dt .when { white-space: nowrap; color: var(--text-m); }
-.dt .when.live { color: var(--error); font-weight: 700; }
-.dt .when.soon { color: var(--warning); font-weight: 600; }
+.dt .when.live { color: var(--on-danger); font-weight: 700; }
+.dt .when.soon { color: var(--on-warning); font-weight: 600; }
 .dt .score { font-weight: 900; font-variant-numeric: tabular-nums; }
 
 /* ── Sous-navigation d'une section ─────────────────────────────────────────
@@ -1198,7 +1243,7 @@ html.light {
                 text-decoration: none; border-bottom: 2px solid transparent;
                 transition: color .15s, background .15s; }
 .sous-onglet:hover { color: var(--text); background: var(--surface-d); }
-.sous-onglet.on    { color: var(--primary); border-bottom-color: var(--primary);
+.sous-onglet.on    { color: var(--primary-texte); border-bottom-color: var(--primary);
                      background: var(--surface); }
 
 

@@ -267,8 +267,8 @@
       font-size: .84rem; line-height: 1.5; margin-bottom: 1.15rem;
     }
     .note .ic { margin-top: .12em; flex-shrink: 0; }
-    .note-err  { background: rgba(239, 68, 68, .09);  border: 1px solid rgba(239, 68, 68, .22);  color: var(--t-red, #FCA5A5); }
-    .note-info { background: rgba(59, 130, 246, .09); border: 1px solid rgba(59, 130, 246, .22); color: var(--t-blue, #93C5FD); }
+    .note-err  { background: rgba(239, 68, 68, .09);  border: 1px solid rgba(239, 68, 68, .22);  color: var(--on-danger); }
+    .note-info { background: rgba(59, 130, 246, .09); border: 1px solid rgba(59, 130, 246, .22); color: var(--on-info); }
 
     /* ── Jauge de tentatives ── */
     .gauge {
@@ -279,8 +279,8 @@
       display: flex; justify-content: space-between; align-items: baseline;
       font-size: .76rem; color: var(--text-m); margin-bottom: .5rem;
     }
-    .gauge-top b { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--warning); }
-    .gauge-top b.hot { color: var(--error); }
+    .gauge-top b { font-weight: 700; font-variant-numeric: tabular-nums; color: var(--on-warning); }
+    .gauge-top b.hot { color: var(--on-danger); }
     .gauge-track { height: 5px; border-radius: 99px; background: var(--surface-h); overflow: hidden; }
     .gauge-fill {
       height: 100%; border-radius: 99px;
@@ -297,10 +297,10 @@
     .lock-ic {
       width: 56px; height: 56px; margin: 0 auto .9rem; border-radius: 16px;
       display: grid; place-items: center; font-size: 1.5rem;
-      color: var(--error); background: rgba(239, 68, 68, .1); border: 1px solid rgba(239, 68, 68, .22);
+      color: var(--on-danger); background: rgba(239, 68, 68, .1); border: 1px solid rgba(239, 68, 68, .22);
     }
     .lock-timer {
-      font-size: 2.6rem; font-weight: 900; color: var(--error);
+      font-size: 2.6rem; font-weight: 900; color: var(--on-danger);
       letter-spacing: .04em; font-variant-numeric: tabular-nums; line-height: 1.1;
     }
     .lock-msg { margin-top: .6rem; font-size: .82rem; color: var(--text-m); line-height: 1.6; }
@@ -347,7 +347,7 @@
 
     .capslock {
       display: none; align-items: center; gap: .4rem;
-      margin-top: .5rem; font-size: .76rem; color: var(--warning);
+      margin-top: .5rem; font-size: .76rem; color: var(--on-warning);
     }
     .capslock.on { display: flex; }
 

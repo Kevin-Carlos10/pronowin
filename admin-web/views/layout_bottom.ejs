@@ -564,7 +564,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!q || !s) return esc(s);
     const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     return esc(s).replace(new RegExp('(' + escaped.replace(/&amp;|&lt;|&gt;/g,'') + ')', 'gi'),
-      '<mark style="background:rgba(var(--primary-rgb),.25);color:var(--primary);border-radius:2px;padding:0 1px">$1</mark>');
+      '<mark style="background:rgba(var(--primary-rgb),.25);color:var(--primary-texte);border-radius:2px;padding:0 1px">$1</mark>');
   }
 
   // ── Recherches récentes (localStorage) ───────────────────────
@@ -648,7 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
       renderResults(data, q);
     } catch {
       document.getElementById('search-results').innerHTML =
-        '<div class="search-empty" style="color:var(--error)">⚠️ Erreur de connexion.</div>';
+        '<div class="search-empty" style="color:var(--on-danger)">⚠️ Erreur de connexion.</div>';
     }
   }
 
@@ -706,9 +706,9 @@ document.addEventListener('DOMContentLoaded', () => {
       users.forEach(u => {
         const banned = data._bannedIds?.includes(String(u.id)) ? ' 🚫' : '';
         html += `<a class="search-result-item" href="/admin/users/${u.id}">
-          <div class="sri-icon" style="background:rgba(59,130,246,.15);color:#3B82F6">${esc((u.pseudo||'?')[0].toUpperCase())}</div>
+          <div class="sri-icon" style="background:rgba(59,130,246,.15);color:var(--on-info)">${esc((u.pseudo||'?')[0].toUpperCase())}</div>
           <div class="sri-info">
-            <div class="sri-title">${highlight(u.pseudo, q)}${u.is_premium ? ' <span style="color:var(--warning);font-size:.75rem">👑</span>' : ''}${banned}</div>
+            <div class="sri-title">${highlight(u.pseudo, q)}${u.is_premium ? ' <span style="color:var(--on-warning);font-size:.75rem">👑</span>' : ''}${banned}</div>
             <div class="sri-sub">${highlight(u.phoneNumber ?? '', q)} ${u.email ? '· ' + highlight(u.email, q) : ''}</div>
           </div>
           <div class="sri-arrow">→</div>
@@ -736,7 +736,7 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `<div class="search-section">⚽ Pronostics <span class="search-count">${pros.length}</span></div>`;
       pros.forEach(m => {
         html += `<a class="search-result-item" href="/admin/pronostics/edit/${m.id ?? m.match_id}">
-          <div class="sri-icon" style="background:rgba(245,166,35,.12);color:var(--primary)">⚽</div>
+          <div class="sri-icon" style="background:rgba(245,166,35,.12);color:var(--primary-texte)">⚽</div>
           <div class="sri-info">
             <div class="sri-title">${highlight(m.homeTeam ?? '', q)} vs ${highlight(m.awayTeam ?? '', q)}</div>
             <div class="sri-sub">${esc(m.competition ?? '')} · ${m.matchDate ? new Date(m.matchDate).toLocaleDateString('fr-FR') : ''}</div>
@@ -750,9 +750,9 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `<div class="search-section">🚫 Bannissements <span class="search-count">${bans.length}</span></div>`;
       bans.forEach(b => {
         html += `<a class="search-result-item" href="/admin/bans?search=${encodeURIComponent(q)}">
-          <div class="sri-icon" style="background:rgba(239,68,68,.12);color:var(--error)">${esc((b.pseudo||'?')[0].toUpperCase())}</div>
+          <div class="sri-icon" style="background:rgba(239,68,68,.12);color:var(--on-danger)">${esc((b.pseudo||'?')[0].toUpperCase())}</div>
           <div class="sri-info">
-            <div class="sri-title">${highlight(b.pseudo, q)} <span style="font-size:.72rem;color:var(--error)">${b.active ? '🚫 Actif' : '✅ Levé'}</span></div>
+            <div class="sri-title">${highlight(b.pseudo, q)} <span style="font-size:.72rem;color:var(--on-danger)">${b.active ? '🚫 Actif' : '✅ Levé'}</span></div>
             <div class="sri-sub">${highlight(b.reason ?? '', q)}</div>
           </div>
           <div class="sri-arrow">→</div>

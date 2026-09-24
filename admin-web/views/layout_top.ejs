@@ -88,12 +88,15 @@
 <!-- ── Sidebar ── -->
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-logo">
-    <h1>Prono<span>Win</span></h1>
+    <%# Le logo était le seul h1 de chaque page : un lecteur d'écran annonçait
+        « PronoWin » comme titre partout, et le vrai titre de l'écran n'était
+        qu'un h2 (constat A11). Le logo n'est plus un titre. %>
+    <div class="logo-titre">Prono<span>Win</span></div>
     <small>Administration</small>
   </div>
   <style>
   /* ── Sidebar logo glow ── */
-  .sidebar-logo h1 span { text-shadow: 0 0 18px rgba(var(--primary-rgb),.4); }
+  .sidebar-logo .logo-titre span { text-shadow: 0 0 18px rgba(var(--primary-rgb),.4); }
   </style>
 
   <!-- Bouton recherche sidebar -->
@@ -196,12 +199,12 @@
 
   <div class="sidebar-footer">
     <a href="/admin/profile" class="nav-item <%= page==='profile' ?'active':'' %>" style="padding:.6rem 1rem;margin-bottom:.1rem">
-      <div style="width:30px;height:30px;border-radius:50%;background:<%= adminRole==='sub'?'rgba(245,158,11,.15)':'rgba(34,197,94,.15)' %>;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;color:<%= adminRole==='sub'?'var(--warning)':'var(--success)' %>">
+      <div style="width:30px;height:30px;border-radius:50%;background:<%= adminRole==='sub'?'rgba(245,158,11,.15)':'rgba(34,197,94,.15)' %>;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;color:<%= adminRole==='sub'?'var(--on-warning)':'var(--on-success)' %>">
         <%= adminName[0]?.toUpperCase() ?? '?' %>
       </div>
       <div style="min-width:0">
         <div style="font-weight:600;font-size:.82rem;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><%= adminName %></div>
-        <div style="font-size:.7rem;color:<%= adminRole==='sub'?'var(--warning)':'var(--success)' %>"><%= adminRole==='sub'?'Sous-admin':'Admin principal' %></div>
+        <div style="font-size:.7rem;color:<%= adminRole==='sub'?'var(--on-warning)':'var(--on-success)' %>"><%= adminRole==='sub'?'Sous-admin':'Admin principal' %></div>
       </div>
     </a>
     <a href="/admin/logout" class="nav-item nav-logout"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg></span> Déconnexion</a>
@@ -274,10 +277,12 @@
   const _s = locals.settings || {};
   const _announceBg   = { info: 'rgba(59,130,246,.12)', warning: 'rgba(245,158,11,.12)', danger: 'rgba(239,68,68,.12)' };
   const _announceColor= { info: 'var(--info)', warning: 'var(--warning)', danger: 'var(--error)' };
+  // Le texte de l'annonce prend les teintes lisibles ; la carte ci-dessus reste celle des bordures.
+  const _announceTexte = { info: 'var(--on-info)', warning: 'var(--on-warning)', danger: 'var(--on-danger)' };
   const _announceIcon = { info: 'ℹ', warning: '⚠', danger: '⚠' };
 %>
 <% if (_s.announcementEnabled && _s.announcementText) { %>
-<div style="background:<%= _announceBg[_s.announcementType]||_announceBg.info %>;border-bottom:1px solid <%= _announceColor[_s.announcementType]||'var(--info)' %>20;padding:.6rem 1.25rem;display:flex;align-items:center;gap:.6rem;font-size:.83rem;color:<%= _announceColor[_s.announcementType]||'var(--info)' %>;margin-bottom:0" id="global-announcement">
+<div style="background:<%= _announceBg[_s.announcementType]||_announceBg.info %>;border-bottom:1px solid <%= _announceColor[_s.announcementType]||'var(--info)' %>20;padding:.6rem 1.25rem;display:flex;align-items:center;gap:.6rem;font-size:.83rem;color:<%= _announceTexte[_s.announcementType]||'var(--on-info)' %>;margin-bottom:0" id="global-announcement">
   <span><%= _announceIcon[_s.announcementType]||'ℹ️' %></span>
   <span style="flex:1"><%= _s.announcementText %></span>
   <button onclick="this.parentElement.style.display='none'" style="background:none;border:none;cursor:pointer;color:inherit;font-size:1rem;opacity:.6;padding:0;line-height:1">×</button>
@@ -285,7 +290,7 @@
 <% } %>
 
 <% if (_s.maintenanceMode) { %>
-<div style="background:rgba(245,158,11,.15);border-bottom:1px solid rgba(245,158,11,.3);padding:.6rem 1.25rem;display:flex;align-items:center;gap:.6rem;font-size:.83rem;color:var(--warning)">
+<div style="background:rgba(245,158,11,.15);border-bottom:1px solid rgba(245,158,11,.3);padding:.6rem 1.25rem;display:flex;align-items:center;gap:.6rem;font-size:.83rem;color:var(--on-warning)">
   <span><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg></span>
   <%# Ce mode ne bloque rien : ni le panneau, ni l'application. Le bandeau le
       disait mal — « Le panel est en maintenance » à qui s'en servait. La partie
@@ -293,7 +298,7 @@
       comme la note d'un administrateur, pas comme un état du système. %>
   <span style="flex:1"><strong>Mode maintenance actif</strong> — avertissement interne : l'application et le panneau restent accessibles.<% if (_s.maintenanceMessage) { %> <span style="font-weight:400">Note : « <%= _s.maintenanceMessage %> »</span><% } %></span>
   <% if (isMain) { %>
-  <a href="/admin/settings" class="bandeau-lien" style="color:var(--warning);font-weight:600;font-size:.78rem;text-decoration:underline">Désactiver →</a>
+  <a href="/admin/settings" class="bandeau-lien" style="color:var(--on-warning);font-weight:600;font-size:.78rem;text-decoration:underline">Désactiver →</a>
   <% } %>
 </div>
 <% } %>

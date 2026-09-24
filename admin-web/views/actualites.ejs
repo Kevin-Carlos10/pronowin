@@ -53,11 +53,11 @@
 .ac-foot { display:flex; align-items:center; gap:.4rem; padding:.6rem .9rem; border-top:1px solid var(--border); background:var(--surface-d); flex-wrap:wrap; }
 
 /* ── Category styles ─────────────────────────────────────────────────────────── */
-.cat-news    { background:rgba(59,130,246,.12); color:var(--info); }
-.cat-promo   { background:rgba(245,158,11,.12); color:var(--warning); }
-.cat-update  { background:rgba(99,102,241,.12); color:var(--primary); }
-.cat-tip     { background:rgba(34,197,94,.12);  color:var(--success); }
-.cat-alert   { background:rgba(239,68,68,.12);  color:var(--error); }
+.cat-news    { background:rgba(59,130,246,.12); color:var(--on-info); }
+.cat-promo   { background:rgba(245,158,11,.12); color:var(--on-warning); }
+.cat-update  { background:rgba(99,102,241,.12); color:var(--primary-texte); }
+.cat-tip     { background:rgba(34,197,94,.12);  color:var(--on-success); }
+.cat-alert   { background:rgba(239,68,68,.12);  color:var(--on-danger); }
 </style>
 
 <%
@@ -88,7 +88,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg> Actualités</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg> Actualités</h1>
     <small><%= stats.total %> article<%= stats.total!==1?'s':'' %> · <%= stats.published %> publié<%= stats.published!==1?'s':'' %></small>
   </div>
   <% if(hasPerm('actualites','write')) { %>
@@ -112,7 +112,7 @@
   <a href="/admin/actualites?status=draft" class="ac-stat stat-link" aria-current="<%= status==='draft' ? 'true':'false' %>">
     <div class="v" style="color:var(--text-m)"><%= stats.draft %></div><div class="l">Brouillons</div></a>
   <div class="ac-stat"><div class="v" style="color:var(--on-warning)"><%= stats.pinned %></div><div class="l">Épinglés</div></div>
-  <div class="ac-stat"><div class="v" style="color:var(--purple)"><%= stats.premium %></div><div class="l">Premium only</div></div>
+  <div class="ac-stat"><div class="v" style="color:var(--on-purple)"><%= stats.premium %></div><div class="l">Premium only</div></div>
   <div class="ac-stat"><div class="v" style="color:var(--on-warning)"><%= stats.totalViews.toLocaleString() %></div><div class="l">Vues totales</div></div>
 </div>
 
@@ -202,6 +202,7 @@
     <button class="btn btn-sm btn-danger" style="margin-left:auto"
       data-id="<%= art.id %>"
       data-title="<%= art.title.replace(/"/g,'&quot;') %>"
+      aria-label="Supprimer l'article « <%= art.title %> »"
       onclick="delArt(this.dataset.id, this.dataset.title)"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg></button>
     <form method="POST" action="/admin/actualites/<%= art.id %>/delete" id="del-<%= art.id %>" style="display:none"></form>
     <% } %>

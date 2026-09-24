@@ -20,7 +20,7 @@
   width: 38px; height: 38px; border-radius: 50%;
   background: rgba(59,130,246,.12); display: flex; align-items: center;
   justify-content: center; font-weight: 800; font-size: .95rem;
-  color: var(--info); flex-shrink: 0;
+  color: var(--on-info); flex-shrink: 0;
 }
 .tx-user-info .name  { font-weight: 700; font-size: .9rem; }
 .tx-user-info .phone { font-size: .75rem; color: var(--text-dim); margin-top: .1rem; }
@@ -28,7 +28,7 @@
   font-size: 1.5rem; font-weight: 800; line-height: 1;
   color: var(--text);
 }
-.tx-amount.withdrawal { color: var(--warning); }
+.tx-amount.withdrawal { color: var(--on-warning); }
 
 .tx-body {
   display: grid; grid-template-columns: repeat(auto-fill, minmax(200px,1fr));
@@ -41,7 +41,7 @@
 .tx-field:last-child { border-right: 0; }
 .tx-field-lbl { font-size: .7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; margin-bottom: .3rem; }
 .tx-field-val { font-size: .85rem; font-weight: 600; color: var(--text); word-break: break-all; }
-.tx-field-val.accent { color: var(--primary); }
+.tx-field-val.accent { color: var(--primary-texte); }
 .tx-field-val.muted  { color: var(--text-m); font-weight: 400; }
 
 .tx-actions {
@@ -78,10 +78,10 @@
 .tx-stat:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,.2); }
 .tx-stat .lbl  { font-size: .7rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-bottom: 2px; }
 .tx-stat .val  { font-size: 1.7rem; font-weight: 900; line-height: 1; letter-spacing: -.03em; }
-.tx-stat.green  { border-left-color: var(--success); } .tx-stat.green  .val { color: var(--success); }
-.tx-stat.orange { border-left-color: var(--warning); } .tx-stat.orange .val { color: var(--warning); }
-.tx-stat.red    { border-left-color: var(--error);   } .tx-stat.red    .val { color: var(--error); }
-.tx-stat.blue   { border-left-color: var(--info);    } .tx-stat.blue   .val { color: var(--info); }
+.tx-stat.green  { border-left-color: var(--success); } .tx-stat.green  .val { color: var(--on-success); }
+.tx-stat.orange { border-left-color: var(--warning); } .tx-stat.orange .val { color: var(--on-warning); }
+.tx-stat.red    { border-left-color: var(--error);   } .tx-stat.red    .val { color: var(--on-danger); }
+.tx-stat.blue   { border-left-color: var(--info);    } .tx-stat.blue   .val { color: var(--on-info); }
 
 /* ── Instructions box ────────────────────────────────────────────────────── */
 .tx-instr {
@@ -90,13 +90,13 @@
   color: var(--text-m); border: 1px solid var(--border);
 }
 .tx-instr strong { color: var(--text); }
-.tx-instr .hi    { color: var(--primary); font-weight: 700; }
+.tx-instr .hi    { color: var(--primary-texte); font-weight: 700; }
 
 /* -- Etat vide explicatif ------------------------------------------------- */
 .tx-vide      { text-align: center; padding: 2.6rem 1.5rem 2rem; }
 .tx-vide-ic   { width: 62px; height: 62px; border-radius: 50%; margin: 0 auto .9rem;
                 background: rgba(34,197,94,.10); display: flex; align-items: center;
-                justify-content: center; color: var(--success); }
+                justify-content: center; color: var(--on-success); }
 .tx-vide-ic.attente { background: rgba(148,163,184,.12); color: var(--text-dim); }
 .tx-vide h3   { margin: 0 0 .35rem; font-size: 1.12rem; font-weight: 800; letter-spacing: -.01em; }
 .tx-vide .diag{ margin: 0 auto; max-width: 46ch; font-size: .87rem; line-height: 1.65; color: var(--text-m); }
@@ -112,9 +112,9 @@
                 background: var(--surface-d); border: 1px solid var(--border);
                 display: flex; align-items: center; justify-content: center;
                 font-size: .72rem; font-weight: 800; color: var(--text-dim); }
-.tx-etape.ici .n { background: var(--primary); border-color: var(--primary); color: #fff; }
+.tx-etape.ici .n { background: var(--btn-primary); border-color: var(--btn-primary); color: #fff; }
 .tx-etape .t  { font-size: .8rem; font-weight: 700; margin-bottom: .2rem; }
-.tx-etape.ici .t { color: var(--primary); }
+.tx-etape.ici .t { color: var(--primary-texte); }
 .tx-etape .d  { font-size: .72rem; line-height: 1.5; color: var(--text-dim); }
 
 .tx-jauge     { margin: 1.5rem auto 0; max-width: 480px; display: grid;
@@ -154,7 +154,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Versements à effectuer</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Versements à effectuer</h1>
     <small id="tx-count"><%= _total %> versement<%= _total!==1?'s':'' %> de gains de parrainage en attente</small>
   </div>
   <div style="display:flex;gap:.5rem">

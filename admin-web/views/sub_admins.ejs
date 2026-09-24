@@ -7,9 +7,9 @@
 .sa-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
 .sa-stat .v { font-size:1.7rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
 .sa-stat .l { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
-.sa-stat.green  { border-left-color:var(--success); } .sa-stat.green  .v { color:var(--success); }
-.sa-stat.red    { border-left-color:var(--error); }   .sa-stat.red    .v { color:var(--error); }
-.sa-stat.blue   { border-left-color:var(--info); }    .sa-stat.blue   .v { color:var(--info); }
+.sa-stat.green  { border-left-color:var(--success); } .sa-stat.green  .v { color:var(--on-success); }
+.sa-stat.red    { border-left-color:var(--error); }   .sa-stat.red    .v { color:var(--on-danger); }
+.sa-stat.blue   { border-left-color:var(--info); }    .sa-stat.blue   .v { color:var(--on-info); }
 
 /* ── Cards ──────────────────────────────────────────────────────────────────── */
 .sa-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:1rem; margin-bottom:1.25rem; }
@@ -17,11 +17,13 @@
 
 .sa-card { background:var(--surface); border:1px solid var(--border); border-radius:16px; overflow:hidden; transition:box-shadow .2s,transform .2s; }
 .sa-card:hover { box-shadow:0 10px 32px rgba(0,0,0,.25); transform:translateY(-2px); }
-.sa-card.inactive { opacity:.7; border-style:dashed; }
+/* Un compte inactif se lisait à travers une opacité de 70 % : tous ses textes
+   passaient sous le seuil de contraste. Le fond et la bordure le signalent. */
+.sa-card.inactive { background:var(--surface-d); border-style:dashed; }
 
 .sa-card-head { display:flex; align-items:center; gap:.85rem; padding:.9rem 1rem; border-bottom:1px solid var(--border); }
 .sa-avatar { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:800; flex-shrink:0; }
-.sa-avatar.active   { background:rgba(59,130,246,.12); color:var(--info); }
+.sa-avatar.active   { background:rgba(59,130,246,.12); color:var(--on-info); }
 .sa-avatar.inactive { background:var(--surface-d); color:var(--text-dim); }
 .sa-head-info { flex:1; min-width:0; }
 .sa-name     { font-size:.95rem; font-weight:700; }
@@ -33,9 +35,9 @@
 
 /* ── Permissions badges ──────────────────────────────────────────────────────── */
 .perm-badge       { display:inline-flex; align-items:center; gap:.25rem; font-size:.68rem; padding:.15rem .45rem; border-radius:99px; font-weight:600; margin:.1rem; }
-.perm-badge.read  { background:rgba(59,130,246,.12); color:var(--info); }
-.perm-badge.write { background:rgba(245,158,11,.12);  color:var(--warning); }
-.perm-badge.delete{ background:rgba(239,68,68,.12);   color:var(--error); }
+.perm-badge.read  { background:rgba(59,130,246,.12); color:var(--on-info); }
+.perm-badge.write { background:rgba(245,158,11,.12);  color:var(--on-warning); }
+.perm-badge.delete{ background:rgba(239,68,68,.12);   color:var(--on-danger); }
 .perm-badge-none  { color:var(--text-dim); font-style:italic; font-size:.8rem; }
 
 /* ── Activité mini timeline ──────────────────────────────────────────────────── */
@@ -47,8 +49,8 @@
 .sa-tl-time  { color:var(--text-dim); font-size:.68rem; white-space:nowrap; margin-left:auto; padding-left:.4rem; }
 
 .sa-last-login { font-size:.75rem; color:var(--text-dim); margin-top:.35rem; }
-.sa-last-login.recent { color:var(--success); }
-.sa-last-login.old    { color:var(--warning); }
+.sa-last-login.recent { color:var(--on-success); }
+.sa-last-login.old    { color:var(--on-warning); }
 
 /* ── Actions ──────────────────────────────────────────────────────────────────── */
 .sa-card-foot { display:flex; flex-wrap:wrap; gap:.4rem; padding:.75rem 1rem; border-top:1px solid var(--border); background:var(--surface-d); }
@@ -67,9 +69,9 @@
 .perm-cb          { width:17px; height:17px; accent-color:var(--btn-primary); cursor:pointer; }
 .perm-cb:disabled { opacity:.3; cursor:not-allowed; }
 .perm-level-head  { min-width:90px; }
-.lvl-read   { color:var(--info); }
-.lvl-write  { color:var(--warning); }
-.lvl-delete { color:var(--error); }
+.lvl-read   { color:var(--on-info); }
+.lvl-write  { color:var(--on-warning); }
+.lvl-delete { color:var(--on-danger); }
 .perm-quick-btn   { font-size:.65rem; padding:.15rem .4rem; border-radius:4px; border:1px solid var(--border); background:none; color:var(--text-dim); cursor:pointer; }
 .perm-quick-btn:hover { background:var(--surface-h); color:var(--text); }
 
@@ -168,7 +170,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Sous-administrateurs</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Sous-administrateurs</h1>
     <small>Comptes avec permissions granulaires (Lire · Écrire · Supprimer)</small>
   </div>
   <button class="btn btn-primary btn-sm" onclick="document.getElementById('create-section').scrollIntoView({behavior:'smooth'})">
@@ -184,7 +186,7 @@
   <div class="sa-stat blue"><div class="v"><%= _total %></div><div class="l">Total</div></div>
   <div class="sa-stat green"><div class="v"><%= _active %></div><div class="l">Actifs</div></div>
   <div class="sa-stat red"><div class="v"><%= _inactive %></div><div class="l">Inactifs</div></div>
-  <div class="sa-stat"><div class="v" style="color:var(--primary)"><%= PERMISSIONS.length %></div><div class="l">Modules</div></div>
+  <div class="sa-stat"><div class="v" style="color:var(--primary-texte)"><%= PERMISSIONS.length %></div><div class="l">Modules</div></div>
 </div>
 
 <!-- ── Grille sous-admins ────────────────────────────────────────────────────── -->

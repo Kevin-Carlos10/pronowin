@@ -27,7 +27,7 @@
 .seg-icon  { font-size:1.3rem; margin-bottom:.25rem; }
 .seg-label { font-size:.82rem; font-weight:600; color:var(--text); }
 .seg-desc  { font-size:.72rem; color:var(--text-dim); margin-top:.1rem; }
-.seg-count { position:absolute; top:.5rem; right:.6rem; font-size:.72rem; font-weight:700; color:var(--primary); }
+.seg-count { position:absolute; top:.5rem; right:.6rem; font-size:.72rem; font-weight:700; color:var(--primary-texte); }
 
 /* ── Ciblage utilisateur spécifique ─────────────────────────────────────────── */
 .seg-card-user {
@@ -62,14 +62,14 @@
 
 /* ── Char counter ────────────────────────────────────────────────────────────── */
 .char-counter { font-size:.72rem; text-align:right; margin-top:.25rem; color:var(--text-dim); transition:color .2s; }
-.char-counter.warn { color:var(--warning); }
-.char-counter.over { color:var(--error); font-weight:700; }
+.char-counter.warn { color:var(--on-warning); }
+.char-counter.over { color:var(--on-danger); font-weight:700; }
 
 /* ── Historique ──────────────────────────────────────────────────────────────── */
 .hist-row { display:flex; align-items:flex-start; gap:.75rem; padding:.85rem 0; border-bottom:1px solid var(--border); }
 .hist-row:last-child { border-bottom:0; }
 .h-seg-badge { display:inline-flex; align-items:center; gap:.25rem; font-size:.72rem; padding:.18rem .5rem; border-radius:99px; background:var(--surface-d); color:var(--text-m); white-space:nowrap; }
-.h-sent-count { font-size:.78rem; font-weight:700; color:var(--success); }
+.h-sent-count { font-size:.78rem; font-weight:700; color:var(--on-success); }
 </style>
 
 <%
@@ -85,7 +85,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> Notifications push</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> Notifications push</h1>
     <small>Envoyez des notifications à vos utilisateurs</small>
   </div>
 </div>
@@ -95,10 +95,10 @@
 
 <!-- ── Stats ──────────────────────────────────────────────────────────────────── -->
 <div class="nf-stats">
-  <div class="nf-stat"><div class="v" style="color:var(--primary)"><%= histStats.total %></div><div class="l">Campagnes</div></div>
-  <div class="nf-stat"><div class="v" style="color:var(--success)"><%= histStats.totalSent.toLocaleString('fr-FR') %></div><div class="l">Envois total</div></div>
-  <div class="nf-stat"><div class="v" style="color:var(--info)"><%= histStats.thisWeek %></div><div class="l">Cette semaine</div></div>
-  <div class="nf-stat"><div class="v" style="color:var(--warning)"><%= histStats.thisMonth %></div><div class="l">Ce mois</div></div>
+  <div class="nf-stat"><div class="v" style="color:var(--primary-texte)"><%= histStats.total %></div><div class="l">Campagnes</div></div>
+  <div class="nf-stat"><div class="v" style="color:var(--on-success)"><%= histStats.totalSent.toLocaleString('fr-FR') %></div><div class="l">Envois total</div></div>
+  <div class="nf-stat"><div class="v" style="color:var(--on-info)"><%= histStats.thisWeek %></div><div class="l">Cette semaine</div></div>
+  <div class="nf-stat"><div class="v" style="color:var(--on-warning)"><%= histStats.thisMonth %></div><div class="l">Ce mois</div></div>
 </div>
 
 <div class="notif-grid">
@@ -130,7 +130,7 @@
               <div style="font-size:.82rem;font-weight:700"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> Utilisateur spécifique</div>
               <div style="font-size:.72rem;color:var(--text-m)">Cibler un seul compte — le moyen de tester un message avant de l'envoyer à tous</div>
             </div>
-            <span style="font-size:.75rem;color:var(--primary);font-weight:700" id="user-seg-arrow">▼</span>
+            <span style="font-size:.75rem;color:var(--primary-texte);font-weight:700" id="user-seg-arrow">▼</span>
           </label>
           <div id="user-target-panel" style="display:none;margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border)">
             <input class="input" type="text" name="target_user" id="inp-target-user"
@@ -141,7 +141,7 @@
         </div>
 
         <div style="margin-top:.75rem;font-size:.82rem;color:var(--text-dim)">
-          Destinataires estimés : <strong role="status" id="total-count" style="color:var(--primary);font-size:1rem">…</strong>
+          Destinataires estimés : <strong role="status" id="total-count" style="color:var(--primary-texte);font-size:1rem">…</strong>
           <button type="button" class="btn btn-outline btn-sm" id="retry-count" hidden onclick="loadCount(document.querySelector('input[name=segment]:checked').value)">Réessayer</button>
         </div>
       </div>
@@ -201,7 +201,7 @@
           <input class="input" type="text" name="search_history" value="<%= searchH %>"
             placeholder="Rechercher…" style="font-size:.8rem;padding:.35rem .65rem;width:160px" aria-label="Rechercher">
           <button type="submit" class="btn btn-outline btn-sm" aria-label="Rechercher"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></button>
-          <% if(searchH){ %><a href="/admin/notifications" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></a><% } %>
+          <% if(searchH){ %><a href="/admin/notifications" class="btn btn-outline btn-sm" aria-label="Effacer la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></a><% } %>
         </form>
       </div>
 

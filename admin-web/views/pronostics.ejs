@@ -1,7 +1,7 @@
 <%- include('layout_top', {page:'pronostics'}) %>
 
 <style>
-.pro-daily-actif { background:rgba(245,166,35,.14); color:#F5A623; border:1px solid rgba(245,166,35,.35);
+.pro-daily-actif { background:rgba(245,166,35,.14); color:var(--primary-texte); border:1px solid rgba(245,166,35,.35);
                    cursor:default; font-weight:700; }
 
 /* ── Stats ─────────────────────────────────────────────────────────────────── */
@@ -10,9 +10,9 @@
 .pro-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
 .pro-stat .v  { font-size:1.7rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
 .pro-stat .l  { font-size:.68rem; text-transform:uppercase; letter-spacing:.06em; font-weight:700; color:var(--text-dim); margin-bottom:2px; }
-.pro-stat.blue   { border-left-color:var(--info); }    .pro-stat.blue   .v { color:var(--info); }
-.pro-stat.green  { border-left-color:var(--success); } .pro-stat.green  .v { color:var(--success); }
-.pro-stat.orange { border-left-color:var(--warning); } .pro-stat.orange .v { color:var(--warning); }
+.pro-stat.blue   { border-left-color:var(--info); }    .pro-stat.blue   .v { color:var(--on-info); }
+.pro-stat.green  { border-left-color:var(--success); } .pro-stat.green  .v { color:var(--on-success); }
+.pro-stat.orange { border-left-color:var(--warning); } .pro-stat.orange .v { color:var(--on-warning); }
 .pro-stat.dim    { border-left-color:var(--border-s); }.pro-stat.dim    .v { color:var(--text-m); }
 
 /* Barre de filtres : voir .filterbar dans style.css (socle partagé). */
@@ -61,7 +61,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Pronostics</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Pronostics</h1>
     <%# Le total avant troncature vient de l'en-tête X-Total-Count. L'afficher
         évite de laisser croire que la liste est complète quand elle est
         plafonnée à 400. %>
@@ -128,7 +128,7 @@
 <div class="pro-stats">
   <div class="pro-stat blue"><div class="l">Matchs</div><div class="v"><%= _total %></div></div>
   <div class="pro-stat green"><div class="l">Publiés</div><div class="v"><%= _published %></div></div>
-  <div class="pro-stat" style="border-left-color:#F5A623"><div class="l">Vitrine du jour</div><div class="v" style="font-size:1.15rem;color:#F5A623"><%= _vitrine ? "1" : "—" %></div></div>
+  <div class="pro-stat" style="border-left-color:#F5A623"><div class="l">Vitrine du jour</div><div class="v" style="font-size:1.15rem;color:var(--primary-texte)"><%= _vitrine ? "1" : "—" %></div></div>
   <div class="pro-stat orange"><div class="l">Brouillons</div><div class="v"><%= _drafts %></div></div>
   <div class="pro-stat dim"><div class="l">Sans prono</div><div class="v"><%= _none %></div></div>
 </div>
@@ -143,7 +143,7 @@
     restait valide, la page se rendait sans erreur — seule la lecture revelait
     le probleme. Sa place est ici, apres la rangee de statistiques. %>
 <div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;border-left:3px solid #F5A623">
-  <svg class="ic ic-lg" aria-hidden="true" style="color:#F5A623;flex-shrink:0"><use href="#ic-star"/></svg>
+  <svg class="ic ic-lg" aria-hidden="true" style="color:var(--primary-texte);flex-shrink:0"><use href="#ic-star"/></svg>
   <div style="flex:1;min-width:220px">
     <div style="font-size:.8rem;font-weight:800;margin-bottom:.15rem">Pronostic gratuit du jour</div>
     <div style="font-size:.79rem;color:var(--text-m);line-height:1.55">
@@ -151,7 +151,7 @@
         <strong><%= _vitrine.homeTeam %> – <%= _vitrine.awayTeam %></strong>
         — visible par tous les visiteurs, abonnés ou non.
       <% } else if (_gratuitsPublies === 0) { %>
-        <strong style="color:#F5A623">Aucun pronostic gratuit publié.</strong>
+        <strong style="color:var(--primary-texte)">Aucun pronostic gratuit publié.</strong>
         Un visiteur non abonné ne voit donc <strong>rien</strong> : il n'y a pas de
         repli possible, l'application ne peut afficher que des pronostics gratuits.
         Décochez « Premium » sur l'un d'eux, ou désignez-en un avec l'étoile
@@ -312,7 +312,7 @@
                 <%= m.homeTeam %>
               </span>
               <% if((isLive || isFinished) && m.homeScore != null && m.awayScore != null) { %>
-                <span data-match-score class="score" style="color:<%= isLive ? 'var(--error)' : 'var(--text)' %>"><%= m.homeScore %>–<%= m.awayScore %></span>
+                <span data-match-score class="score" style="color:<%= isLive ? 'var(--on-danger)' : 'var(--text)' %>"><%= m.homeScore %>–<%= m.awayScore %></span>
               <% } else { %><span data-match-score class="vs">vs</span><% } %>
               <span class="team" title="<%= m.awayTeam %>">
                 <% if(m.awayTeamLogo) { %><img src="<%= m.awayTeamLogo %>" class="team-logo" alt="" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'team-logo',textContent:'<%= awayInitial %>'}))"><% } else { %><span class="team-logo"><%= awayInitial %></span><% } %>
@@ -322,7 +322,7 @@
           </td>
           <td>
             <% if(m.has_pronostic && m.pronostic) { %>
-              <% if(m.pronostic.is_premium){ %><span title="Premium" style="color:var(--warning)"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> <% } %>
+              <% if(m.pronostic.is_premium){ %><span title="Premium" style="color:var(--on-warning)"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> <% } %>
               <%= m.pronostic.prediction_label || m.pronostic.tip || '—' %>
             <% } else { %><span style="color:var(--text-dim)">—</span><% } %>
           </td>
@@ -372,7 +372,10 @@
                   </form>
                 <% } %>
               <% } %>
-              <a href="/admin/pronostics/edit/<%= m.id %>" class="btn btn-primary btn-sm"><%= m.has_pronostic ? '' : '+ Créer' %></a>
+              <%# Le lien d'un match déjà pronostiqué n'avait aucun texte : un bouton vide à
+    l'écran, sans nom pour un lecteur d'écran (constat A13). %>
+              <a href="/admin/pronostics/edit/<%= m.id %>" class="btn btn-primary btn-sm"
+                 aria-label="<%= (m.has_pronostic ? 'Modifier le pronostic' : 'Créer un pronostic') + ' — ' + (m.home_team ?? m.homeTeam ?? '') + ' – ' + (m.away_team ?? m.awayTeam ?? '') %>"><%= m.has_pronostic ? 'Modifier' : '+ Créer' %></a>
             </div>
           </td>
         </tr>

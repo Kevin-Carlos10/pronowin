@@ -23,14 +23,14 @@
 
 /* ── Filter tags actifs ─────────────────────────────────────────────────────── */
 .hi-tags { display:flex; flex-wrap:wrap; gap:.35rem; padding:.6rem 1.1rem; border-top:1px solid var(--border); }
-.hi-tag  { display:inline-flex; align-items:center; gap:.35rem; font-size:.75rem; background:rgba(var(--primary-rgb),.1); border:1px solid rgba(var(--primary-rgb),.25); color:var(--primary); padding:.2rem .55rem; border-radius:99px; }
-.hi-tag a { color:var(--primary); text-decoration:none; opacity:.7; }
-.hi-tag a:hover { opacity:1; }
+.hi-tag  { display:inline-flex; align-items:center; gap:.35rem; font-size:.75rem; background:rgba(var(--primary-rgb),.1); border:1px solid rgba(var(--primary-rgb),.25); color:var(--primary-texte); padding:.2rem .55rem; border-radius:99px; }
+.hi-tag a { color:var(--primary-texte); text-decoration:none; }
+.hi-tag a:hover { text-decoration:underline; }
 
 /* ── Presets ────────────────────────────────────────────────────────────────── */
 .hi-presets { display:flex; align-items:center; gap:.5rem; flex-wrap:wrap; padding:.6rem 1.1rem; border-top:1px solid var(--border); }
 .hi-preset-tag { display:inline-flex; align-items:center; gap:.35rem; font-size:.75rem; background:var(--surface-d); border:1px solid var(--border); color:var(--text-m); padding:.2rem .55rem; border-radius:99px; cursor:pointer; transition:all .15s; }
-.hi-preset-tag:hover { border-color:var(--primary); color:var(--primary); }
+.hi-preset-tag:hover { border-color:var(--primary); color:var(--primary-texte); }
 
 /* ── Table ──────────────────────────────────────────────────────────────────── */
 .hi-table { width:100%; border-collapse:collapse; }
@@ -40,8 +40,8 @@
 .hi-table tr:last-child td { border-bottom:0; }
 .hi-table tr:hover td { background:var(--surface-d); }
 .hi-amount { font-size:1rem; font-weight:800; }
-.hi-amount.dep { color:var(--success); }
-.hi-amount.with { color:var(--warning); }
+.hi-amount.dep { color:var(--on-success); }
+.hi-amount.with { color:var(--on-warning); }
 .hi-note { font-size:.72rem; color:var(--text-dim); margin-top:.2rem; max-width:130px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 
 /* ── Modal ──────────────────────────────────────────────────────────────────── */
@@ -75,7 +75,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Historique des versements</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Historique des versements</h1>
     <small><%= total %> versement<%= total>1?'s':'' %> de gains de parrainage<%= _hasFilter ? ' (filtrés)' : '' %></small>
   </div>
   <a href="/admin/historique/export?<%= _qs %>" class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV</a>
@@ -91,19 +91,19 @@
   <%# Cinq des huit cartes comptaient des dépôts : elles auraient affiché zéro
       indéfiniment. Restent les chiffres qui décrivent la file de versements. %>
   <div class="hi-stat">
-    <div class="v" style="color:var(--warning)"><%= stats.volume_withdrawals ? (stats.volume_withdrawals/1000).toFixed(0)+'k' : '0' %></div>
+    <div class="v" style="color:var(--on-warning)"><%= stats.volume_withdrawals ? (stats.volume_withdrawals/1000).toFixed(0)+'k' : '0' %></div>
     <div class="l">FCFA versés</div>
   </div>
   <div class="hi-stat">
-    <div class="v" style="color:#A78BFA"><%= stats.completed_withdrawals || 0 %></div>
+    <div class="v" style="color:var(--on-purple)"><%= stats.completed_withdrawals || 0 %></div>
     <div class="l">Versements effectués</div>
   </div>
   <div class="hi-stat">
-    <div class="v" style="color:var(--error)"><%= stats.pending_count || 0 %></div>
+    <div class="v" style="color:var(--on-danger)"><%= stats.pending_count || 0 %></div>
     <div class="l">En attente</div>
   </div>
   <div class="hi-stat">
-    <div class="v" style="color:var(--error)"><%= stats.pending_volume ? (stats.pending_volume/1000).toFixed(0)+'k' : '0' %></div>
+    <div class="v" style="color:var(--on-danger)"><%= stats.pending_volume ? (stats.pending_volume/1000).toFixed(0)+'k' : '0' %></div>
     <div class="l">FCFA à verser</div>
   </div>
   <div class="hi-stat">
@@ -111,7 +111,7 @@
     <div class="l">Rejetés</div>
   </div>
   <div class="hi-stat">
-    <div class="v" style="color:var(--primary)"><%= stats.monthly_volume ? (stats.monthly_volume/1000).toFixed(0)+'k' : '0' %></div>
+    <div class="v" style="color:var(--primary-texte)"><%= stats.monthly_volume ? (stats.monthly_volume/1000).toFixed(0)+'k' : '0' %></div>
     <div class="l">Volume 30 jours</div>
   </div>
 </div>
@@ -236,7 +236,7 @@
           <div class="hi-amount with"><%= (tx.amount||0).toLocaleString() %><span style="font-size:.75rem;font-weight:400;color:var(--text-dim)"> F</span></div>
         </td>
         <td style="color:var(--text-m);font-size:.8rem"><%= methodLabel %></td>
-        <td style="color:var(--primary);font-size:.8rem;font-weight:600;font-family:monospace"><%= tx.xbetId || '—' %></td>
+        <td style="color:var(--primary-texte);font-size:.8rem;font-weight:600;font-family:monospace"><%= tx.xbetId || '—' %></td>
         <td style="color:var(--text-dim);font-size:.78rem;font-family:monospace"><%= tx.senderPhone || '—' %></td>
         <td>
           <span class="badge <%= statusCls %>"><%= statusLabel %></span>

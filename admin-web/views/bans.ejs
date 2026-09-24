@@ -23,13 +23,13 @@
 
 /* ── Pills ── */
 .dur-pill { display:inline-flex; align-items:center; gap:.3rem; font-size:.75rem; font-weight:700; padding:.2rem .6rem; border-radius:99px; }
-.dur-perm { background:rgba(239,68,68,.12); color:var(--error); }
-.dur-temp { background:rgba(245,158,11,.12); color:var(--warning); }
+.dur-perm { background:rgba(239,68,68,.12); color:var(--on-danger); }
+.dur-temp { background:rgba(245,158,11,.12); color:var(--on-warning); }
 .dur-done { background:var(--surface-d); color:var(--text-dim); }
 .st-pill  { display:inline-flex; align-items:center; gap:.3rem; font-size:.72rem; font-weight:700; padding:.2rem .55rem; border-radius:99px; }
-.st-active  { background:rgba(239,68,68,.1);  color:var(--error); }
+.st-active  { background:rgba(239,68,68,.1);  color:var(--on-danger); }
 .st-expired { background:var(--surface-d); color:var(--text-dim); }
-.st-soon    { background:rgba(245,158,11,.1); color:var(--warning); }
+.st-soon    { background:rgba(245,158,11,.1); color:var(--on-warning); }
 
 /* ── Quick ban card ── */
 .quick-ban-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.1rem 1.25rem; margin-bottom:1rem; display:none; }
@@ -81,7 +81,7 @@
 <!-- ── Header ── -->
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannissements</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannissements</h1>
     <small>
       <% if (filter === 'active') { %><%= stats.active %> ban<%= stats.active!==1?'s':'' %> actif<%= stats.active!==1?'s':'' %>
       <% } else if (filter === 'expired') { %><%= total %> entrée<%= total!==1?'s':'' %> levées/expirées
@@ -123,19 +123,19 @@
 <div class="bans-stats">
   <div class="ban-stat" style="border-left-color:var(--error)">
     <div class="bs-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Actifs</div>
-    <div class="bs-val" style="color:var(--error)"><%= stats.active %></div>
+    <div class="bs-val" style="color:var(--on-danger)"><%= stats.active %></div>
   </div>
   <div class="ban-stat" style="border-left-color:var(--error)">
     <div class="bs-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-infinity"/></svg> Permanents</div>
-    <div class="bs-val" style="color:var(--error)"><%= stats.permanent %></div>
+    <div class="bs-val" style="color:var(--on-danger)"><%= stats.permanent %></div>
   </div>
   <div class="ban-stat" style="border-left-color:var(--warning)">
     <div class="bs-lbl">⏳ Temporaires</div>
-    <div class="bs-val" style="color:var(--warning)"><%= stats.temporary %></div>
+    <div class="bs-val" style="color:var(--on-warning)"><%= stats.temporary %></div>
   </div>
   <div class="ban-stat" style="border-left-color:var(--warning)">
     <div class="bs-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-bell"/></svg> Expirent ≤ 7j</div>
-    <div class="bs-val" style="color:var(--warning)"><%= stats.expiringSoon %></div>
+    <div class="bs-val" style="color:var(--on-warning)"><%= stats.expiringSoon %></div>
   </div>
   <div class="ban-stat">
     <div class="bs-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg> Aujourd'hui</div>
@@ -156,7 +156,7 @@
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:.75rem">
     <div>
       <label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem">
-        ID utilisateur <span style="color:var(--error)">*</span>
+        ID utilisateur <span style="color:var(--on-danger)">*</span>
       </label>
       <input class="input" type="text" id="qb-userid" placeholder="ID numérique de l'utilisateur" required aria-label="ID numérique de l'utilisateur">
       <div style="font-size:.68rem;color:var(--text-dim);margin-top:.2rem">Trouvez l'ID sur la page utilisateur</div>
@@ -169,7 +169,7 @@
     </div>
     <div>
       <label style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;display:block;margin-bottom:.3rem">
-        Raison <span style="color:var(--error)">*</span>
+        Raison <span style="color:var(--on-danger)">*</span>
       </label>
       <input class="input" type="text" id="qb-reason" aria-label="Raison du bannissement" placeholder="Ex: Comportement abusif, fraude…" maxlength="500" required>
     </div>
@@ -214,7 +214,7 @@
       placeholder="Pseudo, raison, admin…" style="flex:1" aria-label="Rechercher">
     <button class="btn btn-primary btn-sm" type="submit" aria-label="Lancer la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></button>
     <% if (search) { %>
-    <a href="/admin/bans?filter=<%= filter %>" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></a>
+    <a href="/admin/bans?filter=<%= filter %>" class="btn btn-outline btn-sm" aria-label="Effacer la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></a>
     <% } %>
   </form>
 </div>
@@ -226,7 +226,7 @@
       Un administrateur arrivant ici pour sanctionner quelqu'un repartait sans
       savoir qu'il faut passer par la fiche de l'utilisateur. %>
   <div style="width:62px;height:62px;border-radius:50%;margin:0 auto .9rem;
-              background:rgba(34,197,94,.10);color:var(--success);
+              background:rgba(34,197,94,.10);color:var(--on-success);
               display:flex;align-items:center;justify-content:center">
     <svg class="ic ic-xl" aria-hidden="true"><use href="#ic-<%= filter==='active' ? 'check-circle' : 'clipboard' %>"/></svg>
   </div>
@@ -276,7 +276,7 @@
       <svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Aller aux utilisateurs
     </a>
     <% if (stats.total > 0) { %>
-    <a href="/admin/bans?filter=all" class="btn btn-outline btn-sm">
+    <a href="/admin/bans?filter=all" class="btn btn-outline btn-sm" aria-label="Voir l'historique des bannissements">
       <svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Voir l'historique
     </a>
     <% } %>
@@ -318,7 +318,7 @@
       <td>
         <div class="ban-pseudo">
           <%= b.pseudo || '—' %>
-          <% if (isSoon) { %><span style="font-size:.65rem;color:var(--warning);margin-left:.3rem"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg></span><% } %>
+          <% if (isSoon) { %><span style="font-size:.65rem;color:var(--on-warning);margin-left:.3rem"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg></span><% } %>
         </div>
         <div class="ban-uid">ID&nbsp;<%= b.userId %></div>
       </td>
@@ -327,7 +327,7 @@
       <td>
         <div class="reason-cell" title="<%= b.reason %>"><%= b.reason || '—' %></div>
         <% if (b.unbanReason) { %>
-        <div style="font-size:.7rem;color:var(--success);margin-top:.2rem"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Note : <%= b.unbanReason %></div>
+        <div style="font-size:.7rem;color:var(--on-success);margin-top:.2rem"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Note : <%= b.unbanReason %></div>
         <% } %>
       </td>
 
@@ -353,7 +353,7 @@
         <% } else { %>
           <div style="font-size:.82rem"><%= fmtD(b.expiresAt) %></div>
           <% if (!isExpired) { %>
-          <div style="font-size:.7rem;color:<%= isSoon ? 'var(--warning)' : 'var(--text-dim)' %>"><%= expireIn(b.expiresAt) %></div>
+          <div style="font-size:.7rem;color:<%= isSoon ? 'var(--on-warning)' : 'var(--text-dim)' %>"><%= expireIn(b.expiresAt) %></div>
           <div class="exp-bar">
             <div class="exp-fill" style="width:<%= pct %>%;background:<%= pct>=90?'var(--error)':pct>=65?'var(--warning)':'var(--success)' %>"></div>
           </div>
@@ -367,7 +367,7 @@
       <td>
         <div style="font-size:.82rem"><%= b.bannedBy || '—' %></div>
         <% if (b.unbannedBy) { %>
-        <div style="font-size:.7rem;color:var(--success)">Levé par <%= b.unbannedBy %></div>
+        <div style="font-size:.7rem;color:var(--on-success)">Levé par <%= b.unbannedBy %></div>
         <% } %>
       </td>
 
@@ -393,7 +393,7 @@
             <input type="hidden" name="pseudo" value="<%= b.pseudo %>">
             <input type="hidden" name="redirect_to" value="/admin/bans?filter=<%= filter %><%= search ? '&search='+encodeURIComponent(search) : '' %>">
             <button type="button" class="btn btn-outline btn-xs"
-              style="color:var(--success);border-color:var(--success)"
+              style="color:var(--on-success);border-color:var(--success)"
               data-pseudo="<%= b.pseudo %>"
               onclick="(function(btn){askConfirm({icon:'check',title:'Lever le bannissement',msg:'Lever le ban de <strong>'+btn.dataset.pseudo+'</strong> ?',btnLabel:'Lever le ban',btnClass:'btn-outline',onConfirm:function(){btn.closest('form').submit()}})})(this)">
               <svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Lever

@@ -61,9 +61,9 @@
 .tut-row { display:flex; align-items:center; gap:.75rem; font-size:.75rem; color:var(--text-m); flex-wrap:wrap; }
 
 /* ── Level badge ───────────────────────────────────────────────────────────── */
-.lvl-beginner     { background:rgba(34,197,94,.12);  color:var(--success); padding:.15rem .5rem; border-radius:99px; font-size:.68rem; font-weight:700; }
-.lvl-intermediate { background:rgba(245,158,11,.12); color:var(--warning); padding:.15rem .5rem; border-radius:99px; font-size:.68rem; font-weight:700; }
-.lvl-advanced     { background:rgba(239,68,68,.12);  color:var(--error);   padding:.15rem .5rem; border-radius:99px; font-size:.68rem; font-weight:700; }
+.lvl-beginner     { background:rgba(34,197,94,.12);  color:var(--on-success); padding:.15rem .5rem; border-radius:99px; font-size:.68rem; font-weight:700; }
+.lvl-intermediate { background:rgba(245,158,11,.12); color:var(--on-warning); padding:.15rem .5rem; border-radius:99px; font-size:.68rem; font-weight:700; }
+.lvl-advanced     { background:rgba(239,68,68,.12);  color:var(--on-danger);   padding:.15rem .5rem; border-radius:99px; font-size:.68rem; font-weight:700; }
 
 /* ── Card foot ─────────────────────────────────────────────────────────────── */
 .tut-card-foot {
@@ -101,7 +101,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-book"/></svg> Tutoriels</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-book"/></svg> Tutoriels</h1>
     <small><%= stats.total %> tutoriel<%= stats.total!==1?'s':'' %> · <%= stats.premium %> Premium · <%= stats.free %> Gratuit<%= stats.free!==1?'s':'' %></small>
   </div>
   <div style="display:flex;gap:.5rem">
@@ -119,13 +119,13 @@
 
 <!-- ── Stats ─────────────────────────────────────────────────────────────────── -->
 <div class="tut-stats">
-  <div class="tut-stat"><div class="v" style="color:var(--info)"><%= stats.total %></div><div class="l">Total</div></div>
-  <div class="tut-stat"><div class="v" style="color:var(--warning)"><%= stats.premium %></div><div class="l">Premium</div></div>
-  <div class="tut-stat"><div class="v" style="color:var(--success)"><%= stats.free %></div><div class="l">Gratuits</div></div>
-  <div class="tut-stat"><div class="v" style="color:#A78BFA"><%= stats.beginner %></div><div class="l">Débutant</div></div>
-  <div class="tut-stat"><div class="v" style="color:var(--warning)"><%= stats.intermediate %></div><div class="l">Interm.</div></div>
-  <div class="tut-stat"><div class="v" style="color:var(--error)"><%= stats.advanced %></div><div class="l">Avancé</div></div>
-  <div class="tut-stat"><div class="v" style="color:var(--primary)"><%= _totalViews.toLocaleString() %></div><div class="l">Vues total</div></div>
+  <div class="tut-stat"><div class="v" style="color:var(--on-info)"><%= stats.total %></div><div class="l">Total</div></div>
+  <div class="tut-stat"><div class="v" style="color:var(--on-warning)"><%= stats.premium %></div><div class="l">Premium</div></div>
+  <div class="tut-stat"><div class="v" style="color:var(--on-success)"><%= stats.free %></div><div class="l">Gratuits</div></div>
+  <div class="tut-stat"><div class="v" style="color:var(--on-purple)"><%= stats.beginner %></div><div class="l">Débutant</div></div>
+  <div class="tut-stat"><div class="v" style="color:var(--on-warning)"><%= stats.intermediate %></div><div class="l">Interm.</div></div>
+  <div class="tut-stat"><div class="v" style="color:var(--on-danger)"><%= stats.advanced %></div><div class="l">Avancé</div></div>
+  <div class="tut-stat"><div class="v" style="color:var(--primary-texte)"><%= _totalViews.toLocaleString() %></div><div class="l">Vues total</div></div>
 </div>
 
 <!-- ── Filtres ────────────────────────────────────────────────────────────────── -->
@@ -188,14 +188,14 @@
     <div class="tut-card-meta">
       <span style="font-size:.85rem"><%= catEmoji %></span>
       <span class="<%= lvl.cls %>"><%= lvl.label %></span>
-      <% if(t.videoUrl) { %><span style="font-size:.68rem;color:var(--info);background:rgba(59,130,246,.1);padding:.1rem .4rem;border-radius:4px">▶ Vidéo</span><% } %>
+      <% if(t.videoUrl) { %><span style="font-size:.68rem;color:var(--on-info);background:rgba(59,130,246,.1);padding:.1rem .4rem;border-radius:4px">▶ Vidéo</span><% } %>
     </div>
     <div class="tut-title"><%= t.title %></div>
     <div class="tut-author">par <%= t.authorName || 'Expert PronoWin' %></div>
     <div class="tut-row">
       <% if(dur!=='—') { %><span>⏱ <%= dur %></span><% } %>
       <span><svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg> <%= rating %></span>
-      <% if(!t.isPremium) { %><span style="color:var(--success)"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Gratuit</span><% } %>
+      <% if(!t.isPremium) { %><span style="color:var(--on-success)"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Gratuit</span><% } %>
     </div>
   </div>
 
@@ -212,6 +212,7 @@
     <% if(hasPerm('tutoriels','delete')) { %>
     <button class="btn btn-sm btn-danger" style="margin-left:auto"
       data-id="<%= t.id %>" data-title="<%= t.title.replace(/"/g,'&quot;') %>"
+      aria-label="Supprimer le tutoriel « <%= t.title %> »"
       onclick="delTut(this.dataset.id, this.dataset.title)"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg></button>
     <form method="POST" action="/admin/tutoriels/<%= t.id %>/delete" id="del-<%= t.id %>" style="display:none"></form>
     <% } %>

@@ -31,21 +31,21 @@
 
 /* ── Status badge ────────────────────────────────────────────────────────────── */
 .st-badge { display:inline-flex; align-items:center; gap:.35rem; font-size:.78rem; font-weight:600; padding:.25rem .65rem; border-radius:99px; }
-.st-on  { background:rgba(34,197,94,.12); color:var(--success); }
+.st-on  { background:rgba(34,197,94,.12); color:var(--on-success); }
 .st-off { background:var(--surface-d); color:var(--text-dim); }
 
 /* ── Announce type pills ─────────────────────────────────────────────────────── */
 .ann-types { display:flex; gap:.5rem; }
 .ann-type-btn { flex:1; padding:.4rem; border:2px solid var(--border); border-radius:var(--radius-s); background:none; color:var(--text-m); font-size:.8rem; font-weight:600; cursor:pointer; transition:all .15s; }
-.ann-type-btn.active-info    { border-color:var(--info);    color:var(--info);    background:rgba(59,130,246,.08); }
-.ann-type-btn.active-warning { border-color:var(--warning); color:var(--warning); background:rgba(245,158,11,.08); }
-.ann-type-btn.active-danger  { border-color:var(--error);   color:var(--error);   background:rgba(239,68,68,.08); }
+.ann-type-btn.active-info    { border-color:var(--info);    color:var(--on-info);    background:rgba(59,130,246,.08); }
+.ann-type-btn.active-warning { border-color:var(--warning); color:var(--on-warning); background:rgba(245,158,11,.08); }
+.ann-type-btn.active-danger  { border-color:var(--error);   color:var(--on-danger);   background:rgba(239,68,68,.08); }
 
 /* ── Preview annonce ─────────────────────────────────────────────────────────── */
 .ann-preview { border-radius:var(--radius-s); padding:.6rem .9rem; font-size:.82rem; font-weight:500; display:flex; align-items:center; gap:.5rem; margin-top:.6rem; }
-.ann-preview.info    { background:rgba(59,130,246,.1);  border:1px solid rgba(59,130,246,.25); color:var(--info); }
-.ann-preview.warning { background:rgba(245,158,11,.1);  border:1px solid rgba(245,158,11,.25); color:var(--warning); }
-.ann-preview.danger  { background:rgba(239,68,68,.1);   border:1px solid rgba(239,68,68,.25);  color:var(--error); }
+.ann-preview.info    { background:rgba(59,130,246,.1);  border:1px solid rgba(59,130,246,.25); color:var(--on-info); }
+.ann-preview.warning { background:rgba(245,158,11,.1);  border:1px solid rgba(245,158,11,.25); color:var(--on-warning); }
+.ann-preview.danger  { background:rgba(239,68,68,.1);   border:1px solid rgba(239,68,68,.25);  color:var(--on-danger); }
 
 /* ── Backup zone ─────────────────────────────────────────────────────────────── */
 .bk-zone { border:2px dashed var(--border); border-radius:var(--radius-s); padding:1.25rem; text-align:center; transition:border-color .2s; cursor:pointer; }
@@ -61,7 +61,7 @@
 
 /* ── Danger zone ─────────────────────────────────────────────────────────────── */
 .danger-zone { border:1px solid rgba(239,68,68,.3); border-radius:var(--radius); padding:1.4rem; background:rgba(239,68,68,.03); grid-column:1/-1; }
-.danger-zone h2 { color:var(--error); }
+.danger-zone h2 { color:var(--on-danger); }
 .danger-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:.75rem; margin-top:.9rem; }
 .danger-item { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.9rem 1rem; }
 .danger-item .di-title { font-size:.83rem; font-weight:700; margin-bottom:.2rem; }
@@ -80,7 +80,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Paramètres</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Paramètres</h1>
     <small>Configuration du panel d'administration</small>
   </div>
   <% if (settings.updatedAt) { %>
@@ -99,7 +99,7 @@
     <div class="st-state-dot" style="background:<%= settings.maintenanceMode ? 'var(--warning)' : 'var(--success)' %>"></div>
     <div>
       <div class="lbl">Maintenance</div>
-      <div class="val" style="color:<%= settings.maintenanceMode ? 'var(--warning)' : 'var(--success)' %>">
+      <div class="val" style="color:<%= settings.maintenanceMode ? 'var(--on-warning)' : 'var(--on-success)' %>">
         <%= settings.maintenanceMode ? 'Active' : 'Inactive' %>
       </div>
     </div>
@@ -108,7 +108,7 @@
     <div class="st-state-dot" style="background:<%= settings.announcementEnabled ? 'var(--info)' : 'var(--border)' %>"></div>
     <div>
       <div class="lbl">Annonce</div>
-      <div class="val" style="color:<%= settings.announcementEnabled ? 'var(--info)' : 'var(--text-dim)' %>">
+      <div class="val" style="color:<%= settings.announcementEnabled ? 'var(--on-info)' : 'var(--text-dim)' %>">
         <%= settings.announcementEnabled ? 'Activée' : 'Désactivée' %>
       </div>
     </div>
@@ -117,21 +117,21 @@
     <div class="st-state-dot" style="background:var(--primary)"></div>
     <div>
       <div class="lbl">Session</div>
-      <div class="val" style="color:var(--primary)"><%= settings.sessionTimeoutMin %> min</div>
+      <div class="val" style="color:var(--primary-texte)"><%= settings.sessionTimeoutMin %> min</div>
     </div>
   </div>
   <div class="st-state">
     <div class="st-state-dot" style="background:var(--error)"></div>
     <div>
       <div class="lbl">Max tentatives</div>
-      <div class="val" style="color:var(--error)"><%= settings.loginMaxAttempts %> / bloc. <%= settings.loginBlockMinutes %>min</div>
+      <div class="val" style="color:var(--on-danger)"><%= settings.loginMaxAttempts %> / bloc. <%= settings.loginBlockMinutes %>min</div>
     </div>
   </div>
   <div class="st-state">
     <div class="st-state-dot" style="background:var(--success)"></div>
     <div>
       <div class="lbl">Serveur</div>
-      <div class="val" style="color:var(--success)">UP · <%= sysInfo.uptime %></div>
+      <div class="val" style="color:var(--on-success)">UP · <%= sysInfo.uptime %></div>
     </div>
   </div>
   <div class="st-state">
@@ -189,7 +189,7 @@
 
         <!-- Canal store -->
         <div>
-          <div style="font-size:.74rem;font-weight:800;color:var(--primary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem">
+          <div style="font-size:.74rem;font-weight:800;color:var(--primary-texte);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem">
             App Store / Google Play
           </div>
           <div class="form-group" style="margin-bottom:.7rem">
@@ -214,7 +214,7 @@
 
         <!-- Canal direct -->
         <div>
-          <div style="font-size:.74rem;font-weight:800;color:var(--warning);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem">
+          <div style="font-size:.74rem;font-weight:800;color:var(--on-warning);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.6rem">
             APK téléchargé sur le site
           </div>
           <div class="form-group" style="margin-bottom:.7rem">
@@ -422,7 +422,7 @@
         ondrop="handleDrop(event)">
         <div style="font-size:1.3rem;margin-bottom:.3rem"><svg class="ic" aria-hidden="true"><use href="#ic-folder"/></svg></div>
         <p style="font-size:.78rem;color:var(--text-dim)" id="drop-lbl">
-          Glisser ou <span style="color:var(--primary);font-weight:600">cliquer</span> pour choisir un <code>.json</code>
+          Glisser ou <span style="color:var(--primary-texte);font-weight:600">cliquer</span> pour choisir un <code>.json</code>
         </p>
       </div>
       <input type="file" id="bk-file" accept=".json" style="display:none" aria-label="Fichier de sauvegarde à restaurer" onchange="loadBkFile(this)">
@@ -461,7 +461,7 @@
     <div class="sys-row"><span style="color:var(--text-dim)">Environnement</span>
       <span class="badge <%= sysInfo.env==='production'?'badge-ok':'badge-info' %>"><%= sysInfo.env %></span>
     </div>
-    <div class="sys-row"><span style="color:var(--text-dim)">Uptime</span><span style="font-weight:600;color:var(--success)"><%= sysInfo.uptime %></span></div>
+    <div class="sys-row"><span style="color:var(--text-dim)">Uptime</span><span style="font-weight:600;color:var(--on-success)"><%= sysInfo.uptime %></span></div>
     <div class="sys-row"><span style="color:var(--text-dim)">Mémoire RSS</span><span style="font-weight:600"><%= sysInfo.memMb %></span></div>
     <div class="sys-row" style="border-bottom:0"><span style="color:var(--text-dim)">Timezone</span><span style="font-weight:600"><%= settings.timezone %></span></div>
 
@@ -548,7 +548,7 @@ function updateAnnPreview() {
   const ico  = document.getElementById('ann-preview-ico');
   const span = document.getElementById('ann-preview-txt');
   const cnt  = document.getElementById('ann-cnt');
-  if (cnt) { cnt.textContent = txt.length + '/300'; cnt.style.color = txt.length > 270 ? 'var(--error)' : txt.length > 230 ? 'var(--warning)' : ''; }
+  if (cnt) { cnt.textContent = txt.length + '/300'; cnt.style.color = txt.length > 270 ? 'var(--on-danger)' : txt.length > 230 ? 'var(--on-warning)' : ''; }
   if (!prev) return;
   if (!txt.trim()) { prev.style.display = 'none'; return; }
   prev.style.display = '';

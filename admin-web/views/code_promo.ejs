@@ -18,9 +18,9 @@
 .cp-aide     { font-size: .72rem; color: var(--text-dim); margin-top: .3rem; line-height: 1.5; }
 .cp-origine  { font-size: .68rem; font-weight: 700; text-transform: uppercase;
                letter-spacing: .05em; padding: .1rem .4rem; border-radius: 5px; }
-.cp-base     { background: rgba(52,211,153,.15); color: #34d399; }
+.cp-base     { background: rgba(52,211,153,.15); color: var(--on-success); }
 .cp-env      { background: rgba(148,163,184,.15); color: var(--text-dim); }
-.cp-vide     { background: rgba(248,113,113,.15); color: #f87171; }
+.cp-vide     { background: rgba(248,113,113,.15); color: var(--on-danger); }
 .cp-tab      { width: 100%; border-collapse: collapse; font-size: .86rem; }
 .cp-tab th   { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
                color: var(--text-m); padding: .55rem .7rem; border-bottom: 1px solid var(--border); }
@@ -65,7 +65,7 @@
 
 <div class="topbar">
   <div>
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg> Code promo partenaire</h2>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg> Code promo partenaire</h1>
     <small>
       <% if (_general) { %>
         Code en service : <strong style="font-family:monospace"><%= _general %></strong>
@@ -199,19 +199,19 @@
     <div class="l">demandes reçues</div>
   </div>
   <div class="cp-tuile">
-    <div class="v" style="color:#fbbf24"><%= _st.par_statut_periode.pending %></div>
+    <div class="v" style="color:var(--on-warning)"><%= _st.par_statut_periode.pending %></div>
     <div class="l">en attente de vérification</div>
   </div>
   <div class="cp-tuile">
-    <div class="v" style="color:#34d399"><%= _st.par_statut_periode.approved %></div>
+    <div class="v" style="color:var(--on-success)"><%= _st.par_statut_periode.approved %></div>
     <div class="l">acceptées</div>
   </div>
   <div class="cp-tuile">
-    <div class="v" style="color:#f87171"><%= _st.par_statut_periode.rejected %></div>
+    <div class="v" style="color:var(--on-danger)"><%= _st.par_statut_periode.rejected %></div>
     <div class="l">refusées</div>
   </div>
   <div class="cp-tuile">
-    <div class="v" style="color:var(--primary)"><%= _st.mois_offerts_total %></div>
+    <div class="v" style="color:var(--primary-texte)"><%= _st.mois_offerts_total %></div>
     <div class="l">
       mois offerts depuis le début
       <br><span style="color:var(--text-dim)">soit <%= _st.mois_offerts_total * _st.jours_par_offre %> jours d'abonnement</span>
@@ -236,9 +236,9 @@
       <tr>
         <td><strong><%= _libelles[p] ?? p %></strong></td>
         <td class="cp-num"><%= l.soumises %></td>
-        <td class="cp-num" style="color:#34d399"><%= l.approuvees %></td>
-        <td class="cp-num" style="color:#f87171"><%= l.refusees %></td>
-        <td class="cp-num" style="color:#fbbf24"><%= l.en_attente %></td>
+        <td class="cp-num" style="color:var(--on-success)"><%= l.approuvees %></td>
+        <td class="cp-num" style="color:var(--on-danger)"><%= l.refusees %></td>
+        <td class="cp-num" style="color:var(--on-warning)"><%= l.en_attente %></td>
         <td class="cp-num">
           <% if (l.taux_approbation === null) { %>
             <span style="color:var(--text-dim);font-weight:400">
