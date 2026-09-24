@@ -1,7 +1,7 @@
 import fs from 'fs';
 
 import { prisma } from '../lib/prisma';
-import { etatDesTaches } from './etat_taches';
+import { etatDesTaches, lireEtatPublie, SILENCE_MAX_MS, tachesDansLApi } from './etat_taches';
 
 /**
  * L'état de la machine, tel que le tableau de bord doit le montrer.
@@ -54,12 +54,29 @@ export async function lireSante() {
     lireSauvegarde(),
   ]);
 
-  const { demarreLe, taches, quotaFootball } = etatDesTaches();
+  const { demarreLe } = etatDesTaches();
+  // Les tâches tournent dans l'API, ou dans pronowin-taches (P1) : leur état
+  // vient alors de ce qu'il a publié en base.
+  let { taches, quotaFootball } = etatDesTaches();
+  let processusTaches: { separe: boolean; demarreLe: string | null; publieLe: string | null; silencieux: boolean } =
+    { separe: false, demarreLe, publieLe: null, silencieux: false };
+  if (!tachesDansLApi()) {
+    const publie = await lireEtatPublie();
+    taches = publie?.taches ?? {};
+    quotaFootball = publie?.quotaFootball ?? null;
+    processusTaches = {
+      separe:     true,
+      demarreLe:  publie?.demarreLe ?? null,
+      publieLe:   publie?.publieLe ?? null,
+      silencieux: !publie || Date.now() - Date.parse(publie.publieLe) > SILENCE_MAX_MS,
+    };
+  }
   return {
     genereLe: new Date().toISOString(),
     api: { demarreLe, node: process.version },
     base,
     taches,
+    processusTaches,
     quotaFootball,
     fileStore,
     preuves,

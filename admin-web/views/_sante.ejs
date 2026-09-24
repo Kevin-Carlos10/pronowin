@@ -32,6 +32,17 @@
       ? { etat: 'ok', titre: 'API et base', valeur: 'Opérationnelles', detail: `Base : ${_s.base.latenceMs} ms · démarrée ${_depuis(_s.api.demarreLe)}` }
       : { etat: 'err', titre: 'API et base', valeur: 'Base injoignable', detail: "L'API répond, mais PostgreSQL non." });
 
+    // Tâches dans un processus dédié (constat P1) : s'il se tait, plus rien
+    // ne tourne — scores, rappels, file des stores — sans que l'API tombe.
+    const pt = _s.processusTaches;
+    if (pt && pt.separe) {
+      _tuiles.push(pt.silencieux
+        ? { etat: 'err', titre: 'Tâches planifiées', valeur: pt.publieLe ? `Muettes depuis ${_depuis(pt.publieLe).replace(/^il y a /, '')}` : 'Jamais démarrées',
+            detail: 'Le processus pronowin-taches ne publie plus rien : scores, rappels et file des stores sont à l\'arrêt.' }
+        : { etat: 'ok', titre: 'Tâches planifiées', valeur: 'Processus dédié actif',
+            detail: `pronowin-taches · démarré ${_depuis(pt.demarreLe)} · état publié ${_depuis(pt.publieLe)}` });
+    }
+
     const sync = _t.synchronisation_scores;
     const q = _s.quotaFootball;
     const quotaTxt = q ? `Quota : ${q.restant.toLocaleString('fr-FR')} / ${q.limite.toLocaleString('fr-FR')} requêtes` : 'Quota : pas encore relevé';

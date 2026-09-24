@@ -190,6 +190,9 @@ const views = [
       base: { ok: true, latenceMs: 3 },
       taches: { synchronisation_scores: { derniereReussite: new Date(Date.now() - 90000).toISOString(), dernierEchec: null } },
       quotaFootball: { limite: 7500, restant: 5120, releveLe: new Date().toISOString() },
+      // Tâches dans pronowin-taches (P1), qui publie normalement.
+      processusTaches: { separe: true, silencieux: false,
+        demarreLe: new Date(Date.now() - 3 * 3600000).toISOString(), publieLe: new Date(Date.now() - 40000).toISOString() },
       fileStore: { traitee: 12 },
       preuves: { nombre: 0, plusAncienne: null },
       sauvegarde: { derniere: new Date(Date.now() - 9 * 3600000).toISOString(), taille: '2.1M', panneau: true },
@@ -207,6 +210,9 @@ const views = [
       taches: { synchronisation_scores: { derniereReussite: new Date(Date.now() - 3 * 3600000).toISOString(),
                 dernierEchec: new Date().toISOString(), derniereErreur: 'quota épuisé' } },
       quotaFootball: { limite: 7500, restant: 0, releveLe: new Date().toISOString() },
+      // Processus des tâches muet depuis 25 minutes.
+      processusTaches: { separe: true, silencieux: true,
+        demarreLe: new Date(Date.now() - 5 * 3600000).toISOString(), publieLe: new Date(Date.now() - 25 * 60000).toISOString() },
       fileStore: { echec: 2, abandonnee: 1 },
       preuves: { nombre: 4, plusAncienne: new Date(Date.now() - 50 * 3600000).toISOString() },
       sauvegarde: null,

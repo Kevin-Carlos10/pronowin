@@ -34,10 +34,12 @@ export async function suivre<T>(nom: string, travail: () => Promise<T>, detail?:
     const r = await travail();
     taches.set(nom, { ...e, derniereReussite: new Date().toISOString(), dureeMs: Date.now() - debut,
                       detail: detail ? detail(r) : e.detail });
+    void publierMaintenant();
     return r;
   } catch (err: any) {
     taches.set(nom, { ...e, dernierEchec: new Date().toISOString(), dureeMs: Date.now() - debut,
                       derniereErreur: String(err?.message ?? err).slice(0, 200) });
+    void publierMaintenant();
     throw err;
   }
 }
@@ -65,3 +67,53 @@ export function etatDesTaches() {
 
 /** Pour les bancs d'essai. */
 export function _reinitialiser() { taches.clear(); quota = null; }
+
+// ─── Processus des tâches séparé (constat P1) ────────────────────────────────
+//
+// Cet état vit dans la mémoire du processus qui exécute les tâches. Quand ce
+// n'est plus l'API, la page Santé du panneau — servie par l'API — ne le
+// verrait plus : le processus des tâches le publie donc en base après chaque
+// exécution, et la santé le relit.
+
+/** L'API lance-t-elle les tâches ? Non quand un processus dédié s'en charge. */
+export function tachesDansLApi(env: NodeJS.ProcessEnv = process.env): boolean {
+  return env.TACHES_SEPAREES !== '1';
+}
+
+/** La ligne de `app_settings` où l'état est publié. */
+export const CLE_ETAT_PUBLIE = '_etat_taches';
+/** Au-delà, un processus des tâches muet est signalé : la file des stores
+ *  tourne chaque minute, et publie à chaque fois. */
+export const SILENCE_MAX_MS = 10 * 60 * 1000;
+
+let publier = false;
+
+/** À appeler par le processus des tâches, et par lui seul. */
+export function publierEtat(actif = true) { publier = actif; }
+
+async function publierMaintenant(): Promise<void> {
+  if (!publier) return;
+  try {
+    // Chargé ici : l'API n'en a pas besoin, et certains bancs n'ont pas de base.
+    const { prisma } = await import('../lib/prisma');
+    const valeur = JSON.stringify(etatDesTaches());
+    await prisma.appSetting.upsert({
+      where:  { key: CLE_ETAT_PUBLIE },
+      update: { value: valeur, updatedBy: 'pronowin-taches' },
+      create: { key: CLE_ETAT_PUBLIE, value: valeur, updatedBy: 'pronowin-taches' },
+    });
+  } catch { /* la santé le dira : l'état publié vieillira */ }
+}
+
+/** L'état publié par le processus des tâches, et quand il l'a été. */
+export async function lireEtatPublie(): Promise<
+  (ReturnType<typeof etatDesTaches> & { publieLe: string }) | null> {
+  try {
+    const { prisma } = await import('../lib/prisma');
+    const ligne = await prisma.appSetting.findUnique({ where: { key: CLE_ETAT_PUBLIE } });
+    if (!ligne) return null;
+    return { ...JSON.parse(ligne.value), publieLe: ligne.updatedAt.toISOString() };
+  } catch {
+    return null;
+  }
+}

@@ -178,15 +178,23 @@ describe('quand alerter, et quand se taire', () => {
 });
 
 describe('le contrôle est réellement branché', () => {
-  const index = fs
-    .readFileSync(path.join(__dirname, '..', 'index.ts'), 'utf8')
+  // Les tâches planifiées vivent dans taches.ts depuis le constat P1 ; l'API
+  // et le processus pronowin-taches les lancent par demarrerTaches().
+  const lire = (fichier: string) => fs
+    .readFileSync(path.join(__dirname, '..', fichier), 'utf8')
     .split('\n')
     .filter((l) => !l.trimStart().startsWith('//') && !l.trimStart().startsWith('*'))
     .join('\n');
+  const index = lire('taches.ts');
 
-  it('index.ts le planifie', () => {
+  it('taches.ts le planifie', () => {
     expect(index).toContain('signalerAchatsEnRetard');
     expect(index).toContain('setInterval(runAchatsEnRetard');
+  });
+
+  it('l\'API et le processus des tâches lancent bien taches.ts', () => {
+    expect(lire('index.ts')).toMatch(/arreterTaches = demarrerTaches\(\)/);
+    expect(lire('taches_processus.ts')).toMatch(/demarrerTaches\(\)/);
   });
 
   it("il ne dépend pas de la clé API football", () => {

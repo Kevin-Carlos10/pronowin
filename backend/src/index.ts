@@ -13,11 +13,7 @@ import compression from 'compression';
 import axios from 'axios';
 
 import authRoutes            from './routes/auth.routes';
-import { PronosticsService } from './services/pronostics.service';
-import { signalerAchatsEnRetard, SEUIL_ATTENTE_HEURES, INTERVALLE_CONTROLE_MS } from './services/alerte_achats.service';
-import { SubscriptionService } from './services/subscription.service';
-import { FileNotificationsIap } from './services/iap_notifications.service';
-import { suivre } from './services/etat_taches';
+import { demarrerTaches, tachesDansLApi } from './taches';
 import pronosticsRoutes      from './routes/pronostics.routes';
 import paymentRoutes         from './routes/payment.routes';
 import subscriptionRoutes    from './routes/subscription.routes';
@@ -278,106 +274,20 @@ app.use((err: Error, _req: express.Request, res: express.Response, _next: expres
 // joindre l'API. `HOST` force l'un ou l'autre.
 const HOTE = process.env.HOST
   ?? (process.env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0');
+let arreterTaches: (() => void) | null = null;
 const serveur = app.listen(Number(PORT), HOTE, () => {
   logger.info(`PronoWin API démarrée — ${HOTE}:${PORT}`);
   logger.info('admin/tutorials actif');
 
-  // ─── SYNC AUTOMATIQUE DES SCORES ──────────────────────────────────────────
-  // Lance une 1ère sync immédiate au démarrage, puis toutes les 5 minutes.
-  // Ne tourne que si la clé API est configurée.
-  if (process.env.API_FOOTBALL_KEY) {
-    const pronoSvc = new PronosticsService();
-
-    // Sync intelligente : 30s si matchs LIVE, 2min sinon — 24h/24. Des matchs
-    // (Amériques, Asie...) sont live en dehors de la plage 5h-23h UTC qu'on
-    // excluait avant ; avec la marge de quota dégagée par le throttle du
-    // filet de sécurité, plus besoin de ce blackout.
-    const runSync = async () => {
-      await suivre('synchronisation_scores', () => pronoSvc.syncMatchScores()).catch((err: Error) =>
-        logger.error('[ScoreSync] Erreur', { message: err.message }));
-    };
-
-    const scheduleLiveSync = async () => {
-      const liveCount = await prisma.match.count({ where: { status: 'LIVE' } }).catch(() => 0);
-      return liveCount > 0 ? 30_000 : 2 * 60 * 1000;
-    };
-
-    // Boucle adaptative : re-planifie selon présence de matchs LIVE
-    const adaptiveSync = async () => {
-      await runSync();
-      const delay = await scheduleLiveSync();
-      setTimeout(adaptiveSync, delay);
-    };
-
-    setTimeout(adaptiveSync, 30_000);
-    logger.info('Score sync actif — 30s si LIVE, 2min sinon (24h/24)');
-
-    const runMatchSoon = () => {
-      const hour = new Date().getUTCHours();
-      if (hour < 5 || hour > 23) return;
-      pronoSvc.checkMatchesSoon().then(({ notified }) => {
-        if (notified > 0) logger.info(`[MatchSoon] ${notified} notification(s) envoyée(s)`);
-      }).catch(err => logger.error('[MatchSoon] Erreur', { message: err.message }));
-    };
-    setTimeout(runMatchSoon, 60_000);
-    setInterval(runMatchSoon, 15 * 60 * 1000);
-    logger.info('Notif "match bientôt" actif — toutes les 15 min');
+  // Les tâches planifiées — scores, rappels, file des stores, alerte
+  // d'achats. Dans l'API tant qu'aucun processus dédié ne s'en charge ; avec
+  // TACHES_SEPAREES=1, c'est pronowin-taches (constat P1) : deux exemplaires
+  // de l'API ne doivent pas envoyer chaque notification deux fois.
+  if (tachesDansLApi()) {
+    arreterTaches = demarrerTaches();
   } else {
-    // Le message nommait FOOTBALL_DATA_API_KEY, alors que la variable lue est
-    // API_FOOTBALL_KEY : il envoyait chercher la mauvaise (constat I7).
-    logger.warn('API_FOOTBALL_KEY manquante — synchronisation des scores désactivée');
+    logger.info('Tâches planifiées : processus pronowin-taches (TACHES_SEPAREES=1)');
   }
-
-  // ─── RAPPEL D'EXPIRATION PREMIUM ──────────────────────────────────────────
-  // Sorti du bloc ci-dessus, pour la même raison que l'alerte d'achats plus
-  // bas : il ne concerne pas le football, et il se taisait le jour où la clé
-  // football manquait (constat I13). L'interrupteur « Abonnement Premium »
-  // des Paramètres annonçait cette notification. Une fois par jour :
-  // l'idempotence des paliers suppose exactement une exécution quotidienne.
-  const subSvc = new SubscriptionService();
-  const runExpiryReminder = () => {
-    suivre('rappel_expiration', () => subSvc.notifyExpiringSubscriptions(),
-      ({ notified }) => `${notified} rappel(s)`).then(({ notified }) => {
-      if (notified > 0) logger.info(`[PremiumExpiry] ${notified} rappel(s) envoyé(s)`);
-    }).catch(err => logger.error('[PremiumExpiry] Erreur', { message: err.message }));
-  };
-  setTimeout(runExpiryReminder, 120_000);
-  setInterval(runExpiryReminder, 24 * 60 * 60 * 1000);
-  logger.info('Rappel expiration Premium actif — 1×/jour (J-7, J-3, J-1)');
-
-  // ─── NOTIFICATIONS DES STORES ─────────────────────────────────────────────
-  // Le webhook inscrit l'événement puis acquitte ; le traitement a lieu ici,
-  // et se refait avec un délai croissant tant qu'il échoue (constat I10).
-  const fileIap = new FileNotificationsIap();
-  setInterval(() => {
-    suivre('file_notifications_store', () => fileIap.traiterEnAttente(),
-      (n) => `${n} examinée(s)`).catch((err: Error) =>
-      logger.error('[IAP] File de notifications', { message: err.message }));
-  }, 60_000);
-
-  // ─── ACHATS NON ACTIVÉS ───────────────────────────────────────────────────
-  // Délibérément hors du bloc ci-dessus : celui-ci ne tourne que si la clé
-  // API football est posée. Une alerte de paiement rangée dedans deviendrait
-  // muette le jour où cette clé changerait — et personne ne s'en apercevrait,
-  // puisque le propre d'une alerte silencieuse est de ne rien dire.
-  const runAchatsEnRetard = () => {
-    suivre('alerte_achats', () => signalerAchatsEnRetard(),
-      ({ enRetard }) => `${enRetard} en retard`)
-      .then(({ enRetard, alerteEnvoyee }) => {
-        if (enRetard > 0) {
-          logger.warn(
-            `[AchatsEnRetard] ${enRetard} en attente — alerte ${alerteEnvoyee ? 'envoyée' : 'NON envoyée'}`,
-          );
-        }
-      })
-      .catch((err: Error) =>
-        logger.error('[AchatsEnRetard] Erreur', { message: err.message }));
-  };
-  setTimeout(runAchatsEnRetard, 180_000);
-  setInterval(runAchatsEnRetard, INTERVALLE_CONTROLE_MS);
-  logger.info(
-    `Alerte achats non activés — contrôle toutes les ${SEUIL_ATTENTE_HEURES} h`,
-  );
 });
 
 /**
@@ -394,6 +304,7 @@ function arreter(signal: string) {
   if (arretEnCours) return;
   arretEnCours = true;
   logger.info(`[Arrêt] ${signal} reçu — fin des requêtes en cours`);
+  arreterTaches?.();
   const limite = setTimeout(() => process.exit(0), 8000);
   limite.unref();
   serveur.close(() => {
