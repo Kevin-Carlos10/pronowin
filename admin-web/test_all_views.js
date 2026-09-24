@@ -177,6 +177,48 @@ const views = [
         action:'Choisir', lien:'/admin/pronostics' },
     ],
   }],
+  // Santé du système (constat A7) : tout va bien, puis tout va mal, puis
+  // l'API muette — trois rendus qui ne doivent pas se ressembler.
+  ['dashboard (santé normale)', 'dashboard', {
+    ...base, page: 'dashboard', isMain: true, montrerSante: true,
+    stats: { totalUsers: 412, premiumUsers: 38, pendingTx: 0, publishedToday: 5, activeUsers: 7 },
+    pending: { data: [], total: 0 }, proofs: { data: [], total: 0 },
+    activeBansCount: 0, recentBans: [], recentLogs: [], settings: {}, file: [],
+    compteService: { ok: true, configure: true, le: new Date(Date.now() - 5 * 60000).toISOString() },
+    sante: {
+      api: { demarreLe: new Date(Date.now() - 3 * 3600000).toISOString(), node: 'v24' },
+      base: { ok: true, latenceMs: 3 },
+      taches: { synchronisation_scores: { derniereReussite: new Date(Date.now() - 90000).toISOString(), dernierEchec: null } },
+      quotaFootball: { limite: 7500, restant: 5120, releveLe: new Date().toISOString() },
+      fileStore: { traitee: 12 },
+      preuves: { nombre: 0, plusAncienne: null },
+      sauvegarde: { derniere: new Date(Date.now() - 9 * 3600000).toISOString(), taille: '2.1M', panneau: true },
+    },
+  }],
+  ['dashboard (santé dégradée)', 'dashboard', {
+    ...base, page: 'dashboard', isMain: true, montrerSante: true,
+    stats: { totalUsers: 412, premiumUsers: 38, pendingTx: 0, publishedToday: 5, activeUsers: 7 },
+    pending: { data: [], total: 0 }, proofs: { data: [], total: 0 },
+    activeBansCount: 0, recentBans: [], recentLogs: [], settings: {}, file: [],
+    compteService: { ok: false, configure: true, le: new Date().toISOString() },
+    sante: {
+      api: { demarreLe: new Date().toISOString(), node: 'v24' },
+      base: { ok: false, latenceMs: null },
+      taches: { synchronisation_scores: { derniereReussite: new Date(Date.now() - 3 * 3600000).toISOString(),
+                dernierEchec: new Date().toISOString(), derniereErreur: 'quota épuisé' } },
+      quotaFootball: { limite: 7500, restant: 0, releveLe: new Date().toISOString() },
+      fileStore: { echec: 2, abandonnee: 1 },
+      preuves: { nombre: 4, plusAncienne: new Date(Date.now() - 50 * 3600000).toISOString() },
+      sauvegarde: null,
+    },
+  }],
+  ['dashboard (santé illisible)', 'dashboard', {
+    ...base, page: 'dashboard', isMain: true, montrerSante: true,
+    stats: { totalUsers: 0, premiumUsers: 0, pendingTx: 0, publishedToday: 0, activeUsers: 0 },
+    pending: { data: [], total: 0 }, proofs: { data: [], total: 0 },
+    activeBansCount: 0, recentBans: [], recentLogs: [], settings: {}, file: [],
+    compteService: null, sante: null,
+  }],
   ['dashboard (rien à traiter)', 'dashboard', {
     ...base, page: 'dashboard',
     stats: { totalUsers: 412, premiumUsers: 38, pendingTx: 0, publishedToday: 5, activeUsers: 7 },

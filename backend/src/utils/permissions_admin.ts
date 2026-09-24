@@ -56,7 +56,7 @@ const REGLES: Regle[] = [
   [LIRE,   /^\/pronostics\/admin\/stats$/,                      { acces: 'toute_session' }],
 
   // ── Réservé à l'administrateur principal ──
-  [TOUT,   /^\/admin\/(app-config|promo-stats|profile\/password)$/, { acces: 'principal' }],
+  [TOUT,   /^\/admin\/(app-config|promo-stats|profile\/password|sante)$/, { acces: 'principal' }],
   [TOUT,   /^\/admin\/payment-methods(\/[^/]+)?$/,              { acces: 'principal' }],
 
   // ── Statistiques ──

@@ -256,6 +256,10 @@
 </div>
 
 <!-- ── KPIs ───────────────────────────────────────────────────────────────── -->
+<% if (typeof montrerSante !== 'undefined' && montrerSante) { %>
+<%- include('_sante') %>
+<% } %>
+
 <div class="kpi-grid">
   <a href="/admin/users" class="kpi-card blue">
     <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span>

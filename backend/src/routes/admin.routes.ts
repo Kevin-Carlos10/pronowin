@@ -5,6 +5,7 @@ import { lireConfig, ecrireConfig } from '../services/app_config.service';
 import { SubscriptionService, BETTING_PLATFORMS } from '../services/subscription.service';
 import * as Methodes from '../services/payment_method.service';
 import { repondreErreur } from '../utils/erreurs';
+import { lireSante } from '../services/sante.service';
 const r   = Router();
 const svc = new AdminAuthService();
 const subSvc = new SubscriptionService();
@@ -22,6 +23,18 @@ r.patch('/profile/password', adminMiddleware, async (req: AdminRequest, res) => 
       req.adminId!, req.body.current_password, req.body.new_password));
   } catch (e: any) { repondreErreur(res, e, 422); }
 });
+/**
+ * GET /admin/sante — ce que le tableau de bord doit montrer de la machine.
+ *
+ * Réservée à l'administrateur principal. Tout est lu, rien n'est calculé en
+ * mémoire du panneau : base, tâches de fond, quota football, file des
+ * notifications de store, dernière sauvegarde, preuves en attente.
+ */
+r.get('/sante', adminMiddleware, async (_req: AdminRequest, res) => {
+  try { res.json(await lireSante()); }
+  catch (e: any) { repondreErreur(res, e); }
+});
+
 /**
  * GET /admin/app-config — réglages de version et de mise à jour.
  *

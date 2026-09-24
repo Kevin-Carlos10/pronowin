@@ -3,6 +3,7 @@ import type { H2HResult, H2HMatch } from './football_data.service';
 import { ApiFootballInsights } from './api_football_insights.service';
 import { zoneDepuisDescription } from './zones_classement';
 import { traduireAbsence, estSuspension } from './traduction_absences';
+import { noterQuota } from './etat_taches';
 
 // Mapping Football-Data.org codes → API-Football league IDs + saison de repli.
 //
@@ -323,6 +324,9 @@ export class ApiFootballService {
       },
       timeout: 10000,
     });
+    // Le quota restant voyage dans chaque réponse : on le relève pour le
+    // tableau de bord (constat I6).
+    this.client.interceptors.response.use((r) => { noterQuota(r.headers as any); return r; });
   }
 
   private static _normalizeTeamName(s: string): string {

@@ -16,6 +16,7 @@ import { PronosticsService } from './services/pronostics.service';
 import { signalerAchatsEnRetard, SEUIL_ATTENTE_HEURES, INTERVALLE_CONTROLE_MS } from './services/alerte_achats.service';
 import { SubscriptionService } from './services/subscription.service';
 import { FileNotificationsIap } from './services/iap_notifications.service';
+import { suivre } from './services/etat_taches';
 import pronosticsRoutes      from './routes/pronostics.routes';
 import paymentRoutes         from './routes/payment.routes';
 import subscriptionRoutes    from './routes/subscription.routes';
@@ -284,7 +285,7 @@ const serveur = app.listen(Number(PORT), HOTE, () => {
     // excluait avant ; avec la marge de quota dégagée par le throttle du
     // filet de sécurité, plus besoin de ce blackout.
     const runSync = async () => {
-      await pronoSvc.syncMatchScores().catch((err: Error) =>
+      await suivre('synchronisation_scores', () => pronoSvc.syncMatchScores()).catch((err: Error) =>
         logger.error('[ScoreSync] Erreur', { message: err.message }));
     };
 
@@ -327,7 +328,8 @@ const serveur = app.listen(Number(PORT), HOTE, () => {
   // l'idempotence des paliers suppose exactement une exécution quotidienne.
   const subSvc = new SubscriptionService();
   const runExpiryReminder = () => {
-    subSvc.notifyExpiringSubscriptions().then(({ notified }) => {
+    suivre('rappel_expiration', () => subSvc.notifyExpiringSubscriptions(),
+      ({ notified }) => `${notified} rappel(s)`).then(({ notified }) => {
       if (notified > 0) logger.info(`[PremiumExpiry] ${notified} rappel(s) envoyé(s)`);
     }).catch(err => logger.error('[PremiumExpiry] Erreur', { message: err.message }));
   };
@@ -340,7 +342,8 @@ const serveur = app.listen(Number(PORT), HOTE, () => {
   // et se refait avec un délai croissant tant qu'il échoue (constat I10).
   const fileIap = new FileNotificationsIap();
   setInterval(() => {
-    fileIap.traiterEnAttente().catch((err: Error) =>
+    suivre('file_notifications_store', () => fileIap.traiterEnAttente(),
+      (n) => `${n} examinée(s)`).catch((err: Error) =>
       logger.error('[IAP] File de notifications', { message: err.message }));
   }, 60_000);
 
@@ -350,7 +353,8 @@ const serveur = app.listen(Number(PORT), HOTE, () => {
   // muette le jour où cette clé changerait — et personne ne s'en apercevrait,
   // puisque le propre d'une alerte silencieuse est de ne rien dire.
   const runAchatsEnRetard = () => {
-    signalerAchatsEnRetard()
+    suivre('alerte_achats', () => signalerAchatsEnRetard(),
+      ({ enRetard }) => `${enRetard} en retard`)
       .then(({ enRetard, alerteEnvoyee }) => {
         if (enRetard > 0) {
           logger.warn(

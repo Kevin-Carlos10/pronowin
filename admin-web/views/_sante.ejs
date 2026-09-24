@@ -1,0 +1,123 @@
+<%#
+  Santé du système — tableau de bord de l'administrateur principal.
+
+  Le tableau de bord ne disait rien de la machine : ni l'API, ni la dernière
+  synchronisation des scores, ni le quota football, ni la dernière sauvegarde,
+  ni le compte de service — resté en échec des semaines sans que personne ne
+  le voie (constats A7 et I6 de l'audit du 24 septembre 2026).
+
+  Chaque tuile dit son état en mots, pas seulement en couleur, et distingue
+  « aucune donnée » d'un état sain.
+%>
+<%
+  const _s = typeof sante !== 'undefined' ? sante : null;
+  const _svc = typeof compteService !== 'undefined' ? compteService : null;
+  const _depuis = (iso) => {
+    if (!iso) return null;
+    const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (min < 1) return "à l'instant";
+    if (min < 60) return `il y a ${min} min`;
+    const h = Math.round(min / 60);
+    if (h < 48) return `il y a ${h} h`;
+    return `il y a ${Math.round(h / 24)} j`;
+  };
+  const _ageH = (iso) => iso ? (Date.now() - new Date(iso).getTime()) / 3600000 : Infinity;
+  const _t = (_s && _s.taches) || {};
+  const _tuiles = [];
+
+  if (!_s) {
+    _tuiles.push({ etat: 'err', titre: 'API', valeur: 'Injoignable', detail: "L'état détaillé n'a pas pu être lu." });
+  } else {
+    _tuiles.push(_s.base && _s.base.ok
+      ? { etat: 'ok', titre: 'API et base', valeur: 'Opérationnelles', detail: `Base : ${_s.base.latenceMs} ms · démarrée ${_depuis(_s.api.demarreLe)}` }
+      : { etat: 'err', titre: 'API et base', valeur: 'Base injoignable', detail: "L'API répond, mais PostgreSQL non." });
+
+    const sync = _t.synchronisation_scores;
+    const q = _s.quotaFootball;
+    const quotaTxt = q ? `Quota : ${q.restant.toLocaleString('fr-FR')} / ${q.limite.toLocaleString('fr-FR')} requêtes` : 'Quota : pas encore relevé';
+    if (!sync) {
+      _tuiles.push({ etat: 'neutre', titre: 'Scores', valeur: 'Pas encore de synchronisation', detail: quotaTxt + ' depuis le démarrage' });
+    } else {
+      const retard = _ageH(sync.derniereReussite) > 0.25;
+      const echecRecent = sync.dernierEchec && (!sync.derniereReussite || sync.dernierEchec > sync.derniereReussite);
+      const quotaBas = q && q.restant / q.limite < 0.1;
+      _tuiles.push({
+        etat: echecRecent || retard ? 'err' : (quotaBas ? 'warn' : 'ok'),
+        titre: 'Scores',
+        valeur: sync.derniereReussite ? `Synchronisés ${_depuis(sync.derniereReussite)}` : 'Aucune synchronisation réussie',
+        detail: echecRecent ? `Dernier échec : ${sync.derniereErreur}` : quotaTxt + (quotaBas ? ' — bientôt épuisé' : ''),
+      });
+    }
+
+    const sv = _s.sauvegarde;
+    _tuiles.push(!sv
+      ? { etat: 'warn', titre: 'Sauvegarde', valeur: 'Aucune trace', detail: "Le fichier d'état de la sauvegarde est introuvable." }
+      : { etat: _ageH(sv.derniere) > 26 ? 'err' : 'ok', titre: 'Sauvegarde',
+          valeur: `Dernière ${_depuis(sv.derniere)}`,
+          detail: `${sv.taille ?? '?'} · panneau ${sv.panneau ? 'inclus' : 'non inclus'} · sur ce serveur seulement` });
+
+    const fs_ = _s.fileStore || {};
+    const bloques = (fs_.echec || 0) + (fs_.abandonnee || 0);
+    _tuiles.push({
+      etat: (fs_.abandonnee || 0) > 0 ? 'err' : (bloques > 0 ? 'warn' : 'ok'),
+      titre: 'Notifications des stores',
+      valeur: bloques > 0 ? `${bloques} en échec` : 'Rien en attente',
+      detail: `${fs_.traitee || 0} traitée(s) · ${fs_.ignoree || 0} ignorée(s)` + ((fs_.abandonnee || 0) ? ` · ${fs_.abandonnee} abandonnée(s)` : ''),
+    });
+
+    const p = _s.preuves;
+    if (p) {
+      const vieille = _ageH(p.plusAncienne);
+      _tuiles.push({
+        etat: p.nombre === 0 ? 'ok' : (vieille > 24 ? 'err' : 'warn'),
+        titre: 'Preuves de paiement',
+        valeur: p.nombre === 0 ? 'Aucune en attente' : `${p.nombre} en attente`,
+        detail: p.nombre ? `La plus ancienne ${_depuis(p.plusAncienne)}` : 'File vide',
+      });
+    }
+  }
+
+  if (_svc) {
+    _tuiles.push(_svc.ok
+      ? { etat: 'ok', titre: 'Compte de service', valeur: 'Connecté', detail: `Jeton obtenu ${_depuis(_svc.le)}` }
+      : { etat: 'err', titre: 'Compte de service', valeur: 'En échec',
+          detail: _svc.configure ? 'Vérifiez ADMIN_SERVICE_PASSWORD : les sous-admins et les KPI en dépendent.'
+                                 : 'Non configuré : les sous-admins ne peuvent pas se connecter.' });
+  }
+
+  const _libelle = { ok: 'Normal', warn: 'À surveiller', err: 'Problème', neutre: 'Sans donnée' };
+%>
+<section class="sante card" aria-labelledby="sante-titre">
+  <h2 id="sante-titre" class="sante-titre">Santé du système</h2>
+  <div class="sante-grille">
+    <% _tuiles.forEach(function (t) { %>
+    <div class="sante-tuile sante-<%= t.etat %>">
+      <div class="sante-tete">
+        <span class="sante-nom"><%= t.titre %></span>
+        <span class="sante-etat"><%= _libelle[t.etat] %></span>
+      </div>
+      <div class="sante-valeur"><%= t.valeur %></div>
+      <div class="sante-detail"><%= t.detail %></div>
+    </div>
+    <% }) %>
+  </div>
+</section>
+<style>
+.sante { padding: 1rem 1.1rem; margin-bottom: 1.25rem; }
+.sante-titre { font-size: .95rem; font-weight: 800; margin: 0 0 .8rem; color: var(--text); }
+.sante-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .7rem; }
+.sante-tuile { border: 1px solid var(--border); border-left-width: 4px; border-radius: 10px; padding: .7rem .8rem; background: var(--surface-d); }
+.sante-ok     { border-left-color: var(--success); }
+.sante-warn   { border-left-color: var(--warning); }
+.sante-err    { border-left-color: var(--error); }
+.sante-neutre { border-left-color: var(--border-s); }
+.sante-tete  { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; }
+.sante-nom   { font-size: .72rem; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--text-m); }
+.sante-etat  { font-size: .7rem; font-weight: 700; }
+.sante-ok .sante-etat     { color: var(--on-success); }
+.sante-warn .sante-etat   { color: var(--on-warning); }
+.sante-err .sante-etat    { color: var(--on-danger); }
+.sante-neutre .sante-etat { color: var(--text-dim); }
+.sante-valeur { font-size: .95rem; font-weight: 700; color: var(--text); margin-top: .25rem; }
+.sante-detail { font-size: .75rem; color: var(--text-m); margin-top: .2rem; line-height: 1.45; }
+</style>

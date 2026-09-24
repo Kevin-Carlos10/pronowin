@@ -1297,11 +1297,13 @@ app.get('/admin/dashboard', requireAuth, async (req, res) => {
   const voitTx  = res.locals.hasPerm('transactions');
   const voitAbo = res.locals.hasPerm('abonnements');
   const vide    = Promise.resolve({ data: { data: [], total: 0 } });
-  const [statsRes, pendingRes, proofsRes, onlineRes] = await Promise.allSettled([
+  const [statsRes, pendingRes, proofsRes, onlineRes, santeRes] = await Promise.allSettled([
     a.get('/pronostics/admin/stats'),
     voitTx  ? a.get('/payments/admin/pending?page=1')     : vide,
     voitAbo ? a.get('/subscriptions/admin/proofs?page=1') : vide,
     a.get('/admin/stats/online'),  // non caché — toujours frais
+    // Santé du système : réservée à l'administrateur principal (constat A7).
+    res.locals.isMain ? a.get('/admin/sante') : Promise.resolve(null),
   ]);
   if ([statsRes, pendingRes, proofsRes].some(r => r.status === 'rejected' && r.reason?.response?.status === 401)) {
     jetonRefuse(req, res); return res.redirect('/admin/login?expired=1');
@@ -1379,6 +1381,11 @@ app.get('/admin/dashboard', requireAuth, async (req, res) => {
   }
 
   res.render('dashboard', {
+    sante: res.locals.isMain && santeRes.status === 'fulfilled' && santeRes.value ? santeRes.value.data : null,
+    montrerSante: res.locals.isMain,
+    compteService: res.locals.isMain
+      ? (_etatService ?? { ok: !!process.env.ADMIN_API_TOKEN, configure: serviceConfigure(), le: null })
+      : null,
     adminName: req.admin.nom ?? 'Admin',
     stats:   { ...baseStats, activeUsers },
     pending, proofs,
@@ -1560,6 +1567,8 @@ function enTantQueSysteme(travail) {
  */
 let _jetonService  = null;
 let _jetonExpireLe = 0;
+/** Dernière tentative de connexion du compte de service, pour le tableau de bord. */
+let _etatService   = null;
 
 async function jetonService({ forcer = false } = {}) {
   if (!forcer && _jetonService && Date.now() < _jetonExpireLe) return _jetonService;
@@ -1573,9 +1582,11 @@ async function jetonService({ forcer = false } = {}) {
         _jetonService  = r.data.token;
         // Renouvellement bien avant l'expiration réelle du jeton.
         _jetonExpireLe = Date.now() + 30 * 60 * 1000;
+        _etatService   = { ok: true, configure: true, le: new Date().toISOString() };
         return _jetonService;
       }
     } catch { /* on retombe sur la variable d'environnement ci-dessous */ }
+    _etatService = { ok: false, configure: true, le: new Date().toISOString() };
   }
   const repli = process.env.ADMIN_API_TOKEN ?? '';
   return repli || null;
