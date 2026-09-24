@@ -26,7 +26,7 @@ module.exports = (app, ctx) => {
   } = ctx;
 
   app.get('/admin/tutoriels', requireAuth, requirePerm('tutoriels'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     const { search='', category='', level='', page='1' } = req.query;
     try {
       const [listRes, statsRes, categories, levels] = await Promise.all([
@@ -36,7 +36,7 @@ module.exports = (app, ctx) => {
         fetchTutorialLevels(a),
       ]);
       res.render('tutoriels', {
-        adminName: req.cookies.admin_name ?? 'Admin',
+        adminName: req.admin.nom ?? 'Admin',
         data: listRes.data.data, stats: statsRes.data, total: listRes.data.total,
         page: parseInt(page), totalPages: listRes.data.total_pages,
         search, category, level, categories, levels,
@@ -45,7 +45,7 @@ module.exports = (app, ctx) => {
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
       res.render('tutoriels', {
-        adminName: req.cookies.admin_name ?? 'Admin',
+        adminName: req.admin.nom ?? 'Admin',
         data: [], stats: { total:0,premium:0,free:0,beginner:0,intermediate:0,advanced:0 },
         total:0, page:1, totalPages:1, search, category, level, categories: [], levels: [],
         success: null, error: e.response?.data?.message ?? e.message,
@@ -54,7 +54,7 @@ module.exports = (app, ctx) => {
   });
 
   app.post('/admin/tutoriels/seed',        requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const r = await a.post('/admin/tutorials/seed');
       res.redirect('/admin/tutoriels?success=' + encodeURIComponent(r.data.message));
@@ -62,15 +62,15 @@ module.exports = (app, ctx) => {
   });
 
   app.get('/admin/tutoriels/new',          requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     res.render('tutoriel_form', {
-      adminName: req.cookies.admin_name ?? 'Admin', tutorial: null, error: null,
+      adminName: req.admin.nom ?? 'Admin', tutorial: null, error: null,
       categories: await fetchTutorialCategories(a), levels: await fetchTutorialLevels(a),
     });
   });
 
   app.post('/admin/tutoriels',             requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       if (req.body.duration_seconds) req.body.duration_seconds = parseInt(req.body.duration_seconds) * 60;
       await a.post('/admin/tutorials', req.body);
@@ -78,26 +78,26 @@ module.exports = (app, ctx) => {
       res.redirect('/admin/tutoriels?success=' + encodeURIComponent('Tutoriel créé avec succès !'));
     } catch (e) {
       res.render('tutoriel_form', {
-        adminName: req.cookies.admin_name ?? 'Admin', tutorial: null, error: e.response?.data?.message ?? 'Erreur.',
+        adminName: req.admin.nom ?? 'Admin', tutorial: null, error: e.response?.data?.message ?? 'Erreur.',
         categories: await fetchTutorialCategories(a), levels: await fetchTutorialLevels(a),
       });
     }
   });
 
   app.get('/admin/tutoriels/:id/edit',     requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const [r, categories, levels] = await Promise.all([
         a.get('/admin/tutorials/' + req.params.id),
         fetchTutorialCategories(a),
         fetchTutorialLevels(a),
       ]);
-      res.render('tutoriel_form', { adminName: req.cookies.admin_name ?? 'Admin', tutorial: r.data, error: null, categories, levels });
+      res.render('tutoriel_form', { adminName: req.admin.nom ?? 'Admin', tutorial: r.data, error: null, categories, levels });
     } catch (e) { res.redirect('/admin/tutoriels?error=' + encodeURIComponent('Tutoriel introuvable.')); }
   });
 
   app.post('/admin/tutoriels/:id/edit',    requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       if (req.body.duration_seconds) req.body.duration_seconds = parseInt(req.body.duration_seconds) * 60;
       await a.patch('/admin/tutorials/' + req.params.id, req.body);
@@ -110,13 +110,13 @@ module.exports = (app, ctx) => {
           fetchTutorialCategories(a),
           fetchTutorialLevels(a),
         ]);
-        res.render('tutoriel_form', { adminName: req.cookies.admin_name ?? 'Admin', tutorial: r2.data, error: e.response?.data?.message ?? 'Erreur.', categories, levels });
+        res.render('tutoriel_form', { adminName: req.admin.nom ?? 'Admin', tutorial: r2.data, error: e.response?.data?.message ?? 'Erreur.', categories, levels });
       } catch { res.redirect('/admin/tutoriels'); }
     }
   });
 
   app.post('/admin/tutoriels/:id/premium', requireAuth, requirePerm('tutoriels', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       await a.patch('/admin/tutorials/' + req.params.id + '/premium');
       logAction(req, 'tutorial_premium_toggled', `Tutoriel #${req.params.id}`, { id: req.params.id });
@@ -125,7 +125,7 @@ module.exports = (app, ctx) => {
   });
 
   app.post('/admin/tutoriels/:id/delete',  requireAuth, requirePerm('tutoriels', 'delete'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       await a.delete('/admin/tutorials/' + req.params.id);
       logAction(req, 'tutorial_deleted', `Tutoriel #${req.params.id}`, { id: req.params.id });
@@ -171,9 +171,7 @@ module.exports = (app, ctx) => {
     const data       = all.slice((page-1)*NEWS_PER_PAGE, page*NEWS_PER_PAGE);
 
     res.render('actualites', {
-      adminName: req.cookies.admin_name ?? 'Admin',
-      adminRole: req.cookies.admin_role ?? 'sub',
-      adminUsername: req.cookies.admin_username ?? '',
+      adminName: req.admin.nom ?? 'Admin',
       data, stats: statsObj, total, page, perPage: NEWS_PER_PAGE, totalPages,
       search, category, status, categories: getNewsCategories(),
       success: req.query.success ?? null,
@@ -183,9 +181,7 @@ module.exports = (app, ctx) => {
 
   app.get('/admin/actualites/new', requireAuth, requirePerm('actualites', 'write'), (req, res) => {
     res.render('actualite_form', {
-      adminName: req.cookies.admin_name ?? 'Admin',
-      adminRole: req.cookies.admin_role ?? 'sub',
-      adminUsername: req.cookies.admin_username ?? '',
+      adminName: req.admin.nom ?? 'Admin',
       article: null, isEdit: false, categories: getNewsCategories(),
       success: null, error: req.query.error ?? null,
     });
@@ -209,7 +205,7 @@ module.exports = (app, ctx) => {
       isPublished:  !!req.body.isPublished,
       isPinned:     !!isPinned,
       isPremiumOnly:!!isPremiumOnly,
-      authorName:   req.cookies.admin_name ?? 'Admin',
+      authorName:   req.admin.nom ?? 'Admin',
       viewCount:    0,
       likeCount:    0,
       createdAt:    now,
@@ -227,9 +223,7 @@ module.exports = (app, ctx) => {
     const article = all.find(n => n.id === req.params.id);
     if (!article) return res.redirect('/admin/actualites?error=' + encodeURIComponent('Article introuvable.'));
     res.render('actualite_form', {
-      adminName: req.cookies.admin_name ?? 'Admin',
-      adminRole: req.cookies.admin_role ?? 'sub',
-      adminUsername: req.cookies.admin_username ?? '',
+      adminName: req.admin.nom ?? 'Admin',
       article, isEdit: true, categories: getNewsCategories(),
       success: req.query.success ?? null, error: req.query.error ?? null,
     });
@@ -369,7 +363,7 @@ module.exports = (app, ctx) => {
 
   app.get('/admin/api/notifications/preview', requireAuth, requirePerm('notifications'), async (req, res) => {
     const segment = req.query.segment ?? 'all';
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const r = await a.get('/admin/notifications/preview', { params: { segment } });
       res.json({ count: r.data.count ?? r.data.total ?? 0 });
@@ -412,7 +406,7 @@ module.exports = (app, ctx) => {
         "Indiquez le pseudo, l'email ou le numéro du destinataire."));
     }
 
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const r = await a.post('/admin/notifications/send', {
         title: title.trim(),
@@ -437,7 +431,7 @@ module.exports = (app, ctx) => {
         segment,
         segLabel:  segMeta.label,
         sent,
-        adminName: req.cookies?.admin_name ?? 'Admin',
+        adminName: req.admin.nom ?? 'Admin',
         sentAt:    new Date().toISOString(),
       });
       saveNotifHistory(history);

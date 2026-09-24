@@ -26,7 +26,7 @@ module.exports = (app, ctx) => {
   } = ctx;
 
   app.get('/admin/users', requireAuth, requirePerm('users'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     const { search='', plan='', status='', sort_by='createdAt', sort_dir='desc', page='1',
             date_from='', date_to='', min_tx='' } = req.query;
     try {
@@ -39,7 +39,7 @@ module.exports = (app, ctx) => {
         loadBans().filter(b => b.active && (!b.expiresAt || new Date(b.expiresAt).getTime() > now)).map(b => b.userId)
       );
       res.render('users', {
-        adminName: req.cookies.admin_name ?? 'Admin',
+        adminName: req.admin.nom ?? 'Admin',
         data: usersRes.data.data, stats: statsRes.data, total: usersRes.data.total,
         page: parseInt(page), perPage: 20, totalPages: usersRes.data.total_pages,
         // sortDir manquait : la vue reconstruisait les liens de pagination sans
@@ -51,7 +51,7 @@ module.exports = (app, ctx) => {
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
       res.render('users', {
-        adminName: req.cookies.admin_name ?? 'Admin',
+        adminName: req.admin.nom ?? 'Admin',
         data: [], stats: { total:0,premium:0,active:0,suspended:0,newToday:0,newWeek:0,newMonth:0,conversion_rate:0 },
         total:0, page:1, perPage:20, totalPages:1,
         search, plan, status, sortBy: sort_by, sortDir: sort_dir, date_from, date_to, min_tx,
@@ -63,7 +63,7 @@ module.exports = (app, ctx) => {
 
   // ── Actions groupées sur les utilisateurs (AJAX) ──────────────────────────────
   app.patch('/admin/users/bulk/suspend', requireAuth, requirePerm('users', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const ids     = Array.isArray(req.body.user_ids) ? req.body.user_ids : [];
       const suspend = req.body.suspend === true || req.body.suspend === 'true';
@@ -77,7 +77,7 @@ module.exports = (app, ctx) => {
   });
 
   app.post('/admin/users/bulk/notify', requireAuth, requirePerm('users', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const ids = Array.isArray(req.body.user_ids) ? req.body.user_ids : [];
       const r = await a.post('/admin/users/bulk/notify',
@@ -91,7 +91,7 @@ module.exports = (app, ctx) => {
   });
 
   app.get('/admin/users/export', requireAuth, requirePerm('users'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       // Essayer d'abord la route export dédiée de l'API
       try {
@@ -126,11 +126,11 @@ module.exports = (app, ctx) => {
   });
 
   app.get('/admin/users/:id', requireAuth, requirePerm('users'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const r = await a.get('/admin/users/' + req.params.id);
       res.render('user_detail', {
-        adminName: req.cookies.admin_name ?? 'Admin',
+        adminName: req.admin.nom ?? 'Admin',
         user: r.data.user, transactions: r.data.transactions,
         subscriptions: r.data.subscriptions, proofs: r.data.proofs, referrals: r.data.referrals,
         activeBan: getActiveBan(req.params.id),
@@ -143,7 +143,7 @@ module.exports = (app, ctx) => {
   });
 
   app.post('/admin/users/:id/suspend',        requireAuth, requirePerm('users', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       await a.patch('/admin/users/' + req.params.id + '/suspend', req.body);
       const isSuspend = req.body.suspend === 'true';
@@ -154,7 +154,7 @@ module.exports = (app, ctx) => {
   });
 
   app.post('/admin/users/:id/premium',        requireAuth, requirePerm('users', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       await a.post('/admin/users/' + req.params.id + '/premium', req.body);
       logAction(req, 'user_premium_added', `User #${req.params.id}`, { userId: req.params.id, days: req.body.duration_days });
@@ -163,7 +163,7 @@ module.exports = (app, ctx) => {
   });
 
   app.post('/admin/users/:id/revoke-premium', requireAuth, requirePerm('users', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       await a.delete('/admin/users/' + req.params.id + '/premium');
       logAction(req, 'user_premium_revoked', `User #${req.params.id}`, { userId: req.params.id });
@@ -172,7 +172,7 @@ module.exports = (app, ctx) => {
   });
 
   app.post('/admin/users/:id/notify', requireAuth, requirePerm('users', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       await a.post('/admin/users/' + req.params.id + '/notify', req.body);
       logAction(req, 'user_notified', `User #${req.params.id}`, { userId: req.params.id, title: req.body.title });
@@ -181,7 +181,7 @@ module.exports = (app, ctx) => {
   });
 
   app.post('/admin/users/:id/pseudo', requireAuth, requirePerm('users', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       await a.patch('/admin/users/' + req.params.id + '/pseudo', req.body);
       logAction(req, 'user_pseudo_changed', `User #${req.params.id} → ${req.body.pseudo}`, { userId: req.params.id, pseudo: req.body.pseudo });
@@ -196,7 +196,7 @@ module.exports = (app, ctx) => {
   // tutoriels y accedait. Le panneau protegeait les pages, pas le JSON qui les
   // alimente.
   app.get('/admin/api/users/online', requireAuth, requirePerm('users'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const r = await a.get('/admin/users/online');
       res.json(r.data);
@@ -215,7 +215,7 @@ module.exports = (app, ctx) => {
     // Un ban expiré ne rendait pas l'accès au compte : la minuterie ne touche
     // que le fichier local, faute de jeton. On rattrape ici, avec celui de
     // l'administrateur qui consulte la page.
-    const restauration = await reconcilierBansExpires(req.cookies.admin_token)
+    const restauration = await reconcilierBansExpires(req.admin.jeton)
       .catch(() => ({ restaures: [], echecs: bansARestaurer().length }));
 
     let bans = loadBans();
@@ -305,7 +305,7 @@ module.exports = (app, ctx) => {
       pseudo:      sanitize(pseudo ?? req.params.id, 60),
       reason:      sanitize(reason, 500),
       durationDays: isNaN(dur) ? 7 : dur,
-      adminName:   req.cookies?.admin_name ?? 'Admin',
+      adminName:   req.admin.nom ?? 'Admin',
       adminIp:     getClientIP(req),
     });
     // Suspendre le compte côté API. L'échec était avalé en silence et l'écran
@@ -313,7 +313,7 @@ module.exports = (app, ctx) => {
     // dans le fichier local et l'utilisateur continuait à se connecter.
     let suspendu = true;
     try {
-      const a = api(req.cookies.admin_token);
+      const a = api(req.admin.jeton);
       await a.patch('/admin/users/' + req.params.id + '/suspend', { suspend: true, reason });
     } catch (e) {
       suspendu = false;
@@ -336,12 +336,12 @@ module.exports = (app, ctx) => {
 
   app.post('/admin/users/:id/unban', requireAuth, requirePerm('users', 'write'), async (req, res) => {
     const { pseudo, unban_reason } = req.body;
-    unbanUser(req.params.id, req.cookies?.admin_name ?? 'Admin', sanitize(unban_reason ?? '', 500));
+    unbanUser(req.params.id, req.admin.nom ?? 'Admin', sanitize(unban_reason ?? '', 500));
     // Symétrique du bannissement : si l'API refuse, le compte reste suspendu
     // alors que l'écran annonçait un déban réussi.
     let reactive = true;
     try {
-      const a = api(req.cookies.admin_token);
+      const a = api(req.admin.jeton);
       await a.patch('/admin/users/' + req.params.id + '/suspend', { suspend: false });
     } catch (e) {
       reactive = false;

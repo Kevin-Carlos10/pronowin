@@ -120,7 +120,7 @@ const dodo = (ms) => new Promise((r) => setTimeout(r, ms));
 
   const co = await requete('/admin/login', { corps: { username: 'compte_banc', password: MDP } });
   const cookies = co.setCookie.map((c) => c.split(';')[0]).join('; ');
-  if (!/admin_token=[^;]/.test(cookies)) {
+  if (!/admin_session=[^;]/.test(cookies)) {
     ko('la session de banc ne s\'ouvre pas — le contrôle ne prouve rien'
        + (stderr ? '\n' + stderr : ''));
     return fin(1);

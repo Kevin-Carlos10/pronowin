@@ -26,14 +26,14 @@ import crypto from 'crypto';
  * Une requête portant le jeton de service **sans** délégation valable n'a donc
  * pas traversé le panneau. C'est exactement la manœuvre qu'on ferme.
  *
- * ── Ce que cela ne fait pas ────────────────────────────────────────────────
+ * ── Et les permissions ─────────────────────────────────────────────────────
  *
- * Cette API ne recalcule pas, route par route, si la permission autorise
- * l'action : elle établit que l'appel est passé par le panneau, où ce contrôle
- * existe déjà (`requirePerm`). C'est une garantie transitive, et il vaut mieux
- * l'écrire que la laisser croire plus forte qu'elle n'est. Les permissions
- * voyagent dans la délégation, prêtes pour le jour où chaque route les
- * vérifiera elle-même.
+ * Longtemps, cette API ne relisait pas les permissions : elle établissait que
+ * l'appel était passé par le panneau, où `requirePerm` les applique. C'était
+ * une garantie transitive — une faille du panneau devenait une faille de
+ * l'API. Les permissions portées par la délégation sont désormais appliquées
+ * route par route (`permissions_admin.ts`), et la délégation est exigée sur
+ * toute requête, lecture comprise.
  */
 export interface ActeurAdmin {
   /** Identifiant du sous-administrateur, ou `main` pour le principal. */

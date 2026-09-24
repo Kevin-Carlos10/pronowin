@@ -191,7 +191,7 @@ async function autorisationReelle() {
   console.log('\nAutorisation sur le serveur');
   const co = await requete('/admin/login', '', { username: 'compte_banc', password: MDP });
   const ck = co.setCookie.map((c) => c.split(';')[0]).join('; ');
-  if (!/admin_token=[^;]/.test(ck)) {
+  if (!/admin_session=[^;]/.test(ck)) {
     ko('la session de banc ne s\'ouvre pas — ce point ne prouve rien');
     return fin(1);
   }

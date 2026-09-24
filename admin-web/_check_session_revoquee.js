@@ -27,28 +27,12 @@
  *   node _check_session_revoquee.js
  */
 const { spawn } = require('child_process');
-const crypto = require('crypto');
 
 // Le serveur refuse de demarrer sans secret de signature : un banc qui
 // tournerait avec le secret par defaut publie n'eprouverait pas la
 // configuration qu'on exige en production.
 const SECRET_BANC = 'secret-de-banc-non-publie';
 
-/**
- * Le role d'une session est signe par le serveur.
- *
- * Ce banc fabriquait ses cookies a la main, dont `admin_role=main` en clair.
- * C'etait exactement le defaut : n'importe quelle requete portant cette
- * chaine devenait administrateur principal. Le banc reproduit donc la
- * signature du serveur pour ouvrir une session legitime — et verifie juste
- * apres qu'une session non signee, elle, est refusee.
- */
-const signerRole = (role) => {
-  const data = Buffer.from(role).toString('base64');
-  const sig = crypto.createHmac('sha256', SECRET_BANC)
-    .update(data).digest('hex');
-  return `${data}.${sig}`;
-};
 const bcrypt = require('bcryptjs');
 const fs   = require('fs');
 const http = require('http');
@@ -144,7 +128,7 @@ const ouvert = (r) => !(r.status === 302 && (r.location ?? '').startsWith('/admi
     methode: 'POST', corps: { username: 'compte_banc', password: MDP },
   });
   const cookies = co.setCookie.map((c) => c.split(';')[0]).join('; ');
-  if (!/admin_token=[^;]/.test(cookies)) {
+  if (!/admin_session=[^;]/.test(cookies)) {
     ko('la connexion de banc n\'ouvre pas de session — le contrôle ne prouve rien'
        + (stderr ? '\n' + stderr : ''));
     return fin(1);
@@ -212,11 +196,29 @@ const ouvert = (r) => !(r.status === 302 && (r.location ?? '').startsWith('/admi
         + '« Se souvenir de moi »');
 
   // ── 3. Permissions retirées ──
+  //
+  // Une session fermée l'est pour de bon : elle vit côté serveur, et recréer
+  // le compte ne la fait pas revenir — ce que les cookies sans état
+  // permettaient. On en rouvre donc une, puis on retire les droits.
+  ecrire([compteDeBanc(['pronostics:read', 'pronostics:write'])]);
+  const co3 = await requete('/admin/login', {
+    methode: 'POST', corps: { username: 'compte_banc', password: MDP },
+  });
+  const cookies3 = co3.setCookie.map((c) => c.split(';')[0]).join('; ');
   ecrire([{ ...compteDeBanc([]), passwordHash: lireHashOuNeuf() }]);
-  const retire = await requete(CIBLE, { cookies });
+  const retire = await requete(CIBLE, { cookies: cookies3 });
   if (retire.status === 403) ok('les droits retirés s\'appliquent à la session en cours');
-  else ko(`droits retirés : la page répond ${retire.status} au lieu de 403 — le `
-        + 'cookie signé à la connexion décide encore');
+  else ko(`droits retirés : la page répond ${retire.status} au lieu de 403 — des `
+        + 'droits lus à la connexion décident encore');
+
+  // Et une session révoquée ne revient pas avec le compte : ci-dessus, le
+  // compte « banc » a été supprimé puis recréé à l'identique.
+  if (!ouvert(await requete(VIVANT, { cookies }))) {
+    ok('une session révoquée ne ressuscite pas quand le compte est recréé');
+  } else {
+    ko('une session fermée par la suppression du compte se rouvre quand un '
+     + 'compte du même identifiant revient');
+  }
 
   // ── 4. Pas de boucle sur la page de connexion ──
   //
@@ -258,6 +260,18 @@ const ouvert = (r) => !(r.status === 302 && (r.location ?? '').startsWith('/admi
   // retour le lendemain, session toujours ouverte. On simule ici le retour
   // d'un navigateur dont le cookie d'activité est vieux — c'est exactement ce
   // qu'envoie un onglet resté fermé.
+  // L'ordre compte : une session fermée pour inactivité est supprimée côté
+  // serveur. On vérifie donc d'abord qu'une session active ne l'est pas —
+  // sans ce point, un serveur qui déconnecterait tout le monde passerait le
+  // suivant.
+  const frais = cookies2.replace(/admin_last_active=\d+/,
+    'admin_last_active=' + Date.now());
+  if (ouvert(await requete(VIVANT, { cookies: frais }))) {
+    ok('une session active n\'est pas fermée');
+  } else {
+    ko('une session active est fermée : le délai d\'inactivité se déclenche à tort');
+  }
+
   const vieux = cookies2.replace(/admin_last_active=\d+/,
     'admin_last_active=' + (Date.now() - 31 * 60000));
   const apresInactivite = await requete(VIVANT, { cookies: vieux });
@@ -269,60 +283,28 @@ const ouvert = (r) => !(r.status === 302 && (r.location ?? '').startsWith('/admi
      + 'remise à zéro à chaque chargement.');
   }
 
-  // Et le complément : une session active ne doit pas être fermée. Sans ce
-  // point, un serveur qui déconnecterait tout le monde passerait le précédent.
-  const frais = cookies2.replace(/admin_last_active=\d+/,
-    'admin_last_active=' + Date.now());
-  if (ouvert(await requete(VIVANT, { cookies: frais }))) {
-    ok('une session active n\'est pas fermée');
+  // Et elle reste fermée : remettre un jalon frais dans le cookie ne la
+  // rouvre pas, puisqu'elle n'existe plus côté serveur.
+  if (!ouvert(await requete(VIVANT, { cookies: frais }))) {
+    ok('une session fermée pour inactivité ne se rouvre pas en réécrivant le cookie');
   } else {
-    ko('une session active est fermée : le délai d\'inactivité se déclenche à tort');
+    ko('réécrire `admin_last_active` rouvre une session fermée pour inactivité');
   }
 
-  // ── 5 bis. L'admin principal n'est pas un sous-admin ──
+  // ── 5 bis. Les anciens cookies n'ouvrent rien ──
   //
-  // La revalidation cherche le compte dans `sub_admins.json`, où l'admin
-  // principal ne figure pas : le rattacher à cette règle par inadvertance le
-  // déconnecterait à chaque requête, c'est-à-dire fermerait le panneau à tout
-  // le monde. Ce point le vérifie explicitement.
-  const cookiesMain = 'admin_token=jeton-de-banc; admin_role=' + signerRole('main')
-                    + '; admin_name=Principal; admin_last_active=' + Date.now();
-  if (ouvert(await requete(VIVANT, { cookies: cookiesMain }))) {
-    ok('la session de l\'admin principal n\'est pas révoquée');
-  } else {
-    ko('l\'admin principal est déconnecté par la revalidation : il n\'a pas de '
-     + 'ligne dans sub_admins.json et n\'a pas à en avoir');
-  }
-
-  // ── 5 ter. Un rôle déclaré, et non signé, n'ouvre rien ──
-  //
-  // Le défaut central : `const role = req.cookies?.admin_role === 'main' ...`.
-  // Deux cookies posés à la main — un jeton quelconque et ce mot — donnaient
-  // les pleins pouvoirs, et sautaient toute la revalidation ci-dessus, qui
-  // était enfermée dans la branche « sous-administrateur ».
-  //
-  // `httpOnly` n'y changeait rien : il empêche un script de lire le cookie
-  // dans le navigateur, pas un client HTTP d'en envoyer un.
+  // Le défaut d'origine : `admin_role=main` en clair donnait les pleins
+  // pouvoirs. Le rôle a ensuite été signé ; il n'est plus du tout dans un
+  // cookie. Un jeu de cookies de l'ancien format, quel qu'il soit, n'ouvre
+  // pas le panneau. Les sessions de l'administrateur principal, qui
+  // s'ouvrent par l'API, sont éprouvées dans `_check_session_serveur.js`.
   const cookiesForges = 'admin_token=n_importe_quoi; admin_role=main; '
-                      + 'admin_name=Intrus; admin_last_active=' + Date.now();
+                      + 'admin_name=Intrus; admin_sub_id=banc; admin_last_active=' + Date.now();
   if (!ouvert(await requete(VIVANT, { cookies: cookiesForges }))) {
-    ok('un rôle « main » non signé n\'ouvre pas le panneau');
+    ok('des cookies de session de l\'ancien format n\'ouvrent pas le panneau');
   } else {
     ko('un cookie admin_role=main forgé ouvre encore le panneau en '
      + 'administrateur principal');
-  }
-
-  // Contrepartie : sans elle, un serveur qui refuserait *toutes* les sessions
-  // passerait le contrôle ci-dessus sans rien prouver. La session signée
-  // ci-dessus l'établit déjà ; on le redit ici avec un jeton différent pour
-  // que la comparaison porte sur la signature, et sur elle seule.
-  const cookiesSignes = 'admin_token=un_autre_jeton; admin_role=' + signerRole('main')
-                      + '; admin_name=Principal; admin_last_active=' + Date.now();
-  if (ouvert(await requete(VIVANT, { cookies: cookiesSignes }))) {
-    ok('c\'est bien la signature qui décide, pas le jeton');
-  } else {
-    ko('une session correctement signée est refusée : le contrôle précédent '
-     + 'ne prouve rien');
   }
 
   // ── 6. L'activité réelle doit reposer le jalon ──

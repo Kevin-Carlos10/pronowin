@@ -25,7 +25,7 @@ module.exports = (app, ctx) => {
   } = ctx;
 
   app.get('/admin/bankroll/export', requireAuth, requirePerm('bankroll'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     const search  = (req.query.search  ?? '').trim();
     const sortBy  = req.query.sort_by  ?? 'currentBalance';
     const sortDir = req.query.sort_dir ?? 'desc';
@@ -52,7 +52,7 @@ module.exports = (app, ctx) => {
   });
 
   app.get('/admin/bankroll', requireAuth, requirePerm('bankroll'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     const search  = (req.query.search  ?? '').trim();
     const sortBy  = req.query.sort_by  ?? 'currentBalance';
     const sortDir = req.query.sort_dir ?? 'desc';
@@ -69,14 +69,14 @@ module.exports = (app, ctx) => {
         a.get('/bankroll/admin/stats').catch(() => ({ data: null })),
       ]);
       res.render('bankroll', {
-        adminName: req.cookies.admin_name ?? 'Admin',
+        adminName: req.admin.nom ?? 'Admin',
         // `error` peut venir d'un export en échec qui redirige ici.
         ...r.data, stats: st.data, search, sortBy, sortDir, error: req.query.error ?? null,
       });
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
       res.render('bankroll', {
-        adminName: req.cookies.admin_name ?? 'Admin',
+        adminName: req.admin.nom ?? 'Admin',
         data: [], stats: null, total: 0, page: 1, per_page: 20, total_pages: 0,
         search, sortBy, sortDir, error: e.response?.data?.message ?? e.friendlyMessage ?? e.message,
       });
@@ -84,10 +84,10 @@ module.exports = (app, ctx) => {
   });
 
   app.get('/admin/bankroll/:userId', requireAuth, requirePerm('bankroll'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const r = await a.get('/bankroll/admin/' + req.params.userId);
-      res.render('bankroll_detail', { adminName: req.cookies.admin_name ?? 'Admin', ...r.data, error: null });
+      res.render('bankroll_detail', { adminName: req.admin.nom ?? 'Admin', ...r.data, error: null });
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
       if (e.response?.status === 404) return res.status(404).render('error', { message: 'Utilisateur introuvable.' });
@@ -98,7 +98,7 @@ module.exports = (app, ctx) => {
   // ─── LIGUES (liste blanche du flux public) ────────────────────────────────────
 
   app.get('/admin/transactions', requireAuth, requirePerm('transactions'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     // Le filtre `type` a disparu avec les dépôts : toutes les lignes sont
     // des versements de gains de parrainage.
     const { search = '', method = '', page = '1' } = req.query;
@@ -139,12 +139,12 @@ module.exports = (app, ctx) => {
   });
 
   app.post('/admin/transactions/:id', requireAuth, requirePerm('transactions', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       await a.patch('/payments/admin/' + req.params.id, { status: req.body.status, admin_note: req.body.admin_note ?? null });
       const action = req.body.status === 'completed' ? 'transaction_approved' : 'transaction_rejected';
       logAction(req, action, `Versement #${req.params.id}`, { txId: req.params.id, status: req.body.status, note: req.body.admin_note });
-      sseBroadcast('action', { type: action, adminName: req.cookies.admin_name ?? 'Admin', ts: Date.now() });
+      sseBroadcast('action', { type: action, adminName: req.admin.nom ?? 'Admin', ts: Date.now() });
       res.redirect('/admin/transactions?success=1');
     } catch (e) { res.redirect('/admin/transactions?error=' + encodeURIComponent(e.response?.data?.message ?? 'Erreur')); }
   });
@@ -169,7 +169,7 @@ module.exports = (app, ctx) => {
   app.get('/admin/code-promo', requireAuth, requireMain, async (req, res) => {
     let config = null, stats = null, erreur = null;
     try {
-      const a = api(req.cookies.admin_token);
+      const a = api(req.admin.jeton);
       const [c, s] = await Promise.all([
         a.get('/admin/app-config'),
         a.get('/admin/promo-stats?days=30'),
@@ -209,7 +209,7 @@ module.exports = (app, ctx) => {
           corps[cle] = sanitize(valeur ?? '', 40);
         }
       }
-      await api(req.cookies.admin_token).put('/admin/app-config', corps);
+      await api(req.admin.jeton).put('/admin/app-config', corps);
       logAction(req, 'settings_changed', 'Code promo partenaire mis a jour',
         { general: corps.PROMO_CODE });
       res.redirect('/admin/code-promo?success=' + encodeURIComponent('Code promo enregistre.'));
@@ -221,7 +221,7 @@ module.exports = (app, ctx) => {
   app.get('/admin/paiements', requireAuth, requireMain, async (req, res) => {
     let methodes = null, erreur = null;
     try {
-      const r = await api(req.cookies.admin_token).get('/admin/payment-methods');
+      const r = await api(req.admin.jeton).get('/admin/payment-methods');
       methodes = r.data;
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
@@ -236,7 +236,7 @@ module.exports = (app, ctx) => {
 
   app.post('/admin/paiements', requireAuth, requireMain, async (req, res) => {
     try {
-      const r = await api(req.cookies.admin_token).post('/admin/payment-methods', {
+      const r = await api(req.admin.jeton).post('/admin/payment-methods', {
         label:      sanitize(req.body.label ?? '', 40),
         phone:      (req.body.phone ?? '').trim(),
         ussd_template: (req.body.ussd_template ?? '').trim(),
@@ -252,7 +252,7 @@ module.exports = (app, ctx) => {
 
   app.post('/admin/paiements/:id', requireAuth, requireMain, async (req, res) => {
     try {
-      const r = await api(req.cookies.admin_token).put('/admin/payment-methods/' + req.params.id, {
+      const r = await api(req.admin.jeton).put('/admin/payment-methods/' + req.params.id, {
         label:      sanitize(req.body.label ?? '', 40),
         phone:      (req.body.phone ?? '').trim(),
         ussd_template: (req.body.ussd_template ?? '').trim(),
@@ -267,7 +267,7 @@ module.exports = (app, ctx) => {
   });
 
   app.post('/admin/paiements/:id/toggle', requireAuth, requireMain, async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       // L'état courant vient du serveur : se fier à ce que la page affichait
       // ouvrirait une fenêtre où deux admins inversent le même interrupteur.
@@ -286,7 +286,7 @@ module.exports = (app, ctx) => {
 
   app.post('/admin/paiements/:id/supprimer', requireAuth, requireMain, async (req, res) => {
     try {
-      const r = await api(req.cookies.admin_token).delete('/admin/payment-methods/' + req.params.id);
+      const r = await api(req.admin.jeton).delete('/admin/payment-methods/' + req.params.id);
       logAction(req, 'settings_changed', 'Opérateur supprimé', { id: req.params.id, ...r.data });
       res.redirect('/admin/paiements?success=' + encodeURIComponent(r.data?.desactive
         ? `Opérateur conservé mais masqué : ${r.data.transactions} versement(s) y font référence.`
@@ -299,7 +299,7 @@ module.exports = (app, ctx) => {
   // ─── HISTORIQUE ───────────────────────────────────────────────────────────────
 
   app.get('/admin/historique', requireAuth, requirePerm('historique'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     const { search='', status='', method='', date_from='', date_to='', page='1',
             amount_min='', amount_max='' } = req.query;
     try {
@@ -309,7 +309,7 @@ module.exports = (app, ctx) => {
         a.get('/payments/admin/methods').catch(() => ({ data: [] })),
       ]);
       res.render('historique', {
-        adminName: req.cookies.admin_name ?? 'Admin',
+        adminName: req.admin.nom ?? 'Admin',
         data: histRes.data.data, stats: statsRes.data, total: histRes.data.total, methods: methodsRes.data,
         page: parseInt(page), perPage: 20, totalPages: histRes.data.total_pages,
         search, status, method, dateFrom: date_from, dateTo: date_to, amount_min, amount_max,
@@ -319,7 +319,7 @@ module.exports = (app, ctx) => {
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
       res.render('historique', {
-        adminName: req.cookies.admin_name ?? 'Admin',
+        adminName: req.admin.nom ?? 'Admin',
         data: [], stats: { total_withdrawals:0, completed_withdrawals:0, rejected_withdrawals:0,
                            volume_withdrawals:0, pending_count:0, pending_volume:0,
                            today_withdrawals:0, monthly_volume:0 },
@@ -331,7 +331,7 @@ module.exports = (app, ctx) => {
   });
 
   app.post('/admin/historique/:id', requireAuth, requirePerm('historique', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       await a.patch('/admin/history/' + req.params.id, { status: req.body.status, admin_note: req.body.admin_note });
       logAction(req, 'history_updated', `Versement #${req.params.id}`, { txId: req.params.id, status: req.body.status });
@@ -340,7 +340,7 @@ module.exports = (app, ctx) => {
   });
 
   app.get('/admin/historique/export', requireAuth, requirePerm('historique'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       try {
         const r = await a.get('/admin/history/export/csv', { params: req.query, responseType: 'text' });
@@ -385,7 +385,7 @@ module.exports = (app, ctx) => {
   const STATUTS_PREUVES = ['pending', 'approved', 'rejected', 'all'];
 
   app.get('/admin/abonnements', requireAuth, requirePerm('abonnements'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     const statut  = STATUTS_PREUVES.includes(req.query.statut) ? req.query.statut : 'pending';
     const recherche = (req.query.q ?? '').trim();
     try {
@@ -397,14 +397,14 @@ module.exports = (app, ctx) => {
         params: { page: 1, per_page: 5000, status: statut, search: recherche },
       });
       res.render('abonnements', {
-        adminName: req.cookies.admin_name ?? 'Admin', data: r.data,
+        adminName: req.admin.nom ?? 'Admin', data: r.data,
         statut, recherche, contexte: r.data.contexte ?? null,
         success: req.query.success === '1', error: req.query.error ?? null,
       });
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
       res.render('abonnements', {
-        adminName: req.cookies.admin_name ?? 'Admin', data: { data:[],total:0 },
+        adminName: req.admin.nom ?? 'Admin', data: { data:[],total:0 },
         statut, recherche, contexte: null,
         success: false, error: e.response?.data?.message ?? e.message,
       });
@@ -412,7 +412,7 @@ module.exports = (app, ctx) => {
   });
 
   app.get('/admin/abonnements/export', requireAuth, requirePerm('abonnements'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       // L'export suit le filtre affiché : exporter systématiquement la file en
       // attente alors que l'écran montre l'historique produisait un fichier
@@ -442,7 +442,7 @@ module.exports = (app, ctx) => {
   });
 
   app.post('/admin/abonnements/:id', requireAuth, requirePerm('abonnements', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       if (!['approve', 'reject'].includes(req.body.action)) throw new Error('Décision invalide');
       const approved = req.body.action === 'approve';
@@ -460,7 +460,7 @@ module.exports = (app, ctx) => {
       });
       const proofAction = approved ? 'proof_approved' : 'proof_rejected';
       logAction(req, proofAction, `Preuve #${req.params.id}`, { proofId: req.params.id, days: req.body.duration_days });
-      sseBroadcast('action', { type: proofAction, adminName: req.cookies.admin_name ?? 'Admin', ts: Date.now() });
+      sseBroadcast('action', { type: proofAction, adminName: req.admin.nom ?? 'Admin', ts: Date.now() });
       res.redirect('/admin/abonnements?success=1');
     } catch (e) { res.redirect('/admin/abonnements?error=' + encodeURIComponent(e.response?.data?.message ?? 'Erreur')); }
   });

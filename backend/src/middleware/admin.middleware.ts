@@ -8,6 +8,7 @@ import {
   estMutation,
   lireDelegation,
 } from '../utils/delegation_admin';
+import { acteurAutorise, cheminRelatif } from '../utils/permissions_admin';
 
 // Interface étendue pour les requêtes admin
 export interface AdminRequest extends Request {
@@ -82,29 +83,43 @@ export async function adminMiddleware(
     // passe jamais par le navigateur, donc un sous-administrateur ne peut ni
     // la lire ni la refaire.
     //
-    // Une requête portant le jeton de service **sans** délégation valable n'a
-    // donc pas traversé le panneau — c'est un appel direct à l'API, avec un
-    // jeton lu dans ses propres cookies, pour contourner les permissions que
-    // le panneau applique. C'est cette manœuvre que le refus ferme.
-    //
-    // La lecture reste tolérée sans délégation : elle ne change rien, et la
-    // refuser casserait toute consultation le jour d'un décalage de version
-    // entre les deux services. Ce qui écrit, en revanche, doit être attribué.
+    // Les lectures en étaient dispensées : le jeton du compte de service était
+    // alors posé dans le navigateur des sous-admins, et ils pouvaient lire
+    // toute l'API — téléphones, preuves de paiement, revenus — quelles que
+    // soient leurs permissions (constat S1). Le jeton ne quitte plus le
+    // serveur du panneau, qui délègue chacun de ses appels : une requête sans
+    // délégation, lecture comprise, ne peut donc venir que d'ailleurs.
     const lecture = lireDelegation(
       req.headers[ENTETE_DELEGATION] as string | undefined,
       SECRET_DELEGATION,
     );
 
-    if (lecture.ok) {
-      req.acteurAdmin = lecture.acteur;
-    } else if (estMutation(req.method)) {
+    if (!lecture.ok) {
       console.warn(
         `[admin] ${req.method} ${req.originalUrl} refusé — délégation `
-        + `${lecture.cause}. Appel direct à l'API avec le jeton de service ?`);
+        + `${lecture.cause}. Appel direct à l'API avec un jeton d'administration ?`);
       res.status(403).json({
-        message: 'Action refusée : cet appel ne vient pas du panneau '
-               + 'd\'administration.',
+        message: estMutation(req.method)
+          ? 'Action refusée : cet appel ne vient pas du panneau d\'administration.'
+          : 'Lecture refusée : cet appel ne vient pas du panneau d\'administration.',
         code:    'DELEGATION_' + lecture.cause.toUpperCase(),
+      });
+      return;
+    }
+    req.acteurAdmin = lecture.acteur;
+
+    // ── Et a-t-elle le droit de le faire ? ──
+    //
+    // Les permissions voyageaient dans la délégation sans qu'aucune route ne
+    // les lise : l'API s'en remettait au panneau. Elle les applique désormais
+    // elle-même (`utils/permissions_admin.ts`).
+    const verdict = acteurAutorise(lecture.acteur, req.method, cheminRelatif(req.originalUrl));
+    if (!verdict.ok) {
+      console.warn(`[admin] ${req.method} ${req.originalUrl} refusé à `
+        + `${lecture.acteur.nom} (${lecture.acteur.id}) — ${verdict.raison}.`);
+      res.status(403).json({
+        message: `Accès refusé : ${verdict.raison}.`,
+        code:    'PERMISSION_ADMIN',
       });
       return;
     }

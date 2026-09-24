@@ -104,6 +104,14 @@ const ERR_CONFLIT = 'Un autre administrateur a modifié ces données pendant ' +
   'que tu les éditais. Tes changements n\'ont pas été enregistrés pour ne pas ' +
   'écraser les siens. Recharge la page et recommence.';
 
+// ─── SESSIONS : tenues côté serveur (lib/sessions.js) ───────────────────────
+const { creerMagasinSessions } = require('./lib/sessions');
+const sessions = creerMagasinSessions({
+  fichier: path.join(DATA_DIR, 'sessions.json'), ecrireJson,
+});
+/** Le seul cookie de session : un identifiant aléatoire, sans contenu. */
+const COOKIE_SESSION = 'admin_session';
+
 function loadSubs()       { try { return JSON.parse(fs.readFileSync(SA_FILE, 'utf8')); } catch { return []; } }
 function saveSubs(data)   { return ecrireJson(SA_FILE, data); }
 
@@ -139,68 +147,17 @@ if (!SECRET_DELEGATION) {
   console.error('La meme valeur doit etre posee dans admin-web/.env et backend/.env.');
   process.exit(1);
 }
-// Signer les permissions avec HMAC pour empêcher la falsification côté client
-function signPerms(perms) {
-  const data = Buffer.from(JSON.stringify(perms)).toString('base64');
-  const sig  = crypto.createHmac('sha256', PERM_HMAC_SECRET).update(data).digest('hex');
-  return `${data}.${sig}`;
-}
 /**
- * Signe le rôle de la session.
+ * Le rôle de la session en cours : `main`, `sub`, ou `null` sans session.
  *
- * Le rôle vivait dans un cookie en clair :
- *
- *     const role = req.cookies.admin_role === 'main' ? 'main' : 'sub';
- *
- * N'importe quelle requête portant `admin_role=main` devenait donc
- * administrateur principal. `requireAuth` ne regardait que la présence du
- * jeton, `requirePerm` rendait la main immédiatement sur `isMain`, et toute la
- * revalidation ajoutée pour les sous-administrateurs — compte désactivé,
- * compte supprimé, permissions relues dans le fichier — était enfermée dans
- * `if (role === 'sub')`, donc contournée.
- *
- * `httpOnly` n'y changeait rien : il empêche un script de lire le cookie dans
- * le navigateur, pas un client HTTP d'en envoyer un.
+ * Il a longtemps été lu dans un cookie — d'abord en clair (`admin_role=main`
+ * suffisait à devenir administrateur principal), puis signé. Il vient
+ * désormais de la session tenue par le serveur (`lib/sessions.js`) : le
+ * navigateur ne porte plus qu'un identifiant opaque et ne peut rien affirmer
+ * sur le rôle, le nom ou le compte.
  */
-function signerRole(role) {
-  const data = Buffer.from(role).toString('base64');
-  const sig  = crypto.createHmac('sha256', PERM_HMAC_SECRET).update(data).digest('hex');
-  return `${data}.${sig}`;
-}
+function roleDeSession(req) { return req.admin?.role ?? null; }
 
-/**
- * Le rôle porté par le cookie, ou `null` s'il n'a pas été émis par ce serveur.
- *
- * `null` n'est pas « sous-administrateur » : c'est « session illisible ». La
- * différence compte — retomber silencieusement sur le rôle le moins privilégié
- * laisserait une session forgée circuler sans droits plutôt que la fermer.
- */
-function lireRole(cookie) {
-  try {
-    const [data, sig] = (cookie ?? '').split('.');
-    if (!data || !sig) return null;
-    const attendu = crypto.createHmac('sha256', PERM_HMAC_SECRET).update(data).digest('hex');
-    // Comparaison à temps constant : `!==` sur deux chaînes hexadécimales
-    // s'arrête au premier caractère différent, ce qui se mesure.
-    const a = Buffer.from(sig, 'hex');
-    const b = Buffer.from(attendu, 'hex');
-    if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
-    const role = Buffer.from(data, 'base64').toString();
-    return role === 'main' || role === 'sub' ? role : null;
-  } catch { return null; }
-}
-
-/** Le rôle vérifié de la requête. Seule source autorisée. */
-function roleDeSession(req) { return lireRole(req.cookies?.admin_role); }
-
-function verifyPerms(cookie) {
-  try {
-    const [data, sig] = (cookie ?? '').split('.');
-    const expected = crypto.createHmac('sha256', PERM_HMAC_SECRET).update(data).digest('hex');
-    if (sig !== expected) return [];
-    return JSON.parse(Buffer.from(data, 'base64').toString());
-  } catch { return []; }
-}
 function uid()            { return Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
 
 // ─── BANS ─────────────────────────────────────────────────────────────────────
@@ -308,7 +265,7 @@ setInterval(async () => {
   if (aRestaurer.length) {
     const token = await jetonService();
     if (token) {
-      const { restaures } = await reconcilierBansExpires(token);
+      const { restaures } = await enTantQueSysteme(() => reconcilierBansExpires(token));
       if (restaures.length) {
         console.log(`Bans expirés : ${restaures.length} compte(s) réactivé(s).`);
         sseBroadcast('ban_expired', { ts: Date.now(), restaures: restaures.length });
@@ -480,16 +437,22 @@ const { ACTION_LABELS } = require('./lib/action_labels');
 function logAction(req, action, target = '', details = {}) {
   try {
     const logs = loadLogs();
+    const role = roleDeSession(req);
     logs.unshift({
       id:        uid(),
       timestamp: new Date().toISOString(),
       action,
       target,
       details,
-      adminName: req.cookies?.admin_name ?? 'Inconnu',
+      // Le nom venait du cookie `admin_name`, que le navigateur pouvait
+      // réécrire : le journal attribuait l'action à qui l'on voulait. Il vient
+      // maintenant de la session tenue par le serveur, et l'identifiant du
+      // compte l'accompagne — deux sous-admins peuvent porter le même nom.
+      adminName: req.admin?.nom ?? 'Inconnu',
+      adminId:   role === 'main' ? 'main' : (req.admin?.subId ?? null),
       // Le défaut était « main » : une session sans rôle lisible était
       // journalisée comme administrateur principal.
-      adminRole: roleDeSession(req) ?? 'inconnu',
+      adminRole: role ?? 'inconnu',
       ip:        getClientIP(req),
     });
     if (logs.length > LOG_MAX) logs.splice(LOG_MAX);
@@ -541,8 +504,14 @@ function journalVisiblePar(logs, req) {
  */
 function estMoi(l, req) {
   const role = roleDeSession(req) ?? 'inconnu';
-  return (l.adminRole ?? 'main') === role
-      && l.adminName === (req.cookies?.admin_name ?? '');
+  if ((l.adminRole ?? 'main') !== role) return false;
+  // Les entrées écrites depuis les sessions serveur portent l'identifiant du
+  // compte : c'est lui qui tranche. Le nom ne sert qu'aux entrées plus
+  // anciennes, qui n'avaient que lui.
+  if (l.adminId) {
+    return l.adminId === (role === 'main' ? 'main' : req.admin?.subId);
+  }
+  return l.adminName === (req.admin?.nom ?? '');
 }
 
 // ─── SYSTÈME DE PERMISSIONS GRANULAIRES ─────────────────────────────────────
@@ -771,15 +740,78 @@ const CHEMINS_SANS_REVALIDATION = new Set(['/admin/login', '/admin/logout']);
  * bord, plutôt que de se fier à la seule présence d'un cookie.
  */
 function sessionEncoreValable(req) {
+  if (!req.admin?.session) return false;
   if (roleDeSession(req) === 'main') return true;
-  const compte = loadSubs().find(s => s.id === req.cookies?.admin_sub_id);
+  const compte = loadSubs().find(s => s.id === req.admin.subId);
   return !!compte && compte.isActive !== false;
 }
 
+/**
+ * Les cookies qui portaient la session avant `lib/sessions.js`.
+ *
+ * Ils ne sont plus jamais lus. On les efface quand un navigateur les renvoie —
+ * une session ouverte avant la mise à jour se retrouve ainsi à l'écran de
+ * connexion, une fois — et surtout on les retire de `req.cookies` avant toute
+ * autre lecture : aucune valeur posée par le client sous ces noms ne peut
+ * atteindre le code qui suit.
+ */
+const COOKIES_HERITES = ['admin_token', 'admin_name', 'admin_role', 'admin_perms', 'admin_sub_id'];
+
+/** Ouvre une session serveur et pose son identifiant dans le navigateur. */
+function ouvrirSession(req, res, { role, subId = null, nom, jeton = null, dureeMs }) {
+  // Une session déjà ouverte dans ce navigateur est remplacée, pas empilée.
+  if (req.admin?.session) sessions.fermer(req.admin.session);
+  const { id, session } = sessions.ouvrir({ role, subId, nom, jeton, dureeMs });
+  const commun = { maxAge: dureeMs, secure: COOKIE_SECURE, sameSite: 'lax' };
+  res.cookie(COOKIE_SESSION, id, { ...commun, httpOnly: true });
+  res.cookie('admin_last_active', Date.now().toString(), { ...commun, httpOnly: false });
+  req.admin = { session, role, nom, subId, jeton };
+  return session;
+}
+
+/** Ferme la session en cours et efface ses cookies. */
+function terminerSession(req, res) {
+  if (req.admin?.session) sessions.fermer(req.admin.session);
+  res.clearCookie(COOKIE_SESSION);
+  res.clearCookie('admin_last_active');
+  req.admin = { session: null, role: null, nom: null, subId: null, jeton: null };
+}
+
+/**
+ * Rattache la requête à sa session serveur.
+ *
+ * `req.admin` est désormais la seule source de l'identité : rôle, nom, compte
+ * et jeton d'API. Le jeton d'un sous-admin n'est d'ailleurs même pas dans sa
+ * session : c'est celui du compte de service, qui ne quitte jamais ce
+ * processus.
+ */
+app.use(async (req, res, next) => {
+  try {
+    for (const c of COOKIES_HERITES) {
+      if (req.cookies && c in req.cookies) {
+        delete req.cookies[c];
+        res.clearCookie(c);
+      }
+    }
+    const session = sessions.lire(req.cookies?.[COOKIE_SESSION]);
+    if (!session && req.cookies?.[COOKIE_SESSION]) res.clearCookie(COOKIE_SESSION);
+    req.admin = {
+      session,
+      role:  session?.role  ?? null,
+      nom:   session?.nom   ?? null,
+      subId: session?.subId ?? null,
+      jeton: null,
+    };
+    if (session) {
+      req.admin.jeton = session.role === 'sub' ? await jetonService() : session.jeton;
+    }
+    next();
+  } catch (e) { next(e); }
+});
+
 // Données communes injectées dans tous les templates via res.locals
 app.use((req, res, next) => {
-  // Le rôle est lu dans une valeur signée par ce serveur, jamais déclaré par
-  // le client. `null` signifie « session illisible » : elle se ferme.
+  // Le rôle vient de la session tenue par ce serveur, jamais du client.
   const role = roleDeSession(req);
 
   // ── Inactivité ──
@@ -800,39 +832,19 @@ app.use((req, res, next) => {
   // veut prolonger sa propre session, mais du cas réel : un panneau
   // d'administration laissé ouvert sur un poste partagé.
   const derniereActivite = Number(req.cookies?.admin_last_active);
-  if (req.cookies?.admin_token
+  if (req.admin.session
       && !CHEMINS_SANS_REVALIDATION.has(req.path)
       && Number.isFinite(derniereActivite)
       && Date.now() - derniereActivite > (loadSettings().sessionTimeoutMin ?? 30) * 60000) {
-    ['admin_token', 'admin_name', 'admin_role', 'admin_perms',
-     'admin_sub_id', 'admin_last_active'].forEach(c => res.clearCookie(c));
+    terminerSession(req, res);
     if (req.path.startsWith('/admin/api/')) {
       return res.status(401).json({ error: 'Session expirée.' });
     }
     return res.redirect('/admin/login?expired=1');
   }
 
-  // ── Session illisible : on ferme ──
-  //
-  // Un jeton présent avec un rôle qu'on ne sait pas relire, c'est soit un
-  // cookie forgé, soit une session émise avant ce correctif, soit un secret
-  // qui a changé. Dans les trois cas, se reconnecter est la seule suite
-  // correcte — continuer avec une identité qu'on ne peut pas établir ne l'est
-  // dans aucun.
-  if (req.cookies?.admin_token && role === null
-      && !CHEMINS_SANS_REVALIDATION.has(req.path)) {
-    ['admin_token', 'admin_name', 'admin_role', 'admin_perms',
-     'admin_sub_id', 'admin_last_active'].forEach(c => res.clearCookie(c));
-    if (req.path.startsWith('/admin/api/')) {
-      return res.status(401).json({ error: 'Session illisible.' });
-    }
-    return res.redirect('/admin/login?fin=illisible');
-  }
-
   let   perms = [];
   if (role === 'sub') {
-    perms = verifyPerms(req.cookies?.admin_perms);
-
     // ── Revalider la session contre le fichier des comptes ──
     //
     // Les cookies de session portaient à eux seuls l'identité, le rôle et les
@@ -852,21 +864,16 @@ app.use((req, res, next) => {
     // annonçaient une révocation qui n'avait pas lieu, ce qui est pire que de
     // ne pas les avoir : on croit l'accès coupé et on passe à autre chose.
     //
-    // Les permissions sont désormais relues dans le fichier à chaque requête,
-    // et non plus dans le cookie : le fichier est la seule source qu'un
-    // administrateur peut corriger. Le cookie signé reste posé — il identifie
-    // encore la session — mais il ne décide plus de rien.
-    const session = req.cookies?.admin_token;
-    if (session && !CHEMINS_SANS_REVALIDATION.has(req.path)) {
-      const compte = loadSubs().find(s => s.id === req.cookies?.admin_sub_id);
-      // Fermeture par défaut : un `admin_sub_id` absent ou inconnu ne peut pas
-      // être rattaché à un compte, donc rien ne prouve que l'accès tient
-      // toujours. C'est aussi le cas d'une session « main » dont le cookie de
-      // rôle a été perdu ou altéré — elle se retrouve ici, et se reconnecter
-      // vaut mieux que continuer avec une identité qu'on ne sait plus lire.
+    // Les permissions sont relues dans le fichier à chaque requête : le
+    // fichier est la seule source qu'un administrateur peut corriger. Le
+    // compte, lui, vient de la session serveur — il était lu dans un cookie
+    // `admin_sub_id` que le navigateur pouvait réécrire, ce qui donnait les
+    // droits de n'importe quel collègue dont on connaissait l'identifiant.
+    if (!CHEMINS_SANS_REVALIDATION.has(req.path)) {
+      const compte = loadSubs().find(s => s.id === req.admin.subId);
+      // Fermeture par défaut : un compte introuvable ne prouve plus rien.
       if (!compte || compte.isActive === false) {
-        ['admin_token', 'admin_name', 'admin_role', 'admin_perms',
-         'admin_sub_id', 'admin_last_active'].forEach(c => res.clearCookie(c));
+        terminerSession(req, res);
         // Une réponse JSON pour les appels de fond : les rediriger vers une page
         // HTML ferait afficher du HTML dans un compteur de badges.
         if (req.path.startsWith('/admin/api/')) {
@@ -882,7 +889,7 @@ app.use((req, res, next) => {
   // cookie, au même endroit. C'est désormais « main » qu'il faut être.
   res.locals.sessionValide = role !== null;
   res.locals.adminRole  = role ?? 'inconnu';
-  res.locals.adminName  = req.cookies?.admin_name ?? 'Admin';
+  res.locals.adminName  = req.admin.nom ?? 'Admin';
   res.locals.adminPerms = perms;
   res.locals.isMain     = role === 'main';
   res.locals.hasPerm = (key, level = 'read') => {
@@ -906,7 +913,7 @@ app.use((req, res, next) => {
   // comptes. Les poser avant reviendrait à déclarer une identité qu'on n'a pas
   // encore vérifiée.
   executerAvecActeur({
-    id:    role === 'main' ? 'main' : (req.cookies?.admin_sub_id ?? 'inconnu'),
+    id:    role === 'main' ? 'main' : (req.admin.subId ?? 'inconnu'),
     nom:   res.locals.adminName,
     role:  role === 'main' ? 'main' : 'sub',
     perms: role === 'main' ? [] : perms,
@@ -915,18 +922,39 @@ app.use((req, res, next) => {
 
 // Middleware d'authentification
 function requireAuth(req, res, next) {
-  if (!req.cookies?.admin_token) return res.redirect('/admin/login');
-  // La présence d'un jeton ne prouvait rien : n'importe quelle chaîne passait.
-  // Le rôle signé, lui, n'est posé qu'à la connexion.
-  if (!res.locals.sessionValide) return res.redirect('/admin/login');
+  // Une session n'existe que si ce serveur l'a ouverte : aucun cookie posé par
+  // le client ne peut en tenir lieu.
+  if (!req.admin?.session || !res.locals.sessionValide) return res.redirect('/admin/login');
+  // Sans jeton d'API, chaque page se solderait par un 401 sans explication.
+  if (!req.admin.jeton) {
+    return res.status(503).render('error', {
+      status: 503, title: 'API injoignable',
+      message: 'Le panneau n\'obtient plus de jeton du compte de service.',
+      hint: 'Vérifiez ADMIN_SERVICE_EMAIL et ADMIN_SERVICE_PASSWORD dans admin-web/.env.',
+      back: '/admin/login',
+    });
+  }
   next();
+}
+
+/**
+ * L'API a refusé le jeton de cette session.
+ *
+ * Pour l'administrateur principal, c'est la fin de sa session : son jeton lui
+ * est propre et a expiré. Pour un sous-admin, c'est le jeton du compte de
+ * service qui ne vaut plus : on l'oublie pour en redemander un à la requête
+ * suivante, et la session se ferme — elle ne repose sur rien de valide.
+ */
+function jetonRefuse(req, res) {
+  if (roleDeSession(req) === 'sub') _jetonService = null;
+  terminerSession(req, res);
 }
 
 // Helper : gérer les erreurs API dans les routes (évite la duplication)
 function apiError(res, e, fallbackUrl) {
   const status = e.response?.status;
   if (status === 401) {
-    res.clearCookie('admin_token');
+    jetonRefuse(res.req, res);
     return res.redirect('/admin/login?expired=1');
   }
   const msg = e.friendlyMessage ?? e.response?.data?.message ?? e.message ?? 'Erreur inattendue.';
@@ -1000,8 +1028,25 @@ setInterval(() => {
   }
 }, 3600000);
 
+/**
+ * L'adresse du client, telle que nginx l'a vue.
+ *
+ * Elle était lue dans la **première** valeur de `X-Forwarded-For`. Or nginx
+ * est réglé en `$proxy_add_x_forwarded_for` : il ajoute l'adresse réelle à la
+ * fin de ce que le client a envoyé. La première valeur était donc choisie par
+ * le client — en la changeant à chaque essai, on remettait le compteur de
+ * tentatives à zéro, et la protection contre la force brute du formulaire de
+ * connexion ne protégeait de rien (vérifié sur la configuration nginx de
+ * production le 24 septembre 2026, constat S9).
+ *
+ * `trust proxy: 'loopback'` fait lire à Express la valeur ajoutée par le
+ * proxy local, et seulement quand la connexion vient bien de lui : un appel
+ * direct au port du panneau garde l'adresse de sa socket, quel que soit
+ * l'en-tête.
+ */
+app.set('trust proxy', 'loopback');
 function getClientIP(req) {
-  return (req.headers['x-forwarded-for'] ?? req.socket.remoteAddress ?? '0.0.0.0').split(',')[0].trim();
+  return req.ip ?? req.socket?.remoteAddress ?? '0.0.0.0';
 }
 
 function checkRateLimit(ip) {
@@ -1033,7 +1078,7 @@ function clearAttempts(ip) {
 // ─── SESSION REFRESH (activité) ──────────────────────────────────────────────
 app.use((req, res, next) => {
   // Rafraîchir le cookie d'activité sur chaque requête authentifiée (hors API badges/search)
-  if (req.cookies?.admin_token && !req.path.startsWith('/admin/api/')) {
+  if (req.admin?.session && !req.path.startsWith('/admin/api/')) {
     const sessionTimeoutMs = (loadSettings().sessionTimeoutMin ?? 30) * 60000;
     res.cookie('admin_last_active', Date.now().toString(), {
       maxAge: sessionTimeoutMs + 120000,
@@ -1055,7 +1100,7 @@ app.get('/admin/login', (req, res) => {
   // `/admin/login` est justement le chemin où la revalidation ne s'applique
   // pas, pour ne pas boucler ; c'est donc ici que la vérification doit se
   // refaire.
-  if (req.cookies?.admin_token && sessionEncoreValable(req)) {
+  if (sessionEncoreValable(req)) {
     return res.redirect('/admin/dashboard');
   }
   // Une seule lecture : `getLoginMaxAttempts` relit settings.json à chaque appel.
@@ -1099,16 +1144,11 @@ app.post('/admin/login', async (req, res) => {
   const sub  = subs.find(s => normaliserIdentifiant(s.username) === saisi && s.isActive !== false && checkPwd(password, s.passwordHash));
   if (sub) {
     clearAttempts(ip);
-    // Obtenir un token backend frais via le compte service
-    let apiToken = process.env.ADMIN_API_TOKEN ?? '';
-    try {
-      const svcEmail = process.env.ADMIN_SERVICE_EMAIL;
-      const svcPass  = process.env.ADMIN_SERVICE_PASSWORD;
-      if (svcEmail && svcPass) {
-        const svcRes = await axios.post(`${API_URL}/admin/login`, { email: svcEmail, password: svcPass }, { timeout: 5000 });
-        apiToken = svcRes.data.token ?? apiToken;
-      }
-    } catch (_) { /* fallback sur ADMIN_API_TOKEN si le backend est indisponible */ }
+    // Le jeton du compte de service reste dans ce processus : la session du
+    // sous-admin n'en porte pas, et son navigateur encore moins. On vérifie
+    // seulement qu'il est disponible — une session ouverte sans lui ne
+    // montrerait que des pages vides.
+    const apiToken = await jetonService({ forcer: true });
 
     // ── Refuser une session qu'on sait vide ──
     //
@@ -1141,18 +1181,11 @@ app.post('/admin/login', async (req, res) => {
       });
     }
 
-    const perms    = JSON.stringify(sub.permissions ?? []);
     sub.lastLoginAt = new Date().toISOString();
     // Ecriture gardee : sans empreinte, l'enregistrement de la date de
     // connexion ecrasait une modification de permissions faite entre-temps.
     saveSubsSi(subs, empSubs);
-    res.cookie('admin_token',   apiToken,                              { httpOnly: true,  maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
-    res.cookie('admin_name',    sub.name,                              { httpOnly: true,  maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
-    res.cookie('admin_role',    signerRole('sub'),                     { httpOnly: true,  maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
-    res.cookie('admin_perms',   signPerms(sub.permissions ?? []),       { maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
-    res.cookie('admin_sub_id',  sub.id,                                { maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
-    res.cookie('admin_last_active', Date.now().toString(),             { maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax', httpOnly: false });
-    req.cookies = { ...req.cookies, admin_name: sub.name, admin_role: signerRole('sub') };
+    ouvrirSession(req, res, { role: 'sub', subId: sub.id, nom: sub.name, dureeMs: cookieMaxAge });
     logAction(req, 'login', `Sous-admin: ${sub.name}`, { username: sub.username });
     return res.redirect('/admin/dashboard');
   }
@@ -1168,21 +1201,41 @@ app.post('/admin/login', async (req, res) => {
   try {
     // Le formulaire envoie "username", l'API attend "email"
     const r = await axios.post(`${API_URL}/admin/login`, { email: username, password }, { timeout: 10000 });
+
+    // ── Seul un super-administrateur de l'API est « principal » ici ──
+    //
+    // Toute connexion réussie à l'API ouvrait une session « main », quel que
+    // soit le rôle renvoyé. Un compte créé pour un analyste — rôle `analyst`
+    // côté API — recevait donc tous les droits du panneau, gestion des
+    // sous-admins et réglages compris (constat S8). Le panneau n'a pas de rôle
+    // intermédiaire à lui donner : on refuse, en le disant.
+    if (r.data?.admin?.role !== 'super_admin') {
+      recordFailedAttempt(ip);
+      req.admin = { ...req.admin, nom: r.data?.admin?.name ?? username, role: null };
+      logAction(req, 'login_failed', `Identifiant: ${username}`,
+        { ip, cause: 'role_api_' + (r.data?.admin?.role ?? 'inconnu') });
+      return res.render('login', {
+        error: 'Ce compte existe côté API mais n\'a pas le rôle super-administrateur : '
+             + 'le panneau ne lui ouvre pas de session. Demandez un compte de sous-admin.',
+        expired: false, locked: null, remaining: getLoginMaxAttempts(),
+        maxAttempts: getLoginMaxAttempts(), blockedUntilMs: null, username,
+      });
+    }
+
     clearAttempts(ip);
-    res.cookie('admin_token',   r.data.token,      { httpOnly: true, maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
-    res.cookie('admin_name',    r.data.admin.name, { httpOnly: true, maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
-    res.cookie('admin_role',    signerRole('main'), { httpOnly: true, maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax' });
-    res.cookie('admin_last_active', Date.now().toString(), { maxAge: cookieMaxAge, secure: COOKIE_SECURE, sameSite: 'lax', httpOnly: false });
-    res.clearCookie('admin_perms');
-    res.clearCookie('admin_sub_id');
-    req.cookies = { ...req.cookies, admin_name: r.data.admin.name, admin_role: signerRole('main') };
+    ouvrirSession(req, res, {
+      role: 'main', nom: r.data.admin.name, jeton: r.data.token,
+      // Le jeton d'API de l'administrateur expire en 8 heures : une session
+      // plus longue ne ferait que durer sur un jeton mort.
+      dureeMs: Math.min(cookieMaxAge, 8 * 3600000),
+    });
     logAction(req, 'login', `Admin principal: ${r.data.admin.name}`);
     res.redirect('/admin/dashboard');
   } catch (e) {
     const entry     = recordFailedAttempt(ip);
     const remaining = Math.max(0, getLoginMaxAttempts() - (entry.count ?? 0));
     const errMsg    = e.response?.data?.message ?? 'Identifiants incorrects.';
-    req.cookies = { ...req.cookies, admin_name: username, admin_role: 'unknown' };
+    req.admin = { ...req.admin, nom: username, role: null };
     logAction(req, 'login_failed', `Identifiant: ${username}`, { ip });
     // Si bloqué après cet échec
     const nowBlocked = checkRateLimit(ip);
@@ -1199,22 +1252,29 @@ app.post('/admin/login', async (req, res) => {
 });
 
 app.get('/admin/logout', (req, res) => {
-  logAction(req, 'logout', req.cookies?.admin_name ?? '');
-  ['admin_token','admin_name','admin_role','admin_perms','admin_sub_id','admin_last_active'].forEach(c => res.clearCookie(c));
+  if (req.admin?.session) logAction(req, 'logout', req.admin.nom ?? '');
+  terminerSession(req, res);
   res.redirect('/admin/login');
 });
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 app.get('/admin/dashboard', requireAuth, async (req, res) => {
-  const a = api(req.cookies.admin_token);
+  const a = api(req.admin.jeton);
+  // La file de travail montrait à tout sous-admin les versements et les
+  // preuves en attente, quelles que soient ses permissions — ce que les badges
+  // filtraient déjà. L'API refuse désormais ces lectures à qui n'a pas le
+  // droit : on ne les demande donc qu'au nom de qui l'a.
+  const voitTx  = res.locals.hasPerm('transactions');
+  const voitAbo = res.locals.hasPerm('abonnements');
+  const vide    = Promise.resolve({ data: { data: [], total: 0 } });
   const [statsRes, pendingRes, proofsRes, onlineRes] = await Promise.allSettled([
     a.get('/pronostics/admin/stats'),
-    a.get('/payments/admin/pending?page=1'),
-    a.get('/subscriptions/admin/proofs?page=1'),
+    voitTx  ? a.get('/payments/admin/pending?page=1')     : vide,
+    voitAbo ? a.get('/subscriptions/admin/proofs?page=1') : vide,
     a.get('/admin/stats/online'),  // non caché — toujours frais
   ]);
   if ([statsRes, pendingRes, proofsRes].some(r => r.status === 'rejected' && r.reason?.response?.status === 401)) {
-    res.clearCookie('admin_token'); return res.redirect('/admin/login?expired=1');
+    jetonRefuse(req, res); return res.redirect('/admin/login?expired=1');
   }
 
   const now        = Date.now();
@@ -1289,7 +1349,7 @@ app.get('/admin/dashboard', requireAuth, async (req, res) => {
   }
 
   res.render('dashboard', {
-    adminName: req.cookies.admin_name ?? 'Admin',
+    adminName: req.admin.nom ?? 'Admin',
     stats:   { ...baseStats, activeUsers },
     pending, proofs,
     activeBansCount: activeBans.length,
@@ -1304,7 +1364,7 @@ app.get('/admin/api/search', requireAuth, async (req, res) => {
   const q = (req.query.q ?? '').trim();
   if (q.length < 2) return res.json({ users: [], transactions: [], pronostics: [], bans: [] });
 
-  const a      = api(req.cookies.admin_token);
+  const a      = api(req.admin.jeton);
   const canU   = res.locals.hasPerm('users');
   const canTx  = res.locals.hasPerm('transactions') || res.locals.hasPerm('historique');
   const canPro = res.locals.hasPerm('pronostics');
@@ -1354,7 +1414,7 @@ app.get('/admin/api/badges', requireAuth, async (req, res) => {
   // quelles que soient les permissions : un sous-admin cantonne aux tutoriels
   // apprenait combien d'argent attendait d'etre verse. On ne compte desormais
   // que ce qu'il a le droit de consulter.
-  const a       = api(req.cookies.admin_token);
+  const a       = api(req.admin.jeton);
   const voitTx  = res.locals.hasPerm('transactions');
   const voitAbo = res.locals.hasPerm('abonnements');
   const [txRes, proofsRes] = await Promise.allSettled([
@@ -1382,7 +1442,7 @@ app.get('/admin/api/live', requireAuth, (req, res) => {
   // Les permissions accompagnent le client : la diffusion doit pouvoir filtrer.
   const client = { res, perms: res.locals.isMain ? null : (res.locals.adminPerms ?? []) };
   sseClients.add(client);
-  fetchLiveKPIs(req.cookies.admin_token).then(kpis => {
+  fetchLiveKPIs(req.admin.jeton).then(kpis => {
     if (kpis) { try { res.write(`event: kpis\ndata: ${JSON.stringify(kpisPour(client.perms, kpis))}\n\n`); } catch {} }
   });
   req.on('close', () => sseClients.delete(client));
@@ -1398,7 +1458,7 @@ app.use((err, req, res, _next) => {
 
   // Erreur de token expiré
   if (err.response?.status === 401) {
-    res.clearCookie('admin_token');
+    jetonRefuse(req, res);
     return res.redirect('/admin/login?expired=1');
   }
 
@@ -1430,6 +1490,27 @@ async function fetchLiveKPIs(token) {
       ts: Date.now(),
     };
   } catch { return null; }
+}
+
+/**
+ * L'auteur déclaré des tâches de fond du panneau.
+ *
+ * L'API exige désormais une délégation signée sur toute requête, lecture
+ * comprise : le jeton ne quitte plus ce processus, donc un appel sans
+ * délégation ne peut venir que d'ailleurs. Les minuteries — levée des bans
+ * expirés, KPI temps réel — n'ont pas de requête et donc personne derrière
+ * elles ; elles s'annoncent sous ce nom, qui se lit tel quel dans les
+ * journaux de l'API.
+ *
+ * La levée des bans expirés écrivait déjà sans délégation, et l'API la
+ * refusait depuis que la délégation est exigée sur les écritures : les
+ * comptes restaient suspendus jusqu'à la visite d'un administrateur.
+ */
+const ACTEUR_SYSTEME = { id: 'systeme', nom: 'Tâche automatique du panneau', role: 'main', perms: [] };
+function enTantQueSysteme(travail) {
+  return new Promise((resolve, reject) => {
+    executerAvecActeur(ACTEUR_SYSTEME, () => { Promise.resolve().then(travail).then(resolve, reject); });
+  });
 }
 
 /**
@@ -1517,12 +1598,12 @@ setInterval(async () => {
     }
     return;
   }
-  let kpis = await fetchLiveKPIs(token);
+  let kpis = await enTantQueSysteme(() => fetchLiveKPIs(token));
   // Tout à null = jeton refusé. On le renouvelle une fois avant d'abandonner,
   // plutôt que de diffuser des valeurs vides comme avant.
   if (kpis && kpis.users_total === null && kpis.tx_pending === null && kpis.proofs_pending === null) {
     const frais = await jetonService({ forcer: true });
-    kpis = frais ? await fetchLiveKPIs(frais) : null;
+    kpis = frais ? await enTantQueSysteme(() => fetchLiveKPIs(frais)) : null;
   }
   if (kpis && (kpis.users_total !== null || kpis.tx_pending !== null || kpis.proofs_pending !== null)) {
     sseBroadcast('kpis', kpis, perms => kpisPour(perms, kpis));
@@ -1608,7 +1689,7 @@ const contexteRoutes = {
   loadNews, saveNews, loadBans, saveBans, loadLogs, saveLogs,
   loadNotifHistory, saveNotifHistory, getNewsCategories,
   uid, hashPwd, checkPwd, normaliserIdentifiant, journalVisiblePar, estMoi,
-  getClientIP, ecrireJson,
+  getClientIP, ecrireJson, sessions,
   ERR_ECRITURE, ERR_CONFLIT, PERMISSIONS, DATA_DIR, LOG_MAX,
   STATS_ENDPOINTS, NEWS_DEFAULT_CATEGORIES,
   fs, path, slugify, sanitize, clampInt, sseBroadcast,

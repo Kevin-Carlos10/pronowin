@@ -31,7 +31,7 @@ module.exports = (app, ctx) => {
       return res.status(400).json({message:'Liste de matchs invalide.'});
     }
     try {
-      const r = await api(req.cookies.admin_token).post('/pronostics/admin/scores', {ids});
+      const r = await api(req.admin.jeton).post('/pronostics/admin/scores', {ids});
       res.setHeader('Cache-Control','no-store');
       res.json(r.data);
     } catch(e) {
@@ -40,7 +40,7 @@ module.exports = (app, ctx) => {
   });
 
   app.get('/admin/pronostics', requireAuth, requirePerm('pronostics'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     const competition   = req.query.competition ?? '';
     const statusFilter  = req.query.status ?? '';
     const q             = (req.query.q ?? '').trim();
@@ -66,7 +66,7 @@ module.exports = (app, ctx) => {
       // Total avant troncature — l'en-tête existe pour que la page annonce
       // « 400 sur 3 197 » au lieu de laisser croire qu'il n'y a que 400 matchs.
       const totalMatchs = parseInt(r.headers?.['x-total-count'] ?? '', 10);
-      res.render('pronostics', { adminName: req.cookies.admin_name ?? 'Admin', matches: r.data ?? [], visibleLeagues, competition, statusFilter, q, date, mine, live,
+      res.render('pronostics', { adminName: req.admin.nom ?? 'Admin', matches: r.data ?? [], visibleLeagues, competition, statusFilter, q, date, mine, live,
         totalMatchs: Number.isFinite(totalMatchs) ? totalMatchs : null,
         success: req.query.success === '1', error: null,
         flash: req.query.ok ? {
@@ -76,12 +76,12 @@ module.exports = (app, ctx) => {
         } : null });
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-      res.render('pronostics', { adminName: req.cookies.admin_name ?? 'Admin', matches: [], visibleLeagues: [], competition, statusFilter, q, date, mine, live, totalMatchs: null, success: false, flash: null, error: e.response?.data?.message ?? e.message });
+      res.render('pronostics', { adminName: req.admin.nom ?? 'Admin', matches: [], visibleLeagues: [], competition, statusFilter, q, date, mine, live, totalMatchs: null, success: false, flash: null, error: e.response?.data?.message ?? e.message });
     }
   });
 
   app.get('/admin/pronostics/export', requireAuth, requirePerm('pronostics'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const competition = req.query.competition ?? '';
       const r = await a.get('/pronostics/admin/upcoming' + (competition ? '?competition=' + competition : ''));
@@ -104,7 +104,7 @@ module.exports = (app, ctx) => {
   // Proxy cotes → The Odds API (via backend, avec auth admin)
 
   app.get('/admin/pronostics/edit/:matchId/odds', requireAuth, requirePerm('pronostics'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const r = await a.get('/pronostics/admin/match/' + req.params.matchId + '/odds');
       res.json(r.data);
@@ -117,7 +117,7 @@ module.exports = (app, ctx) => {
   // côté des cotes 1xBet dans le formulaire.
 
   app.get('/admin/pronostics/edit/:matchId/prediction', requireAuth, requirePerm('pronostics'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const r = await a.get('/pronostics/admin/match/' + req.params.matchId + '/prediction');
       res.json(r.data);
@@ -127,10 +127,10 @@ module.exports = (app, ctx) => {
   });
 
   app.get('/admin/pronostics/edit/:matchId', requireAuth, requirePerm('pronostics'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const r = await a.get('/pronostics/admin/match/' + req.params.matchId);
-      res.render('pronostic_form', { adminName: req.cookies.admin_name ?? 'Admin', match: r.data, error: null, query: req.query });
+      res.render('pronostic_form', { adminName: req.admin.nom ?? 'Admin', match: r.data, error: null, query: req.query });
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
       res.redirect('/admin/pronostics');
@@ -138,7 +138,7 @@ module.exports = (app, ctx) => {
   });
 
   app.post('/admin/pronostics/edit/:matchId', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       await a.post('/pronostics/admin/pronostic', { ...req.body, match_id: req.params.matchId, is_premium: req.body.is_premium === 'on', publish: req.body.publish === 'true' });
       // Le formulaire renvoie les noms d'équipe en champs cachés : le journal
@@ -163,7 +163,7 @@ module.exports = (app, ctx) => {
     } catch (e) {
       try {
         const r2 = await a.get('/pronostics/admin/match/' + req.params.matchId);
-        res.render('pronostic_form', { adminName: req.cookies.admin_name ?? 'Admin', match: r2.data, error: e.response?.data?.message ?? 'Erreur', query: {} });
+        res.render('pronostic_form', { adminName: req.admin.nom ?? 'Admin', match: r2.data, error: e.response?.data?.message ?? 'Erreur', query: {} });
       } catch { res.redirect('/admin/pronostics'); }
     }
   });
@@ -187,7 +187,7 @@ module.exports = (app, ctx) => {
    * il existait déjà côté serveur, aucun écran ne l'appelait.
    */
   app.post('/admin/pronostics/:pronosticId/depublier', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     const matchId = req.body.match_id;
     const retour  = matchId ? '/admin/pronostics/edit/' + matchId : '/admin/pronostics';
     try {
@@ -207,7 +207,7 @@ module.exports = (app, ctx) => {
   // Forcer le résultat WIN/LOSS/reset manuellement sur un pronostic
 
   app.post('/admin/pronostics/result/:pronosticId', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     const matchId = req.body.match_id;
     try {
       const result = req.body.result === 'null' ? null : req.body.result;
@@ -232,12 +232,12 @@ module.exports = (app, ctx) => {
    * L'API bascule le drapeau et retire celui des autres : un seul à la fois.
    */
   app.post('/admin/pronostics/daily/:pronosticId', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     const retour = req.body.retour ?? '/admin/pronostics';
     try {
       await a.patch('/pronostics/admin/pronostic/' + req.params.pronosticId + '/set-daily');
       logAction(req, 'pronostic_daily_set', `Pronostic #${req.params.pronosticId}`, { pronosticId: req.params.pronosticId });
-      sseBroadcast('action', { type: 'pronostic_daily_set', adminName: req.cookies.admin_name ?? 'Admin', ts: Date.now() });
+      sseBroadcast('action', { type: 'pronostic_daily_set', adminName: req.admin.nom ?? 'Admin', ts: Date.now() });
       res.redirect(retour + (retour.includes('?') ? '&' : '?') + 'success='
         + encodeURIComponent('Pronostic gratuit du jour mis à jour — il est désormais visible par tous.'));
     } catch (e) {
@@ -255,7 +255,7 @@ module.exports = (app, ctx) => {
    * aucun recours depuis l'interface — il fallait attendre le cron.
    */
   app.post('/admin/pronostics/sync-scores', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     const retour = req.body.retour ?? '/admin/pronostics';
     try {
       const r = await a.post('/pronostics/admin/sync-scores');
@@ -274,7 +274,7 @@ module.exports = (app, ctx) => {
   // Route AJAX pour forcer le résultat depuis la liste des pronostics
 
   app.post('/admin/pronostics/force-result/:pronosticId', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const result = req.body.result === 'null' ? null : req.body.result;
       if (result !== 'WIN' && result !== 'LOSS' && result !== 'PUSH' && result !== null) {
@@ -293,20 +293,20 @@ module.exports = (app, ctx) => {
   // celle-ci. On repart des mêmes filtres que l'écran affiché.
 
   app.get('/admin/leagues', requireAuth, requirePerm('pronostics'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const r = await a.get('/pronostics/admin/leagues');
-      res.render('leagues', { adminName: req.cookies.admin_name ?? 'Admin', leagues: r.data ?? [], error: null });
+      res.render('leagues', { adminName: req.admin.nom ?? 'Admin', leagues: r.data ?? [], error: null });
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
-      res.render('leagues', { adminName: req.cookies.admin_name ?? 'Admin', leagues: [], error: e.response?.data?.message ?? e.friendlyMessage ?? e.message });
+      res.render('leagues', { adminName: req.admin.nom ?? 'Admin', leagues: [], error: e.response?.data?.message ?? e.friendlyMessage ?? e.message });
     }
   });
 
   // Route AJAX — bascule la visibilité d'une ligue dans le flux public
 
   app.post('/admin/leagues/:code/toggle', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const league  = req.body.league;
       const visible = req.body.visible === true || req.body.visible === 'true';
@@ -321,7 +321,7 @@ module.exports = (app, ctx) => {
   // Route AJAX — bascule un lot de compétitions en un seul appel
 
   app.post('/admin/leagues/bulk', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
-    const a = api(req.cookies.admin_token);
+    const a = api(req.admin.jeton);
     try {
       const leagues = Array.isArray(req.body.leagues) ? req.body.leagues : [];
       const visible = req.body.visible === true || req.body.visible === 'true';

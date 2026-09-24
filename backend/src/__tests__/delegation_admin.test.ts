@@ -19,15 +19,13 @@ import {
  * fichiers du panneau, et pour joindre cette API le panneau leur donne à tous
  * le **même** jeton. Vu d'ici, dix personnes sont un seul administrateur.
  *
- * Ce jeton est posé dans leur navigateur. Un sous-administrateur peut donc le
- * lire et appeler cette API **directement**, sans passer par le panneau — donc
- * sans passer par les permissions que le panneau applique. Une restriction de
- * menu ne protège pas une API.
- *
- * Le panneau signe maintenant, à chaque appel, qui agit. La signature est posée
- * par son serveur : elle ne transite jamais par le navigateur. Une écriture
- * portant le jeton de service sans délégation valable n'est donc pas venue du
- * panneau, et elle est refusée.
+ * Ce jeton a longtemps été posé dans leur navigateur : un sous-administrateur
+ * pouvait le lire et appeler cette API **directement**, sans passer par les
+ * permissions du panneau. Il ne quitte plus le serveur du panneau, qui signe à
+ * chaque appel qui agit et avec quels droits. Une requête sans délégation
+ * valable n'est pas venue du panneau et elle est refusée, lecture comprise ;
+ * une requête déléguée n'obtient que ce que les permissions de l'acteur
+ * autorisent.
  */
 const SECRET = 'delegation-de-banc';
 const JWT_ADMIN = 'jwt-admin-de-banc';
@@ -57,19 +55,27 @@ const ACTEUR = {
 
 const jetonDeService = jwt.sign({ adminId: 'compte-de-service' }, JWT_ADMIN);
 
+// De vraies routes : l'API ne laisse plus un sous-admin appeler une route
+// qu'elle ne sait pas rattacher à une permission (`permissions_admin.ts`).
+const LECTURE   = '/pronostics/admin/upcoming';   // pronostics : read
+const ECRITURE  = '/pronostics/admin/pronostic';  // pronostics : write
+const PRINCIPAL = '/admin/app-config';            // administrateur principal
+
 function appli() {
   const app = express();
   const repondre = (req: any, res: any) =>
     res.json({ acteur: req.acteurAdmin ?? null });
-  app.post('/admin/x', adminMiddleware, repondre);
-  app.get('/admin/x',  adminMiddleware, repondre);
+  for (const chemin of [LECTURE, ECRITURE, PRINCIPAL, '/admin/route-inconnue']) {
+    app.post(chemin, adminMiddleware, repondre);
+    app.get(chemin,  adminMiddleware, repondre);
+  }
   return app;
 }
 
 describe('délégation : ce que le middleware accepte', () => {
-  it('une écriture déléguée passe, et nomme la personne', async () => {
+  it('une lecture déléguée et permise passe, et nomme la personne', async () => {
     const r = await request(appli())
-      .post('/admin/x')
+      .get(LECTURE)
       .set('Authorization', `Bearer ${jetonDeService}`)
       .set(ENTETE_DELEGATION, signerDelegation(ACTEUR, SECRET));
 
@@ -78,10 +84,23 @@ describe('délégation : ce que le middleware accepte', () => {
   });
 
   it('une écriture sans délégation est refusée', async () => {
-    // C'est la manœuvre : lire le jeton dans ses cookies, appeler l'API
+    // C'est la manœuvre : lire le jeton quelque part, appeler l'API
     // directement, contourner les permissions du panneau.
     const r = await request(appli())
-      .post('/admin/x')
+      .post(ECRITURE)
+      .set('Authorization', `Bearer ${jetonDeService}`);
+
+    expect(r.status).toBe(403);
+    expect(r.body.code).toBe('DELEGATION_ABSENTE');
+  });
+
+  it('une lecture sans délégation est refusée aussi', async () => {
+    // Elle était tolérée : le jeton du compte de service était alors dans le
+    // navigateur des sous-admins, qui lisaient toute l'API — téléphones,
+    // preuves de paiement, revenus — quelles que soient leurs permissions
+    // (constat S1). Le jeton ne quitte plus le serveur du panneau.
+    const r = await request(appli())
+      .get(LECTURE)
       .set('Authorization', `Bearer ${jetonDeService}`);
 
     expect(r.status).toBe(403);
@@ -90,7 +109,7 @@ describe('délégation : ce que le middleware accepte', () => {
 
   it('une délégation forgée est refusée', async () => {
     const r = await request(appli())
-      .post('/admin/x')
+      .post(ECRITURE)
       .set('Authorization', `Bearer ${jetonDeService}`)
       .set(ENTETE_DELEGATION, signerDelegation(ACTEUR, 'pas-le-bon-secret'));
 
@@ -103,24 +122,50 @@ describe('délégation : ce que le middleware accepte', () => {
     const vieille = signerDelegation(
       ACTEUR, SECRET, Date.now() - DELEGATION_VALIDITE_MS - 1000);
     const r = await request(appli())
-      .post('/admin/x')
+      .post(ECRITURE)
       .set('Authorization', `Bearer ${jetonDeService}`)
       .set(ENTETE_DELEGATION, vieille);
 
     expect(r.status).toBe(403);
     expect(r.body.code).toBe('DELEGATION_PERIMEE');
   });
+});
 
-  it('une lecture sans délégation reste possible', async () => {
-    // Contrepartie, et décision assumée : une lecture ne change rien, et la
-    // refuser casserait toute consultation le jour d'un décalage de version
-    // entre les deux services. Ce qui écrit, en revanche, doit être attribué.
-    const r = await request(appli())
-      .get('/admin/x')
-      .set('Authorization', `Bearer ${jetonDeService}`);
+describe('délégation : les permissions sont appliquées par l\'API', () => {
+  const appel = (methode: 'get' | 'post', chemin: string, acteur: any) =>
+    request(appli())[methode](chemin)
+      .set('Authorization', `Bearer ${jetonDeService}`)
+      .set(ENTETE_DELEGATION, signerDelegation(acteur, SECRET));
 
+  it('une écriture au-delà du niveau accordé est refusée', async () => {
+    // Le panneau la refusait déjà ; l'API ne s'en remet plus à lui.
+    const r = await appel('post', ECRITURE, ACTEUR);
+    expect(r.status).toBe(403);
+    expect(r.body.code).toBe('PERMISSION_ADMIN');
+  });
+
+  it('la même écriture passe avec le niveau requis', async () => {
+    // Contrepartie : sans elle, une API qui refuserait tout passerait le point
+    // précédent.
+    const r = await appel('post', ECRITURE, { ...ACTEUR, perms: ['pronostics:write'] });
     expect(r.status).toBe(200);
-    expect(r.body.acteur).toBeNull();
+  });
+
+  it('une route réservée au principal est refusée à un sous-admin', async () => {
+    const r = await appel('get', PRINCIPAL,
+      { ...ACTEUR, perms: ['users:delete', 'pronostics:delete'] });
+    expect(r.status).toBe(403);
+  });
+
+  it('une route non déclarée est refusée à un sous-admin, pas au principal', async () => {
+    // Fermeture par défaut : oublier de classer une route la réserve au
+    // principal au lieu de l'ouvrir à tous.
+    const sub  = await appel('get', '/admin/route-inconnue',
+      { ...ACTEUR, perms: ['pronostics:delete'] });
+    const main = await appel('get', '/admin/route-inconnue',
+      { id: 'main', nom: 'Principal', role: 'main', perms: [] });
+    expect(sub.status).toBe(403);
+    expect(main.status).toBe(200);
   });
 });
 

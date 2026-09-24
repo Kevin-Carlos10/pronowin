@@ -82,6 +82,10 @@ desktop.ini
 # déploiement. sub_admins.json était déjà ignoré pour la même raison.
 admin-web/data/audit_log.json
 admin-web/data/settings.json
+# Sessions ouvertes du panneau : empreintes d'identifiants et jeton d'API de
+# l'administrateur principal. Jamais dans le dépôt.
+admin-web/data/sessions.json
+admin-web/data/*.tmp
 
 # ── Sauvegardes locales avant modification destructive ───────────────────────
 # Copies datées prises avant un changement risqué. Ce sont des doublons du code
