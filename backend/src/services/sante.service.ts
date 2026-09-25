@@ -17,11 +17,19 @@ import { etatDesTaches, lireEtatPublie, SILENCE_MAX_MS, tachesDansLApi } from '.
 export const FICHIER_ETAT_SAUVEGARDE =
   process.env.SAUVEGARDE_ETAT ?? '/var/lib/pronowin/sauvegarde.json';
 
-async function lireSauvegarde(): Promise<{ derniere: string; taille: string | null; panneau: boolean } | null> {
+type CopieDistante = { distante?: string; erreur?: string } | null;
+
+async function lireSauvegarde(): Promise<{ derniere: string; taille: string | null; panneau: boolean; copieDistante: CopieDistante } | null> {
   try {
     const brut = JSON.parse(await fs.promises.readFile(FICHIER_ETAT_SAUVEGARDE, 'utf8'));
     if (typeof brut?.derniere !== 'string') return null;
-    return { derniere: brut.derniere, taille: brut.taille ?? null, panneau: !!brut.panneau };
+    // Copie hors du serveur (O4) : null tant qu'elle n'est pas configurée.
+    const c = brut.copieDistante;
+    const copieDistante: CopieDistante = c && typeof c === 'object'
+      ? { ...(typeof c.distante === 'string' ? { distante: c.distante } : {}),
+          ...(typeof c.erreur === 'string' ? { erreur: c.erreur } : {}) }
+      : null;
+    return { derniere: brut.derniere, taille: brut.taille ?? null, panneau: !!brut.panneau, copieDistante };
   } catch {
     return null;
   }

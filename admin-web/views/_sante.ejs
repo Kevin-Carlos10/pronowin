@@ -63,9 +63,14 @@
     const sv = _s.sauvegarde;
     _tuiles.push(!sv
       ? { etat: 'warn', titre: 'Sauvegarde', valeur: 'Aucune trace', detail: "Le fichier d'état de la sauvegarde est introuvable." }
-      : { etat: _ageH(sv.derniere) > 26 ? 'err' : 'ok', titre: 'Sauvegarde',
+      : { etat: _ageH(sv.derniere) > 26 ? 'err' : (sv.copieDistante && sv.copieDistante.erreur ? 'warn' : 'ok'), titre: 'Sauvegarde',
           valeur: `Dernière ${_depuis(sv.derniere)}`,
-          detail: `${sv.taille ?? '?'} · panneau ${sv.panneau ? 'inclus' : 'non inclus'} · sur ce serveur seulement` });
+          detail: `${sv.taille ?? '?'} · panneau ${sv.panneau ? 'inclus' : 'non inclus'} · ` + (
+            // Copie hors du serveur (O4) : son absence est le seul angle mort
+            // restant, sa panne doit se voir.
+            !sv.copieDistante ? 'sur ce serveur seulement'
+            : sv.copieDistante.erreur ? `copie hors serveur en échec : ${sv.copieDistante.erreur}`
+            : `copiée hors serveur ${_depuis(sv.copieDistante.distante)}`) });
 
     const fs_ = _s.fileStore || {};
     const bloques = (fs_.echec || 0) + (fs_.abandonnee || 0);

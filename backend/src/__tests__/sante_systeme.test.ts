@@ -57,7 +57,18 @@ describe('/admin/sante', () => {
     expect(s.base.ok).toBe(true);
     expect(s.fileStore).toEqual({ echec: 2 });
     expect(s.preuves).toEqual({ nombre: 3, plusAncienne: '2026-09-22T10:00:00.000Z' });
-    expect(s.sauvegarde).toEqual({ derniere: '2026-09-24T02:30:00Z', taille: '2.1M', panneau: true });
+    // Sans copie hors serveur configurée (O4) : null, pas une réussite.
+    expect(s.sauvegarde).toEqual({ derniere: '2026-09-24T02:30:00Z', taille: '2.1M', panneau: true, copieDistante: null });
+  });
+
+  it('la copie hors serveur est reportée, réussie ou en échec (O4)', async () => {
+    fs.writeFileSync(ETAT, JSON.stringify({ derniere: '2026-09-24T02:30:00Z', taille: '2.1M', panneau: true,
+      copieDistante: { distante: '2026-09-24T02:31:00Z', envoyes: ['x.dump.enc'] } }));
+    expect((await lireSante()).sauvegarde?.copieDistante).toEqual({ distante: '2026-09-24T02:31:00Z' });
+
+    fs.writeFileSync(ETAT, JSON.stringify({ derniere: '2026-09-24T02:30:00Z', taille: '2.1M', panneau: true,
+      copieDistante: { erreur: 'le préfixe « prod » est lisible sans identifiants' } }));
+    expect((await lireSante()).sauvegarde?.copieDistante).toEqual({ erreur: 'le préfixe « prod » est lisible sans identifiants' });
   });
 
   it('une base injoignable se dit, et le reste s\'affiche quand même', async () => {

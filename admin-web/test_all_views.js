@@ -195,7 +195,8 @@ const views = [
         demarreLe: new Date(Date.now() - 3 * 3600000).toISOString(), publieLe: new Date(Date.now() - 40000).toISOString() },
       fileStore: { traitee: 12 },
       preuves: { nombre: 0, plusAncienne: null },
-      sauvegarde: { derniere: new Date(Date.now() - 9 * 3600000).toISOString(), taille: '2.1M', panneau: true },
+      sauvegarde: { derniere: new Date(Date.now() - 9 * 3600000).toISOString(), taille: '2.1M', panneau: true,
+                    copieDistante: { distante: new Date(Date.now() - 9 * 3600000).toISOString() } },
     },
   }],
   ['dashboard (santé dégradée)', 'dashboard', {
