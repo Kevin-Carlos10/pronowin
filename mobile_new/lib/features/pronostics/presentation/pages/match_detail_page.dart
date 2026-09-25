@@ -34,6 +34,7 @@ import 'match_detail/bookmaker_cotes.dart';
 import '../../domain/entities/verdict_comparaison.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../core/config/bookmaker_affiliation.dart';
+import '../../../../core/services/analyse_usage.dart';
 
 
 // Découpé en fichiers `part` : le fichier faisait 3 604 lignes pour une
@@ -80,6 +81,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    AnalyseUsage.pronosticOuvert(premium: widget.preloaded?.isPremium ?? false);
   }
 
   /// Le suivi du score s'arrête quand l'application passe en arrière-plan.

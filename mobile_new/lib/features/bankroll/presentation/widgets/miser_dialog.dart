@@ -12,6 +12,7 @@ import '../../../../core/config/bookmaker_affiliation.dart';
 import '../../../../shared/utils/devise.dart';
 import '../../../pronostics/domain/entities/match_entity.dart';
 import '../../../../shared/utils/montant.dart';
+import '../../../../core/services/analyse_usage.dart';
 
 Future<bool> showMiserDialog(
   BuildContext context, {
@@ -87,6 +88,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
       });
       ref.invalidate(bankrollProvider);
       HapticFeedback.mediumImpact();
+      AnalyseUsage.pariEnregistre(widget.confidenceScore);
       if (mounted) {
         setState(() {
         _confirmed        = true;

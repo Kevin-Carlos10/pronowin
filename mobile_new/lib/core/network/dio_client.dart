@@ -1,16 +1,12 @@
 import 'dart:async';
-import 'dart:io';
 
-import 'package:crypto/crypto.dart';
 import 'package:dio/dio.dart';
-import 'package:dio/io.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../constants/app_constants.dart';
-import '../services/crashlytics_service.dart';
 import '../storage/secure_storage.dart';
 import 'cache_interceptor.dart';
 import 'performance_interceptor.dart';
@@ -93,116 +89,31 @@ class DioClient {
         },
       ),
     );
-    _setupCertificatePinning();
     _addInterceptors();
     dio.interceptors.add(CacheInterceptor());
     if (telemetrie) dio.interceptors.add(PerformanceInterceptor());
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // ÉPINGLAGE DE CERTIFICAT — INERTE, ET NE FONCTIONNERAIT PAS TEL QUEL
-  // ════════════════════════════════════════════════════════════════════════════
+  // ── Pas d'épinglage de certificat : décision du 25 septembre 2026 (M7) ───
   //
-  // ⚠️  Ce bloc ne protège rien aujourd'hui, et remplir `_pinnedSha256` ne
-  //     suffirait pas à le faire fonctionner. Lire ce qui suit avant de s'y
-  //     fier.
+  // Un bloc « épinglage » vivait ici. Il était inerte : il reposait sur
+  // `badCertificateCallback`, que Dart n'appelle qu'après l'échec de la
+  // validation — jamais dans le cas qu'il prétendait couvrir, un certificat
+  // valablement signé par une autorité compromise ou installée sur le
+  // téléphone. Un dispositif qui paraît actif et ne l'est pas était le pire
+  // des choix ; il est retiré.
   //
-  // ── Pourquoi le mécanisme ne peut pas marcher ─────────────────────────────
+  // Un vrai épinglage n'est pas retenu pour l'instant : le certificat de
+  // pronowin.space est un Let's Encrypt renouvelé tous les ~60 jours, et une
+  // erreur de rotation couperait tous les utilisateurs du canal direct sans
+  // autre recours qu'une nouvelle version à installer à la main — la mise à
+  // jour passe elle-même par l'API.
   //
-  // Tout repose sur `badCertificateCallback`. Or Dart ne l'appelle **que
-  // lorsque la validation a déjà échoué** : certificat non signé par une
-  // autorité de confiance, ou nom d'hôte qui ne correspond pas.
-  //
-  // C'est l'exact inverse de ce qu'il faudrait. La menace contre laquelle
-  // l'épinglage existe est un attaquant présentant un certificat *valablement
-  // signé* par une autorité que l'appareil accepte — autorité compromise, ou
-  // racine d'un proxy d'entreprise ou d'État installée sur le téléphone. Dans
-  // ce cas la validation **réussit**, le callback n'est jamais appelé, et le
-  // code ci-dessous ne s'exécute pas.
-  //
-  // Ce que ce callback sait faire, c'est *ré-autoriser* un certificat déjà
-  // rejeté dont l'empreinte figure dans la liste. Avec une liste vide — ou
-  // avec les vraies empreintes du certificat légitime, qui n'a aucune raison
-  // d'échouer à la validation — il renvoie `false` et se comporte donc
-  // exactement comme le défaut de Dart. Il n'ajoute rien.
-  //
-  // ── Ce que coûterait un vrai épinglage ────────────────────────────────────
-  //
-  // Il faut valider la chaîne soi-même (un `SecurityContext` ne faisant
-  // confiance qu'à l'autorité épinglée, ou une bibliothèque dédiée), et non
-  // se greffer sur le chemin d'erreur.
-  //
-  // Et surtout : le certificat de `pronowin.space` est émis par Let's Encrypt
-  // via Certbot, donc renouvelé automatiquement tous les ~60 jours. Épingler
-  // l'empreinte de la feuille couperait **tous** les utilisateurs au premier
-  // renouvellement, sans recours autre qu'une nouvelle version. Sur le canal
-  // direct, où rien ne se met à jour tout seul, ce serait définitif. Un
-  // épinglage utile viserait l'autorité intermédiaire, pas la feuille — et
-  // resterait fragile, Let's Encrypt changeant les siennes.
-  //
-  // Décision à prendre avant d'y toucher : soit un vrai épinglage assumé avec
-  // sa procédure de rotation, soit la suppression de ce bloc. L'état actuel —
-  // un dispositif qui paraît actif et ne l'est pas — est le pire des trois.
-  //
-  // `_productionHost` portait `api.pronowin.com` : un domaine qui n'existe
-  // pas. Nginx ne sert que `pronowin.space`, `www.pronowin.space` et l'IP, et
-  // l'API vit sous `pronowin.space/api/`. Corrigé, mais cela ne change rien
-  // tant que ce qui précède n'est pas tranché.
-  //
-  // Il est *lu* sur [AppConstants.domaine] et non réécrit ici : c'est une
-  // copie à la main qui avait laissé survivre le domaine mort, et le premier
-  // réflexe en le corrigeant a été d'en écrire une seconde.
-
-  static const _productionHost = AppConstants.domaine;
-
-  // Empreintes SHA-256 (hex lowercase, sans séparateurs) des certificats autorisés.
-  // Laisser vide = pinning désactivé (ne bloquer aucun utilisateur avant d'avoir
-  // les vraies empreintes).
-  static const _pinnedSha256 = <String>{
-    // Certificat actuel — à remplir avant le déploiement HTTPS
-    // 'a1b2c3d4e5f6789012345678901234567890123456789012345678901234567890ab',
-    // Certificat de rotation (backup) — à préparer AVANT le renouvellement
-    // 'b2c3d4e5f6789012345678901234567890123456789012345678901234567890abcd',
-  };
-
-  void _setupCertificatePinning() {
-    // Pas de pinning en debug (permet de travailler avec un serveur local HTTP)
-    if (kDebugMode) return;
-
-    // Pas de pinning si aucune empreinte n'est configurée
-    if (_pinnedSha256.isEmpty) {
-      // Avertissement visible dans les logs release si on oublie de configurer
-      debugPrint('[CertPin] ⚠️  Aucune empreinte configurée — pinning désactivé');
-      return;
-    }
-
-    (dio.httpClientAdapter as IOHttpClientAdapter).createHttpClient = () {
-      final client = HttpClient()
-        ..badCertificateCallback = (X509Certificate cert, String host, int port) {
-          // N'appliquer le pinning que sur le host de production
-          if (host != _productionHost) return false;
-
-          final fingerprint = sha256.convert(cert.der).toString();
-          final allowed     = _pinnedSha256.contains(fingerprint);
-
-          if (!allowed) {
-            debugPrint(
-              '[CertPin] ❌ Certificat NON autorisé pour $host\n'
-              '  Empreinte reçue : $fingerprint\n'
-              '  Empreintes attendues : $_pinnedSha256',
-            );
-            // Logguer en Crashlytics pour détecter une attaque MITM en prod
-            CrashlyticsService.recordError(
-              Exception('CertPin: certificat non autorisé pour $host ($fingerprint)'),
-              null,
-              context: 'certificate_pinning',
-            );
-          }
-          return allowed;
-        };
-      return client;
-    };
-  }
+  // Pour y revenir : épingler dans android/app/src/main/res/xml/
+  // network_security_config.xml (l'OS l'applique, pas le code Dart) les clés
+  // des autorités intermédiaires, avec une clé de secours et une date
+  // d'expiration du `<pin-set>` ; et faire renouveler par Certbot avec
+  // `--reuse-key`. Jamais la feuille seule.
 
   // ════════════════════════════════════════════════════════════════════════════
   // INTERCEPTEURS

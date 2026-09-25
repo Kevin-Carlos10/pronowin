@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/services/analyse_usage.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/devise.dart';
 import '../../../../shared/utils/montant.dart';
@@ -49,6 +50,7 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
       );
       final corps = (r.data as Map).cast<String, dynamic>();
       HapticFeedback.mediumImpact();
+      AnalyseUsage.miseConfirmee(corrigee: corps['corrigee'] == true);
       ref.invalidate(bankrollProvider);
       ref.invalidate(bankrollStatsProvider);
       if (mounted) {

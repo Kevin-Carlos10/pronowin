@@ -25,6 +25,7 @@ import '../../data/iap_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../core/config/pages_legales.dart';
+import '../../../../core/services/analyse_usage.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -179,6 +180,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     super.initState();
     _tab = TabController(length: 2, vsync: this);
     _tab.addListener(_onTabChanged);
+    AnalyseUsage.paywallVu();
     if (ref.read(isStoreBuildProvider)) {
       _iapSub = ref.read(iapServiceProvider).results.listen(_onIapResult);
     }
@@ -280,7 +282,10 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     ref.watch(currentSubscriptionProvider);
 
     ref.listen<SubmitProofState>(submitProofProvider, (_, state) {
-      if (state is ProofSubmitted) _showSuccessDialog(state.estimatedTime);
+      if (state is ProofSubmitted) {
+        AnalyseUsage.preuveEnvoyee(methode: _method, duree: _duration);
+        _showSuccessDialog(state.estimatedTime);
+      }
       if (state is ProofError)     _showSnack(state.message, isError: true);
     });
 
@@ -364,7 +369,10 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         _duration = d;
         if (d == 'annuel' && _method == 'code') _method = 'direct';
       }),
-      onSelectMethod:   (m) => setState(() => _method = m),
+      onSelectMethod:   (m) {
+        AnalyseUsage.methodeChoisie(m);
+        setState(() => _method = m);
+      },
       onConfirm:        _goToForm,
       onClose:          () => retourOuAller(context, repli: _repli),
       iapMode:          isStore,
@@ -392,6 +400,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       _showSnack('Ce forfait n\'est pas disponible sur le store.', isError: true);
       return;
     }
+    AnalyseUsage.achatStoreLance(_duration);
     setState(() => _iapBusy = true);
     try {
       await ref.read(iapServiceProvider).buy(product);

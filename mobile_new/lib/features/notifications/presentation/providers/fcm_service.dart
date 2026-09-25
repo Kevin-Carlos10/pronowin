@@ -7,6 +7,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/router/navigation_keys.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'notification_service.dart';
+import '../../../../core/services/analyse_usage.dart';
 
 // ─── Handler background (top-level obligatoire) ───────────────────────────────
 @pragma('vm:entry-point')
@@ -89,6 +90,7 @@ class FCMService {
     // 5. Tap notification (app en background → foreground)
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
       final link = message.data['deep_link'] as String?;
+      AnalyseUsage.notificationOuverte((message.data['type'] as String?) ?? '');
       debugPrint('[FCM Tap background→foreground] deep_link: $link');
       // Rafraîchir la liste depuis l'API (la notif est déjà en base)
       notifier.fetch();

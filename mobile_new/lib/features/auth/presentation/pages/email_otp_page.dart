@@ -9,6 +9,7 @@ import '../../../../shared/widgets/pw_button.dart';
 import '../providers/apres_connexion.dart';
 import '../providers/auth_provider.dart';
 import '../../../../shared/utils/retour.dart';
+import '../../../../core/services/analyse_usage.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -86,6 +87,7 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
     ref.listen<AuthState>(authProvider, (_, state) {
       if (state is AuthAuthenticated) {
         apresConnexionReussie(ref);
+        AnalyseUsage.connexion(methode: 'email', nouveauCompte: widget.isNewUser);
         // Le code validé, l'utilisateur est chez lui — point final.
         //
         // Il y avait ici deux détours obligatoires : un écran de CGU, alors

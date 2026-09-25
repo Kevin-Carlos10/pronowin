@@ -13,6 +13,7 @@ import '../widgets/bouton_fournisseur.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../../../core/config/pages_legales.dart';
+import '../../../../core/services/analyse_usage.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -84,6 +85,10 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
         // lui-même — pendant que ses données restaient celles d'un invité et
         // que son jeton de notification restait orphelin.
         apresConnexionReussie(ref);
+        // Seule la connexion Google aboutit ici. Elle ne dit pas si le compte
+        // vient d'être créé : un compte de moins de cinq minutes l'est.
+        AnalyseUsage.connexion(methode: 'google',
+          nouveauCompte: DateTime.now().difference(state.user.createdAt) < const Duration(minutes: 5));
         context.go(widget.from ?? '/home');
       } else if (state is EmailOtpSent) {
         context.push('/auth/email/otp', extra: {

@@ -61,6 +61,8 @@ dependencies:
   firebase_crashlytics: 5.2.4
   firebase_performance: 0.11.4+3
   firebase_remote_config: 6.5.3
+  # Analyse d'usage, sans donnée personnelle (constat M2) : lib/core/services/analyse_usage.dart
+  firebase_analytics: 12.4.3
   flutter_local_notifications: ^17.2.0
   package_info_plus: ^8.0.0
   in_app_review: ^2.0.9

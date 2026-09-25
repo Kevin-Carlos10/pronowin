@@ -10,8 +10,8 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 ///   - les deux exemples de la documentation de `tool/build.ps1`, ceux qu'on
 ///     copie pour lancer une release ;
-///   - `_productionHost` dans `dio_client.dart`, qui décide sur quel hôte
-///     l'épinglage de certificat s'applique.
+///   - `_productionHost` dans `dio_client.dart`, qui décidait sur quel hôte
+///     l'épinglage de certificat s'appliquait (retiré depuis, voir plus bas).
 ///
 /// Ce domaine n'existe pas. Nginx ne sert que `pronowin.space`,
 /// `www.pronowin.space` et l'IP ; l'API vit sous `pronowin.space/api/`. Il n'y
@@ -19,11 +19,11 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// ── Pourquoi rien ne l'avait signalé ──────────────────────────────────────
 ///
-/// Les deux occurrences sont invisibles à l'exécution normale. Les exemples de
-/// `build.ps1` sont du commentaire, et `_productionHost` n'est lu que dans une
-/// branche que rien ne déclenche — l'épinglage est inerte, liste d'empreintes
-/// vide. Ni la compilation, ni `flutter analyze`, ni les tests ne lisent une
-/// chaîne de caractères pour vérifier qu'elle désigne une machine réelle.
+/// Les occurrences étaient invisibles à l'exécution normale. Les exemples de
+/// `build.ps1` sont du commentaire, et `_productionHost` n'était lu que dans
+/// une branche que rien ne déclenchait. Ni la compilation, ni `flutter
+/// analyze`, ni les tests ne lisent une chaîne de caractères pour vérifier
+/// qu'elle désigne une machine réelle.
 ///
 /// Le seul endroit qui connaissait la bonne adresse était
 /// `tool/verifier_bundle.py`, qui ouvre l'artefact produit et refuse de le
@@ -33,25 +33,17 @@ import 'package:flutter_test/flutter_test.dart';
 ///
 /// ── Ce que ce banc tient ──────────────────────────────────────────────────
 ///
-/// Les trois fichiers doivent nommer le même hôte. Aucun n'est la source de
-/// vérité des deux autres : ils se contrôlent mutuellement, de sorte qu'un
-/// changement de domaine fait tomber le banc tant qu'il n'est pas répercuté
-/// partout.
+/// Les fichiers doivent nommer le même hôte. Aucun n'est la source de vérité
+/// des autres : ils se contrôlent mutuellement, de sorte qu'un changement de
+/// domaine fait tomber le banc tant qu'il n'est pas répercuté partout.
 void main() {
   String lire(String chemin) => File(chemin).readAsStringSync();
 
-  /// L'hôte visé par l'épinglage.
+  /// Le domaine partagé, [AppConstants.domaine].
   ///
-  /// `_productionHost` doit *lire* [AppConstants.domaine], jamais réécrire le
-  /// domaine. Une copie à la main est ce qui avait laissé `api.pronowin.com`
-  /// survivre — et en la corrigeant, le premier réflexe a été d'en écrire une
-  /// seconde, que `domaine_partage_test.dart` a rattrapée.
-  String hoteEpinglage() {
-    final s = lire('lib/core/network/dio_client.dart');
-    expect(s, contains('_productionHost = AppConstants.domaine'),
-        reason: '_productionHost doit lire la constante partagée, '
-            'pas porter sa propre copie du domaine');
-
+  /// L'épinglage de certificat qui le lisait a été retiré (M7) ; le domaine,
+  /// lui, reste la référence de tout ce qui nomme l'API.
+  String hoteDomaine() {
     final c = lire('lib/core/constants/app_constants.dart');
     final m = RegExp(r"String\s+domaine\s*=\s*'([^']+)'").firstMatch(c);
     expect(m, isNotNull, reason: 'AppConstants.domaine est introuvable');
@@ -79,11 +71,9 @@ void main() {
     return trouves;
   }
 
-  group('les trois fichiers nomment le même hôte', () {
-    test('l\'épinglage vise l\'hôte que l\'artefact doit contenir', () {
-      // Si ces deux-là divergent, l'épinglage porte sur une machine que
-      // l'application ne contacte jamais : activé, il ne protégerait rien.
-      expect(hoteEpinglage(), hoteArtefact());
+  group('les fichiers nomment le même hôte', () {
+    test('le domaine partagé est celui que l\'artefact doit contenir', () {
+      expect(hoteDomaine(), hoteArtefact());
     });
 
     test('les exemples de build.ps1 mènent au même hôte', () {
@@ -128,29 +118,24 @@ void main() {
     });
   });
 
-  group('l\'épinglage reste déclaré inerte tant qu\'il ne marche pas', () {
-    // `badCertificateCallback` n'est appelé par Dart que lorsque la validation
-    // a *déjà* échoué. Un attaquant muni d'un certificat valablement signé —
-    // la menace même que l'épinglage vise — passe la validation, donc le
-    // callback ne s'exécute pas. Remplir les empreintes donnerait l'apparence
-    // d'une protection sans en fournir une.
-    test('la liste d\'empreintes est vide, et le commentaire le dit', () {
-      final s = lire('lib/core/network/dio_client.dart');
-
-      final bloc = RegExp(r'_pinnedSha256\s*=\s*<String>\{(.*?)\};', dotAll: true)
-          .firstMatch(s);
-      expect(bloc, isNotNull);
-      final actives = bloc!
-          .group(1)!
+  group('pas d\'épinglage factice (M7)', () {
+    // Un bloc « épinglage » reposait sur `badCertificateCallback`, que Dart
+    // n'appelle qu'après l'échec de la validation : un certificat valablement
+    // signé par une autorité compromise — la menace même — passait sans
+    // l'éveiller. Il a été retiré le 25 septembre 2026. S'il revenait sous
+    // cette forme, il paraîtrait protéger et ne protégerait rien.
+    test('aucune ligne active ne s\'appuie sur badCertificateCallback', () {
+      final actives = lire('lib/core/network/dio_client.dart')
           .split('\n')
-          .map((l) => l.trim())
-          .where((l) => l.isNotEmpty && !l.startsWith('//'));
-      expect(actives, isEmpty,
-          reason: 'des empreintes ont été ajoutées : relire pourquoi le '
-              'mécanisme ne peut pas les faire respecter');
+          .where((l) => !l.trimLeft().startsWith('//'));
+      expect(actives.where((l) => l.contains('badCertificateCallback')), isEmpty,
+          reason: 'un épinglage par badCertificateCallback ne vérifie rien : '
+              'passer par network_security_config.xml (voir dio_client.dart)');
+    });
 
-      expect(s, contains('INERTE'),
-          reason: 'l\'avertissement en tête du bloc a disparu');
+    test('la décision reste écrite là où l\'on chercherait', () {
+      expect(lire('lib/core/network/dio_client.dart'),
+          contains("Pas d'épinglage de certificat"));
     });
   });
 }
