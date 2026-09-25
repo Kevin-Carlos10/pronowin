@@ -68,7 +68,9 @@ describe('qui lance les tâches', () => {
 
 describe('le processus des tâches', () => {
   it('lance chaque tâche, et plus aucune une fois arrêté', async () => {
-    jest.useFakeTimers();
+    // Midi : « match bientôt » se tait volontairement la nuit (avant 5 h
+    // UTC). Sur l'horloge réelle, ce banc échouait après minuit.
+    jest.useFakeTimers({ now: new Date('2026-09-24T12:00:00Z') });
     process.env.API_FOOTBALL_KEY = 'banc';
     const arreter = demarrerTaches();
 
