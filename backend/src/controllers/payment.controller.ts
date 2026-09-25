@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AdminRequest } from '../middleware/admin.middleware';
 import { PaymentService } from '../services/payment.service';
 import { listerPubliques } from '../services/payment_method.service';
+import { lirePagination } from '../utils/pagination';
 import { repondreErreur } from '../utils/erreurs';
 
 /**
@@ -17,7 +18,11 @@ const svc = new PaymentService();
 
 export const getPending = async (req: AdminRequest, res: Response) => {
   try {
-    res.json(await svc.getPendingRequests(parseInt((req.query.page as string) ?? '1')));
+    // Jusqu'à 1 000 lignes par page : c'est la taille des exports du panneau.
+    const { page, perPage } = lirePagination(req.query, { max: 1000 });
+    const texte = (v: unknown) => (typeof v === 'string' && v.trim() ? v.trim().slice(0, 80) : undefined);
+    res.json(await svc.getPendingRequests({
+      page, perPage, search: texte(req.query.search), method: texte(req.query.method) }));
   } catch (e: any) { repondreErreur(res, e); }
 };
 

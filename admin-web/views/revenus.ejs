@@ -75,6 +75,8 @@
     <small>Encaissements d'abonnements — <%= _jours %> derniers jours</small>
   </div>
   <div class="rv-periodes">
+    <a class="btn btn-outline btn-sm" href="/admin/revenus/export?jours=<%= _jours %>"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Exporter la période</a>
+    <a class="btn btn-outline btn-sm" href="/admin/revenus/export?vue=mensuel"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Exporter les 12 mois</a>
     <% [[7,'7 jours'],[30,'30 jours'],[90,'90 jours'],[365,'1 an']].forEach(([n, lib]) => { %>
     <a class="rv-periode <%= _jours === n ? 'on' : '' %>" href="/admin/revenus?jours=<%= n %>"
        aria-current="<%= _jours === n ? 'page' : 'false' %>"><%= lib %></a>

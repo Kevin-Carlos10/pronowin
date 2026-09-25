@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AdminRequest } from '../middleware/admin.middleware';
 import { StatsService } from '../services/stats.service';
 import { prisma } from '../lib/prisma';
+import { rendementUnites } from '../utils/rendement';
 import { repondreErreur } from '../utils/erreurs';
 
 const svc = new StatsService();
@@ -91,12 +92,17 @@ export const getPronosticsStats = async (req: AdminRequest, res: Response) => {
     // Le sélecteur de période de la page Statistiques n'était pas transmis :
     // le taux affiché portait sur tout l'historique quel que soit le choix.
     const period = periodWhere(req);
-    const [won, lost, pending] = await Promise.all([
+    const [won, lost, pending, regles] = await Promise.all([
       prisma.pronostic.count({ where: { ...period, result: 'WIN'  } }),
       prisma.pronostic.count({ where: { ...period, result: 'LOSS' } }),
       prisma.pronostic.count({ where: { ...period, result: null, isPublished: true } }),
+      prisma.pronostic.findMany({
+        where:  { ...period, result: { in: ['WIN', 'LOSS'] } },
+        select: { result: true, oddsRecommended: true },
+      }),
     ]);
-    res.json({ won, lost, pending });
+    // Le taux de réussite seul ne dit pas si l'on gagne de l'argent (A8).
+    res.json({ won, lost, pending, rendement: rendementUnites(regles) });
   } catch (e: any) { repondreErreur(res, e); }
 };
 
@@ -157,15 +163,17 @@ export const getLeaguePerformance = async (req: AdminRequest, res: Response) => 
     });
 
     const byLeague = new Map<string, { league: string; logo: string | null;
-                                       won: number; lost: number; push: number; oddsSum: number }>();
+                                       won: number; lost: number; push: number; oddsSum: number;
+                                       lignes: typeof rows }>();
     for (const r of rows) {
       const name = r.match?.league ?? '—';
       const acc  = byLeague.get(name)
-        ?? { league: name, logo: r.match?.leagueLogo ?? null, won: 0, lost: 0, push: 0, oddsSum: 0 };
+        ?? { league: name, logo: r.match?.leagueLogo ?? null, won: 0, lost: 0, push: 0, oddsSum: 0, lignes: [] };
       if (r.result === 'WIN')  acc.won++;
       if (r.result === 'LOSS') acc.lost++;
       if (r.result === 'PUSH') acc.push++;
       acc.oddsSum += r.oddsRecommended ?? 0;
+      acc.lignes.push(r);
       byLeague.set(name, acc);
     }
 
@@ -177,6 +185,8 @@ export const getLeaguePerformance = async (req: AdminRequest, res: Response) => 
         won: a.won, lost: a.lost, push: a.push, total,
         win_rate: decided > 0 ? Math.round((a.won / decided) * 100) : null,
         avg_odds: total > 0 ? +(a.oddsSum / total).toFixed(2) : null,
+        // Où l'on gagne de l'argent, pas seulement où l'on a raison (A8).
+        rendement: rendementUnites(a.lignes),
       };
     })
     // Volume d'abord : un 100 % sur 1 pronostic n'est pas un résultat.

@@ -158,6 +158,9 @@
     <small id="tx-count"><%= _total %> versement<%= _total!==1?'s':'' %> de gains de parrainage en attente</small>
   </div>
   <div style="display:flex;gap:.5rem">
+    <%# L'export suit le filtre affiché. %>
+    <a href="/admin/transactions/export?<%= new URLSearchParams({ ...(search ? { search } : {}), ...(method ? { method } : {}) }).toString() %>"
+       class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Exporter (CSV)</a>
     <a href="/admin/historique" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Historique complet</a>
   </div>
 </div>
@@ -174,7 +177,7 @@
     <div class="val"><%= _total %></div>
   </div>
   <div class="tx-stat orange">
-    <div class="lbl">Total à verser</div>
+    <div class="lbl">Total à verser<%= (search || method) ? ' (filtre)' : '' %></div>
     <div class="val"><%= _ls.totalAmount.toLocaleString() %> <span style="font-size:.8rem;font-weight:600">FCFA</span></div>
   </div>
 </div>

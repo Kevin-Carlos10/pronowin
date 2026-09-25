@@ -643,8 +643,17 @@ async function loadCharts() {
     if (pronos.won !== undefined && pronos.lost !== undefined) {
       const total = pronos.won + pronos.lost;
       const rate  = total > 0 ? Math.round(pronos.won / total * 100) : 0;
-      document.getElementById('kpi-prono-delta').textContent = `Taux de réussite : ${rate}%`;
-      document.getElementById('kpi-prono-delta').className   = rate >= 60 ? 'kpi-delta up' : rate >= 40 ? 'kpi-delta neu' : 'kpi-delta down';
+      // Le rendement en unités à côté du taux (constat A8) : un taux élevé
+      // à petite cote peut perdre de l'argent. Sa couleur suit le rendement.
+      const rd = pronos.rendement;
+      if (rd && rd.paris > 0) {
+        const u = (rd.unites > 0 ? '+' : '') + Number(rd.unites).toLocaleString('fr-FR', { maximumFractionDigits: 2 });
+        document.getElementById('kpi-prono-delta').textContent = `Réussite ${rate}% · rendement ${u} u`;
+        document.getElementById('kpi-prono-delta').className   = rd.unites >= 0 ? 'kpi-delta up' : 'kpi-delta down';
+      } else {
+        document.getElementById('kpi-prono-delta').textContent = `Taux de réussite : ${rate}%`;
+        document.getElementById('kpi-prono-delta').className   = rate >= 60 ? 'kpi-delta up' : rate >= 40 ? 'kpi-delta neu' : 'kpi-delta down';
+      }
       const badgeP = document.getElementById('badge-pronos');
       if (badgeP) badgeP.textContent = `${rate}% réussite`;
     }

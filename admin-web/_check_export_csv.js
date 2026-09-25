@@ -30,7 +30,7 @@ const ok = (m) => console.log('  ✓ ' + m);
 
 fs.writeFileSync(path.join(DIR, 'sub_admins.json'), JSON.stringify([{
   id: 'id-export', name: 'Compte export', username: 'export',
-  passwordHash: bcrypt.hashSync(MDP, 10), permissions: ['users:read'], isActive: true,
+  passwordHash: bcrypt.hashSync(MDP, 10), permissions: ['users:read', 'transactions:read', 'statistiques:read'], isActive: true,
   createdAt: new Date().toISOString(), lastLoginAt: null,
 }]));
 fs.writeFileSync(path.join(DIR, 'settings.json'), '{}');
@@ -51,6 +51,19 @@ const api = http.createServer((req, res) => {
     return res.end(CSV_API);
   }
   res.setHeader('Content-Type', 'application/json');
+  // Versements dus (A5) : un pseudo piégé, comme un utilisateur peut l'écrire.
+  if (req.url.startsWith('/api/v1/payments/admin/pending')) {
+    return res.end(JSON.stringify({ total: 1, total_montant: 5000, data: [{
+      id: 'tx-1', createdAt: '2026-09-24T10:30:00Z', amount: 5000, currency: 'XOF',
+      paymentMethod: 'orange_money', senderPhone: '+22670112233', xbetId: '998877',
+      user: { pseudo: '=CMD("calc")', phoneNumber: '+22670000001' } }] }));
+  }
+  if (req.url.startsWith('/api/v1/admin/stats/revenue')) {
+    return res.end(JSON.stringify([{ date: '2026-09-23', amount: 15000, montants_inconnus: 1 }]));
+  }
+  if (req.url.startsWith('/api/v1/admin/stats/monthly')) {
+    return res.end(JSON.stringify([{ month: '2026-09', label: 'sept. 26', revenue: 45000, new_users: 12 }]));
+  }
   res.end(JSON.stringify({ data: [], total: 0 }));
 });
 
@@ -129,6 +142,32 @@ const attendre = (ms) => new Promise((r) => setTimeout(r, ms));
   }
   if (/"Motif ""entre guillemets"", avec virgule"/.test(ligne)) ok('un motif avec guillemets et virgule ne décale pas les colonnes');
   else ko('motif mal échappé : ' + JSON.stringify(ligne.slice(0, 160)));
+
+  // ── Versements à effectuer et revenus (constat A5) ──
+  const vers = await requete('/admin/transactions/export?search=kone&method=orange_money', { cookies });
+  const appelV = new URL('http://x' + (appels.find((u) => u.startsWith('/api/v1/payments/admin/pending')) ?? '')).searchParams;
+  if (appelV.get('search') === 'kone' && appelV.get('method') === 'orange_money' && appelV.get('per_page') === '1000') {
+    ok('l\'export des versements transmet la recherche et la méthode, 1 000 lignes au plus');
+  } else {
+    ko('paramètres reçus par l\'API : ' + appelV.toString());
+  }
+  const lv = vers.body.split(/\r?\n/);
+  if (vers.status === 200 && /Numéro Mobile Money/.test(lv[0])
+      && lv.some((l) => /"'=CMD\(""calc""\)"/.test(l) && /,5000,/.test(l) && /"'\+22670112233"/.test(l))) {
+    ok('versements : une ligne par versement dû, pseudo piégé neutralisé');
+  } else {
+    ko('export des versements : ' + vers.status + ' ' + JSON.stringify(vers.body.slice(0, 200)));
+  }
+  const rev = await requete('/admin/revenus/export?jours=90', { cookies });
+  const appelR = appels.find((u) => u.startsWith('/api/v1/admin/stats/revenue')) ?? '';
+  if (rev.status === 200 && /days=90/.test(appelR) && /"2026-09-23",15000,1/.test(rev.body)) {
+    ok('revenus : la période affichée, jour par jour, ventes au montant inconnu comprises');
+  } else {
+    ko('export des revenus : ' + rev.status + ' ' + appelR + ' ' + JSON.stringify(rev.body.slice(0, 160)));
+  }
+  const mois = await requete('/admin/revenus/export?vue=mensuel', { cookies });
+  if (mois.status === 200 && /"2026-09",45000,12/.test(mois.body)) ok('revenus : l\'historique mensuel');
+  else ko('export mensuel : ' + mois.status + ' ' + JSON.stringify(mois.body.slice(0, 160)));
 
   console.log(echecs === 0 ? '\n✅ Exports CSV : fidèles à l\'écran, lus comme du texte\n' : `\n❌ ${echecs} problème(s)\n`);
   fin(echecs === 0 ? 0 : 1);

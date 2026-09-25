@@ -97,6 +97,36 @@ module.exports = (app, ctx) => {
 
   // ─── LIGUES (liste blanche du flux public) ────────────────────────────────────
 
+  /**
+   * Export des versements à effectuer, filtre compris (constat A5).
+   *
+   * L'argent dû aux parrains n'avait ni recherche ni export : le rapprochement
+   * avec les envois Mobile Money se faisait à la main, ligne par ligne.
+   */
+  app.get('/admin/transactions/export', requireAuth, requirePerm('transactions'), async (req, res) => {
+    const a = api(req.admin.jeton);
+    const search = String(req.query.search ?? '').trim();
+    const method = String(req.query.method ?? '').trim();
+    try {
+      // Une page de 1 000 au plus : un export ne doit pas pouvoir tout charger.
+      const r = await a.get('/payments/admin/pending', { params: {
+        page: 1, per_page: 1000, ...(search ? { search } : {}), ...(method ? { method } : {}) } });
+      const rows = (r.data.data ?? []).map(tx => [
+        tx.createdAt ? new Date(tx.createdAt).toISOString().slice(0, 16).replace('T', ' ') : '',
+        tx.user?.pseudo ?? '', tx.user?.phoneNumber ?? '', tx.senderPhone ?? '',
+        tx.paymentMethod ?? '', tx.xbetId ?? tx.user?.xbetId ?? '',
+        Math.round(tx.amount ?? 0), tx.currency ?? 'XOF', tx.id,
+      ]);
+      logAction(req, 'versements_exportes', `${rows.length} versement(s)`, { count: rows.length, search, method });
+      sendCSV(res, `versements_a_effectuer_${new Date().toISOString().slice(0, 10)}.csv`,
+        ['Demandé le (UTC)', 'Pseudo', 'Téléphone du compte', 'Numéro Mobile Money', 'Méthode',
+         'ID 1xBet', 'Montant', 'Devise', 'Référence'], rows);
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      res.redirect('/admin/transactions?error=' + encodeURIComponent('Export impossible : ' + (e.response?.data?.message ?? e.message)));
+    }
+  });
+
   app.get('/admin/transactions', requireAuth, requirePerm('transactions'), async (req, res) => {
     const a = api(req.admin.jeton);
     // Le filtre `type` a disparu avec les dépôts : toutes les lignes sont
@@ -113,9 +143,11 @@ module.exports = (app, ctx) => {
       const raw     = pendingRes.status === 'fulfilled' ? pendingRes.value.data : { data: [], total: 0 };
       const methods = methodsRes.status === 'fulfilled' ? methodsRes.value.data : [];
 
-      // Stats calculées localement (pas d'endpoint de stats globales côté /payments)
+      // Le total vient de l'API, sur toute la file filtrée (constat A5) :
+      // additionné ici, il ne portait que sur les vingt lignes de la page.
+      // Repli pour une API plus ancienne.
       const items       = raw.data ?? [];
-      const totalAmount = items.reduce((s, tx) => s + (tx.amount ?? 0), 0);
+      const totalAmount = raw.total_montant ?? items.reduce((s, tx) => s + (tx.amount ?? 0), 0);
 
       res.render('transactions', {
         data: raw, search, method, methods,

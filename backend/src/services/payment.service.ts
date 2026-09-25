@@ -1,3 +1,4 @@
+import { Prisma } from '@prisma/client';
 import { NotificationService } from './notification.service';
 import { prisma } from '../lib/prisma';
 import { MIN_WITHDRAWAL } from './referral.service';
@@ -131,20 +132,47 @@ export class PaymentService {
     return updated;
   }
 
-  /** Admin — versements en attente d'approbation */
-  async getPendingRequests(page = 1, perPage = 20) {
-    const [items, total, contexte] = await Promise.all([
+  /**
+   * Admin — versements en attente, filtrés.
+   *
+   * Le panneau envoyait déjà `search` et `method`, mais la requête les
+   * ignorait : la case de recherche ne filtrait rien (constat A5). Et le
+   * « total à verser » était additionné côté panneau sur la seule page
+   * affichée — vingt lignes, pas la file.
+   */
+  async getPendingRequests({ page = 1, perPage = 20, search, method }: {
+    page?: number; perPage?: number; search?: string; method?: string;
+  } = {}) {
+    const q = search?.trim();
+    const where: Prisma.TransactionWhereInput = {
+      status: 'pending',
+      ...(method ? { paymentMethod: method } : {}),
+      ...(q ? { OR: [
+        { id: q },
+        { senderPhone: { contains: q } },
+        { xbetId:      { contains: q, mode: 'insensitive' } },
+        { user: { pseudo:      { contains: q, mode: 'insensitive' } } },
+        { user: { phoneNumber: { contains: q } } },
+        { user: { xbetId:      { contains: q, mode: 'insensitive' } } },
+      ] } : {}),
+    };
+    const [items, total, somme, contexte] = await Promise.all([
       prisma.transaction.findMany({
-        where:   { status: 'pending' },
+        where,
         include: { user: { select: { pseudo: true, phoneNumber: true, xbetId: true } } },
         orderBy: { createdAt: 'asc' },
         skip:    (page - 1) * perPage,
         take:    perPage,
       }),
-      prisma.transaction.count({ where: { status: 'pending' } }),
+      prisma.transaction.count({ where }),
+      prisma.transaction.aggregate({ where, _sum: { amount: true } }),
       this._contexteParrainage(),
     ]);
-    return { data: items, total, page, per_page: perPage, contexte };
+    return {
+      data: items, total, page, per_page: perPage, contexte,
+      // Sur toute la file filtrée, pas sur la page.
+      total_montant: Math.round(somme._sum.amount ?? 0),
+    };
   }
 
   /**

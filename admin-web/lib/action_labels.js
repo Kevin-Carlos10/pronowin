@@ -55,6 +55,8 @@ const ACTION_LABELS = {
   user_bulk_activated:       { label: 'Comptes réactivés (lot)',  icon: 'dot', cat: 'user' },
   user_bulk_notified:        { label: 'Notification groupée',      icon: 'megaphone', cat: 'user' },
   bankroll_exported:         { label: 'Export bankrolls',        icon: 'target', cat: 'finance' },
+  versements_exportes:       { label: 'Export versements dus',   icon: 'download', cat: 'finance' },
+  revenus_exportes:          { label: 'Export revenus',          icon: 'download', cat: 'finance' },
   league_visibility_toggle:  { label: 'Ligue affichée/masquée',   icon: 'trophy', cat: 'pronostic' },
   league_visibility_bulk:    { label: 'Ligues modifiées en lot',  icon: 'trophy', cat: 'pronostic' },
 };
