@@ -706,7 +706,7 @@ document.addEventListener('DOMContentLoaded', () => {
       users.forEach(u => {
         const banned = data._bannedIds?.includes(String(u.id)) ? ' 🚫' : '';
         html += `<a class="search-result-item" href="/admin/users/${u.id}">
-          <div class="sri-icon" style="background:rgba(59,130,246,.15);color:var(--on-info)">${esc((u.pseudo||'?')[0].toUpperCase())}</div>
+          <div class="sri-icon" style="background:rgba(var(--info-rgb),.15);color:var(--on-info)">${esc((u.pseudo||'?')[0].toUpperCase())}</div>
           <div class="sri-info">
             <div class="sri-title">${highlight(u.pseudo, q)}${u.is_premium ? ' <span style="color:var(--on-warning);font-size:.75rem">👑</span>' : ''}${banned}</div>
             <div class="sri-sub">${highlight(u.phoneNumber ?? '', q)} ${u.email ? '· ' + highlight(u.email, q) : ''}</div>
@@ -750,7 +750,7 @@ document.addEventListener('DOMContentLoaded', () => {
       html += `<div class="search-section">🚫 Bannissements <span class="search-count">${bans.length}</span></div>`;
       bans.forEach(b => {
         html += `<a class="search-result-item" href="/admin/bans?search=${encodeURIComponent(q)}">
-          <div class="sri-icon" style="background:rgba(239,68,68,.12);color:var(--on-danger)">${esc((b.pseudo||'?')[0].toUpperCase())}</div>
+          <div class="sri-icon" style="background:rgba(var(--error-rgb),.12);color:var(--on-danger)">${esc((b.pseudo||'?')[0].toUpperCase())}</div>
           <div class="sri-info">
             <div class="sri-title">${highlight(b.pseudo, q)} <span style="font-size:.72rem;color:var(--on-danger)">${b.active ? '🚫 Actif' : '✅ Levé'}</span></div>
             <div class="sri-sub">${highlight(b.reason ?? '', q)}</div>

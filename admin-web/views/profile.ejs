@@ -8,12 +8,12 @@
 /* ── Avatar card ─────────────────────────────────────────────────────────────── */
 .pf-avatar-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.75rem; text-align:center; }
 .pf-avatar { width:72px; height:72px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.75rem; font-weight:800; margin:0 auto .9rem; }
-.pf-avatar.pf-principal { background:rgba(34,197,94,.12); color:var(--on-success); }
-.pf-avatar.pf-adjoint  { background:rgba(245,158,11,.12); color:var(--on-warning); }
+.pf-avatar.pf-principal { background:rgba(var(--success-rgb),.12); color:var(--on-success); }
+.pf-avatar.pf-adjoint  { background:rgba(var(--warning-rgb),.12); color:var(--on-warning); }
 .pf-name  { font-size:1.15rem; font-weight:800; margin-bottom:.25rem; }
 .pf-role  { display:inline-block; font-size:.75rem; padding:.2rem .7rem; border-radius:99px; font-weight:600; margin-bottom:1.25rem; }
-.pf-role.pf-principal { background:rgba(34,197,94,.12); color:var(--on-success); }
-.pf-role.pf-adjoint  { background:rgba(245,158,11,.12); color:var(--on-warning); }
+.pf-role.pf-principal { background:rgba(var(--success-rgb),.12); color:var(--on-success); }
+.pf-role.pf-adjoint  { background:rgba(var(--warning-rgb),.12); color:var(--on-warning); }
 
 /* ── Info rows ───────────────────────────────────────────────────────────────── */
 .pf-row { display:flex; justify-content:space-between; align-items:center; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.82rem; gap:.5rem; }
@@ -30,9 +30,9 @@
 /* ── Permission tags ─────────────────────────────────────────────────────────── */
 .perm-tags { display:flex; flex-wrap:wrap; gap:.35rem; margin-top:.6rem; }
 .perm-tag  { font-size:.68rem; padding:.18rem .5rem; border-radius:99px; font-weight:600; }
-.perm-tag.read   { background:rgba(59,130,246,.12); color:var(--on-info); }
-.perm-tag.write  { background:rgba(245,158,11,.12);  color:var(--on-warning); }
-.perm-tag.delete { background:rgba(239,68,68,.12);   color:var(--on-danger); }
+.perm-tag.read   { background:rgba(var(--info-rgb),.12); color:var(--on-info); }
+.perm-tag.write  { background:rgba(var(--warning-rgb),.12);  color:var(--on-warning); }
+.perm-tag.delete { background:rgba(var(--error-rgb),.12);   color:var(--on-danger); }
 
 /* ── Connexions history ──────────────────────────────────────────────────────── */
 .pf-login-item { display:flex; align-items:center; gap:.6rem; padding:.5rem 0; border-bottom:1px solid var(--border); font-size:.8rem; }

@@ -92,7 +92,7 @@
 .vip-badge {
   display:flex; align-items:center; justify-content:center;
   width:36px; height:36px; border-radius:50%;
-  background:rgba(245,158,11,.12); font-size:1.2rem; flex-shrink:0;
+  background:rgba(var(--warning-rgb),.12); font-size:1.2rem; flex-shrink:0;
 }
 .vip-toggle .info { flex:1; }
 .vip-toggle .info .t { font-size:.85rem; font-weight:700; color:var(--text); }
@@ -100,7 +100,7 @@
 .vip-toggle .checkmark { color:var(--text-dim); font-size:1.1rem; transition:color .15s; }
 .vip-toggle.checked { border-color:var(--warning); }
 .vip-toggle.checked .checkmark { color:var(--on-warning); }
-.vip-toggle.checked .vip-badge { background:rgba(245,158,11,.2); }
+.vip-toggle.checked .vip-badge { background:rgba(var(--warning-rgb),.2); }
 </style>
 
 <%
@@ -977,17 +977,17 @@ async function fetchOdds(auto) {
     renderMarketsAccordion(data.markets);
 
     if (!data.markets || data.markets.length === 0) {
-      msg.style.cssText = 'display:block;background:rgba(245,158,11,.1);color:var(--on-warning);border:1px solid rgba(245,158,11,.3)';
+      msg.style.cssText = 'display:block;background:rgba(var(--warning-rgb),.1);color:var(--on-warning);border:1px solid rgba(var(--warning-rgb),.3)';
       msg.textContent = '⚠️ Aucune cote disponible pour ce match pour le moment (marchés suspendus ou pas encore ouverts chez aucun bookmaker).';
       icon.textContent = '⚠️';
     } else {
-      msg.style.cssText = 'display:block;background:rgba(34,197,94,.1);color:var(--on-success);border:1px solid rgba(34,197,94,.3)';
+      msg.style.cssText = 'display:block;background:rgba(var(--success-rgb),.1);color:var(--on-success);border:1px solid rgba(var(--success-rgb),.3)';
       const sourceNote = data.source && data.source !== '1xBet' ? ` — ${data.source}` : ' — 1xBet';
       msg.textContent = `✅ ${data.markets.length} marché(s) chargé(s)${sourceNote} — clique une option ci-dessus, ou ouvre « Tous les marchés » pour un choix libre.`;
       icon.textContent = '✅';
     }
   } catch(e) {
-    msg.style.cssText = 'display:block;background:rgba(239,68,68,.1);color:var(--on-danger);border:1px solid rgba(239,68,68,.3)';
+    msg.style.cssText = 'display:block;background:rgba(var(--error-rgb),.1);color:var(--on-danger);border:1px solid rgba(var(--error-rgb),.3)';
     msg.textContent = `❌ ${e.message}`;
     icon.textContent = '⚡';
   } finally {

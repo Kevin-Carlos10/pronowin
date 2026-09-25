@@ -10,9 +10,9 @@
 /* ── Avatar ──────────────────────────────────────────────────────────────── */
 .ud-avatar-wrap { position:relative; flex-shrink:0; }
 .ud-avatar { width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:800; }
-.ud-avatar.premium { background:rgba(245,158,11,.15); color:var(--on-warning); }
+.ud-avatar.premium { background:rgba(var(--warning-rgb),.15); color:var(--on-warning); }
 .ud-avatar.normal  { background:var(--surface-d); color:var(--text-m); }
-.ud-avatar.banned  { background:rgba(239,68,68,.15); color:var(--on-danger); }
+.ud-avatar.banned  { background:rgba(var(--error-rgb),.15); color:var(--on-danger); }
 .ud-status-dot { position:absolute; bottom:2px; right:2px; width:14px; height:14px; border-radius:50%; border:2px solid var(--surface); }
 .ud-status-dot.active   { background:var(--success); }
 .ud-status-dot.inactive { background:var(--error); }
@@ -59,12 +59,12 @@
 .ud-action-btns  { display:flex; flex-direction:column; gap:.4rem; }
 
 /* ── Ban info box ────────────────────────────────────────────────────────── */
-.ud-ban-box { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); border-radius:var(--radius-s); padding:.75rem .9rem; margin-bottom:.75rem; font-size:.8rem; }
+.ud-ban-box { background:rgba(var(--error-rgb),.08); border:1px solid rgba(var(--error-rgb),.2); border-radius:var(--radius-s); padding:.75rem .9rem; margin-bottom:.75rem; font-size:.8rem; }
 .ud-ban-box .reason { font-weight:600; color:var(--text); margin-bottom:.25rem; }
 .ud-ban-box .meta   { color:var(--text-dim); line-height:1.5; }
 
 /* ── Premium box ─────────────────────────────────────────────────────────── */
-.ud-premium-box { background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.2); border-radius:var(--radius-s); padding:.75rem .9rem; margin-bottom:.75rem; font-size:.83rem; color:var(--on-warning); font-weight:600; }
+.ud-premium-box { background:rgba(var(--warning-rgb),.08); border:1px solid rgba(var(--warning-rgb),.2); border-radius:var(--radius-s); padding:.75rem .9rem; margin-bottom:.75rem; font-size:.83rem; color:var(--on-warning); font-weight:600; }
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 .ud-layout { display:grid; grid-template-columns:1fr 300px; gap:1rem; align-items:start; }

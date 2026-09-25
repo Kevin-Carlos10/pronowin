@@ -9,7 +9,7 @@
                  color:var(--text-m); background:var(--surface-d); }
 .file-compte   { font-size:.7rem; font-weight:800; padding:.1rem .45rem; border-radius:999px;
                  background:var(--surface-h); color:var(--text-m); }
-.file-compte.urgent { background:rgba(239,68,68,.15); color:var(--on-danger); }
+.file-compte.urgent { background:rgba(var(--error-rgb),.15); color:var(--on-danger); }
 .file-tache    { display:flex; align-items:center; gap:.85rem; padding:.85rem 1.1rem;
                  border-bottom:1px solid var(--border); }
 .file-tache:last-child { border-bottom:0; }
@@ -18,7 +18,7 @@
 .file-ic       { width:34px; height:34px; border-radius:10px; flex-shrink:0;
                  background:var(--surface-d); color:var(--text-m);
                  display:flex; align-items:center; justify-content:center; }
-.file-tache.urgente .file-ic { background:rgba(239,68,68,.12); color:var(--on-danger); }
+.file-tache.urgente .file-ic { background:rgba(var(--error-rgb),.12); color:var(--on-danger); }
 .file-txt      { flex:1; min-width:0; }
 .file-titre    { font-size:.88rem; font-weight:700; line-height:1.35; }
 .file-detail   { font-size:.76rem; color:var(--text-dim); line-height:1.5; margin-top:.15rem; }
@@ -73,9 +73,9 @@
   display: flex; align-items: center; justify-content: center;
   font-size: 1.1rem;
 }
-.kpi-card.blue   .kpi-icon-badge { background: rgba(59,130,246,.12); }
+.kpi-card.blue   .kpi-icon-badge { background: rgba(var(--info-rgb),.12); }
 .kpi-card.orange .kpi-icon-badge { background: rgba(var(--primary-rgb),.12); }
-.kpi-card.green  .kpi-icon-badge { background: rgba(34,197,94,.12); }
+.kpi-card.green  .kpi-icon-badge { background: rgba(var(--success-rgb),.12); }
 .kpi-card.teal   .kpi-icon-badge { background: rgba(20,184,166,.12); }
 
 .kpi-val {
@@ -380,7 +380,7 @@
            })();
       %>
       <div class="activity-item">
-        <div class="activity-avatar" style="<%= log.action==='login_failed'||log.action==='user_banned'?'background:rgba(239,68,68,.12);color:var(--on-danger)':log.action==='login'?'background:rgba(34,197,94,.12);color:var(--on-success)':'' %>"><%= (log.adminName||'?')[0].toUpperCase() %></div>
+        <div class="activity-avatar" style="<%= log.action==='login_failed'||log.action==='user_banned'?'background:rgba(var(--error-rgb),.12);color:var(--on-danger)':log.action==='login'?'background:rgba(var(--success-rgb),.12);color:var(--on-success)':'' %>"><%= (log.adminName||'?')[0].toUpperCase() %></div>
         <div class="activity-body">
           <div class="activity-action"><%= _icon %> <%= log.adminName %></div>
           <div class="activity-meta"><%= log.target ? log.target.slice(0,40) : log.action %></div>
@@ -439,7 +439,7 @@
       </div>
       <% recentBans.forEach(ban => { %>
       <div style="display:flex;align-items:center;gap:.6rem;padding:.65rem .75rem;border-bottom:1px solid var(--border);font-size:.82rem">
-        <div style="width:28px;height:28px;border-radius:50%;background:rgba(239,68,68,.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;color:var(--on-danger);flex-shrink:0"><%= (ban.pseudo||'?')[0].toUpperCase() %></div>
+        <div style="width:28px;height:28px;border-radius:50%;background:rgba(var(--error-rgb),.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;color:var(--on-danger);flex-shrink:0"><%= (ban.pseudo||'?')[0].toUpperCase() %></div>
         <div style="flex:1;min-width:0">
           <div style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><%= ban.pseudo %></div>
           <div style="font-size:.72rem;color:var(--text-dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis"><%= ban.reason %></div>
@@ -719,12 +719,12 @@ document.documentElement.addEventListener && (function() {
         })();
         const plan = u.subscriptionPlan === 'premium'
           ? '<span class="badge badge-ok" style="font-size:.7rem">👑 Premium</span>'
-          : '<span class="badge" style="font-size:.7rem;background:rgba(59,130,246,.15);color:var(--on-info)">Free</span>';
+          : '<span class="badge" style="font-size:.7rem;background:rgba(var(--info-rgb),.15);color:var(--on-info)">Free</span>';
         const id = u.identifier ?? u.phoneNumber ?? u.email ?? '—';
         return `<tr>
           <td>
             <div style="display:flex;align-items:center;gap:.6rem">
-              <div style="width:30px;height:30px;border-radius:50%;background:rgba(34,197,94,.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;color:var(--on-success);flex-shrink:0">${(u.pseudo||'?')[0].toUpperCase()}</div>
+              <div style="width:30px;height:30px;border-radius:50%;background:rgba(var(--success-rgb),.15);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.8rem;color:var(--on-success);flex-shrink:0">${(u.pseudo||'?')[0].toUpperCase()}</div>
               <div>
                 <div style="font-weight:600">${u.pseudo ?? '—'}</div>
                 <div style="font-size:.72rem;color:var(--text-dim)">${id}</div>

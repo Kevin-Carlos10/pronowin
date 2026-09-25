@@ -128,7 +128,7 @@
 <div class="pro-stats">
   <div class="pro-stat blue"><div class="l">Matchs</div><div class="v"><%= _total %></div></div>
   <div class="pro-stat green"><div class="l">Publiés</div><div class="v"><%= _published %></div></div>
-  <div class="pro-stat" style="border-left-color:#F5A623"><div class="l">Vitrine du jour</div><div class="v" style="font-size:1.15rem;color:var(--primary-texte)"><%= _vitrine ? "1" : "—" %></div></div>
+  <div class="pro-stat" style="border-left-color:var(--primary)"><div class="l">Vitrine du jour</div><div class="v" style="font-size:1.15rem;color:var(--primary-texte)"><%= _vitrine ? "1" : "—" %></div></div>
   <div class="pro-stat orange"><div class="l">Brouillons</div><div class="v"><%= _drafts %></div></div>
   <div class="pro-stat dim"><div class="l">Sans prono</div><div class="v"><%= _none %></div></div>
 </div>
@@ -142,7 +142,7 @@
     mots, et repoussait le compteur de brouillons hors de vue. Le gabarit
     restait valide, la page se rendait sans erreur — seule la lecture revelait
     le probleme. Sa place est ici, apres la rangee de statistiques. %>
-<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;border-left:3px solid #F5A623">
+<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;border-left:3px solid var(--primary)">
   <svg class="ic ic-lg" aria-hidden="true" style="color:var(--primary-texte);flex-shrink:0"><use href="#ic-star"/></svg>
   <div style="flex:1;min-width:220px">
     <div style="font-size:.8rem;font-weight:800;margin-bottom:.15rem">Pronostic gratuit du jour</div>

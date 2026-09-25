@@ -202,7 +202,7 @@
                  aria-label="Sélectionner <%= u.pseudo %>"></td>
       <td>
         <div style="display:flex;align-items:center;gap:10px">
-          <div style="width:36px;height:36px;border-radius:50%;background:<%= u.is_premium ? 'rgba(245,166,35,.15)' : 'var(--surface-d)' %>;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:<%= u.is_premium ? '#F5A623' : 'var(--text-dim)' %>;flex-shrink:0">
+          <div style="width:36px;height:36px;border-radius:50%;background:<%= u.is_premium ? 'rgba(var(--primary-rgb),.15)' : 'var(--surface-d)' %>;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:<%= u.is_premium ? 'var(--primary)' : 'var(--text-dim)' %>;flex-shrink:0">
             <%= u.pseudo[0].toUpperCase() %>
           </div>
           <div>

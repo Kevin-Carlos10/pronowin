@@ -23,7 +23,7 @@
 
 .sa-card-head { display:flex; align-items:center; gap:.85rem; padding:.9rem 1rem; border-bottom:1px solid var(--border); }
 .sa-avatar { width:44px; height:44px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.1rem; font-weight:800; flex-shrink:0; }
-.sa-avatar.active   { background:rgba(59,130,246,.12); color:var(--on-info); }
+.sa-avatar.active   { background:rgba(var(--info-rgb),.12); color:var(--on-info); }
 .sa-avatar.inactive { background:var(--surface-d); color:var(--text-dim); }
 .sa-head-info { flex:1; min-width:0; }
 .sa-name     { font-size:.95rem; font-weight:700; }
@@ -35,9 +35,9 @@
 
 /* ── Permissions badges ──────────────────────────────────────────────────────── */
 .perm-badge       { display:inline-flex; align-items:center; gap:.25rem; font-size:.68rem; padding:.15rem .45rem; border-radius:99px; font-weight:600; margin:.1rem; }
-.perm-badge.read  { background:rgba(59,130,246,.12); color:var(--on-info); }
-.perm-badge.write { background:rgba(245,158,11,.12);  color:var(--on-warning); }
-.perm-badge.delete{ background:rgba(239,68,68,.12);   color:var(--on-danger); }
+.perm-badge.read  { background:rgba(var(--info-rgb),.12); color:var(--on-info); }
+.perm-badge.write { background:rgba(var(--warning-rgb),.12);  color:var(--on-warning); }
+.perm-badge.delete{ background:rgba(var(--error-rgb),.12);   color:var(--on-danger); }
 .perm-badge-none  { color:var(--text-dim); font-style:italic; font-size:.8rem; }
 
 /* ── Activité mini timeline ──────────────────────────────────────────────────── */

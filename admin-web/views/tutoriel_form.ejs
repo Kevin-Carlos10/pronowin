@@ -13,7 +13,7 @@
   cursor:pointer; transition:border-color .15s;
 }
 .tf-toggle-wrap:hover { border-color:var(--warning); }
-.tf-toggle-wrap.on { border-color:var(--warning); background:rgba(245,158,11,.06); }
+.tf-toggle-wrap.on { border-color:var(--warning); background:rgba(var(--warning-rgb),.06); }
 .tf-toggle-info .t { font-size:.88rem; font-weight:700; }
 .tf-toggle-info .s { font-size:.75rem; color:var(--text-dim); margin-top:.1rem; }
 .tf-switch {
@@ -204,7 +204,7 @@
         <div class="tf-preview-body">
           <div class="tf-preview-meta">
             <span id="pv-level" class="lvl-beginner" style="display:none"></span>
-            <% if(isEdit && tutorial.videoUrl) { %><span style="font-size:.65rem;color:var(--on-info);background:rgba(59,130,246,.1);padding:.1rem .35rem;border-radius:4px" id="pv-video-badge">▶ Vidéo</span><% } else { %><span style="font-size:.65rem;color:var(--on-info);background:rgba(59,130,246,.1);padding:.1rem .35rem;border-radius:4px" id="pv-video-badge" style="display:none"></span><% } %>
+            <% if(isEdit && tutorial.videoUrl) { %><span style="font-size:.65rem;color:var(--on-info);background:rgba(var(--info-rgb),.1);padding:.1rem .35rem;border-radius:4px" id="pv-video-badge">▶ Vidéo</span><% } else { %><span style="font-size:.65rem;color:var(--on-info);background:rgba(var(--info-rgb),.1);padding:.1rem .35rem;border-radius:4px" id="pv-video-badge" style="display:none"></span><% } %>
           </div>
           <div class="tf-preview-title" id="pv-title"><%= isEdit ? tutorial.title : 'Titre du tutoriel' %></div>
           <div class="tf-preview-author" id="pv-author">par <%= isEdit ? (tutorial.authorName||'Expert PronoWin') : 'Expert PronoWin' %></div>

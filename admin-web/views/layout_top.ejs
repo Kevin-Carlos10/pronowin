@@ -199,7 +199,7 @@
 
   <div class="sidebar-footer">
     <a href="/admin/profile" class="nav-item <%= page==='profile' ?'active':'' %>" style="padding:.6rem 1rem;margin-bottom:.1rem">
-      <div style="width:30px;height:30px;border-radius:50%;background:<%= adminRole==='sub'?'rgba(245,158,11,.15)':'rgba(34,197,94,.15)' %>;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;color:<%= adminRole==='sub'?'var(--on-warning)':'var(--on-success)' %>">
+      <div style="width:30px;height:30px;border-radius:50%;background:<%= adminRole==='sub'?'rgba(var(--warning-rgb),.15)':'rgba(var(--success-rgb),.15)' %>;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;flex-shrink:0;color:<%= adminRole==='sub'?'var(--on-warning)':'var(--on-success)' %>">
         <%= adminName[0]?.toUpperCase() ?? '?' %>
       </div>
       <div style="min-width:0">
@@ -275,7 +275,7 @@
 
 <%
   const _s = locals.settings || {};
-  const _announceBg   = { info: 'rgba(59,130,246,.12)', warning: 'rgba(245,158,11,.12)', danger: 'rgba(239,68,68,.12)' };
+  const _announceBg   = { info: 'rgba(var(--info-rgb),.12)', warning: 'rgba(var(--warning-rgb),.12)', danger: 'rgba(var(--error-rgb),.12)' };
   const _announceColor= { info: 'var(--info)', warning: 'var(--warning)', danger: 'var(--error)' };
   // Le texte de l'annonce prend les teintes lisibles ; la carte ci-dessus reste celle des bordures.
   const _announceTexte = { info: 'var(--on-info)', warning: 'var(--on-warning)', danger: 'var(--on-danger)' };
@@ -290,7 +290,7 @@
 <% } %>
 
 <% if (_s.maintenanceMode) { %>
-<div style="background:rgba(245,158,11,.15);border-bottom:1px solid rgba(245,158,11,.3);padding:.6rem 1.25rem;display:flex;align-items:center;gap:.6rem;font-size:.83rem;color:var(--on-warning)">
+<div style="background:rgba(var(--warning-rgb),.15);border-bottom:1px solid rgba(var(--warning-rgb),.3);padding:.6rem 1.25rem;display:flex;align-items:center;gap:.6rem;font-size:.83rem;color:var(--on-warning)">
   <span><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg></span>
   <%# Ce mode ne bloque rien : ni le panneau, ni l'application. Le bandeau le
       disait mal — « Le panel est en maintenance » à qui s'en servait. La partie

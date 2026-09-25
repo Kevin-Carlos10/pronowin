@@ -29,6 +29,21 @@
   --transition:    .15s ease;
   --shadow:        0 1px 4px rgba(0,0,0,.35);
   --shadow-lg:     0 4px 24px rgba(0,0,0,.5);
+  /* Teintes d'état, pour les fonds translucides : rgba(var(--success-rgb), .12).
+     Les mêmes dans les deux thèmes (constat A14 : 36 teintes étaient écrites
+     en chiffres, vue par vue). */
+  --success-rgb:   34,197,94;
+  --error-rgb:     239,68,68;
+  --warning-rgb:   245,158,11;
+  --info-rgb:      59,130,246;
+  /* Échelle typographique. 61 tailles distinctes s'étaient accumulées ; les
+     nouvelles règles puisent ici. */
+  --fs-xs:         .72rem;
+  --fs-s:          .8rem;
+  --fs-m:          .9rem;
+  --fs-l:          1rem;
+  --fs-xl:         1.15rem;
+  --fs-2xl:        1.4rem;
   /* Scrollbar */
   color-scheme: dark;
 }
