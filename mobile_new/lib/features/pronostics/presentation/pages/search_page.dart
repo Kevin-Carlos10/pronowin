@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import '../../../../shared/widgets/erreur_chargement.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
-import '../../domain/entities/match_entity.dart';
 import '../providers/pronostics_provider.dart';
 import '../widgets/match_card_widget.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
@@ -23,21 +23,21 @@ class _SearchPageState extends ConsumerState<SearchPage> {
     super.dispose();
   }
 
-  List<MatchEntity> _filter(List<MatchEntity> all) {
-    final q = _query.trim().toLowerCase();
-    if (q.isEmpty) return [];
-    return all.where((m) =>
-      m.homeTeam.toLowerCase().contains(q) ||
-      m.awayTeam.toLowerCase().contains(q) ||
-      m.league.toLowerCase().contains(q) ||
-      m.predictionLabel.toLowerCase().contains(q)
-    ).toList()
-      ..sort((a, b) => a.matchDate.compareTo(b.matchDate));
-  }
+  // Le filtre local a été retiré.
+  //
+  // Il parcourait `pagedState.matches` — la liste **déjà chargée** du provider
+  // paginé : vingt matchs, ceux de la page courante et des filtres courants.
+  // Une équipe qui existe mais dont la page n'avait pas été téléchargée était
+  // annoncée absente, et le résultat dépendait du nombre de fois qu'on avait
+  // fait défiler la liste.
+  //
+  // La recherche est faite par la base, via `rechercheMatchsProvider`.
 
   @override
   Widget build(BuildContext context) {
-    final pagedState = ref.watch(matchesPaginatedProvider);
+    final terme      = _query.trim();
+    // La recherche part au serveur, dès deux caractères — même seuil que lui.
+    final resultats  = ref.watch(rechercheMatchsProvider(terme));
     final authState  = ref.watch(authProvider);
     final isPremium  = authState is AuthAuthenticated && authState.user.isPremium;
 
@@ -70,30 +70,29 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           onChanged: (v) => setState(() => _query = v),
         ),
       ),
-      body: pagedState.isInitialLoading
-        ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-        : pagedState.error != null && pagedState.matches.isEmpty
-        ? Center(child: Text('Impossible de charger les matchs',
-            style: TextStyle(color: context.cl.textS)))
-        : Builder(builder: (context) {
-          final all = pagedState.matches;
-          if (_query.trim().isEmpty) {
-            return _EmptyPrompt();
-          }
-          final results = _filter(all);
-          if (results.isEmpty) {
-            return _NoResults(query: _query);
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.fromLTRB(14, 8, 14, 100),
-            itemCount: results.length,
-            itemBuilder: (_, i) => MatchCardWidget(
-              match: results[i],
-              isPremiumUser: isPremium,
-              showDate: true,
-            ),
-          );
-        }),
+      body: terme.length < 2
+        ? _EmptyPrompt()
+        : resultats.when(
+            loading: () => const Center(
+                child: CircularProgressIndicator(color: AppColors.primary)),
+            error: (_, _) => ErreurChargement(
+                erreur: "La recherche n'a pas abouti.",
+                quoi: 'les matchs',
+                from: '/recherche',
+                onRetry: () =>
+                    ref.invalidate(rechercheMatchsProvider(terme))),
+            data: (liste) => liste.isEmpty
+                ? _NoResults(query: _query)
+                : ListView.builder(
+                    padding: const EdgeInsets.fromLTRB(14, 8, 14, 100),
+                    itemCount: liste.length,
+                    itemBuilder: (_, i) => MatchCardWidget(
+                      match: liste[i],
+                      isPremiumUser: isPremium,
+                      showDate: true,
+                    ),
+                  ),
+          ),
     );
   }
 }

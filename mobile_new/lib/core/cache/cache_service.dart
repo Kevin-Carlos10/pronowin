@@ -14,6 +14,15 @@ class CacheEntry<T> {
 }
 
 class CacheService {
+  /// Génération de la session en cours.
+  ///
+  /// Elle augmente à chaque vidage du cache — connexion, déconnexion,
+  /// session expirée. Une réponse partie avant le vidage et arrivée après ne
+  /// doit pas repeupler le cache : elle appartient au compte précédent
+  /// (constat M11 de l'audit du 24 septembre 2026). L'intercepteur note la
+  /// génération à l'envoi et ne garde la réponse que si elle n'a pas changé.
+  static int generation = 0;
+
   // TTL adaptatif selon l'endpoint
   static Duration ttlFor(String key) {
     if (key.contains('actualites'))       return const Duration(hours: 1);
@@ -100,6 +109,7 @@ class CacheService {
   }
 
   static Future<void> clearAll() async {
+    generation++;
     final prefs = await SharedPreferences.getInstance();
     final keys = prefs.getKeys().where((k) => k.startsWith('cache_')).toList();
     for (final k in keys) {

@@ -1,0 +1,572 @@
+import axios from 'axios';
+import jwt from 'jsonwebtoken';
+import { JWT } from 'google-auth-library';
+import { prisma } from '../lib/prisma';
+import { SubscriptionService } from './subscription.service';
+import { NotificationService } from './notification.service';
+import { ErreurMetier } from '../utils/erreurs';
+
+const notifSvc = new NotificationService();
+// Même motif que dans referral.service : instanciation différée pour ne pas
+// dépendre de l'ordre de chargement des modules.
+let _subSvc: SubscriptionService | null = null;
+const subSvc = () => _subSvc ??= new SubscriptionService();
+
+// ─── Catalogue produits ───────────────────────────────────────────────────────
+
+/**
+ * Identifiants tels qu'ils devront être créés dans App Store Connect et la
+ * Play Console. Les deux stores doivent utiliser exactement ces chaînes.
+ *
+ * La durée n'est PAS ce qui fixe l'échéance — c'est la date renvoyée par le
+ * store qui fait foi. Elle ne sert que de repli si le store ne renvoie rien.
+ */
+export const IAP_PRODUCTS: Record<string, { plan: string; fallbackDays: number }> = {
+  'com.pronowin.premium.monthly': { plan: 'premium', fallbackDays: 30 },
+  'com.pronowin.premium.annual':  { plan: 'premium', fallbackDays: 365 },
+};
+
+export type IapStoreName = 'apple' | 'google';
+
+/**
+ * Ramène ce que le mobile a envoyé à un identifiant de transaction Apple.
+ *
+ * ── Ce que les deux stores envoient n'a pas la même nature ─────────────────
+ *
+ * Sur Android, `serverVerificationData` **est** le `purchaseToken`, exactement
+ * ce que l'API Google attend. La symétrie s'arrête là : sur iOS, le même champ
+ * porte le reçu App Store encodé en base64 (StoreKit 1) ou la représentation
+ * JWS de la transaction (StoreKit 2). Ni l'un ni l'autre n'est un identifiant
+ * de transaction — or c'est un identifiant que l'API serveur d'Apple attend
+ * dans le chemin de `/inApps/v1/subscriptions/{transactionId}`.
+ *
+ * Le mobile envoyait donc le reçu entier. Apple répondait 404, le code
+ * essayait l'autre environnement, obtenait 404 aussi, et concluait
+ * « Transaction introuvable chez Apple ». Autrement dit : **aucun achat Apple
+ * n'aurait pu être validé**, et le message n'aurait désigné ni la cause ni le
+ * responsable. L'acheteur, lui, était débité.
+ *
+ * Le mobile envoie désormais `purchaseID`. Cette fonction reste tolérante —
+ * un JWS reste accepté, pour que passer à StoreKit 2 ne casse rien — et elle
+ * refuse explicitement un reçu StoreKit 1 plutôt que de le faire passer pour
+ * une transaction inconnue.
+ */
+export function identifiantTransactionApple(valeur: string): string {
+  const v = (valeur ?? '').trim();
+  if (!v) throw new Error('Reçu Apple vide.');
+
+  // Un identifiant de transaction Apple est une suite de chiffres.
+  if (/^\d+$/.test(v)) return v;
+
+  // JWS : trois parties base64url séparées par des points.
+  const parties = v.split('.');
+  if (parties.length === 3) {
+    try {
+      const charge = JSON.parse(Buffer.from(parties[1], 'base64url').toString('utf8'));
+      const id = charge?.transactionId ?? charge?.originalTransactionId;
+      if (id) return String(id);
+    } catch { /* charge illisible : on tombe dans le refus ci-dessous */ }
+    throw new Error('JWS Apple sans identifiant de transaction.');
+  }
+
+  throw new Error(
+    'Reçu Apple non exploitable : l\'API serveur attend un identifiant de '
+  + 'transaction (purchaseID), pas le reçu App Store encodé.');
+}
+
+/** Forme normalisée, commune aux deux stores. */
+export interface VerifiedPurchase {
+  store:                 IapStoreName;
+  productId:             string;
+  transactionId:         string;
+  originalTransactionId: string;
+  expiresAt:             Date;
+  status:                string;
+  environment:           string;
+  payload:               unknown;
+}
+
+// ─── Configuration ────────────────────────────────────────────────────────────
+
+const APPLE = {
+  keyId:    process.env.APPLE_IAP_KEY_ID    ?? '',
+  issuerId: process.env.APPLE_IAP_ISSUER_ID ?? '',
+  bundleId: process.env.APPLE_BUNDLE_ID     ?? 'com.pronowin.app',
+  // Clé .p8 téléchargée depuis App Store Connect. Les sauts de ligne sont
+  // souvent aplatis en \n littéraux quand la valeur transite par un .env.
+  privateKey: (process.env.APPLE_IAP_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
+};
+
+const GOOGLE = {
+  packageName:  process.env.ANDROID_PACKAGE_NAME ?? 'com.pronowin.app',
+  clientEmail:  process.env.GOOGLE_SA_CLIENT_EMAIL ?? '',
+  privateKey:   (process.env.GOOGLE_SA_PRIVATE_KEY ?? '').replace(/\\n/g, '\n'),
+};
+
+/**
+ * Refuser un reçu Sandbox en production : sans ce garde-fou, n'importe qui
+ * disposant d'un compte de test Apple peut s'offrir un Premium gratuit.
+ */
+//
+// `IAP_ACCEPT_SANDBOX=false` était écrasé en silence : le `||` rendait la
+// valeur vraie dès que `NODE_ENV` valait autre chose que `production`, si bien
+// qu'un `.env` disant explicitement « non » se comportait comme un « oui ».
+// Un réglage qui ne règle rien vaut moins que pas de réglage du tout.
+//
+// Le repli sur `NODE_ENV` ne joue donc plus que si la variable est absente.
+const ACCEPT_SANDBOX = process.env.IAP_ACCEPT_SANDBOX !== undefined
+  ? process.env.IAP_ACCEPT_SANDBOX === 'true'
+  : process.env.NODE_ENV !== 'production';
+
+export class IapService {
+
+  // ─── Apple ──────────────────────────────────────────────────────────────────
+
+  /** JWT ES256 exigé par l'App Store Server API (valide 1 h max). */
+  private _appleToken(): string {
+    if (!APPLE.privateKey || !APPLE.keyId || !APPLE.issuerId) {
+      throw new Error('IAP Apple non configuré (APPLE_IAP_KEY_ID / ISSUER_ID / PRIVATE_KEY).');
+    }
+    const now = Math.floor(Date.now() / 1000);
+    return jwt.sign(
+      { iss: APPLE.issuerId, iat: now, exp: now + 3000, aud: 'appstoreconnect-v1', bid: APPLE.bundleId },
+      APPLE.privateKey,
+      { algorithm: 'ES256', header: { alg: 'ES256', kid: APPLE.keyId, typ: 'JWT' } },
+    );
+  }
+
+  /**
+   * Décode la charge utile d'un JWS Apple, **sans rien vérifier**.
+   *
+   * Le nom le dit : c'est un décodage, pas une authentification. Deux usages,
+   * tous deux légitimes parce que la confiance vient d'ailleurs :
+   *
+   *  * réponses de `api.storekit.itunes.apple.com`, obtenues par un canal TLS
+   *    authentifié auprès d'Apple ;
+   *  * notifications serveur, dont le contenu n'est **jamais** cru sur parole
+   *    — il sert seulement à retrouver la transaction, puis tout est
+   *    revérifié auprès de l'API d'Apple.
+   */
+  private _decodeJws(token: string): any {
+    const part = token.split('.')[1];
+    if (!part) throw new Error('JWS Apple malformé.');
+    return JSON.parse(Buffer.from(part, 'base64url').toString('utf8'));
+  }
+
+  /**
+   * Vérifie une transaction auprès d'Apple.
+   *
+   * On interroge les deux environnements : un build TestFlight produit des
+   * transactions Sandbox alors que l'app pointe sur l'API de production.
+   */
+  async verifyApple(recu: string): Promise<VerifiedPurchase> {
+    const transactionId = identifiantTransactionApple(recu);
+    const token = this._appleToken();
+    const hosts = [
+      ['Production', 'https://api.storekit.itunes.apple.com'],
+      ['Sandbox',    'https://api.storekit-sandbox.itunes.apple.com'],
+    ] as const;
+
+    let lastErr: unknown = null;
+    for (const [environment, host] of hosts) {
+      try {
+        const r = await axios.get(
+          `${host}/inApps/v1/subscriptions/${encodeURIComponent(transactionId)}`,
+          { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 },
+        );
+
+        // La réponse groupe les abonnements par groupe puis par transaction.
+        const item = r.data?.data?.[0]?.lastTransactions?.[0];
+        if (!item?.signedTransactionInfo) throw new Error('Transaction absente de la réponse Apple.');
+
+        const info    = this._decodeJws(item.signedTransactionInfo);
+        const renewal = item.signedRenewalInfo ? this._decodeJws(item.signedRenewalInfo) : {};
+
+        return {
+          store:                 'apple',
+          productId:             info.productId,
+          transactionId:         info.transactionId,
+          originalTransactionId: info.originalTransactionId,
+          expiresAt:             new Date(Number(info.expiresDate)),
+          // status Apple : 1=actif 2=expiré 3=en défaut de paiement 4=période de grâce 5=révoqué
+          status:                APPLE_STATUS[item.status] ?? 'unknown',
+          environment:           info.environment ?? environment,
+          payload:               { transaction: info, renewal },
+        };
+      } catch (e: any) {
+        // 404 = transaction inconnue de cet environnement, on tente l'autre.
+        if (e.response?.status !== 404) throw new Error(`Apple : ${e.response?.data?.errorMessage ?? e.message}`);
+        lastErr = e;
+      }
+    }
+    throw new Error('Transaction introuvable chez Apple (production et sandbox).');
+  }
+
+  // ─── Google ─────────────────────────────────────────────────────────────────
+
+  private _googleClient(): JWT {
+    if (!GOOGLE.clientEmail || !GOOGLE.privateKey) {
+      throw new Error('IAP Google non configuré (GOOGLE_SA_CLIENT_EMAIL / GOOGLE_SA_PRIVATE_KEY).');
+    }
+    return new JWT({
+      email:  GOOGLE.clientEmail,
+      key:    GOOGLE.privateKey,
+      scopes: ['https://www.googleapis.com/auth/androidpublisher'],
+    });
+  }
+
+  /**
+   * Vérifie un achat auprès de Google Play (API subscriptionsv2).
+   *
+   * `purchaseToken` est à la fois le jeton de la transaction et l'identifiant
+   * stable de l'abonnement — Google ne distingue pas les deux comme Apple.
+   */
+  async verifyGoogle(purchaseToken: string): Promise<VerifiedPurchase> {
+    const client = this._googleClient();
+    const url = `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/`
+      + `${encodeURIComponent(GOOGLE.packageName)}/purchases/subscriptionsv2/tokens/`
+      + `${encodeURIComponent(purchaseToken)}`;
+
+    let data: any;
+    try {
+      const r = await client.request<any>({ url, timeout: 10000 });
+      data = r.data;
+    } catch (e: any) {
+      throw new Error(`Google Play : ${e.response?.data?.error?.message ?? e.message}`);
+    }
+
+    const line = data.lineItems?.[0];
+    if (!line) throw new Error('Aucun produit dans la réponse Google Play.');
+
+    return {
+      store:                 'google',
+      productId:             line.productId,
+      transactionId:         `${data.latestOrderId ?? purchaseToken}`,
+      originalTransactionId: purchaseToken,
+      expiresAt:             new Date(line.expiryTime),
+      status:                GOOGLE_STATUS[data.subscriptionState] ?? 'unknown',
+      // Google marque explicitement les achats de test.
+      environment:           data.testPurchase ? 'Sandbox' : 'Production',
+      payload:               data,
+    };
+  }
+
+  // ─── Enregistrement ─────────────────────────────────────────────────────────
+
+  /**
+   * Vérifie un reçu et projette son état sur le compte.
+   *
+   * Idempotent : `transactionId` est unique en base, donc rejouer le même reçu
+   * (restauration d'achats, relance après crash, notification serveur en
+   * double) ne crédite jamais deux fois.
+   */
+  async verifyAndRecord(params: {
+    userId: string; store: IapStoreName; receipt: string;
+  }) {
+    const { userId, store, receipt } = params;
+
+    const v = store === 'apple'
+      ? await this.verifyApple(receipt)
+      : await this.verifyGoogle(receipt);
+
+    if (!IAP_PRODUCTS[v.productId]) {
+      throw new Error(`Produit inconnu : ${v.productId}`);
+    }
+    if (v.environment === 'Sandbox' && !ACCEPT_SANDBOX) {
+      throw new Error('Reçu de test refusé en production.');
+    }
+
+    const active = v.status === 'active' || v.status === 'grace_period';
+    const donnees = {
+      userId, store: v.store, productId: v.productId,
+      transactionId: v.transactionId, originalTransactionId: v.originalTransactionId,
+      expiresAt: v.expiresAt, status: v.status, environment: v.environment,
+      payload: v.payload as any,
+    };
+
+    // ── Un abonnement appartient au compte qui l'a acheté ──
+    //
+    // Le contrôle ne portait que sur la transaction en cours. Un
+    // renouvellement crée une nouvelle transaction : présenté par un autre
+    // compte, il passait. La chaîne entière (`originalTransactionId`) reste
+    // désormais attachée à son premier propriétaire.
+    const autreCompte = await prisma.iapPurchase.findFirst({
+      where: {
+        NOT: { userId },
+        OR: [{ transactionId: v.transactionId }, { originalTransactionId: v.originalTransactionId }],
+      },
+      select: { id: true },
+    });
+    if (autreCompte) throw new ErreurMetier('Cet achat est déjà rattaché à un autre compte.', 409);
+
+    // ── Première fois qu'on voit cette transaction : l'inscrire et ouvrir
+    //    l'accès d'un seul geste ──
+    //
+    // La lecture « jamais vue », l'enregistrement et l'octroi étaient trois
+    // opérations séparées. Deux appels simultanés avec le même reçu lisaient
+    // tous deux « jamais vue » : deux octrois, deux commissions — et pour deux
+    // comptes différents qui se partageaient un reçu, deux Premium pour un
+    // paiement (constat I9).
+    //
+    // L'inscription se fait maintenant dans la transaction qui écrit l'accès,
+    // et la contrainte d'unicité de `transactionId` départage : le second
+    // appel échoue sur elle, sa transaction est annulée — aucun accès, aucune
+    // commission — et il repasse par le chemin « déjà vue » ci-dessous.
+    if (active) {
+      try {
+        await subSvc().grantPremium({
+          garde: async (t) => { await t.iapPurchase.create({ data: donnees }); },
+          userId,
+          expiresAt:     v.expiresAt,
+          // Le store ne dit pas ce qui a été payé au moment de la validation :
+          // le montant est inconnu tant qu'il n'est pas rapproché des relevés
+          // du store. Un zéro passait pour un accès offert (constat A17).
+          amountPaid:    null,
+          paymentMethod: `iap_${v.store}`,
+          notify:        true,
+        });
+        return this._reponse(v, true);
+      } catch (e: any) {
+        if (e?.code !== 'P2002') throw e;
+        // Déjà inscrite — par un appel concurrent, ou lors d'une restauration.
+      }
+    }
+
+    // ── Déjà vue, ou inactive : mettre l'état à jour, sans rien accorder ──
+    const enregistre = await prisma.iapPurchase.upsert({
+      where:  { transactionId: v.transactionId },
+      update: { status: v.status, expiresAt: v.expiresAt, payload: v.payload as any },
+      create: donnees,
+    });
+    // L'appel concurrent a pu inscrire la transaction pour un autre compte
+    // entre notre contrôle et ici.
+    if (enregistre.userId !== userId) {
+      throw new ErreurMetier('Cet achat est déjà rattaché à un autre compte.', 409);
+    }
+
+    if (active) {
+      // Un renouvellement prolonge ; il ne raccourcit jamais un accès payé
+      // par ailleurs (constat I11).
+      await prisma.user.update({
+        where: { id: userId },
+        data:  { subscriptionPlan: 'premium', subscriptionExpiresAt: await this._echeanceProjetee(userId) },
+      });
+    } else {
+      await this._revokeIfExpired(userId);
+    }
+
+    return this._reponse(v, active);
+  }
+
+  private _reponse(v: { productId: string; expiresAt: Date; status: string }, active: boolean) {
+    return {
+      success:    true,
+      active,
+      product_id: v.productId,
+      expires_at: v.expiresAt.toISOString(),
+      status:     v.status,
+    };
+  }
+
+  /**
+   * L'échéance du compte : la plus lointaine des périodes encore valables,
+   * qu'elles viennent d'un store ou d'un paiement Mobile Money.
+   *
+   * Chaque source écrivait sa propre date sur le compte, la dernière arrivée
+   * gagnant — un renouvellement mensuel pouvait effacer une échéance annuelle
+   * payée ailleurs.
+   */
+  private async _echeanceProjetee(userId: string): Promise<Date> {
+    const maintenant = new Date();
+    const [store, autres] = await Promise.all([
+      prisma.iapPurchase.findFirst({
+        where:   { userId, status: { in: ['active', 'grace_period'] }, expiresAt: { gt: maintenant } },
+        orderBy: { expiresAt: 'desc' }, select: { expiresAt: true },
+      }),
+      prisma.subscription.findFirst({
+        where:   { userId, endDate: { gt: maintenant }, NOT: { paymentMethod: { startsWith: 'iap_' } } },
+        orderBy: { endDate: 'desc' }, select: { endDate: true },
+      }),
+    ]);
+    return new Date(Math.max(
+      store?.expiresAt.getTime() ?? 0,
+      autres?.endDate.getTime() ?? 0,
+      maintenant.getTime(),
+    ));
+  }
+
+  /**
+   * Retire le Premium si plus aucun achat IAP n'est actif.
+   *
+   * On ne rétrograde pas aveuglément : l'utilisateur peut avoir aussi payé par
+   * Mobile Money, et cette échéance-là ne regarde pas le store.
+   */
+  private async _revokeIfExpired(userId: string) {
+    const maintenant = new Date();
+
+    // Un autre achat store encore actif : rembourser le mensuel ne doit pas
+    // fermer l'accès ouvert par l'annuel.
+    const autreAchat = await prisma.iapPurchase.findFirst({
+      where: {
+        userId, status: { in: ['active', 'grace_period'] },
+        expiresAt: { gt: maintenant },
+      },
+    });
+    if (autreAchat) return;
+
+    /**
+     * Un accès acquis ailleurs que sur un store ?
+     *
+     * La version précédente posait la question à `subscriptionExpiresAt` :
+     *
+     *     if (user.subscriptionExpiresAt > new Date()) return;
+     *
+     * L'intention était juste — le store ne décide pas d'un accès qu'il n'a
+     * pas vendu. Mais `grantPremium` écrit ce champ avec la date **du store** :
+     * après un achat intégré, elle est toujours dans le futur. La condition
+     * était donc vraie pour exactement les comptes qu'elle devait laisser
+     * révoquer. Aucun abonnement store n'était jamais fermé — ni après un
+     * remboursement, ni même à son terme normal.
+     *
+     * La question se pose maintenant à l'historique, qui sait par quel moyen
+     * chaque accès a été payé.
+     */
+    const enCours = await prisma.subscription.findMany({
+      where: { userId, endDate: { gt: maintenant } },
+    });
+    const horsStore = enCours
+      .filter((s) => !s.paymentMethod.startsWith('iap_'))
+      .sort((a, b) => b.endDate.getTime() - a.endDate.getTime())[0];
+
+    if (horsStore) {
+      // L'accès survit, mais à SA date — conserver celle du store qu'on vient
+      // de perdre offrirait les jours qui viennent d'être remboursés.
+      await prisma.user.update({
+        where: { id: userId },
+        data:  { subscriptionPlan: 'premium', subscriptionExpiresAt: horsStore.endDate },
+      });
+      return;
+    }
+
+    // L'échéance part avec l'accès : une date future sur un compte gratuit se
+    // lit « Premium jusqu'au… » sur l'écran du profil, qui affiche ce champ.
+    await prisma.user.update({
+      where: { id: userId },
+      data:  { subscriptionPlan: 'free', subscriptionExpiresAt: null },
+    });
+  }
+
+  // ─── Notifications serveur ──────────────────────────────────────────────────
+
+  /**
+   * App Store Server Notifications V2.
+   *
+   * ⚠️ Le contenu de la notification n'est **jamais** cru sur parole.
+   *
+   * La version précédente vérifiait la signature du JWS avec le certificat
+   * contenu **dans le JWS lui-même** (`header.x5c[0]`), sans jamais remonter
+   * la chaîne jusqu'à la racine Apple. C'était circulaire : n'importe qui
+   * pouvait générer une paire de clés ES256, y joindre son propre certificat
+   * auto-signé, signer la charge de son choix — et `jwt.verify` acceptait.
+   * L'échéance ainsi transmise était ensuite écrite telle quelle dans
+   * `subscriptionExpiresAt`. Il suffisait d'un achat réel pour connaître un
+   * `originalTransactionId` valide, puis d'une notification forgée pour se
+   * prolonger jusqu'en 2099 — ou pour révoquer l'abonnement d'autrui.
+   *
+   * Le correctif ne consiste pas à valider la chaîne de certificats, mais à
+   * cesser d'en dépendre : la notification sert uniquement à **retrouver**
+   * l'achat, et tout le reste — produit, échéance, statut — est relu auprès de
+   * l'API authentifiée d'Apple par `verifyAndRecord`. C'est déjà ce que fait
+   * le chemin Google ; les deux stores sont désormais traités pareil.
+   *
+   * Cette approche résiste aussi au rejeu d'une notification authentique, ce
+   * qu'une simple vérification de signature n'aurait pas empêché.
+   */
+  async handleAppleNotification(signedPayload: string) {
+    const payload = this._decodeJws(signedPayload);
+    const signedInfo = payload?.data?.signedTransactionInfo;
+    if (!signedInfo) return { ignored: true, reason: 'payload_sans_transaction' };
+
+    const info = this._decodeJws(signedInfo);
+    const originalId = info?.originalTransactionId;
+    if (!originalId) return { ignored: true, reason: 'original_transaction_absent' };
+
+    const purchase = await prisma.iapPurchase.findFirst({
+      where:   { originalTransactionId: originalId },
+      orderBy: { createdAt: 'desc' },
+    });
+    // Notification pour un achat qu'on n'a jamais vu : le mobile n'a pas encore
+    // appelé /verify. On l'ignore, il enverra le reçu à la prochaine ouverture.
+    if (!purchase) return { ignored: true, reason: 'unknown_original_transaction' };
+
+    // L'autorité, c'est Apple — pas l'expéditeur de la requête.
+    const resultat = await this.verifyAndRecord({
+      userId:  purchase.userId,
+      store:   'apple',
+      receipt: originalId,
+    });
+
+    // Prévenir l'abonné dont l'accès s'interrompt. `verifyAndRecord` révoque
+    // mais ne notifie pas ; sans ce rappel, l'utilisateur découvrirait la
+    // coupure en ouvrant un pronostic verrouillé.
+    if (!resultat.active) {
+      await notifSvc.sendToUser(purchase.userId, {
+        title: 'Abonnement Premium interrompu',
+        body:  'Ton accès Premium a pris fin. Tu peux le réactiver à tout moment.',
+        data:  { deep_link: '/compte', type: 'premium' },
+      }, 'premium').catch(() => {});
+    }
+
+    return {
+      handled: true,
+      type:    payload?.notificationType ?? 'inconnu',
+      active:  resultat.active,
+    };
+  }
+
+  /** Google Play Real-time Developer Notifications (via Pub/Sub push). */
+  async handleGoogleNotification(message: { data?: string }) {
+    if (!message?.data) return { ignored: true, reason: 'empty_message' };
+    const decoded = JSON.parse(Buffer.from(message.data, 'base64').toString('utf8'));
+    const sub = decoded.subscriptionNotification;
+    if (!sub?.purchaseToken) return { ignored: true, reason: 'not_a_subscription_event' };
+
+    const purchase = await prisma.iapPurchase.findFirst({
+      where:   { originalTransactionId: sub.purchaseToken },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!purchase) return { ignored: true, reason: 'unknown_purchase_token' };
+
+    // On rejoue la vérification plutôt que de croire la notification sur
+    // parole : elle ne porte pas la date d'expiration.
+    await this.verifyAndRecord({
+      userId:  purchase.userId,
+      store:   'google',
+      receipt: sub.purchaseToken,
+    });
+
+    return { handled: true, type: sub.notificationType };
+  }
+
+  // `_applyStoreEvent` a été supprimé avec la vérification circulaire.
+  //
+  // Il écrivait `subscriptionExpiresAt` directement depuis la charge reçue, et
+  // décidait de la révocation d'après le seul `notificationType` transmis par
+  // l'appelant. C'était le point d'écriture que la signature défaillante
+  // laissait atteindre. Tout passe désormais par `verifyAndRecord`, qui ne
+  // retient que ce qu'Apple ou Google confirment.
+}
+
+const APPLE_STATUS: Record<number, string> = {
+  1: 'active', 2: 'expired', 3: 'billing_retry', 4: 'grace_period', 5: 'revoked',
+};
+
+const GOOGLE_STATUS: Record<string, string> = {
+  SUBSCRIPTION_STATE_ACTIVE:           'active',
+  SUBSCRIPTION_STATE_IN_GRACE_PERIOD:  'grace_period',
+  SUBSCRIPTION_STATE_CANCELED:         'canceled',
+  SUBSCRIPTION_STATE_EXPIRED:          'expired',
+  SUBSCRIPTION_STATE_ON_HOLD:          'on_hold',
+  SUBSCRIPTION_STATE_PAUSED:           'paused',
+  SUBSCRIPTION_STATE_PENDING:          'pending',
+};

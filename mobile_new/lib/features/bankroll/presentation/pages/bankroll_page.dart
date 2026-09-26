@@ -1,4 +1,6 @@
+import 'package:dio/dio.dart';
 import 'package:fl_chart/fl_chart.dart';
+import '../../../../core/utils/motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -7,9 +9,18 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/bankroll_provider.dart';
+import '../../../../shared/widgets/bottom_nav_metrics.dart';
+import '../../../../shared/utils/devise.dart';
+import '../../../../shared/utils/montant.dart';
+import '../../../../shared/utils/bilan_paris.dart';
 
 // ── Filtre actif ───────────────────────────────────────────────────────────────
-enum _BetFilter { all, pending, win, loss }
+/// Les onglets de l'historique.
+///
+/// `refunded` manquait : un pari remboursé (PUSH) est tranché sans être ni
+/// gagné ni perdu, il n'apparaîtrait donc que sous « Tous ». Sa mise a pourtant
+/// été recréditée, et son absence des onglets le rendait introuvable.
+enum _BetFilter { all, pending, win, loss, refunded }
 
 class BankrollPage extends ConsumerStatefulWidget {
   const BankrollPage({super.key});
@@ -36,7 +47,6 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
                 filter:      _filter,
                 onFilter:    (f) => setState(() => _filter = f),
                 onSetBudget: () => _showBudgetDialog(context, bankroll),
-                onReset:     () => _confirmReset(context, ref),
               ),
       ),
     );
@@ -47,7 +57,12 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => _BudgetSheet(existing: existing),
+      builder: (_) => _BudgetSheet(
+        existing: existing,
+        // Une seule confirmation, partagée : une seconde copie du texte
+        // finirait par ne plus dire la même chose que le serveur fait.
+        onReset: () => _confirmReset(context, ref),
+      ),
     );
   }
 
@@ -60,7 +75,16 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
         title: Text('Réinitialiser ?',
             style: TextStyle(color: context.cl.textP, fontWeight: FontWeight.w700)),
         content: Text(
-          'Ton solde sera remis à ton budget initial. L\'historique des paris reste conservé.',
+          // Ce qu'elle taisait, et qui décide de la réponse :
+          //
+          //  - le délai de trente jours, que le serveur applique et que
+          //    l'utilisateur ne découvrait qu'au refus suivant ;
+          //  - le sort des paris en cours, dont la mise reste engagée —
+          //    sans quoi la réinitialisation la rembourserait, puis le
+          //    règlement créditerait le gain entier.
+          'Ton solde repart de ton budget initial, moins les mises encore '
+          'en jeu. L\'historique des paris est conservé.\n\n'
+          'Une seule réinitialisation tous les 30 jours.',
           style: TextStyle(color: context.cl.textS, fontSize: 14)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false),
@@ -79,7 +103,22 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
         await dio.post('/bankroll/reset');
         ref.invalidate(bankrollProvider);
         ref.invalidate(bankrollStatsProvider);
-      } catch (_) {}
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Solde réinitialisé ✅'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+      } catch (_) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Échec de la réinitialisation. Vérifie ta connexion et réessaie.'),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ));
+        }
+      }
     }
   }
 }
@@ -90,14 +129,12 @@ class _BankrollView extends StatelessWidget {
   final _BetFilter   filter;
   final ValueChanged<_BetFilter> onFilter;
   final VoidCallback onSetBudget;
-  final VoidCallback onReset;
 
   const _BankrollView({
     required this.bankroll,
     required this.filter,
     required this.onFilter,
     required this.onSetBudget,
-    required this.onReset,
   });
 
   List<BankrollBet> get _filtered {
@@ -105,6 +142,8 @@ class _BankrollView extends StatelessWidget {
       case _BetFilter.pending: return bankroll.bets.where((b) => b.result == null).toList();
       case _BetFilter.win:     return bankroll.bets.where((b) => b.result == 'WIN').toList();
       case _BetFilter.loss:    return bankroll.bets.where((b) => b.result == 'LOSS').toList();
+      case _BetFilter.refunded:
+        return bankroll.bets.where((b) => b.result == 'PUSH').toList();
       case _BetFilter.all:     return bankroll.bets;
     }
   }
@@ -113,9 +152,64 @@ class _BankrollView extends StatelessWidget {
   Widget build(BuildContext context) {
     final settled  = bankroll.bets.where((b) => b.result != null).toList();
     final wins     = settled.where((b) => b.result == 'WIN').length;
-    final winRate  = settled.isNotEmpty ? wins / settled.length * 100 : 0.0;
-    final profit   = bankroll.currentBalance - bankroll.totalBudget;
+    // Un remboursé (PUSH) n'est ni une victoire ni une défaite — exclu du taux.
+    final decisive = settled.where((b) => b.result != 'PUSH').length;
+    // Le bilan vient du serveur, qui compte tout l'historique.
+    //
+    // Deux corrections successives au même endroit, et il vaut mieux les
+    // garder toutes les deux en mémoire :
+    //
+    //   * le taux se calculait ici à la main, avec un garde-fou à zéro
+    //     seulement. Avec un seul pari gagné, l'écran annonçait « 100 % ».
+    //     La règle `BilanParis` avait été appliquée à l'onglet Compte et
+    //     oubliée ici : les deux écrans affichaient deux vérités sur les mêmes
+    //     paris — « — » d'un côté, « 50 % » de l'autre ;
+    //
+    //   * puis ce bilan, même passé par la règle partagée, portait sur
+    //     `bankroll.bets` — une liste plafonnée à cinquante lignes. Au
+    //     cinquante-et-unième pari, les compteurs et le taux devenaient faux
+    //     sans que rien ne l'indique : ni avertissement, ni « 50 derniers ».
+    //
+    // Le repli local reste pour le jour où le mobile tourne devant un backend
+    // plus ancien : mieux vaut les anciens chiffres qu'une page vide. Il porte
+    // les remboursés, que `BilanParis` ne compte que si on les lui donne.
+    final resume = bankroll.resume;
+    final bilan = resume != null
+        ? BilanParis(
+            suivis:     resume.total,
+            gagnes:     resume.gagnes,
+            perdus:     resume.perdus,
+            rembourses: resume.rembourses,
+            tauxBrut:   resume.tauxBrut,
+            serie:      0,
+          )
+        : BilanParis(
+            suivis:     bankroll.bets.length,
+            gagnes:     wins,
+            perdus:     settled.where((b) => b.result == 'LOSS').length,
+            rembourses: settled.where((b) => b.result == 'PUSH').length,
+            tauxBrut:   decisive > 0 ? wins / decisive * 100 : 0.0,
+            serie:      0,
+          );
+    final winRate = bilan.taux;
     final pending  = bankroll.bets.where((b) => b.result == null).toList();
+
+    // Trois grandeurs, trois noms.
+    //
+    // L'écran affichait `solde − budget` sous une flèche verte ou rouge,
+    // comme un gain. Or la mise part du solde **au moment où le pari est
+    // posé** : engager 2 000 sur un budget de 10 000 faisait afficher
+    // « −2 000 » en rouge alors que rien n'était perdu, et que les paris
+    // pouvaient tous être gagnants. Le chiffre le plus visible de l'écran
+    // disait le contraire de la situation.
+    //
+    //   * le **disponible**, ce qu'on peut encore miser ;
+    //   * l'**engagé**, ce qui est en jeu — déjà sorti du disponible ;
+    //   * le **résultat net réalisé**, seul des trois à dire si l'on gagne.
+    final misesEnCours = resume?.misesEnCours
+        ?? pending.fold<double>(0, (n, b) => n + b.stakedAmount);
+    final resultatNet = resume?.profitNet
+        ?? bankroll.bets.fold<double>(0, (n, b) => n + (b.profit ?? 0));
     final filtered = _filtered;
 
     return CustomScrollView(slivers: [
@@ -158,7 +252,11 @@ class _BankrollView extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
           // ── Carte solde principal ────────────────────────────────────────
-          _BalanceCard(bankroll: bankroll, profit: profit).animate()
+          _BalanceCard(
+            bankroll:     bankroll,
+            resultatNet:  resultatNet,
+            misesEnCours: misesEnCours,
+          ).animate()
             .fadeIn(duration: 350.ms).slideY(begin: 0.05, end: 0),
 
           const SizedBox(height: 14),
@@ -193,12 +291,39 @@ class _BankrollView extends StatelessWidget {
             )),
             const SizedBox(width: 10),
             Expanded(child: _StatChip(
-              label: 'Win rate',
-              value: '${winRate.toStringAsFixed(0)}%',
+              // « Win rate » sur un écran entièrement en français. La phrase
+              // juste en dessous dit déjà « Taux de réussite dès le prochain
+              // pari tranché » : l'étiquette et son explication ne parlaient
+              // pas la même langue.
+              label: 'Taux de réussite',
+              // Sous le seuil, un tiret plutôt qu'un chiffre : les comptes
+              // bruts « 1 gagné / 1 perdu » restent affichés juste à côté.
+              value: winRate == null ? '—' : '${winRate.toStringAsFixed(0)}%',
               icon:  Icons.trending_up_rounded,
-              color: winRate >= 50 ? AppColors.success : AppColors.warning,
+              color: winRate == null
+                  ? context.cl.textM
+                  : (winRate >= 50 ? AppColors.success : AppColors.warning),
             )),
           ]).animate(delay: 100.ms).fadeIn(duration: 300.ms),
+
+          // Pourquoi le « win rate » affiche un tiret.
+          //
+          // En deçà de cinq paris tranchés, le pourcentage est retenu : sur
+          // deux paris il ment par précision. La retenue est juste — c'est le
+          // silence qui ne l'était pas. Cette phrase existait sur l'écran du
+          // compte ; la carte qui la portait en est partie, et cet écran, qui
+          // est désormais le seul endroit où ce bilan se lit, laissait un
+          // tiret nu.
+          if (bilan.mentionAvantLeTaux != null) ...[
+            const SizedBox(height: 10),
+            Row(children: [
+              Icon(Icons.info_outline_rounded, size: 13, color: context.cl.textM),
+              const SizedBox(width: 6),
+              Expanded(child: Text(bilan.mentionAvantLeTaux!,
+                style: TextStyle(color: context.cl.textM,
+                  fontSize: 11, height: 1.3))),
+            ]).animate(delay: 140.ms).fadeIn(duration: 300.ms),
+          ],
 
           const SizedBox(height: 14),
 
@@ -206,35 +331,29 @@ class _BankrollView extends StatelessWidget {
           _DisciplineReminder()
             .animate(delay: 120.ms).fadeIn(duration: 300.ms),
 
-          const SizedBox(height: 16),
-
-          // ── Reset ─────────────────────────────────────────────────────
-          GestureDetector(
-            onTap: onReset,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              decoration: BoxDecoration(
-                color:  AppColors.error.withValues(alpha: 0.07),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.error.withValues(alpha: 0.2), width: 0.8)),
-              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Icon(Icons.refresh_rounded, color: AppColors.error, size: 16),
-                SizedBox(width: 6),
-                Text('Réinitialiser le solde', style: TextStyle(
-                  color: AppColors.error, fontSize: 13, fontWeight: FontWeight.w600)),
-              ]),
-            ),
-          ).animate(delay: 140.ms).fadeIn(duration: 300.ms),
-
+          // « Réinitialiser le solde » occupait ici toute la largeur, cerclé
+          // de rouge, entre le bilan et les filtres — aussi visible qu'une
+          // action principale, alors qu'elle efface un suivi et ne peut être
+          // refaite que trente jours plus tard.
+          //
+          // Elle a rejoint la feuille de réglages, derrière l'icône de
+          // l'en-tête où l'on va déjà changer son budget. Le geste reste
+          // accessible ; il n'est plus à portée de pouce distrait.
           const SizedBox(height: 24),
 
           // ── Filtres ───────────────────────────────────────────────────
           _FilterRow(
             filter:   filter,
+            // Les pastilles comptent ce que la liste montre, pas tout
+            // l'historique : un onglet « Gagnés 64 » qui n'en présente que 30
+            // mentirait autrement. Le bilan complet est au-dessus, nommé.
+            //
+            // `settled.length - wins` comptait les remboursés parmi les perdus :
+            // la pastille annonçait déjà un nombre que la liste ne montrait pas.
             pending:  pending.length,
             wins:     wins,
-            losses:   settled.length - wins,
+            losses:   bankroll.bets.where((b) => b.result == 'LOSS').length,
+            refunded: bankroll.bets.where((b) => b.result == 'PUSH').length,
             total:    bankroll.bets.length,
             onFilter: onFilter,
           ).animate(delay: 160.ms).fadeIn(duration: 300.ms),
@@ -252,7 +371,28 @@ class _BankrollView extends StatelessWidget {
                 .slideY(begin: 0.06, end: 0, duration: 280.ms),
             ),
 
-          const SizedBox(height: 100),
+          // L'historique montré s'arrête ; le bilan, non.
+          //
+          // La liste est plafonnée, et rien ne le disait : un utilisateur
+          // assidu voyait ses paris s'arrêter net sans savoir s'il les avait
+          // tous, ni sur quoi son taux portait. La phrase relie les deux.
+          if (bankroll.historiqueTronque) ...[
+            const SizedBox(height: 8),
+            Padding(
+              key: const Key('bankroll-historique-tronque'),
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
+              child: Text(
+                '${bankroll.parisAffiches} paris les plus récents sur '
+                '${bankroll.resume!.total}. Le bilan ci-dessus porte sur '
+                'la totalité.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                    color: context.cl.textM, fontSize: 11, height: 1.4),
+              ),
+            ),
+          ],
+
+          SizedBox(height: bottomNavSpace(context)),
         ]),
       )),
     ]);
@@ -266,22 +406,44 @@ class _BalanceChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Construire les points : budget initial + chaque paris réglé dans l'ordre
+    // Ce que cette courbe montre, et ce qu'elle ne peut pas montrer.
+    //
+    // Elle partait du budget initial et y ajoutait le profit de chaque pari
+    // réglé, sous le titre « Évolution du solde ». Trois choses fausses :
+    //
+    //   * le solde réel déduit aussi les mises en cours — le dernier point ne
+    //     correspondait donc pas au solde affiché juste au-dessus ;
+    //   * les réinitialisations et les ajustements de budget n'y figuraient
+    //     pas : après un « Réinitialiser », la courbe partait toujours de
+    //     l'ancien budget comme si rien ne s'était passé ;
+    //   * elle ne voyait que les paris chargés, soit cinquante au plus.
+    //
+    // Une vraie courbe de solde demanderait un journal des mouvements, qui
+    // n'existe pas — et qu'on ne peut pas reconstituer pour le passé, faute
+    // d'avoir enregistré les réinitialisations. Elle montre donc ce qu'elle
+    // sait vraiment : le **résultat net cumulé** sur les paris réglés qu'elle
+    // a, en partant de zéro. Le titre et le sous-titre le disent.
     final settled = bankroll.bets
         .where((b) => b.result != null && b.profit != null)
         .toList()
       ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
 
-    double running = bankroll.totalBudget;
-    final spots = <FlSpot>[FlSpot(0, running)];
+    double running = 0;
+    final spots = <FlSpot>[const FlSpot(0, 0)];
     for (var i = 0; i < settled.length; i++) {
       running += settled[i].profit!;
-      spots.add(FlSpot((i + 1).toDouble(), running.clamp(0, double.infinity)));
+      spots.add(FlSpot((i + 1).toDouble(), running));
     }
 
-    final minY = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b) * 0.95;
-    final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b) * 1.05;
-    final isProfit = bankroll.currentBalance >= bankroll.totalBudget;
+    // Une marge relative s'effondrait autour de zéro : `0 × 1.05` vaut 0, et
+    // la courbe touchait alors le bord du cadre.
+    final basse = spots.map((s) => s.y).reduce((a, b) => a < b ? a : b);
+    final haute = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
+    final marge = ((haute - basse).abs() * 0.1).clamp(1.0, double.infinity);
+    final minY = basse - marge;
+    final maxY = haute + marge;
+
+    final isProfit  = running >= 0;
     final lineColor = isProfit ? AppColors.success : AppColors.error;
 
     return Container(
@@ -294,12 +456,18 @@ class _BalanceChart extends StatelessWidget {
         Row(children: [
           Icon(Icons.show_chart_rounded, size: 14, color: lineColor),
           const SizedBox(width: 6),
-          Text('Évolution du solde',
+          Text('Résultat net cumulé',
+            key: const Key('bankroll-titre-courbe'),
             style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           const Spacer(),
-          Text('${settled.length} paris',
+          Text('${settled.length} paris réglés',
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
+        const SizedBox(height: 2),
+        // Sans cette ligne, un utilisateur ayant réinitialisé sa bankroll
+        // pouvait lire cette courbe comme l'histoire de son solde.
+        Text('Cumul des gains et pertes des paris tranchés, hors mises en cours',
+          style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.3)),
         const SizedBox(height: 14),
         SizedBox(
           height: 110,
@@ -346,7 +514,7 @@ class _BalanceChart extends StatelessWidget {
                   barWidth: 2.5,
                   dotData: FlDotData(
                     show: true,
-                    getDotPainter: (spot, _, __, index) {
+                    getDotPainter: (spot, _, _, index) {
                       final isLast = index == spots.length - 1;
                       return FlDotCirclePainter(
                         radius: isLast ? 4 : 2,
@@ -384,10 +552,17 @@ class _BalanceChart extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 4),
+        // La légende disait « Solde » et « Budget initial ».
+        //
+        // Elle décrivait l'ancienne courbe, qui partait du budget et prétendait
+        // suivre le solde. Renommer le titre sans toucher à la légende laissait
+        // l'écran se contredire à deux centimètres d'écart — et c'est la
+        // légende, plus près de la ligne, qu'on croit.
         Row(children: [
           Container(width: 12, height: 2, color: lineColor),
           const SizedBox(width: 4),
-          Text('Solde', style: TextStyle(color: context.cl.textM, fontSize: 9)),
+          Text('Gains et pertes cumulés',
+              style: TextStyle(color: context.cl.textM, fontSize: 9)),
           const SizedBox(width: 12),
           Container(width: 12, height: 2,
             decoration: BoxDecoration(
@@ -398,7 +573,8 @@ class _BalanceChart extends StatelessWidget {
               )),
             )),
           const SizedBox(width: 4),
-          Text('Budget initial', style: TextStyle(color: context.cl.textM, fontSize: 9)),
+          Text('Point de départ (0)',
+              style: TextStyle(color: context.cl.textM, fontSize: 9)),
         ]),
       ]),
     );
@@ -426,10 +602,25 @@ class _WeeklySummary extends StatelessWidget {
 
     if (weekly.isEmpty) return const SizedBox.shrink();
 
-    final wins    = weekly.where((b) => b.result == 'WIN').length;
-    final profit  = weekly.fold<double>(0, (sum, b) => sum + (b.profit ?? 0));
-    final isGain  = profit >= 0;
-    final rate    = weekly.isNotEmpty ? (wins / weekly.length * 100).toStringAsFixed(0) : '0';
+    final wins     = weekly.where((b) => b.result == 'WIN').length;
+    final decisive = weekly.where((b) => b.result != 'PUSH').length;
+    final profit   = weekly.fold<double>(0, (sum, b) => sum + (b.profit ?? 0));
+    final isGain   = profit >= 0;
+    // Même règle que le bandeau du haut : le taux passe par `BilanParis`.
+    //
+    // Cette ligne repliait sur « 0 » quand rien n'était tranché — « 0 %
+    // réussite » sur une semaine où aucun pari n'a encore de résultat — et
+    // annonçait « 100 % » dès le premier gagné. Sur une fenêtre de sept
+    // jours, l'échantillon est presque toujours sous le seuil : c'est
+    // justement là que le pourcentage trompe le plus.
+    final bilanSemaine = BilanParis(
+      suivis:   weekly.length,
+      gagnes:   wins,
+      perdus:   weekly.where((b) => b.result == 'LOSS').length,
+      tauxBrut: decisive > 0 ? wins / decisive * 100 : 0.0,
+      serie:    0,
+    );
+    final taux = bilanSemaine.taux;
 
     return Container(
       padding: const EdgeInsets.all(14),
@@ -450,12 +641,18 @@ class _WeeklySummary extends StatelessWidget {
           Text('Cette semaine',
             style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           const SizedBox(height: 2),
-          Text('${weekly.length} paris · $wins gagnés · $rate% réussite',
+          // Sans taux affichable, on s'en tient aux comptes bruts : ils
+          // informent sans prétendre à une mesure. Les pluriels suivent le
+          // nombre — « 1 paris · 1 gagnés » se lisait mal.
+          Text(
+            '${weekly.length} pari${weekly.length > 1 ? 's' : ''}'
+            ' · $wins gagné${wins > 1 ? 's' : ''}'
+            '${taux == null ? '' : ' · ${taux.toStringAsFixed(0)}% réussite'}',
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
           Text(
-            '${isGain ? '+' : ''}${_formatAmount(profit)} ${bankroll.currency}',
+            '${isGain ? '+' : ''}${montantExact(profit)} ${nomDevise(bankroll.currency)}',
             style: TextStyle(
               color: isGain ? AppColors.success : AppColors.error,
               fontSize: 13, fontWeight: FontWeight.w800)),
@@ -478,8 +675,20 @@ class _DisciplineReminder extends StatelessWidget {
     child: Row(children: [
       const Icon(Icons.shield_rounded, color: AppColors.warning, size: 15),
       const SizedBox(width: 8),
+      // Disait « Ne mise jamais plus sur le bookmaker. » Le conseil reste —
+      // c'est un garde-fou, et le retirer pour éviter un mot serait un
+      // mauvais échange. Seule la mention de l'opérateur part : PronoWin
+      // calcule une mise et en tient le registre, il ne la place nulle part,
+      // et un build destiné à Google Play n'a pas à désigner un guichet de
+      // paris.
+      // « Respecte toujours la mise calculée » donnait un ordre au nom d'un
+      // calcul qui n'est pas une science : une part fixe du capital selon la
+      // note que l'analyste a cochée. Le garde-fou utile — ne pas dépasser —
+      // reste ; l'injonction de s'y conformer, non. Un repère qu'on présente
+      // comme un plafond se discute ; un ordre, non.
       Expanded(child: Text(
-        'Respecte toujours la mise calculée. Ne mise jamais plus sur le bookmaker.',
+        'La mise suggérée est un plafond, pas une consigne : '
+        'ne la dépasse pas.',
         style: TextStyle(color: context.cl.textS, fontSize: 11, height: 1.4),
       )),
     ]),
@@ -489,7 +698,7 @@ class _DisciplineReminder extends StatelessWidget {
 // ── Filtres ───────────────────────────────────────────────────────────────────
 class _FilterRow extends StatelessWidget {
   final _BetFilter   filter;
-  final int pending, wins, losses, total;
+  final int pending, wins, losses, refunded, total;
   final ValueChanged<_BetFilter> onFilter;
 
   const _FilterRow({
@@ -497,6 +706,7 @@ class _FilterRow extends StatelessWidget {
     required this.pending,
     required this.wins,
     required this.losses,
+    required this.refunded,
     required this.total,
     required this.onFilter,
   });
@@ -508,6 +718,10 @@ class _FilterRow extends StatelessWidget {
       (_BetFilter.pending, 'En attente', pending, AppColors.warning),
       (_BetFilter.win,     'Gagnés',    wins,    AppColors.success),
       (_BetFilter.loss,    'Perdus',    losses,  AppColors.error),
+      // Masqué tant qu'il n'y en a aucun : un onglet toujours à zéro occupe la
+      // largeur d'un écran étroit pour ne rien apprendre.
+      if (refunded > 0)
+        (_BetFilter.refunded, 'Remboursés', refunded, context.cl.textM),
     ];
 
     return SingleChildScrollView(
@@ -523,7 +737,7 @@ class _FilterRow extends StatelessWidget {
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 180),
             margin: const EdgeInsets.only(right: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             decoration: BoxDecoration(
               color: sel ? color.withValues(alpha: 0.15) : context.cl.surface,
               borderRadius: BorderRadius.circular(20),
@@ -566,6 +780,7 @@ class _EmptyFilter extends StatelessWidget {
       _BetFilter.pending => 'Aucun pari en attente',
       _BetFilter.win     => 'Aucun pari gagné pour l\'instant',
       _BetFilter.loss    => 'Aucun pari perdu 🎉',
+      _BetFilter.refunded => 'Aucun pari remboursé',
       _BetFilter.all     => 'Aucun pari enregistré',
     };
     return Container(
@@ -583,16 +798,53 @@ class _EmptyFilter extends StatelessWidget {
 // ── Carte solde ───────────────────────────────────────────────────────────────
 class _BalanceCard extends StatelessWidget {
   final BankrollData bankroll;
-  final double profit;
-  const _BalanceCard({required this.bankroll, required this.profit});
+
+  /// Résultat net réalisé — le seul des trois montants qui dit si l'on gagne.
+  final double resultatNet;
+
+  /// Ce qui est engagé sur des paris non tranchés, déjà sorti du disponible.
+  final double misesEnCours;
+
+  const _BalanceCard({
+    required this.bankroll,
+    required this.resultatNet,
+    required this.misesEnCours,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isProfit    = profit >= 0;
+    final isProfit    = resultatNet >= 0;
     final profitColor = isProfit ? AppColors.success : AppColors.error;
-    final pct         = bankroll.progressPct;
 
-    return Container(
+    // Le capital, c'est ce qui est disponible **plus** ce qui est en jeu.
+    //
+    // La barre mesurait `disponible / budget` : poser un pari la faisait
+    // reculer, comme si l'argent avait été perdu. Il a seulement changé de
+    // poche.
+    final capital = bankroll.currentBalance + misesEnCours;
+    final pct     = bankroll.totalBudget > 0
+        ? (capital / bankroll.totalBudget).clamp(0.0, 2.0)
+        : 0.0;
+
+    final d = nomDevise(bankroll.currency);
+
+    // Lue widget par widget, la carte donnait « Solde actuel », « 12 500 »,
+    // « FCFA », « Budget total », « 10 000 », « FCFA », « +2 500 », « 125 % du
+    // budget » : huit fragments dont aucun ne dit lequel est quoi, sur l'écran
+    // où l'utilisateur suit son argent.
+    final annonce = 'Disponible ${montantExact(bankroll.currentBalance)} $d, '
+        'sur un budget de ${montantExact(bankroll.totalBudget)} $d. '
+        '${misesEnCours > 0
+            ? '${montantExact(misesEnCours)} $d engagés sur des paris en cours. '
+            : ''}'
+        'Résultat net réalisé : '
+        '${isProfit ? 'bénéfice' : 'perte'} de '
+        '${montantExact(resultatNet.abs())} $d.';
+
+    return Semantics(
+      label: annonce,
+      excludeSemantics: true,
+      child: Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         gradient: LinearGradient(
@@ -607,11 +859,13 @@ class _BalanceCard extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Solde actuel', style: TextStyle(
+            // « Solde actuel » ne disait pas que les mises en cours en sont
+            // déjà sorties. « Disponible » le dit.
+            Text('Disponible', style: TextStyle(
                 color: context.cl.textM, fontSize: 12, fontWeight: FontWeight.w500)),
             const SizedBox(height: 4),
             Text(
-              '${_formatAmount(bankroll.currentBalance)} ${bankroll.currency}',
+              '${montantExact(bankroll.currentBalance)} $d',
               style: TextStyle(
                 color: context.cl.textP, fontSize: 28,
                 fontWeight: FontWeight.w800, letterSpacing: -0.5)),
@@ -621,8 +875,19 @@ class _BalanceCard extends StatelessWidget {
             Text('Budget total', style: TextStyle(color: context.cl.textM, fontSize: 11)),
             const SizedBox(height: 2),
             Text(
-              '${_formatAmount(bankroll.totalBudget)} ${bankroll.currency}',
+              '${montantExact(bankroll.totalBudget)} $d',
               style: TextStyle(color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600)),
+            // L'engagé n'apparaissait nulle part : cet argent semblait avoir
+            // disparu du disponible sans explication.
+            if (misesEnCours > 0) ...[
+              const SizedBox(height: 4),
+              Text(
+                key: const Key('bankroll-engage'),
+                '${montantExact(misesEnCours)} $d engagés',
+                style: TextStyle(
+                    color: AppColors.warning, fontSize: 11,
+                    fontWeight: FontWeight.w600)),
+            ],
           ]),
         ]),
         const SizedBox(height: 16),
@@ -646,16 +911,20 @@ class _BalanceCard extends StatelessWidget {
           Icon(isProfit ? Icons.trending_up_rounded : Icons.trending_down_rounded,
               color: profitColor, size: 15),
           const SizedBox(width: 4),
-          Text(
-            '${isProfit ? '+' : ''}${_formatAmount(profit)} ${bankroll.currency}',
-            style: TextStyle(color: profitColor, fontSize: 13, fontWeight: FontWeight.w700)),
-          const Spacer(),
+          // Nommé, parce que trois montants différents cohabitent sur cette
+          // carte et que celui-ci est le seul qui parle de gain ou de perte.
+          Expanded(child: Text(
+            key: const Key('bankroll-resultat-net'),
+            '${isProfit ? '+' : ''}${montantExact(resultatNet)} $d '
+            'de résultat net',
+            style: TextStyle(
+                color: profitColor, fontSize: 13, fontWeight: FontWeight.w700))),
           Text(
             '${(pct * 100).toStringAsFixed(0)}% du budget',
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
       ]),
-    );
+    ));
   }
 }
 
@@ -667,7 +936,13 @@ class _StatChip extends StatelessWidget {
   const _StatChip({required this.label, required this.value, required this.icon, required this.color});
 
   @override
-  Widget build(BuildContext context) => Container(
+  // La valeur précède le libellé à l'écran, ce qui est bon visuellement mais
+  // s'annonce à l'envers : « 12 » puis « Paris gagnés ». On rétablit l'ordre
+  // pour la voix.
+  Widget build(BuildContext context) => Semantics(
+    label: '$label : $value',
+    excludeSemantics: true,
+    child: Container(
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
       color: context.cl.surface,
@@ -680,7 +955,7 @@ class _StatChip extends StatelessWidget {
           color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w800)),
       Text(label, style: TextStyle(color: context.cl.textM, fontSize: 10)),
     ]),
-  );
+  ));
 }
 
 // ── Carte pari ────────────────────────────────────────────────────────────────
@@ -692,14 +967,36 @@ class _BetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPending = bet.result == null;
     final isWin     = bet.result == 'WIN';
+    final isPush    = bet.result == 'PUSH';
     final color     = isPending ? AppColors.warning
                     : isWin    ? AppColors.success
+                    : isPush   ? AppColors.info
                     :             AppColors.error;
     final icon      = isPending ? Icons.hourglass_empty_rounded
                     : isWin    ? Icons.check_circle_rounded
+                    : isPush   ? Icons.replay_rounded
                     :             Icons.cancel_rounded;
 
-    return GestureDetector(
+    // Sans libellé, la carte s'annonçait « PSG – Marseille, Plus de 2.5,
+    // −1 000, +1 800 » : impossible de savoir si le pari est en cours, gagné
+    // ou perdu, ni ce que sont ces deux montants.
+    final etat = isPending ? 'en cours'
+               : isWin    ? 'gagné'
+               : isPush   ? 'remboursé'
+               :            'perdu';
+    final montant = bet.profit != null
+        ? '${bet.profit! >= 0 ? 'Gain' : 'Perte'} de '
+          '${montantExact(bet.profit!.abs())}'
+        : 'Gain potentiel ${montantExact(bet.potentialGain)}';
+
+    return Semantics(
+      button: true,
+      label: '${bet.homeTeam} contre ${bet.awayTeam}. '
+             '${bet.displayPredictionLabel}. Pari $etat. '
+             'Mise ${montantExact(bet.stakedAmount)}. $montant.'
+             '${bet.aConfirmer ? ' Mise à confirmer.' : ''}',
+      excludeSemantics: true,
+      child: GestureDetector(
       onTap: () => context.push('/bankroll/bet/${bet.id}', extra: bet),
       child: Container(
         margin:  const EdgeInsets.only(bottom: 10),
@@ -723,28 +1020,35 @@ class _BetCard extends StatelessWidget {
                   fontWeight: FontWeight.w600),
               maxLines: 1, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 3),
-            Text(bet.predictionLabel,
+            Text(bet.displayPredictionLabel,
               style: TextStyle(color: context.cl.textM, fontSize: 11)),
+            // M1 : la question attend dans le détail du pari.
+            if (bet.aConfirmer) ...[
+              const SizedBox(height: 4),
+              Text('Mise à confirmer',
+                style: TextStyle(color: AppColors.primaryBouton, fontSize: 11,
+                    fontWeight: FontWeight.w700)),
+            ],
           ])),
           const SizedBox(width: 8),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('−${_formatAmount(bet.stakedAmount)}',
+            Text('−${montantExact(bet.stakedAmount)}',
               style: TextStyle(color: context.cl.textP, fontSize: 12,
                   fontWeight: FontWeight.w700)),
             const SizedBox(height: 3),
             if (bet.profit != null)
               Text(
-                '${bet.profit! >= 0 ? '+' : ''}${_formatAmount(bet.profit!)}',
+                '${bet.profit! >= 0 ? '+' : ''}${montantExact(bet.profit!)}',
                 style: TextStyle(
                   color: bet.profit! >= 0 ? AppColors.success : AppColors.error,
                   fontSize: 12, fontWeight: FontWeight.w700))
             else
-              Text('→ ${_formatAmount(bet.potentialGain)}',
+              Text('→ ${montantExact(bet.potentialGain)}',
                 style: TextStyle(color: context.cl.textM, fontSize: 11)),
           ]),
         ]),
       ),
-    );
+    ));
   }
 }
 
@@ -790,11 +1094,26 @@ class _SetupView extends StatelessWidget {
             child: const Icon(Icons.savings_rounded,
                 color: AppColors.success, size: 44)),
           const SizedBox(height: 24),
-          Text('Configure ton bankroll', style: TextStyle(
+          Text('Configure ta bankroll', style: TextStyle(
               color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
           const SizedBox(height: 10),
+          // Le mot est expliqué là où il apparaît pour la première fois.
+          //
+          // Ce paragraphe employait « bankroll » trois fois — dont « la
+          // discipline bankroll » — sans jamais dire ce que c'était. Il
+          // expliquait la fonction avec le terme que la fonction doit
+          // justement apprendre.
+          //
+          // Il promettait aussi des mises « optimales ». La suggestion vaut
+          // une part fixe du solde selon la note de l'analyste : ni
+          // probabilité, ni cote, aucune optimisation. C'est le même mot de
+          // trop que le « Kelly simplifié » déjà retiré du service — et la
+          // liste juste en dessous, elle, le disait déjà correctement.
           Text(
-            'Définis ton budget de référence pour que PronoWin calcule automatiquement les mises optimales selon la discipline bankroll.',
+            "Ta bankroll, c'est l'argent que tu réserves aux paris. "
+            "Tu fixes ce budget une fois, et PronoWin te suggère ensuite "
+            "une part à miser — plus large quand la confiance de "
+            "l'analyste est élevée — puis suit ce qu'il devient.",
             style: TextStyle(color: context.cl.textS, fontSize: 14, height: 1.55),
             textAlign: TextAlign.center),
           const SizedBox(height: 32),
@@ -827,7 +1146,10 @@ class _SetupView extends StatelessWidget {
   Widget _features(BuildContext context) {
     const items = [
       (Icons.bolt_rounded,       'Mises calculées selon ton solde et la confiance'),
-      (Icons.auto_graph_rounded, 'Suivi du ROI et taux de réussite en temps réel'),
+      // Pas « en temps réel » : la synchronisation tourne toutes les 15 min.
+      // Les scores, eux, se rafraîchissent toutes les 30–45 s — d'où la
+      // formulation différente sur l'écran d'onboarding des résultats.
+      (Icons.auto_graph_rounded, 'Rentabilité et taux de réussite mis à jour à chaque résultat'),
       (Icons.update_rounded,     'Solde mis à jour automatiquement à chaque résultat'),
       (Icons.shield_rounded,     'Rappel de discipline après chaque mise confirmée'),
     ];
@@ -846,7 +1168,17 @@ class _SetupView extends StatelessWidget {
 // ── Bottom sheet budget ───────────────────────────────────────────────────────
 class _BudgetSheet extends ConsumerStatefulWidget {
   final BankrollData? existing;
-  const _BudgetSheet({this.existing});
+
+  /// Réinitialiser le solde, depuis les réglages.
+  ///
+  /// Le geste vivait en pleine page, pleine largeur et cerclé de rouge, entre
+  /// le bilan et les filtres. Il est ici parce que c'est un réglage de la
+  /// bankroll, au même titre que le budget — et parce qu'une action qui efface
+  /// un suivi pour trente jours n'a pas à se trouver sous le pouce de
+  /// quelqu'un qui parcourt ses paris.
+  final VoidCallback? onReset;
+
+  const _BudgetSheet({this.existing, this.onReset});
   @override
   ConsumerState<_BudgetSheet> createState() => _BudgetSheetState();
 }
@@ -865,6 +1197,10 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
     'GNF' => [50000, 100000, 250000, 500000, 1000000],
     _     => [5000, 10000, 25000, 50000, 100000],
   };
+
+  /// Des paris sont enregistrés : la devise ne change plus, les montants ne
+  /// se convertissent pas (100 000 XOF devenaient 100 000 EUR).
+  bool get _deviseFixee => widget.existing?.bets.isNotEmpty ?? false;
 
   @override
   void initState() {
@@ -893,7 +1229,12 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
       ref.invalidate(bankrollProvider);
       Navigator.pop(context);
     } catch (e) {
-      setState(() { _error = 'Erreur : $e'; _loading = false; });
+      // Le message du serveur, pas le texte de l'exception Dio.
+      final message = e is DioException ? (e.response?.data?['message'] as String?) : null;
+      setState(() {
+        _error = message ?? 'Budget non enregistré. Vérifie ta connexion et réessaie.';
+        _loading = false;
+      });
     }
   }
 
@@ -926,15 +1267,15 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
         Row(children: [
           Text('Devise :', style: TextStyle(color: context.cl.textM, fontSize: 13)),
           const SizedBox(width: 12),
-          ..._currencies.map((c) => GestureDetector(
-            onTap: () {
+          ...(_deviseFixee ? [_currency] : _currencies).map((c) => GestureDetector(
+            onTap: _deviseFixee ? null : () {
               HapticFeedback.selectionClick();
               setState(() { _currency = c; _ctrl.clear(); });
             },
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 180),
               margin: const EdgeInsets.only(right: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color:  _currency == c
                     ? AppColors.success.withValues(alpha: 0.15)
@@ -943,13 +1284,21 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
                 border: Border.all(
                   color: _currency == c ? AppColors.success : context.cl.border,
                   width: 0.8)),
-              child: Text(c, style: TextStyle(
+              child: Text(libelleChoixDevise(c), style: TextStyle(
                 color:      _currency == c ? AppColors.success : context.cl.textM,
                 fontSize:   12,
                 fontWeight: _currency == c ? FontWeight.w700 : FontWeight.w400)),
             ),
           )),
         ]),
+        if (_deviseFixee) ...[
+          const SizedBox(height: 6),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: Text('La devise est fixée par tes paris enregistrés.',
+              style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
+          ),
+        ],
 
         const SizedBox(height: 14),
 
@@ -985,12 +1334,12 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
         Wrap(spacing: 8, runSpacing: 6, children: _presets.map((p) => GestureDetector(
           onTap: () => setState(() => _ctrl.text = '$p'),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
               color:  AppColors.success.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: AppColors.success.withValues(alpha: 0.3))),
-            child: Text(_formatAmount(p.toDouble()),
+            child: Text(montantExact(p.toDouble()),
               style: const TextStyle(color: AppColors.success, fontSize: 12,
                   fontWeight: FontWeight.w600)),
           ),
@@ -1021,6 +1370,37 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
                     color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700))),
           ),
         ),
+        // Réinitialiser : proposé seulement si une bankroll existe déjà, et
+        // présenté comme ce qu'il est — discret, et suivi de ses conséquences.
+        if (widget.existing != null && widget.onReset != null) ...[
+          const SizedBox(height: 18),
+          Divider(color: context.cl.border, height: 1),
+          const SizedBox(height: 14),
+          GestureDetector(
+            onTap: () {
+              Navigator.pop(context);
+              widget.onReset!();
+            },
+            behavior: HitTestBehavior.opaque,
+            child: Row(children: [
+              Icon(Icons.refresh_rounded, color: context.cl.textM, size: 17),
+              const SizedBox(width: 9),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Réinitialiser le solde',
+                    style: TextStyle(
+                      color: context.cl.textS, fontSize: 13.5,
+                      fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Repart du budget, moins les mises en jeu. '
+                    'Une fois tous les 30 jours.',
+                    style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
+                ])),
+            ]),
+          ),
+        ],
       ]),
     );
   }
@@ -1039,9 +1419,17 @@ class _BankrollShimmerState extends State<_BankrollShimmer>
   @override
   void initState() {
     super.initState();
-    _ctrl = AnimationController(vsync: this, duration: 900.ms)..repeat(reverse: true);
+    _ctrl = AnimationController(vsync: this, duration: 900.ms);
     _anim = Tween<double>(begin: 0.3, end: 0.7)
         .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Boucle infinie : coupée si l'utilisateur a réduit les animations.
+    // Ce hook est aussi rappelé quand le réglage système change.
+    context.boucler(_ctrl, reverse: true);
   }
   @override
   void dispose() { _ctrl.dispose(); super.dispose(); }
@@ -1095,15 +1483,3 @@ class _ErrorState extends StatelessWidget {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-String _formatAmount(double amount) {
-  if (amount.abs() >= 1000) {
-    final s = amount.abs().toStringAsFixed(0);
-    final buf = StringBuffer();
-    for (var i = 0; i < s.length; i++) {
-      if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
-      buf.write(s[i]);
-    }
-    return amount < 0 ? '-${buf.toString()}' : buf.toString();
-  }
-  return amount.toStringAsFixed(0);
-}

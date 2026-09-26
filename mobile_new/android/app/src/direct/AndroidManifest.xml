@@ -1,0 +1,46 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+      Ce manifeste n'est fusionné que dans la variante « direct ».
+
+      L'APK téléchargé depuis le site ne se met pas à jour tout seul : c'est
+      l'application qui récupère le nouveau fichier et le remet à l'installateur
+      du système. Cela exige REQUEST_INSTALL_PACKAGES.
+
+      ⚠️ Cette permission ne doit JAMAIS figurer dans le paquet publié sur
+      Google Play. La politique « Device and Network Abuse » réserve
+      l'installation d'APK hors Play aux boutiques d'applications ; pour tout
+      le reste, la mise à jour passe par l'API Play. La déclarer dans l'AAB
+      n'est pas une mise à jour refusée, c'est un motif de retrait — et
+      l'application est en test fermé.
+
+      D'où la séparation par `productFlavors` plutôt qu'un simple drapeau Dart :
+      un drapeau de compilation ne change pas le manifeste. La variante « play » ne
+      contient pas ce fichier, donc pas cette permission, et
+      `tool/verifier_bundle.py` le vérifie sur l'artefact produit — pas sur
+      l'intention.
+    -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
+
+    <application>
+        <!--
+          Depuis Android 7, un `file://` remis à une autre application lève
+          `FileUriExposedException`. Le fichier téléchargé est donc exposé par
+          un fournisseur de contenu, avec une permission de lecture accordée à
+          l'installateur le temps de l'intention.
+
+          L'autorité est propre à l'application (`${applicationId}`) : deux
+          applications qui déclareraient la même autorité ne pourraient pas
+          être installées ensemble sur un même appareil.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.installateur"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/chemins_installateur"/>
+        </provider>
+    </application>
+</manifest>

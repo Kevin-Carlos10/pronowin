@@ -18,12 +18,63 @@ export class AdminAuthService {
     // Mise à jour de la date de dernière connexion
     await prisma.admin.update({ where: { id: admin.id }, data: { lastLoginAt: new Date() } });
 
-    const token = jwt.sign(
-      { adminId: admin.id, role: admin.role },
-      process.env.ADMIN_JWT_SECRET ?? process.env.JWT_SECRET!,
-      { expiresIn: '8h' }
-    );
+    const token = this._jeton(admin);
     return { token, admin: { id: admin.id, name: admin.name, email: admin.email, role: admin.role } };
+  }
+
+  /**
+   * Changer son propre mot de passe.
+   *
+   * L'admin-web postait déjà sur PATCH /admin/profile/password, qui n'existait
+   * pas : le formulaire échouait toujours pour l'admin principal (les
+   * sous-admins, eux, sont gérés localement par l'admin-web).
+   *
+   * La longueur minimale est revérifiée ici : l'admin-web la contrôle déjà,
+   * mais un contrôle purement client ne protège rien.
+   */
+  async changePassword(adminId: string, currentPassword: string, newPassword: string) {
+    if (!currentPassword || !newPassword) {
+      throw new Error('Mot de passe actuel et nouveau mot de passe requis.');
+    }
+    if (newPassword.length < 8) {
+      throw new Error('Le nouveau mot de passe doit faire au moins 8 caractères.');
+    }
+
+    const admin = await prisma.admin.findUnique({ where: { id: adminId } });
+    if (!admin) throw new Error('Compte introuvable.');
+
+    if (!await bcrypt.compare(currentPassword, admin.passwordHash)) {
+      throw new Error('Mot de passe actuel incorrect.');
+    }
+    if (await bcrypt.compare(newPassword, admin.passwordHash)) {
+      throw new Error('Le nouveau mot de passe doit être différent de l\'actuel.');
+    }
+
+    // ── Changer de mot de passe ferme les autres sessions ──
+    //
+    // Le jeton d'administration dure 8 heures et ne se révoquait qu'en
+    // désactivant le compte : après une fuite, changer son mot de passe ne
+    // coupait pas l'accès de qui était déjà connecté (constat S12). La
+    // version de session augmente ; les jetons qui portent l'ancienne sont
+    // refusés par le middleware. Un jeton neuf est rendu pour la session d'où
+    // part la demande, qui reste ouverte.
+    const misAJour = await prisma.admin.update({
+      where: { id: adminId },
+      data:  {
+        passwordHash:   await bcrypt.hash(newPassword, 12),
+        sessionVersion: { increment: 1 },
+      },
+    });
+    return { success: true, token: this._jeton(misAJour) };
+  }
+
+  /** Un jeton d'administration, porteur de la version de session du compte. */
+  private _jeton(admin: { id: string; role: string; sessionVersion?: number }) {
+    return jwt.sign(
+      { adminId: admin.id, role: admin.role, v: admin.sessionVersion ?? 0 },
+      process.env.ADMIN_JWT_SECRET ?? process.env.JWT_SECRET!,
+      { expiresIn: '8h' },
+    );
   }
 
   async createAdmin(data: { email: string; password: string; name: string; role?: 'super_admin' | 'analyst' }) {

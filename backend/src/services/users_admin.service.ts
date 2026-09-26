@@ -1,21 +1,42 @@
 ﻿import { NotificationService } from './notification.service';
 import { prisma } from '../lib/prisma';
+import { ligneCsv } from '../utils/csv';
 
 const notifSvc = new NotificationService();
 
+/** Les filtres de la liste des utilisateurs, partagés par l'écran et l'export. */
+export interface FiltresUtilisateurs {
+  search?:   string;   // pseudo, téléphone, courriel, nom, identifiant partenaire
+  plan?:     string;   // 'free' | 'premium'
+  status?:   string;   // 'active' | 'suspended'
+  dateFrom?: string;   // inscrit à partir de (AAAA-MM-JJ)
+  dateTo?:   string;   // inscrit jusqu'à (AAAA-MM-JJ, borne incluse)
+  minTx?:    number;   // au moins N transactions
+}
+
 export class UsersAdminService {
 
-  /** Liste paginée avec recherche + filtres */
-  async getUsers(params: {
-    page:     number;
-    perPage:  number;
-    search?:  string;   // pseudo ou téléphone
-    plan?:    string;   // 'free' | 'premium'
-    status?:  string;   // 'active' | 'suspended'
-    sortBy?:  string;   // 'createdAt' | 'pseudo' | 'subscriptionPlan'
-    sortDir?: 'asc' | 'desc';
-  }) {
-    const { page, perPage, search, plan, status, sortBy = 'createdAt', sortDir = 'desc' } = params;
+  /**
+   * Colonnes autorisées au tri.
+   *
+   * `sortBy` arrivait de la query string directement dans `orderBy` : une
+   * valeur inconnue faisait lever Prisma (500), et n'importe quel champ du
+   * modèle — `passwordHash` compris — devenait un critère d'ordre.
+   */
+  private static readonly SORTABLE = new Set([
+    'createdAt', 'pseudo', 'lastLoginAt', 'subscriptionPlan', 'isActive', 'email',
+  ]);
+
+  /**
+   * Le filtre de la liste des utilisateurs — le même pour l'écran et pour
+   * l'export.
+   *
+   * L'export ne recevait que le plan : le bouton « Exporter les résultats
+   * filtrés » sortait toute la base quand l'écran en montrait trois lignes
+   * (constat A16). Une seule fonction construit désormais le filtre des deux.
+   */
+  async filtreUtilisateurs(params: FiltresUtilisateurs) {
+    const { search, plan, status, dateFrom, dateTo, minTx } = params;
 
     const where: any = {};
     if (search) {
@@ -32,8 +53,45 @@ export class UsersAdminService {
     if (status === 'active')    where.isActive = true;
     if (status === 'suspended') where.isActive = false;
 
-    const orderBy: any = {};
-    orderBy[sortBy] = sortDir;
+    // Fenêtre d'inscription. Le panneau « Avancé » de l'admin envoyait déjà ces
+    // deux paramètres, mais rien ne les lisait : le filtre s'affichait comme
+    // actif sans jamais restreindre la liste.
+    const createdAt: any = {};
+    if (dateFrom) {
+      const d = new Date(dateFrom);
+      if (!isNaN(d.getTime())) createdAt.gte = d;
+    }
+    if (dateTo) {
+      const d = new Date(dateTo);
+      // Borne incluse : « avant le 12 » doit garder les inscrits du 12.
+      if (!isNaN(d.getTime())) createdAt.lte = new Date(d.getTime() + 86400000 - 1);
+    }
+    if (Object.keys(createdAt).length) where.createdAt = createdAt;
+
+    // Prisma ne sait pas filtrer sur un compteur de relation : on résout
+    // d'abord les identifiants concernés.
+    if (minTx && minTx > 0) {
+      const grouped = await prisma.transaction.groupBy({
+        by:     ['userId'],
+        _count: { _all: true },
+      });
+      where.id = { in: grouped.filter(g => g._count._all >= minTx).map(g => g.userId) };
+    }
+    return where;
+  }
+
+  /** Liste paginée avec recherche + filtres */
+  async getUsers(params: FiltresUtilisateurs & {
+    page:     number;
+    perPage:  number;
+    sortBy?:  string;
+    sortDir?: 'asc' | 'desc';
+  }) {
+    const { page, perPage, sortBy = 'createdAt', sortDir = 'desc' } = params;
+    const where = await this.filtreUtilisateurs(params);
+
+    const col = UsersAdminService.SORTABLE.has(sortBy) ? sortBy : 'createdAt';
+    const orderBy: any = { [col]: sortDir === 'asc' ? 'asc' : 'desc' };
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({
@@ -77,7 +135,8 @@ export class UsersAdminService {
         xbetId: true, birthDate: true, avatarUrl: true,
         subscriptionPlan: true, subscriptionExpiresAt: true,
         referralCode: true, referralEarnings: true,
-        isActive: true, createdAt: true, lastLoginAt: true, fcmToken: true,
+        isActive: true, createdAt: true, lastLoginAt: true,
+        _count: { select: { appareils: true } },
       },
     });
     if (!user) throw new Error('Utilisateur introuvable.');
@@ -130,9 +189,9 @@ export class UsersAdminService {
       data:  { isActive: !suspend },
     });
 
-    if (suspend && user.fcmToken) {
+    if (suspend) {
       await notifSvc.sendToUser(userId, {
-        title: '⚠️ Compte suspendu',
+        title: 'Compte suspendu',
         body:  reason ?? 'Votre compte a été suspendu. Contactez le support.',
         data:  { type: 'system' },
       }).catch(() => {});
@@ -159,7 +218,7 @@ export class UsersAdminService {
     ]);
 
     await notifSvc.sendToUser(userId, {
-      title: '🎉 Premium activé !',
+      title: 'Premium activé !',
       body:  `Votre accès Premium a été activé pour ${durationDays} jours par l'équipe PronoWin.`,
       data:  { deep_link: '/pronostics', type: 'system' },
     }).catch(() => {});
@@ -178,10 +237,63 @@ export class UsersAdminService {
 
   /** Envoyer notification push */
   async sendNotification(userId: string, title: string, body: string) {
-    const user = await prisma.user.findUnique({ where: { id: userId }, select: { fcmToken: true } });
-    if (!user?.fcmToken) throw new Error('Cet utilisateur n\'a pas de token FCM enregistré.');
+    const appareils = await prisma.appareilNotification.count({ where: { userId } });
+    if (appareils === 0) throw new Error('Cet utilisateur n\'a pas de token FCM enregistré.');
     await notifSvc.sendToUser(userId, { title, body, data: { type: 'system' } });
     return { success: true };
+  }
+
+  /**
+   * Suspendre / réactiver un lot de comptes.
+   *
+   * La modération se faisait compte par compte, en ouvrant chaque fiche. On
+   * garde l'envoi de notification en dehors de la transaction : un token FCM
+   * périmé ne doit pas annuler la suspension elle-même.
+   */
+  async bulkSuspend(userIds: string[], suspend: boolean, reason?: string) {
+    const ids = [...new Set(userIds.filter(id => typeof id === 'string' && id.trim()))];
+    if (ids.length === 0) throw new Error('Aucun utilisateur sélectionné.');
+
+    const { count } = await prisma.user.updateMany({
+      where: { id: { in: ids } },
+      data:  { isActive: !suspend },
+    });
+
+    if (suspend) {
+      const cibles = await prisma.user.findMany({
+        where:  { id: { in: ids }, appareils: { some: {} } },
+        select: { id: true },
+      });
+      await Promise.allSettled(cibles.map(u => notifSvc.sendToUser(u.id, {
+        title: 'Compte suspendu',
+        body:  reason ?? 'Votre compte a été suspendu. Contactez le support.',
+        data:  { type: 'system' },
+      })));
+    }
+    return { updated: count, suspended: suspend };
+  }
+
+  /**
+   * Notifier un lot de comptes.
+   *
+   * Renvoie le détail : sans token FCM, l'envoi est impossible et le silence
+   * ferait croire à un succès.
+   */
+  async bulkNotify(userIds: string[], title: string, body: string) {
+    const ids = [...new Set(userIds.filter(id => typeof id === 'string' && id.trim()))];
+    if (ids.length === 0)   throw new Error('Aucun utilisateur sélectionné.');
+    if (!title?.trim())     throw new Error('Titre requis.');
+    if (!body?.trim())      throw new Error('Message requis.');
+
+    const cibles = await prisma.user.findMany({
+      where:  { id: { in: ids }, appareils: { some: {} } },
+      select: { id: true },
+    });
+    const res = await Promise.allSettled(cibles.map(u =>
+      notifSvc.sendToUser(u.id, { title: title.trim(), body: body.trim(), data: { type: 'system' } })));
+
+    const sent = res.filter(r => r.status === 'fulfilled').length;
+    return { sent, failed: cibles.length - sent, skipped: ids.length - cibles.length, total: ids.length };
   }
 
   /** Modifier pseudo */
@@ -194,37 +306,53 @@ export class UsersAdminService {
     return prisma.user.update({ where: { id: userId }, data: { pseudo: newPseudo.trim() } });
   }
 
-  /** Exporter CSV */
-  async exportCsv(plan?: string) {
-    const where: any = {};
-    if (plan) where.subscriptionPlan = plan;
+  /** En-tête CSV (utilisateurs) */
+  exportCsvHeader() {
+    return 'ID,Pseudo,Prénom,Nom,Téléphone,Email,Pays,1xBet ID,Date naissance,Plan,Expire le,Code parrainage,Gains parrainage,Actif,Inscrit le,Dernière connexion';
+  }
 
-    const users = await prisma.user.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true, pseudo: true, firstName: true, lastName: true,
-        phoneNumber: true, email: true, countryCode: true, xbetId: true,
-        birthDate: true, subscriptionPlan: true, subscriptionExpiresAt: true,
-        referralCode: true, referralEarnings: true, isActive: true,
-        createdAt: true, lastLoginAt: true, 
-      },
-    });
+  /**
+   * Exporter CSV en flux, page par page (cursor sur id), plutôt que de charger
+   * toute la table users en mémoire et construire la chaîne CSV d'un bloc —
+   * la table n'a pas de limite naturelle de croissance.
+   */
+  async *exportCsvRows(filtres: FiltresUtilisateurs = {}, pageSize = 1000): AsyncGenerator<string> {
+    const where = await this.filtreUtilisateurs(filtres);
 
-    const header = 'ID,Pseudo,Prénom,Nom,Téléphone,Email,Pays,1xBet ID,Date naissance,Plan,Expire le,Code parrainage,Gains parrainage,Actif,Inscrit le,Dernière connexion';
-    const rows   = users.map(u => [
-      u.id, u.pseudo, u.firstName ?? '', u.lastName ?? '',
-      u.phoneNumber, u.email ?? '', u.countryCode, u.xbetId ?? '',
-      (u.birthDate as Date)?.toISOString().split('T')[0] ?? '',
-      u.subscriptionPlan,
-      u.subscriptionExpiresAt?.toISOString().split('T')[0] ?? '',
-      u.referralCode, u.referralEarnings,
-      u.isActive ? 'Oui' : 'Non',
-      u.createdAt.toISOString().split('T')[0],
-      u.lastLoginAt?.toISOString().split('T')[0] ?? '',
-    ].map(v => `"${v}"`).join(','));
+    let cursor: string | undefined;
+    while (true) {
+      const users = await prisma.user.findMany({
+        where,
+        orderBy: { id: 'asc' },
+        take: pageSize,
+        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
+        select: {
+          id: true, pseudo: true, firstName: true, lastName: true,
+          phoneNumber: true, email: true, countryCode: true, xbetId: true,
+          birthDate: true, subscriptionPlan: true, subscriptionExpiresAt: true,
+          referralCode: true, referralEarnings: true, isActive: true,
+          createdAt: true, lastLoginAt: true,
+        },
+      });
+      if (users.length === 0) return;
 
-    return [header, ...rows].join('\n');
+      for (const u of users) {
+        yield ligneCsv([
+          u.id, u.pseudo, u.firstName ?? '', u.lastName ?? '',
+          u.phoneNumber, u.email ?? '', u.countryCode, u.xbetId ?? '',
+          (u.birthDate as Date)?.toISOString().split('T')[0] ?? '',
+          u.subscriptionPlan,
+          u.subscriptionExpiresAt?.toISOString().split('T')[0] ?? '',
+          u.referralCode, u.referralEarnings,
+          u.isActive ? 'Oui' : 'Non',
+          u.createdAt.toISOString().split('T')[0],
+          u.lastLoginAt?.toISOString().split('T')[0] ?? '',
+        ]);
+      }
+
+      cursor = users[users.length - 1].id;
+      if (users.length < pageSize) return;
+    }
   }
 
   /** Stats globales */

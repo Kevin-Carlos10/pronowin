@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/router/navigation_keys.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import 'notification_service.dart';
+import '../../../../core/services/analyse_usage.dart';
 
 // ─── Handler background (top-level obligatoire) ───────────────────────────────
 @pragma('vm:entry-point')
@@ -49,7 +51,10 @@ class FCMService {
 
     // 2. Configurer les notifications locales (foreground)
     const initSettings = InitializationSettings(
-      android: AndroidInitializationSettings('@mipmap/ic_launcher'),
+      // `@mipmap/ic_launcher` etait le logo Flutter par defaut, jamais
+      // remplace : l'application utilise `launcher_icon`. Et une icone de
+      // notification doit etre monochrome — Android n'en garde que l'alpha.
+      android: AndroidInitializationSettings('@drawable/ic_notification'),
       iOS:     DarwinInitializationSettings(
         requestAlertPermission: true,
         requestBadgePermission: true,
@@ -85,6 +90,7 @@ class FCMService {
     // 5. Tap notification (app en background → foreground)
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
       final link = message.data['deep_link'] as String?;
+      AnalyseUsage.notificationOuverte((message.data['type'] as String?) ?? '');
       debugPrint('[FCM Tap background→foreground] deep_link: $link');
       // Rafraîchir la liste depuis l'API (la notif est déjà en base)
       notifier.fetch();
@@ -106,15 +112,19 @@ class FCMService {
       }
     }
 
-    // 7. Enregistrer le token FCM sur le backend
-    final token = await _fcm.getToken();
-    if (token != null) {
-      debugPrint('[FCM] Token: ${token.substring(0, 20)}...');
-      await _registerToken(ref, token);
+    // 7. Enregistrer le token FCM sur le backend — inutile (et rejeté par
+    //    l'API) tant qu'on navigue en invité, sans compte.
+    if (ref.read(effectiveLoggedInProvider)) {
+      final token = await _fcm.getToken();
+      if (token != null) {
+        debugPrint('[FCM] Token: ${token.substring(0, 20)}...');
+        await _registerToken(ref, token);
+      }
     }
 
-    // 8. Écouter les refreshes de token
+    // 8. Écouter les refreshes de token — uniquement utile pour un compte connecté
     _fcm.onTokenRefresh.listen((newToken) {
+      if (!ref.read(effectiveLoggedInProvider)) return;
       debugPrint('[FCM] Token refresh');
       _registerToken(ref, newToken);
     });
@@ -202,4 +212,11 @@ class FCMService {
 
   /// Récupérer le token actuel (utile pour debug)
   static Future<String?> getToken() => _fcm.getToken();
+
+  /// À appeler juste après une connexion réussie (un invité vient de créer
+  /// un compte / se connecter) pour rattacher le token FCM déjà obtenu.
+  static Future<void> registerCurrentToken(WidgetRef ref) async {
+    final token = await _fcm.getToken();
+    if (token != null) await _registerToken(ref, token);
+  }
 }

@@ -3,16 +3,16 @@
 <style>
 /* ── Modals ──────────────────────────────────────────────────────────────── */
 .ud-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); z-index:200; align-items:center; justify-content:center; }
-.ud-modal-box { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:1.75rem; width:min(96vw,480px); animation:slideUp .25s ease; }
+.ud-modal-box { background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:1.75rem; width:min(96vw,480px); animation:slideUp .25s ease; }
 @keyframes slideUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:none; } }
 .ud-modal-title { font-size:1rem; font-weight:700; margin-bottom:1.1rem; }
 
 /* ── Avatar ──────────────────────────────────────────────────────────────── */
 .ud-avatar-wrap { position:relative; flex-shrink:0; }
 .ud-avatar { width:64px; height:64px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:1.5rem; font-weight:800; }
-.ud-avatar.premium { background:rgba(245,158,11,.15); color:var(--warning); }
+.ud-avatar.premium { background:rgba(var(--warning-rgb),.15); color:var(--on-warning); }
 .ud-avatar.normal  { background:var(--surface-d); color:var(--text-m); }
-.ud-avatar.banned  { background:rgba(239,68,68,.15); color:var(--error); }
+.ud-avatar.banned  { background:rgba(var(--error-rgb),.15); color:var(--on-danger); }
 .ud-status-dot { position:absolute; bottom:2px; right:2px; width:14px; height:14px; border-radius:50%; border:2px solid var(--surface); }
 .ud-status-dot.active   { background:var(--success); }
 .ud-status-dot.inactive { background:var(--error); }
@@ -26,13 +26,13 @@
 .ud-id-row { display:flex; align-items:center; gap:.4rem; margin-top:.3rem; }
 .ud-id { font-size:.72rem; color:var(--text-dim); font-family:monospace; background:var(--surface-d); padding:.15rem .45rem; border-radius:4px; }
 .ud-copy-btn { background:none; border:none; cursor:pointer; color:var(--text-dim); font-size:.75rem; padding:.1rem .3rem; border-radius:4px; transition:all .15s; }
-.ud-copy-btn:hover { background:var(--surface-h); color:var(--primary); }
+.ud-copy-btn:hover { background:var(--surface-h); color:var(--primary-texte); }
 
 /* ── Onglets ─────────────────────────────────────────────────────────────── */
 .ud-tabs { display:flex; gap:0; border-bottom:1px solid var(--border); margin-bottom:1.25rem; overflow-x:auto; }
 .ud-tab  { padding:.6rem 1.1rem; font-size:.83rem; font-weight:600; color:var(--text-m); border-bottom:2px solid transparent; cursor:pointer; white-space:nowrap; transition:color .15s, border-color .15s; background:none; border-top:none; border-left:none; border-right:none; font-family:inherit; }
 .ud-tab:hover   { color:var(--text); }
-.ud-tab.active  { color:var(--primary); border-bottom-color:var(--primary); }
+.ud-tab.active  { color:var(--primary-texte); border-bottom-color:var(--primary); }
 .ud-panel       { display:none; }
 .ud-panel.active { display:block; }
 
@@ -41,10 +41,10 @@
 .ud-row:last-child { border-bottom:0; }
 .ud-row-lbl { font-size:.8rem; color:var(--text-m); flex-shrink:0; }
 .ud-row-val { font-size:.83rem; font-weight:500; color:var(--text); text-align:right; word-break:break-all; }
-.ud-row-val.primary { color:var(--primary); }
-.ud-row-val.success { color:var(--success); }
-.ud-row-val.error   { color:var(--error); }
-.ud-row-val.purple  { color:#A78BFA; }
+.ud-row-val.primary { color:var(--primary-texte); }
+.ud-row-val.success { color:var(--on-success); }
+.ud-row-val.error   { color:var(--on-danger); }
+.ud-row-val.purple  { color:var(--on-purple); }
 
 /* ── Stats mini ──────────────────────────────────────────────────────────── */
 .ud-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:.6rem; margin-bottom:1rem; }
@@ -59,12 +59,12 @@
 .ud-action-btns  { display:flex; flex-direction:column; gap:.4rem; }
 
 /* ── Ban info box ────────────────────────────────────────────────────────── */
-.ud-ban-box { background:rgba(239,68,68,.08); border:1px solid rgba(239,68,68,.2); border-radius:var(--radius-s); padding:.75rem .9rem; margin-bottom:.75rem; font-size:.8rem; }
+.ud-ban-box { background:rgba(var(--error-rgb),.08); border:1px solid rgba(var(--error-rgb),.2); border-radius:var(--radius-s); padding:.75rem .9rem; margin-bottom:.75rem; font-size:.8rem; }
 .ud-ban-box .reason { font-weight:600; color:var(--text); margin-bottom:.25rem; }
 .ud-ban-box .meta   { color:var(--text-dim); line-height:1.5; }
 
 /* ── Premium box ─────────────────────────────────────────────────────────── */
-.ud-premium-box { background:rgba(245,158,11,.08); border:1px solid rgba(245,158,11,.2); border-radius:var(--radius-s); padding:.75rem .9rem; margin-bottom:.75rem; font-size:.83rem; color:var(--warning); font-weight:600; }
+.ud-premium-box { background:rgba(var(--warning-rgb),.08); border:1px solid rgba(var(--warning-rgb),.2); border-radius:var(--radius-s); padding:.75rem .9rem; margin-bottom:.75rem; font-size:.83rem; color:var(--on-warning); font-weight:600; }
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 .ud-layout { display:grid; grid-template-columns:1fr 300px; gap:1rem; align-items:start; }
@@ -74,16 +74,16 @@
 <!-- ── Modals ───────────────────────────────────────────────────────────── -->
 <div class="ud-modal" id="modal-ban">
   <div class="ud-modal-box">
-    <div class="ud-modal-title" style="color:var(--error)">🚫 Bannir <%= user.pseudo %></div>
+    <div class="ud-modal-title" style="color:var(--on-danger)"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir <%= user.pseudo %></div>
     <form method="POST" action="/admin/users/<%= user.id %>/ban">
       <input type="hidden" name="pseudo" value="<%= user.pseudo %>">
       <div class="form-group" style="margin-bottom:.9rem">
-        <label>Raison <span style="color:var(--error)">*</span></label>
-        <textarea class="input" name="reason" rows="3" placeholder="Ex : Arnaque, comportement abusif, fraude…" required></textarea>
+        <label>Raison <span style="color:var(--on-danger)">*</span></label>
+        <textarea class="input" name="reason" rows="3" placeholder="Ex : Arnaque, comportement abusif, fraude…" required aria-label="Raison"></textarea>
       </div>
       <div class="form-group" style="margin-bottom:1.25rem">
         <label>Durée</label>
-        <select class="input" name="duration_days">
+        <select class="input" name="duration_days" aria-label="Durée en jours">
           <option value="1">1 jour</option>
           <option value="3">3 jours</option>
           <option value="7" selected>7 jours</option>
@@ -95,7 +95,7 @@
       </div>
       <div style="display:flex;gap:.6rem;justify-content:flex-end">
         <button type="button" class="btn btn-outline" onclick="closeModal('modal-ban')">Annuler</button>
-        <button type="submit" class="btn btn-danger">🚫 Bannir</button>
+        <button type="submit" class="btn btn-danger"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir</button>
       </div>
     </form>
   </div>
@@ -103,13 +103,13 @@
 
 <div class="ud-modal" id="modal-notif">
   <div class="ud-modal-box">
-    <div class="ud-modal-title">📱 Envoyer une notification</div>
+    <div class="ud-modal-title"><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg> Envoyer une notification</div>
     <form method="POST" action="/admin/users/<%= user.id %>/notify">
-      <div class="form-group" style="margin-bottom:.9rem"><label>Titre</label><input class="input" type="text" name="title" required placeholder="Ex : Votre dépôt a été validé"></div>
-      <div class="form-group" style="margin-bottom:1.25rem"><label>Message</label><textarea class="input" name="body" rows="3" required placeholder="Contenu de la notification…"></textarea></div>
+      <div class="form-group" style="margin-bottom:.9rem"><label>Titre</label><input class="input" type="text" name="title" required placeholder="Ex : Votre dépôt a été validé" aria-label="Titre"></div>
+      <div class="form-group" style="margin-bottom:1.25rem"><label>Message</label><textarea class="input" name="body" rows="3" required placeholder="Contenu de la notification…" aria-label="Message"></textarea></div>
       <div style="display:flex;gap:.6rem;justify-content:flex-end">
         <button type="button" class="btn btn-outline" onclick="closeModal('modal-notif')">Annuler</button>
-        <button type="submit" class="btn btn-primary">📤 Envoyer</button>
+        <button type="submit" class="btn btn-primary"><svg class="ic" aria-hidden="true"><use href="#ic-upload"/></svg> Envoyer</button>
       </div>
     </form>
   </div>
@@ -117,9 +117,9 @@
 
 <div class="ud-modal" id="modal-pseudo">
   <div class="ud-modal-box">
-    <div class="ud-modal-title">✏️ Modifier le pseudo</div>
+    <div class="ud-modal-title"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier le pseudo</div>
     <form method="POST" action="/admin/users/<%= user.id %>/pseudo">
-      <div class="form-group" style="margin-bottom:1.25rem"><label>Nouveau pseudo</label><input class="input" type="text" name="pseudo" value="<%= user.pseudo %>" required minlength="3"></div>
+      <div class="form-group" style="margin-bottom:1.25rem"><label>Nouveau pseudo</label><input class="input" type="text" name="pseudo" value="<%= user.pseudo %>" required minlength="3" aria-label="Pseudo"></div>
       <div style="display:flex;gap:.6rem;justify-content:flex-end">
         <button type="button" class="btn btn-outline" onclick="closeModal('modal-pseudo')">Annuler</button>
         <button type="submit" class="btn btn-primary">Sauvegarder</button>
@@ -132,13 +132,13 @@
 <div class="topbar">
   <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
     <a href="/admin/users" style="color:var(--text-dim);font-size:.82rem;text-decoration:none">← Utilisateurs</a>
-    <span style="color:var(--border)">/</span>
-    <h2 style="margin:0"><%= user.full_name || user.pseudo %></h2>
-    <span class="badge <%= user.isActive ? 'badge-ok' : 'badge-err' %>"><%= user.isActive ? '✓ Actif' : '✗ Suspendu' %></span>
-    <% if(user.is_premium) { %><span class="badge badge-warn">👑 Premium</span><% } %>
-    <% if(typeof activeBan !== 'undefined' && activeBan) { %><span class="badge badge-err">🚫 Banni</span><% } %>
+    <span aria-hidden="true" style="color:var(--text-dim)">/</span>
+    <h1 style="margin:0"><%= user.full_name || user.pseudo %></h1>
+    <span class="badge <%= user.isActive ? 'badge-ok' : 'badge-err' %>"><%= user.isActive ? '✓ Actif' : '✕ Suspendu' %></span>
+    <% if(user.is_premium) { %><span class="badge badge-warn"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span><% } %>
+    <% if(typeof activeBan !== 'undefined' && activeBan) { %><span class="badge badge-err"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Banni</span><% } %>
   </div>
-  <a href="/admin/users/<%= user.id %>" class="btn btn-outline btn-sm" title="Recharger">🔄</a>
+  <a href="/admin/users/<%= user.id %>" class="btn btn-outline btn-sm" title="Recharger"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg></a>
 </div>
 
 <!-- ── Layout ───────────────────────────────────────────────────────────── -->
@@ -163,22 +163,18 @@
           <% if(user.full_name) { %><div class="ud-handle">@<%= user.pseudo %></div><% } %>
           <div class="ud-id-row">
             <span class="ud-id" id="user-id-display"><%= user.id %></span>
-            <button class="ud-copy-btn" onclick="copyId()" title="Copier l'ID">📋</button>
-            <span id="copy-confirm" style="font-size:.7rem;color:var(--success);display:none">✓ Copié</span>
+            <button class="ud-copy-btn" onclick="copyId()" title="Copier l'ID" aria-label="Copier l'identifiant"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg></button>
+            <span id="copy-confirm" style="font-size:.7rem;color:var(--on-success);display:none"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Copié</span>
           </div>
         </div>
         <!-- Stats rapides -->
         <div class="ud-stats" style="min-width:200px">
           <div class="ud-stat">
-            <div class="v"><%= transactions ? transactions.length : 0 %></div>
-            <div class="l">TX</div>
-          </div>
-          <div class="ud-stat">
-            <div class="v" style="color:var(--warning)"><%= (user.days_left&&user.is_premium) ? user.days_left+'j' : '—' %></div>
+            <div class="v" style="color:var(--on-warning)"><%= (user.days_left&&user.is_premium) ? user.days_left+'j' : '—' %></div>
             <div class="l">Premium</div>
           </div>
           <div class="ud-stat">
-            <div class="v" style="color:var(--success)"><%= (user.referralEarnings||0) > 0 ? ((user.referralEarnings/1000).toFixed(0)+'k') : (referrals ? referrals.length : 0) %></div>
+            <div class="v" style="color:var(--on-success)"><%= (user.referralEarnings||0) > 0 ? ((user.referralEarnings/1000).toFixed(0)+'k') : (referrals ? referrals.length : 0) %></div>
             <div class="l"><%= (user.referralEarnings||0) > 0 ? 'FCFA' : 'Filleuls' %></div>
           </div>
         </div>
@@ -186,13 +182,12 @@
 
       <!-- Onglets -->
       <div class="ud-tabs">
-        <button class="ud-tab active" onclick="switchTab('tab-info', this)">👤 Informations</button>
-        <button class="ud-tab" onclick="switchTab('tab-tx', this)">💰 Transactions (<%= transactions ? transactions.length : 0 %>)</button>
+        <button class="ud-tab active" onclick="switchTab('tab-info', this)"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> Informations</button>
         <% if(subscriptions && subscriptions.length > 0) { %>
-        <button class="ud-tab" onclick="switchTab('tab-subs', this)">👑 Abonnements (<%= subscriptions.length %>)</button>
+        <button class="ud-tab" onclick="switchTab('tab-subs', this)"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Abonnements (<%= subscriptions.length %>)</button>
         <% } %>
         <% if(referrals && referrals.length > 0) { %>
-        <button class="ud-tab" onclick="switchTab('tab-refs', this)">👥 Filleuls (<%= referrals.length %>)</button>
+        <button class="ud-tab" onclick="switchTab('tab-refs', this)"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Filleuls (<%= referrals.length %>)</button>
         <% } %>
       </div>
 
@@ -220,31 +215,8 @@
         <% row('Gains parrainage', (user.referralEarnings||0).toLocaleString()+' FCFA', 'success') %>
         <% row('Inscrit le', new Date(user.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'})) %>
         <% row('Dernière connexion', user.lastLoginAt ? new Date(user.lastLoginAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) : 'Jamais') %>
-        <% row('Token FCM', user.fcmToken ? '✓ Enregistré' : '✗ Absent', user.fcmToken ? 'success' : 'error') %>
-      </div>
-
-      <!-- Onglet : Transactions -->
-      <div class="ud-panel" id="tab-tx">
-        <% if(!transactions || transactions.length === 0) { %>
-        <p class="empty" style="padding:1.5rem 0">Aucune transaction enregistrée.</p>
-        <% } else { %>
-        <div class="table-wrap">
-          <table>
-            <thead><tr><th>Type</th><th>Montant</th><th>Méthode</th><th>Statut</th><th>Date</th></tr></thead>
-            <tbody>
-            <% transactions.forEach(tx => { %>
-            <tr>
-              <td><span class="badge <%= tx.type==='deposit'?'badge-ok':'badge-warn' %>"><%= tx.type==='deposit'?'⬇️ Dépôt':'⬆️ Retrait' %></span></td>
-              <td style="font-weight:700"><%= (tx.amount||0).toLocaleString() %> FCFA</td>
-              <td style="color:var(--text-m);font-size:.78rem"><%= (tx.paymentMethod||'').replace(/_/g,' ') || '—' %></td>
-              <td><span class="badge <%= tx.status==='completed'?'badge-ok':tx.status==='rejected'?'badge-err':'badge-warn' %>"><%= tx.status %></span></td>
-              <td style="color:var(--text-dim);font-size:.78rem"><%= new Date(tx.createdAt).toLocaleDateString('fr-FR',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}) %></td>
-            </tr>
-            <% }) %>
-            </tbody>
-          </table>
-        </div>
-        <% } %>
+        <% const nbAppareils = user._count ? user._count.appareils : (user.fcmToken ? 1 : 0); %>
+        <% row('Appareils notifiés', nbAppareils > 0 ? '✓ ' + nbAppareils : '✕ Aucun', nbAppareils > 0 ? 'success' : 'error') %>
       </div>
 
       <!-- Onglet : Abonnements -->
@@ -252,8 +224,13 @@
       <div class="ud-panel" id="tab-subs">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Plan</th><th>Statut</th><th>Début</th><th>Fin</th><th>Source</th></tr></thead>
+            <thead><tr><th scope="col">Plan</th><th scope="col">Statut</th><th scope="col">Début</th><th scope="col">Fin</th><th scope="col">Source</th></tr></thead>
             <tbody>
+            <% if (!subscriptions.length) { %>
+            <tr><td colspan="5" style="text-align:center;padding:1.6rem 1rem;color:var(--text-dim);font-size:.84rem">
+              Aucun abonnement. Cet utilisateur n'a jamais activé le Premium.
+            </td></tr>
+            <% } %>
             <% subscriptions.forEach(sub => { %>
             <tr>
               <td><span class="badge badge-warn"><%= sub.plan || sub.subscriptionPlan || 'Premium' %></span></td>
@@ -274,8 +251,13 @@
       <div class="ud-panel" id="tab-refs">
         <div class="table-wrap">
           <table>
-            <thead><tr><th>Filleul</th><th>Téléphone</th><th>Plan</th><th>Niveau</th><th>Commission</th></tr></thead>
+            <thead><tr><th scope="col">Filleul</th><th scope="col">Téléphone</th><th scope="col">Plan</th><th scope="col">Niveau</th><th scope="col">Commission</th></tr></thead>
             <tbody>
+            <% if (!referrals.length) { %>
+            <tr><td colspan="5" style="text-align:center;padding:1.6rem 1rem;color:var(--text-dim);font-size:.84rem">
+              Aucun filleul. Personne ne s'est encore inscrit avec son code de parrainage.
+            </td></tr>
+            <% } %>
             <% referrals.forEach(r => { %>
             <tr>
               <td>
@@ -284,7 +266,7 @@
               <td style="color:var(--text-m);font-size:.78rem"><%= r.referred.phoneNumber %></td>
               <td><span class="badge <%= r.referred.subscriptionPlan==='premium'?'badge-warn':'badge-info' %>"><%= r.referred.subscriptionPlan %></span></td>
               <td style="text-align:center;font-weight:600">N<%= r.level %></td>
-              <td style="color:var(--success);font-weight:700"><%= (r.commissionAmount||0).toLocaleString() %> FCFA</td>
+              <td style="color:var(--on-success);font-weight:700"><%= (r.commissionAmount||0).toLocaleString() %> FCFA</td>
             </tr>
             <% }) %>
             </tbody>
@@ -302,22 +284,23 @@
 
       <!-- Premium -->
       <div class="ud-action-section">
-        <div class="ud-action-title">👑 Abonnement Premium</div>
+        <div class="ud-action-title"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Abonnement Premium</div>
         <% if(user.is_premium) { %>
         <div class="ud-premium-box">
           Premium actif — <%= user.days_left %> jour<%= user.days_left > 1 ? 's' : '' %> restant<%= user.days_left > 1 ? 's' : '' %>
         </div>
-        <form method="POST" action="/admin/users/<%= user.id %>/revoke-premium">
-          <button type="submit" class="btn btn-danger btn-sm" style="width:100%"
-            onclick="return confirm('Révoquer le Premium de <%= user.pseudo %> ?')">✗ Révoquer le Premium</button>
+        <form method="POST" action="/admin/users/<%= user.id %>/revoke-premium" id="form-revoke-premium">
+          <button type="button" class="btn btn-danger btn-sm" style="width:100%"
+            data-pseudo="<%= user.pseudo %>"
+            onclick="askConfirm({icon:'x',title:'Révoquer le Premium',msg:'Révoquer le Premium de '+this.dataset.pseudo+' ?',btnLabel:'Révoquer',btnClass:'btn-danger',onConfirm:function(){document.getElementById('form-revoke-premium').submit()}})"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Révoquer le Premium</button>
         </form>
         <% } else { %>
         <form method="POST" action="/admin/users/<%= user.id %>/premium" style="display:flex;gap:.5rem;align-items:flex-end">
           <div style="flex:1">
             <label style="font-size:.72rem;color:var(--text-dim);display:block;margin-bottom:.3rem">Durée (jours)</label>
-            <input class="input" type="number" name="duration_days" value="30" min="1" max="365">
+            <input class="input" type="number" name="duration_days" value="30" min="1" max="365" aria-label="Durée en jours">
           </div>
-          <button type="submit" class="btn btn-primary btn-sm">👑 Activer</button>
+          <button type="submit" class="btn btn-primary btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Activer</button>
         </form>
         <% } %>
       </div>
@@ -328,7 +311,7 @@
         <form method="POST" action="/admin/users/<%= user.id %>/suspend">
           <input type="hidden" name="suspend" value="<%= user.isActive ? 'true' : 'false' %>">
           <% if(user.isActive) { %>
-          <input class="input" type="text" name="reason" placeholder="Raison (optionnelle)…" style="margin-bottom:.5rem;font-size:.82rem">
+          <input class="input" type="text" name="reason" placeholder="Raison (optionnelle)…" style="margin-bottom:.5rem;font-size:.82rem" aria-label="Raison">
           <% } %>
           <button type="submit" class="btn <%= user.isActive ? 'btn-danger' : 'btn-success' %> btn-sm" style="width:100%"
             onclick="return confirm('<%= user.isActive ? 'Suspendre' : 'Réactiver' %> ce compte ?')">
@@ -340,7 +323,7 @@
       <!-- Bannissement -->
       <% if(hasPerm('users','write')) { %>
       <div class="ud-action-section">
-        <div class="ud-action-title">🚫 Bannissement</div>
+        <div class="ud-action-title"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannissement</div>
         <% if(typeof activeBan !== 'undefined' && activeBan) { %>
         <div class="ud-ban-box">
           <div class="reason">« <%= activeBan.reason %> »</div>
@@ -351,24 +334,27 @@
         </div>
         <form method="POST" action="/admin/users/<%= user.id %>/unban">
           <input type="hidden" name="pseudo" value="<%= user.pseudo %>">
-          <input class="input" type="text" name="unban_reason" placeholder="Raison du débannissement…" style="margin-bottom:.5rem;font-size:.82rem">
-          <button type="submit" class="btn btn-success btn-sm" style="width:100%">🔓 Débannir</button>
+          <input class="input" type="text" name="unban_reason" placeholder="Raison du débannissement…" style="margin-bottom:.5rem;font-size:.82rem" aria-label="Raison de la levée">
+          <button type="submit" class="btn btn-success btn-sm" style="width:100%"><svg class="ic" aria-hidden="true"><use href="#ic-unlock"/></svg> Débannir</button>
         </form>
         <% } else { %>
-        <button onclick="openModal('modal-ban')" class="btn btn-danger btn-sm" style="width:100%">🚫 Bannir cet utilisateur</button>
+        <button onclick="openModal('modal-ban')" class="btn btn-danger btn-sm" style="width:100%"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir cet utilisateur</button>
         <% } %>
       </div>
       <% } %>
 
       <!-- Actions rapides -->
       <div class="ud-action-section">
-        <div class="ud-action-title">⚡ Actions rapides</div>
+        <div class="ud-action-title"><svg class="ic" aria-hidden="true"><use href="#ic-zap"/></svg> Actions rapides</div>
         <div class="ud-action-btns">
-          <button onclick="openModal('modal-notif')" class="btn btn-outline btn-sm" style="justify-content:flex-start">📱 Envoyer une notification</button>
-          <button onclick="openModal('modal-pseudo')" class="btn btn-outline btn-sm" style="justify-content:flex-start">✏️ Modifier le pseudo</button>
-          <a href="/admin/historique?search=<%= encodeURIComponent(user.phoneNumber||user.pseudo) %>" class="btn btn-outline btn-sm" style="justify-content:flex-start">📋 Voir l'historique</a>
+          <button onclick="openModal('modal-notif')" class="btn btn-outline btn-sm" style="justify-content:flex-start"><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg> Envoyer une notification</button>
+          <button onclick="openModal('modal-pseudo')" class="btn btn-outline btn-sm" style="justify-content:flex-start"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier le pseudo</button>
+          <a href="/admin/historique?search=<%= encodeURIComponent(user.phoneNumber||user.pseudo) %>" class="btn btn-outline btn-sm" style="justify-content:flex-start"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Voir l'historique</a>
+          <% if (hasPerm('bankroll')) { %>
+          <a href="/admin/bankroll/<%= user.id %>" class="btn btn-outline btn-sm" style="justify-content:flex-start"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Voir la bankroll</a>
+          <% } %>
           <% if(isMain) { %>
-          <a href="/admin/bans?search=<%= encodeURIComponent(user.pseudo) %>" class="btn btn-outline btn-sm" style="justify-content:flex-start">🚫 Historique bans</a>
+          <a href="/admin/bans?search=<%= encodeURIComponent(user.pseudo) %>" class="btn btn-outline btn-sm" style="justify-content:flex-start"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Historique bans</a>
           <% } %>
         </div>
       </div>

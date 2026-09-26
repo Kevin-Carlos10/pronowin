@@ -1,5 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../shared/utils/resume_paris.dart';
+import '../../../pronostics/domain/entities/match_entity.dart' show MatchEntity;
 
 // ─── Entités ──────────────────────────────────────────────────────────────────
 class BankrollBet {
@@ -19,6 +21,12 @@ class BankrollBet {
   final String  league;
   final String  predictionLabel;
   final int     confidenceScore;
+  final String  currency;
+  /// La mise réelle a été confirmée ou corrigée au résultat (M1).
+  final bool    miseConfirmee;
+  /// Le serveur demande de confirmer la mise réelle : pari réglé depuis peu,
+  /// sans réponse encore.
+  final bool    aConfirmer;
 
   const BankrollBet({
     required this.id,
@@ -37,9 +45,14 @@ class BankrollBet {
     required this.league,
     required this.predictionLabel,
     required this.confidenceScore,
+    required this.currency,
+    this.miseConfirmee = false,
+    this.aConfirmer = false,
   });
 
-  factory BankrollBet.fromJson(Map<String, dynamic> j) => BankrollBet(
+  // La devise n'est pas répétée dans le JSON de chaque pari — c'est une
+  // propriété du bankroll parent, transmise explicitement par l'appelant.
+  factory BankrollBet.fromJson(Map<String, dynamic> j, {required String currency}) => BankrollBet(
     id:              j['id'] as String,
     pronosticId:     j['pronostic_id'] as String,
     matchId:         (j['match'] as Map)['id'] as String? ?? '',
@@ -49,7 +62,7 @@ class BankrollBet {
     potentialGain:   (j['potential_gain'] as num).toDouble(),
     result:          j['result'] as String?,
     profit:          (j['profit'] as num?)?.toDouble(),
-    createdAt:       DateTime.parse(j['created_at'] as String),
+    createdAt:       DateTime.parse(j['created_at'] as String).toLocal(),
     settledAt:       j['settled_at'] != null
         ? DateTime.tryParse(j['settled_at'] as String) : null,
     homeTeam:        (j['match'] as Map)['home_team'] as String,
@@ -57,7 +70,16 @@ class BankrollBet {
     league:          (j['match'] as Map)['league'] as String,
     predictionLabel: j['prediction_label'] as String,
     confidenceScore: (j['confidence_score'] as num).toInt(),
+    currency:        currency,
+    // Absents d'un serveur plus ancien : rien à demander.
+    miseConfirmee:   j['mise_confirmee'] == true,
+    aConfirmer:      j['a_confirmer'] == true,
   );
+
+  /// [predictionLabel] avec "Domicile"/"Extérieur" remplacés par le nom réel
+  /// de l'équipe — voir [MatchEntity.applyTeamNames].
+  String get displayPredictionLabel =>
+      MatchEntity.applyTeamNames(predictionLabel, homeTeam: homeTeam, awayTeam: awayTeam);
 }
 
 class BankrollData {
@@ -67,12 +89,30 @@ class BankrollData {
   final String currency;
   final List<BankrollBet> bets;
 
+  /// Le bilan de **tous** les paris, compté par le serveur.
+  ///
+  /// [bets] est plafonnée : l'écran calculait pourtant ses compteurs, son taux
+  /// de réussite et sa courbe à partir de cette liste, et les présentait comme
+  /// le bilan complet. Au cinquante-et-unième pari, les chiffres devenaient
+  /// faux sans que rien ne l'indique.
+  ///
+  /// `null` quand le serveur ne l'envoie pas encore : l'écran retombe alors sur
+  /// son calcul local, c'est-à-dire l'ancien comportement. Un décalage de
+  /// version ne doit pas vider la page.
+  final ResumeParis? resume;
+
+  /// Combien de paris [bets] contient réellement — pour pouvoir dire
+  /// « 50 des 128 » au lieu de laisser croire qu'on les montre tous.
+  final int parisAffiches;
+
   const BankrollData({
     required this.id,
     required this.totalBudget,
     required this.currentBalance,
     required this.currency,
     required this.bets,
+    this.resume,
+    this.parisAffiches = 0,
   });
 
   factory BankrollData.fromJson(Map<String, dynamic> j) => BankrollData(
@@ -80,10 +120,19 @@ class BankrollData {
     totalBudget:    (j['total_budget'] as num).toDouble(),
     currentBalance: (j['current_balance'] as num).toDouble(),
     currency:       j['currency'] as String,
+    resume: j['resume'] is Map
+        ? ResumeParis.depuisApi((j['resume'] as Map).cast<String, dynamic>())
+        : null,
+    parisAffiches: (j['paris_affiches'] as num?)?.toInt()
+        ?? (j['bets'] as List).length,
     bets: (j['bets'] as List)
-        .map((b) => BankrollBet.fromJson(b as Map<String, dynamic>))
+        .map((b) => BankrollBet.fromJson(b as Map<String, dynamic>, currency: j['currency'] as String))
         .toList(),
   );
+
+  /// L'historique montré est-il partiel ?
+  bool get historiqueTronque =>
+      resume != null && resume!.total > parisAffiches;
 
   double get progressPct =>
       totalBudget > 0 ? (currentBalance / totalBudget).clamp(0.0, 2.0) : 0.0;
@@ -145,12 +194,12 @@ final bankrollStatsProvider = FutureProvider.autoDispose<BankrollStats?>((ref) a
   return BankrollStats.fromJson(r.data as Map<String, dynamic>);
 });
 
-// Mise suggérée pour un pronostic donné (confidence score)
+// Mise obligatoire calculée avec la note actuelle du pronostic côté serveur.
 final suggestedStakeProvider = FutureProvider.autoDispose
-    .family<Map<String, dynamic>, int>((ref, confidenceScore) async {
+    .family<Map<String, dynamic>, String>((ref, pronosticId) async {
   final dio = ref.read(dioProvider);
   final r   = await dio.get('/bankroll/suggest',
-      queryParameters: {'confidence': confidenceScore});
+      queryParameters: {'pronostic_id': pronosticId});
   return r.data as Map<String, dynamic>;
 });
 

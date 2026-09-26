@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
@@ -42,16 +43,45 @@ class AppNotification {
 
   static NotificationType _typeFromString(String s) => typeFromString(s);
 
+  /// Le type envoyé par le serveur, ramené à une rubrique de l'écran.
+  ///
+  /// Quatre types tombaient dans le repli `_` et se rangeaient donc en
+  /// « Système » : `prono_result`, `match_live`, `match_finished` et
+  /// `premium`. Les trois premiers sont des notifications de match — le filtre
+  /// « Match » n'en montrait qu'une partie, et rien ne pouvait le signaler :
+  /// un repli silencieux ne se voit qu'en comparant deux listes.
+  ///
+  /// « Paiement » a disparu des rubriques. Il ne contenait que le versement
+  /// des gains de parrainage — « Versement effectué », « Versement refusé » —
+  /// qui mène d'ailleurs à `/parrainage`. Sur une application où l'on paie un
+  /// abonnement, le mot laissait croire à l'historique de ses propres
+  /// paiements. Ces notifications rejoignent donc « Parrainage », où elles
+  /// appartiennent.
+  ///
+  /// Le repli subsiste : une version du serveur plus récente que celle de
+  /// l'application ne doit pas faire disparaître une notification. Mais il
+  /// crie en débogage, et `notifications_classement_test.dart` compare cette
+  /// liste à ce que le serveur produit réellement.
   static NotificationType typeFromString(String s) => switch (s) {
-    'match'    => NotificationType.match,
-    'promo'    => NotificationType.promo,
-    'payment'  => NotificationType.payment,
-    'referral' => NotificationType.referral,
-    _          => NotificationType.system,
+    'match' || 'match_live' || 'match_finished' || 'prono_result'
+                            => NotificationType.match,
+    'promo'                 => NotificationType.promo,
+    'payment' || 'referral' => NotificationType.referral,
+    'premium' || 'system'   => NotificationType.system,
+    _ => _replide(s),
   };
+
+  static NotificationType _replide(String s) {
+    assert(() {
+      debugPrint('[Notifications] type inconnu « $s » — rangé en Système. '
+                 'Ajoutez-le à typeFromString.');
+      return true;
+    }());
+    return NotificationType.system;
+  }
 }
 
-enum NotificationType { match, promo, system, payment, referral }
+enum NotificationType { match, promo, system, referral }
 
 // ─── Notifier avec API ────────────────────────────────────────────────────────
 class NotificationNotifier

@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { TutorialService } from '../services/tutorial.service';
+import { repondreErreur } from '../utils/erreurs';
 
 const svc = new TutorialService();
 
@@ -11,12 +12,12 @@ export const getAll = async (req: AuthRequest, res: Response) => {
       level:    req.query.level    as string | undefined,
       userId:   req.userId,
     }));
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getOne = async (req: AuthRequest, res: Response) => {
   try { res.json(await svc.getOne(req.params.id, req.userId)); }
-  catch (e: any) { res.status(404).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e, 404); }
 };
 
 export const markProgress = async (req: AuthRequest, res: Response) => {
@@ -26,12 +27,12 @@ export const markProgress = async (req: AuthRequest, res: Response) => {
     const completed      = req.body.completed === true || req.body.completed === 'true';
     await svc.markProgress(req.userId, req.params.id, watchedSeconds, completed);
     res.json({ success: true });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const getProgress = async (req: AuthRequest, res: Response) => {
   try {
     if (!req.userId) { res.status(401).json({ message: 'Non authentifié.' }); return; }
     res.json(await svc.getProgress(req.userId));
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };

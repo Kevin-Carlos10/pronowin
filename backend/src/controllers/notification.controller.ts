@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { AdminRequest } from '../middleware/admin.middleware';
 import { NotificationService } from '../services/notification.service';
+import { repondreErreur } from '../utils/erreurs';
 
 const svc = new NotificationService();
 
@@ -19,32 +20,36 @@ export const getMyNotifications = async (req: AuthRequest, res: Response) => {
       deep_link:  n.deepLink,
       created_at: n.createdAt.toISOString(),
     })));
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const markOneRead = async (req: AuthRequest, res: Response) => {
   try {
     await svc.markRead(req.userId!, req.params.id);
     res.json({ success: true });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const markAllRead = async (req: AuthRequest, res: Response) => {
   try {
     await svc.markAllRead(req.userId!);
     res.json({ success: true });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 // ── Token FCM ─────────────────────────────────────────────────────────────────
 
 export const registerToken = async (req: AuthRequest, res: Response) => {
-  const { fcm_token, platform } = req.body;
-  if (!fcm_token) { res.status(422).json({ message: 'fcm_token requis.' }); return; }
+  const { fcm_token, platform } = req.body ?? {};
+  // Un jeton Firebase fait quelque 160 caractères ; la borne écarte ce qui
+  // n'en est pas un avant qu'il ne devienne une ligne en base.
+  if (typeof fcm_token !== 'string' || !fcm_token.trim() || fcm_token.length > 4096) {
+    res.status(422).json({ message: 'fcm_token requis.' }); return;
+  }
   try {
-    await svc.registerToken(req.userId!, fcm_token, platform ?? 'android');
+    await svc.registerToken(req.userId!, fcm_token.trim(), platform === 'ios' ? 'ios' : 'android');
     res.json({ success: true });
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };
 
 export const sendToUser = async (req: AdminRequest, res: Response) => {
@@ -59,7 +64,52 @@ export const sendToUser = async (req: AdminRequest, res: Response) => {
       return;
     }
     res.json(result);
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
+ * GET /admin/notifications/preview?segment=
+ *
+ * La page campagne de l'admin appelait cet endpoint depuis toujours ; il
+ * n'existait pas, et l'interface retombait silencieusement sur une estimation
+ * tirée de /admin/users/stats — laquelle ignorait les comptes sans token FCM
+ * et ceux ayant coupé les notifications promo.
+ */
+export const previewSegment = async (req: AdminRequest, res: Response) => {
+  try {
+    res.json(await svc.previewSegment((req.query.segment as string) ?? 'all'));
+  } catch (e: any) { repondreErreur(res, e, 422); }
+};
+
+/**
+ * POST /admin/notifications/send
+ *
+ * Idem : l'interface postait ici et tombait systématiquement dans son `catch`
+ * (« Erreur lors de l'envoi »), aucune campagne n'ayant jamais pu partir.
+ */
+export const sendSegment = async (req: AdminRequest, res: Response) => {
+  const { title, body, segment = 'all', data, image, target_user } = req.body;
+  if (!title?.trim() || !body?.trim()) {
+    res.status(422).json({ message: 'title et body requis.' }); return;
+  }
+
+  const charge = {
+    title:    title.trim(),
+    body:     body.trim(),
+    deepLink: data?.url,
+    imageUrl: image,
+  };
+
+  try {
+    // Cible unique : le formulaire admin propose ce mode pour tester un message
+    // avant diffusion. `target_user` n'était pas transmis et « user » n'existe
+    // pas comme segment — l'envoi échouait systématiquement.
+    if (segment === 'user') {
+      res.json(await svc.sendToHandle(String(target_user ?? ''), charge));
+      return;
+    }
+    res.json(await svc.sendToSegment(segment, charge));
+  } catch (e: any) { repondreErreur(res, e, 422); }
 };
 
 export const sendToTopic = async (req: AdminRequest, res: Response) => {
@@ -67,5 +117,5 @@ export const sendToTopic = async (req: AdminRequest, res: Response) => {
   if (!topic || !title || !body) { res.status(422).json({ message: 'topic, title et body requis.' }); return; }
   try {
     res.json(await svc.sendToTopic(topic, { title, body, data: deep_link ? { deep_link } : {} }));
-  } catch (e: any) { res.status(500).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e); }
 };

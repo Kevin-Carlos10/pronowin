@@ -1,0 +1,106 @@
+<%- include('layout_top', {page:'profile'}) %>
+
+<style>
+.fa-grille { display:grid; grid-template-columns: 240px 1fr; gap:1.25rem; align-items:start; }
+@media (max-width: 800px) { .fa-grille { grid-template-columns: 1fr; } }
+.fa-qr { background:#fff; border-radius:12px; padding:.75rem; border:1px solid var(--border); max-width:240px; }
+.fa-qr svg { display:block; width:100%; height:auto; }
+.fa-secret { font-family: monospace; font-size:.95rem; letter-spacing:.08em; word-break:break-all;
+             background:var(--surface-d); border:1px solid var(--border); border-radius:8px; padding:.55rem .7rem; }
+.fa-etapes { margin:0; padding-left:1.2rem; line-height:1.7; font-size:.88rem; color:var(--text-m); }
+.fa-code { font-family: monospace; font-size:1.3rem; letter-spacing:.3em; text-align:center; max-width:220px; }
+.fa-secours { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:.4rem .9rem; font-family:monospace;
+              font-size:1rem; background:var(--surface-d); border:1px dashed var(--border-s); border-radius:10px; padding:.8rem 1rem; max-width:360px; }
+.fa-etat { display:inline-flex; align-items:center; gap:.4rem; font-weight:700; font-size:.85rem; }
+.fa-etat.on  { color: var(--on-success); }
+.fa-etat.off { color: var(--on-warning); }
+</style>
+
+<div class="topbar">
+  <div>
+    <a href="/admin/profile" style="color:var(--text-dim);font-size:.82rem;text-decoration:none">← Mon profil</a>
+    <h1 style="margin-top:4px"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Double authentification</h1>
+    <small>Un code à six chiffres, donné par une application de votre téléphone, en plus du mot de passe.</small>
+  </div>
+</div>
+
+<% if (doitActiver) { %>
+  <div class="alert alert-error" role="alert">
+    <strong>La double authentification est obligatoire sur ce panneau.</strong>
+    Activez-la pour accéder aux autres pages.
+  </div>
+<% } %>
+<% if (secoursUtilise) { %>
+  <div class="alert alert-error" role="alert">
+    Vous vous êtes connecté avec un code de secours : il ne servira plus.
+    Il vous en reste <strong><%= restants %></strong>.
+    <% if (restants <= 2) { %>Désactivez puis réactivez la double authentification pour en obtenir de nouveaux.<% } %>
+  </div>
+<% } %>
+<% if (success) { %><div class="alert alert-success" role="status"><%= success %></div><% } %>
+<% if (error) { %><div class="alert alert-error" role="alert"><%= error %></div><% } %>
+
+<% if (!disponible) { %>
+  <div class="card" style="padding:1.1rem">
+    Cette session a été ouverte avant l'arrivée de la double authentification.
+    Déconnectez-vous puis reconnectez-vous pour la configurer.
+  </div>
+<% } else if (codesSecours) { %>
+  <div class="card" style="padding:1.2rem">
+    <h2 style="font-size:1rem;margin:0 0 .6rem">Vos codes de secours</h2>
+    <p style="font-size:.88rem;color:var(--text-m);margin:0 0 .9rem;line-height:1.6">
+      Chacun remplace une fois le code du téléphone — si vous le perdez ou le changez.
+      <strong>Notez-les maintenant et gardez-les hors du téléphone</strong> : ils ne seront plus jamais affichés.
+    </p>
+    <div class="fa-secours" aria-label="Codes de secours">
+      <% codesSecours.forEach(function (c) { %><span><%= c %></span><% }) %>
+    </div>
+    <a href="/admin/dashboard" class="btn btn-primary" style="margin-top:1.1rem">J'ai noté mes codes — continuer</a>
+  </div>
+<% } else if (active) { %>
+  <div class="card" style="padding:1.2rem">
+    <p class="fa-etat on"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Active sur ce compte</p>
+    <p style="font-size:.88rem;color:var(--text-m);margin:.4rem 0 1rem">
+      Codes de secours restants : <strong><%= restants %></strong>.
+    </p>
+    <% if (!obligatoire) { %>
+    <form method="POST" action="/admin/profile/2fa/desactiver" style="display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <label for="code-off" style="display:block;font-size:.75rem;color:var(--text-m);margin-bottom:.3rem">Code actuel, pour désactiver</label>
+        <input class="input fa-code" id="code-off" name="code" inputmode="numeric" autocomplete="one-time-code" required>
+      </div>
+      <button type="submit" class="btn btn-danger">Désactiver</button>
+    </form>
+    <% } else { %>
+    <p style="font-size:.82rem;color:var(--text-dim);margin:0">Obligatoire sur ce panneau : elle ne peut pas être désactivée.</p>
+    <% } %>
+  </div>
+<% } else { %>
+  <div class="card" style="padding:1.2rem">
+    <p class="fa-etat off"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Pas encore active</p>
+    <div class="fa-grille" style="margin-top:1rem">
+      <div>
+        <div class="fa-qr" role="img" aria-label="QR code à scanner avec l'application d'authentification"><%- qr %></div>
+      </div>
+      <div>
+        <ol class="fa-etapes">
+          <li>Installez une application d'authentification : Google Authenticator, Microsoft Authenticator, Aegis ou 2FAS.</li>
+          <li>Scannez le QR code, ou saisissez cette clé à la main :
+            <div class="fa-secret" style="margin:.4rem 0"><%= secret.match(/.{1,4}/g).join(' ') %></div>
+          </li>
+          <li>Saisissez le code à six chiffres affiché par l'application.</li>
+        </ol>
+        <form method="POST" action="/admin/profile/2fa/activer" style="margin-top:1rem;display:flex;gap:.6rem;align-items:flex-end;flex-wrap:wrap">
+          <div>
+            <label for="code-on" style="display:block;font-size:.75rem;color:var(--text-m);margin-bottom:.3rem">Code de l'application</label>
+            <input class="input fa-code" id="code-on" name="code" inputmode="numeric" autocomplete="one-time-code"
+                   pattern="[0-9 ]{6,7}" required autofocus>
+          </div>
+          <button type="submit" class="btn btn-primary">Activer</button>
+        </form>
+      </div>
+    </div>
+  </div>
+<% } %>
+
+<%- include('layout_bottom') %>

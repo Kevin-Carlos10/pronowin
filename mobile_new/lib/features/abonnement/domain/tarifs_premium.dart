@@ -1,0 +1,251 @@
+import '../../../shared/utils/montant.dart';
+
+/// Tout ce qu'un écran doit savoir sur l'offre Premium — **source unique**.
+///
+/// Ces valeurs vivaient à trois endroits qui ne se contrôlaient pas :
+/// `_kSubFallback` dans le fournisseur, huit `?? 6000` dans l'écran
+/// d'abonnement, et — le plus coûteux — un `'5 000 FCFA'` écrit en dur dans la
+/// feuille qui décide l'utilisateur à payer. Ce dernier ne correspondait à
+/// **aucun** tarif du système : ni 6 000 (mensuel direct), ni 4 200 (avec
+/// code), ni 4 500 (annuel ramené au mois), ni 3 150 (annuel avec code). La
+/// feuille annonçait donc un prix inventé, et l'écran suivant en affichait un
+/// autre — sans qu'aucune erreur, aucun test ni aucun type ne s'en aperçoive.
+///
+/// Le serveur reste la vérité ; les valeurs ci-dessous ne servent que si sa
+/// réponse manque à l'appel (première installation, hors ligne). Elles sont
+/// écrites **une fois**, ici.
+class TarifsPremium {
+  // ─── Replis, source unique ──────────────────────────────────────────────
+  static const mensuelDirectDefaut = 6000;
+  static const annuelDirectDefaut  = 54000;
+
+  /// Les mêmes formules, en dollars.
+  ///
+  /// Deux monnaies pour un seul abonnement, et deux réglages serveur distincts
+  /// (`PREMIUM_PRICE_USD_*` et `PREMIUM_PRICE_FCFA_*`) que rien ne lie : ils
+  /// coïncident aujourd'hui (≈ 600 FCFA pour un dollar) parce que quelqu'un
+  /// les a saisis ensemble, pas parce qu'un calcul les tient. Changer l'un
+  /// laisse l'autre en arrière sans qu'aucune erreur ne se produise.
+  ///
+  /// Les deux ont un rôle distinct, et c'est pourquoi aucune n'est dérivée de
+  /// l'autre : le dollar est ce qu'on **annonce**, le FCFA ce qui est
+  /// réellement **viré** par Mobile Money. Un montant converti à la volée
+  /// donnerait un virement au centime près, impossible à reproduire chez
+  /// l'opérateur.
+  static const mensuelUsdDefaut = 10;
+  static const annuelUsdDefaut  = 90;
+
+  /// Durée offerte par le parcours « code promo ».
+  ///
+  /// Ce parcours donnait −30 % sur l'abonnement ; il donne désormais le
+  /// **premier mois** gratuit, contre l'ouverture d'un compte partenaire avec
+  /// notre code et la preuve du dépôt initial. Il n'y a donc plus de tarif
+  /// « code » : ni mensuel, ni annuel, ni remise à calculer.
+  static const joursOffreCodeDefaut = 30;
+
+  /// Les enseignes partenaires, quand le serveur ne répond pas.
+  ///
+  /// Le partenariat se limite à 1xBet. Melbet et Betwinner figuraient ici, et
+  /// surtout dans trois phrases de l'écran qui les nommaient en toutes lettres
+  /// — « Crée un compte sur 1xBet, Melbet ou Betwinner ». Ces phrases ne
+  /// dépendaient d'aucune liste : retirer une enseigne du serveur l'aurait
+  /// fait disparaître du sélecteur tout en continuant de la promettre trois
+  /// lignes plus haut.
+  ///
+  /// C'est le défaut déjà corrigé pour les opérateurs Mobile Money, dont le
+  /// commentaire de [libelleOperateurs] garde la trace : « L'écran d'accroche
+  /// annonçait quatre opérateurs en dur pendant que le serveur n'en publiait
+  /// qu'un ». Les textes dérivent désormais de [libellePlateformes].
+  static const plateformesDefaut = ['1xbet'];
+
+  /// Nom d'affichage des enseignes connues.
+  ///
+  /// La carte garde les trois : elle sert à *nommer* une clé publiée, pas à
+  /// décider laquelle l'est. Si un partenariat reprend, seul le serveur change.
+  static const _nomsPlateformes = {
+    '1xbet': '1xBet', 'melbet': 'Melbet', 'betwinner': 'Betwinner',
+  };
+
+  /// « 1xbet » → « 1xBet ». Une clé inconnue est capitalisée plutôt que cachée.
+  static String nomPlateforme(String cle) =>
+      _nomsPlateformes[cle] ??
+      (cle.isEmpty ? cle : '${cle[0].toUpperCase()}${cle.substring(1)}');
+
+  static const delaiDirectDefaut = '30 minutes ouvrables';
+  static const delaiCodeDefaut   = '2 heures ouvrables';
+
+  final int mensuelDirect;
+  final int annuelDirect;
+
+  /// Les mêmes formules en dollars — voir [mensuelUsdDefaut].
+  final num mensuelUsd;
+  final num annuelUsd;
+
+  /// Jours offerts par le parcours « code promo », publiés par le serveur.
+  final int joursOffreCode;
+
+  final String promoCode;
+
+  /// Code propre a une plateforme, quand un partenaire exige le sien.
+  ///
+  /// L'ecran laisse choisir entre trois enseignes mais n'affichait qu'un code.
+  /// Si elles n'attribuent pas le meme, deux utilisateurs sur trois ouvraient
+  /// un compte avec un code qui ne credite personne — et reclamaient malgre
+  /// tout leur mois offert.
+  final Map<String, String> codesParPlateforme;
+  final List<String> plateformes;
+  final String delaiDirect;
+  final String delaiCode;
+
+  /// Numéros de réception publiés par le serveur. **Peut être vide** — et dans
+  /// ce cas l'écran doit le dire, pas inventer un numéro.
+  final List<Map<String, dynamic>> moyensPaiement;
+
+  const TarifsPremium({
+    required this.mensuelDirect,
+    required this.annuelDirect,
+    required this.mensuelUsd,
+    required this.annuelUsd,
+    required this.joursOffreCode,
+    required this.promoCode,
+    required this.codesParPlateforme,
+    required this.plateformes,
+    required this.delaiDirect,
+    required this.delaiCode,
+    required this.moyensPaiement,
+  });
+
+  factory TarifsPremium.depuis(Map<String, dynamic>? d) {
+    int entier(String cle, int defaut) =>
+        (d?[cle] as num?)?.toInt() ?? defaut;
+
+    num decimal(String cle, num defaut) => (d?[cle] as num?) ?? defaut;
+
+    String texte(String cle, String defaut) {
+      final v = d?[cle];
+      return (v is String && v.trim().isNotEmpty) ? v : defaut;
+    }
+
+    return TarifsPremium(
+      mensuelUsd:     decimal('premium_price_monthly_usd', mensuelUsdDefaut),
+      annuelUsd:      decimal('premium_price_annual_usd',  annuelUsdDefaut),
+      mensuelDirect:  entier('premium_price_monthly_fcfa', mensuelDirectDefaut),
+      annuelDirect:   entier('premium_price_annual_fcfa',  annuelDirectDefaut),
+      joursOffreCode: entier('code_offer_days',            joursOffreCodeDefaut),
+      // Aucun repli : un code d'affiliation invente ne vaut rien.
+      //
+      // La constante valait `PRONOWIN2025` alors que le code en service est
+      // `PRONOWIN2026`. Hors ligne, ou le temps d'un hoquet du serveur, l'ecran
+      // affichait donc celui de l'an dernier — l'utilisateur le recopiait chez
+      // le bookmaker, nous n'etions jamais credites, et son mois offert
+      // n'avait plus de justification.
+      //
+      // Vide, l'ecran doit le dire. C'est la meme regle que pour les numeros
+      // de paiement, et pour la meme raison.
+      promoCode:     texte('promo_code', ''),
+      codesParPlateforme: ((d?['promo_codes'] as Map?) ?? const {})
+          .map((k, v) => MapEntry(k.toString(), v.toString()))
+        ..removeWhere((_, v) => v.trim().isEmpty),
+      delaiDirect:   texte('review_delay_direct', delaiDirectDefaut),
+      delaiCode:     texte('review_delay_code',   delaiCodeDefaut),
+      plateformes: (d?['betting_platforms'] as List?)
+              ?.map((e) => e.toString()).toList() ??
+          plateformesDefaut,
+      moyensPaiement: (d?['payment_methods'] as List?)
+              ?.whereType<Map>()
+              .map((m) => Map<String, dynamic>.from(m))
+              // Un moyen sans numéro n'est pas un moyen : le serveur les filtre
+              // déjà, on ne laisse pas une entrée vide repasser par ici.
+              .where((m) => (m['phone'] ?? '').toString().trim().isNotEmpty)
+              .toList() ??
+          const [],
+    );
+  }
+
+  /// Prix à collecter pour une durée.
+  ///
+  /// Il n'y a plus de dimension « méthode » : le parcours « code promo » ne
+  /// facture rien, il offre le premier mois. Garder un paramètre `avecCode`
+  /// aurait laissé croire à un tarif qui n'existe plus.
+  int prix({required bool annuel}) => annuel ? annuelDirect : mensuelDirect;
+
+  /// Le même abonnement, annoncé en dollars.
+  ///
+  /// [prix] dit ce qui est **viré** ; celui-ci dit ce qui est **annoncé**. Les
+  /// deux décrivent la même formule et ne se déduisent pas l'un de l'autre —
+  /// voir [mensuelUsdDefaut].
+  num prixUsd({required bool annuel}) => annuel ? annuelUsd : mensuelUsd;
+
+  /// « $90 », prêt à afficher.
+  String prixUsdFormate({required bool annuel}) =>
+      montantDollars(prixUsd(annuel: annuel));
+
+  /// Le plus bas coût mensuel réellement payable — l'annuel est ramené au mois
+  /// pour être comparable.
+  ///
+  /// C'est ce que « à partir de » doit annoncer. L'écrire à la main, c'était
+  /// s'engager à le corriger à chaque changement de tarif ; personne ne l'a
+  /// fait, et le chiffre affiché ne correspondait plus à rien.
+  ///
+  /// Le mois offert n'entre pas dans ce calcul : ce n'est pas un tarif, c'est
+  /// une entrée en matière qui ne se reconduit pas. L'annoncer comme un prix
+  /// « à partir de 0 FCFA » décrirait mal ce que coûte l'abonnement.
+  int get minMensuel {
+    final candidats = [mensuelDirect, (annuelDirect / 12).round()];
+    return candidats.reduce((a, b) => a < b ? a : b);
+  }
+
+  /// « À partir de 4 500 FCFA », prêt à afficher.
+  String get minMensuelFormate => montantExact(minMensuel);
+
+  /// « 1 mois offert » ou « 15 jours offerts », selon ce que publie le serveur.
+  String get libelleOffreCode {
+    if (joursOffreCode % 30 == 0 && joursOffreCode >= 30) {
+      final mois = joursOffreCode ~/ 30;
+      return mois == 1 ? '1 mois offert' : '$mois mois offerts';
+    }
+    return '$joursOffreCode jours offerts';
+  }
+
+  /// Y a-t-il un numéro à afficher ? Sinon l'écran doit annoncer
+  /// l'indisponibilité plutôt que de servir une constante compilée.
+  bool get paiementDisponible => moyensPaiement.isNotEmpty;
+
+  /// Y a-t-il un code d'affiliation a proposer ? Sinon l'ecran annonce que
+  /// l'offre est momentanement indisponible, plutot que d'en inventer un.
+  bool get offreCodeDisponible =>
+      promoCode.trim().isNotEmpty || codesParPlateforme.isNotEmpty;
+
+  /// Code a afficher pour la plateforme choisie : le sien s'il en a un, le
+  /// code general sinon.
+  String codePour(String plateforme) {
+    final propre = codesParPlateforme[plateforme]?.trim() ?? '';
+    return propre.isNotEmpty ? propre : promoCode.trim();
+  }
+
+  /// Les enseignes réellement proposées — « 1xBet », ou « 1xBet, Melbet ou
+  /// Betwinner » si le partenariat s'élargit.
+  ///
+  /// C'est cette chaîne que les textes emploient, pour qu'aucune phrase ne
+  /// promette une enseigne que le sélecteur n'offre pas.
+  String get libellePlateformes {
+    final noms = plateformes.map(nomPlateforme).toList();
+    if (noms.isEmpty)     return '';
+    if (noms.length == 1) return noms.single;
+    return '${noms.sublist(0, noms.length - 1).join(', ')} ou ${noms.last}';
+  }
+
+  /// Y a-t-il un choix à faire, ou une seule enseigne ?
+  ///
+  /// Un sélecteur à une seule pastille demande de choisir sans rien offrir.
+  bool get plusieursPlateformes => plateformes.length > 1;
+
+  /// Les opérateurs réellement proposés — « Orange Money · Wave ».
+  ///
+  /// L'écran d'accroche annonçait quatre opérateurs en dur pendant que le
+  /// serveur n'en publiait qu'un : la page suivante démentait la précédente.
+  String get libelleOperateurs => moyensPaiement
+      .map((m) => (m['label'] ?? '').toString())
+      .where((l) => l.isNotEmpty)
+      .join('  ·  ');
+}

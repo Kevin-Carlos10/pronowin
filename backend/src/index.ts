@@ -2,7 +2,9 @@
 import { prisma } from './lib/prisma';
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import logger from './utils/logger';
+import logger, { identifiantDeRequete } from './utils/logger';
+import { repondreErreur } from './utils/erreurs';
+import { monterAnalyseursJson } from './utils/analyseurs_json';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
@@ -11,13 +13,14 @@ import compression from 'compression';
 import axios from 'axios';
 
 import authRoutes            from './routes/auth.routes';
-import { PronosticsService } from './services/pronostics.service';
+import { demarrerTaches, tachesDansLApi } from './taches';
 import pronosticsRoutes      from './routes/pronostics.routes';
 import paymentRoutes         from './routes/payment.routes';
 import subscriptionRoutes    from './routes/subscription.routes';
 import referralRoutes        from './routes/referral.routes';
 import tutorialRoutes        from './routes/tutorial.routes';
 import notificationRoutes    from './routes/notification.routes';
+import notificationAdminRoutes    from './routes/notification_admin.routes';
 import profileRoutes         from './routes/profile.routes';
 import adminRoutes           from './routes/admin.routes';
 import usersAdminRoutes      from './routes/users_admin.routes';
@@ -28,19 +31,50 @@ import newsRoutes            from './routes/news.routes';
 import configRoutes          from './routes/config.routes';
 import favoritesRoutes       from './routes/favorites.routes';
 import bankrollRoutes        from './routes/bankroll.routes';
+import commentsRoutes        from './routes/comments.routes';
 import leaderboardRoutes     from './routes/leaderboard.routes';
 
 const app  = express();
 const PORT = process.env.PORT ?? 3000;
 
+/**
+ * Un seul intermédiaire de confiance : nginx.
+ *
+ * Sans ce réglage, `req.ip` vaut l'adresse du proxy — la même pour tout le
+ * monde. Or c'est la clé de tous les limiteurs de débit ci-dessous, et le plus
+ * strict autorise **trois demandes d'OTP par dix minutes**. Trois personnes
+ * demandaient un code, la quatrième était bloquée : pas la quatrième depuis la
+ * même adresse, la quatrième de toute l'application.
+ *
+ * `express-rate-limit` le signalait à chaque requête
+ * (`ERR_ERL_UNEXPECTED_X_FORWARDED_FOR`), dans un journal d'erreurs que
+ * personne ne lisait.
+ *
+ * La valeur `1` et non `true` : elle dit « fais confiance au dernier maillon,
+ * pas à la chaîne entière ». Avec `true`, n'importe qui pourrait usurper une
+ * adresse en envoyant son propre en-tête `X-Forwarded-For` et contourner les
+ * limiteurs — le remède serait pire que le mal.
+ */
+app.set('trust proxy', 1);
+
+// Premier maillon : chaque ligne du journal écrite pendant la requête porte
+// son identifiant, renvoyé au client dans X-Request-Id (constat Q1).
+app.use(identifiantDeRequete);
 app.use(helmet());
 const allowedOrigins = process.env.ALLOWED_ORIGINS
   ? process.env.ALLOWED_ORIGINS.split(',').map(o => o.trim())
   : (process.env.NODE_ENV === 'production' ? [] : ['http://localhost:4000']);
 app.use(cors({ origin: allowedOrigins, credentials: true }));
-app.use(express.json({ limit: '10mb' }));
-app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev', {
-  stream: { write: (msg: string) => logger.http(msg.trim()) },
+// Taille des corps JSON par route : voir utils/analyseurs_json.ts (constat S4).
+monterAnalyseursJson(app);
+morgan.token('id', (req: any) => req.id ?? '-');
+app.use(morgan(process.env.NODE_ENV === 'production'
+  ? ':id :remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length] ":referrer" ":user-agent"'
+  : 'dev', {
+  // Au niveau `info` et non `http` : le logger filtre en dessous de `info`
+  // par défaut, et `LOG_LEVEL` n'est pas réglé en production. Les lignes
+  // 4xx et 5xx qu'on croyait journalisées ne l'étaient donc pas (constat Q3).
+  stream: { write: (msg: string) => logger.info(msg.trim()) },
   // En production : ne logger que les erreurs (4xx/5xx) pour réduire le bruit
   skip: (_req, res) => process.env.NODE_ENV === 'production' && res.statusCode < 400,
 }));
@@ -53,18 +87,26 @@ const keyGenerator = (req: express.Request) => {
   const authHeader = req.headers['authorization'];
   if (authHeader?.startsWith('Bearer ')) {
     try {
-      // Utiliser jwt.decode (sans vérifier la signature) uniquement pour le rate-limiting
-      // La vérification de signature se fait dans authMiddleware
+      // La signature est vérifiée ici, et pas seulement dans authMiddleware.
+      //
+      // Ce générateur utilisait `jwt.decode`, qui lit un jeton sans vérifier
+      // qu'il vient de nous. Fabriquer un jeton non signé portant un `userId`
+      // au hasard donnait donc un compteur neuf à chaque requête, depuis la
+      // même adresse : la limite ne limitait plus rien pour qui savait qu'elle
+      // existait.
+      //
+      // Un jeton invalide retombe sur l'adresse IP, comme une requête non
+      // authentifiée — c'est-à-dire le comportement le plus strict.
       const token   = authHeader.split(' ')[1];
-      const decoded = jwt.decode(token) as { userId?: string } | null;
-      if (decoded?.userId) return `user:${decoded.userId}`;
-    } catch (_) { /* token malformé → fallback IP */ }
+      const verifie = jwt.verify(token, process.env.JWT_SECRET!) as { userId?: string };
+      if (verifie?.userId) return `user:${verifie.userId}`;
+    } catch (_) { /* jeton absent, expiré ou forgé → on limite par IP */ }
   }
   return req.ip ?? 'unknown';
 };
 
 const globalLim = rateLimit({
-  windowMs: 900000, max: 200,
+  windowMs: 900000, max: 1000,
   keyGenerator,
   message: { message: 'Trop de requêtes.' },
 });
@@ -72,6 +114,13 @@ const otpLim = rateLimit({
   windowMs: 600000, max: 3,
   keyGenerator,
   message: { message: 'Trop de demandes OTP.' },
+});
+// login/register n'ont aucune protection anti brute-force applicative (contrairement
+// aux flux OTP qui ont déjà _checkOtpBrute côté contrôleur) — limite dédiée par IP.
+const authLim = rateLimit({
+  windowMs: 900000, max: 10,
+  keyGenerator,
+  message: { message: 'Trop de tentatives. Réessayez plus tard.' },
 });
 const payLim = rateLimit({
   windowMs: 60000, max: 10,
@@ -85,7 +134,30 @@ const publicLim = rateLimit({
 });
 app.use(globalLim);
 
-app.get('/health', (_, res) => res.json({ status: 'ok', app: 'PronoWin API', version: '1.0.0', timestamp: new Date().toISOString() }));
+/**
+ * Santé de l'API.
+ *
+ * `/health` répondait « ok » sans rien vérifier : pendant une panne de
+ * PostgreSQL, la veille (`exploitation/pronowin-veille.sh`) voyait une API
+ * en bonne santé, et personne n'était prévenu (constat O7). Elle interroge
+ * désormais la base, avec un délai court, et répond 503 si celle-ci ne suit
+ * pas. `/health/live` dit seulement que le processus répond.
+ */
+app.get('/health/live', (_, res) => res.json({ status: 'ok' }));
+app.get('/health', async (_, res) => {
+  const debut = Date.now();
+  try {
+    await Promise.race([
+      prisma.$queryRaw`SELECT 1`,
+      new Promise((_r, rejeter) => setTimeout(() => rejeter(new Error('délai')), 2000)),
+    ]);
+    res.json({ status: 'ok', base: 'ok', latence_ms: Date.now() - debut,
+               app: 'PronoWin API', timestamp: new Date().toISOString() });
+  } catch {
+    res.status(503).json({ status: 'degrade', base: 'injoignable',
+                           app: 'PronoWin API', timestamp: new Date().toISOString() });
+  }
+});
 
 // ── Deep links verification files ─────────────────────────────────────────────
 // Android App Links : https://pronowin.app/.well-known/assetlinks.json
@@ -148,15 +220,26 @@ app.get('/api/img', async (req, res) => {
 
 const v1 = '/api/v1';
 app.use(`${v1}/auth/send-otp`,       otpLim);
+// Le commentaire qui occupait cette place affirmait que le code par e-mail
+// « passe déjà par `otpLim` côté envoi ». Il ne le faisait pas : `otpLim`
+// n'était branché que sur `/send-otp`, le chemin par téléphone. Une phrase
+// qui décrit une protection absente la rend introuvable.
+app.use(`${v1}/auth/send-email-otp`, otpLim);
+app.use(`${v1}/auth/verify-email-otp`, authLim);
+// La connexion d'administration n'avait aucune limite dédiée : seule la
+// limite globale, à mille requêtes par quart d'heure, s'y appliquait.
+app.use(`${v1}/admin/login`,         authLim);
 app.use(`${v1}/auth`,                authRoutes);
 app.use(`${v1}/profile`,             profileRoutes);
 app.use(`${v1}/admin`,               adminRoutes);
 app.use(`${v1}/pronostics`,          pronosticsRoutes);
+app.use(`${v1}/comments`,            commentsRoutes);
 app.use(`${v1}/payments`,            payLim, paymentRoutes);
 app.use(`${v1}/subscriptions`,       subscriptionRoutes);
 app.use(`${v1}/referral`,            referralRoutes);
 app.use(`${v1}/tutorials`,           tutorialRoutes);
 app.use(`${v1}/notifications`,       notificationRoutes);
+app.use(`${v1}/admin/notifications`, notificationAdminRoutes);
 app.use(`${v1}/admin/users`,         usersAdminRoutes);
 app.use(`${v1}/admin/history`,       paymentHistoryRoutes);
 app.use(`${v1}/admin/stats`,       statsRoutes);
@@ -169,54 +252,64 @@ app.use(`${v1}/leaderboard`,         leaderboardRoutes);
 
 app.use((req, res) => res.status(404).json({ message: `Route introuvable : ${req.method} ${req.path}` }));
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
-  logger.error('[ERROR]', { message: err.message, stack: err.stack });
-  res.status(500).json({ message: 'Erreur interne.' });
+  // Un corps JSON illisible est une requête invalide, pas une panne.
+  if ((err as any)?.type === 'entity.parse.failed') {
+    res.status(400).json({ message: 'Corps de requête illisible : JSON attendu.' });
+    return;
+  }
+  if ((err as any)?.type === 'entity.too.large') {
+    res.status(413).json({ message: 'Requête trop volumineuse.' });
+    return;
+  }
+  repondreErreur(res, err);
 });
 
-app.listen(PORT, () => {
-  logger.info(`PronoWin API démarrée — port ${PORT}`);
+// Interface d'écoute.
+//
+// Le service écoutait sur toutes les interfaces : seul le pare-feu empêchait
+// de le joindre sans passer par nginx, donc sans TLS ni en-têtes du proxy
+// (constat O5 de l'audit du 24 septembre 2026). En production, il n'écoute
+// plus que la boucle locale, où nginx le rejoint. En développement, toutes
+// les interfaces restent ouvertes : un téléphone du réseau local doit pouvoir
+// joindre l'API. `HOST` force l'un ou l'autre.
+const HOTE = process.env.HOST
+  ?? (process.env.NODE_ENV === 'production' ? '127.0.0.1' : '0.0.0.0');
+let arreterTaches: (() => void) | null = null;
+const serveur = app.listen(Number(PORT), HOTE, () => {
+  logger.info(`PronoWin API démarrée — ${HOTE}:${PORT}`);
   logger.info('admin/tutorials actif');
 
-  // ─── SYNC AUTOMATIQUE DES SCORES ──────────────────────────────────────────
-  // Lance une 1ère sync immédiate au démarrage, puis toutes les 5 minutes.
-  // Ne tourne que si la clé API est configurée.
-  if (process.env.FOOTBALL_DATA_API_KEY) {
-    const pronoSvc = new PronosticsService();
-
-    // Sync intelligente : 60s si matchs LIVE, 5min sinon
-    const runSync = async () => {
-      const hour = new Date().getUTCHours();
-      if (hour < 5 || hour > 23) return;
-      pronoSvc.syncMatchScores().catch((err: Error) =>
-        logger.error('[ScoreSync] Erreur', { message: err.message }));
-    };
-
-    const scheduleLiveSync = async () => {
-      const liveCount = await prisma.match.count({ where: { status: 'LIVE' } }).catch(() => 0);
-      return liveCount > 0 ? 60_000 : 5 * 60 * 1000;
-    };
-
-    // Boucle adaptative : re-planifie selon présence de matchs LIVE
-    const adaptiveSync = async () => {
-      await runSync();
-      const delay = await scheduleLiveSync();
-      setTimeout(adaptiveSync, delay);
-    };
-
-    setTimeout(adaptiveSync, 30_000);
-    logger.info('Score sync actif — 60s si LIVE, 5min sinon (5h–23h UTC)');
-
-    const runMatchSoon = () => {
-      const hour = new Date().getUTCHours();
-      if (hour < 5 || hour > 23) return;
-      pronoSvc.checkMatchesSoon().then(({ notified }) => {
-        if (notified > 0) logger.info(`[MatchSoon] ${notified} notification(s) envoyée(s)`);
-      }).catch(err => logger.error('[MatchSoon] Erreur', { message: err.message }));
-    };
-    setTimeout(runMatchSoon, 60_000);
-    setInterval(runMatchSoon, 15 * 60 * 1000);
-    logger.info('Notif "match bientôt" actif — toutes les 15 min');
+  // Les tâches planifiées — scores, rappels, file des stores, alerte
+  // d'achats. Dans l'API tant qu'aucun processus dédié ne s'en charge ; avec
+  // TACHES_SEPAREES=1, c'est pronowin-taches (constat P1) : deux exemplaires
+  // de l'API ne doivent pas envoyer chaque notification deux fois.
+  if (tachesDansLApi()) {
+    arreterTaches = demarrerTaches();
   } else {
-    logger.warn('FOOTBALL_DATA_API_KEY manquante — score sync désactivé');
+    logger.info('Tâches planifiées : processus pronowin-taches (TACHES_SEPAREES=1)');
   }
 });
+
+/**
+ * Arrêt propre.
+ *
+ * pm2 envoie SIGINT à un redémarrage, puis tue le processus s'il traîne. Rien
+ * n'était prévu : un déploiement coupait net les requêtes en cours — une
+ * activation de Premium à mi-chemin, par exemple (constat O7). Le serveur
+ * cesse d'accepter des connexions, laisse finir celles qui sont ouvertes,
+ * ferme la base, puis sort ; au-delà de huit secondes, il sort quand même.
+ */
+let arretEnCours = false;
+function arreter(signal: string) {
+  if (arretEnCours) return;
+  arretEnCours = true;
+  logger.info(`[Arrêt] ${signal} reçu — fin des requêtes en cours`);
+  arreterTaches?.();
+  const limite = setTimeout(() => process.exit(0), 8000);
+  limite.unref();
+  serveur.close(() => {
+    prisma.$disconnect().finally(() => process.exit(0));
+  });
+}
+process.on('SIGTERM', () => arreter('SIGTERM'));
+process.on('SIGINT',  () => arreter('SIGINT'));

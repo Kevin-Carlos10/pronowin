@@ -1,0 +1,153 @@
+/// Lecture d'un bilan de paris : ce qui est mesuré, ce qui ne l'est pas encore.
+///
+/// L'API renvoie un `taux_reussite` numérique en toutes circonstances. Quand
+/// aucun pari n'est encore tranché, ce taux vaut 0 — non pas parce que le
+/// joueur perd, mais parce qu'il n'y a rien à diviser. Affiché tel quel, ce
+/// zéro devient une affirmation fausse : « 0 % de réussite » sur un compte qui
+/// vient de poser son premier pari.
+///
+/// Cette classe sépare les deux cas une bonne fois, pour que l'écran n'ait plus
+/// à trancher lui-même.
+class BilanParis {
+  /// Paris posés, tous statuts confondus.
+  final int suivis;
+
+  /// Paris gagnés.
+  final int gagnes;
+
+  /// Paris perdus.
+  final int perdus;
+
+  /// Paris remboursés (statut PUSH) : réglés, mais sans vainqueur.
+  ///
+  /// Ils n'étaient comptés nulle part. [enAttente] les absorbait donc, et
+  /// l'écran annonçait « en attente de résultat » pour des paris dont le
+  /// résultat était tombé.
+  final int rembourses;
+
+  /// Taux de réussite tel que renvoyé par l'API, en pourcentage.
+  final double tauxBrut;
+
+  /// Série de victoires en cours.
+  final int serie;
+
+  const BilanParis({
+    required this.suivis,
+    required this.gagnes,
+    required this.perdus,
+    this.rembourses = 0,
+    required this.tauxBrut,
+    required this.serie,
+  });
+
+  /// Construit un bilan depuis la réponse brute de `userStatsProvider`.
+  factory BilanParis.depuisApi(Map<String, dynamic> stats) => BilanParis(
+        suivis:   (stats['pronostics_suivis'] as num?)?.toInt()    ?? 0,
+        gagnes:   (stats['paris_gagnes']      as num?)?.toInt()    ?? 0,
+        perdus:   (stats['paris_perdus']      as num?)?.toInt()    ?? 0,
+        rembourses: (stats['paris_rembourses'] as num?)?.toInt()   ?? 0,
+        tauxBrut: (stats['taux_reussite']     as num?)?.toDouble() ?? 0.0,
+        serie:    (stats['serie_gagnante']    as num?)?.toInt()    ?? 0,
+      );
+
+  /// Paris dont l'issue **départage** — le dénominateur du taux de réussite.
+  ///
+  /// Les remboursés (PUSH) n'y figurent pas : un remboursement ne dit rien de
+  /// la justesse d'un pronostic. Cette exclusion-là est juste, et elle reste.
+  int get regles => gagnes + perdus;
+
+  /// Paris dont l'issue est connue, remboursés compris.
+  ///
+  /// À distinguer de [regles] : un remboursé est tranché sans départager.
+  int get tranches => regles + rembourses;
+
+  /// Paris posés dont l'issue n'est pas encore connue.
+  ///
+  /// Le calcul partait de [regles], donc les remboursés tombaient ici : un
+  /// pari terminé et crédité s'affichait « en attente de résultat ».
+  int get enAttente => (suivis - tranches).clamp(0, suivis);
+
+  /// Aucun pari tranché : le taux de réussite et la série n'ont pas de valeur
+  /// mesurée, seulement une valeur par défaut. Rien ne doit être chiffré.
+  bool get vierge => regles == 0;
+
+  /// En deçà de ce nombre de paris tranchés, un pourcentage ment par précision.
+  ///
+  /// Le garde-fou ne se déclenchait qu'à **zéro**. Avec un seul pari gagné,
+  /// l'écran annonçait « 100 % de réussite » — un chiffre exact et sans aucun
+  /// sens, sur la statistique qui fait croire à quelqu'un que sa méthode
+  /// fonctionne.
+  ///
+  /// Cinq, et non les dix du bilan Premium : celui-ci est un argument commercial
+  /// montré à des prospects, celui-là un tableau de bord personnel où
+  /// l'utilisateur connaît déjà ses propres paris. Le seuil protège de la
+  /// fausse précision, pas de la mauvaise foi.
+  static const echantillonMinimal = 5;
+
+  /// L'échantillon permet-il d'énoncer un pourcentage ?
+  bool get echantillonSuffisant => regles >= echantillonMinimal;
+
+  /// Combien de paris tranchés manquent avant que le taux ait un sens.
+  ///
+  /// L'écran affichait un tiret sans rien dire de plus. Le tiret est le bon
+  /// choix — un pourcentage sur deux paris ment par précision — mais il laisse
+  /// l'utilisateur devant une case vide sans raison. Compter ce qui manque
+  /// transforme une absence en attente.
+  int get avantLeTaux => (echantillonMinimal - regles).clamp(0, echantillonMinimal);
+
+  /// Taux de réussite, ou `null` tant qu'il ne veut rien dire.
+  ///
+  /// Les comptes bruts — « 1 gagné, 0 perdu » — restent affichés en dessous du
+  /// seuil : ils informent sans prétendre à une mesure.
+  double? get taux => echantillonSuffisant ? tauxBrut : null;
+
+  /// Ce qu'il faut dire quand le taux n'est pas affiché.
+  ///
+  /// `null` dès que le taux a un sens : il n'y a alors rien à expliquer, et
+  /// une explication affichée en permanence serait un reproche permanent.
+  ///
+  /// Le tiret est le bon choix — « 100 % » sur trois paris est exact et sans
+  /// aucun sens — mais il laisse l'utilisateur devant une case vide sans
+  /// raison. Cette phrase a d'abord été écrite sur l'écran du compte ; la carte
+  /// qui la portait a été retirée, et les deux autres écrans qui affichent le
+  /// même tiret, eux, ne disaient toujours rien. Elle vit donc ici, une fois,
+  /// pour les trois.
+  String? get mentionAvantLeTaux {
+    if (echantillonSuffisant) return null;
+    if (vierge) {
+      // Un compte dont tous les paris ont été remboursés n'a rien en attente et
+      // rien de départagé : annoncer « en attente de résultat » serait faux, et
+      // ne rien dire laisserait le tiret sans explication.
+      if (enAttente == 0) {
+        return rembourses > 1
+            ? '$rembourses paris remboursés : aucun ne départage'
+            : 'Pari remboursé : il ne départage pas';
+      }
+      return enAttente > 1
+          ? '$enAttente paris en attente de résultat'
+          : 'Pari en attente de résultat';
+    }
+    return avantLeTaux == 1
+        ? 'Taux de réussite dès le prochain pari tranché'
+        : 'Taux de réussite dès $echantillonMinimal paris tranchés '
+          '— encore $avantLeTaux';
+  }
+
+  /// Ce qui reste à trancher, sous la ligne « Paris suivis ».
+  ///
+  /// L'écran écrivait `suivis - gagnés - perdus` suivi de « en attente » : les
+  /// remboursés tombaient dans ce reste, alors que leur résultat est tombé et
+  /// que la mise a été recréditée. Ils sont désormais nommés.
+  String get mentionRepartition {
+    if (enAttente == 0 && rembourses == 0) return 'tous tranchés';
+    final bouts = <String>[];
+    if (enAttente > 0) bouts.add('$enAttente en attente');
+    if (rembourses > 0) {
+      bouts.add(rembourses > 1 ? '$rembourses remboursés' : '1 remboursé');
+    }
+    return bouts.join(' · ');
+  }
+
+  /// Aucun pari du tout : la carte n'a pas lieu d'être affichée.
+  bool get sansAucunPari => suivis == 0;
+}
