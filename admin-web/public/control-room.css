@@ -1,0 +1,290 @@
+/*
+ * PronoWin Admin — Control Room
+ *
+ * Composants de composition pour les écrans de pilotage. Les primitives
+ * (boutons, formulaires, tableaux, badges) restent dans style.css ; cette
+ * feuille ne porte que la hiérarchie, les espaces de travail et les flux.
+ */
+
+:root {
+  --cr-space-1: .4rem;
+  --cr-space-2: .75rem;
+  --cr-space-3: 1rem;
+  --cr-space-4: 1.5rem;
+  --cr-space-5: 2rem;
+  --cr-radius: 16px;
+  --cr-radius-s: 11px;
+}
+
+.workspace-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--cr-space-3);
+  margin: 0 0 var(--cr-space-4);
+  padding: var(--cr-space-4);
+  border: 1px solid var(--border);
+  border-radius: var(--cr-radius);
+  background:
+    radial-gradient(circle at top right, rgba(var(--primary-rgb), .13), transparent 36%),
+    var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.workspace-heading { min-width: 0; }
+.workspace-eyebrow {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  margin-bottom: .4rem;
+  color: var(--primary-texte);
+  font-size: var(--fs-xs);
+  font-weight: 800;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+}
+.workspace-header h1 {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  margin: 0;
+  font-size: clamp(1.35rem, 2vw, 1.8rem);
+  letter-spacing: -.035em;
+}
+.workspace-description {
+  max-width: 62ch;
+  margin-top: .45rem;
+  color: var(--text-m);
+  font-size: var(--fs-m);
+  line-height: 1.55;
+}
+.workspace-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: .55rem;
+  flex-shrink: 0;
+}
+.live-state {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  min-height: 32px;
+  padding: .38rem .65rem;
+  border: 1px solid rgba(var(--success-rgb), .25);
+  border-radius: 999px;
+  background: rgba(var(--success-rgb), .09);
+  color: var(--on-success);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+.live-state::before {
+  content: '';
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 0 4px rgba(var(--success-rgb), .12);
+}
+.live-state[data-state='waiting'],
+.live-state[data-state='retry'] {
+  border-color: rgba(var(--warning-rgb), .28);
+  background: rgba(var(--warning-rgb), .09);
+  color: var(--on-warning);
+}
+.context-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: .38rem .65rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface-d);
+  color: var(--text-m);
+  font-size: var(--fs-xs);
+  font-weight: 700;
+}
+
+.view-tabs {
+  display: flex;
+  gap: .35rem;
+  flex-wrap: wrap;
+  margin: 0 0 var(--cr-space-3);
+  padding: .35rem;
+  width: fit-content;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface-d);
+}
+.view-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: .45rem;
+  min-height: 34px;
+  padding: .42rem .7rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--text-m);
+  font-size: var(--fs-s);
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+  transition: background var(--transition), color var(--transition), border-color var(--transition), box-shadow var(--transition);
+}
+.view-tab:hover { background: var(--surface-h); color: var(--text); }
+.view-tab[aria-current='page'] {
+  border-color: rgba(var(--primary-rgb), .32);
+  background: var(--surface);
+  color: var(--primary-texte);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .16);
+}
+
+.control-section-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  gap: var(--cr-space-2);
+  margin: 1.65rem 0 .75rem;
+}
+.control-section-head h2 {
+  margin: 0;
+  font-size: var(--fs-xl);
+  letter-spacing: -.015em;
+}
+.control-section-head p {
+  margin: .2rem 0 0;
+  color: var(--text-dim);
+  font-size: var(--fs-s);
+}
+
+.operational-queue {
+  border-radius: var(--cr-radius);
+  box-shadow: var(--shadow);
+}
+.operational-queue .file-entete {
+  min-height: 48px;
+  padding: .85rem 1.1rem;
+}
+.operational-queue .file-tache { padding: .9rem 1.1rem; }
+.operational-queue .file-tache.urgente { background: linear-gradient(90deg, rgba(var(--error-rgb), .08), transparent 45%); }
+.operational-queue .file-tache:hover { background: var(--surface-h); }
+
+.metric-grid { gap: .85rem; }
+.metric-card {
+  min-height: 132px;
+  border-radius: var(--cr-radius);
+  box-shadow: var(--shadow);
+}
+.metric-card:hover { border-color: var(--border-s); }
+.metric-card .kpi-lbl,
+.metric-card.pro-stat .l { letter-spacing: .09em; }
+
+.cr-panel {
+  border-radius: var(--cr-radius);
+  box-shadow: var(--shadow);
+}
+.cr-panel .card-header,
+.cr-panel .chart-card-header {
+  min-height: 52px;
+  padding: .95rem 1.15rem;
+}
+.command-surface {
+  margin-bottom: var(--cr-space-3);
+  padding: .85rem;
+  border: 1px solid var(--border);
+  border-radius: var(--cr-radius);
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.command-surface-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--cr-space-2);
+  margin: 0 0 .65rem;
+  padding: 0 .15rem;
+}
+.command-surface-title {
+  display: flex;
+  align-items: center;
+  gap: .45rem;
+  color: var(--text);
+  font-size: var(--fs-s);
+  font-weight: 800;
+}
+.command-surface-copy { margin-top: .16rem; color: var(--text-dim); font-size: var(--fs-xs); }
+.command-surface .filterbar { margin-bottom: 0; padding: 0; border: 0; background: transparent; }
+
+.cr-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: .8rem;
+  margin-bottom: var(--cr-space-3);
+  padding: .9rem 1.05rem;
+  border: 1px solid rgba(var(--primary-rgb), .25);
+  border-left: 3px solid var(--primary);
+  border-radius: var(--cr-radius-s);
+  background: linear-gradient(90deg, rgba(var(--primary-rgb), .11), transparent 72%);
+}
+.cr-callout-icon { margin-top: .05rem; color: var(--primary-texte); }
+.cr-callout-title { margin-bottom: .15rem; font-size: var(--fs-s); font-weight: 800; }
+.cr-callout-copy { color: var(--text-m); font-size: var(--fs-s); line-height: 1.55; }
+
+.score-health {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  margin: .55rem 0 0;
+  color: var(--text-m);
+  font-size: var(--fs-xs);
+}
+.score-health::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--info); }
+
+.prediction-table { box-shadow: var(--shadow); }
+.prediction-table .dt-scroll { max-height: min(65vh, 780px); }
+.prediction-table .dt thead th { box-shadow: 0 1px 0 var(--border); }
+.prediction-table .dt tbody tr { transition: background var(--transition), box-shadow var(--transition); }
+.prediction-table .dt tbody tr:focus-within { outline: 2px solid rgba(var(--primary-rgb), .36); outline-offset: -2px; }
+
+.action-menu { position: relative; }
+.action-menu > summary { list-style: none; }
+.action-menu > summary::-webkit-details-marker { display: none; }
+.action-menu > summary::after { content: '⌄'; margin-left: .32rem; font-size: .8em; }
+.action-menu[open] > summary::after { content: '⌃'; }
+.action-menu-list {
+  position: absolute;
+  right: 0;
+  z-index: 8;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(34px, 1fr));
+  gap: .28rem;
+  width: 142px;
+  margin-top: .3rem;
+  padding: .35rem;
+  border: 1px solid var(--border-s);
+  border-radius: 10px;
+  background: var(--surface);
+  box-shadow: var(--shadow-lg);
+}
+.action-menu-list .btn { justify-content: center; min-height: 30px; padding: 3px 5px; }
+
+@media (max-width: 900px) {
+  .workspace-header { flex-direction: column; align-items: stretch; padding: 1rem; }
+  .workspace-actions { justify-content: flex-start; }
+  .control-section-head { align-items: flex-start; flex-direction: column; }
+  .prediction-table .dt-scroll { max-height: none; }
+}
+
+@media (max-width: 600px) {
+  .workspace-header { margin-bottom: 1rem; }
+  .workspace-header h1 { font-size: 1.35rem; }
+  .workspace-actions > .btn, .workspace-actions > form { flex: 1 1 auto; }
+  .workspace-actions > .btn, .workspace-actions > form .btn { justify-content: center; width: 100%; }
+  .view-tabs { width: 100%; overflow-x: auto; flex-wrap: nowrap; }
+  .view-tab { flex: 0 0 auto; }
+  .command-surface { padding: .65rem; }
+  .metric-card { min-height: 112px; }
+  .cr-callout { padding: .8rem; }
+}

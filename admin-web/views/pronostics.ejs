@@ -59,24 +59,25 @@
   const visibleMatches = matches.filter(matchesStatus);
 %>
 
-<div class="topbar">
-  <div>
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Desk sportif</p>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Pronostics</h1>
     <%# Le total avant troncature vient de l'en-tête X-Total-Count. L'afficher
         évite de laisser croire que la liste est complète quand elle est
         plafonnée à 400. %>
     <% const _totalReel = (typeof totalMatchs !== 'undefined' && totalMatchs) ? totalMatchs : _total; %>
-    <small>
+    <p class="workspace-description">
       <% if (_totalReel > _total) { %>
         <%= _total %> affichés sur <%= _totalReel.toLocaleString('fr-FR') %> matchs
       <% } else { %>
         <%= _total %> match<%= _total!==1?'s':'' %>
       <% } %>
       · <%= (typeof live !== 'undefined' && live) ? 'Matchs en direct (base locale)' : (typeof mine !== 'undefined' && mine) ? 'Mes pronostics (base locale)' : 'Catalogue externe' %>
-    </small>
-    <p id="scores-status" role="status" aria-live="polite" style="font-size:12px;color:var(--text-m);margin-top:6px">Vérification automatique des scores…</p>
+    </p>
+    <p id="scores-status" class="score-health" role="status" aria-live="polite">Vérification automatique des scores…</p>
   </div>
-  <div style="display:flex;gap:.5rem;align-items:center;flex-wrap:wrap">
+  <div class="workspace-actions">
     <%# Recours manuel : le cron peut echouer ou un match rester coince en LIVE.
         L'endpoint existait, aucun bouton ne l'appelait. %>
     <% if (hasPerm('pronostics', 'write')) { %>
@@ -91,23 +92,23 @@
     <a href="/admin/pronostics/export<%= competition ? '?competition='+competition : '' %>"
        class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV</a>
   </div>
-</div>
+</header>
 
 <!-- ── Onglets : découvrir de nouveaux matchs vs retrouver ce qui a déjà été pronostiqué ── -->
-<div style="display:flex;gap:.4rem;margin-bottom:1rem">
+<nav class="view-tabs" aria-label="Vue des pronostics">
   <a href="/admin/pronostics"
-     class="btn btn-sm <%= (typeof mine === 'undefined' || !mine) && (typeof live === 'undefined' || !live) ? 'btn-primary' : 'btn-outline' %>">
+     class="view-tab" <% if ((typeof mine === 'undefined' || !mine) && (typeof live === 'undefined' || !live)) { %>aria-current="page"<% } %>>
     <svg class="ic" aria-hidden="true"><use href="#ic-globe"/></svg> Découvrir
   </a>
   <a href="/admin/pronostics?mine=1"
-     class="btn btn-sm <%= (typeof mine !== 'undefined' && mine) ? 'btn-primary' : 'btn-outline' %>">
+     class="view-tab" <% if (typeof mine !== 'undefined' && mine) { %>aria-current="page"<% } %>>
     <svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Mes pronostics
   </a>
   <a href="/admin/pronostics?live=1"
-     class="btn btn-sm <%= (typeof live !== 'undefined' && live) ? 'btn-primary' : 'btn-outline' %>">
+     class="view-tab" <% if (typeof live !== 'undefined' && live) { %>aria-current="page"<% } %>>
     <svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-danger)"><use href="#ic-dot"/></svg> Match en direct
   </a>
-</div>
+</nav>
 
 <%# `data-toast="skip"` : le balayeur générique de layout_bottom transformait
     déjà cette alerte en toast, et le script de la page en produisait un second.
@@ -125,12 +126,12 @@
 <% } %>
 
 <!-- ── Stats ─────────────────────────────────────────────────────────────────── -->
-<div class="pro-stats">
-  <div class="pro-stat blue"><div class="l">Matchs</div><div class="v"><%= _total %></div></div>
-  <div class="pro-stat green"><div class="l">Publiés</div><div class="v"><%= _published %></div></div>
-  <div class="pro-stat" style="border-left-color:var(--primary)"><div class="l">Vitrine du jour</div><div class="v" style="font-size:1.15rem;color:var(--primary-texte)"><%= _vitrine ? "1" : "—" %></div></div>
-  <div class="pro-stat orange"><div class="l">Brouillons</div><div class="v"><%= _drafts %></div></div>
-  <div class="pro-stat dim"><div class="l">Sans prono</div><div class="v"><%= _none %></div></div>
+<div class="pro-stats metric-grid">
+  <div class="pro-stat metric-card blue"><div class="l">Matchs</div><div class="v"><%= _total %></div></div>
+  <div class="pro-stat metric-card green"><div class="l">Publiés</div><div class="v"><%= _published %></div></div>
+  <div class="pro-stat metric-card" style="border-left-color:var(--primary)"><div class="l">Vitrine du jour</div><div class="v" style="font-size:1.15rem;color:var(--primary-texte)"><%= _vitrine ? "1" : "—" %></div></div>
+  <div class="pro-stat metric-card orange"><div class="l">Brouillons</div><div class="v"><%= _drafts %></div></div>
+  <div class="pro-stat metric-card dim"><div class="l">Sans prono</div><div class="v"><%= _none %></div></div>
 </div>
 
 <%# Ce que voit un visiteur non abonne. Sans ce bandeau, rien n'indique quel
@@ -142,11 +143,11 @@
     mots, et repoussait le compteur de brouillons hors de vue. Le gabarit
     restait valide, la page se rendait sans erreur — seule la lecture revelait
     le probleme. Sa place est ici, apres la rangee de statistiques. %>
-<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem;display:flex;align-items:center;gap:.8rem;flex-wrap:wrap;border-left:3px solid var(--primary)">
-  <svg class="ic ic-lg" aria-hidden="true" style="color:var(--primary-texte);flex-shrink:0"><use href="#ic-star"/></svg>
-  <div style="flex:1;min-width:220px">
-    <div style="font-size:.8rem;font-weight:800;margin-bottom:.15rem">Pronostic gratuit du jour</div>
-    <div style="font-size:.79rem;color:var(--text-m);line-height:1.55">
+<aside class="cr-callout" aria-labelledby="vitrine-title">
+  <svg class="ic ic-lg cr-callout-icon" aria-hidden="true"><use href="#ic-star"/></svg>
+  <div>
+    <div class="cr-callout-title" id="vitrine-title">Pronostic gratuit du jour</div>
+    <div class="cr-callout-copy">
       <% if (_vitrine) { %>
         <strong><%= _vitrine.homeTeam %> – <%= _vitrine.awayTeam %></strong>
         — visible par tous les visiteurs, abonnés ou non.
@@ -164,9 +165,13 @@
       <% } %>
     </div>
   </div>
-</div>
+</aside>
 
 <!-- ── Filtres ────────────────────────────────────────────────────────────────── -->
+<section class="command-surface" aria-label="Filtres des pronostics">
+  <div class="command-surface-head">
+    <div><div class="command-surface-title"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg> Rechercher et filtrer</div><p class="command-surface-copy">Réduisez le catalogue à une compétition, un statut ou une équipe.</p></div>
+  </div>
 <form method="GET" action="/admin/pronostics" class="filterbar">
     <input type="hidden" name="mine" value="<%= (typeof mine !== 'undefined' && mine) ? '1' : '0' %>">
     <input type="hidden" name="live" value="<%= (typeof live !== 'undefined' && live) ? '1' : '0' %>">
@@ -209,6 +214,7 @@
   <span class="spacer"></span>
   <span style="font-size:.78rem;color:var(--text-dim)"><%= visibleMatches.length %> affiché<%= visibleMatches.length!==1?'s':'' %></span>
 </form>
+</section>
 
 <!-- ── Grille des matchs ──────────────────────────────────────────────────────── -->
 <% const _isMine = typeof mine !== 'undefined' && mine; %>
@@ -242,13 +248,13 @@
 <% } else {
      const sections = _isGrouped ? leagueGroups : [{ league: null, logo: null, items: visibleMatches }];
 %>
-<div class="dt-wrap" id="pro-table">
+<div class="dt-wrap prediction-table" id="pro-table">
   <div class="bulkbar" id="pro-bulk">
     <span class="count" id="pro-bulk-n">0</span>&nbsp;pronostic(s) sélectionné(s)
     <span class="spacer"></span>
-    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="WIN"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> WIN</button>
-    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="LOSS"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> LOSS</button>
-    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="PUSH"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Push</button>
+    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="WIN"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Gagné</button>
+    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="LOSS"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Perdu</button>
+    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="PUSH"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Remboursé</button>
     <button type="button" class="btn btn-sm btn-outline" id="pro-bulk-clear">Annuler</button>
   </div>
   <div class="dt-scroll">
@@ -345,9 +351,14 @@
           <td class="col-act">
             <div class="row-act">
               <% if(m.has_pronostic && m.pronostic) { %>
-                <button class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="WIN"  title="Forcer le résultat à GAGNANT"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg></button>
-                <button class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="LOSS" title="Forcer le résultat à PERDANT"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
-                <button class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="PUSH" title="Forcer le résultat à REMBOURSÉ"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg></button>
+                <details class="action-menu">
+                  <summary class="btn btn-sm btn-outline" aria-label="Régler le résultat de ce pronostic">Régler</summary>
+                  <div class="action-menu-list" aria-label="Choisir le résultat">
+                    <button type="button" class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="WIN" title="Marquer comme gagné" aria-label="Marquer ce pronostic comme gagné"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg></button>
+                    <button type="button" class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="LOSS" title="Marquer comme perdu" aria-label="Marquer ce pronostic comme perdu"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
+                    <button type="button" class="btn btn-sm btn-outline force-result-btn" data-id="<%= m.pronostic.id %>" data-result="PUSH" title="Marquer comme remboursé" aria-label="Marquer ce pronostic comme remboursé"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg></button>
+                  </div>
+                </details>
               <% } %>
               <%# Vitrine gratuite : un seul pronostic a la fois. Propose uniquement
                   sur un pronostic publie et non termine — designer un match fini

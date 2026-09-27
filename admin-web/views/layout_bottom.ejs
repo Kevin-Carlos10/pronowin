@@ -930,6 +930,7 @@ setInterval(refreshBadges, 30000);
     const indicator = document.getElementById('live-indicator');
     if (indicator) {
       indicator.textContent = online ? 'Temps réel connecté' : 'Reconnexion…';
+      indicator.dataset.state = online ? 'connected' : 'retry';
       indicator.style.color = online ? 'var(--on-success)' : 'var(--on-warning)';
     }
     let dot = document.getElementById('sse-status-dot');

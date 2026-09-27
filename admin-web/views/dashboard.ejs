@@ -196,18 +196,19 @@
 @media (max-width: 600px)  { .kpi-grid { grid-template-columns: 1fr 1fr; } }
 </style>
 
-<div class="topbar">
-  <div>
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg> Centre de pilotage</p>
     <h1>Tableau de bord</h1>
-    <small>Bonjour, <strong><%= adminName %></strong> 👋 — <span id="dash-date" style="color:var(--text-dim)"></span></small>
+    <p class="workspace-description">Bonjour, <strong><%= adminName %></strong>. Priorisez les tâches en attente, puis suivez l’activité et la santé de PronoWin.</p>
   </div>
-  <div style="display:flex;gap:.5rem;align-items:center">
-    <span id="live-indicator" style="font-size:.75rem;color:var(--on-success);font-weight:600;display:flex;align-items:center;gap:.3rem">
-      Connexion en cours…
-    </span>
-    <button class="btn btn-outline btn-sm" onclick="refreshAll()" id="refresh-btn"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Actualiser</button>
+  <div class="workspace-actions">
+    <span id="live-indicator" class="live-state" data-state="waiting">Connexion en cours…</span>
+    <span class="context-chip" id="dash-date"></span>
+    <a href="/admin/pronostics" class="btn btn-primary btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Gérer les pronostics</a>
+    <button class="btn btn-outline btn-sm" type="button" onclick="refreshAll()" id="refresh-btn"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Actualiser</button>
   </div>
-</div>
+</header>
 
 <!-- ── File de travail ────────────────────────────────────────────────────── -->
 <%
@@ -226,7 +227,7 @@
   const _urgent = _file.filter(t => t.urgence === 'haute').length;
 %>
 
-<div class="file-travail">
+<div class="file-travail operational-queue">
   <div class="file-entete">
     <svg class="ic" aria-hidden="true"><use href="#ic-<%= _file.length ? 'inbox' : 'check-circle' %>"/></svg>
     <span><%= _file.length ? 'À traiter' : 'Rien à traiter' %></span>
@@ -260,26 +261,29 @@
 <%- include('_sante') %>
 <% } %>
 
-<div class="kpi-grid">
-  <a href="/admin/users" class="kpi-card blue">
+<div class="control-section-head">
+  <div><h2>Indicateurs clés</h2><p>Une lecture immédiate de l’acquisition, de la conversion et de l’activité.</p></div>
+</div>
+<div class="kpi-grid metric-grid">
+  <a href="/admin/users" class="kpi-card metric-card blue">
     <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span>
     <div class="kpi-lbl">Utilisateurs totaux</div>
     <div class="kpi-val" id="kpi-users"><%= stats.totalUsers ?? 0 %></div>
     <div class="kpi-delta neu" id="kpi-users-delta">— cette semaine</div>
   </a>
-  <a href="/admin/users?plan=premium" class="kpi-card orange">
+  <a href="/admin/users?plan=premium" class="kpi-card metric-card orange">
     <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span>
     <div class="kpi-lbl">Membres Premium</div>
     <div class="kpi-val" id="kpi-premium"><%= stats.premiumUsers ?? 0 %></div>
     <div class="kpi-delta neu" id="kpi-conv-rate">— taux de conversion</div>
   </a>
-  <a href="/admin/pronostics" class="kpi-card green">
+  <a href="/admin/pronostics" class="kpi-card metric-card green">
     <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></span>
     <div class="kpi-lbl">Pronostics publiés auj.</div>
     <div class="kpi-val" id="kpi-prono"><%= stats.publishedToday ?? 0 %></div>
     <div class="kpi-delta neu" id="kpi-prono-delta">— taux de succès</div>
   </a>
-  <div class="kpi-card teal" id="kpi-active-card" style="cursor:pointer" title="Voir les utilisateurs connectés">
+  <div class="kpi-card metric-card teal" id="kpi-active-card" style="cursor:pointer" title="Voir les utilisateurs connectés">
     <span class="kpi-icon-badge"><span class="kpi-pulse-dot"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg></span></span>
     <div class="kpi-lbl">Connectés maintenant</div>
     <div class="kpi-val" id="kpi-active"><%= stats.activeUsers ?? 0 %></div>
@@ -289,14 +293,14 @@
 
 <!-- ── Graphiques ─────────────────────────────────────────────────────────── -->
 <div class="charts-main">
-  <div class="chart-card">
+  <div class="chart-card cr-panel">
     <div class="chart-card-header">
       <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg> Inscriptions <span class="chart-card-sub">— 14 derniers jours</span></div>
       <span class="chart-stat-badge" id="badge-signups">…</span>
     </div>
     <div class="chart-wrap" style="height:200px"><canvas id="chart-signups"></canvas></div>
   </div>
-  <div class="chart-card">
+  <div class="chart-card cr-panel">
     <div class="chart-card-header">
       <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Conversion</div>
       <span class="chart-stat-badge" id="badge-conv">…</span>
@@ -308,7 +312,7 @@
 </div>
 
 <div class="charts-row">
-  <div class="chart-card">
+  <div class="chart-card cr-panel">
     <div class="chart-card-header">
       <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Taux de succès pronostics</div>
       <span class="chart-stat-badge" id="badge-pronos">…</span>
@@ -317,7 +321,7 @@
       <canvas id="chart-pronostics" style="max-height:170px"></canvas>
     </div>
   </div>
-  <div class="chart-card">
+  <div class="chart-card cr-panel">
     <div class="chart-card-header">
       <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg> Répartition membres</div>
     </div>
@@ -352,7 +356,7 @@
 <div class="bottom-grid">
 
   <!-- Activité récente -->
-  <div class="card" style="padding:0;overflow:hidden">
+  <div class="card cr-panel" style="padding:0;overflow:hidden">
     <div class="card-header">
       <%# Le titre dit de qui on parle. Un sous-admin ne voit que ses propres
           actions : intitulé « Activité récente », il aurait cru lire celle du
