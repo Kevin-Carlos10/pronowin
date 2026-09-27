@@ -14,13 +14,42 @@
 .fa-etat { display:inline-flex; align-items:center; gap:.4rem; font-weight:700; font-size:.85rem; }
 .fa-etat.on  { color: var(--on-success); }
 .fa-etat.off { color: var(--on-warning); }
+
+/* ── Control Room : centre de sécurité 2FA ───────────────────────────────── */
+.twofa-workspace { margin-bottom:1rem; }
+.twofa-back { display:inline-flex; align-items:center; gap:.35rem; margin-bottom:.55rem; color:var(--text-dim); font-size:var(--fs-s); text-decoration:none; }
+.twofa-back:hover { color:var(--primary-texte); }
+.twofa-card { max-width:900px; padding:1.35rem; box-shadow:var(--shadow); }
+.twofa-card--setup { border-color:rgba(var(--primary-rgb),.27); background:linear-gradient(135deg,rgba(var(--primary-rgb),.08),var(--surface) 42%); }
+.twofa-card--active { border-color:rgba(var(--success-rgb),.28); }
+.twofa-card--recovery { border-color:rgba(var(--warning-rgb),.34); background:linear-gradient(135deg,rgba(var(--warning-rgb),.10),var(--surface) 42%); }
+.twofa-card--notice { border-color:rgba(var(--info-rgb),.28); }
+.twofa-card-head { display:flex; align-items:flex-start; justify-content:space-between; gap:1rem; margin-bottom:1rem; }
+.twofa-card-head h2 { margin:0; font-size:var(--fs-l); }
+.twofa-card-head p { max-width:62ch; margin:.28rem 0 0; color:var(--text-m); font-size:var(--fs-s); line-height:1.55; }
+.twofa-status { display:inline-flex; align-items:center; gap:.35rem; min-height:30px; padding:.32rem .6rem; border:1px solid var(--border); border-radius:999px; color:var(--text-m); font-size:var(--fs-xs); font-weight:800; letter-spacing:.04em; text-transform:uppercase; white-space:nowrap; }
+.twofa-status.active { border-color:rgba(var(--success-rgb),.28); color:var(--on-success); background:rgba(var(--success-rgb),.09); }
+.twofa-status.attention { border-color:rgba(var(--warning-rgb),.30); color:var(--on-warning); background:rgba(var(--warning-rgb),.09); }
+.twofa-recovery-note { display:flex; align-items:flex-start; gap:.55rem; max-width:560px; margin:1rem 0 0; color:var(--text-m); font-size:var(--fs-s); line-height:1.5; }
+.twofa-setup-note { margin:.8rem 0 0; color:var(--text-dim); font-size:var(--fs-s); line-height:1.5; }
+.twofa-card .fa-grille { margin-top:.25rem !important; }
+.twofa-card .fa-qr { box-shadow:var(--shadow); }
+@media(max-width:600px) {
+  .twofa-card { padding:1rem; }
+  .twofa-card-head { flex-direction:column; gap:.55rem; }
+}
 </style>
 
-<div class="topbar">
-  <div>
-    <a href="/admin/profile" style="color:var(--text-dim);font-size:.82rem;text-decoration:none">← Mon profil</a>
-    <h1 style="margin-top:4px"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Double authentification</h1>
-    <small>Un code à six chiffres, donné par une application de votre téléphone, en plus du mot de passe.</small>
+<div class="workspace-header twofa-workspace">
+  <div class="workspace-heading">
+    <a class="twofa-back" href="/admin/profile"><svg class="ic" aria-hidden="true"><use href="#ic-arrow-left"/></svg> Mon profil</a>
+    <div class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Sécurité du compte</div>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Double authentification</h1>
+    <p class="workspace-description">Ajoutez une preuve détenue sur votre téléphone au mot de passe afin de protéger les opérations d'administration à fort impact.</p>
+  </div>
+  <div class="workspace-actions">
+    <span class="context-chip">Authentification d'administration</span>
+    <span class="live-state" data-state="<%= active ? 'live' : 'waiting' %>"><%= active ? 'Protection active' : (doitActiver ? 'Action requise' : 'Configuration requise') %></span>
   </div>
 </div>
 
@@ -41,13 +70,25 @@
 <% if (error) { %><div class="alert alert-error" role="alert"><%= error %></div><% } %>
 
 <% if (!disponible) { %>
-  <div class="card" style="padding:1.1rem">
-    Cette session a été ouverte avant l'arrivée de la double authentification.
-    Déconnectez-vous puis reconnectez-vous pour la configurer.
+  <div class="card cr-panel twofa-card twofa-card--notice">
+    <div class="twofa-card-head">
+      <div>
+        <h2>Nouvelle session requise</h2>
+        <p>Cette session a été ouverte avant l'arrivée de la double authentification. Reconnectez-vous pour initialiser la protection du compte.</p>
+      </div>
+      <span class="twofa-status attention">Action requise</span>
+    </div>
+    <a href="/admin/logout" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> Se déconnecter</a>
   </div>
 <% } else if (codesSecours) { %>
-  <div class="card" style="padding:1.2rem">
-    <h2 style="font-size:1rem;margin:0 0 .6rem">Vos codes de secours</h2>
+  <div class="card cr-panel twofa-card twofa-card--recovery">
+    <div class="twofa-card-head">
+      <div>
+        <h2>Vos codes de secours</h2>
+        <p>Une seule consultation est possible. Enregistrez-les avant de quitter cet écran.</p>
+      </div>
+      <span class="twofa-status attention">À conserver hors ligne</span>
+    </div>
     <p style="font-size:.88rem;color:var(--text-m);margin:0 0 .9rem;line-height:1.6">
       Chacun remplace une fois le code du téléphone — si vous le perdez ou le changez.
       <strong>Notez-les maintenant et gardez-les hors du téléphone</strong> : ils ne seront plus jamais affichés.
@@ -55,10 +96,18 @@
     <div class="fa-secours" aria-label="Codes de secours">
       <% codesSecours.forEach(function (c) { %><span><%= c %></span><% }) %>
     </div>
+    <div class="twofa-recovery-note"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg><span>Chaque code ne peut être utilisé qu'une fois. Si vous les perdez, la double authentification devra être réinitialisée par un administrateur principal.</span></div>
     <a href="/admin/dashboard" class="btn btn-primary" style="margin-top:1.1rem">J'ai noté mes codes — continuer</a>
   </div>
 <% } else if (active) { %>
-  <div class="card" style="padding:1.2rem">
+  <div class="card cr-panel twofa-card twofa-card--active">
+    <div class="twofa-card-head">
+      <div>
+        <h2>Protection active</h2>
+        <p>Votre mot de passe est complété par un code temporaire généré sur votre téléphone.</p>
+      </div>
+      <span class="twofa-status active"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Protégé</span>
+    </div>
     <p class="fa-etat on"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Active sur ce compte</p>
     <p style="font-size:.88rem;color:var(--text-m);margin:.4rem 0 1rem">
       Codes de secours restants : <strong><%= restants %></strong>.
@@ -76,9 +125,16 @@
     <% } %>
   </div>
 <% } else { %>
-  <div class="card" style="padding:1.2rem">
+  <div class="card cr-panel twofa-card twofa-card--setup">
+    <div class="twofa-card-head">
+      <div>
+        <h2>Configurer la protection</h2>
+        <p>Scannez le QR code dans une application d'authentification, puis confirmez le premier code à six chiffres généré.</p>
+      </div>
+      <span class="twofa-status attention">À configurer</span>
+    </div>
     <p class="fa-etat off"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Pas encore active</p>
-    <div class="fa-grille" style="margin-top:1rem">
+    <div class="fa-grille">
       <div>
         <div class="fa-qr" role="img" aria-label="QR code à scanner avec l'application d'authentification"><%- qr %></div>
       </div>
@@ -98,6 +154,7 @@
           </div>
           <button type="submit" class="btn btn-primary">Activer</button>
         </form>
+        <p class="twofa-setup-note">Utilisez une application qui fonctionne sans réseau. Vous recevrez vos codes de secours après l'activation.</p>
       </div>
     </div>
   </div>

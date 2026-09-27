@@ -83,13 +83,16 @@ input[name=category] { display:none; }
   }
 %>
 
-<div class="topbar">
-  <div>
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Contenu & publication</p>
     <h1><%= isNew ? '📰 Nouvel article' : '✏️ Modifier l\'article' %></h1>
-    <% if(!isNew) { %><small><%= art.title %></small><% } %>
+    <p class="workspace-description"><%= isNew ? 'Préparez le contenu, définissez sa diffusion et vérifiez l’aperçu avant publication.' : art.title %></p>
   </div>
-  <a href="/admin/actualites" class="btn btn-outline btn-sm">← Retour</a>
-</div>
+  <div class="workspace-actions">
+    <a href="/admin/actualites" class="btn btn-outline btn-sm">← Retour aux actualités</a>
+  </div>
+</header>
 
 <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
 <% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
@@ -101,7 +104,7 @@ input[name=category] { display:none; }
   <div>
 
     <!-- Titre -->
-    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+    <div class="card cr-panel" style="padding:1.25rem;margin-bottom:1rem">
       <div class="af-field">
         <label>Titre <span style="color:var(--on-danger)">*</span> <span class="af-counter" id="cnt-title">0/120</span></label>
         <input class="input" type="text" name="title" id="inp-title" value="<%= art.title||'' %>"
@@ -117,7 +120,7 @@ input[name=category] { display:none; }
     </div>
 
     <!-- Contenu -->
-    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+    <div class="card cr-panel" style="padding:1.25rem;margin-bottom:1rem">
       <div class="af-field" style="margin-bottom:0">
         <label>Contenu complet <span class="af-counter" id="cnt-content">0/5000</span></label>
         <textarea class="input" name="content" id="inp-content" rows="12"
@@ -128,7 +131,7 @@ input[name=category] { display:none; }
     </div>
 
     <!-- Catégorie -->
-    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+    <div class="card cr-panel" style="padding:1.25rem;margin-bottom:1rem">
       <div class="af-field" style="margin-bottom:0">
         <label>Catégorie</label>
         <input type="hidden" name="category" id="inp-cat" value="<%= selCat %>">
@@ -154,7 +157,7 @@ input[name=category] { display:none; }
     </div>
 
     <!-- Image -->
-    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+    <div class="card cr-panel" style="padding:1.25rem;margin-bottom:1rem">
       <div class="af-field" style="margin-bottom:0">
         <label>URL de l'image d'en-tête</label>
         <input class="input" type="url" name="imageUrl" id="inp-img"
@@ -166,7 +169,7 @@ input[name=category] { display:none; }
     </div>
 
     <!-- Options -->
-    <div class="card" style="padding:1.25rem;margin-bottom:1rem">
+    <div class="card cr-panel" style="padding:1.25rem;margin-bottom:1rem">
       <div style="font-size:.78rem;font-weight:700;color:var(--text-m);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.7rem">Options</div>
 
       <div class="af-toggle-row">
@@ -229,7 +232,7 @@ input[name=category] { display:none; }
   <div>
 
     <!-- Prévisualisation -->
-    <div class="af-preview" style="margin-bottom:1rem">
+    <div class="af-preview cr-panel" style="margin-bottom:1rem">
       <div style="padding:.7rem 1rem;border-bottom:1px solid var(--border);font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em">
         Prévisualisation
       </div>
@@ -250,7 +253,7 @@ input[name=category] { display:none; }
 
     <!-- Stats (edit seulement) -->
     <% if(isEdit) { %>
-    <div class="card" style="padding:1.1rem">
+    <div class="card cr-panel" style="padding:1.1rem">
       <div style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.7rem">Informations</div>
       <div class="af-stat-row"><span class="k">Vues</span><span class="v" style="color:var(--primary-texte)"><%= (art.viewCount||0).toLocaleString() %></span></div>
       <div class="af-stat-row"><span class="k">Likes</span><span class="v" style="color:var(--on-danger)"><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> <%= art.likeCount||0 %></span></div>

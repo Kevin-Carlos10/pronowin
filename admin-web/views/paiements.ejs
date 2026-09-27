@@ -1,4 +1,6 @@
 <%- include('layout_top', {page:'paiements'}) %>
+<link rel="stylesheet" href="/finance-control-room.css">
+<section class="finance-page finance-page--methods">
 
 <style>
 .pm-card   { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
@@ -28,31 +30,29 @@
   const _actives = _liste ? _liste.filter(m => m.isActive).length : 0;
 %>
 
-<div class="topbar">
-  <div>
+<header class="topbar workspace-header finance-workspace-header">
+  <div class="workspace-heading">
+    <div class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Opérations financières</div>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg> Méthodes de paiement</h1>
-    <small>
-      <% if (_liste) { %>
-        <%= _liste.length %> opérateur<%= _liste.length !== 1 ? 's' : '' %>,
-        <%= _actives %> actif<%= _actives !== 1 ? 's' : '' %> dans l'application
-      <% } else { %>Indisponible<% } %>
-    </small>
+    <p class="workspace-description">Pilotez les canaux Mobile Money affichés aux abonnés et gardez une configuration fiable pour chaque encaissement.</p>
   </div>
-</div>
+  <div class="workspace-actions">
+    <span class="context-chip"><%= _liste ? _actives + ' actif' + (_actives !== 1 ? 's' : '') : 'État indisponible' %></span>
+  </div>
+</header>
 
-<%- include('_onglets_paiements', { actif: 'paiements' }) %>
+<div class="finance-subnav"><%- include('_onglets_paiements', { actif: 'paiements' }) %></div>
 
 <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
 <% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"><%= error %></div><% } %>
 
-<div class="card" style="padding:.85rem 1.1rem;margin-bottom:1rem">
-  <p style="margin:0;font-size:.83rem;color:var(--text-m);line-height:1.6">
-    Ces numéros sont ceux que voit l'abonné sur l'écran de paiement Mobile Money, et
-    qu'il copie pour envoyer son argent. Ils sont lus par l'application à chaque
-    ouverture : <strong>aucune recompilation n'est nécessaire</strong>.
-    Un opérateur désactivé disparaît de l'application mais reste lisible dans l'historique.
-  </p>
-</div>
+<aside class="cr-callout finance-payment-callout" aria-label="Effet de la configuration">
+  <div class="cr-callout-icon"><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg></div>
+  <div>
+    <div class="cr-callout-title">Configuration visible par les abonnés</div>
+    <div class="cr-callout-copy">Ces numéros sont lus par l'application à chaque ouverture : aucune recompilation n'est nécessaire. Masquer un opérateur le retire du paiement sans effacer son historique.</div>
+  </div>
+</aside>
 
 <% if (!_liste) { %>
   <div class="alert alert-error">
@@ -61,7 +61,7 @@
   </div>
 <% } else { %>
 
-<div class="pm-card">
+<div class="pm-card cr-panel finance-methods-panel">
   <% if (_liste.length === 0) { %>
     <div style="padding:2.2rem 1rem;text-align:center;color:var(--text-dim)">
       <div style="font-size:2rem;margin-bottom:.4rem">
@@ -73,7 +73,7 @@
   <% } %>
 
   <% _liste.forEach(m => { %>
-  <div class="pm-row <%= m.isActive ? '' : 'off' %>">
+  <div class="pm-row finance-method-row <%= m.isActive ? '' : 'off' %>">
     <div>
       <div class="pm-label"><%= m.label %></div>
       <div class="pm-key"><%= m.key %></div>
@@ -90,22 +90,29 @@
     </span>
 
     <div class="pm-acts">
-      <button type="button" class="btn btn-outline btn-sm"
-              onclick="modifier('<%= m.id %>', <%= JSON.stringify(m.label) %>, <%= JSON.stringify(m.phone) %>, <%= m.sortOrder %>, <%= JSON.stringify(m.ussdTemplate || '') %>)">
-        <svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier
-      </button>
-      <form method="POST" action="/admin/paiements/<%= m.id %>/toggle" style="display:inline">
-        <button type="submit" class="btn btn-outline btn-sm">
-          <svg class="ic" aria-hidden="true"><use href="#ic-<%= m.isActive ? 'eye-off' : 'eye' %>"/></svg>
-          <%= m.isActive ? 'Masquer' : 'Afficher' %>
-        </button>
-      </form>
-      <form method="POST" action="/admin/paiements/<%= m.id %>/supprimer" style="display:inline"
-            onsubmit="return confirm('Supprimer « <%= m.label %> » ?\n\nS\'il a déjà servi à un paiement, il sera seulement masqué pour ne pas rendre l\'historique illisible.')">
-        <button type="submit" class="btn btn-danger btn-sm" aria-label="Supprimer <%= m.label %>">
-          <svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg>
-        </button>
-      </form>
+      <details class="action-menu finance-action-menu">
+        <summary class="btn btn-outline btn-sm" aria-label="Actions pour <%= m.label %>">
+          <svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Actions
+        </summary>
+        <div class="action-menu-list finance-action-menu-list">
+          <button type="button" class="btn btn-outline btn-sm"
+                  onclick="modifier('<%= m.id %>', <%= JSON.stringify(m.label) %>, <%= JSON.stringify(m.phone) %>, <%= m.sortOrder %>, <%= JSON.stringify(m.ussdTemplate || '') %>)">
+            <svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier
+          </button>
+          <form method="POST" action="/admin/paiements/<%= m.id %>/toggle">
+            <button type="submit" class="btn btn-outline btn-sm">
+              <svg class="ic" aria-hidden="true"><use href="#ic-<%= m.isActive ? 'eye-off' : 'eye' %>"/></svg>
+              <%= m.isActive ? 'Masquer' : 'Afficher' %>
+            </button>
+          </form>
+          <form method="POST" action="/admin/paiements/<%= m.id %>/supprimer"
+                onsubmit="return confirm('Supprimer « <%= m.label %> » ?\n\nS\'il a déjà servi à un paiement, il sera seulement masqué pour ne pas rendre l\'historique illisible.')">
+            <button type="submit" class="btn btn-danger btn-sm" aria-label="Supprimer <%= m.label %>">
+              <svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Supprimer
+            </button>
+          </form>
+        </div>
+      </details>
     </div>
   </div>
   <% }) %>
@@ -138,9 +145,9 @@
 </div>
 
 <!-- Modale de modification -->
-<div id="modal-edit" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.6);
+<div id="modal-edit" class="finance-modal" style="display:none;position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.6);
      align-items:center;justify-content:center;padding:1rem">
-  <form method="POST" id="form-edit" class="card" style="max-width:420px;width:100%;padding:1.4rem">
+  <form method="POST" id="form-edit" class="card finance-modal-card" style="max-width:420px;width:100%;padding:1.4rem">
     <h3 style="margin:0 0 1rem;font-size:1.05rem">Modifier l'opérateur</h3>
 
     <div class="form-group" style="margin-bottom:.8rem">
@@ -193,4 +200,5 @@
 </script>
 <% } %>
 
+</section>
 <%- include('layout_bottom') %>

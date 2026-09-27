@@ -65,41 +65,42 @@
 @media (max-width: 900px) { .g2,.g3,.g3b { grid-template-columns:1fr; } }
 </style>
 
-<div class="topbar">
-  <div>
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Observabilité produit</p>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg> Statistiques avancées</h1>
-    <small id="period-label">Chargement…</small>
+    <p class="workspace-description" id="period-label">Chargement des indicateurs de la période…</p>
   </div>
-  <div class="period-bar">
+  <div class="workspace-actions period-bar" aria-label="Choisir la période d'analyse">
     <button onclick="setPeriod(7)"  id="btn-7"   class="btn btn-outline btn-sm">7j</button>
     <button onclick="setPeriod(30)" id="btn-30"  class="btn btn-outline btn-sm">30j</button>
     <button onclick="setPeriod(90)" id="btn-90"  class="btn btn-outline btn-sm">90j</button>
     <button onclick="setPeriod(0)"  id="btn-all" class="btn btn-outline btn-sm">Tout</button>
     <button onclick="refreshAll()"  class="btn btn-outline btn-sm" title="Actualiser" aria-label="Actualiser les statistiques"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg></button>
   </div>
-</div>
+</header>
 
 <!-- ── KPI ligne 1 ─────────────────────────────────────────────────────────── -->
-<div class="kpi-row">
-  <div class="kpi-box c-blue">
+<div class="kpi-row metric-grid">
+  <div class="kpi-box metric-card c-blue">
     <div class="kpi-emoji"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></div>
     <div class="kpi-v" id="k-users">—</div>
     <div class="kpi-l">Utilisateurs total</div>
     <div class="kpi-delta delta-neu" id="k-users-d">—</div>
   </div>
-  <div class="kpi-box c-green">
+  <div class="kpi-box metric-card c-green">
     <div class="kpi-emoji">🆕</div>
     <div class="kpi-v" id="k-new">—</div>
     <div class="kpi-l">Nouveaux (période)</div>
     <div class="kpi-delta delta-neu" id="k-new-d">—</div>
   </div>
-  <div class="kpi-box c-orange">
+  <div class="kpi-box metric-card c-orange">
     <div class="kpi-emoji"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></div>
     <div class="kpi-v" id="k-premium">—</div>
     <div class="kpi-l">Premium actifs</div>
     <div class="kpi-delta delta-neu" id="k-conv">—</div>
   </div>
-  <div class="kpi-box c-purple">
+  <div class="kpi-box metric-card c-purple">
     <div class="kpi-emoji"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg></div>
     <div class="kpi-v" id="k-winrate">—</div>
     <div class="kpi-l">Rendement des pronos <small style="font-weight:500">(1 unité par prono)</small></div>
@@ -108,7 +109,7 @@
 </div>
 
 <!-- ── Inscriptions ────────────────────────────────────────────────────────── -->
-<div class="ch-card" style="margin-bottom:1rem">
+<div class="ch-card cr-panel" style="margin-bottom:1rem">
   <h3><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Inscriptions par jour <small id="users-total-lbl"></small></h3>
   <div class="ch-plot" style="height:200px"><canvas id="c-signups"></canvas></div>
   <div class="ch-msg" id="msg-signups"></div>
@@ -116,19 +117,19 @@
 
 <!-- ── Pronostics + Répartition users ─────────────────────────────────────── -->
 <div class="g3b">
-  <div class="ch-card">
+  <div class="ch-card cr-panel">
     <h3><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Performances pronostics <small id="pronos-period-lbl"></small></h3>
     <div class="ch-plot" style="height:190px;display:flex;align-items:center;justify-content:center"><canvas id="c-pronos" style="max-height:180px"></canvas></div>
     <div class="ch-msg" id="msg-pronos"></div>
   </div>
-  <div class="ch-card">
+  <div class="ch-card cr-panel">
     <h3><svg class="ic" aria-hidden="true"><use href="#ic-box"/></svg> Répartition utilisateurs</h3>
     <div id="user-breakdown" style="padding-top:.25rem"></div>
   </div>
 </div>
 
 <!-- ── Évolution mensuelle (12 derniers mois) ──────────────────────────────── -->
-<div class="ch-card" style="margin-bottom:1rem">
+<div class="ch-card cr-panel" style="margin-bottom:1rem">
   <h3><svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg> Évolution sur 12 mois <small>Inscriptions et revenus</small></h3>
   <div class="ch-plot" style="height:220px;position:relative"><canvas id="c-monthly"></canvas></div>
   <div class="ch-msg" id="msg-monthly"></div>
@@ -136,7 +137,7 @@
 
 <!-- ── Taux de réussite par compétition ───────────────────────────────────── -->
 <div class="g3">
-  <div class="ch-card">
+  <div class="ch-card cr-panel">
     <h3><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg> Réussite par compétition <small id="leagues-lbl"></small></h3>
     <div id="leagues-wrap">
       <div class="table-wrap">
@@ -153,7 +154,7 @@
   </div>
 
   <!-- ── Top utilisateurs (l'endpoint existait, la page ne l'appelait pas) ── -->
-  <div class="ch-card">
+  <div class="ch-card cr-panel">
     <h3><svg class="ic" aria-hidden="true"><use href="#ic-medal"/></svg> Top utilisateurs <small>par abonnements cumulés</small></h3>
     <div id="top-wrap">
       <div class="table-wrap">

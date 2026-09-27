@@ -1,5 +1,14 @@
 <%- include('layout_top', {page:'users'}) %>
 
+<%
+  const _udHasBan = typeof activeBan !== 'undefined' && !!activeBan;
+  const _udDevices = user._count ? user._count.appareils : (user.fcmToken ? 1 : 0);
+  const _udLastSeen = user.lastLoginAt
+    ? new Date(user.lastLoginAt).toLocaleDateString('fr-FR', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' })
+    : 'Jamais connecté';
+  const _udAccountState = _udHasBan ? 'Banni' : (user.isActive ? 'Actif' : 'Suspendu');
+%>
+
 <style>
 /* ── Modals ──────────────────────────────────────────────────────────────── */
 .ud-modal { display:none; position:fixed; inset:0; background:rgba(0,0,0,.6); backdrop-filter:blur(4px); z-index:200; align-items:center; justify-content:center; }
@@ -68,6 +77,24 @@
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
 .ud-layout { display:grid; grid-template-columns:1fr 300px; gap:1rem; align-items:start; }
+.ud-identity-card { margin-bottom:1rem; }
+.ud-health-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:.65rem; margin:0 0 1.25rem; }
+.ud-health-item { min-width:0; padding:.7rem .8rem; border:1px solid var(--border); border-radius:var(--radius-s); background:var(--surface-d); }
+.ud-health-item--ok { border-color:rgba(var(--success-rgb),.26); background:rgba(var(--success-rgb),.06); }
+.ud-health-item--warn { border-color:rgba(var(--warning-rgb),.28); background:rgba(var(--warning-rgb),.06); }
+.ud-health-item--danger { border-color:rgba(var(--error-rgb),.28); background:rgba(var(--error-rgb),.07); }
+.ud-health-label { display:block; margin-bottom:.24rem; color:var(--text-dim); font-size:.66rem; font-weight:800; letter-spacing:.07em; text-transform:uppercase; }
+.ud-health-value { display:block; overflow:hidden; color:var(--text); font-size:.82rem; font-weight:750; text-overflow:ellipsis; white-space:nowrap; }
+.ud-actions-rail { position:sticky; top:1rem; }
+.ud-rail-head { margin:0 0 .9rem; padding:0 0 .8rem; border-bottom:1px solid var(--border); }
+.ud-rail-head h2 { margin:0; font-size:.98rem; }
+.ud-rail-head p { margin:.22rem 0 0; color:var(--text-dim); font-size:.75rem; line-height:1.45; }
+.ud-action-impact { margin:0 0 .6rem; color:var(--text-m); font-size:.76rem; line-height:1.5; }
+.ud-danger-zone { margin-inline:-.25rem; padding:.8rem; border:1px solid rgba(var(--error-rgb),.22); border-radius:var(--radius-s); background:linear-gradient(90deg,rgba(var(--error-rgb),.08),transparent 88%); }
+.ud-danger-zone .ud-action-title { color:var(--on-danger); }
+.ud-modal-impact { margin:-.15rem 0 1rem; color:var(--text-m); font-size:.78rem; line-height:1.5; }
+@media (max-width:900px) { .ud-actions-rail { position:static; } }
+@media (max-width:650px) { .ud-health-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
 @media (max-width:900px) { .ud-layout { grid-template-columns:1fr; } }
 </style>
 
@@ -75,8 +102,9 @@
 <div class="ud-modal" id="modal-ban">
   <div class="ud-modal-box">
     <div class="ud-modal-title" style="color:var(--on-danger)"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir <%= user.pseudo %></div>
-    <form method="POST" action="/admin/users/<%= user.id %>/ban">
+    <form method="POST" action="/admin/users/<%= user.id %>/ban" id="ud-ban-form">
       <input type="hidden" name="pseudo" value="<%= user.pseudo %>">
+      <p class="ud-modal-impact">Cette action bloque l'accès au compte, est journalisée et peut être levée depuis la fiche ou la liste de modération.</p>
       <div class="form-group" style="margin-bottom:.9rem">
         <label>Raison <span style="color:var(--on-danger)">*</span></label>
         <textarea class="input" name="reason" rows="3" placeholder="Ex : Arnaque, comportement abusif, fraude…" required aria-label="Raison"></textarea>
@@ -95,7 +123,8 @@
       </div>
       <div style="display:flex;gap:.6rem;justify-content:flex-end">
         <button type="button" class="btn btn-outline" onclick="closeModal('modal-ban')">Annuler</button>
-        <button type="submit" class="btn btn-danger"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir</button>
+        <button type="button" class="btn btn-danger" data-pseudo="<%= user.pseudo %>"
+          onclick="(function(btn){var form=document.getElementById('ud-ban-form');if(!form.reportValidity())return;askConfirm({icon:'ban',title:'Confirmer le bannissement',msg:'Le compte <strong>'+btn.dataset.pseudo+'</strong> sera bloqué et cette décision sera journalisée.',btnLabel:'Bannir le compte',btnClass:'btn-danger',onConfirm:function(){form.requestSubmit()}})})(this)"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir</button>
       </div>
     </form>
   </div>
@@ -129,17 +158,20 @@
 </div>
 
 <!-- ── Topbar ───────────────────────────────────────────────────────────── -->
-<div class="topbar">
-  <div style="display:flex;align-items:center;gap:.75rem;flex-wrap:wrap">
-    <a href="/admin/users" style="color:var(--text-dim);font-size:.82rem;text-decoration:none">← Utilisateurs</a>
-    <span aria-hidden="true" style="color:var(--text-dim)">/</span>
-    <h1 style="margin:0"><%= user.full_name || user.pseudo %></h1>
-    <span class="badge <%= user.isActive ? 'badge-ok' : 'badge-err' %>"><%= user.isActive ? '✓ Actif' : '✕ Suspendu' %></span>
-    <% if(user.is_premium) { %><span class="badge badge-warn"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span><% } %>
-    <% if(typeof activeBan !== 'undefined' && activeBan) { %><span class="badge badge-err"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Banni</span><% } %>
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> Fiche client 360°</p>
+    <h1><%= user.full_name || user.pseudo %></h1>
+    <p class="workspace-description">
+      <strong><%= _udAccountState %></strong> · <%= user.is_premium ? 'Premium actif' : 'Compte gratuit' %> · dernière activité : <%= _udLastSeen %>.
+    </p>
   </div>
-  <a href="/admin/users/<%= user.id %>" class="btn btn-outline btn-sm" title="Recharger"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg></a>
-</div>
+  <div class="workspace-actions">
+    <a href="/admin/users" class="btn btn-outline btn-sm">← Utilisateurs</a>
+    <span class="context-chip"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> ID&nbsp;<%= user.id %></span>
+    <a href="/admin/users/<%= user.id %>" class="btn btn-outline btn-sm" title="Recharger la fiche"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Actualiser</a>
+  </div>
+</header>
 
 <!-- ── Layout ───────────────────────────────────────────────────────────── -->
 <div class="ud-layout">
@@ -148,7 +180,7 @@
   <div>
 
     <!-- Card identité + onglets -->
-    <div class="card" style="margin-bottom:1rem">
+    <div class="card cr-panel ud-identity-card">
 
       <!-- Header avatar -->
       <div class="ud-header">
@@ -179,6 +211,21 @@
           </div>
         </div>
       </div>
+
+      <section class="ud-health-grid" aria-label="Résumé opérationnel du compte">
+        <div class="ud-health-item <%= _udHasBan || !user.isActive ? 'ud-health-item--danger' : 'ud-health-item--ok' %>">
+          <span class="ud-health-label">Accès</span><span class="ud-health-value"><%= _udAccountState %></span>
+        </div>
+        <div class="ud-health-item <%= user.is_premium ? 'ud-health-item--warn' : '' %>">
+          <span class="ud-health-label">Abonnement</span><span class="ud-health-value"><%= user.is_premium ? (user.days_left || 0) + 'j Premium' : 'Gratuit' %></span>
+        </div>
+        <div class="ud-health-item">
+          <span class="ud-health-label">Dernière activité</span><span class="ud-health-value"><%= _udLastSeen %></span>
+        </div>
+        <div class="ud-health-item <%= _udDevices ? 'ud-health-item--ok' : 'ud-health-item--warn' %>">
+          <span class="ud-health-label">Appareils</span><span class="ud-health-value"><%= _udDevices ? _udDevices + ' notifié' + (_udDevices > 1 ? 's' : '') : 'Aucun appareil' %></span>
+        </div>
+      </section>
 
       <!-- Onglets -->
       <div class="ud-tabs">
@@ -279,8 +326,9 @@
   </div><!-- /col principale -->
 
   <!-- Colonne actions -->
-  <div>
-    <div class="card">
+  <aside class="ud-actions-rail">
+    <div class="card cr-panel">
+      <div class="ud-rail-head"><h2>Intervenir</h2><p>Chaque action qui modifie le compte est confirmée et conservée dans le journal d’administration.</p></div>
 
       <!-- Premium -->
       <div class="ud-action-section">
@@ -292,7 +340,7 @@
         <form method="POST" action="/admin/users/<%= user.id %>/revoke-premium" id="form-revoke-premium">
           <button type="button" class="btn btn-danger btn-sm" style="width:100%"
             data-pseudo="<%= user.pseudo %>"
-            onclick="askConfirm({icon:'x',title:'Révoquer le Premium',msg:'Révoquer le Premium de '+this.dataset.pseudo+' ?',btnLabel:'Révoquer',btnClass:'btn-danger',onConfirm:function(){document.getElementById('form-revoke-premium').submit()}})"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Révoquer le Premium</button>
+            onclick="askConfirm({icon:'x',title:'Révoquer le Premium',msg:'Le Premium de <strong>'+this.dataset.pseudo+'</strong> prendra fin immédiatement. Cette modification sera journalisée.',btnLabel:'Révoquer le Premium',btnClass:'btn-danger',onConfirm:function(){document.getElementById('form-revoke-premium').requestSubmit()}})"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Révoquer le Premium</button>
         </form>
         <% } else { %>
         <form method="POST" action="/admin/users/<%= user.id %>/premium" style="display:flex;gap:.5rem;align-items:flex-end">
@@ -306,15 +354,16 @@
       </div>
 
       <!-- Suspension -->
-      <div class="ud-action-section">
+      <div class="ud-action-section ud-danger-zone">
         <div class="ud-action-title"><%= user.isActive ? '🔒 Suspension' : '🔓 Réactivation' %></div>
+        <p class="ud-action-impact"><%= user.isActive ? 'Bloque immédiatement les connexions au compte. Renseignez un motif pour faciliter le suivi.' : 'Rend à nouveau l’accès au compte. Vérifiez le contexte de modération avant de poursuivre.' %></p>
         <form method="POST" action="/admin/users/<%= user.id %>/suspend">
           <input type="hidden" name="suspend" value="<%= user.isActive ? 'true' : 'false' %>">
           <% if(user.isActive) { %>
           <input class="input" type="text" name="reason" placeholder="Raison (optionnelle)…" style="margin-bottom:.5rem;font-size:.82rem" aria-label="Raison">
           <% } %>
-          <button type="submit" class="btn <%= user.isActive ? 'btn-danger' : 'btn-success' %> btn-sm" style="width:100%"
-            onclick="return confirm('<%= user.isActive ? 'Suspendre' : 'Réactiver' %> ce compte ?')">
+          <button type="button" class="btn <%= user.isActive ? 'btn-danger' : 'btn-success' %> btn-sm" style="width:100%" data-pseudo="<%= user.pseudo %>"
+            onclick="(function(btn){var form=btn.closest('form');if(!form.reportValidity())return;askConfirm({icon:'<%= user.isActive ? 'lock' : 'unlock' %>',title:'<%= user.isActive ? 'Suspendre' : 'Réactiver' %> le compte',msg:'<%= user.isActive ? 'Le compte' : 'Le compte' %> <strong>'+btn.dataset.pseudo+'</strong> <%= user.isActive ? 'ne pourra plus se connecter.' : 'pourra à nouveau se connecter.' %> Cette modification sera journalisée.',btnLabel:'<%= user.isActive ? 'Suspendre' : 'Réactiver' %>',btnClass:'<%= user.isActive ? 'btn-danger' : 'btn-success' %>',onConfirm:function(){form.requestSubmit()}})})(this)">
             <%= user.isActive ? '🔒 Suspendre' : '🔓 Réactiver' %>
           </button>
         </form>
@@ -322,8 +371,9 @@
 
       <!-- Bannissement -->
       <% if(hasPerm('users','write')) { %>
-      <div class="ud-action-section">
+      <div class="ud-action-section ud-danger-zone">
         <div class="ud-action-title"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannissement</div>
+        <p class="ud-action-impact">Le bannissement suspend le compte et crée une trace consultable dans le journal de modération.</p>
         <% if(typeof activeBan !== 'undefined' && activeBan) { %>
         <div class="ud-ban-box">
           <div class="reason">« <%= activeBan.reason %> »</div>
@@ -335,7 +385,8 @@
         <form method="POST" action="/admin/users/<%= user.id %>/unban">
           <input type="hidden" name="pseudo" value="<%= user.pseudo %>">
           <input class="input" type="text" name="unban_reason" placeholder="Raison du débannissement…" style="margin-bottom:.5rem;font-size:.82rem" aria-label="Raison de la levée">
-          <button type="submit" class="btn btn-success btn-sm" style="width:100%"><svg class="ic" aria-hidden="true"><use href="#ic-unlock"/></svg> Débannir</button>
+          <button type="button" class="btn btn-success btn-sm" style="width:100%" data-pseudo="<%= user.pseudo %>"
+            onclick="(function(btn){askConfirm({icon:'unlock',title:'Lever le bannissement',msg:'Le compte <strong>'+btn.dataset.pseudo+'</strong> retrouvera son accès. Cette décision sera journalisée.',btnLabel:'Lever le bannissement',btnClass:'btn-success',onConfirm:function(){btn.closest('form').submit()}})})(this)"><svg class="ic" aria-hidden="true"><use href="#ic-unlock"/></svg> Débannir</button>
         </form>
         <% } else { %>
         <button onclick="openModal('modal-ban')" class="btn btn-danger btn-sm" style="width:100%"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir cet utilisateur</button>
@@ -360,7 +411,7 @@
       </div>
 
     </div><!-- /card actions -->
-  </div><!-- /col actions -->
+  </aside><!-- /col actions -->
 </div><!-- /layout -->
 
 <script>

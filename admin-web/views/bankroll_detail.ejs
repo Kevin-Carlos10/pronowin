@@ -12,20 +12,24 @@
   }
 %>
 
-<div class="topbar">
-  <div>
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Suivi utilisateur</p>
+    <a href="/admin/bankroll" class="view-tab">← Retour à la liste</a>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Bankroll de <%= user.pseudo %></h1>
-    <small><a href="/admin/bankroll" style="color:var(--text-dim)">← Retour à la liste</a></small>
+    <p class="workspace-description">Consultez les indicateurs déclarés, l'historique des paris et les mouvements de solde de ce compte.</p>
   </div>
-  <a href="/admin/users/<%= user.id %>" class="btn btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> Voir le profil</a>
-</div>
+  <div class="workspace-actions">
+    <a href="/admin/users/<%= user.id %>" class="btn btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> Voir le profil</a>
+  </div>
+</header>
 
 <% if(error){ %>
   <div class="alert alert-error" style="margin-bottom:12px"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= error %></div>
 <% } %>
 
 <% if(!bankroll){ %>
-  <div class="card">
+  <div class="card cr-panel">
     <div class="empty-state" style="padding:40px">
       <div style="font-size:2rem;margin-bottom:.5rem"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg></div>
       <p>Cet utilisateur n'a pas encore configuré de budget bankroll.</p>
@@ -34,13 +38,13 @@
 <% } else { %>
 
 <!-- Stats -->
-<div class="stats-grid" style="margin-bottom:16px">
-  <div class="stat-card s-blue"><div class="lbl">Solde actuel</div><div class="val"><%= Math.round(stats.currentBalance).toLocaleString('fr-FR') %> <%= stats.currency %></div></div>
-  <div class="stat-card s-purple"><div class="lbl">Budget total</div><div class="val"><%= Math.round(stats.totalBudget).toLocaleString('fr-FR') %> <%= stats.currency %></div></div>
-  <div class="stat-card <%= stats.totalProfit >= 0 ? 's-green' : 's-red' %>"><div class="lbl">Profit total</div><div class="val"><%= stats.totalProfit >= 0 ? '+' : '' %><%= Math.round(stats.totalProfit).toLocaleString('fr-FR') %></div></div>
-  <div class="stat-card <%= stats.roi >= 0 ? 's-green' : 's-red' %>"><div class="lbl">ROI</div><div class="val"><%= stats.roi >= 0 ? '+' : '' %><%= stats.roi %>%</div></div>
-  <div class="stat-card s-orange"><div class="lbl">Taux de réussite</div><div class="val"><%= stats.totalBets > 0 ? stats.winRate.toFixed(0) + '%' : '—' %></div></div>
-  <div class="stat-card s-teal"><div class="lbl">Total paris</div><div class="val"><%= stats.totalBets %></div></div>
+<div class="stats-grid metric-grid" style="margin-bottom:16px">
+  <div class="stat-card metric-card s-blue"><div class="lbl">Solde actuel</div><div class="val"><%= Math.round(stats.currentBalance).toLocaleString('fr-FR') %> <%= stats.currency %></div></div>
+  <div class="stat-card metric-card s-purple"><div class="lbl">Budget total</div><div class="val"><%= Math.round(stats.totalBudget).toLocaleString('fr-FR') %> <%= stats.currency %></div></div>
+  <div class="stat-card metric-card <%= stats.totalProfit >= 0 ? 's-green' : 's-red' %>"><div class="lbl">Profit total</div><div class="val"><%= stats.totalProfit >= 0 ? '+' : '' %><%= Math.round(stats.totalProfit).toLocaleString('fr-FR') %></div></div>
+  <div class="stat-card metric-card <%= stats.roi >= 0 ? 's-green' : 's-red' %>"><div class="lbl">ROI</div><div class="val"><%= stats.roi >= 0 ? '+' : '' %><%= stats.roi %>%</div></div>
+  <div class="stat-card metric-card s-orange"><div class="lbl">Taux de réussite</div><div class="val"><%= stats.totalBets > 0 ? stats.winRate.toFixed(0) + '%' : '—' %></div></div>
+  <div class="stat-card metric-card s-teal"><div class="lbl">Total paris</div><div class="val"><%= stats.totalBets %></div></div>
 </div>
 
 <% if(bankroll.last_reset_at){ %>
@@ -50,7 +54,7 @@
 <% } %>
 
 <!-- Historique des paris -->
-<div class="card" style="padding:0;overflow:hidden">
+<div class="card cr-panel operational-queue" style="padding:0;overflow:hidden">
   <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
     <h3 style="font-size:.95rem;font-weight:700"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Historique des paris (<%= bankroll.bets.length %> derniers)</h3>
   </div>
@@ -115,7 +119,7 @@
 <%# Journal des mouvements (constat B1) : ce qui permet de répondre à une
     contestation. La somme des mouvements doit valoir le solde. %>
 <% if (bankroll.journal) { %>
-<div class="card" style="padding:0;overflow:hidden;margin-top:1rem">
+<div class="card cr-panel operational-queue" style="padding:0;overflow:hidden;margin-top:1rem">
   <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;gap:.75rem;align-items:center;flex-wrap:wrap">
     <h3 style="font-size:.95rem;font-weight:700"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Mouvements du solde</h3>
     <% if (bankroll.journal.coherent) { %>

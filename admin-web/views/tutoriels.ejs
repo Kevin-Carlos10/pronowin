@@ -99,12 +99,13 @@
   const _hasFilter  = !!(search || category || level);
 %>
 
-<div class="topbar">
-  <div>
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Contenu & apprentissage</p>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-book"/></svg> Tutoriels</h1>
-    <small><%= stats.total %> tutoriel<%= stats.total!==1?'s':'' %> · <%= stats.premium %> Premium · <%= stats.free %> Gratuit<%= stats.free!==1?'s':'' %></small>
+    <p class="workspace-description"><%= stats.total %> tutoriel<%= stats.total!==1?'s':'' %>, dont <%= stats.premium %> Premium et <%= stats.free %> gratuit<%= stats.free!==1?'s':'' %>.</p>
   </div>
-  <div style="display:flex;gap:.5rem">
+  <div class="workspace-actions">
     <% if(hasPerm('tutoriels','write')) { %>
     <form method="POST" action="/admin/tutoriels/seed" style="display:inline">
       <button type="submit" class="btn btn-outline btn-sm" title="Insérer les tutoriels par défaut si la liste est vide"><svg class="ic" aria-hidden="true"><use href="#ic-sprout"/></svg> Seed</button>
@@ -112,24 +113,24 @@
     <a href="/admin/tutoriels/new" class="btn btn-primary btn-sm">+ Nouveau</a>
     <% } %>
   </div>
-</div>
+</header>
 
 <% if(typeof success !== 'undefined' && success){ %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
 <% if(typeof error   !== 'undefined' && error  ){ %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
 
 <!-- ── Stats ─────────────────────────────────────────────────────────────────── -->
-<div class="tut-stats">
-  <div class="tut-stat"><div class="v" style="color:var(--on-info)"><%= stats.total %></div><div class="l">Total</div></div>
-  <div class="tut-stat"><div class="v" style="color:var(--on-warning)"><%= stats.premium %></div><div class="l">Premium</div></div>
-  <div class="tut-stat"><div class="v" style="color:var(--on-success)"><%= stats.free %></div><div class="l">Gratuits</div></div>
-  <div class="tut-stat"><div class="v" style="color:var(--on-purple)"><%= stats.beginner %></div><div class="l">Débutant</div></div>
-  <div class="tut-stat"><div class="v" style="color:var(--on-warning)"><%= stats.intermediate %></div><div class="l">Interm.</div></div>
-  <div class="tut-stat"><div class="v" style="color:var(--on-danger)"><%= stats.advanced %></div><div class="l">Avancé</div></div>
-  <div class="tut-stat"><div class="v" style="color:var(--primary-texte)"><%= _totalViews.toLocaleString() %></div><div class="l">Vues total</div></div>
+<div class="tut-stats metric-grid">
+  <div class="tut-stat metric-card"><div class="v" style="color:var(--on-info)"><%= stats.total %></div><div class="l">Total</div></div>
+  <div class="tut-stat metric-card"><div class="v" style="color:var(--on-warning)"><%= stats.premium %></div><div class="l">Premium</div></div>
+  <div class="tut-stat metric-card"><div class="v" style="color:var(--on-success)"><%= stats.free %></div><div class="l">Gratuits</div></div>
+  <div class="tut-stat metric-card"><div class="v" style="color:var(--on-purple)"><%= stats.beginner %></div><div class="l">Débutant</div></div>
+  <div class="tut-stat metric-card"><div class="v" style="color:var(--on-warning)"><%= stats.intermediate %></div><div class="l">Interm.</div></div>
+  <div class="tut-stat metric-card"><div class="v" style="color:var(--on-danger)"><%= stats.advanced %></div><div class="l">Avancé</div></div>
+  <div class="tut-stat metric-card"><div class="v" style="color:var(--primary-texte)"><%= _totalViews.toLocaleString() %></div><div class="l">Vues total</div></div>
 </div>
 
 <!-- ── Filtres ────────────────────────────────────────────────────────────────── -->
-<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem">
+<div class="card cr-panel command-surface" style="padding:.8rem 1.1rem;margin-bottom:1rem">
   <form method="GET" action="/admin/tutoriels" class="tut-filter">
     <input type="text" name="search" value="<%= search %>" placeholder="🔍 Titre, description, auteur…" aria-label="Rechercher">
     <select name="category" onchange="this.form.submit()" aria-label="Catégorie">
@@ -153,7 +154,7 @@
 
 <!-- ── Grille ────────────────────────────────────────────────────────────────── -->
 <% if(!data || data.length === 0) { %>
-<div class="empty-state card">
+<div class="empty-state card cr-panel">
   <div style="font-size:2.5rem;margin-bottom:.5rem"><%= _hasFilter ? '🔍' : '📚' %></div>
   <p><%= _hasFilter ? 'Aucun tutoriel ne correspond aux filtres.' : 'Aucun tutoriel créé.' %></p>
   <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.75rem;flex-wrap:wrap">
@@ -170,7 +171,7 @@
      const rating   = (t.rating||0).toFixed(1);
      const views    = (t.viewCount||0).toLocaleString();
 %>
-<div class="tut-card <%= t.isPremium ? 'premium' : 'free' %>">
+<div class="tut-card cr-panel <%= t.isPremium ? 'premium' : 'free' %>">
 
   <!-- Thumbnail -->
   <div class="tut-thumb">

@@ -18,12 +18,17 @@
   });
 %>
 
-<div class="topbar">
-  <div>
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Catalogue & visibilité</p>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg> Ligues</h1>
-    <small>Contrôle ce qui apparaît dans le flux « Tous les matchs » de l'app — un match avec un pronostic publié reste toujours visible, quelle que soit sa ligue</small>
+    <p class="workspace-description">Choisissez les compétitions visibles dans le flux « Tous les matchs ». Les matchs avec un pronostic publié restent toujours accessibles.</p>
   </div>
-</div>
+  <div class="workspace-actions">
+    <span class="context-chip"><%= visibleCount %> visible<%= visibleCount !== 1 ? 's' : '' %></span>
+    <span class="context-chip"><%= hiddenCount %> masquée<%= hiddenCount !== 1 ? 's' : '' %></span>
+  </div>
+</header>
 
 <% if(error){ %>
   <div class="alert alert-error"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= error %></div>
@@ -93,6 +98,13 @@
 .lg-none { display:none; padding:2rem 1rem; text-align:center; color:var(--text-m); font-size:.85rem; }
 </style>
 
+<section class="command-surface" aria-label="Recherche et visibilité des compétitions">
+  <div class="command-surface-head">
+    <div>
+      <div class="command-surface-title"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg> Périmètre d'affichage</div>
+      <div class="command-surface-copy">Filtrez le catalogue puis utilisez la sélection groupée pour mettre à jour la visibilité.</div>
+    </div>
+  </div>
 <div class="lg-tabs" role="group" aria-label="Filtrer les compétitions">
   <button type="button" class="lg-tab" data-scope="all" aria-pressed="false" onclick="lgSetScope('all')">
     <span class="l">Total compétitions</span>
@@ -117,8 +129,9 @@
          placeholder="Rechercher une compétition…" oninput="lgFilter()" autocomplete="off">
   <button type="button" class="lg-search-clear" onclick="lgClearSearch()" title="Effacer" aria-label="Effacer la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
 </div>
+</section>
 
-<div class="dt-wrap">
+<div class="dt-wrap cr-panel operational-queue">
   <div class="bulkbar" id="lg-bulkbar">
     <span><span class="count" id="lg-sel-count">0</span> sélectionnée(s)</span>
     <span class="spacer"></span>

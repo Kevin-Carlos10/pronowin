@@ -129,17 +129,21 @@
   const isLive      = match.status === 'LIVE' || (_diffMin < 0 && _diffMin > -120);
 %>
 
-<div class="topbar">
-  <div>
-    <a href="/admin/pronostics" style="color:var(--text-dim);font-size:.82rem;text-decoration:none">← Retour aux matchs</a>
-    <h1 style="margin-top:4px"><%= isEdit ? '✏️ Modifier' : '+ Créer' %> un pronostic</h1>
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Desk pronostics</p>
+    <a href="/admin/pronostics" class="view-tab">← Retour aux matchs</a>
+    <h1><%= isEdit ? '✏️ Modifier' : '+ Créer' %> un pronostic</h1>
+    <p class="workspace-description"><%= match.homeTeam %> — <%= match.awayTeam %> · <%= match.league %> · <%= dateStr %> à <%= timeStr %></p>
   </div>
+  <div class="workspace-actions">
   <% if(isEdit && pro.is_published) { %>
-  <span class="badge badge-ok" style="font-size:.78rem"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Publié</span>
+  <span class="badge badge-ok"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Publié</span>
   <% } else if(isEdit) { %>
-  <span class="badge badge-warn" style="font-size:.78rem"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Brouillon</span>
+  <span class="badge badge-warn"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Brouillon</span>
   <% } %>
-</div>
+  </div>
+</header>
 
 <% if(error){ %><div class="alert alert-error"><%= error %></div><% } %>
 
@@ -221,7 +225,7 @@
   <!-- ── Colonne gauche : match info + récap + actions (collante) ─────────────── -->
   <div>
    <div class="pf-side">
-    <div class="card">
+    <div class="card cr-panel">
       <div style="display:flex;align-items:center;gap:.5rem;margin-bottom:.85rem">
         <% if(match.leagueLogo){ %><img src="<%= match.leagueLogo %>" style="width:18px;height:18px;object-fit:contain" onerror="this.style.display='none'" alt=""><% } %>
         <span class="badge badge-info" style="font-size:.7rem"><%= match.league %></span>
@@ -270,7 +274,7 @@
     </div>
 
     <% if(isEdit) { %>
-    <div class="card" style="margin-top:.75rem;padding:.85rem 1rem">
+    <div class="card cr-panel" style="margin-top:.75rem;padding:.85rem 1rem">
       <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);font-weight:700;margin-bottom:.6rem">Historique</div>
       <% if(pro.createdAt){ %><div style="font-size:.78rem;color:var(--text-m)"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Créé le <%= new Date(pro.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></div><% } %>
       <% if(pro.updatedAt){ %><div style="font-size:.78rem;color:var(--text-m);margin-top:.3rem"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Modifié le <%= new Date(pro.updatedAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></div><% } %>
@@ -279,7 +283,7 @@
     <% } %>
 
     <!-- ── Ce que l'abonné verra (mis à jour en direct par updateRecap()) ────── -->
-    <div class="card" style="margin-top:.75rem;padding:.85rem 1rem">
+    <div class="card cr-panel" style="margin-top:.75rem;padding:.85rem 1rem">
       <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);font-weight:700;margin-bottom:.6rem">
         Ce que l'abonné verra
       </div>
@@ -305,7 +309,7 @@
   </div>
 
   <!-- ── Colonne droite : formulaire ──────────────────────────────────────────── -->
-  <div class="card">
+  <div class="card cr-panel">
 
       <%# Un `fieldset` desactive neutralise d'un coup tous les controles qu'il
           contient — champs, listes, boutons. Le faire champ par champ aurait

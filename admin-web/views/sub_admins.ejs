@@ -105,12 +105,37 @@
 .pwd-strength { height:4px; border-radius:2px; margin-top:.4rem; background:var(--border); overflow:hidden; }
 .pwd-strength-bar { height:100%; border-radius:2px; width:0; transition:width .3s, background .3s; }
 .pwd-strength-label { font-size:.68rem; color:var(--text-dim); margin-top:.25rem; }
+
+/* ── Control Room : gouvernance des accès ─────────────────────────────────── */
+.sa-workspace { margin-bottom:1rem; }
+.sa-access-posture { margin-bottom:1rem; }
+.sa-access-posture.needs-attention { border-color:rgba(var(--warning-rgb),.32); border-left-color:var(--warning); background:linear-gradient(90deg,rgba(var(--warning-rgb),.11),transparent 74%); }
+.sa-access-posture.needs-attention .cr-callout-icon,
+.sa-access-posture.needs-attention .cr-callout-title { color:var(--on-warning); }
+.sa-accounts-head { margin:1.2rem 0 .75rem; }
+.sa-accounts-head .context-chip { align-self:flex-end; }
+.sa-access-card { box-shadow:var(--shadow); }
+.sa-access-card.has-delete { border-color:rgba(var(--error-rgb),.28); }
+.sa-access-card.has-delete .sa-card-head { box-shadow:inset 3px 0 0 var(--error); }
+.sa-security-line { display:flex; align-items:center; gap:.4rem; margin-top:.55rem; padding:.45rem .55rem; border:1px solid var(--border); border-radius:8px; background:var(--surface-d); font-size:var(--fs-xs); line-height:1.35; }
+.sa-security-line.is-ready { border-color:rgba(var(--success-rgb),.22); color:var(--on-success); }
+.sa-security-line.needs-attention { border-color:rgba(var(--warning-rgb),.28); color:var(--on-warning); }
+.sa-security-line .sa-security-label { margin-left:auto; color:var(--text-dim); font-size:var(--fs-xs); font-weight:800; letter-spacing:.06em; text-transform:uppercase; }
+.sa-create { box-shadow:var(--shadow); }
+.sa-create-copy { max-width:62ch; margin:-.55rem 0 1.1rem; color:var(--text-dim); font-size:var(--fs-s); line-height:1.55; }
+@media(max-width:600px) {
+  .sa-accounts-head .context-chip { align-self:flex-start; }
+  .sa-security-line { align-items:flex-start; }
+  .sa-security-line .sa-security-label { margin-left:0; }
+}
 </style>
 
 <%
   const _total    = subs.length;
   const _active   = subs.filter(s => s.isActive).length;
   const _inactive = _total - _active;
+  const _etat2faDisponible = typeof etat2fa !== 'undefined' && !!etat2fa;
+  const _sans2fa = _etat2faDisponible ? subs.filter(s => !etat2fa[s.id]).length : null;
 
   function relTime(isoStr) {
     if (!isoStr) return null;
@@ -168,18 +193,30 @@
   }
 %>
 
-<div class="topbar">
-  <div>
+<div class="workspace-header sa-workspace">
+  <div class="workspace-heading">
+    <div class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Gouvernance des accès</div>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Sous-administrateurs</h1>
-    <small>Comptes avec permissions granulaires (Lire · Écrire · Supprimer)</small>
+    <p class="workspace-description">Attribuez un périmètre de travail précis, surveillez le niveau de risque de chaque compte et conservez le contrôle des accès sensibles.</p>
   </div>
-  <button class="btn btn-primary btn-sm" onclick="document.getElementById('create-section').scrollIntoView({behavior:'smooth'})">
-    <svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Nouveau sous-admin
-  </button>
+  <div class="workspace-actions">
+    <span class="context-chip"><%= _active %> compte<%= _active > 1 ? 's' : '' %> actif<%= _active > 1 ? 's' : '' %></span>
+    <button class="btn btn-primary btn-sm" onclick="document.getElementById('create-section').scrollIntoView({behavior:'smooth'})">
+      <svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Nouveau sous-admin
+    </button>
+  </div>
 </div>
 
 <% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
 <% if (error)   { %><div class="alert alert-error"   style="display:none"><%= error %></div><% } %>
+
+<div class="cr-callout sa-access-posture <%= _sans2fa !== null && _sans2fa > 0 ? 'needs-attention' : '' %>">
+  <svg class="ic cr-callout-icon" aria-hidden="true"><use href="#ic-<%= _sans2fa !== null && _sans2fa > 0 ? 'alert' : 'check' %>"/></svg>
+  <div>
+    <div class="cr-callout-title"><%= _sans2fa !== null && _sans2fa > 0 ? 'Vérification des accès recommandée' : 'Périmètre des accès sous contrôle' %></div>
+    <div class="cr-callout-copy"><% if (_sans2fa === null) { %>Le statut de double authentification sera vérifié à l'ouverture de chaque compte. Les droits sensibles restent identifiés par leur niveau.<% } else if (_sans2fa > 0) { %><%= _sans2fa %> compte<%= _sans2fa > 1 ? 's' : '' %> n'<%= _sans2fa > 1 ? 'ont' : 'a' %> pas encore configuré la double authentification. Vérifiez leur périmètre avant toute opération sensible.<% } else { %>Tous les sous-administrateurs enregistrés ont configuré la double authentification. Les permissions de suppression restent signalées sur chaque fiche.<% } %></div>
+  </div>
+</div>
 
 <!-- ── Stats ────────────────────────────────────────────────────────────────── -->
 <div class="sa-stats">
@@ -190,6 +227,13 @@
 </div>
 
 <!-- ── Grille sous-admins ────────────────────────────────────────────────────── -->
+<div class="control-section-head sa-accounts-head">
+  <div>
+    <h2>Comptes délégués</h2>
+    <p>Chaque fiche rassemble le périmètre, l'état de sécurité et l'activité récente du compte.</p>
+  </div>
+  <span class="context-chip"><%= _total %> compte<%= _total > 1 ? 's' : '' %> configuré<%= _total > 1 ? 's' : '' %></span>
+</div>
 <% if (subs.length > 0) { %>
 <div class="sa-grid">
 <% subs.forEach(sub => {
@@ -201,8 +245,10 @@
      const loginAge = sub.lastLoginAt ? (Date.now() - new Date(sub.lastLoginAt).getTime()) : Infinity;
      const loginClass = loginAge < 3600000*24 ? 'recent' : loginAge < 3600000*24*7 ? '' : 'old';
      const subLogs = (typeof recentLogsBySub !== 'undefined' && recentLogsBySub[sub.name]) ? recentLogsBySub[sub.name] : [];
+     const _a2fa = typeof etat2fa !== 'undefined' && etat2fa && etat2fa[sub.id];
+     const _hasDelete = PERMISSIONS.some(p => getLevelFromArray(perms, p.key) === 'delete');
 %>
-<div class="sa-card <%= isActive ? '' : 'inactive' %>">
+<div class="sa-card sa-access-card <%= isActive ? '' : 'inactive' %> <%= _hasDelete ? 'has-delete' : '' %>">
 
   <!-- Head -->
   <div class="sa-card-head">
@@ -246,10 +292,10 @@
     </div>
 
     <!-- Double authentification (constat A1) -->
-    <% const _a2fa = typeof etat2fa !== 'undefined' && etat2fa && etat2fa[sub.id]; %>
-    <div class="sa-last-login <%= _a2fa ? 'recent' : 'old' %>">
+    <div class="sa-security-line <%= _a2fa ? 'is-ready' : 'needs-attention' %>">
       <svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg>
       <%= _a2fa ? 'Double authentification active' : 'Double authentification non configurée' %>
+      <span class="sa-security-label"><%= _a2fa ? 'Protégé' : 'À traiter' %></span>
     </div>
 
     <!-- Activité récente -->
@@ -341,8 +387,9 @@
 <% } %>
 
 <!-- ── Formulaire de création ────────────────────────────────────────────────── -->
-<div class="sa-create" id="create-section">
+<div class="sa-create cr-panel" id="create-section">
   <h2><svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Nouveau sous-admin</h2>
+  <p class="sa-create-copy">Créez un compte dédié à une responsabilité précise. Accordez le niveau le plus bas suffisant, puis demandez au titulaire de configurer sa double authentification dès sa première connexion.</p>
   <form method="POST" action="/admin/sub-admins" id="create-form">
     <div class="form-row" style="margin-bottom:.85rem">
       <div class="form-group" style="margin:0">

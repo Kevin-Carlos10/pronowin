@@ -1,4 +1,6 @@
 <%- include('layout_top', {page:'transactions'}) %>
+<link rel="stylesheet" href="/finance-control-room.css">
+<section class="finance-page finance-page--transactions">
 
 <style>
 /* ── Cartes de versement ─────────────────────────────────────────────────── */
@@ -152,38 +154,46 @@
   }
 %>
 
-<div class="topbar">
-  <div>
+<header class="topbar workspace-header finance-workspace-header">
+  <div class="workspace-heading">
+    <div class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Opérations financières</div>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Versements à effectuer</h1>
-    <small id="tx-count"><%= _total %> versement<%= _total!==1?'s':'' %> de gains de parrainage en attente</small>
+    <p class="workspace-description" id="tx-count"><%= _total %> demande<%= _total !== 1 ? 's' : '' %> de gains de parrainage attend<%= _total !== 1 ? 'ent' : '' %> une décision après envoi du paiement.</p>
   </div>
-  <div style="display:flex;gap:.5rem">
+  <div class="workspace-actions">
+    <span class="context-chip"><%= _total %> à traiter</span>
     <%# L'export suit le filtre affiché. %>
     <a href="/admin/transactions/export?<%= new URLSearchParams({ ...(search ? { search } : {}), ...(method ? { method } : {}) }).toString() %>"
        class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Exporter (CSV)</a>
     <a href="/admin/historique" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Historique complet</a>
   </div>
-</div>
+</header>
 
-<%- include('_onglets_paiements', { actif: 'transactions' }) %>
+<div class="finance-subnav"><%- include('_onglets_paiements', { actif: 'transactions' }) %></div>
 
 <% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
 <% if (error)   { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
 
 <!-- ── Stats rapides ─────────────────────────────────────────────────────── -->
-<div class="tx-stats">
-  <div class="tx-stat blue">
+<div class="tx-stats metric-grid">
+  <div class="tx-stat metric-card blue">
     <div class="lbl">En attente</div>
     <div class="val"><%= _total %></div>
   </div>
-  <div class="tx-stat orange">
+  <div class="tx-stat metric-card orange">
     <div class="lbl">Total à verser<%= (search || method) ? ' (filtre)' : '' %></div>
     <div class="val"><%= _ls.totalAmount.toLocaleString() %> <span style="font-size:.8rem;font-weight:600">FCFA</span></div>
   </div>
 </div>
 
 <!-- ── Filtres ───────────────────────────────────────────────────────────── -->
-<div class="card" style="padding:.85rem 1.25rem;margin-bottom:1rem">
+<section class="command-surface finance-command-surface" aria-label="Filtres des versements">
+  <div class="command-surface-head">
+    <div>
+      <div class="command-surface-title"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg> Rechercher dans la file</div>
+      <p class="command-surface-copy">Ciblez un parrain, un numéro de paiement ou une méthode avant de confirmer un versement.</p>
+    </div>
+  </div>
   <form method="GET" action="/admin/transactions" class="tx-filter-row">
     <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, 1xBet ID…" aria-label="Rechercher">
 
@@ -198,9 +208,16 @@
     <a href="/admin/transactions" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a>
     <% } %>
   </form>
-</div>
+</section>
 
 <!-- ── Liste des versements ──────────────────────────────────────────────── -->
+<div class="control-section-head">
+  <div>
+    <h2>File de décision</h2>
+    <p>Chaque confirmation inscrit le versement dans l'historique ; elle ne transfère pas l'argent.</p>
+  </div>
+  <span class="context-chip"><%= _total %> en attente</span>
+</div>
 <% if (_items.length === 0 && (search || method)) { %>
 <div class="empty-state card">
   <p>Aucun versement ne correspond aux filtres.</p>
@@ -283,12 +300,12 @@
 
 <% } else { %>
 
-<div style="display:flex;flex-direction:column;gap:.75rem">
+<div class="finance-transaction-list">
 <% _items.forEach((tx, idx) => {
      const initials  = (tx.user?.pseudo ?? '?')[0].toUpperCase();
      const method    = (tx.paymentMethod ?? '').replace(/_/g,' ');
 %>
-<div class="tx-card withdrawal" id="tx-<%= tx.id %>">
+<div class="tx-card withdrawal cr-panel finance-transaction-card" id="tx-<%= tx.id %>">
 
   <!-- En-tête -->
   <div class="tx-header">
@@ -343,7 +360,8 @@
 
   <!-- Actions -->
   <% if (hasPerm('transactions', 'write')) { %>
-  <div class="tx-actions">
+  <div class="finance-action-guidance"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Vérifiez le montant, le numéro destinataire et la preuve d'envoi avant de marquer ce versement comme effectué.</div>
+  <div class="tx-actions finance-decision-actions">
     <form method="POST" action="/admin/transactions/<%= tx.id %>" id="form-<%= tx.id %>" style="display:contents">
       <div class="tx-note">
         <textarea name="admin_note" placeholder="Note admin (optionnelle)…" rows="2" aria-label="Note administrateur"></textarea>
@@ -413,4 +431,5 @@ window.addEventListener('sseAction', function(e) {
 });
 </script>
 
+</section>
 <%- include('layout_bottom') %>

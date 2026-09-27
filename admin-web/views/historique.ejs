@@ -1,4 +1,6 @@
 <%- include('layout_top', {page:'historique'}) %>
+<link rel="stylesheet" href="/finance-control-room.css">
+<section class="finance-page finance-page--history">
 
 <style>
 /* ── Stats ─────────────────────────────────────────────────────────────────── */
@@ -73,51 +75,61 @@
   function _methodLabel(m) { const c = _methodCfg[m] || { emoji:'💳', label:m }; return c.emoji + ' ' + c.label; }
 %>
 
-<div class="topbar">
-  <div>
+<header class="topbar workspace-header finance-workspace-header">
+  <div class="workspace-heading">
+    <div class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Opérations financières</div>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Historique des versements</h1>
-    <small><%= total %> versement<%= total>1?'s':'' %> de gains de parrainage<%= _hasFilter ? ' (filtrés)' : '' %></small>
+    <p class="workspace-description">Explorez les demandes de gains de parrainage, leurs montants et les décisions prises pour conserver une piste d'audit claire.</p>
   </div>
-  <a href="/admin/historique/export?<%= _qs %>" class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV</a>
-</div>
+  <div class="workspace-actions">
+    <span class="context-chip"><%= total %> ligne<%= total !== 1 ? 's' : '' %><%= _hasFilter ? ' filtrée' + (total !== 1 ? 's' : '') : '' %></span>
+    <a href="/admin/historique/export?<%= _qs %>" class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV</a>
+  </div>
+</header>
 
-<%- include('_onglets_paiements', { actif: 'historique' }) %>
+<div class="finance-subnav"><%- include('_onglets_paiements', { actif: 'historique' }) %></div>
 
 <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
 <% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
 
 <!-- ── Stats ─────────────────────────────────────────────────────────────────── -->
-<div class="hi-stats">
+<div class="hi-stats metric-grid">
   <%# Cinq des huit cartes comptaient des dépôts : elles auraient affiché zéro
       indéfiniment. Restent les chiffres qui décrivent la file de versements. %>
-  <div class="hi-stat">
+  <div class="hi-stat metric-card">
     <div class="v" style="color:var(--on-warning)"><%= stats.volume_withdrawals ? (stats.volume_withdrawals/1000).toFixed(0)+'k' : '0' %></div>
     <div class="l">FCFA versés</div>
   </div>
-  <div class="hi-stat">
+  <div class="hi-stat metric-card">
     <div class="v" style="color:var(--on-purple)"><%= stats.completed_withdrawals || 0 %></div>
     <div class="l">Versements effectués</div>
   </div>
-  <div class="hi-stat">
+  <div class="hi-stat metric-card">
     <div class="v" style="color:var(--on-danger)"><%= stats.pending_count || 0 %></div>
     <div class="l">En attente</div>
   </div>
-  <div class="hi-stat">
+  <div class="hi-stat metric-card">
     <div class="v" style="color:var(--on-danger)"><%= stats.pending_volume ? (stats.pending_volume/1000).toFixed(0)+'k' : '0' %></div>
     <div class="l">FCFA à verser</div>
   </div>
-  <div class="hi-stat">
+  <div class="hi-stat metric-card">
     <div class="v" style="color:var(--text-dim)"><%= stats.rejected_withdrawals || 0 %></div>
     <div class="l">Rejetés</div>
   </div>
-  <div class="hi-stat">
+  <div class="hi-stat metric-card">
     <div class="v" style="color:var(--primary-texte)"><%= stats.monthly_volume ? (stats.monthly_volume/1000).toFixed(0)+'k' : '0' %></div>
     <div class="l">Volume 30 jours</div>
   </div>
 </div>
 
 <!-- ── Filtres ────────────────────────────────────────────────────────────────── -->
-<div class="card" style="padding:.8rem 1.1rem;margin-bottom:1rem">
+<section class="command-surface finance-command-surface" aria-label="Filtres de l'historique">
+  <div class="command-surface-head">
+    <div>
+      <div class="command-surface-title"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg> Explorer les mouvements</div>
+      <p class="command-surface-copy">Combinez statut, canal, période et montant pour retrouver une décision sans quitter le journal.</p>
+    </div>
+  </div>
   <form method="GET" action="/admin/historique" id="filter-form">
 
     <!-- Ligne principale -->
@@ -189,10 +201,17 @@
     <% if(amount_max){ %><span class="hi-tag">Max: <%= parseInt(amount_max).toLocaleString() %> FCFA <a href="/admin/historique?<%= _hq({search,status,method,date_from:dateFrom,date_to:dateTo,amount_min}) %>">×</a></span><% } %>
   </div>
   <% } %>
-</div>
+ </section>
 
 <!-- ── Table ──────────────────────────────────────────────────────────────────── -->
-<div class="card" style="padding:0;overflow:hidden">
+<div class="control-section-head">
+  <div>
+    <h2>Journal des mouvements</h2>
+    <p>Les corrections sont réservées aux administrateurs autorisés et restent visibles dans la piste d'audit.</p>
+  </div>
+  <span class="context-chip"><%= total %> résultat<%= total !== 1 ? 's' : '' %></span>
+</div>
+<div class="card cr-panel finance-history-panel" style="padding:0;overflow:hidden">
   <% if (!data || data.length === 0) { %>
   <div style="padding:3.5rem;text-align:center;color:var(--text-dim)">
     <div style="font-size:2.5rem;margin-bottom:.6rem"><%= _hasFilter ? '🔍' : '📋' %></div>
@@ -203,10 +222,10 @@
   <div class="table-wrap">
     <table class="hi-table">
       <thead>
-        <tr>
-          <th scope="col">Utilisateur</th>
-          <th scope="col">Type</th>
-          <th scope="col">Montant</th>
+       <tr>
+         <th scope="col">Utilisateur</th>
+         <th scope="col">Type</th>
+         <th scope="col">Montant</th>
           <th scope="col">Méthode</th>
           <th scope="col">ID 1xBet</th>
           <th scope="col">N° Envoyeur</th>
@@ -232,6 +251,7 @@
           </div>
           <div style="font-size:.75rem;color:var(--text-dim)"><%= tx.user ? tx.user.phoneNumber : '' %></div>
         </td>
+        <td><span class="badge badge-info">Gains de parrainage</span></td>
         <td>
           <div class="hi-amount with"><%= (tx.amount||0).toLocaleString() %><span style="font-size:.75rem;font-weight:400;color:var(--text-dim)"> F</span></div>
         </td>
@@ -278,7 +298,7 @@
 </div>
 
 <!-- ── Modal modification ─────────────────────────────────────────────────────── -->
-<div class="hi-modal" id="edit-modal">
+<div class="hi-modal finance-modal" id="edit-modal">
   <div class="hi-modal-box">
     <h3><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier la transaction</h3>
     <form id="edit-form" method="POST">
@@ -368,4 +388,5 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+</section>
 <%- include('layout_bottom') %>

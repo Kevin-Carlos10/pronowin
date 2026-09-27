@@ -41,6 +41,13 @@
 /* ── Expiration progress ── */
 .exp-bar  { height:4px; background:var(--surface-d); border-radius:99px; margin-top:.3rem; overflow:hidden; }
 .exp-fill { height:100%; border-radius:99px; transition:width .3s; }
+.bans-cr-stats { margin-bottom:var(--cr-space-3); }
+.bans-cr-command { margin-bottom:var(--cr-space-3); }
+.bans-cr-table { padding:0; overflow:hidden; }
+.bans-cr-table .table-wrap { margin:0; }
+.bans-cr-pagination { display:flex; align-items:center; gap:.4rem; margin:0; padding:1rem; border-top:1px solid var(--border); }
+.bans-cr-quick-note { margin:.15rem 0 .9rem; color:var(--text-m); font-size:.78rem; line-height:1.5; }
+@media (max-width:600px) { .bans-cr-pagination { flex-wrap:wrap; } }
 </style>
 
 <%
@@ -79,20 +86,34 @@
 %>
 
 <!-- ── Header ── -->
-<div class="topbar">
-  <div>
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Modération & confiance</p>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannissements</h1>
-    <small>
-      <% if (filter === 'active') { %><%= stats.active %> ban<%= stats.active!==1?'s':'' %> actif<%= stats.active!==1?'s':'' %>
-      <% } else if (filter === 'expired') { %><%= total %> entrée<%= total!==1?'s':'' %> levées/expirées
-      <% } else { %><%= stats.total %> ban<%= stats.total!==1?'s':'' %> au total<% } %>
-    </small>
+    <p class="workspace-description">
+      <% if (filter === 'active') { %><strong><%= stats.active %></strong> ban<%= stats.active!==1?'s':'' %> actif<%= stats.active!==1?'s':'' %> à suivre.
+      <% } else if (filter === 'expired') { %><strong><%= total %></strong> entrée<%= total!==1?'s':'' %> levée<%= total!==1?'s':'' %> ou expirée<%= total!==1?'s':'' %>.
+      <% } else { %><strong><%= stats.total %></strong> décision<%= stats.total!==1?'s':'' %> de modération au registre.<% } %>
+    </p>
   </div>
-  <div style="display:flex;gap:.5rem;flex-wrap:wrap">
-    <button class="btn btn-outline btn-sm" onclick="toggleQuickBan()"><svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Bannir un utilisateur</button>
+  <div class="workspace-actions">
+    <span class="context-chip"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Journal de modération</span>
+    <button class="btn btn-danger btn-sm" type="button" onclick="toggleQuickBan()"><svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Bannir un utilisateur</button>
     <a href="/admin/bans/export" class="btn btn-outline btn-sm" onclick="exportBtnFeedback(this)"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV</a>
   </div>
-</div>
+</header>
+
+<nav class="view-tabs" aria-label="Vues de modération">
+  <a href="/admin/bans?filter=active" class="view-tab" aria-current="<%= filter==='active' ? 'page' : 'false' %>"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Actifs <span>(<%= stats.active %>)</span></a>
+  <a href="/admin/bans?filter=expired" class="view-tab" aria-current="<%= filter==='expired' ? 'page' : 'false' %>"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Levés / expirés</a>
+  <a href="/admin/bans?filter=all" class="view-tab" aria-current="<%= filter==='all' ? 'page' : 'false' %>"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Registre complet</a>
+</nav>
+
+<aside class="cr-callout" aria-label="Contexte de modération">
+  <svg class="ic cr-callout-icon" aria-hidden="true"><use href="#ic-<%= stats.expiringSoon ? 'alert' : 'check-circle' %>"/></svg>
+  <div><div class="cr-callout-title"><%= stats.expiringSoon ? stats.expiringSoon + ' bannissement' + (stats.expiringSoon>1?'s':'') + ' expire' + (stats.expiringSoon>1?'nt':'') + ' sous 7 jours' : 'Registre sous contrôle' %></div>
+  <div class="cr-callout-copy"><%= stats.expiringSoon ? 'Vérifiez le contexte avant une prolongation ou une levée manuelle. Chaque décision reste visible dans l’historique.' : 'Les suspensions et les levées sont tracées ; ouvrez une fiche utilisateur avant de prendre une nouvelle décision.' %></div></div>
+</aside>
 
 <% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
 <% if (error)   { %><div class="alert alert-error"   style="display:none"><%= error %></div><% } %>
@@ -120,7 +141,7 @@
 <% } %>
 
 <!-- ── Stats ── -->
-<div class="bans-stats">
+<div class="bans-stats metric-grid bans-cr-stats">
   <div class="ban-stat" style="border-left-color:var(--error)">
     <div class="bs-lbl"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Actifs</div>
     <div class="bs-val" style="color:var(--on-danger)"><%= stats.active %></div>
@@ -148,7 +169,7 @@
 </div>
 
 <!-- ── Formulaire ban rapide ── -->
-<div class="quick-ban-card" id="quick-ban-card">
+<section class="quick-ban-card cr-panel" id="quick-ban-card" aria-label="Bannissement rapide">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.9rem">
     <h3 style="font-size:.9rem;font-weight:700;margin:0"><svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Bannir un utilisateur</h3>
     <button onclick="toggleQuickBan()" style="background:none;border:none;cursor:pointer;color:var(--text-dim);font-size:1.2rem;line-height:1;padding:0">×</button>
@@ -189,15 +210,17 @@
     </div>
     <div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:.5rem">
       <button class="btn btn-outline" onclick="toggleQuickBan()">Annuler</button>
-      <button class="btn btn-danger"
-        onclick="askConfirm({icon:'ban',title:'Confirmer le bannissement',msg:'Bannir cet utilisateur ?',btnLabel:'Bannir',btnClass:'btn-danger',onConfirm:submitQuickBan})">
+      <button class="btn btn-danger" type="button" onclick="submitQuickBan()">
         <svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir
       </button>
     </div>
   </div>
-</div>
+  <p class="bans-cr-quick-note">Le compte sera suspendu dès confirmation. Indiquez une raison claire : elle sera conservée dans le journal de modération.</p>
+</section>
 
 <!-- ── Filtres + Recherche ── -->
+<section class="command-surface bans-cr-command" aria-label="Filtrer les bannissements">
+  <div class="command-surface-head"><div><div class="command-surface-title"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg> Retrouver une décision</div><p class="command-surface-copy">Recherchez par compte, motif ou administrateur sans perdre la vue de modération sélectionnée.</p></div></div>
 <div class="bans-bar">
   <div class="filter-tabs">
     <a href="/admin/bans?filter=active<%= search ? '&search='+encodeURIComponent(search) : '' %>"
@@ -218,6 +241,7 @@
     <% } %>
   </form>
 </div>
+</section>
 
 <!-- ── Empty state ── -->
 <% if (bans.length === 0) { %>
@@ -290,6 +314,8 @@
 
 <% } else { %>
 <!-- ── Tableau ── -->
+<div class="control-section-head"><div><h2>Décisions enregistrées</h2><p>Chaque ligne relie une restriction à son motif, sa durée et son administrateur.</p></div><span class="context-chip"><%= total %> résultat<%= total!==1?'s':'' %></span></div>
+<div class="card cr-panel bans-cr-table">
 <div class="table-wrap">
   <table>
     <thead>
@@ -410,7 +436,7 @@
 
 <!-- ── Pagination ── -->
 <% if (totalPages > 1) { %>
-<div class="pagination" style="margin-top:1rem;display:flex;align-items:center;gap:.4rem">
+<div class="pagination bans-cr-pagination">
   <a href="/admin/bans?filter=<%= filter %><%= search?'&search='+encodeURIComponent(search):'' %>&page=1"
     class="btn btn-outline btn-sm <%= page<=1?'disabled':'' %>">«</a>
   <a href="/admin/bans?filter=<%= filter %><%= search?'&search='+encodeURIComponent(search):'' %>&page=<%= page-1 %>"
@@ -425,6 +451,7 @@
     class="btn btn-outline btn-sm <%= page>=totalPages?'disabled':'' %>">»</a>
 </div>
 <% } %>
+</div>
 <% } %>
 
 <script>
@@ -444,6 +471,16 @@ function submitQuickBan() {
 
   if (!userId) { showToast('L\'ID utilisateur est obligatoire.', 'error'); return; }
   if (!reason) { showToast('La raison est obligatoire.', 'error'); return; }
+
+  askConfirm({
+    icon:'ban', title:'Confirmer le bannissement',
+    msg:'Le compte <strong>' + pseudo + '</strong> sera bloqué et la raison sera enregistrée dans le journal.',
+    btnLabel:'Bannir le compte', btnClass:'btn-danger',
+    onConfirm:function(){ submitConfirmedQuickBan(userId, pseudo, reason, duration); },
+  });
+}
+
+function submitConfirmedQuickBan(userId, pseudo, reason, duration) {
 
   const f = document.createElement('form');
   f.method = 'POST';

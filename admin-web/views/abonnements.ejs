@@ -1,4 +1,6 @@
 <%- include('layout_top', {page:'abonnements'}) %>
+<link rel="stylesheet" href="/finance-control-room.css">
+<section class="finance-page finance-page--subscriptions">
 
 <style>
 /* ── Onglets de statut ───────────────────────────────────────────────────── */
@@ -120,16 +122,20 @@
   ];
 %>
 
-<div class="topbar">
-  <div>
+<header class="topbar workspace-header finance-workspace-header">
+  <div class="workspace-heading">
+    <div class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Opérations financières</div>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Preuves Premium</h1>
-    <small>Validation manuelle — paiement direct &amp; code partenaire</small>
+    <p class="workspace-description">Contrôlez chaque demande, consultez sa preuve et enregistrez une décision traçable avant d'accorder l'accès Premium.</p>
   </div>
-  <a href="/admin/abonnements/export?statut=<%= _stat %><%= _q ? '&q=' + encodeURIComponent(_q) : '' %>"
-     class="btn btn-outline" id="export-btn-abonnements" onclick="exportBtnFeedback(this)">
-    <svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV
-  </a>
-</div>
+  <div class="workspace-actions">
+    <span class="context-chip"><%= _rows.length %> dossier<%= _rows.length !== 1 ? 's' : '' %> affiché<%= _rows.length !== 1 ? 's' : '' %></span>
+    <a href="/admin/abonnements/export?statut=<%= _stat %><%= _q ? '&q=' + encodeURIComponent(_q) : '' %>"
+       class="btn btn-outline" id="export-btn-abonnements" onclick="exportBtnFeedback(this)">
+      <svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV
+    </a>
+  </div>
+</header>
 
 <% if(typeof success !== 'undefined' && success){ %>
   <div class="alert alert-success"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg>
@@ -143,9 +149,9 @@
 <% } %>
 
 <!-- ── Onglets : la file de travail, puis l'historique des décisions ──────── -->
-<nav class="pf-tabs" aria-label="Filtrer par statut">
+<nav class="pf-tabs view-tabs finance-status-tabs" aria-label="Filtrer par statut">
   <% _onglets.forEach(([cle, label, n]) => { %>
-  <a class="pf-tab <%= _stat === cle ? 'on' : '' %>" href="<%= _lien(cle, _q) %>"
+  <a class="pf-tab view-tab <%= _stat === cle ? 'on' : '' %>" href="<%= _lien(cle, _q) %>"
      aria-current="<%= _stat === cle ? 'page' : 'false' %>">
     <%= label %><% if (n !== null) { %><span class="n"><%= n %></span><% } %>
   </a>
@@ -188,21 +194,21 @@
 
 <!-- ── Chiffres d'ensemble ────────────────────────────────────────────────── -->
 <% if (_c) { %>
-<div class="stats-grid" style="margin-bottom:14px">
-  <div class="stat-card <%= _c.en_attente > 0 ? 's-orange' : 's-blue' %>">
+<div class="stats-grid metric-grid finance-metric-grid" style="margin-bottom:14px">
+  <div class="stat-card metric-card <%= _c.en_attente > 0 ? 's-orange' : 's-blue' %>">
     <div class="lbl">En attente</div><div class="val"><%= _c.en_attente %></div>
   </div>
-  <div class="stat-card s-green">
+  <div class="stat-card metric-card s-green">
     <div class="lbl">Approuvées</div><div class="val"><%= _c.approuvees %></div>
   </div>
-  <div class="stat-card s-red">
+  <div class="stat-card metric-card s-red">
     <div class="lbl">Rejetées</div><div class="val"><%= _c.rejetees %></div>
   </div>
-  <div class="stat-card s-purple">
+  <div class="stat-card metric-card s-purple">
     <div class="lbl">Encaissé (approuvé)</div>
     <div class="val" style="font-size:1.15rem"><%= _c.revenu_approuve.toLocaleString() %> <span style="font-size:.75rem">FCFA</span></div>
   </div>
-  <div class="stat-card s-blue">
+  <div class="stat-card metric-card s-blue">
     <div class="lbl">Délai de traitement</div>
     <div class="val" style="font-size:1.15rem">
       <% if (_c.delai_moyen_h === null) { %>—<% } else { %>
@@ -220,6 +226,13 @@
 
 <!-- ── Recherche (côté serveur : porte sur toutes les preuves, pas seulement
         celles affichées) ────────────────────────────────────────────────── -->
+<section class="command-surface finance-command-surface" aria-label="Recherche dans les preuves Premium">
+  <div class="command-surface-head">
+    <div>
+      <div class="command-surface-title"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg> Cibler la file de décision</div>
+      <p class="command-surface-copy">La recherche porte sur le compte, le téléphone, l'identifiant partenaire et le numéro d'envoi.</p>
+    </div>
+  </div>
 <form method="GET" action="/admin/abonnements" class="filterbar">
   <input type="hidden" name="statut" value="<%= _stat %>">
   <svg class="ic" aria-hidden="true" style="color:var(--text-m)"><use href="#ic-search"/></svg>
@@ -242,6 +255,7 @@
   <span class="spacer"></span>
   <span style="font-size:.8rem;color:var(--text-m)" id="pf-count"><%= _rows.length %> preuve(s)</span>
 </form>
+</section>
 <div id="pf-none" style="display:none" class="card">
   <div class="empty-state" style="padding:32px">
     <div class="empty-state-title">Aucune preuve de ce type</div>
@@ -351,7 +365,7 @@
 
 <!-- ── Historique : décisions déjà prises, sans formulaire ────────────────── -->
 <div class="pf-hscroll">
-  <div class="pf-hist" style="min-width:760px">
+  <div class="pf-hist cr-panel" style="min-width:760px">
     <div class="pf-hrow pf-hhead">
       <div>Utilisateur</div><div>Type</div><div>Montant</div><div>Décision</div><div>Note admin</div>
     </div>
@@ -414,8 +428,8 @@
 
 <% } else { %>
 
-<div class="proof-workspace" id="proof-workspace">
-  <aside class="proof-queue" aria-label="Demandes Premium">
+<div class="proof-workspace finance-proof-workspace" id="proof-workspace">
+  <aside class="proof-queue finance-decision-queue" aria-label="Demandes Premium">
     <h3>Demandes · les plus anciennes d'abord</h3>
     <% _sorted.forEach((p, i) => { %>
     <button type="button" class="proof-select" data-proof-index="<%= i %>" data-type="<%= p.type %>" aria-pressed="false" aria-controls="proof-dossier-<%= i %>">
@@ -427,7 +441,7 @@
   </aside>
   <div class="proof-detail">
 <% _sorted.forEach((p, i) => { const _h = _ageH(p); %>
-<div class="card pf-card" style="padding:0;overflow:hidden;margin-bottom:20px"
+<div class="card pf-card cr-panel finance-decision-card" style="padding:0;overflow:hidden;margin-bottom:20px"
      id="proof-dossier-<%= i %>" data-proof-index="<%= i %>" data-type="<%= p.type %>">
 
   <!-- En-tête de la carte -->
@@ -660,4 +674,5 @@ function pfFilter() {
   document.getElementById("pf-none").style.display = shown === 0 ? "block" : "none";
 }
 </script>
+</section>
 <%- include('layout_bottom') %>

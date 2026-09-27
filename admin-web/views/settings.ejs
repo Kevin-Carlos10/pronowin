@@ -66,6 +66,31 @@
 .danger-item { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-s); padding:.9rem 1rem; }
 .danger-item .di-title { font-size:.83rem; font-weight:700; margin-bottom:.2rem; }
 .danger-item .di-desc  { font-size:.73rem; color:var(--text-dim); margin-bottom:.7rem; }
+
+/* ── Control Room : gouvernance et configuration ───────────────────────────── */
+.settings-cr-workspace { margin-bottom:1rem; }
+.settings-cr-meta { max-width:30ch; color:var(--text-dim); font-size:var(--fs-xs); line-height:1.45; text-align:right; }
+.settings-cr-section { grid-column:1/-1; display:flex; align-items:end; justify-content:space-between; gap:1rem; padding:1.2rem 0 .25rem; border-top:1px solid var(--border); }
+.settings-cr-section:first-child { padding-top:.1rem; border-top:0; }
+.settings-cr-section-kicker { margin:0 0 .18rem; color:var(--primary-texte); font-size:var(--fs-xs); font-weight:800; letter-spacing:.1em; text-transform:uppercase; }
+.settings-cr-section h2 { margin:0; font-size:var(--fs-l); letter-spacing:-.015em; }
+.settings-cr-section-copy { max-width:48ch; margin:0; color:var(--text-dim); font-size:var(--fs-s); line-height:1.5; text-align:right; }
+.settings-cr-card { position:relative; box-shadow:var(--shadow); }
+.settings-cr-card::before { content:''; position:absolute; inset:0 auto 0 0; width:3px; border-radius:16px 0 0 16px; background:var(--border-s); }
+.settings-cr-card--delivery::before { background:var(--primary); }
+.settings-cr-card--policy::before { background:var(--info); }
+.settings-cr-card--risk::before,
+.settings-cr-card--security::before { background:var(--warning); }
+.settings-cr-card--resilience::before { background:var(--success); }
+.settings-cr-risk { grid-column:1/-1; display:flex; align-items:flex-start; gap:.7rem; padding:.8rem .95rem; border:1px solid rgba(var(--warning-rgb),.28); border-radius:12px; background:linear-gradient(90deg,rgba(var(--warning-rgb),.10),transparent 74%); color:var(--text-m); font-size:var(--fs-s); line-height:1.5; }
+.settings-cr-risk strong { color:var(--on-warning); }
+.settings-cr-danger { box-shadow:var(--shadow); }
+.settings-cr-section--danger .settings-cr-section-kicker { color:var(--on-danger); }
+.settings-cr-section--danger h2 { color:var(--on-danger); }
+@media(max-width:700px) {
+  .settings-cr-section { align-items:flex-start; flex-direction:column; gap:.3rem; }
+  .settings-cr-section-copy, .settings-cr-meta { text-align:left; }
+}
 </style>
 
 <%
@@ -78,16 +103,19 @@
   var _artCount   = (dataFiles.find(function(f){return f.key==='actualites';})   || {count:0}).count || 0;
 %>
 
-<div class="topbar">
-  <div>
+<div class="workspace-header settings-cr-workspace">
+  <div class="workspace-heading">
+    <div class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Gouvernance &amp; configuration</div>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Paramètres</h1>
-    <small>Configuration du panel d'administration</small>
+    <p class="workspace-description">Réglez l'application, les règles d'accès, la continuité de service et les opérations irréversibles depuis un espace structuré par impact.</p>
   </div>
-  <% if (settings.updatedAt) { %>
-  <span style="font-size:.75rem;color:var(--text-dim)">
-    Mis à jour le <%= fmtDate(settings.updatedAt) %><% if (settings.updatedBy) { %> par <strong><%= settings.updatedBy %></strong><% } %>
-  </span>
-  <% } %>
+  <div class="workspace-actions">
+    <span class="context-chip"><svg class="ic" aria-hidden="true"><use href="#ic-monitor"/></svg> <%= sysInfo.env %></span>
+    <span class="live-state">Serveur opérationnel</span>
+    <% if (settings.updatedAt) { %>
+    <span class="settings-cr-meta">Mis à jour le <%= fmtDate(settings.updatedAt) %><% if (settings.updatedBy) { %> par <strong><%= settings.updatedBy %></strong><% } %></span>
+    <% } %>
+  </div>
 </div>
 
 <% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
@@ -145,8 +173,16 @@
 
 <div class="st-grid">
 
+  <div class="settings-cr-section">
+    <div>
+      <p class="settings-cr-section-kicker">Diffusion</p>
+      <h2>Application &amp; mises à jour</h2>
+    </div>
+    <p class="settings-cr-section-copy">Les versions publiées et les canaux de téléchargement sont contrôlés ici, avant toute communication aux utilisateurs.</p>
+  </div>
+
   <!-- ── Mise à jour de l'app ───────────────────────────────────────────────── -->
-  <div class="st-card" style="grid-column:1/-1">
+  <div class="st-card settings-cr-card settings-cr-card--delivery" style="grid-column:1/-1">
     <h2><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Mise à jour de l'application</h2>
     <p class="desc">
       Les deux canaux ont leurs propres numéros de version : une release Play attend
@@ -280,8 +316,16 @@
     <% } %>
   </div>
 
+  <div class="settings-cr-section">
+    <div>
+      <p class="settings-cr-section-kicker">Pilotage quotidien</p>
+      <h2>Règles métier &amp; communication</h2>
+    </div>
+    <p class="settings-cr-section-copy">Ajustez l'exposition, les annonces et l'état de maintenance en sachant immédiatement ce qui est visible dans le panel.</p>
+  </div>
+
   <!-- ── Bankroll : plafond d'exposition ─────────────────────────────────────── -->
-  <div class="st-card">
+  <div class="st-card settings-cr-card settings-cr-card--policy">
     <h2><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Bankroll des utilisateurs</h2>
     <p class="desc">
       Chaque mise suit le barème (1,5 à 5 % du solde selon la note), mais sans plafond
@@ -311,7 +355,7 @@
   </div>
 
   <!-- ── Maintenance ────────────────────────────────────────────────────────── -->
-  <div class="st-card">
+  <div class="st-card settings-cr-card settings-cr-card--risk">
     <h2><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Mode maintenance</h2>
     <p class="desc">Affiche un bandeau d'avertissement sur toutes les pages du panel.</p>
     <form method="POST" action="/admin/settings/maintenance">
@@ -345,7 +389,7 @@
   </div>
 
   <!-- ── Annonce globale ────────────────────────────────────────────────────── -->
-  <div class="st-card">
+  <div class="st-card settings-cr-card">
     <h2><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> Annonce globale</h2>
     <p class="desc">Message d'information affiché en haut de toutes les pages du panel.</p>
     <form method="POST" action="/admin/settings/announcement">
@@ -397,8 +441,20 @@
     </form>
   </div>
 
+  <div class="settings-cr-section">
+    <div>
+      <p class="settings-cr-section-kicker">Accès &amp; résilience</p>
+      <h2>Sécurité, sauvegarde &amp; système</h2>
+    </div>
+    <p class="settings-cr-section-copy">Ces réglages portent sur l'accès des administrateurs et la capacité à restaurer le panel après un incident.</p>
+  </div>
+  <div class="settings-cr-risk">
+    <svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg>
+    <div><strong>Point de contrôle avant changement.</strong> Les règles de connexion et l'obligation de double authentification s'appliquent au prochain redémarrage. Vérifiez que votre propre accès est protégé avant de les rendre obligatoires.</div>
+  </div>
+
   <!-- ── Apparence & Sécurité ──────────────────────────────────────────────── -->
-  <div class="st-card">
+  <div class="st-card settings-cr-card settings-cr-card--security">
     <h2><svg class="ic" aria-hidden="true"><use href="#ic-sparkle"/></svg> Apparence & Sécurité</h2>
     <p class="desc">Personnalisation du panel et paramètres de connexion.</p>
     <form method="POST" action="/admin/settings/general">
@@ -454,7 +510,7 @@
   </div>
 
   <!-- ── Sauvegarde & Restauration ──────────────────────────────────────────── -->
-  <div class="st-card">
+  <div class="st-card settings-cr-card settings-cr-card--resilience">
     <h2><svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> Sauvegarde & Restauration</h2>
     <p class="desc">Exporter ou restaurer les données locales du panel.</p>
 
@@ -508,7 +564,7 @@
   </div>
 
   <!-- ── Infos système ──────────────────────────────────────────────────────── -->
-  <div class="st-card">
+  <div class="st-card settings-cr-card settings-cr-card--resilience">
     <h2><svg class="ic" aria-hidden="true"><use href="#ic-monitor"/></svg> Infos système</h2>
     <p class="desc">État du serveur Node.js et de l'environnement.</p>
     <div class="sys-row"><span style="color:var(--text-dim)">Node.js</span><span style="font-weight:600;font-family:monospace"><%= sysInfo.nodeVersion %></span></div>
@@ -530,8 +586,16 @@
     </div>
   </div>
 
+  <div class="settings-cr-section settings-cr-section--danger">
+    <div>
+      <p class="settings-cr-section-kicker">Impact irréversible</p>
+      <h2>Opérations sensibles</h2>
+    </div>
+    <p class="settings-cr-section-copy">Conservez une sauvegarde vérifiable avant de supprimer des historiques ou du contenu.</p>
+  </div>
+
   <!-- ── Zone danger ────────────────────────────────────────────────────────── -->
-  <div class="danger-zone">
+  <div class="danger-zone settings-cr-danger">
     <h2><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Zone de danger</h2>
     <p style="font-size:.78rem;color:var(--text-dim)">Ces actions sont irréversibles. Effectuez une sauvegarde avant de procéder.</p>
     <div class="danger-grid">

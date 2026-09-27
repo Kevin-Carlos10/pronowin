@@ -67,17 +67,19 @@
 
 <% const isEdit = !!tutorial; %>
 
-<div class="topbar">
-  <div>
-    <a href="/admin/tutoriels" style="color:var(--text-dim);font-size:.82rem;text-decoration:none">← Tutoriels</a>
-    <h1 style="margin-top:4px"><%= isEdit ? '✏️ Modifier le tutoriel' : '+ Nouveau tutoriel' %></h1>
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Contenu & apprentissage</p>
+    <a href="/admin/tutoriels" class="view-tab">← Tutoriels</a>
+    <h1><%= isEdit ? '✏️ Modifier le tutoriel' : '+ Nouveau tutoriel' %></h1>
+    <p class="workspace-description"><%= isEdit ? tutorial.title : 'Créez un tutoriel prêt à être publié et contrôlez son rendu avant de l’enregistrer.' %></p>
   </div>
+  <div class="workspace-actions">
   <% if(isEdit) { %>
-  <div style="display:flex;gap:.5rem">
     <span class="badge <%= tutorial.isPremium ? 'badge-warn' : 'badge-ok' %>"><%= tutorial.isPremium ? '👑 Premium' : '✓ Gratuit' %></span>
-  </div>
   <% } %>
-</div>
+  </div>
+</header>
 
 <% if(typeof error !== 'undefined' && error){ %><div class="alert alert-error" style="display:none" id="flash-err"><%= error %></div><% } %>
 
@@ -88,7 +90,7 @@
     <form method="POST" action="<%= isEdit ? '/admin/tutoriels/'+tutorial.id+'/edit' : '/admin/tutoriels' %>" id="tut-form">
 
       <!-- Contenu -->
-      <div class="card" style="margin-bottom:1rem">
+      <div class="card cr-panel" style="margin-bottom:1rem">
         <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.9rem"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Contenu</div>
 
         <div class="form-group">
@@ -132,7 +134,7 @@
       </div>
 
       <!-- Paramètres -->
-      <div class="card" style="margin-bottom:1rem">
+      <div class="card cr-panel" style="margin-bottom:1rem">
         <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.9rem"><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Paramètres</div>
 
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:.85rem;margin-bottom:.85rem">
@@ -194,7 +196,7 @@
   <div>
 
     <!-- Aperçu live -->
-    <div class="card" style="margin-bottom:.85rem">
+    <div class="card cr-panel" style="margin-bottom:.85rem">
       <div style="font-size:.8rem;font-weight:700;color:var(--text-m);margin-bottom:.85rem"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> Aperçu carte</div>
       <div class="tf-preview">
         <div class="tf-preview-thumb" id="pv-thumb">

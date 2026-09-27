@@ -67,6 +67,26 @@
 /* ── Copy btn ────────────────────────────────────────────────────────────────── */
 .pf-copy { background:none; border:none; cursor:pointer; color:var(--text-dim); font-size:.75rem; padding:.1rem .3rem; border-radius:4px; transition:all .15s; }
 .pf-copy:hover { background:var(--surface-h); color:var(--primary-texte); }
+
+/* ── Control Room : identité et sécurité personnelle ─────────────────────── */
+.profile-workspace { margin-bottom:1rem; }
+.profile-security-callout { margin-bottom:1rem; }
+.pf-avatar-card, .pf-card { box-shadow:var(--shadow); }
+.pf-identity-card { position:relative; overflow:hidden; }
+.pf-identity-card::before { content:''; position:absolute; inset:0 0 auto; height:3px; background:linear-gradient(90deg,var(--primary),transparent 75%); }
+.profile-cr-section { display:flex; align-items:end; justify-content:space-between; gap:.75rem; margin:1.25rem 0 .75rem; }
+.profile-cr-section h2 { margin:0; font-size:var(--fs-l); letter-spacing:-.015em; }
+.profile-cr-section p { margin:.18rem 0 0; color:var(--text-dim); font-size:var(--fs-s); line-height:1.45; }
+.pf-card--security { border-color:rgba(var(--warning-rgb),.27); background:linear-gradient(135deg,rgba(var(--warning-rgb),.07),var(--surface) 42%); }
+.pf-card--security .pf-card-title { margin-bottom:.7rem; }
+.pf-security-tag { margin-left:auto; padding:.2rem .5rem; border:1px solid rgba(var(--warning-rgb),.28); border-radius:999px; color:var(--on-warning); font-size:var(--fs-xs); font-weight:800; letter-spacing:.05em; text-transform:uppercase; }
+.pf-security-copy { margin:.2rem 0 .85rem; color:var(--text-m); font-size:var(--fs-s); line-height:1.6; }
+.pf-security-actions { display:flex; align-items:center; flex-wrap:wrap; gap:.55rem; }
+.pf-security-note { color:var(--text-dim); font-size:var(--fs-xs); line-height:1.4; }
+@media(max-width:600px) {
+  .profile-cr-section { align-items:flex-start; flex-direction:column; }
+  .pf-security-tag { margin-left:0; }
+}
 </style>
 
 <%
@@ -83,16 +103,29 @@
   const _initial = (adminName||'?')[0].toUpperCase();
 %>
 
-<div class="topbar">
-  <div>
+<div class="workspace-header profile-workspace">
+  <div class="workspace-heading">
+    <div class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> <%= isMain ? 'Administration principale' : 'Accès délégué' %></div>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg> Mon profil</h1>
-    <small>Informations, sécurité et préférences</small>
+    <p class="workspace-description">Centralisez votre identité, vos permissions, vos préférences et les protections qui sécurisent votre session d'administration.</p>
   </div>
-  <a href="/admin/logout" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> Déconnexion</a>
+  <div class="workspace-actions">
+    <span class="context-chip"><%= isMain ? 'Accès complet' : 'Permissions limitées' %></span>
+    <span class="live-state">Session active</span>
+    <a href="/admin/logout" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> Déconnexion</a>
+  </div>
 </div>
 
 <% if (success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
 <% if (error)   { %><div class="alert alert-error"   style="display:none"><%= error %></div><% } %>
+
+<div class="cr-callout profile-security-callout">
+  <svg class="ic cr-callout-icon" aria-hidden="true"><use href="#ic-lock"/></svg>
+  <div>
+    <div class="cr-callout-title">Gardez votre accès sous contrôle</div>
+    <div class="cr-callout-copy">Vérifiez la double authentification avant une session à privilèges, puis utilisez un mot de passe unique et robuste. Les changements de sécurité restent visibles dans le journal d'activité.</div>
+  </div>
+</div>
 
 <div class="pf-layout">
 
@@ -100,7 +133,7 @@
   <div>
 
     <!-- Avatar + infos -->
-    <div class="pf-avatar-card" style="margin-bottom:1rem">
+    <div class="pf-avatar-card cr-panel pf-identity-card" style="margin-bottom:1rem">
       <%# Modificateur prefixe : « main » tout court est la classe de la zone de
           contenu du gabarit, qui porte min-height:100vh. L'avatar s'etirait
           alors sur toute la hauteur de la colonne. %>
@@ -186,7 +219,7 @@
     </div>
 
     <!-- Historique connexions -->
-    <div class="pf-card">
+    <div class="pf-card cr-panel">
       <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg> Connexions récentes</div>
       <% if (lastLogins.length === 0) { %>
       <p style="color:var(--text-dim);font-size:.82rem;font-style:italic">Aucune connexion enregistrée.</p>
@@ -209,7 +242,7 @@
 
     <!-- Activité récente -->
     <% if (recentActivity && recentActivity.length > 0) { %>
-    <div class="pf-card">
+    <div class="pf-card cr-panel">
       <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-zap"/></svg> Activité récente</div>
       <div class="pf-tl">
         <% recentActivity.forEach(log => {
@@ -226,17 +259,26 @@
     </div>
     <% } %>
 
+    <div class="profile-cr-section">
+      <div>
+        <h2>Sécurité du compte</h2>
+        <p>Les protections qui préservent votre session et vos opérations administratives.</p>
+      </div>
+      <span class="context-chip">Accès personnel</span>
+    </div>
+
     <!-- Double authentification (constat A1) -->
-    <div class="pf-card">
-      <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Double authentification</div>
-      <p style="font-size:.84rem;color:var(--text-m);margin:.2rem 0 .8rem;line-height:1.6">
-        Un code à six chiffres, donné par une application de votre téléphone, en plus du mot de passe.
-      </p>
-      <a href="/admin/profile/2fa" class="btn btn-outline btn-sm">Gérer la double authentification</a>
+    <div class="pf-card cr-panel pf-card--security">
+      <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Double authentification <span class="pf-security-tag">À vérifier</span></div>
+      <p class="pf-security-copy">Ajoutez un code temporaire de votre téléphone au mot de passe pour empêcher qu'un identifiant seul ouvre le panneau.</p>
+      <div class="pf-security-actions">
+        <a href="/admin/profile/2fa" class="btn btn-outline btn-sm">Gérer la double authentification</a>
+        <span class="pf-security-note">Codes de secours et état de protection disponibles dans l'espace dédié.</span>
+      </div>
     </div>
 
     <!-- Changer mot de passe -->
-    <div class="pf-card">
+    <div class="pf-card cr-panel">
       <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-key"/></svg> Changer mon mot de passe</div>
       <form method="POST" action="/admin/profile/password" id="pwd-form">
         <div class="form-group" style="margin-bottom:.9rem">
@@ -259,7 +301,7 @@
     </div>
 
     <!-- Préférences visuelles -->
-    <div class="pf-card">
+    <div class="pf-card cr-panel">
       <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-sparkle"/></svg> Préférences visuelles</div>
 
       <div style="margin-bottom:1rem">
@@ -283,8 +325,8 @@
     </div>
 
     <!-- Session + sécurité -->
-    <div class="pf-card">
-      <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> Session &amp; Sécurité</div>
+    <div class="pf-card cr-panel">
+      <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Session &amp; Sécurité</div>
       <div class="pf-row"><span class="pf-lbl">Statut</span><span style="color:var(--on-success);font-weight:600"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg> Connecté</span></div>
       <div class="pf-row"><span class="pf-lbl">IP actuelle</span><span class="pf-val" style="font-family:monospace;font-size:.78rem"><%= currentIp %></span></div>
       <div class="pf-row"><span class="pf-lbl">Timeout inactivité</span><span class="pf-val">30 min</span></div>

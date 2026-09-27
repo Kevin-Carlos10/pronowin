@@ -86,17 +86,20 @@
   }
 %>
 
-<div class="topbar">
-  <div>
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Contenu & publication</p>
     <h1><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg> Actualités</h1>
-    <small><%= stats.total %> article<%= stats.total!==1?'s':'' %> · <%= stats.published %> publié<%= stats.published!==1?'s':'' %></small>
+    <p class="workspace-description"><%= stats.total %> article<%= stats.total!==1?'s':'' %> au total, dont <%= stats.published %> actuellement publié<%= stats.published!==1?'s':'' %>.</p>
   </div>
+  <div class="workspace-actions">
   <% if(hasPerm('actualites','write')) { %>
   <a href="/admin/actualites/new" class="btn btn-primary btn-sm">
     <svg class="ic" aria-hidden="true"><use href="#ic-plus"/></svg> Nouvel article
   </a>
   <% } %>
-</div>
+  </div>
+</header>
 
 <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success" style="display:none"><%= success %></div><% } %>
 <% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
@@ -104,20 +107,20 @@
 <!-- ── Stats ──────────────────────────────────────────────────────────────────── -->
 <%# Les trois premiers chiffres correspondent à un sous-ensemble de la liste :
     ils deviennent des liens. « Vues totales » n'en est pas un — rien à filtrer. %>
-<div class="ac-stats">
-  <a href="/admin/actualites" class="ac-stat stat-link" aria-current="<%= !_hasFilter ? 'true':'false' %>">
+<div class="ac-stats metric-grid">
+  <a href="/admin/actualites" class="ac-stat metric-card stat-link" aria-current="<%= !_hasFilter ? 'true':'false' %>">
     <div class="v" style="color:var(--on-info)"><%= stats.total %></div><div class="l">Total</div></a>
-  <a href="/admin/actualites?status=published" class="ac-stat stat-link" aria-current="<%= status==='published' ? 'true':'false' %>">
+  <a href="/admin/actualites?status=published" class="ac-stat metric-card stat-link" aria-current="<%= status==='published' ? 'true':'false' %>">
     <div class="v" style="color:var(--on-success)"><%= stats.published %></div><div class="l">Publiés</div></a>
-  <a href="/admin/actualites?status=draft" class="ac-stat stat-link" aria-current="<%= status==='draft' ? 'true':'false' %>">
+  <a href="/admin/actualites?status=draft" class="ac-stat metric-card stat-link" aria-current="<%= status==='draft' ? 'true':'false' %>">
     <div class="v" style="color:var(--text-m)"><%= stats.draft %></div><div class="l">Brouillons</div></a>
-  <div class="ac-stat"><div class="v" style="color:var(--on-warning)"><%= stats.pinned %></div><div class="l">Épinglés</div></div>
-  <div class="ac-stat"><div class="v" style="color:var(--on-purple)"><%= stats.premium %></div><div class="l">Premium only</div></div>
-  <div class="ac-stat"><div class="v" style="color:var(--on-warning)"><%= stats.totalViews.toLocaleString() %></div><div class="l">Vues totales</div></div>
+  <div class="ac-stat metric-card"><div class="v" style="color:var(--on-warning)"><%= stats.pinned %></div><div class="l">Épinglés</div></div>
+  <div class="ac-stat metric-card"><div class="v" style="color:var(--on-purple)"><%= stats.premium %></div><div class="l">Premium only</div></div>
+  <div class="ac-stat metric-card"><div class="v" style="color:var(--on-warning)"><%= stats.totalViews.toLocaleString() %></div><div class="l">Vues totales</div></div>
 </div>
 
 <!-- ── Filtres ─────────────────────────────────────────────────────────────────── -->
-<div class="filterbar">
+<div class="filterbar command-surface">
   <form method="GET" action="/admin/actualites" style="display:contents">
     <svg class="ic" aria-hidden="true" style="color:var(--text-m)"><use href="#ic-search"/></svg>
     <input type="search" name="search" value="<%= search %>"
@@ -142,7 +145,7 @@
 
 <!-- ── Grille ──────────────────────────────────────────────────────────────────── -->
 <% if(!data || data.length === 0) { %>
-<div class="empty-state card">
+<div class="empty-state card cr-panel">
   <div style="font-size:2.5rem;margin-bottom:.5rem"><%= _hasFilter ? '🔍' : '📰' %></div>
   <p><%= _hasFilter ? 'Aucun article ne correspond aux filtres.' : 'Aucun article créé.' %></p>
   <div style="display:flex;gap:.5rem;justify-content:center;margin-top:.75rem;flex-wrap:wrap">
@@ -156,7 +159,7 @@
      const cat = _catCfg[art.category] || { emoji:'📰', label:art.category, cls:'cat-news' };
      const cardCls = art.isPinned ? 'pinned' : art.isPublished ? 'published' : 'draft';
 %>
-<div class="ac-card <%= cardCls %>">
+<div class="ac-card cr-panel <%= cardCls %>">
 
   <!-- Image header -->
   <div class="ac-img">
