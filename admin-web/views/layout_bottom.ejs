@@ -929,7 +929,7 @@ setInterval(refreshBadges, 30000);
   function _sseSetStatus(online) {
     const indicator = document.getElementById('live-indicator');
     if (indicator) {
-      indicator.textContent = online ? 'Temps réel connecté' : 'Reconnexion…';
+      indicator.textContent = online ? 'Flux admin connecté' : 'Reconnexion…';
       indicator.dataset.state = online ? 'connected' : 'retry';
       indicator.style.color = online ? 'var(--on-success)' : 'var(--on-warning)';
     }

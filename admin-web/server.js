@@ -693,6 +693,8 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
+// Le proxy public réserve /admin au panneau ; les autres chemins vont au site.
+app.use('/admin/assets', express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'public')));
 
 // Chart.js servi localement plutôt que depuis un CDN : hors ligne ou CDN
@@ -1517,9 +1519,8 @@ app.get('/admin/dashboard', requireAuth, async (req, res) => {
                 + "à lui montrer. Rendez-en un gratuit pour ouvrir la vitrine.",
           action:'Ouvrir la vitrine', lien:'/admin/pronostics' }
       : { cle:'vitrine', urgence:'normale', icone:'star',
-          titre: "Aucun pronostic gratuit désigné pour aujourd'hui",
-          detail: `L'application affiche alors le premier des ${gratuits} pronostic(s) `
-                + "gratuit(s), par ordre d'heure de match : c'est un tri qui décide de votre vitrine.",
+          titre: "Vitrine du jour : choisissez le pronostic à mettre en avant",
+          detail: `${gratuits} pronostic(s) gratuit(s) disponible(s). Le premier par heure de match est affiché automatiquement.`,
           action:'Choisir', lien:'/admin/pronostics' });
   }
 
