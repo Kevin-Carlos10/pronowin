@@ -141,8 +141,8 @@ const INJECTIONS = [
   {
     nom: 'une ancre vise une section supprimée',
     fichier: 'views/index.ejs',
-    de: '    <a href="#faq">FAQ</a>\n    <a href="#telecharger"',
-    vers: '    <a href="#temoignages">Témoignages</a>\n    <a href="#telecharger"',
+    de: '      <a href="#faq">FAQ</a>\n      <a href="#telecharger"',
+    vers: '      <a href="#temoignages">Témoignages</a>\n      <a href="#telecharger"',
   },
   {
     nom: "le site promet de l'IA alors que le modèle est statistique",

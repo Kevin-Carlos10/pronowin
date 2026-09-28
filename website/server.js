@@ -411,7 +411,7 @@ const formules = [
     name: 'Premium Mensuel',
     period: '/ mois',
     highlight: true,
-    badge: 'Populaire',
+    badge: 'Accès Premium',
     features: [
       'Tous les pronostics Premium, sans limite',
       'Statistiques avancées',
@@ -429,12 +429,11 @@ const formules = [
     // La table comparative reservait pourtant « Historique complet des
     // performances » et « Tous les tutoriels » a l'annuel : deux avantages
     // inventes, sur la page ou l'on choisit combien payer.
-    // 54 000 / 6 000 = neuf mois payes pour douze.
     features: [
       'Exactement le même accès que le mensuel',
-      'Trois mois économisés sur douze',
-      "Un seul paiement pour l'année",
-      'Aucune reconduction automatique',
+      'Les pronostics Premium et statistiques avancées',
+      'Tous les tutoriels, niveaux avancés compris',
+      'Une formule pour douze mois',
     ],
     cta: 'Souscrire',
   },
@@ -488,7 +487,7 @@ const faqs = [
   },
   {
     q: 'Puis-je annuler mon abonnement à tout moment ?',
-    a: "Oui. Les abonnements ne sont pas reconduits automatiquement : à chaque échéance, vous choisissez de renouveler ou non.",
+    a: "Les conditions de renouvellement et d’annulation dépendent du mode de souscription. Elles sont présentées avant le paiement. Retrouvez la gestion de votre abonnement dans l’application ou dans la boutique utilisée pour souscrire.",
   },
 ];
 

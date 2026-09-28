@@ -437,7 +437,7 @@ test('les deux formules Premium ouvrent le même accès', async () => {
   assert.ok(lignes.length >= 5, 'table comparative introuvable ou vide');
 
   for (const ligne of lignes) {
-    const cellules = [...ligne.matchAll(/<td>([\s\S]*?)<\/td>/g)].map((m) => m[1]);
+    const cellules = [...ligne.matchAll(/<(?:td|th)(?:\s[^>]*)?>([\s\S]*?)<\/(?:td|th)>/g)].map((m) => m[1]);
     const [, , mensuel, annuel] = cellules;
     const coche = (c) => /<svg/.test(c);
     assert.strictEqual(coche(mensuel), coche(annuel),

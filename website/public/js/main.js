@@ -1,210 +1,61 @@
 (function () {
-  var navToggle = document.querySelector('.nav-toggle');
-  var mobileNav = document.querySelector('.mobile-nav');
+  'use strict';
+  var toggle = document.querySelector('.nav-toggle');
+  var menu = document.querySelector('.mobile-nav');
+  var breakpoint = window.matchMedia('(max-width: 900px)');
 
-  if (navToggle && mobileNav) {
-    navToggle.addEventListener('click', function () {
-      var isOpen = mobileNav.classList.toggle('is-open');
-      navToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-      document.body.style.overflow = isOpen ? 'hidden' : '';
+  if (toggle && menu) {
+    // Without JavaScript the regular links remain visible, including on mobile.
+    document.documentElement.classList.add('nav-enhanced');
+    toggle.hidden = false;
+
+    function closeMenu(returnFocus) {
+      menu.hidden = true;
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', 'Ouvrir le menu');
+      if (returnFocus) toggle.focus();
+    }
+
+    toggle.addEventListener('click', function () {
+      var opening = menu.hidden;
+      menu.hidden = !opening;
+      toggle.setAttribute('aria-expanded', String(opening));
+      toggle.setAttribute('aria-label', opening ? 'Fermer le menu' : 'Ouvrir le menu');
     });
-    mobileNav.querySelectorAll('a').forEach(function (link) {
-      link.addEventListener('click', function () {
-        mobileNav.classList.remove('is-open');
-        document.body.style.overflow = '';
-      });
+
+    menu.addEventListener('click', function (event) {
+      var link = event.target.closest('a[href^="#"]');
+      if (!link) return;
+      closeMenu(false);
+      var target = document.getElementById(link.hash.slice(1));
+      if (target) {
+        target.setAttribute('tabindex', '-1');
+        target.focus({ preventScroll: true });
+      }
+    });
+
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !menu.hidden) closeMenu(true);
+    });
+    document.addEventListener('click', function (event) {
+      if (!menu.hidden && !event.target.closest('.navbar')) closeMenu(false);
+    });
+    breakpoint.addEventListener('change', function () {
+      if (!breakpoint.matches) closeMenu(false);
     });
   }
 
-  document.querySelectorAll('.faq-question').forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      var item = btn.closest('.faq-item');
-      var wasOpen = item.classList.contains('is-open');
-      document.querySelectorAll('.faq-item.is-open').forEach(function (el) {
-        el.classList.remove('is-open');
-      });
-      if (!wasOpen) item.classList.add('is-open');
+  // A footer link or a shared #comparer URL must reveal its destination.
+  function revealAnchor() {
+    var target = document.getElementById(window.location.hash.slice(1));
+    if (target && target.tagName === 'DETAILS') target.open = true;
+  }
+  document.querySelectorAll('a[href="#comparer"]').forEach(function (link) {
+    link.addEventListener('click', function () {
+      var comparison = document.getElementById('comparer');
+      if (comparison) comparison.open = true;
     });
   });
-
-  // Carrousel de temoignages retire : les trois temoignages qu'il faisait
-  // defiler etaient inventes, signes de noms et de villes.
-  //
-  // Formulaire newsletter retire aussi. Il n'etait affiche dans aucune vue,
-  // et il n'avait jamais eu de destinataire : la soumission repondait
-  // « Merci ! » puis effacait le champ. Une adresse saisie la n'allait nulle
-  // part — ni serveur, ni stockage. Le jour ou quelqu'un aurait recolle le
-  // gabarit dans une page, il aurait collecte des adresses pour rien.
-
-  /* ---------------------------------------------------------
-     Scroll reveal + count-up animations (Apple-style chapters)
-     --------------------------------------------------------- */
-  var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-  function tagReveal(selector) {
-    document.querySelectorAll(selector).forEach(function (el) {
-      el.classList.add('reveal');
-    });
-  }
-
-  function stagger(parentSelector, step) {
-    document.querySelectorAll(parentSelector).forEach(function (parent) {
-      var i = 0;
-      Array.prototype.forEach.call(parent.children, function (child) {
-        if (child.classList.contains('reveal')) {
-          child.style.transitionDelay = (i * step) + 'ms';
-          i++;
-        }
-      });
-    });
-  }
-
-  function animateCount(el) {
-    var text = el.textContent.trim();
-    var m = text.match(/^([+]?)(\d+(?:\s\d{3})*(?:[.,]\d+)?)(.*)$/);
-    if (!m) return;
-    var prefix = m[1];
-    var numPart = m[2];
-    var suffix = m[3];
-    var hasSpace = /\s/.test(numPart);
-    var hasComma = numPart.indexOf(',') !== -1;
-    var hasDot = numPart.indexOf('.') !== -1;
-    var clean = numPart.replace(/\s/g, '').replace(',', '.');
-    var end = parseFloat(clean);
-    if (isNaN(end)) return;
-    var decimals = (hasComma || hasDot) ? (clean.split('.')[1] || '').length : 0;
-    var duration = 1100;
-    var start = null;
-
-    function step(ts) {
-      if (start === null) start = ts;
-      var progress = Math.min((ts - start) / duration, 1);
-      var eased = 1 - Math.pow(1 - progress, 3);
-      var current = end * eased;
-      var out = decimals > 0 ? current.toFixed(decimals) : String(Math.round(current));
-      if (hasSpace) {
-        var parts = out.split('.');
-        parts[0] = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
-        out = parts.join(',');
-      } else if (hasComma) {
-        out = out.replace('.', ',');
-      }
-      el.textContent = prefix + out + suffix;
-      if (progress < 1) {
-        requestAnimationFrame(step);
-      } else {
-        el.textContent = prefix + numPart + suffix;
-      }
-    }
-    requestAnimationFrame(step);
-  }
-
-  if (!reduceMotion) {
-    /* One-shot reveals for secondary content (cards, lists) */
-    tagReveal('.feature-visual, .compare-wrap, .store-badges, .pricing-note');
-    tagReveal('.chapter-stats > div');
-    tagReveal('.pricing-card');
-    tagReveal('.faq-item');
-    stagger('.chapter-stats', 90);
-    stagger('.pricing-grid', 100);
-    stagger('.faq-list', 60);
-
-    if ('IntersectionObserver' in window) {
-      var observer = new IntersectionObserver(function (entries) {
-        entries.forEach(function (entry) {
-          if (!entry.isIntersecting) return;
-          var el = entry.target;
-          el.classList.add('is-visible');
-          if (el.classList.contains('chapter-stat-value') && !el.dataset.counted) {
-            el.dataset.counted = '1';
-            animateCount(el);
-          }
-          observer.unobserve(el);
-        });
-      }, { threshold: 0.2, rootMargin: '0px 0px -60px 0px' });
-
-      document.querySelectorAll('.reveal').forEach(function (el) {
-        observer.observe(el);
-      });
-    } else {
-      document.querySelectorAll('.reveal').forEach(function (el) {
-        el.classList.add('is-visible');
-      });
-    }
-
-    /* Continuous scroll-scrubbed fade/rise for headlines and big numbers,
-       matching the way apple.com fades chapter titles in as they cross
-       the middle of the viewport (not a one-shot on/off reveal). */
-    document.querySelectorAll(
-      '.hero-eyebrow, .hero-title, .hero-subtitle, .hero-cta, ' +
-      '.eyebrow, .headline, .headline-sub, .mega-number'
-    ).forEach(function (el) {
-      el.classList.add('scrub');
-    });
-
-    var scrubEls = Array.prototype.slice.call(document.querySelectorAll('.scrub'));
-    var scrubTicking = false;
-
-    function scrubProgress(el) {
-      var rect = el.getBoundingClientRect();
-      var vh = window.innerHeight;
-      var start = vh * 0.95;
-      var end = vh * 0.55;
-      var raw = (start - rect.top) / (start - end);
-      return Math.min(Math.max(raw, 0), 1);
-    }
-
-    function updateScrub() {
-      scrubEls.forEach(function (el) {
-        var progress = scrubProgress(el);
-        el.style.opacity = String(progress);
-        var rise = (1 - progress) * 34;
-        var scale = el.classList.contains('mega-number') ? (0.9 + progress * 0.1) : 1;
-        el.style.transform = 'translateY(' + rise + 'px)' + (scale !== 1 ? ' scale(' + scale + ')' : '');
-        if (el.classList.contains('mega-number') && progress > 0.85 && !el.dataset.counted) {
-          el.dataset.counted = '1';
-          animateCount(el);
-        }
-      });
-      scrubTicking = false;
-    }
-
-    window.addEventListener('scroll', function () {
-      if (!scrubTicking) {
-        requestAnimationFrame(updateScrub);
-        scrubTicking = true;
-      }
-    }, { passive: true });
-    window.addEventListener('resize', updateScrub, { passive: true });
-    updateScrub();
-
-    /* Subtle parallax + fade on the hero phone mockup */
-    var heroShowcase = document.querySelector('.hero-showcase');
-    var hero = document.querySelector('.hero');
-    if (heroShowcase && hero) {
-      var ticking = false;
-      function updateParallax() {
-        var heroHeight = hero.offsetHeight || 1;
-        var progress = Math.min(Math.max(window.scrollY / heroHeight, 0), 1);
-        heroShowcase.style.transform = 'translateY(' + (progress * 70) + 'px) scale(' + (1 - progress * 0.06) + ')';
-        heroShowcase.style.opacity = String(Math.max(1 - progress * 1.4, 0));
-        ticking = false;
-      }
-      window.addEventListener('scroll', function () {
-        if (!ticking) {
-          requestAnimationFrame(updateParallax);
-          ticking = true;
-        }
-      }, { passive: true });
-      updateParallax();
-    }
-
-    /* Gracefully hide background/demo videos if the placeholder source 404s,
-       so the poster image (or CSS background) shows instead of a broken player. */
-    document.querySelectorAll('video').forEach(function (video) {
-      video.addEventListener('error', function () {
-        video.style.display = 'none';
-      }, true);
-    });
-  }
+  window.addEventListener('hashchange', revealAnchor);
+  revealAnchor();
 })();
