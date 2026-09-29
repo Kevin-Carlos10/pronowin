@@ -163,7 +163,8 @@ workflows:
   #
   # Prérequis, une fois pour toutes (voir mobile_new/docs/ios_envoi.md) :
   #   - une clé API App Store Connect enregistrée dans Codemagic sous le nom
-  #     « PronoWin App Store Connect » (Team settings → Integrations) ;
+  #     « Codemagic CI – Gestionnaire » (Team settings → Integrations, clé 39JNXTMJ2S,
+  #     accès « Gestionnaire d'apps ») ;
   #   - la capacité « Push Notifications » cochée sur l'identifiant
   #     com.pronowin.app (developer.apple.com → Identifiers) ;
   #   - APP_STORE_APPLE_ID ci-dessous : l'« Identifiant Apple » numérique de
@@ -173,7 +174,8 @@ workflows:
     max_build_duration: 60
     instance_type: mac_mini_m2
     integrations:
-      app_store_connect: PronoWin App Store Connect
+      # Le nom exact de la clé dans Codemagic, tiret long compris.
+      app_store_connect: "Codemagic CI – Gestionnaire"
     environment:
       flutter: 3.41.9
       xcode: latest

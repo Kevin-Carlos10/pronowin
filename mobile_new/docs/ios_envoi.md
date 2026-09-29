@@ -18,7 +18,8 @@ règle 3.1.1 d'Apple.
    Connect API → générer une clé, accès **Gestionnaire d'app**. Télécharger le
    `.p8` (une seule fois possible), noter l'**Issuer ID** et le **Key ID**.
    Dans Codemagic : Team settings → Integrations → Developer Portal → ajouter
-   la clé sous le nom exact **`PronoWin App Store Connect`**.
+   la clé sous le nom exact **`Codemagic CI – Gestionnaire`** (fait : clé 39JNXTMJ2S, accès
+   « Gestionnaire d'apps »).
    Codemagic s'en sert pour créer le certificat de distribution et le profil
    App Store : aucun fichier de signature ne passe par ce poste ni par le dépôt.
 
