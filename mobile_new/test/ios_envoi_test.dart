@@ -47,6 +47,10 @@ void main() {
           contains('PRODUCT_BUNDLE_IDENTIFIER = com.pronowin.app;'));
     });
 
+    test('connaît l\'identifiant Apple de l\'app, qui numérote les builds', () {
+      expect('${variable('APP_STORE_APPLE_ID')}', matches(RegExp(r'^\d{9,12}$')));
+    });
+
     test('envoie à TestFlight, jamais directement à l\'examen', () {
       final asc = (envoi!['publishing'] as YamlMap)['app_store_connect'] as YamlMap;
       expect(asc['submit_to_testflight'], isTrue);

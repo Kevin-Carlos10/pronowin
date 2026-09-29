@@ -182,7 +182,8 @@ workflows:
         - google_firebase
       vars:
         <<: *vars_app
-        APP_STORE_APPLE_ID: ""
+        # « Identifiant Apple » de l'app dans App Store Connect (public, non secret).
+        APP_STORE_APPLE_ID: "6817503596"
       # Codemagic récupère (ou crée) le certificat de distribution et le
       # profil App Store de com.pronowin.app par la clé API : aucun fichier
       # de signature ne transite par le dépôt ni par ce poste.

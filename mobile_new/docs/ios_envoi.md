@@ -33,9 +33,9 @@ règle 3.1.1 d'Apple.
      l'identifiant d'équipe `FCK95AP299`. Sans elle, Firebase n'a aucun moyen
      de joindre un iPhone.
 
-4. **`APP_STORE_APPLE_ID` dans `codemagic.yaml`.** C'est l'« Identifiant
-   Apple » numérique de l'app : App Store Connect → PronoWin → Informations
-   sur l'app. Le workflow s'en sert pour numéroter les builds et s'arrête
+4. **`APP_STORE_APPLE_ID` dans `codemagic.yaml`** — fait : `6817503596`,
+   l'« Identifiant Apple » de l'app (App Store Connect → Informations sur
+   l'app). Le workflow s'en sert pour numéroter les builds et s'arrête
    d'emblée s'il manque.
 
 ## À chaque envoi
