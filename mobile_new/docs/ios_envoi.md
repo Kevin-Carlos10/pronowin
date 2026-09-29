@@ -23,7 +23,10 @@ règle 3.1.1 d'Apple.
    Codemagic s'en sert pour créer le certificat de distribution et le profil
    App Store : aucun fichier de signature ne passe par ce poste ni par le dépôt.
 
-3. **Les notifications push.**
+3. **Les notifications push** — fait le 29 septembre 2026 : capacités « Notifications push »
+   et « Connexion avec Apple » cochées sur `com.pronowin.app` ; clé APNs
+   « APN PronoWin » (`QPXFQM829H`, Sandbox & Production) importée dans Firebase,
+   développement et production.
    - developer.apple.com → Certificates, IDs & Profiles → Identifiers →
      `com.pronowin.app` → cocher **Push Notifications** → Save. Sans elle, le
      profil ne contient pas la capacité déclarée par l'app, et la signature
