@@ -1,4 +1,5 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -115,7 +116,7 @@ class FCMService {
     // 7. Enregistrer le token FCM sur le backend — inutile (et rejeté par
     //    l'API) tant qu'on navigue en invité, sans compte.
     if (ref.read(effectiveLoggedInProvider)) {
-      final token = await _fcm.getToken();
+      final token = await jetonFcm();
       if (token != null) {
         debugPrint('[FCM] Token: ${token.substring(0, 20)}...');
         await _registerToken(ref, token);
@@ -202,7 +203,9 @@ class FCMService {
     try {
       await ref.read(dioProvider).post('/notifications/register-token', data: {
         'fcm_token': token,
-        'platform':  'android',
+        // « android » était écrit en dur : chaque iPhone était enregistré
+        // comme un Android.
+        'platform':  plateforme(),
       });
       debugPrint('[FCM] Token enregistré sur le backend ✅');
     } catch (e) {
@@ -210,13 +213,58 @@ class FCMService {
     }
   }
 
-  /// Récupérer le token actuel (utile pour debug)
-  static Future<String?> getToken() => _fcm.getToken();
+  /// Le jeton de cet appareil (la déconnexion le transmet au serveur).
+  static Future<String?> getToken() => jetonFcm();
+
+  /// La plateforme annoncée au serveur avec le jeton.
+  @visibleForTesting
+  static String plateforme() =>
+      defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android';
+
+  /// Le jeton Firebase de cet appareil, ou `null` s'il n'est pas encore là.
+  ///
+  /// Sur iPhone, Firebase ne délivre son jeton qu'après avoir reçu celui
+  /// d'Apple (APNs), qui arrive quelques instants après le lancement. Le
+  /// demander avant lève `apns-token-not-set` : rien ne l'attrapait, et
+  /// `init()` s'arrêtait avant d'écouter les renouvellements — le téléphone
+  /// ne s'enregistrait jamais. On attend le jeton APNs quelques secondes ;
+  /// s'il ne vient pas, `onTokenRefresh` livrera le jeton Firebase plus tard.
+  static Future<String?> jetonFcm() async {
+    try {
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        final apns = await attendreValeur(_fcm.getAPNSToken);
+        if (apns == null) {
+          debugPrint('[FCM] Jeton APNs pas encore reçu — enregistrement au prochain renouvellement');
+          return null;
+        }
+      }
+      return await _fcm.getToken();
+    } catch (e) {
+      // Une notification manquée ne doit jamais interrompre le démarrage.
+      debugPrint('[FCM] Jeton indisponible : $e');
+      return null;
+    }
+  }
+
+  /// Relit [lire] jusqu'à obtenir une valeur, au plus [tentatives] fois.
+  @visibleForTesting
+  static Future<String?> attendreValeur(
+    Future<String?> Function() lire, {
+    int tentatives = 10,
+    Duration pause = const Duration(milliseconds: 500),
+  }) async {
+    for (var i = 0; i < tentatives; i++) {
+      final valeur = await lire();
+      if (valeur != null) return valeur;
+      if (i < tentatives - 1) await Future<void>.delayed(pause);
+    }
+    return null;
+  }
 
   /// À appeler juste après une connexion réussie (un invité vient de créer
   /// un compte / se connecter) pour rattacher le token FCM déjà obtenu.
   static Future<void> registerCurrentToken(WidgetRef ref) async {
-    final token = await _fcm.getToken();
+    final token = await jetonFcm();
     if (token != null) await _registerToken(ref, token);
   }
 }
