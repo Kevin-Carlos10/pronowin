@@ -41,7 +41,10 @@ règle 3.1.1 d'Apple.
 ## À chaque envoi
 
 Codemagic → PronoWin → **Start new build** → workflow « iOS — envoi vers
-TestFlight » → branche `main`.
+TestFlight » → la branche qui porte ce workflow. Codemagic lit
+`codemagic.yaml` dans la branche choisie : tant que la branche de travail
+n'est pas fusionnée dans `main`, c'est elle qu'il faut choisir, `main` ne
+connaissant pas encore ce workflow.
 
 Le numéro de build vaut un de plus que le dernier reçu par TestFlight, jamais
 moins que celui du `pubspec.yaml`. Le build apparaît dans TestFlight après le
