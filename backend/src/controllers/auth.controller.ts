@@ -192,6 +192,32 @@ export async function googleLogin(req: Request, res: Response): Promise<void> {
   }
 }
 
+/** POST /auth/apple — même contrat de réponse que Google et l'e-mail. */
+export async function appleLogin(req: Request, res: Response): Promise<void> {
+  try {
+    const b = req.body;
+    const result = await authService.loginWithApple({
+      identityToken:     b.identity_token,
+      nonce:             b.nonce,
+      authorizationCode: b.authorization_code,
+      givenName:         b.given_name,
+      familyName:        b.family_name,
+    });
+    const streakResult = await updateStreak(result.user.id).catch(() => null);
+    res.json({
+      user:          _formatUser(result.user),
+      access_token:  result.access_token,
+      refresh_token: result.refresh_token,
+      streak:        streakResult,
+    });
+  } catch (e: any) {
+    if (e?.message === 'Jeton Apple invalide.') {
+      res.status(401).json({ message: e.message }); return;
+    }
+    repondreErreur(res, e);
+  }
+}
+
 // ─── Liaison de compte ────────────────────────────────────────────────────────
 
 export async function linkPhone(req: AuthRequest, res: Response): Promise<void> {

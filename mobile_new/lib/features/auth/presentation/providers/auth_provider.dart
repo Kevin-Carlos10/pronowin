@@ -5,6 +5,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/network/failures.dart';
 import '../../../../core/storage/secure_storage.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
+import '../../data/datasources/apple_auth_service.dart';
 import '../../data/datasources/google_auth_service.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/entities/user_entity.dart';
@@ -175,6 +176,27 @@ class AuthNotifier extends StateNotifier<AuthState> {
         return false;
       }
       final data = await _repository.googleLogin(idToken);
+      await CacheService.clearAll();
+      await effacerFavorisLocaux();
+      state = AuthAuthenticated(data);
+      return true;
+    } catch (e) {
+      state = AuthError(e.toString().replaceFirst('Exception: ', ''));
+      return false;
+    }
+  }
+
+  /// « Se connecter avec Apple ». Même contrat que Google : `false` si la
+  /// personne a fermé la fenêtre d'Apple, sans erreur affichée.
+  Future<bool> loginWithApple() async {
+    state = AuthLoading();
+    try {
+      final identifiants = await AppleAuthService.obtenir();
+      if (identifiants == null) {
+        state = AuthInitial();
+        return false;
+      }
+      final data = await _repository.appleLogin(identifiants.versApi());
       await CacheService.clearAll();
       await effacerFavorisLocaux();
       state = AuthAuthenticated(data);

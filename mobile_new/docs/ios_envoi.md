@@ -34,6 +34,20 @@ règle 3.1.1 d'Apple.
      l'identifiant d'équipe `FCK95AP299`. Sans elle, Firebase n'a aucun moyen
      de joindre un iPhone.
 
+3 bis. **« Se connecter avec Apple »** (règle 4.8 : exigé dès qu'une app
+   propose la connexion Google).
+   - Sur le même identifiant `com.pronowin.app`, cocher **Se connecter avec
+     Apple** (« Sign In with Apple »), configuration par défaut. L'app déclare
+     ce droit : sans la capacité, la signature échoue.
+   - Facultatif mais demandé par Apple : une clé **Sign in with Apple**
+     (Keys → +, rattachée à `com.pronowin.app`) pour révoquer l'autorisation
+     à la suppression d'un compte. Son `.p8` va dans `backend/.env` du
+     serveur : `APPLE_TEAM_ID`, `APPLE_SIWA_KEY_ID`,
+     `APPLE_SIWA_PRIVATE_KEY` (voir `backend/.env.example`).
+   - Les adresses masquées (`@privaterelay.appleid.com`) ne reçoivent nos
+     courriels que si le domaine d'envoi est déclaré dans « Sign in with Apple
+     for Email Communication » (developer.apple.com → Services).
+
 4. **`APP_STORE_APPLE_ID` dans `codemagic.yaml`** — fait : `6817503596`,
    l'« Identifiant Apple » de l'app (App Store Connect → Informations sur
    l'app). Le workflow s'en sert pour numéroter les builds et s'arrête

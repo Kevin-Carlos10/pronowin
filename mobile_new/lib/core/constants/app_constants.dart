@@ -50,6 +50,7 @@ class ApiEndpoints {
   static const String verifyOtp     = '/auth/verify-otp';
   static const String sendEmailOtp  = '/auth/send-email-otp';
   static const String googleLogin    = '/auth/google';
+  static const String appleLogin     = '/auth/apple';
   static const String verifyEmailOtp= '/auth/verify-email-otp';
   static const String refreshToken  = '/auth/refresh';
   static const String logout        = '/auth/logout';

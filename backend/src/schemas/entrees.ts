@@ -55,6 +55,17 @@ export const confirmationMise = z.object({
     (n) => n === undefined || (n >= 0 && n <= 1e12), 'Mise invalide.'),
 });
 
+/** POST /auth/apple — ce que renvoie « Se connecter avec Apple » sur le téléphone. */
+export const connexionApple = z.object({
+  identity_token:     z.string({ required_error: 'Jeton Apple requis.' }).min(20, 'Jeton Apple requis.').max(10000),
+  // Le nonce brut : le jeton porte son empreinte. Sans lui, un jeton
+  // intercepté pourrait être rejoué.
+  nonce:              z.string({ required_error: 'Nonce requis.' }).min(16, 'Nonce requis.').max(200),
+  authorization_code: texteFacultatif(2000),
+  given_name:         texteFacultatif(80),
+  family_name:        texteFacultatif(80),
+});
+
 /** POST /notifications/register-token */
 export const jetonNotification = z.object({
   fcm_token: z.string({ required_error: 'fcm_token requis.', invalid_type_error: 'fcm_token requis.' })

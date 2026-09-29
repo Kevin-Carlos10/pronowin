@@ -14,5 +14,11 @@
 	     est servi. -->
 	<key>aps-environment</key>
 	<string>development</string>
+	<!-- « Se connecter avec Apple » (règle 4.8). La capacité doit être cochée
+	     sur l'identifiant com.pronowin.app, comme les notifications push. -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
 </dict>
 </plist>

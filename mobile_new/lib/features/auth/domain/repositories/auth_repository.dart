@@ -15,6 +15,10 @@ abstract class AuthRepository {
   /// Ouvre une session à partir d'un jeton Google déjà obtenu côté client.
   /// Le jeton est vérifié par le backend — jamais par l'application.
   Future<UserEntity> googleLogin(String idToken);
+
+  /// Ouvre une session « Se connecter avec Apple » ([identifiants] :
+  /// jeton, nonce, code d'autorisation, prénom et nom). Vérifié par le backend.
+  Future<UserEntity> appleLogin(Map<String, dynamic> identifiants);
   /// Retourne `true` si l'email ne correspond à aucun compte existant.
   Future<bool> sendEmailOtp(String email);
   Future<UserEntity> verifyEmailOtp({required String email, required String otp});

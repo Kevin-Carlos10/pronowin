@@ -108,6 +108,16 @@ class LogoGoogle extends StatelessWidget {
       SvgPicture.string(_svg, width: 20, height: 20);
 }
 
+/// Le logo Apple, pour « Continuer avec Apple ». Les règles d'Apple veulent
+/// le logo seul, monochrome, de la couleur du texte du bouton.
+class LogoApple extends StatelessWidget {
+  const LogoApple({super.key});
+
+  @override
+  Widget build(BuildContext context) =>
+      Icon(Icons.apple, size: 22, color: context.cl.textP);
+}
+
 /// Icône du chemin par e-mail : neutre, elle ne prétend à aucune marque.
 class LogoEmail extends StatelessWidget {
   const LogoEmail({super.key});

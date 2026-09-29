@@ -6,6 +6,7 @@ import logger, { journal } from '../utils/logger';
 import { NOTIF_CATEGORIES } from '../services/notification.service';
 import { estMajeur, AGE_MINIMUM } from '../utils/age';
 import { repondreErreur } from '../utils/erreurs';
+import { revoquer } from '../services/apple_auth';
 
 /**
  * PATCH /profile/notification-prefs
@@ -281,6 +282,12 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
 export const deleteAccount = async (req: AuthRequest, res: Response) => {
   try {
     const anonymized = `deleted_${Date.now()}`;
+    // « Se connecter avec Apple » : Apple demande de révoquer l'autorisation
+    // quand le compte disparaît. Sans clé configurée ou en cas d'échec, la
+    // suppression se poursuit — elle ne doit dépendre d'aucun tiers.
+    const avant = await prisma.user.findUnique({
+      where: { id: req.userId! }, select: { appleRefreshToken: true } });
+    await revoquer(avant?.appleRefreshToken);
     await prisma.user.update({
       where: { id: req.userId! },
       data: {
@@ -292,6 +299,9 @@ export const deleteAccount = async (req: AuthRequest, res: Response) => {
         // d'authentification pour un compte que l'utilisateur a demandé à
         // faire disparaître.
         passwordHash:   null,
+        // Sinon « Se connecter avec Apple » rouvrirait ce compte supprimé.
+        appleId:           null,
+        appleRefreshToken: null,
         pseudo:         anonymized,
         firstName:      null,
         lastName:       null,

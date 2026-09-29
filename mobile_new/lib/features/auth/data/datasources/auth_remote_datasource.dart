@@ -11,6 +11,8 @@ abstract class AuthRemoteDataSource {
   Future<bool> sendEmailOtp(String email);
   Future<Map<String, dynamic>> verifyEmailOtp({required String email, required String otp});
   Future<Map<String, dynamic>> googleLogin(String idToken);
+  /// « Se connecter avec Apple » : le serveur vérifie le jeton et son nonce.
+  Future<Map<String, dynamic>> appleLogin(Map<String, dynamic> identifiants);
   Future<UserModel> getProfile();
   /// Ferme la session de ce refresh token et détache cet appareil des
   /// notifications du compte. Sans refresh token, le serveur ferme toutes les
@@ -74,6 +76,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     try {
       final response =
           await _dio.post(ApiEndpoints.googleLogin, data: {'id_token': idToken});
+      return response.data as Map<String, dynamic>;
+    } on DioException catch (e) { throw _handleError(e); }
+  }
+
+  @override
+  Future<Map<String, dynamic>> appleLogin(Map<String, dynamic> identifiants) async {
+    try {
+      final response = await _dio.post(ApiEndpoints.appleLogin, data: identifiants);
       return response.data as Map<String, dynamic>;
     } on DioException catch (e) { throw _handleError(e); }
   }

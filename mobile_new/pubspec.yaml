@@ -76,6 +76,7 @@ dependencies:
   youtube_player_iframe: ^6.0.2
   in_app_purchase: ^3.3.0
   google_sign_in: ^7.2.0
+  sign_in_with_apple: ^8.1.0
 
 
 flutter_launcher_icons:

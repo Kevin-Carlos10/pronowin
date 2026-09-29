@@ -82,6 +82,13 @@ class AuthRepositoryImpl implements AuthRepository {
     return _saveTokensAndReturn(data);
   }
 
+  /// Même réponse que Google et l'e-mail, donc même enregistrement de session.
+  @override
+  Future<UserEntity> appleLogin(Map<String, dynamic> identifiants) async {
+    final data = await _remote.appleLogin(identifiants);
+    return _saveTokensAndReturn(data);
+  }
+
   @override
   Future<Either<Failure, void>> logout() async {
     // Cette session, et cet appareil. Sans rien dans le corps, le serveur

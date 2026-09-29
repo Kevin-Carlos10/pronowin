@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import * as AuthController from '../controllers/auth.controller';
 import { authMiddleware } from '../middleware/auth.middleware';
+import { valider } from '../middleware/valider';
+import { connexionApple } from '../schemas/entrees';
 
 const router = Router();
 
@@ -31,6 +33,7 @@ router.post('/verify-email-otp', AuthController.verifyEmailOtpValidators,  AuthC
 
 // Connexion Google — le jeton est vérifié auprès de Google côté serveur.
 router.post('/google', AuthController.googleLoginValidators, AuthController.googleLogin);
+router.post('/apple',  valider({ body: connexionApple }), AuthController.appleLogin);
 
 router.post('/refresh',    AuthController.refreshToken);
 

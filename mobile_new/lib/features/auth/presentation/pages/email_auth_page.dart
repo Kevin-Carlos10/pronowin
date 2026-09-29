@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/widgets/logotype_pronowin.dart';
 import '../../../../shared/widgets/pw_button.dart';
+import '../../data/datasources/apple_auth_service.dart';
 import '../providers/apres_connexion.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/bouton_fournisseur.dart';
@@ -50,6 +51,9 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
   /// mais à égalité, et sa saisie n'occupe l'écran que si on la demande.
   bool _saisieEmail = false;
 
+  /// Le fournisseur choisi en dernier, pour la mesure de l'entonnoir (M2).
+  String _fournisseur = 'google';
+
   @override
   void dispose() {
     _emailCtrl.dispose();
@@ -85,9 +89,10 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
         // lui-même — pendant que ses données restaient celles d'un invité et
         // que son jeton de notification restait orphelin.
         apresConnexionReussie(ref);
-        // Seule la connexion Google aboutit ici. Elle ne dit pas si le compte
-        // vient d'être créé : un compte de moins de cinq minutes l'est.
-        AnalyseUsage.connexion(methode: 'google',
+        // Seules les connexions Google et Apple aboutissent ici. Elles ne
+        // disent pas si le compte vient d'être créé : un compte de moins de
+        // cinq minutes l'est.
+        AnalyseUsage.connexion(methode: _fournisseur,
           nouveauCompte: DateTime.now().difference(state.user.createdAt) < const Duration(minutes: 5));
         context.go(widget.from ?? '/home');
       } else if (state is EmailOtpSent) {
@@ -162,9 +167,17 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
                       else
                         _ChoixFournisseur(
                           enCours: authState is AuthLoading,
-                          onGoogle: () => ref
-                              .read(authProvider.notifier)
-                              .loginWithGoogle(),
+                          onGoogle: () {
+                            _fournisseur = 'google';
+                            ref.read(authProvider.notifier).loginWithGoogle();
+                          },
+                          // Sur iPhone seulement (règle 4.8 de l'App Store).
+                          onApple: AppleAuthService.disponible
+                              ? () {
+                                  _fournisseur = 'apple';
+                                  ref.read(authProvider.notifier).loginWithApple();
+                                }
+                              : null,
                           onEmail: _ouvrirSaisieEmail,
                         ),
 
@@ -216,19 +229,21 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
 /// et le seul chemin qui ne coûte ni SMS ni e-mail. L'adresse e-mail en
 /// dernier : elle reste le repli, plus le chemin principal.
 ///
-/// « Continuer avec Apple » viendra s'insérer entre les deux dès la sortie
-/// iOS : la règle 4.8 de l'App Store l'exige de toute app proposant une
-/// connexion tierce comme Google. La pile est faite pour l'accueillir sans
-/// retoucher l'écran.
+/// « Continuer avec Apple » s'insère entre les deux sur iPhone : la règle 4.8
+/// de l'App Store l'exige de toute app proposant une connexion tierce comme
+/// Google, avec le même poids visuel.
 class _ChoixFournisseur extends StatelessWidget {
   final bool enCours;
   final VoidCallback onGoogle;
+  /// Absent hors iPhone : le bouton n'est pas affiché.
+  final VoidCallback? onApple;
   final VoidCallback onEmail;
 
   const _ChoixFournisseur({
     required this.enCours,
     required this.onGoogle,
     required this.onEmail,
+    this.onApple,
   });
 
   @override
@@ -240,6 +255,17 @@ class _ChoixFournisseur extends StatelessWidget {
       onPressed: onGoogle,
     ).animate().fadeIn(duration: 400.ms, delay: 140.ms)
      .slideY(begin: 0.06, end: 0, duration: 400.ms),
+
+    if (onApple != null) ...[
+      const SizedBox(height: 11),
+      BoutonFournisseur(
+        libelle: 'Continuer avec Apple',
+        logo: const LogoApple(),
+        desactive: enCours,
+        onPressed: onApple!,
+      ).animate().fadeIn(duration: 400.ms, delay: 165.ms)
+       .slideY(begin: 0.06, end: 0, duration: 400.ms),
+    ],
 
     const SizedBox(height: 11),
 

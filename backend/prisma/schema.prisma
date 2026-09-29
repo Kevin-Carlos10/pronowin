@@ -11,6 +11,15 @@ model User {
   id                    String                 @id @default(uuid())
   phoneNumber           String?                @unique @map("phone_number")
   email                 String?                @unique
+  /// « Se connecter avec Apple » : l'identifiant stable de la personne chez
+  /// Apple (`sub` du jeton), propre à notre équipe. Il retrouve le compte même
+  /// quand l'adresse est masquée ou qu'Apple ne la renvoie plus.
+  appleId               String?                @unique @map("apple_id")
+  /// Jeton de rafraîchissement Apple, chiffré (AES-256-GCM). Il ne sert qu'à
+  /// révoquer l'autorisation quand le compte est supprimé, comme Apple le
+  /// demande. Absent tant que la clé « Sign in with Apple » n'est pas
+  /// configurée sur le serveur.
+  appleRefreshToken     String?                @map("apple_refresh_token")
   passwordHash          String?                @map("password_hash")
   pseudo                String
   avatarUrl             String?                @map("avatar_url")

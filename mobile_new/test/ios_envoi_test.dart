@@ -73,6 +73,11 @@ void main() {
           matches(RegExp(r'<key>aps-environment</key>\s*<string>(development|production)</string>')));
     });
 
+    test('« Se connecter avec Apple » est déclaré (règle 4.8)', () {
+      expect(lire('ios/Runner/Runner.entitlements'),
+          matches(RegExp(r'<key>com\.apple\.developer\.applesignin</key>\s*<array>\s*<string>Default</string>')));
+    });
+
     test('chaque accès sensible a sa description', () {
       // Une description manquante fait refuser l'envoi (ITMS-90683).
       final plist = lire('ios/Runner/Info.plist');

@@ -1,6 +1,7 @@
 ﻿import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { OAuth2Client } from 'google-auth-library';
+import { obtenirJetonRevocable, verifierJetonApple } from './apple_auth';
 import crypto from 'crypto';
 import { generateReferralCode, generateOtp } from '../utils/generators';
 import { sendWhatsAppOtp } from './whatsapp.service';
@@ -331,6 +332,70 @@ export class AuthService {
     await prisma.user.update({
       where: { id: user.id },
       data:  { lastLoginAt: maintenant },
+    });
+
+    const tokens = await this._generateTokens(user.id);
+    return { user, ...tokens };
+  }
+
+  /// Connexion « Se connecter avec Apple ».
+  ///
+  /// Le compte se retrouve d'abord par l'identifiant Apple (`sub`), stable même
+  /// quand l'adresse est masquée ou qu'Apple ne la renvoie plus ; puis, à la
+  /// première connexion, par l'adresse vérifiée — une personne déjà inscrite
+  /// par e-mail ou Google retrouve son compte. Sinon il est créé. Le prénom et
+  /// le nom viennent du téléphone, et d'Apple une seule fois : ils ne servent
+  /// qu'à l'affichage, jamais à identifier.
+  async loginWithApple(p: {
+    identityToken: string; nonce: string; authorizationCode?: string;
+    givenName?: string; familyName?: string;
+  }) {
+    const id = await verifierJetonApple(p.identityToken, p.nonce);
+    const maintenant = new Date();
+
+    const retrouver = async () => {
+      const parApple = await prisma.user.findUnique({ where: { appleId: id.sub } });
+      if (parApple || !id.email) return parApple;
+      const parEmail = await prisma.user.findUnique({ where: { email: id.email } });
+      if (!parEmail) return null;
+      return prisma.user.update({
+        where: { id: parEmail.id },
+        data:  { appleId: id.sub, emailVerified: true, acceptedTermsAt: parEmail.acceptedTermsAt ?? maintenant },
+      });
+    };
+
+    let user = await retrouver();
+    if (!user) {
+      try {
+        user = await prisma.user.create({
+          data: {
+            appleId:         id.sub,
+            email:           id.email,
+            emailVerified:   id.email !== null,
+            // Même recueil de consentement que par e-mail ou Google : la
+            // mention légale est affichée au-dessus du bouton.
+            acceptedTermsAt: maintenant,
+            firstName:       p.givenName ?? null,
+            lastName:        p.familyName ?? null,
+            pseudo:          `Parieur_${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+            referralCode:    generateReferralCode(),
+          },
+        });
+      } catch (e: any) {
+        // Deux premières connexions simultanées : la seconde retrouve le
+        // compte que la première vient de créer.
+        if (e?.code !== 'P2002') throw e;
+        user = await retrouver();
+        if (!user) throw e;
+      }
+    }
+
+    // De quoi révoquer l'autorisation si le compte est supprimé — seulement
+    // si la clé Apple est configurée ; la connexion n'en dépend jamais.
+    const jetonRevocable = await obtenirJetonRevocable(p.authorizationCode);
+    await prisma.user.update({
+      where: { id: user.id },
+      data:  { lastLoginAt: maintenant, ...(jetonRevocable ? { appleRefreshToken: jetonRevocable } : {}) },
     });
 
     const tokens = await this._generateTokens(user.id);

@@ -69,6 +69,8 @@ const EFFACER = new Set([
   'birthDate',
   'xbetId',        // rattache la personne à un compte bookmaker
   'fcmToken',      // sans quoi un compte supprimé continue de recevoir des push
+  'appleId',       // sans quoi « Se connecter avec Apple » rouvrirait le compte
+  'appleRefreshToken', // matière d'authentification, révoquée auprès d'Apple
 ]);
 
 /** Champs que la suppression doit positionner, sans être des données personnelles. */
