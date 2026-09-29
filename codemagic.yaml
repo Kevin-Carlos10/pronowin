@@ -23,7 +23,7 @@ definitions:
       #   GOOGLE_SERVICES_JSON       — base64 de google-services.json
       #   GOOGLE_SERVICE_INFO_PLIST  — base64 de GoogleService-Info.plist
       - google_firebase
-    vars:
+    vars: &vars_app
       # Identifiant OAuth **Web** du projet Firebase. Public par nature : il
       # est embarqué dans l'app. Il doit rester identique à GOOGLE_CLIENT_IDS
       # côté serveur, sinon le backend rejette tous les jetons.
@@ -57,6 +57,18 @@ definitions:
         || { echo "GoogleService-Info.plist ne porte pas le bon bundle."; exit 1; }
 
       echo "  fichiers restaurés et vérifiés"
+
+  script_plist_xcode: &script_plist_xcode
+    name: Ajouter GoogleService-Info.plist au projet Xcode
+    script: |
+      set -e
+      cd mobile_new
+      # Le fichier n'était référencé nulle part dans project.pbxproj : il
+      # ne serait donc pas copié dans le bundle, et Firebase échouerait au
+      # démarrage. Ce geste se fait normalement à la souris dans Xcode —
+      # impossible depuis Windows, d'où ce script.
+      gem install xcodeproj --no-document
+      ruby tool/ajouter_plist_xcode.rb
 
   script_verifs: &script_verifs
     name: Contrôles de cohérence (avant toute compilation)
@@ -92,16 +104,7 @@ workflows:
       - *script_config
       - *script_verifs
 
-      - name: Ajouter GoogleService-Info.plist au projet Xcode
-        script: |
-          set -e
-          cd mobile_new
-          # Le fichier n'était référencé nulle part dans project.pbxproj : il
-          # ne serait donc pas copié dans le bundle, et Firebase échouerait au
-          # démarrage. Ce geste se fait normalement à la souris dans Xcode —
-          # impossible depuis Windows, d'où ce script.
-          gem install xcodeproj --no-document
-          ruby tool/ajouter_plist_xcode.rb
+      - *script_plist_xcode
 
       - name: Installer les pods
         script: |
@@ -148,6 +151,123 @@ workflows:
           - devspace99@gmail.com
         notify:
           success: false   # on ne veut être prévenu que des échecs
+          failure: true
+
+  # ── iOS : envoi vers App Store Connect ───────────────────────────────────────
+  # Construit le paquet signé de l'App Store et l'envoie à TestFlight. La
+  # soumission à l'examen d'Apple reste un geste manuel, dans App Store
+  # Connect : on choisit quel build part, et quand.
+  #
+  # Lancé à la main uniquement (pas de « triggering ») : chaque envoi consomme
+  # un numéro de build et arrive chez les testeurs.
+  #
+  # Prérequis, une fois pour toutes (voir mobile_new/docs/ios_envoi.md) :
+  #   - une clé API App Store Connect enregistrée dans Codemagic sous le nom
+  #     « PronoWin App Store Connect » (Team settings → Integrations) ;
+  #   - la capacité « Push Notifications » cochée sur l'identifiant
+  #     com.pronowin.app (developer.apple.com → Identifiers) ;
+  #   - APP_STORE_APPLE_ID ci-dessous : l'« Identifiant Apple » numérique de
+  #     l'app (App Store Connect → l'app → Informations sur l'app).
+  ios-app-store:
+    name: iOS — envoi vers TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      app_store_connect: PronoWin App Store Connect
+    environment:
+      flutter: 3.41.9
+      xcode: latest
+      cocoapods: default
+      groups:
+        - google_firebase
+      vars:
+        <<: *vars_app
+        APP_STORE_APPLE_ID: ""
+      # Codemagic récupère (ou crée) le certificat de distribution et le
+      # profil App Store de com.pronowin.app par la clé API : aucun fichier
+      # de signature ne transite par le dépôt ni par ce poste.
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.pronowin.app
+    scripts:
+      - name: Prérequis de l'envoi
+        script: |
+          set -e
+          case "$APP_STORE_APPLE_ID" in
+            ''|*[!0-9]*)
+              echo "APP_STORE_APPLE_ID n'est pas renseigné dans codemagic.yaml."
+              echo "C'est l'« Identifiant Apple » numérique de l'app, dans App Store"
+              echo "Connect → PronoWin → Informations sur l'app."
+              exit 1 ;;
+          esac
+      - *script_config
+      - *script_verifs
+      - *script_plist_xcode
+
+      - name: Appliquer les profils de signature
+        script: |
+          set -e
+          xcode-project use-profiles
+
+      - name: Installer les pods
+        script: |
+          set -e
+          cd mobile_new/ios
+          pod install --repo-update
+
+      - name: Construire le paquet App Store
+        script: |
+          set -e
+          cd mobile_new
+          # Numéro de build : un de plus que le dernier reçu par TestFlight,
+          # et jamais en dessous de celui du pubspec. Apple refuse un numéro
+          # déjà envoyé pour une même version.
+          DERNIER=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0)
+          PUBSPEC=$(grep -E '^version:' pubspec.yaml | sed -E 's/.*\+([0-9]+).*/\1/')
+          NUMERO=$(( DERNIER + 1 ))
+          [ "$PUBSPEC" -gt "$NUMERO" ] && NUMERO=$PUBSPEC
+          echo "  build n° $NUMERO (dernier reçu par TestFlight : $DERNIER)"
+
+          # STORE_BUILD=true : achat intégré seulement, ni Mobile Money ni
+          # bookmakers — la règle 3.1.1 d'Apple l'exige pour un abonnement.
+          flutter build ipa --release \
+            --build-number="$NUMERO" \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --dart-define=STORE_BUILD="$STORE_BUILD" \
+            --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
+
+      - name: Vérifier le paquet avant l'envoi
+        script: |
+          set -e
+          cd mobile_new
+          IPA=$(find build/ios/ipa -maxdepth 1 -name "*.ipa" | head -1)
+          [ -n "$IPA" ] || { echo "Aucun .ipa produit."; exit 1; }
+          CONTENU=$(unzip -l "$IPA")
+          echo "$CONTENU" | grep -q "GoogleService-Info.plist" \
+            || { echo "GoogleService-Info.plist ABSENT du paquet."; exit 1; }
+          # Le paquet du store ne doit pas porter le canal direct : le test se
+          # fait sur l'URL d'API embarquée, qui ne peut pas être l'émulateur.
+          rm -rf /tmp/ipa && mkdir -p /tmp/ipa && unzip -q "$IPA" -d /tmp/ipa
+          if grep -rq "10.0.2.2" /tmp/ipa/Payload/*.app/Frameworks/App.framework 2>/dev/null; then
+            echo "L'URL d'API par défaut (émulateur) est embarquée : --dart-define absent."; exit 1
+          fi
+          echo "  $(basename "$IPA") : $(du -h "$IPA" | cut -f1), configuration Firebase embarquée"
+    artifacts:
+      - mobile_new/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        # Vers TestFlight : testeurs internes d'abord. La soumission à
+        # l'examen se décide dans App Store Connect.
+        submit_to_testflight: true
+        submit_to_app_store: false
+      email:
+        recipients:
+          - devspace99@gmail.com
+        notify:
+          success: true
           failure: true
 
   # ── Android ─────────────────────────────────────────────────────────────────

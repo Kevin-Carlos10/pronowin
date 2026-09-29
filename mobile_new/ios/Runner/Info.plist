@@ -122,6 +122,11 @@
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
 		<!-- ── Background modes : notifications push ─────────────────────────── -->
+		<!-- Export : HTTPS et empreintes uniquement, algorithmes du système —
+		     exemptés. Sans cette clé, chaque build attend une réponse manuelle
+		     dans App Store Connect avant d'être testable. -->
+		<key>ITSAppUsesNonExemptEncryption</key>
+		<false/>
 		<key>UIBackgroundModes</key>
 		<array>
 			<string>remote-notification</string>
