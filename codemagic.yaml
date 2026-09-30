@@ -97,9 +97,19 @@ workflows:
     instance_type: mac_mini_m2
     environment: *env_flutter
     triggering:
+      # Sur main seulement : lancés à chaque push de chaque branche, ces
+      # builds consommaient le quota de minutes Mac en vérifiant du travail
+      # en cours. Les autres branches se vérifient à la main, au besoin.
       events:
         - push
         - pull_request
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true    # push sur main
+        - pattern: main
+          include: true
+          source: false   # pull request vers main
     scripts:
       - *script_config
       - *script_verifs
@@ -282,8 +292,15 @@ workflows:
     instance_type: linux_x2
     environment: *env_flutter
     triggering:
+      # Sur main seulement : lancés à chaque push de chaque branche, ces
+      # builds consommaient le quota de minutes Mac en vérifiant du travail
+      # en cours. Les autres branches se vérifient à la main, au besoin.
       events:
         - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
     scripts:
       - *script_config
       - *script_verifs

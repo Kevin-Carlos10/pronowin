@@ -32,6 +32,19 @@ void main() {
       expect(envoi!['triggering'], isNull);
     });
 
+    test('les workflows automatiques ne partent que de main', () {
+      // Lancés à chaque push de chaque branche, ils consommaient le quota de
+      // minutes Mac à vérifier du travail en cours.
+      for (final entree in (ci['workflows'] as YamlMap).entries) {
+        final declenchement = (entree.value as YamlMap)['triggering'] as YamlMap?;
+        if (declenchement == null) continue;
+        final motifs = (declenchement['branch_patterns'] as YamlList?)
+            ?.map((m) => (m as YamlMap)['pattern'])
+            .toSet();
+        expect(motifs, {'main'}, reason: '${entree.key} partirait de toutes les branches');
+      }
+    });
+
     test('construit le paquet du store : achat intégré, ni Mobile Money ni bookmakers', () {
       // La règle 3.1.1 d'Apple impose l'achat intégré pour un abonnement
       // numérique : un paquet du canal direct serait refusé, voire retiré.
