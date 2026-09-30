@@ -64,6 +64,24 @@ const _repli = '/compte';
 String methodeProposee({required String duree, required String choisie}) =>
     duree == 'annuel' ? 'direct' : choisie;
 
+/// Les mois que l'annuel offre, d'après les deux prix réellement proposés.
+///
+/// « 2 mois offerts » était écrit en dur à trois endroits, alors que chaque
+/// grille publiée — 10 $ et 90 $, 6 000 et 54 000 FCFA, 14,99 $ et 134,99 $ au
+/// store — fait payer l'année neuf mois : trois sont offerts. L'arrondi garde
+/// ce mois aux prix en paliers du store (12 × 14,99 $ = 179,88 $, soit 2,99
+/// mois d'écart).
+@visibleForTesting
+int moisOffertsAnnuel(num mensuel, num annuel) {
+  if (mensuel <= 0 || annuel <= 0) return 0;
+  return (12 - annuel / mensuel).round().clamp(0, 11);
+}
+
+/// « 3 mois offerts », ou `null` quand l'annuel n'offre rien.
+@visibleForTesting
+String? libelleMoisOfferts(int mois) =>
+    mois <= 0 ? null : '$mois mois offert${mois > 1 ? 's' : ''}';
+
 class ActiverPremiumPage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? subData;
   const ActiverPremiumPage({super.key, this.subData});
@@ -357,6 +375,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     return _PaywallPage(
       monthlyPrice:     _tarifs.mensuelUsd,
       annualPrice:      _tarifs.annuelUsd,
+      moisOfferts:      _moisOfferts(iapReady),
       promoCode:        _tarifs.promoCode,
       tarifs:           _tarifs,
       duration:         _duration,
@@ -384,6 +403,20 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       onIapRestore:     _restoreIap,
       onIapRetry:       _retryIap,
     );
+  }
+
+  /// Au store, d'après les prix du catalogue — ceux que l'acheteur paiera ;
+  /// sinon, d'après les tarifs publiés par le serveur.
+  int _moisOfferts(bool catalogueStore) {
+    if (catalogueStore) {
+      final iap = ref.read(iapServiceProvider);
+      final mensuel = iap.productFor('com.pronowin.premium.monthly');
+      final annuel  = iap.productFor('com.pronowin.premium.annual');
+      if (mensuel != null && annuel != null) {
+        return moisOffertsAnnuel(mensuel.rawPrice, annuel.rawPrice);
+      }
+    }
+    return moisOffertsAnnuel(_tarifs.mensuelUsd, _tarifs.annuelUsd);
   }
 
   // ─── Achat intégré ────────────────────────────────────────────────────────
@@ -1890,6 +1923,8 @@ class _XbetSubmitButton extends StatelessWidget {
 class _PaywallPage extends StatelessWidget {
   final num monthlyPrice;
   final num annualPrice;
+  /// Voir [moisOffertsAnnuel].
+  final int moisOfferts;
   final String promoCode;
 
   /// Ce que le serveur publie réellement : opérateurs disponibles, délais de
@@ -1919,6 +1954,7 @@ class _PaywallPage extends StatelessWidget {
   const _PaywallPage({
     required this.monthlyPrice,
     required this.annualPrice,
+    required this.moisOfferts,
     required this.promoCode,
     required this.tarifs,
     required this.duration,
@@ -1962,11 +1998,12 @@ class _PaywallPage extends StatelessWidget {
                   const SizedBox(height: 24),
                   _buildPlanLabel(),
                   const SizedBox(height: 12),
-                  _DurationToggle(duration: duration, onChanged: onSelectDuration),
+                  _DurationToggle(duration: duration, moisOfferts: moisOfferts, onChanged: onSelectDuration),
                   const SizedBox(height: 14),
                   if (iapMode)
                     _IapSection(
                       duration:    duration,
+                      moisOfferts: moisOfferts,
                       loading:     iapLoading,
                       unavailable: iapUnavailable,
                       product:     iapProduct,
@@ -1989,7 +2026,7 @@ class _PaywallPage extends StatelessWidget {
                         : 'Momentanément indisponible',
                       price:      duration == 'annuel' ? annualPrice : monthlyPrice,
                       period:     duration == 'annuel' ? '/an' : '/mois',
-                      badge:      duration == 'annuel' ? '2 MOIS OFFERTS' : null,
+                      badge:      duration == 'annuel' ? libelleMoisOfferts(moisOfferts)?.toUpperCase() : null,
                       color:      const Color(0xFFF59E0B),
                       isSelected: method == 'direct',
                       onTap:      () => onSelectMethod('direct'),
@@ -2254,12 +2291,13 @@ class _PointSeparateur extends StatelessWidget {
 /// notre prix en dollars ici mentirait à l'utilisateur au moment de payer.
 class _IapSection extends StatelessWidget {
   final String duration;
+  final int moisOfferts;
   final bool loading, unavailable, busy;
   final ProductDetails? product;
   final VoidCallback onBuy, onRestore, onRetry;
 
   const _IapSection({
-    required this.duration, required this.loading, required this.unavailable,
+    required this.duration, required this.moisOfferts, required this.loading, required this.unavailable,
     required this.product, required this.busy,
     required this.onBuy, required this.onRestore, required this.onRetry,
   });
@@ -2324,6 +2362,7 @@ class _IapSection extends StatelessWidget {
 
     final p = product!;
     final isAnnual = duration == 'annuel';
+    final offerts = libelleMoisOfferts(moisOfferts);
 
     return Column(children: [
       Container(
@@ -2343,12 +2382,12 @@ class _IapSection extends StatelessWidget {
               Text(isAnnual ? 'Facturé une fois par an' : 'Facturé chaque mois',
                 style: const TextStyle(color: Colors.white54, fontSize: 11)),
             ])),
-            if (isAnnual) Container(
+            if (isAnnual && offerts != null) Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
                 color: AppColors.success.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(6)),
-              child: const Text('2 MOIS OFFERTS', style: TextStyle(
+              child: Text(offerts.toUpperCase(), style: const TextStyle(
                 color: AppColors.success, fontSize: 9, fontWeight: FontWeight.w800))),
           ]),
           const SizedBox(height: 14),
@@ -2538,8 +2577,9 @@ class _PaywallFaqItemState extends State<_PaywallFaqItem> {
 
 class _DurationToggle extends StatelessWidget {
   final String duration;
+  final int moisOfferts;
   final ValueChanged<String> onChanged;
-  const _DurationToggle({required this.duration, required this.onChanged});
+  const _DurationToggle({required this.duration, required this.moisOfferts, required this.onChanged});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -2551,7 +2591,9 @@ class _DurationToggle extends StatelessWidget {
     child: Row(children: [
       _DurationTab(label: 'Mensuel', selected: duration == 'mensuel',
         onTap: () => onChanged('mensuel')),
-      _DurationTab(label: 'Annuel · 2 mois offerts', selected: duration == 'annuel',
+      _DurationTab(
+        label: switch (libelleMoisOfferts(moisOfferts)) { final o? => 'Annuel · $o', null => 'Annuel' },
+        selected: duration == 'annuel',
         onTap: () => onChanged('annuel')),
     ]),
   );
