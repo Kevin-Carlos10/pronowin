@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -17,6 +19,18 @@ void main() {
     expect(FCMService.plateforme(), 'ios');
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     expect(FCMService.plateforme(), 'android');
+  });
+
+  test('app ouverte : iOS affiche la notification lui-même, Android par une copie locale', () {
+    // Sans les options de présentation, un iPhone app ouverte n'affichait
+    // rien ; avec elles, une copie locale en plus ferait doublon.
+    final source = File('lib/features/notifications/presentation/providers/fcm_service.dart').readAsStringSync();
+    expect(source, matches(RegExp(
+        r'setForegroundNotificationPresentationOptions\(\s*alert: true, badge: true, sound: true\)')));
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    expect(FCMService.copieLocale(), isFalse);
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    expect(FCMService.copieLocale(), isTrue);
   });
 
   test('le jeton APNs arrivé après quelques essais est attendu', () async {

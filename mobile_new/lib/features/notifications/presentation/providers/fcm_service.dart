@@ -50,6 +50,14 @@ class FCMService {
       return;
     }
 
+    // Sur iPhone, une notification reçue app ouverte n'est affichée par iOS
+    // que si on le lui demande. Sans ces options, rien ne s'affichait : la
+    // copie locale d'Android dépend là-bas d'un délégué que l'app ne déclare
+    // pas.
+    if (defaultTargetPlatform == TargetPlatform.iOS) {
+      await _fcm.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
+    }
+
     // 2. Configurer les notifications locales (foreground)
     const initSettings = InitializationSettings(
       // `@mipmap/ic_launcher` etait le logo Flutter par defaut, jamais
@@ -83,7 +91,7 @@ class FCMService {
     // 4. Notifications en foreground → afficher localement + injecter dans le state
     FirebaseMessaging.onMessage.listen((message) {
       debugPrint('[FCM Foreground] ${message.notification?.title}');
-      _showLocal(message);
+      if (copieLocale()) _showLocal(message);
       // ✅ Mise à jour temps réel du badge et de la liste
       notifier.pushIncoming(remoteMessageToNotification(message));
     });
@@ -166,6 +174,12 @@ class FCMService {
   static void consumePendingDeepLink() => _flushPendingDeepLink();
 
   // ── Notifications locales (foreground) ────────────────────────────────────
+
+  /// Une notification reçue app ouverte est recopiée en notification locale
+  /// sur Android seulement : sur iPhone, iOS l'affiche déjà (options de
+  /// présentation au premier plan), et une copie ferait doublon.
+  @visibleForTesting
+  static bool copieLocale() => defaultTargetPlatform != TargetPlatform.iOS;
 
   static Future<void> _showLocal(RemoteMessage message) async {
     final notif = message.notification;
