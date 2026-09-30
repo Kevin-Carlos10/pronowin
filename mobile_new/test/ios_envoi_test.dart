@@ -95,6 +95,17 @@ void main() {
           matches(RegExp(r'<key>com\.apple\.developer\.applesignin</key>\s*<array>\s*<string>Default</string>')));
     });
 
+    test('iPhone seulement : l\'iPad imposerait les quatre orientations', () {
+      // Build n° 3 refusé à l'envoi (erreur 90474) : l'app déclarait l'iPad
+      // en portrait seul, alors que le multitâche de l'iPad exige les quatre
+      // orientations. Elle est dessinée pour un téléphone en portrait.
+      final projet = lire('ios/Runner.xcodeproj/project.pbxproj');
+      final familles = RegExp(r'TARGETED_DEVICE_FAMILY = ([^;]+);')
+          .allMatches(projet).map((m) => m.group(1)).toSet();
+      expect(familles, {'1'});
+      expect(lire('ios/Runner/Info.plist'), isNot(contains('UISupportedInterfaceOrientations~ipad')));
+    });
+
     test('chaque accès sensible a sa description', () {
       // Une description manquante fait refuser l'envoi (ITMS-90683).
       final plist = lire('ios/Runner/Info.plist');

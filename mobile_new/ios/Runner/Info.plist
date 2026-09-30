@@ -103,11 +103,10 @@
 		<array>
 			<string>UIInterfaceOrientationPortrait</string>
 		</array>
-		<key>UISupportedInterfaceOrientations~ipad</key>
-		<array>
-			<string>UIInterfaceOrientationPortrait</string>
-			<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		</array>
+		<!-- iPhone seulement (TARGETED_DEVICE_FAMILY = 1) : l'app est dessinée pour un
+		     téléphone en portrait. Déclarer l'iPad imposait les quatre orientations
+		     (multitâche) et Apple refusait l'envoi (erreur 90474). Sur iPad, elle
+		     s'ouvre en mode iPhone. -->
 		<!-- ── UI ────────────────────────────────────────────────────────────── -->
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
