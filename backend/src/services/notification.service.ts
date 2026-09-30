@@ -310,12 +310,25 @@ export class NotificationService {
         await prisma.appareilNotification.deleteMany({ where: { jeton: { in: morts } } });
         journal.warn(`[FCM] ${morts.length} appareil(s) au jeton invalide oublié(s)`);
       }
+      // Les autres refus ne se voyaient nulle part : l'appelant reçoit
+      // `success: false` et l'ignore presque toujours. Les iPhone ont ainsi
+      // tous échoué en « Invalid APNs credential » sans une ligne au journal.
+      const refus = new Map<string, { n: number; message: string }>();
+      r.responses.forEach((x: any) => {
+        if (x.success || DEAD_TOKEN_CODES.has(x.error?.code)) return;
+        const code = x.error?.code ?? 'inconnu';
+        refus.set(code, { n: (refus.get(code)?.n ?? 0) + 1, message: x.error?.message ?? '' });
+      });
+      for (const [code, { n, message }] of refus) {
+        journal.warn(`[FCM] ${n} appareil(s) non joint(s) : ${code} — ${message}`);
+      }
       if (r.successCount === 0) {
         return { success: false, error: r.responses.find((x: any) => x.error)?.error?.message ?? 'echec' };
       }
       journal.info(`[FCM] ✅ ${r.successCount}/${jetons.length} appareil(s)`);
       return { success: true, envoyes: r.successCount, echecs: r.failureCount };
     } catch (e: any) {
+      journal.error('[FCM] Erreur envoi:', e.message);
       return { success: false, error: e.message };
     }
   }

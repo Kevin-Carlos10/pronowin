@@ -58,13 +58,19 @@ class DefaultFirebaseOptions {
     storageBucket: 'pronowin-f7653.firebasestorage.app',
   );
 
+  // L'app iOS `com.pronowin.app` du projet Firebase, celle de
+  // GoogleService-Info.plist. Ces options l'emportent sur le plist : elles
+  // désignaient `com.example.mobileNew`, l'app du modèle Flutter d'origine.
+  // Les jetons des iPhone étaient émis pour elle, et Apple refusait chaque
+  // notification (« Invalid APNs credential ») : sa clé APNs est sur
+  // `com.pronowin.app`.
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyB37NbR6EGiW53vcLvZMwSfMgOiO_Jw3uQ',
-    appId: '1:207728984029:ios:93b23723fbfafa5540c034',
+    appId: '1:207728984029:ios:3f4f84cefd68720d40c034',
     messagingSenderId: '207728984029',
     projectId: 'pronowin-f7653',
     storageBucket: 'pronowin-f7653.firebasestorage.app',
-    iosBundleId: 'com.example.mobileNew',
+    iosBundleId: 'com.pronowin.app',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(

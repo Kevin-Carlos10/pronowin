@@ -15,6 +15,7 @@ process.env.FIREBASE_PRIVATE_KEY = 'banc';
 
 const mockLots: string[][] = [];
 const mockMorts = new Set<string>();
+const mockRefuses = new Set<string>();
 
 jest.mock('firebase-admin', () => ({
   __esModule: true,
@@ -25,7 +26,9 @@ jest.mock('firebase-admin', () => ({
         mockLots.push([...m.tokens]);
         const responses = m.tokens.map(t => mockMorts.has(t)
           ? { success: false, error: { code: 'messaging/registration-token-not-registered', message: 'mort' } }
-          : { success: true });
+          : mockRefuses.has(t)
+            ? { success: false, error: { code: 'messaging/third-party-auth-error', message: 'Invalid APNs credential.' } }
+            : { success: true });
         const successCount = responses.filter(r => r.success).length;
         return Promise.resolve({ responses, successCount, failureCount: responses.length - successCount });
       },
@@ -34,6 +37,7 @@ jest.mock('firebase-admin', () => ({
 }));
 
 import { prisma } from '../lib/prisma';
+import { journal } from '../utils/logger';
 import { APPAREILS_PAR_COMPTE, NotificationService } from '../services/notification.service';
 import { AuthService } from '../services/auth.service';
 import { BASE_LOCALE, decrireSurBaseLocale } from './aides/base_locale';
@@ -58,7 +62,7 @@ beforeAll(async () => {
   }
 });
 
-beforeEach(() => { mockLots.length = 0; mockMorts.clear(); });
+beforeEach(() => { mockLots.length = 0; mockMorts.clear(); mockRefuses.clear(); });
 
 afterAll(async () => {
   if (!BASE_LOCALE) return;
@@ -103,6 +107,24 @@ decrireSurBaseLocale('appareils de notification (I12)', () => {
     const r = await svc.sendToUser(comptes.a, message);
     expect(r).toMatchObject({ success: false });
     expect(await appareilsDe(comptes.a)).toEqual([]);
+  });
+
+  it('un refus d\'Apple garde l\'appareil, et laisse une trace au journal', async () => {
+    // La clé APNs est en cause, pas le téléphone : l'oublier ferait perdre
+    // l'iPhone pour de bon. Mais le refus doit se voir.
+    await svc.registerToken(comptes.a, jeton('iphone'), 'ios');
+    mockRefuses.add(jeton('iphone'));
+    const avertissements = jest.spyOn(journal, 'warn');
+    try {
+      const r = await svc.sendToUser(comptes.a, message);
+      expect(r).toMatchObject({ success: false, error: 'Invalid APNs credential.' });
+      expect(await appareilsDe(comptes.a)).toEqual([jeton('iphone')]);
+      expect(avertissements).toHaveBeenCalledWith(
+        '[FCM] 1 appareil(s) non joint(s) : messaging/third-party-auth-error — Invalid APNs credential.');
+    } finally {
+      avertissements.mockRestore();
+      await prisma.appareilNotification.deleteMany({ where: { userId: comptes.a } });
+    }
   });
 
   it(`au-delà de ${APPAREILS_PAR_COMPTE} appareils, les moins récemment vus partent`, async () => {

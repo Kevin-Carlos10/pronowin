@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:yaml/yaml.dart';
 
+import 'package:pronowin/firebase_options.dart';
+
 /// L'envoi iOS vers App Store Connect : ce qu'Apple exige, et ce que le
 /// workflow ne doit jamais faire.
 ///
@@ -88,6 +90,22 @@ void main() {
       // Messaging ne livre rien sur iPhone, et rien ne le signale.
       expect(lire('ios/Runner/Runner.entitlements'),
           matches(RegExp(r'<key>aps-environment</key>\s*<string>(development|production)</string>')));
+    });
+
+    test('Firebase désigne l\'app iOS de ce paquet, sinon Apple refuse chaque notification', () {
+      // Les options désignaient `com.example.mobileNew`, l'app du modèle
+      // Flutter d'origine : les jetons des iPhone étaient émis pour elle, et
+      // chaque envoi revenait en « Invalid APNs credential ».
+      final lot = ((envoi!['environment'] as YamlMap)['ios_signing'] as YamlMap)['bundle_identifier'] as String;
+      expect(DefaultFirebaseOptions.ios.iosBundleId, lot);
+      // Absent du dépôt : Codemagic l'écrit avant les vérifications.
+      final plist = File('ios/Runner/GoogleService-Info.plist');
+      if (plist.existsSync()) {
+        final contenu = plist.readAsStringSync();
+        expect(contenu, matches(RegExp('<key>BUNDLE_ID</key>\\s*<string>${RegExp.escape(lot)}</string>')));
+        expect(contenu, matches(RegExp(
+            '<key>GOOGLE_APP_ID</key>\\s*<string>${RegExp.escape(DefaultFirebaseOptions.ios.appId)}</string>')));
+      }
     });
 
     test('« Se connecter avec Apple » est déclaré (règle 4.8)', () {
