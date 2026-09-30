@@ -59,11 +59,13 @@ class DefaultFirebaseOptions {
   );
 
   // L'app iOS `com.pronowin.app` du projet Firebase, celle de
-  // GoogleService-Info.plist. Ces options l'emportent sur le plist : elles
-  // désignaient `com.example.mobileNew`, l'app du modèle Flutter d'origine.
-  // Les jetons des iPhone étaient émis pour elle, et Apple refusait chaque
-  // notification (« Invalid APNs credential ») : sa clé APNs est sur
-  // `com.pronowin.app`.
+  // GoogleService-Info.plist. Ces options désignaient `com.example.mobileNew`,
+  // l'app du modèle Flutter d'origine, sans clé APNs.
+  //
+  // Ce n'était pas la cause des notifications refusées (« Invalid APNs
+  // credential ») : le jeton de l'iPhone n'a pas changé avec ce correctif, et
+  // les refus ont cessé le 30 septembre 2026 quand une clé APNs valable en
+  // production a été déposée dans Firebase. Voir docs/ios_envoi.md.
   static const FirebaseOptions ios = FirebaseOptions(
     apiKey: 'AIzaSyB37NbR6EGiW53vcLvZMwSfMgOiO_Jw3uQ',
     appId: '1:207728984029:ios:3f4f84cefd68720d40c034',

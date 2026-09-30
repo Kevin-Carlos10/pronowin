@@ -23,19 +23,36 @@ règle 3.1.1 d'Apple.
    Codemagic s'en sert pour créer le certificat de distribution et le profil
    App Store : aucun fichier de signature ne passe par ce poste ni par le dépôt.
 
-3. **Les notifications push** — fait le 29 septembre 2026 : capacités « Notifications push »
-   et « Connexion avec Apple » cochées sur `com.pronowin.app` ; clé APNs
-   « APN PronoWin » (`QPXFQM829H`, Sandbox & Production) importée dans Firebase,
-   développement et production.
+3. **Les notifications push** — capacités « Notifications push » et
+   « Connexion avec Apple » cochées sur `com.pronowin.app` (29 septembre 2026) ;
+   clé APNs « PronoWin APNs Production » (`9TK8V7D3B3`), déposée dans Firebase
+   sur l'app `com.pronowin.app`, **en développement et en production**
+   (30 septembre 2026).
+
+   Ce qui a coûté une journée, deux fois la même erreur : un build TestFlight
+   ou App Store passe par les serveurs APNs **de production**.
+   - La première clé (`QPXFQM829H`) était limitée au bac à sable : Apple
+     refusait chaque envoi (« Invalid APNs credential »). L'environnement
+     d'une clé ne se modifie pas après coup ; il a fallu en créer une autre,
+     en choisissant « Bac à sable et production ».
+   - La seconde n'avait d'abord été déposée qu'en développement dans Firebase :
+     même refus, tant que l'emplacement « production » restait vide.
+
+   Le serveur journalise désormais ces refus avec leur code
+   (`[FCM] … non joint(s) : messaging/third-party-auth-error`).
+
+   Pour refaire la configuration :
    - developer.apple.com → Certificates, IDs & Profiles → Identifiers →
      `com.pronowin.app` → cocher **Push Notifications** → Save. Sans elle, le
      profil ne contient pas la capacité déclarée par l'app, et la signature
      échoue.
-   - Keys → **+** → Apple Push Notifications service (APNs) → télécharger le
-     `.p8`. Console Firebase → Paramètres du projet → Cloud Messaging → app iOS
-     → **Clé d'authentification APNs** : la déposer, avec son Key ID et
-     l'identifiant d'équipe `FCK95AP299`. Sans elle, Firebase n'a aucun moyen
-     de joindre un iPhone.
+   - Keys → **+** → Apple Push Notifications service (APNs) → **Configurer** :
+     environnement **Bac à sable et production**, restriction « Équipe
+     portée » → télécharger le `.p8`. Console Firebase → Paramètres du projet
+     → Cloud Messaging → app iOS `com.pronowin.app` (pas `com.example.mobileNew`)
+     → **Clé d'authentification APNs** : la déposer **deux fois**, en
+     développement et en production, avec son Key ID et l'identifiant
+     d'équipe `FCK95AP299`.
 
 3 bis. **« Se connecter avec Apple »** (règle 4.8 : exigé dès qu'une app
    propose la connexion Google).

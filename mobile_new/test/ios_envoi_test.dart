@@ -92,10 +92,9 @@ void main() {
           matches(RegExp(r'<key>aps-environment</key>\s*<string>(development|production)</string>')));
     });
 
-    test('Firebase désigne l\'app iOS de ce paquet, sinon Apple refuse chaque notification', () {
+    test('Firebase désigne l\'app iOS de ce paquet', () {
       // Les options désignaient `com.example.mobileNew`, l'app du modèle
-      // Flutter d'origine : les jetons des iPhone étaient émis pour elle, et
-      // chaque envoi revenait en « Invalid APNs credential ».
+      // Flutter d'origine, sans clé APNs ni rapport avec ce paquet.
       final lot = ((envoi!['environment'] as YamlMap)['ios_signing'] as YamlMap)['bundle_identifier'] as String;
       expect(DefaultFirebaseOptions.ios.iosBundleId, lot);
       // Absent du dépôt : Codemagic l'écrit avant les vérifications.
