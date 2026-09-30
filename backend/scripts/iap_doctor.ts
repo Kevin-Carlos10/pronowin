@@ -76,15 +76,29 @@ async function checkApple(sendTestNotif: boolean) {
 
   // `notifications/history` accepte un intervalle et répond même sans données :
   // c'est le moyen le moins intrusif de prouver que la clé est acceptée.
-  const host = 'https://api.storekit.itunes.apple.com';
+  let host = 'https://api.storekit.itunes.apple.com';
+  const historique = (h: string) => axios.post(`${h}/inApps/v1/notifications/history`,
+    { startDate: Date.now() - 3600_000, endDate: Date.now() },
+    { headers: { Authorization: `Bearer ${token}` }, timeout: 15000 });
   try {
-    await axios.post(`${host}/inApps/v1/notifications/history`,
-      { startDate: Date.now() - 3600_000, endDate: Date.now() },
-      { headers: { Authorization: `Bearer ${token}` }, timeout: 15000 });
+    await historique(host);
     pass('Clé acceptée par Apple (production)');
   } catch (e: any) {
-    const s = e.response?.status;
+    let s = e.response?.status;
+    // Avant la publication, la production refuse la clé (401) que le sandbox
+    // accepte : sans ce second essai, une clé valide était déclarée fausse.
     if (s === 401) {
+      try {
+        await historique('https://api.storekit-sandbox.itunes.apple.com');
+        host = 'https://api.storekit-sandbox.itunes.apple.com';
+        s = 200;
+        pass('Clé acceptée par Apple (sandbox)');
+        warn('La production la refuse (401) : normal tant que l\'app n\'est pas publiée sur l\'App Store.');
+      } catch { /* refusée partout : le diagnostic ci-dessous tient */ }
+    }
+    if (s === 200) {
+      // Déjà dit ci-dessus.
+    } else if (s === 401) {
       fail('Apple refuse la clé (401)',
         'Key ID, Issuer ID ou clé .p8 incohérents. L\'Issuer ID est celui de la page ' +
         'Integrations, pas ton Team ID.');

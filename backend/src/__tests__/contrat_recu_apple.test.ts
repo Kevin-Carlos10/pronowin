@@ -130,3 +130,56 @@ describe('l\'adresse interrogée chez Apple', () => {
     expect(url).toContain('/inApps/v1/subscriptions/2000000912345678');
   });
 });
+
+/**
+ * Avant la publication, la production d'Apple refuse la clé (401) alors que
+ * le sandbox l'accepte. Or c'est précisément là qu'achètent TestFlight et
+ * l'examinateur d'Apple : s'arrêter au 401 de la production les faisait tous
+ * échouer.
+ */
+describe('les environnements d\'Apple', () => {
+  const service = new IapService();
+  const refus = (status: number) => Object.assign(new Error(`Request failed with status code ${status}`), {
+    response: { status, data: status === 401 ? undefined : { errorMessage: `erreur ${status}` } },
+  });
+  const transactionSandbox = () => {
+    const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
+    const info = b64({
+      transactionId: '2000000912345678', originalTransactionId: '2000000912345678',
+      productId: 'com.pronowin.premium.monthly', expiresDate: Date.now() + 86_400_000,
+      environment: 'Sandbox',
+    });
+    return { data: { data: [{ lastTransactions: [{ status: 1, signedTransactionInfo: `e.${info}.s` }] }] } };
+  };
+  const hotes = () => (axios.get as jest.Mock).mock.calls.map(c => new URL(c[0] as string).host);
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(service as any, '_appleToken').mockReturnValue('jeton-de-banc');
+  });
+
+  it('un 401 de la production (app pas encore publiée) mène au sandbox', async () => {
+    (axios.get as jest.Mock)
+      .mockRejectedValueOnce(refus(401))
+      .mockResolvedValueOnce(transactionSandbox());
+
+    const v = await service.verifyApple('2000000912345678');
+
+    expect(v.environment).toBe('Sandbox');
+    expect(hotes()).toEqual(['api.storekit.itunes.apple.com', 'api.storekit-sandbox.itunes.apple.com']);
+  });
+
+  it('une clé refusée partout remonte en erreur', async () => {
+    (axios.get as jest.Mock).mockRejectedValue(refus(401));
+
+    await expect(service.verifyApple('2000000912345678')).rejects.toThrow(/^Apple : /);
+    expect(hotes()).toHaveLength(2);
+  });
+
+  it('une panne de la production n\'est pas prise pour une transaction de test', async () => {
+    (axios.get as jest.Mock).mockRejectedValueOnce(refus(500));
+
+    await expect(service.verifyApple('2000000912345678')).rejects.toThrow('Apple : erreur 500');
+    expect(hotes()).toEqual(['api.storekit.itunes.apple.com']);
+  });
+});

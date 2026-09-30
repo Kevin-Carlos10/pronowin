@@ -194,8 +194,16 @@ export class IapService {
           payload:               { transaction: info, renewal },
         };
       } catch (e: any) {
-        // 404 = transaction inconnue de cet environnement, on tente l'autre.
-        if (e.response?.status !== 404) throw new Error(`Apple : ${e.response?.data?.errorMessage ?? e.message}`);
+        // 404 : transaction inconnue de cet environnement, on tente l'autre.
+        //
+        // 401 en production : Apple y refuse la clé tant que l'app n'est pas
+        // publiée — constaté le 30 septembre 2026, la même clé étant acceptée
+        // par le sandbox. S'arrêter là faisait échouer chaque achat TestFlight,
+        // et celui de l'examinateur d'Apple. Une clé réellement fausse est
+        // refusée par le sandbox aussi : l'erreur remonte alors.
+        const statut = e.response?.status;
+        const tenterAilleurs = statut === 404 || (statut === 401 && environment === 'Production');
+        if (!tenterAilleurs) throw new Error(`Apple : ${e.response?.data?.errorMessage ?? e.message}`);
         lastErr = e;
       }
     }
