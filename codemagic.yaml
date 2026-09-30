@@ -192,8 +192,14 @@ workflows:
       cocoapods: default
       groups:
         - google_firebase
+      # Écrites ici, pas héritées par la fusion YAML « << » : rien ne prouvait
+      # que Codemagic l'applique, et une variable perdue ne se voyait qu'une
+      # fois le paquet construit (build n° 2). « Prérequis de l'envoi » les
+      # affiche et les exige. Les mêmes valeurs que &vars_app ci-dessus.
       vars:
-        <<: *vars_app
+        GOOGLE_SERVER_CLIENT_ID: "207728984029-h51a5iepgrltfgohah8j6c3dfq8ris15.apps.googleusercontent.com"
+        API_BASE_URL: "https://pronowin.space/api/v1"
+        STORE_BUILD: "true"
         # « Identifiant Apple » de l'app dans App Store Connect (public, non secret).
         APP_STORE_APPLE_ID: "6817503596"
       # Codemagic récupère (ou crée) le certificat de distribution et le
@@ -213,6 +219,18 @@ workflows:
               echo "Connect → PronoWin → Informations sur l'app."
               exit 1 ;;
           esac
+          # Ce que le paquet embarquera : visible dès la première minute,
+          # plutôt que découvert après la compilation.
+          echo "  API_BASE_URL=$API_BASE_URL"
+          echo "  STORE_BUILD=$STORE_BUILD"
+          [ "$API_BASE_URL" = "https://pronowin.space/api/v1" ] \
+            || { echo "API_BASE_URL absent ou inattendu : le paquet viserait l'émulateur."; exit 1; }
+          # Sans STORE_BUILD=true, l'app proposerait Mobile Money et les
+          # bookmakers : refus d'Apple (règle 3.1.1).
+          [ "$STORE_BUILD" = "true" ] \
+            || { echo "STORE_BUILD doit valoir true pour l'App Store."; exit 1; }
+          [ -n "$GOOGLE_SERVER_CLIENT_ID" ] \
+            || { echo "GOOGLE_SERVER_CLIENT_ID absent : la connexion Google échouerait."; exit 1; }
       - *script_config
       - *script_verifs
       - *script_plist_xcode
@@ -259,12 +277,28 @@ workflows:
           CONTENU=$(unzip -l "$IPA")
           echo "$CONTENU" | grep -q "GoogleService-Info.plist" \
             || { echo "GoogleService-Info.plist ABSENT du paquet."; exit 1; }
-          # Le paquet du store ne doit pas porter le canal direct : le test se
-          # fait sur l'URL d'API embarquée, qui ne peut pas être l'émulateur.
+          # L'adresse de l'API, lue dans le code Dart compilé — comme le fait
+          # tool/verifier_bundle.py pour Android. Le premier contrôle cherchait
+          # le fragment « 10.0.2.2 » dans tout App.framework, ressources
+          # comprises ; il se lit désormais dans le seul binaire, et exige
+          # l'adresse de production.
           rm -rf /tmp/ipa && mkdir -p /tmp/ipa && unzip -q "$IPA" -d /tmp/ipa
-          if grep -rq "10.0.2.2" /tmp/ipa/Payload/*.app/Frameworks/App.framework 2>/dev/null; then
-            echo "L'URL d'API par défaut (émulateur) est embarquée : --dart-define absent."; exit 1
-          fi
+          BIN=$(find /tmp/ipa/Payload -path "*App.framework/App" -type f | head -1)
+          [ -n "$BIN" ] || { echo "Code Dart compilé introuvable dans le paquet."; exit 1; }
+          # Même règle que tool/verifier_bundle.py : une adresse s'arrête au
+          # premier octet nul — sans quoi deux chaînes voisines du binaire
+          # se liraient comme une seule.
+          python3 - "$BIN" "$API_BASE_URL" <<'PY'
+          import re, sys
+          octets = open(sys.argv[1], 'rb').read()
+          attendu = sys.argv[2].encode()
+          if attendu not in octets:
+              sys.exit(f"{sys.argv[2]} absent du code compilé : --dart-define non reçu.")
+          locale = re.search(rb'https?://[^\x00\s"]*(10\.0\.2\.2|127\.0\.0\.1|localhost|192\.168\.)', octets)
+          if locale:
+              sys.exit("Adresse locale dans le code compilé : " + locale.group().decode('utf-8', 'replace')[:80])
+          print("  API de production embarquée, aucune adresse locale")
+          PY
           echo "  $(basename "$IPA") : $(du -h "$IPA" | cut -f1), configuration Firebase embarquée"
     artifacts:
       - mobile_new/build/ios/ipa/*.ipa

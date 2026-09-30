@@ -18,10 +18,14 @@ void main() {
   final envoi = (ci['workflows'] as YamlMap)['ios-app-store'] as YamlMap?;
   String lire(String chemin) => File(chemin).readAsStringSync();
 
-  /// Une variable du workflow, qu'elle y soit écrite ou héritée par `<<`.
+  /// Une variable du workflow, écrite en clair dans son bloc `vars`.
+  ///
+  /// Pas d'héritage par la fusion YAML `<<` : rien ne prouvait que Codemagic
+  /// l'applique, et une variable perdue ne se voyait qu'une fois le paquet
+  /// construit. Une variable héritée est donc tenue pour absente.
   Object? variable(String nom) {
     final vars = (envoi!['environment'] as YamlMap)['vars'] as YamlMap;
-    return vars[nom] ?? (vars['<<'] as YamlMap?)?[nom];
+    return vars[nom];
   }
 
   group('le workflow d\'envoi', () {
