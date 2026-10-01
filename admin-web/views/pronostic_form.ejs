@@ -21,15 +21,11 @@
 .mp-sep { font-size:1.25rem; font-weight:800; color:var(--text-dim); flex-shrink:0; }
 .mp-meta { text-align:center; margin-top:.75rem; padding-top:.75rem; border-top:1px solid var(--border); }
 
-/* ── Étoiles ──────────────────────────────────────────────────────────────────── */
-.stars { display:flex; gap:.25rem; margin-bottom:.5rem; }
-.star {
-  font-size:1.6rem; cursor:pointer; color:var(--text-dim);
-  transition:color .12s, transform .1s;
-  line-height:1; user-select:none;
-}
-.star.active { color:var(--on-warning); transform:scale(1.1); }
-.star:hover  { color:var(--on-warning); opacity:.7; }
+/* ── Indice de confiance (pourcentage) ─────────────────────────────────────── */
+.conf-saisie { display:flex; align-items:center; gap:.5rem; margin-bottom:.5rem; }
+.conf-saisie .conf-nombre { width:5.5rem; font-weight:800; font-size:1.05rem; }
+.conf-saisie .conf-unite { font-weight:800; color:var(--text-p); }
+.conf-saisie input[type=range] { flex:1; accent-color:var(--primary-texte); min-height:44px; }
 
 /* ── Cotes grid ───────────────────────────────────────────────────────────────── */
 .odds-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:.75rem; }
@@ -461,21 +457,22 @@
           </p>
         </div>
 
-        <!-- Confiance -->
+        <!-- Confiance : un pourcentage saisi par l'analyste. Le niveau 1–5 qui
+             sert au barème de mise en est déduit par le serveur. -->
         <div class="form-group" style="margin-bottom:1.1rem">
-          <label id="lbl-conf">Niveau de confiance</label>
-          <div class="stars" id="stars" role="radiogroup" aria-labelledby="lbl-conf">
-            <% for(let i=1;i<=5;i++){ %>
-            <span class="star" data-v="<%= i %>" role="radio" tabindex="0"
-                  aria-label="<%= i %> sur 5" aria-checked="false"
-                  onclick="setStar(<%= i %>)"
-                  onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();setStar(<%= i %>)}"><svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg></span>
-            <% } %>
+          <label for="conf-input" id="lbl-conf">Indice de confiance</label>
+          <div class="conf-saisie">
+            <input class="input conf-nombre" type="number" name="confidence_pct" id="conf-input"
+                   min="1" max="99" step="1" inputmode="numeric" required
+                   value="<%= pro.confidence_pct ?? '' %>" placeholder="70"
+                   aria-describedby="star-label">
+            <span class="conf-unite" aria-hidden="true">%</span>
+            <input type="range" id="conf-range" min="1" max="99" step="1"
+                   value="<%= pro.confidence_pct ?? 50 %>" aria-label="Indice de confiance, curseur">
           </div>
           <!-- `--text-dim` tombe à 2,3:1 sur les deux thèmes : acceptable pour un
-               ornement, pas pour le pourcentage réellement promis à l'abonné. -->
-          <div style="font-size:.75rem;color:var(--text-m)" id="star-label">Confiance : 3/5</div>
-          <input type="hidden" name="confidence_score" id="conf-input" value="<%= pro.confidence_score||3 %>">
+               ornement, pas pour le chiffre réellement montré à l'abonné. -->
+          <div style="font-size:.75rem;color:var(--text-m);line-height:1.5" id="star-label" aria-live="polite"></div>
         </div>
       </div>
 
@@ -604,31 +601,42 @@ document.getElementById('pro-form').addEventListener('submit', function (e) {
   }
 });
 
-/* Note éditoriale de l’analyste, sans conversion en probabilité. */
-function setStar(v) {
-  document.getElementById('conf-input').value = v;
-  document.querySelectorAll('.star').forEach((s, i) => {
-    s.classList.toggle('active', i < v);
-    s.setAttribute('aria-checked', (i + 1) === v ? 'true' : 'false');
-  });
+/* Indice de confiance : le pourcentage que l'abonné verra, tel quel.
+   Le niveau 1–5 du barème de mise en est déduit par paliers de 20 points
+   (même règle que le serveur, src/utils/confiance.ts). 100 % est exclu :
+   aucun pronostic n'est une victoire certaine. */
+function niveauConfiance(pct) {
+  return pct >= 80 ? 5 : pct >= 60 ? 4 : pct >= 40 ? 3 : pct >= 20 ? 2 : 1;
+}
+function setConf(v, depuis) {
+  const champ = document.getElementById('conf-input');
+  const curseur = document.getElementById('conf-range');
+  const pct = parseInt(v, 10);
+  const valide = Number.isInteger(pct) && pct >= 1 && pct <= 99;
+  if (depuis !== 'champ') champ.value = valide ? pct : '';
+  if (valide && depuis !== 'curseur') curseur.value = pct;
   const labels = ['','Très faible','Faible','Modérée','Élevée','Très élevée'];
-  document.getElementById('star-label').innerHTML =
-    `Confiance de l’analyste : ${v}/5 — ${labels[v]||''}. Cette note ne représente pas une probabilité de victoire.`;
+  const n = valide ? niveauConfiance(pct) : 0;
+  document.getElementById('star-label').textContent = valide
+    ? `L’abonné verra « ${pct} % ». Niveau ${n}/5 (${labels[n]}) pour le barème de mise. `
+      + `C’est ton appréciation, pas une probabilité de victoire.`
+    : 'Saisis un pourcentage entier de 1 à 99.';
   updateRecap();
 }
-const _initStar = parseInt(document.getElementById('conf-input').value) || 3;
-setStar(_initStar);
+document.getElementById('conf-input').addEventListener('input', (e) => setConf(e.target.value, 'champ'));
+document.getElementById('conf-range').addEventListener('input', (e) => setConf(e.target.value, 'curseur'));
+setConf(document.getElementById('conf-input').value, 'champ');
 
 /* ── Récapitulatif (colonne gauche) ── */
 function updateRecap() {
   const label = document.getElementById('pred-label').value.trim();
   const odd   = document.getElementById('odds-rec').value;
-  const conf  = parseInt(document.getElementById('conf-input').value) || 3;
+  const conf  = parseInt(document.getElementById('conf-input').value, 10);
   const vip   = document.getElementById('is-premium').checked;
 
   document.getElementById('recap-label').textContent  = label || '—';
   document.getElementById('recap-odd').textContent    = odd ? Number(odd).toFixed(2) : '—';
-  document.getElementById('recap-conf').textContent   = conf + '/5';
+  document.getElementById('recap-conf').textContent   = Number.isInteger(conf) ? conf + ' %' : '—';
   const acc = document.getElementById('recap-access');
   acc.textContent  = vip ? '👑 Premium' : 'Tous';
   // --warning tombe à 2,15:1 sur fond clair ; --on-warning est le ton

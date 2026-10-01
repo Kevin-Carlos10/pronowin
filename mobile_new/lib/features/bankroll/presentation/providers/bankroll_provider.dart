@@ -21,6 +21,8 @@ class BankrollBet {
   final String  league;
   final String  predictionLabel;
   final int     confidenceScore;
+  /// Indice saisi par l'analyste ; nul côté serveur ancien.
+  final int?    confidencePct;
   final String  currency;
   /// La mise réelle a été confirmée ou corrigée au résultat (M1).
   final bool    miseConfirmee;
@@ -45,6 +47,7 @@ class BankrollBet {
     required this.league,
     required this.predictionLabel,
     required this.confidenceScore,
+    this.confidencePct,
     required this.currency,
     this.miseConfirmee = false,
     this.aConfirmer = false,
@@ -70,6 +73,7 @@ class BankrollBet {
     league:          (j['match'] as Map)['league'] as String,
     predictionLabel: j['prediction_label'] as String,
     confidenceScore: (j['confidence_score'] as num).toInt(),
+    confidencePct:   (j['confidence_pct'] as num?)?.toInt(),
     currency:        currency,
     // Absents d'un serveur plus ancien : rien à demander.
     miseConfirmee:   j['mise_confirmee'] == true,
@@ -78,6 +82,9 @@ class BankrollBet {
 
   /// [predictionLabel] avec "Domicile"/"Extérieur" remplacés par le nom réel
   /// de l'équipe — voir [MatchEntity.applyTeamNames].
+  int get pourcentageConfiance =>
+      confidencePct ?? MatchEntity.pourcentageDepuisNiveau(confidenceScore);
+
   String get displayPredictionLabel =>
       MatchEntity.applyTeamNames(predictionLabel, homeTeam: homeTeam, awayTeam: awayTeam);
 }

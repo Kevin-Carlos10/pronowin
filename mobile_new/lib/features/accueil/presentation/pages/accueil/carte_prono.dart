@@ -40,6 +40,7 @@ class _PronosticCard extends ConsumerWidget {
 
   Widget _construire(BuildContext context, WidgetRef ref) {
     final conf      = (prono['confidence_score'] as num?)?.toInt() ?? 0;
+    final confPct   = MatchEntity.pourcentageDepuisApi(prono);
     final status    = prono['status'] as String? ?? '';
     final isFinished = status == 'finished';
     // Le verrou se calculait avant même de lire le statut, et sans le
@@ -67,7 +68,7 @@ class _PronosticCard extends ConsumerWidget {
     final isFav      = favoris?.matchIds.contains(matchId) ?? false;
 
     // « Total buts +/- : Plus de 2.5 » → marché discret + choix mis en avant.
-    // Même hiérarchie que la carte « Top prono du jour » de cet écran.
+    // Même hiérarchie que la carte vedette en tête de cet écran.
     final odds       = (prono['odds_recommended'] as num?)?.toDouble();
     final fullLabel  = _teamLabel(prono);
     final sepIndex   = fullLabel.indexOf(' : ');
@@ -104,7 +105,7 @@ class _PronosticCard extends ConsumerWidget {
       final c = prono['odds_recommended'] as num?;
       if (c != null) annonce.write(tr(context, ", cote {arg0}", [c.toStringAsFixed(2)]));
       if (conf > 0) {
-        annonce.write(tr(context, ", confiance {arg0}", [MatchEntity.confidenceDisplay(conf)]));
+        annonce.write(tr(context, ", indice de confiance {arg0}", [MatchEntity.affichageConfiance(confPct)]));
       }
     }
 
@@ -335,7 +336,7 @@ class _PronosticCard extends ConsumerWidget {
 
             // ── Ligne 3 : le panneau pronostic ─────────────────────────────
             // Marché en petit, choix en gros — comme « 1X2 / 2.976 » chez
-            // 1xBet, et comme la carte « Top prono du jour » de cet écran.
+            // 1xBet, et comme la carte vedette en tête de cet écran.
             if (isFinished && result != null)
               Row(children: [_ResultBadge(result: result)])
             else if (isLocked)
@@ -435,7 +436,7 @@ class _PronosticCard extends ConsumerWidget {
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.6)),
                         const SizedBox(height: 2),
-                        ConfidenceIndicator(score: conf, showLabel: false),
+                        ConfidenceIndicator(pourcentage: confPct, showLabel: false),
                       ],
                     ),
                   ],

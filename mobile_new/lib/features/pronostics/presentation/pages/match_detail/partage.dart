@@ -48,7 +48,10 @@ String _buildShareText(MatchEntity match) {
     null                 => trCurrent("⚽ *Pronostic PronoWin* — {arg0}", [duel]),
   };
 
-  return trCurrent("{arg0}\n\n📲 Pour consulter le détail et plein d'autres pronostics, télécharge l'application :\n⬇️ {arg1}", [sujet, AppConstants.apkDownloadUrl]);
+  // Le lien menait au fichier APK : un iPhone n'en fait rien, et Apple
+  // n'accepte pas qu'une application renvoie vers une installation hors
+  // App Store. Le site, lui, propose le bon téléchargement à chaque téléphone.
+  return trCurrent("{arg0}\n\n📲 Pour consulter le détail et plein d'autres pronostics, télécharge l'application :\n👉 {arg1}", [sujet, AppConstants.siteUrl]);
 }
 
 Future<void> _launchShare(String url) async {

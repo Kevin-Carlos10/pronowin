@@ -32,7 +32,8 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
 
   @override
   Widget build(BuildContext context) {
-    final nextAsync = ref.watch(nextPronosticProvider);
+    final jourAsync     = ref.watch(pronosticsJourProvider);
+    final prochainAsync = ref.watch(nextPronosticProvider);
     final authState = ref.watch(authProvider);
     final userIsPremium = authState is AuthAuthenticated
         ? (authState.user.isPremium)
@@ -40,11 +41,19 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 20),
-      child: nextAsync.when(
-        loading: () => _NextMatchSkeleton(),
-        error:   (_, _) => const SizedBox.shrink(),
-        data: (prono) {
-          if (prono == null) return const SizedBox.shrink();
+      child: Builder(builder: (context) {
+          // La carte vedette attend les pronostics du jour : décider avant,
+          // c'était montrer le prochain match puis le remplacer par le top
+          // une seconde plus tard.
+          if (jourAsync.isLoading && !jourAsync.hasValue) return _NextMatchSkeleton();
+          final vedette = choisirVedette(
+            duJour:   jourAsync.valueOrNull ?? const [],
+            prochain: prochainAsync.valueOrNull,
+          );
+          if (vedette == null) {
+            return prochainAsync.isLoading ? _NextMatchSkeleton() : const SizedBox.shrink();
+          }
+          final prono = vedette.prono;
           final dateStr   = prono['match_date'] as String?;
           if (dateStr == null) return const SizedBox.shrink();
           final matchDate = DateTime.tryParse(dateStr)?.toLocal();
@@ -106,24 +115,30 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                   spacing: 8,
                   runSpacing: 6,
                   children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withValues(alpha: 0.13),
-                      borderRadius: BorderRadius.circular(7),
-                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.35), width: 0.5)),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  // Pourquoi ce match est en tête : le meilleur pronostic du
+                  // jour, le prochain à commencer, ou les deux.
+                  Wrap(spacing: 6, runSpacing: 6, children: [
+                    if (vedette.estTopDuJour) const _BadgeTopDuJour(),
+                    if (vedette.estProchainMatch)
                       Container(
-                        width: 5, height: 5,
-                        decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle))
-                        .animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
-                        .fadeIn(duration: 600.ms).then().fadeOut(duration: 600.ms),
-                      const SizedBox(width: 5),
-                       Text(tr(context, "PROCHAIN MATCH"),
-                        style: TextStyle(color: context.cl.accent, fontSize: 9,
-                          fontWeight: FontWeight.w800, letterSpacing: 0.6)),
-                    ]),
-                  ),
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.13),
+                          borderRadius: BorderRadius.circular(7),
+                          border: Border.all(color: AppColors.primary.withValues(alpha: 0.35), width: 0.5)),
+                        child: Row(mainAxisSize: MainAxisSize.min, children: [
+                          Container(
+                            width: 5, height: 5,
+                            decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle))
+                            .animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
+                            .fadeIn(duration: 600.ms).then().fadeOut(duration: 600.ms),
+                          const SizedBox(width: 5),
+                           Text(tr(context, "PROCHAIN MATCH"),
+                            style: TextStyle(color: context.cl.accent, fontSize: 9,
+                              fontWeight: FontWeight.w800, letterSpacing: 0.6)),
+                        ]),
+                      ),
+                  ]),
                   Row(mainAxisSize: MainAxisSize.min, children: [
                     if (isPremium)
                       Container(
@@ -252,7 +267,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                           Row(children: [
                             if (confidenceScore > 0)
                               ConfidenceIndicator(
-                                  score: confidenceScore,
+                                  pourcentage: MatchEntity.pourcentageDepuisApi(prono),
                                   showLabel: false),
                             const Spacer(),
                             if (oddsRec != null)
@@ -329,8 +344,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
               ]),
             ),
           ));
-        },
-      ),
+        }),
     );
   }
 }
@@ -462,3 +476,28 @@ class _ErrorCard extends StatelessWidget {
 }
 
 // ─── BANNIÈRE TUTORIELS ───────────────────────────────────────────────────────
+
+
+/// « TOP DU JOUR » : le pronostic du jour à l'indice de confiance le plus haut.
+///
+/// L'ancienne carte « Top prono du jour » portait ce badge en blanc sur un
+/// dégradé or : 1,4:1 côté jaune. Ici, l'or du thème sur sa propre teinte.
+class _BadgeTopDuJour extends StatelessWidget {
+  const _BadgeTopDuJour();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        decoration: BoxDecoration(
+          color: context.cl.dore.withValues(alpha: 0.13),
+          borderRadius: BorderRadius.circular(7),
+          border: Border.all(color: context.cl.dore.withValues(alpha: 0.35), width: 0.5)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Icon(Icons.star_rounded, color: context.cl.dore, size: 11),
+          const SizedBox(width: 4),
+          Text(tr(context, "TOP DU JOUR"),
+            style: TextStyle(color: context.cl.dore, fontSize: 9,
+              fontWeight: FontWeight.w800, letterSpacing: 0.6)),
+        ]),
+      );
+}

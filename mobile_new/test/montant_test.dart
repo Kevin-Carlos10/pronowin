@@ -101,13 +101,12 @@ void main() {
     });
   });
 
-  group('confiance sur cinq', () {
-    test('les cinq notes restent des notes', () {
-      expect([1,2,3,4,5].map(MatchEntity.confidenceDisplay).toList(), ['1/5','2/5','3/5','4/5','5/5']);
+  group('indice de confiance', () {
+    test('le pourcentage saisi, avec son unité', () {
+      expect([10, 73, 99].map(MatchEntity.affichageConfiance).toList(), ['10 %', '73 %', '99 %']);
     });
-    test('un score invalide reste non évalué', () {
-      expect(MatchEntity.confidenceDisplay(0), 'Non évaluée');
-      expect(MatchEntity.confidenceDisplay(9), 'Non évaluée');
+    test('un indice absent reste non évalué', () {
+      expect(MatchEntity.affichageConfiance(0), 'Non évaluée');
     });
   });
 

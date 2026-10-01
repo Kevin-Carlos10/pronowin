@@ -33,6 +33,7 @@ import '../../../../shared/providers/favoris_provider.dart';
 import '../../../../shared/utils/verrou_pari.dart';
 import '../../../../shared/utils/verrou_pronostic.dart';
 import '../../../../shared/utils/rafraichir.dart';
+import '../providers/carte_vedette.dart';
 
 // Découpé en fichiers `part` : le fichier faisait 4 406 lignes pour une
 // cinquantaine de classes privées — plus gros que match_detail_page avant
@@ -257,53 +258,9 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                     },
                   ),
 
-                  // ─── TOP PRONO DU JOUR ────────────────────────────────────
-                  pronostics.when(
-                    loading: () => const SizedBox.shrink(),
-                    error:   (_, _) => const SizedBox.shrink(),
-                    data: (list) {
-                      if (list.isEmpty) return const SizedBox.shrink();
-                      // Exclure les matchs terminés et ceux dont l'heure est dépassée
-                      final candidates = list
-                          .map((e) => e as Map<String, dynamic>)
-                          .where((p) {
-                            final status = p['status'] as String? ?? '';
-                            if (status == 'finished') return false;
-                            // Les matchs en cours ont leur propre section juste
-                            // au-dessus : les remonter ici affichait deux fois
-                            // la même rencontre à un écran d'intervalle.
-                            if (status == 'live') return false;
-                            final dateStr = p['match_date'] as String?;
-                            if (dateStr != null) {
-                              final date = DateTime.tryParse(dateStr);
-                              if (date != null && date.isBefore(DateTime.now())) return false;
-                            }
-                            return true;
-                          })
-                          .toList()
-                        ..sort((a, b) => ((b['confidence_score'] as num? ?? 0)
-                            .compareTo(a['confidence_score'] as num? ?? 0)));
-                      if (candidates.isEmpty) return const SizedBox.shrink();
-                      final top = candidates.first;
-                      final isLocked = (top['is_premium'] as bool? ?? false) && !isPremium;
-                      // Verrouillé : on montre le match en teaser (équipes +
-                      // confiance) au lieu de le cacher — le tap mène à Premium.
-                      return Column(children: [
-                         _SectionHeader(title: tr(context, "Top prono du jour")),
-                        const SizedBox(height: 12),
-                        _HeroPronoCard(
-                          prono: top,
-                          locked: isLocked,
-                          onTap: isLocked
-                              ? () => goToPremium(context, ref,
-                                  extra: subAsync.valueOrNull)
-                              : () => context.push('/pronostics/${top['id']}',
-                                  extra: null),
-                        ),
-                        const SizedBox(height: 24),
-                      ]);
-                    },
-                  ),
+                  // « Top prono du jour » avait sa propre grande carte ici. Elle
+                  // montrait souvent le même match que la carte du compte à
+                  // rebours : les deux sont fusionnées (carte_vedette.dart).
 
                   // ─── BANNIÈRE PREMIUM ─────────────────────────────────────
                   // Placée après le contenu (top prono) : l'app montre d'abord
@@ -340,9 +297,16 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                       // La section « En direct » juste au-dessus affiche déjà
                       // tous les matchs en cours : les répéter ici mettait deux
                       // fois la même carte à quelques centimètres d'écart.
+                      // La carte vedette est déjà en haut de l'écran : la
+                      // répéter ici la montrait une deuxième fois.
+                      final idVedette = choisirVedette(
+                        duJour:   list,
+                        prochain: ref.watch(nextPronosticProvider).valueOrNull,
+                      )?.prono['id'];
                       final aVenir = list
                           .where((p) =>
-                              (p as Map<String, dynamic>)['status'] != 'live')
+                              (p as Map<String, dynamic>)['status'] != 'live' &&
+                              p['id'] != idVedette)
                           .toList();
                       // Tout est en direct : il n'y a rien à ajouter.
                       if (aVenir.isEmpty) return const SizedBox.shrink();

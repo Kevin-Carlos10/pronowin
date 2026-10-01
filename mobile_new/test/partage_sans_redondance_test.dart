@@ -29,29 +29,35 @@ import 'package:pronowin/shared/utils/partage_parrainage.dart';
 /// Parrainage — dont l'un disait en commentaire « identique à celui de
 /// ParrainagePage ». Deux copies d'une même phrase vieillissent ensemble.
 void main() {
-  group("l'adresse de téléchargement", () {
-    test('est absolue et sur le bon domaine', () {
-      expect(AppConstants.apkDownloadUrl, startsWith('https://'));
-      expect(AppConstants.apkDownloadUrl, contains('pronowin.space'));
-      expect(AppConstants.apkDownloadUrl, endsWith('.apk'));
+  // ── Puis le lien menait au fichier APK ──────────────────────────────────
+  //
+  // `pronowin.space/downloads/app-release.apk` : un iPhone n'en fait rien, et
+  // Apple n'accepte pas qu'une application renvoie vers une installation hors
+  // App Store. Les partages mènent au site, qui propose à chaque téléphone le
+  // bon téléchargement (1er octobre 2026).
+  group("l'adresse des partages", () {
+    test('est le site, absolu et sur le bon domaine', () {
+      expect(AppConstants.siteUrl, 'https://pronowin.space');
     });
 
-    test('ne porte plus l\'ancien domaine ni l\'ancien chemin', () {
-      expect(AppConstants.apkDownloadUrl, isNot(contains('pronowin.com')));
-      expect(AppConstants.apkDownloadUrl, isNot(endsWith('/download')));
-    });
-
-    test('dérive du domaine, elle ne le réécrit pas', () {
-      // Sans cela, changer `domaine` laisserait cette adresse en arrière —
-      // exactement ce qui s'est produit avec `pronowin.com`.
-      expect(AppConstants.apkDownloadUrl, startsWith(AppConstants.siteUrl));
+    test('aucun partage ne mène à un fichier APK', () {
+      final fautes = <String>[];
+      for (final f in Directory('lib').listSync(recursive: true).whereType<File>()) {
+        if (!f.path.endsWith('.dart')) continue;
+        final code = f.readAsLinesSync()
+            .where((l) => !l.trimLeft().startsWith('//'))
+            .join('\n');
+        if (code.contains('app-release.apk') || code.contains('apkDownloadUrl')) fautes.add(f.path);
+      }
+      expect(fautes, isEmpty);
     });
   });
 
   group('le message de parrainage', () {
-    test('porte un lien cliquable vers le vrai fichier', () {
+    test('porte un lien cliquable vers le site', () {
       final m = messageParrainage('ABC123');
-      expect(m, contains(AppConstants.apkDownloadUrl));
+      expect(m, contains(AppConstants.siteUrl));
+      expect(m, isNot(contains('.apk')));
       expect(m, isNot(contains('pronowin.com')));
     });
 
@@ -120,8 +126,8 @@ void main() {
           reason: 'cette route n\'existe pas sur le site');
     });
 
-    test('il garde le seul lien qui mène quelque part', () {
-      expect(partage, contains('AppConstants.apkDownloadUrl'));
+    test('il garde le seul lien qui mène quelque part : le site', () {
+      expect(partage, contains('AppConstants.siteUrl'));
     });
 
     test('il dit où trouver le détail', () {

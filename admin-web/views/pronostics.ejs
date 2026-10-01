@@ -291,7 +291,9 @@
        const isFinished = m.status === 'FINISHED';
        const homeInitial = (m.homeTeam||'?')[0].toUpperCase();
        const awayInitial = (m.awayTeam||'?')[0].toUpperCase();
-       const conf = m.pronostic?.confidence_score ?? 0;
+       // Le pourcentage saisi ; un pronostic antérieur n'a que son niveau.
+       const conf = m.pronostic?.confidence_pct
+         ?? (m.pronostic?.confidence_score ? m.pronostic.confidence_score * 20 - 10 : 0);
        const rowClass = isLive ? 'is-live' : m.is_published ? 'is-pub' : m.has_pronostic ? 'is-draft' : '';
        let whenClass = 'when', whenStr = dateStr;
        if (isLive) { whenClass += ' live'; whenStr = ' ' + dateStr; }
@@ -333,7 +335,7 @@
             <% } else { %><span style="color:var(--text-dim)">—</span><% } %>
           </td>
           <td class="num"><%= (m.has_pronostic && m.pronostic && m.pronostic.odds) ? m.pronostic.odds : '—' %></td>
-          <td class="num"><%= conf ? conf + '/5' : '—' %></td>
+          <td class="num"><%= conf ? conf + ' %' : '—' %></td>
           <td>
             <% if(m.is_published) { %><span class="status pub">Publié</span>
             <% } else if(m.has_pronostic) { %><span class="status draft">Brouillon</span>

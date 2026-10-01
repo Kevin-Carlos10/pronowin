@@ -912,7 +912,7 @@ class _PronosticCard extends StatelessWidget {
       PronosticResult.push => tr(context, " Pronostic remboursé."),
       null                 => '',
     };
-    return tr(context, "Pronostic : {arg0}{arg1}.{arg2} Confiance de l’analyste {arg3} {arg4}.{arg5}", [marche, _pick, cote, MatchEntity.confidenceDisplay(match.confidenceScore), MatchEntity.labelForConfidence(match.confidenceScore), verdict]);
+    return tr(context, "Pronostic : {arg0}{arg1}.{arg2} Indice de confiance de l’analyste {arg3}, {arg4}.{arg5}", [marche, _pick, cote, MatchEntity.affichageConfiance(match.pourcentageConfiance), MatchEntity.labelForConfidence(match.confidenceScore), verdict]);
   }
 
   @override
@@ -1013,10 +1013,10 @@ class _PronosticCard extends StatelessWidget {
           // enregistrés. La fiche de match dit ce qui s'est passé ; elle n'a
           // pas à chiffrer ce qui aurait pu arriver.
           if (match.result == null)
-            Expanded(child: _DetailConfidenceBar(score: match.confidenceScore))
+            Expanded(child: _DetailConfidenceBar(pourcentage: match.pourcentageConfiance))
           else ...[
             const Spacer(),
-            _ConfianceRappel(score: match.confidenceScore),
+            _ConfianceRappel(pourcentage: match.pourcentageConfiance),
           ],
         ]),
       ],
@@ -1035,12 +1035,13 @@ class _PronosticCard extends StatelessWidget {
 /// Rappel discret de la confiance annoncée avant le coup d'envoi, une fois le
 /// résultat connu — la jauge pleine largeur n'a plus lieu d'être.
 class _ConfianceRappel extends StatelessWidget {
-  final int score;
-  const _ConfianceRappel({required this.score});
+  final int pourcentage;
+  const _ConfianceRappel({required this.pourcentage});
 
   @override
   Widget build(BuildContext context) {
-    final couleur = ConfidenceIndicator.colorFor(context, score);
+    final couleur = ConfidenceIndicator.colorFor(
+        context, MatchEntity.niveauDepuisPourcentage(pourcentage));
     return Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
       Text(tr(context, "CONFIANCE ANNONCÉE"),
         style: TextStyle(
@@ -1049,7 +1050,7 @@ class _ConfianceRappel extends StatelessWidget {
           fontWeight: FontWeight.w700,
           letterSpacing: 0.8)),
       const SizedBox(height: 7),
-      Text(MatchEntity.confidenceDisplay(score),
+      Text(MatchEntity.affichageConfiance(pourcentage),
         style: TextStyle(
           color: couleur.withValues(alpha: 0.75),
           fontSize: 15,
@@ -1703,8 +1704,11 @@ class _LiveBadgeState extends State<_LiveBadge>
 }
 
 class _DetailConfidenceBar extends StatelessWidget {
-  final int score;
-  const _DetailConfidenceBar({required this.score});
+  /// Indice de confiance de l'analyste, en pourcentage.
+  final int pourcentage;
+  const _DetailConfidenceBar({required this.pourcentage});
+
+  int get score => MatchEntity.niveauDepuisPourcentage(pourcentage);
 
   /// Couleur et libellé viennent tous deux de la source unique. Cette classe
   /// avait sa propre échelle à 5 couleurs là où le reste de l'app en utilise 3 :
@@ -1716,23 +1720,25 @@ class _DetailConfidenceBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final level = score.clamp(0, 5);
+    final pct = pourcentage.clamp(0, 99);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(children: [
-          Text(tr(context, "CONFIANCE"),
+          // Le libellé cède la place au chiffre : « INDICE DE CONFIANCE »
+          // passe sur deux lignes à 180 % au lieu de déborder.
+          Expanded(child: Text(tr(context, "INDICE DE CONFIANCE"),
               style: TextStyle(
                   color: context.cl.textM,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
-                  letterSpacing: 0.8)),
-          const Spacer(),
+                  letterSpacing: 0.8))),
+          const SizedBox(width: 8),
           TweenAnimationBuilder<int>(
-            tween: IntTween(begin: level, end: level),
+            tween: IntTween(begin: pct, end: pct),
             duration: const Duration(milliseconds: 900),
             curve: Curves.easeOutCubic,
-            builder: (_, val, child) => Text('$val/5',
+            builder: (_, val, child) => Text(MatchEntity.affichageConfiance(val),
                 style: TextStyle(
                     color: _color(context), fontSize: 15, fontWeight: FontWeight.w800,
                     height: 1)),
@@ -1740,7 +1746,7 @@ class _DetailConfidenceBar extends StatelessWidget {
         ]),
         const SizedBox(height: 7),
         TweenAnimationBuilder<double>(
-          tween: Tween(begin: 0, end: level / 5),
+          tween: Tween(begin: 0, end: pct / 100),
           duration: const Duration(milliseconds: 900),
           curve: Curves.easeOutCubic,
           builder: (_, val, child) => ClipRRect(

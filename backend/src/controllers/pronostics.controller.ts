@@ -14,6 +14,9 @@ import { apiFootballService, apiFootballInsights } from '../services/api_footbal
 import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
 import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
 import { repondreErreur } from '../utils/erreurs';
+import {
+  niveauDepuisPourcentage, pourcentageConfiance, pourcentageDepuisNiveau, POURCENTAGE_MAX, POURCENTAGE_MIN,
+} from '../utils/confiance';
 
 const svc      = new PronosticsService();
 const fdSvc    = new FootballDataService();
@@ -399,6 +402,7 @@ export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
       prediction_label: locked ? null : prono.predictionLabel,
       odds_recommended: locked ? null : prono.oddsRecommended,
       confidence_score: locked ? null : prono.confidenceScore,
+      confidence_pct: locked ? null : pourcentageConfiance(prono),
       analyst_note:     locked ? null : prono.analystNote,
       analyst_name:     locked ? null : prono.analyst.name,
       ai_probability:   locked ? null : prono.aiProbability,
@@ -474,10 +478,19 @@ export const fetchUpcoming = async (req: AdminRequest, res: Response) => {
 export const upsertPronostic = async (req: AdminRequest, res: Response) => {
   try {
     const b = req.body;
-    const confidence = Number(b.confidence_score);
+    // Le pourcentage fait foi ; le niveau 1–5 en est déduit. Un appel qui
+    // n'envoie qu'un niveau reçoit le milieu de son palier.
+    const pctSaisi = b.confidence_pct === undefined || b.confidence_pct === null || b.confidence_pct === ''
+      ? null : Number(b.confidence_pct);
+    if (pctSaisi !== null &&
+        (!Number.isInteger(pctSaisi) || pctSaisi < POURCENTAGE_MIN || pctSaisi > POURCENTAGE_MAX)) {
+      res.status(400).json({message:`L'indice de confiance doit être un pourcentage entier de ${POURCENTAGE_MIN} à ${POURCENTAGE_MAX}.`}); return;
+    }
+    const confidence = pctSaisi !== null ? niveauDepuisPourcentage(pctSaisi) : Number(b.confidence_score);
     if (!Number.isInteger(confidence) || confidence < 1 || confidence > 5) {
       res.status(400).json({message:'La confiance doit être une note entière de 1 à 5.'}); return;
     }
+    const confidencePct = pctSaisi ?? pourcentageDepuisNiveau(confidence);
     const publish = b.publish === true || b.publish === 'true';
     const p = await svc.upsertPronostic({
       matchId:         b.match_id,
@@ -491,6 +504,7 @@ export const upsertPronostic = async (req: AdminRequest, res: Response) => {
       oddsAway:        parseFloat(b.odds_away),
       oddsRecommended: parseFloat(b.odds_recommended),
       confidenceScore: confidence,
+      confidencePct,
       analystNote:     b.analyst_note,
       isPremium:       b.is_premium === true || b.is_premium === 'true',
       publish,
@@ -646,6 +660,7 @@ export const getHistory = async (req: AuthRequest, res: Response) => {
       predictionType:  p.predictionType,
       oddsRecommended: p.oddsRecommended,
       confidenceScore: p.confidenceScore,
+      confidencePct:   pourcentageConfiance(p),
       isPremium:       p.isPremium,
       result:          p.result,   // 'WIN' | 'LOSS'
       match:           p.match,
@@ -1026,6 +1041,7 @@ export const getMatchFromDB = async (req: AdminRequest, res: Response) => {
         odds_away:         p.oddsAway,
         odds_recommended:  p.oddsRecommended,
         confidence_score:  p.confidenceScore,
+        confidence_pct:  pourcentageConfiance(p),
         analyst_note:      p.analystNote,
         is_premium:        p.isPremium,
         is_published:      p.isPublished,

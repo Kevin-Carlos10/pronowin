@@ -130,7 +130,7 @@ class BetDetailPage extends StatelessWidget {
                 // donc vingt points de plus pour la même donnée. Une seule
                 // échelle, celle qui fait déjà autorité ailleurs.
                 _Chip(
-                  label: tr(context, "Confiance  {arg0}", [MatchEntity.confidenceDisplay(bet.confidenceScore)]),
+                  label: tr(context, "Confiance  {arg0}", [MatchEntity.affichageConfiance(bet.pourcentageConfiance)]),
                   color: context.cl.info,
                 ),
               ]),

@@ -177,7 +177,7 @@ void main() {
     expect(tutorial.toJson(), stored);
     expect(tutorial.title, 'Analyse');
     expect(tutorial.authorName, 'Victoire');
-    expect(MatchEntity.confidenceDisplay(4), '4/5');
+    expect(MatchEntity.affichageConfiance(73), '73%');
     expect(MatchEntity.labelForConfidence(4), 'High');
   });
 

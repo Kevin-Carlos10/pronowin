@@ -223,30 +223,25 @@ const productBlocks = [
     // « Football, basketball et tennis » : il n'existe aucune notion de sport
     // dans le schéma, ni rien hors football. Le site vendait deux sports que
     // l'application ne traite pas.
-    text: "Chaque pronostic porte sa cote, les statistiques du match et une note de confiance de l’analyste sur 5 — la même que celle affichée dans l'application.",
+    text: "Chaque pronostic porte sa cote, les statistiques du match et l’indice de confiance de l’analyste, en pourcentage — le même que celui affiché dans l'application. C’est son appréciation, pas une probabilité de gain.",
     photo: '/images/banner-analysis.png',
     stats: [
       { value: 'Cotes',   label: 'affichées par match' },
-      { value: '/5',      label: 'confiance de l’analyste' },
+      { value: '%',       label: 'indice de confiance de l’analyste' },
       { value: 'Gratuit', label: 'une sélection chaque jour' },
     ],
-    // 78 %, 55 % et 71 % figuraient ici. L'application ne peut afficher aucun
-    // de ces trois nombres : la confiance est un score entier de 1 à 5, converti
-    // par une table fixe (60, 70, 80, 90, 95) dans `match_entity.dart`. En
-    // production seuls 3, 4 et 5 sont publiés, donc 80, 90 et 95.
+    // Depuis le 1er octobre 2026, l'analyste saisit lui-même l'indice de
+    // confiance, en pourcentage entier de 1 à 99 : aucune table de conversion
+    // ne le produit. Les valeurs ci-dessous sont donc de celles qu'un analyste
+    // peut saisir — et aucune n'approche 100 %, que la saisie refuse.
     //
-    // La règle est écrite quinze lignes plus haut — « chaque chiffre cité ici
-    // doit exister dans le produit » — et n'avait pas été appliquée juste en
-    // dessous. Un aperçu illustre une mise en page ; dès qu'il porte un nombre,
-    // il affirme, et sur une page qui vend du pari un pourcentage de confiance
-    // est la dernière chose à inventer.
-    //
-    // Un banc lit maintenant cette liste et la table de l'application, et refuse
-    // tout pourcentage que le produit ne saurait pas produire.
+    // La règle écrite plus haut tient toujours : « chaque chiffre cité ici doit
+    // exister dans le produit ». Sur une page qui vend du pari, un pourcentage
+    // de confiance est la dernière chose à inventer.
     apercu: [
-      { badge: 'green', icone: 'ball', titre: 'Real Madrid vs Barcelone', sous: 'Confiance 4/5  ·  Cote 1.72' },
-      { badge: 'green', icone: 'ball', titre: 'Bayern vs Dortmund',       sous: 'Confiance 3/5  ·  Cote 2.10' },
-      { badge: 'green', icone: 'ball', titre: 'Juventus vs Milan',        sous: 'Confiance 5/5  ·  Cote 1.95' },
+      { badge: 'green', icone: 'ball', titre: 'Real Madrid vs Barcelone', sous: 'Confiance 72 %  ·  Cote 1.72' },
+      { badge: 'green', icone: 'ball', titre: 'Bayern vs Dortmund',       sous: 'Confiance 58 %  ·  Cote 2.10' },
+      { badge: 'green', icone: 'ball', titre: 'Juventus vs Milan',        sous: 'Confiance 84 %  ·  Cote 1.95' },
     ],
   },
   {

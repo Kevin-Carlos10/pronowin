@@ -47,6 +47,9 @@ Future<({List<String> debordements, List<String> autres})> mesurerEcran(
   List<Override> surcharges = const [],
   double largeur = 360,
   int defilements = 10,
+  /// Appelé une fois l'écran rendu, avant le défilement : pour vérifier ce
+  /// qu'il affiche en plus de ce qui déborde.
+  void Function()? verifier,
 }) async {
   SharedPreferences.setMockInitialValues({'pseudo_nudge_dismissed': true});
   tester.view.physicalSize = Size(largeur * 2, 800 * 2);
@@ -93,6 +96,7 @@ Future<({List<String> debordements, List<String> autres})> mesurerEcran(
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 100));
     }
+    verifier?.call();
 
     // Tout l'écran, pas seulement le premier tiers.
     final defilable = find.byType(Scrollable);

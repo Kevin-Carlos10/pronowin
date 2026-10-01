@@ -32,7 +32,12 @@ class MatchEntity extends Equatable {
   final double oddsHome;
   final double oddsDraw;
   final double oddsAway;
+  /// Niveau 1–5, déduit par le serveur de l'indice saisi. Sert aux couleurs
+  /// et aux libellés (« Élevée »), et au barème de mise — pas à l'affichage.
   final int confidenceScore;
+  /// Indice de confiance saisi par l'analyste, en pourcentage (1–99). Nul si
+  /// le serveur ne l'envoie pas encore : voir [pourcentageConfiance].
+  final int? confidencePct;
   final bool isPremium;
   final String? analystNote;
   final int homeFormPoints;
@@ -64,6 +69,7 @@ class MatchEntity extends Equatable {
     required this.oddsDraw,
     required this.oddsAway,
     required this.confidenceScore,
+    this.confidencePct,
     required this.isPremium,
     this.analystNote,
     required this.homeFormPoints,
@@ -84,7 +90,32 @@ class MatchEntity extends Equatable {
 
   /// Appréciation éditoriale de l'analyste, pas une probabilité de victoire.
   static bool validConfidence(int score) => score >= 1 && score <= 5;
-  static String confidenceDisplay(int score) => validConfidence(score) ? '$score/5' : trCurrent("Non évaluée");
+
+  // ── Indice de confiance en pourcentage ─────────────────────────────────
+  //
+  // L'analyste saisit un pourcentage (1 à 99) ; c'est lui qu'on affiche. Le
+  // niveau 1–5 en est déduit par paliers de 20 points — même règle que le
+  // serveur (backend/src/utils/confiance.ts). Un pronostic sans pourcentage
+  // (antérieur à la saisie, ou serveur pas encore à jour) prend le milieu de
+  // son palier : 1 → 10, 2 → 30, 3 → 50, 4 → 70, 5 → 90.
+
+  /// Le pourcentage à afficher. 0 : pas de confiance publiée.
+  int get pourcentageConfiance => confidencePct ?? pourcentageDepuisNiveau(confidenceScore);
+
+  static int pourcentageDepuisNiveau(int score) => validConfidence(score) ? score * 20 - 10 : 0;
+
+  static int niveauDepuisPourcentage(int pct) =>
+      pct >= 80 ? 5 : pct >= 60 ? 4 : pct >= 40 ? 3 : pct >= 20 ? 2 : pct >= 1 ? 1 : 0;
+
+  /// Le pourcentage d'un pronostic reçu tel quel de l'API (cartes de
+  /// l'accueil, qui lisent les réponses brutes).
+  static int pourcentageDepuisApi(Map<dynamic, dynamic> p) =>
+      (p['confidence_pct'] as num?)?.toInt() ??
+      pourcentageDepuisNiveau((p['confidence_score'] as num?)?.toInt() ?? 0);
+
+  /// « 73 % », ou « Non évaluée ».
+  static String affichageConfiance(int pct) =>
+      pct >= 1 ? trCurrent("{arg0} %", [pct]) : trCurrent("Non évaluée");
 
 
   /// Libellé de confiance — **source unique**.

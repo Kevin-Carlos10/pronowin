@@ -10,6 +10,7 @@ import '../../../../core/cache/cache_service.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/match_entity.dart' show MatchEntity;
+import '../../../../core/services/prono_share_service.dart';
 
 // ─── Filtres ──────────────────────────────────────────────────────────────────
 enum _ResultFilter { all, win, loss, pending }
@@ -138,9 +139,11 @@ class HistoriquePage extends ConsumerWidget {
       name:     'pronowin_historique_${period.days}j.csv',
       mimeType: 'text/csv',
     );
-    Share.shareXFiles(
+    // Même règle que l'image d'un pronostic : sur iOS, le fichier part seul,
+    // sinon certaines applications ne gardent que le texte.
+    PronoShareService.partagerFichiers(
       [file],
-      text: tr(context, "Historique PronoWin — {arg0}", [period.label]),
+      texte: tr(context, "Historique PronoWin — {arg0}", [period.label]),
     );
   }
 }

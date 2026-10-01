@@ -55,7 +55,8 @@ function rendre(cote) {
 
 function extraire(html) {
   const debut = html.indexOf('const COTE_MINIMALE_PUBLICATION');
-  const fin   = html.indexOf('/* Note éditoriale', debut);
+  // Le bloc s'arrête où commence celui de l'indice de confiance.
+  const fin   = html.indexOf('/* Indice de confiance', debut);
   assert.ok(debut > 0 && fin > debut,
     'bloc de la cote minimale introuvable dans le rendu — le contrôle ne vérifierait rien');
   return html.slice(debut, fin);

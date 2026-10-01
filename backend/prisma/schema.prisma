@@ -375,6 +375,10 @@ model Pronostic {
   oddsAway        Float           @default(0) @map("odds_away")
   oddsRecommended Float           @map("odds_recommended")
   confidenceScore Int             @map("confidence_score")
+  /// Indice de confiance saisi par l'analyste, en pourcentage (1–99). Le niveau
+  /// ci-dessus en est déduit (src/utils/confiance.ts). Nul pour un pronostic
+  /// antérieur à la saisie : il vaut alors le milieu de son palier.
+  confidencePct   Int?            @map("confidence_pct")
   analystNote     String?         @map("analyst_note")
   isPremium       Boolean         @default(false) @map("is_premium")
   isPublished     Boolean         @default(false) @map("is_published")

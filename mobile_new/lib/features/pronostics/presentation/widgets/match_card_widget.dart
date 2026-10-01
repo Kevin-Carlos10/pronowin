@@ -71,7 +71,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
         ? tr(context, "{arg0} contre {arg1}, {arg2}. Contenu premium verrouillé.", [m.homeTeam, m.awayTeam, m.league])
         : noProno
             ? tr(context, "{arg0} contre {arg1}, {arg2}. Pas de pronostic disponible.", [m.homeTeam, m.awayTeam, m.league])
-            : tr(context, "{arg0} contre {arg1}, {arg2}. Pronostic : {arg3}. Confiance {arg4} sur 5. Cote recommandée {arg5}.", [m.homeTeam, m.awayTeam, m.league, m.displayPredictionLabel, m.confidenceScore, m.oddsRecommended.toStringAsFixed(2)]);
+            : tr(context, "{arg0} contre {arg1}, {arg2}. Pronostic : {arg3}. Indice de confiance {arg4}. Cote recommandée {arg5}.", [m.homeTeam, m.awayTeam, m.league, m.displayPredictionLabel, MatchEntity.affichageConfiance(m.pourcentageConfiance), m.oddsRecommended.toStringAsFixed(2)]);
 
     // Matchs terminés sans pronostic → navigable pour voir les stats
     final canNavigate = !noProno || widget.match.status == MatchStatus.finished;
@@ -341,7 +341,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
             // Flexible, et non figé : sans cela la rangée réserve d'abord la
             // largeur du libellé, puis déborde quand il n'en reste plus assez.
             Flexible(
-              child: ConfidenceIndicator(score: widget.match.confidenceScore),
+              child: ConfidenceIndicator(pourcentage: widget.match.pourcentageConfiance),
             ),
           ]),
 

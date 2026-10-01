@@ -3,11 +3,18 @@ import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/pronostics/domain/entities/match_entity.dart';
 
-/// Note éditoriale sur cinq. Aucun pourcentage de victoire n'est déduit.
+/// Indice de confiance de l'analyste, en pourcentage — saisi par lui.
+///
+/// C'est son appréciation, pas une probabilité de gain : l'infobulle et le
+/// libellé lu par VoiceOver le disent. Le libellé visible (« Élevée ») vient
+/// du niveau déduit du pourcentage.
 class ConfidenceIndicator extends StatelessWidget {
-  final int score;
+  /// Le pourcentage à afficher ; 0 : non évaluée.
+  final int pourcentage;
   final bool showLabel;
-  const ConfidenceIndicator({super.key, required this.score, this.showLabel = true});
+  const ConfidenceIndicator({super.key, required this.pourcentage, this.showLabel = true});
+
+  int get _niveau => MatchEntity.niveauDepuisPourcentage(pourcentage);
   /// Couleur de la note, selon le thème : c'est un texte (10 et 15 px), et
   /// les teintes vives du sombre ne se lisent pas sur blanc (vert : 2,28:1).
   static Color colorFor(BuildContext context, int score) {
@@ -16,9 +23,9 @@ class ConfidenceIndicator extends StatelessWidget {
   }
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: tr(context, "Confiance de l’analyste : appréciation sur 5, pas une probabilité de gain."),
+    message: tr(context, "Indice de confiance de l’analyste : son appréciation, pas une probabilité de gain."),
     child: Semantics(
-      label: tr(context, "Confiance de l’analyste : {arg0}, {arg1}", [MatchEntity.confidenceDisplay(score), MatchEntity.labelForConfidence(score)]),
+      label: tr(context, "Indice de confiance de l’analyste : {arg0}, {arg1}", [MatchEntity.affichageConfiance(pourcentage), MatchEntity.labelForConfidence(_niveau)]),
       excludeSemantics: true,
       child: Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
         if (showLabel) ...[
@@ -42,13 +49,13 @@ class ConfidenceIndicator extends StatelessWidget {
           // `main.dart`. Un garde-fou dont la condition n'est jamais atteinte
           // rassure sans protéger — c'est précisément ce que ce dépôt traque.
           Text(
-            MatchEntity.labelForConfidence(score),
-            style: TextStyle(color: colorFor(context, score), fontSize: 10, fontWeight: FontWeight.w700),
+            MatchEntity.labelForConfidence(_niveau),
+            style: TextStyle(color: colorFor(context, _niveau), fontSize: 10, fontWeight: FontWeight.w700),
             textAlign: TextAlign.end,
           ),
           const SizedBox(height: 2),
         ],
-        Text(MatchEntity.confidenceDisplay(score), style: TextStyle(color: colorFor(context, score), fontSize: 15, fontWeight: FontWeight.w800)),
+        Text(MatchEntity.affichageConfiance(pourcentage), style: TextStyle(color: colorFor(context, _niveau), fontSize: 15, fontWeight: FontWeight.w800)),
       ]),
     ),
   );

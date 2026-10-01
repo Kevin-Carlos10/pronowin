@@ -216,7 +216,7 @@ class PronoShareCard extends StatelessWidget {
                     PronosticResult.push => Icons.replay_rounded,
                   };
                   final label = switch (result) {
-                    PronosticResult.win  => tr(context, "Pronostic GAGNANT ✅"),
+                    PronosticResult.win  => tr(context, "Pronostic GAGNANT "),
                     PronosticResult.loss => tr(context, "Pronostic PERDU"),
                     PronosticResult.push => tr(context, "Pronostic REMBOURSÉ 🔄"),
                   };
@@ -351,7 +351,7 @@ class PronoShareCard extends StatelessWidget {
                       // chiffres. Le mot ne disait pas ce que « Bon » vaut.
                       const SizedBox(height: 4),
                       Text(
-                        MatchEntity.confidenceDisplay(match.confidenceScore),
+                        MatchEntity.affichageConfiance(match.pourcentageConfiance),
                         style: TextStyle(
                           color: _confColor,
                           fontSize: 22,

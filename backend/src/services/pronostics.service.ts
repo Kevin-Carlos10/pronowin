@@ -9,6 +9,7 @@ import { _resolvePronosticResult, type ScoreLine } from './settlement';
 import { estVerrouille } from './verrou_pronostic';
 import { construireRecherche } from './recherche_matchs';
 import { journal } from '../utils/logger';
+import { pourcentageConfiance, pourcentageDepuisNiveau } from '../utils/confiance';
 
 const notifSvc  = new NotificationService();
 
@@ -405,7 +406,7 @@ export class PronosticsService {
       where:  { matchId: { in: matchIds } },
       select: {
         id: true, matchId: true, isPublished: true, isPremium: true,
-        predictionLabel: true, confidenceScore: true, oddsRecommended: true,
+        predictionLabel: true, confidenceScore: true, confidencePct: true, oddsRecommended: true,
         result: true, createdAt: true,
         // Le pronostic « gratuit du jour » : l'administrateur doit voir lequel
         // est en vitrine, sinon il ne peut pas le choisir en connaissance de
@@ -442,6 +443,7 @@ export class PronosticsService {
             tip:               prono.predictionLabel,
             prediction_label:  prono.predictionLabel,
             confidence_score:  prono.confidenceScore,
+            confidence_pct:  pourcentageConfiance(prono),
             odds:              prono.oddsRecommended,
             is_premium:        prono.isPremium,
             published:         prono.isPublished,
@@ -747,6 +749,8 @@ export class PronosticsService {
     oddsAway:        number;
     oddsRecommended: number;
     confidenceScore: number;
+    /** Absent : le milieu du palier du niveau (appels antérieurs). */
+    confidencePct?:  number;
     analystNote?:    string;
     isPremium:       boolean;
     publish:         boolean;
@@ -772,6 +776,7 @@ export class PronosticsService {
       oddsAway:        params.oddsAway,
       oddsRecommended: params.oddsRecommended,
       confidenceScore: params.confidenceScore,
+      confidencePct:   params.confidencePct ?? pourcentageDepuisNiveau(params.confidenceScore),
       analystNote:     params.analystNote ?? null,
       isPremium:       params.isPremium,
       isPublished:     params.publish,
@@ -976,6 +981,7 @@ export class PronosticsService {
       odds_away:        p.oddsAway,
       odds_recommended: locked ? null : p.oddsRecommended,
       confidence_score: locked ? null : p.confidenceScore,
+      confidence_pct: locked ? null : pourcentageConfiance(p),
       is_premium:       p.isPremium,
       analyst_note:     locked ? null : p.analystNote,
       analyst_name:     p.analyst.name,
@@ -1054,6 +1060,7 @@ export class PronosticsService {
       odds_draw:        p.oddsDraw,
       odds_away:        p.oddsAway,
       confidence_score: p.confidenceScore,
+      confidence_pct: pourcentageConfiance(p),
       is_premium:       false,
       is_daily_free:    true,
       analyst_note:     p.analystNote,
@@ -1301,6 +1308,7 @@ export class PronosticsService {
         odds_away:        hasPronostic ? p!.oddsAway                      : null,
         odds_recommended: hasPronostic && !mLocked ? p!.oddsRecommended   : null,
         confidence_score: hasPronostic && !mLocked ? p!.confidenceScore   : null,
+        confidence_pct: hasPronostic && !mLocked ? pourcentageConfiance(p!)   : null,
         is_premium:       hasPronostic ? p!.isPremium                     : false,
         analyst_note:     hasPronostic && !mLocked ? p!.analystNote       : null,
         analyst_name:     hasPronostic ? p!.analyst.name                  : null,

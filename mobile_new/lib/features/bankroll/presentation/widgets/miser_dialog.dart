@@ -273,7 +273,8 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
           final confidence = (s['confidence_score'] as num?)?.toInt() ?? widget.confidenceScore;
           final percent = (s['stake_percent'] as num?)?.toDouble() ?? (confidence >= 5 ? 5.0 : confidence >= 3 ? 3.0 : 1.5);
           final confColor = confidence >= 4 ? context.cl.success : context.cl.warning;
-          final confLabel = MatchEntity.confidenceDisplay(confidence);
+          final confLabel = MatchEntity.affichageConfiance(
+              (s['confidence_pct'] as num?)?.toInt() ?? MatchEntity.pourcentageDepuisNiveau(confidence));
           final percentLabel = percent == percent.roundToDouble() ? percent.toStringAsFixed(0) : percent.toString();
           final ruleLabel = tr(context, "{arg0} % du solde", [percentLabel.replaceAll('.', ',')]);
           final canSubmit = stake.isFinite && stake > 0 && stake <= balance;

@@ -97,7 +97,7 @@ void main() {
 
   batterie('ConfidenceIndicator', () => const Padding(
     padding: EdgeInsets.all(12),
-    child: ConfidenceIndicator(score: 87),
+    child: ConfidenceIndicator(pourcentage: 87),
   ));
 
   batterie('ErreurChargement', () => ErreurChargement(

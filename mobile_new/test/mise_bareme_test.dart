@@ -15,7 +15,7 @@ void main() {
       await tester.pumpWidget(ProviderScope(overrides: [
         suggestedStakeProvider('p1').overrideWith((ref) async => {
           'suggested_amount': stake, 'current_balance': stake == 0 ? 20 : 10000,
-          'currency': 'XOF', 'confidence_score': 3, 'stake_percent': 3.0,
+          'currency': 'XOF', 'confidence_score': 3, 'confidence_pct': 57, 'stake_percent': 3.0,
         }),
       ], child: MaterialApp(theme: AppTheme.dark, home: Consumer(builder: (context, ref, _) => Scaffold(
         body: TextButton(onPressed: () => showMiserDialog(context, ref: ref, pronosticId: 'p1',
@@ -25,7 +25,7 @@ void main() {
       await tester.tap(find.text('Ouvrir'));
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-      expect(find.text('3/5'), findsOneWidget); // la note actualisée du serveur
+      expect(find.text('57 %'), findsOneWidget); // l'indice actualisé du serveur
       expect(find.text('3 % du solde'), findsOneWidget);
       expect(find.byType(TextField), findsNothing); // aucun pourcentage personnel
       final button = tester.widget<GestureDetector>(find.ancestor(

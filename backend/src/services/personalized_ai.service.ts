@@ -1,5 +1,6 @@
 import { prisma } from '../lib/prisma';
 import { computeProbability } from './ai_prediction.service';
+import { pourcentageConfiance } from '../utils/confiance';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -212,6 +213,7 @@ export async function getPersonalizedPronostics(
         prediction_label: p.predictionLabel,
         odds_recommended: p.oddsRecommended,
         confidence_score: p.confidenceScore,
+        confidence_pct: pourcentageConfiance(p),
         analyst_note:   p.analystNote,
         is_premium:     p.isPremium,
         ai_probability: Math.round(aiProb),

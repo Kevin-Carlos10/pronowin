@@ -33,7 +33,7 @@ Des pronostics foot analysés match par match, avec la confiance de l'analyste e
 
 EN :
 ```
-Football predictions analysed match by match, with the analyst's confidence rating and bankroll tracking to keep your stakes under control.
+Football predictions analysed match by match, with the analyst's confidence index and bankroll tracking to keep your stakes under control.
 ```
 
 **Description** — FR :
@@ -42,7 +42,7 @@ PronoWin t'aide à suivre le football avec méthode : des pronostics analysés, 
 
 PRONOSTICS ET ANALYSES
 • Les pronostics du jour et de la semaine, ligue par ligue
-• Pour chaque match : le choix de l'analyste, sa confiance sur 5, la forme des équipes, les confrontations directes et des cotes indicatives
+• Pour chaque match : le choix de l'analyste, son indice de confiance (son appréciation, pas une probabilité de gain), la forme des équipes, les confrontations directes et des cotes indicatives
 • Une analyse statistique qui estime la probabilité de chaque issue
 • L'historique complet des résultats, gagnés comme perdus
 
@@ -75,7 +75,7 @@ PronoWin helps you follow football with a method: analysed predictions, clear st
 
 PREDICTIONS AND ANALYSIS
 • Today's and this week's predictions, league by league
-• For every match: the analyst's pick, a confidence rating out of 5, team form, head-to-head record and indicative odds
+• For every match: the analyst's pick, their confidence index (their own judgement, not a probability of winning), team form, head-to-head record and indicative odds
 • A statistical model that estimates the probability of each outcome
 • The full results history, wins and losses alike
 

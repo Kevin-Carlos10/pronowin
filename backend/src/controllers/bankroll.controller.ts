@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import * as svc from '../services/bankroll.service';
 import { partSelonConfiance } from '../services/mise_suggeree';
 import { ErreurMetier, repondreErreur } from '../utils/erreurs';
+import { pourcentageConfiance, pourcentageDepuisNiveau } from '../utils/confiance';
 
 export const getBankroll = async (req: AuthRequest, res: Response) => {
   try {
@@ -54,6 +55,7 @@ export const getBankroll = async (req: AuthRequest, res: Response) => {
         },
         prediction_label: b.pronostic.predictionLabel,
         confidence_score: b.pronostic.confidenceScore,
+        confidence_pct: pourcentageConfiance(b.pronostic),
       })),
     });
   } catch (e: any) { repondreErreur(res, e); }
@@ -135,6 +137,7 @@ export const getSuggestedStake = async (req: AuthRequest, res: Response) => {
     // Compatibilité avec les versions déjà installées : confidence ne sert
     // qu'à l'aperçu ; placeBet impose toujours la vraie note du pronostic.
     let confidenceScore = Number(req.query.confidence ?? 3);
+    let confidencePct: number | null = null;
     if (req.query.pronostic_id != null) {
       if (typeof req.query.pronostic_id !== 'string' || req.query.pronostic_id.length > 80) {
         res.status(400).json({message:'Pronostic invalide.'}); return;
@@ -144,6 +147,7 @@ export const getSuggestedStake = async (req: AuthRequest, res: Response) => {
         await prisma.pronostic.findUnique({where:{matchId:id}});
       if (!pro) { res.status(404).json({message:'Pronostic introuvable.'}); return; }
       confidenceScore = pro.confidenceScore;
+      confidencePct   = pourcentageConfiance(pro);
     }
     if (!Number.isInteger(confidenceScore) || confidenceScore < 1 || confidenceScore > 5) {
       res.status(400).json({message:'Confiance invalide : note attendue de 1 à 5.'}); return;
@@ -154,6 +158,7 @@ export const getSuggestedStake = async (req: AuthRequest, res: Response) => {
       suggested_amount: suggested,
       stake_percent:    partSelonConfiance(confidenceScore) * 100,
       confidence_score: confidenceScore,
+      confidence_pct:   confidencePct ?? pourcentageDepuisNiveau(confidenceScore),
       stake_rule:       "analyst_confidence",
       current_balance:  bankroll.currentBalance,
       currency:         bankroll.currency,
@@ -236,6 +241,7 @@ export const adminGetBankrollDetail = async (req: AdminRequest, res: Response) =
           },
           prediction_label: b.pronostic.predictionLabel,
           confidence_score: b.pronostic.confidenceScore,
+          confidence_pct: pourcentageConfiance(b.pronostic),
         })),
       } : null,
       stats,

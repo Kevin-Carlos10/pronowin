@@ -19,6 +19,10 @@ import '../../core/constants/app_constants.dart';
 ///
 /// Un message de parrainage est le canal de croissance le plus direct de cette
 /// application, et il vit pour toujours dans une conversation. Il vit donc ici,
-/// une fois, et il prend son adresse de [AppConstants.apkDownloadUrl].
+/// une fois, et il prend son adresse de [AppConstants.siteUrl].
+///
+/// Le site, et non le fichier APK : un filleul sur iPhone ne peut rien faire
+/// d'un APK, et Apple n'accepte pas qu'une application renvoie vers une
+/// installation hors App Store. Le site propose à chacun le bon téléchargement.
 String messageParrainage(String code) =>
-    trCurrent("🏆 Rejoins PronoWin et gagne avec les meilleurs pronostics !\nUtilise mon code de parrainage : *{arg0}*\n👉 Télécharge l'app : {arg1}\n💰 Tu m'aides aussi à gagner des commissions !", [code, AppConstants.apkDownloadUrl]);
+    trCurrent("🏆 Rejoins PronoWin et gagne avec les meilleurs pronostics !\nUtilise mon code de parrainage : *{arg0}*\n👉 Télécharge l'app : {arg1}\n💰 Tu m'aides aussi à gagner des commissions !", [code, AppConstants.siteUrl]);

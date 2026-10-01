@@ -4,6 +4,7 @@ import { AuthRequest } from '../middleware/auth.middleware';
 import { prisma } from '../lib/prisma';
 import { estVerrouille } from '../services/verrou_pronostic';
 import { repondreErreur } from '../utils/erreurs';
+import { pourcentageConfiance } from '../utils/confiance';
 
 export const getFavorites = async (req: AuthRequest, res: Response) => {
   try {
@@ -66,6 +67,7 @@ export const getFavorites = async (req: AuthRequest, res: Response) => {
         odds_draw:        p?.oddsDraw        ?? 0,
         odds_away:        p?.oddsAway        ?? 0,
         confidence_score: locked ? null : (p?.confidenceScore ?? 1),
+        confidence_pct: locked || !p ? null : pourcentageConfiance(p),
         locked,
         is_premium:       p?.isPremium       ?? false,
         analyst_note:     locked ? null : (p?.analystNote ?? null),

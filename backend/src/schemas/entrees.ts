@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { booleen, identifiant, nombre, nombreFacultatif, texteFacultatif } from '../middleware/valider';
+import { POURCENTAGE_MAX, POURCENTAGE_MIN } from '../utils/confiance';
 
 /**
  * Schémas d'entrée des routes sensibles (constat S3). Les autres routes
@@ -30,11 +31,20 @@ export const pronosticAdmin = z.object({
   // savoir si le pronostic est publié ; ici, une cote vide ou illisible ne
   // devient plus NaN.
   odds_recommended: cote('la cote conseillée'),
-  confidence_score: nombre('la confiance').refine(
-    (n) => Number.isInteger(n) && n >= 1 && n <= 5, 'La confiance doit être une note entière de 1 à 5.'),
+  // L'indice de confiance se saisit en pourcentage. Le niveau 1–5 reste
+  // accepté seul (anciens appels) ; quand le pourcentage est là, c'est lui
+  // qui fait foi et le niveau en est déduit (src/utils/confiance.ts).
+  confidence_pct: nombreFacultatif("l'indice de confiance").refine(
+    (n) => n === undefined || (Number.isInteger(n) && n >= POURCENTAGE_MIN && n <= POURCENTAGE_MAX),
+    `L'indice de confiance doit être un pourcentage entier de ${POURCENTAGE_MIN} à ${POURCENTAGE_MAX}.`),
+  confidence_score: nombreFacultatif('la confiance').refine(
+    (n) => n === undefined || (Number.isInteger(n) && n >= 1 && n <= 5),
+    'La confiance doit être une note entière de 1 à 5.'),
   analyst_note:     texteFacultatif(4000),
   is_premium:       booleen,
   publish:          booleen,
+}).refine((b) => b.confidence_pct !== undefined || b.confidence_score !== undefined, {
+  message: "Indiquez l'indice de confiance.", path: ['confidence_pct'],
 });
 
 /** POST /bankroll/budget */
