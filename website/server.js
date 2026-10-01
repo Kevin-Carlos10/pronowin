@@ -235,9 +235,9 @@ const productBlocks = [
     // ne le produit. Les valeurs ci-dessous sont donc de celles qu'un analyste
     // peut saisir — et aucune n'approche 100 %, que la saisie refuse.
     //
-    // La règle écrite plus haut tient toujours : « chaque chiffre cité ici doit
-    // exister dans le produit ». Sur une page qui vend du pari, un pourcentage
-    // de confiance est la dernière chose à inventer.
+    // La règle écrite plus haut tient toujours — chaque chiffre cité
+    // ici « doit exister dans le produit ». Sur une page qui vend du pari, un
+    // pourcentage de confiance est la dernière chose à inventer.
     apercu: [
       { badge: 'green', icone: 'ball', titre: 'Real Madrid vs Barcelone', sous: 'Confiance 72 %  ·  Cote 1.72' },
       { badge: 'green', icone: 'ball', titre: 'Bayern vs Dortmund',       sous: 'Confiance 58 %  ·  Cote 2.10' },

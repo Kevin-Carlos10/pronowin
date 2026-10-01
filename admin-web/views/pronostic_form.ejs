@@ -782,8 +782,27 @@ function translateMarketName(name) {
 // directement "Bayern München" plutôt qu'un camp générique.
 const HOME_TEAM = <%- JSON.stringify(match.homeTeam) %>;
 const AWAY_TEAM = <%- JSON.stringify(match.awayTeam) %>;
+/* ── Noms propres ─────────────────────────────────────────────────────────
+   Le flux de cotes écrit les joueurs en minuscules (« Erling braut haaland »),
+   et le libellé public les reprenait tels quels dans l'application. Une
+   valeur faite seulement de lettres et d'au moins deux mots reçoit ses
+   majuscules à l'initiale de chaque mot, le reste du mot tel qu'il arrive
+   (« McTominay »). Une particule reste comme le flux l'écrit : « van » dans
+   « Virgil van Dijk », mais « De » dans « Kevin De Bruyne ».
+   Le libellé reste modifiable : c'est l'analyste qui a le dernier mot. */
+const PARTICULES = new Set(['de','del','della','der','den','di','da','do','dos','das','du','des','la','le','van','von','ter','ten','bin','al','el','y','e']);
+function nomPropre(valeur) {
+  const v = String(valeur).trim();
+  if (!/^[\p{L}'’. -]+$/u.test(v) || !/\s/.test(v)) return v;
+  return v.split(/(\s+|-)/).map((mot, i) => {
+    if (!mot.trim() || mot === '-') return mot;
+    if (i > 0 && PARTICULES.has(mot.toLowerCase())) return mot;
+    return mot.charAt(0).toLocaleUpperCase('fr') + mot.slice(1);
+  }).join('');
+}
+/* ── fin des noms propres ── */
 function translateMarketValue(value) {
-  return String(value)
+  return nomPropre(String(value)
     .replace(/\b1st Half\b/gi, '1ère MT')
     .replace(/\b2nd Half\b/gi, '2ème MT')
     .replace(/\bHome\b/g,  HOME_TEAM)
@@ -794,7 +813,7 @@ function translateMarketValue(value) {
     .replace(/\bYes\b/g,   'Oui')
     .replace(/\bNo\b/g,    'Non')
     .replace(/\bOdd\b/g,   'Impair')
-    .replace(/\bEven\b/g,  'Pair');
+    .replace(/\bEven\b/g,  'Pair'));
 }
 // Bannière "marché personnalisé" pré-remplie au chargement (édition d'un
 // pronostic existant) — traduite depuis les champs cachés déjà renseignés

@@ -52,6 +52,13 @@ export const getBankroll = async (req: AuthRequest, res: Response) => {
           away_team:   b.pronostic.match.awayTeam,
           match_date:  b.pronostic.match.matchDate,
           league:      b.pronostic.match.league,
+          // Écussons, statut et score : la fiche d'un pari montre les équipes
+          // comme le reste de l'application, et dit si le match est en cours.
+          home_team_logo: b.pronostic.match.homeTeamLogo,
+          away_team_logo: b.pronostic.match.awayTeamLogo,
+          status:         statutPublic(b.pronostic.match.status),
+          home_score:     b.pronostic.match.homeScore,
+          away_score:     b.pronostic.match.awayScore,
         },
         prediction_label: b.pronostic.predictionLabel,
         confidence_score: b.pronostic.confidenceScore,
@@ -238,6 +245,13 @@ export const adminGetBankrollDetail = async (req: AdminRequest, res: Response) =
             away_team:  b.pronostic.match.awayTeam,
             match_date: b.pronostic.match.matchDate,
             league:     b.pronostic.match.league,
+            // Écussons, statut et score : la fiche d'un pari montre les équipes
+            // comme le reste de l'application, et dit si le match est en cours.
+            home_team_logo: b.pronostic.match.homeTeamLogo,
+            away_team_logo: b.pronostic.match.awayTeamLogo,
+            status:         statutPublic(b.pronostic.match.status),
+            home_score:     b.pronostic.match.homeScore,
+            away_score:     b.pronostic.match.awayScore,
           },
           prediction_label: b.pronostic.predictionLabel,
           confidence_score: b.pronostic.confidenceScore,
@@ -248,3 +262,9 @@ export const adminGetBankrollDetail = async (req: AdminRequest, res: Response) =
     });
   } catch (e: any) { repondreErreur(res, e); }
 };
+
+/** Le statut d'un match tel que l'application le lit partout. */
+function statutPublic(statut: string): 'live' | 'finished' | 'upcoming' {
+  const s = statut.toLowerCase();
+  return s === 'live' ? 'live' : s === 'finished' ? 'finished' : 'upcoming';
+}

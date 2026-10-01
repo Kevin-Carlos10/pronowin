@@ -19,6 +19,14 @@ class BankrollBet {
   final String  homeTeam;
   final String  awayTeam;
   final String  league;
+  /// Coup d'envoi du match — pas la date du pari. Nul côté serveur ancien.
+  final DateTime? matchDate;
+  final String? homeTeamLogo;
+  final String? awayTeamLogo;
+  /// 'upcoming' | 'live' | 'finished', comme partout ; nul côté serveur ancien.
+  final String? matchStatus;
+  final int?    homeScore;
+  final int?    awayScore;
   final String  predictionLabel;
   final int     confidenceScore;
   /// Indice saisi par l'analyste ; nul côté serveur ancien.
@@ -45,6 +53,12 @@ class BankrollBet {
     required this.homeTeam,
     required this.awayTeam,
     required this.league,
+    this.matchDate,
+    this.homeTeamLogo,
+    this.awayTeamLogo,
+    this.matchStatus,
+    this.homeScore,
+    this.awayScore,
     required this.predictionLabel,
     required this.confidenceScore,
     this.confidencePct,
@@ -71,6 +85,12 @@ class BankrollBet {
     homeTeam:        (j['match'] as Map)['home_team'] as String,
     awayTeam:        (j['match'] as Map)['away_team'] as String,
     league:          (j['match'] as Map)['league'] as String,
+    matchDate:       DateTime.tryParse((j['match'] as Map)['match_date'] as String? ?? '')?.toLocal(),
+    homeTeamLogo:    (j['match'] as Map)['home_team_logo'] as String?,
+    awayTeamLogo:    (j['match'] as Map)['away_team_logo'] as String?,
+    matchStatus:     (j['match'] as Map)['status'] as String?,
+    homeScore:       ((j['match'] as Map)['home_score'] as num?)?.toInt(),
+    awayScore:       ((j['match'] as Map)['away_score'] as num?)?.toInt(),
     predictionLabel: j['prediction_label'] as String,
     confidenceScore: (j['confidence_score'] as num).toInt(),
     confidencePct:   (j['confidence_pct'] as num?)?.toInt(),

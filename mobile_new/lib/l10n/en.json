@@ -357,9 +357,7 @@
   "Détail du pari": "Bet details",
   "Pronostic choisi": "Selected prediction",
   "Cote  {arg0}": "Odds  {arg0}",
-  "Confiance  {arg0}": "Confidence  {arg0}",
   "Retour si gagné": "Return if won",
-  "dont bénéfice": "including profit",
   "Mise remboursée": "Stake refunded",
   "Résultat net": "Net result",
   "Pari placé le {arg0}": "Bet placed on {arg0}",
@@ -1273,5 +1271,16 @@
   "INDICE DE CONFIANCE": "CONFIDENCE INDEX",
   "Pronostic : {arg0}{arg1}.{arg2} Indice de confiance de l’analyste {arg3}, {arg4}.{arg5}": "Prediction: {arg0}{arg1}.{arg2} Analyst confidence index {arg3}, {arg4}.{arg5}",
   "{arg0} contre {arg1}, {arg2}. Pronostic : {arg3}. Indice de confiance {arg4}. Cote recommandée {arg5}.": "{arg0} vs {arg1}, {arg2}. Prediction: {arg3}. Confidence index {arg4}. Recommended odds {arg5}.",
-  ", indice de confiance {arg0}": ", confidence index {arg0}"
+  ", indice de confiance {arg0}": ", confidence index {arg0}",
+  "Match en cours": "Match in progress",
+  "Match terminé, résultat en cours de calcul": "Match over, result being settled",
+  "{arg0} h {arg1}": "{arg0}h{arg1}",
+  "Coup d'envoi dans {arg0}": "Kick-off in {arg0}",
+  "Coup d'envoi le {arg0}": "Kick-off on {arg0}",
+  "{arg0} contre {arg1}, {arg2}. Ouvrir le match.": "{arg0} vs {arg1}, {arg2}. Open the match.",
+  "Voir l'analyse du match": "See the match analysis",
+  "Indice de confiance {arg0}": "Confidence index {arg0}",
+  "Si gagné": "If won",
+  "Si perdu": "If lost",
+  "Retour total si gagné : {arg0}": "Total return if won: {arg0}"
 }
