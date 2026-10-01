@@ -51,10 +51,12 @@ deux en parallèle.
 | `com.pronowin.premium.monthly` | 1 mois | 14,99 $ |
 | `com.pronowin.premium.annual`  | 1 an   | 134,99 $ |
 
-Apple ne propose que des paliers : il n'existe pas de 15,00 $ exact. Si tu
-retiens 14,99 $ / 134,99 $, ajuste `PREMIUM_PRICE_USD_STORE_MONTHLY` et
-`PREMIUM_PRICE_USD_STORE_ANNUAL` pour que les écrans d'accroche annoncent le
-même montant.
+Apple ne propose que des paliers : il n'existe pas de 15,00 $ exact. Les
+abonnements ont été créés à 14,99 $ / 134,99 $ (30 septembre 2026), valeurs
+par défaut de `PREMIUM_PRICE_USD_STORE_MONTHLY` et
+`PREMIUM_PRICE_USD_STORE_ANNUAL`. En cas de changement de palier, ajuste-les
+pour que les écrans d'accroche annoncent le même montant. Sur iPhone, l'app
+affiche de toute façon le prix du catalogue dès qu'il est chargé.
 
 Chaque abonnement exige, avant de pouvoir être soumis : un nom affiché, une
 description, une capture d'écran de l'écran d'achat, et au moins un tarif.

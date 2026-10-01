@@ -74,8 +74,11 @@ const ECHANTILLON_MINIMAL_PROMO = 10;
 // App Store Connect et la Play Console qui fait foi, et l'écran d'achat
 // affiche celui que le store renvoie (déjà localisé et taxé). Elles ne servent
 // qu'aux écrans d'accroche (« à partir de X »), qui doivent rester cohérents.
-export const PREMIUM_PRICE_USD_STORE_MONTHLY = parseFloat(process.env.PREMIUM_PRICE_USD_STORE_MONTHLY ?? '15');
-export const PREMIUM_PRICE_USD_STORE_ANNUAL  = parseFloat(process.env.PREMIUM_PRICE_USD_STORE_ANNUAL  ?? '135');
+// Les paliers créés dans App Store Connect (30 septembre 2026). Apple n'a pas
+// de 15,00 $ : 15 et 135 annonçaient sur les écrans d'accroche un prix qui
+// n'était pas celui débité.
+export const PREMIUM_PRICE_USD_STORE_MONTHLY = parseFloat(process.env.PREMIUM_PRICE_USD_STORE_MONTHLY ?? '14.99');
+export const PREMIUM_PRICE_USD_STORE_ANNUAL  = parseFloat(process.env.PREMIUM_PRICE_USD_STORE_ANNUAL  ?? '134.99');
 
 /**
  * Code d'affiliation partenaire — **aucun repli**.
