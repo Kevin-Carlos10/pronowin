@@ -16,6 +16,7 @@ import '../../../../shared/utils/retour.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../../../core/config/pages_legales.dart';
 import '../../../../core/services/analyse_usage.dart';
+import '../../../../shared/utils/messages.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -104,12 +105,7 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
         });
       } else if (state is AuthError) {
         HapticFeedback.mediumImpact();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(state.message),
-          backgroundColor: AppColors.fondErreur,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ));
+        afficherMessage(context, state.message, type: TypeMessage.erreur);
       }
     });
 

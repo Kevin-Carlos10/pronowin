@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../constants/app_constants.dart';
+import '../../shared/utils/messages.dart';
 
 /// Les pages légales publiées sur le site.
 ///
@@ -101,19 +102,17 @@ class PagesLegales {
     if (ouverte) return;
 
     debugPrint('[Légal] aucun navigateur n\'a pris $url');
-    messager?.showSnackBar(SnackBar(
-      content: Text(
-        titre.isEmpty
-            ? trCurrent("Impossible d'ouvrir le navigateur.\n{arg0}", [url])
-            : trCurrent("Impossible d'ouvrir « {arg0} ».\n{arg1}", [trCurrent(titre), url]),
-      ),
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 8),
+    afficherMessageVia(messager,
+      titre.isEmpty
+          ? trCurrent("Impossible d'ouvrir le navigateur.\n{arg0}", [url])
+          : trCurrent("Impossible d'ouvrir « {arg0} ».\n{arg1}", [trCurrent(titre), url]),
+      type: TypeMessage.erreur,
+      duree: const Duration(seconds: 8),
       action: SnackBarAction(
         label: trCurrent("Copier"),
         onPressed: () => Clipboard.setData(ClipboardData(text: url)),
       ),
-    ));
+    );
   }
 
   /// Le titre de la barre, pour chaque page.

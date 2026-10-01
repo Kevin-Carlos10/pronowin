@@ -45,7 +45,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
           Container(width: 32, height: 32,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryLight],
+                colors: AppColors.degradeMarque,
                 begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(9),
               boxShadow: const [BoxShadow(color: Color(0x59E8541A),
@@ -71,7 +71,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                 key: ValueKey(unread),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: context.cl.error,
+                  color: AppColors.fondErreur,
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: const [BoxShadow(color: Color(0x66EF4444),
                     blurRadius: 6, offset: Offset(0, 2))]),
@@ -168,7 +168,7 @@ class _FilterBar extends ConsumerWidget {
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 if (type != null) ...[
                   Icon(_typeIcon(type), size: 13,
-                    color: sel ? Colors.white : _typeColor(type)),
+                    color: sel ? Colors.white : _typeColor(context, type)),
                   const SizedBox(width: 5),
                 ],
                 Text(label,
@@ -183,7 +183,7 @@ class _FilterBar extends ConsumerWidget {
     );
   }
 
-  Color _typeColor(NotificationType t) => couleurDeType(t);
+  Color _typeColor(BuildContext context, NotificationType t) => context.cl.lisible(couleurDeType(t));
   IconData _typeIcon(NotificationType t) => iconeDeType(t);
 }
 
@@ -401,8 +401,8 @@ class _NotifTile extends StatelessWidget {
         Container(
           width: 40, height: 40,
           decoration: BoxDecoration(
-            color: _typeColor.withValues(alpha: 0.12), shape: BoxShape.circle),
-          child: Icon(_typeIcon, color: _typeColor, size: 20),
+            color: _typeColor(context).withValues(alpha: 0.12), shape: BoxShape.circle),
+          child: Icon(_typeIcon, color: _typeColor(context), size: 20),
         ),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -427,7 +427,7 @@ class _NotifTile extends StatelessWidget {
     ),
   );
 
-  Color get _typeColor => couleurDeType(notif.type);
+  Color _typeColor(BuildContext context) => context.cl.lisible(couleurDeType(notif.type));
   IconData get _typeIcon => iconeDeType(notif.type);
 
   String _formatDate(DateTime d) {

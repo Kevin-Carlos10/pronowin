@@ -69,7 +69,7 @@ class _MiserButtonState extends ConsumerState<_MiserButton> {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           gradient: LinearGradient(
-            colors: [context.cl.success, Color(0xFF059669)],
+            colors: AppColors.degradeSucces,
             begin: Alignment.topLeft, end: Alignment.bottomRight),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [BoxShadow(

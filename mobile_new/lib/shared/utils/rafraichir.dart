@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 
+import 'messages.dart';
+
 /// Attend que des chargements relancés soient revenus.
 ///
 /// `ref.invalidate` rend la main tout de suite. Un `onRefresh` qui s'arrête là
@@ -22,9 +24,7 @@ Future<bool> attendreChargements(Iterable<Future<Object?>> chargements) async {
 /// Dit que l'actualisation a échoué, sans retirer ce qui est déjà affiché.
 void signalerActualisationImpossible(BuildContext context) {
   if (!context.mounted) return;
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(
-      content: Text(tr(context, "Actualisation impossible. Vérifie ta connexion, puis réessaie.")),
-    ));
+  afficherMessage(context,
+      tr(context, "Actualisation impossible. Vérifie ta connexion, puis réessaie."),
+      type: TypeMessage.erreur);
 }

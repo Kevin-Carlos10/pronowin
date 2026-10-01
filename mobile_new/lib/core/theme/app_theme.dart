@@ -26,6 +26,18 @@ class AppColors {
   static const fondAlerte = Color(0xFFB45309); // 5,02:1
   static const fondInfo   = Color(0xFF1D4ED8); // 6,70:1
 
+  // Dégradés de marque. L'ancien, orange → jaune (#E8541A → #F5A623), portait
+  // du texte blanc : 2,03:1 du côté jaune.
+  /// Boutons et bandeaux qui portent du **texte** blanc : 5,02:1 au point le
+  /// plus clair.
+  static const degradeBouton = [Color(0xFFC2410C), Color(0xFFB45309)];
+  /// Pastilles d'icône ou d'initiale : blanc ≥ 3,19:1, seuil des icônes et des
+  /// grands caractères (3:1).
+  static const degradeMarque = [primary, Color(0xFFD97706)];
+  /// Boutons et pastilles verts qui portent du blanc : ≥ 5,02:1. Le vert vif
+  /// (#22C55E, #34D399) n'en tenait que 2,28.
+  static const degradeSucces = [Color(0xFF15803D), Color(0xFF166534)];
+
   // ─── Thème SOMBRE — gardés pour compatibilité ────────────────────────────
   static const background  = Color(0xFF0A0E1A);
   static const surface     = Color(0xFF151B2E);
@@ -87,15 +99,36 @@ class AppCl {
   // teinte** (pastille à 12–15 % sur blanc ou sur le fond) — c'est là que
   // ces couleurs portent leurs libellés les plus petits.
   //
-  // Le thème sombre garde les vives : rien n'y change.
+  // Le thème sombre garde les vives, sauf trois : rouge, bleu et orange
+  // tombaient à 3,9:1 sur leur propre pastille. Leurs variantes un ton plus
+  // claires tiennent 5:1. Les aplats qui portent du blanc ne passent plus par
+  // ces accesseurs mais par `AppColors.fond*` : un rouge plus clair y aurait
+  // perdu du contraste.
   Color get success   => isDark ? const Color(0xFF22C55E) : const Color(0xFF14713A);
-  Color get error     => isDark ? const Color(0xFFEF4444) : const Color(0xFFB91C1C);
+  Color get error     => isDark ? const Color(0xFFF87171) : const Color(0xFFB91C1C);
   Color get warning   => isDark ? const Color(0xFFF59E0B) : const Color(0xFF92400E);
-  Color get info      => isDark ? const Color(0xFF3B82F6) : const Color(0xFF1D4ED8);
+  Color get info      => isDark ? const Color(0xFF60A5FA) : const Color(0xFF1D4ED8);
   /// L'orange de la marque comme couleur de texte.
-  Color get accent    => isDark ? const Color(0xFFE8541A) : const Color(0xFFB4380A);
+  Color get accent    => isDark ? const Color(0xFFF97316) : const Color(0xFFB4380A);
   /// L'or « Premium » comme couleur de texte.
   Color get dore      => isDark ? const Color(0xFFF5A623) : const Color(0xFF92400E);
+
+  /// La version lisible, dans ce thème, d'une teinte vive d'[AppColors].
+  ///
+  /// Les tables de couleurs — catégories, niveaux, types de notification,
+  /// forme V/N/D — restent écrites avec les constantes vives ; c'est à
+  /// l'affichage qu'on passe par ici. En clair, un point vert #22C55E sur
+  /// blanc fait 2,28:1, sous les 3:1 demandés aux éléments graphiques. Toute
+  /// autre couleur revient telle quelle.
+  Color lisible(Color vive) {
+    if (vive == AppColors.success) return success;
+    if (vive == AppColors.error) return error;
+    if (vive == AppColors.warning) return warning;
+    if (vive == AppColors.info) return info;
+    if (vive == AppColors.primary) return accent;
+    if (vive == AppColors.primaryLight) return dore;
+    return vive;
+  }
 
   // Aliases courts ↔ noms complets (compatibilité)
   Color get borderSoft  => borderS;

@@ -796,8 +796,8 @@ class _FormRow extends StatelessWidget {
     return list;
   }
 
-  Color _dotColor(String r) =>
-    r == 'V' ? AppColors.success : r == 'N' ? AppColors.warning : AppColors.error;
+  Color _dotColor(BuildContext context, String r) => context.cl.lisible(
+    r == 'V' ? AppColors.success : r == 'N' ? AppColors.warning : AppColors.error);
 
   @override
   Widget build(BuildContext context) {
@@ -824,7 +824,7 @@ class _FormRow extends StatelessWidget {
                 width: 14, height: 14,
                 margin: const EdgeInsets.only(right: 2),
                 decoration: BoxDecoration(
-                  color: _dotColor(r).withValues(alpha: 0.85),
+                  color: _dotColor(context, r).withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Center(child: Text(r,
@@ -835,7 +835,7 @@ class _FormRow extends StatelessWidget {
                 width: 14, height: 14,
                 margin: const EdgeInsets.only(left: 2),
                 decoration: BoxDecoration(
-                  color: _dotColor(r).withValues(alpha: 0.85),
+                  color: _dotColor(context, r).withValues(alpha: 0.85),
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Center(child: Text(r,

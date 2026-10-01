@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../pronostics/presentation/widgets/moderation_commentaire.dart';
+import '../../../../shared/utils/messages.dart';
 
 /// Les membres que l'on a bloqués depuis les commentaires, et le moyen de
 /// revenir sur ce choix.
@@ -62,12 +63,10 @@ class MembresBloquesPage extends ConsumerWidget {
                       try {
                         await debloquerMembre(ref.read(dioProvider), m.userId);
                         ref.invalidate(membresBloquesProvider);
-                        messager.showSnackBar(SnackBar(
-                          content: Text(message), behavior: SnackBarBehavior.floating));
+                        afficherMessageVia(messager, message, type: TypeMessage.succes);
                       } catch (e) {
                         if (context.mounted) {
-                          messager.showSnackBar(SnackBar(
-                            content: Text(messageRefus(context, e)), behavior: SnackBarBehavior.floating));
+                          afficherMessageVia(messager, messageRefus(context, e), type: TypeMessage.erreur);
                         }
                       }
                     },

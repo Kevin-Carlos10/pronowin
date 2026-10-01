@@ -16,6 +16,7 @@ import '../providers/security_provider.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../core/config/pages_legales.dart';
 import '../../../../shared/widgets/logotype_pronowin.dart';
+import '../../../../shared/utils/messages.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -149,21 +150,13 @@ class ParametresPage extends ConsumerWidget {
                       if (ok) {
                         await ref.read(settingsProvider.notifier).setBioEnabled(true);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-                            content: Text(tr(context, "Biométrie activée")),
-                            backgroundColor: AppColors.fondSucces,
-                            behavior: SnackBarBehavior.floating,
-                          ));
+                          afficherMessage(context, tr(context, "Biométrie activée"), type: TypeMessage.succes);
                         }
                       }
                     } catch (e) {
                       debugPrint('[Bio] Activation refusée : $e');
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text(messageErreurBio(e)),
-                          backgroundColor: AppColors.fondErreur,
-                          behavior: SnackBarBehavior.floating,
-                        ));
+                        afficherMessage(context, messageErreurBio(e), type: TypeMessage.erreur);
                       }
                     }
                   } else {
@@ -339,10 +332,7 @@ class ParametresPage extends ConsumerWidget {
           await ref.read(settingsProvider.notifier).setPinEnabled(false);
           if (context.mounted) {
             Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-              content: Text(tr(context, "Code PIN désactivé")),
-              behavior: SnackBarBehavior.floating,
-            ));
+            afficherMessage(context, tr(context, "Code PIN désactivé"));
           }
         },
       ),
@@ -438,11 +428,7 @@ class ParametresPage extends ConsumerWidget {
           await ref.read(settingsProvider.notifier).clearCache();
           if (context.mounted) {
             Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-              content: Text(tr(context, "Cache vidé")),
-              backgroundColor: AppColors.fondSucces,
-              behavior: SnackBarBehavior.floating,
-            ));
+            afficherMessage(context, tr(context, "Cache vidé"), type: TypeMessage.succes);
           }
         },
       ),
@@ -541,7 +527,7 @@ class ParametresPage extends ConsumerWidget {
             width: 72, height: 72,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryLight],
+                colors: AppColors.degradeMarque,
                 begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(20),
               boxShadow: [BoxShadow(
@@ -758,11 +744,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr(context, "Erreur : {arg0}", [e])),
-          backgroundColor: AppColors.fondErreur,
-          behavior: SnackBarBehavior.floating,
-        ));
+        afficherMessage(context, tr(context, "Erreur : {arg0}", [e]), type: TypeMessage.erreur);
       }
     }
   }

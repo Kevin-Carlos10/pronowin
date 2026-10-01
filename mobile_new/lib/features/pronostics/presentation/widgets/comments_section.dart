@@ -15,6 +15,7 @@ import '../../../../shared/utils/premium_nav.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'moderation_commentaire.dart';
+import '../../../../shared/utils/messages.dart';
 
 // ── Modèles ───────────────────────────────────────────────────────────────────
 class PronosticComment {
@@ -145,9 +146,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
       ref.invalidate(commentsProvider(widget.pronosticId));
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(messageRefus(context, e)),
-          behavior: SnackBarBehavior.floating));
+        afficherMessage(context, messageRefus(context, e));
       }
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -176,8 +175,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
 
   void _toast(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(message), behavior: SnackBarBehavior.floating));
+    afficherMessage(context, message);
   }
 
   Future<void> _signaler(PronosticComment c) async {

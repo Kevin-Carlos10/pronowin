@@ -164,42 +164,42 @@ class _EventsList extends StatelessWidget {
   /// exactement le même filtre que le rendu.
   static bool hasNotable(List<MatchEvent> events) => events.any(_isNotable);
 
-  static Widget _eventIcon(MatchEvent e) {
+  static Widget _eventIcon(BuildContext context, MatchEvent e) {
     if (e.type == 'Goal') {
       if (e.detail == 'Own Goal') {
         return Stack(clipBehavior: Clip.none, children: [
-          Icon(Icons.sports_soccer_rounded, color: AppColors.error, size: 16),
+          Icon(Icons.sports_soccer_rounded, color: context.cl.error, size: 16),
           Positioned(right: -4, bottom: -2,
-            child: Icon(Icons.arrow_back_rounded, color: AppColors.error, size: 8)),
+            child: Icon(Icons.arrow_back_rounded, color: context.cl.error, size: 8)),
         ]);
       }
       if (e.detail == 'Penalty') {
         return Stack(clipBehavior: Clip.none, children: [
-          Icon(Icons.sports_soccer_rounded, color: AppColors.success, size: 16),
+          Icon(Icons.sports_soccer_rounded, color: context.cl.success, size: 16),
           Positioned(right: -4, bottom: -2,
-            child: Icon(Icons.gps_fixed_rounded, color: AppColors.warning, size: 8)),
+            child: Icon(Icons.gps_fixed_rounded, color: context.cl.warning, size: 8)),
         ]);
       }
       if (e.detail == 'Missed Penalty') {
         return Icon(Icons.sports_soccer_rounded,
-          color: AppColors.error.withValues(alpha: 0.5), size: 16);
+          color: context.cl.error.withValues(alpha: 0.5), size: 16);
       }
-      return Icon(Icons.sports_soccer_rounded, color: AppColors.success, size: 16);
+      return Icon(Icons.sports_soccer_rounded, color: context.cl.success, size: 16);
     }
     if (e.type == 'Card') {
       final isRed = e.detail.contains('Red');
       return Container(
         width: 11, height: 15,
         decoration: BoxDecoration(
-          color: isRed ? AppColors.error : AppColors.warning,
+          color: isRed ? context.cl.error : context.cl.warning,
           borderRadius: BorderRadius.circular(2),
         ),
       );
     }
     if (e.type == 'subst') {
-      return Icon(Icons.swap_horiz_rounded, color: AppColors.info, size: 16);
+      return Icon(Icons.swap_horiz_rounded, color: context.cl.info, size: 16);
     }
-    return const Icon(Icons.sports_soccer_rounded, color: Colors.grey, size: 16);
+    return Icon(Icons.sports_soccer_rounded, color: Colors.grey, size: 16);
   }
 
   @override
@@ -234,7 +234,7 @@ class _EventsList extends StatelessWidget {
             // colonne fixe l'axe central se déplaçait d'une ligne à l'autre.
             SizedBox(
               width: iconWidth,
-              child: Center(child: _eventIcon(e)),
+              child: Center(child: _eventIcon(context, e)),
             ),
             // Droite (extérieur)
             Expanded(child: !isHome
@@ -388,7 +388,7 @@ class _PossessionBar extends StatelessWidget {
             Expanded(
               flex: (val * 1000).round().clamp(1, 999),
               child: Container(
-                color: AppColors.primary,
+                color: AppColors.primaryBouton,
                 alignment: Alignment.centerLeft,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: FittedBox(

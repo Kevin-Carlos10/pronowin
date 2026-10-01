@@ -138,7 +138,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                       ),
                     Text(
                       DateFormat("EEE d MMM · HH:mm").format(matchDate),
-                      style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                      style: TextStyle(color: context.cl.textM, fontSize: 11)),
                   ]),
                 ]),
                 const SizedBox(height: 16),
@@ -149,29 +149,36 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                     TeamLogoWidget(url: prono['home_team_logo'] as String?, size: 52),
                     const SizedBox(height: 7),
                     Text(prono['home_team'] as String? ?? '',
-                      style: const TextStyle(color: AppColors.textPrimary,
+                      style: TextStyle(color: context.cl.textP,
                         fontSize: 12, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center, maxLines: 2,
                       overflow: TextOverflow.ellipsis),
                   ])),
+                  // Colonne centrale bornée : le nom de la ligue, sans limite
+                  // de largeur, prenait jusqu'à 170 px à 180 % et ne laissait
+                  // aux équipes que de quoi écrire « Boru / ssi… ».
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    child: Column(children: [
-                      Text('VS',
-                        style: TextStyle(color: context.cl.textM, fontSize: 20,
-                          fontWeight: FontWeight.w900, letterSpacing: 3)),
-                      const SizedBox(height: 4),
-                      Text(prono['league'] as String? ?? '',
-                        style: TextStyle(color: context.cl.textM, fontSize: 9),
-                        textAlign: TextAlign.center,
-                        maxLines: 2),
-                    ]),
+                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 96),
+                      child: Column(children: [
+                        Text('VS',
+                          style: TextStyle(color: context.cl.textM, fontSize: 20,
+                            fontWeight: FontWeight.w900, letterSpacing: 3)),
+                        const SizedBox(height: 4),
+                        Text(prono['league'] as String? ?? '',
+                          style: TextStyle(color: context.cl.textM, fontSize: 9),
+                          textAlign: TextAlign.center,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis),
+                      ]),
+                    ),
                   ),
                   Expanded(child: Column(children: [
                     TeamLogoWidget(url: prono['away_team_logo'] as String?, size: 52),
                     const SizedBox(height: 7),
                     Text(prono['away_team'] as String? ?? '',
-                      style: const TextStyle(color: AppColors.textPrimary,
+                      style: TextStyle(color: context.cl.textP,
                         fontSize: 12, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center, maxLines: 2,
                       overflow: TextOverflow.ellipsis),
@@ -232,7 +239,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                               style: TextStyle(
                                   color: isLocked
                                       ? const Color(0xFFFFD700)
-                                      : AppColors.textPrimary,
+                                      : context.cl.textP,
                                   fontSize: 13,
                                   fontWeight: FontWeight.w800,
                                   height: 1.25),
@@ -301,7 +308,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                   padding: const EdgeInsets.symmetric(vertical: 11),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [AppColors.primary, AppColors.primaryLight]),
+                      colors: AppColors.degradeBouton),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [
                       BoxShadow(color: AppColors.primary.withValues(alpha: 0.40),
@@ -397,8 +404,8 @@ class _CountUnit extends StatelessWidget {
             child: Text(
               value,
               key: ValueKey(value),
-              style: const TextStyle(
-                  color: AppColors.textPrimary,
+              style: TextStyle(
+                  color: context.cl.textP,
                   fontSize: 22,
                   fontWeight: FontWeight.w900,
                   fontFeatures: [FontFeature.tabularFigures()]),
@@ -406,8 +413,8 @@ class _CountUnit extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(label,
-              style: const TextStyle(
-                  color: AppColors.textMuted,
+              style: TextStyle(
+                  color: context.cl.textM,
                   fontSize: 8,
                   letterSpacing: 0.6)),
         ],

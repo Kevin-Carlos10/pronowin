@@ -41,7 +41,7 @@ class _SectionHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: badgeColor ?? context.cl.error,
+              color: badgeColor ?? AppColors.fondErreur,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text('$showBadge',

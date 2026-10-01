@@ -9,6 +9,7 @@ import '../providers/referral_provider.dart';
 import '../../domain/recompense_premium.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../../../shared/utils/retour.dart';
+import '../../../../shared/utils/messages.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -343,7 +344,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
           Container(
             width: 80, height: 80,
             decoration: BoxDecoration(
-              color: context.cl.success,
+              color: AppColors.fondSucces,
               shape: BoxShape.circle,
               boxShadow: [BoxShadow(color: context.cl.success.withValues(alpha: 0.35),
                 blurRadius: 20, offset: const Offset(0, 8))],
@@ -384,10 +385,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg), backgroundColor: AppColors.fondErreur,
-      behavior: SnackBarBehavior.floating,
-    ));
+    afficherMessage(context, msg, type: TypeMessage.erreur);
     ref.read(withdrawProvider.notifier).reset();
   }
 }

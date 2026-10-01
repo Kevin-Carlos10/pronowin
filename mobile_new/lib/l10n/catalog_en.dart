@@ -1273,4 +1273,5 @@ const englishMessages = <String, String>{
   "Actualisation impossible. Vérifie ta connexion, puis réessaie.": "Couldn't refresh. Check your connection, then try again.",
   "tes statistiques": "your statistics",
   "ce match": "this match",
+  "Traitement en cours": "Processing",
 };

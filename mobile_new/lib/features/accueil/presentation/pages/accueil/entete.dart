@@ -103,7 +103,7 @@ class _SliverHeader extends ConsumerWidget {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                               decoration: BoxDecoration(
-                                color: context.cl.error,
+                                color: AppColors.fondErreur,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: context.cl.bg, width: 1.5),
                               ),
@@ -142,7 +142,7 @@ class _SliverHeader extends ConsumerWidget {
                       width: 40, height: 40,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [AppColors.primary, AppColors.primaryLight],
+                          colors: AppColors.degradeMarque,
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -625,8 +625,8 @@ class _PremiumBanner extends ConsumerWidget {
                           ]),
                           const SizedBox(height: 5),
                           Text(headline,
-                            style: const TextStyle(
-                              color: AppColors.textPrimary,
+                            style: TextStyle(
+                              color: context.cl.textP,
                               fontSize: 13, fontWeight: FontWeight.w700,
                               height: 1.3)),
                         ],
@@ -638,7 +638,7 @@ class _PremiumBanner extends ConsumerWidget {
                           horizontal: 18, vertical: 10),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                            colors: [AppColors.primary, AppColors.primaryLight]),
+                            colors: AppColors.degradeBouton),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
@@ -691,8 +691,8 @@ class _LockedPronoPreview extends StatelessWidget {
                 TeamLogoWidget(url: homeLogoUrl, size: 40),
                 const SizedBox(height: 6),
                 Text(homeTeam,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.cl.textP,
                     fontSize: 11, fontWeight: FontWeight.w700),
                   textAlign: TextAlign.center,
                   maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -700,9 +700,9 @@ class _LockedPronoPreview extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 12),
                 child: Column(children: [
-                  const Text('VS',
+                  Text('VS',
                     style: TextStyle(
-                      color: AppColors.textMuted, fontSize: 16,
+                      color: context.cl.textM, fontSize: 16,
                       fontWeight: FontWeight.w900, letterSpacing: 2)),
                   const SizedBox(height: 4),
                   if (oddsRec != null)
@@ -723,8 +723,8 @@ class _LockedPronoPreview extends StatelessWidget {
                 TeamLogoWidget(url: awayLogoUrl, size: 40),
                 const SizedBox(height: 6),
                 Text(awayTeam,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    color: context.cl.textP,
                     fontSize: 11, fontWeight: FontWeight.w700),
                   textAlign: TextAlign.center,
                   maxLines: 2, overflow: TextOverflow.ellipsis),
@@ -757,8 +757,8 @@ class _LockedPronoPreview extends StatelessWidget {
                         color: AppColors.primary, size: 13),
                     const SizedBox(width: 6),
                     Text(predLabel,
-                      style: const TextStyle(
-                        color: AppColors.textPrimary,
+                      style: TextStyle(
+                        color: context.cl.textP,
                         fontSize: 13, fontWeight: FontWeight.w800),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],

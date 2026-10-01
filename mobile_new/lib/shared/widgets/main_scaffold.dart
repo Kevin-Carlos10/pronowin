@@ -142,6 +142,17 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   }
 }
 
+/// La barre seule, pour les bancs de mise en page : la monter dans
+/// [MainScaffold] chargerait les cinq onglets.
+@visibleForTesting
+Widget barreNavigationSeule({int index = 0}) => _FloatingNavBar(
+      currentIndex: index,
+      items: _MainScaffoldState._navItems,
+      iconScales: List.filled(5, const AlwaysStoppedAnimation<double>(1)),
+      bottomPadding: 0,
+      onTap: (_) {},
+    );
+
 // ─── DATA ─────────────────────────────────────────────────────────────────────
 class _NavItemData {
   final IconData icon;
@@ -196,17 +207,21 @@ class _FloatingNavBar extends StatelessWidget {
                 ),
               ],
             ),
+            // Cinq cases qui se partagent la largeur. Elles faisaient 60 px
+            // chacune : 300 px de cases et 24 de marges pour un écran de 320.
+            // La zone tactile couvre maintenant toute la case.
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: List.generate(items.length, (i) {
                 final item = items[i];
                 final sel = i == currentIndex;
 
-                return _NavItemWidget(
-                  item: item,
-                  isSelected: sel,
-                  scale: iconScales[i],
-                  onTap: () => onTap(i),
+                return Expanded(
+                  child: _NavItemWidget(
+                    item: item,
+                    isSelected: sel,
+                    scale: iconScales[i],
+                    onTap: () => onTap(i),
+                  ),
                 );
               }),
             ),
@@ -242,7 +257,7 @@ class _NavItemWidget extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: ExcludeSemantics(
           child: SizedBox(
-            width: 60,
+            width: double.infinity,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -278,7 +293,15 @@ class _NavItemWidget extends StatelessWidget {
                     fontSize: BottomNavMetrics.taillePolice,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                   ),
-                  child: Text(tr(context, item.label)),
+                  // Réduit seulement s'il ne tient pas : « Tutoriels » à
+                  // 180 % est plus large qu'une case de 320 px.
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(tr(context, item.label), maxLines: 1),
+                    ),
+                  ),
                 ),
               ],
             ),

@@ -264,7 +264,7 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
       // écrit et une application qu'on vient de déclarer périmée.
       canPop: !widget.bloquant && !enCours,
       child: Scaffold(
-        backgroundColor: AppColors.background,
+        backgroundColor: context.cl.bg,
         // ── La photo occupe le haut, le texte tient le bas ─────────────
         //
         // L'écran empilait un logo de 88 px, un titre et un sous-titre centrés
@@ -296,12 +296,12 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
                   // icône cassée : le fond uni suffit, le texte reste lisible.
                   errorBuilder: (_, _, _) => const SizedBox.shrink(),
                 ),
-                const DecoratedBox(
+                DecoratedBox(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
                       begin: Alignment.center,
                       end: Alignment.bottomCenter,
-                      colors: [Colors.transparent, AppColors.background],
+                      colors: [Colors.transparent, context.cl.bg],
                       stops: [0.45, 1.0],
                     ),
                   ),
@@ -334,7 +334,7 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
                       style: TextStyle(
                         color: _etape == _Etape.echec
                             ? context.cl.warning
-                            : AppColors.textSecondary,
+                            : context.cl.textS,
                         fontSize: 15,
                         height: 1.5,
                       ),
@@ -387,7 +387,7 @@ class _Progression extends StatelessWidget {
             // pire qu'aucun.
             value: avancement,
             minHeight: 8,
-            backgroundColor: AppColors.border,
+            backgroundColor: context.cl.border,
             valueColor: const AlwaysStoppedAnimation(AppColors.primary),
           ),
         ),
@@ -442,7 +442,7 @@ class _Boutons extends StatelessWidget {
             key: const Key('maj-action'),
             onPressed: onLancer,
             style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
+              backgroundColor: AppColors.primaryBouton,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -493,7 +493,7 @@ class _Boutons extends StatelessWidget {
             onPressed: onPlusTard,
             child:  Text(
               tr(context, "Plus tard"),
-              style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
+              style: TextStyle(color: context.cl.textS, fontSize: 14),
             ),
           ),
         ],

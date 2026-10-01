@@ -104,7 +104,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
               width: 72, height: 72,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryLight],
+                  colors: AppColors.degradeMarque,
                   begin: Alignment.topLeft, end: Alignment.bottomRight),
                 borderRadius: BorderRadius.circular(20)),
               child: const Icon(Icons.lock_rounded, color: Colors.white, size: 36),

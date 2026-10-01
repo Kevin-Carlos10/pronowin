@@ -251,7 +251,7 @@ class _HeaderCard extends StatelessWidget {
         width: 46, height: 46,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [AppColors.primary, AppColors.primaryLight],
+            colors: AppColors.degradeMarque,
             begin: Alignment.topLeft, end: Alignment.bottomRight),
           borderRadius: BorderRadius.circular(14)),
         child: Icon(icon, color: Colors.white, size: 22)),

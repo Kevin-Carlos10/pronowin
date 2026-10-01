@@ -11,6 +11,7 @@ import '../../../../core/config/distribution_channel.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../shared/utils/partage_parrainage.dart';
 import '../../../../shared/utils/rafraichir.dart';
+import '../../../../shared/utils/messages.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -334,12 +335,7 @@ class _ReferralCodeCard extends StatelessWidget {
         onTap: () {
           HapticFeedback.lightImpact();
           Clipboard.setData(ClipboardData(text: code));
-          ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-            content: Text(tr(context, "Code copié ! 📋")),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.fondSucces,
-            duration: Duration(seconds: 2),
-          ));
+          afficherMessage(context, tr(context, "Code copié ! 📋"), type: TypeMessage.succes, duree: Duration(seconds: 2));
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -415,12 +411,7 @@ class _ReferralCodeCard extends StatelessWidget {
               onTap: () {
                 Clipboard.setData(ClipboardData(text: message));
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-                  content: Text(tr(context, "Message copié ! Collez-le sur WhatsApp, SMS… 📤")),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.fondSucces,
-                  duration: Duration(seconds: 3),
-                ));
+                afficherMessage(context, tr(context, "Message copié ! Collez-le sur WhatsApp, SMS… 📤"), type: TypeMessage.succes, duree: Duration(seconds: 3));
               },
             ),
             const SizedBox(width: 12),
@@ -430,12 +421,7 @@ class _ReferralCodeCard extends StatelessWidget {
               onTap: () {
                 Clipboard.setData(ClipboardData(text: code));
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text(tr(context, "Code {arg0} copié ! 📋", [code])),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.fondSucces,
-                  duration: const Duration(seconds: 2),
-                ));
+                afficherMessage(context, tr(context, "Code {arg0} copié ! 📋", [code]), type: TypeMessage.succes, duree: Duration(seconds: 2));
               },
             ),
             const SizedBox(width: 12),
@@ -445,12 +431,7 @@ class _ReferralCodeCard extends StatelessWidget {
               onTap: () {
                 Clipboard.setData(ClipboardData(text: message));
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-                  content: Text(tr(context, "Message copié ! Ouvrez WhatsApp et collez. ✅")),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.fondSucces,
-                  duration: Duration(seconds: 3),
-                ));
+                afficherMessage(context, tr(context, "Message copié ! Ouvrez WhatsApp et collez. ✅"), type: TypeMessage.succes, duree: Duration(seconds: 3));
               },
             ),
           ]),
@@ -479,21 +460,13 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
 
     ref.listen<ApplyCodeState>(applyCodeProvider, (_, s) {
       if (s is ApplyCodeSuccess) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr(context, "✅ {arg0} est ton parrain !", [s.referrerPseudo])),
-          backgroundColor: AppColors.fondSucces,
-          behavior: SnackBarBehavior.floating,
-        ));
+        afficherMessage(context, tr(context, "✅ {arg0} est ton parrain !", [s.referrerPseudo]), type: TypeMessage.succes);
         ref.invalidate(referralStatsProvider);
         ref.read(applyCodeProvider.notifier).reset();
         setState(() => _expanded = false);
       }
       if (s is ApplyCodeError) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(s.message),
-          backgroundColor: AppColors.fondErreur,
-          behavior: SnackBarBehavior.floating,
-        ));
+        afficherMessage(context, s.message, type: TypeMessage.erreur);
         ref.read(applyCodeProvider.notifier).reset();
       }
     });

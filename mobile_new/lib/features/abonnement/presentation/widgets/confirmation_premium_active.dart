@@ -35,7 +35,7 @@ class ConfirmationPremiumActive extends StatelessWidget {
         width: 72, height: 72,
         decoration: BoxDecoration(
           gradient: const LinearGradient(
-            colors: [AppColors.primary, AppColors.primaryLight],
+            colors: AppColors.degradeMarque,
             begin: Alignment.topLeft, end: Alignment.bottomRight),
           shape: BoxShape.circle,
           boxShadow: [BoxShadow(

@@ -15,6 +15,7 @@ import '../../domain/entities/tutorial_entity.dart';
 import '../providers/tutorial_provider.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
 import '../../../../shared/utils/retour.dart';
+import '../../../../shared/utils/messages.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -86,30 +87,15 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
       _checkCtrl.reverse();
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        key: Key(enregistre ? 'tutoriel-termine' : 'tutoriel-non-enregistre'),
-        content: Row(children: [
-          Icon(
-              enregistre
-                  ? Icons.check_circle_rounded
-                  : Icons.cloud_off_rounded,
-              color: Colors.white,
-              size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              enregistre
-                  ? tr(context, "Tutoriel marqué comme terminé !")
-                  : tr(context, "Progression non enregistrée : vérifie ta connexion et retouche « Terminé »."),
-              style: const TextStyle(fontWeight: FontWeight.w600)),
-          ),
-        ]),
-        backgroundColor: enregistre ? AppColors.fondSucces : context.cl.warning,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        duration: Duration(seconds: enregistre ? 2 : 4),
-      ),
+    // Non enregistré : une alerte, sur un fond où le blanc se lit. C'était
+    // `warning` vif — 2,15:1 en thème sombre.
+    afficherMessage(context,
+      enregistre
+          ? tr(context, "Tutoriel marqué comme terminé !")
+          : tr(context, "Progression non enregistrée : vérifie ta connexion et retouche « Terminé »."),
+      type: enregistre ? TypeMessage.succes : TypeMessage.alerte,
+      cle: Key(enregistre ? 'tutoriel-termine' : 'tutoriel-non-enregistre'),
+      duree: Duration(seconds: enregistre ? 2 : 4),
     );
   }
 
@@ -174,7 +160,7 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
   }
 
   Widget _contenu(BuildContext context, TutorialEntity t) {
-    final catColor = _categoryColor(t.category);
+    final catColor = context.cl.lisible(_categoryColor(t.category));
     // Le verrou regardait le tutoriel, jamais le lecteur.
     //
     // `isPremiumLocked = t.isPremium` : un abonné se voyait donc refuser un
@@ -1095,7 +1081,7 @@ class _BottomBarState extends State<_BottomBar>
               decoration: BoxDecoration(
                 gradient: widget.completed
                     ? LinearGradient(
-                        colors: [context.cl.success, Color(0xFF22C55E)])
+                        colors: AppColors.degradeSucces)
                     : LinearGradient(
                         colors: [widget.catColor, widget.catColor.withValues(alpha: 0.8)]),
                 borderRadius: BorderRadius.circular(16),

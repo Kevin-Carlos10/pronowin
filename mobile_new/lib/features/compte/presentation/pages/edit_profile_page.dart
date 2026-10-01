@@ -15,6 +15,7 @@ import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/compte_provider.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../shared/utils/age.dart';
+import '../../../../shared/utils/messages.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -278,7 +279,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 width: 88, height: 88,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryLight]),
+                    colors: AppColors.degradeMarque),
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [BoxShadow(
                     color: AppColors.primary.withValues(alpha: 0.3),
@@ -475,12 +476,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   int _getAge(DateTime dob) => ageRevolu(dob);
 
   void _showSnack(String msg, {bool isError = false}) =>
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? AppColors.fondErreur : context.cl.success,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+    afficherMessage(context, msg, type: isError ? TypeMessage.erreur : TypeMessage.succes);
 }
 
 // ─── Option avatar dans le bottom sheet ──────────────────────────────────────

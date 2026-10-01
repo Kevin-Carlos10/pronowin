@@ -90,10 +90,7 @@ class _ShareSheetState extends State<_ShareSheet> {
       );
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(tr(context, "Erreur de capture : {arg0}", [e])),
-          behavior: SnackBarBehavior.floating,
-        ));
+        afficherMessage(context, tr(context, "Erreur de capture : {arg0}", [e]));
       }
     } finally {
       if (mounted) setState(() => _capturing = false);
@@ -166,7 +163,7 @@ class _ShareSheetState extends State<_ShareSheet> {
                     : const Icon(Icons.image_rounded, size: 18),
                 label: Text(_capturing ? tr(context, "Génération…") : tr(context, "Partager l'image")),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
+                  backgroundColor: AppColors.primaryBouton,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
@@ -210,11 +207,7 @@ class _ShareSheetState extends State<_ShareSheet> {
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: text));
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-                    content: Text(tr(context, "Pronostic copié !")),
-                    behavior: SnackBarBehavior.floating,
-                    duration: Duration(seconds: 2),
-                  ));
+                  afficherMessage(context, tr(context, "Pronostic copié !"), duree: Duration(seconds: 2));
                 },
               )),
             ]),

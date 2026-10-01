@@ -38,6 +38,7 @@ import '../../../../core/config/bookmaker_affiliation.dart';
 import '../../../../core/services/analyse_usage.dart';
 import '../../../../core/network/failures.dart';
 import '../../../../shared/widgets/erreur_chargement.dart';
+import '../../../../shared/utils/messages.dart';
 
 
 // Découpé en fichiers `part` : le fichier faisait 3 604 lignes pour une
@@ -1532,7 +1533,7 @@ class _PremiumBannerState extends ConsumerState<_PremiumBanner>
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
-            color: AppColors.primary,
+            color: AppColors.primaryBouton,
             borderRadius: BorderRadius.circular(20)),
           child: Text(priceLabel, style: const TextStyle(
             color: Colors.white, fontSize: 12,

@@ -20,6 +20,7 @@ import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/utils/partage_parrainage.dart';
+import '../../../../shared/utils/messages.dart';
 
 
 /// Tout ce que l'ecran du compte lit pour cet utilisateur.
@@ -117,7 +118,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                   padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [AppColors.primary, AppColors.primaryLight]),
+                      colors: AppColors.degradeBouton),
                     borderRadius: BorderRadius.circular(30),
                     boxShadow: [BoxShadow(
                       color: AppColors.primary.withValues(alpha: 0.35),
@@ -546,7 +547,7 @@ class _FreeState extends ConsumerWidget {
                 width: 44, height: 44,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryLight],
+                    colors: AppColors.degradeMarque,
                     begin: Alignment.topLeft, end: Alignment.bottomRight),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [BoxShadow(
@@ -576,7 +577,7 @@ class _FreeState extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(vertical: 13),
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryLight],
+                  colors: AppColors.degradeBouton,
                   begin: Alignment.centerLeft, end: Alignment.centerRight),
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [BoxShadow(
@@ -732,7 +733,7 @@ class _PremiumState extends ConsumerWidget {
               width: 44, height: 44,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryLight]),
+                  colors: AppColors.degradeMarque),
                 borderRadius: BorderRadius.circular(12)),
               child: const Icon(Icons.workspace_premium_rounded,
                 color: Colors.white, size: 24)),
@@ -1085,11 +1086,7 @@ class _ParrainageTab extends ConsumerWidget {
               tooltip: tr(context, "Copier le code"),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: refCode));
-                ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-                  content: Text(tr(context, "Code copié")),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.fondSucces,
-                  duration: Duration(seconds: 2)));
+                afficherMessage(context, tr(context, "Code copié"), type: TypeMessage.succes, duree: Duration(seconds: 2));
               },
               icon: const Icon(Icons.copy_rounded, color: _purple, size: 20)),
           ]),
@@ -1303,7 +1300,7 @@ class _ProfileAvatar extends StatelessWidget {
             decoration: const BoxDecoration(
               shape: BoxShape.circle,
               gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryLight],
+                colors: AppColors.degradeMarque,
                 begin: Alignment.topLeft, end: Alignment.bottomRight)),
             child: ClipOval(
               child: avatarUrl != null && avatarUrl!.isNotEmpty

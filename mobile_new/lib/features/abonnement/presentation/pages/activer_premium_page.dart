@@ -28,6 +28,7 @@ import '../../../../shared/utils/retour.dart';
 import '../widgets/confirmation_premium_active.dart';
 import '../../../../core/config/pages_legales.dart';
 import '../../../../core/services/analyse_usage.dart';
+import '../../../../shared/utils/messages.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -929,7 +930,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
               width: 72, height: 72,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryLight],
+                  colors: AppColors.degradeMarque,
                   begin: Alignment.topLeft, end: Alignment.bottomRight),
                 shape: BoxShape.circle,
                 boxShadow: [BoxShadow(
@@ -1004,12 +1005,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   }
 
   void _showSnack(String msg, {bool isError = false}) =>
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? AppColors.fondErreur : context.cl.success,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+    afficherMessage(context, msg, type: isError ? TypeMessage.erreur : TypeMessage.succes);
 }
 
 // ─── WIDGETS ─────────────────────────────────────────────────────────────────
@@ -1176,11 +1172,9 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
     if (ouvert) return;
 
     await Clipboard.setData(ClipboardData(text: code));
-    messager?.showSnackBar(SnackBar(
-      content: Text(trCurrent("Code copié : {arg0}\nCollez-le dans votre composeur.", [code])),
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 6),
-    ));
+    afficherMessageVia(messager,
+      trCurrent("Code copié : {arg0}\nCollez-le dans votre composeur.", [code]),
+      duree: const Duration(seconds: 6));
   }
 
   void _copier() {
@@ -1190,13 +1184,7 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
     // l'application Mobile Money attend ; l'écran, lui, montre la forme
     // groupée pour que l'œil puisse vérifier.
     Clipboard.setData(ClipboardData(text: n));
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(tr(context, "Numéro {arg0} copié !", [_operateur])),
-      backgroundColor: AppColors.fondSucces,
-      behavior: SnackBarBehavior.floating,
-      duration: const Duration(seconds: 2),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+    afficherMessage(context, tr(context, "Numéro {arg0} copié !", [_operateur]), type: TypeMessage.succes, duree: Duration(seconds: 2));
   }
 
   @override
@@ -1303,7 +1291,7 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: AppColors.primaryBouton,
                   borderRadius: BorderRadius.circular(8)),
                 child:  Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.copy_rounded, color: Colors.white, size: 14),
@@ -1363,7 +1351,7 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.primary,
+                  color: AppColors.primaryBouton,
                   borderRadius: BorderRadius.circular(8)),
                 child:  Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.dialpad_rounded, color: Colors.white, size: 14),
@@ -1592,7 +1580,7 @@ class _ImagePickerWidgetState extends State<_ImagePickerWidget>
             Positioned(top: 8, right: 8,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: context.cl.success, borderRadius: BorderRadius.circular(20)),
+                decoration: BoxDecoration(color: AppColors.fondSucces, borderRadius: BorderRadius.circular(20)),
                 child:  Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.check_rounded, color: Colors.white, size: 13),
                   SizedBox(width: 4),
@@ -1732,9 +1720,7 @@ class _PromoCodeCardState extends State<_PromoCodeCard>
       _pressCtrl.reverse();
       HapticFeedback.lightImpact();
       Clipboard.setData(ClipboardData(text: widget.promoCode));
-      ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-        content: Text(tr(context, "Code copié !")), behavior: SnackBarBehavior.floating,
-        duration: Duration(seconds: 2)));
+      afficherMessage(context, tr(context, "Code copié !"), duree: Duration(seconds: 2));
     },
     onTapCancel: () => _pressCtrl.reverse(),
     child: ScaleTransition(
@@ -2407,7 +2393,7 @@ class _IapSection extends StatelessWidget {
         child: ElevatedButton(
           onPressed: busy ? null : onBuy,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
+            backgroundColor: AppColors.primaryBouton,
             foregroundColor: Colors.white,
             disabledBackgroundColor: AppColors.primary.withValues(alpha: 0.4),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
@@ -2645,11 +2631,12 @@ class _MethodCard extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Row(children: [
+              // `Wrap` : à 180 %, le titre et son badge ne tiennent plus sur
+              // une ligne (141 px de trop) ; le badge passe dessous.
+              Wrap(spacing: 10, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
                 Text(title, style: const TextStyle(
                   color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
                 if (badge != null) ...[
-                  const SizedBox(width: 10),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(

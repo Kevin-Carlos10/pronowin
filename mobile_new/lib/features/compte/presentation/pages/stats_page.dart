@@ -76,7 +76,7 @@ class _StatsBody extends StatelessWidget {
     final leagues     = (stats['league_stats']      as List<dynamic>?) ?? [];
 
     return RefreshIndicator(
-      color: const Color(0xFFFF6B35),
+      color: AppColors.primary,
       onRefresh: onRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
@@ -89,7 +89,7 @@ class _StatsBody extends StatelessWidget {
               label: tr(context, "Taux de réussite"),
               value: '${taux.toStringAsFixed(0)}%',
               icon: Icons.percent_rounded,
-              color: taux >= 60 ? Colors.green : taux >= 45 ? Colors.orange : Colors.red,
+              color: taux >= 60 ? context.cl.success : taux >= 45 ? context.cl.warning : context.cl.error,
               sub: tr(context, "{arg0} victoires / {arg1} défaites", [gagnes, perdus]),
             )),
             const SizedBox(width: 10),
@@ -97,7 +97,7 @@ class _StatsBody extends StatelessWidget {
               label: tr(context, "Rentabilité"),
               value: '${roi >= 0 ? '+' : ''}${roi.toStringAsFixed(1)}%',
               icon: Icons.trending_up_rounded,
-              color: roi >= 0 ? Colors.green : Colors.red,
+              color: roi >= 0 ? context.cl.success : context.cl.error,
               sub: tr(context, "Gain net pour 100 F misés"),
             )),
           ]),
@@ -107,7 +107,7 @@ class _StatsBody extends StatelessWidget {
               label: tr(context, "Profit net"),
               value: '${profitNet >= 0 ? '+' : ''}${_fmt(profitNet)} F',
               icon: Icons.account_balance_wallet_rounded,
-              color: profitNet >= 0 ? Colors.green : Colors.red,
+              color: profitNet >= 0 ? context.cl.success : context.cl.error,
               sub: tr(context, "Misé : {arg0} F", [_fmt(totalMise)]),
             )),
             const SizedBox(width: 10),
@@ -115,7 +115,7 @@ class _StatsBody extends StatelessWidget {
               label: tr(context, "Meilleure cote"),
               value: bestOdds > 0 ? bestOdds.toStringAsFixed(2) : '–',
               icon: Icons.star_rounded,
-              color: const Color(0xFFFF6B35),
+              color: context.cl.accent,
               sub: tr(context, "Cote gagnée la + haute"),
             )),
           ]),
@@ -125,7 +125,7 @@ class _StatsBody extends StatelessWidget {
               label: tr(context, "Série actuelle"),
               value: serie > 0 ? '🔥 $serie' : '$serie',
               icon: Icons.local_fire_department_rounded,
-              color: serie >= 5 ? Colors.orange : const Color(0xFFFF6B35),
+              color: serie >= 5 ? context.cl.warning : context.cl.accent,
               sub: tr(context, "Record : {arg0} victoires", [bestSerie]),
             )),
             const SizedBox(width: 10),
@@ -233,7 +233,7 @@ class _BankrollChart extends StatelessWidget {
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
     final pad  = (maxY - minY) * 0.15;
     final isPos = spots.last.y >= spots.first.y;
-    final lineColor = isPos ? Colors.green : Colors.red;
+    final lineColor = isPos ? context.cl.success : context.cl.error;
 
     return Container(
       height: 200,
@@ -320,7 +320,7 @@ class _LeagueRow extends StatelessWidget {
     final total = (league['total'] as num?)?.toInt() ?? 0;
     final wins  = (league['wins']  as num?)?.toInt() ?? 0;
     final taux  = (league['taux']  as num?)?.toInt() ?? 0;
-    final color = taux >= 60 ? Colors.green : taux >= 45 ? Colors.orange : Colors.red;
+    final color = taux >= 60 ? context.cl.success : taux >= 45 ? context.cl.warning : context.cl.error;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),

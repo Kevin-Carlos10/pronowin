@@ -11,6 +11,7 @@ import '../providers/apres_connexion.dart';
 import '../providers/auth_provider.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../core/services/analyse_usage.dart';
+import '../../../../shared/utils/messages.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -99,12 +100,7 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
         // maintenant demandés là-bas, au moment où ils ont un sens.
         context.go(widget.from ?? '/home');
       } else if (state is AuthError) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(state.message),
-          backgroundColor: AppColors.fondErreur,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ));
+        afficherMessage(context, state.message, type: TypeMessage.erreur);
       }
     });
 
@@ -141,7 +137,7 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
                       width: 64, height: 64,
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [AppColors.primary, AppColors.primaryLight],
+                          colors: AppColors.degradeMarque,
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight),
                         borderRadius: BorderRadius.circular(18),

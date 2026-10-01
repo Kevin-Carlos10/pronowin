@@ -404,7 +404,7 @@ class _BankrollMiniWidget extends ConsumerWidget {
                   width: 40, height: 40,
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
-                      colors: [context.cl.success, Color(0xFF059669)],
+                      colors: AppColors.degradeSucces,
                       begin: Alignment.topLeft, end: Alignment.bottomRight),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [BoxShadow(

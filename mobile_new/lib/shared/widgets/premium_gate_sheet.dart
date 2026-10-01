@@ -92,7 +92,7 @@ class _PremiumGateSheet extends ConsumerWidget {
                 width: 56, height: 56,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryLight]),
+                    colors: AppColors.degradeMarque),
                   shape: BoxShape.circle,
                   boxShadow: [BoxShadow(
                     color: AppColors.primary.withValues(alpha: 0.4),
@@ -194,7 +194,7 @@ class _PremiumGateSheet extends ConsumerWidget {
               child: Container(
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryLight],
+                    colors: AppColors.degradeBouton,
                     begin: Alignment.topLeft, end: Alignment.bottomRight),
                   borderRadius: BorderRadius.circular(27),
                   boxShadow: [BoxShadow(

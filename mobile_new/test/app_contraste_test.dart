@@ -164,28 +164,33 @@ void main() {
       return 0xFF000000 | canal(16) << 16 | canal(8) << 8 | canal(0);
     }
 
-    for (final nom in ['success', 'error', 'warning', 'info', 'accent', 'dore']) {
-      test('$nom : sur les trois fonds et sur sa propre teinte', () {
-        final c = couleurs(nom).clair;
-        for (final nomFond in ['bg', 'surface', 'surfaceD']) {
-          final r = contraste(c, couleurs(nomFond).clair);
-          expect(r, greaterThanOrEqualTo(seuilTexteCourant),
-              reason: 'clair : $nom sur $nomFond = ${r.toStringAsFixed(2)}:1');
-        }
-        // Pastilles : 12 et 15 % sont les teintes les plus employées.
-        for (final (alpha, nomFond) in [(0.15, 'surface'), (0.12, 'bg')]) {
-          final fond = teinte(c, couleurs(nomFond).clair, alpha);
-          final r = contraste(c, fond);
-          expect(r, greaterThanOrEqualTo(seuilTexteCourant),
-              reason: 'clair : $nom sur sa teinte à ${(alpha * 100).round()} % '
-                      '(sur $nomFond) = ${r.toStringAsFixed(2)}:1');
-        }
-      });
+    // Les deux thèmes : en sombre, rouge, bleu et orange tombaient à 3,9:1
+    // sur leur propre pastille.
+    for (final sombre in [false, true]) {
+      final nomTheme = sombre ? 'sombre' : 'clair';
+      for (final nom in ['success', 'error', 'warning', 'info', 'accent', 'dore']) {
+        test('$nomTheme · $nom : sur les trois fonds et sur sa propre teinte', () {
+          int de(({int sombre, int clair}) v) => sombre ? v.sombre : v.clair;
+          final c = de(couleurs(nom));
+          for (final nomFond in ['bg', 'surface', 'surfaceD']) {
+            final r = contraste(c, de(couleurs(nomFond)));
+            expect(r, greaterThanOrEqualTo(seuilTexteCourant),
+                reason: '$nomTheme : $nom sur $nomFond = ${r.toStringAsFixed(2)}:1');
+          }
+          // Pastilles : 12 et 15 % sont les teintes les plus employées.
+          for (final (alpha, nomFond) in [(0.15, 'surface'), (0.12, 'bg')]) {
+            final fond = teinte(c, de(couleurs(nomFond)), alpha);
+            final r = contraste(c, fond);
+            expect(r, greaterThanOrEqualTo(seuilTexteCourant),
+                reason: '$nomTheme : $nom sur sa teinte à ${(alpha * 100).round()} % '
+                        '(sur $nomFond) = ${r.toStringAsFixed(2)}:1');
+          }
+        });
+      }
     }
 
-    test('le thème sombre garde ses teintes', () {
-      // Rien ne devait changer en sombre : les valeurs restent celles
-      // d'`AppColors`, que tout le reste de l'application connaît.
+    test('le vert, l\'ambre et l\'or du sombre restent ceux de la marque', () {
+      // Ils tenaient déjà : aucune raison de les toucher.
       int fixe(String nom) {
         final m = RegExp('static const $nom\\s*=\\s*Color\\(0x(?:FF)?([0-9A-Fa-f]{6})\\)')
             .firstMatch(theme);
@@ -193,8 +198,7 @@ void main() {
         return 0xFF000000 | int.parse(m.group(1)!, radix: 16);
       }
       for (final (accesseur, constante) in [
-        ('success', 'success'), ('error', 'error'), ('warning', 'warning'),
-        ('info', 'info'), ('accent', 'primary'), ('dore', 'primaryLight'),
+        ('success', 'success'), ('warning', 'warning'), ('dore', 'primaryLight'),
       ]) {
         expect(couleurs(accesseur).sombre, fixe(constante),
             reason: 'sombre : $accesseur doit rester AppColors.$constante');
@@ -210,6 +214,32 @@ void main() {
         final r = contraste(0xFFFFFFFF, 0xFF000000 | int.parse(m.group(1)!, radix: 16));
         expect(r, greaterThanOrEqualTo(seuilTexteCourant),
             reason: 'blanc sur $nom = ${r.toStringAsFixed(2)}:1');
+      }
+    });
+
+    test('les dégradés portent leur contenu blanc sur toute leur largeur', () {
+      // Texte : 4,5:1 aux deux bouts. Icônes et initiales : 3:1. L'ancien
+      // dégradé orange → jaune tombait à 2,03:1 côté jaune.
+      List<int> degrade(String nom) {
+        final m = RegExp('static const $nom\\s*=\\s*\\[([^\\]]*)\\]').firstMatch(theme);
+        if (m == null) fail('AppColors.$nom introuvable');
+        return RegExp(r'0x(?:FF)?([0-9A-Fa-f]{6})|\bprimary\b')
+            .allMatches(m.group(1)!)
+            .map((x) => x.group(1) == null ? 0xFFE8541A : 0xFF000000 | int.parse(x.group(1)!, radix: 16))
+            .toList();
+      }
+      for (final (nom, seuil) in [
+        ('degradeBouton', seuilTexteCourant),
+        ('degradeSucces', seuilTexteCourant),
+        ('degradeMarque', seuilComposant),
+      ]) {
+        final couleursDegrade = degrade(nom);
+        expect(couleursDegrade, hasLength(2), reason: nom);
+        for (final c in couleursDegrade) {
+          final r = contraste(0xFFFFFFFF, c);
+          expect(r, greaterThanOrEqualTo(seuil),
+              reason: 'blanc sur $nom (#${c.toRadixString(16)}) = ${r.toStringAsFixed(2)}:1');
+        }
       }
     });
   });

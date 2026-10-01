@@ -2,6 +2,7 @@ import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import '../theme/app_theme.dart';
 
 class InAppBrowserPage extends StatefulWidget {
   final String url;
@@ -98,7 +99,9 @@ class _InAppBrowserPageState extends State<InAppBrowserPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.wifi_off_rounded, size: 56, color: Colors.white38),
+                    // Gris du thème : le blanc translucide disparaissait sur la
+                    // surface claire.
+                    Icon(Icons.wifi_off_rounded, size: 56, color: theme.colorScheme.onSurfaceVariant),
                     const SizedBox(height: 16),
                      Text(
                       tr(context, "Impossible de charger la page"),
@@ -108,7 +111,7 @@ class _InAppBrowserPageState extends State<InAppBrowserPage> {
                     const SizedBox(height: 8),
                     Text(
                       tr(context, "Vérifie ta connexion ou ouvrez dans le navigateur."),
-                      style: TextStyle(fontSize: 13, color: Colors.white54),
+                      style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 28),
@@ -116,7 +119,8 @@ class _InAppBrowserPageState extends State<InAppBrowserPage> {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: accent,
+                          // Blanc sur #FF6B35 : 2,9:1.
+                          backgroundColor: AppColors.primaryBouton,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
@@ -135,7 +139,7 @@ class _InAppBrowserPageState extends State<InAppBrowserPage> {
                         _controller.reload();
                       },
                       child:  Text(tr(context, "Réessayer"),
-                          style: TextStyle(color: Colors.white54)),
+                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
                     ),
                   ],
                 ),

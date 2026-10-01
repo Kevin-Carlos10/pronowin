@@ -74,6 +74,9 @@ void main() {
     final fautes = <String>[];
     for (final f in Directory('lib').listSync(recursive: true).whereType<File>()) {
       if (!f.path.endsWith('.dart') || f.path.endsWith('app_theme.dart')) continue;
+      // Le logotype garde l'orange de la marque dans les deux thèmes : un
+      // logotype est exempté du seuil de contraste (WCAG 1.4.3).
+      if (f.path.endsWith('logotype_pronowin.dart')) continue;
       final code = f.readAsStringSync().pipeCodeSeul();
       for (final style in _appels(code, 'TextStyle(')) {
         final couleur = RegExp(r'\bcolor\s*:([^,]*)').firstMatch(style);

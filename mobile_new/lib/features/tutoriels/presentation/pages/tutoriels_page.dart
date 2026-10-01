@@ -545,7 +545,7 @@ class _FeaturedCardState extends State<_FeaturedCard>
   TutorialEntity get tuto => widget.tuto;
   bool get isPremium => widget.isPremium;
 
-  Color get _catColor => _colorForCategory(tuto.category);
+  Color _catColor(BuildContext context) => context.cl.lisible(_colorForCategory(tuto.category));
 
   @override
   Widget build(BuildContext context) {
@@ -557,7 +557,7 @@ class _FeaturedCardState extends State<_FeaturedCard>
       child: ScaleTransition(scale: _scale, child: Container(
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: _catColor.withValues(alpha: 0.35), width: 0.8),
+          border: Border.all(color: _catColor(context).withValues(alpha: 0.35), width: 0.8),
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
@@ -569,11 +569,11 @@ class _FeaturedCardState extends State<_FeaturedCard>
                 width: double.infinity,
                 child: ImageDistante(
                   url:   tuto.thumbnailUrl,
-                  repli: _GradientBg(color: _catColor),
+                  repli: _GradientBg(color: _catColor(context)),
                 ),
               )
             else
-              _GradientBg(color: _catColor, height: 180),
+              _GradientBg(color: _catColor(context), height: 180),
 
             // Overlay dégradé bas → haut
             Container(
@@ -599,12 +599,12 @@ class _FeaturedCardState extends State<_FeaturedCard>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 3),
                       decoration: BoxDecoration(
-                        color: _catColor.withValues(alpha: 0.25),
+                        color: _catColor(context).withValues(alpha: 0.25),
                         borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: _catColor.withValues(alpha: 0.5), width: 0.5)),
+                        border: Border.all(color: _catColor(context).withValues(alpha: 0.5), width: 0.5)),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
                         Container(width: 5, height: 5,
-                          decoration: BoxDecoration(color: _catColor, shape: BoxShape.circle)),
+                          decoration: BoxDecoration(color: _catColor(context), shape: BoxShape.circle)),
                         const SizedBox(width: 5),
                          Text(tr(context, "À LA UNE"), style: TextStyle(
                           color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
@@ -651,7 +651,7 @@ class _FeaturedCardState extends State<_FeaturedCard>
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                       decoration: BoxDecoration(
-                        color: isLocked ? Colors.black38 : _catColor.withValues(alpha: 0.8),
+                        color: isLocked ? Colors.black38 : _catColor(context).withValues(alpha: 0.8),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: Colors.white30, width: 0.5)),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
@@ -697,7 +697,7 @@ class _TutoCard extends StatelessWidget {
   final bool isPremium;
   const _TutoCard({required this.tuto, required this.isPremium});
 
-  Color get _catColor => _colorForCategory(tuto.category);
+  Color _catColor(BuildContext context) => context.cl.lisible(_colorForCategory(tuto.category));
 
   @override
   Widget build(BuildContext context) {
@@ -728,9 +728,9 @@ class _TutoCard extends StatelessWidget {
                   ? ImageDistante(
                       url:   tuto.thumbnailUrl,
                       repli: _EmojiIcon(
-                          tuto: tuto, catColor: _catColor, emojiSize: 40),
+                          tuto: tuto, catColor: _catColor(context), emojiSize: 40),
                     )
-                  : _EmojiIcon(tuto: tuto, catColor: _catColor, emojiSize: 40),
+                  : _EmojiIcon(tuto: tuto, catColor: _catColor(context), emojiSize: 40),
 
               // Badge durée (bas droite, comme sur une miniature vidéo)
               Positioned(
@@ -747,9 +747,9 @@ class _TutoCard extends StatelessWidget {
 
               // Badge terminé / premium (haut gauche)
               if (tuto.isCompleted)
-                _ThumbBadge(icon: Icons.check_rounded, label: tr(context, "Terminé"), color: context.cl.success)
+                _ThumbBadge(icon: Icons.check_rounded, label: tr(context, "Terminé"), color: AppColors.fondSucces)
               else if (tuto.isPremium)
-                _ThumbBadge(icon: Icons.workspace_premium_rounded, label: 'Premium', color: context.cl.warning),
+                _ThumbBadge(icon: Icons.workspace_premium_rounded, label: 'Premium', color: AppColors.fondAlerte),
 
               // Voile + cadenas si contenu verrouillé
               if (isLocked)
@@ -884,7 +884,7 @@ class _EmojiIcon extends StatelessWidget {
         Positioned(right: -2, bottom: -2,
           child: Container(
             width: 16, height: 16,
-            decoration: BoxDecoration(color: context.cl.success, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: AppColors.fondSucces, shape: BoxShape.circle),
             child: const Icon(Icons.check_rounded, color: Colors.white, size: 10))),
     ]),
   );
@@ -895,20 +895,20 @@ class _LevelBadge extends StatelessWidget {
   final TutorialLevel level;
   const _LevelBadge({required this.level});
 
-  Color get _color => switch (level) {
-    TutorialLevel.beginner     => AppColors.success,
-    TutorialLevel.intermediate => AppColors.warning,
-    TutorialLevel.advanced     => AppColors.error,
+  Color _color(BuildContext context) => switch (level) {
+    TutorialLevel.beginner     => context.cl.success,
+    TutorialLevel.intermediate => context.cl.warning,
+    TutorialLevel.advanced     => context.cl.error,
   };
 
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: _color.withValues(alpha: 0.10),
+          color: _color(context).withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(4)),
         child: Text(level.label, style: TextStyle(
-            color: _color, fontSize: 10, fontWeight: FontWeight.w600)));
+            color: _color(context), fontSize: 10, fontWeight: FontWeight.w600)));
 }
 
 // ── Shimmer ───────────────────────────────────────────────────────────────────

@@ -57,7 +57,7 @@ class GuestLockedView extends StatelessWidget {
                   width: 84, height: 84,
                   decoration: BoxDecoration(
                     gradient: const LinearGradient(
-                      colors: [AppColors.primary, AppColors.primaryLight],
+                      colors: AppColors.degradeMarque,
                       begin: Alignment.topLeft, end: Alignment.bottomRight),
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [BoxShadow(

@@ -14,6 +14,7 @@ import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/utils/devise.dart';
 import '../../../../shared/utils/montant.dart';
 import '../../../../shared/utils/bilan_paris.dart';
+import '../../../../shared/utils/messages.dart';
 
 // ── Filtre actif ───────────────────────────────────────────────────────────────
 /// Les onglets de l'historique.
@@ -103,19 +104,11 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
         ref.invalidate(bankrollProvider);
         ref.invalidate(bankrollStatsProvider);
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-            content: Text(tr(context, "Solde réinitialisé ✅")),
-            backgroundColor: AppColors.fondSucces,
-            behavior: SnackBarBehavior.floating,
-          ));
+          afficherMessage(context, tr(context, "Solde réinitialisé ✅"), type: TypeMessage.succes);
         }
       } catch (_) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-            content: Text(tr(context, "Échec de la réinitialisation. Vérifie ta connexion et réessaie.")),
-            backgroundColor: AppColors.fondErreur,
-            behavior: SnackBarBehavior.floating,
-          ));
+          afficherMessage(context, tr(context, "Échec de la réinitialisation. Vérifie ta connexion et réessaie."), type: TypeMessage.erreur);
         }
       }
     }
@@ -453,10 +446,12 @@ class _BalanceChart extends StatelessWidget {
         Row(children: [
           Icon(Icons.show_chart_rounded, size: 14, color: lineColor),
           const SizedBox(width: 6),
-          Text(tr(context, "Résultat net cumulé"),
+          // Le titre cède la place au compteur au lieu de le pousser hors
+          // de la carte (57 px à 180 %).
+          Expanded(child: Text(tr(context, "Résultat net cumulé"),
             key: const Key('bankroll-titre-courbe'),
-            style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
-          const Spacer(),
+            style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700))),
+          const SizedBox(width: 8),
           Text(tr(context, "{arg0} paris réglés", [settled.length]),
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
@@ -555,12 +550,16 @@ class _BalanceChart extends StatelessWidget {
         // suivre le solde. Renommer le titre sans toucher à la légende laissait
         // l'écran se contredire à deux centimètres d'écart — et c'est la
         // légende, plus près de la ligne, qu'on croit.
-        Row(children: [
+        // Deux entrées qui passent à la ligne au lieu de déborder (64 px à
+        // 180 %).
+        Wrap(spacing: 12, runSpacing: 4, children: [
+          Row(mainAxisSize: MainAxisSize.min, children: [
           Container(width: 12, height: 2, color: lineColor),
           const SizedBox(width: 4),
           Text(tr(context, "Gains et pertes cumulés"),
               style: TextStyle(color: context.cl.textM, fontSize: 9)),
-          const SizedBox(width: 12),
+          ]),
+          Row(mainAxisSize: MainAxisSize.min, children: [
           Container(width: 12, height: 2,
             decoration: BoxDecoration(
               border: Border(bottom: BorderSide(
@@ -572,6 +571,7 @@ class _BalanceChart extends StatelessWidget {
           const SizedBox(width: 4),
           Text(tr(context, "Point de départ (0)"),
               style: TextStyle(color: context.cl.textM, fontSize: 9)),
+          ]),
         ]),
       ]),
     );
@@ -846,7 +846,15 @@ class _BalanceCard extends StatelessWidget {
         border: Border.all(color: context.cl.success.withValues(alpha: 0.25), width: 0.8),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Row(children: [
+        // `Wrap` et non `Row` : « 1 015 500 FCFA » en 28 px et la colonne du
+        // budget ne tiennent pas côte à côte sur 360 px — 10 px de trop à
+        // taille normale, 250 à 180 %. Le budget passe alors dessous.
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.end,
+          spacing: 12,
+          runSpacing: 10,
+          children: [
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             // « Solde actuel » ne disait pas que les mises en cours en sont
             // déjà sorties. « Disponible » le dit.
@@ -859,8 +867,9 @@ class _BalanceCard extends StatelessWidget {
                 color: context.cl.textP, fontSize: 28,
                 fontWeight: FontWeight.w800, letterSpacing: -0.5)),
           ]),
-          const Spacer(),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+          // Aligné à gauche : quand il passe sous le disponible, un bloc
+          // aligné à droite flottait au milieu de la carte.
+          Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(tr(context, "Budget total"), style: TextStyle(color: context.cl.textM, fontSize: 11)),
             const SizedBox(height: 2),
             Text(
@@ -1051,7 +1060,7 @@ class _SetupView extends StatelessWidget {
             width: 32, height: 32,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [context.cl.success, Color(0xFF34D399)]),
+                colors: AppColors.degradeSucces),
               borderRadius: BorderRadius.circular(9)),
             child: const Icon(Icons.account_balance_wallet_rounded,
                 color: Colors.white, size: 17)),
@@ -1107,7 +1116,7 @@ class _SetupView extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [context.cl.success, Color(0xFF059669)]),
+                  colors: AppColors.degradeSucces),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [BoxShadow(
                   color: context.cl.success.withValues(alpha: 0.4),
@@ -1340,7 +1349,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
             width: double.infinity, height: 52,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                  colors: [context.cl.success, Color(0xFF059669)]),
+                  colors: AppColors.degradeSucces),
               borderRadius: BorderRadius.circular(14),
               boxShadow: [BoxShadow(
                 color: context.cl.success.withValues(alpha: 0.35),

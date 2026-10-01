@@ -6,6 +6,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../data/pin_store.dart';
 import '../providers/settings_provider.dart';
 import '../../../../shared/utils/retour.dart';
+import '../../../../shared/utils/messages.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -60,11 +61,7 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
       await ref.read(pinStoreProvider).save(_pin);
       await ref.read(settingsProvider.notifier).setPinEnabled(true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-          content: Text(tr(context, "Code PIN activé avec succès ✅")),
-          backgroundColor: AppColors.fondSucces,
-          behavior: SnackBarBehavior.floating,
-        ));
+        afficherMessage(context, tr(context, "Code PIN activé avec succès ✅"), type: TypeMessage.succes);
         retourOuAller(context, repli: _repli);
       }
     } else {

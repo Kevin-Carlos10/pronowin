@@ -422,7 +422,8 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     final cfg = _config[badge];
     if (cfg == null) return const SizedBox.shrink();
-    final (icon, color) = cfg;
+    final (icon, teinte) = cfg;
+    final color = context.cl.lisible(teinte);
     return Container(
       width: 16, height: 16,
       decoration: BoxDecoration(
@@ -538,7 +539,7 @@ class _WinRateBar extends StatelessWidget {
         child: LinearProgressIndicator(
           value: value,
           backgroundColor: context.cl.borderS,
-          valueColor: AlwaysStoppedAnimation<Color>(_barColor(value)),
+          valueColor: AlwaysStoppedAnimation<Color>(context.cl.lisible(_barColor(value))),
           minHeight: 5,
         ),
       ),

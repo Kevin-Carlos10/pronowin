@@ -170,8 +170,8 @@ class _HeroPronoCard extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(
                         prono['home_team'] as String? ?? '',
-                        style: const TextStyle(
-                            color: AppColors.textPrimary,
+                        style: TextStyle(
+                            color: context.cl.textP,
                             fontSize: 12,
                             fontWeight: FontWeight.w700),
                         textAlign: TextAlign.center,
@@ -203,9 +203,9 @@ class _HeroPronoCard extends StatelessWidget {
                 else
                   Column(
                     children: [
-                      const Text('VS',
+                      Text('VS',
                           style: TextStyle(
-                              color: AppColors.textMuted,
+                              color: context.cl.textM,
                               fontSize: 16,
                               fontWeight: FontWeight.w800,
                               letterSpacing: 2)),
@@ -228,8 +228,8 @@ class _HeroPronoCard extends StatelessWidget {
                       const SizedBox(height: 8),
                       Text(
                         prono['away_team'] as String? ?? '',
-                        style: const TextStyle(
-                            color: AppColors.textPrimary,
+                        style: TextStyle(
+                            color: context.cl.textP,
                             fontSize: 12,
                             fontWeight: FontWeight.w700),
                         textAlign: TextAlign.center,
@@ -261,7 +261,7 @@ class _HeroPronoCard extends StatelessWidget {
                       children: [
                          Text(tr(context, "PRONOSTIC"),
                             style: TextStyle(
-                                color: AppColors.textMuted,
+                                color: context.cl.textM,
                                 fontSize: 9,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.8)),
@@ -291,7 +291,7 @@ class _HeroPronoCard extends StatelessWidget {
                     children: [
                        Text(tr(context, "COTE"),
                           style: TextStyle(
-                              color: AppColors.textMuted,
+                              color: context.cl.textM,
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.8)),
@@ -304,7 +304,7 @@ class _HeroPronoCard extends StatelessWidget {
                                 '',
                         style: TextStyle(
                             color: locked
-                                ? AppColors.textMuted
+                                ? context.cl.textM
                                 : context.cl.success,
                             fontSize: 22,
                             fontWeight: FontWeight.w900),
@@ -316,7 +316,7 @@ class _HeroPronoCard extends StatelessWidget {
                     children: [
                        Text(tr(context, "CONFIANCE"),
                           style: TextStyle(
-                              color: AppColors.textMuted,
+                              color: context.cl.textM,
                               fontSize: 9,
                               fontWeight: FontWeight.w700,
                               letterSpacing: 0.5)),

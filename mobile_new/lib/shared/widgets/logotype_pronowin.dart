@@ -46,7 +46,11 @@ class LogotypePronoWin extends StatelessWidget {
         ),
         children: [
           TextSpan(text: 'Prono', style: TextStyle(color: couleurPrincipale)),
-          TextSpan(text: 'Win', style: TextStyle(color: context.cl.accent)),
+          // L'orange de la marque, dans les deux thèmes. Un logotype est
+          // exempté du seuil de contraste (WCAG 1.4.3) — et #E8541A fait tout
+          // de même 3,4:1 sur blanc. Le ton de texte (`context.cl.accent`)
+          // changerait la marque d'un thème à l'autre.
+          const TextSpan(text: 'Win', style: TextStyle(color: AppColors.primary)),
         ],
       ),
     );

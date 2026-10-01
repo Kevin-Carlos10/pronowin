@@ -640,7 +640,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                   child: Container(
                     width: 15, height: 15,
                     decoration: BoxDecoration(
-                      color: AppColors.primary, shape: BoxShape.circle,
+                      color: AppColors.primaryBouton, shape: BoxShape.circle,
                       border: Border.all(color: context.cl.bg, width: 1.5)),
                     child: Center(child: Text('$activeAdvancedCount',
                       style: const TextStyle(
@@ -679,7 +679,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                     child: Container(
                       width: 16, height: 16,
                       decoration: BoxDecoration(
-                        color: context.cl.error, shape: BoxShape.circle,
+                        color: AppColors.fondErreur, shape: BoxShape.circle,
                         border: Border.all(color: context.cl.bg, width: 1.5)),
                       child: Center(
                         child: Text(unread > 9 ? '9+' : '$unread',
@@ -1979,7 +1979,7 @@ class _AuthGateView extends StatelessWidget {
         ElevatedButton(
           onPressed: onAction,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.primary,
+            backgroundColor: AppColors.primaryBouton,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),

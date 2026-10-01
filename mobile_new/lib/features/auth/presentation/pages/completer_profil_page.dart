@@ -11,6 +11,7 @@ import '../../../../shared/widgets/country_pill_selector.dart';
 import '../../../../shared/widgets/pw_button.dart';
 import '../../../compte/presentation/providers/compte_provider.dart';
 import '../providers/auth_provider.dart';
+import '../../../../shared/utils/messages.dart';
 
 /// Page de complétion de profil — affichée juste après la première
 /// connexion (et avant l'accès au premium) si nom/prénom/date de
@@ -70,8 +71,7 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
   Future<void> _submit() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_birthDate == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-         SnackBar(content: Text(tr(context, "Sélectionne ta date de naissance."))));
+      afficherMessage(context, tr(context, "Sélectionne ta date de naissance."));
       return;
     }
     setState(() => _saving = true);
@@ -109,18 +109,9 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
       if (!mounted) return;
 
       if (refWarning != null) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(refWarning),
-          backgroundColor: AppColors.fondAlerte,
-          behavior: SnackBarBehavior.floating,
-          duration: const Duration(seconds: 4),
-        ));
+        afficherMessage(context, refWarning, type: TypeMessage.alerte, duree: Duration(seconds: 4));
       } else if (refCode.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar( SnackBar(
-          content: Text(tr(context, "Code de parrainage appliqué !")),
-          backgroundColor: AppColors.fondSucces,
-          behavior: SnackBarBehavior.floating,
-        ));
+        afficherMessage(context, tr(context, "Code de parrainage appliqué !"), type: TypeMessage.succes);
       }
       context.go(widget.from ?? '/home');
     } catch (e) {
@@ -129,11 +120,7 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
       final msg = e is DioException
           ? (e.response?.data?['message'] ?? tr(context, "Erreur réseau"))
           : e.toString();
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(msg),
-        backgroundColor: AppColors.fondErreur,
-        behavior: SnackBarBehavior.floating,
-      ));
+      afficherMessage(context, msg, type: TypeMessage.erreur);
     }
   }
 

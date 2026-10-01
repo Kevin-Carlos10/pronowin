@@ -151,7 +151,7 @@ class _FeaturedNewsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cat    = news['categorie'] as String?;
-    final accent = _newsAccent(cat);
+    final accent = context.cl.lisible(_newsAccent(cat));
     final imgUrl = news['image_url'] as String?;
     final isPinned = news['is_pinned'] as bool? ?? false;
 
@@ -285,7 +285,7 @@ class _CompactNewsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cat    = news['categorie'] as String?;
-    final accent = _newsAccent(cat);
+    final accent = context.cl.lisible(_newsAccent(cat));
     final imgUrl = news['image_url'] as String?;
     final hasImg = imgUrl != null && imgUrl.isNotEmpty;
 
@@ -384,7 +384,7 @@ class _NewsDetailSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cat       = news['categorie'] as String?;
-    final accent    = _newsAccent(cat);
+    final accent    = context.cl.lisible(_newsAccent(cat));
     final imgUrl    = news['image_url'] as String?;
     final resume    = news['resume'] as String? ?? '';
     final sourceUrl = news['source_url'] as String?;
@@ -493,7 +493,7 @@ class _NewsDetailSheet extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           decoration: BoxDecoration(
                             gradient: const LinearGradient(
-                              colors: [AppColors.primary, AppColors.primaryLight]),
+                              colors: AppColors.degradeBouton),
                             borderRadius: BorderRadius.circular(14),
                             boxShadow: [BoxShadow(
                               color: AppColors.primary.withValues(alpha: 0.35),
