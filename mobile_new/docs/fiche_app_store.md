@@ -146,6 +146,10 @@ d'utilisateur » et « Mot de passe ».
 ```
 PronoWin is a football (soccer) predictions and analysis app. It does not offer real-money gambling: no bets can be placed in the app, this version contains no links to betting operators, and no gambling transactions take place.
 
+Bankroll tracking is a personal logbook: users record stakes they placed elsewhere to follow their own budget and results. The app never holds, transfers or handles money, and the In-App Purchase subscription unlocks analysis content only, never betting credit.
+
+Comments are filtered when posted; members can report a comment or block a member from the "⋯" menu, and reports are reviewed within 24 hours.
+
 Sign-in: use the demo account provided. Tap "Continue with email", enter the email, then enter the 6-digit code given as the password. No inbox access is needed. Sign in with Apple and Google are also available.
 
 Premium: auto-renewable subscriptions purchased with In-App Purchase (com.pronowin.premium.monthly and com.pronowin.premium.annual). To reach the purchase screen, tap any locked Premium prediction, or open the Account tab and tap "Upgrade to Premium" ("Passer à Premium" in French). Restore Purchases is on the same screen.
