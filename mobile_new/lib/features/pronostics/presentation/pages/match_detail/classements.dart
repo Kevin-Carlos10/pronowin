@@ -78,7 +78,7 @@ class _StandingsCard extends ConsumerWidget {
             child: Icon(Icons.leaderboard_rounded, color: AppColors.info, size: 16),
           ),
           const SizedBox(width: 10),
-          Text('Classement',
+          Text(tr(context, "Classement"),
             style: TextStyle(
               color: context.cl.textP,
               fontSize: 13,
@@ -86,7 +86,7 @@ class _StandingsCard extends ConsumerWidget {
         ]),
         const SizedBox(height: 12),
         status == 401
-          ? const _CardLoginPrompt(message: 'Connecte-toi pour voir le classement.')
+          ?  _CardLoginPrompt(message: tr(context, "Connecte-toi pour voir le classement."))
           : standingsAsync.when(
               loading: () => _H2HLoading(),
               error: (_, _) => const SizedBox.shrink(),
@@ -166,7 +166,7 @@ class _StandingsTable extends StatelessWidget {
     return Column(children: [
       Row(children: [
         const SizedBox(width: 22),
-        Expanded(child: Text('Équipe',
+        Expanded(child: Text(tr(context, "Équipe"),
           style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600))),
         _StandingsHeaderCell('J'),
         _StandingsHeaderCell('+/-'),
@@ -298,7 +298,7 @@ class _MeilleursButeurs extends ConsumerWidget {
                 color: AppColors.error, size: 16)),
           const SizedBox(width: 10),
           Expanded(
-            child: Text('Meilleurs buteurs',
+            child: Text(tr(context, "Meilleurs buteurs"),
               style: TextStyle(
                 color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           ),
@@ -308,8 +308,7 @@ class _MeilleursButeurs extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 9),
             child: Semantics(
-              label: '${b.rank}. ${b.name}, ${b.team}, ${b.goals} buts '
-                     'en ${b.appearances} matchs',
+              label: tr(context, "{arg0}. {arg1}, {arg2}, {arg3} buts en {arg4} matchs", [b.rank, b.name, b.team, b.goals, b.appearances]),
               excludeSemantics: true,
               child: Row(children: [
                 SizedBox(width: 18,

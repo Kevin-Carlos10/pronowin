@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -64,7 +65,7 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
       if (mounted) {
         setState(() {
           _envoi = false;
-          _erreur = message ?? 'Réponse non enregistrée. Vérifie ta connexion et réessaie.';
+          _erreur = message ?? tr(context, "Réponse non enregistrée. Vérifie ta connexion et réessaie.");
         });
       }
     }
@@ -73,7 +74,7 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
   void _enregistrerCorrection() {
     final n = double.tryParse(_saisie.text.replaceAll(RegExp(r'[\s  ]'), '').replaceAll(',', '.'));
     if (n == null || n < 0) {
-      setState(() => _erreur = 'Indique le montant misé, ou « Je n\'ai pas misé ».');
+      setState(() => _erreur = tr(context, "Indique le montant misé, ou « Je n'ai pas misé »."));
       return;
     }
     _envoyer(miseReelle: n);
@@ -95,9 +96,9 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
           Expanded(child: Text(
             r.corrigee
                 ? (r.mise == 0
-                    ? 'Noté : pas de mise sur ce pari. Ta bankroll est à jour.'
-                    : 'Mise corrigée : ${montantExact(r.mise)} $devise. Ta bankroll est à jour.')
-                : 'Mise confirmée. Merci !',
+                    ? tr(context, "Noté : pas de mise sur ce pari. Ta bankroll est à jour.")
+                    : tr(context, "Mise corrigée : {arg0} {arg1}. Ta bankroll est à jour.", [montantExact(r.mise), devise]))
+                : tr(context, "Mise confirmée. Merci !"),
             style: TextStyle(color: cl.textP, fontSize: 13.5, fontWeight: FontWeight.w600))),
         ]),
       );
@@ -106,10 +107,10 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
     return _Cadre(
       couleur: AppColors.primary,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Text('Tu as bien misé $mise ?',
+        Text(tr(context, "Tu as bien misé {arg0} ?", [mise]),
           style: TextStyle(color: cl.textP, fontSize: 15.5, fontWeight: FontWeight.w800)),
         const SizedBox(height: 4),
-        Text('Chez ton bookmaker, sur ce pari. Ta bankroll suit ta mise réelle.',
+        Text(tr(context, "Chez ton bookmaker, sur ce pari. Ta bankroll suit ta mise réelle."),
           style: TextStyle(color: cl.textM, fontSize: 12.5)),
         const SizedBox(height: 14),
 
@@ -121,13 +122,13 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
               child: _envoi
                   ? const SizedBox(width: 18, height: 18,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Oui, c\'est ça', textAlign: TextAlign.center),
+                  :  Text(tr(context, "Oui, c'est ça"), textAlign: TextAlign.center),
             ),
           ),
           const SizedBox(height: 6),
           TextButton(
             onPressed: _envoi ? null : () => setState(() { _corriger = true; _erreur = null; }),
-            child: const Text('Non, corriger'),
+            child:  Text(tr(context, "Non, corriger")),
           ),
         ] else ...[
           TextField(
@@ -135,7 +136,7 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
             autofocus: true,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
             decoration: InputDecoration(
-              labelText: 'Montant réellement misé',
+              labelText: tr(context, "Montant réellement misé"),
               suffixText: devise,
               hintText: montantExact(widget.bet.stakedAmount),
             ),
@@ -145,15 +146,15 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
           Wrap(spacing: 8, runSpacing: 8, children: [
             ElevatedButton(
               onPressed: _envoi ? null : _enregistrerCorrection,
-              child: const Text('Enregistrer'),
+              child:  Text(tr(context, "Enregistrer")),
             ),
             OutlinedButton(
               onPressed: _envoi ? null : () => _envoyer(miseReelle: 0),
-              child: const Text('Je n\'ai pas misé'),
+              child:  Text(tr(context, "Je n'ai pas misé")),
             ),
             TextButton(
               onPressed: _envoi ? null : () => setState(() { _corriger = false; _erreur = null; }),
-              child: const Text('Annuler'),
+              child:  Text(tr(context, "Annuler")),
             ),
           ]),
         ],

@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/image_distante.dart';
 import '../../../../core/utils/motion.dart';
@@ -102,11 +103,11 @@ class _ComptePageState extends ConsumerState<ComptePage>
                 child: Icon(Icons.wifi_off_rounded,
                   color: context.cl.textM, size: 38)),
               const SizedBox(height: 20),
-              Text('Connexion impossible',
+              Text(tr(context, "Connexion impossible"),
                 style: TextStyle(color: context.cl.textP,
                   fontSize: 17, fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
-              Text('Impossible de charger ton profil.\nVérifie ta connexion.',
+              Text(tr(context, "Impossible de charger ton profil.\nVérifie ta connexion."),
                 style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
                 textAlign: TextAlign.center),
               const SizedBox(height: 24),
@@ -121,10 +122,10 @@ class _ComptePageState extends ConsumerState<ComptePage>
                     boxShadow: [BoxShadow(
                       color: AppColors.primary.withValues(alpha: 0.35),
                       blurRadius: 12, offset: const Offset(0, 4))]),
-                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  child:  Row(mainAxisSize: MainAxisSize.min, children: [
                     Icon(Icons.refresh_rounded, color: Colors.white, size: 18),
                     SizedBox(width: 8),
-                    Text('Réessayer', style: TextStyle(
+                    Text(tr(context, "Réessayer"), style: TextStyle(
                       color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
                   ]),
                 ),
@@ -133,7 +134,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
           ),
         )),
       data: (profile) {
-        final pseudo      = profile['pseudo']           as String? ?? 'Parieur';
+        final pseudo      = profile['pseudo']           as String? ?? tr(context, "Parieur");
         final firstName   = profile['first_name']       as String? ?? '';
         final lastName    = profile['last_name']        as String? ?? '';
         final fullName    = firstName.isNotEmpty && lastName.isNotEmpty
@@ -224,7 +225,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                                   return isPremium && days > 0
                                     ? Padding(
                                         padding: const EdgeInsets.only(left: 8),
-                                        child: _Badge(label: '$days j restants',
+                                        child: _Badge(label: tr(context, "{arg0} j restants", [days]),
                                           color: AppColors.success))
                                     : const SizedBox.shrink();
                                 },
@@ -252,10 +253,10 @@ class _ComptePageState extends ConsumerState<ComptePage>
                     unselectedLabelColor: context.cl.textS,
                     labelStyle: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600),
-                    tabs: const [
-                      Tab(text: 'Aperçu'),
-                      Tab(text: 'Abonnement'),
-                      Tab(text: 'Parrainage'),
+                    tabs:  [
+                      Tab(text: tr(context, "Aperçu")),
+                      Tab(text: tr(context, "Abonnement")),
+                      Tab(text: tr(context, "Parrainage")),
                     ],
                   ),
                 ),
@@ -305,10 +306,10 @@ class _ComptePageState extends ConsumerState<ComptePage>
             child: const Icon(Icons.logout_rounded,
               color: AppColors.error, size: 26)),
           const SizedBox(height: 14),
-          Text('Déconnexion ?', style: TextStyle(
+          Text(tr(context, "Déconnexion ?"), style: TextStyle(
             color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text('Vous devrez te reconnecter avec ton adresse email.',
+          Text(tr(context, "Vous devrez te reconnecter avec ton adresse email."),
             style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
             textAlign: TextAlign.center),
           const SizedBox(height: 24),
@@ -332,13 +333,13 @@ class _ComptePageState extends ConsumerState<ComptePage>
                 backgroundColor: AppColors.error,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14))),
-              child: const Text('Me déconnecter',
+              child:  Text(tr(context, "Me déconnecter"),
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15)))),
           const SizedBox(height: 10),
           SizedBox(width: double.infinity, height: 46,
             child: TextButton(
               onPressed: () => Navigator.pop(context),
-              child: Text('Annuler',
+              child: Text(tr(context, "Annuler"),
                 style: TextStyle(color: context.cl.textS, fontSize: 14)))),
         ]),
       ),
@@ -381,11 +382,11 @@ class _ApercuTab extends ConsumerWidget {
         // Le sous-titre nomme ce que contient l'écran sans l'exposer. Afficher
         // le numéro ici aurait refait le défaut corrigé dans l'en-tête : « son
         // numéro sous son nom l'expose dès qu'on montre son écran ».
-        const _SectionLabel('MON COMPTE'),
+         _SectionLabel(tr(context, "MON COMPTE")),
         _InfoCard(children: [
           _LinkRow(
-            icon: Icons.badge_outlined, label: 'Mes informations',
-            sousTitre: 'Nom, pseudo, contact, pays',
+            icon: Icons.badge_outlined, label: tr(context, "Mes informations"),
+            sousTitre: tr(context, "Nom, pseudo, contact, pays"),
             color: AppColors.primary,
             onTap: () => context.push('/compte/edit')),
         ]),
@@ -403,15 +404,15 @@ class _ApercuTab extends ConsumerWidget {
         //   « Historique des résultats » → déjà dans la carte ci-dessus
         //
         // `/historique` était atteignable trois fois sur ce seul écran.
-        const _SectionLabel('MON ACTIVITÉ'),
+         _SectionLabel(tr(context, "MON ACTIVITÉ")),
         _InfoCard(children: [
           _LinkRow(icon: Icons.insights_rounded, label: 'Performance',
             color: const Color(0xFF6C63FF), onTap: () => context.push('/performance'))
             .animate(delay: 0.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-          _LinkRow(icon: Icons.emoji_events_rounded, label: 'Classement',
+          _LinkRow(icon: Icons.emoji_events_rounded, label: tr(context, "Classement"),
             color: const Color(0xFFFFD700), onTap: () => context.push('/classement'))
             .animate(delay: 50.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-          _LinkRow(icon: Icons.notifications_outlined, label: 'Notifications',
+          _LinkRow(icon: Icons.notifications_outlined, label: tr(context, "Notifications"),
             color: AppColors.primary, onTap: () => context.push('/notifications'))
             .animate(delay: 100.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
         ]),
@@ -505,9 +506,9 @@ class _FreeState extends ConsumerWidget {
             child: Icon(Icons.person_rounded, color: context.cl.textM, size: 20)),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Plan Gratuit', style: TextStyle(
+            Text(tr(context, "Plan Gratuit"), style: TextStyle(
               color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w700)),
-            Text('Accès limité aux pronostics', style: TextStyle(
+            Text(tr(context, "Accès limité aux pronostics"), style: TextStyle(
               color: context.cl.textM, fontSize: 11)),
           ])),
           Container(
@@ -515,7 +516,7 @@ class _FreeState extends ConsumerWidget {
             decoration: BoxDecoration(
               color: context.cl.surfaceDeep,
               borderRadius: BorderRadius.circular(8)),
-            child: Text('Gratuit', style: TextStyle(
+            child: Text(tr(context, "Gratuit"), style: TextStyle(
               color: context.cl.textS, fontSize: 11, fontWeight: FontWeight.w600))),
         ]),
       ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),
@@ -553,15 +554,15 @@ class _FreeState extends ConsumerWidget {
                   color: Colors.white, size: 24)),
               const SizedBox(width: 14),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Passer à Premium', style: TextStyle(
+                 Text(tr(context, "Passer à Premium"), style: TextStyle(
                   color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
-                Text('Débloquez tout PronoWin', style: TextStyle(
+                Text(tr(context, "Débloquez tout PronoWin"), style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
               ])),
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Text(premiumMonthlyPriceLabel(ref, sub), style: const TextStyle(
                   color: AppColors.primaryLight, fontSize: 22, fontWeight: FontWeight.w900)),
-                const Text('/mois', style: TextStyle(
+                Text(tr(context, "/mois"), style: const TextStyle(
                   color: Colors.white54, fontSize: 10)),
               ]),
             ]),
@@ -580,7 +581,7 @@ class _FreeState extends ConsumerWidget {
                   color: AppColors.primary.withValues(alpha: 0.35),
                   blurRadius: 12, offset: const Offset(0, 4))]),
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                const Text('Activer maintenant', style: TextStyle(
+                 Text(tr(context, "Activer maintenant"), style: TextStyle(
                   color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
                 const SizedBox(width: 8),
                 const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
@@ -595,7 +596,7 @@ class _FreeState extends ConsumerWidget {
 
       // Titre section fonctionnalités
       Row(children: [
-        Text('CE QUE VOUS DÉBLOQUEZ', style: TextStyle(
+        Text(tr(context, "CE QUE VOUS DÉBLOQUEZ"), style: TextStyle(
           color: context.cl.textM, fontSize: 10,
           fontWeight: FontWeight.w700, letterSpacing: 1)),
         const Spacer(),
@@ -609,7 +610,7 @@ class _FreeState extends ConsumerWidget {
           // annoncer un de plus que l'écran n'en montre — le lecteur n'a même
           // pas à faire l'effort de compter, les deux se contredisent sous
           // ses yeux. Il suit désormais la liste.
-          child: Text('${features.length} avantages', style: const TextStyle(
+          child: Text(tr(context, "{arg0} avantages", [features.length]), style: const TextStyle(
             color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600))),
       ]).animate(delay: 100.ms).fadeIn(duration: 280.ms),
 
@@ -635,10 +636,10 @@ class _FreeState extends ConsumerWidget {
                 child: Icon(icon, color: AppColors.primary.withValues(alpha: 0.5), size: 18)),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(label, style: TextStyle(
+                Text(tr(context, label), style: TextStyle(
                   color: context.cl.textS, fontSize: 13,
                   fontWeight: FontWeight.w600)),
-                Text(sub, style: TextStyle(
+                Text(tr(context, sub), style: TextStyle(
                   color: context.cl.textM, fontSize: 11)),
               ])),
               Container(
@@ -680,7 +681,7 @@ class _PendingState extends StatelessWidget {
             child: Row(children: [
               Icon(icon, color: AppColors.warning.withValues(alpha: 0.6), size: 20),
               const SizedBox(width: 12),
-              Expanded(child: Text(label, style: TextStyle(
+              Expanded(child: Text(tr(context, label), style: TextStyle(
                 color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600))),
               const Icon(Icons.hourglass_top_rounded,
                 color: AppColors.warning, size: 16),
@@ -733,12 +734,12 @@ class _PremiumState extends ConsumerWidget {
                 color: Colors.white, size: 24)),
             const SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Plan Premium Actif', style: TextStyle(
+               Text(tr(context, "Plan Premium Actif"), style: TextStyle(
                 color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
               Text(
                 daysLeft > 0
-                  ? 'Expire dans $daysLeft jour${daysLeft > 1 ? 's' : ''}'
-                  : 'Actif sans limite',
+                  ? AppStrings.of(context).count(daysLeft, one: "Expire dans {arg0} jour", other: "Expire dans {arg0} jours")
+                  : tr(context, "Actif sans limite"),
                 style: TextStyle(
                   color: expiresoon ? AppColors.warning : AppColors.success,
                   fontSize: 12, fontWeight: FontWeight.w600)),
@@ -750,7 +751,7 @@ class _PremiumState extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
                   color: AppColors.success.withValues(alpha: 0.3))),
-              child: const Text('Actif', style: TextStyle(
+              child:  Text(tr(context, "Actif"), style: TextStyle(
                 color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w700))),
           ]),
           // Ce bandeau était purement décoratif : il annonçait l'expiration
@@ -776,8 +777,8 @@ class _PremiumState extends ConsumerWidget {
                   const SizedBox(width: 8),
                   Expanded(child: Text(
                     expiresoon
-                      ? 'Renouvellement recommandé'
-                      : 'Prolonge sans interruption',
+                      ? tr(context, "Renouvellement recommandé")
+                      : tr(context, "Prolonge sans interruption"),
                     style: TextStyle(color: color, fontSize: 12,
                       fontWeight: FontWeight.w600))),
                   TextButton(
@@ -790,7 +791,7 @@ class _PremiumState extends ConsumerWidget {
                       minimumSize: const Size(0, 36),
                       padding: const EdgeInsets.symmetric(horizontal: 10),
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                    child: const Text('Renouveler', style: TextStyle(
+                    child:  Text(tr(context, "Renouveler"), style: TextStyle(
                       fontSize: 12, fontWeight: FontWeight.w700))),
                 ]));
             }),
@@ -801,7 +802,7 @@ class _PremiumState extends ConsumerWidget {
       const SizedBox(height: 24),
 
       Row(children: [
-        Text('VOS AVANTAGES', style: TextStyle(
+        Text(tr(context, "VOS AVANTAGES"), style: TextStyle(
           color: context.cl.textM, fontSize: 10,
           fontWeight: FontWeight.w700, letterSpacing: 1)),
         const Spacer(),
@@ -810,7 +811,7 @@ class _PremiumState extends ConsumerWidget {
           decoration: BoxDecoration(
             color: AppColors.success.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(6)),
-          child: const Text('Tout débloqué ✓', style: TextStyle(
+          child:  Text(tr(context, "Tout débloqué ✓"), style: TextStyle(
             color: AppColors.success, fontSize: 10, fontWeight: FontWeight.w600))),
       ]).animate(delay: 80.ms).fadeIn(duration: 280.ms),
 
@@ -836,9 +837,9 @@ class _PremiumState extends ConsumerWidget {
                 child: Icon(icon, color: AppColors.success, size: 18)),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(label, style: TextStyle(
+                Text(tr(context, label), style: TextStyle(
                   color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
-                Text(sub, style: TextStyle(
+                Text(tr(context, sub), style: TextStyle(
                   color: context.cl.textS, fontSize: 11)),
               ])),
               const Icon(Icons.check_circle_rounded,
@@ -899,14 +900,14 @@ class _ParrainageTab extends ConsumerWidget {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Icon(Icons.cloud_off_rounded, size: 36, color: context.cl.textM),
             const SizedBox(height: 12),
-            Text('Tes données de parrainage n\'ont pas pu être chargées.',
+            Text(tr(context, "Tes données de parrainage n'ont pas pu être chargées."),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: context.cl.textS, fontSize: 14)),
             const SizedBox(height: 16),
             OutlinedButton.icon(
               onPressed: () => ref.invalidate(referralStatsProvider),
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Réessayer'),
+              label:  Text(tr(context, "Réessayer")),
             ),
           ]),
         ),
@@ -973,15 +974,15 @@ class _ParrainageTab extends ConsumerWidget {
               const SizedBox(width: 14),
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(estStore ? 'Mes récompenses parrainage'
-                                : 'Mes gains parrainage',
+                  Text(estStore ? tr(context, "Mes récompenses parrainage")
+                                : tr(context, "Mes gains parrainage"),
                     style: TextStyle(color: context.cl.textS, fontSize: 12)),
                   TweenAnimationBuilder<int>(
                     tween: IntTween(begin: 0, end: estStore ? joursDispo : earnings),
                     duration: const Duration(milliseconds: 900),
                     curve: Curves.easeOutCubic,
                     builder: (_, v, _) => Text(
-                      estStore ? '$v jours Premium' : '$v $devise',
+                      estStore ? tr(context, "{arg0} jours Premium", [v]) : '$v $devise',
                       style: const TextStyle(
                         color: _purple, fontSize: 24, fontWeight: FontWeight.w800)),
                   ),
@@ -1007,11 +1008,11 @@ class _ParrainageTab extends ConsumerWidget {
             Text(
               estStore
                 ? (peutAgir
-                    ? 'Convertis-les en jours Premium quand tu veux.'
-                    : 'Parraine un ami pour gagner tes premiers jours Premium.')
+                    ? tr(context, "Convertis-les en jours Premium quand tu veux.")
+                    : tr(context, "Parraine un ami pour gagner tes premiers jours Premium."))
                 : (canW
-                    ? 'Seuil atteint — tu peux demander ton retrait.'
-                    : '$earnings / $minW FCFA avant de pouvoir retirer'),
+                    ? tr(context, "Seuil atteint — tu peux demander ton retrait.")
+                    : tr(context, "{arg0} / {arg1} FCFA avant de pouvoir retirer", [earnings, minW])),
               style: TextStyle(
                 color: peutAgir ? AppColors.success : context.cl.textM,
                 fontSize: 11.5,
@@ -1025,8 +1026,8 @@ class _ParrainageTab extends ConsumerWidget {
                     extra: {'earnings': earnings, 'min': minW}),
                   icon: Icon(estStore ? Icons.workspace_premium_rounded
                                       : Icons.payments_rounded, size: 17),
-                  label: Text(estStore ? 'Convertir en jours Premium'
-                                       : 'Retirer mes gains'),
+                  label: Text(estStore ? tr(context, "Convertir en jours Premium")
+                                       : tr(context, "Retirer mes gains")),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _purple, foregroundColor: Colors.white,
                     shape: RoundedRectangleBorder(
@@ -1037,33 +1038,33 @@ class _ParrainageTab extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // ── Barème : l'information la plus importante, absente jusqu'ici ────
-        const _SectionLabel('CE QUE ÇA TE RAPPORTE'),
+         _SectionLabel(tr(context, "CE QUE ÇA TE RAPPORTE")),
         Row(children: [
           Expanded(child: _RewardTile(
             amount: estStore ? libelleJours(joursL1) : '$comL1 $devise',
-            label: 'par filleul direct', color: _purple)),
+            label: tr(context, "par filleul direct"), color: _purple)),
           const SizedBox(width: 10),
           Expanded(child: _RewardTile(
             amount: estStore ? libelleJours(joursL2) : '$comL2 $devise',
-            label: 'par filleul indirect', color: AppColors.info)),
+            label: tr(context, "par filleul indirect"), color: AppColors.info)),
         ]),
         const SizedBox(height: 16),
 
         // ── Comment ça marche ───────────────────────────────────────────────
-        const _SectionLabel('COMMENT ÇA MARCHE'),
+         _SectionLabel(tr(context, "COMMENT ÇA MARCHE")),
         _InfoCard(children: [
-          _HowToStep(n: 1, text: 'Partage ton code avec tes amis'),
-          _HowToStep(n: 2, text: 'Ils créent leur compte avec ce code'),
+          _HowToStep(n: 1, text: tr(context, "Partage ton code avec tes amis")),
+          _HowToStep(n: 2, text: tr(context, "Ils créent leur compte avec ce code")),
           _HowToStep(n: 3,
             text: estStore
-                ? 'Tu gagnes ${libelleJours(joursL1)} d\'abonnement dès qu\'ils passent Premium'
-                : 'Tu gagnes $comL1 $devise dès qu\'ils passent Premium',
+                ? tr(context, "Tu gagnes {arg0} d'abonnement dès qu'ils passent Premium", [libelleJours(joursL1)])
+                : tr(context, "Tu gagnes {arg0} {arg1} dès qu'ils passent Premium", [comL1, devise]),
             last: true),
         ]),
         const SizedBox(height: 16),
 
         // ── Code + partage ──────────────────────────────────────────────────
-        const _SectionLabel('MON CODE'),
+         _SectionLabel(tr(context, "MON CODE")),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
           decoration: BoxDecoration(
@@ -1075,11 +1076,11 @@ class _ParrainageTab extends ConsumerWidget {
               fontWeight: FontWeight.w800, letterSpacing: 4)),
             const Spacer(),
             IconButton(
-              tooltip: 'Copier le code',
+              tooltip: tr(context, "Copier le code"),
               onPressed: () {
                 Clipboard.setData(ClipboardData(text: refCode));
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Code copié'),
+                ScaffoldMessenger.of(context).showSnackBar( SnackBar(
+                  content: Text(tr(context, "Code copié")),
                   behavior: SnackBarBehavior.floating,
                   backgroundColor: AppColors.success,
                   duration: Duration(seconds: 2)));
@@ -1098,7 +1099,7 @@ class _ParrainageTab extends ConsumerWidget {
               Share.share(_shareMessage(refCode));
             },
             icon: const Icon(Icons.share_rounded, size: 19),
-            label: const Text('Partager mon code',
+            label:  Text(tr(context, "Partager mon code"),
               style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
             style: ElevatedButton.styleFrom(
               backgroundColor: _purple, foregroundColor: Colors.white,
@@ -1119,30 +1120,27 @@ class _ParrainageTab extends ConsumerWidget {
             child: Column(children: [
               Icon(Icons.group_add_rounded, color: _purple.withValues(alpha: 0.7), size: 34),
               const SizedBox(height: 12),
-              Text('Aucun filleul pour le moment',
+              Text(tr(context, "Aucun filleul pour le moment"),
                 style: TextStyle(
                   color: context.cl.textP, fontSize: 14.5, fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
               Text(
                 estStore
-                  ? 'Partage ton code : chaque ami qui s\'abonne te rapporte '
-                    '${libelleJours(joursL1)} d\'abonnement, et ceux qu\'il '
-                    'parraine à son tour ${libelleJours(joursL2)}.'
-                  : 'Partage ton code : chaque ami qui s\'abonne te rapporte '
-                    '$comL1 $devise, et ceux qu\'il parraine à son tour $comL2 $devise.',
+                  ? tr(context, "Partage ton code : chaque ami qui s'abonne te rapporte {arg0} d'abonnement, et ceux qu'il parraine à son tour {arg1}.", [libelleJours(joursL1), libelleJours(joursL2)])
+                  : tr(context, "Partage ton code : chaque ami qui s'abonne te rapporte {arg0} {arg1}, et ceux qu'il parraine à son tour {arg2} {arg3}.", [comL1, devise, comL2, devise]),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: context.cl.textM, fontSize: 12.5, height: 1.45)),
             ]),
           )
         else ...[
           Row(children: [
-            _StatBox(label: 'Filleuls directs',
+            _StatBox(label: tr(context, "Filleuls directs"),
               value: '$l1', sub: '$p1 Premium', color: _purple),
             const SizedBox(width: 10),
-            _StatBox(label: 'Filleuls indirects',
+            _StatBox(label: tr(context, "Filleuls indirects"),
               value: '$l2',
-              sub: estStore ? '${libelleJours(joursL2)} / filleul'
-                            : '$comL2 $devise / filleul',
+              sub: estStore ? tr(context, "{arg0} / filleul", [libelleJours(joursL2)])
+                            : tr(context, "{arg0} {arg1} / filleul", [comL2, devise]),
               color: AppColors.info),
           ]).animate().fadeIn(duration: 350.ms).slideY(begin: 0.06, end: 0),
           const SizedBox(height: 16),
@@ -1151,7 +1149,7 @@ class _ParrainageTab extends ConsumerWidget {
             child: OutlinedButton.icon(
               onPressed: () => context.push('/parrainage'),
               icon: const Icon(Icons.people_rounded, size: 18),
-              label: const Text('Voir le détail de mes filleuls'),
+              label:  Text(tr(context, "Voir le détail de mes filleuls")),
               style: OutlinedButton.styleFrom(
                 foregroundColor: _purple,
                 side: const BorderSide(color: _purple, width: 1)))),
@@ -1170,7 +1168,7 @@ class _Badge extends StatelessWidget {
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
       color: color.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(20)),
-    child: Text(label, style: TextStyle(
+    child: Text(tr(context, label), style: TextStyle(
       color: color, fontSize: 11, fontWeight: FontWeight.w600)));
 }
 
@@ -1180,7 +1178,7 @@ class _SectionLabel extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(bottom: 8),
-    child: Text(label, style: TextStyle(
+    child: Text(tr(context, label), style: TextStyle(
       color: context.cl.textS, fontSize: 11,
       fontWeight: FontWeight.w600, letterSpacing: 1)));
 }
@@ -1223,7 +1221,7 @@ class _LinkRow extends StatelessWidget {
         Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(
+            Text(tr(context, label), style: TextStyle(
               color: context.cl.textP, fontSize: 13,
               fontWeight: FontWeight.w500)),
             if (sousTitre != null) ...[
@@ -1246,10 +1244,10 @@ class _PendingBanner extends StatelessWidget {
       color: AppColors.warning.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: AppColors.warning.withValues(alpha: 0.3))),
-    child: const Row(children: [
+    child:  Row(children: [
       Icon(Icons.hourglass_top_rounded, color: AppColors.warning, size: 18),
       SizedBox(width: 8),
-      Text('Preuve en cours de vérification',
+      Text(tr(context, "Preuve en cours de vérification"),
         style: TextStyle(color: AppColors.warning,
           fontSize: 13, fontWeight: FontWeight.w500)),
     ]));
@@ -1275,9 +1273,9 @@ class _ProfileAvatar extends StatelessWidget {
   });
 
   _LevelData get _level {
-    if (earnings >= 50000) return _LevelData('💎', 'Diamant', const Color(0xFF67E8F9));
-    if (earnings >= 20000) return _LevelData('🥇', 'Or',      const Color(0xFFFFD700));
-    if (earnings >= 5000)  return _LevelData('🥈', 'Argent',  const Color(0xFFCBD5E1));
+    if (earnings >= 50000) return _LevelData('💎', trCurrent("Diamant"), const Color(0xFF67E8F9));
+    if (earnings >= 20000) return _LevelData('🥇', trCurrent("Or"),      const Color(0xFFFFD700));
+    if (earnings >= 5000)  return _LevelData('🥈', trCurrent("Argent"),  const Color(0xFFCBD5E1));
     return _LevelData('🥉', 'Bronze', const Color(0xFFCD7F32));
   }
 
@@ -1331,7 +1329,7 @@ class _ProfileAvatar extends StatelessWidget {
       Positioned(
         top: -2, right: -6,
         child: Semantics(
-          label: 'Modifier la photo de profil',
+          label: tr(context, "Modifier la photo de profil"),
           button: true,
           child: GestureDetector(
             onTap: onEdit,
@@ -1395,7 +1393,7 @@ class _PremiumBadgeState extends State<_PremiumBadge>
         decoration: BoxDecoration(
           color: context.cl.textM.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(20)),
-        child: Text('Gratuit', style: TextStyle(
+        child: Text(tr(context, "Gratuit"), style: TextStyle(
           color: context.cl.textM, fontSize: 11, fontWeight: FontWeight.w600)),
       );
     }
@@ -1446,7 +1444,7 @@ class _RewardTile extends StatelessWidget {
       Text(amount, style: TextStyle(
         color: color, fontSize: 20, fontWeight: FontWeight.w800, height: 1)),
       const SizedBox(height: 5),
-      Text(label,
+      Text(tr(context, label),
         maxLines: 2, overflow: TextOverflow.ellipsis,
         style: TextStyle(color: context.cl.textM, fontSize: 11.5, height: 1.3)),
     ]),
@@ -1494,7 +1492,7 @@ class _StatBox extends StatelessWidget {
         color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12),
         border: Border.all(color: color.withValues(alpha: 0.2), width: 0.5)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: TextStyle(color: context.cl.textM, fontSize: 11)),
+        Text(tr(context, label), style: TextStyle(color: context.cl.textM, fontSize: 11)),
         TweenAnimationBuilder<int>(
           tween: IntTween(begin: 0, end: rawInt),
           duration: const Duration(milliseconds: 800),
@@ -1502,7 +1500,7 @@ class _StatBox extends StatelessWidget {
           builder: (_, v, _) => Text('$v', style: TextStyle(
             color: color, fontSize: 22, fontWeight: FontWeight.w800)),
         ),
-        Text(sub, style: TextStyle(color: context.cl.textM, fontSize: 10)),
+        Text(tr(context, sub), style: TextStyle(color: context.cl.textM, fontSize: 10)),
       ])));
   }
 }

@@ -15,6 +15,8 @@
 /// doit jamais être le comportement par défaut d'un écran qui parle d'argent.
 library;
 
+import 'package:intl/intl.dart';
+
 /// Montant exact, milliers séparés par une espace insécable fine.
 ///
 /// `2025` → `2 025`. Aucune décimale : les devises visées (FCFA, GNF) n'en
@@ -26,7 +28,7 @@ String montantExact(num valeur) {
   final tampon = StringBuffer();
   for (var i = 0; i < chiffres.length; i++) {
     // Espace insécable : « 2 025 » ne doit jamais se couper en fin de ligne.
-    if (i > 0 && (chiffres.length - i) % 3 == 0) tampon.write(' ');
+    if (i > 0 && (chiffres.length - i) % 3 == 0) tampon.write(Intl.defaultLocale?.startsWith('en') == true ? ',' : ' ');
     tampon.write(chiffres[i]);
   }
   return negatif ? '-$tampon' : tampon.toString();
@@ -56,7 +58,9 @@ String montantDollars(num valeur) => valeur == valeur.roundToDouble()
 /// bout à l'autre de l'app, qu'il faudrait trancher globalement plutôt qu'au
 /// cas par cas.
 String decimalFr(num valeur, {int decimales = 1}) =>
-    valeur.toStringAsFixed(decimales).replaceAll('.', ',');
+    Intl.defaultLocale?.startsWith('en') == true
+        ? valeur.toStringAsFixed(decimales)
+        : valeur.toStringAsFixed(decimales).replaceAll('.', ',');
 
 /// Montant signé : le `+` n'apparaît que sur un gain.
 ///

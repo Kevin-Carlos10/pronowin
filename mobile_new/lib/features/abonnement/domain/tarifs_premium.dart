@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import '../../../shared/utils/montant.dart';
 
 /// Tout ce qu'un écran doit savoir sur l'offre Premium — **source unique**.
@@ -202,9 +203,9 @@ class TarifsPremium {
   String get libelleOffreCode {
     if (joursOffreCode % 30 == 0 && joursOffreCode >= 30) {
       final mois = joursOffreCode ~/ 30;
-      return mois == 1 ? '1 mois offert' : '$mois mois offerts';
+      return mois == 1 ? trCurrent("1 mois offert") : trCurrent("{arg0} mois offerts", [mois]);
     }
-    return '$joursOffreCode jours offerts';
+    return trCurrent("{arg0} jours offerts", [joursOffreCode]);
   }
 
   /// Y a-t-il un numéro à afficher ? Sinon l'écran doit annoncer
@@ -232,7 +233,7 @@ class TarifsPremium {
     final noms = plateformes.map(nomPlateforme).toList();
     if (noms.isEmpty)     return '';
     if (noms.length == 1) return noms.single;
-    return '${noms.sublist(0, noms.length - 1).join(', ')} ou ${noms.last}';
+    return trCurrent("{arg0} ou {arg1}", [noms.sublist(0, noms.length - 1).join(', '), noms.last]);
   }
 
   /// Y a-t-il un choix à faire, ou une seule enseigne ?

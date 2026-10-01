@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/cache/cache_service.dart';
@@ -25,7 +26,7 @@ final leaderboardProvider =
         return LeaderboardEntry(
           rank:             (j['rank']              as num?)?.toInt() ?? (e.key + 1),
           userId:           j['user_id']            as String? ?? '',
-          pseudo:           j['pseudo']             as String? ?? 'Inconnu',
+          pseudo:           j['pseudo']             as String? ?? trCurrent("Inconnu"),
           avatarUrl:        j['avatar_url']         as String?,
           totalPredictions: (j['total_predictions'] as num?)?.toInt() ?? 0,
           wonPredictions:   (j['won_predictions']   as num?)?.toInt() ?? 0,

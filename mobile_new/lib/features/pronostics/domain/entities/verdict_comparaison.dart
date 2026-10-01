@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 /// Ce que la synthèse du modèle permet — et ne permet pas — d'affirmer.
 ///
 /// L'axe `total` du fournisseur agrège les critères avec ses propres
@@ -54,6 +55,6 @@ class VerdictComparaison {
 
   /// Phrase de tête, telle qu'elle s'affiche.
   String get titre => indecis
-      ? 'Le modèle ne départage pas les deux équipes'
-      : 'Le modèle penche pour $favori';
+      ? trCurrent("Le modèle ne départage pas les deux équipes")
+      : trCurrent("Le modèle penche pour {arg0}", [favori]);
 }

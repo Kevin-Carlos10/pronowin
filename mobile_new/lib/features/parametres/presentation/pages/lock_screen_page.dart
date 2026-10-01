@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -39,7 +40,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
       if (!canCheck || !isAvailable) return;
 
       final authenticated = await _auth.authenticate(
-        localizedReason: 'Déverrouillez PronoWin avec ton empreinte',
+        localizedReason: trCurrent("Déverrouillez PronoWin avec ton empreinte"),
         options: const AuthenticationOptions(
           biometricOnly: false,
           stickyAuth:    true,
@@ -74,8 +75,8 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
       setState(() {
         _attempts++;
         _error = _attempts >= _maxAttempts
-          ? 'Trop de tentatives. Reconnecte-toi.'
-          : 'Code incorrect. ${_maxAttempts - _attempts} essai(s) restant(s).';
+          ? tr(context, "Trop de tentatives. Reconnecte-toi.")
+          : tr(context, "Code incorrect. {arg0} essai(s) restant(s).", [_maxAttempts - _attempts]);
         _pin = '';
       });
       HapticFeedback.heavyImpact();
@@ -117,7 +118,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
               ],
             )),
             SizedBox(height: 8),
-            Text('Entrez ton code PIN', style: TextStyle(
+            Text(tr(context, "Entrez ton code PIN"), style: TextStyle(
               color: context.cl.textS, fontSize: 14)),
             const SizedBox(height: 40),
 
@@ -171,7 +172,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
               padding: const EdgeInsets.only(bottom: 12),
               child: TextButton(
                 onPressed: _codeOublie,
-                child: Text('Code oublié ?',
+                child: Text(tr(context, "Code oublié ?"),
                     style: TextStyle(
                         color: context.cl.textM,
                         fontSize: 13,
@@ -192,17 +193,16 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
       context: context,
       builder: (dctx) => AlertDialog(
         backgroundColor: dctx.cl.surface,
-        title: const Text('Code oublié'),
-        content: const Text(
-            'Pour retrouver l\'accès, il faut te déconnecter puis te '
-            'reconnecter avec ton compte. Tes données ne sont pas perdues.'),
+        title:  Text(tr(context, "Code oublié")),
+        content:  Text(
+            tr(context, "Pour retrouver l'accès, il faut te déconnecter puis te reconnecter avec ton compte. Tes données ne sont pas perdues.")),
         actions: [
           TextButton(
               onPressed: () => Navigator.of(dctx).pop(false),
-              child: const Text('Annuler')),
+              child:  Text(tr(context, "Annuler"))),
           TextButton(
               onPressed: () => Navigator.of(dctx).pop(true),
-              child: const Text('Se déconnecter')),
+              child:  Text(tr(context, "Se déconnecter"))),
         ],
       ),
     );
@@ -252,17 +252,17 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
     children: [
       const Icon(Icons.lock_outlined, color: AppColors.error, size: 56),
       const SizedBox(height: 16),
-      Text('Compte verrouillé', style: TextStyle(
+      Text(tr(context, "Compte verrouillé"), style: TextStyle(
         color: AppColors.error, fontSize: 18, fontWeight: FontWeight.w700)),
       SizedBox(height: 8),
-      Text('Trop de tentatives incorrectes.\nReconnecte-toi pour continuer.',
+      Text(tr(context, "Trop de tentatives incorrectes.\nReconnecte-toi pour continuer."),
         style: TextStyle(color: context.cl.textS, fontSize: 13),
         textAlign: TextAlign.center),
       const SizedBox(height: 24),
       ElevatedButton(
         onPressed: () => context.go('/auth/email'),
         style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-        child: const Text('Se reconnecter'),
+        child:  Text(tr(context, "Se reconnecter")),
       ),
     ],
   );

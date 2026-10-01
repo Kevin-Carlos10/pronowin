@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:equatable/equatable.dart';
 
 enum PredictionType  { win1, draw, win2, btts, over25, under25, over35, under35, other }
@@ -83,7 +84,7 @@ class MatchEntity extends Equatable {
 
   /// Appréciation éditoriale de l'analyste, pas une probabilité de victoire.
   static bool validConfidence(int score) => score >= 1 && score <= 5;
-  static String confidenceDisplay(int score) => validConfidence(score) ? '$score/5' : 'Non évaluée';
+  static String confidenceDisplay(int score) => validConfidence(score) ? '$score/5' : trCurrent("Non évaluée");
 
 
   /// Libellé de confiance — **source unique**.
@@ -97,7 +98,7 @@ class MatchEntity extends Equatable {
   };
 
   static String labelForConfidence(int score) =>
-      _confidenceLabelByScore[score] ?? 'Non évaluée';
+      trCurrent(_confidenceLabelByScore[score] ?? "Non évaluée");
 
   String get confidenceLabel => labelForConfidence(confidenceScore);
 

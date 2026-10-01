@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:async';
 import 'dart:ui';
 import 'package:country_picker/country_picker.dart' show CountryLocalizations;
@@ -109,6 +110,8 @@ void main() async {
 
   final prefs          = await SharedPreferences.getInstance();
   bool  onboardingDone = prefs.getBool('onboarding_done') ?? false;
+  final savedLanguage = AppStrings.languePreferee(prefs.getString('settings_lang'));
+  AppStrings.setCurrentLanguage(savedLanguage);
 
   // Utilisateur existant : token présent mais onboarding jamais vu
   // → bypasser silencieusement (il connaît déjà l'app)
@@ -142,6 +145,7 @@ void main() async {
   // rouverte) affiche l'écran invité alors qu'une session valide existe.
   final container = ProviderContainer(
     overrides: [
+      initialLanguageProvider.overrideWithValue(savedLanguage),
       onboardingDoneProvider.overrideWith((ref) => onboardingDone),
     ],
   );
@@ -301,6 +305,7 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
       debugShowCheckedModeBanner: false,
       locale: locale,
       localizationsDelegates: const [
+        AppStrings.delegate,
         GlobalMaterialLocalizations.delegate,
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
@@ -308,10 +313,7 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
         // en anglais (« Senegal », « Algeria ») au milieu d'une app française.
         CountryLocalizations.delegate,
       ],
-      supportedLocales: const [
-        Locale('fr', 'FR'),
-        Locale('en', 'US'),
-      ],
+      supportedLocales: AppStrings.supportedLocales,
       // Taille de texte : bornée, pas ignorée.
       //
       // C'était `TextScaler.noScaling` — le réglage système n'avait donc

@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -40,25 +41,25 @@ class ParametresPage extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => retourOuAller(context, repli: _repli),
         ),
-        title: const Text('Paramètres'),
+        title:  Text(tr(context, "Paramètres")),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
         children: [
 
           // ─── APPARENCE ────────────────────────────────────────────────
-          _SectionHeader('Apparence')
+          _SectionHeader(tr(context, "Apparence"))
             .animate().fadeIn(duration: 300.ms, delay: 50.ms),
           _SettingsCard(children: [
             _NavTile(
               icon: Icons.dark_mode_rounded, iconColor: const Color(0xFF818CF8),
-              title: 'Thème', trailing: settings.themeName,
+              title: tr(context, "Thème"), trailing: settings.themeName,
               onTap: () => _showThemePicker(context, ref, settings.themeMode),
             ),
             const _Divider(),
             _NavTile(
               icon: Icons.language_rounded, iconColor: AppColors.info,
-              title: 'Langue', trailing: settings.langName,
+              title: tr(context, "Langue"), trailing: settings.langName,
               onTap: () => _showLangPicker(context, ref, settings.lang),
             ),
           ]).animate(delay: 80.ms).fadeIn(duration: 300.ms)
@@ -66,33 +67,33 @@ class ParametresPage extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ─── NOTIFICATIONS ────────────────────────────────────────────
-          _SectionHeader('Notifications')
+          _SectionHeader(tr(context, "Notifications"))
             .animate().fadeIn(duration: 300.ms, delay: 100.ms),
           _SettingsCard(children: [
             _SwitchTile(
               icon: Icons.sports_soccer_rounded, iconColor: AppColors.info,
-              title: 'Alertes matchs', subtitle: '1h avant chaque pronostic',
+              title: tr(context, "Alertes matchs"), subtitle: tr(context, "1h avant chaque pronostic"),
               value: settings.notifMatch,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('match'),
             ),
             const _Divider(),
             _SwitchTile(
               icon: Icons.local_offer_rounded, iconColor: AppColors.primary,
-              title: 'Offres & Promotions', subtitle: 'Codes promo et offres spéciales',
+              title: tr(context, "Offres & Promotions"), subtitle: tr(context, "Codes promo et offres spéciales"),
               value: settings.notifPromo,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('promo'),
             ),
             const _Divider(),
             _SwitchTile(
               icon: Icons.people_rounded, iconColor: AppColors.primary,
-              title: 'Parrainage', subtitle: 'Quand un filleul s\'abonne',
+              title: tr(context, "Parrainage"), subtitle: tr(context, "Quand un filleul s'abonne"),
               value: settings.notifReferral,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('referral'),
             ),
             const _Divider(),
             _SwitchTile(
               icon: Icons.workspace_premium_rounded, iconColor: AppColors.primary,
-              title: 'Abonnement Premium', subtitle: 'Expiration et renouvellement',
+              title: tr(context, "Abonnement Premium"), subtitle: tr(context, "Expiration et renouvellement"),
               value: settings.notifPremium,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('premium'),
             ),
@@ -101,17 +102,17 @@ class ParametresPage extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ─── SÉCURITÉ ─────────────────────────────────────────────────
-          _SectionHeader('Sécurité')
+          _SectionHeader(tr(context, "Sécurité"))
             .animate().fadeIn(duration: 300.ms, delay: 150.ms),
           _SettingsCard(children: [
 
             // Code PIN
             _SwitchTile(
               icon: Icons.pin_rounded, iconColor: AppColors.success,
-              title: 'Code PIN',
+              title: tr(context, "Code PIN"),
               subtitle: settings.pinEnabled
-                ? 'Actif — l\'app se verrouille à la fermeture'
-                : 'Protéger l\'app avec un code à 4 chiffres',
+                ? tr(context, "Actif — l'app se verrouille à la fermeture")
+                : tr(context, "Protéger l'app avec un code à 4 chiffres"),
               value: settings.pinEnabled,
               onChanged: (v) async {
                 if (v) {
@@ -127,12 +128,12 @@ class ParametresPage extends ConsumerWidget {
             bioAvailable.when(
               data: (available) => _SwitchTile(
                 icon: Icons.fingerprint_rounded, iconColor: AppColors.success,
-                title: 'Biométrie',
+                title: tr(context, "Biométrie"),
                 subtitle: available
                   ? (settings.bioEnabled
-                      ? 'Actif — déverrouillage par empreinte'
-                      : 'Déverrouiller avec empreinte / Face ID')
-                  : 'Non disponible sur cet appareil',
+                      ? tr(context, "Actif — déverrouillage par empreinte")
+                      : tr(context, "Déverrouiller avec empreinte / Face ID"))
+                  : tr(context, "Non disponible sur cet appareil"),
                 value: settings.bioEnabled && available,
                 unavailable: !available,
                 onChanged: available ? (v) async {
@@ -140,15 +141,15 @@ class ParametresPage extends ConsumerWidget {
                     final auth = LocalAuthentication();
                     try {
                       final ok = await auth.authenticate(
-                        localizedReason: 'Confirmez pour activer la biométrie',
+                        localizedReason: tr(context, "Confirmez pour activer la biométrie"),
                         options: const AuthenticationOptions(
                           biometricOnly: false, stickyAuth: true),
                       );
                       if (ok) {
                         await ref.read(settingsProvider.notifier).setBioEnabled(true);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                            content: Text('Biométrie activée'),
+                          ScaffoldMessenger.of(context).showSnackBar( SnackBar(
+                            content: Text(tr(context, "Biométrie activée")),
                             backgroundColor: AppColors.success,
                             behavior: SnackBarBehavior.floating,
                           ));
@@ -171,12 +172,12 @@ class ParametresPage extends ConsumerWidget {
               ),
               loading: () => _SwitchTile(
                 icon: Icons.fingerprint_rounded, iconColor: context.cl.textM,
-                title: 'Biométrie', subtitle: 'Vérification en cours...',
+                title: tr(context, "Biométrie"), subtitle: tr(context, "Vérification en cours..."),
                 value: false, onChanged: null,
               ),
               error: (_, _) => _SwitchTile(
                 icon: Icons.fingerprint_rounded, iconColor: context.cl.textM,
-                title: 'Biométrie', subtitle: 'Non disponible sur cet appareil',
+                title: tr(context, "Biométrie"), subtitle: tr(context, "Non disponible sur cet appareil"),
                 value: false, onChanged: null, unavailable: true,
               ),
             ),
@@ -186,8 +187,8 @@ class ParametresPage extends ConsumerWidget {
             if (settings.pinEnabled) ...[
               _NavTile(
                 icon: Icons.edit_rounded, iconColor: AppColors.info,
-                title: 'Changer le code PIN',
-                subtitle: 'Modifier ton code de sécurité',
+                title: tr(context, "Changer le code PIN"),
+                subtitle: tr(context, "Modifier ton code de sécurité"),
                 onTap: () => context.push('/parametres/pin'),
               ),
               const _Divider(),
@@ -195,8 +196,8 @@ class ParametresPage extends ConsumerWidget {
 
             _NavTile(
               icon: Icons.devices_rounded, iconColor: AppColors.info,
-              title: 'Sessions actives',
-              subtitle: 'Voir et gérer tes connexions',
+              title: tr(context, "Sessions actives"),
+              subtitle: tr(context, "Voir et gérer tes connexions"),
               onTap: () => _showSessionsSheet(context),
             ),
           ]).animate(delay: 180.ms).fadeIn(duration: 300.ms)
@@ -204,18 +205,18 @@ class ParametresPage extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ─── COMPTE ───────────────────────────────────────────────────
-          _SectionHeader('Mon compte')
+          _SectionHeader(tr(context, "Mon compte"))
             .animate().fadeIn(duration: 300.ms, delay: 200.ms),
           _SettingsCard(children: [
             _NavTile(
               icon: Icons.edit_rounded, iconColor: AppColors.primary,
-              title: 'Modifier le profil', subtitle: 'Pseudo, email, avatar',
+              title: tr(context, "Modifier le profil"), subtitle: tr(context, "Pseudo, email, avatar"),
               onTap: () => context.push('/compte/edit'),
             ),
             const _Divider(),
             _NavTile(
               icon: Icons.storage_rounded, iconColor: context.cl.textS,
-              title: 'Vider le cache', subtitle: 'Libérer l\'espace de stockage',
+              title: tr(context, "Vider le cache"), subtitle: tr(context, "Libérer l'espace de stockage"),
               onTap: () => _showClearCacheSheet(context, ref),
             ),
           ]).animate(delay: 230.ms).fadeIn(duration: 300.ms)
@@ -223,7 +224,7 @@ class ParametresPage extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ─── LÉGAL ────────────────────────────────────────────────────
-          _SectionHeader('Informations légales')
+          _SectionHeader(tr(context, "Informations légales"))
             .animate().fadeIn(duration: 300.ms, delay: 250.ms),
           _SettingsCard(children: [
             // Les trois textes publics vivent sur le site, et l'application
@@ -236,7 +237,7 @@ class ParametresPage extends ConsumerWidget {
             // et ces ressources doivent rester atteignables même hors ligne.
             _NavTile(
               icon: Icons.description_rounded, iconColor: context.cl.textM,
-              title: 'Conditions d\'utilisation',
+              title: tr(context, "Conditions d'utilisation"),
               onTap: () => PagesLegales.ouvrir(
                 context,
                 PagesLegales.cgu(estStore: ref.read(isStoreBuildProvider)),
@@ -245,7 +246,7 @@ class ParametresPage extends ConsumerWidget {
             const _Divider(),
             _NavTile(
               icon: Icons.privacy_tip_rounded, iconColor: context.cl.textM,
-              title: 'Politique de confidentialité',
+              title: tr(context, "Politique de confidentialité"),
               onTap: () => PagesLegales.ouvrir(
                 context, PagesLegales.confidentialite,
                 titre: PagesLegales.titreConfidentialite),
@@ -253,7 +254,7 @@ class ParametresPage extends ConsumerWidget {
             const _Divider(),
             _NavTile(
               icon: Icons.casino_rounded, iconColor: AppColors.warning,
-              title: 'Jeu responsable', subtitle: 'Ressources et aide',
+              title: tr(context, "Jeu responsable"), subtitle: tr(context, "Ressources et aide"),
               onTap: () => context.push('/parametres/jeu-responsable'),
             ),
             const _Divider(),
@@ -264,15 +265,15 @@ class ParametresPage extends ConsumerWidget {
             // finirait par mentir. On y renvoie, on ne la recopie pas.
             _NavTile(
               icon: Icons.gavel_rounded, iconColor: context.cl.textM,
-              title: 'Mentions légales', subtitle: 'Éditeur et hébergeur',
+              title: tr(context, "Mentions légales"), subtitle: tr(context, "Éditeur et hébergeur"),
               onTap: () => PagesLegales.ouvrir(
                 context, PagesLegales.mentionsLegales,
-                titre: 'Mentions légales'),
+                titre: tr(context, "Mentions légales")),
             ),
             const _Divider(),
             _NavTile(
               icon: Icons.info_outline_rounded, iconColor: context.cl.textM,
-              title: 'À propos', trailing: appVersion,
+              title: tr(context, "À propos"), trailing: appVersion,
               onTap: () => _showAboutSheet(context, appVersion),
             ),
           ]).animate(delay: 280.ms).fadeIn(duration: 300.ms)
@@ -284,7 +285,7 @@ class ParametresPage extends ConsumerWidget {
           // confirmation, provider, endpoint) mais n'apparaissait nulle part
           // dans l'app. Apple (5.1.1(v)) et Google Play l'exigent dès lors
           // qu'on permet la création d'un compte.
-          _SectionHeader('Zone de danger')
+          _SectionHeader(tr(context, "Zone de danger"))
             .animate().fadeIn(duration: 300.ms, delay: 300.ms),
           _SettingsCard(children: [
             _DangerNavTile(
@@ -295,7 +296,7 @@ class ParametresPage extends ConsumerWidget {
               // sur le bouton qui ne l'exécute pas est la pire place pour
               // cette inexactitude — c'est celle que l'on cite pour exercer un
               // droit à l'effacement.
-              subtitle: 'Fermer ton compte et effacer tes informations',
+              subtitle: tr(context, "Fermer ton compte et effacer tes informations"),
               onTap: () => _showDeleteAccountSheet(context, ref),
             ),
           ]).animate(delay: 320.ms).fadeIn(duration: 300.ms)
@@ -304,7 +305,7 @@ class ParametresPage extends ConsumerWidget {
 
           Center(
             child: Text(
-              '© $_copyrightYear PronoWin. Tous droits réservés.',
+              tr(context, "© {arg0} PronoWin. Tous droits réservés.", [_copyrightYear]),
               style: TextStyle(color: context.cl.textM, fontSize: 11),
               textAlign: TextAlign.center,
             ),
@@ -323,16 +324,16 @@ class ParametresPage extends ConsumerWidget {
       builder: (_) => _ConfirmSheet(
         icon: Icons.lock_reset_rounded,
         iconColor: AppColors.warning,
-        title: 'Désactiver le PIN ?',
-        body: 'L\'application ne sera plus protégée par un code PIN.\nTa sécurité sera réduite.',
-        confirmLabel: 'Désactiver',
+        title: tr(context, "Désactiver le PIN ?"),
+        body: tr(context, "L'application ne sera plus protégée par un code PIN.\nTa sécurité sera réduite."),
+        confirmLabel: tr(context, "Désactiver"),
         confirmColor: AppColors.warning,
         onConfirm: () async {
           await ref.read(settingsProvider.notifier).setPinEnabled(false);
           if (context.mounted) {
             Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Code PIN désactivé'),
+            ScaffoldMessenger.of(context).showSnackBar( SnackBar(
+              content: Text(tr(context, "Code PIN désactivé")),
               behavior: SnackBarBehavior.floating,
             ));
           }
@@ -356,14 +357,14 @@ class ParametresPage extends ConsumerWidget {
             margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
                 color: ctx.cl.borderS, borderRadius: BorderRadius.circular(2))),
-          Text('Choisir le thème',
+          Text(tr(ctx, "Choisir le thème"),
               style: TextStyle(
                   color: ctx.cl.textP,
                   fontSize: 17,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
           _ThemeOption(
-            icon: Icons.dark_mode_rounded, label: 'Sombre',
+            icon: Icons.dark_mode_rounded, label: tr(ctx, "Sombre"),
             selected: current == ThemeMode.dark,
             onTap: () {
               ref.read(settingsProvider.notifier).setTheme(ThemeMode.dark);
@@ -372,7 +373,7 @@ class ParametresPage extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           _ThemeOption(
-            icon: Icons.light_mode_rounded, label: 'Clair',
+            icon: Icons.light_mode_rounded, label: tr(ctx, "Clair"),
             selected: current == ThemeMode.light,
             onTap: () {
               ref.read(settingsProvider.notifier).setTheme(ThemeMode.light);
@@ -381,7 +382,7 @@ class ParametresPage extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           _ThemeOption(
-            icon: Icons.brightness_auto_rounded, label: 'Système',
+            icon: Icons.brightness_auto_rounded, label: tr(ctx, "Système"),
             selected: current == ThemeMode.system,
             onTap: () {
               ref.read(settingsProvider.notifier).setTheme(ThemeMode.system);
@@ -402,11 +403,12 @@ class ParametresPage extends ConsumerWidget {
         Container(width: 40, height: 4, margin: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(color: ctx.cl.borderS, borderRadius: BorderRadius.circular(2))),
         Padding(padding: const EdgeInsets.only(bottom: 8),
-          child: Text('Choisir la langue', style: TextStyle(
+          child: Text(tr(ctx, "Choisir la langue"), style: TextStyle(
             color: ctx.cl.textP, fontSize: 16, fontWeight: FontWeight.w600))),
-        _LangOption(flag: '🇫🇷', label: 'Français', code: 'fr', selected: current == 'fr',
+        _LangOption(flag: '🇫🇷', label: tr(ctx, "Français"), code: 'fr', selected: current == 'fr',
           onTap: () { ref.read(settingsProvider.notifier).setLang('fr'); Navigator.pop(ctx); }),
-        _LangOptionSoon(flag: '🇬🇧', label: 'English'),
+        _LangOption(flag: '🇬🇧', label: 'English', code: 'en', selected: current == 'en',
+          onTap: () { ref.read(settingsProvider.notifier).setLang('en'); Navigator.pop(ctx); }),
         const SizedBox(height: 16),
       ]),
     );
@@ -421,16 +423,16 @@ class ParametresPage extends ConsumerWidget {
       builder: (_) => _ConfirmSheet(
         icon: Icons.storage_rounded,
         iconColor: context.cl.textS,
-        title: 'Vider le cache ?',
-        body: 'Les données temporaires seront supprimées.\nTes paramètres et ta session seront conservés.',
-        confirmLabel: 'Vider le cache',
+        title: tr(context, "Vider le cache ?"),
+        body: tr(context, "Les données temporaires seront supprimées.\nTes paramètres et ta session seront conservés."),
+        confirmLabel: tr(context, "Vider le cache"),
         confirmColor: AppColors.primary,
         onConfirm: () async {
           await ref.read(settingsProvider.notifier).clearCache();
           if (context.mounted) {
             Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Cache vidé'),
+            ScaffoldMessenger.of(context).showSnackBar( SnackBar(
+              content: Text(tr(context, "Cache vidé")),
               backgroundColor: AppColors.success,
               behavior: SnackBarBehavior.floating,
             ));
@@ -460,7 +462,7 @@ class ParametresPage extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(12)),
               child: const Icon(Icons.devices_rounded, color: AppColors.info, size: 22)),
             const SizedBox(width: 14),
-            Text('Sessions actives', style: TextStyle(
+            Text(tr(context, "Sessions actives"), style: TextStyle(
               color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(height: 20),
@@ -478,9 +480,9 @@ class ParametresPage extends ConsumerWidget {
                 child: Icon(Platform.isIOS ? Icons.phone_iphone_rounded : Icons.phone_android_rounded, color: AppColors.success, size: 20)),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('${Platform.isIOS ? 'iPhone' : 'Android'} · Cet appareil', style: TextStyle(
+                Text(tr(context, "{arg0} · Cet appareil", [Platform.isIOS ? 'iPhone' : 'Android']), style: TextStyle(
                   color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
-                Text('Connecté maintenant', style: TextStyle(
+                Text(tr(context, "Connecté maintenant"), style: TextStyle(
                   color: context.cl.textM, fontSize: 11)),
               ])),
               Container(
@@ -488,13 +490,13 @@ class ParametresPage extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: AppColors.success.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20)),
-                child: const Text('Actif', style: TextStyle(
+                child:  Text(tr(context, "Actif"), style: TextStyle(
                   color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w700))),
             ]),
           ),
           const SizedBox(height: 12),
           Text(
-            'Pour sécuriser ton compte, déconnecte-toi si tu reconnais une session suspecte.',
+            tr(context, "Pour sécuriser ton compte, déconnecte-toi si tu reconnais une session suspecte."),
             style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.5),
             textAlign: TextAlign.center),
           const SizedBox(height: 20),
@@ -507,7 +509,7 @@ class ParametresPage extends ConsumerWidget {
                 side: BorderSide(color: context.cl.border),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Fermer'),
+              child:  Text(tr(context, "Fermer")),
             ),
           ),
         ]),
@@ -549,19 +551,19 @@ class ParametresPage extends ConsumerWidget {
             ],
           )),
           const SizedBox(height: 6),
-          Text('Version ${version.replaceFirst('v', '')}',
+          Text(tr(context, "Version {arg0}", [version.replaceFirst('v', '')]),
             style: TextStyle(color: context.cl.textS, fontSize: 13)),
           const SizedBox(height: 4),
-          Text('© $_copyrightYear PronoWin. Tous droits réservés.',
+          Text(tr(context, "© {arg0} PronoWin. Tous droits réservés.", [_copyrightYear]),
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
           const SizedBox(height: 20),
           Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 8, children: [
             _AboutChip(
-              icon: Icons.star_rounded, label: 'Noter l\'application', color: AppColors.warning,
+              icon: Icons.star_rounded, label: tr(context, "Noter l'application"), color: AppColors.warning,
               onTap: () => InAppReview.instance.openStoreListing().catchError((_) {}),
             ),
             _AboutChip(
-              icon: Icons.mail_outline_rounded, label: 'Nous contacter', color: AppColors.info,
+              icon: Icons.mail_outline_rounded, label: tr(context, "Nous contacter"), color: AppColors.info,
               onTap: () => ContactSupport.ouvrirEmail(),
             ),
             _AboutChip(
@@ -587,7 +589,7 @@ class ParametresPage extends ConsumerWidget {
                 side: BorderSide(color: context.cl.border),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Fermer'),
+              child:  Text(tr(context, "Fermer")),
             ),
           ),
         ]),
@@ -644,7 +646,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
         child: const Icon(Icons.delete_forever_rounded, color: AppColors.error, size: 36)),
       const SizedBox(height: 16),
 
-      Text('Supprimer le compte', style: TextStyle(
+      Text(tr(context, "Supprimer le compte"), style: TextStyle(
         color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
       const SizedBox(height: 8),
       // Annonçait « Toutes tes données, ton historique et ton abonnement
@@ -653,7 +655,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
       // personnels, met `isActive` à faux et conserve la ligne, l'historique
       // et la bankroll —, et il ne touche jamais à l'abonnement.
       Text(
-        'Cette action est irréversible. Tes informations personnelles sont effacées et tu perds l\'accès à ton compte.',
+        tr(context, "Cette action est irréversible. Tes informations personnelles sont effacées et tu perds l'accès à ton compte."),
         style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
         textAlign: TextAlign.center),
       const SizedBox(height: 20),
@@ -675,20 +677,20 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
           // l'écran qui le lui demandait. C'est l'avertissement qui devait le
           // protéger qui causait le prélèvement.
           _DeleteWarning(widget.ref.read(isStoreBuildProvider)
-              ? 'Ton abonnement n\'est pas résilié : fais-le depuis le Play Store'
-              : 'Ton abonnement n\'est ni résilié ni remboursé'),
+              ? tr(context, "Ton abonnement n'est pas résilié : fais-le depuis le Play Store")
+              : tr(context, "Ton abonnement n'est ni résilié ni remboursé")),
           const SizedBox(height: 6),
-          _DeleteWarning('Tu perds l\'accès à tes gains de parrainage'),
+          _DeleteWarning(tr(context, "Tu perds l'accès à tes gains de parrainage")),
           const SizedBox(height: 6),
           // Anonymisé, pas effacé — c'est ce que fait `deleteAccount`.
-          _DeleteWarning('Ton historique est conservé sous forme anonyme'),
+          _DeleteWarning(tr(context, "Ton historique est conservé sous forme anonyme")),
         ]),
       ),
       const SizedBox(height: 20),
 
       Align(
         alignment: Alignment.centerLeft,
-        child: Text('Tapez SUPPRIMER pour confirmer',
+        child: Text(tr(context, "Tapez SUPPRIMER pour confirmer"),
           style: TextStyle(color: context.cl.textS, fontSize: 12, fontWeight: FontWeight.w600))),
       const SizedBox(height: 8),
       TextField(
@@ -725,7 +727,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          child: const Text('Annuler'),
+          child:  Text(tr(context, "Annuler")),
         )),
         const SizedBox(width: 12),
         Expanded(child: ElevatedButton(
@@ -740,7 +742,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
           child: _loading
             ? const SizedBox(width: 18, height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : const Text('Supprimer', style: TextStyle(fontWeight: FontWeight.w700)),
+            :  Text(tr(context, "Supprimer"), style: TextStyle(fontWeight: FontWeight.w700)),
         )),
       ]),
     ]),
@@ -756,7 +758,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
       if (mounted) {
         setState(() => _loading = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur : $e'),
+          content: Text(tr(context, "Erreur : {arg0}", [e])),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ));
@@ -831,7 +833,7 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          child: const Text('Annuler'),
+          child:  Text(tr(context, "Annuler")),
         )),
         const SizedBox(width: 12),
         Expanded(child: ElevatedButton(
@@ -1072,7 +1074,7 @@ class _DangerNavTile extends StatelessWidget {
           child: Icon(icon, color: AppColors.error, size: 20)),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Supprimer le compte', style: TextStyle(
+           Text(tr(context, "Supprimer le compte"), style: TextStyle(
             color: AppColors.error, fontSize: 14, fontWeight: FontWeight.w500)),
           if (subtitle != null) Text(subtitle!, style: TextStyle(
             color: AppColors.error.withValues(alpha: 0.6), fontSize: 11)),
@@ -1098,26 +1100,5 @@ class _LangOption extends StatelessWidget {
     title: Text(label, style: TextStyle(color: selected ? AppColors.primary : context.cl.textP)),
     trailing: selected ? const Icon(Icons.check_rounded, color: AppColors.primary, size: 20) : null,
     onTap: onTap,
-  );
-}
-
-class _LangOptionSoon extends StatelessWidget {
-  final String flag, label;
-  const _LangOptionSoon({required this.flag, required this.label});
-  @override
-  Widget build(BuildContext context) => ListTile(
-    leading: Text(flag, style: const TextStyle(fontSize: 24)),
-    title: Text(label, style: TextStyle(color: context.cl.textM)),
-    trailing: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.primaryLight.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.3), width: 0.5),
-      ),
-      child: const Text('Bientôt', style: TextStyle(
-        color: AppColors.primaryLight, fontSize: 11, fontWeight: FontWeight.w600)),
-    ),
-    enabled: false,
   );
 }

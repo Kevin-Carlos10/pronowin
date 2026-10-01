@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 /// Nom d'usage d'une devise, par opposition à son code ISO.
 ///
 /// Le Bankroll stocke des codes ISO — c'est la bonne donnée : `XOF` est sans
@@ -33,7 +34,7 @@ String nomDevise(String? code) {
 /// Libellé du sélecteur de devise, qui doit lever l'ambiguïté entre les deux
 /// francs CFA — là, et seulement là, le code ISO a sa place.
 String libelleChoixDevise(String code) {
-  const regions = {'XOF': 'Afrique de l\'Ouest', 'XAF': 'Afrique centrale'};
+  final regions = {'XOF': trCurrent("Afrique de l'Ouest"), 'XAF': trCurrent("Afrique centrale")};
   final region = regions[code.toUpperCase()];
   final nom = nomDevise(code);
   return region == null ? nom : '$nom · $region';

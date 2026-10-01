@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 /// Conversion des récompenses de parrainage en jours Premium.
 ///
 /// Le taux fait autorité côté serveur : `referral.service.ts` calcule
@@ -28,7 +29,7 @@ int joursPremiumPour(int recompenses) =>
 /// afficher « 0 jour » sur une tuile qui s'appelle « ce que ça te rapporte »
 /// dit exactement le contraire de ce qui se passe.
 String libelleJours(int n) => switch (n) {
-      <= 0 => 'moins d\'un jour',
-      1    => '1 jour',
-      _    => '$n jours',
+      <= 0 => trCurrent("moins d'un jour"),
+      1    => trCurrent("1 jour"),
+      _    => trCurrent("{arg0} jours", [n]),
     };

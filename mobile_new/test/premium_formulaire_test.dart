@@ -83,7 +83,7 @@ void main() {
       // Seule la numérotation est vérifiée ici. Ce qui suit le numéro relève
       // de la rédaction, et le titre est de toute façon lu par le test
       // « le titre annonce le tarif en dollars ».
-      expect(RegExp(r'\$\{?widget\.etape\}?\.\s').hasMatch(codeSeul(page)),
+      expect(codeSeul(page).contains('tr(context, "{arg0}. Paiement de {arg1} ({arg2})", [widget.etape, montantDollars(widget.priceUsd), widget.planLabel])'),
         isTrue,
         reason: 'envoyer l\'argent est l\'étape 1 ; elle n\'en portait aucune');
     });
@@ -118,7 +118,7 @@ void main() {
       final code = codeSeul(page);
       expect(code, contains('montantDollars(widget.priceUsd)'),
         reason: 'le titre doit annoncer le tarif en dollars');
-      expect(code, contains('Montant à envoyer : \${montantExact(widget.price)} FCFA'),
+      expect(code, contains('tr(context, "Montant à envoyer : {arg0} FCFA", [montantExact(widget.price)])'),
         reason: 'sans le montant exact en FCFA, le virement est irréalisable');
     });
 

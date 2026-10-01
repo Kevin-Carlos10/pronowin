@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/utils/motion.dart';
 import 'package:flutter/material.dart';
@@ -133,11 +134,11 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
   /// compte, c'est le temps écoulé.
   String _dateCache(DateTime t) {
     final ecoule = DateTime.now().difference(t);
-    if (ecoule.inMinutes < 1)  return 'à l\'instant';
-    if (ecoule.inMinutes < 60) return 'il y a ${ecoule.inMinutes} min';
-    if (ecoule.inHours   < 24) return 'il y a ${ecoule.inHours} h';
+    if (ecoule.inMinutes < 1)  return tr(context, "à l'instant");
+    if (ecoule.inMinutes < 60) return tr(context, "il y a {arg0} min", [ecoule.inMinutes]);
+    if (ecoule.inHours   < 24) return tr(context, "il y a {arg0} h", [ecoule.inHours]);
     final j = ecoule.inDays;
-    return j == 1 ? 'hier' : 'il y a $j jours';
+    return j == 1 ? 'hier' : tr(context, "il y a {arg0} jours", [j]);
   }
 
   String _dateFilterStr(DateTime d) => '${d.year.toString().padLeft(4, '0')}-'
@@ -208,19 +209,17 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
               if (status == 401) {
                 return _AuthGateView(
                   icon:        Icons.login_rounded,
-                  title:       'Connecte-toi pour voir tes recommandations',
-                  message:     'L\'onglet "Pour Toi" propose des pronostics personnalisés '
-                               'selon tes équipes et ligues favorites.',
-                  buttonLabel: 'Se connecter',
+                  title:       tr(context, "Connecte-toi pour voir tes recommandations"),
+                  message:     tr(context, "L'onglet \"Pour Toi\" propose des pronostics personnalisés selon tes équipes et ligues favorites."),
+                  buttonLabel: tr(context, "Se connecter"),
                   onAction:    () => context.push('/auth/email?from=${Uri.encodeComponent('/pronostics')}'));
               }
               if (status == 403) {
                 return _AuthGateView(
                   icon:        Icons.workspace_premium_rounded,
-                  title:       'Fonctionnalité réservée aux membres Premium',
-                  message:     'Débloque des recommandations personnalisées selon '
-                               'tes préférences avec Premium.',
-                  buttonLabel: 'Découvrir Premium',
+                  title:       tr(context, "Fonctionnalité réservée aux membres Premium"),
+                  message:     tr(context, "Débloque des recommandations personnalisées selon tes préférences avec Premium."),
+                  buttonLabel: tr(context, "Découvrir Premium"),
                   onAction:    () => goToPremium(context, ref));
               }
               return _ErrorView(
@@ -241,10 +240,9 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
               if (status == 401) {
                 return _AuthGateView(
                   icon:        Icons.login_rounded,
-                  title:       'Connecte-toi pour retrouver tes favoris',
-                  message:     'Épingle tes matchs et tes ligues préférées pour les '
-                               'retrouver rapidement ici.',
-                  buttonLabel: 'Se connecter',
+                  title:       tr(context, "Connecte-toi pour retrouver tes favoris"),
+                  message:     tr(context, "Épingle tes matchs et tes ligues préférées pour les retrouver rapidement ici."),
+                  buttonLabel: tr(context, "Se connecter"),
                   onAction:    () => context.push('/auth/email?from=${Uri.encodeComponent('/pronostics')}'));
               }
               return _ErrorView(
@@ -302,7 +300,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                     size: 14, color: AppColors.warning),
                 const SizedBox(width: 8),
                 Expanded(child: Text(
-                  'Hors connexion — copie du ${_dateCache(pagedState.cacheDe!)}',
+                  tr(context, "Hors connexion — copie du {arg0}", [_dateCache(pagedState.cacheDe!)]),
                   style: TextStyle(color: context.cl.textS, fontSize: 11))),
                 TextButton(
                   onPressed: () =>
@@ -311,7 +309,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                       padding: const EdgeInsets.symmetric(horizontal: 8),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                  child: const Text('Actualiser',
+                  child:  Text(tr(context, "Actualiser"),
                       style: TextStyle(fontSize: 11, color: AppColors.warning)),
                 ),
               ]),
@@ -405,28 +403,28 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
 
                 final tierWidgets = <Widget>[
                   ..._buildTierSection(context,
-                      label:    'En direct',
+                      label:    tr(context, "En direct"),
                       icon:     Icons.radio_button_checked_rounded,
                       color:    AppColors.error,
                       matches:  liveMatches,
                       favLeagues: favState.ligues,
                       isPremium: isPremium),
                   ..._buildTierSection(context,
-                      label:    'Pronostics du jour',
+                      label:    tr(context, "Pronostics du jour"),
                       icon:     Icons.analytics_outlined,
                       color:    AppColors.primary,
                       matches:  upcomingPronoMatches,
                       favLeagues: favState.ligues,
                       isPremium: isPremium),
                   ..._buildTierSection(context,
-                      label:    'Analyse en cours',
+                      label:    tr(context, "Analyse en cours"),
                       icon:     Icons.hourglass_top_rounded,
                       color:    context.cl.textM,
                       matches:  analysisMatches,
                       favLeagues: favState.ligues,
                       isPremium: isPremium),
                   ..._buildTierSection(context,
-                      label:    'Terminés',
+                      label:    tr(context, "Terminés"),
                       icon:     Icons.check_circle_outline_rounded,
                       color:    AppColors.success,
                       matches:  finishedMatches,
@@ -486,7 +484,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                         Padding(
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           child: Center(child: Text(
-                            'Tous les matchs sont chargés',
+                            tr(context, "Tous les matchs sont chargés"),
                             style: TextStyle(color: context.cl.textM, fontSize: 12),
                           )),
                         ),
@@ -599,7 +597,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
     actions: [
       // Bouton recherche
       Semantics(
-        label: 'Rechercher',
+        label: tr(context, "Rechercher"),
         button: true,
         child: GestureDetector(
           onTap: () => context.push('/recherche'),
@@ -614,8 +612,8 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
       // Bouton filtres avancés
       Semantics(
         label: activeAdvancedCount > 0
-          ? 'Filtres avancés, $activeAdvancedCount actif${activeAdvancedCount > 1 ? 's' : ''}'
-          : 'Filtres avancés',
+          ? tr(context, "Filtres avancés actifs : {arg0}", [activeAdvancedCount])
+          : tr(context, "Filtres avancés"),
         button: true,
         child: GestureDetector(
           onTap: () {
@@ -674,8 +672,8 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
         final unread = ref.watch(unreadCountProvider);
         return Semantics(
           label: unread > 0
-              ? 'Notifications, $unread non lue${unread > 1 ? 's' : ''}'
-              : 'Notifications',
+              ? tr(context, "Notifications non lues : {arg0}", [unread])
+              : tr(context, "Notifications"),
           button: true,
           child: GestureDetector(
             onTap: () => context.push('/notifications'),
@@ -718,10 +716,10 @@ class _StatusFilterBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final filters = <MatchStatus?, _StatusMeta>{
-      null:                  _StatusMeta('Tous',     Icons.apps_rounded,               context.cl.textS),
-      MatchStatus.upcoming:  _StatusMeta('À venir',  Icons.schedule_rounded,           AppColors.info),
+      null:                  _StatusMeta(tr(context, "Tous"),     Icons.apps_rounded,               context.cl.textS),
+      MatchStatus.upcoming:  _StatusMeta(tr(context, "À venir"),  Icons.schedule_rounded,           AppColors.info),
       MatchStatus.live:      _StatusMeta('LIVE',     Icons.radio_button_checked_rounded, AppColors.error),
-      MatchStatus.finished:  _StatusMeta('Terminés', Icons.check_circle_outline_rounded, AppColors.success),
+      MatchStatus.finished:  _StatusMeta(tr(context, "Terminés"), Icons.check_circle_outline_rounded, AppColors.success),
     };
 
     return Container(
@@ -835,8 +833,8 @@ class _DateScrollBar extends StatelessWidget {
             final count      = _countForDate(date);
             final hasMatches = count > 0;
             final dayName    = isToday
-                ? 'Auj.'
-                : DateFormat('E', 'fr_FR').format(date);
+                ? tr(context, "Auj.")
+                : DateFormat('E').format(date);
 
             return GestureDetector(
               onTap: () {
@@ -941,14 +939,14 @@ class _DayStatsBar extends StatelessWidget {
       child: Row(children: [
         _StatPill(
           icon: Icons.sports_soccer_rounded,
-          label: '$total match${total > 1 ? 's' : ''}',
+          label: AppStrings.of(context).count(total, one: "{arg0} match", other: "{arg0} matchs"),
           color: showOnlyPronos ? context.cl.textM : context.cl.textS,
           selected: !showOnlyPronos,
           onTap: showOnlyPronos ? onToggleShowOnlyPronos : null),
         _StatDivider(),
         _StatPill(
           icon: Icons.analytics_outlined,
-          label: '$pronos prono${pronos > 1 ? 's' : ''}',
+          label: AppStrings.of(context).count(pronos, one: "{arg0} prono", other: "{arg0} pronos"),
           color: AppColors.primary,
           selected: showOnlyPronos,
           onTap: showOnlyPronos ? null : onToggleShowOnlyPronos),
@@ -1103,13 +1101,13 @@ class _LeagueSectionHeader extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.primary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8)),
-        child: Text('$count match${count > 1 ? 's' : ''}',
+        child: Text(AppStrings.of(context).count(count, one: "{arg0} match", other: "{arg0} matchs"),
           style: const TextStyle(
             color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600))),
       if (onToggleFav != null) ...[
         const SizedBox(width: 8),
         Semantics(
-          label:  isFav ? 'Désépingler cette ligue' : 'Épingler cette ligue',
+          label:  isFav ? tr(context, "Désépingler cette ligue") : tr(context, "Épingler cette ligue"),
           button: true,
           child: GestureDetector(
             onTap: () {
@@ -1154,18 +1152,18 @@ class _ActiveFiltersBar extends StatelessWidget {
     final chips = <String>[];
     if (statusFilter != null) {
       chips.add(switch (statusFilter!) {
-        MatchStatus.upcoming => 'À venir',
+        MatchStatus.upcoming => tr(context, "À venir"),
         MatchStatus.live     => 'LIVE',
-        MatchStatus.finished => 'Terminés',
+        MatchStatus.finished => tr(context, "Terminés"),
       });
     }
     if (leagueFilter != null) chips.add(leagueFilter!);
     if (oddsRange != OddsRange.all) {
       chips.add(switch (oddsRange) {
-        OddsRange.under15    => 'Cote < 1.5',
-        OddsRange.from15to25 => 'Cote 1.5–2.5',
-        OddsRange.from25to4  => 'Cote 2.5–4',
-        OddsRange.over4      => 'Cote > 4',
+        OddsRange.under15    => tr(context, "Cote < 1.5"),
+        OddsRange.from15to25 => tr(context, "Cote 1.5–2.5"),
+        OddsRange.from25to4  => tr(context, "Cote 2.5–4"),
+        OddsRange.over4      => tr(context, "Cote > 4"),
         OddsRange.all        => '',
       });
     }
@@ -1196,7 +1194,7 @@ class _ActiveFiltersBar extends StatelessWidget {
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.close_rounded, size: 13, color: context.cl.textM),
               const SizedBox(width: 3),
-              Text('Tout effacer', style: TextStyle(
+              Text(tr(context, "Tout effacer"), style: TextStyle(
                 color: context.cl.textM, fontSize: 11, fontWeight: FontWeight.w500)),
             ]),
           ),
@@ -1249,7 +1247,7 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
   @override
   Widget build(BuildContext context) {
     final oddsOptions = <OddsRange, String>{
-      OddsRange.all:        'Toutes',
+      OddsRange.all:        tr(context, "Toutes"),
       OddsRange.under15:    '< 1.50',
       OddsRange.from15to25: '1.50 – 2.50',
       OddsRange.from25to4:  '2.50 – 4.00',
@@ -1273,7 +1271,7 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
         Row(children: [
           Icon(Icons.tune_rounded, color: AppColors.primary, size: 20),
           const SizedBox(width: 10),
-          Text('Filtres avancés', style: TextStyle(
+          Text(tr(context, "Filtres avancés"), style: TextStyle(
             color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
           const Spacer(),
           TextButton(
@@ -1283,19 +1281,19 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
               widget.onReset();
               Navigator.pop(context);
             },
-            child: const Text('Réinitialiser')),
+            child:  Text(tr(context, "Réinitialiser"))),
         ]),
         const SizedBox(height: 20),
 
         // Section Ligue
         if (widget.availableLeagues.isNotEmpty) ...[
-          Text('LIGUE', style: TextStyle(
+          Text(tr(context, "LIGUE"), style: TextStyle(
             color: context.cl.textM, fontSize: 11,
             fontWeight: FontWeight.w600, letterSpacing: 1)),
           const SizedBox(height: 10),
           Wrap(spacing: 8, runSpacing: 8, children: [
             _FilterChip(
-              label: 'Toutes',
+              label: tr(context, "Toutes"),
               active: _league == null,
               onTap: () => setState(() => _league = null),
             ),
@@ -1309,7 +1307,7 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
         ],
 
         // Section Cote
-        Text('COTE RECOMMANDÉE', style: TextStyle(
+        Text(tr(context, "COTE RECOMMANDÉE"), style: TextStyle(
           color: context.cl.textM, fontSize: 11,
           fontWeight: FontWeight.w600, letterSpacing: 1)),
         const SizedBox(height: 10),
@@ -1337,9 +1335,9 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
             // avant de valider si la sélection donne trente matchs ou aucun.
             child: Text(
               switch (_nbResultats) {
-                0 => 'Aucun match — ajuster',
-                1 => 'Voir le match',
-                final n => 'Voir les $n matchs',
+                0 => tr(context, "Aucun match — ajuster"),
+                1 => tr(context, "Voir le match"),
+                final n => tr(context, "Voir les {arg0} matchs", [n]),
               },
               style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
           ),
@@ -1434,14 +1432,14 @@ class _TabToggle extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         child: Row(children: [
           _Tab(
-            label:  'Pronos',
+            label:  tr(context, "Pronos"),
             icon:   Icons.analytics_outlined,
             active: tab == _PronosticsTab.all,
             onTap:  () => onTab(_PronosticsTab.all),
           ),
           const SizedBox(width: 8),
           _Tab(
-            label:  'Pour Toi',
+            label:  tr(context, "Pour Toi"),
             icon:   Icons.auto_awesome_rounded,
             active: tab == _PronosticsTab.forYou,
             color:  const Color(0xFFAB7CF6),
@@ -1449,7 +1447,7 @@ class _TabToggle extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           _Tab(
-            label:  'Favoris',
+            label:  tr(context, "Favoris"),
             icon:   Icons.bookmark_rounded,
             active: tab == _PronosticsTab.favorites,
             badge:  favCount > 0 ? '$favCount' : null,
@@ -1474,7 +1472,7 @@ class _Tab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label:    badge != null ? '$label, $badge élément${int.tryParse(badge!) == 1 ? "" : "s"}' : label,
+      label:    badge != null ? tr(context, "{arg0}, {arg1} élément{arg2}", [label, badge, int.tryParse(badge!) == 1 ? "" : "s"]) : label,
       selected: active,
       button:   true,
       child: GestureDetector(
@@ -1550,7 +1548,7 @@ class _ForYouView extends StatelessWidget {
         Row(children: [
           const Icon(Icons.auto_awesome_rounded, color: Color(0xFFAB7CF6), size: 14),
           const SizedBox(width: 6),
-          Text('${recs.length} pronos sélectionnés pour toi',
+          Text(tr(context, "{arg0} pronos sélectionnés pour toi", [recs.length]),
             style: TextStyle(color: context.cl.textP, fontSize: 13,
                 fontWeight: FontWeight.w700)),
         ]).animate(delay: 60.ms).fadeIn(duration: 250.ms),
@@ -1586,11 +1584,11 @@ class _ForYouProfileCard extends StatelessWidget {
           const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 22),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Text('Pronostics personnalisés',
+             Text(tr(context, "Pronostics personnalisés"),
               style: TextStyle(color: Colors.white, fontSize: 13,
                   fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),
-            Text('Parie sur quelques pronos pour affiner tes recommandations.',
+            Text(tr(context, "Parie sur quelques pronos pour affiner tes recommandations."),
               style: TextStyle(color: Colors.white.withValues(alpha: 0.8),
                   fontSize: 11, height: 1.4)),
           ])),
@@ -1612,7 +1610,7 @@ class _ForYouProfileCard extends StatelessWidget {
         Row(children: [
           const Icon(Icons.query_stats_rounded, color: Colors.white, size: 20),
           const SizedBox(width: 8),
-          const Text('Ton profil', style: TextStyle(
+           Text(tr(context, "Ton profil"), style: TextStyle(
             color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
           const Spacer(),
           Container(
@@ -1625,8 +1623,7 @@ class _ForYouProfileCard extends StatelessWidget {
                   fontWeight: FontWeight.w700))),
         ]),
         const SizedBox(height: 10),
-        Text('${profile.totalBets} paris analysés · '
-            'Cote préférée ${profile.oddsSweetMin.toStringAsFixed(1)}–${profile.oddsSweetMax.toStringAsFixed(1)}',
+        Text(tr(context, "{arg0} paris analysés · Cote préférée {arg1}–{arg2}", [profile.totalBets, profile.oddsSweetMin.toStringAsFixed(1), profile.oddsSweetMax.toStringAsFixed(1)]),
           style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 11)),
         if (profile.topLeagues.isNotEmpty) ...[
           const SizedBox(height: 8),
@@ -1752,12 +1749,12 @@ class _ForYouEmpty extends StatelessWidget {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         const Text('🤖', style: TextStyle(fontSize: 48)),
         const SizedBox(height: 16),
-        Text('Aucun prono disponible pour toi aujourd\'hui',
+        Text(tr(context, "Aucun prono disponible pour toi aujourd'hui"),
           style: TextStyle(color: context.cl.textP, fontSize: 15,
               fontWeight: FontWeight.w700),
           textAlign: TextAlign.center),
         const SizedBox(height: 8),
-        Text('Reviens demain ou parie sur les pronos disponibles pour affiner ton profil.',
+        Text(tr(context, "Reviens demain ou parie sur les pronos disponibles pour affiner ton profil."),
           style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.4),
           textAlign: TextAlign.center),
       ]),
@@ -1812,7 +1809,7 @@ class _FavoritesView extends StatelessWidget {
         // Section matchs épinglés
         if (hasPinnedMatches) ...[
           _FavSection(
-            title: 'Matchs épinglés',
+            title: tr(context, "Matchs épinglés"),
             icon:  Icons.bookmark_rounded,
             count: pinnedMatches.length,
           ),
@@ -1828,7 +1825,7 @@ class _FavoritesView extends StatelessWidget {
         if (pinnedLeagues.isNotEmpty) ...[
           const SizedBox(height: 8),
           _FavSection(
-            title: 'Ligues suivies',
+            title: tr(context, "Ligues suivies"),
             icon:  Icons.push_pin_rounded,
             count: pinnedLeagues.length,
           ),
@@ -1852,7 +1849,7 @@ class _FavoritesView extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
                 child: Center(child: Text(
-                  'Aucun match disponible cette semaine',
+                  tr(context, "Aucun match disponible cette semaine"),
                   style: TextStyle(color: context.cl.textM, fontSize: 12))),
               ),
           ],
@@ -1922,7 +1919,7 @@ class _FavoritesEmpty extends StatelessWidget {
 
         const SizedBox(height: 24),
 
-        Text('Aucun favori pour l\'instant',
+        Text(tr(context, "Aucun favori pour l'instant"),
           style: TextStyle(
             color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w700),
           textAlign: TextAlign.center)
@@ -1931,7 +1928,7 @@ class _FavoritesEmpty extends StatelessWidget {
         const SizedBox(height: 10),
 
         Text(
-          'Épinglez tes matchs avec 🔖 ou tes ligues préférées avec 📌 pour les retrouver ici.',
+          tr(context, "Épinglez tes matchs avec 🔖 ou tes ligues préférées avec 📌 pour les retrouver ici."),
           style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
           textAlign: TextAlign.center)
           .animate(delay: 230.ms).fadeIn(duration: 300.ms),
@@ -2020,7 +2017,7 @@ class _ErrorView extends StatelessWidget {
         ElevatedButton.icon(
           onPressed: onRetry,
           icon: const Icon(Icons.refresh_rounded, size: 18),
-          label: const Text('Réessayer')),
+          label:  Text(tr(context, "Réessayer"))),
       ]),
     ),
   ).animate().fadeIn(duration: 350.ms).scale(begin: const Offset(0.92, 0.92), end: const Offset(1, 1), duration: 350.ms, curve: Curves.easeOutBack);
@@ -2040,10 +2037,10 @@ class _EmptyView extends StatelessWidget {
   Widget build(BuildContext context) {
     final isToday = _isSameDay(date, DateTime.now());
     final label   = hasFilter
-        ? 'Aucun match pour ce filtre'
+        ? tr(context, "Aucun match pour ce filtre")
         : isToday
-            ? "Pas de pronostic aujourd'hui"
-            : 'Pas de pronostic ce jour';
+            ? tr(context, "Pas de pronostic aujourd'hui")
+            : tr(context, "Pas de pronostic ce jour");
     return Center(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
@@ -2088,10 +2085,10 @@ class _EmptyView extends StatelessWidget {
 
           Text(
             hasFilter
-              ? 'Essayez un autre filtre pour découvrir des matchs disponibles.'
+              ? tr(context, "Essayez un autre filtre pour découvrir des matchs disponibles.")
               : isToday
-                ? 'Nos analystes préparent les meilleures sélections.\nRevenez plus tard !'
-                : 'Pas de pronostics pour le ${DateFormat("d MMMM", "fr_FR").format(date)}.\nConsultez une autre date.',
+                ? tr(context, "Nos analystes préparent les meilleures sélections.\nRevenez plus tard !")
+                : tr(context, "Pas de pronostics pour le {arg0}.\nConsultez une autre date.", [DateFormat("d MMMM").format(date)]),
             style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
             textAlign: TextAlign.center)
             .animate(delay: 230.ms).fadeIn(duration: 300.ms),
@@ -2110,7 +2107,7 @@ class _EmptyView extends StatelessWidget {
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 const Icon(Icons.arrow_downward_rounded, color: AppColors.primaryLight, size: 14),
                 const SizedBox(width: 6),
-                Text('Tirez vers le bas pour actualiser',
+                Text(tr(context, "Tirez vers le bas pour actualiser"),
                   style: TextStyle(color: AppColors.primaryLight, fontSize: 12, fontWeight: FontWeight.w500)),
               ]),
             ).animate(delay: 320.ms).fadeIn(duration: 300.ms),
@@ -2120,7 +2117,7 @@ class _EmptyView extends StatelessWidget {
             TextButton.icon(
               onPressed: onClearFilter,
               icon: const Icon(Icons.filter_alt_off_rounded, size: 16),
-              label: const Text('Effacer le filtre'))
+              label:  Text(tr(context, "Effacer le filtre")))
               .animate(delay: 300.ms).fadeIn(duration: 300.ms),
           ],
         ]),

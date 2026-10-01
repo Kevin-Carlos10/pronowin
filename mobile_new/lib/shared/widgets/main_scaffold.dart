@@ -1,4 +1,5 @@
-﻿import 'dart:ui';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -233,7 +234,7 @@ class _NavItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label:    item.label,
+      label:    tr(context, item.label),
       selected: isSelected,
       button:   true,
       child: GestureDetector(
@@ -277,7 +278,7 @@ class _NavItemWidget extends StatelessWidget {
                     fontSize: BottomNavMetrics.taillePolice,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                   ),
-                  child: Text(item.label),
+                  child: Text(tr(context, item.label)),
                 ),
               ],
             ),

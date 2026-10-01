@@ -40,7 +40,7 @@ class _LineupsCard extends ConsumerWidget {
             child: Icon(Icons.groups_rounded, color: AppColors.primary, size: 16),
           ),
           const SizedBox(width: 10),
-          Text('Compositions',
+          Text(tr(context, "Compositions"),
             style: TextStyle(
               color: context.cl.textP,
               fontSize: 13,
@@ -48,7 +48,7 @@ class _LineupsCard extends ConsumerWidget {
         ]),
         const SizedBox(height: 14),
         status == 401
-          ? const _CardLoginPrompt(message: 'Connecte-toi pour voir les compositions.')
+          ?  _CardLoginPrompt(message: tr(context, "Connecte-toi pour voir les compositions."))
           : lineupsAsync.when(
               loading: () => _H2HLoading(),
               error: (_, _) => const SizedBox.shrink(),
@@ -67,7 +67,7 @@ class _LineupsPending extends StatelessWidget {
     Icon(Icons.schedule_rounded, color: context.cl.textM, size: 16),
     const SizedBox(width: 8),
     Expanded(
-      child: Text('Compositions pas encore annoncées — publiées ~1h avant le coup d\'envoi.',
+      child: Text(tr(context, "Compositions pas encore annoncées — publiées ~1h avant le coup d'envoi."),
         style: TextStyle(color: context.cl.textM, fontSize: 12))),
   ]);
 }
@@ -407,7 +407,7 @@ class _TeamCoachRow extends StatelessWidget {
     ],
     if (team.coach != null)
       Expanded(
-        child: Text('Entraîneur : ${team.coach}',
+        child: Text(tr(context, "Entraîneur : {arg0}", [team.coach]),
           maxLines: 1, overflow: TextOverflow.ellipsis,
           style: TextStyle(color: context.cl.textM, fontSize: 11))),
   ]);
@@ -438,7 +438,7 @@ class _CarteEntraineurs extends StatelessWidget {
         border: Border.all(color: context.cl.borderSoft, width: 0.6),
       ),
       child: Column(children: [
-        Text('Entraîneurs',
+        Text(tr(context, "Entraîneurs"),
           style: TextStyle(
             color: context.cl.textM, fontSize: 10,
             fontWeight: FontWeight.w700, letterSpacing: 0.6)),

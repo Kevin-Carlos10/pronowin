@@ -47,9 +47,9 @@ class _ProofBand extends ConsumerWidget {
                 text: TextSpan(
                   style: TextStyle(color: context.cl.textM, fontSize: 12),
                   children: [
-                    TextSpan(text: '$total derniers pronostics · '),
+                    TextSpan(text: tr(context, "{arg0} derniers pronostics · ", [total])),
                     TextSpan(
-                        text: '$wins gagnés',
+                        text: tr(context, "{arg0} gagnés", [wins]),
                         style: TextStyle(
                             color: context.cl.textP,
                             fontWeight: FontWeight.w800)),
@@ -116,17 +116,17 @@ class _YesterdayRecap extends ConsumerWidget {
                 TextSpan(
                   style: TextStyle(color: context.cl.textM, fontSize: 12),
                   children: [
-                    const TextSpan(text: 'Hier · '),
+                     TextSpan(text: tr(context, "Hier · ")),
                     TextSpan(
-                      text: '$gagnes sur ${regles.length}',
+                      text: tr(context, "{arg0} sur {arg1}", [gagnes, regles.length]),
                       style: TextStyle(
                           color: gagnes * 2 >= regles.length
                               ? AppColors.success
                               : AppColors.error,
                           fontWeight: FontWeight.w800),
                     ),
-                    const TextSpan(text: ' pronostic'),
-                    TextSpan(text: regles.length > 1 ? 's gagnés' : ' gagné'),
+                     TextSpan(text: tr(context, " pronostic")),
+                    TextSpan(text: regles.length > 1 ? tr(context, "s gagnés") : tr(context, " gagné")),
                   ],
                 ),
                 maxLines: 1,

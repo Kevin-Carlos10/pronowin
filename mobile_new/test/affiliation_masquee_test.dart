@@ -1,4 +1,6 @@
 import 'dart:io';
+import 'dart:convert';
+import 'package:pronowin/l10n/catalog_en.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 /// Aucune invitation à parier quand aucun partenariat n'est configuré.
@@ -71,6 +73,16 @@ void main() {
         // L'exemption est donc levée, et l'écran de nouveau surveillé — c'est
         // celui qui nommait « Melbet » et « Betwinner » dans trois phrases que
         // la liste publiée ne gouvernait pas.
+        if (chemin.endsWith('l10n/catalog_en.dart')) {
+          final legal = codeSeul('lib/features/parametres/presentation/pages/legal_page.dart');
+          for (final entry in englishMessages.entries) {
+            if (entry.key.contains('1xBet') || entry.value.contains('1xBet')) {
+              expect(legal, contains(jsonEncode(entry.key)),
+                  reason: 'seules les mentions légales peuvent nommer une enseigne');
+            }
+          }
+          continue;
+        }
         if (chemin.endsWith('legal_page.dart')) continue;
         if (chemin.endsWith('domain/tarifs_premium.dart')) continue;
 

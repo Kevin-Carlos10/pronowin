@@ -99,7 +99,7 @@ void main() {
       // « COTES » seul laissait croire que ces trois valeurs étaient celles du
       // pronostic. La mention avait été ajoutée au bandeau neutre ; elle aurait
       // disparu du canal direct avec lui.
-      expect(source, contains("const marche = 'VAINQUEUR DU MATCH'"));
+      expect(source, contains('marche = tr(context, "VAINQUEUR DU MATCH")'));
       expect(source, contains('marche:        marche,'),
           reason: 'le bandeau du partenaire doit recevoir le nom du marché');
 

@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -156,7 +157,7 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
                     const SizedBox(height: 24),
 
                     Text(
-                      widget.isNewUser ? 'Bienvenue !' : 'Content de te revoir !',
+                      widget.isNewUser ? tr(context, "Bienvenue !") : tr(context, "Content de te revoir !"),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: context.cl.textP,
@@ -172,8 +173,8 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
                         style: TextStyle(color: context.cl.textS, fontSize: 13.5, height: 1.5),
                         children: [
                           TextSpan(text: widget.isNewUser
-                            ? 'Code de vérification envoyé à '
-                            : 'Code de connexion envoyé à '),
+                            ? tr(context, "Code de vérification envoyé à ")
+                            : tr(context, "Code de connexion envoyé à ")),
                           TextSpan(text: masked,
                             style: TextStyle(color: context.cl.textP, fontWeight: FontWeight.w600)),
                         ],
@@ -213,13 +214,13 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
                     AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
                       child: _resendSeconds > 0
-                        ? Text('Renvoyer le code dans ${_resendSeconds}s',
+                        ? Text(tr(context, "Renvoyer le code dans {arg0}s", [_resendSeconds]),
                             key: const ValueKey('timer'),
                             style: TextStyle(color: context.cl.textM, fontSize: 12.5))
                         : TextButton(
                             key: const ValueKey('resend'),
                             onPressed: _resend,
-                            child: const Text('Renvoyer le code'),
+                            child:  Text(tr(context, "Renvoyer le code")),
                           ),
                     ),
 
@@ -228,7 +229,7 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
                     SizedBox(
                       width: double.infinity,
                       child: PwButton(
-                        label: 'Vérifier',
+                        label: tr(context, "Vérifier"),
                         isLoading: authState is AuthLoading,
                         onPressed: _otp.length == 6 ? _verify : null,
                       ),

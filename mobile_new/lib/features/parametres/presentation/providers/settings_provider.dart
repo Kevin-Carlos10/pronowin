@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -57,33 +58,34 @@ class AppSettings {
 
   String get themeName {
     switch (themeMode) {
-      case ThemeMode.dark:   return 'Sombre';
-      case ThemeMode.light:  return 'Clair';
-      case ThemeMode.system: return 'Système';
+      case ThemeMode.dark:   return trCurrent("Sombre");
+      case ThemeMode.light:  return trCurrent("Clair");
+      case ThemeMode.system: return trCurrent("Système");
     }
   }
-  String get langName  => 'Français'; // Seul le français est disponible pour l'instant
+  String get langName => lang == 'en' ? 'English' : 'Français';
 }
 
 // ─── Notifier ─────────────────────────────────────────────────────────────────
 class SettingsNotifier extends StateNotifier<AppSettings> {
   final Ref _ref;
-  SettingsNotifier(this._ref) : super(const AppSettings()) {
+  SettingsNotifier(this._ref) : super(AppSettings(lang: _ref.read(initialLanguageProvider))) {
     _load();
   }
 
-  final _fcm = FirebaseMessaging.instance;
+  FirebaseMessaging get _fcm => FirebaseMessaging.instance;
 
   // ─── Chargement initial ───────────────────────────────────────────────────
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
     state = AppSettings(
       themeMode:     p.getString(_kTheme) == 'light'
                       ? ThemeMode.light
                       : p.getString(_kTheme) == 'system'
                           ? ThemeMode.system
                           : ThemeMode.dark,
-      lang:          p.getString(_kLang)  ?? 'fr',
+      lang:          _languageChanged ? state.lang : AppStrings.languePreferee(p.getString(_kLang)),
       notifMatch:    p.getBool(_kNotifMatch)    ?? true,
       // Marketing : consentement explicite. Les alertes de match, le
       // parrainage et l'abonnement sont du service attendu et restent
@@ -94,6 +96,8 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       pinEnabled:    p.getBool(_kPinEnabled)    ?? false,
       bioEnabled:    p.getBool(_kBioEnabled)    ?? false,
     );
+
+    AppStrings.setCurrentLanguage(state.lang);
 
     // Synchroniser les topics FCM avec les préférences sauvegardées
     await _syncAllTopics(state);
@@ -132,10 +136,19 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   // ─── Langue ───────────────────────────────────────────────────────────────
-  Future<void> setLang(String lang) async {
-    state = state.copyWith(lang: lang);
-    final p = await SharedPreferences.getInstance();
-    await p.setString(_kLang, lang);
+  bool _languageChanged = false;
+  Future<void> _languageWrite = Future.value();
+  Future<void> setLang(String lang) {
+    final language = AppStrings.normaliseLanguage(lang);
+    _languageChanged = true;
+    AppStrings.setCurrentLanguage(language);
+    state = state.copyWith(lang: language);
+    // Preserve the order of rapid selections; an old write must not win.
+    _languageWrite = _languageWrite.catchError((Object _) {}).then((_) async {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_kLang, language);
+    });
+    return _languageWrite;
   }
 
   // ─── Toggle notification (local + FCM topic + serveur) ────────────────────
@@ -226,6 +239,8 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 }
 
 // ─── Providers ────────────────────────────────────────────────────────────────
+final initialLanguageProvider = Provider<String>((ref) => 'fr');
+
 final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>(
   (ref) => SettingsNotifier(ref));
 

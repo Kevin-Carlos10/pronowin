@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 
 import '../../../../../core/config/bookmaker_affiliation.dart';
@@ -239,9 +240,8 @@ class _CoteCliquable extends StatelessWidget {
           // bookmaker. « Cote 1, 1.65 » seul laisserait croire à un simple
           // affichage.
           label: absente
-              ? 'Cote $label indisponible'
-              : 'Cote $label, ${valeur.toStringAsFixed(2)} — '
-                'parier sur ${BookmakerAffiliation.nom}',
+              ? tr(context, "Cote {arg0} indisponible", [label])
+              : tr(context, "Cote {arg0}, {arg1} — parier sur {arg2}", [label, valeur.toStringAsFixed(2), BookmakerAffiliation.nom]),
           // Sans cette exclusion, les deux `Text` de la pastille s'ajoutent au
           // libellé : « Cote 1, 1.65 — parier sur 1xBet, 1, 1.65 ». La valeur
           // est déjà dans la phrase, l'entendre trois fois n'aide personne.

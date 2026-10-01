@@ -109,7 +109,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                         .animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
                         .fadeIn(duration: 600.ms).then().fadeOut(duration: 600.ms),
                       const SizedBox(width: 5),
-                      const Text('PROCHAIN MATCH',
+                       Text(tr(context, "PROCHAIN MATCH"),
                         style: TextStyle(color: AppColors.primary, fontSize: 9,
                           fontWeight: FontWeight.w800, letterSpacing: 0.6)),
                     ]),
@@ -127,7 +127,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                           fontWeight: FontWeight.w800, letterSpacing: 0.5)),
                     ),
                   Text(
-                    DateFormat("EEE d MMM · HH'h'mm", 'fr_FR').format(matchDate),
+                    DateFormat("EEE d MMM · HH:mm").format(matchDate),
                     style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
                 ]),
                 const SizedBox(height: 16),
@@ -177,10 +177,10 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                     border: Border.all(color: AppColors.primary.withValues(alpha: 0.15), width: 0.5)),
                   child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
                     if (days > 0) ...[
-                      _CountUnit(value: _pad(days), label: days == 1 ? 'JOUR' : 'JOURS'),
+                      _CountUnit(value: _pad(days), label: days == 1 ? tr(context, "JOUR") : tr(context, "JOURS")),
                       _CountDivider(),
                     ],
-                    _CountUnit(value: _pad(hours), label: 'HEURES'),
+                    _CountUnit(value: _pad(hours), label: tr(context, "HEURES")),
                     _CountDivider(),
                     _CountUnit(value: _pad(minutes), label: 'MIN'),
                     _CountDivider(),
@@ -215,7 +215,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
-                              isLocked ? 'Réservé VIP' : predLabel,
+                              isLocked ? tr(context, "Réservé VIP") : predLabel,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
@@ -256,7 +256,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                                       CrossAxisAlignment.baseline,
                                   textBaseline: TextBaseline.alphabetic,
                                   children: [
-                                    Text('COTE',
+                                    Text(tr(context, "COTE"),
                                         style: TextStyle(
                                             color: context.cl.textM,
                                             fontSize: 9,
@@ -300,7 +300,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                   child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     // Le pronostic est déjà affiché juste au-dessus ; ce qui
                     // est derrière le bouton, c'est l'analyse.
-                    Text(isLocked ? 'Débloquer avec Premium' : "Voir l'analyse",
+                    Text(isLocked ? tr(context, "Débloquer avec Premium") : tr(context, "Voir l'analyse"),
                       style: const TextStyle(color: Colors.white, fontSize: 13,
                         fontWeight: FontWeight.w800)),
                     const SizedBox(width: 6),
@@ -433,11 +433,11 @@ class _ErrorCard extends StatelessWidget {
             Icon(Icons.wifi_off_rounded,
                 color: context.cl.textM, size: 32),
             const SizedBox(height: 8),
-            Text('Erreur de connexion',
+            Text(tr(context, "Erreur de connexion"),
                 style: TextStyle(color: context.cl.textS)),
             const SizedBox(height: 8),
             TextButton(
-                onPressed: onRetry, child: const Text('Réessayer')),
+                onPressed: onRetry, child:  Text(tr(context, "Réessayer"))),
           ],
         ),
       );

@@ -26,7 +26,7 @@ class _FormCard extends StatelessWidget {
         _CardHeader(
           icon: Icons.trending_up_rounded,
           color: AppColors.success,
-          title: 'Forme des équipes'),
+          title: tr(context, "Forme des équipes")),
         const SizedBox(height: 14),
         Row(children: [
           Expanded(
@@ -46,11 +46,11 @@ class _FormCard extends StatelessWidget {
         ]),
         const SizedBox(height: 9),
         Row(children: [
-          Text('${match.homeFormPoints} pts',
+          Text(tr(context, "{arg0} pts", [match.homeFormPoints]),
             style: TextStyle(
               color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w800)),
           const Spacer(),
-          Text('${match.awayFormPoints} pts',
+          Text(tr(context, "{arg0} pts", [match.awayFormPoints]),
             style: TextStyle(
               color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w800)),
         ]),

@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -122,7 +123,7 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
       if (!mounted) return;
       setState(() {
         _etape = _Etape.echec;
-        _erreur = 'Impossible d\'ouvrir la page de téléchargement.';
+        _erreur = tr(context, "Impossible d'ouvrir la page de téléchargement.");
       });
     }
   }
@@ -175,14 +176,12 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
         case ResultatInstallation.autorisationDemandee:
           setState(() {
             _etape = _Etape.echec;
-            _erreur = 'Autorisez PronoWin à installer des applications, '
-                'puis appuyez de nouveau sur « Installer ».';
+            _erreur = tr(context, "Autorisez PronoWin à installer des applications, puis appuyez de nouveau sur « Installer ».");
           });
         case ResultatInstallation.impossible:
           setState(() {
             _etape = _Etape.echec;
-            _erreur = 'Installation impossible depuis l\'application. '
-                'Téléchargez la mise à jour depuis le site.';
+            _erreur = tr(context, "Installation impossible depuis l'application. Téléchargez la mise à jour depuis le site.");
           });
       }
     } on DioException catch (e) {
@@ -215,16 +214,13 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
       _etape = _Etape.echec;
       _erreur = switch (e.raison) {
         RaisonEchec.reseau =>
-          'Téléchargement interrompu. Vérifiez votre connexion.',
+          tr(context, "Téléchargement interrompu. Vérifiez votre connexion."),
         RaisonEchec.espace =>
-          'Espace insuffisant sur le téléphone. Libérez environ 150 Mo, '
-          'puis réessayez.',
+          tr(context, "Espace insuffisant sur le téléphone. Libérez environ 150 Mo, puis réessayez."),
         RaisonEchec.serveur =>
-          "Le fichier n'est pas disponible pour le moment. Réessayez dans "
-          "quelques minutes.",
+          tr(context, "Le fichier n'est pas disponible pour le moment. Réessayez dans quelques minutes."),
         RaisonEchec.inconnu =>
-          "La mise à jour n'a pas pu s'installer. Vous pouvez la "
-          "télécharger depuis le site.",
+          tr(context, "La mise à jour n'a pas pu s'installer. Vous pouvez la télécharger depuis le site."),
       };
     });
   }
@@ -234,25 +230,25 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
   String get _titre {
     if (widget.titre != null) return widget.titre!;
     return switch (_etape) {
-      _Etape.telechargement => 'Appli en cours de mise à jour',
-      _Etape.installation   => 'Installation en cours',
-      _Etape.echec          => 'La mise à jour a échoué',
+      _Etape.telechargement => tr(context, "Appli en cours de mise à jour"),
+      _Etape.installation   => tr(context, "Installation en cours"),
+      _Etape.echec          => tr(context, "La mise à jour a échoué"),
       // Le titre de la maquette — mais seulement quand l'utilisateur a le
       // choix. Sur une mise à jour obligatoire il n'y a ni retour ni « Plus
       // tard » : annoncer gaiement une montée en gamme à quelqu'un qu'on vient
       // d'enfermer lui cacherait la seule chose qu'il doit comprendre.
       _Etape.invitation     => widget.bloquant
-        ? 'Mise à jour requise'
-        : 'PronoWin passe au niveau supérieur',
+        ? tr(context, "Mise à jour requise")
+        : tr(context, "PronoWin passe au niveau supérieur"),
     };
   }
 
   String get _sousTitre {
     return switch (_etape) {
-      _Etape.telechargement => 'L\'installation peut durer quelques minutes.',
-      _Etape.installation   => 'Suivez les instructions de votre téléphone.',
-      _Etape.echec          => _erreur ?? widget.message,
-      _Etape.invitation     => widget.message,
+      _Etape.telechargement => tr(context, "L'installation peut durer quelques minutes."),
+      _Etape.installation   => tr(context, "Suivez les instructions de votre téléphone."),
+      _Etape.echec          => _erreur ?? tr(context, widget.message),
+      _Etape.invitation     => tr(context, widget.message),
     };
   }
 
@@ -395,7 +391,7 @@ class _Progression extends StatelessWidget {
         ),
         const SizedBox(height: 14),
         Text(
-          pourcent == null ? 'Préparation…' : '$pourcent %',
+          pourcent == null ? tr(context, "Préparation…") : '$pourcent %',
           key: const Key('maj-pourcentage'),
           style: const TextStyle(
             color: Colors.white,
@@ -428,9 +424,9 @@ class _Boutons extends StatelessWidget {
   });
 
   String get _libelle {
-    if (echec) return 'Réessayer';
+    if (echec) return trCurrent("Réessayer");
     if (lien == null || lien!.isEmpty) return 'OK';
-    return installationDirecte ? 'Installer' : 'Mettre à jour';
+    return installationDirecte ? trCurrent("Installer") : trCurrent("Mettre à jour");
   }
 
   @override
@@ -476,7 +472,7 @@ class _Boutons extends StatelessWidget {
             key: const Key('maj-navigateur'),
             onPressed: onNavigateur,
             child: Text(
-              'Télécharger depuis le site',
+              tr(context, "Télécharger depuis le site"),
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
@@ -493,8 +489,8 @@ class _Boutons extends StatelessWidget {
           TextButton(
             key: const Key('maj-plus-tard'),
             onPressed: onPlusTard,
-            child: const Text(
-              'Plus tard',
+            child:  Text(
+              tr(context, "Plus tard"),
               style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
             ),
           ),

@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:ui';
 
 import 'package:country_picker/country_picker.dart';
@@ -207,20 +208,20 @@ class _CountrySheetState extends State<_CountrySheet> {
             child: Row(children: [
               Expanded(
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Indicatif du pays',
+                  Text(tr(context, "Indicatif du pays"),
                     style: TextStyle(
                       color: context.cl.textP,
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
                       letterSpacing: -0.3)),
                   const SizedBox(height: 2),
-                  Text('${_all.length} pays disponibles',
+                  Text(tr(context, "{arg0} pays disponibles", [_all.length]),
                     style: TextStyle(color: context.cl.textM, fontSize: 12)),
                 ]),
               ),
               IconButton(
                 icon: Icon(Icons.close_rounded, color: context.cl.textM, size: 22),
-                tooltip: 'Fermer',
+                tooltip: tr(context, "Fermer"),
                 onPressed: () => Navigator.pop(context),
               ),
             ]),
@@ -235,12 +236,12 @@ class _CountrySheetState extends State<_CountrySheet> {
               onChanged: (v) => setState(() => _query = v.trim()),
               style: TextStyle(color: context.cl.textP, fontSize: 15),
               decoration: InputDecoration(
-                hintText: 'Rechercher un pays ou un indicatif',
+                hintText: tr(context, "Rechercher un pays ou un indicatif"),
                 hintStyle: TextStyle(color: context.cl.textM, fontSize: 14),
                 prefixIcon: Icon(Icons.search_rounded, color: context.cl.textM, size: 20),
                 suffixIcon: _query.isEmpty ? null : IconButton(
                   icon: Icon(Icons.close_rounded, color: context.cl.textM, size: 18),
-                  tooltip: 'Effacer',
+                  tooltip: tr(context, "Effacer"),
                   onPressed: () {
                     _searchCtrl.clear();
                     setState(() => _query = '');
@@ -271,7 +272,7 @@ class _CountrySheetState extends State<_CountrySheet> {
                   padding: const EdgeInsets.only(top: 8, bottom: 24),
                   children: [
                     if (favorites.isNotEmpty) ...[
-                      const _SectionLabel('Fréquents'),
+                       _SectionLabel(tr(context, "Fréquents")),
                       for (final c in favorites)
                         _CountryTile(
                           country: c,
@@ -282,8 +283,8 @@ class _CountrySheetState extends State<_CountrySheet> {
                     ],
                     if (others.isNotEmpty) ...[
                       _SectionLabel(searching
-                        ? '${others.length} résultat${others.length > 1 ? 's' : ''}'
-                        : 'Tous les pays'),
+                        ? AppStrings.of(context).count(others.length, one: "{arg0} résultat", other: "{arg0} résultats")
+                        : tr(context, "Tous les pays")),
                       for (final c in others)
                         _CountryTile(
                           country: c,
@@ -396,11 +397,11 @@ class _EmptyResults extends StatelessWidget {
     child: Column(mainAxisSize: MainAxisSize.min, children: [
       Icon(Icons.travel_explore_rounded, color: context.cl.textM, size: 40),
       const SizedBox(height: 14),
-      Text('Aucun pays trouvé',
+      Text(tr(context, "Aucun pays trouvé"),
         style: TextStyle(
           color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w700)),
       const SizedBox(height: 6),
-      Text('Rien ne correspond à « $query ». Essaie le nom du pays ou son indicatif.',
+      Text(tr(context, "Rien ne correspond à « {arg0} ». Essaie le nom du pays ou son indicatif.", [query]),
         textAlign: TextAlign.center,
         style: TextStyle(color: context.cl.textM, fontSize: 12.5, height: 1.4)),
     ]),

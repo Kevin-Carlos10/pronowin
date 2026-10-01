@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -175,7 +176,7 @@ class PronoShareCard extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          DateFormat('HH:mm', 'fr_FR').format(match.matchDate),
+                          DateFormat('HH:mm').format(match.matchDate),
                           style: const TextStyle(
                             color: AppColors.primary,
                             fontSize: 14,
@@ -224,9 +225,9 @@ class PronoShareCard extends StatelessWidget {
                     PronosticResult.push => Icons.replay_rounded,
                   };
                   final label = switch (result) {
-                    PronosticResult.win  => 'Pronostic GAGNANT ✅',
-                    PronosticResult.loss => 'Pronostic PERDU',
-                    PronosticResult.push => 'Pronostic REMBOURSÉ 🔄',
+                    PronosticResult.win  => tr(context, "Pronostic GAGNANT ✅"),
+                    PronosticResult.loss => tr(context, "Pronostic PERDU"),
+                    PronosticResult.push => tr(context, "Pronostic REMBOURSÉ 🔄"),
                   };
                   return Container(
                     margin: const EdgeInsets.only(bottom: 16),
@@ -268,8 +269,8 @@ class PronoShareCard extends StatelessWidget {
                   ),
                 ),
                 child: Column(children: [
-                  const Text(
-                    'PRONOSTIC',
+                   Text(
+                    tr(context, "PRONOSTIC"),
                     style: TextStyle(
                       color: AppColors.primary,
                       fontSize: 10,
@@ -306,7 +307,7 @@ class PronoShareCard extends StatelessWidget {
                     ),
                     child: Column(children: [
                       Text(
-                        'COTE',
+                        tr(context, "COTE"),
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.45),
                           fontSize: 9,
@@ -341,7 +342,7 @@ class PronoShareCard extends StatelessWidget {
                     ),
                     child: Column(children: [
                       Text(
-                        'CONFIANCE',
+                        tr(context, "CONFIANCE"),
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.45),
                           fontSize: 9,
@@ -389,7 +390,7 @@ class PronoShareCard extends StatelessWidget {
                         color: Colors.white.withValues(alpha: 0.4), size: 11),
                     const SizedBox(width: 5),
                     Text(
-                      DateFormat('dd MMM · HH:mm', 'fr_FR').format(match.matchDate),
+                      DateFormat('dd MMM · HH:mm').format(match.matchDate),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.45),
                         fontSize: 11,

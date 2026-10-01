@@ -139,10 +139,11 @@ void main() {
     // aucune modifiable depuis là : le seul accès à l'édition était le crayon
     // de la photo, dont le libellé d'accessibilité annonce « Modifier la photo
     // de profil ».
+    // Sans les commentaires, qui citent l'ancienne fiche.
     final source = File(
       'lib/features/compte/presentation/pages/compte_page.dart',
-    ).readAsStringSync();
-    expect(source, contains("label: 'Mes informations'"));
+    ).readAsStringSync().split('\n').where((l) => !l.trimLeft().startsWith('//')).join('\n');
+    expect(source, contains('label: tr(context, "Mes informations")'));
     expect(source, contains("push('/compte/edit')"));
     expect(source, isNot(contains("_InfoRow(label: 'Téléphone'")),
         reason: 'la fiche en lecture seule est revenue');

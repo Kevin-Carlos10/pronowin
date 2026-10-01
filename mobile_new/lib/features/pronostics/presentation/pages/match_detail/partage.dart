@@ -42,16 +42,13 @@ String _buildShareText(MatchEntity match) {
   final duel = '${match.homeTeam} vs ${match.awayTeam}';
 
   final sujet = switch (match.result) {
-    PronosticResult.win  => '✅ *Pronostic gagnant* — $duel',
-    PronosticResult.loss => '📊 *Résultat* — $duel',
-    PronosticResult.push => '↩️ *Pronostic remboursé* — $duel',
-    null                 => '⚽ *Pronostic PronoWin* — $duel',
+    PronosticResult.win  => trCurrent("✅ *Pronostic gagnant* — {arg0}", [duel]),
+    PronosticResult.loss => trCurrent("📊 *Résultat* — {arg0}", [duel]),
+    PronosticResult.push => trCurrent("↩️ *Pronostic remboursé* — {arg0}", [duel]),
+    null                 => trCurrent("⚽ *Pronostic PronoWin* — {arg0}", [duel]),
   };
 
-  return '$sujet\n\n'
-      '📲 Pour consulter le détail et plein d\'autres pronostics, '
-      'télécharge l\'application :\n'
-      '⬇️ ${AppConstants.apkDownloadUrl}';
+  return trCurrent("{arg0}\n\n📲 Pour consulter le détail et plein d'autres pronostics, télécharge l'application :\n⬇️ {arg1}", [sujet, AppConstants.apkDownloadUrl]);
 }
 
 Future<void> _launchShare(String url) async {
@@ -94,7 +91,7 @@ class _ShareSheetState extends State<_ShareSheet> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur de capture : $e'),
+          content: Text(tr(context, "Erreur de capture : {arg0}", [e])),
           behavior: SnackBarBehavior.floating,
         ));
       }
@@ -133,7 +130,7 @@ class _ShareSheetState extends State<_ShareSheet> {
               ),
             ),
 
-            Text('Partager ce pronostic',
+            Text(tr(context, "Partager ce pronostic"),
               style: TextStyle(
                 color: context.cl.textP, fontSize: 15,
                 fontWeight: FontWeight.w700),
@@ -167,7 +164,7 @@ class _ShareSheetState extends State<_ShareSheet> {
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.white))
                     : const Icon(Icons.image_rounded, size: 18),
-                label: Text(_capturing ? 'Génération…' : 'Partager l\'image'),
+                label: Text(_capturing ? tr(context, "Génération…") : tr(context, "Partager l'image")),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -208,13 +205,13 @@ class _ShareSheetState extends State<_ShareSheet> {
               const SizedBox(width: 10),
               Expanded(child: _ShareBtn(
                 fallbackIcon: Icons.copy_rounded,
-                label: 'Copier',
+                label: tr(context, "Copier"),
                 color: AppColors.primary,
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: text));
                   Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                    content: Text('Pronostic copié !'),
+                  ScaffoldMessenger.of(context).showSnackBar( SnackBar(
+                    content: Text(tr(context, "Pronostic copié !")),
                     behavior: SnackBarBehavior.floating,
                     duration: Duration(seconds: 2),
                   ));

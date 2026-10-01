@@ -64,7 +64,7 @@ class _AnalyseModele extends ConsumerWidget {
                 color: AppColors.primary, size: 16)),
           const SizedBox(width: 10),
           Expanded(
-            child: Text('Pourquoi ce pronostic',
+            child: Text(tr(context, "Pourquoi ce pronostic"),
               style: TextStyle(
                 color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           ),
@@ -105,7 +105,7 @@ class _AnalyseModele extends ConsumerWidget {
                     // il peut différer du pronostic PronoWin affiché plus haut,
                     // et deux recommandations sans étiquette sur le même écran
                     // laissent le lecteur choisir au hasard.
-                    Text('Marché suggéré par le modèle',
+                    Text(tr(context, "Marché suggéré par le modèle"),
                       style: TextStyle(
                         color: AppColors.primary, fontSize: 9.5,
                         fontWeight: FontWeight.w800, letterSpacing: 0.5)),
@@ -136,10 +136,8 @@ class _AnalyseModele extends ConsumerWidget {
           // barres restent la lecture du modèle externe. Les confondre, c'était
           // afficher « < 1 % » à côté d'une cote qui disait 48,5 %.
           data.probabilitesDuMarche
-            ? 'Barres : modèle statistique externe — forme, attaque, défense, '
-              'confrontations directes et distribution de Poisson.'
-            : 'Modèle statistique externe — forme, attaque, défense, '
-              'confrontations directes et distribution de Poisson.',
+            ? tr(context, "Barres : modèle statistique externe — forme, attaque, défense, confrontations directes et distribution de Poisson.")
+            : tr(context, "Modèle statistique externe — forme, attaque, défense, confrontations directes et distribution de Poisson."),
           style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.4)),
       ]),
     );
@@ -155,7 +153,7 @@ class _BarreIssues extends StatelessWidget {
   Widget build(BuildContext context) {
     final issues = [
       (data.homeTeam, data.percentHome, AppColors.success),
-      ('Nul',         data.percentDraw, AppColors.warning),
+      (tr(context, "Nul"),         data.percentDraw, AppColors.warning),
       (data.awayTeam, data.percentAway, AppColors.info),
     ];
     final max = issues.map((e) => e.$2).reduce((a, b) => a > b ? a : b);
@@ -212,9 +210,8 @@ class _BarreIssues extends StatelessWidget {
         const SizedBox(height: 6),
         Text(
           data.margeBookmaker != null
-            ? 'Probabilités du marché, marge de '
-              '${decimalFr(data.margeBookmaker!)} % retirée.'
-            : 'Probabilités déduites des cotes du marché.',
+            ? tr(context, "Probabilités du marché, marge de {arg0} % retirée.", [decimalFr(data.margeBookmaker!)])
+            : tr(context, "Probabilités déduites des cotes du marché."),
           textAlign: TextAlign.center,
           style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.35)),
       ],
@@ -279,10 +276,8 @@ class _VerdictModele extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               verdict.indecis
-                ? 'Avantage réparti à ${synthese.home.round()} / '
-                  '${synthese.away.round()} sur l\'ensemble des critères'
-                : '${verdict.partFavori} % de l\'avantage sur l\'ensemble '
-                  'des critères',
+                ? tr(context, "Avantage réparti à {arg0} / {arg1} sur l'ensemble des critères", [synthese.home.round(), synthese.away.round()])
+                : tr(context, "{arg0} % de l'avantage sur l'ensemble des critères", [verdict.partFavori]),
               style: TextStyle(
                 color: context.cl.textM, fontSize: 11, height: 1.3)),
           ]),
@@ -314,8 +309,7 @@ class _LegendeAxes extends StatelessWidget {
       ]),
       const SizedBox(height: 7),
       Text(
-        'Répartition de l\'avantage sur chaque critère : 100 signifie que tout '
-        'l\'avantage est d\'un côté, 50-50 qu\'aucune équipe ne se détache.',
+        tr(context, "Répartition de l'avantage sur chaque critère : 100 signifie que tout l'avantage est d'un côté, 50-50 qu'aucune équipe ne se détache."),
         style: TextStyle(color: context.cl.textM, fontSize: 10.5, height: 1.4)),
     ],
   );
@@ -357,9 +351,7 @@ class _AxesComparaison extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(bottom: 7),
           child: Semantics(
-            label: '${axe.label} : ${axe.home.round()} pour cent pour '
-                   '${data.homeTeam}, ${axe.away.round()} pour cent pour '
-                   '${data.awayTeam}',
+            label: tr(context, "{arg0} : {arg1} pour cent pour {arg2}, {arg3} pour cent pour {arg4}", [axe.label, axe.home.round(), data.homeTeam, axe.away.round(), data.awayTeam]),
             excludeSemantics: true,
             child: Builder(builder: (context) {
               // `>=` mettait le domicile en vert dès l'égalité : un axe à 0/0
@@ -461,13 +453,13 @@ class _ButsParTranche extends ConsumerWidget {
                 color: AppColors.warning, size: 16)),
           const SizedBox(width: 10),
           Expanded(
-            child: Text('Quand marquent-ils ?',
+            child: Text(tr(context, "Quand marquent-ils ?"),
               style: TextStyle(
                 color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           ),
         ]),
         const SizedBox(height: 6),
-        Text('Buts marqués cette saison, par tranche de 15 minutes',
+        Text(tr(context, "Buts marqués cette saison, par tranche de 15 minutes"),
           style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
         const SizedBox(height: 16),
 
@@ -479,8 +471,7 @@ class _ButsParTranche extends ConsumerWidget {
               for (final t in _tranches)
                 Expanded(
                   child: Semantics(
-                    label: '$t minutes : ${dom?[t] ?? 0} buts pour ${data.homeTeam}, '
-                           '${ext?[t] ?? 0} pour ${data.awayTeam}',
+                    label: tr(context, "{arg0} minutes : {arg1} buts pour {arg2}, {arg3} pour {arg4}", [t, dom?[t] ?? 0, data.homeTeam, ext?[t] ?? 0, data.awayTeam]),
                     excludeSemantics: true,
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -601,7 +592,7 @@ class _CotesEnDirect extends ConsumerWidget {
           _LivePastille(),
           const SizedBox(width: 8),
           Expanded(
-            child: Text('Cotes en direct',
+            child: Text(tr(context, "Cotes en direct"),
               style: TextStyle(
                 color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           ),
@@ -611,7 +602,7 @@ class _CotesEnDirect extends ConsumerWidget {
                 color: AppColors.error, fontSize: 12, fontWeight: FontWeight.w800)),
         ]),
         const SizedBox(height: 4),
-        Text('Elles évoluent avec le match, contrairement aux cotes d\'ouverture.',
+        Text(tr(context, "Elles évoluent avec le match, contrairement aux cotes d'ouverture."),
           style: TextStyle(color: context.cl.textM, fontSize: 10.5, height: 1.35)),
         const SizedBox(height: 14),
 
@@ -721,7 +712,7 @@ class _NotesJoueurs extends ConsumerWidget {
             child: const Icon(Icons.star_rounded, color: AppColors.warning, size: 16)),
           const SizedBox(width: 10),
           Expanded(
-            child: Text('Notes des joueurs',
+            child: Text(tr(context, "Notes des joueurs"),
               style: TextStyle(
                 color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           ),
@@ -731,8 +722,7 @@ class _NotesJoueurs extends ConsumerWidget {
         // L'homme du match en évidence : c'est le seul nom que la plupart des
         // lecteurs retiendront, autant le sortir de la liste.
         Semantics(
-          label: 'Homme du match : ${homme.name}, note ${homme.rating}, '
-                 '${homme.minutes} minutes jouées',
+          label: tr(context, "Homme du match : {arg0}, note {arg1}, {arg2} minutes jouées", [homme.name, homme.rating, homme.minutes]),
           excludeSemantics: true,
           child: Container(
             padding: const EdgeInsets.all(12),
@@ -746,7 +736,7 @@ class _NotesJoueurs extends ConsumerWidget {
               const SizedBox(width: 12),
               Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('HOMME DU MATCH',
+                  Text(tr(context, "HOMME DU MATCH"),
                     style: TextStyle(
                       color: AppColors.warning, fontSize: 8.5,
                       fontWeight: FontWeight.w800, letterSpacing: 0.7)),
@@ -758,8 +748,7 @@ class _NotesJoueurs extends ConsumerWidget {
                       fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
                   Text(
-                    "${homme.minutes} min · ${homme.shots} tir${homme.shots > 1 ? 's' : ''}"
-                    "${homme.goals > 0 ? ' · ${homme.goals} but${homme.goals > 1 ? 's' : ''}' : ''}",
+                    tr(context, "{arg0} min · {arg1}{arg2}", [homme.minutes, AppStrings.of(context).count(homme.shots, one: "{arg0} tir", other: "{arg0} tirs"), homme.goals > 0 ? " · ${AppStrings.of(context).count(homme.goals, one: "{arg0} but", other: "{arg0} buts")}" : ""]),
                     style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
                 ])),
               _Note(valeur: homme.rating, grande: true),
@@ -772,7 +761,7 @@ class _NotesJoueurs extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
             child: Semantics(
-              label: '${j.name}, note ${j.rating}',
+              label: tr(context, "{arg0}, note {arg1}", [j.name, j.rating]),
               excludeSemantics: true,
               child: Row(children: [
                 _PhotoJoueur(url: j.photo, taille: 26),

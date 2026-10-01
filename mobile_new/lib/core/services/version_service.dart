@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
@@ -41,7 +42,7 @@ class VersionService {
         await _afficher(
           message:  RemoteConfigService.maintenanceMsg,
           bloquant: true,
-          titre:    'Maintenance en cours',
+          titre:    trCurrent("Maintenance en cours"),
           lien:     null,
           installationDirecte: false);
         return;
@@ -153,7 +154,7 @@ class VersionService {
         latest:  (d['apkLatestVersion'] as String?) ?? '1.0.0',
         force:   (d['apkForceUpdate']   as bool?)   ?? false,
         message: (d['updateMessage']    as String?) ??
-            'Une nouvelle version de PronoWin est disponible.',
+            trCurrent("Une nouvelle version de PronoWin est disponible."),
         // L'APK de l'architecture du téléphone, l'universel à défaut (M3).
         lien:    lienApkPour(
           universel: d['apkUrl'] as String?,

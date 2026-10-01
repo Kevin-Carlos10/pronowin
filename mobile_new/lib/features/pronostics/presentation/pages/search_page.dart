@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../../../shared/widgets/erreur_chargement.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -54,7 +55,7 @@ class _SearchPageState extends ConsumerState<SearchPage> {
           autofocus: true,
           style: TextStyle(color: context.cl.textP, fontSize: 16),
           decoration: InputDecoration(
-            hintText: 'Équipe, ligue…',
+            hintText: tr(context, "Équipe, ligue…"),
             hintStyle: TextStyle(color: context.cl.textM, fontSize: 16),
             border: InputBorder.none,
             suffixIcon: _query.isNotEmpty
@@ -76,8 +77,8 @@ class _SearchPageState extends ConsumerState<SearchPage> {
             loading: () => const Center(
                 child: CircularProgressIndicator(color: AppColors.primary)),
             error: (_, _) => ErreurChargement(
-                erreur: "La recherche n'a pas abouti.",
-                quoi: 'les matchs',
+                erreur: tr(context, "La recherche n'a pas abouti."),
+                quoi: tr(context, "les matchs"),
                 from: '/recherche',
                 onRetry: () =>
                     ref.invalidate(rechercheMatchsProvider(terme))),
@@ -103,11 +104,11 @@ class _EmptyPrompt extends StatelessWidget {
     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Icon(Icons.search_rounded, size: 56, color: context.cl.textM),
       const SizedBox(height: 16),
-      Text('Rechercher un match ou une ligue',
+      Text(tr(context, "Rechercher un match ou une ligue"),
         style: TextStyle(color: context.cl.textS, fontSize: 15,
           fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
-      Text('Ex: PSG, Ligue 1, Real Madrid…',
+      Text(tr(context, "Ex: PSG, Ligue 1, Real Madrid…"),
         style: TextStyle(color: context.cl.textM, fontSize: 13)),
     ]),
   );
@@ -123,12 +124,12 @@ class _NoResults extends StatelessWidget {
       Icon(Icons.sentiment_dissatisfied_rounded,
         size: 52, color: context.cl.textM),
       const SizedBox(height: 16),
-      Text('Aucun résultat pour "$query"',
+      Text(tr(context, "Aucun résultat pour \"{arg0}\"", [query]),
         style: TextStyle(color: context.cl.textS, fontSize: 15,
           fontWeight: FontWeight.w600),
         textAlign: TextAlign.center),
       const SizedBox(height: 6),
-      Text('Essayez un autre nom d\'équipe ou de ligue',
+      Text(tr(context, "Essayez un autre nom d'équipe ou de ligue"),
         style: TextStyle(color: context.cl.textM, fontSize: 13)),
     ]),
   );

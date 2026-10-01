@@ -76,12 +76,12 @@ class _NewsSectionState extends State<_NewsSection> {
       children: [
         // Header — même composant que les autres sections de l'écran.
         _SectionHeader(
-          title: 'Actualités football',
+          title: tr(context, "Actualités football"),
           leading: Icon(Icons.newspaper_rounded,
               color: context.cl.textM, size: 15),
           showBadge: unreadCount > 0 ? unreadCount : null,
           badgeColor: AppColors.primary,
-          moreLabel: _showAll ? 'Réduire' : 'Voir tout',
+          moreLabel: _showAll ? tr(context, "Réduire") : tr(context, "Voir tout"),
           onMore: sorted.length > 4
               ? () => setState(() => _showAll = !_showAll)
               : null,
@@ -228,10 +228,10 @@ class _FeaturedNewsCard extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: Colors.white.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6)),
-                        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                        child:  Row(mainAxisSize: MainAxisSize.min, children: [
                           Icon(Icons.push_pin_rounded, color: Colors.white, size: 9),
                           SizedBox(width: 3),
-                          Text('À la une',
+                          Text(tr(context, "À la une"),
                             style: TextStyle(color: Colors.white, fontSize: 9,
                               fontWeight: FontWeight.w700)),
                         ]),
@@ -498,12 +498,12 @@ class _NewsDetailSheet extends StatelessWidget {
                             boxShadow: [BoxShadow(
                               color: AppColors.primary.withValues(alpha: 0.35),
                               blurRadius: 12, offset: const Offset(0, 4))]),
-                          child: const Row(
+                          child:  Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.open_in_new_rounded, color: Colors.white, size: 16),
                               SizedBox(width: 8),
-                              Text('Lire l\'article complet',
+                              Text(tr(context, "Lire l'article complet"),
                                 style: TextStyle(
                                   color: Colors.white, fontSize: 14,
                                   fontWeight: FontWeight.w700)),
@@ -524,7 +524,7 @@ class _NewsDetailSheet extends StatelessWidget {
                         backgroundColor: context.cl.surfaceD,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(14))),
-                      child: Text('Fermer',
+                      child: Text(tr(context, "Fermer"),
                         style: TextStyle(
                           color: context.cl.textM, fontWeight: FontWeight.w600)),
                     ),

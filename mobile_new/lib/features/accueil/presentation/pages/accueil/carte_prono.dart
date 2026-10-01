@@ -61,7 +61,7 @@ class _PronosticCard extends ConsumerWidget {
     final odds       = (prono['odds_recommended'] as num?)?.toDouble();
     final fullLabel  = _teamLabel(prono);
     final sepIndex   = fullLabel.indexOf(' : ');
-    final marketName = sepIndex > 0 ? fullLabel.substring(0, sepIndex) : 'Pronostic';
+    final marketName = sepIndex > 0 ? fullLabel.substring(0, sepIndex) : tr(context, "Pronostic");
     final pickName   = sepIndex > 0 ? fullLabel.substring(sepIndex + 3) : fullLabel;
 
     // Couleur bordure selon résultat
@@ -82,19 +82,19 @@ class _PronosticCard extends ConsumerWidget {
     // suite : « PROCHAIN MATCH mar. 11 août 16h00 Bodo/Glimt VS UEFA Champions
     // League Union St. Gilloise 07 HEURES ». Un libellé rédigé vaut mieux.
     final annonce = StringBuffer()
-      ..write('${prono['home_team']} contre ${prono['away_team']}');
+      ..write(tr(context, "{arg0} contre {arg1}", [prono['home_team'], prono['away_team']]));
     if (isLive) {
-      annonce.write(', en direct');
-      if (hasScore) annonce.write(', score $homeScore à $awayScore');
+      annonce.write(tr(context, ", en direct"));
+      if (hasScore) annonce.write(tr(context, ", score {arg0} à {arg1}", [homeScore, awayScore]));
     }
     if (isLocked) {
-      annonce.write(', pronostic réservé aux membres Premium');
+      annonce.write(tr(context, ", pronostic réservé aux membres Premium"));
     } else {
-      annonce.write(', pronostic $pickName');
+      annonce.write(tr(context, ", pronostic {arg0}", [pickName]));
       final c = prono['odds_recommended'] as num?;
-      if (c != null) annonce.write(', cote ${c.toStringAsFixed(2)}');
+      if (c != null) annonce.write(tr(context, ", cote {arg0}", [c.toStringAsFixed(2)]));
       if (conf > 0) {
-        annonce.write(', confiance ${MatchEntity.confidenceDisplay(conf)}');
+        annonce.write(tr(context, ", confiance {arg0}", [MatchEntity.confidenceDisplay(conf)]));
       }
     }
 
@@ -197,7 +197,7 @@ class _PronosticCard extends ConsumerWidget {
                   const SizedBox(width: 6),
                   Semantics(
                     button: true,
-                    label: 'Enregistrer cette mise dans ma bankroll',
+                    label: tr(context, "Enregistrer cette mise dans ma bankroll"),
                     child: GestureDetector(
                       onTap: () async {
                         HapticFeedback.lightImpact();
@@ -342,7 +342,7 @@ class _PronosticCard extends ConsumerWidget {
                     Icon(Icons.lock_rounded, color: context.cl.textM, size: 14),
                     const SizedBox(width: 8),
                     Expanded(
-                      child: Text('Pronostic réservé aux membres Premium',
+                      child: Text(tr(context, "Pronostic réservé aux membres Premium"),
                           style: TextStyle(
                               color: context.cl.textM,
                               fontSize: 11,
@@ -397,7 +397,7 @@ class _PronosticCard extends ConsumerWidget {
                       const SizedBox(width: 12),
                       Column(
                         children: [
-                          Text('COTE',
+                          Text(tr(context, "COTE"),
                               style: TextStyle(
                                   color: context.cl.textM,
                                   fontSize: 9,
@@ -418,7 +418,7 @@ class _PronosticCard extends ConsumerWidget {
                     const SizedBox(width: 12),
                     Column(
                       children: [
-                        Text('CONFIANCE',
+                        Text(tr(context, "CONFIANCE"),
                             style: TextStyle(
                                 color: context.cl.textM,
                                 fontSize: 9,
@@ -449,7 +449,7 @@ class _PronosticCard extends ConsumerWidget {
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
-                        'Prono : ${_teamLabel(prono)}',
+                        tr(context, "Prono : {arg0}", [_teamLabel(prono)]),
                         style: TextStyle(
                           color: result == 'WIN'
                               ? AppColors.success
@@ -557,7 +557,7 @@ class _ResultBadge extends StatelessWidget {
           ),
           const SizedBox(width: 3),
           Text(
-            isWin ? 'Gagné' : 'Perdu',
+            isWin ? tr(context, "Gagné") : tr(context, "Perdu"),
             style: TextStyle(
               color: isWin ? AppColors.success : AppColors.error,
               fontSize: 10,
@@ -632,7 +632,7 @@ class _LeagueFilterChips extends StatelessWidget {
         children: [
           // Sortie explicite du filtre, en tête de liste.
           _chip(context,
-              label: 'Toutes',
+              label: tr(context, "Toutes"),
               isSelected: selected == null,
               onTap: () => onSelect(null)),
           ...leagues.map((l) => _chip(context,
@@ -741,7 +741,7 @@ class _MatchCountdownInlineState extends State<_MatchCountdownInline> {
     final h  = _remaining.inHours;
     final m  = _remaining.inMinutes.remainder(60).toString().padLeft(2, '0');
     final s  = _remaining.inSeconds.remainder(60).toString().padLeft(2, '0');
-    final timeStr = h > 0 ? '${h}h $m min' : '$m:$s';
+    final timeStr = h > 0 ? tr(context, "{arg0}h {arg1} min", [h, m]) : '$m:$s';
     return Container(
       margin: const EdgeInsets.only(top: 8),
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -755,7 +755,7 @@ class _MatchCountdownInlineState extends State<_MatchCountdownInline> {
         children: [
           Icon(Icons.timer_outlined, size: 13, color: AppColors.primary),
           const SizedBox(width: 5),
-          Text('Coup d\'envoi dans ', style: TextStyle(color: context.cl.textM, fontSize: 11)),
+          Text(tr(context, "Coup d'envoi dans "), style: TextStyle(color: context.cl.textM, fontSize: 11)),
           Text(timeStr, style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w800)),
         ],
       ),
@@ -857,7 +857,7 @@ class _FormRow extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Avantage domicile ${(homeAdv * 100).round()}%',
+              Text(tr(context, "Avantage domicile {arg0}%", [(homeAdv * 100).round()]),
                   style: TextStyle(color: context.cl.textM, fontSize: 9)),
               Text('→ ${homeAdv >= 0.5 ? homeName.split(' ').first : awayName.split(' ').first}',
                   style: const TextStyle(color: AppColors.primary, fontSize: 9, fontWeight: FontWeight.w700)),

@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:ui';
 import '../../../../core/utils/motion.dart';
 
@@ -224,7 +225,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
                 borderRadius: BorderRadius.circular(10)),
               child: const Icon(Icons.forum_rounded, color: AppColors.info, size: 16)),
             const SizedBox(width: 10),
-            Text('Avis de la communauté',
+            Text(tr(context, "Avis de la communauté"),
               style: TextStyle(color: context.cl.textP, fontSize: 13,
                   fontWeight: FontWeight.w700)),
             const Spacer(),
@@ -320,7 +321,7 @@ class _VoteBar extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Ton avis sur ce pronostic ?',
+        Text(tr(context, "Ton avis sur ce pronostic ?"),
           style: TextStyle(color: context.cl.textS, fontSize: 12)),
         const SizedBox(height: 10),
         Row(children: [
@@ -370,7 +371,7 @@ class _VoteBar extends StatelessWidget {
               child: Column(children: [
                 Text('👎', style: const TextStyle(fontSize: 20)),
                 const SizedBox(height: 4),
-                Text('Pas convaincu', style: TextStyle(
+                Text(tr(context, "Pas convaincu"), style: TextStyle(
                   color: userDis ? AppColors.error : context.cl.textM,
                   fontSize: 11, fontWeight: FontWeight.w700)),
                 Text('${vote.disagree}', style: TextStyle(
@@ -399,7 +400,7 @@ class _VoteBar extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 4),
-          Text('$total avis · ${(agreePct * 100).round()}% d\'accord',
+          Text(tr(context, "{arg0} avis · {arg1}% d'accord", [total, (agreePct * 100).round()]),
             style: TextStyle(color: context.cl.textM, fontSize: 10)),
         ],
       ]),
@@ -534,7 +535,7 @@ class _SingleComment extends StatelessWidget {
             child: Row(mainAxisSize: MainAxisSize.min, children: [
               Icon(Icons.reply_rounded, size: 14, color: context.cl.textM),
               const SizedBox(width: 3),
-              Text('Répondre', style: TextStyle(color: context.cl.textM, fontSize: 11)),
+              Text(tr(context, "Répondre"), style: TextStyle(color: context.cl.textM, fontSize: 11)),
             ])),
           if (canDelete) ...[
             const SizedBox(width: 16),
@@ -543,7 +544,7 @@ class _SingleComment extends StatelessWidget {
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.delete_outline_rounded, size: 14, color: AppColors.error),
                 const SizedBox(width: 3),
-                Text('Supprimer', style: TextStyle(color: AppColors.error, fontSize: 11)),
+                Text(tr(context, "Supprimer"), style: TextStyle(color: AppColors.error, fontSize: 11)),
               ])),
           ],
         ]),
@@ -583,7 +584,7 @@ class _CommentInput extends StatelessWidget {
           child: Row(children: [
             Icon(Icons.reply_rounded, size: 14, color: AppColors.info),
             const SizedBox(width: 6),
-            Text('Répondre à $replyingToPseudo',
+            Text(tr(context, "Répondre à {arg0}", [replyingToPseudo]),
               style: const TextStyle(color: AppColors.info, fontSize: 12)),
             const Spacer(),
             GestureDetector(
@@ -603,7 +604,7 @@ class _CommentInput extends StatelessWidget {
             maxLength:  500,
             style: TextStyle(color: context.cl.textP, fontSize: 13),
             decoration: InputDecoration(
-              hintText:       'Partage ton avis sur ce pronostic…',
+              hintText:       tr(context, "Partage ton avis sur ce pronostic…"),
               hintStyle:      TextStyle(color: context.cl.textM, fontSize: 13),
               counterText:    '',
               filled:         true,
@@ -662,12 +663,12 @@ class _EmptyComments extends StatelessWidget {
     child: Column(children: [
       Icon(Icons.forum_outlined, size: 28, color: context.cl.textM),
       const SizedBox(height: 10),
-      Text('Personne n\'a encore commenté ce match',
+      Text(tr(context, "Personne n'a encore commenté ce match"),
         textAlign: TextAlign.center,
         style: TextStyle(
           color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
       const SizedBox(height: 4),
-      Text('Sois le premier à donner ton avis',
+      Text(tr(context, "Sois le premier à donner ton avis"),
         textAlign: TextAlign.center,
         style: TextStyle(color: context.cl.textM, fontSize: 11.5, height: 1.4)),
     ]),
@@ -692,7 +693,7 @@ class _CanauxCommunaute extends StatelessWidget {
     Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
       child: Column(children: [
-        Text('Rejoins la communauté PronoWin',
+        Text(tr(context, "Rejoins la communauté PronoWin"),
           textAlign: TextAlign.center,
           style: TextStyle(color: context.cl.textM, fontSize: 11.5, height: 1.4)),
         const SizedBox(height: 12),
@@ -729,7 +730,7 @@ class _BoutonCanal extends StatelessWidget {
     button: true,
     // L'utilisateur quitte l'application : le dire plutot que de le laisser
     // decouvrir qu'il a bascule vers une autre app.
-    label: 'Rejoindre le canal $libelle — ouvre $libelle',
+    label: tr(context, "Rejoindre le canal {arg0} — ouvre {arg1}", [libelle, libelle]),
     excludeSemantics: true,
     child: GestureDetector(
       onTap: () {
@@ -777,7 +778,7 @@ class _CommentsError extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.all(16),
-    child: Text('Commentaires indisponibles.',
+    child: Text(tr(context, "Commentaires indisponibles."),
       style: TextStyle(color: context.cl.textM, fontSize: 12)),
   );
 }
@@ -857,14 +858,14 @@ class _CommentsPremiumLockedState extends State<_CommentsPremiumLocked>
                   child: const Icon(Icons.forum_rounded, color: Colors.black, size: 19),
                 ),
                 const SizedBox(height: 10),
-                Text('Rejoignez la discussion',
+                Text(tr(context, "Rejoignez la discussion"),
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: context.cl.textP,
                     fontSize: 13.5,
                     fontWeight: FontWeight.w800)),
                 const SizedBox(height: 4),
-                Text('Lisez et partagez les analyses de la communauté',
+                Text(tr(context, "Lisez et partagez les analyses de la communauté"),
                   textAlign: TextAlign.center,
                   style: TextStyle(color: context.cl.textS, fontSize: 11, height: 1.4)),
                 const SizedBox(height: 14),
@@ -880,10 +881,10 @@ class _CommentsPremiumLockedState extends State<_CommentsPremiumLocked>
                   // Même pastille dorée que le verrou de l'analyse statistique (signal
                   // « action Premium »), mais libellé distinct : les deux
                   // cartes se suivent, deux CTA identiques feraient doublon.
-                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                  child:  Row(mainAxisSize: MainAxisSize.min, children: [
                     Icon(Icons.lock_open_rounded, color: Colors.black, size: 15),
                     SizedBox(width: 6),
-                    Text('Rejoindre la discussion',
+                    Text(tr(context, "Rejoindre la discussion"),
                       style: TextStyle(
                         color: Colors.black,
                         fontSize: 12,
@@ -977,10 +978,10 @@ class _DeleteCommentSheetState extends State<_DeleteCommentSheet> {
           shape: BoxShape.circle),
         child: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 32)),
       const SizedBox(height: 16),
-      Text('Supprimer ce commentaire ?', style: TextStyle(
+      Text(tr(context, "Supprimer ce commentaire ?"), style: TextStyle(
         color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w700)),
       const SizedBox(height: 8),
-      Text('Cette action est définitive.', style: TextStyle(
+      Text(tr(context, "Cette action est définitive."), style: TextStyle(
         color: context.cl.textS, fontSize: 13, height: 1.5),
         textAlign: TextAlign.center),
       const SizedBox(height: 24),
@@ -993,7 +994,7 @@ class _DeleteCommentSheetState extends State<_DeleteCommentSheet> {
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          child: const Text('Annuler'),
+          child:  Text(tr(context, "Annuler")),
         )),
         const SizedBox(width: 12),
         Expanded(child: ElevatedButton(
@@ -1011,7 +1012,7 @@ class _DeleteCommentSheetState extends State<_DeleteCommentSheet> {
           child: _loading
             ? const SizedBox(width: 18, height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : const Text('Supprimer', style: TextStyle(fontWeight: FontWeight.w700)),
+            :  Text(tr(context, "Supprimer"), style: TextStyle(fontWeight: FontWeight.w700)),
         )),
       ]),
     ]),
@@ -1042,8 +1043,7 @@ class _CommentsGuestLocked extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Semantics(
     button: true,
-    label: 'Rejoins la discussion. Crée un compte gratuit pour lire les '
-           'commentaires et échanger avec les autres parieurs.',
+    label: tr(context, "Rejoins la discussion. Crée un compte gratuit pour lire les commentaires et échanger avec les autres parieurs."),
     excludeSemantics: true,
     child: InkWell(
       onTap: onTap,
@@ -1059,14 +1059,14 @@ class _CommentsGuestLocked extends StatelessWidget {
         child: Column(children: [
           Icon(Icons.forum_outlined, color: context.cl.textM, size: 26),
           const SizedBox(height: 10),
-          Text('Rejoins la discussion',
+          Text(tr(context, "Rejoins la discussion"),
             style: TextStyle(color: context.cl.textP, fontSize: 14,
               fontWeight: FontWeight.w700)),
           const SizedBox(height: 5),
           Text.rich(
             TextSpan(children: [
-              const TextSpan(text: 'Les commentaires sont réservés aux membres. '),
-              TextSpan(text: 'Créer un compte gratuit',
+               TextSpan(text: tr(context, "Les commentaires sont réservés aux membres. ")),
+              TextSpan(text: tr(context, "Créer un compte gratuit"),
                 style: const TextStyle(
                   color: AppColors.primary, fontWeight: FontWeight.w700)),
             ]),

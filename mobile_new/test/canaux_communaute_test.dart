@@ -78,7 +78,7 @@ void main() {
     expect(d, greaterThan(-1));
     final corps = code.substring(d);
     expect(corps.contains('Semantics('), isTrue);
-    expect(corps.contains('ouvre \$libelle'), isTrue,
+    expect(corps.contains('tr(context, "Rejoindre le canal {arg0} — ouvre {arg1}", [libelle, libelle])'), isTrue,
       reason: 'un lecteur d\'écran doit savoir que le bouton bascule vers une '
               'autre application');
   });

@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/pronostics/domain/entities/match_entity.dart';
@@ -10,9 +11,9 @@ class ConfidenceIndicator extends StatelessWidget {
   static Color colorFor(int score) => score >= 4 ? AppColors.success : score >= 3 ? AppColors.warning : AppColors.error;
   @override
   Widget build(BuildContext context) => Tooltip(
-    message: 'Confiance de l’analyste : appréciation sur 5, pas une probabilité de gain.',
+    message: tr(context, "Confiance de l’analyste : appréciation sur 5, pas une probabilité de gain."),
     child: Semantics(
-      label: 'Confiance de l’analyste : ${MatchEntity.confidenceDisplay(score)}, ${MatchEntity.labelForConfidence(score)}',
+      label: tr(context, "Confiance de l’analyste : {arg0}, {arg1}", [MatchEntity.confidenceDisplay(score), MatchEntity.labelForConfidence(score)]),
       excludeSemantics: true,
       child: Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
         if (showLabel) ...[

@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/utils/motion.dart';
 import 'package:flutter/services.dart';
@@ -58,7 +59,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                     color: Colors.white, shape: BoxShape.circle))),
             ])),
           const SizedBox(width: 10),
-          Text('Notifications',
+          Text(tr(context, "Notifications"),
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
               color: context.cl.textP)),
           if (unread > 0) ...[
@@ -87,7 +88,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                 ref.read(notificationNotifierProvider.notifier).markAllRead();
               },
               icon: const Icon(Icons.done_all_rounded, size: 16),
-              label: const Text('Tout lire', style: TextStyle(fontSize: 13)),
+              label:  Text(tr(context, "Tout lire"), style: TextStyle(fontSize: 13)),
             ),
         ],
         bottom: const PreferredSize(
@@ -101,14 +102,14 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(Icons.wifi_off_rounded, color: context.cl.textM, size: 44),
             const SizedBox(height: 12),
-            Text('Impossible de charger les notifications',
+            Text(tr(context, "Impossible de charger les notifications"),
               style: TextStyle(color: context.cl.textS, fontSize: 13),
               textAlign: TextAlign.center),
             const SizedBox(height: 16),
             TextButton.icon(
               onPressed: () => ref.read(notificationNotifierProvider.notifier).fetch(),
               icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Réessayer'),
+              label:  Text(tr(context, "Réessayer")),
             ),
           ]).animate().fadeIn(duration: 350.ms).scale(
               begin: const Offset(0.92, 0.92), end: const Offset(1, 1),
@@ -129,13 +130,13 @@ class _FilterBar extends ConsumerWidget {
     final active = ref.watch(notifTypeFilterProvider);
 
     final filters = <NotificationType?, String>{
-      null:                      'Tous',
+      null:                      tr(context, "Tous"),
       NotificationType.match:    'Match',
       NotificationType.promo:    'Promo',
-      NotificationType.system:   'Système',
+      NotificationType.system:   tr(context, "Système"),
       // « Paiement » a fusionné dans « Parrainage » : il ne contenait que le
       // versement des gains de parrainage, et menait déjà à cette page.
-      NotificationType.referral: 'Parrainage',
+      NotificationType.referral: tr(context, "Parrainage"),
     };
 
     return SizedBox(
@@ -228,11 +229,11 @@ class _NotifBody extends ConsumerWidget {
             child: Icon(Icons.notifications_off_outlined,
               color: context.cl.textM, size: 36)),
           const SizedBox(height: 16),
-          Text(filter == null ? 'Aucune notification' : 'Aucune notification ici',
+          Text(filter == null ? tr(context, "Aucune notification") : tr(context, "Aucune notification ici"),
             style: TextStyle(color: context.cl.textP,
               fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
-          Text(filter == null ? 'Vous êtes à jour !' : 'Essayez un autre filtre',
+          Text(filter == null ? tr(context, "Vous êtes à jour !") : tr(context, "Essayez un autre filtre"),
             style: TextStyle(color: context.cl.textS, fontSize: 13)),
         ]).animate().fadeIn(duration: 400.ms).scale(begin: const Offset(0.9, 0.9)),
       );
@@ -281,9 +282,9 @@ class _NotifBody extends ConsumerWidget {
       final key = _dayKey(n.createdAt);
       final String label;
       if (key == todayStr)                             { label = "Aujourd'hui"; }
-      else if (key == yestStr)                         { label = 'Hier'; }
-      else if (now.difference(n.createdAt).inDays < 7) { label = 'Cette semaine'; }
-      else                                             { label = 'Plus ancien'; }
+      else if (key == yestStr)                         { label = trCurrent("Hier"); }
+      else if (now.difference(n.createdAt).inDays < 7) { label = trCurrent("Cette semaine"); }
+      else                                             { label = trCurrent("Plus ancien"); }
       result.putIfAbsent(label, () => []).add(n);
     }
     return result;
@@ -334,7 +335,7 @@ class _SwipeTile extends ConsumerWidget {
         child: Row(children: [
           Icon(Icons.mark_email_read_rounded, color: AppColors.primary, size: 22),
           const SizedBox(width: 8),
-          Text('Marquer lu', style: TextStyle(
+          Text(tr(context, "Marquer lu"), style: TextStyle(
             color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13)),
         ]),
       ),

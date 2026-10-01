@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
@@ -60,7 +61,7 @@ class _InAppBrowserPageState extends State<InAppBrowserPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          widget.title,
+          tr(context, widget.title),
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           overflow: TextOverflow.ellipsis,
         ),
@@ -99,14 +100,14 @@ class _InAppBrowserPageState extends State<InAppBrowserPage> {
                   children: [
                     const Icon(Icons.wifi_off_rounded, size: 56, color: Colors.white38),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Impossible de charger la page',
+                     Text(
+                      tr(context, "Impossible de charger la page"),
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Vérifie ta connexion ou ouvrez dans le navigateur.',
+                      tr(context, "Vérifie ta connexion ou ouvrez dans le navigateur."),
                       style: TextStyle(fontSize: 13, color: Colors.white54),
                       textAlign: TextAlign.center,
                     ),
@@ -122,7 +123,7 @@ class _InAppBrowserPageState extends State<InAppBrowserPage> {
                               borderRadius: BorderRadius.circular(12)),
                         ),
                         icon: const Icon(Icons.open_in_browser),
-                        label: const Text('Ouvrir dans le navigateur',
+                        label:  Text(tr(context, "Ouvrir dans le navigateur"),
                             style: TextStyle(fontWeight: FontWeight.w600)),
                         onPressed: _openExternal,
                       ),
@@ -133,7 +134,7 @@ class _InAppBrowserPageState extends State<InAppBrowserPage> {
                         setState(() => _hasError = false);
                         _controller.reload();
                       },
-                      child: const Text('Réessayer',
+                      child:  Text(tr(context, "Réessayer"),
                           style: TextStyle(color: Colors.white54)),
                     ),
                   ],

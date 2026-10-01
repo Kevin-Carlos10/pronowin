@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/theme/app_theme.dart';
@@ -36,7 +37,7 @@ class GuestLockedView extends StatelessWidget {
               automaticallyImplyLeading: false,
               actions: [
                 IconButton(
-                  tooltip: secondaryLabel,
+                  tooltip: secondaryLabel == null ? null : tr(context, secondaryLabel!),
                   icon: Icon(Icons.settings_rounded, color: context.cl.textS),
                   onPressed: () => context.push(secondaryRoute!),
                 ),
@@ -65,10 +66,10 @@ class GuestLockedView extends StatelessWidget {
                   child: Icon(icon, color: Colors.white, size: 38),
                 ),
                 const SizedBox(height: 24),
-                Text(title, textAlign: TextAlign.center, style: TextStyle(
+                Text(tr(context, title), textAlign: TextAlign.center, style: TextStyle(
                   color: context.cl.textP, fontSize: 19, fontWeight: FontWeight.w800)),
                 const SizedBox(height: 10),
-                Text(message, textAlign: TextAlign.center, style: TextStyle(
+                Text(tr(context, message), textAlign: TextAlign.center, style: TextStyle(
                   color: context.cl.textS, fontSize: 13.5, height: 1.5)),
                 const SizedBox(height: 28),
                 // Hauteur minimale, pas fixe : à grande taille de texte, le
@@ -80,7 +81,7 @@ class GuestLockedView extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.primaryBouton,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                    child: const Text('Se connecter / Créer un compte',
+                    child:  Text(tr(context, "Se connecter / Créer un compte"),
                       textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
                   ),

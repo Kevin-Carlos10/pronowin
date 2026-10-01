@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -105,17 +106,17 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
         if (code == 'STAKE_CHANGED') {
           ref.invalidate(suggestedStakeProvider(widget.pronosticId));
           ref.invalidate(bankrollProvider);
-          msg = 'Le solde ou le pronostic a changé. Vérifie le montant recalculé puis confirme à nouveau.';
+          msg = trCurrent("Le solde ou le pronostic a changé. Vérifie le montant recalculé puis confirme à nouveau.");
         } else if (code == 'BET_ALREADY_PLACED' || srvMsg?.contains('déjà misé') == true) {
-          msg = 'Tu as déjà placé un pari sur ce match.';
+          msg = trCurrent("Tu as déjà placé un pari sur ce match.");
           _alreadyBet = true;
         } else if (srvMsg?.contains('Solde insuffisant') == true) {
-          msg = 'Solde insuffisant dans ta bankroll.';
+          msg = trCurrent("Solde insuffisant dans ta bankroll.");
         } else {
-          msg = srvMsg ?? 'Erreur lors de la mise.';
+          msg = srvMsg ?? trCurrent("Erreur lors de la mise.");
         }
       } else {
-        msg = 'Erreur lors de la mise.';
+        msg = trCurrent("Erreur lors de la mise.");
       }
       if (mounted) setState(() { _error = msg; _loading = false; });
     }
@@ -148,7 +149,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
             child: const Icon(Icons.check_circle_rounded,
                 color: AppColors.success, size: 34)),
           const SizedBox(height: 14),
-          Text('Mise enregistrée !', style: TextStyle(
+          Text(tr(context, "Mise enregistrée !"), style: TextStyle(
             color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w800)),
           const SizedBox(height: 4),
           Text(
@@ -170,7 +171,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
               const Icon(Icons.shield_rounded, color: AppColors.warning, size: 18),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Rappel de discipline', style: TextStyle(
+                 Text(tr(context, "Rappel de discipline"), style: TextStyle(
                   color: AppColors.warning, fontSize: 13, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 // Ce rappel disait « Mise exactement 4 800 XOF sur le
@@ -189,7 +190,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                 // moment précis où on lui demande de faire confiance au
                 // chiffre.
                 Text(
-                  'Ne dépasse jamais ce montant, même si tu te sens confiant.',
+                  tr(context, "Ne dépasse jamais ce montant, même si tu te sens confiant."),
                   style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.45)),
               ])),
             ]),
@@ -226,7 +227,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                 // enseigne : le jour d'un changement de partenaire, ce bouton
                 // aurait continue d'en nommer un autre.
                 child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                  const Text('Aller miser sur', style: TextStyle(
+                   Text(tr(context, "Aller miser sur"), style: TextStyle(
                     color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
                   const SizedBox(width: 6),
                   Text(BookmakerAffiliation.nom, style: const TextStyle(
@@ -242,7 +243,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
 
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Fermer', style: TextStyle(
+            child: Text(tr(context, "Fermer"), style: TextStyle(
               color: context.cl.textM, fontSize: 13))),
         ]),
       );
@@ -274,7 +275,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
           final confColor = confidence >= 4 ? AppColors.success : AppColors.warning;
           final confLabel = MatchEntity.confidenceDisplay(confidence);
           final percentLabel = percent == percent.roundToDouble() ? percent.toStringAsFixed(0) : percent.toString();
-          final ruleLabel = '${percentLabel.replaceAll('.', ',')} % du solde';
+          final ruleLabel = tr(context, "{arg0} % du solde", [percentLabel.replaceAll('.', ',')]);
           final canSubmit = stake.isFinite && stake > 0 && stake <= balance;
 
           return SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -296,7 +297,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                   color: AppColors.success, size: 20)),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Valider ma mise', style: TextStyle(
+                Text(tr(context, "Valider ma mise"), style: TextStyle(
                   color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
                 Text('${widget.homeTeam} – ${widget.awayTeam}',
                   style: TextStyle(color: context.cl.textM, fontSize: 11),
@@ -315,20 +316,20 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                 border: Border.all(color: context.cl.border, width: 0.5)),
               child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Pronostic', style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                  Text(tr(context, "Pronostic"), style: TextStyle(color: context.cl.textM, fontSize: 10)),
                   const SizedBox(height: 2),
                   Text(widget.predictionLabel, style: TextStyle(
                     color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
                 ])),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text('Cote', style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                  Text(tr(context, "Cote"), style: TextStyle(color: context.cl.textM, fontSize: 10)),
                   Text('x${widget.oddsRecommended.toStringAsFixed(2)}',
                     style: const TextStyle(color: AppColors.primary,
                       fontSize: 13, fontWeight: FontWeight.w700)),
                 ]),
                 const SizedBox(width: 16),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text('Confiance', style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                  Text(tr(context, "Confiance"), style: TextStyle(color: context.cl.textM, fontSize: 10)),
                   Row(children: [
                     Container(width: 6, height: 6,
                       decoration: BoxDecoration(color: confColor, shape: BoxShape.circle)),
@@ -357,7 +358,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
               child: Column(children: [
                 Wrap(spacing: 12, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Mise calculée', style: TextStyle(
+                    Text(tr(context, "Mise calculée"), style: TextStyle(
                       color: context.cl.textS, fontSize: 12)),
                     const SizedBox(height: 4),
                     Text('${montantExact(stake)} $currency',
@@ -384,7 +385,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                     color: AppColors.success, size: 13),
                   const SizedBox(width: 6),
                   Expanded(child: Text(
-                    'Barème imposé : 1–2/5 → 1,5 % · 3–4/5 → 3 % · 5/5 → 5 %. Calcul sur le solde disponible, arrondi à l’unité monétaire inférieure.',
+                    tr(context, "Barème imposé : 1–2/5 → 1,5 % · 3–4/5 → 3 % · 5/5 → 5 %. Calcul sur le solde disponible, arrondi à l’unité monétaire inférieure."),
                     style: TextStyle(color: context.cl.textS, fontSize: 11))),
                 ]),
               ]),
@@ -395,19 +396,19 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
             // Gain potentiel + solde restant
             Row(children: [
               Expanded(child: _InfoChip(
-                label: 'Retour si gagné',
+                label: tr(context, "Retour si gagné"),
                 value: '${montantExact(gain)} $currency',
                 color: AppColors.primary)),
               const SizedBox(width: 10),
               Expanded(child: _InfoChip(
-                label: 'Solde après',
+                label: tr(context, "Solde après"),
                 value: '${montantExact(balance - stake)} $currency',
                 color: context.cl.textS)),
             ]),
 
             if (!canSubmit) ...[
               const SizedBox(height: 12),
-              const Text('Le montant calculé est inférieur à l’unité monétaire disponible. Aucune mise ne peut être enregistrée.', style: TextStyle(color: AppColors.warning)),
+               Text(tr(context, "Le montant calculé est inférieur à l’unité monétaire disponible. Aucune mise ne peut être enregistrée."), style: TextStyle(color: AppColors.warning)),
             ],
             if (_error != null) ...[
               const SizedBox(height: 12),
@@ -459,11 +460,11 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                   ? const SizedBox(width: 22, height: 22,
                       child: CircularProgressIndicator(
                         color: Colors.white, strokeWidth: 2.5))
-                  : const Row(mainAxisSize: MainAxisSize.min, children: [
+                  :  Row(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.check_circle_rounded,
                         color: Colors.white, size: 20),
                       SizedBox(width: 8),
-                      Flexible(child: Text('Confirmer la mise', textAlign: TextAlign.center, style: TextStyle(
+                      Flexible(child: Text(tr(context, "Confirmer la mise"), textAlign: TextAlign.center, style: TextStyle(
                         color: Colors.white, fontSize: 16,
                         fontWeight: FontWeight.w700))),
                     ])),
@@ -473,7 +474,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
             const SizedBox(height: 10),
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text('Annuler', style: TextStyle(
+              child: Text(tr(context, "Annuler"), style: TextStyle(
                 color: context.cl.textM, fontSize: 13)),
             ),
           ]));
@@ -551,20 +552,20 @@ class _ErrorView extends StatelessWidget {
       const SizedBox(height: 14),
       Text(
         nonConnecte
-          ? 'Connecte-toi pour suivre tes mises'
+          ? tr(context, "Connecte-toi pour suivre tes mises")
           : noBankroll
-            ? 'Configure ton budget d\'abord'
-            : 'Impossible de calculer la mise',
+            ? tr(context, "Configure ton budget d'abord")
+            : tr(context, "Impossible de calculer la mise"),
         style: TextStyle(
           color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w700),
         textAlign: TextAlign.center),
       const SizedBox(height: 6),
       Text(
         nonConnecte
-          ? 'La mise conseillée dépend de ton budget, donc de ton compte. Connecte-toi pour l\'obtenir.'
+          ? tr(context, "La mise conseillée dépend de ton budget, donc de ton compte. Connecte-toi pour l'obtenir.")
           : noBankroll
-            ? 'Ta bankroll n\'est pas encore paramétrée. Définis ton budget pour que l\'app calcule une mise adaptée à chaque pronostic.'
-            : 'Vérifie ta connexion et réessaie.',
+            ? tr(context, "Ta bankroll n'est pas encore paramétrée. Définis ton budget pour que l'app calcule une mise adaptée à chaque pronostic.")
+            : tr(context, "Vérifie ta connexion et réessaie."),
         style: TextStyle(color: context.cl.textM, fontSize: 12.5, height: 1.4),
         textAlign: TextAlign.center),
       const SizedBox(height: 20),
@@ -582,14 +583,14 @@ class _ErrorView extends StatelessWidget {
               context.push(nonConnecte ? '/auth' : '/bankroll');
             },
             child: Text(
-              nonConnecte ? 'Me connecter' : 'Configurer mon budget',
+              nonConnecte ? tr(context, "Me connecter") : tr(context, "Configurer mon budget"),
               style: const TextStyle(
                 color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
           ),
         ),
       TextButton(
         onPressed: () => Navigator.pop(context, false),
-        child: const Text('Fermer')),
+        child:  Text(tr(context, "Fermer"))),
     ]),
   );
 }

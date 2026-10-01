@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:async';
 import 'dart:io';
 
@@ -195,7 +196,7 @@ class IapService {
           _results.add(const IapCancelled());
 
         case PurchaseStatus.error:
-          _results.add(IapFailure(p.error?.message ?? 'Achat échoué.'));
+          _results.add(IapFailure(p.error?.message ?? trCurrent("Achat échoué.")));
 
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
@@ -217,7 +218,7 @@ class IapService {
       donneeServeur: p.verificationData.serverVerificationData,
     );
     if (charge == null) {
-      _results.add(const IapFailure('Reçu vide.'));
+      _results.add( IapFailure(trCurrent("Reçu vide.")));
       return;
     }
     await envoyerVerification(charge);
@@ -254,7 +255,7 @@ class IapService {
         _results.add(IapSuccess(DateTime.parse(expires)));
       } else if (!estReprise) {
         _results.add(IapFailure(
-          'Abonnement inactif (statut : ${r.data['status'] ?? 'inconnu'}).'));
+          trCurrent("Abonnement inactif (statut : {arg0}).", [r.data['status'] ?? 'inconnu'])));
       }
     } catch (e) {
       // L'achat est encaissé par le store, mais notre serveur n'a pas pu le
@@ -263,9 +264,8 @@ class IapService {
       await _file.ajouter(charge);
 
       if (!estReprise) {
-        _results.add(const IapFailure(
-          'Paiement reçu, activation en attente. Rouvre l\'app dans un instant '
-          'ou touche « Restaurer mes achats ».'));
+        _results.add( IapFailure(
+          trCurrent("Paiement reçu, activation en attente. Rouvre l'app dans un instant ou touche « Restaurer mes achats ».")));
       }
     }
   }

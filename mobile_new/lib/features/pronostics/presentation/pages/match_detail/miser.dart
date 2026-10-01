@@ -27,10 +27,10 @@ class _MiserButtonState extends ConsumerState<_MiserButton> {
           color:  AppColors.success.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.success.withValues(alpha: 0.3))),
-        child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        child:  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.check_circle_rounded, color: AppColors.success, size: 18),
           SizedBox(width: 8),
-          Text('Mise enregistrée dans ta bankroll',
+          Text(tr(context, "Mise enregistrée dans ta bankroll"),
               style: TextStyle(color: AppColors.success,
                   fontSize: 13, fontWeight: FontWeight.w600)),
         ]),
@@ -39,7 +39,7 @@ class _MiserButtonState extends ConsumerState<_MiserButton> {
 
     return Semantics(
       button: true,
-      label: 'Enregistrer cette mise dans ma bankroll',
+      label: tr(context, "Enregistrer cette mise dans ma bankroll"),
       excludeSemantics: true,
       child: GestureDetector(
       onTap: () async {
@@ -78,11 +78,11 @@ class _MiserButtonState extends ConsumerState<_MiserButton> {
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           const Icon(Icons.savings_rounded, color: Colors.white, size: 20),
           const SizedBox(width: 10),
-          const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Valider ma mise',
+           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(tr(context, "Valider ma mise"),
                 style: TextStyle(color: Colors.white,
                     fontSize: 15, fontWeight: FontWeight.w700)),
-            Text('Ajouter à ma bankroll',
+            Text(tr(context, "Ajouter à ma bankroll"),
                 style: TextStyle(color: Colors.white70, fontSize: 11)),
           ]),
           const Spacer(),

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:pronowin/features/abonnement/presentation/providers/iap_provider.dart';
+
 /// Un seul prix d'accroche, et il connaît le canal.
 ///
 /// `premiumMonthlyPriceLabel` porte la règle, et sa documentation nomme
@@ -51,6 +53,14 @@ void main() {
       expect(code.contains(devise), isFalse,
         reason: '« $devise » est écrit en dur dans l\'écran d\'accroche');
     }
+  });
+
+  test('le montant d\'accroche garde ses centimes', () {
+    // Arrondi au dollar, 14,99 $ s'annonçait « $15 » : un autre prix que
+    // celui de l'App Store.
+    expect(montantAccrocheUsd(14.99), '\$14.99');
+    expect(montantAccrocheUsd(10), '\$10');
+    expect(montantAccrocheUsd(15.0), '\$15');
   });
 
   test('elle ne lit plus la grille du canal direct', () {

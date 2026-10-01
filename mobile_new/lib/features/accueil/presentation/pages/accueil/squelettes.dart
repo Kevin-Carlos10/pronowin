@@ -55,7 +55,7 @@ class _SectionHeader extends StatelessWidget {
         if (onMore != null)
           GestureDetector(
             onTap: onMore,
-            child: Text(moreLabel,
+            child: Text(tr(context, moreLabel),
                 style: const TextStyle(
                     color: AppColors.primary,
                     fontSize: 12,
@@ -249,7 +249,7 @@ class _EmptyPronostics extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Pas de prono aujourd\'hui',
+                  Text(tr(context, "Pas de prono aujourd'hui"),
                       style: TextStyle(
                           color: context.cl.textP,
                           fontSize: 13,
@@ -268,7 +268,7 @@ class _EmptyPronostics extends StatelessWidget {
                   //
                   // Cette carte n'a pas de calendrier à annoncer — elle a un
                   // bouton qui y mène. C'est ce qu'elle dit maintenant.
-                  Text('Consulte les matchs à venir',
+                  Text(tr(context, "Consulte les matchs à venir"),
                       style: TextStyle(
                           color: context.cl.textS, fontSize: 11)),
                 ],
@@ -282,7 +282,7 @@ class _EmptyPronostics extends StatelessWidget {
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Text('Voir', style: TextStyle(
+                Text(tr(context, "Voir"), style: TextStyle(
                     color: AppColors.primary,
                     fontSize: 12,
                     fontWeight: FontWeight.w600)),

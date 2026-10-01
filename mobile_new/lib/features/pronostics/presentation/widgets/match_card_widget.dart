@@ -1,4 +1,5 @@
-﻿import 'dart:ui';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import '../../../../core/utils/motion.dart';
 import '../../../../shared/widgets/confidence_indicator.dart';
@@ -67,13 +68,10 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
 
     final m = widget.match;
     final semanticLabel = locked
-        ? '${m.homeTeam} contre ${m.awayTeam}, ${m.league}. Contenu premium verrouillé.'
+        ? tr(context, "{arg0} contre {arg1}, {arg2}. Contenu premium verrouillé.", [m.homeTeam, m.awayTeam, m.league])
         : noProno
-            ? '${m.homeTeam} contre ${m.awayTeam}, ${m.league}. Pas de pronostic disponible.'
-            : '${m.homeTeam} contre ${m.awayTeam}, ${m.league}. '
-              'Pronostic : ${m.displayPredictionLabel}. '
-              'Confiance ${m.confidenceScore} sur 5. '
-              'Cote recommandée ${m.oddsRecommended.toStringAsFixed(2)}.';
+            ? tr(context, "{arg0} contre {arg1}, {arg2}. Pas de pronostic disponible.", [m.homeTeam, m.awayTeam, m.league])
+            : tr(context, "{arg0} contre {arg1}, {arg2}. Pronostic : {arg3}. Confiance {arg4} sur 5. Cote recommandée {arg5}.", [m.homeTeam, m.awayTeam, m.league, m.displayPredictionLabel, m.confidenceScore, m.oddsRecommended.toStringAsFixed(2)]);
 
     // Matchs terminés sans pronostic → navigable pour voir les stats
     final canNavigate = !noProno || widget.match.status == MatchStatus.finished;
@@ -196,7 +194,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
             // rangée dépassait dès 411 px — sans même agrandir le texte.
             Flexible(
               child: Text(
-                DateFormat('dd/MM', 'fr_FR').format(widget.match.matchDate),
+                DateFormat('dd/MM').format(widget.match.matchDate),
                 style: TextStyle(color: context.cl.textM, fontSize: 10),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -210,7 +208,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
           const Spacer(),
           // Bouton favoris
           Semantics(
-            label:  isFav ? 'Retirer des favoris' : 'Ajouter aux favoris',
+            label:  isFav ? tr(context, "Retirer des favoris") : tr(context, "Ajouter aux favoris"),
             button: true,
             child: GestureDetector(
               onTap: () {
@@ -352,7 +350,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
           // Ligne 2 : cotes du marché « vainqueur ». Explicitement nommées :
           // sans titre, elles se lisaient comme les cotes du pronostic.
           Row(children: [
-            Text('VAINQUEUR DU MATCH',
+            Text(tr(context, "VAINQUEUR DU MATCH"),
                 style: TextStyle(
                     color: context.cl.textM,
                     fontSize: 8,
@@ -490,13 +488,13 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
               boxShadow: [BoxShadow(
                 color: const Color(0xFFFFD700).withValues(alpha: 0.25),
                 blurRadius: 10, offset: const Offset(0, 3))]),
-            child: const Row(
+            child:  Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(Icons.workspace_premium_rounded,
                   color: Colors.white, size: 15),
                 SizedBox(width: 7),
-                Text('Voir le pronostic VIP', style: TextStyle(
+                Text(tr(context, "Voir le pronostic VIP"), style: TextStyle(
                   color: Colors.white, fontSize: 12,
                   fontWeight: FontWeight.w800, letterSpacing: 0.2)),
               ],
@@ -558,7 +556,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
               // Un bandeau pleine largeur donne l'illusion qu'il y a la place,
               // mais son contenu n'en sait rien.
               Flexible(
-                child: Text('Analyse en cours...',
+                child: Text(tr(context, "Analyse en cours..."),
                   style: TextStyle(
                     color: context.cl.textM,
                     fontSize: 12,
@@ -982,7 +980,7 @@ class _ScoreCenter extends StatelessWidget {
                   color: context.cl.surfaceDeep,
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text('TERMINÉ',
+                child: Text(tr(context, "TERMINÉ"),
                     style: TextStyle(
                         color: context.cl.textM,
                         fontSize: 8,
@@ -1017,7 +1015,7 @@ class _ScoreCenter extends StatelessWidget {
             ),
             if (isLive) ...[
               const SizedBox(height: 4),
-              const Text('En direct',
+               Text(tr(context, "En direct"),
                   style: TextStyle(
                       color: AppColors.error,
                       fontSize: 9,
@@ -1054,7 +1052,7 @@ class _BetBadge extends StatelessWidget {
         Icon(Icons.account_balance_wallet_rounded,
           color: AppColors.success, size: 9),
         const SizedBox(width: 3),
-        Text('Misé', style: const TextStyle(
+        Text(tr(context, "Misé"), style: const TextStyle(
           color:      AppColors.success,
           fontSize:   9,
           fontWeight: FontWeight.w700,

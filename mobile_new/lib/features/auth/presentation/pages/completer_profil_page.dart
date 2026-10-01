@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:country_picker/country_picker.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
@@ -49,9 +50,9 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
       initialDate: DateTime(now.year - 20),
       firstDate: DateTime(1940),
       lastDate: DateTime(now.year - 18),
-      helpText: 'Date de naissance',
-      cancelText: 'Annuler',
-      confirmText: 'Confirmer',
+      helpText: tr(context, "Date de naissance"),
+      cancelText: tr(context, "Annuler"),
+      confirmText: tr(context, "Confirmer"),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
           colorScheme: ColorScheme.dark(
@@ -70,7 +71,7 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (_birthDate == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sélectionne ta date de naissance.')));
+         SnackBar(content: Text(tr(context, "Sélectionne ta date de naissance."))));
       return;
     }
     setState(() => _saving = true);
@@ -97,9 +98,9 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
           await dio.post('/referral/apply-code', data: {'referral_code': refCode});
         } on DioException catch (e) {
           refWarning = e.response?.data?['message'] as String?
-              ?? 'Code de parrainage non appliqué.';
+              ?? trCurrent("Code de parrainage non appliqué.");
         } catch (_) {
-          refWarning = 'Code de parrainage non appliqué.';
+          refWarning = trCurrent("Code de parrainage non appliqué.");
         }
       }
 
@@ -115,8 +116,8 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
           duration: const Duration(seconds: 4),
         ));
       } else if (refCode.isNotEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Code de parrainage appliqué !'),
+        ScaffoldMessenger.of(context).showSnackBar( SnackBar(
+          content: Text(tr(context, "Code de parrainage appliqué !")),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ));
@@ -126,7 +127,7 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
       if (!mounted) return;
       setState(() => _saving = false);
       final msg = e is DioException
-          ? (e.response?.data?['message'] ?? 'Erreur réseau')
+          ? (e.response?.data?['message'] ?? tr(context, "Erreur réseau"))
           : e.toString();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(msg),
@@ -151,11 +152,11 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
         automaticallyImplyLeading: false,
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.cl.textS),
-          tooltip: 'Retour',
+          tooltip: tr(context, "Retour"),
           onPressed: () => context.canPop() ? context.pop() : context.go('/compte'),
         ),
         title: Text(
-          'Compléter mon profil',
+          tr(context, "Compléter mon profil"),
           style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700),
         ),
         centerTitle: true,
@@ -169,45 +170,45 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
             children: [
               _SectionHeader(
                 icon: Icons.person_outline_rounded,
-                title: 'Encore une étape !',
-                subtitle: 'Ces informations nous permettent de personnaliser ton expérience.',
+                title: tr(context, "Encore une étape !"),
+                subtitle: tr(context, "Ces informations nous permettent de personnaliser ton expérience."),
               ).animate().fadeIn(duration: 400.ms),
 
               const SizedBox(height: 24),
 
-              _Label('Prénom'),
+              _Label(tr(context, "Prénom")),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _firstNameCtrl,
                 textCapitalization: TextCapitalization.words,
                 style: TextStyle(color: context.cl.textP, fontSize: 15),
-                decoration: const InputDecoration(hintText: 'Ton prénom'),
+                decoration:  InputDecoration(hintText: tr(context, "Ton prénom")),
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Prénom requis';
-                  if (v.trim().length < 2) return 'Minimum 2 caractères';
+                  if (v == null || v.trim().isEmpty) return tr(context, "Prénom requis");
+                  if (v.trim().length < 2) return tr(context, "Minimum 2 caractères");
                   return null;
                 },
               ).animate().fadeIn(duration: 300.ms, delay: 60.ms),
 
               const SizedBox(height: 16),
 
-              _Label('Nom de famille'),
+              _Label(tr(context, "Nom de famille")),
               const SizedBox(height: 8),
               TextFormField(
                 controller: _lastNameCtrl,
                 textCapitalization: TextCapitalization.words,
                 style: TextStyle(color: context.cl.textP, fontSize: 15),
-                decoration: const InputDecoration(hintText: 'Ton nom'),
+                decoration:  InputDecoration(hintText: tr(context, "Ton nom")),
                 validator: (v) {
-                  if (v == null || v.trim().isEmpty) return 'Nom requis';
-                  if (v.trim().length < 2) return 'Minimum 2 caractères';
+                  if (v == null || v.trim().isEmpty) return tr(context, "Nom requis");
+                  if (v.trim().length < 2) return tr(context, "Minimum 2 caractères");
                   return null;
                 },
               ).animate().fadeIn(duration: 300.ms, delay: 100.ms),
 
               const SizedBox(height: 16),
 
-              _Label('Date de naissance'),
+              _Label(tr(context, "Date de naissance")),
               const SizedBox(height: 8),
               GestureDetector(
                 onTap: _pickBirthDate,
@@ -228,7 +229,7 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
                     const SizedBox(width: 12),
                     Text(
                       _birthDate == null
-                          ? 'Sélectionner la date'
+                          ? tr(context, "Sélectionner la date")
                           : '${_birthDate!.day.toString().padLeft(2, '0')}/'
                             '${_birthDate!.month.toString().padLeft(2, '0')}/'
                             '${_birthDate!.year}',
@@ -247,14 +248,14 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
                 Padding(
                   padding: const EdgeInsets.only(top: 6, left: 4),
                   child: Text(
-                    'Tu dois avoir au moins 18 ans.',
+                    tr(context, "Tu dois avoir au moins 18 ans."),
                     style: TextStyle(color: context.cl.textM, fontSize: 11),
                   ),
                 ),
 
               const SizedBox(height: 16),
 
-              _Label('Numéro de téléphone'),
+              _Label(tr(context, "Numéro de téléphone")),
               const SizedBox(height: 8),
               Row(children: [
                 CountryPillSelector(
@@ -268,7 +269,7 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
                     keyboardType: TextInputType.phone,
                     style: TextStyle(color: context.cl.textP, fontSize: 15),
                     decoration: const InputDecoration(hintText: 'XX XX XX XX'),
-                    validator: (v) => (v == null || v.trim().length < 7) ? 'Numéro invalide' : null,
+                    validator: (v) => (v == null || v.trim().length < 7) ? tr(context, "Numéro invalide") : null,
                   ),
                 ),
               ]).animate().fadeIn(duration: 300.ms, delay: 180.ms),
@@ -281,7 +282,7 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
               // Compte → Parrainage → détail des filleuls, trois niveaux plus
               // loin : personne ne l'y trouvait.
               Row(children: [
-                _Label('Code de parrainage'),
+                _Label(tr(context, "Code de parrainage")),
                 const SizedBox(width: 6),
                 Text('(facultatif)',
                   style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
@@ -294,7 +295,7 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
                 style: TextStyle(
                   color: context.cl.textP, fontSize: 15, letterSpacing: 2),
                 decoration: InputDecoration(
-                  hintText: 'Ex. D52FA1',
+                  hintText: tr(context, "Ex. D52FA1"),
                   counterText: '',
                   prefixIcon: Icon(Icons.card_giftcard_rounded,
                     color: context.cl.textM, size: 19),
@@ -305,14 +306,13 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
               ).animate().fadeIn(duration: 300.ms, delay: 200.ms),
               const SizedBox(height: 6),
               Text(
-                'Un ami t\'a parrainé ? Saisis son code, tu ne pourras plus le '
-                'faire après.',
+                tr(context, "Un ami t'a parrainé ? Saisis son code, tu ne pourras plus le faire après."),
                 style: TextStyle(color: context.cl.textM, fontSize: 11.5, height: 1.35)),
 
               const SizedBox(height: 30),
 
               PwButton(
-                label: 'Terminer',
+                label: tr(context, "Terminer"),
                 isLoading: _saving,
                 onPressed: _submit,
                 icon: Icons.check_rounded,

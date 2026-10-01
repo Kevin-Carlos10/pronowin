@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:ui';
 import '../../../../core/utils/motion.dart';
 import '../widgets/tutorial_icons.dart';
@@ -99,9 +100,8 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
           Expanded(
             child: Text(
               enregistre
-                  ? 'Tutoriel marqué comme terminé !'
-                  : 'Progression non enregistrée : vérifie ta connexion '
-                    'et retouche « Terminé ».',
+                  ? tr(context, "Tutoriel marqué comme terminé !")
+                  : tr(context, "Progression non enregistrée : vérifie ta connexion et retouche « Terminé »."),
               style: const TextStyle(fontWeight: FontWeight.w600)),
           ),
         ]),
@@ -149,14 +149,14 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
               child: Column(mainAxisSize: MainAxisSize.min, children: [
                 Icon(Icons.cloud_off_rounded, size: 40, color: context.cl.textM),
                 const SizedBox(height: 12),
-                Text('Ce tutoriel n\'a pas pu être chargé.',
+                Text(tr(context, "Ce tutoriel n'a pas pu être chargé."),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: context.cl.textS, fontSize: 14)),
                 const SizedBox(height: 4),
                 // « Introuvable » désignait le tutoriel ; le plus souvent,
                 // c'est la connexion qui manque. Et rien ne permettait de
                 // réessayer sans quitter l'écran.
-                Text('Vérifie ta connexion, puis réessaie.',
+                Text(tr(context, "Vérifie ta connexion, puis réessaie."),
                     textAlign: TextAlign.center,
                     style: TextStyle(color: context.cl.textM, fontSize: 12)),
                 const SizedBox(height: 16),
@@ -165,7 +165,7 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
                   onPressed: () =>
                       ref.invalidate(tutorialDetailProvider(widget.tutorialId)),
                   icon: const Icon(Icons.refresh, size: 18),
-                  label: const Text('Réessayer'),
+                  label:  Text(tr(context, "Réessayer")),
                 ),
               ]),
             ),
@@ -221,7 +221,7 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
                             icon: Icons.workspace_premium_rounded,
                             color: AppColors.warning),
                       if (_completed)
-                        _Tag(label: 'Terminé',
+                        _Tag(label: tr(context, "Terminé"),
                             icon: Icons.check_circle_rounded,
                             color: AppColors.success),
                     ]).animate().fadeIn(duration: 300.ms, delay: 50.ms),
@@ -278,7 +278,7 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
                       // Article
                       if (t.articleContent != null &&
                           t.articleContent!.trim().isNotEmpty) ...[
-                        _SectionDivider(label: 'Contenu du tutoriel'),
+                        _SectionDivider(label: tr(context, "Contenu du tutoriel")),
                         const SizedBox(height: 16),
                         _MarkdownRenderer(
                             content: t.articleContent!,
@@ -465,7 +465,7 @@ class _MetaRow extends StatelessWidget {
             const SizedBox(width: 8),
             _MetaChip(
                 icon: Icons.visibility_rounded,
-                label: '${tutorial.viewCount} vues',
+                label: tr(context, "{arg0} vues", [tutorial.viewCount]),
                 color: context.cl.textM),
           ],
           if (tutorial.rating > 0) ...[
@@ -814,7 +814,7 @@ class _VideoSectionState extends State<_VideoSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _SectionDivider(label: 'Vidéo'),
+        _SectionDivider(label: tr(context, "Vidéo")),
         const SizedBox(height: 14),
         Container(
           decoration: BoxDecoration(
@@ -836,7 +836,7 @@ class _VideoSectionState extends State<_VideoSection> {
                     child: Container(
                       color: const Color(0xFF0A0E1A),
                       alignment: Alignment.center,
-                      child: Text('Vidéo indisponible',
+                      child: Text(tr(context, "Vidéo indisponible"),
                           style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
                     ),
                   )
@@ -859,7 +859,7 @@ class _PremiumLock extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sub = ref.watch(currentSubscriptionProvider).valueOrNull ?? const {};
     // Idem : le prix affiché doit correspondre au canal de distribution.
-    final priceLabel = '${premiumMonthlyPriceLabel(ref, sub)}/mois';
+    final priceLabel = tr(context, "{arg0}/mois", [premiumMonthlyPriceLabel(ref, sub)]);
     return Column(
         children: [
           // Aperçu flou du contenu
@@ -928,14 +928,14 @@ class _PremiumLock extends ConsumerWidget {
                             child: const Icon(Icons.workspace_premium_rounded,
                                 color: Colors.white, size: 32)),
                           const SizedBox(height: 16),
-                          const Text('Contenu Premium',
+                           Text(tr(context, "Contenu Premium"),
                               style: TextStyle(
                                   color: AppColors.warning,
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800)),
                           const SizedBox(height: 8),
                           Text(
-                            'Débloquez ce tutoriel et tous\nles contenus exclusifs avec Premium.',
+                            tr(context, "Débloquez ce tutoriel et tous\nles contenus exclusifs avec Premium."),
                             style: TextStyle(
                                 color: context.cl.textS,
                                 fontSize: 13,
@@ -968,7 +968,7 @@ class _PremiumLock extends ConsumerWidget {
                                   const Icon(Icons.workspace_premium_rounded,
                                       color: Colors.white, size: 18),
                                   const SizedBox(width: 8),
-                                  Text('Activer Premium — $priceLabel',
+                                  Text(tr(context, "Activer Premium — {arg0}", [priceLabel]),
                                       style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 14,
@@ -1014,13 +1014,13 @@ class _PlaceholderContent extends StatelessWidget {
         child: Column(children: [
           const Text('📖', style: TextStyle(fontSize: 40)),
           const SizedBox(height: 12),
-          Text('Contenu en préparation',
+          Text(tr(context, "Contenu en préparation"),
               style: TextStyle(
                   color: context.cl.textP,
                   fontSize: 15,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
-          Text('Ce tutoriel sera bientôt disponible.',
+          Text(tr(context, "Ce tutoriel sera bientôt disponible."),
               style: TextStyle(color: context.cl.textS, fontSize: 13),
               textAlign: TextAlign.center),
         ]),
@@ -1120,7 +1120,7 @@ class _BottomBarState extends State<_BottomBar>
                         color: Colors.white, size: 20),
                   const SizedBox(width: 10),
                   Text(
-                    widget.completed ? 'Tutoriel terminé ✓' : 'Marquer comme terminé',
+                    widget.completed ? tr(context, "Tutoriel terminé ✓") : tr(context, "Marquer comme terminé"),
                     style: const TextStyle(
                         color: Colors.white,
                         fontSize: 15,

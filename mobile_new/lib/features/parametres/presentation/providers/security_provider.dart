@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -49,7 +50,7 @@ class SecurityNotifier extends StateNotifier<SecurityState> {
     if (!state.bioAvailable) return false;
     try {
       return await _auth.authenticate(
-        localizedReason: 'Déverrouillez PronoWin',
+        localizedReason: trCurrent("Déverrouillez PronoWin"),
         options: const AuthenticationOptions(
           biometricOnly: false,
           stickyAuth:    true,
@@ -73,28 +74,23 @@ String messageErreurBio(Object e) {
   final code = e is PlatformException ? e.code : '';
   switch (code) {
     case 'NotAvailable':
-      return 'La biométrie n\'est pas disponible sur cet appareil.';
+      return trCurrent("La biométrie n'est pas disponible sur cet appareil.");
     case 'NotEnrolled':
-      return 'Aucune empreinte ni visage enregistré. Ajoute-les dans les '
-             'réglages de ton téléphone, puis reviens ici.';
+      return trCurrent("Aucune empreinte ni visage enregistré. Ajoute-les dans les réglages de ton téléphone, puis reviens ici.");
     case 'PasscodeNotSet':
-      return 'Ton téléphone n\'a pas de verrouillage d\'écran. Configure-le '
-             'd\'abord dans les réglages du système.';
+      return trCurrent("Ton téléphone n'a pas de verrouillage d'écran. Configure-le d'abord dans les réglages du système.");
     case 'LockedOut':
-      return 'Trop de tentatives. Réessaie dans quelques instants.';
+      return trCurrent("Trop de tentatives. Réessaie dans quelques instants.");
     case 'PermanentlyLockedOut':
-      return 'Biométrie bloquée. Déverrouille ton téléphone avec son code, '
-             'puis réessaie.';
+      return trCurrent("Biométrie bloquée. Déverrouille ton téléphone avec son code, puis réessaie.");
     case 'no_fragment_activity':
       // Ne devrait plus se produire depuis que MainActivity hérite de
       // FlutterFragmentActivity. Si le message réapparaît, la classe hôte a
       // été modifiée — le texte le dit franchement plutôt que de laisser
       // croire à une limite de l'appareil.
-      return 'Configuration de l\'application incorrecte : la biométrie ne '
-             'peut pas démarrer. Signale-le au support.';
+      return trCurrent("Configuration de l'application incorrecte : la biométrie ne peut pas démarrer. Signale-le au support.");
     default:
-      return 'La biométrie n\'a pas pu démarrer. Réessaie, ou utilise ton '
-             'code PIN.';
+      return trCurrent("La biométrie n'a pas pu démarrer. Réessaie, ou utilise ton code PIN.");
   }
 }
 

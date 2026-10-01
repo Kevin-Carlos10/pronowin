@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -103,13 +104,13 @@ class PagesLegales {
     messager?.showSnackBar(SnackBar(
       content: Text(
         titre.isEmpty
-            ? 'Impossible d\'ouvrir le navigateur.\n$url'
-            : 'Impossible d\'ouvrir « $titre ».\n$url',
+            ? trCurrent("Impossible d'ouvrir le navigateur.\n{arg0}", [url])
+            : trCurrent("Impossible d'ouvrir « {arg0} ».\n{arg1}", [trCurrent(titre), url]),
       ),
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 8),
       action: SnackBarAction(
-        label: 'Copier',
+        label: trCurrent("Copier"),
         onPressed: () => Clipboard.setData(ClipboardData(text: url)),
       ),
     ));

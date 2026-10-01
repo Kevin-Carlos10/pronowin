@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/utils/motion.dart';
 import 'package:flutter/material.dart';
@@ -132,8 +133,8 @@ class _PerformancePageState extends ConsumerState<PerformancePage> {
           onPressed: () => retourOuAller(context, repli: _repli)),
         title: RichText(text: TextSpan(
           style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.cl.textP),
-          children: const [
-            TextSpan(text: 'Ma '),
+          children:  [
+            TextSpan(text: tr(context, "Ma ")),
             TextSpan(text: 'Performance', style: TextStyle(color: AppColors.primary)),
           ],
         )),
@@ -201,7 +202,7 @@ class _PeriodSheet extends StatelessWidget {
       Container(width: 40, height: 4,
         decoration: BoxDecoration(color: context.cl.border, borderRadius: BorderRadius.circular(2))),
       const SizedBox(height: 16),
-      Text('Période d\'analyse', style: TextStyle(
+      Text(tr(context, "Période d'analyse"), style: TextStyle(
         color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w700)),
       const SizedBox(height: 16),
       ...[7, 14, 30, 60, 90].map((d) => ListTile(
@@ -215,12 +216,12 @@ class _PeriodSheet extends StatelessWidget {
   );
 
   String _periodLabel(int d) => switch (d) {
-    7  => '7 derniers jours',
-    14 => '2 dernières semaines',
-    30 => '30 derniers jours',
-    60 => '2 derniers mois',
-    90 => '3 derniers mois',
-    _  => '$d jours',
+    7  => trCurrent("7 derniers jours"),
+    14 => trCurrent("2 dernières semaines"),
+    30 => trCurrent("30 derniers jours"),
+    60 => trCurrent("2 derniers mois"),
+    90 => trCurrent("3 derniers mois"),
+    _  => trCurrent("{arg0} jours", [d]),
   };
 }
 
@@ -260,7 +261,7 @@ class _PerformanceView extends StatelessWidget {
               const Icon(Icons.info_outline_rounded, color: AppColors.info, size: 13),
               const SizedBox(width: 7),
               Expanded(child: Text(
-                'Simulation basée sur une mise fixe de ${_fmt(perf.stakeRef.toDouble())} FCFA par pronostic sur ${perf.periodDays} jours.',
+                tr(context, "Simulation basée sur une mise fixe de {arg0} FCFA par pronostic sur {arg1} jours.", [_fmt(perf.stakeRef.toDouble()), perf.periodDays]),
                 style: TextStyle(color: context.cl.textS, fontSize: 11, height: 1.4))),
             ]),
           ).animate(delay: 60.ms).fadeIn(duration: 300.ms),
@@ -271,13 +272,13 @@ class _PerformanceView extends StatelessWidget {
           Row(children: [
             Expanded(child: _StatChip(
               icon:  Icons.receipt_long_rounded,
-              label: 'Pronos',
+              label: tr(context, "Pronos"),
               value: '${perf.total}',
               color: AppColors.info)),
             const SizedBox(width: 8),
             Expanded(child: _StatChip(
               icon:  Icons.emoji_events_rounded,
-              label: 'Gagnés',
+              label: tr(context, "Gagnés"),
               value: '${perf.wins}',
               color: AppColors.success)),
             const SizedBox(width: 8),
@@ -289,7 +290,7 @@ class _PerformanceView extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(child: _StatChip(
               icon:  Icons.local_fire_department_rounded,
-              label: 'Série max',
+              label: tr(context, "Série max"),
               value: '${perf.bestStreak}',
               color: AppColors.primaryLight)),
           ]).animate(delay: 80.ms).fadeIn(duration: 300.ms),
@@ -340,12 +341,7 @@ class _ROICard extends StatelessWidget {
     // rattachement. Une seule phrase les relie et rappelle qu'il s'agit d'une
     // simulation, pas des gains réels de l'utilisateur.
     final annonce =
-        'Performance simulée sur ${perf.periodDays} jours, '
-        'pour une mise de référence de ${perf.stakeRef} FCFA. '
-        '${isPositive ? "Gain" : "Perte"} de ${_fmt(perf.simulatedNet.abs().toDouble())} FCFA, '
-        'retour sur investissement ${perf.roi} pour cent. '
-        '${perf.wins} pronostics gagnés sur ${perf.total}, '
-        'soit ${perf.winRate} pour cent de réussite.';
+        tr(context, "Performance simulée sur {arg0} jours, pour une mise de référence de {arg1} FCFA. {arg2} de {arg3} FCFA, retour sur investissement {arg4} pour cent. {arg5} pronostics gagnés sur {arg6}, soit {arg7} pour cent de réussite.", [perf.periodDays, perf.stakeRef, isPositive ? tr(context, "Gain") : tr(context, "Perte"), _fmt(perf.simulatedNet.abs().toDouble()), perf.roi, perf.wins, perf.total, perf.winRate]);
 
     return Semantics(
       label: annonce,
@@ -377,7 +373,7 @@ class _ROICard extends StatelessWidget {
           // lieu de déborder.
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Gain simulé sur ${perf.periodDays} jours',
+              Text(tr(context, "Gain simulé sur {arg0} jours", [perf.periodDays]),
                 style: TextStyle(color: context.cl.textM, fontSize: 11)),
               const SizedBox(height: 2),
               TweenAnimationBuilder<int>(
@@ -404,7 +400,7 @@ class _ROICard extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: color.withValues(alpha: 0.4), width: 0.8)),
             child: Column(children: [
-              Text('RENTABILITÉ',
+              Text(tr(context, "RENTABILITÉ"),
                 style: TextStyle(color: context.cl.textM, fontSize: 9,
                   fontWeight: FontWeight.w700, letterSpacing: 0.5)),
               const SizedBox(height: 2),
@@ -419,8 +415,7 @@ class _ROICard extends StatelessWidget {
         // Le pourcentage seul ne dit pas de quoi il est le pourcentage. Formulé
         // en francs sur une mise ronde, il se comprend sans définition.
         Text(
-          'Rentabilité : ${isPositive ? '+' : ''}${perf.roi} F de gain net '
-          'pour 100 F misés.',
+          tr(context, "Rentabilité : {arg0}{arg1} F de gain net pour 100 F misés.", [isPositive ? '+' : '', perf.roi]),
           style: TextStyle(color: context.cl.textM, fontSize: 10.5, height: 1.35)),
 
         const SizedBox(height: 16),
@@ -446,11 +441,11 @@ class _ROICard extends StatelessWidget {
             Row(children: [
               _Dot(color: AppColors.success),
               const SizedBox(width: 4),
-              Text('${perf.wins} gagnés', style: TextStyle(color: context.cl.textM, fontSize: 10)),
+              Text(tr(context, "{arg0} gagnés", [perf.wins]), style: TextStyle(color: context.cl.textM, fontSize: 10)),
               const SizedBox(width: 12),
               _Dot(color: AppColors.error),
               const SizedBox(width: 4),
-              Text('${perf.losses} perdus', style: TextStyle(color: context.cl.textM, fontSize: 10)),
+              Text(tr(context, "{arg0} perdus", [perf.losses]), style: TextStyle(color: context.cl.textM, fontSize: 10)),
             ]),
           ])),
         ]),
@@ -490,10 +485,10 @@ class _WeekCard extends StatelessWidget {
         child: const Icon(Icons.calendar_view_week_rounded, color: AppColors.info, size: 18)),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('Cette semaine', style: TextStyle(
+        Text(tr(context, "Cette semaine"), style: TextStyle(
           color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
         const SizedBox(height: 2),
-        Text('${week.total} pronos · ${week.wins} gagnés · ${week.winRate}% réussite',
+        Text(tr(context, "{arg0} pronos · {arg1} gagnés · {arg2}% réussite", [week.total, week.wins, week.winRate]),
           style: TextStyle(color: context.cl.textM, fontSize: 11)),
       ])),
     ]),
@@ -529,10 +524,10 @@ class _SimulationChart extends StatelessWidget {
         Row(children: [
           Icon(Icons.show_chart_rounded, size: 14, color: lineColor),
           const SizedBox(width: 6),
-          Text('Évolution simulée (${history.length} pronos)',
+          Text(tr(context, "Évolution simulée ({arg0} pronos)", [history.length]),
             style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           const Spacer(),
-          Text('Mise : ${_fmt(stake.toDouble())} FCFA/prono',
+          Text(tr(context, "Mise : {arg0} FCFA/prono", [_fmt(stake.toDouble())]),
             style: TextStyle(color: context.cl.textM, fontSize: 10)),
         ]),
         const SizedBox(height: 14),
@@ -607,7 +602,7 @@ class _SimulationChart extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(
-          'Résultat final : ${isPositive ? '+' : ''}${_fmt(lastBalance.toDouble())} FCFA sur ${history.length} pronos',
+          tr(context, "Résultat final : {arg0}{arg1} FCFA sur {arg2} pronos", [isPositive ? '+' : '', _fmt(lastBalance.toDouble()), history.length]),
           style: TextStyle(color: lineColor, fontSize: 11, fontWeight: FontWeight.w700)),
       ]),
     );
@@ -640,7 +635,7 @@ class _LeaguesCard extends StatelessWidget {
             borderRadius: BorderRadius.circular(10)),
           child: const Icon(Icons.emoji_events_rounded, color: AppColors.warning, size: 16)),
         const SizedBox(width: 10),
-        Text('Ligues les plus rentables',
+        Text(tr(context, "Ligues les plus rentables"),
           style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
       ]),
       const SizedBox(height: 14),
@@ -667,7 +662,7 @@ class _LeaguesCard extends StatelessWidget {
               Text(l.league, style: TextStyle(
                 color: context.cl.textP, fontSize: 12, fontWeight: FontWeight.w600),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
-              Text('${l.wins}/${l.total} · ${l.winRate}% réussite',
+              Text(tr(context, "{arg0}/{arg1} · {arg2}% réussite", [l.wins, l.total, l.winRate]),
                 style: TextStyle(color: context.cl.textM, fontSize: 10)),
             ])),
             Text(
@@ -700,10 +695,10 @@ class _PremiumCTA extends StatelessWidget {
       child: Row(children: [
         const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 24),
         const SizedBox(width: 12),
-        const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Accède à tous les pronos', style: TextStyle(
+         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(tr(context, "Accède à tous les pronos"), style: TextStyle(
             color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
-          Text('Et reproduis ces performances en réel', style: TextStyle(
+          Text(tr(context, "Et reproduis ces performances en réel"), style: TextStyle(
             color: Colors.white70, fontSize: 11)),
         ])),
         Container(
@@ -785,9 +780,9 @@ class _ErrorState extends StatelessWidget {
     mainAxisSize: MainAxisSize.min, children: [
       Icon(Icons.wifi_off_rounded, color: context.cl.textM, size: 40),
       const SizedBox(height: 12),
-      Text('Données indisponibles', style: TextStyle(color: context.cl.textP, fontWeight: FontWeight.w700)),
+      Text(tr(context, "Données indisponibles"), style: TextStyle(color: context.cl.textP, fontWeight: FontWeight.w700)),
       const SizedBox(height: 14),
-      TextButton(onPressed: onRetry, child: const Text('Réessayer',
+      TextButton(onPressed: onRetry, child:  Text(tr(context, "Réessayer"),
         style: TextStyle(color: AppColors.primary))),
     ],
   ));

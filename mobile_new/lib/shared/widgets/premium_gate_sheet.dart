@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../core/utils/motion.dart';
 import 'package:flutter/services.dart';
@@ -105,7 +106,7 @@ class _PremiumGateSheet extends ConsumerWidget {
                 duration: 400.ms, curve: Curves.easeOutBack),
 
               const SizedBox(height: 14),
-              Text('Contenu Premium', style: TextStyle(
+              Text(tr(context, "Contenu Premium"), style: TextStyle(
                 color: context.cl.textP, fontSize: 18,
                 fontWeight: FontWeight.w800, letterSpacing: -0.3)),
               const SizedBox(height: 6),
@@ -114,7 +115,7 @@ class _PremiumGateSheet extends ConsumerWidget {
                   color: AppColors.primary, fontSize: 13,
                   fontWeight: FontWeight.w600))
               else
-                Text('Débloquez l\'accès à tous les pronostics VIP',
+                Text(tr(context, "Débloquez l'accès à tous les pronostics VIP"),
                   style: TextStyle(color: context.cl.textS, fontSize: 13),
                   textAlign: TextAlign.center),
             ]),
@@ -146,7 +147,7 @@ class _PremiumGateSheet extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text('À partir de ', style: TextStyle(
+                Text(tr(context, "À partir de "), style: TextStyle(
                   color: context.cl.textS, fontSize: 13)),
                 // Ce montant valait « 5 000 » en dur — un chiffre qui ne
                 // correspondait à aucune formule : ni 6 000 (mensuel), ni
@@ -168,7 +169,7 @@ class _PremiumGateSheet extends ConsumerWidget {
                 Text(premiumMonthlyPriceLabel(ref, sub), style: const TextStyle(
                   color: AppColors.primary, fontSize: 16,
                   fontWeight: FontWeight.w900)),
-                Text(' / mois', style: TextStyle(
+                Text(tr(context, " / mois"), style: TextStyle(
                   color: context.cl.textS, fontSize: 13)),
               ],
             ),
@@ -202,11 +203,11 @@ class _PremiumGateSheet extends ConsumerWidget {
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
+                  children:  [
                     Icon(Icons.workspace_premium_rounded,
                       color: Colors.white, size: 20),
                     SizedBox(width: 8),
-                    Text('Passer Premium', style: TextStyle(
+                    Text(tr(context, "Passer Premium"), style: TextStyle(
                       color: Colors.white, fontSize: 15,
                       fontWeight: FontWeight.w700, letterSpacing: 0.2)),
                   ],
@@ -223,7 +224,7 @@ class _PremiumGateSheet extends ConsumerWidget {
           // Lien secondaire
           TextButton(
             onPressed: () => Navigator.of(context).pop(),
-            child: Text('Peut-être plus tard', style: TextStyle(
+            child: Text(tr(context, "Peut-être plus tard"), style: TextStyle(
               color: context.cl.textM, fontSize: 13)),
           ),
         ],
@@ -265,13 +266,12 @@ class _TauxReussiteReel extends ConsumerWidget {
         const SizedBox(width: 11),
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('$taux % de réussite',
+            Text(tr(context, "{arg0} % de réussite", [taux]),
               style: TextStyle(color: couleur, fontSize: 15,
                   fontWeight: FontWeight.w800)),
             const SizedBox(height: 2),
             Text(
-              '${bilan.gagnes} gagnés sur ${bilan.pronosticsTranches} '
-              'pronostics VIP tranchés — ${bilan.periodeJours} derniers jours',
+              tr(context, "{arg0} gagnés sur {arg1} pronostics VIP tranchés — {arg2} derniers jours", [bilan.gagnes, bilan.pronosticsTranches, bilan.periodeJours]),
               style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.3)),
           ]),
         ),
@@ -300,10 +300,10 @@ class _BenefitRow extends StatelessWidget {
         child: Icon(icon, color: AppColors.primary, size: 18)),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: TextStyle(
+        Text(tr(context, title), style: TextStyle(
           color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
         const SizedBox(height: 2),
-        Text(subtitle, style: TextStyle(
+        Text(tr(context, subtitle), style: TextStyle(
           color: context.cl.textS, fontSize: 11, height: 1.4)),
       ])),
     ]),

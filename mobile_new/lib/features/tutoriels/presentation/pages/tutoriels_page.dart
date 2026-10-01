@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/image_distante.dart';
 import '../../../../shared/widgets/erreur_chargement.dart';
@@ -53,7 +54,7 @@ class TutorielsPage extends ConsumerWidget {
         loading: () => _TutorielsShimmer(),
         error:   (e, _) => ErreurChargement(
           erreur: e,
-          quoi: 'les tutoriels',
+          quoi: tr(context, "les tutoriels"),
           from: '/tutoriels',
             onRetry: () => ref.invalidate(tutorielsProvider)),
         data: (tutos) {
@@ -129,11 +130,7 @@ class TutorielsPage extends ConsumerWidget {
                   RichText(text: TextSpan(
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
                       color: context.cl.textP),
-                    children: const [
-                      TextSpan(text: 'Tuto'),
-                      TextSpan(text: 'riels',
-                        style: TextStyle(color: AppColors.info)),
-                    ],
+                    children: [TextSpan(text: tr(context, "Tutoriels"), style: const TextStyle(color: AppColors.info))],
                   )),
                   const Spacer(),
                   // Badge progression
@@ -205,7 +202,7 @@ class TutorielsPage extends ConsumerWidget {
                       scrollDirection: Axis.horizontal,
                       padding: const EdgeInsets.symmetric(horizontal: 14),
                       children: [
-                        (null, 'Tous', ''),
+                        (null, tr(context, "Tous"), ''),
                         for (final c in categoryOptions)
                           (c, TutorialCategoryInfo.labelFor(c), c),
                       ].map((entry) {
@@ -231,7 +228,7 @@ class TutorielsPage extends ConsumerWidget {
                                   size: 14,
                                   color: sel ? Colors.white : context.cl.textM),
                               const SizedBox(width: 6),
-                              Text(label, style: TextStyle(
+                              Text(tr(context, label), style: TextStyle(
                                 color: sel ? Colors.white : context.cl.textS,
                                 fontSize: 12,
                                 fontWeight: sel ? FontWeight.w600 : FontWeight.w400)),
@@ -273,7 +270,7 @@ class TutorielsPage extends ConsumerWidget {
                               border: Border.all(
                                 color: sel ? color.withValues(alpha: 0.6) : context.cl.borderSoft,
                                 width: 0.8)),
-                            child: Text(label, style: TextStyle(
+                            child: Text(tr(context, label), style: TextStyle(
                               color: sel ? color : context.cl.textS,
                               fontSize: 11,
                               fontWeight: sel ? FontWeight.w700 : FontWeight.w400)),
@@ -289,7 +286,7 @@ class TutorielsPage extends ConsumerWidget {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(14, 0, 14, 4),
                       child: Row(children: [
-                        Text('${filtered.length} résultat${filtered.length > 1 ? 's' : ''}',
+                        Text(AppStrings.of(context).count(filtered.length, one: "{arg0} résultat", other: "{arg0} résultats"),
                           style: TextStyle(color: context.cl.textM, fontSize: 12)),
                         const Spacer(),
                         if (selectedCat != null || selectedLvl != null || searchQuery.isNotEmpty)
@@ -304,10 +301,10 @@ class TutorielsPage extends ConsumerWidget {
                               decoration: BoxDecoration(
                                 color: AppColors.primary.withValues(alpha: 0.1),
                                 borderRadius: BorderRadius.circular(12)),
-                              child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                              child:  Row(mainAxisSize: MainAxisSize.min, children: [
                                 Icon(Icons.close_rounded, color: AppColors.primary, size: 12),
                                 SizedBox(width: 4),
-                                Text('Tout effacer', style: TextStyle(
+                                Text(tr(context, "Tout effacer"), style: TextStyle(
                                   color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600)),
                               ]),
                             ),
@@ -332,14 +329,14 @@ class TutorielsPage extends ConsumerWidget {
                                 color: AppColors.info, size: 34)),
                           const SizedBox(height: 14),
                           Text(searchQuery.isNotEmpty
-                              ? 'Aucun résultat pour "$searchQuery"'
-                              : 'Aucun tutoriel trouvé',
+                              ? tr(context, "Aucun résultat pour \"{arg0}\"", [searchQuery])
+                              : tr(context, "Aucun tutoriel trouvé"),
                               style: TextStyle(
                                   color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
                           const SizedBox(height: 6),
                           Text(searchQuery.isNotEmpty
-                              ? 'Essayez d\'autres mots-clés'
-                              : "Essayez d'autres filtres",
+                              ? tr(context, "Essayez d'autres mots-clés")
+                              : tr(context, "Essayez d'autres filtres"),
                               style: TextStyle(color: context.cl.textS, fontSize: 13)),
                         ],
                       ).animate()
@@ -407,7 +404,7 @@ class _SearchBarState extends State<_SearchBar> {
       onChanged: (v) => widget.ref.read(searchQueryProvider.notifier).state = v,
       style: TextStyle(color: context.cl.textP, fontSize: 14),
       decoration: InputDecoration(
-        hintText: 'Rechercher un tutoriel...',
+        hintText: tr(context, "Rechercher un tutoriel..."),
         hintStyle: TextStyle(color: context.cl.textM, fontSize: 13),
         prefixIcon: Icon(Icons.search_rounded, color: context.cl.textM, size: 20),
         suffixIcon: _ctrl.text.isNotEmpty
@@ -450,8 +447,8 @@ class _ProgressBanner extends StatelessWidget {
 
     return Semantics(
       label: allDone
-        ? 'Progression : tous les tutoriels sont terminés, $total sur $total.'
-        : 'Progression : $completed tutoriels terminés sur $total.',
+        ? tr(context, "Progression : tous les tutoriels sont terminés, {arg0} sur {arg1}.", [total, total])
+        : tr(context, "Progression : {arg0} tutoriels terminés sur {arg1}.", [completed, total]),
       excludeSemantics: true,
       child: Container(
       padding: const EdgeInsets.all(14),
@@ -472,8 +469,8 @@ class _ProgressBanner extends StatelessWidget {
           const SizedBox(width: 8),
           Expanded(child: Text(
             allDone
-              ? 'Félicitations ! Tous les tutoriels sont terminés 🎉'
-              : 'Ta progression',
+              ? tr(context, "Félicitations ! Tous les tutoriels sont terminés 🎉")
+              : tr(context, "Ta progression"),
             style: TextStyle(
               color: allDone ? AppColors.success : context.cl.textP,
               fontSize: 13, fontWeight: FontWeight.w600))),
@@ -501,7 +498,7 @@ class _ProgressBanner extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text(
-            '${(pct * 100).round()}% accompli · ${total - completed} restant${total - completed > 1 ? 's' : ''}',
+            tr(context, "Progression : {arg0}% · À terminer : {arg1}", [(pct * 100).round(), total - completed]),
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ],
       ]),
@@ -605,7 +602,7 @@ class _FeaturedCardState extends State<_FeaturedCard>
                         Container(width: 5, height: 5,
                           decoration: BoxDecoration(color: _catColor, shape: BoxShape.circle)),
                         const SizedBox(width: 5),
-                        const Text('À LA UNE', style: TextStyle(
+                         Text(tr(context, "À LA UNE"), style: TextStyle(
                           color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
                       ]),
                     ),
@@ -657,7 +654,7 @@ class _FeaturedCardState extends State<_FeaturedCard>
                         Icon(isLocked ? Icons.lock_rounded : Icons.play_arrow_rounded,
                           color: Colors.white, size: 14),
                         const SizedBox(width: 4),
-                        Text(isLocked ? 'Premium' : 'Commencer',
+                        Text(isLocked ? 'Premium' : tr(context, "Commencer"),
                           style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
                       ]),
                     ).animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(reverse: true); })
@@ -746,7 +743,7 @@ class _TutoCard extends StatelessWidget {
 
               // Badge terminé / premium (haut gauche)
               if (tuto.isCompleted)
-                _ThumbBadge(icon: Icons.check_rounded, label: 'Terminé', color: AppColors.success)
+                _ThumbBadge(icon: Icons.check_rounded, label: tr(context, "Terminé"), color: AppColors.success)
               else if (tuto.isPremium)
                 _ThumbBadge(icon: Icons.workspace_premium_rounded, label: 'Premium', color: AppColors.warning),
 
@@ -806,7 +803,7 @@ class _ThumbBadge extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(icon, color: Colors.white, size: 12),
         const SizedBox(width: 3),
-        Text(label, style: const TextStyle(
+        Text(tr(context, label), style: const TextStyle(
           color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
       ]),
     ),
@@ -853,9 +850,7 @@ class _PressableTutoCardState extends State<_PressableTutoCard>
       // Sans libellé, la carte s'annonçait « Débutant », « 4 min », « 1 240 »,
       // « 4.6 » — quatre fragments avant même le titre, et rien ne disait
       // qu'elle était verrouillée.
-      label: '${t.title}. ${t.description} '
-             'Niveau ${t.levelLabel}, durée ${t.durationLabel}.'
-             '${verrouille ? " Réservé aux membres Premium." : ""}',
+      label: tr(context, "{arg0}. {arg1} Niveau {arg2}, durée {arg3}.{arg4}", [t.title, t.description, t.levelLabel, t.durationLabel, verrouille ? tr(context, " Réservé aux membres Premium.") : ""]),
       excludeSemantics: true,
       child: GestureDetector(
         onTapDown: (_) => _ctrl.forward(),

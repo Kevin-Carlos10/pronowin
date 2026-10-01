@@ -1,4 +1,5 @@
-﻿import 'dart:async';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'dart:async';
 import 'dart:ui';
 import '../../../../core/utils/motion.dart';
 import '../../../../shared/widgets/confidence_indicator.dart';
@@ -226,7 +227,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                       if (live.isEmpty) return const SizedBox.shrink();
                       return Column(children: [
                         _SectionHeader(
-                          title: 'En direct',
+                          title: tr(context, "En direct"),
                           leading: const _LivePulseDot(size: 9),
                           showBadge: live.length,
                           onMore: () => context.go('/pronostics'),
@@ -270,7 +271,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                       // Verrouillé : on montre le match en teaser (équipes +
                       // confiance) au lieu de le cacher — le tap mène à Premium.
                       return Column(children: [
-                        const _SectionHeader(title: 'Top prono du jour'),
+                         _SectionHeader(title: tr(context, "Top prono du jour")),
                         const SizedBox(height: 12),
                         _HeroPronoCard(
                           prono: top,
@@ -304,7 +305,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                   // ─── PRONOSTICS DU JOUR (filtrés + triés) ────────────────
                   pronostics.when(
                     loading: () => Column(children: [
-                      _SectionHeader(title: 'Pronostics du jour',
+                      _SectionHeader(title: tr(context, "Pronostics du jour"),
                           onMore: () => context.go('/pronostics')),
                       const SizedBox(height: 12),
                       const _PronosticsShimmer(),
@@ -350,7 +351,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          _SectionHeader(title: 'Pronostics du jour',
+                          _SectionHeader(title: tr(context, "Pronostics du jour"),
                               onMore: () => context.go('/pronostics')),
                           const SizedBox(height: 10),
 

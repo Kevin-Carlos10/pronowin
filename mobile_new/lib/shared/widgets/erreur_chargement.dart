@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -56,25 +57,25 @@ class ErreurChargement extends ConsumerWidget {
     final (icone, titre, detail, libelleAction, action) = switch (statut) {
       401 => (
         Icons.person_add_alt_1_rounded,
-        'Crée ton compte',
-        'Il faut un compte gratuit pour accéder à $quoi.',
-        'Créer mon compte',
+        tr(context, "Crée ton compte"),
+        tr(context, "Il faut un compte gratuit pour accéder à {arg0}.", [quoi]),
+        tr(context, "Créer mon compte"),
         () => context.push(from == null
             ? '/auth/email'
             : '/auth/email?from=${Uri.encodeComponent(from!)}'),
       ),
       403 => (
         Icons.workspace_premium_rounded,
-        'Réservé aux membres Premium',
-        'Passe au Premium pour débloquer $quoi.',
-        'Découvrir le Premium',
+        tr(context, "Réservé aux membres Premium"),
+        tr(context, "Passe au Premium pour débloquer {arg0}.", [quoi]),
+        tr(context, "Découvrir le Premium"),
         () => goToPremium(context, ref),
       ),
       _ => (
         Icons.wifi_off_rounded,
-        'Connexion impossible',
-        'Impossible de charger $quoi pour le moment.',
-        'Réessayer',
+        tr(context, "Connexion impossible"),
+        tr(context, "Impossible de charger {arg0} pour le moment.", [quoi]),
+        tr(context, "Réessayer"),
         onRetry,
       ),
     };

@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -192,9 +193,9 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
                         text: TextSpan(
                           style: TextStyle(color: context.cl.textS, fontSize: 12.5, height: 1.45),
                           children: [
-                            const TextSpan(text: 'En continuant, tu acceptes nos '),
+                             TextSpan(text: tr(context, "En continuant, tu acceptes nos ")),
                             TextSpan(
-                              text: 'conditions d\'utilisation',
+                              text: tr(context, "conditions d'utilisation"),
                               style: const TextStyle(
                                 color: AppColors.primary,
                                 decoration: TextDecoration.underline,
@@ -249,7 +250,7 @@ class _ChoixFournisseur extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(children: [
     BoutonFournisseur(
-      libelle: 'Continuer avec Google',
+      libelle: tr(context, "Continuer avec Google"),
       logo: const LogoGoogle(),
       desactive: enCours,
       onPressed: onGoogle,
@@ -259,7 +260,7 @@ class _ChoixFournisseur extends StatelessWidget {
     if (onApple != null) ...[
       const SizedBox(height: 11),
       BoutonFournisseur(
-        libelle: 'Continuer avec Apple',
+        libelle: tr(context, "Continuer avec Apple"),
         logo: const LogoApple(),
         desactive: enCours,
         onPressed: onApple!,
@@ -270,7 +271,7 @@ class _ChoixFournisseur extends StatelessWidget {
     const SizedBox(height: 11),
 
     BoutonFournisseur(
-      libelle: 'Continuer avec un e-mail',
+      libelle: tr(context, "Continuer avec un e-mail"),
       logo: const LogoEmail(),
       desactive: enCours,
       onPressed: onEmail,
@@ -316,10 +317,10 @@ class _EtapeEmail extends StatelessWidget {
         onFieldSubmitted: (_) => onValider(),
         style: TextStyle(
           color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600),
-        decoration: const InputDecoration(hintText: 'Adresse email'),
+        decoration:  InputDecoration(hintText: tr(context, "Adresse email")),
         validator: (v) {
-          if (v == null || v.isEmpty) return 'Email requis';
-          if (!v.contains('@')) return 'Email invalide';
+          if (v == null || v.isEmpty) return tr(context, "Email requis");
+          if (!v.contains('@')) return tr(context, "Email invalide");
           return null;
         },
       ),
@@ -330,7 +331,7 @@ class _EtapeEmail extends StatelessWidget {
     SizedBox(
       width: double.infinity,
       child: PwButton(
-        label: 'Recevoir mon code',
+        label: tr(context, "Recevoir mon code"),
         isLoading: enCours,
         onPressed: onValider,
       ),
@@ -343,7 +344,7 @@ class _EtapeEmail extends StatelessWidget {
     // que par la croix, qui referme tout l'écran.
     TextButton(
       onPressed: enCours ? null : onRetour,
-      child: Text('Autres options de connexion',
+      child: Text(tr(context, "Autres options de connexion"),
         style: TextStyle(
           color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600)),
     ),

@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/image_distante.dart';
 import '../../../../shared/widgets/erreur_chargement.dart';
@@ -38,13 +39,13 @@ class ClassementPage extends ConsumerWidget {
                 loading: () => const _Shimmer(),
                 error:   (e, _) => ErreurChargement(
                   erreur: e,
-                  quoi: 'le classement',
+                  quoi: tr(context, "le classement"),
                   from: '/classement',
                   onRetry: () => ref.invalidate(leaderboardProvider),
                 ),
                 data: (entries) {
                   if (entries.isEmpty) {
-                    return Center(child: Text('Aucune donnée',
+                    return Center(child: Text(tr(context, "Aucune donnée"),
                       style: TextStyle(color: context.cl.textM)));
                   }
                   final top3  = entries.take(3).toList();
@@ -72,7 +73,7 @@ class ClassementPage extends ConsumerWidget {
                               const Icon(Icons.format_list_numbered_rounded,
                                   color: AppColors.primary, size: 16),
                               const SizedBox(width: 8),
-                              Text('SUITE DU CLASSEMENT', style: TextStyle(
+                              Text(tr(context, "SUITE DU CLASSEMENT"), style: TextStyle(
                                 color: context.cl.textS,
                                 fontSize: 11, fontWeight: FontWeight.w600,
                                 letterSpacing: 1)),
@@ -150,10 +151,7 @@ class _ClassementAppBar extends StatelessWidget {
         const SizedBox(width: 10),
         RichText(text: TextSpan(
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.cl.textP),
-          children: const [
-            TextSpan(text: 'Class'),
-            TextSpan(text: 'ement', style: TextStyle(color: _gold)),
-          ],
+          children: [TextSpan(text: tr(context, "Classement"), style: const TextStyle(color: _gold))],
         )),
       ]).animate().fadeIn(duration: 400.ms).slideY(begin: -0.04, end: 0),
       const SizedBox(height: 12),
@@ -205,7 +203,7 @@ class _PeriodFilterBar extends StatelessWidget {
                 color: sel ? Colors.white : context.cl.textM,
                 size: 13),
               const SizedBox(width: 5),
-              Text(label, style: TextStyle(
+              Text(tr(context, label), style: TextStyle(
                 color: sel ? Colors.white : context.cl.textM,
                 fontSize: 12, fontWeight: sel ? FontWeight.w700 : FontWeight.w400)),
             ]),
@@ -293,8 +291,7 @@ class _PodiumCol extends StatelessWidget {
     // Le podium est une mise en forme visuelle : la hauteur de la colonne
     // porte le rang, information invisible pour un lecteur d'écran.
     return Semantics(
-      label: '${e.rank}e place du podium : ${e.pseudo}, '
-             '${e.winRateLabel} de réussite sur ${e.totalPredictions} pronostics.',
+      label: tr(context, "{arg0}e place du podium : {arg1}, {arg2} de réussite sur {arg3} pronostics.", [e.rank, e.pseudo, e.winRateLabel, e.totalPredictions]),
       excludeSemantics: true,
       child: Column(
       mainAxisSize: MainAxisSize.min,
@@ -444,10 +441,7 @@ class _EntryTile extends StatelessWidget {
     // Lue widget par widget, la ligne donnait « #7 », « kevin », « 12/18
     // gagnés », « 67 % » comme quatre fragments détachés — sans dire que #7
     // est un rang ni que 67 % est un taux de réussite.
-    final annonce = 'Rang ${e.rank}. ${e.pseudo}'
-        '${e.isPremium ? ", membre Premium" : ""}. '
-        '${e.wonPredictions} pronostics gagnés sur ${e.totalPredictions}, '
-        'soit ${e.winRateLabel} de réussite.';
+    final annonce = tr(context, "Rang {arg0}. {arg1}{arg2}. {arg3} pronostics gagnés sur {arg4}, soit {arg5} de réussite.", [e.rank, e.pseudo, e.isPremium ? tr(context, ", membre Premium") : "", e.wonPredictions, e.totalPredictions, e.winRateLabel]);
 
     return Semantics(
       label: annonce,
@@ -500,7 +494,7 @@ class _EntryTile extends StatelessWidget {
             Icon(Icons.check_circle_rounded,
               color: AppColors.success, size: 11),
             const SizedBox(width: 3),
-            Text('${e.wonPredictions}/${e.totalPredictions} gagnés',
+            Text(tr(context, "{arg0}/{arg1} gagnés", [e.wonPredictions, e.totalPredictions]),
               style: TextStyle(color: context.cl.textM, fontSize: 10)),
           ]),
         ])),

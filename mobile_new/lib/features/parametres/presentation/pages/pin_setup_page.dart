@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -59,8 +60,8 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
       await ref.read(pinStoreProvider).save(_pin);
       await ref.read(settingsProvider.notifier).setPinEnabled(true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Code PIN activé avec succès ✅'),
+        ScaffoldMessenger.of(context).showSnackBar( SnackBar(
+          content: Text(tr(context, "Code PIN activé avec succès ✅")),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ));
@@ -69,7 +70,7 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
     } else {
       HapticFeedback.heavyImpact();
       setState(() {
-        _error   = 'Les codes ne correspondent pas. Recommencez.';
+        _error   = tr(context, "Les codes ne correspondent pas. Recommencez.");
         _pin     = '';
         _confirm = '';
         _step2   = false;
@@ -87,20 +88,20 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => retourOuAller(context, repli: _repli),
         ),
-        title: Text(_step2 ? 'Confirmer le PIN' : 'Créer un code PIN'),
+        title: Text(_step2 ? tr(context, "Confirmer le PIN") : tr(context, "Créer un code PIN")),
       ),
       body: Column(children: [
         const SizedBox(height: 40),
 
         // Titre
         Text(
-          _step2 ? 'Confirmez ton code PIN' : 'Choisis un code PIN à 4 chiffres',
+          _step2 ? tr(context, "Confirmez ton code PIN") : tr(context, "Choisis un code PIN à 4 chiffres"),
           style: TextStyle(color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w600),
           textAlign: TextAlign.center,
         ),
         SizedBox(height: 8),
         Text(
-          _step2 ? 'Entrez à nouveau le même code' : 'Ce code protégera l\'accès à l\'application',
+          _step2 ? tr(context, "Entrez à nouveau le même code") : tr(context, "Ce code protégera l'accès à l'application"),
           style: TextStyle(color: context.cl.textS, fontSize: 13),
           textAlign: TextAlign.center,
         ),

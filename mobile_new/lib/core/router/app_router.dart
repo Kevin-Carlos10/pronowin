@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -307,6 +308,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
 
     errorBuilder: (_, s) => Scaffold(
-      body: Center(child: Text('Page introuvable : ${s.error}'))),
+      body: Center(child: Text(trCurrent("Page introuvable : {arg0}", [s.error])))),
   );
 });

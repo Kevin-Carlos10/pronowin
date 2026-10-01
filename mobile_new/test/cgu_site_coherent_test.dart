@@ -101,7 +101,7 @@ void main() {
       ('LegalType.cgu', 'MAJ_CGU'),
       ('LegalType.confidentialite', 'MAJ_CONFIDENTIALITE'),
     ]) {
-      final dansApp = RegExp('$cle\\s*=>\\s*\'([^\']+)\'').firstMatch(app);
+      final dansApp = RegExp('$cle' + r'''\s*=>\s*(?:trCurrent\()?['"]([^'"]+)['"]''').firstMatch(app);
       final dansSite = RegExp('const $constante = \'([^\']+)\'').firstMatch(serveur);
       expect(dansApp, isNotNull, reason: 'date de $cle introuvable');
       expect(dansSite, isNotNull, reason: '$constante introuvable dans server.js');

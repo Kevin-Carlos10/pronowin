@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -67,7 +68,7 @@ class GoogleAuthService {
 
     if (!GoogleSignIn.instance.supportsAuthenticate()) {
       debugPrint('[Google] supportsAuthenticate() = false');
-      throw Exception('Connexion Google indisponible sur cet appareil.');
+      throw Exception(trCurrent("Connexion Google indisponible sur cet appareil."));
     }
 
     final GoogleSignInAccount compte;
@@ -105,8 +106,7 @@ class GoogleAuthService {
       debugPrint('[Google] exception inattendue (${e.runtimeType}) : $e');
       debugPrint('[Google] $pile');
       throw Exception(
-          'La connexion Google a échoué. Utilise ton adresse e-mail en '
-          'attendant.');
+          trCurrent("La connexion Google a échoué. Utilise ton adresse e-mail en attendant."));
     }
 
     final idToken = compte.authentication.idToken;
@@ -116,8 +116,7 @@ class GoogleAuthService {
       debugPrint('[Google] compte reçu mais AUCUN idToken — '
           'serverClientId absent ou non reconnu par Google');
       throw Exception(
-          'Google n\'a pas fourni de jeton d\'identité. '
-          'Vérifie la configuration OAuth du projet.');
+          trCurrent("Google n'a pas fourni de jeton d'identité. Vérifie la configuration OAuth du projet."));
     }
     debugPrint('[Google] idToken reçu (${idToken.length} caractères)');
     return idToken;
@@ -161,14 +160,10 @@ String messageRejetSysteme(String? description) {
   // L'ordre dit maintenant ce qu'on sait : le refus est certain, l'e-mail
   // fonctionne, la reconnexion du compte n'est qu'une piste.
   if (d.toLowerCase().contains('reauth')) {
-    return 'La connexion Google a été refusée par cet appareil. '
-           'Le plus rapide : continue avec ton adresse e-mail. '
-           'Sinon, essaie de reconnecter ton compte dans les réglages '
-           'Android → Comptes.';
+    return trCurrent("La connexion Google a été refusée par cet appareil. Le plus rapide : continue avec ton adresse e-mail. Sinon, essaie de reconnecter ton compte dans les réglages Android → Comptes.");
   }
 
-  return 'Les services Google de cet appareil ont refusé la connexion. '
-         'Utilise ton adresse e-mail, ou réessaie plus tard.';
+  return trCurrent("Les services Google de cet appareil ont refusé la connexion. Utilise ton adresse e-mail, ou réessaie plus tard.");
 }
 
 /// Traduit un échec Google en phrase utile — à l'utilisateur, et à celui qui
@@ -180,35 +175,30 @@ String messageRejetSysteme(String? description) {
 String messageErreurGoogle(GoogleSignInException e) {
   switch (e.code) {
     case GoogleSignInExceptionCode.canceled:
-      return 'Connexion annulée.';
+      return trCurrent("Connexion annulée.");
 
     case GoogleSignInExceptionCode.interrupted:
-      return 'La connexion a été interrompue. Réessaie.';
+      return trCurrent("La connexion a été interrompue. Réessaie.");
 
     case GoogleSignInExceptionCode.clientConfigurationError:
       // Typiquement : empreinte SHA-1 absente de la console Google, ou
       // enregistrée sur une autre application que celle installée.
-      return 'La connexion Google n\'est pas correctement configurée pour '
-             'cette version de l\'app. Utilise ton adresse e-mail en attendant.';
+      return trCurrent("La connexion Google n'est pas correctement configurée pour cette version de l'app. Utilise ton adresse e-mail en attendant.");
 
     case GoogleSignInExceptionCode.providerConfigurationError:
       // Côté Google : services Play absents ou trop anciens, fournisseur
       // indisponible sur cet appareil.
-      return 'Les services Google de cet appareil ne permettent pas la '
-             'connexion. Mets à jour les services Google Play, ou utilise ton '
-             'adresse e-mail.';
+      return trCurrent("Les services Google de cet appareil ne permettent pas la connexion. Mets à jour les services Google Play, ou utilise ton adresse e-mail.");
 
     case GoogleSignInExceptionCode.uiUnavailable:
       // Aucun compte Google sur l'appareil, ou l'interface système ne peut pas
       // s'afficher.
-      return 'Aucun compte Google disponible sur cet appareil. '
-             'Ajoute-en un dans les réglages, ou utilise ton adresse e-mail.';
+      return trCurrent("Aucun compte Google disponible sur cet appareil. Ajoute-en un dans les réglages, ou utilise ton adresse e-mail.");
 
     case GoogleSignInExceptionCode.userMismatch:
-      return 'Le compte choisi ne correspond pas à celui attendu.';
+      return trCurrent("Le compte choisi ne correspond pas à celui attendu.");
 
     case GoogleSignInExceptionCode.unknownError:
-      return 'La connexion Google a échoué. Utilise ton adresse e-mail en '
-             'attendant.';
+      return trCurrent("La connexion Google a échoué. Utilise ton adresse e-mail en attendant.");
   }
 }

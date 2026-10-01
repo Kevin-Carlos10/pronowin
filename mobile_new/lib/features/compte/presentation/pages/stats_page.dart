@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -21,12 +22,12 @@ class StatsPage extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Mes statistiques',
+        title:  Text(tr(context, "Mes statistiques"),
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
       ),
       body: statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error:   (e, _) => Center(child: Text('Erreur : $e')),
+        error:   (e, _) => Center(child: Text(tr(context, "Erreur : {arg0}", [e]))),
         data:    (stats) => _StatsBody(stats: stats),
       ),
     );
@@ -64,55 +65,55 @@ class _StatsBody extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           // ── KPIs top ─────────────────────────────────────────────────────
-          _SectionTitle('PERFORMANCE GLOBALE'),
+          _SectionTitle(tr(context, "PERFORMANCE GLOBALE")),
           const SizedBox(height: 10),
           Row(children: [
             Expanded(child: _KpiCard(
-              label: 'Taux de réussite',
+              label: tr(context, "Taux de réussite"),
               value: '${taux.toStringAsFixed(0)}%',
               icon: Icons.percent_rounded,
               color: taux >= 60 ? Colors.green : taux >= 45 ? Colors.orange : Colors.red,
-              sub: '$gagnes victoires / $perdus défaites',
+              sub: tr(context, "{arg0} victoires / {arg1} défaites", [gagnes, perdus]),
             )),
             const SizedBox(width: 10),
             Expanded(child: _KpiCard(
-              label: 'Rentabilité',
+              label: tr(context, "Rentabilité"),
               value: '${roi >= 0 ? '+' : ''}${roi.toStringAsFixed(1)}%',
               icon: Icons.trending_up_rounded,
               color: roi >= 0 ? Colors.green : Colors.red,
-              sub: 'Gain net pour 100 F misés',
+              sub: tr(context, "Gain net pour 100 F misés"),
             )),
           ]),
           const SizedBox(height: 10),
           Row(children: [
             Expanded(child: _KpiCard(
-              label: 'Profit net',
+              label: tr(context, "Profit net"),
               value: '${profitNet >= 0 ? '+' : ''}${_fmt(profitNet)} F',
               icon: Icons.account_balance_wallet_rounded,
               color: profitNet >= 0 ? Colors.green : Colors.red,
-              sub: 'Misé : ${_fmt(totalMise)} F',
+              sub: tr(context, "Misé : {arg0} F", [_fmt(totalMise)]),
             )),
             const SizedBox(width: 10),
             Expanded(child: _KpiCard(
-              label: 'Meilleure cote',
+              label: tr(context, "Meilleure cote"),
               value: bestOdds > 0 ? bestOdds.toStringAsFixed(2) : '–',
               icon: Icons.star_rounded,
               color: const Color(0xFFFF6B35),
-              sub: 'Cote gagnée la + haute',
+              sub: tr(context, "Cote gagnée la + haute"),
             )),
           ]),
           const SizedBox(height: 10),
           Row(children: [
             Expanded(child: _KpiCard(
-              label: 'Série actuelle',
+              label: tr(context, "Série actuelle"),
               value: serie > 0 ? '🔥 $serie' : '$serie',
               icon: Icons.local_fire_department_rounded,
               color: serie >= 5 ? Colors.orange : const Color(0xFFFF6B35),
-              sub: 'Record : $bestSerie victoires',
+              sub: tr(context, "Record : {arg0} victoires", [bestSerie]),
             )),
             const SizedBox(width: 10),
             Expanded(child: _KpiCard(
-              label: 'Paris suivis',
+              label: tr(context, "Paris suivis"),
               value: '$suivis',
               icon: Icons.sports_score_rounded,
               color: const Color(0xFF6C63FF),
@@ -123,7 +124,7 @@ class _StatsBody extends StatelessWidget {
           // ── Graphe bankroll ───────────────────────────────────────────────
           if (history.isNotEmpty) ...[
             const SizedBox(height: 24),
-            _SectionTitle('ÉVOLUTION BANKROLL (30 JOURS)'),
+            _SectionTitle(tr(context, "ÉVOLUTION BANKROLL (30 JOURS)")),
             const SizedBox(height: 12),
             _BankrollChart(history: history),
           ],
@@ -131,7 +132,7 @@ class _StatsBody extends StatelessWidget {
           // ── Stats par ligue ───────────────────────────────────────────────
           if (leagues.isNotEmpty) ...[
             const SizedBox(height: 24),
-            _SectionTitle('PERFORMANCE PAR COMPÉTITION'),
+            _SectionTitle(tr(context, "PERFORMANCE PAR COMPÉTITION")),
             const SizedBox(height: 12),
             ...leagues.map((l) => _LeagueRow(league: l as Map<String, dynamic>)),
           ],
@@ -317,7 +318,7 @@ class _LeagueRow extends StatelessWidget {
           Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
               overflow: TextOverflow.ellipsis),
           const SizedBox(height: 2),
-          Text('$total paris · $wins victoires',
+          Text(tr(context, "{arg0} paris · {arg1} victoires", [total, wins]),
               style: TextStyle(fontSize: 11, color: context.cl.textS)),
         ])),
         const SizedBox(width: 12),

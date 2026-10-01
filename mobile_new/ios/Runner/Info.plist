@@ -11,6 +11,14 @@
 		<string>PronoWin</string>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
+		<!-- Les langues de l'interface (lib/l10n). Sans cette liste, iOS tient
+		     l'app pour monolingue : l'App Store n'annonce pas l'anglais, et les
+		     éléments fournis par le système restent dans la langue de base. -->
+		<key>CFBundleLocalizations</key>
+		<array>
+			<string>fr</string>
+			<string>en</string>
+		</array>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>

@@ -123,6 +123,31 @@ void main() {
       expect(lire('ios/Runner/Info.plist'), isNot(contains('UISupportedInterfaceOrientations~ipad')));
     });
 
+    test('iOS sait que l\'app parle français et anglais', () {
+      // Sans cette liste, iOS tient l'app pour monolingue : l'App Store
+      // n'annonce pas l'anglais, et les textes fournis par le système restent
+      // dans la langue de base.
+      expect(lire('ios/Runner/Info.plist'), matches(RegExp(
+          r'<key>CFBundleLocalizations</key>\s*<array>\s*<string>fr</string>\s*<string>en</string>\s*</array>')));
+    });
+
+    test('chaque autorisation a sa version anglaise, copiée dans l\'app', () {
+      // Le français vient d'Info.plist ; sans ce fichier, un utilisateur
+      // anglophone lisait les demandes d'accès en français.
+      final cles = RegExp(r'<key>(NS\w+UsageDescription)</key>')
+          .allMatches(lire('ios/Runner/Info.plist')).map((m) => m.group(1)!);
+      final anglais = lire('ios/Runner/en.lproj/InfoPlist.strings');
+      for (final cle in cles) {
+        expect(anglais, matches(RegExp('"$cle"\\s*=\\s*"[^"]{10,}";')), reason: cle);
+      }
+      final projet = lire('ios/Runner.xcodeproj/project.pbxproj');
+      // Copié par l'étape « Resources » de la cible Runner, pas seulement cité.
+      final ressources = RegExp(r'97C146EC1CF9000F007C117D /\* Resources \*/ = \{[^}]*\}')
+          .firstMatch(projet)?.group(0) ?? '';
+      expect(ressources, contains('InfoPlist.strings'));
+      expect(projet, contains('path = en.lproj/InfoPlist.strings;'));
+    });
+
     test('chaque accès sensible a sa description', () {
       // Une description manquante fait refuser l'envoi (ITMS-90683).
       final plist = lire('ios/Runner/Info.plist');

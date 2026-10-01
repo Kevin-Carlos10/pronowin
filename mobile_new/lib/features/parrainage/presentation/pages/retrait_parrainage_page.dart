@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -81,7 +82,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
             icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
             onPressed: () => retourOuAller(context, repli: _repli),
           ),
-          title: const Text('Convertir mes récompenses'),
+          title:  Text(tr(context, "Convertir mes récompenses")),
         ),
         body: _buildCreditTab(earnings, withdrawState),
       );
@@ -93,16 +94,16 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => retourOuAller(context, repli: _repli),
         ),
-        title: const Text('Retirer mes récompenses'),
+        title:  Text(tr(context, "Retirer mes récompenses")),
         bottom: TabBar(
           controller: _tab,
           indicatorColor: Color(0xFFA78BFA),
           labelColor:     Color(0xFFA78BFA),
           unselectedLabelColor: context.cl.textS,
           labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          tabs: const [
+          tabs:  [
             Tab(icon: Icon(Icons.phone_android_rounded, size: 16), text: 'Mobile Money'),
-            Tab(icon: Icon(Icons.workspace_premium_rounded, size: 16), text: 'Crédit Premium'),
+            Tab(icon: Icon(Icons.workspace_premium_rounded, size: 16), text: tr(context, "Crédit Premium")),
           ],
         ),
       ),
@@ -129,7 +130,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
           const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFA78BFA), size: 24),
           const SizedBox(width: 12),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Solde disponible', style: TextStyle(color: context.cl.textS, fontSize: 12)),
+            Text(tr(context, "Solde disponible"), style: TextStyle(color: context.cl.textS, fontSize: 12)),
             TweenAnimationBuilder<int>(
               tween: IntTween(begin: 0, end: earnings),
               duration: const Duration(milliseconds: 900),
@@ -142,7 +143,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
       ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.08, end: 0),
       const SizedBox(height: 20),
 
-      _FieldLabel('Montant à retirer (FCFA)'),
+      _FieldLabel(tr(context, "Montant à retirer (FCFA)")),
       TextField(
         controller: _amountCtrl,
         keyboardType: TextInputType.number,
@@ -150,13 +151,13 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
         decoration: InputDecoration(
           hintText: '$minWithdraw',
           prefixIcon: Icon(Icons.payments_rounded, size: 20, color: context.cl.textM),
-          helperText: 'Minimum $minWithdraw FCFA',
+          helperText: tr(context, "Minimum {arg0} FCFA", [minWithdraw]),
           helperStyle: TextStyle(color: context.cl.textM, fontSize: 11),
         ),
       ),
       const SizedBox(height: 20),
 
-      _FieldLabel('Méthode de paiement'),
+      _FieldLabel(tr(context, "Méthode de paiement")),
       ...['orange_money', 'moov_money', 'mtn_momo'].map((m) => _MethodTile(
         method: m,
         selected: _method == m,
@@ -164,7 +165,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
       )),
       const SizedBox(height: 20),
 
-      _FieldLabel('Numéro de réception'),
+      _FieldLabel(tr(context, "Numéro de réception")),
       Row(children: [
         GestureDetector(
           onTap: _showCountryPicker,
@@ -204,7 +205,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
               ? const SizedBox(width: 18, height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : const Icon(Icons.send_rounded, size: 20),
-          label: const Text('Demander le virement'),
+          label:  Text(tr(context, "Demander le virement")),
           style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFA78BFA)),
         ),
       ),
@@ -231,7 +232,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
             tween: IntTween(begin: 0, end: premiumDays),
             duration: const Duration(milliseconds: 800),
             curve: Curves.easeOutCubic,
-            builder: (_, v, _) => Text('$v jours Premium', style: const TextStyle(
+            builder: (_, v, _) => Text(tr(context, "{arg0} jours Premium", [v]), style: const TextStyle(
               color: AppColors.primaryLight, fontSize: 28, fontWeight: FontWeight.w800)),
           ),
           const SizedBox(height: 6),
@@ -240,14 +241,14 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
           // rhabille une fidélité en versement.
           Text(
             estStore
-                ? 'pour tes récompenses de parrainage'
-                : 'pour tes $earnings FCFA de récompenses',
+                ? tr(context, "pour tes récompenses de parrainage")
+                : tr(context, "pour tes {arg0} FCFA de récompenses", [earnings]),
             style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 14)),
           if (!estStore) ...[
             const SizedBox(height: 8),
             // Rapport dérivé de la constante, plus recopié à la main : le
             // libellé « 1 000 FCFA = 6 jours » vieillissait tout seul.
-            Text('($prixMensuelPremiumFCFA FCFA = 30 jours Premium)',
+            Text(tr(context, "({arg0} FCFA = 30 jours Premium)", [prixMensuelPremiumFCFA]),
               style: const TextStyle(color: Color(0xFF8892AA), fontSize: 12)),
           ],
         ]),
@@ -262,12 +263,10 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
           color: AppColors.success.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.success.withValues(alpha: 0.2))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('✅ Avantages du crédit Premium', style: TextStyle(
+           Text(tr(context, "✅ Avantages du crédit Premium"), style: TextStyle(
             color: AppColors.success, fontSize: 13, fontWeight: FontWeight.w600)),
           SizedBox(height: 8),
-          Text('• Activation immédiate, sans attente\n'
-               '• Ajouté à ton abonnement existant\n'
-               '• Pas de frais de traitement',
+          Text(tr(context, "• Activation immédiate, sans attente\n• Ajouté à ton abonnement existant\n• Pas de frais de traitement"),
             style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.6)),
         ]),
       ),
@@ -281,7 +280,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
               ? const SizedBox(width: 18, height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : const Icon(Icons.workspace_premium_rounded, size: 20),
-          label: Text('Convertir en $premiumDays jours Premium'),
+          label: Text(tr(context, "Convertir en {arg0} jours Premium", [premiumDays])),
         ),
       ),
     ]);
@@ -295,12 +294,12 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
       builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 40, height: 4, margin: EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(color: context.cl.borderS, borderRadius: BorderRadius.circular(2))),
-        Text('Choisis ton pays', style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
+        Text(tr(context, "Choisis ton pays"), style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
         SizedBox(height: 8),
         ..._countries.map((c) => ListTile(
           leading: Text(c['flag'] as String, style: TextStyle(fontSize: 24)),
           title: Text(c['code'] as String, style: TextStyle(color: context.cl.textP)),
-          trailing: Text('${c['digits']} chiffres', style: TextStyle(color: context.cl.textM, fontSize: 12)),
+          trailing: Text(tr(context, "{arg0} chiffres", [c['digits']]), style: TextStyle(color: context.cl.textM, fontSize: 12)),
           onTap: () { setState(() => _country = c); Navigator.pop(context); },
         )),
         const SizedBox(height: 12),
@@ -310,8 +309,8 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
 
   void _submitMobileMoney() {
     final amount = int.tryParse(_amountCtrl.text) ?? 0;
-    if (amount < 1) { _showError('Entrez un montant valide.'); return; }
-    if (_phoneCtrl.text.length < 7) { _showError('Numéro de téléphone invalide.'); return; }
+    if (amount < 1) { _showError(tr(context, "Entrez un montant valide.")); return; }
+    if (_phoneCtrl.text.length < 7) { _showError(tr(context, "Numéro de téléphone invalide.")); return; }
     final phone = '${_country['code']}${_phoneCtrl.text.trim()}';
     ref.read(withdrawProvider.notifier).withdraw(
       amount: amount.toDouble(), method: _method, phone: phone, useAsCredit: false);
@@ -353,7 +352,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
                duration: 500.ms, curve: Curves.easeOutBack)
            .fadeIn(duration: 400.ms),
           const SizedBox(height: 20),
-          Text('Demande envoyée !', style: TextStyle(
+          Text(tr(context, "Demande envoyée !"), style: TextStyle(
             color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
           const SizedBox(height: 10),
           Text(msg, style: TextStyle(
@@ -374,7 +373,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
-              child: const Text('Parfait, fermer', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              child:  Text(tr(context, "Parfait, fermer"), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
             ),
           ),
         ]),

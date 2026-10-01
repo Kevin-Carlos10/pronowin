@@ -53,7 +53,9 @@ void main() {
       // Six emplacements affichent une commission. Si l'un gardait son propre
       // libellé, l'incohérence reviendrait exactement là où elle était.
       final avecDevise =
-          RegExp(r'\$comL[12] \$devise').allMatches(code).length;
+          RegExp(r'\$comL[12] \$devise').allMatches(code).length +
+          // Les phrases traduites reçoivent montant ET devise en paramètres.
+          RegExp(r'\bcomL[12],\s*devise\b').allMatches(code).length;
 
       expect(avecDevise, greaterThanOrEqualTo(6));
     });

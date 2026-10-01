@@ -42,12 +42,12 @@ class _TutorielsBanner extends StatelessWidget {
           // pas une issue. C'était la seule promesse de gain de l'application :
           // tout le reste est rétrospectif, « 12 gagnés sur 18 » étant un fait
           // et non une annonce.
-          Text('Apprends la méthode',
+          Text(tr(context, "Apprends la méthode"),
             style: TextStyle(
               color: context.cl.textP,
               fontSize: 13, fontWeight: FontWeight.w700)),
           const SizedBox(height: 2),
-          Text('Stratégies, value bet, bankroll…',
+          Text(tr(context, "Stratégies, value bet, bankroll…"),
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ])),
         const Icon(Icons.arrow_forward_ios_rounded,
@@ -76,7 +76,7 @@ class _FavoritesSection extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _SectionHeader(
-                title: 'Mes favoris',
+                title: tr(context, "Mes favoris"),
                 leading: Icon(Icons.bookmark_rounded,
                     color: AppColors.primary, size: 15),
                 onMore: null),
@@ -258,16 +258,16 @@ class _SliverOfflineBanner extends ConsumerWidget {
       if (lastSync != null) {
         final diff = DateTime.now().difference(lastSync);
         final ago  = diff.inMinutes < 60
-            ? 'il y a ${diff.inMinutes} min'
-            : 'il y a ${diff.inHours}h';
-        message = 'Hors ligne · Données du $ago';
+            ? tr(context, "il y a {arg0} min", [diff.inMinutes])
+            : tr(context, "il y a {arg0}h", [diff.inHours]);
+        message = tr(context, "Hors ligne · Données du {arg0}", [ago]);
       } else {
-        message = 'Hors ligne · Aucune donnée en cache';
+        message = tr(context, "Hors ligne · Aucune donnée en cache");
       }
     } else {
       icon    = Icons.cloud_done_rounded;
       color   = AppColors.success;
-      message = 'Reconnecté · Mise à jour en cours…';
+      message = tr(context, "Reconnecté · Mise à jour en cours…");
     }
 
     return SliverToBoxAdapter(
@@ -398,7 +398,7 @@ class _BankrollMiniWidget extends ConsumerWidget {
                 Expanded(child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Ma bankroll', style: TextStyle(
+                    Text(tr(context, "Ma bankroll"), style: TextStyle(
                         color: context.cl.textM, fontSize: 11,
                         fontWeight: FontWeight.w500)),
                     const SizedBox(height: 2),
@@ -443,7 +443,7 @@ class _BankrollMiniWidget extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: AppColors.warning.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6)),
-                        child: Text('$pending en cours',
+                        child: Text(tr(context, "{arg0} en cours", [pending]),
                             style: const TextStyle(
                                 color: AppColors.warning, fontSize: 9,
                                 fontWeight: FontWeight.w700)),

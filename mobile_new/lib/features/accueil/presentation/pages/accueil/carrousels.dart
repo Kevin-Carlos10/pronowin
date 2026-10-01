@@ -134,12 +134,12 @@ class _HeroPronoCard extends StatelessWidget {
                           colors: [Color(0xFFB8860B), Color(0xFFFFD700)]),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Row(
+                    child:  Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.star_rounded, color: Colors.white, size: 11),
                         SizedBox(width: 4),
-                        Text('TOP DU JOUR',
+                        Text(tr(context, "TOP DU JOUR"),
                             style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 9,
@@ -252,7 +252,7 @@ class _HeroPronoCard extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text('PRONOSTIC',
+                         Text(tr(context, "PRONOSTIC"),
                             style: TextStyle(
                                 color: AppColors.textMuted,
                                 fontSize: 9,
@@ -260,11 +260,11 @@ class _HeroPronoCard extends StatelessWidget {
                                 letterSpacing: 0.8)),
                         const SizedBox(height: 4),
                         locked
-                            ? const Row(mainAxisSize: MainAxisSize.min, children: [
+                            ?  Row(mainAxisSize: MainAxisSize.min, children: [
                                 Icon(Icons.lock_rounded,
                                     color: Color(0xFFFFD700), size: 15),
                                 SizedBox(width: 5),
-                                Text('Réservé VIP',
+                                Text(tr(context, "Réservé VIP"),
                                     style: TextStyle(
                                         color: Color(0xFFFFD700),
                                         fontSize: 15,
@@ -282,7 +282,7 @@ class _HeroPronoCard extends StatelessWidget {
                   ),
                   Column(
                     children: [
-                      const Text('COTE',
+                       Text(tr(context, "COTE"),
                           style: TextStyle(
                               color: AppColors.textMuted,
                               fontSize: 9,
@@ -307,7 +307,7 @@ class _HeroPronoCard extends StatelessWidget {
                   const SizedBox(width: 16),
                   Column(
                     children: [
-                      const Text('CONFIANCE',
+                       Text(tr(context, "CONFIANCE"),
                           style: TextStyle(
                               color: AppColors.textMuted,
                               fontSize: 9,
@@ -402,7 +402,7 @@ class _HeroLiveBadgeState extends State<_HeroLiveBadge>
         ),
       ),
       const SizedBox(width: 5),
-      const Text('EN DIRECT',
+       Text(tr(context, "EN DIRECT"),
           style: TextStyle(
               color: AppColors.error,
               fontSize: 9,

@@ -1,4 +1,5 @@
-﻿import 'dart:async';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'dart:async';
 import 'dart:convert';
 import '../../../../core/utils/motion.dart';
 import 'dart:io';
@@ -79,8 +80,9 @@ int moisOffertsAnnuel(num mensuel, num annuel) {
 
 /// « 3 mois offerts », ou `null` quand l'annuel n'offre rien.
 @visibleForTesting
-String? libelleMoisOfferts(int mois) =>
-    mois <= 0 ? null : '$mois mois offert${mois > 1 ? 's' : ''}';
+String? libelleMoisOfferts(int mois) => mois <= 0
+    ? null
+    : trCurrent(mois > 1 ? "{arg0} mois offerts" : "{arg0} mois offert", [mois]);
 
 class ActiverPremiumPage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? subData;
@@ -249,14 +251,14 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Container(width: 40, height: 4, margin: EdgeInsets.symmetric(vertical: 12),
             decoration: BoxDecoration(color: context.cl.borderSoft, borderRadius: BorderRadius.circular(2))),
-          Text('Ajouter une image', style: TextStyle(
+          Text(tr(context, "Ajouter une image"), style: TextStyle(
             color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
           SizedBox(height: 6),
-          Text('Choisis ta capture d\'écran', style: TextStyle(color: context.cl.textM, fontSize: 12)),
+          Text(tr(context, "Choisis ta capture d'écran"), style: TextStyle(color: context.cl.textM, fontSize: 12)),
           const SizedBox(height: 12),
           _PickerOption(
             icon: Icons.photo_library_rounded, color: AppColors.primary,
-            title: 'Galerie photo', subtitle: 'Choisir depuis tes photos',
+            title: tr(context, "Galerie photo"), subtitle: tr(context, "Choisir depuis tes photos"),
             onTap: () async {
               Navigator.pop(context);
               final f = await _pickFrom(ImageSource.gallery);
@@ -265,7 +267,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
           ),
           _PickerOption(
             icon: Icons.camera_alt_rounded, color: AppColors.info,
-            title: 'Appareil photo', subtitle: 'Prendre une nouvelle photo',
+            title: tr(context, "Appareil photo"), subtitle: tr(context, "Prendre une nouvelle photo"),
             onTap: () async {
               Navigator.pop(context);
               final f = await _pickFrom(ImageSource.camera);
@@ -315,16 +317,16 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => setState(() => _showPaywall = true),
         ),
-        title: Text(_method == 'code' ? 'Activation Code Promo' : 'Paiement Mobile'),
+        title: Text(_method == 'code' ? tr(context, "Activation Code Promo") : tr(context, "Paiement Mobile")),
         bottom: TabBar(
           controller: _tab,
           indicatorColor: AppColors.primary,
           labelColor: AppColors.primary,
           unselectedLabelColor: context.cl.textS,
           labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          tabs: const [
-            Tab(icon: Icon(Icons.phone_android_rounded, size: 16), text: 'Paiement Direct'),
-            Tab(icon: Icon(Icons.confirmation_number_rounded, size: 16), text: 'Code Promo'),
+          tabs:  [
+            Tab(icon: Icon(Icons.phone_android_rounded, size: 16), text: tr(context, "Paiement Direct")),
+            Tab(icon: Icon(Icons.confirmation_number_rounded, size: 16), text: tr(context, "Code Promo")),
           ],
         ),
       ),
@@ -430,7 +432,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   Future<void> _startIapPurchase() async {
     final product = _iapProductForDuration();
     if (product == null) {
-      _showSnack('Ce forfait n\'est pas disponible sur le store.', isError: true);
+      _showSnack(tr(context, "Ce forfait n'est pas disponible sur le store."), isError: true);
       return;
     }
     AnalyseUsage.achatStoreLance(_duration);
@@ -440,7 +442,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     } catch (e) {
       if (mounted) {
         setState(() => _iapBusy = false);
-        _showSnack('Achat impossible : $e', isError: true);
+        _showSnack(tr(context, "Achat impossible : {arg0}", [e]), isError: true);
       }
     }
   }
@@ -457,13 +459,13 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     try {
       await ref.read(iapServiceProvider).restore();
     } catch (e) {
-      if (mounted) _showSnack('Restauration impossible : $e', isError: true);
+      if (mounted) _showSnack(tr(context, "Restauration impossible : {arg0}", [e]), isError: true);
     }
     // Le résultat arrive par le flux ; si rien ne vient, on relâche le verrou.
     await Future<void>.delayed(const Duration(seconds: 4));
     if (mounted && _iapBusy) {
       setState(() => _iapBusy = false);
-      _showSnack('Aucun achat à restaurer sur ce compte.');
+      _showSnack(tr(context, "Aucun achat à restaurer sur ce compte."));
     }
   }
 
@@ -476,7 +478,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         // qui déverrouille le reste de l'app.
         ref.read(authProvider.notifier).refreshUser();
         ref.invalidate(currentSubscriptionProvider);
-        _showSuccessDialog('immédiate');
+        _showSuccessDialog(tr(context, "immédiate"));
       case IapCancelled():
         break; // L'utilisateur a annulé : pas de message d'erreur.
       case IapFailure(:final message):
@@ -505,8 +507,8 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   /// comptait donc à partir de sa deuxième étape.
   List<Widget> _buildPaymentFieldsSection({required bool isCode, required int etapeTransfert}) {
     final price = _fcfaAmountForSelectedPlan;
-    final planLabel = (_duration == 'annuel' ? 'Plan Annuel' : 'Plan Mensuel') +
-      (isCode ? ' · Tarif réduit' : '');
+    final planLabel = (_duration == 'annuel' ? tr(context, "Plan Annuel") : tr(context, "Plan Mensuel")) +
+      (isCode ? tr(context, " · Tarif réduit") : '');
     return [
       _PaymentRecipientCard(
         price: price, planLabel: planLabel, methodes: _methodesPaiement,
@@ -514,7 +516,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         etape: etapeTransfert),
       const SizedBox(height: 20),
 
-      _FieldLabel('${etapeTransfert + 1}. Montant envoyé (FCFA)'),
+      _FieldLabel(tr(context, "{arg0}. Montant envoyé (FCFA)", [etapeTransfert + 1])),
       // Champ volontairement vide.
       //
       // Il était pré-rempli avec le montant attendu, sous une étiquette qui
@@ -534,7 +536,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         decoration: InputDecoration(
           hintText: '$price',
           prefixIcon: Icon(Icons.payments_rounded, size: 20, color: context.cl.textM),
-          helperText: 'Attendu : ${montantExact(price)} FCFA',
+          helperText: tr(context, "Attendu : {arg0} FCFA", [montantExact(price)]),
           helperStyle: TextStyle(color: context.cl.textM, fontSize: 11),
         ),
       ),
@@ -547,9 +549,9 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       ],
       const SizedBox(height: 20),
 
-      _FieldLabel('${etapeTransfert + 2}. Numéro Mobile Money utilisé pour le transfert'),
+      _FieldLabel(tr(context, "{arg0}. Numéro Mobile Money utilisé pour le transfert", [etapeTransfert + 2])),
       Text(
-        'Entrez le numéro depuis lequel vous avez envoyé l\'argent',
+        tr(context, "Entrez le numéro depuis lequel vous avez envoyé l'argent"),
         style: TextStyle(color: context.cl.textM, fontSize: 11),
       ),
       const SizedBox(height: 8),
@@ -574,7 +576,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
             style: Theme.of(context).textTheme.bodyLarge,
             decoration: InputDecoration(
               hintText: '70 00 00 00',
-              helperText: 'Sans l\'indicatif',
+              helperText: tr(context, "Sans l'indicatif"),
               helperStyle: TextStyle(color: context.cl.textM, fontSize: 11),
             ),
           ),
@@ -592,7 +594,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
               const Icon(Icons.check_circle_outline_rounded, color: AppColors.success, size: 14),
               const SizedBox(width: 6),
               Text(
-                'Numéro complet : +${_selectedCountry.phoneCode}${val.text}',
+                tr(context, "Numéro complet : +{arg0}{arg1}", [_selectedCountry.phoneCode, val.text]),
                 style: const TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w500),
               ),
             ]),
@@ -601,7 +603,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       ),
       const SizedBox(height: 20),
 
-      _FieldLabel('${etapeTransfert + 3}. Capture d\'écran de la confirmation de paiement'),
+      _FieldLabel(tr(context, "{arg0}. Capture d'écran de la confirmation de paiement", [etapeTransfert + 3])),
       _ImagePickerWidget(image: _imagePayment, onTap: () => _showImagePicker((f) => _imagePayment = f)),
     ];
   }
@@ -628,7 +630,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
 
         // Bouton
         _SubmitButton(
-          label:     'Envoyer la preuve',
+          label:     tr(context, "Envoyer la preuve"),
           icon:      Icons.upload_rounded,
           isLoading: submitState is ProofLoading,
           // Le montant fait désormais partie des conditions : il n'est plus
@@ -658,9 +660,9 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   /// Un bouton désactivé sans raison affichée oblige à deviner ; l'énoncer
   /// coûte une ligne.
   String? get _raisonBlocagePaiement {
-    if (!_montantSaisi) return 'Indique le montant que tu as envoyé pour continuer';
-    if (_phoneCtrl.text.length < 7) return 'Entrez un numéro de téléphone valide pour continuer';
-    if (_imagePayment == null) return 'Ajoutez une capture d\'écran pour continuer';
+    if (!_montantSaisi) return tr(context, "Indique le montant que tu as envoyé pour continuer");
+    if (_phoneCtrl.text.length < 7) return tr(context, "Entrez un numéro de téléphone valide pour continuer");
+    if (_imagePayment == null) return tr(context, "Ajoutez une capture d'écran pour continuer");
     return null;
   }
 
@@ -686,14 +688,13 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         //
         // Ce qui décide quelqu'un tient en une ligne : ce qu'il gagne, et à
         // quelle condition.
-        Text('Active ton mois Premium avec ${_tarifs.libellePlateformes}',
+        Text(tr(context, "Active ton mois Premium avec {arg0}", [_tarifs.libellePlateformes]),
           style: TextStyle(
             color: context.cl.textP, fontSize: 19,
             fontWeight: FontWeight.w800, letterSpacing: -0.3, height: 1.25)),
         const SizedBox(height: 8),
         Text(
-          '${_tarifs.libelleOffreCode} après ton premier dépôt. '
-          "Une seule fois par compte ; ensuite, le tarif normal s'applique.",
+          tr(context, "{arg0} après ton premier dépôt. Une seule fois par compte ; ensuite, le tarif normal s'applique.", [_tarifs.libelleOffreCode]),
           style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5)),
 
         const SizedBox(height: 22),
@@ -705,7 +706,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         // information. L'enseigne est nommée dans le titre ci-dessus et dans
         // le bouton ci-dessous, là où elle sert.
         if (_tarifs.plusieursPlateformes) ...[
-          _FieldLabel('Plateforme partenaire'),
+          _FieldLabel(tr(context, "Plateforme partenaire")),
           _PlatformSelector(
             platforms: platforms,
             selected: _platform,
@@ -745,7 +746,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
             const SizedBox(height: 10),
             _BoutonSecondaire(
               icone: Icons.open_in_new_rounded,
-              libelle: 'Ouvrir ${BookmakerAffiliation.nom}',
+              libelle: tr(context, "Ouvrir {arg0}", [BookmakerAffiliation.nom]),
               onTap: BookmakerAffiliation.ouvrir,
             ).animate(delay: 110.ms).fadeIn(duration: 300.ms),
           ],
@@ -781,7 +782,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         // Sans numéro : c'est la seule étape de cette soumission depuis
         // que l'identifiant n'est plus demandé, et un « 1. » solitaire
         // annonce un « 2. » qui n'existe pas.
-        _FieldLabel('Capture de ton compte (ID et dépôt visibles)'),
+        _FieldLabel(tr(context, "Capture de ton compte (ID et dépôt visibles)")),
         _ImagePickerWidget(image: _imageAccount, onTap: () => _showImagePicker((f) => _imageAccount = f)),
 
         const SizedBox(height: 20),
@@ -805,7 +806,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         // de cet écran. La dernière annonçait « 2h » sans lien avec la valeur
         // réelle.
         Text(
-          _raisonBlocageCode ?? 'Validation sous ${_tarifs.delaiCode}.',
+          _raisonBlocageCode ?? tr(context, "Validation sous {arg0}.", [tr(context, _tarifs.delaiCode)]),
           textAlign: TextAlign.center,
           style: TextStyle(color: context.cl.textM, fontSize: 12)),
 
@@ -816,7 +817,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   }
 
   String? get _raisonBlocageCode {
-    if (_imageAccount == null)       return 'Ajoutez la capture de ton compte pour continuer';
+    if (_imageAccount == null)       return tr(context, "Ajoutez la capture de ton compte pour continuer");
     return null;
   }
 
@@ -827,11 +828,11 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     // exactement le defaut corrige.
     final montant = double.tryParse(_amountCtrl.text.trim());
     if (montant == null || montant <= 0) {
-      _showSnack('Indique le montant que tu as envoye.', isError: true); return;
+      _showSnack(tr(context, "Indique le montant que tu as envoye."), isError: true); return;
     }
     final phone = '+${_selectedCountry.phoneCode}${_phoneCtrl.text.trim()}';
     if (_phoneCtrl.text.trim().length < 7) {
-      _showSnack('Numéro de téléphone trop court.', isError: true); return;
+      _showSnack(tr(context, "Numéro de téléphone trop court."), isError: true); return;
     }
     final base64 = await _toBase64(_imagePayment!);
     if (base64 == null) return;
@@ -853,7 +854,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   /// plateforme, et une capture où le premier dépôt apparaît.
   Future<void> _submitCode() async {
     if (_imageAccount == null) {
-      _showSnack('Ajoute la capture de ton compte partenaire.', isError: true);
+      _showSnack(tr(context, "Ajoute la capture de ton compte partenaire."), isError: true);
       return;
     }
     final accountBase64 = await _toBase64(_imageAccount!);
@@ -875,7 +876,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       final mime  = ext == 'png' ? 'image/png' : 'image/jpeg';
       return 'data:$mime;base64,${base64Encode(bytes)}';
     } catch (e) {
-      _showSnack('Erreur lecture image: $e', isError: true);
+      _showSnack(trCurrent("Erreur lecture image: {arg0}", [e]), isError: true);
       return null;
     }
   }
@@ -927,12 +928,12 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
                duration: 500.ms, curve: Curves.easeOutBack)
            .fadeIn(duration: 400.ms),
           const SizedBox(height: 20),
-          Text('Preuve soumise !', style: TextStyle(
+          Text(tr(context, "Preuve soumise !"), style: TextStyle(
             color: context.cl.textP, fontSize: 22, fontWeight: FontWeight.w800),
             textAlign: TextAlign.center),
           const SizedBox(height: 10),
           Text(
-            'Ta demande est en cours de vérification.',
+            tr(context, "Ta demande est en cours de vérification."),
             style: TextStyle(color: context.cl.textS, fontSize: 14),
             textAlign: TextAlign.center),
           const SizedBox(height: 16),
@@ -946,7 +947,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
               const Icon(Icons.schedule_rounded, color: AppColors.warning, size: 18),
               const SizedBox(width: 8),
-              Text('Activation sous $estimatedTime',
+              Text(tr(context, "Activation sous {arg0}", [estimatedTime]),
                 style: const TextStyle(
                   color: AppColors.warning, fontSize: 13, fontWeight: FontWeight.w600)),
             ]),
@@ -962,7 +963,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
               const Icon(Icons.notifications_rounded, color: AppColors.info, size: 16),
               const SizedBox(width: 8),
               Expanded(child: Text(
-                'Vous recevrez une notification push dès que ton Premium est activé.',
+                tr(context, "Vous recevrez une notification push dès que ton Premium est activé."),
                 style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.4))),
             ]),
           ),
@@ -977,7 +978,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
                 retourOuAller(context, repli: _repli);
               },
               icon: const Icon(Icons.check_rounded, size: 20),
-              label: const Text('Compris, j\'attends la validation',
+              label:  Text(tr(context, "Compris, j'attends la validation"),
                 style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
             ),
           ),
@@ -1160,7 +1161,7 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
 
     await Clipboard.setData(ClipboardData(text: code));
     messager?.showSnackBar(SnackBar(
-      content: Text('Code copié : $code\nCollez-le dans votre composeur.'),
+      content: Text(trCurrent("Code copié : {arg0}\nCollez-le dans votre composeur.", [code])),
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 6),
     ));
@@ -1174,7 +1175,7 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
     // groupée pour que l'œil puisse vérifier.
     Clipboard.setData(ClipboardData(text: n));
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('Numéro $_operateur copié !'),
+      content: Text(tr(context, "Numéro {arg0} copié !", [_operateur])),
       backgroundColor: AppColors.success,
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 2),
@@ -1200,8 +1201,7 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
         const Icon(Icons.send_to_mobile_rounded, color: AppColors.primary, size: 16),
         const SizedBox(width: 8),
         Expanded(child: Text(
-          '${widget.etape}. Paiement de ${montantDollars(widget.priceUsd)} '
-          '(${widget.planLabel})',
+          tr(context, "{arg0}. Paiement de {arg1} ({arg2})", [widget.etape, montantDollars(widget.priceUsd), widget.planLabel]),
           style: const TextStyle(
             color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w700))),
       ]),
@@ -1276,7 +1276,7 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
               // virer. `montantExact` : « 54 000 », pas « 54000 » — c'est le
               // seul endroit de l'app où l'utilisateur recopie un montant, et
               // il doit le saisir au franc près chez son opérateur.
-              Text('Montant à envoyer : ${montantExact(widget.price)} FCFA',
+              Text(tr(context, "Montant à envoyer : {arg0} FCFA", [montantExact(widget.price)]),
                 style: const TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
@@ -1289,10 +1289,10 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(8)),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                child:  Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.copy_rounded, color: Colors.white, size: 14),
                   SizedBox(width: 6),
-                  Text('Copier', style: TextStyle(
+                  Text(tr(context, "Copier"), style: TextStyle(
                     color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                 ]),
               ),
@@ -1349,10 +1349,10 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
                 decoration: BoxDecoration(
                   color: AppColors.primary,
                   borderRadius: BorderRadius.circular(8)),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                child:  Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.dialpad_rounded, color: Colors.white, size: 14),
                   SizedBox(width: 6),
-                  Text('Composer', style: TextStyle(
+                  Text(tr(context, "Composer"), style: TextStyle(
                     color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                 ]),
               ),
@@ -1363,7 +1363,7 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
 
       if (_numero != null) ...[
         const SizedBox(height: 8),
-        Text("Puis remplissez le formulaire ci-dessous et joignez la capture d'écran.",
+        Text(tr(context, "Puis remplissez le formulaire ci-dessous et joignez la capture d'écran."),
           style: TextStyle(color: context.cl.textS, fontSize: 11, height: 1.4)),
       ],
     ]),
@@ -1384,20 +1384,14 @@ class _SortieDeSecours extends StatelessWidget {
   Widget build(BuildContext context) => Center(
     child: TextButton.icon(
       onPressed: () => ContactSupport.ouvrirEmail(
-        sujet: 'Paiement envoyé — capture manquante',
+        sujet: tr(context, "Paiement envoyé — capture manquante"),
         // Pré-remplir la demande évite un aller-retour : sans ces éléments,
         // le support doit les réclamer avant de pouvoir chercher quoi que ce
         // soit.
-        corps: "Bonjour,\n\nJ'ai envoyé mon paiement mais je n'ai pas la "
-               "capture d'écran.\n\n"
-               "Numéro utilisé pour l'envoi : \n"
-               "Montant envoyé : \n"
-               "Date et heure approximatives : \n"
-               "Identifiant de la transaction (si connu) : \n\n"
-               "Merci d'activer mon compte Premium.",
+        corps: tr(context, "Bonjour,\n\nJ'ai envoyé mon paiement mais je n'ai pas la capture d'écran.\n\nNuméro utilisé pour l'envoi : \nMontant envoyé : \nDate et heure approximatives : \nIdentifiant de la transaction (si connu) : \n\nMerci d'activer mon compte Premium."),
       ),
       icon: Icon(Icons.help_outline_rounded, size: 17, color: context.cl.textS),
-      label: Text("J'ai payé mais je n'ai pas la capture",
+      label: Text(tr(context, "J'ai payé mais je n'ai pas la capture"),
         style: TextStyle(
           color: context.cl.textS, fontSize: 12.5, fontWeight: FontWeight.w600)),
     ),
@@ -1429,10 +1423,8 @@ class _AlerteEcartMontant extends StatelessWidget {
         const SizedBox(width: 9),
         Expanded(child: Text(
           manque > 0
-            ? 'Il manque ${montantExact(manque)} FCFA pour activer ce plan. '
-              'Complète ton envoi avant de soumettre, sinon la validation sera refusée.'
-            : 'Tu as envoyé ${montantExact(-manque)} FCFA de plus que le tarif. '
-              'Soumets quand même : nous régularisons à la validation.',
+            ? tr(context, "Il manque {arg0} FCFA pour activer ce plan. Complète ton envoi avant de soumettre, sinon la validation sera refusée.", [montantExact(manque)])
+            : tr(context, "Tu as envoyé {arg0} FCFA de plus que le tarif. Soumets quand même : nous régularisons à la validation.", [montantExact(-manque)]),
           style: TextStyle(color: context.cl.textP, fontSize: 11.5, height: 1.4)),
         ),
       ]),
@@ -1457,12 +1449,11 @@ class _AucunMoyenPaiement extends StatelessWidget {
       const Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 18),
       const SizedBox(width: 10),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Text('Paiement mobile momentanément indisponible',
+         Text(tr(context, "Paiement mobile momentanément indisponible"),
           style: TextStyle(
             fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.warning)),
         const SizedBox(height: 4),
-        Text("Aucun numéro de réception n'est publié pour le moment. "
-             "Réessaie dans quelques minutes, ou contacte le support.",
+        Text(tr(context, "Aucun numéro de réception n'est publié pour le moment. Réessaie dans quelques minutes, ou contacte le support."),
           style: TextStyle(color: context.cl.textS, fontSize: 11.5, height: 1.4)),
       ])),
     ]),
@@ -1489,15 +1480,15 @@ class _RecapCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: AppColors.success.withValues(alpha: 0.25), width: 1)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Row(children: [
+       Row(children: [
         Icon(Icons.fact_check_rounded, color: AppColors.success, size: 16),
         SizedBox(width: 8),
-        Text('Récapitulatif de ta demande', style: TextStyle(
+        Text(tr(context, "Récapitulatif de ta demande"), style: TextStyle(
           color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600)),
       ]),
       const SizedBox(height: 10),
-      _RecapRow('Montant',      '${montantExact(amount)} FCFA'),
-      _RecapRow('N° envoyeur',  phone),
+      _RecapRow(tr(context, "Montant"),      '${montantExact(amount)} FCFA'),
+      _RecapRow(tr(context, "N° envoyeur"),  phone),
       if (xbetId.isNotEmpty)
         _RecapRow('ID ${TarifsPremium.nomPlateforme(plateforme)}', xbetId),
     ]),
@@ -1586,16 +1577,16 @@ class _ImagePickerWidgetState extends State<_ImagePickerWidget>
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(color: AppColors.success, borderRadius: BorderRadius.circular(20)),
-                child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                child:  Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.check_rounded, color: Colors.white, size: 13),
                   SizedBox(width: 4),
-                  Text('Ajoutée', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
+                  Text(tr(context, "Ajoutée"), style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
                 ]))),
             Positioned(bottom: 8, right: 8,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(color: Colors.black54, borderRadius: BorderRadius.circular(20)),
-                child: const Text('Changer', style: TextStyle(color: Colors.white, fontSize: 11)))),
+                child:  Text(tr(context, "Changer"), style: TextStyle(color: Colors.white, fontSize: 11)))),
           ])
         : Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Container(width: 48, height: 48,
@@ -1603,9 +1594,9 @@ class _ImagePickerWidgetState extends State<_ImagePickerWidget>
                 color: AppColors.primary.withValues(alpha: 0.10), borderRadius: BorderRadius.circular(12)),
               child: Icon(Icons.add_photo_alternate_rounded, color: AppColors.primary, size: 26)),
             SizedBox(height: 8),
-            Text('Appuyez pour ajouter', style: TextStyle(color: context.cl.textS, fontSize: 13)),
+            Text(tr(context, "Appuyez pour ajouter"), style: TextStyle(color: context.cl.textS, fontSize: 13)),
             SizedBox(height: 3),
-            Text('Galerie ou appareil photo', style: TextStyle(color: context.cl.textM, fontSize: 11)),
+            Text(tr(context, "Galerie ou appareil photo"), style: TextStyle(color: context.cl.textM, fontSize: 11)),
           ]),
     )),
   );
@@ -1682,14 +1673,13 @@ class _CodePromoIndisponible extends StatelessWidget {
     child: Column(children: [
       Icon(Icons.hourglass_empty_rounded, color: context.cl.textM, size: 26),
       const SizedBox(height: 10),
-      Text('Offre momentanément indisponible',
+      Text(tr(context, "Offre momentanément indisponible"),
         textAlign: TextAlign.center,
         style: TextStyle(
           color: context.cl.textP, fontSize: 13.5, fontWeight: FontWeight.w700)),
       const SizedBox(height: 6),
       Text(
-        'Le code partenaire nous manque pour le moment. Tu peux passer par '
-        'le paiement direct, ou réessayer plus tard.',
+        tr(context, "Le code partenaire nous manque pour le moment. Tu peux passer par le paiement direct, ou réessayer plus tard."),
         textAlign: TextAlign.center,
         style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.5)),
     ]),
@@ -1726,8 +1716,8 @@ class _PromoCodeCardState extends State<_PromoCodeCard>
       _pressCtrl.reverse();
       HapticFeedback.lightImpact();
       Clipboard.setData(ClipboardData(text: widget.promoCode));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text('Code copié !'), behavior: SnackBarBehavior.floating,
+      ScaffoldMessenger.of(context).showSnackBar( SnackBar(
+        content: Text(tr(context, "Code copié !")), behavior: SnackBarBehavior.floating,
         duration: Duration(seconds: 2)));
     },
     onTapCancel: () => _pressCtrl.reverse(),
@@ -1750,7 +1740,7 @@ class _PromoCodeCardState extends State<_PromoCodeCard>
               decoration: BoxDecoration(
                 color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20)),
-              child: const Text('CODE PROMO PARTENAIRE', style: TextStyle(
+              child:  Text(tr(context, "CODE PROMO PARTENAIRE"), style: TextStyle(
                 color: Colors.white70, fontSize: 10,
                 letterSpacing: 1.5, fontWeight: FontWeight.w700)),
             ),
@@ -1766,10 +1756,10 @@ class _PromoCodeCardState extends State<_PromoCodeCard>
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
               border: Border.all(color: Colors.white.withValues(alpha: 0.3), width: 0.5)),
-            child: Row(mainAxisSize: MainAxisSize.min, children: const [
+            child: Row(mainAxisSize: MainAxisSize.min, children:  [
               Icon(Icons.copy_rounded, color: Colors.white, size: 14),
               SizedBox(width: 6),
-              Text('Copier le code',
+              Text(tr(context, "Copier le code"),
                 style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
             ]),
           ),
@@ -1794,12 +1784,12 @@ class _XbetSteps extends StatelessWidget {
   /// Ce qui reste se fait **hors de l'application**, chez le partenaire :
   /// c'est précisément ce qu'une liste d'étapes sert à rappeler.
   List<(IconData, String, String)> get _steps => [
-    (Icons.person_add_rounded, 'Crée ton compte avec le code',
-     "Saisis-le au moment de l'inscription"),
-    (Icons.account_balance_wallet_rounded, 'Effectue ton premier dépôt',
-     "C'est lui qui ouvre droit au mois offert"),
-    (Icons.photo_camera_rounded, 'Envoie une capture',
-     'Ton ID et le dépôt doivent y être visibles'),
+    (Icons.person_add_rounded, trCurrent("Crée ton compte avec le code"),
+     trCurrent("Saisis-le au moment de l'inscription")),
+    (Icons.account_balance_wallet_rounded, trCurrent("Effectue ton premier dépôt"),
+     trCurrent("C'est lui qui ouvre droit au mois offert")),
+    (Icons.photo_camera_rounded, trCurrent("Envoie une capture"),
+     trCurrent("Ton ID et le dépôt doivent y être visibles")),
   ];
 
   @override
@@ -1815,7 +1805,7 @@ class _XbetSteps extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('COMMENT ÇA MARCHE', style: TextStyle(
+          Text(tr(context, "COMMENT ÇA MARCHE"), style: TextStyle(
             color: context.cl.textM, fontSize: 10,
             fontWeight: FontWeight.w700, letterSpacing: 1)),
           const SizedBox(height: 14),
@@ -1906,7 +1896,7 @@ class _XbetSubmitButton extends StatelessWidget {
             else
               const Icon(Icons.send_rounded, color: Colors.white, size: 20),
             const SizedBox(width: 10),
-            Text(isLoading ? 'Envoi en cours…' : 'Envoyer ma preuve',
+            Text(isLoading ? tr(context, "Envoi en cours…") : tr(context, "Envoyer ma preuve"),
               style: TextStyle(
                 color: enabled ? Colors.white : context.cl.textM,
                 fontSize: 15, fontWeight: FontWeight.w700)),
@@ -2014,7 +2004,7 @@ class _PaywallPage extends StatelessWidget {
                     )
                   else ...[
                     _MethodCard(
-                      title:      'Paiement Direct',
+                      title:      tr(context, "Paiement Direct"),
                       // Les opérateurs réellement publiés, pas une liste figée.
                       //
                       // « Orange Money · Wave · MTN · Moov » était écrit ici
@@ -2023,9 +2013,9 @@ class _PaywallPage extends StatelessWidget {
                       // MTN n'opère même pas au Burkina Faso.
                       subtitle:   tarifs.paiementDisponible
                         ? tarifs.libelleOperateurs
-                        : 'Momentanément indisponible',
+                        : tr(context, "Momentanément indisponible"),
                       price:      duration == 'annuel' ? annualPrice : monthlyPrice,
-                      period:     duration == 'annuel' ? '/an' : '/mois',
+                      period:     duration == 'annuel' ? tr(context, "/an") : tr(context, "/mois"),
                       badge:      duration == 'annuel' ? libelleMoisOfferts(moisOfferts)?.toUpperCase() : null,
                       color:      const Color(0xFFF59E0B),
                       isSelected: method == 'direct',
@@ -2045,8 +2035,8 @@ class _PaywallPage extends StatelessWidget {
                     if (duration != 'annuel') ...[
                       const SizedBox(height: 10),
                       _MethodCard(
-                        title:      'Avec Code Promo',
-                        subtitle:   'Compte partenaire + premier dépôt — rien à payer',
+                        title:      tr(context, "Avec Code Promo"),
+                        subtitle:   tr(context, "Compte partenaire + premier dépôt — rien à payer"),
                         // Ce parcours ne facture plus rien : afficher un prix
                         // barré, un « /mois » ou une remise décrirait une offre
                         // qui n'existe plus.
@@ -2071,9 +2061,8 @@ class _PaywallPage extends StatelessWidget {
                     // ne le signale. En achat intégré il n'y a aucune
                     // validation manuelle : c'est immédiat.
                     iapMode
-                      ? 'Accès Premium activé immédiatement après le paiement.'
-                      : 'Activation vérifiée par notre équipe sous '
-                        '${method == 'code' ? tarifs.delaiCode : tarifs.delaiDirect}.',
+                      ? tr(context, "Accès Premium activé immédiatement après le paiement.")
+                      : tr(context, "Activation vérifiée par notre équipe sous {arg0}.", [tr(context, method == 'code' ? tarifs.delaiCode : tarifs.delaiDirect)]),
                     style: const TextStyle(color: Colors.white38, fontSize: 11),
                     textAlign: TextAlign.center),
                   const SizedBox(height: 26),
@@ -2100,13 +2089,13 @@ class _PaywallPage extends StatelessWidget {
                   // l'activation par code partenaire, absente de ce build.
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     _LienLegal(
-                      libelle: 'CGU',
+                      libelle: tr(context, "CGU"),
                       onTap: () => PagesLegales.ouvrir(
                         context, PagesLegales.cgu(estStore: iapMode),
                         titre: PagesLegales.titreCgu)),
                     const _PointSeparateur(),
                     _LienLegal(
-                      libelle: 'Confidentialité',
+                      libelle: tr(context, "Confidentialité"),
                       onTap: () => PagesLegales.ouvrir(
                         context, PagesLegales.confidentialite,
                         titre: PagesLegales.titreConfidentialite)),
@@ -2114,7 +2103,7 @@ class _PaywallPage extends StatelessWidget {
                     _LienLegal(
                       libelle: 'Contact',
                       onTap: () => ContactSupport.ouvrirEmail(
-                        sujet: 'Question sur l\'abonnement Premium')),
+                        sujet: tr(context, "Question sur l'abonnement Premium"))),
                   ]),
                 ]),
               ),
@@ -2146,10 +2135,10 @@ class _PaywallPage extends StatelessWidget {
             gradient: const LinearGradient(
               colors: [Color(0xFFD97706), Color(0xFFF59E0B)]),
             borderRadius: BorderRadius.circular(20)),
-          child: Row(mainAxisSize: MainAxisSize.min, children: const [
+          child: Row(mainAxisSize: MainAxisSize.min, children:  [
             Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 14),
             SizedBox(width: 6),
-            Text('PRONOSTICS PREMIUM', style: TextStyle(
+            Text(tr(context, "PRONOSTICS PREMIUM"), style: TextStyle(
               color: Colors.white, fontSize: 10,
               fontWeight: FontWeight.w800, letterSpacing: 1.2)),
           ]),
@@ -2168,8 +2157,8 @@ class _PaywallPage extends StatelessWidget {
           ),
         ).animate(delay: 80.ms).fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
         const SizedBox(height: 10),
-        const Text(
-          'Gérez tes pronostics avec les analyses\nVIP et le suivi bankroll professionnel.',
+         Text(
+          tr(context, "Gérez tes pronostics avec les analyses\nVIP et le suivi bankroll professionnel."),
           style: TextStyle(color: Colors.white60, fontSize: 14, height: 1.5),
           textAlign: TextAlign.center,
         ).animate(delay: 140.ms).fadeIn(duration: 350.ms),
@@ -2214,7 +2203,7 @@ class _PaywallPage extends StatelessWidget {
                 shape: BoxShape.circle),
               child: const Icon(Icons.check_rounded, color: Color(0xFFF59E0B), size: 14)),
             const SizedBox(width: 8),
-            Expanded(child: Text(label, style: const TextStyle(
+            Expanded(child: Text(tr(context, label), style: const TextStyle(
               color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w600), maxLines: 2)),
           ]),
         ).animate(delay: Duration(milliseconds: 300 + e.key * 60))
@@ -2226,9 +2215,9 @@ class _PaywallPage extends StatelessWidget {
   Widget _buildPlanLabel() {
     return Row(children: [
       Expanded(child: Divider(color: Colors.white12, height: 1)),
-      const Padding(
+       Padding(
         padding: EdgeInsets.symmetric(horizontal: 12),
-        child: Text('CHOISISSEZ VOTRE OPTION', style: TextStyle(
+        child: Text(trCurrent("CHOISISSEZ VOTRE OPTION"), style: TextStyle(
           color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1))),
       Expanded(child: Divider(color: Colors.white12, height: 1)),
     ]);
@@ -2327,9 +2316,8 @@ class _IapSection extends StatelessWidget {
           Row(children: [
             const Icon(Icons.storefront_outlined, color: AppColors.warning, size: 20),
             const SizedBox(width: 12),
-            const Expanded(child: Text(
-              'Les achats ne sont pas disponibles sur cet appareil pour le moment. '
-              'Vérifie ta connexion, puis réessaie.',
+             Expanded(child: Text(
+              tr(context, "Les achats ne sont pas disponibles sur cet appareil pour le moment. Vérifie ta connexion, puis réessaie."),
               style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.5))),
           ]),
           const SizedBox(height: 12),
@@ -2339,7 +2327,7 @@ class _IapSection extends StatelessWidget {
               key: const Key('iap-reessayer'),
               onPressed: busy ? null : onRetry,
               icon: const Icon(Icons.refresh, size: 18),
-              label: const Text('Réessayer'),
+              label:  Text(tr(context, "Réessayer")),
               style: OutlinedButton.styleFrom(
                 foregroundColor: AppColors.warning,
                 side: BorderSide(color: AppColors.warning.withValues(alpha: 0.45)),
@@ -2353,7 +2341,7 @@ class _IapSection extends StatelessWidget {
           Center(child: TextButton(
             key: const Key('iap-restaurer-indisponible'),
             onPressed: busy ? null : onRestore,
-            child: const Text('Restaurer mes achats',
+            child:  Text(tr(context, "Restaurer mes achats"),
               style: TextStyle(color: Colors.white54, fontSize: 12)),
           )),
         ]),
@@ -2376,10 +2364,10 @@ class _IapSection extends StatelessWidget {
         child: Column(children: [
           Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(isAnnual ? 'Premium Annuel' : 'Premium Mensuel',
+              Text(isAnnual ? tr(context, "Premium Annuel") : tr(context, "Premium Mensuel"),
                 style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700)),
               const SizedBox(height: 2),
-              Text(isAnnual ? 'Facturé une fois par an' : 'Facturé chaque mois',
+              Text(isAnnual ? tr(context, "Facturé une fois par an") : tr(context, "Facturé chaque mois"),
                 style: const TextStyle(color: Colors.white54, fontSize: 11)),
             ])),
             if (isAnnual && offerts != null) Container(
@@ -2387,7 +2375,7 @@ class _IapSection extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.success.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(6)),
-              child: Text(offerts.toUpperCase(), style: const TextStyle(
+              child:  Text(offerts.toUpperCase(), style: TextStyle(
                 color: AppColors.success, fontSize: 9, fontWeight: FontWeight.w800))),
           ]),
           const SizedBox(height: 14),
@@ -2410,7 +2398,7 @@ class _IapSection extends StatelessWidget {
           child: busy
             ? const SizedBox(width: 20, height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Text('S\'abonner — ${p.price}', style: const TextStyle(
+            : Text(tr(context, "S'abonner — {arg0}", [p.price]), style: const TextStyle(
                 fontSize: 15, fontWeight: FontWeight.w700)),
         ),
       ),
@@ -2420,13 +2408,12 @@ class _IapSection extends StatelessWidget {
       TextButton(
         onPressed: busy ? null : onRestore,
         style: TextButton.styleFrom(foregroundColor: Colors.white60),
-        child: const Text('Restaurer mes achats', style: TextStyle(fontSize: 13)),
+        child:  Text(tr(context, "Restaurer mes achats"), style: TextStyle(fontSize: 13)),
       ),
 
       const SizedBox(height: 4),
-      const Text(
-        'Renouvellement automatique. Résiliable à tout moment depuis les '
-        'réglages de ton compte store, au moins 24 h avant la fin de la période.',
+       Text(
+        tr(context, "Renouvellement automatique. Résiliable à tout moment depuis les réglages de ton compte store, au moins 24 h avant la fin de la période."),
         style: TextStyle(color: Colors.white38, fontSize: 11, height: 1.5),
         textAlign: TextAlign.center),
     ]);
@@ -2452,65 +2439,49 @@ class _PaywallFaq extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = iapMode
-      ? const <(String, String)>[
+      ?  <(String, String)>[
           (
-            'Comment se passe le paiement ?',
-            "Le paiement est traité par ton compte App Store ou Google Play, "
-            "avec le moyen de paiement qui y est déjà enregistré. Nous ne "
-            "voyons jamais tes coordonnées bancaires.",
+            tr(context, "Comment se passe le paiement ?"),
+            tr(context, "Le paiement est traité par ton compte App Store ou Google Play, avec le moyen de paiement qui y est déjà enregistré. Nous ne voyons jamais tes coordonnées bancaires."),
           ),
           (
-            "Quand mon accès est-il activé ?",
-            "Immédiatement. Il n'y a aucune validation manuelle : dès que le "
-            "store confirme le paiement, le Premium est débloqué.",
+            tr(context, "Quand mon accès est-il activé ?"),
+            tr(context, "Immédiatement. Il n'y a aucune validation manuelle : dès que le store confirme le paiement, le Premium est débloqué."),
           ),
           (
-            "Comment résilier ?",
-            "Depuis les réglages de ton compte store, au moins 24 h avant la "
-            "fin de la période en cours. Ton accès reste actif jusqu'à cette "
-            "échéance, et rien n'est prélevé ensuite.",
+            tr(context, "Comment résilier ?"),
+            tr(context, "Depuis les réglages de ton compte store, au moins 24 h avant la fin de la période en cours. Ton accès reste actif jusqu'à cette échéance, et rien n'est prélevé ensuite."),
           ),
           (
-            "J'ai déjà payé mais je n'ai pas l'accès",
-            "Touche « Restaurer mes achats » ci-dessus. Si ton abonnement est "
-            "actif sur ce compte store, il sera réappliqué aussitôt.",
+            tr(context, "J'ai déjà payé mais je n'ai pas l'accès"),
+            tr(context, "Touche « Restaurer mes achats » ci-dessus. Si ton abonnement est actif sur ce compte store, il sera réappliqué aussitôt."),
           ),
         ]
       : <(String, String)>[
       (
-        'Comment se passe le paiement ?',
-        "Choisis ta formule, envoie le montant sur le numéro Mobile Money "
-        "affiché à l'étape suivante"
-        "${tarifs.paiementDisponible ? ' (${tarifs.libelleOperateurs})' : ''}, "
-        "puis soumets la capture d'écran de la transaction.",
+        tr(context, "Comment se passe le paiement ?"),
+        tr(context, "Choisis ta formule, envoie le montant sur le numéro Mobile Money affiché à l'étape suivante{arg0}, puis soumets la capture d'écran de la transaction.", [tarifs.paiementDisponible ? ' (${tarifs.libelleOperateurs})' : '']),
       ),
       (
-        "C'est quoi l'option « Code Promo » ?",
-        "Tu crées un compte sur ${tarifs.libellePlateformes} avec le code "
-        "$promoCode, tu fais ton premier dépôt, et tu envoies une capture de "
-        "ton compte où le dépôt apparaît. Ton premier mois de Premium est "
-        "alors offert — tu n'as rien à nous verser.",
+        tr(context, "C'est quoi l'option « Code Promo » ?"),
+        tr(context, "Tu crées un compte sur {arg0} avec le code {arg1}, tu fais ton premier dépôt, et tu envoies une capture de ton compte où le dépôt apparaît. Ton premier mois de Premium est alors offert — tu n'as rien à nous verser.", [tarifs.libellePlateformes, promoCode]),
       ),
       (
-        "Le mois offert, c'est valable à chaque fois ?",
-        "Non. Il débloque le premier mois, une seule fois. Ensuite, le "
-        "renouvellement se fait au tarif normal, comme pour tout le monde.",
+        tr(context, "Le mois offert, c'est valable à chaque fois ?"),
+        tr(context, "Non. Il débloque le premier mois, une seule fois. Ensuite, le renouvellement se fait au tarif normal, comme pour tout le monde."),
       ),
       (
-        "En combien de temps mon compte est activé ?",
-        "Paiement direct : ${tarifs.delaiDirect}. Avec code promo : "
-        "${tarifs.delaiCode}, le temps de vérifier le compte partenaire.",
+        tr(context, "En combien de temps mon compte est activé ?"),
+        tr(context, "Paiement direct : {arg0}. Avec code promo : {arg1}, le temps de vérifier le compte partenaire.", [tr(context, tarifs.delaiDirect), tr(context, tarifs.delaiCode)]),
       ),
       (
-        "Suis-je prélevé automatiquement ensuite ?",
-        "Non. Il n'y a aucune reconduction : à la fin de la période ton compte "
-        "repasse simplement en Gratuit. Tu renouvelles quand tu veux depuis "
-        "Compte › Abonnement.",
+        tr(context, "Suis-je prélevé automatiquement ensuite ?"),
+        tr(context, "Non. Il n'y a aucune reconduction : à la fin de la période ton compte repasse simplement en Gratuit. Tu renouvelles quand tu veux depuis Compte › Abonnement."),
       ),
     ];
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('QUESTIONS FRÉQUENTES', style: TextStyle(
+       Text(tr(context, "QUESTIONS FRÉQUENTES"), style: TextStyle(
         color: Colors.white38, fontSize: 10,
         fontWeight: FontWeight.w700, letterSpacing: 1.2)),
       const SizedBox(height: 12),
@@ -2589,10 +2560,11 @@ class _DurationToggle extends StatelessWidget {
       borderRadius: BorderRadius.circular(14),
       border: Border.all(color: Colors.white12, width: 0.5)),
     child: Row(children: [
-      _DurationTab(label: 'Mensuel', selected: duration == 'mensuel',
+      _DurationTab(label: tr(context, "Mensuel"), selected: duration == 'mensuel',
         onTap: () => onChanged('mensuel')),
       _DurationTab(
-        label: switch (libelleMoisOfferts(moisOfferts)) { final o? => 'Annuel · $o', null => 'Annuel' },
+        label: switch (libelleMoisOfferts(moisOfferts)) {
+          final o? => '${tr(context, "Annuel")} · $o', null => tr(context, "Annuel") },
         selected: duration == 'annuel',
         onTap: () => onChanged('annuel')),
     ]),
@@ -2698,7 +2670,7 @@ class _MethodCard extends StatelessWidget {
                 : null),
             const SizedBox(width: 10),
             Expanded(child: Text(
-              isSelected ? 'Sélectionné' : 'Appuyer pour sélectionner',
+              isSelected ? tr(context, "Sélectionné") : tr(context, "Appuyer pour sélectionner"),
               style: const TextStyle(color: Colors.white54, fontSize: 11))),
           ]),
         ]),
@@ -2721,8 +2693,8 @@ class _PaywallCTA extends StatelessWidget {
     final isAnnuel = duration == 'annuel';
     final color    = isCode ? const Color(0xFF7C3AED) : const Color(0xFFF59E0B);
     final label    = isCode
-      ? 'Continuer avec le code (${isAnnuel ? 'annuel' : 'mensuel'})'
-      : (isAnnuel ? 'Passer à l\'annuel' : 'Passer au mensuel');
+      ? tr(context, "Continuer avec le code ({arg0})", [isAnnuel ? tr(context, "annuel") : tr(context, "mensuel")])
+      : (isAnnuel ? tr(context, "Passer à l'annuel") : tr(context, "Passer au mensuel"));
     return GestureDetector(
       onTap: () { HapticFeedback.mediumImpact(); onTap(); },
       child: Container(

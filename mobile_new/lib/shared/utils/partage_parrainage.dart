@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import '../../core/constants/app_constants.dart';
 
 /// Le message qu'un parrain envoie à ses filleuls.
@@ -20,7 +21,4 @@ import '../../core/constants/app_constants.dart';
 /// application, et il vit pour toujours dans une conversation. Il vit donc ici,
 /// une fois, et il prend son adresse de [AppConstants.apkDownloadUrl].
 String messageParrainage(String code) =>
-    '🏆 Rejoins PronoWin et gagne avec les meilleurs pronostics !\n'
-    'Utilise mon code de parrainage : *$code*\n'
-    '👉 Télécharge l\'app : ${AppConstants.apkDownloadUrl}\n'
-    '💰 Tu m\'aides aussi à gagner des commissions !';
+    trCurrent("🏆 Rejoins PronoWin et gagne avec les meilleurs pronostics !\nUtilise mon code de parrainage : *{arg0}*\n👉 Télécharge l'app : {arg1}\n💰 Tu m'aides aussi à gagner des commissions !", [code, AppConstants.apkDownloadUrl]);

@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/cache/cache_service.dart';
@@ -18,7 +19,8 @@ const _kSubFallback = {
   'premium_price_annual_fcfa':       TarifsPremium.annuelDirectDefaut,
   // Le parcours « code promo » n'a plus de tarif : il offre le premier mois.
   'code_offer_days': TarifsPremium.joursOffreCodeDefaut,
-  'premium_price_monthly_store_usd': 15, 'premium_price_annual_store_usd': 135,
+  // Les paliers créés dans App Store Connect.
+  'premium_price_monthly_store_usd': 14.99, 'premium_price_annual_store_usd': 134.99,
   'review_delay_direct': TarifsPremium.delaiDirectDefaut,
   'review_delay_code':   TarifsPremium.delaiCodeDefaut,
   // Aucun numéro de repli : un serveur qui n'en publie pas ne doit pas être
@@ -114,7 +116,7 @@ class SubmitProofNotifier extends StateNotifier<SubmitProofState> {
           r.data['estimated_review'] as String? ?? TarifsPremium.delaiDirectDefaut;
       state = ProofSubmitted(estimated);
     } on DioException catch (e) {
-      state = ProofError(e.response?.data?['message'] as String? ?? 'Erreur lors de l\'envoi.');
+      state = ProofError(e.response?.data?['message'] as String? ?? trCurrent("Erreur lors de l'envoi."));
     }
   }
 

@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 /// Lecture d'un bilan de paris : ce qui est mesuré, ce qui ne l'est pas encore.
 ///
 /// L'API renvoie un `taux_reussite` numérique en toutes circonstances. Quand
@@ -120,17 +121,16 @@ class BilanParis {
       // ne rien dire laisserait le tiret sans explication.
       if (enAttente == 0) {
         return rembourses > 1
-            ? '$rembourses paris remboursés : aucun ne départage'
-            : 'Pari remboursé : il ne départage pas';
+            ? trCurrent("{arg0} paris remboursés : aucun ne départage", [rembourses])
+            : trCurrent("Pari remboursé : il ne départage pas");
       }
       return enAttente > 1
-          ? '$enAttente paris en attente de résultat'
-          : 'Pari en attente de résultat';
+          ? trCurrent("{arg0} paris en attente de résultat", [enAttente])
+          : trCurrent("Pari en attente de résultat");
     }
     return avantLeTaux == 1
-        ? 'Taux de réussite dès le prochain pari tranché'
-        : 'Taux de réussite dès $echantillonMinimal paris tranchés '
-          '— encore $avantLeTaux';
+        ? trCurrent("Taux de réussite dès le prochain pari tranché")
+        : trCurrent("Taux de réussite dès {arg0} paris tranchés — encore {arg1}", [echantillonMinimal, avantLeTaux]);
   }
 
   /// Ce qui reste à trancher, sous la ligne « Paris suivis ».
@@ -139,11 +139,11 @@ class BilanParis {
   /// remboursés tombaient dans ce reste, alors que leur résultat est tombé et
   /// que la mise a été recréditée. Ils sont désormais nommés.
   String get mentionRepartition {
-    if (enAttente == 0 && rembourses == 0) return 'tous tranchés';
+    if (enAttente == 0 && rembourses == 0) return trCurrent("tous tranchés");
     final bouts = <String>[];
-    if (enAttente > 0) bouts.add('$enAttente en attente');
+    if (enAttente > 0) bouts.add(trCurrent("{arg0} en attente", [enAttente]));
     if (rembourses > 0) {
-      bouts.add(rembourses > 1 ? '$rembourses remboursés' : '1 remboursé');
+      bouts.add(rembourses > 1 ? trCurrent("{arg0} remboursés", [rembourses]) : trCurrent("1 remboursé"));
     }
     return bouts.join(' · ');
   }

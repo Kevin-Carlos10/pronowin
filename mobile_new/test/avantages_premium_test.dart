@@ -55,13 +55,13 @@ void main() {
   });
 
   test('le nombre affiché est calculé depuis la liste', () {
-    expect(source, contains(r"'${features.length} avantages'"),
+    expect(source, contains('tr(context, "{arg0} avantages", [features.length])'),
       reason: 'la pastille est écrite en dur : elle annoncera un nombre '
               "d'avantages différent de ce que l'écran affiche dès que la "
               'liste changera');
 
     // Et aucun nombre littéral ne doit subsister devant « avantages ».
-    expect(RegExp(r"'\d+ avantages'").hasMatch(source), isFalse,
+    expect(RegExp(r'''["']\d+ avantages["']''').hasMatch(source), isFalse,
       reason: 'un compte littéral subsiste');
   });
 

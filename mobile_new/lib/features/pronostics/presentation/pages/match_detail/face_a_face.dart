@@ -41,7 +41,7 @@ class _H2HCard extends ConsumerWidget {
             child: Icon(Icons.history_rounded, color: AppColors.primary, size: 16),
           ),
           const SizedBox(width: 10),
-          Text('Confrontations directes',
+          Text(tr(context, "Confrontations directes"),
             style: TextStyle(
               color: context.cl.textP,
               fontSize: 13,
@@ -49,7 +49,7 @@ class _H2HCard extends ConsumerWidget {
         ]),
         const SizedBox(height: 14),
         status == 401
-          ? const _CardLoginPrompt(message: 'Connecte-toi pour voir les confrontations directes.')
+          ?  _CardLoginPrompt(message: tr(context, "Connecte-toi pour voir les confrontations directes."))
           : h2hAsync.when(
               loading: () => _H2HLoading(),
               error: (_, _) => const SizedBox.shrink(),
@@ -104,7 +104,7 @@ class _H2HContent extends StatelessWidget {
                 color: context.cl.textM,
                 fontSize: 24, fontWeight: FontWeight.w900)),
           ),
-          Text('Nuls',
+          Text(tr(context, "Nuls"),
             style: TextStyle(color: context.cl.textM, fontSize: 10)),
         ]),
         // Away wins
@@ -236,7 +236,7 @@ class _H2HRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 11),
       child: Column(children: [
         Row(children: [
-          Text(DateFormat('EEE d MMM y', 'fr_FR').format(match.date),
+          Text(DateFormat('EEE d MMM y').format(match.date),
             style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
           const Spacer(),
           if (match.league.isNotEmpty)
@@ -330,12 +330,12 @@ class _SaisonEnCours extends ConsumerWidget {
     final lignes = <(String, String?, String?)>[
       ('Position',              dom == null ? null : '${dom.rank}e',
                                 ext == null ? null : '${ext.rank}e'),
-      ('Victoires',             dom?.win.toString(),  ext?.win.toString()),
-      ('Nuls',                  dom?.draw.toString(), ext?.draw.toString()),
-      ('Defaites',              dom?.lose.toString(), ext?.lose.toString()),
-      ('Buts par match',        _moyenne(stats?.butsMarquesDom),
+      (tr(context, "Victoires"),             dom?.win.toString(),  ext?.win.toString()),
+      (tr(context, "Nuls"),                  dom?.draw.toString(), ext?.draw.toString()),
+      (tr(context, "Defaites"),              dom?.lose.toString(), ext?.lose.toString()),
+      (tr(context, "Buts par match"),        _moyenne(stats?.butsMarquesDom),
                                 _moyenne(stats?.butsMarquesExt)),
-      ('Buts encaisses par match', _moyenne(stats?.butsEncaissesDom),
+      (tr(context, "Buts encaisses par match"), _moyenne(stats?.butsEncaissesDom),
                                    _moyenne(stats?.butsEncaissesExt)),
     ].where((l) => l.$2 != null || l.$3 != null).toList();
 
@@ -357,7 +357,7 @@ class _SaisonEnCours extends ConsumerWidget {
                 url:     match.homeTeamLogo,
                 largeur: 22, hauteur: 22,
                 repli:   const SizedBox.shrink())),
-          Expanded(child: Text('Saison en cours',
+          Expanded(child: Text(tr(context, "Saison en cours"),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700))),

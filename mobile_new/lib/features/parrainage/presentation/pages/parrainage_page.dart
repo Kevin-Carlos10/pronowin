@@ -1,4 +1,5 @@
-﻿import 'package:flutter/material.dart';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -48,10 +49,7 @@ class ParrainagePage extends ConsumerWidget {
           const SizedBox(width: 10),
           RichText(text: TextSpan(
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.cl.textP),
-            children: const [
-              TextSpan(text: 'Parrain'),
-              TextSpan(text: 'age', style: TextStyle(color: Color(0xFFA78BFA))),
-            ],
+            children: [TextSpan(text: tr(context, "Parrainage"), style: const TextStyle(color: Color(0xFFA78BFA)))],
           )),
         ]),
       ),
@@ -141,7 +139,7 @@ class ParrainagePage extends ConsumerWidget {
 
                 // ─── Liste filleuls L1 ─────────────────────────────────────
                 if (l1List.isNotEmpty) ...[
-                  _SectionLabel('FILLEULS DIRECTS (${l1List.length})'),
+                  _SectionLabel(tr(context, "FILLEULS DIRECTS ({arg0})", [l1List.length])),
                   ...l1List.asMap().entries.map((e) => _FilleulTile(
                     pseudo:     e.value['pseudo']    as String? ?? '—',
                     plan:       e.value['plan']      as String? ?? 'free',
@@ -158,7 +156,7 @@ class ParrainagePage extends ConsumerWidget {
 
                 // ─── Liste filleuls L2 ─────────────────────────────────────
                 if (l2List.isNotEmpty) ...[
-                  _SectionLabel('FILLEULS DE FILLEULS (${l2List.length})'),
+                  _SectionLabel(tr(context, "FILLEULS DE FILLEULS ({arg0})", [l2List.length])),
                   ...l2List.asMap().entries.map((e) => _FilleulTile(
                     pseudo:     e.value['pseudo']    as String? ?? '—',
                     plan:       e.value['plan']      as String? ?? 'free',
@@ -228,16 +226,14 @@ class _EarningsBanner extends StatelessWidget {
       // atteignable au lecteur d'écran.
       Semantics(
         label: estStore
-            ? 'Mes récompenses de parrainage : ${libelleJours(_jours)} '
-              'd\'abonnement Premium.'
-            : 'Mes récompenses de parrainage : $earnings FCFA. '
-              '${canWithdraw
-                  ? "Montant retirable."
-                  : "Retrait possible à partir de $minWithdraw FCFA."}',
+            ? tr(context, "Mes récompenses de parrainage : {arg0} d'abonnement Premium.", [libelleJours(_jours)])
+            : tr(context, "Mes récompenses de parrainage : {arg0} FCFA. {arg1}", [earnings, canWithdraw
+                  ? tr(context, "Montant retirable.")
+                  : tr(context, "Retrait possible à partir de {arg0} FCFA.", [minWithdraw])]),
         excludeSemantics: true,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(estStore ? 'MES RÉCOMPENSES PARRAINAGE'
-                        : 'MES GAINS PARRAINAGE',
+          Text(estStore ? tr(context, "MES RÉCOMPENSES PARRAINAGE")
+                        : tr(context, "MES GAINS PARRAINAGE"),
             style: const TextStyle(
               color: Color(0xFFA78BFA), fontSize: 11,
               fontWeight: FontWeight.w600, letterSpacing: 1)),
@@ -255,7 +251,7 @@ class _EarningsBanner extends StatelessWidget {
             ),
             Padding(
               padding: const EdgeInsets.only(left: 6, bottom: 6),
-              child: Text(estStore ? 'jours Premium' : 'FCFA',
+              child: Text(estStore ? tr(context, "jours Premium") : 'FCFA',
                 style: const TextStyle(
                   color: Color(0xFFA78BFA), fontSize: 14, fontWeight: FontWeight.w600)),
             ),
@@ -268,11 +264,11 @@ class _EarningsBanner extends StatelessWidget {
           Text(
             estStore
               ? (_peutAgir
-                  ? '✅ Convertibles en jours Premium'
-                  : 'Parraine un ami pour gagner tes premiers jours Premium')
+                  ? tr(context, "✅ Convertibles en jours Premium")
+                  : tr(context, "Parraine un ami pour gagner tes premiers jours Premium"))
               : (canWithdraw
-                  ? '✅ Retrait disponible !'
-                  : 'Encore ${(minWithdraw - earnings).toLocaleString()} FCFA pour retirer'),
+                  ? tr(context, "✅ Retrait disponible !")
+                  : tr(context, "Encore {arg0} FCFA pour retirer", [(minWithdraw - earnings).toLocaleString()])),
             style: TextStyle(
               color: _peutAgir ? AppColors.success : const Color(0xFFCBD5E1),
               fontSize: 12,
@@ -305,7 +301,7 @@ class _EarningsBanner extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFA78BFA),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
-            child: Text(estStore ? 'Convertir' : 'Retirer',
+            child: Text(estStore ? tr(context, "Convertir") : tr(context, "Retirer"),
               style: const TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
@@ -326,15 +322,15 @@ class _ReferralCodeCard extends StatelessWidget {
       color: context.cl.surface, borderRadius: BorderRadius.circular(16),
       border: Border.all(color: context.cl.border, width: 0.5)),
     child: Column(children: [
-      Text('VOTRE CODE DE PARRAINAGE', style: TextStyle(
+      Text(tr(context, "VOTRE CODE DE PARRAINAGE"), style: TextStyle(
         color: context.cl.textS, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1)),
       const SizedBox(height: 12),
       GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact();
           Clipboard.setData(ClipboardData(text: code));
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Code copié ! 📋'),
+          ScaffoldMessenger.of(context).showSnackBar( SnackBar(
+            content: Text(tr(context, "Code copié ! 📋")),
             behavior: SnackBarBehavior.floating,
             backgroundColor: AppColors.success,
             duration: Duration(seconds: 2),
@@ -356,7 +352,7 @@ class _ReferralCodeCard extends StatelessWidget {
         ),
       ),
       const SizedBox(height: 10),
-      Text('Appuyez pour copier · Partagez avec tes amis',
+      Text(tr(context, "Appuyez pour copier · Partagez avec tes amis"),
         style: TextStyle(color: context.cl.textM, fontSize: 11)),
       const SizedBox(height: 12),
       SizedBox(
@@ -364,7 +360,7 @@ class _ReferralCodeCard extends StatelessWidget {
         child: ElevatedButton.icon(
           onPressed: () => _showShareSheet(context, code),
           icon: const Icon(Icons.share_rounded, size: 18),
-          label: const Text('Partager mon code'),
+          label:  Text(tr(context, "Partager mon code")),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFA78BFA),
             foregroundColor: Colors.white,
@@ -390,7 +386,7 @@ class _ReferralCodeCard extends StatelessWidget {
           Container(width: 40, height: 4,
             decoration: BoxDecoration(color: ctx.cl.border, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 20),
-          Text('Partager mon code', style: TextStyle(
+          Text(tr(context, "Partager mon code"), style: TextStyle(
             color: ctx.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
           // Aperçu du message
@@ -409,13 +405,13 @@ class _ReferralCodeCard extends StatelessWidget {
           // Options de partage
           Row(children: [
             _ShareOption(
-              icon: Icons.content_copy_rounded, label: 'Copier\nle message',
+              icon: Icons.content_copy_rounded, label: tr(context, "Copier\nle message"),
               color: AppColors.info,
               onTap: () {
                 Clipboard.setData(ClipboardData(text: message));
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Message copié ! Collez-le sur WhatsApp, SMS… 📤'),
+                ScaffoldMessenger.of(context).showSnackBar( SnackBar(
+                  content: Text(tr(context, "Message copié ! Collez-le sur WhatsApp, SMS… 📤")),
                   behavior: SnackBarBehavior.floating,
                   backgroundColor: AppColors.success,
                   duration: Duration(seconds: 3),
@@ -424,13 +420,13 @@ class _ReferralCodeCard extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             _ShareOption(
-              icon: Icons.tag_rounded, label: 'Copier\nle code seul',
+              icon: Icons.tag_rounded, label: tr(context, "Copier\nle code seul"),
               color: purple,
               onTap: () {
                 Clipboard.setData(ClipboardData(text: code));
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Code $code copié ! 📋'),
+                  content: Text(tr(context, "Code {arg0} copié ! 📋", [code])),
                   behavior: SnackBarBehavior.floating,
                   backgroundColor: AppColors.success,
                   duration: const Duration(seconds: 2),
@@ -439,13 +435,13 @@ class _ReferralCodeCard extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             _ShareOption(
-              icon: Icons.sms_rounded, label: 'Message\nprêt à envoyer',
+              icon: Icons.sms_rounded, label: tr(context, "Message\nprêt à envoyer"),
               color: AppColors.success,
               onTap: () {
                 Clipboard.setData(ClipboardData(text: message));
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Message copié ! Ouvrez WhatsApp et collez. ✅'),
+                ScaffoldMessenger.of(context).showSnackBar( SnackBar(
+                  content: Text(tr(context, "Message copié ! Ouvrez WhatsApp et collez. ✅")),
                   behavior: SnackBarBehavior.floating,
                   backgroundColor: AppColors.success,
                   duration: Duration(seconds: 3),
@@ -479,7 +475,7 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
     ref.listen<ApplyCodeState>(applyCodeProvider, (_, s) {
       if (s is ApplyCodeSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('✅ ${s.referrerPseudo} est ton parrain !'),
+          content: Text(tr(context, "✅ {arg0} est ton parrain !", [s.referrerPseudo])),
           backgroundColor: AppColors.success,
           behavior: SnackBarBehavior.floating,
         ));
@@ -520,9 +516,9 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
                 child: Icon(Icons.card_giftcard_rounded, color: AppColors.primary, size: 20)),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Vous avez un code parrain ?', style: TextStyle(
+                Text(tr(context, "Vous avez un code parrain ?"), style: TextStyle(
                   color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w500)),
-                Text('Entrez-le pour lier ton parrain', style: TextStyle(
+                Text(tr(context, "Entrez-le pour lier ton parrain"), style: TextStyle(
                   color: context.cl.textM, fontSize: 11)),
               ])),
               Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
@@ -541,7 +537,7 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
               textCapitalization: TextCapitalization.characters,
               style: TextStyle(letterSpacing: 4, fontSize: 18, fontWeight: FontWeight.w700),
               decoration: InputDecoration(
-                hintText: 'EX: A1B2C3',
+                hintText: tr(context, "EX: A1B2C3"),
                 prefixIcon: Icon(Icons.tag_rounded, color: context.cl.textM),
               ),
               onChanged: (v) => _ctrl.value = _ctrl.value.copyWith(
@@ -562,7 +558,7 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
                 child: state is ApplyCodeLoading
                     ? const SizedBox(width: 18, height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Valider le code'),
+                    :  Text(tr(context, "Valider le code")),
               ),
             ),
           ]),
@@ -587,22 +583,22 @@ class _HowItWorksCard extends StatelessWidget {
       color: context.cl.surface, borderRadius: BorderRadius.circular(16),
       border: Border.all(color: context.cl.border, width: 0.5)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('COMMENT ÇA MARCHE ?', style: TextStyle(
+      Text(tr(context, "COMMENT ÇA MARCHE ?"), style: TextStyle(
         color: context.cl.textS, fontSize: 11,
         fontWeight: FontWeight.w600, letterSpacing: 1)),
       const SizedBox(height: 14),
       _Step(num: '1', color: AppColors.primary,
-        text: 'Partagez ton code avec tes amis'),
+        text: tr(context, "Partagez ton code avec tes amis")),
       _Step(num: '2', color: const Color(0xFFA78BFA),
-        text: 'Ils s\'inscrivent sur PronoWin'),
+        text: tr(context, "Ils s'inscrivent sur PronoWin")),
       _Step(num: '3', color: AppColors.success,
         text: estStore
-          ? 'Quand ils s\'abonnent Premium → +${libelleJours(joursPremiumPour(commL1))} pour toi'
-          : 'Quand ils s\'abonnent Premium → +$commL1 FCFA pour toi'),
+          ? tr(context, "Quand ils s'abonnent Premium → +{arg0} pour toi", [libelleJours(joursPremiumPour(commL1))])
+          : tr(context, "Quand ils s'abonnent Premium → +{arg0} FCFA pour toi", [commL1])),
       _Step(num: '4', color: AppColors.info,
         text: estStore
-          ? 'Leurs filleuls Premium → +${libelleJours(joursPremiumPour(commL2))} en plus'
-          : 'Leurs filleuls Premium → +$commL2 FCFA supplémentaires'),
+          ? tr(context, "Leurs filleuls Premium → +{arg0} en plus", [libelleJours(joursPremiumPour(commL2))])
+          : tr(context, "Leurs filleuls Premium → +{arg0} FCFA supplémentaires", [commL2])),
     ]),
   );
 }
@@ -689,8 +685,8 @@ class _FilleulTile extends StatelessWidget {
       final now = DateTime.now();
       final diff = now.difference(d);
       if (diff.inDays == 0) return 'Aujourd\'hui';
-      if (diff.inDays == 1) return 'Hier';
-      if (diff.inDays < 7)  return 'Il y a ${diff.inDays}j';
+      if (diff.inDays == 1) return trCurrent("Hier");
+      if (diff.inDays < 7)  return trCurrent("Il y a {arg0}j", [diff.inDays]);
       return '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
     } catch (_) { return ''; }
   }
@@ -721,16 +717,16 @@ class _FilleulTile extends StatelessWidget {
             const SizedBox(width: 6),
             Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-              child: const Text('Nouveau', style: TextStyle(color: AppColors.success, fontSize: 9, fontWeight: FontWeight.w700))),
+              child:  Text(tr(context, "Nouveau"), style: TextStyle(color: AppColors.success, fontSize: 9, fontWeight: FontWeight.w700))),
           ],
         ]),
         Text(
-          joinedAt != null ? 'Niv. $level · ${_fmtDate(joinedAt!)}' : 'Niveau $level',
+          joinedAt != null ? tr(context, "Niv. {arg0} · {arg1}", [level, _fmtDate(joinedAt!)]) : tr(context, "Niveau {arg0}", [level]),
           style: TextStyle(color: level == 1 ? const Color(0xFFA78BFA) : AppColors.info,
             fontSize: 11, fontWeight: FontWeight.w500)),
       ])),
       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Text(plan == 'premium' ? '👑 Premium' : '• Gratuit',
+        Text(plan == 'premium' ? '👑 Premium' : tr(context, "• Gratuit"),
           style: TextStyle(
             color: plan == 'premium' ? AppColors.warning : context.cl.textM,
             fontSize: 12, fontWeight: FontWeight.w500)),
@@ -742,7 +738,7 @@ class _FilleulTile extends StatelessWidget {
               color: isPaid ? AppColors.success : context.cl.textM,
               fontSize: 12, fontWeight: FontWeight.w700)),
         if (!isPaid && plan == 'premium')
-          Text('En attente', style: TextStyle(color: context.cl.textM, fontSize: 10)),
+          Text(tr(context, "En attente"), style: TextStyle(color: context.cl.textM, fontSize: 10)),
       ]),
     ]),
   );
@@ -761,10 +757,10 @@ class _EmptyState extends StatelessWidget {
     child: Column(children: [
       Icon(Icons.people_outline_rounded, color: context.cl.textM, size: 48),
       const SizedBox(height: 12),
-      Text('Aucun filleul pour l\'instant', style: TextStyle(
+      Text(tr(context, "Aucun filleul pour l'instant"), style: TextStyle(
         color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
-      Text('Partagez ton code pour commencer\nà gagner des commissions',
+      Text(tr(context, "Partagez ton code pour commencer\nà gagner des commissions"),
         style: TextStyle(color: context.cl.textS, fontSize: 13),
         textAlign: TextAlign.center),
     ]),
@@ -812,7 +808,7 @@ class _HistorySection extends ConsumerWidget {
         if (list.isEmpty) return const SizedBox.shrink();
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const SizedBox(height: 8),
-          _SectionLabel('HISTORIQUE DES GAINS (${list.length})'),
+          _SectionLabel(tr(context, "HISTORIQUE DES GAINS ({arg0})", [list.length])),
           ...list.take(10).map((h) => _HistoryTile(
             pseudo:  h['pseudo'] as String? ?? '—',
             level:   (h['level'] as num?)?.toInt() ?? 1,
@@ -845,7 +841,7 @@ class _HistoryTile extends StatelessWidget {
         child: const Icon(Icons.payments_rounded, color: AppColors.success, size: 18)),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('$pseudo → abonnement Premium', style: TextStyle(
+        Text(tr(context, "{arg0} → abonnement Premium", [pseudo]), style: TextStyle(
           color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w500)),
         if (date != null) Text(
           _fmtDate(date!),
@@ -861,7 +857,7 @@ class _HistoryTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: (level == 1 ? const Color(0xFFA78BFA) : AppColors.info).withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8)),
-          child: Text('Niv. $level', style: TextStyle(
+          child: Text(tr(context, "Niv. {arg0}", [level]), style: TextStyle(
             color: level == 1 ? const Color(0xFFA78BFA) : AppColors.info,
             fontSize: 9, fontWeight: FontWeight.w700)),
         ),
@@ -874,7 +870,7 @@ class _HistoryTile extends StatelessWidget {
       final d   = DateTime.parse(iso).toLocal();
       final now = DateTime.now();
       final diff = now.difference(d);
-      if (diff.inDays < 7)  return 'Il y a ${diff.inDays}j';
+      if (diff.inDays < 7)  return trCurrent("Il y a {arg0}j", [diff.inDays]);
       return '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
     } catch (_) { return ''; }
   }

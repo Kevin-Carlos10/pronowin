@@ -1,3 +1,5 @@
+import 'package:intl/intl.dart';
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -22,10 +24,10 @@ class BetDetailPage extends StatelessWidget {
                       : isWin    ? AppColors.success
                       : isPush   ? AppColors.info
                       :             AppColors.error;
-    final statusLabel = isPending ? 'En attente'
-                      : isWin    ? 'Gagné'
-                      : isPush   ? 'Remboursé'
-                      :             'Perdu';
+    final statusLabel = isPending ? tr(context, "En attente")
+                      : isWin    ? tr(context, "Gagné")
+                      : isPush   ? tr(context, "Remboursé")
+                      :             tr(context, "Perdu");
     final statusIcon  = isPending ? Icons.hourglass_empty_rounded
                       : isWin    ? Icons.emoji_events_rounded
                       : isPush   ? Icons.replay_rounded
@@ -40,7 +42,7 @@ class BetDetailPage extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Détail du pari',
+        title: Text(tr(context, "Détail du pari"),
           style: TextStyle(color: cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
         centerTitle: true,
       ),
@@ -110,7 +112,7 @@ class BetDetailPage extends StatelessWidget {
           // ── Carte pronostic ───────────────────────────────────────────────
           _Card(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _RowLabel(icon: Icons.auto_awesome_rounded, label: 'Pronostic choisi'),
+              _RowLabel(icon: Icons.auto_awesome_rounded, label: tr(context, "Pronostic choisi")),
               const SizedBox(height: 10),
               Text(bet.displayPredictionLabel,
                 style: TextStyle(color: cl.textP, fontSize: 15, fontWeight: FontWeight.w700)),
@@ -119,7 +121,7 @@ class BetDetailPage extends StatelessWidget {
                 // « Cote x1.35 » : le préfixe n'existait qu'ici, partout
                 // ailleurs la cote se lit nue.
                 _Chip(
-                  label: 'Cote  ${bet.oddsUsed.toStringAsFixed(2)}',
+                  label: tr(context, "Cote  {arg0}", [bet.oddsUsed.toStringAsFixed(2)]),
                   color: AppColors.primary,
                 ),
                 const SizedBox(width: 8),
@@ -128,7 +130,7 @@ class BetDetailPage extends StatelessWidget {
                 // donc vingt points de plus pour la même donnée. Une seule
                 // échelle, celle qui fait déjà autorité ailleurs.
                 _Chip(
-                  label: 'Confiance  ${MatchEntity.confidenceDisplay(bet.confidenceScore)}',
+                  label: tr(context, "Confiance  {arg0}", [MatchEntity.confidenceDisplay(bet.confidenceScore)]),
                   color: AppColors.info,
                 ),
               ]),
@@ -139,7 +141,7 @@ class BetDetailPage extends StatelessWidget {
           // ── Carte financière ──────────────────────────────────────────────
           _Card(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _RowLabel(icon: Icons.account_balance_wallet_rounded, label: 'Financier'),
+              _RowLabel(icon: Icons.account_balance_wallet_rounded, label: tr(context, "Financier")),
               const SizedBox(height: 14),
 
               // Le calcul est posé au lieu d'être résumé.
@@ -151,12 +153,12 @@ class BetDetailPage extends StatelessWidget {
               // exactement sa mise d'écart. Montrer les trois lignes supprime
               // l'ambiguïté sans rien exiger du lecteur.
               _LigneCalcul(
-                libelle: 'Mise',
+                libelle: tr(context, "Mise"),
                 montant: '${montantExact(bet.stakedAmount)} ${nomDevise(bet.currency)}',
               ),
               const SizedBox(height: 8),
               _LigneCalcul(
-                libelle: 'Cote',
+                libelle: tr(context, "Cote"),
                 montant: '× ${bet.oddsUsed.toStringAsFixed(2)}',
                 attenue: true,
               ),
@@ -169,7 +171,7 @@ class BetDetailPage extends StatelessWidget {
               Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Expanded(
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(isPending ? 'Retour si gagné' : 'Retour',
+                    Text(isPending ? tr(context, "Retour si gagné") : tr(context, "Retour"),
                       style: TextStyle(color: cl.textM, fontSize: 11.5)),
                     const SizedBox(height: 3),
                     FittedBox(
@@ -193,7 +195,7 @@ class BetDetailPage extends StatelessWidget {
                     border: Border.all(
                       color: AppColors.success.withValues(alpha: 0.35), width: 0.8)),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                    Text('dont bénéfice',
+                    Text(tr(context, "dont bénéfice"),
                       style: TextStyle(color: cl.textM, fontSize: 9.5,
                           fontWeight: FontWeight.w600)),
                     const SizedBox(height: 2),
@@ -211,7 +213,7 @@ class BetDetailPage extends StatelessWidget {
                   final profitIcon = isPush ? Icons.replay_rounded
                     : bet.profit! >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded;
                   final profitText = isPush
-                    ? 'Mise remboursée'
+                    ? tr(context, "Mise remboursée")
                     : '${bet.profit! >= 0 ? '+' : ''}${montantExact(bet.profit!)} ${nomDevise(bet.currency)}';
                   return Container(
                     padding: const EdgeInsets.all(12),
@@ -224,7 +226,7 @@ class BetDetailPage extends StatelessWidget {
                       Icon(profitIcon, color: profitColor, size: 20),
                       const SizedBox(width: 10),
                       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                        Text('Résultat net',
+                        Text(tr(context, "Résultat net"),
                           style: TextStyle(color: cl.textM, fontSize: 11)),
                         Text(profitText,
                           style: TextStyle(
@@ -244,7 +246,7 @@ class BetDetailPage extends StatelessWidget {
           const SizedBox(height: 8),
           Center(
             child: Text(
-              'Pari placé le ${_formatDateFull(bet.createdAt)}',
+              tr(context, "Pari placé le {arg0}", [_formatDateFull(bet.createdAt)]),
               style: TextStyle(color: cl.textM, fontSize: 11),
             ),
           ),
@@ -256,14 +258,10 @@ class BetDetailPage extends StatelessWidget {
   /// « 19 aoû 2026 » et « 19 août 2026 » cohabitaient sur le même écran.
   /// « aoû » n'est l'abréviation d'usage de personne, et la place ne manque
   /// pas : les deux dates s'écrivent désormais pareil.
-  static String _formatDate(DateTime d) => '${d.day} ${_mois[d.month - 1]} ${d.year}';
-
-  static const _mois = ['janvier', 'février', 'mars', 'avril', 'mai', 'juin',
-      'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'];
+  static String _formatDate(DateTime d) => DateFormat.yMMMMd().format(d);
 
   static String _formatDateFull(DateTime d) =>
-      '${_formatDate(d)} à ${d.hour.toString().padLeft(2, '0')}'
-      'h${d.minute.toString().padLeft(2, '0')}';
+      trCurrent("{arg0} à {arg1}h{arg2}", [_formatDate(d), d.hour.toString().padLeft(2, '0'), d.minute.toString().padLeft(2, '0')]);
 }
 
 // ─── Sous-widgets ──────────────────────────────────────────────────────────────

@@ -75,7 +75,7 @@ void main() {
     /// L'ancre tolère les espaces : les fichiers sont en CRLF, et un `\n`
     /// écrit à la main dans une chaîne de test ne correspond à rien.
     String piedDePage() {
-      final debut = paywall.indexOf(RegExp(r"_LienLegal\(\s*libelle: 'CGU'"));
+      final debut = paywall.indexOf(RegExp(r'_LienLegal\(\s*libelle:\s*tr\(context, "CGU"\)'));
       expect(debut, greaterThan(-1),
         reason: 'ancre du pied de page introuvable — test à réécrire');
       final fin = paywall.indexOf(']),', debut);
@@ -86,7 +86,9 @@ void main() {
       final pied = piedDePage();
 
       for (final libelle in ['CGU', 'Confidentialité', 'Contact']) {
-        expect(pied, contains("libelle: '$libelle'"));
+        // « Contact » est identique dans les deux langues.
+        expect(pied, anyOf(contains('libelle: tr(context, "$libelle")'),
+            contains("libelle: '$libelle'")));
       }
       // Trois mentions, trois liens : aucune ne reste un simple libellé.
       expect(RegExp('_LienLegal\\(').allMatches(pied).length, 3);

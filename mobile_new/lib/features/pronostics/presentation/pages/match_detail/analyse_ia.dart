@@ -44,7 +44,7 @@ class _AIAnalysisCard extends ConsumerWidget {
               color: Color(0xFF6C3AE8), size: 16),
           ),
           const SizedBox(width: 10),
-          Text('Analyse statistique',
+          Text(tr(context, "Analyse statistique"),
             style: TextStyle(
               color: context.cl.textP,
               fontSize: 14,
@@ -116,7 +116,7 @@ class _AIData extends StatelessWidget {
       Row(children: [
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('PROBABILITÉ DE SUCCÈS',
+            Text(tr(context, "PROBABILITÉ DE SUCCÈS"),
               style: TextStyle(
                 color: context.cl.textM,
                 fontSize: 10,
@@ -194,7 +194,7 @@ class _AILoadingState extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 10),
-        Text('Analyse en cours…',
+        Text(tr(context, "Analyse en cours…"),
           style: TextStyle(color: context.cl.textM, fontSize: 12)),
       ]),
       const SizedBox(height: 12),
@@ -242,22 +242,22 @@ class _AIPremiumLockedStateState extends State<_AIPremiumLockedState>
   bool get _isFinished => widget.status == MatchStatus.finished;
 
   String get _title => widget.nonConnecte
-    ? 'Crée ton compte pour voir l\'analyse'
+    ? tr(context, "Crée ton compte pour voir l'analyse")
     : _isFinished
-      ? 'Débriefing du modèle'
-      : 'Débloquez l\'analyse complète';
+      ? tr(context, "Débriefing du modèle")
+      : tr(context, "Débloquez l'analyse complète");
 
   String get _subtitle => widget.nonConnecte
-    ? 'Gratuit, en 30 secondes — tu reviens directement sur ce match'
+    ? tr(context, "Gratuit, en 30 secondes — tu reviens directement sur ce match")
     : _isFinished
-      ? 'Ce que le modèle avait anticipé, et sur quels critères'
-      : 'Probabilité de succès calculée à partir des cotes et de la forme';
+      ? tr(context, "Ce que le modèle avait anticipé, et sur quels critères")
+      : tr(context, "Probabilité de succès calculée à partir des cotes et de la forme");
 
   String get _cta => widget.nonConnecte
-    ? 'Créer mon compte'
+    ? tr(context, "Créer mon compte")
     : _isFinished
-      ? 'Voir le débriefing'
-      : 'Débloquer l\'analyse';
+      ? tr(context, "Voir le débriefing")
+      : tr(context, "Débloquer l'analyse");
 
   IconData get _ctaIcon => widget.nonConnecte
     ? Icons.person_add_alt_1_rounded
@@ -433,12 +433,12 @@ class _AIErrorState extends StatelessWidget {
     Icon(Icons.warning_amber_rounded, color: context.cl.textM, size: 16),
     const SizedBox(width: 8),
     Expanded(
-      child: Text('Analyse temporairement indisponible.',
+      child: Text(tr(context, "Analyse temporairement indisponible."),
         style: TextStyle(color: context.cl.textM, fontSize: 12))),
     TextButton(
       onPressed: onRetry,
       style: TextButton.styleFrom(padding: EdgeInsets.zero, minimumSize: Size.zero),
-      child: Text('Réessayer',
+      child: Text(tr(context, "Réessayer"),
         style: TextStyle(color: const Color(0xFF6C3AE8), fontSize: 12))),
   ]);
 }

@@ -32,7 +32,7 @@ class _MatchStatsCard extends ConsumerWidget {
             child: Icon(Icons.bar_chart_rounded, color: AppColors.info, size: 16),
           ),
           const SizedBox(width: 10),
-          Text('Statistiques du match',
+          Text(tr(context, "Statistiques du match"),
             style: TextStyle(
               color: context.cl.textP,
               fontSize: 13,
@@ -80,7 +80,7 @@ class _MatchEventsCard extends ConsumerWidget {
         _CardHeader(
           icon: Icons.timeline_rounded,
           color: AppColors.info,
-          title: 'Faits marquants'),
+          title: tr(context, "Faits marquants")),
         const SizedBox(height: 14),
         // En-tête et filet reprennent exactement la structure d'une ligne
         // d'événement (colonne minute + 2 colonnes + colonne icône) : leur
@@ -207,7 +207,7 @@ class _EventsList extends StatelessWidget {
     final notable = events.where(_isNotable).toList();
 
     if (notable.isEmpty) {
-      return Text('Aucun événement notable.',
+      return Text(tr(context, "Aucun événement notable."),
         style: TextStyle(color: context.cl.textM, fontSize: 12));
     }
 
@@ -317,7 +317,7 @@ class _StatsList extends StatelessWidget {
         _wantedStats.indexOf(a.label).compareTo(_wantedStats.indexOf(b.label)));
 
     if (filtered.isEmpty) {
-      return Text('Statistiques indisponibles.',
+      return Text(tr(context, "Statistiques indisponibles."),
         style: TextStyle(color: context.cl.textM, fontSize: 12));
     }
 
@@ -344,7 +344,7 @@ class _StatsList extends StatelessWidget {
         ]),
       ),
       if (possession != null) ...[
-        Text('Possession de balle',
+        Text(tr(context, "Possession de balle"),
           style: TextStyle(color: context.cl.textS, fontSize: 11.5)),
         const SizedBox(height: 8),
         _PossessionBar(home: possession.home, away: possession.away),
@@ -451,7 +451,7 @@ class _StatRow extends StatelessWidget {
           ),
         ),
         Expanded(
-          child: Text(label,
+          child: Text(tr(context, label),
             textAlign: TextAlign.center,
             style: TextStyle(color: context.cl.textS, fontSize: 11.5, height: 1.3)),
         ),
@@ -515,7 +515,7 @@ class _StatsUnavailable extends StatelessWidget {
       Icon(Icons.info_outline_rounded, color: context.cl.textM, size: 15),
       const SizedBox(width: 8),
       Expanded(child: Text(
-        'Statistiques indisponibles pour ce match.',
+        tr(context, "Statistiques indisponibles pour ce match."),
         style: TextStyle(color: context.cl.textM, fontSize: 12))),
     ]),
   );

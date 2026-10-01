@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 // ─── Enums ────────────────────────────────────────────────────────────────────
 enum TutorialLevel {
   beginner,
@@ -5,9 +6,9 @@ enum TutorialLevel {
   advanced;
 
   String get label => switch (this) {
-    TutorialLevel.beginner     => 'Débutant',
-    TutorialLevel.intermediate => 'Intermédiaire',
-    TutorialLevel.advanced     => 'Avancé',
+    TutorialLevel.beginner     => trCurrent("Débutant"),
+    TutorialLevel.intermediate => trCurrent("Intermédiaire"),
+    TutorialLevel.advanced     => trCurrent("Avancé"),
   };
 
   static TutorialLevel fromString(String? s) => switch (s) {
@@ -47,7 +48,8 @@ class TutorialCategoryInfo {
   };
 
   static String labelFor(String category) =>
-      _labels[category.toLowerCase()] ?? _titleCase(category);
+      _labels.containsKey(category.toLowerCase())
+        ? trCurrent(_labels[category.toLowerCase()]!) : _titleCase(category);
 
   static String emojiFor(String category) =>
       _emojis[category.toLowerCase()] ?? '📚';

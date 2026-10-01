@@ -1,4 +1,5 @@
-﻿import 'dart:async';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'dart:async';
 import 'dart:ui';
 import '../../../../core/utils/motion.dart';
 import '../../../../shared/widgets/confidence_indicator.dart';
@@ -204,10 +205,10 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           leading: IconButton(
             icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20),
             onPressed: () => retourOuAller(context, repli: _repli)),
-          title: Text('Détail du match')),
+          title: Text(tr(context, "Détail du match"))),
         body: matchAsync.isLoading
           ? Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : Center(child: Text('Match introuvable',
+          : Center(child: Text(tr(context, "Match introuvable"),
               style: TextStyle(color: context.cl.textS))));
     }
 
@@ -331,7 +332,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         SingleChildScrollView(padding: rembourrage, child: child);
 
     final tabs = <(String, Widget)>[
-      if (showTabs) ('Détails', Column(children: [
+      if (showTabs) (tr(context, "Détails"), Column(children: [
         // Entrée en cascade : chaque carte apparaît légèrement après la
         // précédente, ce qui guide le regard de haut en bas au lieu d'afficher
         // le bloc d'un coup.
@@ -373,27 +374,27 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         ],
         entree(CommentsSection(pronosticId: match.id), delaiMs: 310),
       ])),
-      if (showCotes) ('Cotes', _OddsCard(match: match)),
-      if (showStats) ('Statistiques', Column(children: [
+      if (showCotes) (tr(context, "Cotes"), _OddsCard(match: match)),
+      if (showStats) (tr(context, "Statistiques"), Column(children: [
         _MatchStatsCard(matchId: match.id),
         const SizedBox(height: 16),
         _ButsParTranche(matchId: match.id),
       ])),
-      if (showCompositions) ('Compositions', _LineupsCard(match: match)),
-      if (showBlessures) ('Blessures', _InjuriesCard(
+      if (showCompositions) (tr(context, "Compositions"), _LineupsCard(match: match)),
+      if (showBlessures) (tr(context, "Blessures"), _InjuriesCard(
         matchId: match.id,
         homeTeam: match.homeTeam,
         awayTeam: match.awayTeam,
         homeLogo: match.homeTeamLogo,
         awayLogo: match.awayTeamLogo)),
-      if (showClassements) ('Classements', Column(children: [
+      if (showClassements) (tr(context, "Classements"), Column(children: [
         _StandingsCard(
           matchId: match.id,
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam),
         _MeilleursButeurs(leagueCode: match.leagueCountry),
       ])),
-      if (showFaceAFace) ('Face à face', Column(children: [
+      if (showFaceAFace) (tr(context, "Face à face"), Column(children: [
         _H2HCard(
           matchId: match.id,
           homeLogo: match.homeTeamLogo,
@@ -428,7 +429,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
                 color: isFav ? AppColors.primary : context.cl.textS,
               ),
             ),
-            tooltip: isFav ? 'Retirer des favoris' : 'Ajouter aux favoris',
+            tooltip: isFav ? tr(context, "Retirer des favoris") : tr(context, "Ajouter aux favoris"),
             onPressed: () {
               HapticFeedback.selectionClick();
               // Le détail est ouvert aux invités, mais mettre en favori exige un
@@ -451,7 +452,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
               child: _Fraicheur(enCours: isRefreshing, dernier: _dernierRefresh)),
           IconButton(
               icon: const Icon(Icons.share_rounded, size: 20),
-              tooltip: 'Partager',
+              tooltip: tr(context, "Partager"),
               onPressed: () {
                 HapticFeedback.selectionClick();
                 _showShareSheet(context, match);
@@ -725,18 +726,17 @@ class _MatchHeader extends ConsumerWidget {
 
     final etat = switch (match.status) {
       MatchStatus.live     => minute == null
-                                ? 'en direct'
-                                : 'en direct, ${minute}e minute',
-      MatchStatus.finished => 'terminé',
-      _                    => 'à venir',
+                                ? tr(context, "en direct")
+                                : tr(context, "en direct, {arg0}e minute", [minute]),
+      MatchStatus.finished => tr(context, "terminé"),
+      _                    => tr(context, "à venir"),
     };
     final scoreParle = match.status == MatchStatus.upcoming
-        ? 'contre'
-        : '${homeScore ?? 0} à ${awayScore ?? 0} contre';
+        ? tr(context, "contre")
+        : tr(context, "{arg0} à {arg1} contre", [homeScore ?? 0, awayScore ?? 0]);
 
     return Semantics(
-    label: '${match.league}. ${match.homeTeam} $scoreParle ${match.awayTeam}. '
-           'Match $etat, le $dateStr à $heureStr.',
+    label: tr(context, "{arg0}. {arg1} {arg2} {arg3}. Match {arg4}, le {arg5} à {arg6}.", [match.league, match.homeTeam, scoreParle, match.awayTeam, etat, dateStr, heureStr]),
     excludeSemantics: true,
     child: Container(
     padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
@@ -795,7 +795,7 @@ class _MatchHeader extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: context.cl.surfaceDeep,
                   borderRadius: BorderRadius.circular(6)),
-                child: Text('TERMINÉ',
+                child: Text(tr(context, "TERMINÉ"),
                   style: TextStyle(
                     color: context.cl.textM, fontSize: 9,
                     fontWeight: FontWeight.w700, letterSpacing: 0.5)),
@@ -886,21 +886,19 @@ class _PronosticCard extends StatelessWidget {
   /// dont aucun ne dit qu'ils forment un même pari.
   String _annonce(BuildContext context) {
     if (isLocked) {
-      return 'Pronostic réservé aux membres Premium.';
+      return tr(context, "Pronostic réservé aux membres Premium.");
     }
     final marche = _market == null ? '' : '${_market!}, ';
     final cote = match.oddsRecommended > 0
-        ? ' Cote recommandée ${match.oddsRecommended.toStringAsFixed(2)}.'
+        ? tr(context, " Cote recommandée {arg0}.", [match.oddsRecommended.toStringAsFixed(2)])
         : '';
     final verdict = switch (match.result) {
-      PronosticResult.win  => ' Pronostic gagnant.',
-      PronosticResult.loss => ' Pronostic perdant.',
-      PronosticResult.push => ' Pronostic remboursé.',
+      PronosticResult.win  => tr(context, " Pronostic gagnant."),
+      PronosticResult.loss => tr(context, " Pronostic perdant."),
+      PronosticResult.push => tr(context, " Pronostic remboursé."),
       null                 => '',
     };
-    return 'Pronostic : $marche$_pick.$cote '
-        'Confiance de l’analyste ${MatchEntity.confidenceDisplay(match.confidenceScore)} '
-        '${MatchEntity.labelForConfidence(match.confidenceScore)}.$verdict';
+    return tr(context, "Pronostic : {arg0}{arg1}.{arg2} Confiance de l’analyste {arg3} {arg4}.{arg5}", [marche, _pick, cote, MatchEntity.confidenceDisplay(match.confidenceScore), MatchEntity.labelForConfidence(match.confidenceScore), verdict]);
   }
 
   @override
@@ -927,7 +925,7 @@ class _PronosticCard extends StatelessWidget {
         blurRadius: 20, offset: const Offset(0, 6))],
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('PRONOSTIC', style: TextStyle(
+      Text(tr(context, "PRONOSTIC"), style: TextStyle(
         color: context.cl.textM, fontSize: 11,
         fontWeight: FontWeight.w600, letterSpacing: 1)),
       SizedBox(height: 14),
@@ -936,7 +934,7 @@ class _PronosticCard extends StatelessWidget {
         Row(children: [
           Icon(Icons.lock_rounded, color: context.cl.textM, size: 20),
           SizedBox(width: 10),
-          Expanded(child: Text('Contenu réservé aux membres Premium',
+          Expanded(child: Text(tr(context, "Contenu réservé aux membres Premium"),
             style: TextStyle(color: context.cl.textM, fontSize: 14))),
         ])
       else ...[
@@ -963,7 +961,7 @@ class _PronosticCard extends StatelessWidget {
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           if (match.oddsRecommended > 0) ...[
             Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('COTE',
+              Text(tr(context, "COTE"),
                 style: TextStyle(
                   color: context.cl.textM,
                   fontSize: 10,
@@ -1023,7 +1021,7 @@ class _ConfianceRappel extends StatelessWidget {
   Widget build(BuildContext context) {
     final couleur = ConfidenceIndicator.colorFor(score);
     return Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-      Text('CONFIANCE ANNONCÉE',
+      Text(tr(context, "CONFIANCE ANNONCÉE"),
         style: TextStyle(
           color: context.cl.textM,
           fontSize: 10,
@@ -1128,9 +1126,9 @@ class _VerdictStripState extends State<_VerdictStrip>
     final icon   = isWin  ? Icons.check_circle_rounded
                  : isPush ? Icons.replay_rounded
                  : Icons.cancel_rounded;
-    final label  = isWin  ? 'Pronostic gagnant'
-                 : isPush ? 'Pronostic remboursé'
-                 : 'Pronostic perdant';
+    final label  = isWin  ? tr(context, "Pronostic gagnant")
+                 : isPush ? tr(context, "Pronostic remboursé")
+                 : tr(context, "Pronostic perdant");
 
     // Hors victoire — ou en animations réduites — le bandeau est simplement
     // affiché. Une défaite ne se met pas en scène.
@@ -1247,7 +1245,7 @@ class _OddsCard extends ConsumerWidget {
                                match.predictionType == PredictionType.draw ||
                                match.predictionType == PredictionType.win2;
 
-    const marche = 'VAINQUEUR DU MATCH';
+    final marche = tr(context, "VAINQUEUR DU MATCH");
     final indiceRecommande = switch (match.predictionType) {
       PredictionType.win1  => 0,
       PredictionType.draw  => 1,
@@ -1314,7 +1312,7 @@ class _OddsCard extends ConsumerWidget {
           const SizedBox(width: 6),
           Expanded(
             child: Text(
-              "Cotes d'ouverture — elles ne suivent pas le match en cours.",
+              tr(context, "Cotes d'ouverture — elles ne suivent pas le match en cours."),
               style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.3)),
           ),
         ]),
@@ -1343,7 +1341,7 @@ class _CoteRecommandee extends StatelessWidget {
     child: Row(children: [
       Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('COTE DU PRONOSTIC',
+          Text(tr(context, "COTE DU PRONOSTIC"),
             style: TextStyle(
               color: context.cl.textM, fontSize: 9.5,
               fontWeight: FontWeight.w700, letterSpacing: 0.6)),
@@ -1376,8 +1374,8 @@ class _OddPill extends StatelessWidget {
     // rien : sans elle, un lecteur d'écran annonçait « 1, 1.34 » à l'identique
     // pour la cote recommandée et les deux autres — la couleur ne s'entend pas.
     label: isRecommended
-      ? '$label, cote ${value.toStringAsFixed(2)}, recommandée'
-      : '$label, cote ${value > 0 ? value.toStringAsFixed(2) : "indisponible"}',
+      ? tr(context, "{arg0}, cote {arg1}, recommandée", [label, value.toStringAsFixed(2)])
+      : tr(context, "{arg0}, cote {arg1}", [label, value > 0 ? value.toStringAsFixed(2) : tr(context, "indisponible")]),
     excludeSemantics: true,
     child: Container(
       width: 48,
@@ -1431,10 +1429,10 @@ class _AnalystCard extends StatelessWidget {
           child: Icon(Icons.person_rounded, color: AppColors.primary, size: 20)),
         SizedBox(width: 12),
         Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('ANALYSE DE L\'EXPERT', style: TextStyle(
+          Text(tr(context, "ANALYSE DE L'EXPERT"), style: TextStyle(
             color: context.cl.textM, fontSize: 11,
             fontWeight: FontWeight.w600, letterSpacing: 1)),
-          Text('Notre Analyste', style: TextStyle(
+          Text(tr(context, "Notre Analyste"), style: TextStyle(
             color: context.cl.textS, fontSize: 12)),
         ]),
       ]),
@@ -1478,7 +1476,7 @@ class _PremiumBannerState extends ConsumerState<_PremiumBanner>
     final sub = ref.watch(currentSubscriptionProvider).valueOrNull ?? const {};
     // Sur un build store le tarif est majoré (commission Apple/Google) :
     // annoncer le prix Mobile Money afficherait moins que le montant débité.
-    final priceLabel = '${premiumMonthlyPriceLabel(ref, sub)}/mois';
+    final priceLabel = tr(context, "{arg0}/mois", [premiumMonthlyPriceLabel(ref, sub)]);
     return GestureDetector(
     onTapDown: (_) => _pressCtrl.forward(),
     onTapUp: (_) { _pressCtrl.reverse(); HapticFeedback.lightImpact(); widget.onTap(); },
@@ -1502,11 +1500,11 @@ class _PremiumBannerState extends ConsumerState<_PremiumBanner>
         SizedBox(width: 14),
         Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Accès Premium requis', style: TextStyle(
+          Text(tr(context, "Accès Premium requis"), style: TextStyle(
             color: context.cl.textP, fontSize: 15,
             fontWeight: FontWeight.w700)),
           SizedBox(height: 3),
-          Text('Pronostic, cotes et analyse complète',
+          Text(tr(context, "Pronostic, cotes et analyse complète"),
             style: TextStyle(color: context.cl.textS, fontSize: 12)),
         ])),
         Container(
@@ -1578,13 +1576,13 @@ class _FraicheurState extends State<_Fraicheur> {
 
     final secondes = DateTime.now().difference(widget.dernier).inSeconds;
     final libelle  = secondes < 5
-        ? 'à jour'
+        ? tr(context, "à jour")
         : secondes < 60
-          ? 'il y a ${secondes}s'
-          : 'il y a ${(secondes / 60).floor()} min';
+          ? tr(context, "il y a {arg0}s", [secondes])
+          : tr(context, "il y a {arg0} min", [(secondes / 60).floor()]);
 
     return Semantics(
-      label: 'Score mis à jour $libelle',
+      label: tr(context, "Score mis à jour {arg0}", [libelle]),
       excludeSemantics: true,
       child: Padding(
         padding: const EdgeInsets.only(right: 8),
@@ -1648,8 +1646,8 @@ class _LiveBadgeState extends State<_LiveBadge>
   @override
   Widget build(BuildContext context) => Semantics(
     label: widget.minute == null
-        ? 'Match en direct'
-        : 'Match en direct, ${widget.minute}e minute',
+        ? tr(context, "Match en direct")
+        : tr(context, "Match en direct, {arg0}e minute", [widget.minute]),
     excludeSemantics: true,
     child: Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1674,7 +1672,7 @@ class _LiveBadgeState extends State<_LiveBadge>
         ),
       ),
       const SizedBox(width: 6),
-      Text(widget.minute == null ? 'EN DIRECT' : "${widget.minute}'",
+      Text(widget.minute == null ? tr(context, "EN DIRECT") : "${widget.minute}'",
         style: const TextStyle(
           color: AppColors.error, fontSize: 11,
           fontWeight: FontWeight.w700, letterSpacing: 0.5)),
@@ -1700,7 +1698,7 @@ class _DetailConfidenceBar extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(children: [
-          Text('CONFIANCE',
+          Text(tr(context, "CONFIANCE"),
               style: TextStyle(
                   color: context.cl.textM,
                   fontSize: 10,

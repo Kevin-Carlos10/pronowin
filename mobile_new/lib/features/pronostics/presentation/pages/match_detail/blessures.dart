@@ -47,7 +47,7 @@ class _InjuriesCard extends ConsumerWidget {
             child: Icon(Icons.medical_services_rounded, color: AppColors.warning, size: 16),
           ),
           const SizedBox(width: 10),
-          Text('Absences',
+          Text(tr(context, "Absences"),
             style: TextStyle(
               color: context.cl.textP,
               fontSize: 13,
@@ -55,7 +55,7 @@ class _InjuriesCard extends ConsumerWidget {
         ]),
         const SizedBox(height: 12),
         status == 401
-          ? const _CardLoginPrompt(message: 'Connecte-toi pour voir les absences.')
+          ?  _CardLoginPrompt(message: tr(context, "Connecte-toi pour voir les absences."))
           : injuriesAsync.when(
               loading: () => _H2HLoading(),
               error: (_, _) => const SizedBox.shrink(),
@@ -102,7 +102,7 @@ class _InjuryTeamBlock extends StatelessWidget {
         _TeamLogo(url: logo ?? '', size: 20),
         const SizedBox(width: 8),
         Expanded(
-          child: Text(team.isEmpty ? 'Équipe' : team,
+          child: Text(team.isEmpty ? tr(context, "Équipe") : team,
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: color, fontSize: 12, fontWeight: FontWeight.w700))),

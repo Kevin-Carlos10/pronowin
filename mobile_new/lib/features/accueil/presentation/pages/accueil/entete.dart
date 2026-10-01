@@ -15,10 +15,10 @@ class _SliverHeader extends ConsumerWidget {
     final now         = DateTime.now();
     final unreadCount = ref.watch(unreadCountProvider);
     final greeting = now.hour < 12
-        ? 'Bonjour'
+        ? tr(context, "Bonjour")
         : now.hour < 18
-            ? 'Bon après-midi'
-            : 'Bonsoir';
+            ? tr(context, "Bon après-midi")
+            : tr(context, "Bonsoir");
 
     return SliverAppBar(
       // Mesuré : le contenu (logo, salutation, ligne d'abonnement) occupe
@@ -66,8 +66,8 @@ class _SliverHeader extends ConsumerWidget {
                   Semantics(
                     button: true,
                     label: unreadCount > 0
-                        ? 'Notifications, $unreadCount non lues'
-                        : 'Notifications',
+                        ? tr(context, "Notifications, {arg0} non lues", [unreadCount])
+                        : tr(context, "Notifications"),
                     child: GestureDetector(
                     // Zone tactile portée à 48 px (le visuel reste à 38) :
                     // c'est le minimum recommandé par Material.
@@ -122,7 +122,7 @@ class _SliverHeader extends ConsumerWidget {
                 children: [
                   Semantics(
                     button: true,
-                    label: 'Mon compte',
+                    label: tr(context, "Mon compte"),
                     excludeSemantics: true,
                     child: GestureDetector(
                     onTap: () => context.push('/compte'),
@@ -215,9 +215,9 @@ class _SliverHeader extends ConsumerWidget {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text('Plan Gratuit · ',
+                                Text(tr(context, "Plan Gratuit · "),
                                     style: TextStyle(color: context.cl.textM, fontSize: 11)),
-                                const Text('Passer Premium ✨',
+                                 Text(tr(context, "Passer Premium ✨"),
                                     style: TextStyle(
                                         color: AppColors.primaryLight,
                                         fontSize: 11,
@@ -305,13 +305,13 @@ class _PseudoNudgeState extends State<_PseudoNudge> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Choisis ton pseudo',
+                  Text(tr(context, "Choisis ton pseudo"),
                       style: TextStyle(
                           color: context.cl.textP,
                           fontSize: 13,
                           fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
-                  Text('Personnalise ton profil — plus sympa pour tes parrainages !',
+                  Text(tr(context, "Personnalise ton profil — plus sympa pour tes parrainages !"),
                       style: TextStyle(color: context.cl.textM, fontSize: 11)),
                 ],
               ),
@@ -364,28 +364,28 @@ class _QuickStats extends ConsumerWidget {
         return Row(children: [
           _StatChip(
             icon: Icons.local_fire_department_rounded,
-            label: 'Série',
+            label: tr(context, "Série"),
             // Pas d'emoji ici : la carte porte déjà l'icône flamme, et les
             // deux voisines n'affichent qu'un nombre.
             value: streak > 0 ? '$streak' : '—',
             color: AppColors.warning,
-            hint: streak == 0 ? 'Pas encore de série en cours' : null,
+            hint: streak == 0 ? tr(context, "Pas encore de série en cours") : null,
           ),
           const SizedBox(width: 10),
           _StatChip(
             icon: Icons.trending_up_rounded,
-            label: 'Taux win',
+            label: tr(context, "Taux win"),
             value: totalFinished >= 3 ? '$winRate%' : '—',
             color: AppColors.success,
-            hint: totalFinished < 3 ? 'Disponible après 3 pronos terminés' : null,
+            hint: totalFinished < 3 ? tr(context, "Disponible après 3 pronos terminés") : null,
           ),
           const SizedBox(width: 10),
           _StatChip(
             icon: Icons.sports_soccer_rounded,
-            label: 'À venir',
+            label: tr(context, "À venir"),
             value: upcoming > 0 ? '$upcoming' : '—',
             color: AppColors.info,
-            hint: upcoming == 0 ? 'Aucun match programmé' : null,
+            hint: upcoming == 0 ? tr(context, "Aucun match programmé") : null,
           ),
         ]);
       },
@@ -547,17 +547,15 @@ class _PremiumBanner extends ConsumerWidget {
       // La formulation suit maintenant ce que la donnée mesure. La rendre
       // hebdomadaire pour de bon serait un autre changement : il faudrait
       // filtrer côté serveur, et le nombre annoncé s'en trouverait modifié.
-      headline = '${winRate.toStringAsFixed(0)}% de réussite '
-                 'sur nos pronostics publiés';
+      headline = tr(context, "{arg0}% de réussite sur nos pronostics publiés", [winRate.toStringAsFixed(0)]);
     } else if (vipList.length > 1) {
       headline = nbGrosseCote > 0
-          ? "${vipList.length} pronos VIP aujourd'hui, "
-              "dont $nbGrosseCote à cote supérieure à 2"
-          : '${vipList.length} pronos VIP réservés aux membres';
+          ? tr(context, "{arg0} pronos VIP aujourd'hui, dont {arg1} à cote supérieure à 2", [vipList.length, nbGrosseCote])
+          : tr(context, "{arg0} pronos VIP réservés aux membres", [vipList.length]);
     } else if (vipProno != null) {
-      headline = 'Accède au pronostic VIP du jour';
+      headline = tr(context, "Accède au pronostic VIP du jour");
     } else {
-      headline = 'Analyses détaillées · Cotes exclusives · VIP';
+      headline = tr(context, "Analyses détaillées · Cotes exclusives · VIP");
     }
 
     return GestureDetector(
@@ -638,7 +636,7 @@ class _PremiumBanner extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      child: const Text('Débloquer',
+                      child:  Text(tr(context, "Débloquer"),
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 13,
@@ -768,10 +766,10 @@ class _PremiumIllustration extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const tiles = [
-      (Icons.query_stats_rounded,    'Analyses stats',    Color(0xFF8B5CF6)),
-      (Icons.show_chart_rounded,     'Cotes exclusives',  Color(0xFF10B981)),
-      (Icons.workspace_premium_rounded, 'Pronos VIP',     Color(0xFFFFD700)),
+    final tiles = [
+      (Icons.query_stats_rounded,    tr(context, "Analyses stats"),    Color(0xFF8B5CF6)),
+      (Icons.show_chart_rounded,     tr(context, "Cotes exclusives"),  Color(0xFF10B981)),
+      (Icons.workspace_premium_rounded, tr(context, "Pronos VIP"),     Color(0xFFFFD700)),
     ];
 
     return Padding(

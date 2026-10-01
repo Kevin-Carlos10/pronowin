@@ -1,3 +1,5 @@
+import '../../../parametres/presentation/providers/settings_provider.dart';
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/utils/motion.dart';
 import 'package:flutter/services.dart';
@@ -230,15 +232,31 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
               color: slide.colorDark.withValues(alpha: 0.07)),
           )),
         SafeArea(child: Column(children: [
-          Align(alignment: Alignment.topRight,
-            child: Padding(
-              padding: const EdgeInsets.only(top: 8, right: 16),
-              child: _current < _slides.length - 1
-                  ? TextButton(onPressed: _skip,
-                      child: Text('Passer', style: TextStyle(
-                        color: context.cl.textM, fontSize: 14, fontWeight: FontWeight.w500)))
-                  : const SizedBox(height: 40),
-            )),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Row(children: [
+              PopupMenuButton<String>(
+                tooltip: tr(context, 'Choisir la langue'),
+                initialValue: ref.watch(settingsProvider).lang,
+                onSelected: (language) => ref.read(settingsProvider.notifier).setLang(language),
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'fr', child: Text('Français')),
+                  PopupMenuItem(value: 'en', child: Text('English')),
+                ],
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(children: [
+                    const Icon(Icons.language_rounded, size: 20),
+                    const SizedBox(width: 8),
+                    Text(ref.watch(settingsProvider).langName),
+                  ]),
+                ),
+              ),
+              const Spacer(),
+              if (_current < _slides.length - 1)
+                TextButton(onPressed: _skip, child: Text(tr(context, 'Passer'))),
+            ]),
+          ),
           Expanded(child: PageView.builder(
             controller: _ctrl,
             itemCount:  _slides.length,
@@ -279,7 +297,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                   ),
                   child: Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Text(
-                      _current < _slides.length - 1 ? 'Suivant' : 'Commencer !',
+                      _current < _slides.length - 1 ? tr(context, "Suivant") : tr(context, "Commencer !"),
                       style: const TextStyle(color: Colors.white, fontSize: 16,
                           fontWeight: FontWeight.w700, letterSpacing: 0.3)),
                     const SizedBox(width: 8),
@@ -305,9 +323,12 @@ class _SlideContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 28),
-      child: Column(
+    return LayoutBuilder(builder: (context, constraints) => SingleChildScrollView(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: constraints.maxHeight),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 12),
+          child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           // Emoji dans un cercle coloré
@@ -325,7 +346,7 @@ class _SlideContent extends StatelessWidget {
 
           // Titre
           Text(
-            slide.title,
+            tr(context, slide.title),
             style: TextStyle(
               color:      context.cl.textP,
               fontSize:   26,
@@ -341,7 +362,7 @@ class _SlideContent extends StatelessWidget {
 
           // Sous-titre
           Text(
-            slide.subtitle,
+            tr(context, slide.subtitle),
             style: TextStyle(
               color:    context.cl.textS,
               fontSize: 15,
@@ -360,8 +381,10 @@ class _SlideContent extends StatelessWidget {
               .slideX(begin: -0.06, end: 0, duration: 300.ms, delay: Duration(milliseconds: 200 + e.key * 80)),
           ),
         ],
+          ),
+        ),
       ),
-    );
+    ));
   }
 }
 
@@ -463,7 +486,7 @@ class _BulletRow extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Text(
-              text,
+              tr(context, text),
               style: TextStyle(
                 color:      context.cl.textP,
                 fontSize:   14,

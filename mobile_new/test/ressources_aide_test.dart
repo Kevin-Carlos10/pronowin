@@ -29,7 +29,7 @@ void main() {
 
   /// Le corps de la section, isolé de la page.
   String sectionAide() {
-    final debut = source.indexOf('Ressources d\\\'aide');
+    final debut = source.indexOf("Ressources d'aide");
     expect(debut, greaterThan(0), reason: 'section « Ressources d\'aide » introuvable');
     final fin = source.indexOf('LegalSection', debut + 1);
     return source.substring(debut, fin == -1 ? source.length : fin);

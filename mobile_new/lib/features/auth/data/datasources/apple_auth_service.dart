@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:convert';
 import 'dart:math';
 
@@ -66,7 +67,7 @@ class AppleAuthService {
         nonce: empreinte(nonce),
       );
       final jeton = c.identityToken;
-      if (jeton == null) throw Exception('Apple n\'a pas renvoyé d\'identité. Réessaie.');
+      if (jeton == null) throw Exception(trCurrent("Apple n'a pas renvoyé d'identité. Réessaie."));
       return IdentifiantsApple(
         identityToken: jeton,
         nonce: nonce,
@@ -77,7 +78,7 @@ class AppleAuthService {
     } on SignInWithAppleAuthorizationException catch (e) {
       if (e.code == AuthorizationErrorCode.canceled) return null;
       debugPrint('[Apple] ${e.code.name} : ${e.message}');
-      throw Exception('La connexion Apple a échoué. Utilise ton adresse e-mail en attendant.');
+      throw Exception(trCurrent("La connexion Apple a échoué. Utilise ton adresse e-mail en attendant."));
     }
   }
 }

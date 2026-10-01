@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:dio/dio.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/utils/motion.dart';
@@ -72,7 +73,7 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
       builder: (ctx) => AlertDialog(
         backgroundColor: context.cl.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: Text('Réinitialiser ?',
+        title: Text(tr(context, "Réinitialiser ?"),
             style: TextStyle(color: context.cl.textP, fontWeight: FontWeight.w700)),
         content: Text(
           // Ce qu'elle taisait, et qui décide de la réponse :
@@ -82,16 +83,14 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
           //  - le sort des paris en cours, dont la mise reste engagée —
           //    sans quoi la réinitialisation la rembourserait, puis le
           //    règlement créditerait le gain entier.
-          'Ton solde repart de ton budget initial, moins les mises encore '
-          'en jeu. L\'historique des paris est conservé.\n\n'
-          'Une seule réinitialisation tous les 30 jours.',
+          tr(context, "Ton solde repart de ton budget initial, moins les mises encore en jeu. L'historique des paris est conservé.\n\nUne seule réinitialisation tous les 30 jours."),
           style: TextStyle(color: context.cl.textS, fontSize: 14)),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false),
-              child: Text('Annuler', style: TextStyle(color: context.cl.textM))),
+              child: Text(tr(context, "Annuler"), style: TextStyle(color: context.cl.textM))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Réinitialiser',
+            child:  Text(tr(context, "Réinitialiser"),
                 style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w700)),
           ),
         ],
@@ -104,16 +103,16 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
         ref.invalidate(bankrollProvider);
         ref.invalidate(bankrollStatsProvider);
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Solde réinitialisé ✅'),
+          ScaffoldMessenger.of(context).showSnackBar( SnackBar(
+            content: Text(tr(context, "Solde réinitialisé ✅")),
             backgroundColor: AppColors.success,
             behavior: SnackBarBehavior.floating,
           ));
         }
       } catch (_) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Échec de la réinitialisation. Vérifie ta connexion et réessaie.'),
+          ScaffoldMessenger.of(context).showSnackBar( SnackBar(
+            content: Text(tr(context, "Échec de la réinitialisation. Vérifie ta connexion et réessaie.")),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ));
@@ -277,14 +276,14 @@ class _BankrollView extends StatelessWidget {
           // ── Stats rapides ─────────────────────────────────────────────
           Row(children: [
             Expanded(child: _StatChip(
-              label: 'Paris',
+              label: tr(context, "Paris"),
               value: '${settled.length}',
               icon:  Icons.receipt_long_rounded,
               color: AppColors.info,
             )),
             const SizedBox(width: 10),
             Expanded(child: _StatChip(
-              label: 'Victoires',
+              label: tr(context, "Victoires"),
               value: '$wins',
               icon:  Icons.emoji_events_rounded,
               color: AppColors.success,
@@ -295,7 +294,7 @@ class _BankrollView extends StatelessWidget {
               // juste en dessous dit déjà « Taux de réussite dès le prochain
               // pari tranché » : l'étiquette et son explication ne parlaient
               // pas la même langue.
-              label: 'Taux de réussite',
+              label: tr(context, "Taux de réussite"),
               // Sous le seuil, un tiret plutôt qu'un chiffre : les comptes
               // bruts « 1 gagné / 1 perdu » restent affichés juste à côté.
               value: winRate == null ? '—' : '${winRate.toStringAsFixed(0)}%',
@@ -382,9 +381,7 @@ class _BankrollView extends StatelessWidget {
               key: const Key('bankroll-historique-tronque'),
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 10),
               child: Text(
-                '${bankroll.parisAffiches} paris les plus récents sur '
-                '${bankroll.resume!.total}. Le bilan ci-dessus porte sur '
-                'la totalité.',
+                tr(context, "{arg0} paris les plus récents sur {arg1}. Le bilan ci-dessus porte sur la totalité.", [bankroll.parisAffiches, bankroll.resume!.total]),
                 textAlign: TextAlign.center,
                 style: TextStyle(
                     color: context.cl.textM, fontSize: 11, height: 1.4),
@@ -456,17 +453,17 @@ class _BalanceChart extends StatelessWidget {
         Row(children: [
           Icon(Icons.show_chart_rounded, size: 14, color: lineColor),
           const SizedBox(width: 6),
-          Text('Résultat net cumulé',
+          Text(tr(context, "Résultat net cumulé"),
             key: const Key('bankroll-titre-courbe'),
             style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           const Spacer(),
-          Text('${settled.length} paris réglés',
+          Text(tr(context, "{arg0} paris réglés", [settled.length]),
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
         const SizedBox(height: 2),
         // Sans cette ligne, un utilisateur ayant réinitialisé sa bankroll
         // pouvait lire cette courbe comme l'histoire de son solde.
-        Text('Cumul des gains et pertes des paris tranchés, hors mises en cours',
+        Text(tr(context, "Cumul des gains et pertes des paris tranchés, hors mises en cours"),
           style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.3)),
         const SizedBox(height: 14),
         SizedBox(
@@ -561,7 +558,7 @@ class _BalanceChart extends StatelessWidget {
         Row(children: [
           Container(width: 12, height: 2, color: lineColor),
           const SizedBox(width: 4),
-          Text('Gains et pertes cumulés',
+          Text(tr(context, "Gains et pertes cumulés"),
               style: TextStyle(color: context.cl.textM, fontSize: 9)),
           const SizedBox(width: 12),
           Container(width: 12, height: 2,
@@ -573,7 +570,7 @@ class _BalanceChart extends StatelessWidget {
               )),
             )),
           const SizedBox(width: 4),
-          Text('Point de départ (0)',
+          Text(tr(context, "Point de départ (0)"),
               style: TextStyle(color: context.cl.textM, fontSize: 9)),
         ]),
       ]),
@@ -638,16 +635,14 @@ class _WeeklySummary extends StatelessWidget {
               color: AppColors.info, size: 18)),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text('Cette semaine',
+          Text(tr(context, "Cette semaine"),
             style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           const SizedBox(height: 2),
           // Sans taux affichable, on s'en tient aux comptes bruts : ils
           // informent sans prétendre à une mesure. Les pluriels suivent le
           // nombre — « 1 paris · 1 gagnés » se lisait mal.
           Text(
-            '${weekly.length} pari${weekly.length > 1 ? 's' : ''}'
-            ' · $wins gagné${wins > 1 ? 's' : ''}'
-            '${taux == null ? '' : ' · ${taux.toStringAsFixed(0)}% réussite'}',
+            tr(context, "Paris : {arg0} · Gagnés : {arg1}{arg2}", [weekly.length, wins, taux == null ? "" : tr(context, " · {arg0}% de réussite", [taux.toStringAsFixed(0)])]),
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ])),
         Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -656,7 +651,7 @@ class _WeeklySummary extends StatelessWidget {
             style: TextStyle(
               color: isGain ? AppColors.success : AppColors.error,
               fontSize: 13, fontWeight: FontWeight.w800)),
-          Text('cette semaine', style: TextStyle(color: context.cl.textM, fontSize: 9)),
+          Text(tr(context, "cette semaine"), style: TextStyle(color: context.cl.textM, fontSize: 9)),
         ]),
       ]),
     );
@@ -687,8 +682,7 @@ class _DisciplineReminder extends StatelessWidget {
       // reste ; l'injonction de s'y conformer, non. Un repère qu'on présente
       // comme un plafond se discute ; un ordre, non.
       Expanded(child: Text(
-        'La mise suggérée est un plafond, pas une consigne : '
-        'ne la dépasse pas.',
+        tr(context, "La mise suggérée est un plafond, pas une consigne : ne la dépasse pas."),
         style: TextStyle(color: context.cl.textS, fontSize: 11, height: 1.4),
       )),
     ]),
@@ -714,14 +708,14 @@ class _FilterRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      (_BetFilter.all,     'Tous',      total,   context.cl.textM),
-      (_BetFilter.pending, 'En attente', pending, AppColors.warning),
-      (_BetFilter.win,     'Gagnés',    wins,    AppColors.success),
-      (_BetFilter.loss,    'Perdus',    losses,  AppColors.error),
+      (_BetFilter.all,     tr(context, "Tous"),      total,   context.cl.textM),
+      (_BetFilter.pending, tr(context, "En attente"), pending, AppColors.warning),
+      (_BetFilter.win,     tr(context, "Gagnés"),    wins,    AppColors.success),
+      (_BetFilter.loss,    tr(context, "Perdus"),    losses,  AppColors.error),
       // Masqué tant qu'il n'y en a aucun : un onglet toujours à zéro occupe la
       // largeur d'un écran étroit pour ne rien apprendre.
       if (refunded > 0)
-        (_BetFilter.refunded, 'Remboursés', refunded, context.cl.textM),
+        (_BetFilter.refunded, tr(context, "Remboursés"), refunded, context.cl.textM),
     ];
 
     return SingleChildScrollView(
@@ -777,11 +771,11 @@ class _EmptyFilter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final label = switch (filter) {
-      _BetFilter.pending => 'Aucun pari en attente',
-      _BetFilter.win     => 'Aucun pari gagné pour l\'instant',
-      _BetFilter.loss    => 'Aucun pari perdu 🎉',
-      _BetFilter.refunded => 'Aucun pari remboursé',
-      _BetFilter.all     => 'Aucun pari enregistré',
+      _BetFilter.pending => tr(context, "Aucun pari en attente"),
+      _BetFilter.win     => tr(context, "Aucun pari gagné pour l'instant"),
+      _BetFilter.loss    => tr(context, "Aucun pari perdu 🎉"),
+      _BetFilter.refunded => tr(context, "Aucun pari remboursé"),
+      _BetFilter.all     => tr(context, "Aucun pari enregistré"),
     };
     return Container(
       width: double.infinity,
@@ -832,14 +826,9 @@ class _BalanceCard extends StatelessWidget {
     // « FCFA », « Budget total », « 10 000 », « FCFA », « +2 500 », « 125 % du
     // budget » : huit fragments dont aucun ne dit lequel est quoi, sur l'écran
     // où l'utilisateur suit son argent.
-    final annonce = 'Disponible ${montantExact(bankroll.currentBalance)} $d, '
-        'sur un budget de ${montantExact(bankroll.totalBudget)} $d. '
-        '${misesEnCours > 0
-            ? '${montantExact(misesEnCours)} $d engagés sur des paris en cours. '
-            : ''}'
-        'Résultat net réalisé : '
-        '${isProfit ? 'bénéfice' : 'perte'} de '
-        '${montantExact(resultatNet.abs())} $d.';
+    final annonce = tr(context, "Disponible {arg0} {arg1}, sur un budget de {arg2} {arg3}. {arg4}Résultat net réalisé : {arg5} de {arg6} {arg7}.", [montantExact(bankroll.currentBalance), d, montantExact(bankroll.totalBudget), d, misesEnCours > 0
+            ? tr(context, "{arg0} {arg1} engagés sur des paris en cours. ", [montantExact(misesEnCours), d])
+            : '', isProfit ? tr(context, "bénéfice") : tr(context, "perte"), montantExact(resultatNet.abs()), d]);
 
     return Semantics(
       label: annonce,
@@ -861,7 +850,7 @@ class _BalanceCard extends StatelessWidget {
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             // « Solde actuel » ne disait pas que les mises en cours en sont
             // déjà sorties. « Disponible » le dit.
-            Text('Disponible', style: TextStyle(
+            Text(tr(context, "Disponible"), style: TextStyle(
                 color: context.cl.textM, fontSize: 12, fontWeight: FontWeight.w500)),
             const SizedBox(height: 4),
             Text(
@@ -872,7 +861,7 @@ class _BalanceCard extends StatelessWidget {
           ]),
           const Spacer(),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('Budget total', style: TextStyle(color: context.cl.textM, fontSize: 11)),
+            Text(tr(context, "Budget total"), style: TextStyle(color: context.cl.textM, fontSize: 11)),
             const SizedBox(height: 2),
             Text(
               '${montantExact(bankroll.totalBudget)} $d',
@@ -883,7 +872,7 @@ class _BalanceCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 key: const Key('bankroll-engage'),
-                '${montantExact(misesEnCours)} $d engagés',
+                tr(context, "{arg0} {arg1} engagés", [montantExact(misesEnCours), d]),
                 style: TextStyle(
                     color: AppColors.warning, fontSize: 11,
                     fontWeight: FontWeight.w600)),
@@ -915,12 +904,11 @@ class _BalanceCard extends StatelessWidget {
           // carte et que celui-ci est le seul qui parle de gain ou de perte.
           Expanded(child: Text(
             key: const Key('bankroll-resultat-net'),
-            '${isProfit ? '+' : ''}${montantExact(resultatNet)} $d '
-            'de résultat net',
+            tr(context, "{arg0}{arg1} {arg2} de résultat net", [isProfit ? '+' : '', montantExact(resultatNet), d]),
             style: TextStyle(
                 color: profitColor, fontSize: 13, fontWeight: FontWeight.w700))),
           Text(
-            '${(pct * 100).toStringAsFixed(0)}% du budget',
+            tr(context, "{arg0}% du budget", [(pct * 100).toStringAsFixed(0)]),
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
       ]),
@@ -980,21 +968,17 @@ class _BetCard extends StatelessWidget {
     // Sans libellé, la carte s'annonçait « PSG – Marseille, Plus de 2.5,
     // −1 000, +1 800 » : impossible de savoir si le pari est en cours, gagné
     // ou perdu, ni ce que sont ces deux montants.
-    final etat = isPending ? 'en cours'
-               : isWin    ? 'gagné'
-               : isPush   ? 'remboursé'
-               :            'perdu';
+    final etat = isPending ? tr(context, "en cours")
+               : isWin    ? tr(context, "gagné")
+               : isPush   ? tr(context, "remboursé")
+               :            tr(context, "perdu");
     final montant = bet.profit != null
-        ? '${bet.profit! >= 0 ? 'Gain' : 'Perte'} de '
-          '${montantExact(bet.profit!.abs())}'
-        : 'Gain potentiel ${montantExact(bet.potentialGain)}';
+        ? tr(context, "{arg0} de {arg1}", [bet.profit! >= 0 ? tr(context, "Gain") : tr(context, "Perte"), montantExact(bet.profit!.abs())])
+        : tr(context, "Gain potentiel {arg0}", [montantExact(bet.potentialGain)]);
 
     return Semantics(
       button: true,
-      label: '${bet.homeTeam} contre ${bet.awayTeam}. '
-             '${bet.displayPredictionLabel}. Pari $etat. '
-             'Mise ${montantExact(bet.stakedAmount)}. $montant.'
-             '${bet.aConfirmer ? ' Mise à confirmer.' : ''}',
+      label: tr(context, "{arg0} contre {arg1}. {arg2}. Pari {arg3}. Mise {arg4}. {arg5}.{arg6}", [bet.homeTeam, bet.awayTeam, bet.displayPredictionLabel, etat, montantExact(bet.stakedAmount), montant, bet.aConfirmer ? tr(context, " Mise à confirmer.") : ""]),
       excludeSemantics: true,
       child: GestureDetector(
       onTap: () => context.push('/bankroll/bet/${bet.id}', extra: bet),
@@ -1025,7 +1009,7 @@ class _BetCard extends StatelessWidget {
             // M1 : la question attend dans le détail du pari.
             if (bet.aConfirmer) ...[
               const SizedBox(height: 4),
-              Text('Mise à confirmer',
+              Text(tr(context, "Mise à confirmer"),
                 style: TextStyle(color: AppColors.primaryBouton, fontSize: 11,
                     fontWeight: FontWeight.w700)),
             ],
@@ -1094,7 +1078,7 @@ class _SetupView extends StatelessWidget {
             child: const Icon(Icons.savings_rounded,
                 color: AppColors.success, size: 44)),
           const SizedBox(height: 24),
-          Text('Configure ta bankroll', style: TextStyle(
+          Text(tr(context, "Configure ta bankroll"), style: TextStyle(
               color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
           const SizedBox(height: 10),
           // Le mot est expliqué là où il apparaît pour la première fois.
@@ -1110,10 +1094,7 @@ class _SetupView extends StatelessWidget {
           // trop que le « Kelly simplifié » déjà retiré du service — et la
           // liste juste en dessous, elle, le disait déjà correctement.
           Text(
-            "Ta bankroll, c'est l'argent que tu réserves aux paris. "
-            "Tu fixes ce budget une fois, et PronoWin te suggère ensuite "
-            "une part à miser — plus large quand la confiance de "
-            "l'analyste est élevée — puis suit ce qu'il devient.",
+            tr(context, "Ta bankroll, c'est l'argent que tu réserves aux paris. Tu fixes ce budget une fois, et PronoWin te suggère ensuite une part à miser — plus large quand la confiance de l'analyste est élevée — puis suit ce qu'il devient."),
             style: TextStyle(color: context.cl.textS, fontSize: 14, height: 1.55),
             textAlign: TextAlign.center),
           const SizedBox(height: 32),
@@ -1131,7 +1112,7 @@ class _SetupView extends StatelessWidget {
                 boxShadow: [BoxShadow(
                   color: AppColors.success.withValues(alpha: 0.4),
                   blurRadius: 16, offset: const Offset(0, 6))]),
-              child: const Center(child: Text('Définir mon budget',
+              child:  Center(child: Text(tr(context, "Définir mon budget"),
                 style: TextStyle(color: Colors.white, fontSize: 16,
                     fontWeight: FontWeight.w700))),
             ),
@@ -1144,14 +1125,14 @@ class _SetupView extends StatelessWidget {
   }
 
   Widget _features(BuildContext context) {
-    const items = [
-      (Icons.bolt_rounded,       'Mises calculées selon ton solde et la confiance'),
+    final items = [
+      (Icons.bolt_rounded,       tr(context, "Mises calculées selon ton solde et la confiance")),
       // Pas « en temps réel » : la synchronisation tourne toutes les 15 min.
       // Les scores, eux, se rafraîchissent toutes les 30–45 s — d'où la
       // formulation différente sur l'écran d'onboarding des résultats.
-      (Icons.auto_graph_rounded, 'Rentabilité et taux de réussite mis à jour à chaque résultat'),
-      (Icons.update_rounded,     'Solde mis à jour automatiquement à chaque résultat'),
-      (Icons.shield_rounded,     'Rappel de discipline après chaque mise confirmée'),
+      (Icons.auto_graph_rounded, tr(context, "Rentabilité et taux de réussite mis à jour à chaque résultat")),
+      (Icons.update_rounded,     tr(context, "Solde mis à jour automatiquement à chaque résultat")),
+      (Icons.shield_rounded,     tr(context, "Rappel de discipline après chaque mise confirmée")),
     ];
     return Column(children: items.map((i) => Padding(
       padding: const EdgeInsets.only(bottom: 12),
@@ -1217,7 +1198,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
   Future<void> _save() async {
     final amount = double.tryParse(_ctrl.text.replaceAll(' ', ''));
     if (amount == null || amount < 100) {
-      setState(() => _error = 'Entrez un montant valide (min 100)');
+      setState(() => _error = tr(context, "Entrez un montant valide (min 100)"));
       return;
     }
     setState(() { _loading = true; _error = null; });
@@ -1232,7 +1213,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
       // Le message du serveur, pas le texte de l'exception Dio.
       final message = e is DioException ? (e.response?.data?['message'] as String?) : null;
       setState(() {
-        _error = message ?? 'Budget non enregistré. Vérifie ta connexion et réessaie.';
+        _error = message ?? tr(context, "Budget non enregistré. Vérifie ta connexion et réessaie.");
         _loading = false;
       });
     }
@@ -1253,11 +1234,11 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
             borderRadius: BorderRadius.circular(2))),
         const SizedBox(height: 18),
 
-        Text(widget.existing == null ? 'Définir ton budget' : 'Modifier le budget',
+        Text(widget.existing == null ? tr(context, "Définir ton budget") : tr(context, "Modifier le budget"),
           style: TextStyle(color: context.cl.textP, fontSize: 17,
               fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
-        Text('Ce montant sert de référence pour calculer les mises suggérées.',
+        Text(tr(context, "Ce montant sert de référence pour calculer les mises suggérées."),
           style: TextStyle(color: context.cl.textM, fontSize: 12),
           textAlign: TextAlign.center),
 
@@ -1265,7 +1246,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
 
         // Devise d'abord pour adapter les presets
         Row(children: [
-          Text('Devise :', style: TextStyle(color: context.cl.textM, fontSize: 13)),
+          Text(tr(context, "Devise :"), style: TextStyle(color: context.cl.textM, fontSize: 13)),
           const SizedBox(width: 12),
           ...(_deviseFixee ? [_currency] : _currencies).map((c) => GestureDetector(
             onTap: _deviseFixee ? null : () {
@@ -1295,7 +1276,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
           const SizedBox(height: 6),
           Align(
             alignment: Alignment.centerLeft,
-            child: Text('La devise est fixée par tes paris enregistrés.',
+            child: Text(tr(context, "La devise est fixée par tes paris enregistrés."),
               style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
           ),
         ],
@@ -1309,7 +1290,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
           style:        TextStyle(color: context.cl.textP, fontSize: 18,
               fontWeight: FontWeight.w700),
           decoration: InputDecoration(
-            hintText:  _currency == 'EUR' ? 'Ex: 50' : 'Ex: 50 000',
+            hintText:  _currency == 'EUR' ? tr(context, "Ex: 50") : tr(context, "Ex: 50 000"),
             hintStyle: TextStyle(color: context.cl.textM, fontWeight: FontWeight.w400),
             prefixIcon: Icon(Icons.account_balance_wallet_rounded,
                 color: AppColors.success, size: 20),
@@ -1366,7 +1347,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
                 blurRadius: 12, offset: const Offset(0, 5))]),
             child: Center(child: _loading
                 ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
-                : const Text('Enregistrer', style: TextStyle(
+                :  Text(tr(context, "Enregistrer"), style: TextStyle(
                     color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700))),
           ),
         ),
@@ -1388,14 +1369,13 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
               Expanded(child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Réinitialiser le solde',
+                  Text(tr(context, "Réinitialiser le solde"),
                     style: TextStyle(
                       color: context.cl.textS, fontSize: 13.5,
                       fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
                   Text(
-                    'Repart du budget, moins les mises en jeu. '
-                    'Une fois tous les 30 jours.',
+                    tr(context, "Repart du budget, moins les mises en jeu. Une fois tous les 30 jours."),
                     style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
                 ])),
             ]),
@@ -1473,11 +1453,11 @@ class _ErrorState extends StatelessWidget {
     children: [
       Icon(Icons.wifi_off_rounded, color: context.cl.textM, size: 42),
       const SizedBox(height: 12),
-      Text('Impossible de charger', style: TextStyle(color: context.cl.textP,
+      Text(tr(context, "Impossible de charger"), style: TextStyle(color: context.cl.textP,
           fontWeight: FontWeight.w700)),
       const SizedBox(height: 16),
       TextButton(onPressed: onRetry,
-          child: const Text('Réessayer', style: TextStyle(color: AppColors.success))),
+          child:  Text(tr(context, "Réessayer"), style: TextStyle(color: AppColors.success))),
     ],
   ));
 }
