@@ -31,14 +31,14 @@ class _ProofBand extends ConsumerWidget {
           color: context.cl.surface,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
-              color: (positif ? AppColors.success : context.cl.border)
+              color: (positif ? context.cl.success : context.cl.border)
                   .withValues(alpha: positif ? 0.35 : 1),
               width: 0.8),
         ),
         child: Row(
           children: [
             Icon(Icons.verified_rounded,
-                color: positif ? AppColors.success : context.cl.textM, size: 17),
+                color: positif ? context.cl.success : context.cl.textM, size: 17),
             const SizedBox(width: 9),
             Expanded(
               child: RichText(
@@ -58,7 +58,7 @@ class _ProofBand extends ConsumerWidget {
                       text: '${positif ? '+' : ''}${roi.toStringAsFixed(1)} %',
                       style: TextStyle(
                           color:
-                              positif ? AppColors.success : AppColors.error,
+                              positif ? context.cl.success : context.cl.error,
                           fontWeight: FontWeight.w800),
                     ),
                   ],
@@ -109,7 +109,7 @@ class _YesterdayRecap extends ConsumerWidget {
         child: Row(
           children: [
             Icon(tout ? Icons.emoji_events_rounded : Icons.history_rounded,
-                color: tout ? AppColors.success : context.cl.textM, size: 17),
+                color: tout ? context.cl.success : context.cl.textM, size: 17),
             const SizedBox(width: 9),
             Expanded(
               child: Text.rich(
@@ -121,8 +121,8 @@ class _YesterdayRecap extends ConsumerWidget {
                       text: tr(context, "{arg0} sur {arg1}", [gagnes, regles.length]),
                       style: TextStyle(
                           color: gagnes * 2 >= regles.length
-                              ? AppColors.success
-                              : AppColors.error,
+                              ? context.cl.success
+                              : context.cl.error,
                           fontWeight: FontWeight.w800),
                     ),
                      TextSpan(text: tr(context, " pronostic")),

@@ -112,6 +112,7 @@ void main() async {
   bool  onboardingDone = prefs.getBool('onboarding_done') ?? false;
   final savedLanguage = AppStrings.languePreferee(prefs.getString('settings_lang'));
   AppStrings.setCurrentLanguage(savedLanguage);
+  final savedTheme = themeDepuisPreference(prefs.getString('settings_theme'));
 
   // Utilisateur existant : token présent mais onboarding jamais vu
   // → bypasser silencieusement (il connaît déjà l'app)
@@ -146,6 +147,7 @@ void main() async {
   final container = ProviderContainer(
     overrides: [
       initialLanguageProvider.overrideWithValue(savedLanguage),
+      initialThemeModeProvider.overrideWithValue(savedTheme),
       onboardingDoneProvider.overrideWith((ref) => onboardingDone),
     ],
   );
@@ -332,11 +334,22 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
       // contrainte — ont dégagé les deux crans supplémentaires.
       builder: (context, child) {
         final systeme = MediaQuery.textScalerOf(context);
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(
-            textScaler: systeme.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.8),
+        // Icônes de la barre d'état selon le thème réel. Elles étaient fixées
+        // en blanc au démarrage : invisibles sur les écrans clairs sans
+        // AppBar. Une AppBar pose toujours sa propre région, qui l'emporte.
+        final sombre = Theme.of(context).brightness == Brightness.dark;
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: SystemUiOverlayStyle(
+            statusBarColor:          Colors.transparent,
+            statusBarIconBrightness: sombre ? Brightness.light : Brightness.dark,
+            statusBarBrightness:     sombre ? Brightness.dark : Brightness.light,
           ),
-          child: child!,
+          child: MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: systeme.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.8),
+            ),
+            child: child!,
+          ),
         );
       },
     );

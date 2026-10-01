@@ -62,7 +62,7 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar( SnackBar(
           content: Text(tr(context, "Code PIN activé avec succès ✅")),
-          backgroundColor: AppColors.success,
+          backgroundColor: AppColors.fondSucces,
           behavior: SnackBarBehavior.floating,
         ));
         retourOuAller(context, repli: _repli);
@@ -130,7 +130,7 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
         if (_error.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(_error, style: const TextStyle(color: AppColors.error, fontSize: 13),
+            child: Text(_error, style: TextStyle(color: context.cl.error, fontSize: 13),
               textAlign: TextAlign.center),
           ),
         const SizedBox(height: 32),

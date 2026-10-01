@@ -227,7 +227,7 @@ class _CoteCliquable extends StatelessWidget {
     // Une cote absente vaut 0 : l'afficher « 0.00 » et la rendre cliquable
     // reviendrait à promettre un pari qui n'existe pas.
     final absente = valeur <= 0;
-    final accent = recommandee ? AppColors.success : context.cl.border;
+    final accent = recommandee ? context.cl.success : context.cl.border;
 
     return Material(
       color: Colors.transparent,
@@ -254,7 +254,7 @@ class _CoteCliquable extends StatelessWidget {
                   color: accent,
                   width: recommandee ? 1.2 : 0.5),
               color: recommandee
-                  ? AppColors.success.withValues(alpha: 0.08)
+                  ? context.cl.success.withValues(alpha: 0.08)
                   : Colors.transparent,
             ),
             child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -269,7 +269,7 @@ class _CoteCliquable extends StatelessWidget {
                 style: TextStyle(
                   color: absente
                       ? context.cl.textM
-                      : (recommandee ? AppColors.success : context.cl.textP),
+                      : (recommandee ? context.cl.success : context.cl.textP),
                   fontSize: 15,
                   fontWeight: FontWeight.w800,
                 ),

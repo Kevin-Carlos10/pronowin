@@ -55,9 +55,9 @@ class ConfirmationPremiumActive extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.success.withValues(alpha: 0.08),
+          color: context.cl.success.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.success.withValues(alpha: 0.25))),
+          border: Border.all(color: context.cl.success.withValues(alpha: 0.25))),
         child: Text(
           tr(context, "Actif jusqu'au {arg0}, renouvelé automatiquement. Résiliable à tout moment depuis les réglages de ton compte store.",
             [AppDateFormatter.transactionDate(expireLe.toLocal())]),

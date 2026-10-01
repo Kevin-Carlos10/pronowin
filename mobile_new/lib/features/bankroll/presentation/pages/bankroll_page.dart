@@ -91,7 +91,7 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child:  Text(tr(context, "Réinitialiser"),
-                style: TextStyle(color: AppColors.error, fontWeight: FontWeight.w700)),
+                style: TextStyle(color: context.cl.error, fontWeight: FontWeight.w700)),
           ),
         ],
       ),
@@ -105,7 +105,7 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar( SnackBar(
             content: Text(tr(context, "Solde réinitialisé ✅")),
-            backgroundColor: AppColors.success,
+            backgroundColor: AppColors.fondSucces,
             behavior: SnackBarBehavior.floating,
           ));
         }
@@ -113,7 +113,7 @@ class _BankrollPageState extends ConsumerState<BankrollPage> {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar( SnackBar(
             content: Text(tr(context, "Échec de la réinitialisation. Vérifie ta connexion et réessaie.")),
-            backgroundColor: AppColors.error,
+            backgroundColor: AppColors.fondErreur,
             behavior: SnackBarBehavior.floating,
           ));
         }
@@ -222,11 +222,11 @@ class _BankrollView extends StatelessWidget {
           Container(
             width: 32, height: 32,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.success, Color(0xFF34D399)],
+              gradient: LinearGradient(
+                colors: [context.cl.success, Color(0xFF34D399)],
                 begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(9),
-              boxShadow: [BoxShadow(color: AppColors.success.withValues(alpha: 0.35),
+              boxShadow: [BoxShadow(color: context.cl.success.withValues(alpha: 0.35),
                   blurRadius: 8, offset: const Offset(0, 3))]),
             child: const Icon(Icons.account_balance_wallet_rounded,
                 color: Colors.white, size: 17)),
@@ -234,9 +234,9 @@ class _BankrollView extends StatelessWidget {
           RichText(text: TextSpan(
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
                 color: context.cl.textP),
-            children: const [
+            children: [
               TextSpan(text: 'Bank'),
-              TextSpan(text: 'roll', style: TextStyle(color: AppColors.success)),
+              TextSpan(text: 'roll', style: TextStyle(color: context.cl.success)),
             ],
           )),
           const Spacer(),
@@ -279,14 +279,14 @@ class _BankrollView extends StatelessWidget {
               label: tr(context, "Paris"),
               value: '${settled.length}',
               icon:  Icons.receipt_long_rounded,
-              color: AppColors.info,
+              color: context.cl.info,
             )),
             const SizedBox(width: 10),
             Expanded(child: _StatChip(
               label: tr(context, "Victoires"),
               value: '$wins',
               icon:  Icons.emoji_events_rounded,
-              color: AppColors.success,
+              color: context.cl.success,
             )),
             const SizedBox(width: 10),
             Expanded(child: _StatChip(
@@ -301,7 +301,7 @@ class _BankrollView extends StatelessWidget {
               icon:  Icons.trending_up_rounded,
               color: winRate == null
                   ? context.cl.textM
-                  : (winRate >= 50 ? AppColors.success : AppColors.warning),
+                  : (winRate >= 50 ? context.cl.success : context.cl.warning),
             )),
           ]).animate(delay: 100.ms).fadeIn(duration: 300.ms),
 
@@ -441,7 +441,7 @@ class _BalanceChart extends StatelessWidget {
     final maxY = haute + marge;
 
     final isProfit  = running >= 0;
-    final lineColor = isProfit ? AppColors.success : AppColors.error;
+    final lineColor = isProfit ? context.cl.success : context.cl.error;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 14, 16, 8),
@@ -629,10 +629,10 @@ class _WeeklySummary extends StatelessWidget {
         Container(
           width: 38, height: 38,
           decoration: BoxDecoration(
-            color: AppColors.info.withValues(alpha: 0.12),
+            color: context.cl.info.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10)),
-          child: const Icon(Icons.calendar_view_week_rounded,
-              color: AppColors.info, size: 18)),
+          child: Icon(Icons.calendar_view_week_rounded,
+              color: context.cl.info, size: 18)),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(tr(context, "Cette semaine"),
@@ -649,7 +649,7 @@ class _WeeklySummary extends StatelessWidget {
           Text(
             '${isGain ? '+' : ''}${montantExact(profit)} ${nomDevise(bankroll.currency)}',
             style: TextStyle(
-              color: isGain ? AppColors.success : AppColors.error,
+              color: isGain ? context.cl.success : context.cl.error,
               fontSize: 13, fontWeight: FontWeight.w800)),
           Text(tr(context, "cette semaine"), style: TextStyle(color: context.cl.textM, fontSize: 9)),
         ]),
@@ -664,11 +664,11 @@ class _DisciplineReminder extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
     decoration: BoxDecoration(
-      color: AppColors.warning.withValues(alpha: 0.06),
+      color: context.cl.warning.withValues(alpha: 0.06),
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: AppColors.warning.withValues(alpha: 0.2), width: 0.8)),
+      border: Border.all(color: context.cl.warning.withValues(alpha: 0.2), width: 0.8)),
     child: Row(children: [
-      const Icon(Icons.shield_rounded, color: AppColors.warning, size: 15),
+      Icon(Icons.shield_rounded, color: context.cl.warning, size: 15),
       const SizedBox(width: 8),
       // Disait « Ne mise jamais plus sur le bookmaker. » Le conseil reste —
       // c'est un garde-fou, et le retirer pour éviter un mot serait un
@@ -709,9 +709,9 @@ class _FilterRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final items = [
       (_BetFilter.all,     tr(context, "Tous"),      total,   context.cl.textM),
-      (_BetFilter.pending, tr(context, "En attente"), pending, AppColors.warning),
-      (_BetFilter.win,     tr(context, "Gagnés"),    wins,    AppColors.success),
-      (_BetFilter.loss,    tr(context, "Perdus"),    losses,  AppColors.error),
+      (_BetFilter.pending, tr(context, "En attente"), pending, context.cl.warning),
+      (_BetFilter.win,     tr(context, "Gagnés"),    wins,    context.cl.success),
+      (_BetFilter.loss,    tr(context, "Perdus"),    losses,  context.cl.error),
       // Masqué tant qu'il n'y en a aucun : un onglet toujours à zéro occupe la
       // largeur d'un écran étroit pour ne rien apprendre.
       if (refunded > 0)
@@ -808,7 +808,7 @@ class _BalanceCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isProfit    = resultatNet >= 0;
-    final profitColor = isProfit ? AppColors.success : AppColors.error;
+    final profitColor = isProfit ? context.cl.success : context.cl.error;
 
     // Le capital, c'est ce qui est disponible **plus** ce qui est en jeu.
     //
@@ -838,12 +838,12 @@ class _BalanceCard extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.success.withValues(alpha: 0.15),
-            AppColors.success.withValues(alpha: 0.04),
+            context.cl.success.withValues(alpha: 0.15),
+            context.cl.success.withValues(alpha: 0.04),
           ],
           begin: Alignment.topLeft, end: Alignment.bottomRight),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.success.withValues(alpha: 0.25), width: 0.8),
+        border: Border.all(color: context.cl.success.withValues(alpha: 0.25), width: 0.8),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
@@ -874,7 +874,7 @@ class _BalanceCard extends StatelessWidget {
                 key: const Key('bankroll-engage'),
                 tr(context, "{arg0} {arg1} engagés", [montantExact(misesEnCours), d]),
                 style: TextStyle(
-                    color: AppColors.warning, fontSize: 11,
+                    color: context.cl.warning, fontSize: 11,
                     fontWeight: FontWeight.w600)),
             ],
           ]),
@@ -889,9 +889,9 @@ class _BalanceCard extends StatelessWidget {
             builder: (_, v, _) => LinearProgressIndicator(
               value: v,
               minHeight: 6,
-              backgroundColor: AppColors.success.withValues(alpha: 0.12),
+              backgroundColor: context.cl.success.withValues(alpha: 0.12),
               valueColor: AlwaysStoppedAnimation<Color>(
-                  pct >= 1 ? AppColors.success : AppColors.warning),
+                  pct >= 1 ? context.cl.success : context.cl.warning),
             ),
           ),
         ),
@@ -956,10 +956,10 @@ class _BetCard extends StatelessWidget {
     final isPending = bet.result == null;
     final isWin     = bet.result == 'WIN';
     final isPush    = bet.result == 'PUSH';
-    final color     = isPending ? AppColors.warning
-                    : isWin    ? AppColors.success
-                    : isPush   ? AppColors.info
-                    :             AppColors.error;
+    final color     = isPending ? context.cl.warning
+                    : isWin    ? context.cl.success
+                    : isPush   ? context.cl.info
+                    :             context.cl.error;
     final icon      = isPending ? Icons.hourglass_empty_rounded
                     : isWin    ? Icons.check_circle_rounded
                     : isPush   ? Icons.replay_rounded
@@ -1024,7 +1024,7 @@ class _BetCard extends StatelessWidget {
               Text(
                 '${bet.profit! >= 0 ? '+' : ''}${montantExact(bet.profit!)}',
                 style: TextStyle(
-                  color: bet.profit! >= 0 ? AppColors.success : AppColors.error,
+                  color: bet.profit! >= 0 ? context.cl.success : context.cl.error,
                   fontSize: 12, fontWeight: FontWeight.w700))
             else
               Text('→ ${montantExact(bet.potentialGain)}',
@@ -1050,8 +1050,8 @@ class _SetupView extends StatelessWidget {
           Container(
             width: 32, height: 32,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.success, Color(0xFF34D399)]),
+              gradient: LinearGradient(
+                colors: [context.cl.success, Color(0xFF34D399)]),
               borderRadius: BorderRadius.circular(9)),
             child: const Icon(Icons.account_balance_wallet_rounded,
                 color: Colors.white, size: 17)),
@@ -1059,9 +1059,9 @@ class _SetupView extends StatelessWidget {
           RichText(text: TextSpan(
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
                 color: context.cl.textP),
-            children: const [
+            children: [
               TextSpan(text: 'Bank'),
-              TextSpan(text: 'roll', style: TextStyle(color: AppColors.success)),
+              TextSpan(text: 'roll', style: TextStyle(color: context.cl.success)),
             ],
           )),
         ]),
@@ -1072,11 +1072,11 @@ class _SetupView extends StatelessWidget {
           Container(
             width: 90, height: 90,
             decoration: BoxDecoration(
-              color:  AppColors.success.withValues(alpha: 0.1),
+              color:  context.cl.success.withValues(alpha: 0.1),
               shape:  BoxShape.circle,
-              border: Border.all(color: AppColors.success.withValues(alpha: 0.3))),
-            child: const Icon(Icons.savings_rounded,
-                color: AppColors.success, size: 44)),
+              border: Border.all(color: context.cl.success.withValues(alpha: 0.3))),
+            child: Icon(Icons.savings_rounded,
+                color: context.cl.success, size: 44)),
           const SizedBox(height: 24),
           Text(tr(context, "Configure ta bankroll"), style: TextStyle(
               color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
@@ -1106,11 +1106,11 @@ class _SetupView extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 16),
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [AppColors.success, Color(0xFF059669)]),
+                gradient: LinearGradient(
+                  colors: [context.cl.success, Color(0xFF059669)]),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [BoxShadow(
-                  color: AppColors.success.withValues(alpha: 0.4),
+                  color: context.cl.success.withValues(alpha: 0.4),
                   blurRadius: 16, offset: const Offset(0, 6))]),
               child:  Center(child: Text(tr(context, "Définir mon budget"),
                 style: TextStyle(color: Colors.white, fontSize: 16,
@@ -1137,7 +1137,7 @@ class _SetupView extends StatelessWidget {
     return Column(children: items.map((i) => Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(children: [
-        Icon(i.$1, color: AppColors.success, size: 18),
+        Icon(i.$1, color: context.cl.success, size: 18),
         const SizedBox(width: 12),
         Expanded(child: Text(i.$2,
           style: TextStyle(color: context.cl.textS, fontSize: 13))),
@@ -1259,14 +1259,14 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
                 color:  _currency == c
-                    ? AppColors.success.withValues(alpha: 0.15)
+                    ? context.cl.success.withValues(alpha: 0.15)
                     : Colors.transparent,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                  color: _currency == c ? AppColors.success : context.cl.border,
+                  color: _currency == c ? context.cl.success : context.cl.border,
                   width: 0.8)),
               child: Text(libelleChoixDevise(c), style: TextStyle(
-                color:      _currency == c ? AppColors.success : context.cl.textM,
+                color:      _currency == c ? context.cl.success : context.cl.textM,
                 fontSize:   12,
                 fontWeight: _currency == c ? FontWeight.w700 : FontWeight.w400)),
             ),
@@ -1293,16 +1293,16 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
             hintText:  _currency == 'EUR' ? tr(context, "Ex: 50") : tr(context, "Ex: 50 000"),
             hintStyle: TextStyle(color: context.cl.textM, fontWeight: FontWeight.w400),
             prefixIcon: Icon(Icons.account_balance_wallet_rounded,
-                color: AppColors.success, size: 20),
+                color: context.cl.success, size: 20),
             suffixText:  _currency,
-            suffixStyle: const TextStyle(color: AppColors.success, fontWeight: FontWeight.w700),
+            suffixStyle: TextStyle(color: context.cl.success, fontWeight: FontWeight.w700),
             filled: true, fillColor: context.cl.bg,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(color: context.cl.border)),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
-              borderSide: const BorderSide(color: AppColors.success, width: 1.5)),
+              borderSide: BorderSide(color: context.cl.success, width: 1.5)),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: BorderSide(color: context.cl.border)),
@@ -1317,18 +1317,18 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
             decoration: BoxDecoration(
-              color:  AppColors.success.withValues(alpha: 0.08),
+              color:  context.cl.success.withValues(alpha: 0.08),
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: AppColors.success.withValues(alpha: 0.3))),
+              border: Border.all(color: context.cl.success.withValues(alpha: 0.3))),
             child: Text(montantExact(p.toDouble()),
-              style: const TextStyle(color: AppColors.success, fontSize: 12,
+              style: TextStyle(color: context.cl.success, fontSize: 12,
                   fontWeight: FontWeight.w600)),
           ),
         )).toList()),
 
         if (_error != null) ...[
           const SizedBox(height: 10),
-          Text(_error!, style: const TextStyle(color: AppColors.error, fontSize: 12)),
+          Text(_error!, style: TextStyle(color: context.cl.error, fontSize: 12)),
         ],
 
         const SizedBox(height: 20),
@@ -1339,11 +1339,11 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
             duration: const Duration(milliseconds: 200),
             width: double.infinity, height: 52,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [AppColors.success, Color(0xFF059669)]),
+              gradient: LinearGradient(
+                  colors: [context.cl.success, Color(0xFF059669)]),
               borderRadius: BorderRadius.circular(14),
               boxShadow: [BoxShadow(
-                color: AppColors.success.withValues(alpha: 0.35),
+                color: context.cl.success.withValues(alpha: 0.35),
                 blurRadius: 12, offset: const Offset(0, 5))]),
             child: Center(child: _loading
                 ? const CircularProgressIndicator(color: Colors.white, strokeWidth: 2)
@@ -1457,7 +1457,7 @@ class _ErrorState extends StatelessWidget {
           fontWeight: FontWeight.w700)),
       const SizedBox(height: 16),
       TextButton(onPressed: onRetry,
-          child:  Text(tr(context, "Réessayer"), style: TextStyle(color: AppColors.success))),
+          child:  Text(tr(context, "Réessayer"), style: TextStyle(color: context.cl.success))),
     ],
   ));
 }

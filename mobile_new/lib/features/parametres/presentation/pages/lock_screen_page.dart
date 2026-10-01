@@ -8,6 +8,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../data/pin_store.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
+import '../../../../shared/widgets/logotype_pronowin.dart';
 
 class LockScreenPage extends ConsumerStatefulWidget {
   final String redirectTo;
@@ -110,13 +111,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
             ),
             const SizedBox(height: 20),
 
-            RichText(text: TextSpan(
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-              children: [
-                TextSpan(text: 'Prono', style: TextStyle(color: context.cl.textP)),
-                const TextSpan(text: 'Win',   style: TextStyle(color: AppColors.primary)),
-              ],
-            )),
+            const LogotypePronoWin(taille: 24),
             SizedBox(height: 8),
             Text(tr(context, "Entrez ton code PIN"), style: TextStyle(
               color: context.cl.textS, fontSize: 14)),
@@ -131,11 +126,11 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
                 width: filled ? 18 : 14,
                 height: filled ? 18 : 14,
                 decoration: BoxDecoration(
-                  color: _error.isNotEmpty ? AppColors.error
+                  color: _error.isNotEmpty ? context.cl.error
                     : (filled ? AppColors.primary : Colors.transparent),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: _error.isNotEmpty ? AppColors.error
+                    color: _error.isNotEmpty ? context.cl.error
                       : (filled ? AppColors.primary : context.cl.borderS),
                     width: 2),
                 ),
@@ -149,7 +144,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
               child: Text(
                 _error,
                 style: TextStyle(
-                  color: blocked ? AppColors.error : AppColors.warning,
+                  color: blocked ? context.cl.error : context.cl.warning,
                   fontSize: 13,
                 ),
                 textAlign: TextAlign.center,
@@ -250,10 +245,10 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
   Widget _buildBlockedView() => Column(
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
-      const Icon(Icons.lock_outlined, color: AppColors.error, size: 56),
+      Icon(Icons.lock_outlined, color: context.cl.error, size: 56),
       const SizedBox(height: 16),
       Text(tr(context, "Compte verrouillé"), style: TextStyle(
-        color: AppColors.error, fontSize: 18, fontWeight: FontWeight.w700)),
+        color: context.cl.error, fontSize: 18, fontWeight: FontWeight.w700)),
       SizedBox(height: 8),
       Text(tr(context, "Trop de tentatives incorrectes.\nReconnecte-toi pour continuer."),
         style: TextStyle(color: context.cl.textS, fontSize: 13),
@@ -261,7 +256,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
       const SizedBox(height: 24),
       ElevatedButton(
         onPressed: () => context.go('/auth/email'),
-        style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
+        style: ElevatedButton.styleFrom(backgroundColor: AppColors.fondErreur),
         child:  Text(tr(context, "Se reconnecter")),
       ),
     ],

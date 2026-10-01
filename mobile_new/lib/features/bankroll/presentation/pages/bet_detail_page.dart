@@ -20,10 +20,10 @@ class BetDetailPage extends StatelessWidget {
     final isPush    = bet.result == 'PUSH';
     final cl        = context.cl;
 
-    final statusColor = isPending ? AppColors.warning
-                      : isWin    ? AppColors.success
-                      : isPush   ? AppColors.info
-                      :             AppColors.error;
+    final statusColor = isPending ? context.cl.warning
+                      : isWin    ? context.cl.success
+                      : isPush   ? context.cl.info
+                      :             context.cl.error;
     final statusLabel = isPending ? tr(context, "En attente")
                       : isWin    ? tr(context, "Gagné")
                       : isPush   ? tr(context, "Remboursé")
@@ -131,7 +131,7 @@ class BetDetailPage extends StatelessWidget {
                 // échelle, celle qui fait déjà autorité ailleurs.
                 _Chip(
                   label: tr(context, "Confiance  {arg0}", [MatchEntity.confidenceDisplay(bet.confidenceScore)]),
-                  color: AppColors.info,
+                  color: context.cl.info,
                 ),
               ]),
             ]),
@@ -190,17 +190,17 @@ class BetDetailPage extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.12),
+                    color: context.cl.success.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: AppColors.success.withValues(alpha: 0.35), width: 0.8)),
+                      color: context.cl.success.withValues(alpha: 0.35), width: 0.8)),
                   child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                     Text(tr(context, "dont bénéfice"),
                       style: TextStyle(color: cl.textM, fontSize: 9.5,
                           fontWeight: FontWeight.w600)),
                     const SizedBox(height: 2),
                     Text(montantSigne(bet.potentialGain - bet.stakedAmount),
-                      style: const TextStyle(color: AppColors.success,
+                      style: TextStyle(color: context.cl.success,
                           fontSize: 16, fontWeight: FontWeight.w900)),
                   ]),
                 ),
@@ -208,8 +208,8 @@ class BetDetailPage extends StatelessWidget {
               if (bet.profit != null) ...[
                 const SizedBox(height: 12),
                 Builder(builder: (_) {
-                  final profitColor = isPush ? AppColors.info
-                    : bet.profit! >= 0 ? AppColors.success : AppColors.error;
+                  final profitColor = isPush ? context.cl.info
+                    : bet.profit! >= 0 ? context.cl.success : context.cl.error;
                   final profitIcon = isPush ? Icons.replay_rounded
                     : bet.profit! >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded;
                   final profitText = isPush

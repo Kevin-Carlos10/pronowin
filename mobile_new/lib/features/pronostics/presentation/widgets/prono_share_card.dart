@@ -5,6 +5,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../domain/entities/match_entity.dart';
+import '../../../../shared/widgets/logotype_pronowin.dart';
 
 /// Carte stylisée PronoWin destinée à être capturée en image puis partagée.
 /// Dimensions logiques : 360 × 560 px → 1080 × 1680 px à pixelRatio 3.
@@ -27,7 +28,8 @@ class PronoShareCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final result = match.result;
 
-    return SizedBox(
+    // L'image partagée est toujours sombre, quel que soit le thème.
+    return SurfaceSombre(builder: (context) => SizedBox(
       width:  360,
       height: 560,
       child: Stack(children: [
@@ -77,19 +79,8 @@ class PronoShareCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  RichText(
-                    text: const TextSpan(
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                      ),
-                      children: [
-                        TextSpan(text: 'Prono', style: TextStyle(color: Colors.white)),
-                        TextSpan(text: 'Win',   style: TextStyle(color: AppColors.primary)),
-                      ],
-                    ),
-                  ),
+                  // L'image partagée est toujours sombre, quel que soit le thème.
+                  const LogotypePronoWin(taille: 22, surFondSombre: true),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
@@ -144,12 +135,12 @@ class PronoShareCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                           decoration: BoxDecoration(
                             color: match.status == MatchStatus.live
-                                ? AppColors.error.withValues(alpha: 0.15)
+                                ? context.cl.error.withValues(alpha: 0.15)
                                 : Colors.white.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: match.status == MatchStatus.live
-                                  ? AppColors.error.withValues(alpha: 0.5)
+                                  ? context.cl.error.withValues(alpha: 0.5)
                                   : Colors.white.withValues(alpha: 0.12),
                             ),
                           ),
@@ -157,7 +148,7 @@ class PronoShareCard extends StatelessWidget {
                             '${match.homeScore} - ${match.awayScore}',
                             style: TextStyle(
                               color: match.status == MatchStatus.live
-                                  ? AppColors.error
+                                  ? context.cl.error
                                   : Colors.white,
                               fontSize: 22,
                               fontWeight: FontWeight.w900,
@@ -177,8 +168,8 @@ class PronoShareCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Text(
                           DateFormat('HH:mm').format(match.matchDate),
-                          style: const TextStyle(
-                            color: AppColors.primary,
+                          style: TextStyle(
+                            color: context.cl.accent,
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                           ),
@@ -215,9 +206,9 @@ class PronoShareCard extends StatelessWidget {
               if (result != null)
                 Builder(builder: (_) {
                   final color = switch (result) {
-                    PronosticResult.win  => AppColors.success,
-                    PronosticResult.loss => AppColors.error,
-                    PronosticResult.push => AppColors.info,
+                    PronosticResult.win  => context.cl.success,
+                    PronosticResult.loss => context.cl.error,
+                    PronosticResult.push => context.cl.info,
                   };
                   final icon = switch (result) {
                     PronosticResult.win  => Icons.check_circle_rounded,
@@ -272,7 +263,7 @@ class PronoShareCard extends StatelessWidget {
                    Text(
                     tr(context, "PRONOSTIC"),
                     style: TextStyle(
-                      color: AppColors.primary,
+                      color: context.cl.accent,
                       fontSize: 10,
                       fontWeight: FontWeight.w800,
                       letterSpacing: 2,
@@ -300,10 +291,10 @@ class PronoShareCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.10),
+                      color: context.cl.success.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: AppColors.success.withValues(alpha: 0.25)),
+                          color: context.cl.success.withValues(alpha: 0.25)),
                     ),
                     child: Column(children: [
                       Text(
@@ -318,8 +309,8 @@ class PronoShareCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         match.oddsRecommended.toStringAsFixed(2),
-                        style: const TextStyle(
-                          color: AppColors.success,
+                        style: TextStyle(
+                          color: context.cl.success,
                           fontSize: 22,
                           fontWeight: FontWeight.w900,
                         ),
@@ -411,6 +402,6 @@ class PronoShareCard extends StatelessWidget {
           ),
         ),
       ]),
-    );
+    ));
   }
 }

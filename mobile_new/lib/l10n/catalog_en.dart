@@ -1270,4 +1270,7 @@ const englishMessages = <String, String>{
   "Premium activé !": "Premium activated!",
   "Tous les pronostics VIP et l'analyse statistique de chaque match sont débloqués.": "Every VIP prediction and the statistical analysis of each match are now unlocked.",
   "Actif jusqu'au {arg0}, renouvelé automatiquement. Résiliable à tout moment depuis les réglages de ton compte store.": "Active until {arg0}, renews automatically. Cancel anytime in your store account settings.",
+  "Actualisation impossible. Vérifie ta connexion, puis réessaie.": "Couldn't refresh. Check your connection, then try again.",
+  "tes statistiques": "your statistics",
+  "ce match": "this match",
 };

@@ -46,7 +46,7 @@ class LogotypePronoWin extends StatelessWidget {
         ),
         children: [
           TextSpan(text: 'Prono', style: TextStyle(color: couleurPrincipale)),
-          const TextSpan(text: 'Win', style: TextStyle(color: AppColors.primary)),
+          TextSpan(text: 'Win', style: TextStyle(color: context.cl.accent)),
         ],
       ),
     );

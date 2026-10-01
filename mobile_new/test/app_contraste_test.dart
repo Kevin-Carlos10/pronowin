@@ -148,6 +148,72 @@ void main() {
     });
   });
 
+  // ── Couleurs d'état et d'accent ─────────────────────────────────────────
+  //
+  // Les teintes vives d'`AppColors` étaient employées comme texte dans les
+  // deux thèmes. En clair, aucune ne tenait : vert sur blanc 2,28:1, ambre
+  // 2,15:1, orange 3,4:1, et pire sur leur propre pastille. C'est là qu'elles
+  // portent leurs libellés les plus petits (« GAGNÉ », « 4/5 », « +1 500 »).
+  group('les couleurs d\'état se lisent en clair', () {
+    /// `couleur` posée à `alpha` sur `fond` — une pastille teintée.
+    int teinte(int couleur, int fond, double alpha) {
+      int canal(int decalage) {
+        final c = (couleur >> decalage) & 0xFF, f = (fond >> decalage) & 0xFF;
+        return (c * alpha + f * (1 - alpha)).round();
+      }
+      return 0xFF000000 | canal(16) << 16 | canal(8) << 8 | canal(0);
+    }
+
+    for (final nom in ['success', 'error', 'warning', 'info', 'accent', 'dore']) {
+      test('$nom : sur les trois fonds et sur sa propre teinte', () {
+        final c = couleurs(nom).clair;
+        for (final nomFond in ['bg', 'surface', 'surfaceD']) {
+          final r = contraste(c, couleurs(nomFond).clair);
+          expect(r, greaterThanOrEqualTo(seuilTexteCourant),
+              reason: 'clair : $nom sur $nomFond = ${r.toStringAsFixed(2)}:1');
+        }
+        // Pastilles : 12 et 15 % sont les teintes les plus employées.
+        for (final (alpha, nomFond) in [(0.15, 'surface'), (0.12, 'bg')]) {
+          final fond = teinte(c, couleurs(nomFond).clair, alpha);
+          final r = contraste(c, fond);
+          expect(r, greaterThanOrEqualTo(seuilTexteCourant),
+              reason: 'clair : $nom sur sa teinte à ${(alpha * 100).round()} % '
+                      '(sur $nomFond) = ${r.toStringAsFixed(2)}:1');
+        }
+      });
+    }
+
+    test('le thème sombre garde ses teintes', () {
+      // Rien ne devait changer en sombre : les valeurs restent celles
+      // d'`AppColors`, que tout le reste de l'application connaît.
+      int fixe(String nom) {
+        final m = RegExp('static const $nom\\s*=\\s*Color\\(0x(?:FF)?([0-9A-Fa-f]{6})\\)')
+            .firstMatch(theme);
+        if (m == null) fail('AppColors.$nom introuvable');
+        return 0xFF000000 | int.parse(m.group(1)!, radix: 16);
+      }
+      for (final (accesseur, constante) in [
+        ('success', 'success'), ('error', 'error'), ('warning', 'warning'),
+        ('info', 'info'), ('accent', 'primary'), ('dore', 'primaryLight'),
+      ]) {
+        expect(couleurs(accesseur).sombre, fixe(constante),
+            reason: 'sombre : $accesseur doit rester AppColors.$constante');
+      }
+    });
+
+    test('les fonds pleins portent du texte blanc', () {
+      // Messages et boutons : blanc sur #22C55E faisait 2,28:1.
+      for (final nom in ['fondSucces', 'fondErreur', 'fondAlerte', 'fondInfo']) {
+        final m = RegExp('static const $nom\\s*=\\s*Color\\(0x(?:FF)?([0-9A-Fa-f]{6})\\)')
+            .firstMatch(theme);
+        if (m == null) fail('AppColors.$nom introuvable');
+        final r = contraste(0xFFFFFFFF, 0xFF000000 | int.parse(m.group(1)!, radix: 16));
+        expect(r, greaterThanOrEqualTo(seuilTexteCourant),
+            reason: 'blanc sur $nom = ${r.toStringAsFixed(2)}:1');
+      }
+    });
+  });
+
   group('le banc mesure vraiment', () {
     test('la formule reconnaît un contraste insuffisant', () {
       // Sans ce point, une erreur de calcul rendrait tous les contrôles

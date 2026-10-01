@@ -82,8 +82,8 @@ class ErreurChargement extends ConsumerWidget {
 
     final couleur = switch (statut) {
       401 => AppColors.primary,
-      403 => AppColors.warning,
-      _   => AppColors.info,
+      403 => context.cl.warning,
+      _   => context.cl.info,
     };
 
     return Center(

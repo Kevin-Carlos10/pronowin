@@ -99,9 +99,9 @@ class _LineupsContent extends StatelessWidget {
     }
 
     return Column(children: [
-      if (home != null) _TeamLineupBlock(team: home, color: AppColors.success),
+      if (home != null) _TeamLineupBlock(team: home, color: context.cl.success),
       if (home != null && away != null) const SizedBox(height: 16),
-      if (away != null) _TeamLineupBlock(team: away, color: AppColors.error),
+      if (away != null) _TeamLineupBlock(team: away, color: context.cl.error),
     ]);
   }
 }

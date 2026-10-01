@@ -25,7 +25,7 @@ class _FormCard extends StatelessWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _CardHeader(
           icon: Icons.trending_up_rounded,
-          color: AppColors.success,
+          color: context.cl.success,
           title: tr(context, "Forme des équipes")),
         const SizedBox(height: 14),
         Row(children: [
@@ -33,7 +33,7 @@ class _FormCard extends StatelessWidget {
             child: Text(match.homeTeam,
               maxLines: 1, overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: AppColors.success, fontSize: 11.5,
+                color: context.cl.success, fontSize: 11.5,
                 fontWeight: FontWeight.w700))),
           const SizedBox(width: 12),
           Expanded(
@@ -41,7 +41,7 @@ class _FormCard extends StatelessWidget {
               textAlign: TextAlign.right,
               maxLines: 1, overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: AppColors.error, fontSize: 11.5,
+                color: context.cl.error, fontSize: 11.5,
                 fontWeight: FontWeight.w700))),
         ]),
         const SizedBox(height: 9),
@@ -66,10 +66,10 @@ class _FormCard extends StatelessWidget {
               child: Row(children: [
                 Expanded(
                   flex: (val * 1000).round().clamp(1, 999),
-                  child: Container(color: AppColors.success)),
+                  child: Container(color: context.cl.success)),
                 Expanded(
                   flex: ((1 - val) * 1000).round().clamp(1, 999),
-                  child: Container(color: AppColors.error)),
+                  child: Container(color: context.cl.error)),
               ]),
             ),
           ),

@@ -13,6 +13,7 @@ import '../widgets/tutorial_icons.dart';
 import '../providers/tutoriels_provider.dart';
 import '../../domain/entities/tutorial_entity.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
+import '../../../../shared/utils/rafraichir.dart';
 
 // Couleurs par catégorie connue — repli neutre pour toute catégorie créée
 // librement par l'admin et non reconnue de ce code.
@@ -96,8 +97,11 @@ class TutorielsPage extends ConsumerWidget {
           }
 
           return RefreshIndicator(
-            color: AppColors.info,
-            onRefresh: () async => ref.invalidate(tutorielsProvider),
+            color: context.cl.info,
+            onRefresh: () {
+              ref.invalidate(tutorielsProvider);
+              return attendreChargements([ref.read(tutorielsProvider.future)]);
+            },
             child: CustomScrollView(
             slivers: [
               // ─── APP BAR ────────────────────────────────────────────────
@@ -117,8 +121,8 @@ class TutorielsPage extends ConsumerWidget {
                   Container(
                     width: 32, height: 32,
                     decoration: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [AppColors.info, Color(0xFF38BDF8)],
+                      gradient: LinearGradient(
+                        colors: [context.cl.info, Color(0xFF38BDF8)],
                         begin: Alignment.topLeft, end: Alignment.bottomRight),
                       borderRadius: BorderRadius.circular(9),
                       boxShadow: [const BoxShadow(
@@ -130,7 +134,7 @@ class TutorielsPage extends ConsumerWidget {
                   RichText(text: TextSpan(
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
                       color: context.cl.textP),
-                    children: [TextSpan(text: tr(context, "Tutoriels"), style: const TextStyle(color: AppColors.info))],
+                    children: [TextSpan(text: tr(context, "Tutoriels"), style: TextStyle(color: context.cl.info))],
                   )),
                   const Spacer(),
                   // Badge progression
@@ -138,17 +142,17 @@ class TutorielsPage extends ConsumerWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                       decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.10),
+                        color: context.cl.success.withValues(alpha: 0.10),
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                          color: AppColors.success.withValues(alpha: 0.25), width: 0.5)),
+                          color: context.cl.success.withValues(alpha: 0.25), width: 0.5)),
                       child: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.check_circle_rounded,
-                            color: AppColors.success, size: 12),
+                        Icon(Icons.check_circle_rounded,
+                            color: context.cl.success, size: 12),
                         const SizedBox(width: 4),
                         Text('$completed/$total',
-                            style: const TextStyle(
-                                color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w700)),
+                            style: TextStyle(
+                                color: context.cl.success, fontSize: 11, fontWeight: FontWeight.w700)),
                       ]),
                     ),
                 ]),
@@ -218,10 +222,10 @@ class TutorielsPage extends ConsumerWidget {
                             margin: const EdgeInsets.only(right: 8),
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
-                              color: sel ? AppColors.info : context.cl.surface,
+                              color: sel ? context.cl.info : context.cl.surface,
                               borderRadius: BorderRadius.circular(20),
                               border: Border.all(
-                                color: sel ? AppColors.info : context.cl.border,
+                                color: sel ? context.cl.info : context.cl.border,
                                 width: 0.5)),
                             child: Row(mainAxisSize: MainAxisSize.min, children: [
                               Icon(tutorialCategoryIcon(iconKey),
@@ -251,10 +255,10 @@ class TutorielsPage extends ConsumerWidget {
                         final color = lvl == null
                             ? context.cl.textS
                             : lvl == TutorialLevel.beginner
-                                ? AppColors.success
+                                ? context.cl.success
                                 : lvl == TutorialLevel.intermediate
-                                    ? AppColors.warning
-                                    : AppColors.error;
+                                    ? context.cl.warning
+                                    : context.cl.error;
                         return GestureDetector(
                           onTap: () {
                             HapticFeedback.selectionClick();
@@ -305,7 +309,7 @@ class TutorielsPage extends ConsumerWidget {
                                 Icon(Icons.close_rounded, color: AppColors.primary, size: 12),
                                 SizedBox(width: 4),
                                 Text(tr(context, "Tout effacer"), style: TextStyle(
-                                  color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600)),
+                                  color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w600)),
                               ]),
                             ),
                           ),
@@ -323,10 +327,10 @@ class TutorielsPage extends ConsumerWidget {
                           Container(
                             width: 72, height: 72,
                             decoration: BoxDecoration(
-                              color: AppColors.info.withValues(alpha: 0.08),
+                              color: context.cl.info.withValues(alpha: 0.08),
                               shape: BoxShape.circle),
-                            child: const Icon(Icons.school_outlined,
-                                color: AppColors.info, size: 34)),
+                            child: Icon(Icons.school_outlined,
+                                color: context.cl.info, size: 34)),
                           const SizedBox(height: 14),
                           Text(searchQuery.isNotEmpty
                               ? tr(context, "Aucun résultat pour \"{arg0}\"", [searchQuery])
@@ -427,7 +431,7 @@ class _SearchBarState extends State<_SearchBar> {
           borderSide: BorderSide(color: context.cl.border, width: 0.5)),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(14),
-          borderSide: const BorderSide(color: AppColors.info, width: 1.2)),
+          borderSide: BorderSide(color: context.cl.info, width: 1.2)),
       ),
     );
   }
@@ -454,30 +458,30 @@ class _ProgressBanner extends StatelessWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: allDone
-          ? AppColors.success.withValues(alpha: 0.08)
-          : AppColors.info.withValues(alpha: 0.06),
+          ? context.cl.success.withValues(alpha: 0.08)
+          : context.cl.info.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: allDone
-            ? AppColors.success.withValues(alpha: 0.25)
-            : AppColors.info.withValues(alpha: 0.2))),
+            ? context.cl.success.withValues(alpha: 0.25)
+            : context.cl.info.withValues(alpha: 0.2))),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           Icon(
             allDone ? Icons.emoji_events_rounded : Icons.school_rounded,
-            color: allDone ? AppColors.success : AppColors.info, size: 16),
+            color: allDone ? context.cl.success : context.cl.info, size: 16),
           const SizedBox(width: 8),
           Expanded(child: Text(
             allDone
               ? tr(context, "Félicitations ! Tous les tutoriels sont terminés 🎉")
               : tr(context, "Ta progression"),
             style: TextStyle(
-              color: allDone ? AppColors.success : context.cl.textP,
+              color: allDone ? context.cl.success : context.cl.textP,
               fontSize: 13, fontWeight: FontWeight.w600))),
           Text(
             '$completed / $total',
             style: TextStyle(
-              color: allDone ? AppColors.success : AppColors.info,
+              color: allDone ? context.cl.success : context.cl.info,
               fontSize: 12, fontWeight: FontWeight.w700)),
         ]),
         if (!allDone) ...[
@@ -491,8 +495,8 @@ class _ProgressBanner extends StatelessWidget {
               builder: (_, v, _) => LinearProgressIndicator(
                 value: v,
                 minHeight: 5,
-                backgroundColor: AppColors.info.withValues(alpha: 0.12),
-                valueColor: const AlwaysStoppedAnimation<Color>(AppColors.info),
+                backgroundColor: context.cl.info.withValues(alpha: 0.12),
+                valueColor: AlwaysStoppedAnimation<Color>(context.cl.info),
               ),
             ),
           ),
@@ -639,9 +643,9 @@ class _FeaturedCardState extends State<_FeaturedCard>
                     Text(tuto.durationText, style: const TextStyle(color: Colors.white70, fontSize: 11)),
                     if (tuto.rating > 0) ...[
                       const SizedBox(width: 8),
-                      const Icon(Icons.star_rounded, size: 12, color: AppColors.warning),
-                      Text(' ${tuto.rating.toStringAsFixed(1)}', style: const TextStyle(
-                        color: AppColors.warning, fontSize: 11, fontWeight: FontWeight.w700)),
+                      Icon(Icons.star_rounded, size: 12, color: context.cl.warning),
+                      Text(' ${tuto.rating.toStringAsFixed(1)}', style: TextStyle(
+                        color: context.cl.warning, fontSize: 11, fontWeight: FontWeight.w700)),
                     ],
                     const Spacer(),
                     Container(
@@ -706,9 +710,9 @@ class _TutoCard extends StatelessWidget {
           color: isLocked
               ? context.cl.border
               : tuto.isCompleted
-                  ? AppColors.success.withValues(alpha: 0.3)
+                  ? context.cl.success.withValues(alpha: 0.3)
                   : tuto.isPremium
-                      ? AppColors.warning.withValues(alpha: 0.25)
+                      ? context.cl.warning.withValues(alpha: 0.25)
                       : context.cl.border,
           width: (tuto.isCompleted || tuto.isPremium) ? 0.8 : 0.5),
       ),
@@ -743,9 +747,9 @@ class _TutoCard extends StatelessWidget {
 
               // Badge terminé / premium (haut gauche)
               if (tuto.isCompleted)
-                _ThumbBadge(icon: Icons.check_rounded, label: tr(context, "Terminé"), color: AppColors.success)
+                _ThumbBadge(icon: Icons.check_rounded, label: tr(context, "Terminé"), color: context.cl.success)
               else if (tuto.isPremium)
-                _ThumbBadge(icon: Icons.workspace_premium_rounded, label: 'Premium', color: AppColors.warning),
+                _ThumbBadge(icon: Icons.workspace_premium_rounded, label: 'Premium', color: context.cl.warning),
 
               // Voile + cadenas si contenu verrouillé
               if (isLocked)
@@ -775,9 +779,9 @@ class _TutoCard extends StatelessWidget {
                 Text(tuto.durationText, style: TextStyle(color: context.cl.textM, fontSize: 12)),
                 if (tuto.rating > 0) ...[
                   const SizedBox(width: 8),
-                  const Icon(Icons.star_rounded, size: 12, color: AppColors.warning),
-                  Text(' ${tuto.rating.toStringAsFixed(1)}', style: const TextStyle(
-                    color: AppColors.warning, fontSize: 12, fontWeight: FontWeight.w600)),
+                  Icon(Icons.star_rounded, size: 12, color: context.cl.warning),
+                  Text(' ${tuto.rating.toStringAsFixed(1)}', style: TextStyle(
+                    color: context.cl.warning, fontSize: 12, fontWeight: FontWeight.w600)),
                 ],
               ]),
             ]),
@@ -880,7 +884,7 @@ class _EmojiIcon extends StatelessWidget {
         Positioned(right: -2, bottom: -2,
           child: Container(
             width: 16, height: 16,
-            decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+            decoration: BoxDecoration(color: context.cl.success, shape: BoxShape.circle),
             child: const Icon(Icons.check_rounded, color: Colors.white, size: 10))),
     ]),
   );

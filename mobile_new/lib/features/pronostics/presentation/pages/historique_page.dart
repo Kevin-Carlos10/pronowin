@@ -203,9 +203,9 @@ class _ResultBar extends StatelessWidget {
 
     final specs = [
       (_ResultFilter.all,     tr(context, "Tous"),        context.cl.textP,   context.cl.border),
-      (_ResultFilter.win,     'WIN',          AppColors.success,  AppColors.success),
-      (_ResultFilter.loss,    'LOSS',         AppColors.error,    AppColors.error),
-      (_ResultFilter.pending, tr(context, "En attente"),   AppColors.warning,  AppColors.warning),
+      (_ResultFilter.win,     'WIN',          context.cl.success,  context.cl.success),
+      (_ResultFilter.loss,    'LOSS',         context.cl.error,    context.cl.error),
+      (_ResultFilter.pending, tr(context, "En attente"),   context.cl.warning,  context.cl.warning),
     ];
 
     return Padding(
@@ -366,9 +366,9 @@ class _PerformanceChart extends StatelessWidget {
 
     final maxY = 100.0;
     final lastPct = spots.last.y;
-    final color   = lastPct >= 60 ? AppColors.success
-                  : lastPct >= 45 ? AppColors.warning
-                  : AppColors.error;
+    final color   = lastPct >= 60 ? context.cl.success
+                  : lastPct >= 45 ? context.cl.warning
+                  : context.cl.error;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 16, 16, 12),
@@ -485,9 +485,9 @@ class _StatsHeader extends StatelessWidget {
     // Sans taux mesurable, aucune couleur de jugement : le gris dit
     // « pas encore mesuré », le rouge dirait « mauvais ».
     final color = taux == null    ? context.cl.textM
-                : taux! >= 60     ? AppColors.success
-                : taux! >= 45     ? AppColors.warning
-                :                   AppColors.error;
+                : taux! >= 60     ? context.cl.success
+                : taux! >= 45     ? context.cl.warning
+                :                   context.cl.error;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -506,21 +506,21 @@ class _StatsHeader extends StatelessWidget {
           _VDivider(),
           _BigStat(label: tr(context, "Réussite"), value: taux == null ? '—' : '$taux%', color: color),
           _VDivider(),
-          _BigStat(label: tr(context, "Série"),    value: '+$serie', color: AppColors.warning),
+          _BigStat(label: tr(context, "Série"),    value: '+$serie', color: context.cl.warning),
         ]),
         const SizedBox(height: 16),
         ClipRRect(
           borderRadius: BorderRadius.circular(6),
           child: Row(children: [
-            if (won  > 0) Expanded(flex: won,  child: Container(height: 8, color: AppColors.success)),
+            if (won  > 0) Expanded(flex: won,  child: Container(height: 8, color: context.cl.success)),
             if (lost > 0) Expanded(flex: lost, child: Container(height: 8,
-              color: AppColors.error.withValues(alpha: 0.6))),
+              color: context.cl.error.withValues(alpha: 0.6))),
           ]),
         ),
         const SizedBox(height: 8),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          _LegendDot(color: AppColors.success, label: tr(context, "{arg0} victoires", [won])),
-          _LegendDot(color: AppColors.error.withValues(alpha: 0.6), label: tr(context, "{arg0} défaites", [lost])),
+          _LegendDot(color: context.cl.success, label: tr(context, "{arg0} victoires", [won])),
+          _LegendDot(color: context.cl.error.withValues(alpha: 0.6), label: tr(context, "{arg0} défaites", [lost])),
         ]),
       ]),
     );
@@ -574,11 +574,11 @@ class _WeekHeader extends StatelessWidget {
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
         decoration: BoxDecoration(
-          color:  AppColors.success.withValues(alpha: 0.1),
+          color:  context.cl.success.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.success.withValues(alpha: 0.2))),
-        child: Text('$won/$total ✅', style: const TextStyle(
-          color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w700))),
+          border: Border.all(color: context.cl.success.withValues(alpha: 0.2))),
+        child: Text('$won/$total ✅', style: TextStyle(
+          color: context.cl.success, fontSize: 11, fontWeight: FontWeight.w700))),
     ]);
   }
 }
@@ -605,9 +605,9 @@ class _EntryCard extends StatelessWidget {
         entry['predictionLabel'] as String? ?? '', homeTeam: homeTeam, awayTeam: awayTeam);
     final odds       = (entry['oddsRecommended'] as num?)?.toDouble() ?? 0.0;
 
-    final resultColor = isPending ? AppColors.warning
-                      : isWin    ? AppColors.success
-                      : AppColors.error;
+    final resultColor = isPending ? context.cl.warning
+                      : isWin    ? context.cl.success
+                      : context.cl.error;
 
     final scoreStr = (homeScore != null && awayScore != null)
       ? '$homeScore – $awayScore'
@@ -656,8 +656,8 @@ class _EntryCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6)),
-              child: Text(pred, style: const TextStyle(
-                color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w700))),
+              child: Text(pred, style: TextStyle(
+                color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w700))),
             const SizedBox(width: 6),
             Text('@ ${odds.toStringAsFixed(2)}',
               style: TextStyle(color: context.cl.textS, fontSize: 11)),

@@ -274,7 +274,7 @@ class _NavItemWidget extends StatelessWidget {
                 AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 220),
                   style: TextStyle(
-                    color: isSelected ? AppColors.primary : context.cl.textM,
+                    color: isSelected ? context.cl.accent : context.cl.textM,
                     fontSize: BottomNavMetrics.taillePolice,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                   ),

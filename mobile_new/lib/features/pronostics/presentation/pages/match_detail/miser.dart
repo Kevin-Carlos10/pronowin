@@ -24,14 +24,14 @@ class _MiserButtonState extends ConsumerState<_MiserButton> {
       return Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color:  AppColors.success.withValues(alpha: 0.08),
+          color:  context.cl.success.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.success.withValues(alpha: 0.3))),
+          border: Border.all(color: context.cl.success.withValues(alpha: 0.3))),
         child:  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          Icon(Icons.check_circle_rounded, color: AppColors.success, size: 18),
+          Icon(Icons.check_circle_rounded, color: context.cl.success, size: 18),
           SizedBox(width: 8),
           Text(tr(context, "Mise enregistrée dans ta bankroll"),
-              style: TextStyle(color: AppColors.success,
+              style: TextStyle(color: context.cl.success,
                   fontSize: 13, fontWeight: FontWeight.w600)),
         ]),
       );
@@ -68,12 +68,12 @@ class _MiserButtonState extends ConsumerState<_MiserButton> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          gradient: const LinearGradient(
-            colors: [AppColors.success, Color(0xFF059669)],
+          gradient: LinearGradient(
+            colors: [context.cl.success, Color(0xFF059669)],
             begin: Alignment.topLeft, end: Alignment.bottomRight),
           borderRadius: BorderRadius.circular(16),
           boxShadow: [BoxShadow(
-            color: AppColors.success.withValues(alpha: 0.35),
+            color: context.cl.success.withValues(alpha: 0.35),
             blurRadius: 14, offset: const Offset(0, 5))]),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           const Icon(Icons.savings_rounded, color: Colors.white, size: 20),

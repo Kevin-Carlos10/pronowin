@@ -9,6 +9,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/utils/retour.dart';
+import '../../../../shared/utils/rafraichir.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -135,7 +136,7 @@ class _PerformancePageState extends ConsumerState<PerformancePage> {
           style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.cl.textP),
           children:  [
             TextSpan(text: tr(context, "Ma ")),
-            TextSpan(text: 'Performance', style: TextStyle(color: AppColors.primary)),
+            TextSpan(text: 'Performance', style: TextStyle(color: context.cl.accent)),
           ],
         )),
         centerTitle: true,
@@ -147,13 +148,21 @@ class _PerformancePageState extends ConsumerState<PerformancePage> {
           ),
         ],
       ),
+      // `skipError` : une actualisation qui échoue garde les chiffres déjà
+      // affichés (et le dit) au lieu de les remplacer par l'écran d'erreur.
       body: perfAsync.when(
+        skipError: true,
         loading: () => const _PerformanceShimmer(),
         error:   (e, _) => _ErrorState(onRetry: () => ref.invalidate(performanceProvider(_days))),
         data: (perf) => _PerformanceView(
           perf:      perf,
           days:      _days,
           isPremium: isPremium,
+          onRefresh: () async {
+            ref.invalidate(performanceProvider(_days));
+            final reussi = await attendreChargements([ref.read(performanceProvider(_days).future)]);
+            if (!reussi && context.mounted) signalerActualisationImpossible(context);
+          },
         ),
       ),
     );
@@ -179,8 +188,8 @@ class _PeriodSelector extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: AppColors.primary.withValues(alpha: 0.3))),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Text('${days}j', style: const TextStyle(
-          color: AppColors.primary, fontSize: 12, fontWeight: FontWeight.w700)),
+        Text('${days}j', style: TextStyle(
+          color: context.cl.accent, fontSize: 12, fontWeight: FontWeight.w700)),
         const SizedBox(width: 4),
         const Icon(Icons.expand_more_rounded, color: AppColors.primary, size: 14),
       ])),
@@ -230,8 +239,10 @@ class _PerformanceView extends StatelessWidget {
   final PerformanceData perf;
   final int    days;
   final bool   isPremium;
+  final Future<void> Function() onRefresh;
 
-  const _PerformanceView({required this.perf, required this.days, required this.isPremium});
+  const _PerformanceView({required this.perf, required this.days, required this.isPremium,
+    required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
@@ -239,7 +250,7 @@ class _PerformanceView extends StatelessWidget {
 
     return RefreshIndicator(
       color: AppColors.primary,
-      onRefresh: () async {},
+      onRefresh: onRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
         children: [
@@ -254,11 +265,11 @@ class _PerformanceView extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.06),
+              color: context.cl.info.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.info.withValues(alpha: 0.2))),
+              border: Border.all(color: context.cl.info.withValues(alpha: 0.2))),
             child: Row(children: [
-              const Icon(Icons.info_outline_rounded, color: AppColors.info, size: 13),
+              Icon(Icons.info_outline_rounded, color: context.cl.info, size: 13),
               const SizedBox(width: 7),
               Expanded(child: Text(
                 tr(context, "Simulation basée sur une mise fixe de {arg0} FCFA par pronostic sur {arg1} jours.", [_fmt(perf.stakeRef.toDouble()), perf.periodDays]),
@@ -274,19 +285,19 @@ class _PerformanceView extends StatelessWidget {
               icon:  Icons.receipt_long_rounded,
               label: tr(context, "Pronos"),
               value: '${perf.total}',
-              color: AppColors.info)),
+              color: context.cl.info)),
             const SizedBox(width: 8),
             Expanded(child: _StatChip(
               icon:  Icons.emoji_events_rounded,
               label: tr(context, "Gagnés"),
               value: '${perf.wins}',
-              color: AppColors.success)),
+              color: context.cl.success)),
             const SizedBox(width: 8),
             Expanded(child: _StatChip(
               icon:  Icons.trending_up_rounded,
               label: 'Win rate',
               value: '${perf.winRate}%',
-              color: perf.winRate >= 55 ? AppColors.success : AppColors.warning)),
+              color: perf.winRate >= 55 ? context.cl.success : context.cl.warning)),
             const SizedBox(width: 8),
             Expanded(child: _StatChip(
               icon:  Icons.local_fire_department_rounded,
@@ -335,7 +346,7 @@ class _ROICard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isPositive ? AppColors.success : AppColors.error;
+    final color = isPositive ? context.cl.success : context.cl.error;
 
     // « +12 400 FCFA », « ROI », « +18 % », « 24 », « 9 » : cinq nombres sans
     // rattachement. Une seule phrase les relie et rappelle qu'il s'agit d'une
@@ -430,20 +441,20 @@ class _ROICard extends StatelessWidget {
                 duration: 800.ms,
                 curve: Curves.easeOutCubic,
                 builder: (_, v, _) => Stack(children: [
-                  Container(height: 7, color: AppColors.error.withValues(alpha: 0.4)),
+                  Container(height: 7, color: context.cl.error.withValues(alpha: 0.4)),
                   FractionallySizedBox(
                     widthFactor: v,
-                    child: Container(height: 7, color: AppColors.success.withValues(alpha: 0.85))),
+                    child: Container(height: 7, color: context.cl.success.withValues(alpha: 0.85))),
                 ]),
               ),
             ),
             const SizedBox(height: 6),
             Row(children: [
-              _Dot(color: AppColors.success),
+              _Dot(color: context.cl.success),
               const SizedBox(width: 4),
               Text(tr(context, "{arg0} gagnés", [perf.wins]), style: TextStyle(color: context.cl.textM, fontSize: 10)),
               const SizedBox(width: 12),
-              _Dot(color: AppColors.error),
+              _Dot(color: context.cl.error),
               const SizedBox(width: 4),
               Text(tr(context, "{arg0} perdus", [perf.losses]), style: TextStyle(color: context.cl.textM, fontSize: 10)),
             ]),
@@ -480,9 +491,9 @@ class _WeekCard extends StatelessWidget {
       Container(
         width: 38, height: 38,
         decoration: BoxDecoration(
-          color: AppColors.info.withValues(alpha: 0.12),
+          color: context.cl.info.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(10)),
-        child: const Icon(Icons.calendar_view_week_rounded, color: AppColors.info, size: 18)),
+        child: Icon(Icons.calendar_view_week_rounded, color: context.cl.info, size: 18)),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(tr(context, "Cette semaine"), style: TextStyle(
@@ -512,7 +523,7 @@ class _SimulationChart extends StatelessWidget {
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b) * 1.1;
     final lastBalance = history.last.balance;
     final isPositive  = lastBalance >= 0;
-    final lineColor   = isPositive ? AppColors.success : AppColors.error;
+    final lineColor   = isPositive ? context.cl.success : context.cl.error;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 14, 16, 10),
@@ -557,7 +568,7 @@ class _SimulationChart extends StatelessWidget {
               touchTooltipData: LineTouchTooltipData(
                 getTooltipItems: (spots) => spots.map((s) => LineTooltipItem(
                   '${s.y >= 0 ? '+' : ''}${_fmt(s.y)} F',
-                  TextStyle(color: s.y >= 0 ? AppColors.success : AppColors.error,
+                  TextStyle(color: s.y >= 0 ? context.cl.success : context.cl.error,
                     fontWeight: FontWeight.w700, fontSize: 11),
                 )).toList(),
               ),
@@ -631,9 +642,9 @@ class _LeaguesCard extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(7),
           decoration: BoxDecoration(
-            color: AppColors.warning.withValues(alpha: 0.12),
+            color: context.cl.warning.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(10)),
-          child: const Icon(Icons.emoji_events_rounded, color: AppColors.warning, size: 16)),
+          child: Icon(Icons.emoji_events_rounded, color: context.cl.warning, size: 16)),
         const SizedBox(width: 10),
         Text(tr(context, "Ligues les plus rentables"),
           style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
@@ -650,12 +661,12 @@ class _LeaguesCard extends StatelessWidget {
               width: 22, height: 22,
               decoration: BoxDecoration(
                 color: i == 0
-                    ? AppColors.warning.withValues(alpha: 0.2)
+                    ? context.cl.warning.withValues(alpha: 0.2)
                     : context.cl.surfaceD,
                 shape: BoxShape.circle),
               child: Center(child: Text('${i + 1}',
                 style: TextStyle(
-                  color: i == 0 ? AppColors.warning : context.cl.textM,
+                  color: i == 0 ? context.cl.warning : context.cl.textM,
                   fontSize: 11, fontWeight: FontWeight.w800)))),
             const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -668,7 +679,7 @@ class _LeaguesCard extends StatelessWidget {
             Text(
               '${isPos ? '+' : ''}${_fmt(l.netGain.toDouble())} F',
               style: TextStyle(
-                color: isPos ? AppColors.success : AppColors.error,
+                color: isPos ? context.cl.success : context.cl.error,
                 fontSize: 12, fontWeight: FontWeight.w800)),
           ]),
         );
@@ -783,7 +794,7 @@ class _ErrorState extends StatelessWidget {
       Text(tr(context, "Données indisponibles"), style: TextStyle(color: context.cl.textP, fontWeight: FontWeight.w700)),
       const SizedBox(height: 14),
       TextButton(onPressed: onRetry, child:  Text(tr(context, "Réessayer"),
-        style: TextStyle(color: AppColors.primary))),
+        style: TextStyle(color: context.cl.accent))),
     ],
   ));
 }

@@ -98,7 +98,7 @@ class _FeuilleSignalementState extends State<_FeuilleSignalement> {
             detail: _detail.text.trim().isEmpty ? null : _detail.text.trim(),
           )),
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.error,
+            backgroundColor: AppColors.fondErreur,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -121,7 +121,7 @@ Future<bool> confirmerBlocage(BuildContext context, String pseudo) async =>
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: Text(tr(ctx, "Annuler"))),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: Text(tr(ctx, "Bloquer"), style: const TextStyle(color: AppColors.error)),
+            child: Text(tr(ctx, "Bloquer"), style: TextStyle(color: context.cl.error)),
           ),
         ],
       ),

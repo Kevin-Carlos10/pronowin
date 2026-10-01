@@ -267,7 +267,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
             },
           ),
           _PickerOption(
-            icon: Icons.camera_alt_rounded, color: AppColors.info,
+            icon: Icons.camera_alt_rounded, color: context.cl.info,
             title: tr(context, "Appareil photo"), subtitle: tr(context, "Prendre une nouvelle photo"),
             onTap: () async {
               Navigator.pop(context);
@@ -322,7 +322,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         bottom: TabBar(
           controller: _tab,
           indicatorColor: AppColors.primary,
-          labelColor: AppColors.primary,
+          labelColor: context.cl.accent,
           unselectedLabelColor: context.cl.textS,
           labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
           tabs:  [
@@ -375,7 +375,9 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     final isStore = ref.watch(isStoreBuildProvider);
     final iapReady = isStore ? (ref.watch(iapReadyProvider).value ?? false) : false;
 
-    return _PaywallPage(
+    // Le paywall est toujours sombre (fond de stade) : son contenu lit le thème
+    // sombre, sinon les couleurs d'état passent à leurs variantes pour fond blanc.
+    return SurfaceSombre(builder: (context) => _PaywallPage(
       monthlyPrice:     _tarifs.mensuelUsd,
       annualPrice:      _tarifs.annuelUsd,
       moisOfferts:      _moisOfferts(iapReady),
@@ -405,7 +407,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       onIapBuy:         _startIapPurchase,
       onIapRestore:     _restoreIap,
       onIapRetry:       _retryIap,
-    );
+    ));
   }
 
   /// Au store, d'après les prix du catalogue — ceux que l'acheteur paiera ;
@@ -605,11 +607,11 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
           return Padding(
             padding: const EdgeInsets.only(top: 8),
             child: Row(children: [
-              const Icon(Icons.check_circle_outline_rounded, color: AppColors.success, size: 14),
+              Icon(Icons.check_circle_outline_rounded, color: context.cl.success, size: 14),
               const SizedBox(width: 6),
               Text(
                 tr(context, "Numéro complet : +{arg0}{arg1}", [_selectedCountry.phoneCode, val.text]),
-                style: const TextStyle(color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w500),
+                style: TextStyle(color: context.cl.success, fontSize: 12, fontWeight: FontWeight.w500),
               ),
             ]),
           );
@@ -955,26 +957,26 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.06),
+              color: context.cl.warning.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.warning.withValues(alpha: 0.2))),
+              border: Border.all(color: context.cl.warning.withValues(alpha: 0.2))),
             child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-              const Icon(Icons.schedule_rounded, color: AppColors.warning, size: 18),
+              Icon(Icons.schedule_rounded, color: context.cl.warning, size: 18),
               const SizedBox(width: 8),
               Text(tr(context, "Activation sous {arg0}", [estimatedTime]),
-                style: const TextStyle(
-                  color: AppColors.warning, fontSize: 13, fontWeight: FontWeight.w600)),
+                style: TextStyle(
+                  color: context.cl.warning, fontSize: 13, fontWeight: FontWeight.w600)),
             ]),
           ),
           const SizedBox(height: 10),
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.06),
+              color: context.cl.info.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.info.withValues(alpha: 0.15))),
+              border: Border.all(color: context.cl.info.withValues(alpha: 0.15))),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Icon(Icons.notifications_rounded, color: AppColors.info, size: 16),
+              Icon(Icons.notifications_rounded, color: context.cl.info, size: 16),
               const SizedBox(width: 8),
               Expanded(child: Text(
                 tr(context, "Vous recevrez une notification push dès que ton Premium est activé."),
@@ -1004,7 +1006,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   void _showSnack(String msg, {bool isError = false}) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: isError ? AppColors.error : AppColors.success,
+      backgroundColor: isError ? AppColors.fondErreur : context.cl.success,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ));
@@ -1190,7 +1192,7 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
     Clipboard.setData(ClipboardData(text: n));
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(tr(context, "Numéro {arg0} copié !", [_operateur])),
-      backgroundColor: AppColors.success,
+      backgroundColor: AppColors.fondSucces,
       behavior: SnackBarBehavior.floating,
       duration: const Duration(seconds: 2),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1216,8 +1218,8 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
         const SizedBox(width: 8),
         Expanded(child: Text(
           tr(context, "{arg0}. Paiement de {arg1} ({arg2})", [widget.etape, montantDollars(widget.priceUsd), widget.planLabel]),
-          style: const TextStyle(
-            color: AppColors.primary, fontSize: 13, fontWeight: FontWeight.w700))),
+          style: TextStyle(
+            color: context.cl.accent, fontSize: 13, fontWeight: FontWeight.w700))),
       ]),
 
       // Sélecteur affiché seulement s'il y a un choix à faire.
@@ -1291,10 +1293,10 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
               // seul endroit de l'app où l'utilisateur recopie un montant, et
               // il doit le saisir au franc près chez son opérateur.
               Text(tr(context, "Montant à envoyer : {arg0} FCFA", [montantExact(widget.price)]),
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.primary)),
+                  color: context.cl.accent)),
             ])),
             GestureDetector(
               onTap: _copier,
@@ -1428,12 +1430,12 @@ class _AlerteEcartMontant extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: 0.10),
+        color: context.cl.warning.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.warning.withValues(alpha: 0.30)),
+        border: Border.all(color: context.cl.warning.withValues(alpha: 0.30)),
       ),
       child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Icon(Icons.error_outline_rounded, color: AppColors.warning, size: 17),
+        Icon(Icons.error_outline_rounded, color: context.cl.warning, size: 17),
         const SizedBox(width: 9),
         Expanded(child: Text(
           manque > 0
@@ -1455,17 +1457,17 @@ class _AucunMoyenPaiement extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     decoration: BoxDecoration(
-      color: AppColors.warning.withValues(alpha: 0.10),
+      color: context.cl.warning.withValues(alpha: 0.10),
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: AppColors.warning.withValues(alpha: 0.35)),
+      border: Border.all(color: context.cl.warning.withValues(alpha: 0.35)),
     ),
     child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 18),
+      Icon(Icons.info_outline_rounded, color: context.cl.warning, size: 18),
       const SizedBox(width: 10),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
          Text(tr(context, "Paiement mobile momentanément indisponible"),
           style: TextStyle(
-            fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.warning)),
+            fontSize: 13, fontWeight: FontWeight.w700, color: context.cl.warning)),
         const SizedBox(height: 4),
         Text(tr(context, "Aucun numéro de réception n'est publié pour le moment. Réessaie dans quelques minutes, ou contacte le support."),
           style: TextStyle(color: context.cl.textS, fontSize: 11.5, height: 1.4)),
@@ -1490,15 +1492,15 @@ class _RecapCard extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: AppColors.success.withValues(alpha: 0.06),
+      color: context.cl.success.withValues(alpha: 0.06),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.success.withValues(alpha: 0.25), width: 1)),
+      border: Border.all(color: context.cl.success.withValues(alpha: 0.25), width: 1)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
        Row(children: [
-        Icon(Icons.fact_check_rounded, color: AppColors.success, size: 16),
+        Icon(Icons.fact_check_rounded, color: context.cl.success, size: 16),
         SizedBox(width: 8),
         Text(tr(context, "Récapitulatif de ta demande"), style: TextStyle(
-          color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w600)),
+          color: context.cl.success, fontSize: 12, fontWeight: FontWeight.w600)),
       ]),
       const SizedBox(height: 10),
       _RecapRow(tr(context, "Montant"),      '${montantExact(amount)} FCFA'),
@@ -1577,10 +1579,10 @@ class _ImagePickerWidgetState extends State<_ImagePickerWidget>
     child: ScaleTransition(scale: _scale, child: Container(
       height: 150,
       decoration: BoxDecoration(
-        color: widget.image != null ? AppColors.success.withValues(alpha: 0.04) : context.cl.surface,
+        color: widget.image != null ? context.cl.success.withValues(alpha: 0.04) : context.cl.surface,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
-          color: widget.image != null ? AppColors.success.withValues(alpha: 0.4) : context.cl.borderSoft,
+          color: widget.image != null ? context.cl.success.withValues(alpha: 0.4) : context.cl.borderSoft,
           width: widget.image != null ? 1.5 : 0.5)),
       child: widget.image != null
         ? Stack(children: [
@@ -1590,7 +1592,7 @@ class _ImagePickerWidgetState extends State<_ImagePickerWidget>
             Positioned(top: 8, right: 8,
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: AppColors.success, borderRadius: BorderRadius.circular(20)),
+                decoration: BoxDecoration(color: context.cl.success, borderRadius: BorderRadius.circular(20)),
                 child:  Row(mainAxisSize: MainAxisSize.min, children: [
                   Icon(Icons.check_rounded, color: Colors.white, size: 13),
                   SizedBox(width: 4),
@@ -2323,12 +2325,12 @@ class _IapSection extends StatelessWidget {
         key: const Key('iap-indisponible'),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: AppColors.warning.withValues(alpha: 0.08),
+          color: context.cl.warning.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.warning.withValues(alpha: 0.25))),
+          border: Border.all(color: context.cl.warning.withValues(alpha: 0.25))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            const Icon(Icons.storefront_outlined, color: AppColors.warning, size: 20),
+            Icon(Icons.storefront_outlined, color: context.cl.warning, size: 20),
             const SizedBox(width: 12),
              Expanded(child: Text(
               tr(context, "Les achats ne sont pas disponibles sur cet appareil pour le moment. Vérifie ta connexion, puis réessaie."),
@@ -2343,8 +2345,8 @@ class _IapSection extends StatelessWidget {
               icon: const Icon(Icons.refresh, size: 18),
               label:  Text(tr(context, "Réessayer")),
               style: OutlinedButton.styleFrom(
-                foregroundColor: AppColors.warning,
-                side: BorderSide(color: AppColors.warning.withValues(alpha: 0.45)),
+                foregroundColor: context.cl.warning,
+                side: BorderSide(color: context.cl.warning.withValues(alpha: 0.45)),
                 padding: const EdgeInsets.symmetric(vertical: 12),
               ),
             ),
@@ -2387,10 +2389,10 @@ class _IapSection extends StatelessWidget {
             if (isAnnual && offerts != null) Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.16),
+                color: context.cl.success.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(6)),
               child:  Text(offerts.toUpperCase(), style: TextStyle(
-                color: AppColors.success, fontSize: 9, fontWeight: FontWeight.w800))),
+                color: context.cl.success, fontSize: 9, fontWeight: FontWeight.w800))),
           ]),
           const SizedBox(height: 14),
           // `p.price` est déjà formaté et localisé par le store.

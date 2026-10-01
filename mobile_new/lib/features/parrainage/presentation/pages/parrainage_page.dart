@@ -10,6 +10,7 @@ import '../../domain/recompense_premium.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../shared/utils/partage_parrainage.dart';
+import '../../../../shared/utils/rafraichir.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -55,7 +56,7 @@ class ParrainagePage extends ConsumerWidget {
       ),
       body: statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFA78BFA))),
-        error:   (e, _) => Center(child: Text('$e', style: const TextStyle(color: AppColors.error))),
+        error:   (e, _) => Center(child: Text('$e', style: TextStyle(color: context.cl.error))),
         data: (stats) {
           final code       = stats['referral_code'] as String? ?? '------';
           final earnings   = (stats['total_earnings'] as num?)?.toInt() ?? 0;
@@ -77,7 +78,10 @@ class ParrainagePage extends ConsumerWidget {
 
           return RefreshIndicator(
             color: const Color(0xFFA78BFA),
-            onRefresh: () async => ref.invalidate(referralStatsProvider),
+            onRefresh: () {
+              ref.invalidate(referralStatsProvider);
+              return attendreChargements([ref.read(referralStatsProvider.future)]);
+            },
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
               children: [
@@ -210,8 +214,9 @@ class _EarningsBanner extends StatelessWidget {
   /// entier à créditer ; le canal direct demande le seuil de versement.
   bool get _peutAgir => estStore ? _jours >= 1 : canWithdraw;
 
+  // Carte toujours sombre (violet nuit) : son contenu lit le thème sombre.
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => SurfaceSombre(builder: (context) => Container(
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
       gradient: const LinearGradient(
@@ -270,7 +275,7 @@ class _EarningsBanner extends StatelessWidget {
                   ? tr(context, "✅ Retrait disponible !")
                   : tr(context, "Encore {arg0} FCFA pour retirer", [(minWithdraw - earnings).toLocaleString()])),
             style: TextStyle(
-              color: _peutAgir ? AppColors.success : const Color(0xFFCBD5E1),
+              color: _peutAgir ? context.cl.success : const Color(0xFFCBD5E1),
               fontSize: 12,
             ),
           ),
@@ -307,7 +312,7 @@ class _EarningsBanner extends StatelessWidget {
         ],
       ]),
     ]),
-  );
+  ));
 }
 
 // ─── CODE PARRAINAGE ─────────────────────────────────────────────────────────
@@ -332,7 +337,7 @@ class _ReferralCodeCard extends StatelessWidget {
           ScaffoldMessenger.of(context).showSnackBar( SnackBar(
             content: Text(tr(context, "Code copié ! 📋")),
             behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.success,
+            backgroundColor: AppColors.fondSucces,
             duration: Duration(seconds: 2),
           ));
         },
@@ -406,14 +411,14 @@ class _ReferralCodeCard extends StatelessWidget {
           Row(children: [
             _ShareOption(
               icon: Icons.content_copy_rounded, label: tr(context, "Copier\nle message"),
-              color: AppColors.info,
+              color: context.cl.info,
               onTap: () {
                 Clipboard.setData(ClipboardData(text: message));
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar( SnackBar(
                   content: Text(tr(context, "Message copié ! Collez-le sur WhatsApp, SMS… 📤")),
                   behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.success,
+                  backgroundColor: AppColors.fondSucces,
                   duration: Duration(seconds: 3),
                 ));
               },
@@ -428,7 +433,7 @@ class _ReferralCodeCard extends StatelessWidget {
                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(
                   content: Text(tr(context, "Code {arg0} copié ! 📋", [code])),
                   behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.success,
+                  backgroundColor: AppColors.fondSucces,
                   duration: const Duration(seconds: 2),
                 ));
               },
@@ -436,14 +441,14 @@ class _ReferralCodeCard extends StatelessWidget {
             const SizedBox(width: 12),
             _ShareOption(
               icon: Icons.sms_rounded, label: tr(context, "Message\nprêt à envoyer"),
-              color: AppColors.success,
+              color: context.cl.success,
               onTap: () {
                 Clipboard.setData(ClipboardData(text: message));
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar( SnackBar(
                   content: Text(tr(context, "Message copié ! Ouvrez WhatsApp et collez. ✅")),
                   behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.success,
+                  backgroundColor: AppColors.fondSucces,
                   duration: Duration(seconds: 3),
                 ));
               },
@@ -476,7 +481,7 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
       if (s is ApplyCodeSuccess) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(tr(context, "✅ {arg0} est ton parrain !", [s.referrerPseudo])),
-          backgroundColor: AppColors.success,
+          backgroundColor: AppColors.fondSucces,
           behavior: SnackBarBehavior.floating,
         ));
         ref.invalidate(referralStatsProvider);
@@ -486,7 +491,7 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
       if (s is ApplyCodeError) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(s.message),
-          backgroundColor: AppColors.error,
+          backgroundColor: AppColors.fondErreur,
           behavior: SnackBarBehavior.floating,
         ));
         ref.read(applyCodeProvider.notifier).reset();
@@ -591,11 +596,11 @@ class _HowItWorksCard extends StatelessWidget {
         text: tr(context, "Partagez ton code avec tes amis")),
       _Step(num: '2', color: const Color(0xFFA78BFA),
         text: tr(context, "Ils s'inscrivent sur PronoWin")),
-      _Step(num: '3', color: AppColors.success,
+      _Step(num: '3', color: context.cl.success,
         text: estStore
           ? tr(context, "Quand ils s'abonnent Premium → +{arg0} pour toi", [libelleJours(joursPremiumPour(commL1))])
           : tr(context, "Quand ils s'abonnent Premium → +{arg0} FCFA pour toi", [commL1])),
-      _Step(num: '4', color: AppColors.info,
+      _Step(num: '4', color: context.cl.info,
         text: estStore
           ? tr(context, "Leurs filleuls Premium → +{arg0} en plus", [libelleJours(joursPremiumPour(commL2))])
           : tr(context, "Leurs filleuls Premium → +{arg0} FCFA supplémentaires", [commL2])),
@@ -630,9 +635,9 @@ class _StatsRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(children: [
     _StatChip(label: 'Filleuls\ndirects', value: totalL1, sub: '$premL1 Premium', color: const Color(0xFFA78BFA)),
     const SizedBox(width: 10),
-    _StatChip(label: 'Filleuls\nindirects', value: totalL2, sub: '$premL2 Premium', color: AppColors.info),
+    _StatChip(label: 'Filleuls\nindirects', value: totalL2, sub: '$premL2 Premium', color: context.cl.info),
     const SizedBox(width: 10),
-    _StatChip(label: 'Total\nfilleuls', value: totalL1 + totalL2, sub: '${premL1 + premL2} Premium', color: AppColors.success),
+    _StatChip(label: 'Total\nfilleuls', value: totalL1 + totalL2, sub: '${premL1 + premL2} Premium', color: context.cl.success),
   ]);
 }
 
@@ -703,11 +708,11 @@ class _FilleulTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: level == 1
             ? const Color(0xFFA78BFA).withValues(alpha: 0.12)
-            : AppColors.info.withValues(alpha: 0.12),
+            : context.cl.info.withValues(alpha: 0.12),
           shape: BoxShape.circle),
         child: Center(child: Text(pseudo[0].toUpperCase(),
           style: TextStyle(
-            color: level == 1 ? const Color(0xFFA78BFA) : AppColors.info,
+            color: level == 1 ? const Color(0xFFA78BFA) : context.cl.info,
             fontWeight: FontWeight.w700, fontSize: 15)))),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -716,26 +721,26 @@ class _FilleulTile extends StatelessWidget {
           if (_isNew) ...[
             const SizedBox(width: 6),
             Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-              child:  Text(tr(context, "Nouveau"), style: TextStyle(color: AppColors.success, fontSize: 9, fontWeight: FontWeight.w700))),
+              decoration: BoxDecoration(color: context.cl.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+              child:  Text(tr(context, "Nouveau"), style: TextStyle(color: context.cl.success, fontSize: 9, fontWeight: FontWeight.w700))),
           ],
         ]),
         Text(
           joinedAt != null ? tr(context, "Niv. {arg0} · {arg1}", [level, _fmtDate(joinedAt!)]) : tr(context, "Niveau {arg0}", [level]),
-          style: TextStyle(color: level == 1 ? const Color(0xFFA78BFA) : AppColors.info,
+          style: TextStyle(color: level == 1 ? const Color(0xFFA78BFA) : context.cl.info,
             fontSize: 11, fontWeight: FontWeight.w500)),
       ])),
       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
         Text(plan == 'premium' ? '👑 Premium' : tr(context, "• Gratuit"),
           style: TextStyle(
-            color: plan == 'premium' ? AppColors.warning : context.cl.textM,
+            color: plan == 'premium' ? context.cl.warning : context.cl.textM,
             fontSize: 12, fontWeight: FontWeight.w500)),
         if (commission > 0)
           Text(estStore
               ? '+${libelleJours(joursPremiumPour(commission))}'
               : '+${commission.toLocaleString()} FCFA',
             style: TextStyle(
-              color: isPaid ? AppColors.success : context.cl.textM,
+              color: isPaid ? context.cl.success : context.cl.textM,
               fontSize: 12, fontWeight: FontWeight.w700)),
         if (!isPaid && plan == 'premium')
           Text(tr(context, "En attente"), style: TextStyle(color: context.cl.textM, fontSize: 10)),
@@ -837,8 +842,8 @@ class _HistoryTile extends StatelessWidget {
     child: Row(children: [
       Container(width: 36, height: 36,
         decoration: BoxDecoration(
-          color: AppColors.success.withValues(alpha: 0.12), shape: BoxShape.circle),
-        child: const Icon(Icons.payments_rounded, color: AppColors.success, size: 18)),
+          color: context.cl.success.withValues(alpha: 0.12), shape: BoxShape.circle),
+        child: Icon(Icons.payments_rounded, color: context.cl.success, size: 18)),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(tr(context, "{arg0} → abonnement Premium", [pseudo]), style: TextStyle(
@@ -850,15 +855,15 @@ class _HistoryTile extends StatelessWidget {
       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
         Text(estStore
             ? '+${libelleJours(joursPremiumPour(amount))}'
-            : '+${amount.toLocaleString()} FCFA', style: const TextStyle(
-          color: AppColors.success, fontSize: 13, fontWeight: FontWeight.w700)),
+            : '+${amount.toLocaleString()} FCFA', style: TextStyle(
+          color: context.cl.success, fontSize: 13, fontWeight: FontWeight.w700)),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: (level == 1 ? const Color(0xFFA78BFA) : AppColors.info).withValues(alpha: 0.12),
+            color: (level == 1 ? const Color(0xFFA78BFA) : context.cl.info).withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8)),
           child: Text(tr(context, "Niv. {arg0}", [level]), style: TextStyle(
-            color: level == 1 ? const Color(0xFFA78BFA) : AppColors.info,
+            color: level == 1 ? const Color(0xFFA78BFA) : context.cl.info,
             fontSize: 9, fontWeight: FontWeight.w700)),
         ),
       ]),

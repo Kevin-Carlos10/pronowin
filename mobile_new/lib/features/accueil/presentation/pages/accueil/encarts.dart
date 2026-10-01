@@ -17,23 +17,23 @@ class _TutorielsBanner extends StatelessWidget {
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
-            AppColors.info.withValues(alpha: 0.12),
-            AppColors.info.withValues(alpha: 0.04),
+            context.cl.info.withValues(alpha: 0.12),
+            context.cl.info.withValues(alpha: 0.04),
           ],
           begin: Alignment.topLeft, end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.info.withValues(alpha: 0.25), width: 0.8),
+          color: context.cl.info.withValues(alpha: 0.25), width: 0.8),
       ),
       child: Row(children: [
         Container(
           width: 44, height: 44,
           decoration: BoxDecoration(
-            color: AppColors.info.withValues(alpha: 0.15),
+            color: context.cl.info.withValues(alpha: 0.15),
             borderRadius: BorderRadius.circular(12),
           ),
-          child: const Icon(Icons.school_rounded, color: AppColors.info, size: 22),
+          child: Icon(Icons.school_rounded, color: context.cl.info, size: 22),
         ),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -50,8 +50,8 @@ class _TutorielsBanner extends StatelessWidget {
           Text(tr(context, "Stratégies, value bet, bankroll…"),
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ])),
-        const Icon(Icons.arrow_forward_ios_rounded,
-          color: AppColors.info, size: 14),
+        Icon(Icons.arrow_forward_ios_rounded,
+          color: context.cl.info, size: 14),
       ]),
     ),
   );
@@ -120,7 +120,7 @@ class _FavoriteTile extends ConsumerWidget {
     final matchId   = fav['match_id'] as String? ?? '';
 
     Color borderColor = context.cl.border;
-    if (isLive) borderColor = AppColors.error.withValues(alpha: 0.6);
+    if (isLive) borderColor = context.cl.error.withValues(alpha: 0.6);
     if (isFinished) borderColor = context.cl.border;
 
     return GestureDetector(
@@ -152,12 +152,12 @@ class _FavoriteTile extends ConsumerWidget {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.15),
+                      color: context.cl.error.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Text('LIVE',
+                    child: Text('LIVE',
                         style: TextStyle(
-                            color: AppColors.error,
+                            color: context.cl.error,
                             fontSize: 8,
                             fontWeight: FontWeight.w800)),
                   ),
@@ -214,7 +214,7 @@ class _FavoriteTile extends ConsumerWidget {
               Text(
                 '$homeScore - $awayScore',
                 style: TextStyle(
-                    color: isLive ? AppColors.error : context.cl.textP,
+                    color: isLive ? context.cl.error : context.cl.textP,
                     fontSize: 13,
                     fontWeight: FontWeight.w900),
               )
@@ -266,7 +266,7 @@ class _SliverOfflineBanner extends ConsumerWidget {
       }
     } else {
       icon    = Icons.cloud_done_rounded;
-      color   = AppColors.success;
+      color   = context.cl.success;
       message = tr(context, "Reconnecté · Mise à jour en cours…");
     }
 
@@ -327,9 +327,15 @@ class _BankrollMiniWidget extends ConsumerWidget {
       data: (bankroll) {
         if (bankroll == null) return const SizedBox.shrink();
 
-        final profit      = bankroll.currentBalance - bankroll.totalBudget;
+        // Le résultat net, comme sur l'écran Bankroll. Cette carte affichait
+        // `solde − budget` : poser 3 000 sur 100 000 y faisait apparaître
+        // « −3 000 » en rouge alors que rien n'était perdu. La page Bankroll
+        // avait été corrigée, pas ce résumé — le test ne lisait qu'elle.
+        final profit      = bankroll.resultatNet;
         final isProfit    = profit >= 0;
-        final profitColor = isProfit ? AppColors.success : AppColors.error;
+        final profitColor = profit > 0
+            ? context.cl.success
+            : profit < 0 ? context.cl.error : context.cl.textM;
         final settled     = bankroll.bets.where((b) => b.result != null).toList();
         final wins        = settled.where((b) => b.result == 'WIN').length;
         // Quatrième calcul du même taux dans l'application, et le plus
@@ -344,20 +350,34 @@ class _BankrollMiniWidget extends ConsumerWidget {
         //
         // `BilanParis` porte la règle : dénominateur sans les PUSH, et
         // silence sous cinq paris tranchés.
-        final bilanCarte = BilanParis(
-          suivis:   bankroll.bets.length,
-          gagnes:   wins,
-          perdus:   settled.where((b) => b.result == 'LOSS').length,
-          tauxBrut: settled.where((b) => b.result != 'PUSH').isEmpty
-              ? 0.0
-              : wins /
-                  settled.where((b) => b.result != 'PUSH').length * 100,
-          serie:    0,
-        );
+        //
+        // Le bilan du serveur d'abord : [bankroll.bets] est plafonnée à
+        // cinquante lignes, le taux calculé dessus devenait faux au-delà.
+        final resume = bankroll.resume;
+        final bilanCarte = resume != null
+            ? BilanParis(
+                suivis:     resume.total,
+                gagnes:     resume.gagnes,
+                perdus:     resume.perdus,
+                rembourses: resume.rembourses,
+                tauxBrut:   resume.tauxBrut,
+                serie:      0,
+              )
+            : BilanParis(
+                suivis:   bankroll.bets.length,
+                gagnes:   wins,
+                perdus:   settled.where((b) => b.result == 'LOSS').length,
+                tauxBrut: settled.where((b) => b.result != 'PUSH').isEmpty
+                    ? 0.0
+                    : wins /
+                        settled.where((b) => b.result != 'PUSH').length * 100,
+                serie:    0,
+              );
         final winRate = bilanCarte.taux == null
             ? '—'
             : '${bilanCarte.taux!.toStringAsFixed(0)}%';
-        final pending = bankroll.bets.where((b) => b.result == null).length;
+        final pending = resume?.enAttente
+            ?? bankroll.bets.where((b) => b.result == null).length;
 
         return Padding(
           padding: const EdgeInsets.only(bottom: 16),
@@ -372,9 +392,9 @@ class _BankrollMiniWidget extends ConsumerWidget {
                 color: context.cl.surface,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                    color: AppColors.success.withValues(alpha: 0.25), width: 0.8),
+                    color: context.cl.success.withValues(alpha: 0.25), width: 0.8),
                 boxShadow: [BoxShadow(
-                  color: AppColors.success.withValues(alpha: 0.06),
+                  color: context.cl.success.withValues(alpha: 0.06),
                   blurRadius: 12, offset: const Offset(0, 4))],
               ),
               child: Row(children: [
@@ -383,12 +403,12 @@ class _BankrollMiniWidget extends ConsumerWidget {
                 Container(
                   width: 40, height: 40,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [AppColors.success, Color(0xFF059669)],
+                    gradient: LinearGradient(
+                      colors: [context.cl.success, Color(0xFF059669)],
                       begin: Alignment.topLeft, end: Alignment.bottomRight),
                     borderRadius: BorderRadius.circular(12),
                     boxShadow: [BoxShadow(
-                      color: AppColors.success.withValues(alpha: 0.3),
+                      color: context.cl.success.withValues(alpha: 0.3),
                       blurRadius: 8, offset: const Offset(0, 3))]),
                   child: const Icon(Icons.account_balance_wallet_rounded,
                       color: Colors.white, size: 19)),
@@ -413,12 +433,16 @@ class _BankrollMiniWidget extends ConsumerWidget {
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                   Row(mainAxisSize: MainAxisSize.min, children: [
                     Icon(
-                      isProfit
-                          ? Icons.trending_up_rounded
-                          : Icons.trending_down_rounded,
+                      profit == 0
+                          ? Icons.trending_flat_rounded
+                          : isProfit
+                              ? Icons.trending_up_rounded
+                              : Icons.trending_down_rounded,
                       color: profitColor, size: 13),
                     const SizedBox(width: 3),
-                    Text('${isProfit ? '+' : ''}${_fmt(profit)}',
+                    Text('${profit > 0 ? '+' : ''}${_fmt(profit)}',
+                        semanticsLabel: '${tr(context, "Résultat net")} '
+                            '${profit > 0 ? '+' : ''}${_fmt(profit)}',
                         style: TextStyle(color: profitColor,
                             fontSize: 12, fontWeight: FontWeight.w700)),
                   ]),
@@ -441,11 +465,11 @@ class _BankrollMiniWidget extends ConsumerWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 6, vertical: 1),
                         decoration: BoxDecoration(
-                          color: AppColors.warning.withValues(alpha: 0.15),
+                          color: context.cl.warning.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6)),
                         child: Text(tr(context, "{arg0} en cours", [pending]),
-                            style: const TextStyle(
-                                color: AppColors.warning, fontSize: 9,
+                            style: TextStyle(
+                                color: context.cl.warning, fontSize: 9,
                                 fontWeight: FontWeight.w700)),
                       ),
                     ],

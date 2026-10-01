@@ -41,10 +41,10 @@ class _InjuriesCard extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.12),
+              color: context.cl.warning.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.medical_services_rounded, color: AppColors.warning, size: 16),
+            child: Icon(Icons.medical_services_rounded, color: context.cl.warning, size: 16),
           ),
           const SizedBox(width: 10),
           Text(tr(context, "Absences"),
@@ -66,12 +66,12 @@ class _InjuriesCard extends ConsumerWidget {
                   if (home.isNotEmpty)
                     _InjuryTeamBlock(
                       team: homeTeam, logo: homeLogo,
-                      players: home, color: AppColors.success),
+                      players: home, color: context.cl.success),
                   if (home.isNotEmpty && away.isNotEmpty) const SizedBox(height: 18),
                   if (away.isNotEmpty)
                     _InjuryTeamBlock(
                       team: awayTeam, logo: awayLogo,
-                      players: away, color: AppColors.error),
+                      players: away, color: context.cl.error),
                 ]);
               },
             ),
@@ -157,7 +157,7 @@ class _InjuryRow extends StatelessWidget {
               ? Container(
                   width: 10, height: 13,
                   decoration: BoxDecoration(
-                    color: isRed ? AppColors.error : AppColors.warning,
+                    color: isRed ? context.cl.error : context.cl.warning,
                     borderRadius: BorderRadius.circular(2)),
                 )
               : Icon(Icons.healing_rounded, color: context.cl.textM, size: 14),

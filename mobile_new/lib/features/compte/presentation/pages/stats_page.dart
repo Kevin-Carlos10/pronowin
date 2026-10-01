@@ -5,6 +5,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/bilan_paris.dart';
 import '../providers/compte_provider.dart';
+import '../../../../shared/utils/rafraichir.dart';
+import '../../../../shared/widgets/erreur_chargement.dart';
 
 class StatsPage extends ConsumerWidget {
   const StatsPage({super.key});
@@ -26,9 +28,23 @@ class StatsPage extends ConsumerWidget {
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
       ),
       body: statsAsync.when(
+        skipError: true,
         loading: () => const Center(child: CircularProgressIndicator()),
-        error:   (e, _) => Center(child: Text(tr(context, "Erreur : {arg0}", [e]))),
-        data:    (stats) => _StatsBody(stats: stats),
+        // L'erreur brute (« Erreur : DioException [connection timeout]… »)
+        // ne disait rien d'utile et ne proposait rien.
+        error:   (e, _) => ErreurChargement(
+          erreur: e,
+          quoi: tr(context, "tes statistiques"),
+          onRetry: () => ref.invalidate(userStatsProvider),
+        ),
+        data:    (stats) => _StatsBody(
+          stats: stats,
+          onRefresh: () async {
+            ref.invalidate(userStatsProvider);
+            final reussi = await attendreChargements([ref.read(userStatsProvider.future)]);
+            if (!reussi && context.mounted) signalerActualisationImpossible(context);
+          },
+        ),
       ),
     );
   }
@@ -37,7 +53,8 @@ class StatsPage extends ConsumerWidget {
 // ─── Corps principal ──────────────────────────────────────────────────────────
 class _StatsBody extends StatelessWidget {
   final Map<String, dynamic> stats;
-  const _StatsBody({required this.stats});
+  final Future<void> Function() onRefresh;
+  const _StatsBody({required this.stats, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
@@ -60,7 +77,7 @@ class _StatsBody extends StatelessWidget {
 
     return RefreshIndicator(
       color: const Color(0xFFFF6B35),
-      onRefresh: () async {},
+      onRefresh: onRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [

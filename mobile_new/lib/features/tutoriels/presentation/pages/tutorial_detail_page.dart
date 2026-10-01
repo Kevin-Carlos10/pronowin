@@ -105,7 +105,7 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
               style: const TextStyle(fontWeight: FontWeight.w600)),
           ),
         ]),
-        backgroundColor: enregistre ? AppColors.success : AppColors.warning,
+        backgroundColor: enregistre ? AppColors.fondSucces : context.cl.warning,
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         duration: Duration(seconds: enregistre ? 2 : 4),
@@ -219,11 +219,11 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
                       if (t.isPremium)
                         _Tag(label: 'Premium',
                             icon: Icons.workspace_premium_rounded,
-                            color: AppColors.warning),
+                            color: context.cl.warning),
                       if (_completed)
                         _Tag(label: tr(context, "Terminé"),
                             icon: Icons.check_circle_rounded,
-                            color: AppColors.success),
+                            color: context.cl.success),
                     ]).animate().fadeIn(duration: 300.ms, delay: 50.ms),
 
                     const SizedBox(height: 14),
@@ -332,9 +332,9 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
   Color _categoryColor(String c) => _categoryColors[c.toLowerCase()] ?? AppColors.primaryLight;
 
   Color _levelColor(TutorialLevel l) => switch (l) {
-    TutorialLevel.beginner     => AppColors.success,
-    TutorialLevel.intermediate => AppColors.warning,
-    TutorialLevel.advanced     => AppColors.error,
+    TutorialLevel.beginner     => context.cl.success,
+    TutorialLevel.intermediate => context.cl.warning,
+    TutorialLevel.advanced     => context.cl.error,
   };
 }
 
@@ -460,7 +460,7 @@ class _MetaRow extends StatelessWidget {
           _MetaChip(
               icon: Icons.access_time_rounded,
               label: tutorial.durationText,
-              color: AppColors.info),
+              color: context.cl.info),
           if (tutorial.viewCount > 0) ...[
             const SizedBox(width: 8),
             _MetaChip(
@@ -473,7 +473,7 @@ class _MetaRow extends StatelessWidget {
             _MetaChip(
                 icon: Icons.star_rounded,
                 label: tutorial.rating.toStringAsFixed(1),
-                color: AppColors.warning),
+                color: context.cl.warning),
           ],
         ],
       );
@@ -741,7 +741,7 @@ class _InlineRichText extends StatelessWidget {
                 style: baseStyle.copyWith(
                     fontFamily: 'monospace',
                     fontSize: (baseStyle.fontSize ?? 14) - 1,
-                    color: AppColors.primaryLight)),
+                    color: context.cl.dore)),
           ),
         ));
       } else if (m.group(2) != null) {
@@ -910,7 +910,7 @@ class _PremiumLock extends ConsumerWidget {
                           color: context.cl.surface.withValues(alpha: 0.85),
                           borderRadius: BorderRadius.circular(20),
                           border: Border.all(
-                              color: AppColors.warning.withValues(alpha: 0.4),
+                              color: context.cl.warning.withValues(alpha: 0.4),
                               width: 1)),
                         child: Column(children: [
                           Container(
@@ -930,7 +930,7 @@ class _PremiumLock extends ConsumerWidget {
                           const SizedBox(height: 16),
                            Text(tr(context, "Contenu Premium"),
                               style: TextStyle(
-                                  color: AppColors.warning,
+                                  color: context.cl.warning,
                                   fontSize: 18,
                                   fontWeight: FontWeight.w800)),
                           const SizedBox(height: 8),
@@ -1094,14 +1094,14 @@ class _BottomBarState extends State<_BottomBar>
               padding: const EdgeInsets.symmetric(vertical: 15),
               decoration: BoxDecoration(
                 gradient: widget.completed
-                    ? const LinearGradient(
-                        colors: [AppColors.success, Color(0xFF22C55E)])
+                    ? LinearGradient(
+                        colors: [context.cl.success, Color(0xFF22C55E)])
                     : LinearGradient(
                         colors: [widget.catColor, widget.catColor.withValues(alpha: 0.8)]),
                 borderRadius: BorderRadius.circular(16),
                 boxShadow: [
                   BoxShadow(
-                    color: (widget.completed ? AppColors.success : widget.catColor)
+                    color: (widget.completed ? context.cl.success : widget.catColor)
                         .withValues(alpha: 0.35),
                     blurRadius: 14,
                     offset: const Offset(0, 4)),

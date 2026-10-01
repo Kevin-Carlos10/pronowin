@@ -111,14 +111,14 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
       if (refWarning != null) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(refWarning),
-          backgroundColor: AppColors.warning,
+          backgroundColor: AppColors.fondAlerte,
           behavior: SnackBarBehavior.floating,
           duration: const Duration(seconds: 4),
         ));
       } else if (refCode.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar( SnackBar(
           content: Text(tr(context, "Code de parrainage appliqué !")),
-          backgroundColor: AppColors.success,
+          backgroundColor: AppColors.fondSucces,
           behavior: SnackBarBehavior.floating,
         ));
       }
@@ -131,7 +131,7 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
           : e.toString();
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: Text(msg),
-        backgroundColor: AppColors.error,
+        backgroundColor: AppColors.fondErreur,
         behavior: SnackBarBehavior.floating,
       ));
     }

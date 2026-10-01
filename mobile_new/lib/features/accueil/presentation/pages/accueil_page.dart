@@ -1,5 +1,6 @@
 import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:async';
+import 'dart:math' as math;
 import 'dart:ui';
 import '../../../../core/utils/motion.dart';
 import '../../../../shared/widgets/confidence_indicator.dart';
@@ -24,12 +25,14 @@ import '../../../bankroll/presentation/widgets/miser_dialog.dart';
 import '../providers/accueil_provider.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
+import '../../../../shared/widgets/logotype_pronowin.dart';
 import '../../../../shared/widgets/pile_onglets_paresseuse.dart';
 import '../../../../shared/utils/devise.dart';
 import '../../../../shared/utils/bilan_paris.dart';
 import '../../../../shared/providers/favoris_provider.dart';
 import '../../../../shared/utils/verrou_pari.dart';
 import '../../../../shared/utils/verrou_pronostic.dart';
+import '../../../../shared/utils/rafraichir.dart';
 
 // Découpé en fichiers `part` : le fichier faisait 4 406 lignes pour une
 // cinquantaine de classes privées — plus gros que match_detail_page avant
@@ -46,8 +49,13 @@ part 'accueil/encarts.dart';
 /// Libellé de pronostic (réponse API brute) avec "Domicile"/"Extérieur"
 /// remplacés par le nom réel de l'équipe — voir [MatchEntity.applyTeamNames].
 /// Hauteur commune aux carrousels de l'accueil (pronostics du jour, en
-/// direct). Une seule constante : les deux sections ne peuvent pas diverger.
-const double _kCarouselCardHeight = 186;
+/// direct). Une seule source : les deux sections ne peuvent pas diverger.
+///
+/// 186 à taille de texte normale. C'était une constante, et la carte
+/// débordait de 52 px à 180 % : la hauteur suit maintenant le réglage de
+/// texte du téléphone (mesuré par `accueil_texte_agrandi_test.dart`).
+double _hauteurCarrousel(BuildContext context) =>
+    186 + (MediaQuery.textScalerOf(context).scale(100) / 100 - 1) * 70;
 
 /// Vrai si le nom affiché est un pseudo auto-généré du type « Parieur_5TQQC ».
 bool _estPseudoGenere(String? nom) =>
@@ -180,6 +188,16 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
           ref.invalidate(statsJourProvider);
           ref.invalidate(nextPronosticProvider);
           ref.invalidate(currentSubscriptionProvider);
+          // L'indicateur reste affiché jusqu'au retour des données, au lieu
+          // de se refermer avant la première réponse.
+          await attendreChargements([
+            ref.read(pronosticsJourProvider.future),
+            ref.read(actualitesProvider.future),
+            ref.read(favoritesListProvider.future),
+            ref.read(statsJourProvider.future),
+            ref.read(nextPronosticProvider.future),
+            ref.read(currentSubscriptionProvider.future),
+          ]);
         },
         child: CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
@@ -277,8 +295,8 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                           prono: top,
                           locked: isLocked,
                           onTap: isLocked
-                              ? () => subAsync.whenData(
-                                  (sub) => goToPremium(context, ref, extra: sub))
+                              ? () => goToPremium(context, ref,
+                                  extra: subAsync.valueOrNull)
                               : () => context.push('/pronostics/${top['id']}',
                                   extra: null),
                         ),
@@ -292,8 +310,12 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                   // sa valeur avant de proposer l'abonnement.
                   if (!isPremium) ...[
                     _PremiumBanner(
-                      onTap: () => subAsync.whenData(
-                          (sub) => goToPremium(context, ref, extra: sub)),
+                      // Toujours naviguer. `whenData` ne rappelait qu'une fois
+                      // l'abonnement chargé : pendant le chargement ou après
+                      // une erreur, le toucher ne faisait rien. Le paywall
+                      // charge lui-même ce qui lui manque.
+                      onTap: () => goToPremium(context, ref,
+                          extra: subAsync.valueOrNull),
                     )
                       .animate()
                       .fadeIn(duration: 500.ms, delay: 200.ms)
@@ -371,7 +393,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                           // suivante dépasse volontairement du bord : c'est ce
                           // qui signale qu'on peut faire défiler.
                           SizedBox(
-                            height: _kCarouselCardHeight,
+                            height: _hauteurCarrousel(context),
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               padding: EdgeInsets.zero,

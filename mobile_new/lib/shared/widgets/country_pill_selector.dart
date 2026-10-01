@@ -100,8 +100,8 @@ class CountryPillSelector extends StatelessWidget {
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Text(country.flagEmoji, style: const TextStyle(fontSize: 20)),
         const SizedBox(width: 6),
-        Text('+${country.phoneCode}', style: const TextStyle(
-          color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 15)),
+        Text('+${country.phoneCode}', style: TextStyle(
+          color: context.cl.accent, fontWeight: FontWeight.w700, fontSize: 15)),
         const SizedBox(width: 4),
         Icon(Icons.arrow_drop_down_rounded, color: context.cl.textM, size: 18),
       ]),
@@ -358,7 +358,7 @@ class _CountryTile extends StatelessWidget {
             child: Text(label,
               maxLines: 1, overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: isSelected ? AppColors.primary : context.cl.textP,
+                color: isSelected ? context.cl.accent : context.cl.textP,
                 fontSize: 14.5,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500)),
           ),
@@ -369,7 +369,7 @@ class _CountryTile extends StatelessWidget {
             child: Text('+${country.phoneCode}',
               textAlign: TextAlign.right,
               style: TextStyle(
-                color: isSelected ? AppColors.primary : context.cl.textS,
+                color: isSelected ? context.cl.accent : context.cl.textS,
                 fontSize: 13.5,
                 fontWeight: FontWeight.w700,
                 fontFeatures: const [FontFeature.tabularFigures()])),

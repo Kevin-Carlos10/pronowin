@@ -89,9 +89,9 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
     if (_reponse != null) {
       final r = _reponse!;
       return _Cadre(
-        couleur: AppColors.success,
+        couleur: context.cl.success,
         child: Row(children: [
-          const Icon(Icons.check_circle_rounded, color: AppColors.success, size: 22),
+          Icon(Icons.check_circle_rounded, color: context.cl.success, size: 22),
           const SizedBox(width: 10),
           Expanded(child: Text(
             r.corrigee
@@ -161,7 +161,7 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
 
         if (_erreur != null) ...[
           const SizedBox(height: 8),
-          Text(_erreur!, style: const TextStyle(color: AppColors.error, fontSize: 12.5)),
+          Text(_erreur!, style: TextStyle(color: context.cl.error, fontSize: 12.5)),
         ],
       ]),
     );

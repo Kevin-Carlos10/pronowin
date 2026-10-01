@@ -36,6 +36,8 @@ import '../../domain/entities/verdict_comparaison.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../core/config/bookmaker_affiliation.dart';
 import '../../../../core/services/analyse_usage.dart';
+import '../../../../core/network/failures.dart';
+import '../../../../shared/widgets/erreur_chargement.dart';
 
 
 // Découpé en fichiers `part` : le fichier faisait 3 604 lignes pour une
@@ -206,10 +208,19 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
             icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20),
             onPressed: () => retourOuAller(context, repli: _repli)),
           title: Text(tr(context, "Détail du match"))),
+        // Trois situations, trois écrans. « Match introuvable » n'est vrai
+        // que sur un 404 : une coupure réseau l'affichait aussi, sans rien
+        // proposer, alors qu'il suffisait de réessayer.
         body: matchAsync.isLoading
           ? Center(child: CircularProgressIndicator(color: AppColors.primary))
-          : Center(child: Text(tr(context, "Match introuvable"),
-              style: TextStyle(color: context.cl.textS))));
+          : matchAsync.error is NotFoundFailure || !matchAsync.hasError
+            ? Center(child: Text(tr(context, "Match introuvable"),
+                style: TextStyle(color: context.cl.textS)))
+            : ErreurChargement(
+                erreur: matchAsync.error,
+                quoi: tr(context, "ce match"),
+                onRetry: () => ref.invalidate(matchDetailProvider(widget.matchId)),
+              ));
     }
 
     // Le verdict du serveur prime sur le calcul local : c'est lui qui connaît
@@ -465,7 +476,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
                 isPremium
                   ? Icons.workspace_premium_rounded
                   : Icons.lock_rounded,
-                color: isPremium ? AppColors.warning : context.cl.textM,
+                color: isPremium ? context.cl.warning : context.cl.textM,
                 size: 20)),
         ],
       ),
@@ -603,7 +614,7 @@ class _BarreOnglets extends StatelessWidget implements PreferredSizeWidget {
             controller: controller,
             isScrollable: true,
             tabAlignment: TabAlignment.start,
-            labelColor: AppColors.primary,
+            labelColor: context.cl.accent,
             unselectedLabelColor: context.cl.textS,
             indicatorColor: AppColors.primary,
             dividerColor: Colors.transparent,
@@ -674,7 +685,7 @@ class _EnTeteCompacte extends ConsumerWidget {
               aScore ? '${home ?? 0} - ${away ?? 0}' : 'VS',
               style: TextStyle(
                 color: match.status == MatchStatus.live
-                    ? AppColors.success
+                    ? context.cl.success
                     : context.cl.textP,
                 fontSize: 14, fontWeight: FontWeight.w800)),
           ),
@@ -735,7 +746,9 @@ class _MatchHeader extends ConsumerWidget {
         ? tr(context, "contre")
         : tr(context, "{arg0} à {arg1} contre", [homeScore ?? 0, awayScore ?? 0]);
 
-    return Semantics(
+    // Surface toujours sombre : son contenu lit le thème sombre, sinon les
+    // textes et icônes suivent le thème clair et disparaissent sur le bleu nuit.
+    return SurfaceSombre(builder: (context) => Semantics(
     label: tr(context, "{arg0}. {arg1} {arg2} {arg3}. Match {arg4}, le {arg5} à {arg6}.", [match.league, match.homeTeam, scoreParle, match.awayTeam, etat, dateStr, heureStr]),
     excludeSemantics: true,
     child: Container(
@@ -749,12 +762,12 @@ class _MatchHeader extends ConsumerWidget {
       borderRadius: BorderRadius.circular(22),
       border: Border.all(
         color: match.status == MatchStatus.live
-            ? AppColors.error.withValues(alpha: 0.5)
+            ? context.cl.error.withValues(alpha: 0.5)
             : context.cl.border,
         width: match.status == MatchStatus.live ? 1.5 : 0.5,
       ),
       boxShadow: match.status == MatchStatus.live
-          ? [BoxShadow(color: AppColors.error.withValues(alpha: 0.1), blurRadius: 20)]
+          ? [BoxShadow(color: context.cl.error.withValues(alpha: 0.1), blurRadius: 20)]
           : [],
     ),
     child: Column(children: [
@@ -809,12 +822,12 @@ class _MatchHeader extends ConsumerWidget {
               padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
               decoration: BoxDecoration(
                 color: match.status == MatchStatus.live
-                  ? AppColors.success.withValues(alpha: 0.08)
+                  ? context.cl.success.withValues(alpha: 0.08)
                   : context.cl.surfaceDeep,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
                   color: match.status == MatchStatus.live
-                    ? AppColors.success.withValues(alpha: 0.3)
+                    ? context.cl.success.withValues(alpha: 0.3)
                     : context.cl.borderSoft,
                   width: match.status == MatchStatus.live ? 1.5 : 0.5)),
               child: Text(
@@ -823,14 +836,14 @@ class _MatchHeader extends ConsumerWidget {
                   : 'VS',
                 style: TextStyle(
                   color: match.status == MatchStatus.live
-                    ? AppColors.success
+                    ? context.cl.success
                     : context.cl.textP,
                   fontSize: 24, fontWeight: FontWeight.w800,
                   letterSpacing: 2))),
             if (isRefreshingScore) ...[
               const SizedBox(height: 6),
               SizedBox(width: 12, height: 12,
-                child: CircularProgressIndicator(strokeWidth: 1.5, color: AppColors.success)),
+                child: CircularProgressIndicator(strokeWidth: 1.5, color: context.cl.success)),
             ] else if (match.status == MatchStatus.upcoming) ...[
               const SizedBox(height: 6),
               Text(heureStr,
@@ -856,7 +869,7 @@ class _MatchHeader extends ConsumerWidget {
         ])),
       ]),
     ]),
-  ));
+  )));
   }
 }
 
@@ -902,7 +915,14 @@ class _PronosticCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Semantics(
+  Widget build(BuildContext context) {
+    // Déverrouillé, l'encadré est bleu nuit dans les deux thèmes : son
+    // contenu doit lire le thème sombre.
+    if (!isLocked && !context.isDark) return SurfaceSombre(builder: _carte);
+    return _carte(context);
+  }
+
+  Widget _carte(BuildContext context) => Semantics(
     label: _annonce(context),
     excludeSemantics: true,
     child: Container(
@@ -942,8 +962,8 @@ class _PronosticCard extends StatelessWidget {
         // au lieu d'une longue phrase qui passe à la ligne.
         if (_market != null) ...[
           Text(_market!.toUpperCase(),
-            style: const TextStyle(
-              color: AppColors.primary,
+            style: TextStyle(
+              color: context.cl.accent,
               fontSize: 10.5,
               fontWeight: FontWeight.w800,
               letterSpacing: 0.8)),
@@ -1019,7 +1039,7 @@ class _ConfianceRappel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final couleur = ConfidenceIndicator.colorFor(score);
+    final couleur = ConfidenceIndicator.colorFor(context, score);
     return Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
       Text(tr(context, "CONFIANCE ANNONCÉE"),
         style: TextStyle(
@@ -1122,7 +1142,7 @@ class _VerdictStripState extends State<_VerdictStrip>
   Widget build(BuildContext context) {
     final isWin  = widget.result == PronosticResult.win;
     final isPush = widget.result == PronosticResult.push;
-    final color  = isWin ? AppColors.success : isPush ? AppColors.info : AppColors.error;
+    final color  = isWin ? context.cl.success : isPush ? context.cl.info : context.cl.error;
     final icon   = isWin  ? Icons.check_circle_rounded
                  : isPush ? Icons.replay_rounded
                  : Icons.cancel_rounded;
@@ -1334,10 +1354,10 @@ class _CoteRecommandee extends StatelessWidget {
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
     decoration: BoxDecoration(
-      color: AppColors.success.withValues(alpha: 0.10),
+      color: context.cl.success.withValues(alpha: 0.10),
       borderRadius: BorderRadius.circular(16),
       border: Border.all(
-        color: AppColors.success.withValues(alpha: 0.35), width: 1.2)),
+        color: context.cl.success.withValues(alpha: 0.35), width: 1.2)),
     child: Row(children: [
       Expanded(
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -1355,8 +1375,8 @@ class _CoteRecommandee extends StatelessWidget {
       ),
       const SizedBox(width: 12),
       Text(match.oddsRecommended.toStringAsFixed(2),
-        style: const TextStyle(
-          color: AppColors.success, fontSize: 22,
+        style: TextStyle(
+          color: context.cl.success, fontSize: 22,
           fontWeight: FontWeight.w800, height: 1)),
     ]),
   );
@@ -1382,12 +1402,12 @@ class _OddPill extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 6),
       decoration: BoxDecoration(
         color: isRecommended
-          ? AppColors.success.withValues(alpha: 0.12)
+          ? context.cl.success.withValues(alpha: 0.12)
           : context.cl.surfaceDeep,
         borderRadius: BorderRadius.circular(10),
         border: Border.all(
           color: isRecommended
-            ? AppColors.success.withValues(alpha: 0.4)
+            ? context.cl.success.withValues(alpha: 0.4)
             : context.cl.borderSoft,
           width: isRecommended ? 1.2 : 0.5)),
       child: Column(mainAxisSize: MainAxisSize.min, children: [
@@ -1396,11 +1416,11 @@ class _OddPill extends StatelessWidget {
         // au « 1 » ajoutait un quatrième signal pour la même information, et
         // se lisait comme une scorie plutôt que comme un repère.
         Text(label, style: TextStyle(
-          color: isRecommended ? AppColors.success : context.cl.textM,
+          color: isRecommended ? context.cl.success : context.cl.textM,
           fontSize: 9, fontWeight: FontWeight.w700)),
         Text(value > 0 ? value.toStringAsFixed(2) : '—',
           style: TextStyle(
-            color: isRecommended ? AppColors.success : context.cl.textP,
+            color: isRecommended ? context.cl.success : context.cl.textP,
             fontSize: 14, fontWeight: FontWeight.w800)),
       ]),
     ),
@@ -1477,7 +1497,9 @@ class _PremiumBannerState extends ConsumerState<_PremiumBanner>
     // Sur un build store le tarif est majoré (commission Apple/Google) :
     // annoncer le prix Mobile Money afficherait moins que le montant débité.
     final priceLabel = tr(context, "{arg0}/mois", [premiumMonthlyPriceLabel(ref, sub)]);
-    return GestureDetector(
+    // Carte toujours sombre : son contenu lit le thème sombre, sinon les
+    // couleurs d'état et les gris passent à leurs variantes pour fond blanc.
+    return SurfaceSombre(builder: (context) => GestureDetector(
     onTapDown: (_) => _pressCtrl.forward(),
     onTapUp: (_) { _pressCtrl.reverse(); HapticFeedback.lightImpact(); widget.onTap(); },
     onTapCancel: () => _pressCtrl.reverse(),
@@ -1521,7 +1543,7 @@ class _PremiumBannerState extends ConsumerState<_PremiumBanner>
           .shimmer(duration: 2000.ms, delay: 600.ms, color: Colors.white30),
       ]),
     )),
-  );
+  ));
   }
 }
 
@@ -1567,10 +1589,10 @@ class _FraicheurState extends State<_Fraicheur> {
   @override
   Widget build(BuildContext context) {
     if (widget.enCours) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.only(right: 8),
         child: SizedBox(width: 16, height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.error)),
+          child: CircularProgressIndicator(strokeWidth: 2, color: context.cl.error)),
       );
     }
 
@@ -1652,9 +1674,9 @@ class _LiveBadgeState extends State<_LiveBadge>
     child: Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
-      color: AppColors.error.withValues(alpha: 0.12),
+      color: context.cl.error.withValues(alpha: 0.12),
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: AppColors.error.withValues(alpha: 0.4), width: 0.5),
+      border: Border.all(color: context.cl.error.withValues(alpha: 0.4), width: 0.5),
     ),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
       AnimatedBuilder(
@@ -1662,10 +1684,10 @@ class _LiveBadgeState extends State<_LiveBadge>
         builder: (_, _) => Container(
           width: 7, height: 7,
           decoration: BoxDecoration(
-            color: AppColors.error.withValues(alpha: _pulse.value),
+            color: context.cl.error.withValues(alpha: _pulse.value),
             shape: BoxShape.circle,
             boxShadow: [BoxShadow(
-              color: AppColors.error.withValues(alpha: _pulse.value * 0.6),
+              color: context.cl.error.withValues(alpha: _pulse.value * 0.6),
               blurRadius: 4,
             )],
           ),
@@ -1673,8 +1695,8 @@ class _LiveBadgeState extends State<_LiveBadge>
       ),
       const SizedBox(width: 6),
       Text(widget.minute == null ? tr(context, "EN DIRECT") : "${widget.minute}'",
-        style: const TextStyle(
-          color: AppColors.error, fontSize: 11,
+        style: TextStyle(
+          color: context.cl.error, fontSize: 11,
           fontWeight: FontWeight.w700, letterSpacing: 0.5)),
     ])));
 }
@@ -1687,7 +1709,7 @@ class _DetailConfidenceBar extends StatelessWidget {
   /// avait sa propre échelle à 5 couleurs là où le reste de l'app en utilise 3 :
   /// un score de 4 s'affichait vert-lime ici et vert ailleurs, pour la même
   /// donnée sur deux écrans voisins.
-  Color get _color => ConfidenceIndicator.colorFor(score);
+  Color _color(BuildContext context) => ConfidenceIndicator.colorFor(context, score);
 
   String get _label => MatchEntity.labelForConfidence(score);
 
@@ -1711,7 +1733,7 @@ class _DetailConfidenceBar extends StatelessWidget {
             curve: Curves.easeOutCubic,
             builder: (_, val, child) => Text('$val/5',
                 style: TextStyle(
-                    color: _color, fontSize: 15, fontWeight: FontWeight.w800,
+                    color: _color(context), fontSize: 15, fontWeight: FontWeight.w800,
                     height: 1)),
           ),
         ]),
@@ -1726,14 +1748,14 @@ class _DetailConfidenceBar extends StatelessWidget {
               value: val,
               minHeight: 6,
               backgroundColor: context.cl.borderSoft,
-              valueColor: AlwaysStoppedAnimation<Color>(_color),
+              valueColor: AlwaysStoppedAnimation<Color>(_color(context)),
             ),
           ),
         ),
         const SizedBox(height: 5),
         Text(_label,
             style: TextStyle(
-                color: _color, fontSize: 10.5, fontWeight: FontWeight.w700)),
+                color: _color(context), fontSize: 10.5, fontWeight: FontWeight.w700)),
       ],
     );
   }

@@ -112,7 +112,7 @@ class _PremiumGateSheet extends ConsumerWidget {
               const SizedBox(height: 6),
               if (matchLabel != null)
                 Text(matchLabel!, style: TextStyle(
-                  color: AppColors.primary, fontSize: 13,
+                  color: context.cl.accent, fontSize: 13,
                   fontWeight: FontWeight.w600))
               else
                 Text(tr(context, "Débloquez l'accès à tous les pronostics VIP"),
@@ -166,8 +166,8 @@ class _PremiumGateSheet extends ConsumerWidget {
                 // sa documentation dit « écrans d'accroche (« à partir de X »)
                 // ». Trois écrans l'utilisaient déjà ; celui pour lequel elle a
                 // été écrite ne l'utilisait pas.
-                Text(premiumMonthlyPriceLabel(ref, sub), style: const TextStyle(
-                  color: AppColors.primary, fontSize: 16,
+                Text(premiumMonthlyPriceLabel(ref, sub), style: TextStyle(
+                  color: context.cl.accent, fontSize: 16,
                   fontWeight: FontWeight.w900)),
                 Text(tr(context, " / mois"), style: TextStyle(
                   color: context.cl.textS, fontSize: 13)),
@@ -251,7 +251,7 @@ class _TauxReussiteReel extends ConsumerWidget {
     if (bilan == null || !bilan.affichable) return const SizedBox.shrink();
 
     final taux = bilan.tauxReussite!;
-    final couleur = taux >= 60 ? AppColors.success : context.cl.textP;
+    final couleur = taux >= 60 ? context.cl.success : context.cl.textP;
 
     return Container(
       margin: const EdgeInsets.only(top: 6),

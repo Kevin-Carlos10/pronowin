@@ -71,7 +71,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                 key: ValueKey(unread),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.error,
+                  color: context.cl.error,
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: const [BoxShadow(color: Color(0x66EF4444),
                     blurRadius: 6, offset: Offset(0, 2))]),
@@ -336,7 +336,7 @@ class _SwipeTile extends ConsumerWidget {
           Icon(Icons.mark_email_read_rounded, color: AppColors.primary, size: 22),
           const SizedBox(width: 8),
           Text(tr(context, "Marquer lu"), style: TextStyle(
-            color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13)),
+            color: context.cl.accent, fontWeight: FontWeight.w600, fontSize: 13)),
         ]),
       ),
       confirmDismiss: (_) async {

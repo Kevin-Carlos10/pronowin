@@ -20,10 +20,28 @@ class _SliverHeader extends ConsumerWidget {
             ? tr(context, "Bon après-midi")
             : tr(context, "Bonsoir");
 
+    // ── Hauteur de l'en-tête ────────────────────────────────────────────
+    //
+    // Elle valait 140 en dur, marge haute de 48 comprise. Deux hypothèses
+    // dedans, toutes deux fausses quelque part :
+    //
+    //   · un texte à taille normale — à 180 %, le contenu débordait de
+    //     20 px, et la ligne d'abonnement, qui passe alors sur deux lignes,
+    //     en demande une de plus ;
+    //   · une barre d'état de 48 px au plus — l'encoche des iPhone récents
+    //     en fait 59.
+    //
+    // Le contenu mesure 108 à taille normale (logo, salutation, ligne
+    // d'abonnement) ; ce que le texte agrandi ajoute est mesuré par
+    // `accueil_texte_agrandi_test.dart`. `SliverAppBar` ajoute lui-même la
+    // barre d'état à `expandedHeight` : on la retire donc de la marge.
+    final echelle   = MediaQuery.textScalerOf(context).scale(100) / 100;
+    final barreEtat = MediaQuery.paddingOf(context).top;
+    final margeHaut = math.max(48.0, barreEtat + 8);
+    final contenu   = 108 + (echelle - 1) * 55;
+
     return SliverAppBar(
-      // Mesuré : le contenu (logo, salutation, ligne d'abonnement) occupe
-      // environ 130. Les 34 px restants laissaient une bande vide visible.
-      expandedHeight: 140,
+      expandedHeight: margeHaut - barreEtat + contenu + 12,
       // Onglet racine : aucune page à quitter. Sans ça Flutter ajoute une
       // flèche de retour, qui venait se superposer au logo.
       automaticallyImplyLeading: false,
@@ -41,7 +59,7 @@ class _SliverHeader extends ConsumerWidget {
               end: Alignment.bottomCenter,
             ),
           ),
-          padding: const EdgeInsets.fromLTRB(16, 48, 16, 12),
+          padding: EdgeInsets.fromLTRB(16, margeHaut, 16, 12),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -50,19 +68,10 @@ class _SliverHeader extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  RichText(
-                    text: const TextSpan(
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                      ),
-                      children: [
-                        TextSpan(text: 'Prono', style: TextStyle(color: Colors.white)),
-                        TextSpan(text: 'Win',   style: TextStyle(color: AppColors.primary)),
-                      ],
-                    ),
-                  ),
+                  // Le logotype partagé : « Prono » suit le thème. La copie
+                  // écrite ici le figeait en blanc, invisible sur l'en-tête
+                  // clair — et le test du logotype ne la voyait pas.
+                  const LogotypePronoWin(taille: 26),
                   Semantics(
                     button: true,
                     label: unreadCount > 0
@@ -94,7 +103,7 @@ class _SliverHeader extends ConsumerWidget {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                               decoration: BoxDecoration(
-                                color: AppColors.error,
+                                color: context.cl.error,
                                 borderRadius: BorderRadius.circular(8),
                                 border: Border.all(color: context.cl.bg, width: 1.5),
                               ),
@@ -212,18 +221,18 @@ class _SliverHeader extends ConsumerWidget {
                             // passe d'abord par la complétion du profil quand
                             // elle manque, ce qu'un `context.go` direct saute.
                             onTap: () => goToPremium(context, ref),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(tr(context, "Plan Gratuit · "),
-                                    style: TextStyle(color: context.cl.textM, fontSize: 11)),
-                                 Text(tr(context, "Passer Premium ✨"),
-                                    style: TextStyle(
-                                        color: AppColors.primaryLight,
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w600)),
-                              ],
-                            ),
+                            // Un seul texte en deux morceaux : il se replie
+                            // quand la place manque. Deux `Text` dans une
+                            // `Row` débordaient de 13 px à 360 px et 180 %.
+                            child: Text.rich(TextSpan(children: [
+                              TextSpan(text: tr(context, "Plan Gratuit · "),
+                                  style: TextStyle(color: context.cl.textM, fontSize: 11)),
+                              TextSpan(text: tr(context, "Passer Premium ✨"),
+                                  style: TextStyle(
+                                      color: context.cl.dore,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600)),
+                            ])),
                           ),
                       ],
                     ),
@@ -290,9 +299,9 @@ class _PseudoNudgeState extends State<_PseudoNudge> {
       margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.info.withValues(alpha: 0.08),
+        color: context.cl.info.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.info.withValues(alpha: 0.25), width: 0.5),
+        border: Border.all(color: context.cl.info.withValues(alpha: 0.25), width: 0.5),
       ),
       child: Row(
         children: [
@@ -368,7 +377,7 @@ class _QuickStats extends ConsumerWidget {
             // Pas d'emoji ici : la carte porte déjà l'icône flamme, et les
             // deux voisines n'affichent qu'un nombre.
             value: streak > 0 ? '$streak' : '—',
-            color: AppColors.warning,
+            color: context.cl.warning,
             hint: streak == 0 ? tr(context, "Pas encore de série en cours") : null,
           ),
           const SizedBox(width: 10),
@@ -376,7 +385,7 @@ class _QuickStats extends ConsumerWidget {
             icon: Icons.trending_up_rounded,
             label: tr(context, "Taux win"),
             value: totalFinished >= 3 ? '$winRate%' : '—',
-            color: AppColors.success,
+            color: context.cl.success,
             hint: totalFinished < 3 ? tr(context, "Disponible après 3 pronos terminés") : null,
           ),
           const SizedBox(width: 10),
@@ -384,7 +393,7 @@ class _QuickStats extends ConsumerWidget {
             icon: Icons.sports_soccer_rounded,
             label: tr(context, "À venir"),
             value: upcoming > 0 ? '$upcoming' : '—',
-            color: AppColors.info,
+            color: context.cl.info,
             hint: upcoming == 0 ? tr(context, "Aucun match programmé") : null,
           ),
         ]);
@@ -558,7 +567,9 @@ class _PremiumBanner extends ConsumerWidget {
       headline = tr(context, "Analyses détaillées · Cotes exclusives · VIP");
     }
 
-    return GestureDetector(
+    // Surface toujours sombre : son contenu lit le thème sombre, sinon les
+    // textes et icônes suivent le thème clair et disparaissent sur le bleu nuit.
+    return SurfaceSombre(builder: (context) => GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
@@ -649,7 +660,7 @@ class _PremiumBanner extends ConsumerWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -699,11 +710,11 @@ class _LockedPronoPreview extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
-                        color: AppColors.success.withValues(alpha: 0.15),
+                        color: context.cl.success.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6)),
                       child: Text(oddsRec.toStringAsFixed(2),
-                        style: const TextStyle(
-                          color: AppColors.success,
+                        style: TextStyle(
+                          color: context.cl.success,
                           fontSize: 11, fontWeight: FontWeight.w800)),
                     ),
                 ]),

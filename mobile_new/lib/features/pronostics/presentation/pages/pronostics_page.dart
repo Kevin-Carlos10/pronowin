@@ -17,6 +17,7 @@ import '../widgets/match_card_widget.dart';
 import '../../../../shared/widgets/skeletons.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/providers/favoris_provider.dart';
+import '../../../../shared/widgets/logotype_pronowin.dart';
 
 class PronosticsPage extends ConsumerStatefulWidget {
   const PronosticsPage({super.key});
@@ -294,10 +295,10 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
               key: const Key('pronostics-hors-connexion'),
               width: double.infinity,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              color: AppColors.warning.withValues(alpha: 0.10),
+              color: context.cl.warning.withValues(alpha: 0.10),
               child: Row(children: [
-                const Icon(Icons.cloud_off_rounded,
-                    size: 14, color: AppColors.warning),
+                Icon(Icons.cloud_off_rounded,
+                    size: 14, color: context.cl.warning),
                 const SizedBox(width: 8),
                 Expanded(child: Text(
                   tr(context, "Hors connexion — copie du {arg0}", [_dateCache(pagedState.cacheDe!)]),
@@ -310,7 +311,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap),
                   child:  Text(tr(context, "Actualiser"),
-                      style: TextStyle(fontSize: 11, color: AppColors.warning)),
+                      style: TextStyle(fontSize: 11, color: context.cl.warning)),
                 ),
               ]),
             ),
@@ -405,7 +406,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                   ..._buildTierSection(context,
                       label:    tr(context, "En direct"),
                       icon:     Icons.radio_button_checked_rounded,
-                      color:    AppColors.error,
+                      color:    context.cl.error,
                       matches:  liveMatches,
                       favLeagues: favState.ligues,
                       isPremium: isPremium),
@@ -426,7 +427,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                   ..._buildTierSection(context,
                       label:    tr(context, "Terminés"),
                       icon:     Icons.check_circle_outline_rounded,
-                      color:    AppColors.success,
+                      color:    context.cl.success,
                       matches:  finishedMatches,
                       favLeagues: favState.ligues,
                       isPremium: isPremium),
@@ -582,17 +583,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
           color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
         child: const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 18)),
       const SizedBox(width: 10),
-      RichText(
-        text: TextSpan(
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600,
-            color: context.cl.textP),
-          children: const [
-            TextSpan(text: 'Prono'),
-            TextSpan(text: 'Win',
-              style: TextStyle(color: AppColors.primaryLight)),
-          ],
-        ),
-      ),
+      const LogotypePronoWin(taille: 17),
     ]),
     actions: [
       // Bouton recherche
@@ -688,7 +679,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                     child: Container(
                       width: 16, height: 16,
                       decoration: BoxDecoration(
-                        color: AppColors.error, shape: BoxShape.circle,
+                        color: context.cl.error, shape: BoxShape.circle,
                         border: Border.all(color: context.cl.bg, width: 1.5)),
                       child: Center(
                         child: Text(unread > 9 ? '9+' : '$unread',
@@ -717,9 +708,9 @@ class _StatusFilterBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final filters = <MatchStatus?, _StatusMeta>{
       null:                  _StatusMeta(tr(context, "Tous"),     Icons.apps_rounded,               context.cl.textS),
-      MatchStatus.upcoming:  _StatusMeta(tr(context, "À venir"),  Icons.schedule_rounded,           AppColors.info),
-      MatchStatus.live:      _StatusMeta('LIVE',     Icons.radio_button_checked_rounded, AppColors.error),
-      MatchStatus.finished:  _StatusMeta(tr(context, "Terminés"), Icons.check_circle_outline_rounded, AppColors.success),
+      MatchStatus.upcoming:  _StatusMeta(tr(context, "À venir"),  Icons.schedule_rounded,           context.cl.info),
+      MatchStatus.live:      _StatusMeta('LIVE',     Icons.radio_button_checked_rounded, context.cl.error),
+      MatchStatus.finished:  _StatusMeta(tr(context, "Terminés"), Icons.check_circle_outline_rounded, context.cl.success),
     };
 
     return Container(
@@ -892,7 +883,7 @@ class _DateScrollBar extends StatelessWidget {
                               borderRadius: BorderRadius.circular(6)),
                             child: Text('$count',
                               style: TextStyle(
-                                color: isSelected ? Colors.white : AppColors.primary,
+                                color: isSelected ? Colors.white : context.cl.accent,
                                 fontSize: 9, fontWeight: FontWeight.w700)))
                         : SizedBox(key: const ValueKey(0), height: 14),
                     ),
@@ -955,7 +946,7 @@ class _DayStatsBar extends StatelessWidget {
           _StatPill(
             icon: Icons.radio_button_checked_rounded,
             label: '$live LIVE',
-            color: AppColors.error,
+            color: context.cl.error,
             pulse: true),
         ],
       ]),
@@ -1102,8 +1093,8 @@ class _LeagueSectionHeader extends StatelessWidget {
           color: AppColors.primary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8)),
         child: Text(AppStrings.of(context).count(count, one: "{arg0} match", other: "{arg0} matchs"),
-          style: const TextStyle(
-            color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600))),
+          style: TextStyle(
+            color: context.cl.accent, fontSize: 10, fontWeight: FontWeight.w600))),
       if (onToggleFav != null) ...[
         const SizedBox(width: 8),
         Semantics(
@@ -1182,8 +1173,8 @@ class _ActiveFiltersBar extends StatelessWidget {
                 color: AppColors.primary.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: AppColors.primary.withValues(alpha: 0.3), width: 0.5)),
-              child: Text(label, style: const TextStyle(
-                color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w600)),
+              child: Text(label, style: TextStyle(
+                color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w600)),
             )).toList()),
           ),
         ),
@@ -1363,10 +1354,10 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
       }).length;
 
   Color _oddsColor(OddsRange range) => switch (range) {
-    OddsRange.under15    => AppColors.success,
+    OddsRange.under15    => context.cl.success,
     OddsRange.from15to25 => const Color(0xFF84CC16),
-    OddsRange.from25to4  => AppColors.warning,
-    OddsRange.over4      => AppColors.error,
+    OddsRange.from25to4  => context.cl.warning,
+    OddsRange.over4      => context.cl.error,
     OddsRange.all        => AppColors.primary,
   };
 }
@@ -1688,7 +1679,7 @@ class _ForYouCard extends StatelessWidget {
                       fontSize: 10, fontWeight: FontWeight.w800))),
               if (isLocked) ...[
                 const SizedBox(width: 6),
-                const Icon(Icons.lock_rounded, color: AppColors.warning, size: 14)],
+                Icon(Icons.lock_rounded, color: context.cl.warning, size: 14)],
             ])),
 
           // ── Match teams ──────────────────────────────────────────────
@@ -1707,8 +1698,8 @@ class _ForYouCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8)),
-                    child: Text(p.predictionLabel, style: const TextStyle(
-                      color: AppColors.primary, fontSize: 10,
+                    child: Text(p.predictionLabel, style: TextStyle(
+                      color: context.cl.accent, fontSize: 10,
                       fontWeight: FontWeight.w700))),
                   const SizedBox(width: 8),
                   Text('@ ${p.oddsRecommended.toStringAsFixed(2)}',
@@ -1879,8 +1870,8 @@ class _FavSection extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.primary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8)),
-        child: Text('$count', style: const TextStyle(
-          color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600))),
+        child: Text('$count', style: TextStyle(
+          color: context.cl.accent, fontSize: 10, fontWeight: FontWeight.w600))),
     ]),
   ).animate().fadeIn(duration: 250.ms);
 }
@@ -2108,7 +2099,7 @@ class _EmptyView extends StatelessWidget {
                 const Icon(Icons.arrow_downward_rounded, color: AppColors.primaryLight, size: 14),
                 const SizedBox(width: 6),
                 Text(tr(context, "Tirez vers le bas pour actualiser"),
-                  style: TextStyle(color: AppColors.primaryLight, fontSize: 12, fontWeight: FontWeight.w500)),
+                  style: TextStyle(color: context.cl.dore, fontSize: 12, fontWeight: FontWeight.w500)),
               ]),
             ).animate(delay: 320.ms).fadeIn(duration: 300.ms),
 

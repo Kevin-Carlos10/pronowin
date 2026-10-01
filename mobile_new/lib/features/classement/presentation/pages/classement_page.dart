@@ -9,6 +9,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/leaderboard_entity.dart';
 import '../providers/leaderboard_provider.dart';
+import '../../../../shared/utils/rafraichir.dart';
 
 // Couleurs podium
 const _gold   = Color(0xFFFFD700);
@@ -53,8 +54,10 @@ class ClassementPage extends ConsumerWidget {
 
                   return RefreshIndicator(
                     color: _gold,
-                    onRefresh: () async =>
-                        ref.invalidate(leaderboardProvider(period)),
+                    onRefresh: () {
+                      ref.invalidate(leaderboardProvider(period));
+                      return attendreChargements([ref.read(leaderboardProvider(period).future)]);
+                    },
                     child: CustomScrollView(
                       slivers: [
                         // ── Podium ────────────────────────────────────
@@ -461,7 +464,7 @@ class _EntryTile extends StatelessWidget {
           child: Text(
             '#${e.rank}',
             style: TextStyle(
-              color: e.rank <= 5 ? AppColors.primary : context.cl.textM,
+              color: e.rank <= 5 ? context.cl.accent : context.cl.textM,
               fontSize: 13,
               fontWeight: FontWeight.w800),
           ),
@@ -492,7 +495,7 @@ class _EntryTile extends StatelessWidget {
           const SizedBox(height: 2),
           Row(children: [
             Icon(Icons.check_circle_rounded,
-              color: AppColors.success, size: 11),
+              color: context.cl.success, size: 11),
             const SizedBox(width: 3),
             Text(tr(context, "{arg0}/{arg1} gagnés", [e.wonPredictions, e.totalPredictions]),
               style: TextStyle(color: context.cl.textM, fontSize: 10)),
@@ -504,17 +507,17 @@ class _EntryTile extends StatelessWidget {
           _WinRateBar(winRate: e.winRate),
           const SizedBox(height: 3),
           Text(e.winRateLabel, style: TextStyle(
-            color: _winRateColor(e.winRate),
+            color: _winRateColor(context.cl, e.winRate),
             fontSize: 12, fontWeight: FontWeight.w700)),
         ]),
       ]),
     ));
   }
 
-  Color _winRateColor(double rate) {
-    if (rate >= 0.75) return AppColors.success;
-    if (rate >= 0.60) return AppColors.warning;
-    return AppColors.error;
+  Color _winRateColor(AppCl cl, double rate) {
+    if (rate >= 0.75) return cl.success;
+    if (rate >= 0.60) return cl.warning;
+    return cl.error;
   }
 }
 

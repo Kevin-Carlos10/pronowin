@@ -72,10 +72,10 @@ class _StandingsCard extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.12),
+              color: context.cl.info.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.leaderboard_rounded, color: AppColors.info, size: 16),
+            child: Icon(Icons.leaderboard_rounded, color: context.cl.info, size: 16),
           ),
           const SizedBox(width: 10),
           Text(tr(context, "Classement"),
@@ -210,7 +210,7 @@ class _LigneClassement extends StatelessWidget {
         SizedBox(width: 22, child: Text('${row.rank}',
           style: TextStyle(
             color: concernee
-                ? AppColors.primary
+                ? context.cl.accent
                 : (couleurZone ?? context.cl.textM),
             fontSize: 11, fontWeight: FontWeight.w700))),
         // Ecusson : recupere par le serveur depuis toujours, jamais affiche.
@@ -292,10 +292,10 @@ class _MeilleursButeurs extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: AppColors.error.withValues(alpha: 0.12),
+              color: context.cl.error.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.sports_soccer_rounded,
-                color: AppColors.error, size: 16)),
+            child: Icon(Icons.sports_soccer_rounded,
+                color: context.cl.error, size: 16)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(tr(context, "Meilleurs buteurs"),
@@ -314,7 +314,7 @@ class _MeilleursButeurs extends ConsumerWidget {
                 SizedBox(width: 18,
                   child: Text('${b.rank}',
                     style: TextStyle(
-                      color: b.rank <= 3 ? AppColors.error : context.cl.textM,
+                      color: b.rank <= 3 ? context.cl.error : context.cl.textM,
                       fontSize: 11, fontWeight: FontWeight.w700))),
                 _PhotoJoueur(url: b.photo, taille: 26),
                 const SizedBox(width: 9),
@@ -342,11 +342,11 @@ class _MeilleursButeurs extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.12),
+                    color: context.cl.error.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(7)),
                   child: Text('${b.goals}',
-                    style: const TextStyle(
-                      color: AppColors.error, fontSize: 12,
+                    style: TextStyle(
+                      color: context.cl.error, fontSize: 12,
                       fontWeight: FontWeight.w800))),
               ]),
             ),

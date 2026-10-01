@@ -26,10 +26,10 @@ class _MatchStatsCard extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.12),
+              color: context.cl.info.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(Icons.bar_chart_rounded, color: AppColors.info, size: 16),
+            child: Icon(Icons.bar_chart_rounded, color: context.cl.info, size: 16),
           ),
           const SizedBox(width: 10),
           Text(tr(context, "Statistiques du match"),
@@ -79,7 +79,7 @@ class _MatchEventsCard extends ConsumerWidget {
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _CardHeader(
           icon: Icons.timeline_rounded,
-          color: AppColors.info,
+          color: context.cl.info,
           title: tr(context, "Faits marquants")),
         const SizedBox(height: 14),
         // En-tête et filet reprennent exactement la structure d'une ligne
@@ -223,7 +223,7 @@ class _EventsList extends StatelessWidget {
             SizedBox(width: minuteWidth,
               child: Text(minStr,
                 style: TextStyle(
-                  color: AppColors.info, fontSize: 11,
+                  color: context.cl.info, fontSize: 11,
                   fontWeight: FontWeight.w700))),
             // Gauche (domicile)
             Expanded(child: isHome
@@ -332,12 +332,12 @@ class _StatsList extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: 12),
         child: Row(children: [
           Expanded(child: Text(homeTeam,
-            style: TextStyle(color: AppColors.primary, fontSize: 11,
+            style: TextStyle(color: context.cl.accent, fontSize: 11,
               fontWeight: FontWeight.w700),
             maxLines: 1, overflow: TextOverflow.ellipsis)),
           const SizedBox(width: 12),
           Expanded(child: Text(awayTeam,
-            style: TextStyle(color: AppColors.warning, fontSize: 11,
+            style: TextStyle(color: context.cl.warning, fontSize: 11,
               fontWeight: FontWeight.w700),
             textAlign: TextAlign.right,
             maxLines: 1, overflow: TextOverflow.ellipsis)),
@@ -402,7 +402,7 @@ class _PossessionBar extends StatelessWidget {
             Expanded(
               flex: ((1 - val) * 1000).round().clamp(1, 999),
               child: Container(
-                color: AppColors.warning,
+                color: context.cl.warning,
                 alignment: Alignment.centerRight,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
                 child: FittedBox(
@@ -459,7 +459,7 @@ class _StatRow extends StatelessWidget {
           width: 54,
           child: Align(
             alignment: Alignment.centerRight,
-            child: _value(context, away, AppColors.warning, awayLeads, Colors.black),
+            child: _value(context, away, context.cl.warning, awayLeads, Colors.black),
           ),
         ),
       ]),

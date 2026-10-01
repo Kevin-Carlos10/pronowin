@@ -137,7 +137,18 @@ class BankrollData {
   double get progressPct =>
       totalBudget > 0 ? (currentBalance / totalBudget).clamp(0.0, 2.0) : 0.0;
 
-  bool get isProfit => currentBalance >= totalBudget;
+  /// Résultat net réalisé : le seul montant qui dit si l'on gagne.
+  ///
+  /// `solde − budget` n'en est pas un : la mise quitte le solde dès que le
+  /// pari est posé, si bien qu'un pari en cours s'y lisait comme une perte.
+  /// (C'était aussi le sens de l'ancien `isProfit`, retiré.)
+  double get resultatNet =>
+      resume?.profitNet ?? bets.fold<double>(0, (n, b) => n + (b.profit ?? 0));
+
+  /// Ce qui est engagé sur des paris non tranchés, déjà sorti du solde.
+  double get engage =>
+      resume?.misesEnCours ??
+      bets.where((b) => b.result == null).fold<double>(0, (n, b) => n + b.stakedAmount);
 }
 
 class BankrollStats {

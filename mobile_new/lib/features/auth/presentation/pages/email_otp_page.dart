@@ -101,7 +101,7 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
       } else if (state is AuthError) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(state.message),
-          backgroundColor: AppColors.error,
+          backgroundColor: AppColors.fondErreur,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));

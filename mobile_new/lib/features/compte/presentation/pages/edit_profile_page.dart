@@ -152,7 +152,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           _AvatarOption(
             icon: Icons.photo_library_rounded,
             label: tr(context, "Choisir depuis la galerie"),
-            color: AppColors.info,
+            color: context.cl.info,
             onTap: () => _pickAvatar(ImageSource.gallery)),
           const SizedBox(height: 8),
           TextButton(
@@ -262,7 +262,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                   child: CircularProgressIndicator(
                     strokeWidth: 2, color: AppColors.primary))
               :  Text(tr(context, "Enregistrer"), style: TextStyle(
-                  color: AppColors.primary, fontWeight: FontWeight.w600)),
+                  color: context.cl.accent, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -377,11 +377,11 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           if (_birthDate != null) Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Row(children: [
-              const Icon(Icons.check_circle_outline_rounded,
-                size: 13, color: AppColors.success),
+              Icon(Icons.check_circle_outline_rounded,
+                size: 13, color: context.cl.success),
               const SizedBox(width: 4),
               Text(tr(context, "{arg0} ans", [_getAge(_birthDate!)]),
-                style: const TextStyle(color: AppColors.success, fontSize: 11)),
+                style: TextStyle(color: context.cl.success, fontSize: 11)),
             ]),
           ),
           const SizedBox(height: 16),
@@ -436,15 +436,15 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.06),
+              color: context.cl.warning.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.warning.withValues(alpha: 0.2))),
+              border: Border.all(color: context.cl.warning.withValues(alpha: 0.2))),
             child:  Row(children: [
-              Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 16),
+              Icon(Icons.info_outline_rounded, color: context.cl.warning, size: 16),
               SizedBox(width: 8),
               Expanded(child: Text(
                 tr(context, "PronoWin est réservé aux personnes de 18 ans et plus."),
-                style: TextStyle(color: AppColors.warning, fontSize: 12))),
+                style: TextStyle(color: context.cl.warning, fontSize: 12))),
             ]),
           ),
           const SizedBox(height: 28),
@@ -477,7 +477,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   void _showSnack(String msg, {bool isError = false}) =>
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: isError ? AppColors.error : AppColors.success,
+      backgroundColor: isError ? AppColors.fondErreur : context.cl.success,
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ));

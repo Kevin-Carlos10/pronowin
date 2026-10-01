@@ -53,7 +53,7 @@ class MembresBloquesPage extends ConsumerWidget {
                   leading: CircleAvatar(
                     backgroundColor: AppColors.primary.withValues(alpha: 0.12),
                     child: Text(m.pseudo.isEmpty ? '?' : m.pseudo[0].toUpperCase(),
-                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.w700))),
+                      style: TextStyle(color: context.cl.accent, fontWeight: FontWeight.w700))),
                   title: Text(m.pseudo, style: TextStyle(color: context.cl.textP)),
                   trailing: TextButton(
                     onPressed: () async {

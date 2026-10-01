@@ -270,7 +270,9 @@ final matchDetailProvider = FutureProvider.autoDispose.family<MatchEntity, Strin
   try {
     final result = await usecase(id);
     return result.fold(
-      (failure) => throw Exception(failure.message),
+      // La panne elle-même, pas `Exception(message)` : l'écran doit pouvoir
+      // distinguer un match absent (404) d'un réseau coupé.
+      (failure) => throw failure,
       (match) async {
         await CacheService.save(cacheKey, (match as MatchModel).toJson());
         return match;

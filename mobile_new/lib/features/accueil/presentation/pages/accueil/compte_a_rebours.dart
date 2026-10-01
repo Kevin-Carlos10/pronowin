@@ -68,7 +68,9 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
           // pronostic et la cote, et le tap mène vers Premium.
           final isLocked       = isPremium && !userIsPremium;
 
-          return GestureDetector(
+          // Surface toujours sombre : son contenu lit le thème sombre, sinon les
+          // textes et icônes suivent le thème clair et disparaissent sur le bleu nuit.
+          return SurfaceSombre(builder: (context) => GestureDetector(
             onTap: () {
               HapticFeedback.lightImpact();
               if (isLocked) {
@@ -95,7 +97,15 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
               child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
 
                 // ── Header ──────────────────────────────────────────────────────
-                Row(children: [
+                // `Wrap` et non `Row` : à 360 px et 180 %, badge, PREMIUM et
+                // date ne tiennent plus sur une ligne (49 px de trop). La
+                // date passe alors dessous au lieu de sortir de la carte.
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 8,
+                  runSpacing: 6,
+                  children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                     decoration: BoxDecoration(
@@ -110,25 +120,26 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                         .fadeIn(duration: 600.ms).then().fadeOut(duration: 600.ms),
                       const SizedBox(width: 5),
                        Text(tr(context, "PROCHAIN MATCH"),
-                        style: TextStyle(color: AppColors.primary, fontSize: 9,
+                        style: TextStyle(color: context.cl.accent, fontSize: 9,
                           fontWeight: FontWeight.w800, letterSpacing: 0.6)),
                     ]),
                   ),
-                  const Spacer(),
-                  if (isPremium)
-                    Container(
-                      margin: const EdgeInsets.only(right: 6),
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6)),
-                      child: const Text('PREMIUM',
-                        style: TextStyle(color: AppColors.warning, fontSize: 8,
-                          fontWeight: FontWeight.w800, letterSpacing: 0.5)),
-                    ),
-                  Text(
-                    DateFormat("EEE d MMM · HH:mm").format(matchDate),
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                  Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (isPremium)
+                      Container(
+                        margin: const EdgeInsets.only(right: 6),
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: context.cl.warning.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6)),
+                        child: Text('PREMIUM',
+                          style: TextStyle(color: context.cl.warning, fontSize: 8,
+                            fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                      ),
+                    Text(
+                      DateFormat("EEE d MMM · HH:mm").format(matchDate),
+                      style: const TextStyle(color: AppColors.textMuted, fontSize: 11)),
+                  ]),
                 ]),
                 const SizedBox(height: 16),
 
@@ -244,7 +255,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                                 decoration: BoxDecoration(
                                     color: (isLocked
                                             ? context.cl.textM
-                                            : AppColors.success)
+                                            : context.cl.success)
                                         .withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(8)),
                                 // « COTE 1.48 » et non « x1.48 » : le préfixe x
@@ -270,7 +281,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                                         style: TextStyle(
                                             color: isLocked
                                                 ? context.cl.textM
-                                                : AppColors.success,
+                                                : context.cl.success,
                                             fontSize: 13,
                                             fontWeight: FontWeight.w800)),
                                   ],
@@ -310,7 +321,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                 ),
               ]),
             ),
-          );
+          ));
         },
       ),
     );
@@ -405,11 +416,11 @@ class _CountUnit extends StatelessWidget {
 
 class _CountDivider extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => const Padding(
+  Widget build(BuildContext context) => Padding(
         padding: EdgeInsets.only(bottom: 12),
         child: Text(':',
             style: TextStyle(
-                color: AppColors.primary,
+                color: context.cl.accent,
                 fontSize: 20,
                 fontWeight: FontWeight.w900)),
       );

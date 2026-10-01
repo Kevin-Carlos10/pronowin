@@ -41,7 +41,7 @@ class _SectionHeader extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
             decoration: BoxDecoration(
-              color: badgeColor ?? AppColors.error,
+              color: badgeColor ?? context.cl.error,
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text('$showBadge',
@@ -56,8 +56,8 @@ class _SectionHeader extends StatelessWidget {
           GestureDetector(
             onTap: onMore,
             child: Text(tr(context, moreLabel),
-                style: const TextStyle(
-                    color: AppColors.primary,
+                style: TextStyle(
+                    color: context.cl.accent,
                     fontSize: 12,
                     fontWeight: FontWeight.w500)),
           ),
@@ -283,7 +283,7 @@ class _EmptyPronostics extends StatelessWidget {
               ),
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 Text(tr(context, "Voir"), style: TextStyle(
-                    color: AppColors.primary,
+                    color: context.cl.accent,
                     fontSize: 12,
                     fontWeight: FontWeight.w600)),
                 const SizedBox(width: 2),

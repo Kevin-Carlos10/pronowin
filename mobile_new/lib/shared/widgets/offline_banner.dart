@@ -19,7 +19,7 @@ class OfflineBanner extends ConsumerWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        color: AppColors.warning.withValues(alpha: 0.95),
+        color: context.cl.warning.withValues(alpha: 0.95),
         child:  Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

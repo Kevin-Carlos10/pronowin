@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pronowin/core/theme/app_theme.dart';
@@ -60,5 +62,27 @@ void main() {
           clarte: Brightness.light));
       expect(fragments(t)[0].style!.color, Colors.white);
     });
+  });
+
+  // Les tests ci-dessus ne voient que le composant. Ils passaient alors que
+  // l'en-tête d'accueil gardait sa propre copie, « Prono » figé en blanc sur
+  // le fond clair : le défaut le plus visible du thème clair, à l'écran le
+  // plus vu. C'est donc le code des écrans qu'il faut lire.
+  test('aucun écran ne réécrit le logotype à la main', () {
+    // L'écran de lancement est dessiné avant MaterialApp, sans thème ni
+    // Directionality : il garde sa copie, sur son fond toujours sombre.
+    const exceptions = {'logotype_pronowin.dart', 'splash_screen.dart'};
+    final copies = <String>[];
+    for (final f in Directory('lib').listSync(recursive: true).whereType<File>()) {
+      if (!f.path.endsWith('.dart')) continue;
+      if (exceptions.any((e) => f.path.endsWith(e))) continue;
+      final lignes = f.readAsLinesSync();
+      for (var i = 0; i < lignes.length; i++) {
+        if (RegExp(r"text:\s*'Prono'").hasMatch(lignes[i])) {
+          copies.add('${f.path}:${i + 1}');
+        }
+      }
+    }
+    expect(copies, isEmpty, reason: 'Employer LogotypePronoWin');
   });
 }

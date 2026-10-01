@@ -11,6 +11,12 @@ class ServerFailure extends Failure {
   const ServerFailure(super.message, [super.arguments]);
 }
 
+/// 404 : la ressource n'existe pas. Seul cas où « introuvable » est vrai —
+/// une panne réseau n'en dit rien.
+class NotFoundFailure extends ServerFailure {
+  const NotFoundFailure() : super('Ressource introuvable.');
+}
+
 class NetworkFailure extends Failure {
   const NetworkFailure([super.message = 'Pas de connexion internet. Vérifie ton réseau.']);
 }

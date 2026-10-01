@@ -106,7 +106,7 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
         HapticFeedback.mediumImpact();
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(state.message),
-          backgroundColor: AppColors.error,
+          backgroundColor: AppColors.fondErreur,
           behavior: SnackBarBehavior.floating,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         ));
@@ -196,8 +196,8 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
                              TextSpan(text: tr(context, "En continuant, tu acceptes nos ")),
                             TextSpan(
                               text: tr(context, "conditions d'utilisation"),
-                              style: const TextStyle(
-                                color: AppColors.primary,
+                              style: TextStyle(
+                                color: context.cl.accent,
                                 decoration: TextDecoration.underline,
                                 fontWeight: FontWeight.w600),
                               recognizer: TapGestureRecognizer()

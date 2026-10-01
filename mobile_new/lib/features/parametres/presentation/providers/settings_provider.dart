@@ -69,7 +69,10 @@ class AppSettings {
 // ─── Notifier ─────────────────────────────────────────────────────────────────
 class SettingsNotifier extends StateNotifier<AppSettings> {
   final Ref _ref;
-  SettingsNotifier(this._ref) : super(AppSettings(lang: _ref.read(initialLanguageProvider))) {
+  SettingsNotifier(this._ref) : super(AppSettings(
+        lang:      _ref.read(initialLanguageProvider),
+        themeMode: _ref.read(initialThemeModeProvider),
+      )) {
     _load();
   }
 
@@ -80,11 +83,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     final p = await SharedPreferences.getInstance();
     if (!mounted) return;
     state = AppSettings(
-      themeMode:     p.getString(_kTheme) == 'light'
-                      ? ThemeMode.light
-                      : p.getString(_kTheme) == 'system'
-                          ? ThemeMode.system
-                          : ThemeMode.dark,
+      themeMode:     _themeChanged ? state.themeMode : themeDepuisPreference(p.getString(_kTheme)),
       lang:          _languageChanged ? state.lang : AppStrings.languePreferee(p.getString(_kLang)),
       notifMatch:    p.getBool(_kNotifMatch)    ?? true,
       // Marketing : consentement explicite. Les alertes de match, le
@@ -127,7 +126,10 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   // ─── Thème ────────────────────────────────────────────────────────────────
+  bool _themeChanged = false;
+
   Future<void> setTheme(ThemeMode mode) async {
+    _themeChanged = true;
     state = state.copyWith(themeMode: mode);
     final p = await SharedPreferences.getInstance();
     await p.setString(_kTheme, mode == ThemeMode.dark
@@ -240,6 +242,20 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
 // ─── Providers ────────────────────────────────────────────────────────────────
 final initialLanguageProvider = Provider<String>((ref) => 'fr');
+
+/// Le thème enregistré, lu avant le premier écran — comme la langue.
+///
+/// Il était lu après coup, par `_load` : l'application démarrait donc en
+/// sombre, puis basculait en clair une fraction de seconde plus tard chez
+/// ceux qui avaient choisi le clair.
+final initialThemeModeProvider = Provider<ThemeMode>((ref) => ThemeMode.dark);
+
+/// `settings_theme` → [ThemeMode]. Sombre par défaut, comme à l'installation.
+ThemeMode themeDepuisPreference(String? valeur) => switch (valeur) {
+      'light'  => ThemeMode.light,
+      'system' => ThemeMode.system,
+      _        => ThemeMode.dark,
+    };
 
 final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>(
   (ref) => SettingsNotifier(ref));

@@ -85,7 +85,7 @@ class _H2HContent extends StatelessWidget {
               duration: const Duration(milliseconds: 800),
               builder: (_, v, _) => Text('$v',
                 style: TextStyle(
-                  color: AppColors.success,
+                  color: context.cl.success,
                   fontSize: 24, fontWeight: FontWeight.w900)),
             ),
             Text(h2h.homeTeam,
@@ -115,7 +115,7 @@ class _H2HContent extends StatelessWidget {
               duration: const Duration(milliseconds: 800),
               builder: (_, v, _) => Text('$v',
                 style: TextStyle(
-                  color: AppColors.error,
+                  color: context.cl.error,
                   fontSize: 24, fontWeight: FontWeight.w900)),
             ),
             Text(h2h.awayTeam,
@@ -138,7 +138,7 @@ class _H2HContent extends StatelessWidget {
               flex: (homeRatio * 100).round(),
               child: Container(
                 height: 8,
-                color: AppColors.success.withValues(alpha: 0.7 + 0.3 * t)),
+                color: context.cl.success.withValues(alpha: 0.7 + 0.3 * t)),
             ),
             if (drawRatio > 0) Expanded(
               flex: (drawRatio * 100).round(),
@@ -148,7 +148,7 @@ class _H2HContent extends StatelessWidget {
               flex: (awayRatio * 100).round(),
               child: Container(
                 height: 8,
-                color: AppColors.error.withValues(alpha: 0.7 + 0.3 * t)),
+                color: context.cl.error.withValues(alpha: 0.7 + 0.3 * t)),
             ),
           ]),
         ),
@@ -198,17 +198,17 @@ class _H2HRow extends StatelessWidget {
   /// La couleur suit ensuite l'équipe (vert = équipe à domicile du match
   /// courant, rouge = son adversaire), pour rester cohérente avec la barre de
   /// synthèse au-dessus quel que soit le terrain de la rencontre.
-  Color? _colorFor(String team) {
+  Color? _colorFor(BuildContext context, String team) {
     if (match.homeScore == match.awayScore) return null;
     final winner = match.homeScore > match.awayScore
       ? match.homeTeam
       : match.awayTeam;
     if (team != winner) return null;
-    return team == h2h.homeTeam ? AppColors.success : AppColors.error;
+    return team == h2h.homeTeam ? context.cl.success : context.cl.error;
   }
 
   Widget _teamSide(BuildContext context, String team, {required bool alignEnd}) {
-    final color = _colorFor(team);
+    final color = _colorFor(context, team);
     final logo  = _TeamLogo(url: _logoFor(team) ?? '', size: 18);
     final name  = Flexible(
       child: Text(team,

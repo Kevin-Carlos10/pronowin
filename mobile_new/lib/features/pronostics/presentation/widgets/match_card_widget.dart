@@ -101,7 +101,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: widget.match.status == MatchStatus.live
-                ? AppColors.error.withValues(alpha: 0.4)
+                ? context.cl.error.withValues(alpha: 0.4)
                 : noProno
                     ? context.cl.border
                     : locked
@@ -112,7 +112,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
           ),
           boxShadow: widget.match.status == MatchStatus.live
               ? [BoxShadow(
-                    color: AppColors.error.withValues(alpha: 0.12),
+                    color: context.cl.error.withValues(alpha: 0.12),
                     blurRadius: 16,
                     offset: const Offset(0, 4))]
               : locked
@@ -239,8 +239,8 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                   ? _ResultBadge(match: widget.match)
                   : Text(
                       DateFormat('HH:mm').format(widget.match.matchDate),
-                      style: const TextStyle(
-                          color: AppColors.primaryLight,
+                      style: TextStyle(
+                          color: context.cl.dore,
                           fontSize: 12,
                           fontWeight: FontWeight.w600),
                     ),
@@ -306,8 +306,8 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                     Flexible(
                       child: Text(
                         widget.match.displayPredictionLabel,
-                        style: const TextStyle(
-                            color: AppColors.primary,
+                        style: TextStyle(
+                            color: context.cl.accent,
                             fontSize: 12,
                             fontWeight: FontWeight.w700),
                         textAlign: TextAlign.center,
@@ -320,13 +320,13 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                         padding: const EdgeInsets.symmetric(
                             horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.18),
+                          color: context.cl.success.withValues(alpha: 0.18),
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
                           widget.match.oddsRecommended.toStringAsFixed(2),
-                          style: const TextStyle(
-                              color: AppColors.success,
+                          style: TextStyle(
+                              color: context.cl.success,
                               fontSize: 12,
                               fontWeight: FontWeight.w800),
                         ),
@@ -616,9 +616,9 @@ class _LivePulseState extends State<_LivePulse>
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.12),
+        color: context.cl.error.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.error.withValues(alpha: 0.4), width: 0.5),
+        border: Border.all(color: context.cl.error.withValues(alpha: 0.4), width: 0.5),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -629,11 +629,11 @@ class _LivePulseState extends State<_LivePulse>
               width: 6,
               height: 6,
               decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: _pulse.value),
+                color: context.cl.error.withValues(alpha: _pulse.value),
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.error.withValues(alpha: _pulse.value * 0.6),
+                    color: context.cl.error.withValues(alpha: _pulse.value * 0.6),
                     blurRadius: 4,
                   ),
                 ],
@@ -641,9 +641,9 @@ class _LivePulseState extends State<_LivePulse>
             ),
           ),
           const SizedBox(width: 5),
-          const Text('LIVE',
+          Text('LIVE',
               style: TextStyle(
-                  color: AppColors.error,
+                  color: context.cl.error,
                   fontSize: 10,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.5)),
@@ -825,18 +825,18 @@ class _OddsCell extends StatelessWidget {
 
   @override
   Widget build(BuildContext _) {
-    final color = highlighted ? AppColors.success : context.cl.textM;
+    final color = highlighted ? context.cl.success : context.cl.textM;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 7),
         decoration: BoxDecoration(
           color: highlighted
-            ? AppColors.success.withValues(alpha: 0.10)
+            ? context.cl.success.withValues(alpha: 0.10)
             : context.cl.surfaceD,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
             color: highlighted
-              ? AppColors.success.withValues(alpha: 0.4)
+              ? context.cl.success.withValues(alpha: 0.4)
               : context.cl.border,
             width: highlighted ? 0.8 : 0.5),
         ),
@@ -866,9 +866,9 @@ class _ResultBadge extends StatelessWidget {
     final score  = '${match.homeScore ?? 0} - ${match.awayScore ?? 0}';
     final result = match.result;
     final color  = switch (result) {
-      PronosticResult.win  => AppColors.success,
-      PronosticResult.loss => AppColors.error,
-      PronosticResult.push => AppColors.info,
+      PronosticResult.win  => context.cl.success,
+      PronosticResult.loss => context.cl.error,
+      PronosticResult.push => context.cl.info,
       null                 => context.cl.textS,
     };
     final icon = switch (result) {
@@ -927,13 +927,13 @@ class _TeamColumn extends StatelessWidget {
                 shape: BoxShape.circle,
                 border: Border.all(
                   color: isWinner
-                      ? AppColors.success.withValues(alpha: 0.5)
+                      ? context.cl.success.withValues(alpha: 0.5)
                       : context.cl.border,
                   width: isWinner ? 1.5 : 0.5,
                 ),
                 boxShadow: isWinner
                     ? [BoxShadow(
-                        color: AppColors.success.withValues(alpha: 0.2),
+                        color: context.cl.success.withValues(alpha: 0.2),
                         blurRadius: 8)]
                     : [],
               ),
@@ -993,12 +993,12 @@ class _ScoreCenter extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: isLive
-                    ? AppColors.error.withValues(alpha: 0.08)
+                    ? context.cl.error.withValues(alpha: 0.08)
                     : context.cl.surfaceDeep,
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
                   color: isLive
-                      ? AppColors.error.withValues(alpha: 0.3)
+                      ? context.cl.error.withValues(alpha: 0.3)
                       : context.cl.borderSoft,
                   width: isLive ? 1 : 0.5,
                 ),
@@ -1006,7 +1006,7 @@ class _ScoreCenter extends StatelessWidget {
               child: Text(
                 '${match.homeScore ?? 0} - ${match.awayScore ?? 0}',
                 style: TextStyle(
-                  color: isLive ? AppColors.error : context.cl.textP,
+                  color: isLive ? context.cl.error : context.cl.textP,
                   fontSize: 18,
                   fontWeight: FontWeight.w800,
                   letterSpacing: 1.5,
@@ -1017,7 +1017,7 @@ class _ScoreCenter extends StatelessWidget {
               const SizedBox(height: 4),
                Text(tr(context, "En direct"),
                   style: TextStyle(
-                      color: AppColors.error,
+                      color: context.cl.error,
                       fontSize: 9,
                       fontWeight: FontWeight.w600)),
             ],
@@ -1044,16 +1044,16 @@ class _BetBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
       decoration: BoxDecoration(
-        color:  AppColors.success.withValues(alpha: 0.13),
+        color:  context.cl.success.withValues(alpha: 0.13),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
-          color: AppColors.success.withValues(alpha: 0.35), width: 0.7)),
+          color: context.cl.success.withValues(alpha: 0.35), width: 0.7)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Icon(Icons.account_balance_wallet_rounded,
-          color: AppColors.success, size: 9),
+          color: context.cl.success, size: 9),
         const SizedBox(width: 3),
-        Text(tr(context, "Misé"), style: const TextStyle(
-          color:      AppColors.success,
+        Text(tr(context, "Misé"), style: TextStyle(
+          color:      context.cl.success,
           fontSize:   9,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.2)),

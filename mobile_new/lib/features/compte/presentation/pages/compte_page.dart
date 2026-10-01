@@ -168,7 +168,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                     onPressed: () => context.push('/parametres'),
                   ),
                   IconButton(
-                    icon: const Icon(Icons.logout_rounded, color: AppColors.error),
+                    icon: Icon(Icons.logout_rounded, color: context.cl.error),
                     onPressed: () => _showLogoutSheet(context, ref),
                   ),
                 ],
@@ -226,7 +226,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                                     ? Padding(
                                         padding: const EdgeInsets.only(left: 8),
                                         child: _Badge(label: tr(context, "{arg0} j restants", [days]),
-                                          color: AppColors.success))
+                                          color: context.cl.success))
                                     : const SizedBox.shrink();
                                 },
                                 loading: () => const SizedBox.shrink(),
@@ -249,7 +249,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                   child: TabBar(
                     controller: _tab,
                     indicatorColor: AppColors.primary,
-                    labelColor: AppColors.primary,
+                    labelColor: context.cl.accent,
                     unselectedLabelColor: context.cl.textS,
                     labelStyle: const TextStyle(
                       fontSize: 13, fontWeight: FontWeight.w600),
@@ -301,10 +301,10 @@ class _ComptePageState extends ConsumerState<ComptePage>
           const SizedBox(height: 20),
           Container(width: 56, height: 56,
             decoration: BoxDecoration(
-              color: AppColors.error.withValues(alpha: 0.1),
+              color: context.cl.error.withValues(alpha: 0.1),
               shape: BoxShape.circle),
-            child: const Icon(Icons.logout_rounded,
-              color: AppColors.error, size: 26)),
+            child: Icon(Icons.logout_rounded,
+              color: context.cl.error, size: 26)),
           const SizedBox(height: 14),
           Text(tr(context, "Déconnexion ?"), style: TextStyle(
             color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w700)),
@@ -330,7 +330,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error,
+                backgroundColor: AppColors.fondErreur,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(14))),
               child:  Text(tr(context, "Me déconnecter"),
@@ -524,7 +524,9 @@ class _FreeState extends ConsumerWidget {
       const SizedBox(height: 20),
 
       // CTA premium attractif
-      GestureDetector(
+      // Surface toujours sombre : son contenu lit le thème sombre, sinon les
+      // textes et icônes suivent le thème clair et disparaissent sur le bleu nuit.
+      SurfaceSombre(builder: (context) => GestureDetector(
         onTap: () {
           HapticFeedback.mediumImpact();
           goToPremium(context, ref, extra: sub);
@@ -560,8 +562,8 @@ class _FreeState extends ConsumerWidget {
                   color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
               ])),
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                Text(premiumMonthlyPriceLabel(ref, sub), style: const TextStyle(
-                  color: AppColors.primaryLight, fontSize: 22, fontWeight: FontWeight.w900)),
+                Text(premiumMonthlyPriceLabel(ref, sub), style: TextStyle(
+                  color: context.cl.dore, fontSize: 22, fontWeight: FontWeight.w900)),
                 Text(tr(context, "/mois"), style: const TextStyle(
                   color: Colors.white54, fontSize: 10)),
               ]),
@@ -590,7 +592,7 @@ class _FreeState extends ConsumerWidget {
               .shimmer(duration: 2000.ms, color: Colors.white10, delay: 800.ms),
           ]),
         ),
-      ).animate(delay: 60.ms).fadeIn(duration: 350.ms).slideY(begin: 0.05, end: 0),
+      )).animate(delay: 60.ms).fadeIn(duration: 350.ms).slideY(begin: 0.05, end: 0),
 
       const SizedBox(height: 24),
 
@@ -610,8 +612,8 @@ class _FreeState extends ConsumerWidget {
           // annoncer un de plus que l'écran n'en montre — le lecteur n'a même
           // pas à faire l'effort de compter, les deux se contredisent sous
           // ses yeux. Il suit désormais la liste.
-          child: Text(tr(context, "{arg0} avantages", [features.length]), style: const TextStyle(
-            color: AppColors.primary, fontSize: 10, fontWeight: FontWeight.w600))),
+          child: Text(tr(context, "{arg0} avantages", [features.length]), style: TextStyle(
+            color: context.cl.accent, fontSize: 10, fontWeight: FontWeight.w600))),
       ]).animate(delay: 100.ms).fadeIn(duration: 280.ms),
 
       const SizedBox(height: 10),
@@ -679,12 +681,12 @@ class _PendingState extends StatelessWidget {
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: context.cl.border, width: 0.5)),
             child: Row(children: [
-              Icon(icon, color: AppColors.warning.withValues(alpha: 0.6), size: 20),
+              Icon(icon, color: context.cl.warning.withValues(alpha: 0.6), size: 20),
               const SizedBox(width: 12),
               Expanded(child: Text(tr(context, label), style: TextStyle(
                 color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600))),
-              const Icon(Icons.hourglass_top_rounded,
-                color: AppColors.warning, size: 16),
+              Icon(Icons.hourglass_top_rounded,
+                color: context.cl.warning, size: 16),
             ]),
           ),
         );
@@ -710,7 +712,9 @@ class _PremiumState extends ConsumerWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
       // Carte Premium active
-      Container(
+      // Carte toujours sombre : son contenu lit le thème sombre, sinon les
+      // couleurs d'état et les gris passent à leurs variantes pour fond blanc.
+      SurfaceSombre(builder: (context) => Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -741,18 +745,18 @@ class _PremiumState extends ConsumerWidget {
                   ? AppStrings.of(context).count(daysLeft, one: "Expire dans {arg0} jour", other: "Expire dans {arg0} jours")
                   : tr(context, "Actif sans limite"),
                 style: TextStyle(
-                  color: expiresoon ? AppColors.warning : AppColors.success,
+                  color: expiresoon ? context.cl.warning : context.cl.success,
                   fontSize: 12, fontWeight: FontWeight.w600)),
             ])),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: 0.15),
+                color: context.cl.success.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                  color: AppColors.success.withValues(alpha: 0.3))),
+                  color: context.cl.success.withValues(alpha: 0.3))),
               child:  Text(tr(context, "Actif"), style: TextStyle(
-                color: AppColors.success, fontSize: 12, fontWeight: FontWeight.w700))),
+                color: context.cl.success, fontSize: 12, fontWeight: FontWeight.w700))),
           ]),
           // Ce bandeau était purement décoratif : il annonçait l'expiration
           // sans offrir le moindre moyen de renouveler. L'onglet Abonnement
@@ -761,7 +765,7 @@ class _PremiumState extends ConsumerWidget {
           if (renewable) ...[
             const SizedBox(height: 14),
             Builder(builder: (_) {
-              final color = expiresoon ? AppColors.warning : AppColors.info;
+              final color = expiresoon ? context.cl.warning : context.cl.info;
               return Container(
                 padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
                 decoration: BoxDecoration(
@@ -797,7 +801,7 @@ class _PremiumState extends ConsumerWidget {
             }),
           ],
         ]),
-      ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),
+      )).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),
 
       const SizedBox(height: 24),
 
@@ -809,10 +813,10 @@ class _PremiumState extends ConsumerWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: AppColors.success.withValues(alpha: 0.12),
+            color: context.cl.success.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(6)),
           child:  Text(tr(context, "Tout débloqué ✓"), style: TextStyle(
-            color: AppColors.success, fontSize: 10, fontWeight: FontWeight.w600))),
+            color: context.cl.success, fontSize: 10, fontWeight: FontWeight.w600))),
       ]).animate(delay: 80.ms).fadeIn(duration: 280.ms),
 
       const SizedBox(height: 10),
@@ -827,14 +831,14 @@ class _PremiumState extends ConsumerWidget {
               color: context.cl.surface,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: AppColors.success.withValues(alpha: 0.15), width: 0.5)),
+                color: context.cl.success.withValues(alpha: 0.15), width: 0.5)),
             child: Row(children: [
               Container(
                 width: 36, height: 36,
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.08),
+                  color: context.cl.success.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10)),
-                child: Icon(icon, color: AppColors.success, size: 18)),
+                child: Icon(icon, color: context.cl.success, size: 18)),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text(tr(context, label), style: TextStyle(
@@ -842,8 +846,8 @@ class _PremiumState extends ConsumerWidget {
                 Text(tr(context, sub), style: TextStyle(
                   color: context.cl.textS, fontSize: 11)),
               ])),
-              const Icon(Icons.check_circle_rounded,
-                color: AppColors.success, size: 18),
+              Icon(Icons.check_circle_rounded,
+                color: context.cl.success, size: 18),
             ]),
           ).animate(delay: Duration(milliseconds: 100 + e.key * 50))
             .fadeIn(duration: 280.ms).slideX(begin: 0.03, end: 0),
@@ -959,7 +963,9 @@ class _ParrainageTab extends ConsumerWidget {
       padding: EdgeInsets.fromLTRB(16, 16, 16, bottomNavSpace(context)),
       children: [
         // ── Gains + progression vers le seuil de retrait ────────────────────
-        Container(
+        // Carte toujours sombre : son contenu lit le thème sombre, sinon les
+        // couleurs d'état et les gris passent à leurs variantes pour fond blanc.
+        SurfaceSombre(builder: (context) => Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
@@ -1014,7 +1020,7 @@ class _ParrainageTab extends ConsumerWidget {
                     ? tr(context, "Seuil atteint — tu peux demander ton retrait.")
                     : tr(context, "{arg0} / {arg1} FCFA avant de pouvoir retirer", [earnings, minW])),
               style: TextStyle(
-                color: peutAgir ? AppColors.success : context.cl.textM,
+                color: peutAgir ? context.cl.success : context.cl.textM,
                 fontSize: 11.5,
                 fontWeight: peutAgir ? FontWeight.w600 : FontWeight.w400)),
             if (peutAgir) ...[
@@ -1034,7 +1040,7 @@ class _ParrainageTab extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(11))))),
             ],
           ]),
-        ),
+        )),
         const SizedBox(height: 16),
 
         // ── Barème : l'information la plus importante, absente jusqu'ici ────
@@ -1046,7 +1052,7 @@ class _ParrainageTab extends ConsumerWidget {
           const SizedBox(width: 10),
           Expanded(child: _RewardTile(
             amount: estStore ? libelleJours(joursL2) : '$comL2 $devise',
-            label: tr(context, "par filleul indirect"), color: AppColors.info)),
+            label: tr(context, "par filleul indirect"), color: context.cl.info)),
         ]),
         const SizedBox(height: 16),
 
@@ -1082,7 +1088,7 @@ class _ParrainageTab extends ConsumerWidget {
                 ScaffoldMessenger.of(context).showSnackBar( SnackBar(
                   content: Text(tr(context, "Code copié")),
                   behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.success,
+                  backgroundColor: AppColors.fondSucces,
                   duration: Duration(seconds: 2)));
               },
               icon: const Icon(Icons.copy_rounded, color: _purple, size: 20)),
@@ -1141,7 +1147,7 @@ class _ParrainageTab extends ConsumerWidget {
               value: '$l2',
               sub: estStore ? tr(context, "{arg0} / filleul", [libelleJours(joursL2)])
                             : tr(context, "{arg0} {arg1} / filleul", [comL2, devise]),
-              color: AppColors.info),
+              color: context.cl.info),
           ]).animate().fadeIn(duration: 350.ms).slideY(begin: 0.06, end: 0),
           const SizedBox(height: 16),
           SizedBox(
@@ -1241,14 +1247,14 @@ class _PendingBanner extends StatelessWidget {
     margin: const EdgeInsets.only(bottom: 14),
     padding: const EdgeInsets.all(12),
     decoration: BoxDecoration(
-      color: AppColors.warning.withValues(alpha: 0.08),
+      color: context.cl.warning.withValues(alpha: 0.08),
       borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: AppColors.warning.withValues(alpha: 0.3))),
+      border: Border.all(color: context.cl.warning.withValues(alpha: 0.3))),
     child:  Row(children: [
-      Icon(Icons.hourglass_top_rounded, color: AppColors.warning, size: 18),
+      Icon(Icons.hourglass_top_rounded, color: context.cl.warning, size: 18),
       SizedBox(width: 8),
       Text(tr(context, "Preuve en cours de vérification"),
-        style: TextStyle(color: AppColors.warning,
+        style: TextStyle(color: context.cl.warning,
           fontSize: 13, fontWeight: FontWeight.w500)),
     ]));
 }

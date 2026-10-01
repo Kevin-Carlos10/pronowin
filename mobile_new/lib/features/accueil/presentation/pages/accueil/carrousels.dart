@@ -13,11 +13,11 @@ class _LiveMatchesCarousel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Même widget de carte que « Pronostics du jour », donc strictement la
-    // même taille : elle est portée par _kCarouselCardHeight, pas recopiée.
+    // même taille : elle est portée par _hauteurCarrousel, pas recopiée.
     // La carte gère déjà le direct — bordure rouge, pastille LIVE, score au
     // centre à la place du « VS ».
     return SizedBox(
-      height: _kCarouselCardHeight,
+      height: _hauteurCarrousel(context),
       child: ListView.separated(
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.zero,
@@ -72,7 +72,9 @@ class _HeroPronoCard extends StatelessWidget {
     final awayScore = prono['away_score'];
     final hasScore  = isLive && homeScore != null && awayScore != null;
 
-    return GestureDetector(
+    // Surface toujours sombre : son contenu lit le thème sombre, sinon les
+    // textes et icônes suivent le thème clair et disparaissent sur le bleu nuit.
+    return SurfaceSombre(builder: (context) => GestureDetector(
       onTap: onTap,
       child: Container(
         width: double.infinity,
@@ -88,12 +90,12 @@ class _HeroPronoCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(22),
           border: Border.all(
               color: isLive
-                  ? AppColors.error.withValues(alpha: 0.5)
+                  ? context.cl.error.withValues(alpha: 0.5)
                   : AppColors.primary.withValues(alpha: 0.4),
               width: 1),
           boxShadow: [
             BoxShadow(
-              color: (isLive ? AppColors.error : AppColors.primary).withValues(alpha: 0.14),
+              color: (isLive ? context.cl.error : AppColors.primary).withValues(alpha: 0.14),
               blurRadius: 24,
               offset: const Offset(0, 6),
             ),
@@ -104,7 +106,10 @@ class _HeroPronoCard extends StatelessWidget {
             // Ligue + badge top / live
             Row(
               children: [
-                Container(
+                // `Flexible` : un nom de ligue long cède la place au badge
+                // au lieu de pousser la rangée hors de la carte (99 px à
+                // 360 px et 180 %).
+                Flexible(child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: context.cl.surfaceD,
@@ -116,14 +121,16 @@ class _HeroPronoCard extends StatelessWidget {
                       const Icon(Icons.sports_soccer_rounded,
                           color: AppColors.primaryLight, size: 11),
                       const SizedBox(width: 5),
-                      Text(
+                      Flexible(child: Text(
                         prono['league'] as String? ?? '',
                         style: TextStyle(color: context.cl.textS, fontSize: 10),
-                      ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      )),
                     ],
                   ),
-                ),
-                const Spacer(),
+                )),
+                const SizedBox(width: 8),
                 if (isLive)
                   _HeroLiveBadge()
                 else
@@ -209,8 +216,8 @@ class _HeroPronoCard extends StatelessWidget {
                                 DateTime.tryParse(prono['match_date'] as String)?.toLocal() ??
                                     DateTime.now())
                             : '--:--',
-                        style: const TextStyle(
-                            color: AppColors.primaryLight, fontSize: 12),
+                        style: TextStyle(
+                            color: context.cl.dore, fontSize: 12),
                       ),
                     ],
                   ),
@@ -272,8 +279,8 @@ class _HeroPronoCard extends StatelessWidget {
                               ])
                             : Text(
                                 _teamLabel(prono),
-                                style: const TextStyle(
-                                    color: AppColors.primary,
+                                style: TextStyle(
+                                    color: context.cl.accent,
                                     fontSize: 16,
                                     fontWeight: FontWeight.w800),
                               ),
@@ -298,7 +305,7 @@ class _HeroPronoCard extends StatelessWidget {
                         style: TextStyle(
                             color: locked
                                 ? AppColors.textMuted
-                                : AppColors.success,
+                                : context.cl.success,
                             fontSize: 22,
                             fontWeight: FontWeight.w900),
                       ),
@@ -323,7 +330,7 @@ class _HeroPronoCard extends StatelessWidget {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 
@@ -344,7 +351,7 @@ class _HeroScoreBox extends StatelessWidget {
     decoration: BoxDecoration(
       color: Colors.black.withValues(alpha: 0.45),
       borderRadius: BorderRadius.circular(10),
-      border: Border.all(color: AppColors.error.withValues(alpha: 0.4)),
+      border: Border.all(color: context.cl.error.withValues(alpha: 0.4)),
     ),
     alignment: Alignment.center,
     child: Text('$score',
@@ -386,9 +393,9 @@ class _HeroLiveBadgeState extends State<_HeroLiveBadge>
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
     decoration: BoxDecoration(
-      color: AppColors.error.withValues(alpha: 0.15),
+      color: context.cl.error.withValues(alpha: 0.15),
       borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: AppColors.error.withValues(alpha: 0.5)),
+      border: Border.all(color: context.cl.error.withValues(alpha: 0.5)),
     ),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
       AnimatedBuilder(
@@ -396,7 +403,7 @@ class _HeroLiveBadgeState extends State<_HeroLiveBadge>
         builder: (_, _) => Container(
           width: 7, height: 7,
           decoration: BoxDecoration(
-            color: AppColors.error.withValues(alpha: 0.4 + 0.6 * _pulse.value),
+            color: context.cl.error.withValues(alpha: 0.4 + 0.6 * _pulse.value),
             shape: BoxShape.circle,
           ),
         ),
@@ -404,7 +411,7 @@ class _HeroLiveBadgeState extends State<_HeroLiveBadge>
       const SizedBox(width: 5),
        Text(tr(context, "EN DIRECT"),
           style: TextStyle(
-              color: AppColors.error,
+              color: context.cl.error,
               fontSize: 9,
               fontWeight: FontWeight.w800,
               letterSpacing: 1.2)),

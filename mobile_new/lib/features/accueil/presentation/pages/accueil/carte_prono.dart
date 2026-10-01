@@ -29,6 +29,16 @@ class _PronosticCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // En direct, la carte prend un fond rouge sombre dans les deux thèmes :
+    // son contenu doit alors lire le thème sombre. En clair, il gardait les
+    // textes du thème clair — noms d'équipe sombres sur rouge sombre.
+    if (prono['status'] == 'live' && !context.isDark) {
+      return SurfaceSombre(builder: (context) => _construire(context, ref));
+    }
+    return _construire(context, ref);
+  }
+
+  Widget _construire(BuildContext context, WidgetRef ref) {
     final conf      = (prono['confidence_score'] as num?)?.toInt() ?? 0;
     final status    = prono['status'] as String? ?? '';
     final isFinished = status == 'finished';
@@ -67,11 +77,11 @@ class _PronosticCard extends ConsumerWidget {
     // Couleur bordure selon résultat
     Color borderColor;
     if (isFinished && result == 'WIN') {
-      borderColor = AppColors.success.withValues(alpha: 0.5);
+      borderColor = context.cl.success.withValues(alpha: 0.5);
     } else if (isFinished && result == 'LOSS') {
-      borderColor = AppColors.error.withValues(alpha: 0.4);
+      borderColor = context.cl.error.withValues(alpha: 0.4);
     } else if (isLive) {
-      borderColor = AppColors.error.withValues(alpha: 0.5);
+      borderColor = context.cl.error.withValues(alpha: 0.5);
     } else if (isLocked) {
       borderColor = context.cl.border;
     } else {
@@ -123,13 +133,13 @@ class _PronosticCard extends ConsumerWidget {
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
               color: isLive
-                  ? AppColors.error.withValues(alpha: 0.45)
+                  ? context.cl.error.withValues(alpha: 0.45)
                   : borderColor,
               width: isLive ? 1 : 0.8),
           boxShadow: isLive
               ? [
                   BoxShadow(
-                    color: AppColors.error.withValues(alpha: 0.18),
+                    color: context.cl.error.withValues(alpha: 0.18),
                     blurRadius: 16,
                     offset: const Offset(0, 6),
                   ),
@@ -159,17 +169,17 @@ class _PronosticCard extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 7, vertical: 3),
                     decoration: BoxDecoration(
-                      color: AppColors.error.withValues(alpha: 0.15),
+                      color: context.cl.error.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: const Row(
+                    child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         _LivePulseDot(),
                         SizedBox(width: 5),
                         Text('LIVE',
                             style: TextStyle(
-                                color: AppColors.error,
+                                color: context.cl.error,
                                 fontSize: 9,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: 0.8)),
@@ -384,8 +394,8 @@ class _PronosticCard extends ConsumerWidget {
                             pickName,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: AppColors.primary,
+                            style: TextStyle(
+                                color: context.cl.accent,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w800,
                                 height: 1.2),
@@ -407,8 +417,8 @@ class _PronosticCard extends ConsumerWidget {
                           Text(
                             (prono['odds_recommended'] as num)
                                 .toStringAsFixed(2),
-                            style: const TextStyle(
-                                color: AppColors.success,
+                            style: TextStyle(
+                                color: context.cl.success,
                                 fontSize: 14,
                                 fontWeight: FontWeight.w800),
                           ),
@@ -442,9 +452,9 @@ class _PronosticCard extends ConsumerWidget {
                       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                       decoration: BoxDecoration(
                         color: result == 'WIN'
-                            ? AppColors.success.withValues(alpha: 0.10)
+                            ? context.cl.success.withValues(alpha: 0.10)
                             : result == 'LOSS'
-                                ? AppColors.error.withValues(alpha: 0.10)
+                                ? context.cl.error.withValues(alpha: 0.10)
                                 : context.cl.surfaceD,
                         borderRadius: BorderRadius.circular(6),
                       ),
@@ -452,9 +462,9 @@ class _PronosticCard extends ConsumerWidget {
                         tr(context, "Prono : {arg0}", [_teamLabel(prono)]),
                         style: TextStyle(
                           color: result == 'WIN'
-                              ? AppColors.success
+                              ? context.cl.success
                               : result == 'LOSS'
-                                  ? AppColors.error
+                                  ? context.cl.error
                                   : context.cl.textM,
                           fontSize: 10,
                           fontWeight: FontWeight.w600,
@@ -508,16 +518,16 @@ class _InlineScore extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = isLive ? AppColors.error : context.cl.textP;
+    final color = isLive ? context.cl.error : context.cl.textP;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: isLive
-            ? AppColors.error.withValues(alpha: 0.12)
+            ? context.cl.error.withValues(alpha: 0.12)
             : context.cl.surfaceD,
         borderRadius: BorderRadius.circular(8),
         border: isLive
-            ? Border.all(color: AppColors.error.withValues(alpha: 0.4))
+            ? Border.all(color: context.cl.error.withValues(alpha: 0.4))
             : null,
       ),
       child: Text(
@@ -543,8 +553,8 @@ class _ResultBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: isWin
-            ? AppColors.success.withValues(alpha: 0.15)
-            : AppColors.error.withValues(alpha: 0.15),
+            ? context.cl.success.withValues(alpha: 0.15)
+            : context.cl.error.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
@@ -552,14 +562,14 @@ class _ResultBadge extends StatelessWidget {
         children: [
           Icon(
             isWin ? Icons.check_circle_rounded : Icons.cancel_rounded,
-            color: isWin ? AppColors.success : AppColors.error,
+            color: isWin ? context.cl.success : context.cl.error,
             size: 11,
           ),
           const SizedBox(width: 3),
           Text(
             isWin ? tr(context, "Gagné") : tr(context, "Perdu"),
             style: TextStyle(
-              color: isWin ? AppColors.success : AppColors.error,
+              color: isWin ? context.cl.success : context.cl.error,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),
@@ -694,7 +704,7 @@ class _LivePulseDotState extends State<_LivePulseDot>
           height: widget.size,
           decoration: BoxDecoration(
             // Mêmes bornes d'opacité que l'ancienne carte : 0,4 → 1,0.
-            color: AppColors.error.withValues(alpha: 0.4 + 0.6 * _pulse.value),
+            color: context.cl.error.withValues(alpha: 0.4 + 0.6 * _pulse.value),
             shape: BoxShape.circle,
           ),
         ),
@@ -756,7 +766,7 @@ class _MatchCountdownInlineState extends State<_MatchCountdownInline> {
           Icon(Icons.timer_outlined, size: 13, color: AppColors.primary),
           const SizedBox(width: 5),
           Text(tr(context, "Coup d'envoi dans "), style: TextStyle(color: context.cl.textM, fontSize: 11)),
-          Text(timeStr, style: const TextStyle(color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w800)),
+          Text(timeStr, style: TextStyle(color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w800)),
         ],
       ),
     );
@@ -860,7 +870,7 @@ class _FormRow extends StatelessWidget {
               Text(tr(context, "Avantage domicile {arg0}%", [(homeAdv * 100).round()]),
                   style: TextStyle(color: context.cl.textM, fontSize: 9)),
               Text('→ ${homeAdv >= 0.5 ? homeName.split(' ').first : awayName.split(' ').first}',
-                  style: const TextStyle(color: AppColors.primary, fontSize: 9, fontWeight: FontWeight.w700)),
+                  style: TextStyle(color: context.cl.accent, fontSize: 9, fontWeight: FontWeight.w700)),
             ],
           ),
         ],

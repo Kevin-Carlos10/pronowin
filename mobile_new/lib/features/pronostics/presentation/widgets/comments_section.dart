@@ -251,9 +251,9 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
             Container(
               padding: const EdgeInsets.all(7),
               decoration: BoxDecoration(
-                color: AppColors.info.withValues(alpha: 0.12),
+                color: context.cl.info.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(10)),
-              child: const Icon(Icons.forum_rounded, color: AppColors.info, size: 16)),
+              child: Icon(Icons.forum_rounded, color: context.cl.info, size: 16)),
             const SizedBox(width: 10),
             Text(tr(context, "Avis de la communauté"),
               style: TextStyle(color: context.cl.textP, fontSize: 13,
@@ -365,22 +365,22 @@ class _VoteBar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
                 color: userAgreed
-                    ? AppColors.success.withValues(alpha: 0.15)
+                    ? context.cl.success.withValues(alpha: 0.15)
                     : context.cl.bg,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: userAgreed
-                      ? AppColors.success
+                      ? context.cl.success
                       : context.cl.border,
                   width: userAgreed ? 1.5 : 0.5)),
               child: Column(children: [
                 Text('👍', style: const TextStyle(fontSize: 20)),
                 const SizedBox(height: 4),
                 Text('D\'accord', style: TextStyle(
-                  color: userAgreed ? AppColors.success : context.cl.textM,
+                  color: userAgreed ? context.cl.success : context.cl.textM,
                   fontSize: 11, fontWeight: FontWeight.w700)),
                 Text('${vote.agree}', style: TextStyle(
-                  color: userAgreed ? AppColors.success : context.cl.textS,
+                  color: userAgreed ? context.cl.success : context.cl.textS,
                   fontSize: 13, fontWeight: FontWeight.w800)),
               ]),
             ),
@@ -394,20 +394,20 @@ class _VoteBar extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 10),
               decoration: BoxDecoration(
                 color: userDis
-                    ? AppColors.error.withValues(alpha: 0.12)
+                    ? context.cl.error.withValues(alpha: 0.12)
                     : context.cl.bg,
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
-                  color: userDis ? AppColors.error : context.cl.border,
+                  color: userDis ? context.cl.error : context.cl.border,
                   width: userDis ? 1.5 : 0.5)),
               child: Column(children: [
                 Text('👎', style: const TextStyle(fontSize: 20)),
                 const SizedBox(height: 4),
                 Text(tr(context, "Pas convaincu"), style: TextStyle(
-                  color: userDis ? AppColors.error : context.cl.textM,
+                  color: userDis ? context.cl.error : context.cl.textM,
                   fontSize: 11, fontWeight: FontWeight.w700)),
                 Text('${vote.disagree}', style: TextStyle(
-                  color: userDis ? AppColors.error : context.cl.textS,
+                  color: userDis ? context.cl.error : context.cl.textS,
                   fontSize: 13, fontWeight: FontWeight.w800)),
               ]),
             ),
@@ -423,11 +423,11 @@ class _VoteBar extends StatelessWidget {
               curve: Curves.easeOutCubic,
               builder: (_, val, _) => Stack(children: [
                 Container(height: 6,
-                  color: AppColors.error.withValues(alpha: 0.5)),
+                  color: context.cl.error.withValues(alpha: 0.5)),
                 FractionallySizedBox(
                   widthFactor: val,
                   child: Container(height: 6,
-                    color: AppColors.success.withValues(alpha: 0.85))),
+                    color: context.cl.success.withValues(alpha: 0.85))),
               ]),
             ),
           ),
@@ -521,13 +521,13 @@ class _SingleComment extends StatelessWidget {
           left: isReply
               ? BorderSide(
                   color: comment.isExpert
-                      ? AppColors.warning.withValues(alpha: 0.5)
+                      ? context.cl.warning.withValues(alpha: 0.5)
                       : context.cl.border,
                   width: 2)
               : BorderSide.none,
         ),
         color: comment.isExpert
-            ? AppColors.warning.withValues(alpha: 0.04)
+            ? context.cl.warning.withValues(alpha: 0.04)
             : Colors.transparent,
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -537,7 +537,7 @@ class _SingleComment extends StatelessWidget {
             width: 28, height: 28,
             decoration: BoxDecoration(
               color: comment.isExpert
-                  ? AppColors.warning.withValues(alpha: 0.15)
+                  ? context.cl.warning.withValues(alpha: 0.15)
                   : AppColors.primary.withValues(alpha: 0.12),
               shape: BoxShape.circle),
             child: Center(child: Text(
@@ -545,7 +545,7 @@ class _SingleComment extends StatelessWidget {
                   ? comment.userPseudo[0].toUpperCase()
                   : 'P',
               style: TextStyle(
-                color: comment.isExpert ? AppColors.warning : AppColors.primary,
+                color: comment.isExpert ? context.cl.warning : context.cl.accent,
                 fontSize: 12, fontWeight: FontWeight.w700)))),
           const SizedBox(width: 8),
           Expanded(child: Row(children: [
@@ -553,17 +553,17 @@ class _SingleComment extends StatelessWidget {
             Flexible(child: Text(comment.userPseudo,
               maxLines: 1, overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: comment.isExpert ? AppColors.warning : context.cl.textP,
+                color: comment.isExpert ? context.cl.warning : context.cl.textP,
                 fontSize: 12, fontWeight: FontWeight.w700))),
             if (comment.isExpert) ...[
               const SizedBox(width: 5),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.warning.withValues(alpha: 0.15),
+                  color: context.cl.warning.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8)),
-                child: const Text('Tipster ✓', style: TextStyle(
-                  color: AppColors.warning, fontSize: 9,
+                child: Text('Tipster ✓', style: TextStyle(
+                  color: context.cl.warning, fontSize: 9,
                   fontWeight: FontWeight.w800))),
             ],
           ])),
@@ -592,9 +592,9 @@ class _SingleComment extends StatelessWidget {
             GestureDetector(
               onTap: onDelete,
               child: Row(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.delete_outline_rounded, size: 14, color: AppColors.error),
+                Icon(Icons.delete_outline_rounded, size: 14, color: context.cl.error),
                 const SizedBox(width: 3),
-                Text(tr(context, "Supprimer"), style: TextStyle(color: AppColors.error, fontSize: 11)),
+                Text(tr(context, "Supprimer"), style: TextStyle(color: context.cl.error, fontSize: 11)),
               ])),
           ],
           if (onSignaler != null || onBloquer != null) ...[
@@ -607,7 +607,7 @@ class _SingleComment extends StatelessWidget {
               itemBuilder: (ctx) => [
                 if (onSignaler != null)
                   PopupMenuItem(value: onSignaler, child: Row(children: [
-                    const Icon(Icons.flag_outlined, size: 18, color: AppColors.error),
+                    Icon(Icons.flag_outlined, size: 18, color: context.cl.error),
                     const SizedBox(width: 10),
                     Text(tr(ctx, "Signaler")),
                   ])),
@@ -653,12 +653,12 @@ class _CommentInput extends StatelessWidget {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-          color: AppColors.info.withValues(alpha: 0.06),
+          color: context.cl.info.withValues(alpha: 0.06),
           child: Row(children: [
-            Icon(Icons.reply_rounded, size: 14, color: AppColors.info),
+            Icon(Icons.reply_rounded, size: 14, color: context.cl.info),
             const SizedBox(width: 6),
             Text(tr(context, "Répondre à {arg0}", [replyingToPseudo]),
-              style: const TextStyle(color: AppColors.info, fontSize: 12)),
+              style: TextStyle(color: context.cl.info, fontSize: 12)),
             const Spacer(),
             GestureDetector(
               onTap: onCancelReply,
@@ -688,7 +688,7 @@ class _CommentInput extends StatelessWidget {
                 borderSide:   BorderSide(color: context.cl.border, width: 0.5)),
               focusedBorder:  OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
-                borderSide:   const BorderSide(color: AppColors.info, width: 1.2)),
+                borderSide:   BorderSide(color: context.cl.info, width: 1.2)),
               enabledBorder:  OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide:   BorderSide(color: context.cl.border, width: 0.5)),
@@ -701,10 +701,10 @@ class _CommentInput extends StatelessWidget {
               duration: 180.ms,
               width: 42, height: 42,
               decoration: BoxDecoration(
-                color: AppColors.info,
+                color: context.cl.info,
                 borderRadius: BorderRadius.circular(12),
                 boxShadow: [BoxShadow(
-                  color: AppColors.info.withValues(alpha: 0.3),
+                  color: context.cl.info.withValues(alpha: 0.3),
                   blurRadius: 8, offset: const Offset(0, 3))]),
               child: sending
                   ? const Center(child: SizedBox(width: 16, height: 16,
@@ -1055,9 +1055,9 @@ class _DeleteCommentSheetState extends State<_DeleteCommentSheet> {
       Container(
         width: 64, height: 64,
         decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.12),
+          color: context.cl.error.withValues(alpha: 0.12),
           shape: BoxShape.circle),
-        child: const Icon(Icons.delete_outline_rounded, color: AppColors.error, size: 32)),
+        child: Icon(Icons.delete_outline_rounded, color: context.cl.error, size: 32)),
       const SizedBox(height: 16),
       Text(tr(context, "Supprimer ce commentaire ?"), style: TextStyle(
         color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w700)),
@@ -1085,7 +1085,7 @@ class _DeleteCommentSheetState extends State<_DeleteCommentSheet> {
             if (mounted) setState(() => _loading = false);
           },
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.error,
+            backgroundColor: AppColors.fondErreur,
             foregroundColor: Colors.white,
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -1148,8 +1148,8 @@ class _CommentsGuestLocked extends StatelessWidget {
             TextSpan(children: [
                TextSpan(text: tr(context, "Les commentaires sont réservés aux membres. ")),
               TextSpan(text: tr(context, "Créer un compte gratuit"),
-                style: const TextStyle(
-                  color: AppColors.primary, fontWeight: FontWeight.w700)),
+                style: TextStyle(
+                  color: context.cl.accent, fontWeight: FontWeight.w700)),
             ]),
             style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.5),
             textAlign: TextAlign.center),

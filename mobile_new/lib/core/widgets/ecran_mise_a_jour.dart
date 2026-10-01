@@ -256,7 +256,9 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
   Widget build(BuildContext context) {
     final enCours = _etape == _Etape.telechargement || _etape == _Etape.installation;
 
-    return PopScope(
+    // Écran toujours sombre (photo de stade) : tout son contenu lit le thème
+    // sombre, quel que soit celui de l'application.
+    return SurfaceSombre(builder: (context) => PopScope(
       // Une mise à jour obligatoire ne se quitte pas. Un téléchargement en
       // cours non plus : revenir en arrière laisserait un fichier à moitié
       // écrit et une application qu'on vient de déclarer périmée.
@@ -331,7 +333,7 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
                       key: const Key('maj-sous-titre'),
                       style: TextStyle(
                         color: _etape == _Etape.echec
-                            ? AppColors.warning
+                            ? context.cl.warning
                             : AppColors.textSecondary,
                         fontSize: 15,
                         height: 1.5,
@@ -359,7 +361,7 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
           ],
         ),
       ),
-    );
+    ));
   }
 }
 

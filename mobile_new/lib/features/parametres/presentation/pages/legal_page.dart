@@ -304,8 +304,8 @@ class _SectionWidget extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.primary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(9)),
-        child: Text(section.badge ?? '$rang', style: const TextStyle(
-          color: AppColors.primary, fontSize: 12.5, fontWeight: FontWeight.w800)),
+        child: Text(section.badge ?? '$rang', style: TextStyle(
+          color: context.cl.accent, fontSize: 12.5, fontWeight: FontWeight.w800)),
       ),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [

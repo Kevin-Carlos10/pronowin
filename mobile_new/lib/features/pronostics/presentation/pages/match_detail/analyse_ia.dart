@@ -102,11 +102,13 @@ class _AIData extends StatelessWidget {
   final AiAnalysis analysis;
   const _AIData({required this.analysis});
 
-  Color get _probColor {
-    if (analysis.probability >= 70) return AppColors.success;
-    if (analysis.probability >= 55) return const Color(0xFF84CC16);
-    if (analysis.probability >= 45) return AppColors.warning;
-    return AppColors.error;
+  // Le pourcentage est un texte de 28 px : en clair, les teintes vives du
+  // sombre n'y tenaient pas (citron #84CC16 sur blanc : 1,9:1).
+  Color _probColor(AppCl cl) {
+    if (analysis.probability >= 70) return cl.success;
+    if (analysis.probability >= 55) return cl.isDark ? const Color(0xFF84CC16) : const Color(0xFF4D7C0F);
+    if (analysis.probability >= 45) return cl.warning;
+    return cl.error;
   }
 
   @override
@@ -136,7 +138,7 @@ class _AIData extends StatelessWidget {
                       value: val,
                       minHeight: 8,
                       backgroundColor: ctx.cl.borderSoft,
-                      valueColor: AlwaysStoppedAnimation<Color>(_probColor),
+                      valueColor: AlwaysStoppedAnimation<Color>(_probColor(ctx.cl)),
                     ),
                   ),
                 ],
@@ -151,7 +153,7 @@ class _AIData extends StatelessWidget {
           curve: Curves.easeOutCubic,
           builder: (_, val, _) => Text('$val%',
             style: TextStyle(
-              color: _probColor,
+              color: _probColor(context.cl),
               fontSize: 28,
               fontWeight: FontWeight.w900,
             )),
@@ -391,7 +393,7 @@ class _AIPreviewMock extends StatelessWidget {
               value: 0.72,
               minHeight: 8,
               backgroundColor: context.cl.borderSoft,
-              valueColor: const AlwaysStoppedAnimation(AppColors.success),
+              valueColor: AlwaysStoppedAnimation(context.cl.success),
             ),
           ),
         ),

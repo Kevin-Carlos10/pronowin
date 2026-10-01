@@ -29,7 +29,7 @@ Failure handleDioException(DioException e, {String? context}) {
       } else if (status == 403) {
         failure =  ServerFailure("Accès refusé.");
       } else if (status == 404) {
-        failure =  ServerFailure("Ressource introuvable.");
+        failure = const NotFoundFailure();
       } else if (status == 429) {
         failure =  ServerFailure("Trop de requêtes. Réessaie dans quelques secondes.");
       } else if (status != null && status >= 500) {

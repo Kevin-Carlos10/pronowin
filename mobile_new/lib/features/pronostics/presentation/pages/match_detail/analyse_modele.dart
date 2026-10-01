@@ -107,7 +107,7 @@ class _AnalyseModele extends ConsumerWidget {
                     // laissent le lecteur choisir au hasard.
                     Text(tr(context, "Marché suggéré par le modèle"),
                       style: TextStyle(
-                        color: AppColors.primary, fontSize: 9.5,
+                        color: context.cl.accent, fontSize: 9.5,
                         fontWeight: FontWeight.w800, letterSpacing: 0.5)),
                     const SizedBox(height: 3),
                     Text(data.advice!,
@@ -152,9 +152,9 @@ class _BarreIssues extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final issues = [
-      (data.homeTeam, data.percentHome, AppColors.success),
-      (tr(context, "Nul"),         data.percentDraw, AppColors.warning),
-      (data.awayTeam, data.percentAway, AppColors.info),
+      (data.homeTeam, data.percentHome, context.cl.success),
+      (tr(context, "Nul"),         data.percentDraw, context.cl.warning),
+      (data.awayTeam, data.percentAway, context.cl.info),
     ];
     final max = issues.map((e) => e.$2).reduce((a, b) => a > b ? a : b);
 
@@ -251,7 +251,7 @@ class _VerdictModele extends StatelessWidget {
 
     final accent = verdict.indecis
         ? context.cl.textM
-        : (verdict.favoriADomicile ? AppColors.success : AppColors.info);
+        : (verdict.favoriADomicile ? context.cl.success : context.cl.info);
 
     return Container(
       width: double.infinity,
@@ -303,9 +303,9 @@ class _LegendeAxes extends StatelessWidget {
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
       Row(children: [
-        _Pastille(couleur: AppColors.success, nom: data.homeTeam),
+        _Pastille(couleur: context.cl.success, nom: data.homeTeam),
         const SizedBox(width: 14),
-        _Pastille(couleur: AppColors.info, nom: data.awayTeam),
+        _Pastille(couleur: context.cl.info, nom: data.awayTeam),
       ]),
       const SizedBox(height: 7),
       Text(
@@ -365,7 +365,7 @@ class _AxesComparaison extends StatelessWidget {
                 child: Text('${axe.home.round()}',
                   textAlign: TextAlign.right,
                   style: TextStyle(
-                    color: domGagne ? AppColors.success : context.cl.textM,
+                    color: domGagne ? context.cl.success : context.cl.textM,
                     fontSize: 11,
                     fontWeight: domGagne ? FontWeight.w800 : FontWeight.w500)),
               ),
@@ -378,10 +378,10 @@ class _AxesComparaison extends StatelessWidget {
                     child: Row(children: [
                       Expanded(
                         flex: (axe.home * 10).round().clamp(0, 1000),
-                        child: const ColoredBox(color: AppColors.success)),
+                        child: ColoredBox(color: context.cl.success)),
                       Expanded(
                         flex: (axe.away * 10).round().clamp(0, 1000),
-                        child: const ColoredBox(color: AppColors.info)),
+                        child: ColoredBox(color: context.cl.info)),
                     ]),
                   ),
                 ),
@@ -391,7 +391,7 @@ class _AxesComparaison extends StatelessWidget {
                 width: 30,
                 child: Text('${axe.away.round()}',
                   style: TextStyle(
-                    color: extGagne ? AppColors.info : context.cl.textM,
+                    color: extGagne ? context.cl.info : context.cl.textM,
                     fontSize: 11,
                     fontWeight: extGagne ? FontWeight.w800 : FontWeight.w500)),
               ),
@@ -447,10 +447,10 @@ class _ButsParTranche extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.12),
+              color: context.cl.warning.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.schedule_rounded,
-                color: AppColors.warning, size: 16)),
+            child: Icon(Icons.schedule_rounded,
+                color: context.cl.warning, size: 16)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(tr(context, "Quand marquent-ils ?"),
@@ -481,10 +481,10 @@ class _ButsParTranche extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
                             _Colonne(valeur: dom?[t] ?? 0, maxi: maxi,
-                                couleur: AppColors.success),
+                                couleur: context.cl.success),
                             const SizedBox(width: 3),
                             _Colonne(valeur: ext?[t] ?? 0, maxi: maxi,
-                                couleur: AppColors.info),
+                                couleur: context.cl.info),
                           ],
                         ),
                         const SizedBox(height: 6),
@@ -499,9 +499,9 @@ class _ButsParTranche extends ConsumerWidget {
         ),
         const SizedBox(height: 12),
         Row(children: [
-          _Legende(couleur: AppColors.success, texte: data.homeTeam),
+          _Legende(couleur: context.cl.success, texte: data.homeTeam),
           const SizedBox(width: 14),
-          _Legende(couleur: AppColors.info, texte: data.awayTeam),
+          _Legende(couleur: context.cl.info, texte: data.awayTeam),
         ]),
       ]),
     );
@@ -586,7 +586,7 @@ class _CotesEnDirect extends ConsumerWidget {
         color: context.cl.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: AppColors.error.withValues(alpha: 0.25), width: 0.8)),
+          color: context.cl.error.withValues(alpha: 0.25), width: 0.8)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
           _LivePastille(),
@@ -598,8 +598,8 @@ class _CotesEnDirect extends ConsumerWidget {
           ),
           if (data.elapsed != null)
             Text("${data.elapsed}'",
-              style: const TextStyle(
-                color: AppColors.error, fontSize: 12, fontWeight: FontWeight.w800)),
+              style: TextStyle(
+                color: context.cl.error, fontSize: 12, fontWeight: FontWeight.w800)),
         ]),
         const SizedBox(height: 4),
         Text(tr(context, "Elles évoluent avec le match, contrairement aux cotes d'ouverture."),
@@ -668,7 +668,7 @@ class _LivePastilleState extends State<_LivePastille>
     builder: (_, _) => Container(
       width: 8, height: 8,
       decoration: BoxDecoration(
-        color: AppColors.error.withValues(alpha: 0.4 + 0.6 * _c.value),
+        color: context.cl.error.withValues(alpha: 0.4 + 0.6 * _c.value),
         shape: BoxShape.circle),
     ),
   );
@@ -679,13 +679,15 @@ class _NotesJoueurs extends ConsumerWidget {
   final String matchId;
   const _NotesJoueurs({required this.matchId});
 
-  static Color _couleurNote(double n) => n >= 8
-      ? AppColors.success
+  // La note est un texte posé sur sa propre teinte : en clair, il lui faut
+  // les variantes foncées (citron #84CC16 sur blanc : 1,9:1).
+  static Color _couleurNote(AppCl cl, double n) => n >= 8
+      ? cl.success
       : n >= 7
-          ? const Color(0xFF84CC16)
+          ? (cl.isDark ? const Color(0xFF84CC16) : const Color(0xFF4D7C0F))
           : n >= 6
-              ? AppColors.warning
-              : AppColors.error;
+              ? cl.warning
+              : cl.error;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -707,9 +709,9 @@ class _NotesJoueurs extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(7),
             decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.12),
+              color: context.cl.warning.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10)),
-            child: const Icon(Icons.star_rounded, color: AppColors.warning, size: 16)),
+            child: Icon(Icons.star_rounded, color: context.cl.warning, size: 16)),
           const SizedBox(width: 10),
           Expanded(
             child: Text(tr(context, "Notes des joueurs"),
@@ -727,10 +729,10 @@ class _NotesJoueurs extends ConsumerWidget {
           child: Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.07),
+              color: context.cl.warning.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
-                color: AppColors.warning.withValues(alpha: 0.22), width: 0.8)),
+                color: context.cl.warning.withValues(alpha: 0.22), width: 0.8)),
             child: Row(children: [
               _PhotoJoueur(url: homme.photo, taille: 42),
               const SizedBox(width: 12),
@@ -738,7 +740,7 @@ class _NotesJoueurs extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(tr(context, "HOMME DU MATCH"),
                     style: TextStyle(
-                      color: AppColors.warning, fontSize: 8.5,
+                      color: context.cl.warning, fontSize: 8.5,
                       fontWeight: FontWeight.w800, letterSpacing: 0.7)),
                   const SizedBox(height: 3),
                   Text(homme.name,
@@ -815,7 +817,7 @@ class _Note extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final c = _NotesJoueurs._couleurNote(valeur);
+    final c = _NotesJoueurs._couleurNote(context.cl, valeur);
     return Container(
       padding: EdgeInsets.symmetric(
         horizontal: grande ? 10 : 7, vertical: grande ? 6 : 3),
