@@ -70,7 +70,6 @@ const englishMessages = <String, String>{
   "Achat impossible : {arg0}": "Unable to purchase: {arg0}",
   "Restauration impossible : {arg0}": "Unable to restore purchases: {arg0}",
   "Aucun achat à restaurer sur ce compte.": "No purchases to restore on this account.",
-  "immédiate": "immediate",
   "Plan Annuel": "Annual plan",
   "Plan Mensuel": "Monthly plan",
   " · Tarif réduit": " · Discounted price",
@@ -1268,4 +1267,7 @@ const englishMessages = <String, String>{
   "Ceux dont tu ne vois plus les commentaires": "Members whose comments you no longer see",
   "Aucun membre bloqué. Pour bloquer un membre, ouvre le menu « ⋯ » d'un de ses commentaires.": "No blocked members. To block a member, open the “⋯” menu on one of their comments.",
   "{arg0} est débloqué.": "{arg0} is unblocked.",
+  "Premium activé !": "Premium activated!",
+  "Tous les pronostics VIP et l'analyse statistique de chaque match sont débloqués.": "Every VIP prediction and the statistical analysis of each match are now unlocked.",
+  "Actif jusqu'au {arg0}, renouvelé automatiquement. Résiliable à tout moment depuis les réglages de ton compte store.": "Active until {arg0}, renews automatically. Cancel anytime in your store account settings.",
 };

@@ -25,6 +25,7 @@ import '../../../../core/config/distribution_channel.dart';
 import '../../data/iap_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/utils/retour.dart';
+import '../widgets/confirmation_premium_active.dart';
 import '../../../../core/config/pages_legales.dart';
 import '../../../../core/services/analyse_usage.dart';
 
@@ -473,12 +474,25 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     if (!mounted) return;
     setState(() => _iapBusy = false);
     switch (r) {
-      case IapSuccess():
+      case IapSuccess(:final expiresAt):
         // Rafraîchir le profil : c'est lui qui porte subscriptionExpiresAt et
         // qui déverrouille le reste de l'app.
         ref.read(authProvider.notifier).refreshUser();
         ref.invalidate(currentSubscriptionProvider);
-        _showSuccessDialog(tr(context, "immédiate"));
+        // Pas la confirmation du Mobile Money (« Preuve soumise… en attente ») :
+        // le store a confirmé l'achat, le Premium est déjà actif.
+        showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (feuille) => ConfirmationPremiumActive(
+            expireLe: expiresAt,
+            onContinuer: () {
+              Navigator.pop(feuille);
+              retourOuAller(context, repli: _repli);
+            },
+          ),
+        );
       case IapCancelled():
         break; // L'utilisateur a annulé : pas de message d'erreur.
       case IapFailure(:final message):
