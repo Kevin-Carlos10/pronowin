@@ -532,7 +532,7 @@ app.get('/mentions-legales', (req, res) => {
  * public ne mentionne le partenaire nulle part, et cette page ne doit pas etre
  * la premiere exception.
  */
-const MAJ_CGU = '14 septembre 2026';
+const MAJ_CGU = '1er octobre 2026';
 
 app.get('/cgu', (req, res) => {
   const canalDirect = req.query.canal === 'direct';

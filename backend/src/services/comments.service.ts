@@ -1,4 +1,11 @@
+import { Prisma } from '@prisma/client';
+
 import { prisma } from '../lib/prisma';
+import { ErreurMetier } from '../utils/erreurs';
+import { MESSAGES_REFUS, refusContenu } from '../utils/filtre_contenu';
+import { ModerationService } from './moderation.service';
+
+const moderation = new ModerationService();
 
 export class CommentsService {
 
@@ -36,12 +43,18 @@ export class CommentsService {
       return { comments: [], vote: { userVote: null, agree: 0, disagree: 0, total: 0 } };
     }
 
+    // Ni les commentaires retirés par la modération, ni ceux des membres que
+    // le lecteur a bloqués — réponses comprises.
+    const bloques = await moderation.idsBloques(userId);
+    const visibles: Prisma.CommentWhereInput = { masque: false, userId: { notIn: bloques } };
+
     const [comments, userVote, voteCounts] = await Promise.all([
       prisma.comment.findMany({
-        where:   { pronosticId, parentId: null },
+        where:   { pronosticId, parentId: null, ...visibles },
         include: {
           user:    { select: { pseudo: true, avatarUrl: true } },
           replies: {
+            where:   visibles,
             include: { user: { select: { pseudo: true, avatarUrl: true } } },
             orderBy: { createdAt: 'asc' },
           },
@@ -81,6 +94,8 @@ export class CommentsService {
     if (content.trim().length > 500) {
       throw new Error('Le commentaire ne peut pas dépasser 500 caractères.');
     }
+    const refus = refusContenu(content);
+    if (refus) throw new ErreurMetier(MESSAGES_REFUS[refus], 422, refus);
 
     const pronosticId = await this._resolvePronosticId(idOrMatchId);
     if (!pronosticId) throw new Error('Pronostic introuvable.');

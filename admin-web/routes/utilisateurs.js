@@ -331,6 +331,58 @@ module.exports = (app, ctx) => {
     res.redirect(redir + (redir.includes('?') ? '&' : '?') + cle + '=' + encodeURIComponent(texte));
   });
 
+  // ─── MODÉRATION DES COMMENTAIRES ──────────────────────────────────────────────
+  //
+  // L'App Store (règle 1.2) et Google Play exigent qu'un contenu signalé soit
+  // examiné rapidement : les membres signalent depuis l'application, le
+  // serveur retire d'office un commentaire au-delà de trois signalements, et
+  // c'est ici que la décision se prend.
+  app.get('/admin/moderation', requireAuth, requirePerm('users'), async (req, res) => {
+    const statut = req.query.statut === 'traites' ? 'traites' : 'en_attente';
+    const page = clampInt(req.query.page, 1, 10000, 1);
+    const vue = {
+      adminName: req.admin.nom ?? 'Admin',
+      statut, page, data: [], total: 0, totalPages: 1, aTraiter: 0,
+      success: req.query.success ?? null, error: req.query.error ?? null,
+    };
+    try {
+      const a = api(req.admin.jeton);
+      const [liste, compte] = await Promise.all([
+        a.get('/admin/moderation/commentaires', { params: { statut, page } }),
+        a.get('/admin/moderation/a-traiter'),
+      ]);
+      res.render('moderation', {
+        ...vue,
+        data: liste.data.data, total: liste.data.total, totalPages: liste.data.total_pages,
+        aTraiter: compte.data.a_traiter,
+      });
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      res.render('moderation', { ...vue, error: e.response?.data?.message ?? e.message });
+    }
+  });
+
+  app.post('/admin/moderation/:commentId', requireAuth, requirePerm('users', 'write'), async (req, res) => {
+    const decision = req.body.decision === 'retenir' ? 'retenir' : 'rejeter';
+    const auteur = sanitize(req.body.auteur ?? '', 80);
+    let cle = 'success';
+    let texte;
+    try {
+      const a = api(req.admin.jeton);
+      await a.post('/admin/moderation/commentaires/' + encodeURIComponent(req.params.commentId), { decision });
+      logAction(req, decision === 'retenir' ? 'comment_report_upheld' : 'comment_report_dismissed',
+                `Commentaire #${req.params.commentId} (${auteur})`, { decision });
+      texte = decision === 'retenir'
+        ? `Commentaire de « ${auteur} » retiré.`
+        : `Signalement rejeté : le commentaire de « ${auteur} » est de nouveau visible.`;
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      cle = 'error';
+      texte = e.response?.data?.message ?? 'La décision n\'a pas pu être enregistrée. Réessayez.';
+    }
+    res.redirect('/admin/moderation?' + cle + '=' + encodeURIComponent(texte));
+  });
+
   // Helper redirect avec erreur
 
   // ─── PARAMÈTRES GÉNÉRAUX ──────────────────────────────────────────────────────

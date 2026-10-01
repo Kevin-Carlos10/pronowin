@@ -72,6 +72,9 @@ const REGLES: Regle[] = [
   [ECRIRE, /^\/admin\/users\/bulk\/(suspend|notify)$/,          section('users', 'write')],
   [ECRIRE, /^\/admin\/users\/[^/]+\/(suspend|premium|notify|pseudo)$/, section('users', 'write')],
   [SUPPR,  /^\/admin\/users\/[^/]+\/premium$/,                  section('users', 'write')],
+  // Modération des commentaires : la même section que le panneau.
+  [LIRE,   /^\/admin\/moderation\/(commentaires|a-traiter)$/,   section('users', 'read')],
+  [ECRIRE, /^\/admin\/moderation\/commentaires\/[^/]+$/,        section('users', 'write')],
 
   // ── Versements (parrainage) ──
   [LIRE,   /^\/payments\/admin\/(pending|methods)$/,            section('transactions', 'read')],

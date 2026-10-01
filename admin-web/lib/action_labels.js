@@ -27,6 +27,8 @@ const ACTION_LABELS = {
   user_premium_revoked:      { label: 'Premium révoqué',         icon: 'x', cat: 'user' },
   user_notified:             { label: 'Notification envoyée',    icon: 'megaphone', cat: 'user' },
   user_pseudo_changed:       { label: 'Pseudo modifié',          icon: 'edit', cat: 'user' },
+  comment_report_upheld:     { label: 'Commentaire retiré (signalement retenu)', icon: 'flag', cat: 'user' },
+  comment_report_dismissed:  { label: 'Signalement rejeté, commentaire rétabli', icon: 'check', cat: 'user' },
   pronostic_published:       { label: 'Pronostic publié',        icon: 'ball', cat: 'pronostic' },
   pronostic_daily_set:       { label: 'Prono gratuit du jour',   icon: 'star', cat: 'pronostic' },
   scores_synced:             { label: 'Scores resynchronisés',  icon: 'refresh', cat: 'pronostic' },

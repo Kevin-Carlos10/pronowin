@@ -74,6 +74,9 @@ model User {
   favoriteMatches       UserFavoriteMatch[]
   comments              Comment[]
   pronosticVotes        PronosticVote[]
+  signalementsEmis      SignalementCommentaire[]
+  blocagesEmis          BlocageUtilisateur[]   @relation("BlocagesEmis")
+  blocagesRecus         BlocageUtilisateur[]   @relation("BlocagesRecus")
 
   @@index([createdAt])
   @@map("users")
@@ -698,15 +701,59 @@ model Comment {
   isExpert    Boolean  @default(false) @map("is_expert")
   parentId    String?  @map("parent_id")
   createdAt   DateTime @default(now()) @map("created_at")
+  /// Retiré de l'affichage : par la modération, ou d'office au-delà du seuil
+  /// de signalements, en attendant la décision.
+  masque      Boolean  @default(false)
+  masqueLe    DateTime? @map("masque_le")
 
-  pronostic Pronostic @relation(fields: [pronosticId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  parent    Comment?  @relation("replies", fields: [parentId], references: [id])
-  replies   Comment[] @relation("replies")
+  pronostic    Pronostic @relation(fields: [pronosticId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent       Comment?  @relation("replies", fields: [parentId], references: [id])
+  replies      Comment[] @relation("replies")
+  signalements SignalementCommentaire[]
 
   @@index([pronosticId, createdAt])
   @@index([userId])
   @@map("comments")
+}
+
+/// Un membre signale un commentaire (règle 1.2 de l'App Store, contenus
+/// générés par les utilisateurs de Google Play). Un signalement par membre et
+/// par commentaire ; la modération tranche pour le commentaire entier.
+model SignalementCommentaire {
+  id        String    @id @default(uuid())
+  commentId String    @map("comment_id")
+  auteurId  String    @map("auteur_id")
+  /// spam | insulte | haine | sexuel | autre
+  motif     String
+  detail    String?
+  /// en_attente | retenu | rejete
+  statut    String    @default("en_attente")
+  creeLe    DateTime  @default(now()) @map("cree_le")
+  traiteLe  DateTime? @map("traite_le")
+  traitePar String?   @map("traite_par")
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  auteur  User    @relation(fields: [auteurId], references: [id], onDelete: Cascade)
+
+  @@unique([commentId, auteurId])
+  @@index([statut, creeLe])
+  @@map("signalements_commentaires")
+}
+
+/// Un membre ne voit plus les commentaires d'un autre.
+model BlocageUtilisateur {
+  id         String   @id @default(uuid())
+  bloqueurId String   @map("bloqueur_id")
+  bloqueId   String   @map("bloque_id")
+  creeLe     DateTime @default(now()) @map("cree_le")
+
+  bloqueur User @relation("BlocagesEmis", fields: [bloqueurId], references: [id], onDelete: Cascade)
+  bloque   User @relation("BlocagesRecus", fields: [bloqueId], references: [id], onDelete: Cascade)
+
+  @@unique([bloqueurId, bloqueId])
+  @@index([bloqueId])
+  @@map("blocages_utilisateurs")
 }
 
 model PronosticVote {

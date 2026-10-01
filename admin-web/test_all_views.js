@@ -864,6 +864,31 @@ const views = [
     SEGMENTS, history: notifHistory, histStats, searchH: 'test',
   }],
 
+  // ── Modération des commentaires ──
+  ['moderation (à traiter)', 'moderation', {
+    ...base, page: 2, statut: 'en_attente', total: 25, totalPages: 2, aTraiter: 25,
+    data: [{
+      comment_id: 'c1', contenu: 'Quel <b>arbitre</b>, franchement', masque: true, publie_le: now,
+      auteur: { id: 'u1', pseudo: 'Kofi' }, match: 'ASEC – Africa Sports',
+      signalements: [
+        { motif: 'insulte', detail: 'vise un joueur', statut: 'en_attente', par: 'Awa', le: now, traite_par: null, traite_le: null },
+        { motif: 'inconnu', detail: null, statut: 'en_attente', par: 'Moussa', le: now, traite_par: null, traite_le: null },
+      ],
+    }],
+  }],
+  ['moderation (traités)', 'moderation', {
+    ...base, page: 1, statut: 'traites', total: 1, totalPages: 1, aTraiter: 0,
+    data: [{
+      comment_id: 'c2', contenu: 'Avis tranché', masque: false, publie_le: now,
+      auteur: { id: 'u2', pseudo: 'Ali' }, match: 'Domicile – Extérieur',
+      signalements: [{ motif: 'spam', detail: null, statut: 'rejete', par: 'Awa', le: now, traite_par: 'Carlos', traite_le: now }],
+    }],
+  }],
+  ['moderation (vide, erreur)', 'moderation', {
+    ...base, page: 1, statut: 'en_attente', total: 0, totalPages: 1, aTraiter: 0, data: [],
+    error: 'API injoignable',
+  }],
+
   // ── Bannissements ──
   ['bans (actifs)', 'bans', {
     ...base, page: 'bans',

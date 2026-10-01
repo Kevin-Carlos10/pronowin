@@ -15,6 +15,7 @@ import '../../features/compte/presentation/pages/edit_profile_page.dart';
 import '../../features/abonnement/presentation/pages/activer_premium_page.dart';
 import '../../features/parametres/presentation/pages/parametres_page.dart';
 import '../../features/parametres/presentation/pages/pin_setup_page.dart';
+import '../../features/parametres/presentation/pages/membres_bloques_page.dart';
 import '../../features/parametres/presentation/pages/lock_screen_page.dart';
 import '../../features/parametres/presentation/pages/legal_page.dart';
 import '../../features/parrainage/presentation/pages/parrainage_page.dart';
@@ -217,6 +218,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/parametres',
         pageBuilder: (_, s) => slideRightPage(
           state: s, child: const ParametresPage()),
+      ),
+      GoRoute(
+        path: '/parametres/bloques',
+        pageBuilder: (_, s) => slideRightPage(
+          state: s, child: const MembresBloquesPage()),
       ),
       GoRoute(
         path: '/parametres/pin',

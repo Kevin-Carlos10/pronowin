@@ -54,7 +54,7 @@ class LegalPage extends ConsumerWidget {
   /// Un document juridique dont la date de révision bouge sans que son texte
   /// change ne dit plus rien de sa dernière révision.
   String get _lastUpdated => switch (type) {
-    LegalType.cgu             => trCurrent("14 septembre 2026"),
+    LegalType.cgu             => trCurrent("1er octobre 2026"),
     LegalType.confidentialite => trCurrent("4 septembre 2026"),
     LegalType.jeuResponsable  => trCurrent("Septembre 2026"),
   };
@@ -142,6 +142,11 @@ List<LegalSection> sectionsLegales(LegalType type, {required bool estStore}) =>
         trCurrent("PronoWin propose un programme de parrainage permettant à un utilisateur (« le parrain ») d'inviter de nouveaux utilisateurs (« les filleuls ») et de percevoir une récompense selon les règles affichées dans l'Application. Les récompenses ne sont créditées qu'après validation des conditions d'éligibilité (ex. activation d'un abonnement par le filleul). Toute fraude avérée (auto-parrainage, comptes fictifs, manipulation du système) entraîne l'annulation des récompenses concernées et peut donner lieu à la suspension des comptes impliqués.")),
       LegalSection(null, trCurrent("Usages interdits"),
         trCurrent("Il est interdit d'utiliser PronoWin à des fins illégales, de tenter d'accéder de manière non autorisée à ses systèmes, de perturber son fonctionnement (y compris par des moyens automatisés type robots ou scripts), de reproduire ou d'extraire son contenu à des fins commerciales sans autorisation, ou d'usurper l'identité d'un tiers. Tout manquement peut entraîner la suspension ou la suppression du compte concerné, sans préjudice d'éventuelles poursuites.")),
+      // Exigé par l'App Store (règle 1.2) et Google Play dès que des membres
+      // publient des contenus visibles par d'autres : la tolérance zéro, et les
+      // moyens offerts pour la faire respecter.
+      LegalSection(null, trCurrent("Contenus publiés par les membres"),
+        trCurrent("Les membres peuvent publier des commentaires. PronoWin applique une tolérance zéro envers les contenus répréhensibles et les comportements abusifs : sont interdits les propos injurieux, haineux, discriminatoires, menaçants, à caractère sexuel ou violent, le harcèlement, la publicité, les liens et les numéros de téléphone, ainsi que toute incitation au jeu excessif. Les commentaires sont filtrés à la publication. Chaque membre peut signaler un commentaire et bloquer un autre membre depuis l'Application ; un commentaire signalé à plusieurs reprises est retiré en attendant son examen. PronoWin examine les signalements dans un délai de 24 heures, retire les contenus contraires aux présentes CGU et peut suspendre ou bannir leurs auteurs. Chaque membre reste responsable des contenus qu'il publie.")),
       LegalSection(null, trCurrent("Propriété intellectuelle"),
         trCurrent("L'ensemble des éléments composant PronoWin — textes, analyses, logos, interface, algorithmes, bases de données et code source — sont protégés par le droit de la propriété intellectuelle et demeurent la propriété exclusive de PronoWin ou de ses concédants. Toute reproduction, représentation, modification ou diffusion, totale ou partielle, sans autorisation écrite préalable est strictement interdite.")),
       LegalSection(null, trCurrent("Protection des données personnelles"),

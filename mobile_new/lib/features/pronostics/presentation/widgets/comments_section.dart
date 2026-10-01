@@ -14,6 +14,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/premium_nav.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
+import 'moderation_commentaire.dart';
 
 // ── Modèles ───────────────────────────────────────────────────────────────────
 class PronosticComment {
@@ -145,7 +146,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(e.toString().replaceAll('Exception:', '').trim()),
+          content: Text(messageRefus(context, e)),
           behavior: SnackBarBehavior.floating));
       }
     } finally {
@@ -171,6 +172,35 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
         if (mounted) Navigator.pop(context);
       }),
     );
+  }
+
+  void _toast(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(message), behavior: SnackBarBehavior.floating));
+  }
+
+  Future<void> _signaler(PronosticComment c) async {
+    final choix = await demanderSignalement(context);
+    if (choix == null || !mounted) return;
+    try {
+      await signalerCommentaire(ref.read(dioProvider), c.id, choix.motif, choix.detail);
+      ref.invalidate(commentsProvider(widget.pronosticId));
+      if (mounted) _toast(tr(context, "Merci. Le commentaire a été signalé ; notre équipe l'examine sous 24 heures."));
+    } catch (e) {
+      if (mounted) _toast(messageRefus(context, e));
+    }
+  }
+
+  Future<void> _bloquer(PronosticComment c) async {
+    if (!await confirmerBlocage(context, c.userPseudo) || !mounted) return;
+    try {
+      await bloquerMembre(ref.read(dioProvider), c.userId);
+      ref.invalidate(commentsProvider(widget.pronosticId));
+      if (mounted) _toast(tr(context, "{arg0} est bloqué. Tu ne verras plus ses commentaires.", [c.userPseudo]));
+    } catch (e) {
+      if (mounted) _toast(messageRefus(context, e));
+    }
   }
 
   void _startReply(String commentId, String pseudo) {
@@ -271,6 +301,8 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
                     currentUserId: currentUserId,
                     onReply:       _startReply,
                     onDelete:      _confirmDelete,
+                    onSignaler:    _signaler,
+                    onBloquer:     _bloquer,
                   ),
                 ).toList(),
               ),
@@ -415,6 +447,8 @@ class _CommentTile extends StatelessWidget {
   final String?          currentUserId;
   final void Function(String id, String pseudo) onReply;
   final void Function(String id) onDelete;
+  final void Function(PronosticComment c) onSignaler;
+  final void Function(PronosticComment c) onBloquer;
 
   const _CommentTile({
     required this.comment,
@@ -422,7 +456,12 @@ class _CommentTile extends StatelessWidget {
     required this.currentUserId,
     required this.onReply,
     required this.onDelete,
+    required this.onSignaler,
+    required this.onBloquer,
   });
+
+  /// On ne se signale ni ne se bloque soi-même, ni l'analyste.
+  bool _moderable(PronosticComment c) => !c.isExpert && c.userId != currentUserId;
 
   @override
   Widget build(BuildContext context) => Column(children: [
@@ -431,6 +470,8 @@ class _CommentTile extends StatelessWidget {
       canDelete: currentUserId != null && currentUserId == comment.userId,
       onReply:  () => onReply(comment.id, comment.userPseudo),
       onDelete: () => onDelete(comment.id),
+      onSignaler: _moderable(comment) ? () => onSignaler(comment) : null,
+      onBloquer:  _moderable(comment) ? () => onBloquer(comment) : null,
     ).animate(delay: Duration(milliseconds: delay)).fadeIn(duration: 250.ms),
     // Réponses
     ...comment.replies.map((r) => Padding(
@@ -440,6 +481,8 @@ class _CommentTile extends StatelessWidget {
         canDelete: currentUserId != null && currentUserId == r.userId,
         onReply:  () => onReply(comment.id, r.userPseudo),
         onDelete: () => onDelete(r.id),
+        onSignaler: _moderable(r) ? () => onSignaler(r) : null,
+        onBloquer:  _moderable(r) ? () => onBloquer(r) : null,
         isReply:  true,
       ),
     )),
@@ -451,6 +494,9 @@ class _SingleComment extends StatelessWidget {
   final bool              canDelete;
   final VoidCallback     onReply;
   final VoidCallback     onDelete;
+  /// `null` : pas de menu (son propre commentaire, ou celui de l'analyste).
+  final VoidCallback?    onSignaler;
+  final VoidCallback?    onBloquer;
   final bool             isReply;
 
   const _SingleComment({
@@ -458,6 +504,8 @@ class _SingleComment extends StatelessWidget {
     required this.canDelete,
     required this.onReply,
     required this.onDelete,
+    this.onSignaler,
+    this.onBloquer,
     this.isReply = false,
   });
 
@@ -501,10 +549,12 @@ class _SingleComment extends StatelessWidget {
                 fontSize: 12, fontWeight: FontWeight.w700)))),
           const SizedBox(width: 8),
           Expanded(child: Row(children: [
-            Text(comment.userPseudo,
+            // Un pseudo long, suivi du badge de l'analyste, débordait la ligne.
+            Flexible(child: Text(comment.userPseudo,
+              maxLines: 1, overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: comment.isExpert ? AppColors.warning : context.cl.textP,
-                fontSize: 12, fontWeight: FontWeight.w700)),
+                fontSize: 12, fontWeight: FontWeight.w700))),
             if (comment.isExpert) ...[
               const SizedBox(width: 5),
               Container(
@@ -546,6 +596,29 @@ class _SingleComment extends StatelessWidget {
                 const SizedBox(width: 3),
                 Text(tr(context, "Supprimer"), style: TextStyle(color: AppColors.error, fontSize: 11)),
               ])),
+          ],
+          if (onSignaler != null || onBloquer != null) ...[
+            const Spacer(),
+            PopupMenuButton<VoidCallback>(
+              tooltip: tr(context, "Signaler ou bloquer"),
+              icon: Icon(Icons.more_horiz_rounded, size: 18, color: context.cl.textM),
+              padding: EdgeInsets.zero,
+              onSelected: (action) => action(),
+              itemBuilder: (ctx) => [
+                if (onSignaler != null)
+                  PopupMenuItem(value: onSignaler, child: Row(children: [
+                    const Icon(Icons.flag_outlined, size: 18, color: AppColors.error),
+                    const SizedBox(width: 10),
+                    Text(tr(ctx, "Signaler")),
+                  ])),
+                if (onBloquer != null)
+                  PopupMenuItem(value: onBloquer, child: Row(children: [
+                    const Icon(Icons.block_rounded, size: 18),
+                    const SizedBox(width: 10),
+                    Text(tr(ctx, "Bloquer {arg0}", [comment.userPseudo])),
+                  ])),
+              ],
+            ),
           ],
         ]),
       ]),
@@ -640,6 +713,14 @@ class _CommentInput extends StatelessWidget {
                   : const Icon(Icons.send_rounded, color: Colors.white, size: 18)),
           ),
         ]),
+      ),
+      // Les règles, là où l'on écrit (règle 1.2 de l'App Store : la tolérance
+      // zéro doit être connue de qui publie).
+      Padding(
+        padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
+        child: Text(
+          tr(context, "Commentaires modérés : ni insulte, ni haine, ni publicité, ni numéro. Tu peux signaler un commentaire ou bloquer un membre avec le menu « ⋯ »."),
+          style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.35)),
       ),
     ],
   );

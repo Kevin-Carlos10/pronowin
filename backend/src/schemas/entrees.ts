@@ -72,3 +72,24 @@ export const jetonNotification = z.object({
     .trim().min(1, 'fcm_token requis.').max(4096, 'fcm_token requis.'),
   platform:  z.enum(['android', 'ios']).catch('android'),
 });
+
+/** POST /moderation/signalements — un membre signale un commentaire. */
+export const signalementCommentaire = z.object({
+  comment_id: identifiant('le commentaire'),
+  motif:      z.enum(['spam', 'insulte', 'haine', 'sexuel', 'autre'], {
+    errorMap: () => ({ message: 'Motif de signalement inconnu.' }),
+  }),
+  detail:     texteFacultatif(500),
+});
+
+/** POST /moderation/blocages — un membre en bloque un autre. */
+export const blocageMembre = z.object({
+  user_id: identifiant('le membre'),
+});
+
+/** POST /admin/moderation/commentaires/:commentId — la décision du panneau. */
+export const decisionModeration = z.object({
+  decision: z.enum(['retenir', 'rejeter'], {
+    errorMap: () => ({ message: 'Décision attendue : retenir ou rejeter.' }),
+  }),
+});

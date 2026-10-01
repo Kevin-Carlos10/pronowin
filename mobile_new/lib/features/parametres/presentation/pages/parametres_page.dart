@@ -215,6 +215,12 @@ class ParametresPage extends ConsumerWidget {
             ),
             const _Divider(),
             _NavTile(
+              icon: Icons.block_rounded, iconColor: AppColors.error,
+              title: tr(context, "Membres bloqués"), subtitle: tr(context, "Ceux dont tu ne vois plus les commentaires"),
+              onTap: () => context.push('/parametres/bloques'),
+            ),
+            const _Divider(),
+            _NavTile(
               icon: Icons.storage_rounded, iconColor: context.cl.textS,
               title: tr(context, "Vider le cache"), subtitle: tr(context, "Libérer l'espace de stockage"),
               onTap: () => _showClearCacheSheet(context, ref),

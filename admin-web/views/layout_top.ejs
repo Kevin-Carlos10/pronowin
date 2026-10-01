@@ -116,6 +116,7 @@
 
     <% if (hasPerm('users')) { %>
     <a href="/admin/users" class="nav-item <%= page==='users' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span> Utilisateurs</a>
+    <a href="/admin/moderation" class="nav-item <%= page==='moderation' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-flag"/></svg></span> Modération</a>
     <% } %>
 
     <% if (hasPerm('pronostics')) { %>
