@@ -6,10 +6,21 @@
   <meta name="theme-color" content="#0c101b">
   <title><%= site.name %> — <%= site.tagline %></title>
   <meta name="description" content="Analyses de football, données de match, scores en direct et suivi de bankroll. Découvrez PronoWin, ses fonctionnalités gratuites et ses formules Premium.">
+  <link rel="canonical" href="<%= site.siteUrl %>/">
   <meta property="og:title" content="PronoWin — <%= site.tagline %>">
   <meta property="og:description" content="Préparez vos matchs, suivez le direct et gardez une vue claire sur vos pronostics. Découvrez l’application PronoWin.">
   <meta property="og:type" content="website">
   <meta property="og:locale" content="fr_FR">
+  <meta property="og:site_name" content="<%= site.name %>">
+  <meta property="og:url" content="<%= site.siteUrl %>/">
+  <%# L'aperçu affiché quand le lien est partagé sur WhatsApp ou Telegram — les canaux de PronoWin. Sans lui, le lien arrivait sans image. %>
+  <meta property="og:image" content="<%= site.siteUrl %>/images/apercu-partage.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="PronoWin : le football, un regard d’avance. Analyses de matchs, score en direct et bankroll.">
+  <meta name="twitter:card" content="summary_large_image">
+  <% if (appStoreId) { %><meta name="apple-itunes-app" content="app-id=<%= appStoreId %>"><% } %>
+  <script type="application/ld+json"><%- donneesStructurees %></script>
   <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
   <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
   <link rel="stylesheet" href="/css/style.css?v=20260928">
@@ -18,6 +29,7 @@
   <script src="/js/main.js?v=20260928" defer></script>
 </head>
 <body class="landing">
+  <% const enLigne = stores.length > 0; %>
   <a class="skip-link" href="#contenu">Aller au contenu</a>
   <div data-nav-sentinel aria-hidden="true"></div>
   <header class="navbar">
@@ -26,7 +38,7 @@
       <nav class="nav-links" aria-label="Navigation principale"><a href="#fonctionnalites">L’application</a><a href="#parcours">Comment ça marche</a><a href="#tarifs">Tarifs</a><a href="#faq">FAQ</a></nav>
       <div class="nav-actions">
         <button type="button" class="motion-toggle" data-motion-toggle aria-pressed="true" aria-label="Animations" hidden><span class="motion-bars" aria-hidden="true"><i></i><i></i><i></i></span><span data-motion-label>Animations</span></button>
-        <a href="#telecharger" class="nav-cta"><%= site.playStoreUrl ? 'Obtenir l’app' : 'Suivre le lancement' %> <%- include('partials/icon', { name: 'arrow', size: 16 }) %></a>
+        <a href="#telecharger" class="nav-cta"><%= enLigne ? 'Obtenir l’app' : 'Suivre le lancement' %> <%- include('partials/icon', { name: 'arrow', size: 16 }) %></a>
         <button class="nav-toggle" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="mobile-menu" hidden><%- include('partials/icon', { name: 'menu', size: 22 }) %></button>
       </div>
     </div>
@@ -35,7 +47,7 @@
       <a href="#parcours">Comment ça marche</a>
       <a href="#tarifs">Tarifs</a>
       <a href="#faq">FAQ</a>
-      <a href="#telecharger"><%= site.playStoreUrl ? 'Obtenir l’app' : 'Suivre le lancement' %></a>
+      <a href="#telecharger"><%= enLigne ? 'Obtenir l’app' : 'Suivre le lancement' %></a>
     </div></nav>
   </header>
   <main id="contenu" tabindex="-1">
@@ -48,13 +60,13 @@
           <p class="eyebrow hero-kicker" data-reveal><span class="kicker-line"></span> Le football, sous un autre angle</p>
           <h1 id="hero-title" data-reveal data-reveal-delay="60">Le football.<br>Un regard<br><span>d’avance.</span><span class="title-spark" aria-hidden="true">✳</span></h1>
           <p class="hero-subtitle" data-reveal data-reveal-delay="140">Vivez le match. Comprenez les chiffres.<br>Vos analyses, le direct et votre bankroll,<br class="desktop-break"> réunis dans PronoWin.</p>
-          <div class="hero-cta" data-reveal data-reveal-delay="210"><a href="#telecharger" class="btn btn-primary"><%= site.playStoreUrl ? 'Obtenir PronoWin' : 'Suivre le lancement' %> <span class="button-arrow"><%- include('partials/icon', { name: 'arrow', size: 18 }) %></span></a><a href="#experience" class="explore-link"><span class="play-icon" aria-hidden="true">▶</span> Explorer l’expérience</a></div>
-          <p class="hero-availability" data-reveal data-reveal-delay="260"><span class="availability-mark" aria-hidden="true">✓</span> <%= site.playStoreUrl ? 'Disponible sur Google Play · Sélection gratuite' : 'Sortie sur les stores en préparation' %></p>
+          <div class="hero-cta" data-reveal data-reveal-delay="210"><a href="#telecharger" class="btn btn-primary"><%= enLigne ? 'Obtenir PronoWin' : 'Suivre le lancement' %> <span class="button-arrow"><%- include('partials/icon', { name: 'arrow', size: 18 }) %></span></a><a href="#experience" class="explore-link"><span class="play-icon" aria-hidden="true">▶</span> Explorer l’expérience</a></div>
+          <p class="hero-availability" data-reveal data-reveal-delay="260"><span class="availability-mark" aria-hidden="true">✓</span> <%= enLigne ? 'Disponible sur ' + stores.map(function (s) { return s.nom; }).join(' et ') + ' · Sélection gratuite' : 'Sortie sur les stores en préparation' %></p>
         </div>
         <figure class="hero-showcase" data-reveal data-reveal-delay="180">
           <div class="showcase-orbit orbit-one" aria-hidden="true"></div><div class="showcase-orbit orbit-two" aria-hidden="true"></div>
           <span class="showcase-coordinate" aria-hidden="true">PRONOWIN / MATCHDAY EXPERIENCE</span>
-          <div class="phone-perspective" data-tilt><div class="phone-frame"><img class="hero-app-shot" src="/images/app-screenshot-hero.jpg" alt="Écran d’accueil PronoWin : prochain match, pronostic et score en direct." width="612" height="1280" fetchpriority="high" decoding="async"></div></div>
+          <div class="phone-perspective" data-tilt><div class="phone-frame"><img class="hero-app-shot" src="/images/app-ecran-accueil.jpg" alt="Écran d’accueil PronoWin : prochain match, compte à rebours, pronostic de l’analyste et son indice de confiance." width="612" height="1280" fetchpriority="high" decoding="async"></div></div>
           <div class="floating-note note-analysis"><span class="note-icon"><%- include('partials/icon', { name: 'chart', size: 21 }) %></span><div><small>L’AVANT-MATCH</small><strong>Le détail fait la différence.</strong><span>Forme · Compositions · H2H</span></div></div>
           <div class="floating-note note-live"><span class="live-pulse" aria-hidden="true"></span><div><small>AU CŒUR DU MATCH</small><strong>Le score évolue.<br>Vous restez dans le jeu.</strong></div><%- include('partials/icon', { name: 'ball', size: 27 }) %></div>
           <figcaption>Aperçu de l’application · données illustratives</figcaption>
@@ -115,7 +127,7 @@
           <% if (plan.price !== null) { %><div class="pricing-price"><%= plan.price %> <span>USD</span></div><% } else { %><div class="pricing-price pricing-price--absent">Voir le tarif dans l'application</div><% } %>
           <p class="pricing-period"><%= plan.period %></p>
           <ul class="pricing-features"><% plan.features.forEach(function(f) { %><li><%- include('partials/icon', { name: 'check', size: 17 }) %><span><%= f %></span></li><% }) %></ul>
-          <a href="#telecharger" class="btn <%= plan.highlight ? 'btn-primary' : 'btn-outline' %>" aria-label="<%= site.playStoreUrl ? 'Accéder à ' + plan.name + ' dans l’application' : 'Voir la disponibilité de l’application pour ' + plan.name %>"><%= site.playStoreUrl ? (plan.id === 'free' ? 'Commencer gratuitement' : 'Choisir cette formule') : 'Voir la disponibilité' %> <%- include('partials/icon', { name: 'arrow', size: 17 }) %></a>
+          <a href="#telecharger" class="btn <%= plan.highlight ? 'btn-primary' : 'btn-outline' %>" aria-label="<%= enLigne ? 'Accéder à ' + plan.name + ' dans l’application' : 'Voir la disponibilité de l’application pour ' + plan.name %>"><%= enLigne ? (plan.id === 'free' ? 'Commencer gratuitement' : 'Choisir cette formule') : 'Voir la disponibilité' %> <%- include('partials/icon', { name: 'arrow', size: 17 }) %></a>
         </article>
       <% }) %></div>
       <p class="pricing-note">Tarifs de référence en USD. Le montant final, la devise et les conditions de renouvellement sont affichés dans l’application avant tout paiement.</p>
@@ -139,13 +151,10 @@
     </div></section>
 
     <section id="telecharger" class="download-section" aria-labelledby="download-title"><div class="container download-card" data-reveal>
-      <div class="download-copy"><p class="eyebrow">Votre prochain match commence ici</p><h2 id="download-title">Le football vous passionne.<br><span>PronoWin vous accompagne.</span></h2><p><%= site.playStoreUrl ? 'Retrouvez les analyses, le direct et votre suivi personnel dans l’application. Commencez avec la sélection gratuite.' : 'L’application arrive sur les stores. Retrouvez les annonces de disponibilité sur nos canaux officiels.' %></p></div>
+      <div class="download-copy"><p class="eyebrow">Votre prochain match commence ici</p><h2 id="download-title">Le football vous passionne.<br><span>PronoWin vous accompagne.</span></h2><p><%= enLigne ? 'Retrouvez les analyses, le direct et votre suivi personnel dans l’application. Commencez avec la sélection gratuite.' : 'L’application arrive sur les stores. Retrouvez les annonces de disponibilité sur nos canaux officiels.' %></p></div>
       <div class="download-actions">
-        <% if (site.playStoreUrl) { %>
-        <div class="store-badges"><a class="store-badge" href="<%= site.playStoreUrl %>" target="_blank" rel="noopener noreferrer"><%- include('partials/icon', { name: 'google-play', size: 28 }) %><span><small>Télécharger sur</small><strong>Google Play</strong></span><%- include('partials/icon', { name: 'arrow', size: 18 }) %></a><span class="store-badge store-badge--soon"><%- include('partials/icon', { name: 'apple', size: 28 }) %><span><small>App Store</small><strong>Bientôt</strong></span></span></div>
-        <% } else { %>
-        <div class="store-badges store-badges--soon" aria-hidden="false"><span class="store-badge store-badge--soon"><%- include('partials/icon', { name: 'google-play', size: 28 }) %><span><small>Google Play</small><strong>Bientôt</strong></span></span><span class="store-badge store-badge--soon"><%- include('partials/icon', { name: 'apple', size: 28 }) %><span><small>App Store</small><strong>Bientôt</strong></span></span></div>
-        <% } %>
+        <%# Une boutique publiée devient un lien ; les autres restent annoncées « bientôt ». %>
+        <div class="store-badges<%= enLigne ? '' : ' store-badges--soon' %>"><% [{ id: 'apple', nom: 'App Store', icone: 'apple' }, { id: 'play', nom: 'Google Play', icone: 'google-play' }].forEach(function (b) { const publie = stores.find(function (s) { return s.id === b.id; }); %><% if (publie) { %><a class="store-badge" href="<%= publie.url %>" target="_blank" rel="noopener noreferrer"><%- include('partials/icon', { name: b.icone, size: 28 }) %><span><small>Télécharger sur</small><strong><%= b.nom %></strong></span><%- include('partials/icon', { name: 'arrow', size: 18 }) %></a><% } else { %><span class="store-badge store-badge--soon"><%- include('partials/icon', { name: b.icone, size: 28 }) %><span><small><%= b.nom %></small><strong>Bientôt</strong></span></span><% } %><% }) %></div>
         <div class="community-links">
           <% if (site.telegramUrl) { %><a href="<%= site.telegramUrl %>" target="_blank" rel="noopener noreferrer"><%- include('partials/icon', { name: 'telegram', size: 18 }) %> Telegram <span class="sr-only">(nouvel onglet)</span></a><% } %>
           <% if (site.whatsappUrl) { %><a href="<%= site.whatsappUrl %>" target="_blank" rel="noopener noreferrer"><%- include('partials/icon', { name: 'whatsapp', size: 18 }) %> WhatsApp <span class="sr-only">(nouvel onglet)</span></a><% } %>

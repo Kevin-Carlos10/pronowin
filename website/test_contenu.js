@@ -73,9 +73,12 @@ async function rendre(reponsesApi) {
   const cgu       = await recuperer(site.address().port, '/cgu');
   const cguDirect = await recuperer(site.address().port, '/cgu?canal=direct');
 
+  const robots  = await recuperer(site.address().port, '/robots.txt');
+  const sitemap = await recuperer(site.address().port, '/sitemap.xml');
+
   site.close();
   if (api) api.close();
-  return { accueil, legal, confidentialite, suppressionCompte, cgu, cguDirect };
+  return { accueil, legal, confidentialite, suppressionCompte, cgu, cguDirect, robots, sitemap };
 }
 
 /* ─── Fixtures ────────────────────────────────────────────────────────── */
@@ -258,6 +261,89 @@ test('sans fiche Play, la vitrine ne propose pas l\'APK public', async () => {
   assert.strictEqual((accueil.html.match(/Bientôt/g) || []).length, 2,
     'les deux stores devraient être annoncés « bientôt »');
 });
+
+test("la fiche App Store, une fois renseignée, devient un lien et une bannière Safari", async () => {
+  // L'app a été soumise à Apple le 2 octobre 2026. Le jour de l'approbation,
+  // il suffira de renseigner APP_STORE_URL : ce basculement-là doit avoir été
+  // éprouvé avant, pas découvert ce jour-là.
+  const avant = process.env.APP_STORE_URL;
+  process.env.APP_STORE_URL = 'https://apps.apple.com/app/id6817503596';
+
+  try {
+    const { accueil } = await rendre(API_COMPLETE);
+
+    assert.ok(accueil.html.includes('href="https://apps.apple.com/app/id6817503596"'),
+      'le badge App Store devrait mener à la fiche');
+    assert.ok(accueil.html.includes('<meta name="apple-itunes-app" content="app-id=6817503596">'),
+      "Safari sur iPhone devrait proposer l'app en haut de la page");
+    assert.ok(accueil.html.includes('Disponible sur App Store'),
+      'la disponibilité devrait nommer la boutique publiée');
+    assert.strictEqual((accueil.html.match(/Bientôt/g) || []).length, 1,
+      'seule Google Play devrait rester « bientôt »');
+    assert.ok(!accueil.html.includes('Suivre le lancement'),
+      "une app publiée ne se « suit » plus : elle s'obtient");
+  } finally {
+    if (avant === undefined) delete process.env.APP_STORE_URL;
+    else process.env.APP_STORE_URL = avant;
+  }
+});
+
+test("sans fiche App Store, aucune bannière ni lien Apple n'est rendu", async () => {
+  // La bannière Safari pointe vers une fiche : tant qu'Apple n'a pas publié
+  // l'app, elle mènerait à une page introuvable.
+  const { accueil } = await rendre(API_COMPLETE);
+  assert.ok(!accueil.html.includes('apple-itunes-app'),
+    "aucune bannière tant que la fiche n'est pas en ligne");
+  assert.ok(!accueil.html.includes('apps.apple.com'),
+    "aucun lien vers une fiche App Store qui n'existe pas encore");
+});
+
+test('un lien partagé arrive avec son image, et les moteurs trouvent les pages', async () => {
+  // Les canaux de PronoWin sont WhatsApp et Telegram : le lien du site y
+  // arrivait sans image.
+  const { accueil, robots, sitemap } = await rendre(API_COMPLETE);
+
+  const image = (accueil.html.match(/<meta property="og:image" content="([^"]+)"/) || [])[1];
+  assert.ok(image && /^https:\/\/[^/]+\/images\/apercu-partage\.jpg$/.test(image),
+    "og:image doit être une adresse absolue — un chemin relatif n'est pas lu par WhatsApp");
+  const fichier = require('path').join(__dirname, 'public', 'images', 'apercu-partage.jpg');
+  assert.ok(require('fs').existsSync(fichier), "l'image d'aperçu annoncée doit exister");
+  assert.ok(accueil.html.includes('<link rel="canonical" href="https://pronowin.space/">'),
+    'le lien canonique manque');
+
+  // Les données structurées : du JSON valide, et sans note inventée.
+  const ld = (accueil.html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/) || [])[1];
+  assert.ok(ld, 'données structurées absentes');
+  const app = JSON.parse(ld);
+  assert.strictEqual(app['@type'], 'MobileApplication');
+  assert.ok(!('aggregateRating' in app), "aucune note moyenne : elle n'aurait pas de source");
+
+  assert.strictEqual(robots.statut, 200, '/robots.txt doit répondre');
+  assert.ok(robots.html.includes('Sitemap: https://pronowin.space/sitemap.xml'),
+    'robots.txt doit annoncer le plan du site');
+  assert.strictEqual(sitemap.statut, 200, '/sitemap.xml doit répondre');
+  for (const page of ['/confidentialite', '/cgu', '/suppression-compte']) {
+    assert.ok(sitemap.html.includes(`<loc>https://pronowin.space${page}</loc>`),
+      `le plan du site oublie ${page}`);
+  }
+  assert.ok(!sitemap.html.includes('canal=direct'),
+    "la variante directe des CGU porte noindex : elle n'a rien à faire dans le plan");
+});
+
+test('la FAQ dit comment résilier, restaurer et supprimer — avec le chemin', async () => {
+  // La réponse sur l'annulation renvoyait « à la boutique utilisée » sans dire
+  // où. C'est la question qu'on pose au moment de partir : il faut le chemin.
+  // Les apostrophes sont échappées par EJS (&#39;) : on compare sans elles.
+  const { accueil } = await rendre(API_COMPLETE);
+  const texte = accueil.html.replace(/<[^>]*>/g, ' ');
+  assert.ok(texte.includes('Réglages, puis votre nom, puis Abonnements'), 'chemin iPhone absent');
+  assert.ok(texte.includes('Paiements et abonnements'), 'chemin Google Play absent');
+  assert.ok(texte.includes('Restaurer mes achats'), "la restauration des achats n'est pas expliquée");
+  assert.ok(texte.includes('Supprimer le compte'), "la suppression du compte n'est pas expliquée");
+  assert.ok(!texte.includes('une fois le règlement vérifié'),
+    "sur les boutiques, l'accès s'ouvre à l'achat, pas après une vérification manuelle");
+});
+
 
 test('aucune promesse de gain n\'est faite', async () => {
   const { accueil, legal } = await rendre(API_COMPLETE);
@@ -470,11 +556,19 @@ test('la politique offre une suppression de compte hors application', async () =
     'la demande de suppression doit pouvoir être lancée sans connexion');
 });
 
-test('la politique distingue les pratiques de la version Google Play', async () => {
+test('la politique couvre les deux boutiques, Apple comprise', async () => {
   const { confidentialite } = await rendre(API_COMPLETE);
 
-  assert.ok(confidentialite.html.includes('Version distribuée sur Google Play'),
-    'la portée de la politique Google Play doit être explicite');
+  // Elle ne parlait que de Google Play alors que l'app a été soumise à
+  // l'App Store le 2 octobre 2026 — et l'examen d'Apple lit cette page.
+  assert.ok(confidentialite.html.includes("Versions distribuées sur l'App Store et Google Play"),
+    'la portée de la politique doit nommer les deux boutiques');
+  assert.ok(confidentialite.html.includes('Se connecter avec Apple'),
+    "la connexion avec Apple (sign_in_with_apple) doit être déclarée");
+  assert.ok(confidentialite.html.includes("Mesure d'audience"),
+    'Firebase Analytics (analyse_usage.dart) doit être déclaré');
+  assert.ok(confidentialite.html.includes('id="google-play"'),
+    "l'ancre #google-play doit rester : des liens déjà donnés la visent");
   assert.ok(confidentialite.html.includes('vos données de carte bancaire'),
     'la politique doit préciser que PronoWin ne conserve pas les cartes bancaires');
   assert.ok(confidentialite.html.includes('Jeton de notification'),

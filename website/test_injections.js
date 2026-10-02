@@ -25,18 +25,20 @@ const INJECTIONS = [
     // Le basculement vers Play cesse de basculer. Sans cette injection, le
     // controle de l'etat futur pourrait verdir sur un `if` qui ne choisit
     // jamais rien — et on ne le decouvrirait que le jour de l'approbation.
+    // Depuis l'App Store, les deux boutiques passent par la même recherche :
+    // l'injection la neutralise pour les deux.
     nom: 'le basculement vers la fiche Play ne bascule plus',
     fichier: 'views/index.ejs',
-    de: '<% if (site.playStoreUrl) { %>',
-    vers: '<% if (false) { %>',
+    de: 'const publie = stores.find(function (s) { return s.id === b.id; });',
+    vers: 'const publie = null;',
   },
   {
     // Pendant la validation Play, un bouton APK public ne doit pas revenir par
     // mégarde dans le rendu sans fiche de store.
     nom: 'l APK direct redevient un bouton public',
     fichier: 'views/index.ejs',
-    de: '<div class="store-badges store-badges--soon" aria-hidden="false">',
-    vers: '<a href="<%= site.apkUrl %>" class="store-badge" download>APK</a>\n        <div class="store-badges store-badges--soon" aria-hidden="false">',
+    de: `<div class="store-badges<%= enLigne ? '' : ' store-badges--soon' %>">`,
+    vers: `<a href="<%= site.apkUrl %>" class="store-badge" download>APK</a>\n        <div class="store-badges<%= enLigne ? '' : ' store-badges--soon' %>">`,
   },
   {
     // La signature promettait dans le <title>, c'est-a-dire a l'endroit que
@@ -49,7 +51,7 @@ const INJECTIONS = [
   {
     nom: 'un operateur de paiement revient sur la vitrine',
     fichier: 'server.js',
-    de: "Les moyens de paiement disponibles vous sont proposés à cette étape",
+    de: "Sur iPhone et sur Google Play, le paiement passe par votre compte Apple ou Google",
     vers: "Payez par Orange Money et joignez la preuve du transfert",
   },
   {
@@ -79,8 +81,8 @@ const INJECTIONS = [
     // site ou le delai est evoque.
     nom: 'le delai de validation est republie',
     fichier: 'server.js',
-    de: "et votre accès s'ouvre une fois le règlement vérifié.",
-    vers: "et votre accès s'ouvre sous 30 minutes ouvrables.",
+    de: "et l'accès Premium s'ouvre dès que l'achat est confirmé.",
+    vers: "et l'accès Premium s'ouvre sous 30 minutes ouvrables.",
   },
   {
     nom: 'un faux témoignage revient',
@@ -210,6 +212,21 @@ const INJECTIONS = [
     fichier: 'views/cgu.ejs',
     de: '<h2><%= i + 1 %>. <%= s.titre %></h2>',
     vers: '<h2><%= i + 2 %>. <%= s.titre %></h2>',
+  },
+  {
+    // La bannière Safari vise une fiche App Store : affichée avant
+    // l'approbation, elle mènerait à une page introuvable.
+    nom: 'la bannière Safari s affiche sans fiche App Store',
+    fichier: 'views/index.ejs',
+    de: '<% if (appStoreId) { %>',
+    vers: '<% if (true) { %>',
+  },
+  {
+    // WhatsApp et Telegram ignorent une image d'aperçu en chemin relatif.
+    nom: 'l image de partage redevient un chemin relatif',
+    fichier: 'views/index.ejs',
+    de: 'content="<%= site.siteUrl %>/images/apercu-partage.jpg"',
+    vers: 'content="/images/apercu-partage.jpg"',
   },
 ];
 

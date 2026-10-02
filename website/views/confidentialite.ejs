@@ -58,20 +58,25 @@
       </p>
     </section>
 
-    <section id="google-play">
-      <h2>Version distribuée sur Google Play</h2>
+    <%# La page ne parlait que de Google Play. L'app est aussi soumise à l'App
+        Store, dont l'examen lit cette politique : elle doit nommer Apple, son
+        système d'achat et « Se connecter avec Apple ». L'ancre #google-play
+        reste, pour les liens déjà donnés. %>
+    <section id="boutiques">
+      <h2 id="google-play">Versions distribuées sur l'App Store et Google Play</h2>
       <p>
-        La version de PronoWin distribuée sur Google Play utilise le système de
-        facturation de Google Play pour les abonnements numériques. PronoWin ne
-        demande ni ne conserve vos données de carte bancaire, vos coordonnées
+        Les versions de PronoWin distribuées sur l'App Store (iPhone) et sur
+        Google Play utilisent le système d'achat de la boutique pour les
+        abonnements numériques : Apple ou Google encaisse le paiement. PronoWin
+        ne demande ni ne conserve vos données de carte bancaire, vos coordonnées
         bancaires, une capture de paiement ou un identifiant auprès d'un
-        opérateur de paiement dans cette version.
+        opérateur de paiement dans ces versions.
       </p>
       <p>
-        Cette politique décrit les pratiques de la version distribuée par
-        Google Play. Toute version distribuée par un autre canal doit présenter
-        ses modalités particulières avant qu'une donnée supplémentaire soit
-        demandée.
+        Cette politique décrit les pratiques des versions distribuées par ces
+        deux boutiques. Toute version distribuée par un autre canal doit
+        présenter ses modalités particulières avant qu'une donnée
+        supplémentaire soit demandée.
       </p>
     </section>
 
@@ -89,7 +94,7 @@
           <tbody>
             <tr>
               <th scope="row">Compte et profil</th>
-              <td>Adresse e-mail ou numéro de téléphone, pseudo, empreinte de mot de passe, prénom, nom, pays, date de naissance et photo de profil facultative.</td>
+              <td>Adresse e-mail ou numéro de téléphone, pseudo, empreinte de mot de passe, prénom, nom, pays, date de naissance et photo de profil facultative. Si vous vous connectez avec Apple ou Google : l'identifiant transmis par ce service, l'adresse e-mail (avec Apple, il peut s'agir d'une adresse relais qui masque la vôtre) et le nom, si vous acceptez de le partager.</td>
               <td>Créer et sécuriser le compte, vérifier la majorité et personnaliser le profil.</td>
             </tr>
             <tr>
@@ -104,13 +109,21 @@
             </tr>
             <tr>
               <th scope="row">Diagnostic technique</th>
-              <td>Identifiant d'installation, modèle de l'appareil, version du système, rapports de plantage et mesures de performance.</td>
+              <td>Identifiant d'installation, modèle de l'appareil, version du système, rapports de plantage et mesures de performance. Les rapports de plantage sont associés à l'identifiant de votre compte, pour retrouver l'erreur que vous nous signalez.</td>
               <td>Détecter les erreurs, améliorer la stabilité et mesurer les performances de l'application.</td>
             </tr>
+            <%# Firebase Analytics tourne depuis l'audit du 24 septembre 2026
+                (analyse_usage.dart) : une dizaine d'événements, sans nom,
+                e-mail, téléphone ni montant. La page n'en disait rien. %>
             <tr>
-              <th scope="row">Abonnement Google Play</th>
-              <td>État de l'abonnement et informations nécessaires à sa vérification.</td>
-              <td>Confirmer les droits Premium. Les informations de paiement sont gérées par Google Play, pas par PronoWin.</td>
+              <th scope="row">Mesure d'audience</th>
+              <td>Événements d'utilisation associés à l'identifiant d'installation : ouverture d'un pronostic, affichage de l'offre Premium, étapes d'inscription et d'abonnement, pari noté dans la bankroll, ouverture d'une notification. Ni nom, ni adresse e-mail, ni numéro de téléphone, ni montant.</td>
+              <td>Comprendre quels écrans servent et où les inscriptions échouent, pour améliorer l'application. Jamais pour de la publicité.</td>
+            </tr>
+            <tr>
+              <th scope="row">Abonnement App Store ou Google Play</th>
+              <td>État de l'abonnement et informations de transaction nécessaires à sa vérification, transmises par Apple ou Google.</td>
+              <td>Confirmer les droits Premium. Les informations de paiement sont gérées par Apple ou Google, pas par PronoWin.</td>
             </tr>
           </tbody>
         </table>
@@ -147,7 +160,8 @@
       </p>
       <ul class="legal-list">
         <li><strong>OVHcloud</strong>, qui héberge les services et la base de données sur une infrastructure située à Montréal, au Canada ;</li>
-        <li><strong>Google Firebase</strong>, pour les notifications, les rapports de plantage, les mesures de performance et la configuration à distance ;</li>
+        <li><strong>Google Firebase</strong>, pour les notifications, les rapports de plantage, les mesures de performance, la mesure d'audience et la configuration à distance ;</li>
+        <li><strong>Apple</strong>, pour « Se connecter avec Apple » si vous choisissez cette méthode, et pour la facturation et la vérification des abonnements achetés sur l'App Store ;</li>
         <li><strong>Google Sign-In</strong>, uniquement si vous choisissez cette méthode de connexion ;</li>
         <li><strong>Google Play</strong>, pour la facturation et la vérification des abonnements achetés via le Play Store.</li>
       </ul>
@@ -193,9 +207,11 @@
         concerné.
       </p>
       <p>
-        La suppression du compte PronoWin ne résilie pas un abonnement Google
-        Play en cours. Pour éviter un renouvellement, annulez-le dans Google
-        Play, rubrique Paiements et abonnements.
+        La suppression du compte PronoWin ne résilie pas un abonnement en
+        cours. Pour éviter un renouvellement, annulez-le dans la boutique où
+        vous l'avez souscrit : sur iPhone, Réglages, puis votre nom, puis
+        Abonnements ; sur Android, Google Play, rubrique Paiements et
+        abonnements.
       </p>
     </section>
 

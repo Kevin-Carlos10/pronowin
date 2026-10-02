@@ -188,7 +188,7 @@ Suivi publicitaire (« tracking ») : **Non**. Données collectées :
 | Identifiant de l'appareil (jeton de notification, Firebase) | Fonctionnalités de l'app, Analyse | Oui |
 | Historique d'achats | Fonctionnalités de l'app | Oui |
 | Interactions avec le produit (Firebase Analytics) | Analyse | Oui |
-| Données de plantage et de performance (Crashlytics) | Fonctionnalités de l'app | Non |
+| Données de plantage et de performance (Crashlytics) | Fonctionnalités de l'app | Oui (Crashlytics reçoit l'identifiant du membre) |
 | Photos (photo de profil) | Fonctionnalités de l'app | Oui |
 | Autre contenu utilisateur (commentaires) | Fonctionnalités de l'app | Oui |
 | Autres données (date de naissance, pays) | Fonctionnalités de l'app | Oui |

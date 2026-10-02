@@ -107,7 +107,25 @@ const site = {
    * Le jour de l'approbation, cette ligne suffit : aucun gabarit à retoucher.
    */
   playStoreUrl: process.env.PLAY_STORE_URL || '',
+
+  /**
+   * Fiche App Store — vide tant qu'elle n'est pas publiée.
+   *
+   * L'application a été soumise à Apple le 2 octobre 2026. Son adresse est
+   * déjà connue (https://apps.apple.com/app/id6817503596), mais elle ne mène
+   * nulle part avant l'approbation : on la renseigne dans le .env du site le
+   * jour où la fiche est en ligne, exactement comme PLAY_STORE_URL. Le badge
+   * App Store devient alors un lien, et Safari sur iPhone propose l'app en
+   * haut de la page.
+   */
+  appStoreUrl: process.env.APP_STORE_URL || '',
+
+  /** Adresse publique du site : lien canonique, aperçus de partage, plan du site. */
+  siteUrl: (process.env.SITE_URL || 'https://pronowin.space').replace(/\/+$/, ''),
 };
+
+/** L'identifiant Apple de l'app, lu dans l'adresse de sa fiche (…/id6817503596). */
+const appStoreId = (site.appStoreUrl.match(/\/id(\d+)/) || [])[1] || null;
 
 // URL de l'API, pour lire ce que le produit fait réellement.
 const API_URL = process.env.API_URL || 'http://127.0.0.1:3000/api/v1';
@@ -457,8 +475,11 @@ const faqs = [
     a: "Téléchargez l'application PronoWin, indiquez votre adresse e-mail et confirmez le code reçu. Une sélection de pronostics est visible depuis l'accueil, sans abonnement.",
   },
   {
+    // « votre accès s'ouvre une fois le règlement vérifié » ne décrivait que le
+    // paiement contrôlé à la main. Sur l'App Store et Google Play, c'est la
+    // boutique qui encaisse et l'accès s'ouvre à l'achat.
     q: 'Comment souscrire à un abonnement Premium ?',
-    a: "Depuis l'application, rendez-vous dans Abonnements et choisissez la formule mensuelle ou annuelle. Les moyens de paiement disponibles vous sont proposés à cette étape, et votre accès s'ouvre une fois le règlement vérifié.",
+    a: "Depuis l'application, ouvrez l'offre Premium et choisissez la formule mensuelle ou annuelle. Sur iPhone et sur Google Play, le paiement passe par votre compte Apple ou Google, et l'accès Premium s'ouvre dès que l'achat est confirmé.",
   },
   {
     // La question « quels moyens de paiement sont acceptés ? » est retirée :
@@ -481,8 +502,19 @@ const faqs = [
     a: "Partagez votre code personnel depuis l'application. Chaque filleul qui s'inscrit avec ce code vous rapporte des gains, que vous convertissez en jours Premium ou que vous retirez. Le barème et le seuil de retrait sont affichés dans l'application.",
   },
   {
+    // La réponse renvoyait « à la boutique utilisée » sans dire où. C'est la
+    // question qu'un abonné pose au moment où il veut partir : il lui faut le
+    // chemin, pas un renvoi.
     q: 'Puis-je annuler mon abonnement à tout moment ?',
-    a: "Les conditions de renouvellement et d’annulation dépendent du mode de souscription. Elles sont présentées avant le paiement. Retrouvez la gestion de votre abonnement dans l’application ou dans la boutique utilisée pour souscrire.",
+    a: "Oui. Sur iPhone : Réglages, puis votre nom, puis Abonnements. Sur Android : Google Play, puis Paiements et abonnements, puis Abonnements. Annulez au moins 24 heures avant la date de renouvellement ; l'accès Premium reste ouvert jusqu'à la fin de la période payée. Supprimer l'application ou votre compte ne résilie pas l'abonnement.",
+  },
+  {
+    q: "J'ai changé de téléphone : comment retrouver mon abonnement ?",
+    a: "Connectez-vous avec le même compte PronoWin. Si l'accès Premium n'apparaît pas, ouvrez l'offre Premium et touchez « Restaurer mes achats », en restant connecté au même compte Apple ou Google que lors de l'achat.",
+  },
+  {
+    q: 'Comment supprimer mon compte ?',
+    a: "Dans l'application : onglet Compte, Paramètres, puis Supprimer le compte. Sans l'application : utilisez la page « Supprimer mon compte », en bas de ce site. Pensez à résilier d'abord un abonnement en cours, qui n'est pas arrêté par la suppression.",
   },
 ];
 
@@ -501,7 +533,79 @@ app.get('/', async (req, res) => {
   res.render('index', {
     site, bilan, productBlocks,
     pricingPlans, comparisonRows, faqs, versionApp,
+    stores: storesPublies(), appStoreId,
+    donneesStructurees: donneesStructurees(),
   });
+});
+
+/**
+ * Les boutiques où l'app est réellement en ligne, dans l'ordre d'affichage.
+ * Une boutique sans adresse n'y figure pas : la page l'annonce « bientôt ».
+ */
+function storesPublies() {
+  return [
+    { id: 'apple', nom: 'App Store',   url: site.appStoreUrl },
+    { id: 'play',  nom: 'Google Play', url: site.playStoreUrl },
+  ].filter((s) => s.url);
+}
+
+/**
+ * Description de l'app pour les moteurs de recherche (schema.org).
+ *
+ * Elle ne contient que ce que la page affiche déjà : pas de note moyenne,
+ * pas de nombre de téléchargements. Une note sans source, c'est le « 4,6/5 »
+ * retiré de la page, réintroduit là où personne ne relit.
+ */
+function donneesStructurees() {
+  const app = {
+    '@context': 'https://schema.org',
+    '@type': 'MobileApplication',
+    name: site.name,
+    url: `${site.siteUrl}/`,
+    description: 'Analyses de football, données de match, scores en direct et suivi de bankroll.',
+    applicationCategory: 'SportsApplication',
+    operatingSystem: 'iOS, Android',
+    inLanguage: 'fr',
+    image: `${site.siteUrl}/images/logo-pronowin-512.png`,
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+    publisher: {
+      '@type': 'Organization',
+      name: site.name,
+      url: `${site.siteUrl}/`,
+      logo: `${site.siteUrl}/images/logo-pronowin-512.png`,
+      ...(site.contactEmail ? { email: site.contactEmail } : {}),
+    },
+  };
+  const liens = storesPublies().map((s) => s.url);
+  if (liens.length) app.installUrl = liens;
+  // `<` échappé : une valeur de configuration ne doit pas pouvoir fermer la
+  // balise <script> qui l'accueille.
+  return JSON.stringify(app).replace(/</g, '\\u003c');
+}
+
+/** Pages publiques à indexer — celles du pied de page, et rien d'autre. */
+const PAGES_INDEXEES = ['/', '/cgu', '/confidentialite', '/mentions-legales', '/suppression-compte'];
+
+app.get('/robots.txt', (req, res) => {
+  res.type('text/plain').send(
+    'User-agent: *\n'
+    + 'Allow: /\n'
+    // L'APK n'est pas proposé sur la vitrine : il n'a pas à remonter dans
+    // les résultats de recherche non plus.
+    + 'Disallow: /downloads/\n'
+    + `\nSitemap: ${site.siteUrl}/sitemap.xml\n`,
+  );
+});
+
+app.get('/sitemap.xml', (req, res) => {
+  const urls = PAGES_INDEXEES
+    .map((p) => `  <url><loc>${site.siteUrl}${p}</loc></url>`)
+    .join('\n');
+  res.type('application/xml').send(
+    '<?xml version="1.0" encoding="UTF-8"?>\n'
+    + '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    + `${urls}\n</urlset>\n`,
+  );
 });
 
 app.get('/mentions-legales', (req, res) => {
@@ -554,7 +658,7 @@ app.get('/cgu', (req, res) => {
  * juridique dont la date de révision change toute seule chaque jour ne dit
  * plus rien de sa dernière révision.
  */
-const MAJ_CONFIDENTIALITE = '4 septembre 2026';
+const MAJ_CONFIDENTIALITE = '2 octobre 2026';
 
 app.get('/confidentialite', (req, res) => {
   res.render('confidentialite', { site, dateMaj: MAJ_CONFIDENTIALITE });
