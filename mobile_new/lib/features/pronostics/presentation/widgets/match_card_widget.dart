@@ -303,15 +303,20 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
+                    // Deux lignes, pas une : les libellés réels sont longs
+                    // (« Total buts domicile : Plus de 0.5 », « Double
+                    // chance : 1X ») et la carte n'en montrait que le début —
+                    // « Total buts do… », « Double chan… » (2 octobre 2026).
                     Flexible(
                       child: Text(
                         widget.match.displayPredictionLabel,
                         style: TextStyle(
                             color: context.cl.accent,
                             fontSize: 12,
-                            fontWeight: FontWeight.w700),
+                            fontWeight: FontWeight.w700,
+                            height: 1.25),
                         textAlign: TextAlign.center,
-                        maxLines: 1,
+                        maxLines: 2,
                         overflow: TextOverflow.ellipsis),
                     ),
                     if (widget.match.oddsRecommended > 0) ...[
@@ -338,9 +343,16 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
             ),
             const SizedBox(width: 10),
             // Score confiance (jauge)
-            // Flexible, et non figé : sans cela la rangée réserve d'abord la
-            // largeur du libellé, puis déborde quand il n'en reste plus assez.
-            Flexible(
+            // Bornée, et non figée : sans borne la rangée réserve d'abord la
+            // largeur du libellé, puis déborde quand il n'en reste plus assez
+            // (« Très élevée » se replie alors sur deux lignes).
+            //
+            // Elle était `Flexible` : à flex égal avec le pronostic, la rangée
+            // lui réservait la moitié de la largeur, dont elle n'utilisait
+            // qu'une partie — et le pronostic, tronqué, n'en avait que l'autre
+            // moitié.
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 84),
               child: ConfidenceIndicator(pourcentage: widget.match.pourcentageConfiance),
             ),
           ]),
