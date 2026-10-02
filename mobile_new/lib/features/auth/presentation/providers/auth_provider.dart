@@ -61,6 +61,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
   AuthNotifier(this._sendOtp, this._verifyOtp, this._repository)
       : super(AuthUnknown());
 
+  /// Dernier verdict tranché sur la session : ouverte, fermée, ou inconnu
+  /// (`null`, avant la restauration au démarrage).
+  ///
+  /// Pendant une connexion (`AuthLoading`, `EmailOtpSent`, `AuthError`), le
+  /// statut affiché retombait sur [isLoggedInProvider] — une lecture du jeton
+  /// gardée en cache. Après une suppression de compte, rien ne la relisait :
+  /// elle disait encore « connecté ». Le routeur renvoyait alors vers
+  /// l'accueil au milieu de la connexion suivante, et l'app restait sur un
+  /// écran gris (vidéo du 2 octobre 2026, « Se connecter avec Apple » juste
+  /// après « Supprimer le compte »).
+  bool? get sessionOuverte => _sessionOuverte;
+  bool? _sessionOuverte;
+
+  @override
+  set state(AuthState value) {
+    if (value is AuthAuthenticated || value is TermsAccepted) {
+      _sessionOuverte = true;
+    } else if (value is AuthInitial) {
+      _sessionOuverte = false;
+    }
+    super.state = value;
+  }
+
   /// Restaure la session à partir du token stocké — appelé une seule fois,
   /// avant le premier frame (voir main.dart), pour éviter qu'un démarrage
   /// à froid (app tuée puis rouverte) soit pris pour une déconnexion.
@@ -266,12 +289,15 @@ final isLoggedInProvider = FutureProvider<bool>((ref) =>
 
 /// Statut de connexion synchrone, utilisable partout dans l'UI (mode invité).
 /// AuthAuthenticated → connecté ; AuthInitial → invité confirmé (déconnexion
-/// explicite ou aucun token) ; tout le reste (y compris AuthUnknown au
-/// démarrage à froid) → on consulte le token en stockage sécurisé.
+/// explicite ou aucun token) ; pendant une connexion en cours, le dernier
+/// verdict tranché ([AuthNotifier.sessionOuverte]) ; au démarrage à froid
+/// seulement (AuthUnknown, aucun verdict encore), le token en stockage.
 final effectiveLoggedInProvider = Provider<bool>((ref) {
   final authState = ref.watch(authProvider);
   if (authState is AuthAuthenticated) return true;
   if (authState is AuthInitial) return false;
+  final tranche = ref.read(authProvider.notifier).sessionOuverte;
+  if (tranche != null) return tranche;
   return ref.watch(isLoggedInProvider).valueOrNull ?? false;
 });
 

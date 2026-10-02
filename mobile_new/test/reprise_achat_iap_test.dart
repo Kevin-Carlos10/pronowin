@@ -188,7 +188,64 @@ void main() {
       expect(recus, hasLength(1));
       expect(recus.first, isA<IapFailure>());
     });
+
+    test("un refus « déjà rattaché à un autre compte » sort de la file et se dit", () async {
+      // Vu le 2 octobre 2026 : l'écran disait « activation en attente…
+      // Restaurer mes achats », et la file renvoyait le reçu à chaque
+      // lancement — refusé chaque fois. Le serveur a tranché : rien à reprendre.
+      final file = FileVerifications(_StockageMemoire());
+      final svc = IapService(_DioQuiRefuse(409), file: file);
+
+      final recus = <IapResult>[];
+      final sub = svc.results.listen(recus.add);
+      await svc.envoyerVerification(apple);
+      await Future<void>.delayed(Duration.zero);
+      await sub.cancel();
+
+      expect(await file.lire(), isEmpty);
+      expect(recus, hasLength(1));
+      final message = (recus.first as IapFailure).message;
+      expect(message, contains('autre compte'));
+      expect(message, isNot(contains('en attente')));
+    });
+
+    test("un autre refus du serveur garde l'achat rattrapable", () async {
+      // Contrepartie : une panne (500) n'est pas un verdict.
+      final file = FileVerifications(_StockageMemoire());
+      final svc = IapService(_DioQuiRefuse(500), file: file);
+      await svc.envoyerVerification(apple);
+      expect(await file.lire(), [apple]);
+    });
   });
+}
+
+/// Un serveur qui répond par une erreur HTTP.
+class _DioQuiRefuse implements Dio {
+  _DioQuiRefuse(this.statut);
+
+  final int statut;
+
+  @override
+  Future<Response<T>> post<T>(
+    String path, {
+    Object? data,
+    Map<String, dynamic>? queryParameters,
+    Options? options,
+    CancelToken? cancelToken,
+    ProgressCallback? onSendProgress,
+    ProgressCallback? onReceiveProgress,
+  }) async {
+    final requete = RequestOptions(path: path);
+    throw DioException.badResponse(
+      statusCode: statut,
+      requestOptions: requete,
+      response: Response(requestOptions: requete, statusCode: statut,
+          data: {'error': 'Cet achat est déjà rattaché à un autre compte.'}),
+    );
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation i) => super.noSuchMethod(i);
 }
 
 /// Un stockage en mémoire, pour éprouver la file sans le plugin.

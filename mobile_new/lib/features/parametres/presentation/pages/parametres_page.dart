@@ -11,6 +11,7 @@ import '../../../../core/config/contact_support.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../compte/presentation/pages/compte_page.dart' show rafraichirDonneesCompte;
 import '../providers/settings_provider.dart';
 import '../providers/security_provider.dart';
 import '../../../../shared/utils/retour.dart';
@@ -740,6 +741,11 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
     HapticFeedback.heavyImpact();
     try {
       await widget.ref.read(authProvider.notifier).deleteAccount();
+      // Comme à la déconnexion : ce qui a été lu pour le compte supprimé
+      // repart, et l'état de connexion avec. La déconnexion le faisait, pas la
+      // suppression — la connexion suivante partait d'un « connecté » périmé.
+      rafraichirDonneesCompte(widget.ref);
+      widget.ref.invalidate(isLoggedInProvider);
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {

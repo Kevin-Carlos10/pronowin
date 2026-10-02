@@ -113,6 +113,31 @@ decrireSurBaseLocale('I9 — un reçu n\'ouvre qu\'un accès', () => {
     expect(await prisma.user.findUnique({ where: { id: b }, select: { subscriptionPlan: true } }))
       .toEqual({ subscriptionPlan: 'free' });
   });
+
+  it("l'abonnement d'un compte supprimé passe au compte qui présente le reçu", async () => {
+    // Vu le 2 octobre 2026 : compte supprimé, nouveau compte avec le même
+    // identifiant Apple, passage du mensuel à l'annuel — achat confirmé par
+    // Apple, refusé ici en 409. La chaîne restait au compte anonymisé.
+    const [ancien, nouveau] = [await compte('g'), await compte('h')];
+    storeRepond(verdict(`${marque}-t9`, `${marque}-o9`));
+    await svc.verifyAndRecord({ userId: ancien, store: 'google', receipt: 'x' });
+    await prisma.user.update({ where: { id: ancien }, data: { deletedAt: new Date(), isActive: false } });
+
+    // L'annuel : nouvelle transaction, même abonnement d'origine.
+    storeRepond(verdict(`${marque}-t9-annuel`, `${marque}-o9`, 365));
+    const r = await svc.verifyAndRecord({ userId: nouveau, store: 'google', receipt: 'x' });
+
+    expect(r.active).toBe(true);
+    expect(await prisma.user.findUnique({ where: { id: nouveau }, select: { subscriptionPlan: true } }))
+      .toEqual({ subscriptionPlan: 'premium' });
+    expect(await prisma.iapPurchase.count({ where: { originalTransactionId: `${marque}-o9`, userId: ancien } }))
+      .toBe(0);
+
+    // Restaurer la transaction d'origine ne la renvoie pas au compte supprimé.
+    storeRepond(verdict(`${marque}-t9`, `${marque}-o9`));
+    await expect(svc.verifyAndRecord({ userId: nouveau, store: 'google', receipt: 'x' }))
+      .resolves.toMatchObject({ active: true });
+  });
 });
 
 decrireSurBaseLocale('I11 et A17 — échéance et montant', () => {

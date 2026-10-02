@@ -1282,5 +1282,8 @@
   "Indice de confiance {arg0}": "Confidence index {arg0}",
   "Si gagné": "If won",
   "Si perdu": "If lost",
-  "Retour total si gagné : {arg0}": "Total return if won: {arg0}"
+  "Retour total si gagné : {arg0}": "Total return if won: {arg0}",
+  "L'achat n'a pas abouti. Si tu es déjà abonné avec ce compte Apple ou Google, touche « Restaurer mes achats ».": "The purchase did not go through. If you already subscribe with this Apple or Google account, tap “Restore purchases”.",
+  "La restauration n'a pas abouti. Vérifie ta connexion et réessaie.": "Restoring did not go through. Check your connection and try again.",
+  "Cet abonnement est déjà rattaché à un autre compte PronoWin. Connecte-toi avec ce compte pour en profiter.": "This subscription is already linked to another PronoWin account. Sign in with that account to use it."
 }

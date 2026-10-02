@@ -298,14 +298,28 @@ export class IapService {
     // renouvellement crée une nouvelle transaction : présenté par un autre
     // compte, il passait. La chaîne entière (`originalTransactionId`) reste
     // désormais attachée à son premier propriétaire.
-    const autreCompte = await prisma.iapPurchase.findFirst({
-      where: {
-        NOT: { userId },
-        OR: [{ transactionId: v.transactionId }, { originalTransactionId: v.originalTransactionId }],
-      },
-      select: { id: true },
+    //
+    // Sauf si ce propriétaire a supprimé son compte. La suppression anonymise
+    // la ligne sans l'effacer : la chaîne lui restait attachée, et l'identifiant
+    // Apple qui paie l'abonnement ne pouvait plus rien activer — ni par
+    // restauration, ni en rachetant (le passage du mensuel à l'annuel garde le
+    // même `originalTransactionId`). Vu le 2 octobre 2026 : achat confirmé par
+    // Apple, refusé ici en 409. Un compte supprimé ne peut plus rien
+    // revendiquer ; la chaîne passe au compte qui présente le reçu.
+    const chaine = [{ transactionId: v.transactionId }, { originalTransactionId: v.originalTransactionId }];
+    const autresComptes = await prisma.iapPurchase.findMany({
+      where:  { NOT: { userId }, OR: chaine },
+      select: { id: true, user: { select: { deletedAt: true } } },
     });
-    if (autreCompte) throw new ErreurMetier('Cet achat est déjà rattaché à un autre compte.', 409);
+    if (autresComptes.some((a) => a.user.deletedAt === null)) {
+      throw new ErreurMetier('Cet achat est déjà rattaché à un autre compte.', 409);
+    }
+    if (autresComptes.length) {
+      await prisma.iapPurchase.updateMany({
+        where: { id: { in: autresComptes.map((a) => a.id) } },
+        data:  { userId },
+      });
+    }
 
     // ── Première fois qu'on voit cette transaction : l'inscrire et ouvrir
     //    l'accès d'un seul geste ──

@@ -444,9 +444,16 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     try {
       await ref.read(iapServiceProvider).buy(product);
     } catch (e) {
+      // L'exception du store s'affichait telle quelle : « Achat impossible :
+      // PlatformException(unknown, StoreKitError, Stacktrace… » — vu dans la
+      // vidéo destinée à Apple, après « Vous êtes déjà abonné ». Elle va au
+      // journal ; l'écran dit quoi faire.
+      debugPrint('[IAP] achat refusé : $e');
       if (mounted) {
         setState(() => _iapBusy = false);
-        _showSnack(tr(context, "Achat impossible : {arg0}", [e]), isError: true);
+        _showSnack(tr(context,
+            "L'achat n'a pas abouti. Si tu es déjà abonné avec ce compte Apple ou Google, touche « Restaurer mes achats »."),
+            isError: true);
       }
     }
   }
@@ -463,7 +470,11 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     try {
       await ref.read(iapServiceProvider).restore();
     } catch (e) {
-      if (mounted) _showSnack(tr(context, "Restauration impossible : {arg0}", [e]), isError: true);
+      debugPrint('[IAP] restauration refusée : $e');
+      if (mounted) {
+        _showSnack(tr(context, "La restauration n'a pas abouti. Vérifie ta connexion et réessaie."),
+            isError: true);
+      }
     }
     // Le résultat arrive par le flux ; si rien ne vient, on relâche le verrou.
     await Future<void>.delayed(const Duration(seconds: 4));

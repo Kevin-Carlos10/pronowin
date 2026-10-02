@@ -196,7 +196,11 @@ class IapService {
           _results.add(const IapCancelled());
 
         case PurchaseStatus.error:
-          _results.add(IapFailure(p.error?.message ?? trCurrent("Achat échoué.")));
+          // Le message du store est technique (« StoreKitError »…) : il va au
+          // journal, pas à l'écran.
+          debugPrint('[IAP] erreur du store : ${p.error}');
+          _results.add(IapFailure(trCurrent(
+              "L'achat n'a pas abouti. Si tu es déjà abonné avec ce compte Apple ou Google, touche « Restaurer mes achats ».")));
 
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
@@ -258,6 +262,20 @@ class IapService {
           trCurrent("Abonnement inactif (statut : {arg0}).", [r.data['status'] ?? 'inconnu'])));
       }
     } catch (e) {
+      if (e is DioException && e.response?.statusCode == 409) {
+        // Le serveur a tranché : cet abonnement appartient à un autre compte
+        // PronoWin, toujours actif. Le garder en file le ferait refuser à
+        // chaque lancement, et « activation en attente » promettait ce qui
+        // n'arrivera pas — vu le 2 octobre 2026, achat confirmé par Apple et
+        // rien ensuite.
+        await _file.retirer(charge);
+        if (!estReprise) {
+          _results.add(IapFailure(trCurrent(
+              "Cet abonnement est déjà rattaché à un autre compte PronoWin. Connecte-toi avec ce compte pour en profiter.")));
+        }
+        return;
+      }
+
       // L'achat est encaissé par le store, mais notre serveur n'a pas pu le
       // confirmer. On garde de quoi réessayer : l'achat est finalisé côté
       // appareil, donc le store ne le rejouera jamais de lui-même.
