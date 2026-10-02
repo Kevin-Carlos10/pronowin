@@ -22,7 +22,7 @@ PronoWin is an information service only: no real-money gaming, no wagering, no d
 - Sign in: tap "Continue with email", enter the demo email, then the 6-digit code given as the password (no inbox access needed). Sign in with Apple and Google are also available.
 - Home: today's featured prediction. Pronos tab: all predictions; tap one for the full match analysis.
 - Bankroll tab: set a budget and log a bet.
-- Comments: members can comment on a prediction; the "⋯" menu on a comment lets users report it or block its author. Comments are filtered when posted and reports are reviewed within 24 hours.
+- Comments (Premium members): members can comment on a prediction; the "⋯" menu on a comment lets users report it or block its author, and blocked members are listed in Settings > Blocked members. Comments are filtered when posted and reports are reviewed within 24 hours.
 - Premium: auto-renewable subscriptions via In-App Purchase (com.pronowin.premium.monthly, com.pronowin.premium.annual). Tap any locked Premium prediction, or Account > "Upgrade to Premium". Restore Purchases is on the same screen. Premium unlocks analysis content only, never betting credit.
 - Account deletion: Account > Settings (gear icon) > Delete account.
 
