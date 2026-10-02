@@ -38,6 +38,24 @@ void main() {
     expect(branche, isNot(contains('_showSuccessDialog(')));
   });
 
+  test("après l'achat, l'onglet Compte relit le plan qu'il affiche", () {
+    // Vidéo du 2 octobre 2026 : « Premium activé ! », puis l'onglet Compte
+    // affichait « Gratuit · Passer à Premium ». Il lit son plan dans
+    // `profileProvider`, et seul l'abonnement était relu après l'achat.
+    final page = File('lib/features/abonnement/presentation/pages/activer_premium_page.dart')
+        .readAsStringSync();
+    final branche = RegExp(r'case IapSuccess\(.*?case IapCancelled', dotAll: true)
+        .firstMatch(page)!.group(0)!;
+    expect(branche, contains('rafraichirDonneesCompte(ref)'));
+
+    final compte = File('lib/features/compte/presentation/pages/compte_page.dart')
+        .readAsStringSync();
+    final rafraichir = RegExp(r'Future<void> rafraichirDonneesCompte.*?\n\}', dotAll: true)
+        .firstMatch(compte)!.group(0)!;
+    expect(rafraichir, contains('ref.invalidate(profileProvider)'));
+    expect(rafraichir, contains('ref.invalidate(currentSubscriptionProvider)'));
+  });
+
   test('la confirmation est traduite', () {
     for (final cle in [
       'Premium activé !',

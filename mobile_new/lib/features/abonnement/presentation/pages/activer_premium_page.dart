@@ -24,6 +24,7 @@ import '../providers/iap_provider.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../data/iap_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../compte/presentation/pages/compte_page.dart' show rafraichirDonneesCompte;
 import '../../../../shared/utils/retour.dart';
 import '../widgets/confirmation_premium_active.dart';
 import '../../../../core/config/pages_legales.dart';
@@ -492,7 +493,11 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         // Rafraîchir le profil : c'est lui qui porte subscriptionExpiresAt et
         // qui déverrouille le reste de l'app.
         ref.read(authProvider.notifier).refreshUser();
-        ref.invalidate(currentSubscriptionProvider);
+        // Et tout ce que l'onglet Compte affiche. Seul l'abonnement était
+        // relu : l'onglet lit son plan dans `profileProvider`, et affichait
+        // « Gratuit · Passer à Premium » sous « Premium activé ! » (vidéo du
+        // 2 octobre 2026, 5:16 puis 5:26).
+        rafraichirDonneesCompte(ref);
         // Pas la confirmation du Mobile Money (« Preuve soumise… en attente ») :
         // le store a confirmé l'achat, le Premium est déjà actif.
         showModalBottomSheet<void>(
