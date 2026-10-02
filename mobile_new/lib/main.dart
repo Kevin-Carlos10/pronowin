@@ -27,6 +27,7 @@ import 'core/services/version_service.dart';
 import 'core/services/background_sync_service.dart';
 import 'core/storage/secure_storage.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
+import 'features/auth/presentation/providers/compte_crashlytics.dart';
 import 'features/notifications/presentation/providers/fcm_service.dart';
 import 'features/parametres/data/pin_store.dart';
 import 'features/parametres/presentation/providers/security_provider.dart';
@@ -151,6 +152,9 @@ void main() async {
       onboardingDoneProvider.overrideWith((ref) => onboardingDone),
     ],
   );
+  // Avant la restauration de session : un compte restauré au démarrage doit
+  // aussi rattacher ses rapports de plantage.
+  suivreCompteCrashlytics(container);
   // La restauration de session est attendue à dessein : sans elle, un
   // démarrage à froid affiche brièvement l'écran invité alors qu'une session
   // valide existe. Mais elle interroge le serveur, et l'attendre sans borne

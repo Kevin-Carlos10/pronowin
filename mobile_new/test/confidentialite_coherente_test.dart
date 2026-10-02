@@ -63,6 +63,11 @@ void main() {
     'rapports de plantage'      : ['plantage'],
     'mesures de performance'    : ['performance'],
     'état de l\'abonnement'     : ['abonnement'],
+    // Ajoutées au site le 2 octobre 2026, avec la soumission à l'App Store.
+    'connexion avec Apple'      : ['se connecter avec apple'],
+    'adresse e-mail relais'     : ['adresse relais'],
+    'mesure d\'audience'        : ['mesure d\'audience'],
+    'plantages liés au compte'  : ['identifiant de votre compte'],
   };
 
   bool declare(String texte, List<String> formulations) =>
