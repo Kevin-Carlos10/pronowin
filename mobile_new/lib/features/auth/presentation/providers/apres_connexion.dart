@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../bankroll/presentation/providers/bankroll_provider.dart';
-import '../../../compte/presentation/providers/compte_provider.dart';
+import '../../../compte/presentation/pages/compte_page.dart' show rafraichirDonneesCompte;
 import '../../../notifications/presentation/providers/fcm_service.dart';
 import 'auth_provider.dart';
 
@@ -22,10 +21,12 @@ import 'auth_provider.dart';
 /// hérite du même oubli.
 void apresConnexionReussie(WidgetRef ref) {
   ref.invalidate(isLoggedInProvider);
-  ref.invalidate(bankrollProvider);
-  ref.invalidate(bankrollStatsProvider);
-  ref.invalidate(profileProvider);
-  ref.invalidate(userStatsProvider);
+  // La même liste que le geste de rafraîchissement et la déconnexion. Celle-ci
+  // avait la sienne, écrite à la main, sans l'abonnement ni le parrainage :
+  // après une reconnexion, l'onglet Abonnement gardait ce qu'il avait lu en
+  // invité — « Actif sans limite », sans « Gérer mon abonnement » (vidéo du
+  // 3 octobre 2026).
+  rafraichirDonneesCompte(ref);
 
   // Rattache au compte le jeton obtenu en mode invité. Sans attente : une
   // notification qui tarde ne doit pas retenir l'utilisateur sur un écran de

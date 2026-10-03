@@ -219,7 +219,7 @@ export class UsersAdminService {
 
     await notifSvc.sendToUser(userId, {
       title: 'Premium activé !',
-      body:  `Votre accès Premium a été activé pour ${durationDays} jours par l'équipe PronoWin.`,
+      body:  `Votre accès Premium a été activé pour ${durationDays} jour${durationDays > 1 ? 's' : ''} par l'équipe PronoWin.`,
       data:  { deep_link: '/pronostics', type: 'system' },
     }).catch(() => {});
 

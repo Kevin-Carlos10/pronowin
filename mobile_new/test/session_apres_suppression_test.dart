@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 
 import 'package:dartz/dartz.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -81,6 +82,14 @@ void main() {
 
     depot.reponseConditions.complete(Right(DateTime(2026, 10, 2)));
     await acceptation;
+  });
+
+  test("après une connexion, l'abonnement et le parrainage sont relus aussi", () {
+    // Vidéo du 3 octobre 2026 : déconnexion, reconnexion, et l'onglet
+    // Abonnement affichait « Actif sans limite » sans « Gérer mon
+    // abonnement » — il gardait ce qu'il avait lu en invité.
+    final source = File('lib/features/auth/presentation/providers/apres_connexion.dart').readAsStringSync();
+    expect(source, contains('rafraichirDonneesCompte(ref)'));
   });
 }
 

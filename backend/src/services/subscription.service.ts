@@ -740,7 +740,9 @@ export class SubscriptionService {
       const days = Math.max(1, Math.ceil((endDate.getTime() - Date.now()) / 86400000));
       await notifSvc.sendToUser(userId, {
         title: 'Bienvenue Premium !',
-        body:  `Votre accès Premium est activé pour ${days} jours !`,
+        // « pour 1 jours » s'affichait sur un abonnement TestFlight, dont la
+        // période dure un jour (3 octobre 2026).
+        body:  `Votre accès Premium est activé pour ${days} jour${days > 1 ? 's' : ''} !`,
         data:  { deep_link: '/pronostics', type: 'system' },
       }, 'premium').catch(() => {});
     }
