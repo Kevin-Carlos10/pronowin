@@ -8,6 +8,7 @@ import { estProfilComplet } from '../middleware/profile.middleware';
 import { lireConfig, codePromoPour, codesPromoParPlateforme } from './app_config.service';
 import { cleDe } from './s3.service';
 import { ErreurMetier, ServiceIndisponible } from '../utils/erreurs';
+import { envoyerAlerteAdmin } from './email.service';
 
 // Import S3 de façon lazy pour éviter le crash si AWS pas configuré
 let s3Svc: any = null;
@@ -136,6 +137,58 @@ export const REVIEW_DELAY_CODE   = process.env.REVIEW_DELAY_CODE   ?? '2 heures 
 
 /** Jours avant expiration où l'on prévient l'abonné. */
 const EXPIRY_REMINDER_DAYS = [7, 3, 1];
+
+/** Où l'alerte envoie l'administrateur. */
+const PAGE_PREUVES = `${(process.env.ADMIN_PANEL_URL ?? 'https://pronowin.space/admin').replace(/\/+$/, '')}/abonnements`;
+
+/**
+ * Prévient l'administrateur qu'une preuve attend sa décision.
+ *
+ * Le délai annoncé au client est « 30 minutes ouvrables », et la seule alerte
+ * existante (`alerte_achats.service`) part après 6 heures d'attente : un filet
+ * pour les oublis, pas un signal d'arrivée. Le premier paiement Mobile Money
+ * d'octobre a attendu 3 h (soumis à 14 h 47, validé à 17 h 30, le 3 octobre
+ * 2026) — sous ce seuil, donc sans aucun e-mail.
+ *
+ * Rend `false` sans lever quand l'envoi est impossible (SMTP absent, preuve
+ * introuvable) : la preuve est enregistrée, c'est l'essentiel.
+ */
+export async function alerterNouvellePreuve(proofId: string): Promise<boolean> {
+  const preuve = await prisma.subscriptionProof.findUnique({
+    where:   { id: proofId },
+    include: { user: { select: { pseudo: true, phoneNumber: true, email: true } } },
+  });
+  if (!preuve) return false;
+
+  const direct  = preuve.type === 'payment_screenshot';
+  const formule = preuve.planId === 'premium_annual' ? 'annuel' : 'mensuel';
+  // Un numéro anonymisé (compte supprimé) ou absent ne se recopie pas.
+  const tel = preuve.user.phoneNumber && !preuve.user.phoneNumber.includes('deleted_')
+    ? preuve.user.phoneNumber : null;
+
+  const lignes = [
+    `Compte : ${preuve.user.pseudo}${tel ? ` (${tel})` : ''}`,
+    ...(preuve.user.email ? [`E-mail : ${preuve.user.email}`] : []),
+    ...(direct
+      ? [
+          `Formule : Premium ${formule}`,
+          `Montant déclaré : ${preuve.amount != null ? `${preuve.amount.toLocaleString('fr-FR')} FCFA` : 'non indiqué'}`,
+          `Numéro d'envoi : ${preuve.senderPhone ?? 'non indiqué'}`,
+        ]
+      : [`Plateforme partenaire : ${preuve.platform ?? 'non indiquée'}`]),
+    `Reçue le : ${preuve.createdAt.toLocaleString('fr-FR', { timeZone: 'Africa/Ouagadougou' })}`,
+    '',
+    `Délai annoncé au client : ${direct ? REVIEW_DELAY_DIRECT : REVIEW_DELAY_CODE}.`,
+    `À valider ici : ${PAGE_PREUVES}`,
+  ];
+
+  return envoyerAlerteAdmin(
+    direct
+      ? `[PronoWin] Paiement à valider — Premium ${formule}, ${preuve.user.pseudo}`
+      : `[PronoWin] Compte partenaire à vérifier — ${preuve.user.pseudo}`,
+    lignes.join('\n'),
+  );
+}
 
 export class SubscriptionService {
 
@@ -529,6 +582,11 @@ export class SubscriptionService {
     if (xbetId) {
       await prisma.user.update({ where: { id: userId }, data: { xbetId: xbetId.trim() } }).catch(() => {});
     }
+
+    // Sans attendre : l'envoi d'un e-mail ne doit ni ralentir ni faire échouer
+    // la soumission d'une preuve déjà enregistrée.
+    alerterNouvellePreuve(proof.id).catch((e) =>
+      logger.error('[Subscription] alerte de preuve impossible', { message: e?.message }));
 
     return {
       proof_id:         proof.id,
