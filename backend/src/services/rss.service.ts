@@ -73,14 +73,21 @@ function extractImage(item: any): string | null {
   return null;
 }
 
-const PROXY_BASE = process.env.API_BASE_URL ?? 'http://10.0.2.2:3000';
-
-function proxyImage(url: string | null): string | null {
+/**
+ * Construit l'URL du proxy à partir de la requête entrante (protocole + host
+ * réellement utilisés par le client) — jamais d'adresse en dur : un même
+ * backend est joint différemment selon le contexte (10.0.2.2 en émulateur
+ * Android, IP locale sur un vrai téléphone en dev, domaine en prod).
+ */
+export function proxyImage(url: string | null, baseUrl: string): string | null {
   if (!url) return null;
-  return `${PROXY_BASE}/api/v1/actualites/image-proxy?url=${encodeURIComponent(url)}`;
+  return `${baseUrl}/api/v1/actualites/image-proxy?url=${encodeURIComponent(url)}`;
 }
 
 export async function fetchRssNews(): Promise<RssArticle[]> {
+  // Le cache garde les URLs d'image BRUTES (pas encore proxées) — sinon les
+  // liens de proxy resteraient figés sur le host du tout premier appelant
+  // pendant 15 min, cassant les images pour tous les autres clients.
   if (_cache && Date.now() - _cacheAt < CACHE_TTL) return _cache;
 
   const results = await Promise.allSettled(
@@ -95,7 +102,7 @@ export async function fetchRssNews(): Promise<RssArticle[]> {
           resume:     item.contentSnippet?.slice(0, 300) ?? item.content?.slice(0, 300) ?? '',
           categorie:  feed.label,
           emoji:      feed.emoji,
-          image_url:  proxyImage(extractImage(item)),
+          image_url:  extractImage(item), // brut — proxé à la demande dans news.routes.ts
           source_url: item.link ?? null,
           source:     feed.label,
           date:       relTimeShort(pubDate),
@@ -126,9 +133,14 @@ export async function fetchRssNews(): Promise<RssArticle[]> {
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
-  _cache   = deduped;
-  _cacheAt = Date.now();
-  return deduped;
+  // Un résultat vide (raté transitoire de toutes les sources) ne doit pas
+  // écraser un cache valide précédent — sinon un seul blip réseau prive les
+  // utilisateurs d'actualités pendant 15 minutes alors que le flux fonctionne.
+  if (deduped.length > 0 || !_cache) {
+    _cache   = deduped;
+    _cacheAt = Date.now();
+  }
+  return deduped.length > 0 ? deduped : (_cache ?? []);
 }
 
 /** Invalide le cache (appelé si un admin publie un article) */

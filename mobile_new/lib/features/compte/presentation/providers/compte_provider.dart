@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/cache/cache_service.dart';
+import '../../../../core/services/analyse_usage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final profileProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) async {
   const cacheKey = 'profile';
@@ -8,6 +12,15 @@ final profileProvider = FutureProvider.autoDispose<Map<String, dynamic>>((ref) a
     final r    = await ref.read(dioProvider).get('/auth/profile');
     final data = r.data as Map<String, dynamic>;
     await CacheService.save(cacheKey, data);
+    // Dernière étape de l'entonnoir (M2) : Premium actif, une fois par échéance.
+    if (data['subscription_plan'] == 'premium') {
+      final prefs = await SharedPreferences.getInstance();
+      unawaited(AnalyseUsage.premiumConstate(
+        echeance: data['subscription_expires_at'] as String?,
+        dejaVu:   (cle) async => prefs.getBool(cle) ?? false,
+        marquer:  (cle) => prefs.setBool(cle, true),
+      ));
+    }
     return data;
   } catch (_) {
     final cached = await CacheService.load<Map<String, dynamic>>(

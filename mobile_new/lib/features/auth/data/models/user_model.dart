@@ -8,6 +8,7 @@ class UserModel extends UserEntity {
     required super.pseudo,
     super.firstName,
     super.lastName,
+    super.birthDate,
     super.avatarUrl,
     required super.countryCode,
     required super.subscriptionPlan,
@@ -27,19 +28,22 @@ class UserModel extends UserEntity {
     pseudo:        json['pseudo'] as String? ?? 'Utilisateur',
     firstName:     json['first_name'] as String?,
     lastName:      json['last_name'] as String?,
+    birthDate:     json['birth_date'] != null
+        ? DateTime.tryParse(json['birth_date'] as String)
+        : null,
     avatarUrl:     json['avatar_url'] as String?,
     countryCode:   json['country_code'] as String? ?? 'BF',
     subscriptionPlan: json['subscription_plan'] == 'premium'
         ? SubscriptionPlan.premium
         : SubscriptionPlan.free,
     subscriptionExpiresAt: json['subscription_expires_at'] != null
-        ? DateTime.parse(json['subscription_expires_at'] as String)
+        ? DateTime.parse(json['subscription_expires_at'] as String).toLocal()
         : null,
     referralCode:     json['referral_code'] as String? ?? '',
     referralEarnings: (json['referral_earnings'] as num?)?.toDouble() ?? 0.0,
-    createdAt:        DateTime.parse(json['created_at'] as String),
+    createdAt:        DateTime.parse(json['created_at'] as String).toLocal(),
     acceptedTermsAt:  json['accepted_terms_at'] != null
-        ? DateTime.parse(json['accepted_terms_at'] as String)
+        ? DateTime.parse(json['accepted_terms_at'] as String).toLocal()
         : null,
     phoneVerified:  json['phone_verified'] as bool? ?? false,
     emailVerified:  json['email_verified'] as bool? ?? false,

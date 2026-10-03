@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Conditions générales d'utilisation - <%= site.name %></title>
+  <meta name="description" content="Les conditions d'accès et d'utilisation de l'application PronoWin : éligibilité, abonnement, responsabilité, résiliation.">
+  <% if (canalDirect) { %>
+  <!-- Variante propre au téléchargement direct : elle décrit une offre qui
+       n'existe pas dans la version distribuée par les boutiques. Elle n'est
+       liée depuis aucune page du site et ne doit pas être indexée, faute de
+       quoi c'est elle que trouverait un moteur — ou un examinateur — cherchant
+       « CGU PronoWin ». -->
+  <meta name="robots" content="noindex, nofollow">
+  <% } %>
+  <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
+  <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <header class="navbar">
+    <div class="container">
+      <a href="/" class="brand">
+        <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
+        <span class="brand-name">Prono<span class="brand-win">Win</span></span>
+      </a>
+      <div class="nav-actions">
+        <a href="/" class="nav-cta">Retour au site</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="container legal-page">
+    <h1>Conditions générales d'utilisation</h1>
+    <p class="legal-updated">Dernière mise à jour : <%= dateMaj %></p>
+    <p class="legal-intro">
+      Ces conditions régissent l'accès et l'utilisation de l'application
+      <strong>PronoWin</strong>. Elles sont accessibles publiquement, sans
+      connexion, depuis l'application et le site.
+    </p>
+
+    <%# Les articles se numérotent par leur rang, comme dans l'application :
+        un numéro écrit à la main devient faux dès qu'un article disparaît, et
+        un article disparaît — celui consacré à l'activation partenaire n'est
+        pas publié pour la version des boutiques. %>
+    <% sections.forEach(function (s, i) { %>
+    <section>
+      <h2><%= i + 1 %>. <%= s.titre %></h2>
+      <p><%= s.texte %></p>
+    </section>
+    <% }); %>
+
+    <section class="legal-links">
+      <h2>Liens utiles</h2>
+      <p>
+        <a href="/confidentialite">Politique de confidentialité</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/suppression-compte">Supprimer mon compte</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/mentions-legales">Mentions légales</a>
+        <span aria-hidden="true"> · </span>
+        <a href="/">Retour au site</a>
+      </p>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-bottom">
+      <span>&copy; <%= site.year %> <%= site.name %>. Tous droits réservés.</span>
+    </div>
+  </footer>
+</body>
+</html>

@@ -2,6 +2,8 @@ import { Router } from 'express';
 import { authMiddleware }  from '../middleware/auth.middleware';
 import { adminMiddleware } from '../middleware/admin.middleware';
 import * as C from '../controllers/notification.controller';
+import { valider } from '../middleware/valider';
+import { jetonNotification } from '../schemas/entrees';
 
 const r = Router();
 
@@ -9,7 +11,7 @@ const r = Router();
 r.get ('/my',                       authMiddleware,  C.getMyNotifications);
 r.patch('/:id/read',                authMiddleware,  C.markOneRead);
 r.post ('/mark-all-read',           authMiddleware,  C.markAllRead);
-r.post ('/register-token',          authMiddleware,  C.registerToken);
+r.post ('/register-token',          authMiddleware,  valider({ body: jetonNotification }), C.registerToken);
 
 // ── Admin ─────────────────────────────────────────────────────────────────────
 r.post('/admin/send-user/:userId',  adminMiddleware, C.sendToUser);

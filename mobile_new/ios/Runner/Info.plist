@@ -11,6 +11,14 @@
 		<string>PronoWin</string>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
+		<!-- Les langues de l'interface (lib/l10n). Sans cette liste, iOS tient
+		     l'app pour monolingue : l'App Store n'annonce pas l'anglais, et les
+		     éléments fournis par le système restent dans la langue de base. -->
+		<key>CFBundleLocalizations</key>
+		<array>
+			<string>fr</string>
+			<string>en</string>
+		</array>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>
@@ -37,6 +45,30 @@
 				<key>CFBundleURLSchemes</key>
 				<array>
 					<string>pronowin</string>
+				</array>
+			</dict>
+			<!-- ── Retour de la connexion Google ────────────────────────────────
+			     Le SDK Google ouvre Safari pour le choix du compte, puis renvoie
+			     vers ce schéma pour rendre la main à l'app. Sans lui, l'utilisateur
+			     choisit son compte et reste bloqué dans le navigateur.
+
+			     La valeur est le REVERSED_CLIENT_ID de GoogleService-Info.plist —
+			     l'identifiant iOS écrit à l'envers. Elle change si l'app Apple est
+			     recréée dans Firebase : les deux fichiers doivent alors être
+			     remis en phase.
+
+			     Entrée distincte de celle du dessus : `pronowin` sert aux deep
+			     links de l'app, ce schéma-ci appartient au SDK Google. Les
+			     fusionner rendrait impossible de savoir lequel supprimer le jour
+			     où l'un des deux disparaît. -->
+			<dict>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>CFBundleURLName</key>
+				<string>com.googleusercontent.apps</string>
+				<key>CFBundleURLSchemes</key>
+				<array>
+					<string>com.googleusercontent.apps.207728984029-vl7ofjlv4olnri2qdok875s28763801b</string>
 				</array>
 			</dict>
 		</array>
@@ -79,11 +111,10 @@
 		<array>
 			<string>UIInterfaceOrientationPortrait</string>
 		</array>
-		<key>UISupportedInterfaceOrientations~ipad</key>
-		<array>
-			<string>UIInterfaceOrientationPortrait</string>
-			<string>UIInterfaceOrientationPortraitUpsideDown</string>
-		</array>
+		<!-- iPhone seulement (TARGETED_DEVICE_FAMILY = 1) : l'app est dessinée pour un
+		     téléphone en portrait. Déclarer l'iPad imposait les quatre orientations
+		     (multitâche) et Apple refusait l'envoi (erreur 90474). Sur iPad, elle
+		     s'ouvre en mode iPhone. -->
 		<!-- ── UI ────────────────────────────────────────────────────────────── -->
 		<key>LSRequiresIPhoneOS</key>
 		<true/>
@@ -98,6 +129,11 @@
 		<key>UIViewControllerBasedStatusBarAppearance</key>
 		<false/>
 		<!-- ── Background modes : notifications push ─────────────────────────── -->
+		<!-- Export : HTTPS et empreintes uniquement, algorithmes du système —
+		     exemptés. Sans cette clé, chaque build attend une réponse manuelle
+		     dans App Store Connect avant d'être testable. -->
+		<key>ITSAppUsesNonExemptEncryption</key>
+		<false/>
 		<key>UIBackgroundModes</key>
 		<array>
 			<string>remote-notification</string>

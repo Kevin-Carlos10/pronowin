@@ -1,0 +1,176 @@
+<%#
+  Santé du système — tableau de bord de l'administrateur principal.
+
+  Le tableau de bord ne disait rien de la machine : ni l'API, ni la dernière
+  synchronisation des scores, ni le quota football, ni la dernière sauvegarde,
+  ni le compte de service — resté en échec des semaines sans que personne ne
+  le voie (constats A7 et I6 de l'audit du 24 septembre 2026).
+
+  Chaque tuile dit son état en mots, pas seulement en couleur, et distingue
+  « aucune donnée » d'un état sain.
+%>
+<%
+  const _s = typeof sante !== 'undefined' ? sante : null;
+  const _svc = typeof compteService !== 'undefined' ? compteService : null;
+  const _depuis = (iso) => {
+    if (!iso) return null;
+    const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+    if (min < 1) return "à l'instant";
+    if (min < 60) return `il y a ${min} min`;
+    const h = Math.round(min / 60);
+    if (h < 48) return `il y a ${h} h`;
+    return `il y a ${Math.round(h / 24)} j`;
+  };
+  const _ageH = (iso) => iso ? (Date.now() - new Date(iso).getTime()) / 3600000 : Infinity;
+  const _t = (_s && _s.taches) || {};
+  const _tuiles = [];
+
+  if (!_s) {
+    _tuiles.push({ etat: 'err', titre: 'API', valeur: 'Injoignable', detail: "L'état détaillé n'a pas pu être lu." });
+  } else {
+    _tuiles.push(_s.base && _s.base.ok
+      ? { etat: 'ok', titre: 'API et base', valeur: 'Opérationnelles', detail: `Base : ${_s.base.latenceMs} ms · démarrée ${_depuis(_s.api.demarreLe)}` }
+      : { etat: 'err', titre: 'API et base', valeur: 'Base injoignable', detail: "L'API répond, mais PostgreSQL non." });
+
+    // Tâches dans un processus dédié (constat P1) : s'il se tait, plus rien
+    // ne tourne — scores, rappels, file des stores — sans que l'API tombe.
+    const pt = _s.processusTaches;
+    if (pt && pt.separe) {
+      _tuiles.push(pt.silencieux
+        ? { etat: 'err', titre: 'Tâches planifiées', valeur: pt.publieLe ? `Muettes depuis ${_depuis(pt.publieLe).replace(/^il y a /, '')}` : 'Jamais démarrées',
+            detail: 'Le processus pronowin-taches ne publie plus rien : scores, rappels et file des stores sont à l\'arrêt.' }
+        : { etat: 'ok', titre: 'Tâches planifiées', valeur: 'Processus dédié actif',
+            detail: `pronowin-taches · démarré ${_depuis(pt.demarreLe)} · état publié ${_depuis(pt.publieLe)}` });
+    }
+
+    const sync = _t.synchronisation_scores;
+    const q = _s.quotaFootball;
+    const quotaValide = q && Number.isFinite(q.restant) && Number.isFinite(q.limite) && q.limite > 0;
+    const quotaAncien = quotaValide && _ageH(q.releveLe) > 0.25;
+    const quotaTxt = quotaValide
+      ? `${q.restant.toLocaleString('fr-FR')} requêtes restantes sur ${q.limite.toLocaleString('fr-FR')} (${(100 * q.restant / q.limite).toLocaleString('fr-FR', { maximumFractionDigits: 1 })} %). Relevé ${_depuis(q.releveLe) || 'non daté'}.`
+      : 'Quota non disponible';
+    if (!sync) {
+      _tuiles.push({ etat: 'neutre', titre: 'Scores', valeur: 'Pas encore de synchronisation', detail: quotaTxt + ' depuis le démarrage' });
+    } else {
+      const retard = _ageH(sync.derniereReussite) > 0.25;
+      const echecRecent = sync.dernierEchec && (!sync.derniereReussite || sync.dernierEchec > sync.derniereReussite);
+      const quotaBas = quotaValide && q.restant / q.limite < 0.1;
+      _tuiles.push({
+        etat: echecRecent || retard ? 'err' : (quotaBas || quotaAncien || !quotaValide ? 'warn' : 'ok'),
+        titre: 'Scores',
+        valeur: echecRecent ? 'Synchronisation en échec' : retard ? 'Synchronisation retardée' : quotaAncien ? 'Quota à actualiser' : quotaBas ? 'Quota bientôt épuisé' : 'Scores synchronisés',
+        detail: (echecRecent ? `Dernier échec : ${sync.derniereErreur}. ` : `Synchronisés ${_depuis(sync.derniereReussite) || 'à une date inconnue'}. `) + quotaTxt,
+      });
+    }
+
+    const sv = _s.sauvegarde;
+    _tuiles.push(!sv
+      ? { etat: 'warn', titre: 'Sauvegarde', valeur: 'Aucune trace', detail: "Le fichier d'état de la sauvegarde est introuvable." }
+      : { etat: _ageH(sv.derniere) > 26 ? 'err' : (!sv.copieDistante || sv.copieDistante.erreur ? 'warn' : 'ok'), titre: 'Sauvegarde',
+          valeur: `Dernière ${_depuis(sv.derniere)}`,
+          detail: `${sv.taille ?? '?'} · panneau ${sv.panneau ? 'inclus' : 'non inclus'} · ` + (
+            // Copie hors du serveur (O4) : son absence est le seul angle mort
+            // restant, sa panne doit se voir.
+            !sv.copieDistante ? 'sur ce serveur seulement'
+            : sv.copieDistante.erreur ? `copie hors serveur en échec : ${sv.copieDistante.erreur}`
+            : `copiée hors serveur ${_depuis(sv.copieDistante.distante)}`) });
+
+    const fs_ = _s.fileStore || {};
+    const bloques = (fs_.echec || 0) + (fs_.abandonnee || 0);
+    const enAttente = (fs_.recue || 0) + (fs_.en_cours || 0);
+    _tuiles.push({
+      etat: !_s.fileStore ? 'neutre' : (fs_.abandonnee || 0) > 0 ? 'err' : (bloques > 0 ? 'warn' : 'ok'),
+      titre: 'Notifications des stores',
+      valeur: !_s.fileStore ? 'État indisponible' : bloques > 0 ? `${bloques} en échec` : enAttente ? `${enAttente} à traiter / en cours` : 'File à jour',
+      detail: `${fs_.recue || 0} à traiter · ${fs_.en_cours || 0} en cours · ${bloques} en échec`,
+    });
+
+    const p = _s.preuves;
+    if (p) {
+      const vieille = _ageH(p.plusAncienne);
+      _tuiles.push({
+        etat: p.nombre === 0 ? 'ok' : (vieille > 24 ? 'err' : 'warn'),
+        titre: 'Preuves de paiement',
+        valeur: p.nombre === 0 ? 'Aucune en attente' : `${p.nombre} en attente`,
+        detail: p.nombre ? `La plus ancienne ${_depuis(p.plusAncienne)}` : 'File vide',
+      });
+    }
+  }
+
+  if (_svc) {
+    _tuiles.push(_svc.ok
+      ? { etat: 'ok', titre: 'Compte de service', valeur: 'Connecté', detail: `Jeton obtenu ${_depuis(_svc.le)}` }
+      : { etat: 'err', titre: 'Compte de service', valeur: 'En échec',
+          detail: _svc.configure ? 'Vérifiez ADMIN_SERVICE_PASSWORD : les sous-admins et les KPI en dépendent.'
+                                 : 'Non configuré : les sous-admins ne peuvent pas se connecter.' });
+  }
+
+  const _libelle = { ok: 'Normal', warn: 'À surveiller', err: 'Problème', neutre: 'Sans donnée' };
+  const _attention = _tuiles.filter(t => t.etat !== 'ok').sort((a, b) => ({ err: 0, warn: 1, neutre: 2 }[a.etat] - { err: 0, warn: 1, neutre: 2 }[b.etat]));
+  const _normaux = _tuiles.filter(t => t.etat === 'ok');
+%>
+<section class="sante card" aria-labelledby="sante-titre">
+  <div class="sante-entete">
+    <div><h2 id="sante-titre" class="sante-titre">Santé du système</h2>
+      <p class="sante-resume"><%= _attention.length ? `${_attention.length} point${_attention.length > 1 ? 's' : ''} à examiner` : 'Tous les services sont opérationnels' %> · <%= _normaux.length %> service<%= _normaux.length > 1 ? 's' : '' %> opérationnel<%= _normaux.length > 1 ? 's' : '' %></p>
+    </div>
+    <span class="sante-horodatage">État à l’ouverture · <%= new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Ouagadougou' }) %> UTC</span>
+  </div>
+  <% if (_attention.length) { %>
+  <div class="sante-grille sante-incidents">
+    <% _attention.forEach(function (t) { %>
+    <div class="sante-tuile sante-<%= t.etat %>">
+      <div class="sante-tete">
+        <span class="sante-nom"><%= t.titre %></span>
+        <span class="sante-etat"><%= _libelle[t.etat] %></span>
+      </div>
+      <div class="sante-valeur"><%= t.valeur %></div>
+      <div class="sante-detail"><%= t.detail %></div>
+    </div>
+    <% }) %>
+  </div>
+  <% } %>
+  <% if (_normaux.length) { %>
+  <details class="sante-services">
+    <summary><svg class="ic" aria-hidden="true"><use href="#ic-check-circle"/></svg> Voir les <%= _normaux.length %> services opérationnels</summary>
+    <div class="sante-grille">
+      <% _normaux.forEach(function (t) { %>
+      <div class="sante-tuile sante-ok">
+        <div class="sante-tete"><span class="sante-nom"><%= t.titre %></span><span class="sante-etat">Normal</span></div>
+        <div class="sante-valeur"><%= t.valeur %></div>
+        <div class="sante-detail"><%= t.detail %></div>
+      </div>
+      <% }) %>
+    </div>
+  </details>
+  <% } %>
+</section>
+<style>
+.sante { padding: 1rem 1.1rem; margin-bottom: 1.25rem; }
+.sante-titre { font-size: 1rem; font-weight: 800; margin: 0; color: var(--text); }
+.sante-entete { display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap; }
+.sante-resume { color:var(--text-m); font-size:.82rem; margin:.3rem 0 0; }
+.sante-horodatage { font-size:.75rem; color:var(--text-dim); }
+.sante-incidents { margin-top:1rem; }
+.sante-services { margin-top:.8rem; }
+.sante-services summary { cursor:pointer; color:var(--text-m); font-size:.82rem; padding:.65rem 0; min-height:44px; }
+.sante-services summary .ic { color:var(--on-success); margin:0 .35rem; }
+.sante-services[open] summary { margin-bottom:.5rem; }
+.sante-grille { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: .7rem; }
+.sante-tuile { border: 1px solid var(--border); border-left-width: 4px; border-radius: 10px; padding: .7rem .8rem; background: var(--surface-d); }
+.sante-ok     { border-left-color: var(--success); }
+.sante-warn   { border-left-color: var(--warning); }
+.sante-err    { border-left-color: var(--error); }
+.sante-neutre { border-left-color: var(--border-s); }
+.sante-tete  { display: flex; justify-content: space-between; gap: .5rem; align-items: baseline; }
+.sante-nom   { font-size: .78rem; font-weight: 700; color: var(--text-m); }
+.sante-etat  { font-size: .78rem; font-weight: 700; white-space:nowrap; }
+.sante-ok .sante-etat     { color: var(--on-success); }
+.sante-warn .sante-etat   { color: var(--on-warning); }
+.sante-err .sante-etat    { color: var(--on-danger); }
+.sante-neutre .sante-etat { color: var(--text-dim); }
+.sante-valeur { font-size: 1.05rem; font-weight: 700; color: var(--text); margin-top: .4rem; }
+.sante-detail { font-size: .82rem; color: var(--text-m); margin-top: .35rem; line-height: 1.55; overflow-wrap:anywhere; }
+@media(max-width:600px) { .sante-grille { grid-template-columns:minmax(0,1fr); } }
+</style>

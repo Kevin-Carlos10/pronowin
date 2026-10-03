@@ -1,13 +1,18 @@
-﻿import 'dart:ui';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/theme/app_theme.dart';
 import '../../features/accueil/presentation/pages/accueil_page.dart';
+import '../../features/auth/presentation/providers/auth_provider.dart';
 import '../../features/pronostics/presentation/pages/pronostics_page.dart';
 import '../../features/bankroll/presentation/pages/bankroll_page.dart';
 import '../../features/tutoriels/presentation/pages/tutoriels_page.dart';
 import '../../features/compte/presentation/pages/compte_page.dart';
+import 'bottom_nav_metrics.dart';
+import 'pile_onglets_paresseuse.dart';
+import 'guest_locked_view.dart';
 import 'offline_banner.dart';
 
 class MainScaffold extends ConsumerStatefulWidget {
@@ -24,18 +29,39 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   late List<AnimationController> _iconControllers;
   late List<Animation<double>> _iconScales;
 
-  static const _pages = [
-    AccueilPage(),
-    PronosticsPage(),
-    BankrollPage(),
-    TutorielsPage(),
-    ComptePage(),
+  static const _guestPages = {
+    2: GuestLockedView(
+      icon:    Icons.account_balance_wallet_rounded,
+      title:   'Suis ta bankroll',
+      message: 'Connecte-toi pour enregistrer tes mises, suivre ton budget '
+                'et ta rentabilité à chaque résultat.',
+      from:    '/bankroll',
+    ),
+    4: GuestLockedView(
+      icon:    Icons.person_rounded,
+      title:   'Ton compte PronoWin',
+      message: 'Connecte-toi pour accéder à ton profil, ton abonnement '
+                'Premium et ton programme de parrainage.',
+      from:    '/compte',
+      // Le routeur autorise déjà /parametres (et ses pages légales) en mode
+      // invité — inutile de forcer une connexion juste pour les atteindre.
+      secondaryLabel: 'Paramètres, mentions légales…',
+      secondaryRoute: '/parametres',
+    ),
+  };
+
+  List<Widget> _pages(bool loggedIn) => [
+    const AccueilPage(),
+    const PronosticsPage(),
+    loggedIn ? const BankrollPage() : _guestPages[2]!,
+    const TutorielsPage(),
+    loggedIn ? const ComptePage()  : _guestPages[4]!,
   ];
 
   static const _navItems = [
     _NavItemData(icon: Icons.home_rounded,                      label: 'Accueil'),
     _NavItemData(icon: Icons.trending_up_rounded,               label: 'Pronos'),
-    _NavItemData(icon: Icons.account_balance_wallet_rounded,    label: 'Bankroll', isCentral: true),
+    _NavItemData(icon: Icons.account_balance_wallet_rounded,    label: 'Bankroll'),
     _NavItemData(icon: Icons.play_circle_outline_rounded,       label: 'Tutoriels'),
     _NavItemData(icon: Icons.person_rounded,                    label: 'Compte'),
   ];
@@ -76,15 +102,35 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final loggedIn       = ref.watch(effectiveLoggedInProvider);
 
     return Scaffold(
       extendBody: true,
       body: Column(
         children: [
           const OfflineBanner(),
-          Expanded(child: IndexedStack(index: _currentIndex, children: _pages)),
+          // La barre ne réagit plus au défilement, et le mécanisme qui le
+          // faisait est retiré plutôt que débranché : un `NotificationListener`
+          // qui n'alimente qu'un champ que personne ne lit se remet en service
+          // tout seul le jour où quelqu'un le croit encore utile.
+          Expanded(
+            child: PileOngletsParesseuse(
+              index:    _currentIndex,
+              children: _pages(loggedIn),
+            ),
+          ),
         ],
       ),
+      // La barre garde sa taille, quoi qu'il arrive au défilement.
+      //
+      // Elle tombait à 82 % au scroll vers le bas, pour « laisser plus de
+      // place au contenu ». Le gain réel est d'une dizaine de pixels ; le coût
+      // était un libellé de 10 px lu autour de 8, et des cibles amputées de
+      // près d'un cinquième de leur surface — au moment précis où l'on
+      // parcourt une liste, et donc où l'on peut vouloir changer d'onglet.
+      //
+      // Un élément de navigation est soit pleinement utilisable, soit absent.
+      // Entre les deux, il occupe la place sans se laisser atteindre.
       bottomNavigationBar: _FloatingNavBar(
         currentIndex: _currentIndex,
         items: _navItems,
@@ -96,12 +142,22 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   }
 }
 
+/// La barre seule, pour les bancs de mise en page : la monter dans
+/// [MainScaffold] chargerait les cinq onglets.
+@visibleForTesting
+Widget barreNavigationSeule({int index = 0}) => _FloatingNavBar(
+      currentIndex: index,
+      items: _MainScaffoldState._navItems,
+      iconScales: List.filled(5, const AlwaysStoppedAnimation<double>(1)),
+      bottomPadding: 0,
+      onTap: (_) {},
+    );
+
 // ─── DATA ─────────────────────────────────────────────────────────────────────
 class _NavItemData {
   final IconData icon;
   final String label;
-  final bool isCentral;
-  const _NavItemData({required this.icon, required this.label, this.isCentral = false});
+  const _NavItemData({required this.icon, required this.label});
 }
 
 // ─── FLOATING NAV BAR ─────────────────────────────────────────────────────────
@@ -123,13 +179,14 @@ class _FloatingNavBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.fromLTRB(12, 0, 12, bottomPadding + 4),
+      padding: EdgeInsets.fromLTRB(
+          12, 0, 12, bottomPadding + BottomNavMetrics.margeBasse),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(22),
         child: BackdropFilter(
           filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
           child: Container(
-            height: 64,
+            height: BottomNavMetrics.hauteur(context),
             decoration: BoxDecoration(
               color: context.cl.surface.withValues(alpha: 0.85),
               borderRadius: BorderRadius.circular(22),
@@ -150,26 +207,21 @@ class _FloatingNavBar extends StatelessWidget {
                 ),
               ],
             ),
+            // Cinq cases qui se partagent la largeur. Elles faisaient 60 px
+            // chacune : 300 px de cases et 24 de marges pour un écran de 320.
+            // La zone tactile couvre maintenant toute la case.
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: List.generate(items.length, (i) {
                 final item = items[i];
                 final sel = i == currentIndex;
 
-                if (item.isCentral) {
-                  return _CentralButton(
-                    icon: item.icon,
+                return Expanded(
+                  child: _NavItemWidget(
+                    item: item,
+                    isSelected: sel,
                     scale: iconScales[i],
                     onTap: () => onTap(i),
-                    isSelected: sel,
-                  );
-                }
-
-                return _NavItemWidget(
-                  item: item,
-                  isSelected: sel,
-                  scale: iconScales[i],
-                  onTap: () => onTap(i),
+                  ),
                 );
               }),
             ),
@@ -197,7 +249,7 @@ class _NavItemWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label:    item.label,
+      label:    tr(context, item.label),
       selected: isSelected,
       button:   true,
       child: GestureDetector(
@@ -205,7 +257,7 @@ class _NavItemWidget extends StatelessWidget {
         behavior: HitTestBehavior.opaque,
         child: ExcludeSemantics(
           child: SizedBox(
-            width: 60,
+            width: double.infinity,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -237,11 +289,19 @@ class _NavItemWidget extends StatelessWidget {
                 AnimatedDefaultTextStyle(
                   duration: const Duration(milliseconds: 220),
                   style: TextStyle(
-                    color: isSelected ? AppColors.primary : context.cl.textM,
-                    fontSize: 10,
+                    color: isSelected ? context.cl.accent : context.cl.textM,
+                    fontSize: BottomNavMetrics.taillePolice,
                     fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
                   ),
-                  child: Text(item.label),
+                  // Réduit seulement s'il ne tient pas : « Tutoriels » à
+                  // 180 % est plus large qu'une case de 320 px.
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(tr(context, item.label), maxLines: 1),
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -252,52 +312,3 @@ class _NavItemWidget extends StatelessWidget {
   }
 }
 
-// ─── BOUTON CENTRAL ───────────────────────────────────────────────────────────
-class _CentralButton extends StatelessWidget {
-  final IconData icon;
-  final Animation<double> scale;
-  final VoidCallback onTap;
-  final bool isSelected;
-
-  const _CentralButton({
-    required this.icon,
-    required this.scale,
-    required this.onTap,
-    required this.isSelected,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label:  'Bankroll',
-      button: true,
-      child: GestureDetector(
-      onTap: onTap,
-      child: AnimatedBuilder(
-        animation: scale,
-        builder: (_, child) => Transform.scale(scale: scale.value, child: child),
-        child: Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.success, Color(0xFF059669)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(18),
-            boxShadow: [
-              BoxShadow(
-                color: AppColors.success.withValues(alpha: 0.45),
-                blurRadius: 16,
-                offset: const Offset(0, 5),
-              ),
-            ],
-          ),
-          child: ExcludeSemantics(
-            child: Icon(icon, color: Colors.white, size: 24)),
-        ),
-      ),
-    ));
-  }
-}

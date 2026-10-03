@@ -9,12 +9,13 @@
   --border-s:      #2A3454;
   /* Texte */
   --text:          #E2E8F0;
-  --text-m:        #8892AA;
-  --text-dim:      #4A5568;
+  --text-m:        #B6C1D4;
+  --text-dim:      #98A6BE;
   /* Accents (thème orange par défaut) */
   --primary:       #F5A623;
-  --btn-primary:   #E8541A;
-  --btn-primary-h: #d14818;
+  --primary-rgb:   245,166,35;
+  --btn-primary:   #BC4212;
+  --btn-primary-h: #A5370D;
   /* États */
   --success:       #22C55E;
   --error:         #EF4444;
@@ -28,6 +29,21 @@
   --transition:    .15s ease;
   --shadow:        0 1px 4px rgba(0,0,0,.35);
   --shadow-lg:     0 4px 24px rgba(0,0,0,.5);
+  /* Teintes d'état, pour les fonds translucides : rgba(var(--success-rgb), .12).
+     Les mêmes dans les deux thèmes (constat A14 : 36 teintes étaient écrites
+     en chiffres, vue par vue). */
+  --success-rgb:   34,197,94;
+  --error-rgb:     239,68,68;
+  --warning-rgb:   245,158,11;
+  --info-rgb:      59,130,246;
+  /* Échelle typographique. 61 tailles distinctes s'étaient accumulées ; les
+     nouvelles règles puisent ici. */
+  --fs-xs:         .72rem;
+  --fs-s:          .8rem;
+  --fs-m:          .9rem;
+  --fs-l:          1rem;
+  --fs-xl:         1.15rem;
+  --fs-2xl:        1.4rem;
   /* Scrollbar */
   color-scheme: dark;
 }
@@ -42,44 +58,63 @@ html.light {
   --border-s:      #BEC9E4;
   --text:          #111827;
   --text-m:        #374151;
-  --text-dim:      #9CA3AF;
+  --text-dim:      #525E72;   /* 4,5:1 sur --surface-h, où #5E6B80 tombait à 4,24 */
   --shadow:        0 1px 4px rgba(0,0,0,.08);
   --shadow-lg:     0 4px 24px rgba(0,0,0,.12);
   color-scheme: light;
 }
 html.light a:hover { color: var(--btn-primary); }
-html.light .nav-item:hover   { background: var(--surface-d); }
-html.light .nav-item.active  { background: rgba(232,84,26,.08); }
+html.light .nav-item:hover   { background: rgba(var(--primary-rgb), .07); }
+html.light .nav-item.active  { background: linear-gradient(90deg, rgba(var(--primary-rgb), .14) 0%, rgba(var(--primary-rgb), .03) 100%); }
+html.light .nav-item .icon   { background: var(--surface-d); }
 html.light tr:hover td       { background: var(--surface-d); }
+
+/* ── L'accent écrit en texte ─────────────────────────────────────────────
+   --primary est une teinte vive, faite pour les fonds, jauges et bordures.
+   Écrite en texte sur le thème clair, elle tombait à 2,03:1 (orange sur
+   blanc). --primary-texte en est la nuance lisible : l'accent lui-même sur
+   fond sombre, une nuance foncée — au moins 4,5:1 sur tous les fonds et
+   teintes du thème — sur fond clair. */
+:root { --primary-texte: var(--primary); }
+html.light                          { --primary-texte: #9A3412; }
+html.light[data-accent="blue"]      { --primary-texte: #1D4ED8; }
+html.light[data-accent="green"]     { --primary-texte: #065F46; }
+html.light[data-accent="purple"]    { --primary-texte: #6B21A8; }
+html.light[data-accent="pink"]      { --primary-texte: #9D174D; }
 
 /* ── THÈMES DE COULEUR D'ACCENT ──────────────────────────────────────────── */
 /* Orange (défaut) */
 html[data-accent="orange"] {
   --primary:       #F5A623;
-  --btn-primary:   #E8541A;
-  --btn-primary-h: #d14818;
+  --primary-rgb:   245,166,35;
+  --btn-primary:   #BC4212;
+  --btn-primary-h: #A5370D;
 }
 /* Bleu */
 html[data-accent="blue"] {
   --primary:       #60A5FA;
+  --primary-rgb:   96,165,250;
   --btn-primary:   #2563EB;
   --btn-primary-h: #1d4ed8;
 }
 /* Vert */
 html[data-accent="green"] {
   --primary:       #34D399;
+  --primary-rgb:   52,211,153;
   --btn-primary:   #059669;
   --btn-primary-h: #047857;
 }
 /* Violet */
 html[data-accent="purple"] {
   --primary:       #C084FC;
+  --primary-rgb:   192,132,252;
   --btn-primary:   #7C3AED;
   --btn-primary-h: #6d28d9;
 }
 /* Rose */
 html[data-accent="pink"] {
   --primary:       #F472B6;
+  --primary-rgb:   244,114,182;
   --btn-primary:   #DB2777;
   --btn-primary-h: #be185d;
 }
@@ -103,7 +138,7 @@ body {
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
 }
-a { color: var(--primary); text-decoration: none; }
+a { color: var(--primary-texte); text-decoration: none; }
 a:hover { color: var(--btn-primary); }
 
 /* ── Layout ──────────────────────────────────────────────────────────────── */
@@ -123,58 +158,98 @@ a:hover { color: var(--btn-primary); }
   display: flex;
   flex-direction: column;
 }
+
+/* Logo */
 .sidebar-logo {
-  padding: 22px 20px 18px;
+  padding: 18px 20px 14px;
   border-bottom: 1px solid var(--border);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   flex-shrink: 0;
 }
-.sidebar-logo h1 { font-size: 21px; font-weight: 800; color: var(--text); letter-spacing: -.4px; }
-.sidebar-logo span { color: var(--primary); }
+.sidebar-logo .logo-titre {
+  font-size: 20px; font-weight: 900; color: var(--text);
+  letter-spacing: -.6px; line-height: 1.1;
+}
+.sidebar-logo span { color: var(--primary-texte); }
 .sidebar-logo small {
-  display: block; color: var(--text-dim); font-size: 10px;
-  margin-top: 3px; text-transform: uppercase; letter-spacing: 1.2px; font-weight: 600;
+  display: block; color: var(--text-dim); font-size: 9px;
+  margin-top: 4px; text-transform: uppercase; letter-spacing: 2px; font-weight: 700;
 }
+
+/* Section labels avec séparateur */
 .sidebar-section {
-  padding: 16px 20px 4px;
-  font-size: 10px; font-weight: 700;
+  padding: 14px 20px 5px;
+  font-size: 9px; font-weight: 800;
   color: var(--text-dim);
-  text-transform: uppercase; letter-spacing: 1.4px;
+  text-transform: uppercase; letter-spacing: 1.8px;
+  display: flex; align-items: center; gap: 8px;
 }
+.sidebar-section::before {
+  content: ''; width: 12px; height: 1px;
+  background: var(--border-s); flex-shrink: 0;
+}
+.sidebar-section::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--border);
+}
+
+/* Nav items */
 .nav-item {
   display: flex; align-items: center; gap: 10px;
-  padding: 9px 16px; margin: 1px 8px;
-  border-radius: var(--radius-s);
-  color: var(--text-m);
+  padding: 8px 12px; margin: 2px 10px;
+  border-radius: 10px;
+  color: var(--text-dim);
   font-size: 13px; font-weight: 500;
   cursor: pointer;
-  transition: background var(--transition), color var(--transition);
+  transition: background .15s, color .15s, font-weight .1s;
   position: relative;
   border: none; background: transparent; text-decoration: none;
 }
-.nav-item:hover { background: var(--surface-h); color: var(--text); }
-.nav-item.active { background: rgba(245,166,35,.10); color: var(--primary); font-weight: 600; }
+.nav-item:hover {
+  background: rgba(var(--primary-rgb), .07);
+  color: var(--text);
+  font-weight: 600;
+}
+.nav-item.active {
+  background: linear-gradient(90deg, rgba(var(--primary-rgb), .18) 0%, rgba(var(--primary-rgb), .04) 100%);
+  color: var(--primary-texte);
+  font-weight: 700;
+}
 .nav-item.active::before {
   content: '';
-  position: absolute; left: -8px; top: 50%; transform: translateY(-50%);
-  width: 3px; height: 18px;
+  position: absolute; left: -10px; top: 50%; transform: translateY(-50%);
+  width: 3px; height: 22px;
   background: var(--primary);
-  border-radius: 0 3px 3px 0;
+  border-radius: 0 4px 4px 0;
+  box-shadow: 2px 0 10px rgba(var(--primary-rgb), .5);
 }
-.nav-item .icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; }
+
+/* Icon container */
+.nav-item .icon {
+  width: 28px; height: 28px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 7px;
+  background: var(--surface-d);
+  font-size: 14px; flex-shrink: 0;
+  transition: background .15s, box-shadow .15s;
+}
+.nav-item:hover .icon { background: rgba(var(--primary-rgb), .12); }
+.nav-item.active .icon {
+  background: rgba(var(--primary-rgb), .2);
+  box-shadow: 0 0 0 1px rgba(var(--primary-rgb), .25);
+}
+
+/* Badge */
 .nav-badge {
   margin-left: auto;
   background: var(--error); color: #fff;
   font-size: 10px; font-weight: 700;
-  padding: 1px 7px; border-radius: 10px;
-  min-width: 20px; text-align: center;
+  padding: 1px 6px; border-radius: 10px;
+  min-width: 18px; text-align: center;
   display: none; line-height: 16px;
 }
 .nav-badge.visible { display: block; }
-/* ── Badge animations ── */
-.nav-badge.pulse {
-  animation: badge-pop .35s cubic-bezier(.36,.07,.19,.97) both;
-}
+.nav-badge.pulse { animation: badge-pop .35s cubic-bezier(.36,.07,.19,.97) both; }
 @keyframes badge-pop {
   0%   { transform: scale(1); }
   40%  { transform: scale(1.55); }
@@ -190,13 +265,14 @@ a:hover { color: var(--btn-primary); }
   70%  { box-shadow: 0 0 0 7px rgba(239,68,68,0); }
   100% { box-shadow: 0 0 0 0 rgba(239,68,68,0); }
 }
+
 .sidebar-spacer { flex: 1; min-height: 20px; }
 .sidebar-footer {
   padding: 8px 8px 12px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
 }
-.nav-logout { color: var(--error) !important; }
+.nav-logout { color: var(--on-danger) !important; }
 .nav-logout:hover { background: rgba(239,68,68,.08) !important; }
 
 /* ── Overlay mobile ──────────────────────────────────────────────────────── */
@@ -226,19 +302,81 @@ a:hover { color: var(--btn-primary); }
   position: sticky; top: 0; z-index: 50;
 }
 .mobile-bar-title { font-size: 15px; font-weight: 700; color: var(--text); }
-.mobile-bar-title span { color: var(--primary); }
+.mobile-bar-title span { color: var(--primary-texte); }
 .hamburger {
   background: none; border: none; cursor: pointer;
   color: var(--text); font-size: 22px; line-height: 1;
   padding: 2px; flex-shrink: 0;
 }
 
+/* ── Zones tactiles ──────────────────────────────────────────────────────────
+   Mesuré sur un écran de 390 px : le menu faisait 26 × 26, la recherche
+   34 × 26, la bascule de thème 28 × 20 et le lien du bandeau de maintenance
+   79 × 19. Le menu est le contrôle le plus tapé sur mobile — c'est l'accès à
+   tout ce que la barre du bas ne montre pas — et il n'avait que 2 px de marge
+   autour d'une icône de 22 px.
+
+   On agrandit la zone qu'on touche, pas ce qu'on voit : une taille minimale
+   de 44 px (la recommandation des deux grandes plateformes mobiles), rattrapée
+   par une marge négative égale. L'icône reste exactement à sa place et la
+   barre garde sa hauteur ; seul le doigt trouve plus facilement sa cible.
+
+   La bascule de thème et le lien du bandeau restent visibles sur ordinateur,
+   où 44 px déformerait le dessin. Ils reçoivent donc le plancher WCAG 2.5.8
+   (24 px) partout, et les 44 px seulement sur un écran tactile. */
+.hamburger,
+.search-trigger-btn {
+  min-width: 44px; min-height: 44px;
+  align-items: center; justify-content: center;
+}
+.hamburger          { display: inline-flex; margin: -9px; }
+.search-trigger-btn { margin: -9px -5px; }
+.mode-btn           { min-height: 24px; }
+.bandeau-lien       { display: inline-flex; align-items: center; min-height: 24px; padding: 0 .3rem; }
+@media (pointer: coarse) {
+  .mode-btn     { min-height: 44px; min-width: 44px; }
+  .bandeau-lien { min-height: 44px; }
+
+  /* Safari sur iPhone zoome toute la page dès qu'on touche un champ dont le
+     texte fait moins de 16 px, et il faut dézoomer à la main avant de
+     continuer. La règle de base ci-dessus fixait 13 px pour tous les champs du
+     panneau : chaque formulaire, à chaque champ. Sur la file des preuves de
+     paiement — identifiant, note, motif de rejet —, c'était à chaque dossier.
+
+     `!important` à dessein : plusieurs pages redéfinissent la taille par
+     classe, ce qui l'emporterait sur un simple sélecteur d'élément. Un plancher
+     d'accessibilité doit tenir quelle que soit la page, et il est borné aux
+     écrans tactiles — l'affichage sur ordinateur ne change pas. */
+  input, select, textarea { font-size: 16px !important; }
+
+  /* ── Cibles au doigt ──
+     Mesurées à 390 px le 24 septembre 2026 (constat A13) : la croix d'une
+     notification faisait 17 × 18 px, « Revoir la capture » sur une preuve de
+     paiement 14 px de haut, les boutons « Copier » 22 × 17, les liens de
+     retour 16 px, et les cases à cocher des listes 13 px de large. Le seuil
+     retenu est celui des boutons de la barre du haut : 44 px. */
+  .toast-close, .ud-copy-btn, .pf-copy { min-width: 44px; min-height: 44px; }
+  .toast-action, .pf-hlink, .topbar a[href]:not(.btn) {
+    display: inline-flex; align-items: center; min-height: 44px;
+  }
+  /* Les cases à cocher gardent leur dessin, agrandi ; leur cellule absorbe
+     le reste de la zone. */
+  /* min-width et non width : plusieurs pages fixent la largeur par classe
+     (.u-check, .pro-chk…), et un minimum l'emporte sur une largeur. */
+  input[type="checkbox"] { min-width: 24px; min-height: 24px; }
+  .filter-tag a { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
+}
+
+/* Hors écran tactile aussi, WCAG 2.2 (2.5.8) demande 24 × 24 px au moins. */
+.toast-close, .ud-copy-btn, .pf-copy { min-width: 24px; min-height: 24px; }
+
 /* ── Topbar ──────────────────────────────────────────────────────────────── */
 .topbar {
   display: flex; justify-content: space-between; align-items: center;
   margin-bottom: 24px; gap: 12px; flex-wrap: wrap;
 }
-.topbar h2 { font-size: 20px; font-weight: 700; color: var(--text); letter-spacing: -.2px; }
+/* Le titre de l'écran est son h1 ; les vues qui en gardent un h2 sont stylées pareil. */
+.topbar h1, .topbar h2 { font-size: 22px; font-weight: 800; color: var(--text); letter-spacing: -.4px; margin: 0; }
 .topbar small { color: var(--text-m); font-size: 13px; display: block; margin-top: 2px; }
 
 /* ── Page header (pages internes) ───────────────────────────────────────── */
@@ -254,26 +392,34 @@ a:hover { color: var(--btn-primary); }
 }
 .stat-card {
   background: var(--surface);
-  border: 0.5px solid var(--border);
-  border-radius: var(--radius);
-  padding: 18px 16px;
-  transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--border-s);
+  border-radius: 14px;
+  padding: 1.1rem 1.25rem;
+  transition: transform .2s, box-shadow .2s;
   cursor: default;
 }
 .stat-card:hover {
-  border-color: var(--border-s);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-lg);
+  transform: translateY(-3px);
+  box-shadow: 0 10px 32px rgba(0,0,0,.25);
 }
-.stat-card .val { font-size: 28px; font-weight: 800; color: #fff; line-height: 1.1; }
-.stat-card .lbl { font-size: 12px; color: var(--text-m); margin-top: 5px; }
-.stat-card .dot { width: 8px; height: 8px; border-radius: 50%; margin-bottom: 10px; }
+.stat-card .val { font-size: 1.9rem; font-weight: 900; color: var(--text); line-height: 1.1; letter-spacing: -.03em; margin-top: .1rem; }
+/* `--text-dim` mesure 2,33:1 (sombre) et 2,54:1 (clair) : sous le seuil AA.
+   Acceptable pour un ornement, pas pour le libellé qui nomme le chiffre. */
+.stat-card .lbl { font-size: .7rem; color: var(--text-m); text-transform: uppercase; letter-spacing: .06em; font-weight: 700; margin-bottom: 2px; }
+.stat-card .dot { width: 8px; height: 8px; border-radius: 50%; margin-bottom: 8px; }
+.stat-card.s-blue   { border-left-color: var(--info); }
+.stat-card.s-orange { border-left-color: var(--primary); }
+.stat-card.s-green  { border-left-color: var(--success); }
+.stat-card.s-red    { border-left-color: var(--error); }
+.stat-card.s-purple { border-left-color: var(--purple); }
+.stat-card.s-teal   { border-left-color: #14B8A6; }
 
 /* ── Cards ───────────────────────────────────────────────────────────────── */
 .card {
   background: var(--surface);
   border: 0.5px solid var(--border);
-  border-radius: 14px; padding: 20px; margin-bottom: 16px;
+  border-radius: 16px; padding: 20px; margin-bottom: 16px;
 }
 .card h3 {
   font-size: 11px; font-weight: 700; color: var(--text-m);
@@ -300,11 +446,11 @@ tr:hover td { background: rgba(255,255,255,.018); }
   padding: 3px 8px; border-radius: 20px;
   font-size: 11px; font-weight: 600; white-space: nowrap;
 }
-.badge-warn   { background: rgba(245,166,35,.12); color: var(--primary);  border: 0.5px solid rgba(245,166,35,.22); }
-.badge-ok     { background: rgba(34,197,94,.12);  color: var(--success);  border: 0.5px solid rgba(34,197,94,.22); }
-.badge-err    { background: rgba(239,68,68,.12);  color: var(--error);    border: 0.5px solid rgba(239,68,68,.22); }
-.badge-info   { background: rgba(59,130,246,.12); color: var(--info);     border: 0.5px solid rgba(59,130,246,.22); }
-.badge-purple { background: rgba(167,139,250,.12);color: var(--purple);   border: 0.5px solid rgba(167,139,250,.22); }
+.badge-warn   { background: rgba(245,166,35,.12); color: var(--primary-texte);  border: 0.5px solid rgba(245,166,35,.22); }
+.badge-ok     { background: rgba(34,197,94,.12);  color: var(--on-success);  border: 0.5px solid rgba(34,197,94,.22); }
+.badge-err    { background: rgba(239,68,68,.12);  color: var(--on-danger);    border: 0.5px solid rgba(239,68,68,.22); }
+.badge-info   { background: rgba(59,130,246,.12); color: var(--on-info);     border: 0.5px solid rgba(59,130,246,.22); }
+.badge-purple { background: rgba(167,139,250,.12);color: var(--on-purple);   border: 0.5px solid rgba(167,139,250,.22); }
 
 /* ── Buttons ─────────────────────────────────────────────────────────────── */
 .btn {
@@ -318,12 +464,12 @@ tr:hover td { background: rgba(255,255,255,.018); }
 .btn:active { transform: scale(.97); }
 .btn-primary { background: var(--btn-primary); color: #fff; }
 .btn-primary:hover { background: var(--btn-primary-h); color: #fff; }
-.btn-success { background: rgba(34,197,94,.12); color: var(--success); border: 0.5px solid rgba(34,197,94,.25); }
-.btn-success:hover { background: rgba(34,197,94,.22); color: var(--success); }
-.btn-danger  { background: rgba(239,68,68,.12);  color: var(--error);   border: 0.5px solid rgba(239,68,68,.25); }
-.btn-danger:hover  { background: rgba(239,68,68,.22);  color: var(--error); }
-.btn-warning { background: rgba(245,158,11,.12); color: var(--warning); border: 0.5px solid rgba(245,158,11,.25); }
-.btn-warning:hover { background: rgba(245,158,11,.22); color: var(--warning); }
+.btn-success { background: rgba(34,197,94,.12); color: var(--on-success); border: 0.5px solid rgba(34,197,94,.25); }
+.btn-success:hover { background: rgba(34,197,94,.22); color: var(--on-success); }
+.btn-danger  { background: rgba(239,68,68,.12);  color: var(--on-danger);   border: 0.5px solid rgba(239,68,68,.25); }
+.btn-danger:hover  { background: rgba(239,68,68,.22);  color: var(--on-danger); }
+.btn-warning { background: rgba(245,158,11,.12); color: var(--on-warning); border: 0.5px solid rgba(245,158,11,.25); }
+.btn-warning:hover { background: rgba(245,158,11,.22); color: var(--on-warning); }
 .btn-outline { background: transparent; color: var(--text-m); border: 0.5px solid var(--border-s); }
 .btn-outline:hover { background: var(--surface-h); color: var(--text); border-color: var(--border); }
 .btn-sm  { padding: 5px 10px; font-size: 12px; }
@@ -336,6 +482,13 @@ label {
   margin-bottom: 6px; text-transform: uppercase;
   letter-spacing: .5px; font-weight: 600;
 }
+/* Cases et boutons radio : `width:100%` n'a aucun sens pour eux et cassait les
+   mises en page en ligne — une case occupait toute la largeur de son conteneur
+   flex et écrasait le libellé à côté (carte « Utilisateur spécifique » de la
+   page Notifications). Le problème avait déjà été rustiné localement sur
+   `.filterbar` et `.dt` ; la règle est posée une fois pour toutes ici. */
+input[type="checkbox"], input[type="radio"] { width: auto; }
+
 input, select, textarea {
   width: 100%; background: var(--surface-d);
   border: 0.5px solid var(--border-s);
@@ -354,8 +507,8 @@ textarea { resize: vertical; }
 
 /* ── Stars ───────────────────────────────────────────────────────────────── */
 .stars { display: flex; gap: 3px; cursor: pointer; }
-.star { font-size: 20px; color: var(--border-s); transition: color var(--transition); }
-.star.active { color: var(--primary); }
+.star { font-size: 20px; color: var(--text-dim); transition: color var(--transition); }
+.star.active { color: var(--primary-texte); }
 
 /* ── Alerts ──────────────────────────────────────────────────────────────── */
 .alert {
@@ -363,28 +516,94 @@ textarea { resize: vertical; }
   margin-bottom: 16px; font-size: 13px;
   display: flex; align-items: center; gap: 8px;
 }
-.alert-success { background: rgba(34,197,94,.07); color: var(--success); border: 0.5px solid rgba(34,197,94,.25); }
-.alert-error   { background: rgba(239,68,68,.07);  color: var(--error);   border: 0.5px solid rgba(239,68,68,.25); }
+.alert-success { background: rgba(34,197,94,.07); color: var(--on-success); border: 0.5px solid rgba(34,197,94,.25); }
+.alert-error   { background: rgba(239,68,68,.07);  color: var(--on-danger);   border: 0.5px solid rgba(239,68,68,.25); }
+/* Ni un succès ni une panne : un état à corriger côté exploitation. */
+.alert-warning { background: rgba(245,158,11,.07); color: var(--on-warning); border: 0.5px solid rgba(245,158,11,.25); }
 
 /* ── Toast notifications ─────────────────────────────────────────────────── */
 .toast-container {
-  position: fixed; bottom: 24px; right: 24px;
+  position: fixed; top: 20px; right: 24px;
   z-index: 9999; display: flex; flex-direction: column;
-  gap: 8px; pointer-events: none;
+  gap: 10px; pointer-events: none;
 }
+
+/* ── Notification ─────────────────────────────────────────────────────────
+   Le composant tenait sur une ligne de 13 px avec un liseré de 3 px : rien
+   ne distinguait ce qui s'était passé de ce sur quoi. Trois zones désormais —
+   icône, corps (titre + détail + action), fermeture — plus une barre qui
+   montre le temps restant. */
 .toast {
-  background: var(--surface); border: 0.5px solid var(--border);
-  border-radius: var(--radius-s); padding: 12px 16px;
-  font-size: 13px; color: var(--text); box-shadow: var(--shadow-lg);
-  pointer-events: all; display: flex; align-items: center; gap: 10px;
-  max-width: 340px; animation: toastIn .22s ease forwards;
+  position: relative; overflow: hidden;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: start;
+  gap: 12px; padding: 13px 14px 15px;
+  min-width: 300px; max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: 0 12px 32px -8px rgba(0,0,0,.45), 0 2px 6px rgba(0,0,0,.2);
+  pointer-events: all;
+  animation: toastIn .32s cubic-bezier(.16,1,.3,1) forwards;
 }
 .toast.out { animation: toastOut .22s ease forwards; }
-.toast-success { border-left: 3px solid var(--success); }
-.toast-error   { border-left: 3px solid var(--error); }
-.toast-info    { border-left: 3px solid var(--info); }
-@keyframes toastIn  { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:translateX(0); } }
-@keyframes toastOut { from { opacity:1; transform:translateX(0); }    to { opacity:0; transform:translateX(16px); } }
+
+/* Filet de couleur sur la tranche gauche — repérable sans lire. */
+.toast::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 3px;
+  background: var(--info);
+}
+.toast-success::before { background: var(--success); }
+.toast-error::before   { background: var(--error); }
+.toast-warning::before { background: var(--warning); }
+
+.toast-ic {
+  width: 30px; height: 30px; border-radius: 9px; flex-shrink: 0;
+  display: grid; place-items: center; font-size: .95rem;
+  background: rgba(59,130,246,.12); color: var(--on-info);
+}
+.toast-success .toast-ic { background: rgba(34,197,94,.12);  color: var(--on-success); }
+.toast-error   .toast-ic { background: rgba(239,68,68,.12);  color: var(--on-danger); }
+.toast-warning .toast-ic { background: rgba(245,158,11,.12); color: var(--on-warning); }
+
+.toast-body   { min-width: 0; }
+.toast-title  { font-size: 13.5px; font-weight: 700; color: var(--text); line-height: 1.35; }
+.toast-detail {
+  margin-top: 3px; font-size: 12px; color: var(--text-m); line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.toast-action {
+  display: inline-block; margin-top: 8px;
+  font-size: 12px; font-weight: 700; color: var(--primary-texte);
+  text-decoration: none; border-bottom: 1px solid transparent;
+  transition: border-color .15s;
+}
+.toast-action:hover { border-bottom-color: var(--primary); }
+
+.toast-close {
+  background: none; border: 0; cursor: pointer; padding: 2px;
+  color: var(--text-dim); line-height: 1; border-radius: 6px;
+  transition: color .15s, background .15s;
+}
+.toast-close:hover { color: var(--text); background: var(--surface-h); }
+
+/* Temps restant. Se met en pause au survol (piloté en JS). */
+.toast-bar {
+  position: absolute; left: 0; bottom: 0; height: 2px; width: 100%;
+  background: var(--info); transform-origin: left;
+  animation: toastBar linear forwards;
+}
+.toast-success .toast-bar { background: var(--success); }
+.toast-error   .toast-bar { background: var(--error); }
+.toast-warning .toast-bar { background: var(--warning); }
+
+@keyframes toastIn  { from { opacity:0; transform:translateX(24px) scale(.96); } to { opacity:1; transform:none; } }
+@keyframes toastOut { from { opacity:1; transform:none; } to { opacity:0; transform:translateX(24px) scale(.98); } }
+@keyframes toastBar { from { transform: scaleX(1); } to { transform: scaleX(0); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .toast, .toast.out { animation: none; }
+  .toast-bar { animation: none; opacity: .35; }
+}
 
 /* ── Confirm dialog ──────────────────────────────────────────────────────── */
 /* ── Session timeout warning ──────────────────────────────────────────────── */
@@ -402,14 +621,14 @@ textarea { resize: vertical; }
   box-shadow: 0 0 40px rgba(245,158,11,.2), var(--shadow-lg);
   animation: confirmIn .2s ease forwards;
 }
-.session-box h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: .5rem; color: var(--warning); }
+.session-box h3 { font-size: 1.1rem; font-weight: 700; margin-bottom: .5rem; color: var(--on-warning); }
 .session-box p  { color: var(--text-m); font-size: .875rem; line-height: 1.6; }
-.session-box p strong { color: var(--warning); font-size: 1.25rem; }
+.session-box p strong { color: var(--on-warning); font-size: 1.25rem; }
 
 /* ── Alert de blocage login ───────────────────────────────────────────────── */
 .alert-locked {
   background: rgba(239,68,68,.12); border: 1px solid rgba(239,68,68,.3);
-  color: var(--error); border-radius: var(--radius-s);
+  color: var(--on-danger); border-radius: var(--radius-s);
   padding: .75rem 1rem; font-size: .875rem; margin-bottom: 1rem;
   display: flex; align-items: center; gap: .5rem;
 }
@@ -491,7 +710,7 @@ textarea { resize: vertical; }
 .filter-advanced-panel { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); }
 .filter-advanced-grid  { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; margin-bottom: 12px; }
 .filter-field          { display: flex; flex-direction: column; gap: 4px; }
-.filter-field label    { font-size: .68rem; color: var(--text-dim); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
+.filter-field label    { font-size: .68rem; color: var(--text-m); text-transform: uppercase; letter-spacing: .05em; font-weight: 600; }
 
 .filter-presets        { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding-top: 8px; }
 .filter-presets-lbl    { font-size: .72rem; color: var(--text-dim); font-weight: 600; white-space: nowrap; }
@@ -500,21 +719,21 @@ textarea { resize: vertical; }
 .filter-tag            { display: inline-flex; align-items: center; gap: 4px; background: var(--surface-d); border: 1px solid var(--border); border-radius: 99px; padding: 2px 10px; font-size: .75rem; color: var(--text-m); white-space: nowrap; }
 .filter-tag em         { font-style: normal; color: var(--text); font-weight: 600; }
 .filter-tag a          { color: var(--text-dim); text-decoration: none; margin-left: 2px; font-size: .8rem; line-height: 1; }
-.filter-tag a:hover    { color: var(--error); }
+.filter-tag a:hover    { color: var(--on-danger); }
 
 /* ── API offline / erreur de connexion ───────────────────────────────────── */
 .api-offline-banner {
   display:flex; align-items:center; gap:.75rem;
   background:rgba(239,68,68,.1); border:1px solid rgba(239,68,68,.25);
   border-radius:var(--radius-s); padding:.75rem 1rem;
-  font-size:.85rem; color:var(--error); margin-bottom:1rem;
+  font-size:.85rem; color:var(--on-danger); margin-bottom:1rem;
 }
 .api-offline-banner strong { font-weight:700; }
 
 /* ── Formulaire : états ───────────────────────────────────────────────────── */
 .input.invalid { border-color:var(--error) !important; }
 .input.valid   { border-color:var(--success) !important; }
-.field-error   { font-size:.75rem; color:var(--error); margin-top:.25rem; display:none; }
+.field-error   { font-size:.75rem; color:var(--on-danger); margin-top:.25rem; display:none; }
 .field-error.visible { display:block; }
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────── */
@@ -544,11 +763,19 @@ textarea { resize: vertical; }
 .sidebar-search-btn {
   width: 100%; display: flex; align-items: center; gap: .5rem;
   background: var(--surface-d); border: 1px solid var(--border);
-  border-radius: var(--radius-s); padding: .5rem .75rem; color: var(--text-dim);
-  font-size: .8rem; cursor: pointer; transition: all var(--transition);
+  border-radius: 9px; padding: .48rem .75rem; color: var(--text-dim);
+  font-size: .78rem; cursor: pointer; transition: all .15s;
 }
-.sidebar-search-btn:hover { background: var(--surface-h); border-color: var(--border-s); color: var(--text-m); }
-.sidebar-search-btn kbd { margin-left: auto; font-size: .7rem; padding: .1rem .35rem; background: var(--surface-h); border: 1px solid var(--border-s); border-radius: 4px; color: var(--text-dim); font-family: inherit; }
+.sidebar-search-btn:hover {
+  background: rgba(var(--primary-rgb), .07);
+  border-color: rgba(var(--primary-rgb), .25);
+  color: var(--text-m);
+}
+.sidebar-search-btn kbd {
+  margin-left: auto; font-size: .68rem; padding: .1rem .3rem;
+  background: var(--surface-h); border: 1px solid var(--border-s);
+  border-radius: 4px; color: var(--text-dim); font-family: inherit;
+}
 .search-trigger-btn { background: none; border: none; font-size: 1.1rem; cursor: pointer; padding: .25rem .5rem; border-radius: var(--radius-s); color: var(--text-m); display: none; }
 .search-trigger-btn:hover { background: var(--surface-h); }
 
@@ -610,7 +837,13 @@ textarea { resize: vertical; }
 /* ── Bottom navigation bar (mobile) ─────────────────────────────────────── */
 .bottom-nav {
   display: none;
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: 200;
+  /* Sous le voile (99) et sous le tiroir (100), pas au-dessus.
+     À 200, la barre restait allumée et cliquable par-dessus le menu ouvert :
+     deux systèmes de navigation se disputaient l'attention, et surtout ses
+     64 px recouvraient le bas du tiroir — panneau Thème, Mon profil et
+     Déconnexion. Sur un écran court, se déconnecter devenait impossible.
+     Quand un tiroir de navigation est ouvert, il *est* la navigation. */
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 90;
   background: var(--surface);
   border-top: 1px solid var(--border);
   padding: 6px 0 max(6px, env(safe-area-inset-bottom));
@@ -621,14 +854,27 @@ textarea { resize: vertical; }
 }
 .bottom-nav-item {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
-  padding: 4px 8px; cursor: pointer; text-decoration: none;
+  padding: 4px 6px; cursor: pointer; text-decoration: none;
   color: var(--text-dim); font-size: 9px; font-weight: 600;
   text-transform: uppercase; letter-spacing: .04em;
   border: none; background: none; position: relative;
-  min-width: 52px; border-radius: var(--radius-s);
+  border-radius: var(--radius-s);
   transition: color var(--transition);
+
+  /* La barre est passée de quatre créneaux à cinq : sur un écran de 320 px,
+     chacun tombe à ~64 px, et « Utilisateurs » n'y tient plus. `min-width: 52px`
+     l'aurait laissé pousser la barre en débordement. On borne plutôt chaque
+     créneau à sa part, et le libellé se tronque proprement s'il le faut. */
+  flex: 1 1 0; min-width: 0; max-width: 84px;
 }
-.bottom-nav-item:hover, .bottom-nav-item.active { color: var(--btn-primary); }
+/* Le libellé est le seul texte du créneau : il se tronque, il ne déborde pas. */
+.bottom-nav-item > span:not(.bottom-nav-icon):not(.bottom-nav-badge) {
+  max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* --btn-primary est une teinte de fond de bouton : en texte sur le thème
+   sombre, 3,28:1. Le texte prend --primary en sombre, --btn-primary en clair. */
+.bottom-nav-item:hover, .bottom-nav-item.active { color: var(--primary-texte); }
+html.light .bottom-nav-item:hover, html.light .bottom-nav-item.active { color: var(--btn-primary); }
 .bottom-nav-icon { font-size: 20px; line-height: 1; transition: transform .15s; }
 .bottom-nav-item.active .bottom-nav-icon { transform: scale(1.12); }
 .bottom-nav-badge {
@@ -644,6 +890,9 @@ textarea { resize: vertical; }
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   text-decoration: none; border: none; background: none;
   cursor: pointer; padding: 0; position: relative; top: -10px;
+  /* Le cercle fait 46 px : le créneau ne descend pas en dessous, mais ne
+     s'étire pas non plus au détriment des quatre autres. */
+  flex: 0 0 auto; min-width: 56px;
 }
 .bottom-nav-fab-circle {
   width: 46px; height: 46px; border-radius: 50%;
@@ -679,9 +928,22 @@ textarea { resize: vertical; }
 
   /* Topbar */
   .topbar { flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 16px; }
-  .topbar h2 { font-size: 18px; }
+  .topbar h1, .topbar h2 { font-size: 18px; }
   .topbar > div:last-child { width: 100%; display: flex; gap: 6px; flex-wrap: wrap; }
-  .topbar > div:last-child .btn { flex: 1; justify-content: center; text-align: center; font-size: .78rem; }
+
+  /* Les boutons se partagent la ligne — mais seulement s'ils sont plusieurs.
+     `flex: 1` appliqué sans condition étirait un bouton isolé sur toute la
+     largeur : sur le tableau de bord, « Actualiser » — une action secondaire —
+     devenait le plus large contrôle de l'écran. `:not(:only-child)` réserve le
+     partage aux cas où il y a effectivement quelque chose à partager. */
+  .topbar > div:last-child .btn:not(:only-child) {
+    flex: 1; justify-content: center; text-align: center;
+  }
+  .topbar > div:last-child .btn { font-size: .78rem; }
+
+  /* Un bouton seul garde sa largeur naturelle, aligné à gauche comme le titre
+     qu'il accompagne. */
+  .topbar > div:last-child .btn:only-child { flex: 0 0 auto; }
 
   /* Stats grid */
   .stats-grid { grid-template-columns: repeat(2, 1fr); gap: 8px; }
@@ -752,7 +1014,7 @@ textarea { resize: vertical; }
   .search-overlay { align-items: flex-end; }
 
   /* Toast */
-  .toast-container { right: 10px; bottom: calc(74px + env(safe-area-inset-bottom)); left: 10px; }
+  .toast-container { right: 10px; top: calc(10px + env(safe-area-inset-top)); left: 10px; }
   .toast { max-width: 100%; }
 
   /* Pagination */
@@ -762,7 +1024,7 @@ textarea { resize: vertical; }
   canvas { max-height: 200px !important; }
 
   /* Sidebar logo petit */
-  .sidebar-logo h1 { font-size: 18px; }
+  .sidebar-logo .logo-titre { font-size: 18px; }
 
   /* Page header */
   .page-header { flex-direction: column; gap: .5rem; }
@@ -775,3 +1037,273 @@ textarea { resize: vertical; }
   .stats-grid { grid-template-columns: 1fr 1fr; }
   .filter-advanced-grid { grid-template-columns: 1fr; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SOCLE PARTAGÉ — composants communs à toutes les vues.
+
+   Ajouté pour remplacer les 1 662 lignes de CSS dupliquées dans 21 vues.
+   Tout est ADDITIF : aucune règle existante n'est modifiée, à l'exception des
+   couleurs d'alerte qui étaient illisibles en thème clair (voir --on-*).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Icônes ───────────────────────────────────────────────────────────────
+   Remplacent les emoji utilisés comme icônes (670 occurrences, 97 symboles
+   distincts sur 27 vues). Le tracé est en `currentColor` : l'icône hérite de
+   la couleur du texte parent, donc du thème et des états (survol, actif,
+   danger) sans une règle supplémentaire.
+   Dimension en `em` : elle suit la taille de police du contexte, ce qu'un
+   emoji faisait déjà mais sans permettre le moindre réglage. */
+.ic {
+  width: 1em; height: 1em;
+  /* Un emoji se pose sur la ligne de base, un SVG non : sans ce décalage
+     l'icône flotte au-dessus du texte qu'elle accompagne. */
+  vertical-align: -0.135em;
+  flex-shrink: 0;
+  pointer-events: none;
+}
+.ic-sm { width: .85em;  height: .85em; }
+.ic-lg { width: 1.35em; height: 1.35em; }
+.ic-xl { width: 2em;    height: 2em; vertical-align: middle; }
+/* Icône seule dans un bouton : on rétablit un peu d'air autour. */
+.btn > .ic:only-child { vertical-align: -0.15em; }
+
+/* ── Couleurs d'état écrites en texte ─────────────────────────────────────
+   Les tokens de base (--success, --error, --warning, --info, --purple) sont
+   des teintes de remplissage : pastilles, bordures, jauges. Écrits en texte,
+   ils tombaient sur le thème clair entre 2,0 et 3,8:1 — « 0 FCFA » en vert
+   sur blanc à 2,28:1 — et 188 endroits les employaient ainsi (analyse du
+   24 septembre 2026, constat A10). Toute couleur d'état écrite en texte passe
+   désormais par ces tokens-ci.
+
+   Chaque valeur est la teinte la plus vive qui atteigne 4,5:1 (WCAG AA) sur
+   TOUS les fonds du thème — --surface, --bg, --surface-d, --surface-h — ET
+   sur les fonds teintés de sa propre couleur (12 à 20 % d'opacité), où
+   s'écrivent les pastilles « Actif », « Banni », « Publié ». */
+:root {
+  --on-danger:  #F87171;  --on-warning: #F59E0B;
+  --on-info:    #60A5FA;  --on-success: #22C55E;
+  --on-purple:  #A78BFA;
+}
+html.light {
+  --on-danger:  #B42318;  --on-warning: #8A5A00;
+  --on-info:    #2459B3;  --on-success: #17703F;
+  --on-purple:  #6D4AC9;
+}
+
+/* ── Accessibilité : anneau de focus ──────────────────────────────────────
+   Il n'existait aucun style de focus dans tout l'admin. Pour un outil de
+   saisie répétitive, naviguer au clavier était impossible à suivre. */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ── Barre de filtres ─────────────────────────────────────────────────────
+   `input, select, textarea { width:100% }` (plus haut dans ce fichier) est
+   pensé pour les formulaires. Dans une barre en flex, il forçait chaque
+   champ sur sa propre ligne : le filtre de Pronostics occupait ~250 px de
+   haut alors que le code demandait une seule ligne. On rétablit une largeur
+   automatique dans ce contexte précis, sans toucher la règle globale. */
+.filterbar {
+  display: flex; gap: .5rem; flex-wrap: wrap; align-items: center;
+  padding: .75rem; background: var(--surface);
+  border: 1px solid var(--border); border-radius: var(--radius);
+  margin-bottom: 1rem;
+}
+.filterbar input, .filterbar select { width: auto; padding: .4rem .65rem; font-size: .82rem; }
+.filterbar input[type=search], .filterbar input[name=q] { min-width: 220px; }
+.filterbar .spacer { margin-left: auto; }
+.filterbar label { font-size: .78rem; color: var(--text-m); display: flex; align-items: center; gap: .35rem; }
+.filterbar label input[type=checkbox] { width: auto; }
+
+/* ── Alertes ──────────────────────────────────────────────────────────────
+   Remplace .dash-alert et ses variantes recopiées ailleurs. */
+.alert {
+  display: flex; gap: .6rem; align-items: center;
+  padding: .7rem .9rem; border-radius: var(--radius-s);
+  border: 1px solid; font-size: .85rem; line-height: 1.45; margin-bottom: .5rem;
+}
+.alert a { color: inherit; font-weight: 600; text-decoration: underline; }
+.alert .alert-icon { flex-shrink: 0; font-size: 1.05rem; }
+.alert .alert-text { flex: 1; }
+.alert.danger  { background: color-mix(in srgb, var(--error) 8%, transparent);
+                 border-color: color-mix(in srgb, var(--error) 28%, transparent);
+                 color: var(--on-danger); }
+.alert.warning { background: color-mix(in srgb, var(--warning) 8%, transparent);
+                 border-color: color-mix(in srgb, var(--warning) 28%, transparent);
+                 color: var(--on-warning); }
+.alert.info    { background: color-mix(in srgb, var(--info) 8%, transparent);
+                 border-color: color-mix(in srgb, var(--info) 28%, transparent);
+                 color: var(--on-info); }
+.alert.success { background: color-mix(in srgb, var(--success) 8%, transparent);
+                 border-color: color-mix(in srgb, var(--success) 28%, transparent);
+                 color: var(--on-success); }
+
+/* ── Badge manquant ───────────────────────────────────────────────────────
+   `badge-error` est utilisé dans pronostic_form.ejs mais n'était défini
+   nulle part : le badge « LOSS » s'affichait sans style d'échec. Alias de
+   badge-err, conservé pour ne pas casser les usages existants. */
+.badge-error { background: rgba(239,68,68,.15); color: var(--on-danger); }
+
+/* ── Statut : point coloré + libellé ──────────────────────────────────────
+   Moins bruyant qu'une pastille pleine répétée sur chaque ligne. */
+.status { display: inline-flex; align-items: center; gap: .4rem; white-space: nowrap; }
+.status::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+.status.ok, .status.pub      { color: var(--on-success); }
+.status.warn, .status.draft  { color: var(--on-warning); }
+.status.off, .status.none    { color: var(--text-dim); }
+.status.err, .status.live    { color: var(--on-danger); }
+.status.live::before { animation: status-pulse 1.6s infinite; }
+@keyframes status-pulse { 0%,100% { opacity: 1 } 50% { opacity: .25 } }
+@media (prefers-reduced-motion: reduce) { .status.live::before { animation: none } }
+
+/* ── Tableau de données unifié ────────────────────────────────────────────
+   Un seul composant pour les listes, aujourd'hui réécrites page par page.
+   Tri, sélection multiple, actions au survol, densité réglable. */
+.dt-wrap { background: var(--surface); border: 1px solid var(--border);
+           border-radius: var(--radius); overflow: hidden; }
+.dt-scroll { overflow: auto; }
+.dt { width: 100%; border-collapse: collapse; font-size: 13px; }
+.dt thead th {
+  position: sticky; top: 0; z-index: 2; background: var(--surface-d);
+  text-align: left; color: var(--text-m); font-size: 11px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .5px; padding: 9px 12px;
+  border-bottom: 1px solid var(--border); white-space: nowrap;
+}
+.dt th.sortable { cursor: pointer; user-select: none; }
+.dt th.sortable:hover { color: var(--text); }
+.dt th .arrow { opacity: .3; margin-left: 4px; }
+.dt th[aria-sort] .arrow { opacity: 1; color: var(--primary-texte); }
+.dt td { padding: 6px 12px; border-bottom: .5px solid var(--border);
+         vertical-align: middle; line-height: 1.35; }
+/* Le padding par défaut de .btn est pensé pour les formulaires ; dans une
+   ligne de tableau il dictait à lui seul la hauteur (58 px au lieu de 35). */
+.dt .btn { padding: 3px 8px; font-size: 11.5px; }
+.dt tbody tr:hover td { background: rgba(var(--primary-rgb), .05); }
+.dt tbody tr[data-selected] td { background: rgba(var(--primary-rgb), .09); }
+.dt .num { text-align: right; font-variant-numeric: tabular-nums; }
+.dt .col-check { width: 34px; }
+.dt .col-act { width: 1%; white-space: nowrap; text-align: right; }
+.dt input[type=checkbox] { width: auto; }
+
+.dt-wrap[data-density=compact] .dt td       { padding: 2px 12px; }
+.dt-wrap[data-density=compact] .dt thead th { padding: 5px 12px; }
+.dt-wrap[data-density=compact] .dt .btn     { padding: 1px 7px; }
+
+/* Actions révélées au survol : les afficher en permanence saturait l'écran
+   (4 boutons x 15 lignes). Toujours visibles au tactile et au clavier. */
+.row-act { display: flex; gap: .25rem; justify-content: flex-end;
+           opacity: 0; transition: opacity .12s; }
+.dt tbody tr:hover .row-act, .dt tbody tr:focus-within .row-act { opacity: 1; }
+@media (hover: none) { .row-act { opacity: 1; } }
+
+/* Barre d'actions groupées — aucune liste n'en proposait. */
+.bulkbar {
+  display: none; align-items: center; gap: .6rem; padding: .55rem .9rem;
+  background: rgba(var(--primary-rgb), .12);
+  border-bottom: 1px solid color-mix(in srgb, var(--primary) 30%, transparent);
+  font-size: .83rem;
+}
+.bulkbar[data-on] { display: flex; }
+/* `--primary` sur le fond orangé translucide de la barre tombe à 1,86:1 en
+   thème clair ; `--on-warning` est le ton calibré pour les deux thèmes. */
+.bulkbar .count { font-weight: 700; color: var(--on-warning); }
+.bulkbar .spacer { margin-left: auto; }
+
+/* ── Équipes (listes de matchs) ───────────────────────────────────────── */
+/* Les noms d'équipe ne doivent jamais revenir à la ligne : une hauteur de
+   ligne variable rend le tableau illisible en balayage vertical. On tronque
+   plutôt, le nom complet restant accessible en infobulle. */
+.team { display: flex; align-items: center; gap: .45rem; min-width: 0;
+        white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.team-logo { width: 18px; height: 18px; border-radius: 50%; background: var(--surface-h);
+             display: grid; place-items: center; font-size: 9px; flex-shrink: 0;
+             object-fit: contain; }
+.matchcell { display: flex; align-items: center; gap: .5rem; min-width: 0; }
+.matchcell .team { flex: 1 1 0; }
+.matchcell .team:last-child { justify-content: flex-start; }
+.matchcell .vs { color: var(--text-dim); font-size: .72rem; }
+.dt-wrap[data-density=compact] .team-logo { width: 16px; height: 16px; }
+
+/* Ligne d'en-tête de groupe dans un tableau (regroupement par championnat). */
+.dt tr.dt-group td {
+  background: var(--surface-d); padding: 5px 12px;
+  font-size: .72rem; text-transform: uppercase; letter-spacing: .6px;
+  color: var(--text-m); font-weight: 700;
+  border-top: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.dt tr.dt-group img { width: 15px; height: 15px; vertical-align: -3px; margin-right: .35rem; }
+.dt tr.dt-group .n { color: var(--text-dim); font-weight: 500; text-transform: none; letter-spacing: 0; }
+.dt tbody tr:hover.dt-group td { background: var(--surface-d); }
+
+/* Accent de ligne selon l'état — remplace la bordure colorée des cartes. */
+.dt tbody tr.is-live  td:first-child { box-shadow: inset 3px 0 0 var(--error); }
+.dt tbody tr.is-pub   td:first-child { box-shadow: inset 3px 0 0 var(--success); }
+.dt tbody tr.is-draft td:first-child { box-shadow: inset 3px 0 0 var(--warning); }
+.dt .when { white-space: nowrap; color: var(--text-m); }
+.dt .when.live { color: var(--on-danger); font-weight: 700; }
+.dt .when.soon { color: var(--on-warning); font-weight: 600; }
+.dt .score { font-weight: 900; font-variant-numeric: tabular-nums; }
+
+/* ── Sous-navigation d'une section ─────────────────────────────────────────
+   Trois écrans de paiement partageaient un même sujet en occupant trois
+   entrées de la barre latérale. Ils forment désormais une section, et ces
+   onglets servent à circuler entre eux. */
+.sous-onglets { display: flex; gap: .3rem; flex-wrap: wrap; margin-bottom: 1rem;
+                border-bottom: 1px solid var(--border); padding-bottom: .1rem; }
+.sous-onglet  { display: inline-flex; align-items: center; gap: .4rem;
+                padding: .5rem .85rem; border-radius: 10px 10px 0 0;
+                font-size: .84rem; font-weight: 700; color: var(--text-m);
+                text-decoration: none; border-bottom: 2px solid transparent;
+                transition: color .15s, background .15s; }
+.sous-onglet:hover { color: var(--text); background: var(--surface-d); }
+.sous-onglet.on    { color: var(--primary-texte); border-bottom-color: var(--primary);
+                     background: var(--surface); }
+
+
+/* Lisibilité et parcours de traitement — commun aux deux thèmes. */
+.sidebar-section, .sidebar-logo small { font-size: 11px; letter-spacing: 1px; }
+.nav-item { font-size: 14px; }
+.bottom-nav-item, .bottom-nav-fab-lbl { font-size: 11px; text-transform: none; }
+.btn-success, .btn-success:hover { color: var(--on-success); }
+.btn-danger, .btn-danger:hover { color: var(--on-danger); }
+.btn-warning, .btn-warning:hover { color: var(--on-warning); }
+.row-act { opacity: 1; }
+.form-dirty { color: var(--on-warning); padding: .65rem 0; font-size: 13px; }
+.proof-workspace { display: grid; grid-template-columns: minmax(220px, 280px) minmax(0, 1fr); gap: 18px; align-items: start; }
+.proof-queue { display: none; }
+.proof-workspace[data-enhanced] .proof-queue { display: block; position: sticky; top: 20px; max-height: calc(100vh - 40px); overflow: auto; }
+.proof-queue h3 { font-size: 14px; margin-bottom: 10px; }
+.proof-select { display: flex; flex-direction: column; gap: 6px; width: 100%; padding: 16px; margin-bottom: 8px; text-align: left; border: 1px solid var(--border-s); border-radius: 10px; background: var(--surface); color: var(--text); font: inherit; cursor: pointer; overflow-wrap: anywhere; }
+.proof-select small { color: var(--text-m); font-size: 12px; }
+.proof-select[aria-pressed=true] { border-color: var(--primary); box-shadow: inset 3px 0 var(--primary); background: var(--surface-h); }
+.proof-select[hidden] { display: none; }
+.proof-workspace[data-enhanced] .pf-card:not([data-current]) { display: none; }
+.proof-detail { min-width: 0; }
+.proof-heading { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; padding: 16px; background: var(--surface-d); border-bottom: 1px solid var(--border); }
+.proof-columns { display: grid; grid-template-columns: 1fr 1fr; }
+.proof-decision { grid-column: 1 / -1; border-top: 1px solid var(--border); }
+.proof-decision form { max-width: 680px; }
+.proof-decision input, .proof-decision textarea, .proof-decision select { font-size: 14px; }
+.proof-actions { display: flex; flex-wrap: wrap; gap: 10px; padding-top: 10px; }
+.proof-error { color: var(--on-danger); font-size: 13px; }
+.proof-hint { color: var(--text-m); font-size: 13px; }
+@media(max-width:1100px) {
+  .proof-workspace { grid-template-columns: 1fr; }
+  .proof-workspace[data-enhanced] .proof-queue { position: static; max-height: 260px; }
+}
+@media(max-width:600px) {
+  .proof-columns { grid-template-columns: 1fr; }
+  .proof-actions .btn { flex: 1 1 100%; min-height: 44px; }
+  .btn-sm, .btn-xs { min-height: 44px; }
+}
+
+.proof-workspace:not([data-enhanced]) { display: block; }
+/* Accents lisibles sur les surfaces claires. */
+html.light { --primary: #A23D0C; --purple: #6D28D9; }
+html.light[data-accent="orange"] { --primary: #A23D0C; }
+html.light[data-accent="blue"] { --primary: #1D4ED8; }
+html.light[data-accent="green"] { --primary: #047857; }
+html.light[data-accent="purple"] { --primary: #6D28D9; }
+html.light[data-accent="pink"] { --primary: #BE185D; }

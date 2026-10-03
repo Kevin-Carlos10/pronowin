@@ -1,10 +1,20 @@
-﻿import 'package:flutter/material.dart';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/referral_provider.dart';
+import '../../domain/recompense_premium.dart';
+import '../../../../core/config/distribution_channel.dart';
+import '../../../../shared/utils/retour.dart';
+import '../../../../shared/utils/messages.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/parrainage';
+
 
 class RetraitParrainagePage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? data;
@@ -54,22 +64,47 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
       if (s is WithdrawError)   _showError(s.message);
     });
 
+    // Second verrou, au cas où l'écran serait atteint autrement que par le
+    // bouton — un lien profond, une route restaurée. Masquer l'entrée ne
+    // suffit pas à fermer une porte.
+    //
+    // Ce verrou renvoyait un écran d'explication et rien d'autre. Il fermait
+    // bien le versement en argent, mais il fermait aussi la conversion en
+    // jours Premium — celle-là même que son texte annonçait. Les récompenses
+    // s'accumulaient alors sans aucune issue, et l'écran disait le contraire.
+    //
+    // Il ne reste donc que l'onglet Crédit Premium, sans barre d'onglets :
+    // créditer du temps d'abonnement n'est pas un versement, et c'est la
+    // seule promesse que cette version peut tenir.
+    if (ref.watch(isStoreBuildProvider)) {
+      return Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            onPressed: () => retourOuAller(context, repli: _repli),
+          ),
+          title:  Text(tr(context, "Convertir mes récompenses")),
+        ),
+        body: _buildCreditTab(earnings, withdrawState),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
+          onPressed: () => retourOuAller(context, repli: _repli),
         ),
-        title: const Text('Retirer mes gains'),
+        title:  Text(tr(context, "Retirer mes récompenses")),
         bottom: TabBar(
           controller: _tab,
           indicatorColor: Color(0xFFA78BFA),
           labelColor:     Color(0xFFA78BFA),
           unselectedLabelColor: context.cl.textS,
           labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
-          tabs: const [
+          tabs:  [
             Tab(icon: Icon(Icons.phone_android_rounded, size: 16), text: 'Mobile Money'),
-            Tab(icon: Icon(Icons.workspace_premium_rounded, size: 16), text: 'Crédit Premium'),
+            Tab(icon: Icon(Icons.workspace_premium_rounded, size: 16), text: tr(context, "Crédit Premium")),
           ],
         ),
       ),
@@ -96,7 +131,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
           const Icon(Icons.account_balance_wallet_rounded, color: Color(0xFFA78BFA), size: 24),
           const SizedBox(width: 12),
           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Solde disponible', style: TextStyle(color: context.cl.textS, fontSize: 12)),
+            Text(tr(context, "Solde disponible"), style: TextStyle(color: context.cl.textS, fontSize: 12)),
             TweenAnimationBuilder<int>(
               tween: IntTween(begin: 0, end: earnings),
               duration: const Duration(milliseconds: 900),
@@ -109,7 +144,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
       ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.08, end: 0),
       const SizedBox(height: 20),
 
-      _FieldLabel('Montant à retirer (FCFA)'),
+      _FieldLabel(tr(context, "Montant à retirer (FCFA)")),
       TextField(
         controller: _amountCtrl,
         keyboardType: TextInputType.number,
@@ -117,13 +152,13 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
         decoration: InputDecoration(
           hintText: '$minWithdraw',
           prefixIcon: Icon(Icons.payments_rounded, size: 20, color: context.cl.textM),
-          helperText: 'Minimum $minWithdraw FCFA',
+          helperText: tr(context, "Minimum {arg0} FCFA", [minWithdraw]),
           helperStyle: TextStyle(color: context.cl.textM, fontSize: 11),
         ),
       ),
       const SizedBox(height: 20),
 
-      _FieldLabel('Méthode de paiement'),
+      _FieldLabel(tr(context, "Méthode de paiement")),
       ...['orange_money', 'moov_money', 'mtn_momo'].map((m) => _MethodTile(
         method: m,
         selected: _method == m,
@@ -131,7 +166,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
       )),
       const SizedBox(height: 20),
 
-      _FieldLabel('Numéro de réception'),
+      _FieldLabel(tr(context, "Numéro de réception")),
       Row(children: [
         GestureDetector(
           onTap: _showCountryPicker,
@@ -144,7 +179,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
               Text(_country['flag'] as String, style: const TextStyle(fontSize: 20)),
               SizedBox(width: 6),
               Text(_country['code'] as String, style: TextStyle(
-                color: AppColors.primary, fontWeight: FontWeight.w700, fontSize: 15)),
+                color: context.cl.accent, fontWeight: FontWeight.w700, fontSize: 15)),
               SizedBox(width: 4),
               Icon(Icons.arrow_drop_down_rounded, color: context.cl.textM, size: 18),
             ]),
@@ -171,7 +206,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
               ? const SizedBox(width: 18, height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : const Icon(Icons.send_rounded, size: 20),
-          label: const Text('Demander le virement'),
+          label:  Text(tr(context, "Demander le virement")),
           style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFA78BFA)),
         ),
       ),
@@ -179,10 +214,13 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
   }
 
   Widget _buildCreditTab(int earnings, WithdrawState state) {
-    final premiumDays = ((earnings / 5000) * 30).floor();
+    final premiumDays = joursPremiumPour(earnings);
+    final estStore    = ref.watch(isStoreBuildProvider);
 
     return ListView(padding: const EdgeInsets.all(20), children: [
-      Container(
+      // Carte toujours sombre : son contenu lit le thème sombre, sinon les
+      // couleurs d'état et les gris passent à leurs variantes pour fond blanc.
+      SurfaceSombre(builder: (context) => Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           gradient: const LinearGradient(
@@ -197,17 +235,27 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
             tween: IntTween(begin: 0, end: premiumDays),
             duration: const Duration(milliseconds: 800),
             curve: Curves.easeOutCubic,
-            builder: (_, v, _) => Text('$v jours Premium', style: const TextStyle(
-              color: AppColors.primaryLight, fontSize: 28, fontWeight: FontWeight.w800)),
+            builder: (_, v, _) => Text(tr(context, "{arg0} jours Premium", [v]), style: TextStyle(
+              color: context.cl.dore, fontSize: 28, fontWeight: FontWeight.w800)),
           ),
           const SizedBox(height: 6),
-          Text('pour tes $earnings FCFA de gains', style: const TextStyle(
-            color: Color(0xFFCBD5E1), fontSize: 14)),
-          const SizedBox(height: 8),
-          const Text('(1 000 FCFA = 6 jours Premium)', style: TextStyle(
-            color: Color(0xFF8892AA), fontSize: 12)),
+          // Le canal store ne chiffre jamais les récompenses en monnaie : ce
+          // qu'il crédite, c'est du temps d'abonnement, et le dire en francs
+          // rhabille une fidélité en versement.
+          Text(
+            estStore
+                ? tr(context, "pour tes récompenses de parrainage")
+                : tr(context, "pour tes {arg0} FCFA de récompenses", [earnings]),
+            style: const TextStyle(color: Color(0xFFCBD5E1), fontSize: 14)),
+          if (!estStore) ...[
+            const SizedBox(height: 8),
+            // Rapport dérivé de la constante, plus recopié à la main : le
+            // libellé « 1 000 FCFA = 6 jours » vieillissait tout seul.
+            Text(tr(context, "({arg0} FCFA = 30 jours Premium)", [prixMensuelPremiumFCFA]),
+              style: const TextStyle(color: Color(0xFF8892AA), fontSize: 12)),
+          ],
         ]),
-      ).animate().fadeIn(duration: 400.ms)
+      )).animate().fadeIn(duration: 400.ms)
        .scale(begin: const Offset(0.96, 0.96), end: const Offset(1, 1),
            duration: 400.ms, curve: Curves.easeOutBack),
       const SizedBox(height: 20),
@@ -215,15 +263,13 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
       Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.success.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.success.withValues(alpha: 0.2))),
+          color: context.cl.success.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: context.cl.success.withValues(alpha: 0.2))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('✅ Avantages du crédit Premium', style: TextStyle(
-            color: AppColors.success, fontSize: 13, fontWeight: FontWeight.w600)),
+           Text(tr(context, "✅ Avantages du crédit Premium"), style: TextStyle(
+            color: context.cl.success, fontSize: 13, fontWeight: FontWeight.w600)),
           SizedBox(height: 8),
-          Text('• Activation immédiate, sans attente\n'
-               '• Ajouté à ton abonnement existant\n'
-               '• Pas de frais de traitement',
+          Text(tr(context, "• Activation immédiate, sans attente\n• Ajouté à ton abonnement existant\n• Pas de frais de traitement"),
             style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.6)),
         ]),
       ),
@@ -237,7 +283,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
               ? const SizedBox(width: 18, height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
               : const Icon(Icons.workspace_premium_rounded, size: 20),
-          label: Text('Convertir en $premiumDays jours Premium'),
+          label: Text(tr(context, "Convertir en {arg0} jours Premium", [premiumDays])),
         ),
       ),
     ]);
@@ -251,12 +297,12 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
       builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
         Container(width: 40, height: 4, margin: EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(color: context.cl.borderS, borderRadius: BorderRadius.circular(2))),
-        Text('Choisis ton pays', style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
+        Text(tr(context, "Choisis ton pays"), style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
         SizedBox(height: 8),
         ..._countries.map((c) => ListTile(
           leading: Text(c['flag'] as String, style: TextStyle(fontSize: 24)),
           title: Text(c['code'] as String, style: TextStyle(color: context.cl.textP)),
-          trailing: Text('${c['digits']} chiffres', style: TextStyle(color: context.cl.textM, fontSize: 12)),
+          trailing: Text(tr(context, "{arg0} chiffres", [c['digits']]), style: TextStyle(color: context.cl.textM, fontSize: 12)),
           onTap: () { setState(() => _country = c); Navigator.pop(context); },
         )),
         const SizedBox(height: 12),
@@ -266,8 +312,8 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
 
   void _submitMobileMoney() {
     final amount = int.tryParse(_amountCtrl.text) ?? 0;
-    if (amount < 1) { _showError('Entrez un montant valide.'); return; }
-    if (_phoneCtrl.text.length < 7) { _showError('Numéro de téléphone invalide.'); return; }
+    if (amount < 1) { _showError(tr(context, "Entrez un montant valide.")); return; }
+    if (_phoneCtrl.text.length < 7) { _showError(tr(context, "Numéro de téléphone invalide.")); return; }
     final phone = '${_country['code']}${_phoneCtrl.text.trim()}';
     ref.read(withdrawProvider.notifier).withdraw(
       amount: amount.toDouble(), method: _method, phone: phone, useAsCredit: false);
@@ -298,9 +344,9 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
           Container(
             width: 80, height: 80,
             decoration: BoxDecoration(
-              color: AppColors.success,
+              color: AppColors.fondSucces,
               shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: AppColors.success.withValues(alpha: 0.35),
+              boxShadow: [BoxShadow(color: context.cl.success.withValues(alpha: 0.35),
                 blurRadius: 20, offset: const Offset(0, 8))],
             ),
             child: const Icon(Icons.check_rounded, color: Colors.white, size: 40),
@@ -309,7 +355,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
                duration: 500.ms, curve: Curves.easeOutBack)
            .fadeIn(duration: 400.ms),
           const SizedBox(height: 20),
-          Text('Demande envoyée !', style: TextStyle(
+          Text(tr(context, "Demande envoyée !"), style: TextStyle(
             color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
           const SizedBox(height: 10),
           Text(msg, style: TextStyle(
@@ -322,14 +368,15 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
               onPressed: () {
                 ref.read(withdrawProvider.notifier).reset();
                 ref.invalidate(referralStatsProvider);
-                context.pop(); context.pop();
+                context.pop();
+                retourOuAller(context, repli: _repli);
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.success,
+                backgroundColor: AppColors.fondSucces,
                 foregroundColor: Colors.white,
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
-              child: const Text('Parfait, fermer', style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              child:  Text(tr(context, "Parfait, fermer"), style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
             ),
           ),
         ]),
@@ -338,10 +385,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg), backgroundColor: AppColors.error,
-      behavior: SnackBarBehavior.floating,
-    ));
+    afficherMessage(context, msg, type: TypeMessage.erreur);
     ref.read(withdrawProvider.notifier).reset();
   }
 }

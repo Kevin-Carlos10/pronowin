@@ -10,16 +10,16 @@ Failure handleDioException(DioException e, {String? context}) {
 
   switch (e.type) {
     case DioExceptionType.connectionTimeout:
-      failure = const NetworkFailure('Connexion trop lente. Vérifie ton réseau.');
+      failure =  NetworkFailure("Connexion trop lente. Vérifie ton réseau.");
       break;
     case DioExceptionType.receiveTimeout:
-      failure = const NetworkFailure('Le serveur met trop de temps à répondre.');
+      failure =  NetworkFailure("Le serveur met trop de temps à répondre.");
       break;
     case DioExceptionType.sendTimeout:
-      failure = const NetworkFailure('Envoi de données trop lent. Vérifie ta connexion.');
+      failure =  NetworkFailure("Envoi de données trop lent. Vérifie ta connexion.");
       break;
     case DioExceptionType.connectionError:
-      failure = const NetworkFailure('Impossible de joindre le serveur. Vérifie ton réseau.');
+      failure =  NetworkFailure("Impossible de joindre le serveur. Vérifie ton réseau.");
       break;
     case DioExceptionType.badResponse:
       final status  = e.response?.statusCode;
@@ -27,17 +27,17 @@ Failure handleDioException(DioException e, {String? context}) {
       if (status == 401) {
         failure = const UnauthorizedFailure();
       } else if (status == 403) {
-        failure = const ServerFailure('Accès refusé.');
+        failure =  ServerFailure("Accès refusé.");
       } else if (status == 404) {
-        failure = const ServerFailure('Ressource introuvable.');
+        failure = const NotFoundFailure();
       } else if (status == 429) {
-        failure = const ServerFailure('Trop de requêtes. Réessaie dans quelques secondes.');
+        failure =  ServerFailure("Trop de requêtes. Réessaie dans quelques secondes.");
       } else if (status != null && status >= 500) {
-        failure = ServerFailure('Erreur serveur ($status). Réessaie plus tard.');
+        failure = ServerFailure("Erreur serveur ({arg0}). Réessaie plus tard.", [status]);
         CrashlyticsService.recordError(e, e.stackTrace,
             context: 'HTTP $status${context != null ? " · $context" : ""}');
       } else {
-        failure = ServerFailure(msg ?? 'Erreur inattendue ($status).');
+        failure = msg == null ? ServerFailure("Erreur inattendue ({arg0}).", [status]) : ServerFailure(msg);
       }
       break;
     case DioExceptionType.cancel:

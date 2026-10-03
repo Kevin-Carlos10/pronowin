@@ -1,8 +1,12 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/utils/bilan_paris.dart';
 import '../providers/compte_provider.dart';
+import '../../../../shared/utils/rafraichir.dart';
+import '../../../../shared/widgets/erreur_chargement.dart';
 
 class StatsPage extends ConsumerWidget {
   const StatsPage({super.key});
@@ -20,13 +24,27 @@ class StatsPage extends ConsumerWidget {
           icon: const Icon(Icons.arrow_back_ios_new_rounded),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Mes statistiques',
+        title:  Text(tr(context, "Mes statistiques"),
             style: TextStyle(fontWeight: FontWeight.w700, fontSize: 18)),
       ),
       body: statsAsync.when(
+        skipError: true,
         loading: () => const Center(child: CircularProgressIndicator()),
-        error:   (e, _) => Center(child: Text('Erreur : $e')),
-        data:    (stats) => _StatsBody(stats: stats),
+        // L'erreur brute (« Erreur : DioException [connection timeout]… »)
+        // ne disait rien d'utile et ne proposait rien.
+        error:   (e, _) => ErreurChargement(
+          erreur: e,
+          quoi: tr(context, "tes statistiques"),
+          onRetry: () => ref.invalidate(userStatsProvider),
+        ),
+        data:    (stats) => _StatsBody(
+          stats: stats,
+          onRefresh: () async {
+            ref.invalidate(userStatsProvider);
+            final reussi = await attendreChargements([ref.read(userStatsProvider.future)]);
+            if (!reussi && context.mounted) signalerActualisationImpossible(context);
+          },
+        ),
       ),
     );
   }
@@ -35,13 +53,18 @@ class StatsPage extends ConsumerWidget {
 // ─── Corps principal ──────────────────────────────────────────────────────────
 class _StatsBody extends StatelessWidget {
   final Map<String, dynamic> stats;
-  const _StatsBody({required this.stats});
+  final Future<void> Function() onRefresh;
+  const _StatsBody({required this.stats, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
     final suivis      = (stats['pronostics_suivis'] as num?)?.toInt()  ?? 0;
     final gagnes      = (stats['paris_gagnes']      as num?)?.toInt()  ?? 0;
     final perdus      = (stats['paris_perdus']      as num?)?.toInt()  ?? 0;
+    // `suivis - gagnés - perdus` comptait les remboursés comme « en attente » :
+    // des paris dont le résultat était tombé, et dont la mise avait été
+    // recréditée. La règle vit dans `BilanParis`, pas ici.
+    final bilan       = BilanParis.depuisApi(stats);
     final taux        = (stats['taux_reussite']     as num?)?.toDouble() ?? 0.0;
     final serie       = (stats['serie_gagnante']    as num?)?.toInt()  ?? 0;
     final bestSerie   = (stats['meilleure_serie']   as num?)?.toInt()  ?? 0;
@@ -53,72 +76,72 @@ class _StatsBody extends StatelessWidget {
     final leagues     = (stats['league_stats']      as List<dynamic>?) ?? [];
 
     return RefreshIndicator(
-      color: const Color(0xFFFF6B35),
-      onRefresh: () async {},
+      color: AppColors.primary,
+      onRefresh: onRefresh,
       child: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
           // ── KPIs top ─────────────────────────────────────────────────────
-          _SectionTitle('PERFORMANCE GLOBALE'),
+          _SectionTitle(tr(context, "PERFORMANCE GLOBALE")),
           const SizedBox(height: 10),
           Row(children: [
             Expanded(child: _KpiCard(
-              label: 'Taux de réussite',
+              label: tr(context, "Taux de réussite"),
               value: '${taux.toStringAsFixed(0)}%',
               icon: Icons.percent_rounded,
-              color: taux >= 60 ? Colors.green : taux >= 45 ? Colors.orange : Colors.red,
-              sub: '$gagnes victoires / $perdus défaites',
+              color: taux >= 60 ? context.cl.success : taux >= 45 ? context.cl.warning : context.cl.error,
+              sub: tr(context, "{arg0} victoires / {arg1} défaites", [gagnes, perdus]),
             )),
             const SizedBox(width: 10),
             Expanded(child: _KpiCard(
-              label: 'ROI',
+              label: tr(context, "Rentabilité"),
               value: '${roi >= 0 ? '+' : ''}${roi.toStringAsFixed(1)}%',
               icon: Icons.trending_up_rounded,
-              color: roi >= 0 ? Colors.green : Colors.red,
-              sub: 'Retour sur investissement',
+              color: roi >= 0 ? context.cl.success : context.cl.error,
+              sub: tr(context, "Gain net pour 100 F misés"),
             )),
           ]),
           const SizedBox(height: 10),
           Row(children: [
             Expanded(child: _KpiCard(
-              label: 'Profit net',
+              label: tr(context, "Profit net"),
               value: '${profitNet >= 0 ? '+' : ''}${_fmt(profitNet)} F',
               icon: Icons.account_balance_wallet_rounded,
-              color: profitNet >= 0 ? Colors.green : Colors.red,
-              sub: 'Misé : ${_fmt(totalMise)} F',
+              color: profitNet >= 0 ? context.cl.success : context.cl.error,
+              sub: tr(context, "Misé : {arg0} F", [_fmt(totalMise)]),
             )),
             const SizedBox(width: 10),
             Expanded(child: _KpiCard(
-              label: 'Meilleure cote',
+              label: tr(context, "Meilleure cote"),
               value: bestOdds > 0 ? bestOdds.toStringAsFixed(2) : '–',
               icon: Icons.star_rounded,
-              color: const Color(0xFFFF6B35),
-              sub: 'Cote gagnée la + haute',
+              color: context.cl.accent,
+              sub: tr(context, "Cote gagnée la + haute"),
             )),
           ]),
           const SizedBox(height: 10),
           Row(children: [
             Expanded(child: _KpiCard(
-              label: 'Série actuelle',
+              label: tr(context, "Série actuelle"),
               value: serie > 0 ? '🔥 $serie' : '$serie',
               icon: Icons.local_fire_department_rounded,
-              color: serie >= 5 ? Colors.orange : const Color(0xFFFF6B35),
-              sub: 'Record : $bestSerie victoires',
+              color: serie >= 5 ? context.cl.warning : context.cl.accent,
+              sub: tr(context, "Record : {arg0} victoires", [bestSerie]),
             )),
             const SizedBox(width: 10),
             Expanded(child: _KpiCard(
-              label: 'Paris suivis',
+              label: tr(context, "Paris suivis"),
               value: '$suivis',
               icon: Icons.sports_score_rounded,
               color: const Color(0xFF6C63FF),
-              sub: '${suivis - gagnes - perdus} en attente',
+              sub: bilan.mentionRepartition,
             )),
           ]),
 
           // ── Graphe bankroll ───────────────────────────────────────────────
           if (history.isNotEmpty) ...[
             const SizedBox(height: 24),
-            _SectionTitle('ÉVOLUTION BANKROLL (30 JOURS)'),
+            _SectionTitle(tr(context, "ÉVOLUTION BANKROLL (30 JOURS)")),
             const SizedBox(height: 12),
             _BankrollChart(history: history),
           ],
@@ -126,7 +149,7 @@ class _StatsBody extends StatelessWidget {
           // ── Stats par ligue ───────────────────────────────────────────────
           if (leagues.isNotEmpty) ...[
             const SizedBox(height: 24),
-            _SectionTitle('PERFORMANCE PAR COMPÉTITION'),
+            _SectionTitle(tr(context, "PERFORMANCE PAR COMPÉTITION")),
             const SizedBox(height: 12),
             ...leagues.map((l) => _LeagueRow(league: l as Map<String, dynamic>)),
           ],
@@ -210,7 +233,7 @@ class _BankrollChart extends StatelessWidget {
     final maxY = spots.map((s) => s.y).reduce((a, b) => a > b ? a : b);
     final pad  = (maxY - minY) * 0.15;
     final isPos = spots.last.y >= spots.first.y;
-    final lineColor = isPos ? Colors.green : Colors.red;
+    final lineColor = isPos ? context.cl.success : context.cl.error;
 
     return Container(
       height: 200,
@@ -297,7 +320,7 @@ class _LeagueRow extends StatelessWidget {
     final total = (league['total'] as num?)?.toInt() ?? 0;
     final wins  = (league['wins']  as num?)?.toInt() ?? 0;
     final taux  = (league['taux']  as num?)?.toInt() ?? 0;
-    final color = taux >= 60 ? Colors.green : taux >= 45 ? Colors.orange : Colors.red;
+    final color = taux >= 60 ? context.cl.success : taux >= 45 ? context.cl.warning : context.cl.error;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
@@ -312,7 +335,7 @@ class _LeagueRow extends StatelessWidget {
           Text(name, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
               overflow: TextOverflow.ellipsis),
           const SizedBox(height: 2),
-          Text('$total paris · $wins victoires',
+          Text(tr(context, "{arg0} paris · {arg1} victoires", [total, wins]),
               style: TextStyle(fontSize: 11, color: context.cl.textS)),
         ])),
         const SizedBox(width: 12),

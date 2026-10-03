@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0c101b">
+  <title><%= site.name %> — <%= site.tagline %></title>
+  <meta name="description" content="Analyses de football, données de match, scores en direct et suivi de bankroll. Découvrez PronoWin, ses fonctionnalités gratuites et ses formules Premium.">
+  <link rel="canonical" href="<%= site.siteUrl %>/">
+  <meta property="og:title" content="PronoWin — <%= site.tagline %>">
+  <meta property="og:description" content="Préparez vos matchs, suivez le direct et gardez une vue claire sur vos pronostics. Découvrez l’application PronoWin.">
+  <meta property="og:type" content="website">
+  <meta property="og:locale" content="fr_FR">
+  <meta property="og:site_name" content="<%= site.name %>">
+  <meta property="og:url" content="<%= site.siteUrl %>/">
+  <%# L'aperçu affiché quand le lien est partagé sur WhatsApp ou Telegram — les canaux de PronoWin. Sans lui, le lien arrivait sans image. %>
+  <meta property="og:image" content="<%= site.siteUrl %>/images/apercu-partage.jpg">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="PronoWin : le football, un regard d’avance. Analyses de matchs, score en direct et bankroll.">
+  <meta name="twitter:card" content="summary_large_image">
+  <% if (appStoreId) { %><meta name="apple-itunes-app" content="app-id=<%= appStoreId %>"><% } %>
+  <script type="application/ld+json"><%- donneesStructurees %></script>
+  <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
+  <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
+  <link rel="stylesheet" href="/css/style.css?v=20260928">
+  <link rel="stylesheet" href="/css/experience.css?v=20260928b">
+  <script src="/js/experience.js?v=20260928b" defer></script>
+  <script src="/js/main.js?v=20260928" defer></script>
+</head>
+<body class="landing">
+  <% const enLigne = stores.length > 0; %>
+  <a class="skip-link" href="#contenu">Aller au contenu</a>
+  <div data-nav-sentinel aria-hidden="true"></div>
+  <header class="navbar">
+    <div class="container">
+      <a href="/" class="brand" aria-label="PronoWin, accueil"><img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="32" height="32"><span class="brand-name">Prono<span class="brand-win">Win</span></span></a>
+      <nav class="nav-links" aria-label="Navigation principale"><a href="#fonctionnalites">L’application</a><a href="#parcours">Comment ça marche</a><a href="#tarifs">Tarifs</a><a href="#faq">FAQ</a></nav>
+      <div class="nav-actions">
+        <button type="button" class="motion-toggle" data-motion-toggle aria-pressed="true" aria-label="Animations" hidden><span class="motion-bars" aria-hidden="true"><i></i><i></i><i></i></span><span data-motion-label>Animations</span></button>
+        <a href="#telecharger" class="nav-cta"><%= enLigne ? 'Obtenir l’app' : 'Suivre le lancement' %> <%- include('partials/icon', { name: 'arrow', size: 16 }) %></a>
+        <button class="nav-toggle" type="button" aria-label="Ouvrir le menu" aria-expanded="false" aria-controls="mobile-menu" hidden><%- include('partials/icon', { name: 'menu', size: 22 }) %></button>
+      </div>
+    </div>
+    <nav class="mobile-nav" id="mobile-menu" aria-label="Navigation mobile" hidden><div class="container">
+      <a href="#fonctionnalites">L’application</a>
+      <a href="#parcours">Comment ça marche</a>
+      <a href="#tarifs">Tarifs</a>
+      <a href="#faq">FAQ</a>
+      <a href="#telecharger"><%= enLigne ? 'Obtenir l’app' : 'Suivre le lancement' %></a>
+    </div></nav>
+  </header>
+  <main id="contenu" tabindex="-1">
+    <section class="hero" aria-labelledby="hero-title" data-motion-scene>
+      <div class="stadium-backdrop" aria-hidden="true"></div>
+      <div class="hero-aurora" aria-hidden="true"></div>
+      <div class="hero-grain" aria-hidden="true"></div>
+      <div class="container hero-layout">
+        <div class="hero-content">
+          <p class="eyebrow hero-kicker" data-reveal><span class="kicker-line"></span> Le football, sous un autre angle</p>
+          <h1 id="hero-title" data-reveal data-reveal-delay="60">Le football.<br>Un regard<br><span>d’avance.</span><span class="title-spark" aria-hidden="true">✳</span></h1>
+          <p class="hero-subtitle" data-reveal data-reveal-delay="140">Vivez le match. Comprenez les chiffres.<br>Vos analyses, le direct et votre bankroll,<br class="desktop-break"> réunis dans PronoWin.</p>
+          <div class="hero-cta" data-reveal data-reveal-delay="210"><a href="#telecharger" class="btn btn-primary"><%= enLigne ? 'Obtenir PronoWin' : 'Suivre le lancement' %> <span class="button-arrow"><%- include('partials/icon', { name: 'arrow', size: 18 }) %></span></a><a href="#experience" class="explore-link"><span class="play-icon" aria-hidden="true">▶</span> Explorer l’expérience</a></div>
+          <p class="hero-availability" data-reveal data-reveal-delay="260"><span class="availability-mark" aria-hidden="true">✓</span> <%= enLigne ? 'Disponible sur ' + stores.map(function (s) { return s.nom; }).join(' et ') + ' · Sélection gratuite' : 'Sortie sur les stores en préparation' %></p>
+        </div>
+        <figure class="hero-showcase" data-reveal data-reveal-delay="180">
+          <div class="showcase-orbit orbit-one" aria-hidden="true"></div><div class="showcase-orbit orbit-two" aria-hidden="true"></div>
+          <span class="showcase-coordinate" aria-hidden="true">PRONOWIN / MATCHDAY EXPERIENCE</span>
+          <div class="phone-perspective" data-tilt><div class="phone-frame"><img class="hero-app-shot" src="/images/app-ecran-accueil.jpg" alt="Écran d’accueil PronoWin : prochain match, compte à rebours, pronostic de l’analyste et son indice de confiance." width="612" height="1280" fetchpriority="high" decoding="async"></div></div>
+          <div class="floating-note note-analysis"><span class="note-icon"><%- include('partials/icon', { name: 'chart', size: 21 }) %></span><div><small>L’AVANT-MATCH</small><strong>Le détail fait la différence.</strong><span>Forme · Compositions · H2H</span></div></div>
+          <div class="floating-note note-live"><span class="live-pulse" aria-hidden="true"></span><div><small>AU CŒUR DU MATCH</small><strong>Le score évolue.<br>Vous restez dans le jeu.</strong></div><%- include('partials/icon', { name: 'ball', size: 27 }) %></div>
+          <figcaption>Aperçu de l’application · données illustratives</figcaption>
+        </figure>
+      </div>
+      <div class="hero-bottom"><div class="container"><span><span class="tiny-cross" aria-hidden="true">+</span> AVANT. PENDANT. APRÈS LE MATCH.</span><a href="#experience">Entrez dans l’expérience <span class="scroll-indicator" aria-hidden="true">↓</span></a><span class="hero-edition">FOOTBALL, EN PERSPECTIVE.</span></div></div>
+    </section>
+
+    <div class="brand-ribbon" aria-hidden="true" data-motion-scene><div class="ribbon-track"><% for (let n = 0; n < 2; n++) { %><span>ANALYSER <i>✳</i> COMPRENDRE <i>✳</i> SUIVRE <i>✳</i> PROGRESSER <i>✳</i></span><% } %></div></div>
+
+    <section id="experience" class="section experience-section" aria-labelledby="experience-title" data-motion-scene><div class="container">
+      <div class="section-heading" data-reveal><div><p class="eyebrow">01 / Entrez dans le jeu</p><h2 id="experience-title">Plus qu’un score.<br><span>Une vision du match.</span></h2></div><p>Chaque rencontre a son histoire.<br>Explorez les trois moments de votre expérience PronoWin.</p></div>
+      <div class="experience-shell" data-reveal>
+        <div class="stage-tabs" data-stage-controls hidden aria-label="Explorer les fonctionnalités"><button type="button" data-stage-tab="analyse"><span>01</span> Analyser</button><button type="button" data-stage-tab="direct"><span>02</span> Suivre le direct</button><button type="button" data-stage-tab="suivi"><span>03</span> Prendre du recul</button></div>
+        <% [{key:'analyse',index:1,title:'Lisez le match.',accent:'Avant le coup d’envoi.',text:'Une fiche pour comprendre ce qui compte : la forme des équipes, les compositions, les confrontations et les statistiques.'},{key:'direct',index:2,title:'Le match avance.',accent:'Vous suivez le rythme.',text:'Gardez les scores à portée de main. Retrouvez les informations du direct et les alertes de vos matchs dans l’application.'},{key:'suivi',index:3,title:'Vos choix méritent',accent:'une vue d’ensemble.',text:'Retrouvez votre budget, vos mises et votre historique. Prenez du recul sur vos résultats, match après match.'}].forEach(function(stage) { %>
+        <div class="stage-panel" data-stage-panel="<%= stage.key %>" id="stage-<%= stage.key %>">
+          <div class="stage-copy"><p class="eyebrow"><%= productBlocks[stage.index].eyebrow %></p><h3><%= stage.title %><br><span><%= stage.accent %></span></h3><p><%= stage.text %></p><ul class="stage-benefits"><% productBlocks[stage.index].apercu.forEach(function(item) { %><li><span><%- include('partials/icon', { name: item.icone, size: 18 }) %></span><%= item.titre %></li><% }) %></ul><a href="#fonctionnalites" class="text-link">Toutes les fonctionnalités <%- include('partials/icon', { name: 'arrow', size: 18 }) %></a></div>
+          <div class="stage-art" aria-hidden="true"><%- include('partials/experience-visual', { scene: stage.key }) %><span class="illustration-label">Illustration de l’expérience</span></div>
+        </div><% }) %>
+      </div>
+    </div></section>
+
+    <section id="fonctionnalites" class="section features-section" aria-labelledby="features-title"><div class="container">
+      <div class="section-heading"><div><p class="eyebrow">02 / Une app. Tout votre football.</p><h2 id="features-title">Tout se joue<br><span>dans les détails.</span></h2></div><p>De la première analyse au résultat final, gardez les informations utiles au même endroit.</p></div>
+      <div class="features-grid"><% productBlocks.forEach(function(block, i) { %>
+        <article class="feature-card" id="fonction-<%= i %>" data-reveal data-reveal-delay="<%= (i % 2) * 70 %>">
+          <span class="feature-index" aria-hidden="true">0<%= i + 1 %></span><div class="feature-top"><span class="feature-icon"><%- include('partials/icon', { name: block.icon, size: 25 }) %></span><span class="feature-label"><%= block.eyebrow %></span></div>
+          <div class="feature-decoration decoration-<%= i %>" aria-hidden="true"><% if (i === 0 || i === 3) { %><svg viewBox="0 0 340 105"><path class="decoration-base" d="M0 85H340M0 45H340M0 5H340"/><path class="decoration-curve" d="<%= i === 0 ? 'M0 78L32 70L64 75L94 45L125 53L154 25L184 42L215 30L245 42L277 12L310 20L340 7' : 'M0 65L35 45L72 62L106 39L143 56L178 42L215 62L250 48L290 67L340 54' %>"/></svg><% } else { %><span class="decoration-ring"></span><span class="decoration-ring"></span><% } %></div>
+          <h3><%= block.title.replace(/\n/g, ' ') %></h3><p class="feature-description"><%= block.text %></p>
+          <div class="feature-facts"><% block.stats.forEach(function(stat) { %><p><strong><%= stat.value %></strong><span><%= stat.label %></span></p><% }) %></div>
+        </article>
+      <% }) %></div>
+    </div></section>
+
+  <% if (bilan) { %>
+    <section class="performance-section" aria-labelledby="performance-title"><div class="container performance-card">
+      <div class="mega-number"><%= bilan.taux_reussite %>%</div>
+      <div><p class="eyebrow">Des résultats, en toute transparence</p><h2 id="performance-title">Le bilan des pronostics Premium.</h2><p>Taux de réussite sur les pronostics déjà tranchés, mesuré sur les <%= bilan.periode_jours %> derniers jours. Les résultats passés ne garantissent aucun gain futur.</p></div>
+    </div></section>
+  <% } %>
+
+    <section id="parcours" class="section journey-section" aria-labelledby="journey-title"><div class="container journey-layout">
+      <div class="journey-intro" data-reveal><p class="eyebrow">03 / Votre jour de match</p><h2 id="journey-title">Une lecture claire.<br>À chaque étape.</h2><p>Préparez vos choix, suivez vos matchs et prenez du recul sur vos résultats.</p><a href="#tarifs" class="text-link">Découvrir les formules <%- include('partials/icon', { name: 'arrow', size: 18 }) %></a></div>
+      <ol class="journey-steps">
+        <li data-reveal><span class="step-number">01</span><div><h3>Préparez votre analyse</h3><p>Consultez le pronostic, les compositions, les blessures et les confrontations précédentes.</p></div></li>
+        <li data-reveal><span class="step-number">02</span><div><h3>Restez dans le match</h3><p>Retrouvez les scores actualisés et les alertes utiles directement dans l’application.</p></div></li>
+        <li data-reveal><span class="step-number">03</span><div><h3>Gardez une vue d’ensemble</h3><p>Suivez votre budget, votre historique et les résultats de vos pronostics au fil du temps.</p></div></li>
+      </ol>
+    </div></section>
+
+  <!-- Pricing -->
+    <section id="tarifs" class="section pricing-section" aria-labelledby="pricing-title"><div class="container">
+      <div class="section-heading"><div><p class="eyebrow">04 / À votre rythme</p><h2 id="pricing-title">Commencez gratuitement.<br>Allez plus loin avec Premium.</h2></div><p>Deux durées, le même accès Premium. Choisissez la formule qui vous convient dans l’application.</p></div>
+      <div class="pricing-grid"><% pricingPlans.forEach(function(plan) { %>
+        <article data-reveal class="pricing-card <%= plan.highlight ? 'pricing-card--highlight' : '' %>">
+          <div class="pricing-topline"><span class="plan-icon"><%- include('partials/icon', { name: plan.id === 'free' ? 'ball' : 'crown', size: 23 }) %></span><% if (plan.badge) { %><span class="pricing-badge"><%= plan.badge %></span><% } %></div>
+          <h3 class="pricing-name"><%= plan.name %></h3>
+          <% if (plan.price !== null) { %><div class="pricing-price"><%= plan.price %> <span>USD</span></div><% } else { %><div class="pricing-price pricing-price--absent">Voir le tarif dans l'application</div><% } %>
+          <p class="pricing-period"><%= plan.period %></p>
+          <ul class="pricing-features"><% plan.features.forEach(function(f) { %><li><%- include('partials/icon', { name: 'check', size: 17 }) %><span><%= f %></span></li><% }) %></ul>
+          <a href="#telecharger" class="btn <%= plan.highlight ? 'btn-primary' : 'btn-outline' %>" aria-label="<%= enLigne ? 'Accéder à ' + plan.name + ' dans l’application' : 'Voir la disponibilité de l’application pour ' + plan.name %>"><%= enLigne ? (plan.id === 'free' ? 'Commencer gratuitement' : 'Choisir cette formule') : 'Voir la disponibilité' %> <%- include('partials/icon', { name: 'arrow', size: 17 }) %></a>
+        </article>
+      <% }) %></div>
+      <p class="pricing-note">Tarifs de référence en USD. Le montant final, la devise et les conditions de renouvellement sont affichés dans l’application avant tout paiement.</p>
+      <details id="comparer" class="comparison-disclosure"><summary>Comparer toutes les fonctionnalités <%- include('partials/icon', { name: 'plus', size: 22 }) %></summary>
+        <p class="compare-hint">Faites défiler le tableau horizontalement pour voir les trois formules.</p>
+        <div class="compare-wrap" tabindex="0" role="region" aria-label="Comparaison des formules, tableau défilant"><table class="compare-table">
+          <caption class="sr-only">Fonctionnalités incluses dans chaque formule PronoWin</caption>
+          <thead><tr><th scope="col">Fonctionnalités</th><% pricingPlans.forEach(function(plan) { %><th scope="col"><%= plan.name %></th><% }) %></tr></thead>
+          <tbody>
+            <% comparisonRows.forEach(function(row) { %>
+            <tr><th scope="row"><%= row.label %></th><% row.values.forEach(function(v) { %><td><% if (v) { %><%- include('partials/icon', { name: 'check', size: 18 }) %><span class="sr-only">Inclus</span><% } else { %><span class="dash" aria-hidden="true">—</span><span class="sr-only">Non inclus</span><% } %></td><% }) %></tr>
+            <% }) %>
+          </tbody>
+        </table></div>
+      </details>
+    </div></section>
+
+    <section id="faq" class="section faq-section" aria-labelledby="faq-title"><div class="container faq-layout">
+      <div class="faq-intro" data-reveal><p class="eyebrow">05 / On vous répond</p><h2 id="faq-title">Tout ce qu’il<br>faut savoir.</h2><p>Une question avant de commencer ?<br>Notre équipe peut vous aider.</p><a class="text-link" href="mailto:<%= site.contactEmail %>">Nous contacter <%- include('partials/icon', { name: 'arrow', size: 18 }) %></a></div>
+      <div class="faq-list" data-reveal><% faqs.forEach(function(f) { %><details class="faq-item"><summary><%= f.q %><%- include('partials/icon', { name: 'plus', size: 21 }) %></summary><div class="faq-answer"><p><%= f.a %></p></div></details><% }) %></div>
+    </div></section>
+
+    <section id="telecharger" class="download-section" aria-labelledby="download-title"><div class="container download-card" data-reveal>
+      <div class="download-copy"><p class="eyebrow">Votre prochain match commence ici</p><h2 id="download-title">Le football vous passionne.<br><span>PronoWin vous accompagne.</span></h2><p><%= enLigne ? 'Retrouvez les analyses, le direct et votre suivi personnel dans l’application. Commencez avec la sélection gratuite.' : 'L’application arrive sur les stores. Retrouvez les annonces de disponibilité sur nos canaux officiels.' %></p></div>
+      <div class="download-actions">
+        <%# Une boutique publiée devient un lien ; les autres restent annoncées « bientôt ». %>
+        <div class="store-badges<%= enLigne ? '' : ' store-badges--soon' %>"><% [{ id: 'apple', nom: 'App Store', icone: 'apple' }, { id: 'play', nom: 'Google Play', icone: 'google-play' }].forEach(function (b) { const publie = stores.find(function (s) { return s.id === b.id; }); %><% if (publie) { %><a class="store-badge" href="<%= publie.url %>" target="_blank" rel="noopener noreferrer"><%- include('partials/icon', { name: b.icone, size: 28 }) %><span><small>Télécharger sur</small><strong><%= b.nom %></strong></span><%- include('partials/icon', { name: 'arrow', size: 18 }) %></a><% } else { %><span class="store-badge store-badge--soon"><%- include('partials/icon', { name: b.icone, size: 28 }) %><span><small><%= b.nom %></small><strong>Bientôt</strong></span></span><% } %><% }) %></div>
+        <div class="community-links">
+          <% if (site.telegramUrl) { %><a href="<%= site.telegramUrl %>" target="_blank" rel="noopener noreferrer"><%- include('partials/icon', { name: 'telegram', size: 18 }) %> Telegram <span class="sr-only">(nouvel onglet)</span></a><% } %>
+          <% if (site.whatsappUrl) { %><a href="<%= site.whatsappUrl %>" target="_blank" rel="noopener noreferrer"><%- include('partials/icon', { name: 'whatsapp', size: 18 }) %> WhatsApp <span class="sr-only">(nouvel onglet)</span></a><% } %>
+        </div>
+      </div>
+    </div></section>
+  </main>
+
+  <footer class="footer"><div class="container"><div class="footer-wordmark" aria-hidden="true"><span class="footer-word">Prono<span class="footer-win">Win</span></span><span class="wordmark-star">✳</span></div>
+    <div class="footer-top">
+      <div class="footer-brand"><a href="/" class="brand"><img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="32" height="32"><span class="brand-name">Prono<span class="brand-win">Win</span></span></a><p class="footer-tagline"><%= site.tagline %>.</p><span class="adult-label">18+ · Jouez de manière responsable</span></div>
+      <nav class="footer-col" aria-label="L’application"><h2 class="footer-col-title">L’application</h2><ul><li><a href="#fonctionnalites">Fonctionnalités</a></li><li><a href="#tarifs">Les formules</a></li><li><a href="#comparer">Comparer les offres</a></li><li><a href="#telecharger">Disponibilité</a></li></ul></nav>
+      <nav class="footer-col" aria-label="Aide et communauté"><h2 class="footer-col-title">À vos côtés</h2><ul>
+            <li><a href="#faq">FAQ</a></li>
+        <li><a href="mailto:<%= site.contactEmail %>">Nous contacter</a></li><li><a href="/suppression-compte">Supprimer mon compte</a></li>
+      </ul></nav>
+      <nav class="footer-col" aria-label="Informations légales"><h2 class="footer-col-title">Informations</h2><ul><li><a href="/mentions-legales">Mentions légales</a></li><li><a href="/confidentialite">Confidentialité</a></li><li><a href="/cgu">Conditions d’utilisation</a></li></ul></nav>
+    </div>
+    <div class="footer-bottom"><p>© <%= site.year %> <%= site.name %>. Tous droits réservés.</p>
+      <% const reseaux = [
+        { url: site.telegramUrl, nom: 'Telegram', icone: 'telegram' },
+        { url: site.whatsappUrl, nom: 'WhatsApp', icone: 'whatsapp' },
+      ].filter(function (r) { return r.url && r.url.trim(); }); %>
+      <div class="footer-socials"><% reseaux.forEach(function(r) { %><a href="<%= r.url %>" aria-label="<%= r.nom %> (nouvel onglet)" target="_blank" rel="noopener noreferrer"><%- include('partials/icon', { name: r.icone, size: 19 }) %></a><% }) %></div>
+    </div>
+    <p class="footer-legal">PronoWin propose des analyses et un suivi personnel, sans encaisser de mises. Les paris sportifs comportent des risques de perte financière. Aucun résultat ni gain n’est garanti.</p>
+  </div></footer>
+</body>
+</html>

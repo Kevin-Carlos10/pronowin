@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:convert';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,8 @@ import 'package:share_plus/share_plus.dart';
 import '../../../../core/cache/cache_service.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../domain/entities/match_entity.dart' show MatchEntity;
+import '../../../../core/services/prono_share_service.dart';
 
 // ─── Filtres ──────────────────────────────────────────────────────────────────
 enum _ResultFilter { all, win, loss, pending }
@@ -20,9 +23,9 @@ extension _PeriodExt on _PeriodFilter {
     _PeriodFilter.days90 => 90,
   };
   String get label => switch (this) {
-    _PeriodFilter.week7  => '7 jours',
-    _PeriodFilter.days30 => '30 jours',
-    _PeriodFilter.days90 => '90 jours',
+    _PeriodFilter.week7  => trCurrent("7 jours"),
+    _PeriodFilter.days30 => trCurrent("30 jours"),
+    _PeriodFilter.days90 => trCurrent("90 jours"),
   };
 }
 
@@ -67,14 +70,14 @@ class HistoriquePage extends ConsumerWidget {
           icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20, color: context.cl.textP),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('Historique', style: TextStyle(
+        title: Text(tr(context, "Historique"), style: TextStyle(
           color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
         centerTitle: true,
         actions: [
           async.whenOrNull(
             data: (entries) => IconButton(
               icon: Icon(Icons.download_rounded, color: context.cl.textS, size: 22),
-              tooltip: 'Exporter CSV',
+              tooltip: tr(context, "Exporter CSV"),
               onPressed: () => _exportCsv(context, entries, period),
             ),
           ) ?? const SizedBox.shrink(),
@@ -82,7 +85,7 @@ class HistoriquePage extends ConsumerWidget {
       ),
       body: async.when(
         loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
-        error:   (_, __) => const _ErrorView(),
+        error:   (_, _) => const _ErrorView(),
         data: (all) {
           final entries = _applyFilter(all, filter);
           return Column(
@@ -117,16 +120,17 @@ class HistoriquePage extends ConsumerWidget {
   static void _exportCsv(BuildContext context,
       List<Map<String, dynamic>> entries, _PeriodFilter period) {
     final buf = StringBuffer();
-    buf.writeln('Date,Match,Ligue,Prédiction,Cote,Résultat');
+    buf.writeln(tr(context, "Date,Match,Ligue,Prédiction,Cote,Résultat"));
     for (final e in entries) {
       final match  = e['match'] as Map<String, dynamic>? ?? {};
       final date   = match['matchDate'] as String? ?? '';
       final home   = match['homeTeam']  as String? ?? '';
       final away   = match['awayTeam']  as String? ?? '';
       final league = match['league']    as String? ?? '';
-      final pred   = e['predictionLabel'] as String? ?? '';
+      final pred   = MatchEntity.applyTeamNames(
+          e['predictionLabel'] as String? ?? '', homeTeam: home, awayTeam: away);
       final odds   = (e['oddsRecommended'] as num?)?.toStringAsFixed(2) ?? '';
-      final result = e['result'] as String? ?? 'EN ATTENTE';
+      final result = e['result'] as String? ?? tr(context, "EN ATTENTE");
       buf.writeln('"$date","$home vs $away","$league","$pred",$odds,$result');
     }
     final bytes = utf8.encode(buf.toString());
@@ -135,9 +139,11 @@ class HistoriquePage extends ConsumerWidget {
       name:     'pronowin_historique_${period.days}j.csv',
       mimeType: 'text/csv',
     );
-    Share.shareXFiles(
+    // Même règle que l'image d'un pronostic : sur iOS, le fichier part seul,
+    // sinon certaines applications ne gardent que le texte.
+    PronoShareService.partagerFichiers(
       [file],
-      text: 'Historique PronoWin — ${period.label}',
+      texte: tr(context, "Historique PronoWin — {arg0}", [period.label]),
     );
   }
 }
@@ -199,10 +205,10 @@ class _ResultBar extends StatelessWidget {
     };
 
     final specs = [
-      (_ResultFilter.all,     'Tous',        context.cl.textP,   context.cl.border),
-      (_ResultFilter.win,     'WIN',          AppColors.success,  AppColors.success),
-      (_ResultFilter.loss,    'LOSS',         AppColors.error,    AppColors.error),
-      (_ResultFilter.pending, 'En attente',   AppColors.warning,  AppColors.warning),
+      (_ResultFilter.all,     tr(context, "Tous"),        context.cl.textP,   context.cl.border),
+      (_ResultFilter.win,     'WIN',          context.cl.success,  context.cl.success),
+      (_ResultFilter.loss,    'LOSS',         context.cl.error,    context.cl.error),
+      (_ResultFilter.pending, tr(context, "En attente"),   context.cl.warning,  context.cl.warning),
     ];
 
     return Padding(
@@ -258,10 +264,25 @@ class _HistoriqueBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final won   = allEntries.where((e) => e['result'] == 'WIN').length;
     final total = allEntries.length;
-    final taux  = total > 0 ? (won / total * 100).round() : 0;
+    // Ce taux décrit le palmarès du modèle, pas les paris de l'utilisateur :
+    // c'est un argument de vente. Le backend fixe ECHANTILLON_MINIMAL = 10
+    // pour exactement cette promesse, avec cette phrase — « l'appelant doit
+    // alors se taire plutôt que d'annoncer 100 % ou 0 % ».
+    //
+    // Il repliait sur 0 : une page d'historique vide annonçait « 0 % de
+    // réussite », ce qui n'est pas une absence de mesure mais une mauvaise
+    // performance. C'est l'inverse de ce que la donnée dit.
+    const echantillonCommercial = 10;
+    final int? taux = total >= echantillonCommercial
+        ? (won / total * 100).round()
+        : null;
     int serie   = 0;
     for (final e in allEntries) {
-      if (e['result'] == 'WIN') serie++; else break;
+      if (e['result'] == 'WIN') {
+        serie++;
+      } else {
+        break;
+      }
     }
 
     // Grouper par semaine
@@ -302,9 +323,9 @@ class _HistoriqueBody extends StatelessWidget {
 
   static String _weekLabel(DateTime d) {
     final diff = DateTime.now().difference(d).inDays;
-    if (diff < 7)  return 'Cette semaine';
-    if (diff < 14) return 'La semaine dernière';
-    return 'Il y a ${(diff / 7).ceil()} semaines';
+    if (diff < 7)  return trCurrent("Cette semaine");
+    if (diff < 14) return trCurrent("La semaine dernière");
+    return trCurrent("Il y a {arg0} semaines", [(diff / 7).ceil()]);
   }
 }
 
@@ -334,7 +355,7 @@ class _PerformanceChart extends StatelessWidget {
           color: context.cl.surface,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: context.cl.border, width: 0.8)),
-        child: Center(child: Text('Graphe disponible après 2+ résultats',
+        child: Center(child: Text(tr(context, "Graphe disponible après 2+ résultats"),
           style: TextStyle(color: context.cl.textM, fontSize: 12))),
       );
     }
@@ -348,9 +369,9 @@ class _PerformanceChart extends StatelessWidget {
 
     final maxY = 100.0;
     final lastPct = spots.last.y;
-    final color   = lastPct >= 60 ? AppColors.success
-                  : lastPct >= 45 ? AppColors.warning
-                  : AppColors.error;
+    final color   = lastPct >= 60 ? context.cl.success
+                  : lastPct >= 45 ? context.cl.warning
+                  : context.cl.error;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 16, 16, 12),
@@ -362,7 +383,7 @@ class _PerformanceChart extends StatelessWidget {
         Row(children: [
           Icon(Icons.show_chart_rounded, color: color, size: 16),
           const SizedBox(width: 6),
-          Text('Courbe de réussite', style: TextStyle(
+          Text(tr(context, "Courbe de réussite"), style: TextStyle(
             color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           const Spacer(),
           Container(
@@ -411,7 +432,7 @@ class _PerformanceChart extends StatelessWidget {
                   barWidth: 2.5,
                   dotData: FlDotData(
                     show: true,
-                    getDotPainter: (spot, _, __, ___) {
+                    getDotPainter: (spot, _, _, _) {
                       final isLast = spot.x == spots.last.x;
                       return FlDotCirclePainter(
                         radius: isLast ? 5 : 0,
@@ -453,16 +474,23 @@ class _PerformanceChart extends StatelessWidget {
 
 // ─── Header stats ─────────────────────────────────────────────────────────────
 class _StatsHeader extends StatelessWidget {
-  final int won, total, taux, serie;
+  final int won, total, serie;
+
+  /// Taux de réussite, ou `null` sous le seuil commercial de dix pronostics
+  /// tranchés — auquel cas l'en-tête affiche un tiret plutôt qu'un chiffre.
+  final int? taux;
   const _StatsHeader({required this.won, required this.total,
     required this.taux, required this.serie});
 
   @override
   Widget build(BuildContext context) {
     final lost  = total - won;
-    final color = taux >= 60 ? AppColors.success
-                : taux >= 45 ? AppColors.warning
-                : AppColors.error;
+    // Sans taux mesurable, aucune couleur de jugement : le gris dit
+    // « pas encore mesuré », le rouge dirait « mauvais ».
+    final color = taux == null    ? context.cl.textM
+                : taux! >= 60     ? context.cl.success
+                : taux! >= 45     ? context.cl.warning
+                :                   context.cl.error;
 
     return Container(
       padding: const EdgeInsets.all(20),
@@ -479,23 +507,23 @@ class _StatsHeader extends StatelessWidget {
         Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
           _BigStat(label: 'Total',    value: '$total', color: context.cl.textP),
           _VDivider(),
-          _BigStat(label: 'Réussite', value: '$taux%', color: color),
+          _BigStat(label: tr(context, "Réussite"), value: taux == null ? '—' : '$taux%', color: color),
           _VDivider(),
-          _BigStat(label: 'Série',    value: '+$serie', color: AppColors.warning),
+          _BigStat(label: tr(context, "Série"),    value: '+$serie', color: context.cl.warning),
         ]),
         const SizedBox(height: 16),
         ClipRRect(
           borderRadius: BorderRadius.circular(6),
           child: Row(children: [
-            if (won  > 0) Expanded(flex: won,  child: Container(height: 8, color: AppColors.success)),
+            if (won  > 0) Expanded(flex: won,  child: Container(height: 8, color: context.cl.success)),
             if (lost > 0) Expanded(flex: lost, child: Container(height: 8,
-              color: AppColors.error.withValues(alpha: 0.6))),
+              color: context.cl.error.withValues(alpha: 0.6))),
           ]),
         ),
         const SizedBox(height: 8),
         Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-          _LegendDot(color: AppColors.success, label: '$won victoires'),
-          _LegendDot(color: AppColors.error.withValues(alpha: 0.6), label: '$lost défaites'),
+          _LegendDot(color: context.cl.success, label: tr(context, "{arg0} victoires", [won])),
+          _LegendDot(color: context.cl.error.withValues(alpha: 0.6), label: tr(context, "{arg0} défaites", [lost])),
         ]),
       ]),
     );
@@ -549,11 +577,11 @@ class _WeekHeader extends StatelessWidget {
       Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
         decoration: BoxDecoration(
-          color:  AppColors.success.withValues(alpha: 0.1),
+          color:  context.cl.success.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AppColors.success.withValues(alpha: 0.2))),
-        child: Text('$won/$total ✅', style: const TextStyle(
-          color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w700))),
+          border: Border.all(color: context.cl.success.withValues(alpha: 0.2))),
+        child: Text('$won/$total ✅', style: TextStyle(
+          color: context.cl.success, fontSize: 11, fontWeight: FontWeight.w700))),
     ]);
   }
 }
@@ -575,13 +603,14 @@ class _EntryCard extends StatelessWidget {
     final awayScore  = match['awayScore'] as int?;
     final league     = match['league']    as String? ?? '';
     final date       = DateTime.tryParse(match['matchDate'] as String? ?? '');
-    final dateStr    = date != null ? DateFormat('dd/MM', 'fr_FR').format(date) : '';
-    final pred       = entry['predictionLabel'] as String? ?? '';
+    final dateStr    = date != null ? DateFormat('dd/MM').format(date) : '';
+    final pred       = MatchEntity.applyTeamNames(
+        entry['predictionLabel'] as String? ?? '', homeTeam: homeTeam, awayTeam: awayTeam);
     final odds       = (entry['oddsRecommended'] as num?)?.toDouble() ?? 0.0;
 
-    final resultColor = isPending ? AppColors.warning
-                      : isWin    ? AppColors.success
-                      : AppColors.error;
+    final resultColor = isPending ? context.cl.warning
+                      : isWin    ? context.cl.success
+                      : context.cl.error;
 
     final scoreStr = (homeScore != null && awayScore != null)
       ? '$homeScore – $awayScore'
@@ -630,8 +659,8 @@ class _EntryCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6)),
-              child: Text(pred, style: const TextStyle(
-                color: AppColors.primary, fontSize: 11, fontWeight: FontWeight.w700))),
+              child: Text(pred, style: TextStyle(
+                color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w700))),
             const SizedBox(width: 6),
             Text('@ ${odds.toStringAsFixed(2)}',
               style: TextStyle(color: context.cl.textS, fontSize: 11)),
@@ -656,11 +685,11 @@ class _EmptyView extends StatelessWidget {
     child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
       Icon(Icons.history_rounded, size: 56, color: context.cl.textM),
       const SizedBox(height: 16),
-      Text('Aucun résultat pour ce filtre',
+      Text(tr(context, "Aucun résultat pour ce filtre"),
         style: TextStyle(color: context.cl.textS, fontSize: 15,
           fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
-      Text('Essaie un autre filtre ou une période plus longue.',
+      Text(tr(context, "Essaie un autre filtre ou une période plus longue."),
         style: TextStyle(color: context.cl.textM, fontSize: 13),
         textAlign: TextAlign.center),
     ]),
@@ -671,6 +700,6 @@ class _ErrorView extends StatelessWidget {
   const _ErrorView();
   @override
   Widget build(BuildContext context) => Center(
-    child: Text("Impossible de charger l'historique",
+    child: Text(tr(context, "Impossible de charger l'historique"),
       style: TextStyle(color: context.cl.textS)));
 }

@@ -1,13 +1,26 @@
+import 'package:pronowin/l10n/app_strings.dart';
+import 'dart:convert';
 import 'dart:io';
+import 'package:country_picker/country_picker.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/widgets/image_distante.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../shared/widgets/country_pill_selector.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/compte_provider.dart';
+import '../../../../shared/utils/retour.dart';
+import '../../../../shared/utils/age.dart';
+import '../../../../shared/utils/messages.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/compte';
+
 
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
@@ -20,7 +33,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   final _emailCtrl     = TextEditingController();
   final _firstNameCtrl = TextEditingController();
   final _lastNameCtrl  = TextEditingController();
+  final _phoneCtrl     = TextEditingController();
   DateTime? _birthDate;
+  Country _country     = deviceDefaultCountry();
   bool _loading       = false;
   bool _avatarLoading = false;
   String? _localAvatarPath; // chemin local après sélection
@@ -36,6 +51,34 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       _lastNameCtrl.text  = profile['last_name']  as String? ?? '';
       final bd = profile['birth_date'] as String?;
       if (bd != null) _birthDate = DateTime.tryParse(bd);
+      // Le pays enregistré fait foi : plusieurs pays partagent le même
+      // indicatif (+1 → US, CA, PR…), le déduire du numéro choisirait l'un
+      // d'eux au hasard. Et comme le formulaire renvoie désormais
+      // `country_code`, partir du défaut « BF » écraserait le vrai pays d'un
+      // utilisateur dont le numéro n'a pas de préfixe reconnu.
+      final savedCode = profile['country_code'] as String?;
+      if (savedCode != null && savedCode.isNotEmpty) {
+        final saved = CountryService().findByCode(savedCode);
+        if (saved != null) _country = saved;
+      }
+
+      final phone = profile['phone_number'] as String?;
+      if (phone != null && phone.isNotEmpty) {
+        // Retire l'indicatif du champ : celui du pays enregistré en priorité,
+        // sinon le plus long préfixe qui corresponde.
+        if (phone.startsWith('+${_country.phoneCode}')) {
+          _phoneCtrl.text = phone.substring(_country.phoneCode.length + 1);
+        } else {
+          final candidates = CountryService().getAll()
+            .where((c) => phone.startsWith('+${c.phoneCode}'))
+            .toList()
+            ..sort((a, b) => b.phoneCode.length.compareTo(a.phoneCode.length));
+          if (candidates.isNotEmpty) {
+            _country = candidates.first;
+            _phoneCtrl.text = phone.substring(_country.phoneCode.length + 1);
+          }
+        }
+      }
     }
   }
 
@@ -43,6 +86,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   void dispose() {
     _pseudoCtrl.dispose(); _emailCtrl.dispose();
     _firstNameCtrl.dispose(); _lastNameCtrl.dispose();
+    _phoneCtrl.dispose();
     super.dispose();
   }
 
@@ -57,18 +101,21 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     setState(() { _localAvatarPath = picked.path; _avatarLoading = true; });
 
     try {
-      final formData = FormData.fromMap({
-        'avatar': await MultipartFile.fromFile(picked.path,
-          filename: 'avatar.jpg'),
+      // Base64 et non multipart : c'est le format qu'attend le backend, et le
+      // seul chemin d'upload éprouvé du projet (identique aux preuves
+      // d'abonnement). Le multipart envoyé jusqu'ici n'était de toute façon
+      // reçu par personne — l'endpoint n'existait pas.
+      final bytes = await File(picked.path).readAsBytes();
+      await ref.read(dioProvider).patch('/profile/avatar', data: {
+        'image_base64': 'data:image/jpeg;base64,${base64Encode(bytes)}',
       });
-      await ref.read(dioProvider).patch('/profile/avatar', data: formData);
       ref.invalidate(profileProvider);
-      if (mounted) _showSnack('Photo de profil mise à jour ✅');
+      if (mounted) _showSnack(tr(context, "Photo de profil mise à jour ✅"));
     } on DioException catch (e) {
       if (mounted) {
         setState(() => _localAvatarPath = null);
         _showSnack(
-          e.response?.data?['message'] as String? ?? 'Erreur lors de l\'upload.',
+          e.response?.data?['message'] as String? ?? tr(context, "Erreur lors de l'upload."),
           isError: true);
       }
     } finally {
@@ -93,25 +140,25 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
             decoration: BoxDecoration(
               color: context.cl.border, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 16),
-          Text('Changer la photo de profil',
+          Text(tr(context, "Changer la photo de profil"),
             style: TextStyle(color: context.cl.textP,
               fontSize: 15, fontWeight: FontWeight.w700)),
           const SizedBox(height: 18),
           _AvatarOption(
             icon: Icons.camera_alt_rounded,
-            label: 'Prendre une photo',
+            label: tr(context, "Prendre une photo"),
             color: AppColors.primary,
             onTap: () => _pickAvatar(ImageSource.camera)),
           const SizedBox(height: 10),
           _AvatarOption(
             icon: Icons.photo_library_rounded,
-            label: 'Choisir depuis la galerie',
-            color: AppColors.info,
+            label: tr(context, "Choisir depuis la galerie"),
+            color: context.cl.info,
             onTap: () => _pickAvatar(ImageSource.gallery)),
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('Annuler',
+            child: Text(tr(context, "Annuler"),
               style: TextStyle(color: context.cl.textS, fontSize: 14))),
         ]),
       ),
@@ -126,9 +173,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       initialDate: _birthDate ?? DateTime(now.year - 20),
       firstDate:   DateTime(1940),
       lastDate:    DateTime(now.year - 18, now.month, now.day),
-      helpText:    'Date de naissance',
-      cancelText:  'Annuler',
-      confirmText: 'Confirmer',
+      helpText:    tr(context, "Date de naissance"),
+      cancelText:  tr(context, "Annuler"),
+      confirmText: tr(context, "Confirmer"),
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
           colorScheme: ColorScheme.dark(
@@ -146,15 +193,19 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
   Future<void> _save() async {
     if (_pseudoCtrl.text.trim().length < 3) {
-      _showSnack('Pseudo trop court (minimum 3 caractères).', isError: true); return;
+      _showSnack(tr(context, "Pseudo trop court (minimum 3 caractères)."), isError: true); return;
     }
     if (_firstNameCtrl.text.trim().isNotEmpty &&
         _firstNameCtrl.text.trim().length < 2) {
-      _showSnack('Prénom trop court (minimum 2 caractères).', isError: true); return;
+      _showSnack(tr(context, "Prénom trop court (minimum 2 caractères)."), isError: true); return;
     }
     if (_lastNameCtrl.text.trim().isNotEmpty &&
         _lastNameCtrl.text.trim().length < 2) {
-      _showSnack('Nom trop court (minimum 2 caractères).', isError: true); return;
+      _showSnack(tr(context, "Nom trop court (minimum 2 caractères)."), isError: true); return;
+    }
+    if (_phoneCtrl.text.trim().isNotEmpty &&
+        _phoneCtrl.text.trim().length < 7) {
+      _showSnack(tr(context, "Numéro de téléphone trop court."), isError: true); return;
     }
 
     setState(() => _loading = true);
@@ -169,15 +220,21 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           'last_name': _lastNameCtrl.text.trim(),
         if (_birthDate != null)
           'birth_date': _birthDate!.toIso8601String().split('T')[0],
+        if (_phoneCtrl.text.trim().isNotEmpty)
+          'phone_number': '+${_country.phoneCode}${_phoneCtrl.text.trim()}',
+        // Même raison qu'à la complétion du profil : le pays doit suivre
+        // l'indicatif sélectionné, sinon il reste figé sur l'ancienne valeur.
+        'country_code': _country.countryCode,
       });
       ref.invalidate(profileProvider);
+      await ref.read(authProvider.notifier).refreshUser();
       if (mounted) {
-        _showSnack('Profil mis à jour ✅');
-        context.pop();
+        _showSnack(tr(context, "Profil mis à jour ✅"));
+        retourOuAller(context, repli: _repli);
       }
     } on DioException catch (e) {
       _showSnack(
-        e.response?.data?['message'] as String? ?? 'Erreur de mise à jour.',
+        e.response?.data?['message'] as String? ?? trCurrent("Erreur de mise à jour."),
         isError: true);
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -195,9 +252,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
+          onPressed: () => retourOuAller(context, repli: _repli),
         ),
-        title: const Text('Modifier le profil'),
+        title:  Text(tr(context, "Modifier le profil")),
         actions: [
           TextButton(
             onPressed: _loading ? null : _save,
@@ -205,8 +262,8 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
               ? const SizedBox(width: 18, height: 18,
                   child: CircularProgressIndicator(
                     strokeWidth: 2, color: AppColors.primary))
-              : const Text('Enregistrer', style: TextStyle(
-                  color: AppColors.primary, fontWeight: FontWeight.w600)),
+              :  Text(tr(context, "Enregistrer"), style: TextStyle(
+                  color: context.cl.accent, fontWeight: FontWeight.w600)),
           ),
         ],
       ),
@@ -222,7 +279,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 width: 88, height: 88,
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryLight]),
+                    colors: AppColors.degradeMarque),
                   borderRadius: BorderRadius.circular(24),
                   boxShadow: [BoxShadow(
                     color: AppColors.primary.withValues(alpha: 0.3),
@@ -235,8 +292,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     : _localAvatarPath != null
                       ? Image.file(File(_localAvatarPath!), fit: BoxFit.cover)
                       : avatarUrl != null && avatarUrl.isNotEmpty
-                        ? Image.network(avatarUrl, fit: BoxFit.cover,
-                            errorBuilder: (_, _, _) => Center(child: Text(initiale,
+                        ? ImageDistante(
+                            url:   avatarUrl,
+                            repli: Center(child: Text(initiale,
                               style: const TextStyle(color: Colors.white,
                                 fontSize: 32, fontWeight: FontWeight.w800))))
                         : Center(child: Text(initiale,
@@ -257,32 +315,32 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
             ]),
           )),
           const SizedBox(height: 8),
-          Center(child: Text('Appuyer pour changer la photo',
+          Center(child: Text(tr(context, "Appuyer pour changer la photo"),
             style: TextStyle(color: context.cl.textM, fontSize: 11))),
           const SizedBox(height: 28),
 
           // ─── Identité ─────────────────────────────────────────────────
-          _SectionLabel('IDENTITÉ'),
+          _SectionLabel(tr(context, "IDENTITÉ")),
           Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _FieldLabel('Prénom'),
+              _FieldLabel(tr(context, "Prénom")),
               TextField(
                 controller: _firstNameCtrl,
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
-                  hintText: 'Ton prénom',
+                  hintText: tr(context, "Ton prénom"),
                   prefixIcon: Icon(Icons.badge_rounded,
                     size: 20, color: context.cl.textM)),
               ),
             ])),
             const SizedBox(width: 12),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _FieldLabel('Nom'),
+              _FieldLabel(tr(context, "Nom")),
               TextField(
                 controller: _lastNameCtrl,
                 textCapitalization: TextCapitalization.words,
                 decoration: InputDecoration(
-                  hintText: 'Ton nom',
+                  hintText: tr(context, "Ton nom"),
                   prefixIcon: Icon(Icons.badge_outlined,
                     size: 20, color: context.cl.textM)),
               ),
@@ -290,7 +348,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           ]),
           const SizedBox(height: 16),
 
-          _FieldLabel('Date de naissance'),
+          _FieldLabel(tr(context, "Date de naissance")),
           GestureDetector(
             onTap: _pickDate,
             child: Container(
@@ -307,7 +365,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                     ? '${_birthDate!.day.toString().padLeft(2,'0')}/'
                       '${_birthDate!.month.toString().padLeft(2,'0')}/'
                       '${_birthDate!.year}'
-                    : 'Sélectionner ta date de naissance',
+                    : tr(context, "Sélectionner ta date de naissance"),
                   style: TextStyle(
                     color: _birthDate != null
                       ? context.cl.textP : context.cl.textM,
@@ -320,32 +378,52 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           if (_birthDate != null) Padding(
             padding: const EdgeInsets.only(top: 6),
             child: Row(children: [
-              const Icon(Icons.check_circle_outline_rounded,
-                size: 13, color: AppColors.success),
+              Icon(Icons.check_circle_outline_rounded,
+                size: 13, color: context.cl.success),
               const SizedBox(width: 4),
-              Text('${_getAge(_birthDate!)} ans',
-                style: const TextStyle(color: AppColors.success, fontSize: 11)),
+              Text(tr(context, "{arg0} ans", [_getAge(_birthDate!)]),
+                style: TextStyle(color: context.cl.success, fontSize: 11)),
             ]),
           ),
+          const SizedBox(height: 16),
+
+          _FieldLabel(tr(context, "Numéro de téléphone")),
+          Row(children: [
+            CountryPillSelector(
+              country: _country,
+              onSelect: (c) => setState(() => _country = c),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: InputDecoration(
+                  hintText: '70 00 00 00',
+                  prefixIcon: Icon(Icons.phone_rounded,
+                    size: 20, color: context.cl.textM)),
+              ),
+            ),
+          ]),
           const SizedBox(height: 20),
 
           // ─── Compte ───────────────────────────────────────────────────
-          _SectionLabel('COMPTE'),
-          _FieldLabel('Pseudo'),
+          _SectionLabel(tr(context, "COMPTE")),
+          _FieldLabel(tr(context, "Pseudo")),
           TextField(
             controller: _pseudoCtrl,
             onChanged: (_) => setState(() {}),
             textCapitalization: TextCapitalization.words,
             decoration: InputDecoration(
-              hintText: 'Ton pseudo',
+              hintText: tr(context, "Ton pseudo"),
               prefixIcon: Icon(Icons.person_rounded,
                 size: 20, color: context.cl.textM),
-              helperText: 'Minimum 3 caractères',
+              helperText: tr(context, "Minimum 3 caractères"),
               helperStyle: TextStyle(color: context.cl.textM, fontSize: 11)),
           ),
           const SizedBox(height: 16),
 
-          _FieldLabel('Email (optionnel)'),
+          _FieldLabel(tr(context, "Email (optionnel)")),
           TextField(
             controller: _emailCtrl,
             keyboardType: TextInputType.emailAddress,
@@ -359,15 +437,15 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.06),
+              color: context.cl.warning.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.warning.withValues(alpha: 0.2))),
-            child: const Row(children: [
-              Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 16),
+              border: Border.all(color: context.cl.warning.withValues(alpha: 0.2))),
+            child:  Row(children: [
+              Icon(Icons.info_outline_rounded, color: context.cl.warning, size: 16),
               SizedBox(width: 8),
               Expanded(child: Text(
-                'PronoWin est réservé aux personnes de 18 ans et plus.',
-                style: TextStyle(color: AppColors.warning, fontSize: 12))),
+                tr(context, "PronoWin est réservé aux personnes de 18 ans et plus."),
+                style: TextStyle(color: context.cl.warning, fontSize: 12))),
             ]),
           ),
           const SizedBox(height: 28),
@@ -380,7 +458,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 ? const SizedBox(width: 20, height: 20,
                     child: CircularProgressIndicator(
                       strokeWidth: 2, color: Colors.white))
-                : const Text('Enregistrer les modifications'),
+                :  Text(tr(context, "Enregistrer les modifications")),
             ),
           ),
         ],
@@ -388,16 +466,17 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     );
   }
 
-  int _getAge(DateTime dob) =>
-    ((DateTime.now().difference(dob).inDays) / 365.25).floor();
+  /// L'age affiche sous la date de naissance.
+  ///
+  /// Cette page portait sa propre division par 365,25 — la troisieme copie du
+  /// meme calcul approximatif, apres celle de l'ecran du compte et celle du
+  /// serveur. Elle se trompe d'un an le jour de l'anniversaire, et c'est ici
+  /// que l'ecart compte le plus : la ligne est verte, elle sert a confirmer
+  /// qu'on est majeur.
+  int _getAge(DateTime dob) => ageRevolu(dob);
 
   void _showSnack(String msg, {bool isError = false}) =>
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text(msg),
-      backgroundColor: isError ? AppColors.error : AppColors.success,
-      behavior: SnackBarBehavior.floating,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-    ));
+    afficherMessage(context, msg, type: isError ? TypeMessage.erreur : TypeMessage.succes);
 }
 
 // ─── Option avatar dans le bottom sheet ──────────────────────────────────────

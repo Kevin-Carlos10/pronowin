@@ -7,6 +7,8 @@ r.use(adminMiddleware);
 
 r.get   ('/',              C.getAll);
 r.get   ('/stats',         C.getStats);
+r.get   ('/categories',    C.getCategories);
+r.get   ('/levels',        C.getLevels);
 r.post  ('/seed',          C.seed);
 r.get   ('/:id',           C.getOne);
 r.post  ('/',              C.create);

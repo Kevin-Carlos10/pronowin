@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -18,14 +19,14 @@ class OfflineBanner extends ConsumerWidget {
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-        color: AppColors.warning.withValues(alpha: 0.95),
-        child: const Row(
+        color: context.cl.warning.withValues(alpha: 0.95),
+        child:  Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.wifi_off_rounded, color: Colors.white, size: 14),
             SizedBox(width: 8),
             Text(
-              'Hors ligne · données en cache',
+              tr(context, "Hors ligne · données en cache"),
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 12,
