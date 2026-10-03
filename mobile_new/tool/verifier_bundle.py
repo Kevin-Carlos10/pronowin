@@ -52,6 +52,13 @@ INSTALLATION = 'REQUEST_INSTALL_PACKAGES'
 # permissions, y compris celle qu'on cherche.
 TEMOIN = 'android.permission.INTERNET'
 
+# Permissions d'identifiant publicitaire, absentes de tous les artefacts.
+PUBLICITAIRES = [
+    'com.google.android.gms.permission.AD_ID',
+    'android.permission.ACCESS_ADSERVICES_AD_ID',
+    'android.permission.ACCESS_ADSERVICES_ATTRIBUTION',
+]
+
 # Adresses qui n'ont rien a faire dans un binaire distribue.
 LOCALES = ['10.0.2.2', '127.0.0.1', 'localhost', '192.168.']
 
@@ -190,6 +197,21 @@ def main():
         else:
             ko(INSTALLATION + ' absent d\'un artefact direct : la mise a jour '
                'ne pourra pas s\'installer. Build lance sans --flavor direct ?')
+
+    # ── Identifiant publicitaire ──
+    #
+    # PronoWin n'affiche aucune publicite. La mesure d'audience Firebase ajoute
+    # pourtant ces permissions a la fusion des manifestes, et Play exige alors
+    # une declaration d'identifiant publicitaire (3 octobre 2026). Le manifeste
+    # de l'app les retire (tools:node="remove") : ce controle verifie que ce
+    # retrait survit aux mises a jour de dependances.
+    if present(TEMOIN):
+        publicitaires = [p for p in PUBLICITAIRES if present(p)]
+        if publicitaires:
+            ko('identifiant publicitaire declare : ' + ', '.join(publicitaires)
+               + ' — retire-le du manifeste, ou declare-le dans Play Console')
+        else:
+            ok('aucune permission d\'identifiant publicitaire')
 
     brut = mf.replace(b'\x00', b'')     # aplatit l'UTF-16 pour la recherche
     versions = sorted({m.decode() for m in re.findall(rb'\d+\.\d+\.\d+', brut)
