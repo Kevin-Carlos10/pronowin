@@ -28,6 +28,7 @@ jest.mock('../services/notification.service', () => ({
 
 import { prisma } from '../lib/prisma';
 import { IapService } from '../services/iap.service';
+import { SubscriptionService } from '../services/subscription.service';
 import { FileNotificationsIap, TENTATIVES_MAX } from '../services/iap_notifications.service';
 import { BASE_LOCALE, decrireSurBaseLocale } from './aides/base_locale';
 
@@ -124,6 +125,16 @@ decrireSurBaseLocale('I9 — un reçu n\'ouvre qu\'un accès', () => {
     // Un paiement, un Premium à la fois (I9).
     expect(await plan(a)).toEqual({ subscriptionPlan: 'free' });
     expect(await prisma.iapPurchase.count({ where: { originalTransactionId: `${marque}-o3`, userId: a } })).toBe(0);
+
+    // L'écran Compte du nouveau titulaire : où gérer l'abonnement, et jusqu'à
+    // quand. Il n'a aucune ligne `subscription` — l'échéance vient du store.
+    const courant = await new SubscriptionService().getCurrentSubscription(b);
+    expect(courant.store).toBe('google');
+    expect(courant.product_id).toBe('com.pronowin.premium.monthly');
+    expect(courant.days_left).toBeGreaterThanOrEqual(29);
+    expect(courant.expires_at).not.toBeNull();
+    // L'ancien n'a plus rien à gérer chez le store.
+    expect((await new SubscriptionService().getCurrentSubscription(a)).store).toBeNull();
   });
 
   it("l'ancien compte garde l'accès qu'il a payé autrement", async () => {

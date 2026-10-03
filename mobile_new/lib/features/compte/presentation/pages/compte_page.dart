@@ -18,6 +18,8 @@ import '../providers/compte_provider.dart';
 import '../../../../shared/utils/devise.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
+import '../../../abonnement/data/iap_service.dart' show pageGestionAbonnement;
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/utils/partage_parrainage.dart';
 import '../../../../shared/utils/messages.dart';
@@ -706,10 +708,16 @@ class _PremiumState extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final expiresoon = daysLeft > 0 && daysLeft <= 7;
+    // Un abonnement vendu par Apple ou Google se renouvelle tout seul, et se
+    // gère chez eux. Le bandeau « Renouveler » menait à l'écran d'achat, où
+    // Apple répond « Vous êtes déjà abonné » : il est réservé aux Premium
+    // payés autrement, et ceux du store reçoivent « Gérer mon abonnement ».
+    final store      = sub['store'] as String?;
+    final gestion    = pageGestionAbonnement(store, produit: sub['product_id'] as String?);
+    final expiresoon = gestion == null && daysLeft > 0 && daysLeft <= 7;
     // Le bandeau apparaît dès 30 jours : à 7 jours il ne reste plus beaucoup de
     // marge pour un paiement Mobile Money validé manuellement sous 30 min.
-    final renewable  = daysLeft > 0 && daysLeft <= 30;
+    final renewable  = gestion == null && daysLeft > 0 && daysLeft <= 30;
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
       // Carte Premium active
@@ -742,9 +750,13 @@ class _PremiumState extends ConsumerWidget {
                Text(tr(context, "Plan Premium Actif"), style: TextStyle(
                 color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
               Text(
-                daysLeft > 0
-                  ? AppStrings.of(context).count(daysLeft, one: "Expire dans {arg0} jour", other: "Expire dans {arg0} jours")
-                  : tr(context, "Actif sans limite"),
+                daysLeft <= 0
+                  ? tr(context, "Actif sans limite")
+                  // « Expire » se lisait comme une fin, pour un abonnement
+                  // qui se renouvelle tout seul.
+                  : gestion != null
+                    ? AppStrings.of(context).count(daysLeft, one: "Échéance dans {arg0} jour", other: "Échéance dans {arg0} jours")
+                    : AppStrings.of(context).count(daysLeft, one: "Expire dans {arg0} jour", other: "Expire dans {arg0} jours"),
                 style: TextStyle(
                   color: expiresoon ? context.cl.warning : context.cl.success,
                   fontSize: 12, fontWeight: FontWeight.w600)),
@@ -800,6 +812,40 @@ class _PremiumState extends ConsumerWidget {
                       fontSize: 12, fontWeight: FontWeight.w700))),
                 ]));
             }),
+          ],
+          if (gestion != null) ...[
+            const SizedBox(height: 14),
+            Text(
+              store == 'apple'
+                ? tr(context, "Renouvelé automatiquement par l'App Store. Résiliable à tout moment, au moins 24 h avant l'échéance.")
+                : tr(context, "Renouvelé automatiquement par Google Play. Résiliable à tout moment, au moins 24 h avant l'échéance."),
+              style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.4)),
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                key: const Key('gerer-abonnement'),
+                onPressed: () async {
+                  HapticFeedback.selectionClick();
+                  final ouvert = await launchUrl(gestion, mode: LaunchMode.externalApplication)
+                      .catchError((Object _) => false);
+                  if (!ouvert && context.mounted) {
+                    afficherMessage(context,
+                      store == 'apple'
+                        ? tr(context, "Ouvre Réglages, puis ton nom, puis Abonnements.")
+                        : tr(context, "Ouvre Google Play, puis Paiements et abonnements, puis Abonnements."),
+                      type: TypeMessage.info);
+                  }
+                },
+                icon: const Icon(Icons.open_in_new_rounded, size: 18),
+                label: Text(tr(context, "Gérer mon abonnement")),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(0, 48),
+                  side: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+              ),
+            ),
           ],
         ]),
       )).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),

@@ -47,6 +47,28 @@ const kIapFallbackProductIds = <String>{
   return jeton.isEmpty ? null : (store: 'google', receipt: jeton);
 }
 
+/// Paquet Android de l'application, pour la page d'abonnement de Google Play.
+const kPaquetAndroid = 'com.pronowin.app';
+
+/// Page de gestion d'un abonnement (résiliation, changement de formule) chez
+/// le store qui l'a vendu — `apple` ou `google`, tel que le serveur le publie
+/// sur `/subscriptions/current`. `null` hors des stores : un Premium payé par
+/// Mobile Money ne se gère pas chez Apple ni chez Google.
+///
+/// Le store de l'abonnement, et non celui du téléphone : un abonnement Apple
+/// consulté depuis Android se gère quand même chez Apple.
+///
+/// Cette page existait (`manageSubscriptionsUrl`) mais aucun bouton n'y
+/// menait : un abonné devait trouver seul le chemin dans les réglages.
+Uri? pageGestionAbonnement(String? store, {String? produit}) => switch (store) {
+  'apple'  => Uri.parse('https://apps.apple.com/account/subscriptions'),
+  'google' => Uri.https('play.google.com', '/store/account/subscriptions', {
+      'sku': ?produit,
+      'package': kPaquetAndroid,
+    }),
+  _ => null,
+};
+
 /// Résultat d'une tentative d'achat, tel que l'UI a besoin de le connaître.
 sealed class IapResult {
   const IapResult();
@@ -286,21 +308,6 @@ class IapService {
           trCurrent("Paiement reçu, activation en attente. Rouvre l'app dans un instant ou touche « Restaurer mes achats ».")));
       }
     }
-  }
-
-  /// Page de gestion de l'abonnement du store (résiliation, changement de
-  /// plan). Apple et Google imposent que l'app y donne accès depuis l'écran
-  /// d'abonnement.
-  static Uri manageSubscriptionsUrl({String? androidPackage, String? productId}) {
-    if (Platform.isIOS) {
-      return Uri.parse('https://apps.apple.com/account/subscriptions');
-    }
-    final q = <String, String>{
-      'sku':     ?productId,
-      'package': ?androidPackage,
-    };
-    return Uri.https('play.google.com', '/store/account/subscriptions',
-        q.isEmpty ? null : q);
   }
 
   void dispose() {

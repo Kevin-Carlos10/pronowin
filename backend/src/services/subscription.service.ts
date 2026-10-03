@@ -266,14 +266,30 @@ export class SubscriptionService {
         });
       } catch (_) { /* Table pas encore créée */ }
 
-      const daysLeft = sub
-        ? Math.ceil((sub.endDate.getTime() - Date.now()) / 86400000)
-        : 0;
+      // L'abonnement store en cours, s'il y en a un. Il dit où l'abonnement
+      // se gère — le bouton « Gérer mon abonnement » n'a de sens que chez
+      // Apple ou Google, pas pour un Premium payé par Mobile Money — et il
+      // porte l'échéance d'un abonnement transféré depuis un autre compte,
+      // qui n'a aucune ligne `subscription` sur celui-ci.
+      let achat: { store: string; productId: string; expiresAt: Date } | null = null;
+      try {
+        achat = await prisma.iapPurchase.findFirst({
+          where:   { userId, status: { in: ['active', 'grace_period'] }, expiresAt: { gt: new Date() } },
+          orderBy: { expiresAt: 'desc' },
+          select:  { store: true, productId: true, expiresAt: true },
+        });
+      } catch (_) { /* Table pas encore créée */ }
+
+      const fin = Math.max(sub?.endDate.getTime() ?? 0, achat?.expiresAt.getTime() ?? 0);
+      const daysLeft = fin ? Math.ceil((fin - Date.now()) / 86400000) : 0;
 
       return {
         plan:          user.subscriptionPlan ?? 'free',
-        expires_at:    sub?.endDate?.toISOString() ?? null,
+        expires_at:    fin ? new Date(fin).toISOString() : null,
         days_left:     Math.max(0, daysLeft),    // toujours un int >= 0
+        // « apple », « google », ou null hors des boutiques.
+        store:         achat?.store ?? null,
+        product_id:    achat?.productId ?? null,
         xbet_id:       user.xbetId ?? null,
         promo_code:    codePromoPour(config.valeurs),
         // Un code par plateforme quand un partenaire exige le sien ; sinon
@@ -321,6 +337,8 @@ export class SubscriptionService {
         plan:          'free',
         expires_at:    null,
         days_left:     0,
+        store:         null,
+        product_id:    null,
         xbet_id:       null,
         promo_code:    codePromoPour(config.valeurs),
         // Un code par plateforme quand un partenaire exige le sien ; sinon
