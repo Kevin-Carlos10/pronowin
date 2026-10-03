@@ -12,7 +12,7 @@ Il tient sous la limite de 4 000 caractères du champ « Remarques ».
 PronoWin – information for App Review
 
 1. Screen recording
-Attached (iPhone, latest iOS, build 1.0.16 (25)). It starts at app launch and shows sign-up, login, the main features, comment reporting and blocking, the Premium purchase, and account deletion.
+Attached, recorded on an iPhone running the latest iOS. It starts at app launch and shows sign-up, the main features, the Premium purchase and the unlocked content, comment reporting and blocking, logout and login, and account deletion.
 
 2. Purpose and audience
 PronoWin is a football (soccer) analysis app for adult fans (18+), mainly French-speaking (interface in French and English). Match information is usually scattered across many sources; PronoWin gathers it in one place: the analyst's daily predictions with a confidence index (an opinion, not a probability of winning), lineups, injuries, head-to-head, standings, form, live scores and indicative odds. A personal bankroll logbook helps users keep a budget and review their results calmly.
