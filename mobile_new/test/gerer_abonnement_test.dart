@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -96,6 +98,29 @@ void main() {
     expect(find.byKey(const Key('gerer-abonnement')), findsNothing);
     expect(find.text('Renouveler'), findsOneWidget);
     expect(find.textContaining('Expire dans 12 jours'), findsOneWidget);
+  });
+
+  testWidgets("au défilement, l'en-tête ne recouvre pas les onglets", (t) async {
+    // Vidéo du 3 octobre 2026 : les pastilles « PREMIUM » et « 1 j restants »
+    // passaient à travers la barre d'onglets, transparente, et masquaient
+    // « Abonnement ».
+    await ongletAbonnement(t, {
+      'plan': 'premium', 'days_left': 1, 'store': 'apple', 'product_id': 'com.pronowin.premium.monthly',
+    });
+    final fond = t.widget<ColoredBox>(find.byKey(const Key('onglets-compte')));
+    expect(fond.color.a, 1.0, reason: "la barre d'onglets doit être opaque");
+    expect(find.descendant(of: find.byKey(const Key('onglets-compte')), matching: find.byType(TabBar)),
+        findsOneWidget);
+  });
+
+  test("la suppression du compte nomme la boutique du téléphone", () {
+    // L'iPhone affichait « fais-le depuis le Play Store ».
+    final source = File('lib/features/parametres/presentation/pages/parametres_page.dart').readAsStringSync();
+    final avertissement = RegExp(r'_DeleteWarning\(!widget\.ref.*?\)\),', dotAll: true).firstMatch(source)!.group(0)!;
+    expect(avertissement, contains('Platform.isIOS'));
+    expect(avertissement, contains("depuis l'App Store"));
+    expect(englishMessages, contains(
+        "Ton abonnement n'est pas résilié : fais-le depuis l'App Store (Réglages, puis ton nom, puis Abonnements)"));
   });
 
   test('les nouveaux textes sont traduits', () {

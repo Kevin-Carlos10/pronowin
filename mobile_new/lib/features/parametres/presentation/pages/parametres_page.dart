@@ -664,9 +664,14 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
           // donc d'être débité tous les mois, après avoir lu le contraire sur
           // l'écran qui le lui demandait. C'est l'avertissement qui devait le
           // protéger qui causait le prélèvement.
-          _DeleteWarning(widget.ref.read(isStoreBuildProvider)
-              ? tr(context, "Ton abonnement n'est pas résilié : fais-le depuis le Play Store")
-              : tr(context, "Ton abonnement n'est ni résilié ni remboursé")),
+          //
+          // Et la boutique est celle du téléphone : l'iPhone affichait « depuis
+          // le Play Store » (vidéo du 3 octobre 2026).
+          _DeleteWarning(!widget.ref.read(isStoreBuildProvider)
+              ? tr(context, "Ton abonnement n'est ni résilié ni remboursé")
+              : Platform.isIOS
+                ? tr(context, "Ton abonnement n'est pas résilié : fais-le depuis l'App Store (Réglages, puis ton nom, puis Abonnements)")
+                : tr(context, "Ton abonnement n'est pas résilié : fais-le depuis le Play Store")),
           const SizedBox(height: 6),
           _DeleteWarning(tr(context, "Tu perds l'accès à tes gains de parrainage")),
           const SizedBox(height: 6),

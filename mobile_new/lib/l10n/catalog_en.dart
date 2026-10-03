@@ -1296,4 +1296,5 @@ const englishMessages = <String, String>{
   "Renouvelé automatiquement par Google Play. Résiliable à tout moment, au moins 24 h avant l'échéance.": "Renewed automatically by Google Play. Cancel anytime, at least 24 hours before the end of the period.",
   "Ouvre Réglages, puis ton nom, puis Abonnements.": "Open Settings, then your name, then Subscriptions.",
   "Ouvre Google Play, puis Paiements et abonnements, puis Abonnements.": "Open Google Play, then Payments & subscriptions, then Subscriptions.",
+  "Ton abonnement n'est pas résilié : fais-le depuis l'App Store (Réglages, puis ton nom, puis Abonnements)": "Your subscription is not cancelled: do it from the App Store (Settings, then your name, then Subscriptions)",
 };

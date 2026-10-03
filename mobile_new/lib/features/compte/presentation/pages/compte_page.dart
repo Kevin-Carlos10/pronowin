@@ -249,7 +249,15 @@ class _ComptePageState extends ConsumerState<ComptePage>
                 ),
                 bottom: PreferredSize(
                   preferredSize: const Size.fromHeight(46),
-                  child: TabBar(
+                  // Fond opaque : transparente, la barre laissait voir l'en-tête
+                  // qui remonte au défilement, et les pastilles « PREMIUM » et
+                  // « 1 j restants » recouvraient le libellé « Abonnement »
+                  // (vidéo du 3 octobre 2026). La couleur est celle du bas du
+                  // dégradé : déplié, rien ne change à l'œil.
+                  child: ColoredBox(
+                    key: const Key('onglets-compte'),
+                    color: context.cl.surface,
+                    child: TabBar(
                     controller: _tab,
                     indicatorColor: AppColors.primary,
                     labelColor: context.cl.accent,
@@ -261,6 +269,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                       Tab(text: tr(context, "Abonnement")),
                       Tab(text: tr(context, "Parrainage")),
                     ],
+                  ),
                   ),
                 ),
               ),
