@@ -78,9 +78,14 @@ decrireSurBaseLocale('I9 — un reçu n\'ouvre qu\'un accès', () => {
       svc.verifyAndRecord({ userId: b, store: 'google', receipt: 'x' }),
     ]);
 
-    expect(issues.filter((i) => i.status === 'fulfilled')).toHaveLength(1);
-    const refus = issues.find((i) => i.status === 'rejected') as PromiseRejectedResult;
-    expect(refus.reason.statut).toBe(409);
+    // Depuis que l'abonnement suit le compte qui présente le reçu, l'un des
+    // deux peut l'emporter sans que l'autre soit refusé. Ce qui ne doit
+    // jamais arriver : deux Premium, deux octrois ou deux commissions pour un
+    // seul paiement.
+    expect(issues.some((i) => i.status === 'fulfilled')).toBe(true);
+    for (const refus of issues.filter((i) => i.status === 'rejected') as PromiseRejectedResult[]) {
+      expect(refus.reason.statut).toBe(409);
+    }
     expect(await prisma.subscription.count({ where: { userId: { in: [a, b] } } })).toBe(1);
     expect(commissions).toBe(1);
     const premiums = await prisma.user.count({ where: { id: { in: [a, b] }, subscriptionPlan: 'premium' } });
@@ -101,7 +106,10 @@ decrireSurBaseLocale('I9 — un reçu n\'ouvre qu\'un accès', () => {
     expect(commissions).toBe(1);
   });
 
-  it('un renouvellement présenté par un autre compte est refusé', async () => {
+  it("restauré sur un autre compte, l'abonnement y passe et l'ancien le perd", async () => {
+    // Vu le 2 octobre 2026 : second compte PronoWin sur le même iPhone, Apple
+    // répond « Vous êtes déjà abonné », et la restauration était refusée —
+    // ce compte ne pouvait plus jamais être Premium.
     const [a, b] = [await compte('d'), await compte('e')];
     storeRepond(verdict(`${marque}-t3`, `${marque}-o3`));
     await svc.verifyAndRecord({ userId: a, store: 'google', receipt: 'x' });
@@ -109,9 +117,32 @@ decrireSurBaseLocale('I9 — un reçu n\'ouvre qu\'un accès', () => {
     // Nouvelle transaction, même abonnement d'origine.
     storeRepond(verdict(`${marque}-t3-renouv`, `${marque}-o3`));
     await expect(svc.verifyAndRecord({ userId: b, store: 'google', receipt: 'x' }))
-      .rejects.toMatchObject({ statut: 409 });
-    expect(await prisma.user.findUnique({ where: { id: b }, select: { subscriptionPlan: true } }))
-      .toEqual({ subscriptionPlan: 'free' });
+      .resolves.toMatchObject({ active: true });
+
+    const plan = (id: string) => prisma.user.findUnique({ where: { id }, select: { subscriptionPlan: true } });
+    expect(await plan(b)).toEqual({ subscriptionPlan: 'premium' });
+    // Un paiement, un Premium à la fois (I9).
+    expect(await plan(a)).toEqual({ subscriptionPlan: 'free' });
+    expect(await prisma.iapPurchase.count({ where: { originalTransactionId: `${marque}-o3`, userId: a } })).toBe(0);
+  });
+
+  it("l'ancien compte garde l'accès qu'il a payé autrement", async () => {
+    // Le transfert retire ce que l'abonnement store donnait, pas un Premium
+    // payé par Mobile Money.
+    const [a, b] = [await compte('i'), await compte('j')];
+    const soixante = new Date(Date.now() + 60 * JOUR);
+    await prisma.subscription.create({ data: {
+      userId: a, plan: 'premium', amountPaid: 6000, paymentMethod: 'manual_mobcash',
+      startDate: new Date(), endDate: soixante,
+    } });
+    storeRepond(verdict(`${marque}-t8`, `${marque}-o8`));
+    await svc.verifyAndRecord({ userId: a, store: 'google', receipt: 'x' });
+
+    await svc.verifyAndRecord({ userId: b, store: 'google', receipt: 'x' });
+
+    const u = await prisma.user.findUnique({ where: { id: a }, select: { subscriptionPlan: true, subscriptionExpiresAt: true } });
+    expect(u!.subscriptionPlan).toBe('premium');
+    expect(u!.subscriptionExpiresAt!.getTime()).toBe(soixante.getTime());
   });
 
   it("l'abonnement d'un compte supprimé passe au compte qui présente le reçu", async () => {

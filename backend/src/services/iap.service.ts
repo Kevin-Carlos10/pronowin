@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { SubscriptionService } from './subscription.service';
 import { NotificationService } from './notification.service';
 import { ErreurMetier } from '../utils/erreurs';
+import logger from '../utils/logger';
 
 const notifSvc = new NotificationService();
 // Même motif que dans referral.service : instanciation différée pour ne pas
@@ -292,33 +293,45 @@ export class IapService {
       payload: v.payload as any,
     };
 
-    // ── Un abonnement appartient au compte qui l'a acheté ──
+    // ── L'abonnement suit le compte store qui le paie ──
     //
-    // Le contrôle ne portait que sur la transaction en cours. Un
-    // renouvellement crée une nouvelle transaction : présenté par un autre
-    // compte, il passait. La chaîne entière (`originalTransactionId`) reste
-    // désormais attachée à son premier propriétaire.
+    // La chaîne entière (`originalTransactionId`) est traitée d'un bloc : un
+    // renouvellement crée une nouvelle transaction, et le contrôle qui ne
+    // regardait que la transaction en cours laissait deux comptes en profiter.
     //
-    // Sauf si ce propriétaire a supprimé son compte. La suppression anonymise
-    // la ligne sans l'effacer : la chaîne lui restait attachée, et l'identifiant
-    // Apple qui paie l'abonnement ne pouvait plus rien activer — ni par
-    // restauration, ni en rachetant (le passage du mensuel à l'annuel garde le
-    // même `originalTransactionId`). Vu le 2 octobre 2026 : achat confirmé par
-    // Apple, refusé ici en 409. Un compte supprimé ne peut plus rien
-    // revendiquer ; la chaîne passe au compte qui présente le reçu.
+    // Elle restait attachée à son premier propriétaire, quoi qu'il arrive. Vu
+    // le 2 octobre 2026 : un second compte PronoWin sur le même iPhone —
+    // Apple répond « Vous êtes déjà abonné », la restauration est refusée ici,
+    // et ce compte ne peut plus jamais être Premium, ni en rachetant (Apple
+    // garde le même `originalTransactionId`). Un testeur d'Apple qui crée un
+    // second compte puis restaure ses achats tomberait sur ce refus.
+    //
+    // Désormais la chaîne passe au compte qui présente le reçu, et l'ancien
+    // perd l'accès qu'elle lui donnait — sans perdre celui qu'il a payé
+    // autrement. Un paiement, un Premium à la fois : le constat I9 tient.
+    //
+    // Pour Apple, le reçu est le numéro de transaction, que ni l'application
+    // ni les reçus d'Apple n'affichent. Chaque transfert entre deux comptes
+    // actifs est tout de même journalisé.
     const chaine = [{ transactionId: v.transactionId }, { originalTransactionId: v.originalTransactionId }];
-    const autresComptes = await prisma.iapPurchase.findMany({
+    const anciens = await prisma.iapPurchase.findMany({
       where:  { NOT: { userId }, OR: chaine },
-      select: { id: true, user: { select: { deletedAt: true } } },
+      select: { id: true, userId: true, user: { select: { deletedAt: true } } },
     });
-    if (autresComptes.some((a) => a.user.deletedAt === null)) {
-      throw new ErreurMetier('Cet achat est déjà rattaché à un autre compte.', 409);
-    }
-    if (autresComptes.length) {
+    if (anciens.length) {
       await prisma.iapPurchase.updateMany({
-        where: { id: { in: autresComptes.map((a) => a.id) } },
+        where: { id: { in: anciens.map((a) => a.id) } },
         data:  { userId },
       });
+      for (const ancien of new Set(anciens.map((a) => a.userId))) {
+        await this._revokeIfExpired(ancien);
+      }
+      const actifs = [...new Set(anciens.filter((a) => a.user.deletedAt === null).map((a) => a.userId))];
+      if (actifs.length) {
+        logger.warn('[IAP] abonnement transféré entre comptes', {
+          store: v.store, originalTransactionId: v.originalTransactionId, de: actifs, vers: userId,
+        });
+      }
     }
 
     // ── Première fois qu'on voit cette transaction : l'inscrire et ouvrir
