@@ -163,10 +163,15 @@ Contact: pronowin2026@gmail.com
 
 ## 5. Classification par âge
 
+Le 3 octobre 2026, Apple a bloqué l'examen (2.3.6) : la classification
+indiquait des **jeux d'argent simulés**, interdits à un développeur
+individuel. PronoWin n'en contient aucun : pas de jeu de casino, pas de
+monnaie virtuelle, aucune mise dans l'app.
+
 | Question | Réponse |
 |---|---|
-| Jeux d'argent (contenu sur les paris) | **Oui** — c'est le sujet de l'app |
-| Jeux d'argent simulés | Non |
+| Jeux d'argent simulés (Simulated Gambling) | **Aucun** — jamais autre chose |
+| Jeux d'argent réels (si la question existe) | **Non** — aucun pari ne se place dans l'app |
 | Concours | Non |
 | Accès web sans restriction | Non |
 | Contenu généré par les utilisateurs | Oui tant que les commentaires sont visibles (voir la remarque sur la modération) |
