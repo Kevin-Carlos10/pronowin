@@ -80,10 +80,6 @@
 .landing .hero-bottom .tiny-cross { margin-right: 12px; font-size: 1rem; color: #ffac71; }
 .landing .hero-bottom a { font-size: .7rem; gap: 16px; }
 .landing .hero-bottom .scroll-indicator { width: 28px; height: 36px; display: grid; place-items: center; border: 1px solid #ffffff22; border-radius: 20px; font-size: .9rem; color: #ffb588; }
-.brand-ribbon { background: #f5995e; color: #28180f; border-block: 1px solid #ffbf81; overflow: hidden; padding: 21px 0; }
-.ribbon-track { display: flex; width: max-content; }
-.ribbon-track > span { flex: 0 0 auto; display: flex; align-items: center; gap: 45px; padding-right: 45px; font-size: clamp(1.2rem, 2.3vw, 2.2rem); font-weight: 750; letter-spacing: -.055em; line-height: 1.1; }
-.ribbon-track i { font-size: .8em; font-style: normal; font-weight: 400; }
 
 /* User-controlled product exploration. All panels stay readable without scripts. */
 .experience-section { background: radial-gradient(ellipse at 5% 75%, #23344b18, transparent 55%), #090c13; }
@@ -196,7 +192,6 @@ html.motion-paused { scroll-behavior: auto; }
 .motion-enabled .in-view .note-analysis { animation: float-analysis 6s ease-in-out infinite; }
 .motion-enabled .in-view .note-live { animation: float-live 7s ease-in-out infinite; }
 .motion-enabled .in-view .hero-aurora { animation: aura-breathe 8s ease-in-out infinite alternate; }
-.motion-enabled .brand-ribbon.in-view .ribbon-track { animation: ribbon-travel 35s linear infinite; }
 .motion-enabled .in-view .tactics-route { animation: passing-line 4s linear infinite; }
 .motion-enabled .in-view .art-floating-tag { animation: float-live 7s ease-in-out infinite; }
 .motion-enabled .in-view .match-timeline i { animation: marker-glow 3s ease-in-out infinite; }
@@ -206,7 +201,6 @@ html.motion-paused { scroll-behavior: auto; }
 @keyframes float-analysis { 0%, 100% { transform: translateY(0) rotate(-5deg); } 50% { transform: translateY(-10px) rotate(-3deg); } }
 @keyframes float-live { 0%, 100% { transform: translateY(0) rotate(3deg); } 50% { transform: translateY(8px) rotate(1deg); } }
 @keyframes aura-breathe { from { opacity: .4; transform: scale(.9); } to { opacity: 1; transform: scale(1.08); } }
-@keyframes ribbon-travel { to { transform: translateX(-50%); } }
 @keyframes passing-line { to { stroke-dashoffset: -48; } }
 @keyframes marker-glow { 50% { box-shadow: 0 0 17px 3px #fc9f5055; } }
 
@@ -240,8 +234,7 @@ html.motion-paused { scroll-behavior: auto; }
   .landing .hero-availability { font-size: .56rem; margin-top: 15px; }.landing .hero-showcase { height: 470px; width: 100%; margin: 28px 0 0; }.phone-perspective { width: 208px; transform: rotateX(var(--tilt-x, 0deg)) rotateY(var(--tilt-y, -9deg)) rotateZ(5deg); }.landing .phone-frame { border-radius: 34px; }
   .note-analysis { left: 0; top: 28px; }.note-live { right: 0; bottom: 55px; }.floating-note { padding: 13px; border-radius: 10px; }.floating-note strong { font-size: .65rem; }.floating-note small { font-size: .42rem; }.floating-note div > span { font-size: .47rem; }.note-live > .icon { display: block; width: 21px; }.showcase-coordinate { right: 2px; top: 55px; font-size: .38rem; }.showcase-orbit { width: 390px; height: 390px; }.orbit-two { width: 460px; height: 460px; }
   .landing .hero-showcase figcaption { font-size: .5rem; bottom: -8px; }.stadium-backdrop { background-position: 66% bottom; opacity: .85; background-size: auto 74%; background-repeat: no-repeat; }.hero-aurora { top: auto; right: -190px; bottom: 40px; width: 700px; height: 550px; }
-  .landing .hero-bottom .container { min-height: 88px; flex-direction: column; gap: 7px; padding-block: 14px; }.landing .hero-bottom span { font-size: .48rem; }.landing .hero-bottom a { font-size: .63rem; min-height: 32px; }.landing .hero-bottom .scroll-indicator { width: 22px; height: 27px; }.brand-ribbon { padding-block: 17px; }.ribbon-track > span { font-size: 1.35rem; gap: 26px; padding-right: 26px; }
-  .landing .section { padding-block: 65px; }.landing .section-heading { margin-bottom: 30px; display: block; }.landing .section-heading h2 { font-size: 2.45rem; margin-top: 16px; }.landing .section-heading > p { font-size: .87rem; max-width: 340px; margin-top: 20px; }.landing .eyebrow { font-size: .55rem; }
+  .landing .hero-bottom .container { min-height: 88px; flex-direction: column; gap: 7px; padding-block: 14px; }.landing .hero-bottom span { font-size: .48rem; }.landing .hero-bottom a { font-size: .63rem; min-height: 32px; }.landing .hero-bottom .scroll-indicator { width: 22px; height: 27px; }  .landing .section { padding-block: 65px; }.landing .section-heading { margin-bottom: 30px; display: block; }.landing .section-heading h2 { font-size: 2.45rem; margin-top: 16px; }.landing .section-heading > p { font-size: .87rem; max-width: 340px; margin-top: 20px; }.landing .eyebrow { font-size: .55rem; }
   .experience-shell { border-radius: 15px; }.stage-tabs { gap: 4px; padding: 6px; }.stage-tabs button { min-height: 64px; flex-direction: column; gap: 4px; font-size: .64rem; padding: 10px 5px; line-height: 1.3; border-radius: 9px; text-align: center; }.stage-tabs button span { font-size: .48rem; }.stage-panel { display: flex; flex-direction: column; align-items: stretch; padding: 26px 23px 39px; gap: 24px; }.stage-copy h3 { font-size: 1.9rem; }.stage-copy > p:not(.eyebrow) { font-size: .83rem; margin-top: 17px; }.stage-benefits { margin-top: 19px; gap: 11px; }.stage-benefits li { font-size: .7rem; }.stage-copy .text-link { margin-top: 15px; font-size: .7rem; }
   .stage-art { height: 292px; width: 100%; max-width: 400px; margin-inline: auto; }.art-topline { font-size: .43rem; }.art-floating-tag { right: -4px; bottom: -3px; font-size: .52rem; }.art-data-row span { font-size: .44rem; }.art-data-row strong { font-size: .58rem; }.illustration-label { font-size: .49rem; bottom: -24px; }.tactics-board, .live-demo-card, .balance-demo { padding: 19px; }.demo-score { font-size: 2.4rem; }.demo-team > span { width: 36px; height: 44px; }.demo-event strong { font-size: .65rem; }.demo-event small { font-size: .49rem; }.balance-heading { font-size: 1.45rem; }
   .landing .features-section { padding-top: 0; }.landing .features-grid { grid-template-columns: 1fr; gap: 15px; }.landing .feature-card { grid-column: auto !important; min-height: 0; padding: 25px; }.landing .feature-card h3 { font-size: 1.4rem; }.landing .feature-top { margin-bottom: 21px; }.landing .feature-description { font-size: .83rem; }.landing .feature-label { font-size: .53rem; }.landing .feature-facts { gap: 18px; }.landing .feature-facts span { font-size: .56rem; max-width: 125px; }.landing .feature-facts strong { font-size: .71rem; }.feature-index { top: 29px; }.feature-decoration { bottom: 100px; }
@@ -259,5 +252,5 @@ html.motion-paused { scroll-behavior: auto; }
   html { scroll-behavior: auto; }.landing *, .landing *::before, .landing *::after { animation: none !important; transition: none !important; }.phone-perspective { transform: rotate(4deg) !important; }
 }
 @media print {
-  .brand-ribbon, .stage-art, .footer-wordmark, .motion-toggle { display: none; }.landing, .landing .hero, .landing .features-section, .landing .journey-section, .landing .faq-section, .landing .footer, .landing .experience-section { background: white; color: black; }.landing .stage-panel { display: block !important; padding: 20px; }.landing .stage-copy p, .landing .feature-description { color: #333; }.landing .features-grid { display: block; }.landing .feature-card { background: white; color: black; margin-bottom: 15px; }.landing .hero h1 > span:not(.title-spark) { background: none; -webkit-text-fill-color: black; }.landing .section { padding-block: 30px; }
+  .stage-art, .footer-wordmark, .motion-toggle { display: none; }.landing, .landing .hero, .landing .features-section, .landing .journey-section, .landing .faq-section, .landing .footer, .landing .experience-section { background: white; color: black; }.landing .stage-panel { display: block !important; padding: 20px; }.landing .stage-copy p, .landing .feature-description { color: #333; }.landing .features-grid { display: block; }.landing .feature-card { background: white; color: black; margin-bottom: 15px; }.landing .hero h1 > span:not(.title-spark) { background: none; -webkit-text-fill-color: black; }.landing .section { padding-block: 30px; }
 }
