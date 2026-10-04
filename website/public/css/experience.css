@@ -176,8 +176,7 @@
 .landing .faq-item summary { font-weight: 500; padding-block: 27px; }.landing .faq-item .icon { color: #ffae7c; width: 25px; height: 25px; border: 1px solid #ffffff20; padding: 4px; border-radius: 50%; }.landing .faq-answer { color: #adb6c7; padding-right: 25px; }.landing .faq-list { border-top-color: #ffffff1a; }
 .landing .download-section { background: #090c13; padding-bottom: 95px; }
 .landing .download-card { position: relative; isolation: isolate; overflow: hidden; border: 1px solid #ffac7040; border-radius: 23px; padding: 66px; background: linear-gradient(120deg, #302016, #191820 65%, #151c27); gap: 80px; }
-.landing .download-card::before { content: '✳'; position: absolute; top: -130px; left: 25%; font-size: 500px; line-height: 1; color: #ffd8a807; z-index: -1; }
-.landing .download-copy h2 { font-size: clamp(2rem, 3vw, 2.75rem); letter-spacing: -.055em; }.landing .download-copy > p:not(.eyebrow) { font-size: .85rem; color: #bdc0cb; }.landing .download-copy .eyebrow { color: #ffc08e; font-size: .55rem; }
+.landing .landing .download-copy h2 { font-size: clamp(2rem, 3vw, 2.75rem); letter-spacing: -.055em; }.landing .download-copy > p:not(.eyebrow) { font-size: .85rem; color: #bdc0cb; }.landing .download-copy .eyebrow { color: #ffc08e; font-size: .55rem; }
 .landing .store-badge { border-color: #ffffff2b; background: #090c1655; border-radius: 10px; }.landing .store-badge--soon { color: #c1c8d4; }.landing .store-badge strong { font-size: 1rem; }.landing .store-badge small { color: #a3aec3; }
 .landing .community-links { justify-content: flex-start; }.landing .community-links a { font-size: .69rem; }
 .landing .footer { background: #090c13; border-top-color: #ffffff13; padding-top: 0; color: #919db0; overflow: hidden; }

@@ -345,6 +345,28 @@ test('la FAQ dit comment résilier, restaurer et supprimer — avec le chemin', 
 });
 
 
+test("aucun astérisque décoratif (✳) : iOS le dessine en emoji vert", async () => {
+  // Le 4 octobre 2026, le « ✳ » géant du fond de la carte de
+  // téléchargement — un pseudo-élément CSS, 500 px, presque transparent —
+  // s'affichait sur iPhone en carré vert vif avec une flèche blanche :
+  // Safari le rend en emoji, et un emoji ignore la couleur du texte. On
+  // venait de retirer les autres, dans le HTML ; celui-ci vivait dans le CSS.
+  const fs = require('fs');
+  const path = require('path');
+  const fichiers = [];
+  const parcourir = (d) => {
+    for (const n of fs.readdirSync(d, { withFileTypes: true })) {
+      const p = path.join(d, n.name);
+      if (n.isDirectory()) parcourir(p);
+      else if (/\.(ejs|css|js|json)$/.test(n.name)) fichiers.push(p);
+    }
+  };
+  for (const d of ['views', 'public/css', 'public/js', 'content']) parcourir(path.join(__dirname, d));
+  const fautifs = fichiers.filter((f) => /[✳✴❇]/.test(fs.readFileSync(f, 'utf8')));
+  assert.deepStrictEqual(fautifs.map((f) => path.relative(__dirname, f)), [],
+    'un astérisque décoratif est revenu');
+});
+
 test('aucune promesse de gain n\'est faite', async () => {
   const { accueil, legal } = await rendre(API_COMPLETE);
 
