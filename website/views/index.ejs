@@ -58,7 +58,7 @@
       <div class="container hero-layout">
         <div class="hero-content">
           <p class="eyebrow hero-kicker" data-reveal><span class="kicker-line"></span> Le football, sous un autre angle</p>
-          <h1 id="hero-title" data-reveal data-reveal-delay="60">Le football.<br>Un regard<br><span>d’avance.</span><span class="title-spark" aria-hidden="true">✳</span></h1>
+          <h1 id="hero-title" data-reveal data-reveal-delay="60">Le football.<br>Un regard<br><span>d’avance.</span></h1>
           <p class="hero-subtitle" data-reveal data-reveal-delay="140">Vivez le match. Comprenez les chiffres.<br>Vos analyses, le direct et votre bankroll,<br class="desktop-break"> réunis dans PronoWin.</p>
           <div class="hero-cta" data-reveal data-reveal-delay="210"><a href="#telecharger" class="btn btn-primary"><%= enLigne ? 'Obtenir PronoWin' : 'Suivre le lancement' %> <span class="button-arrow"><%- include('partials/icon', { name: 'arrow', size: 18 }) %></span></a><a href="#experience" class="explore-link"><span class="play-icon" aria-hidden="true">▶</span> Explorer l’expérience</a></div>
           <p class="hero-availability" data-reveal data-reveal-delay="260"><span class="availability-mark" aria-hidden="true">✓</span> <%= enLigne ? 'Disponible sur ' + stores.map(function (s) { return s.nom; }).join(' et ') + ' · Sélection gratuite' : 'Sortie sur les stores en préparation' %></p>
@@ -75,7 +75,7 @@
       <div class="hero-bottom"><div class="container"><span><span class="tiny-cross" aria-hidden="true">+</span> AVANT. PENDANT. APRÈS LE MATCH.</span><a href="#experience">Entrez dans l’expérience <span class="scroll-indicator" aria-hidden="true">↓</span></a><span class="hero-edition">FOOTBALL, EN PERSPECTIVE.</span></div></div>
     </section>
 
-    <div class="brand-ribbon" aria-hidden="true" data-motion-scene><div class="ribbon-track"><% for (let n = 0; n < 2; n++) { %><span>ANALYSER <i>✳</i> COMPRENDRE <i>✳</i> SUIVRE <i>✳</i> PROGRESSER <i>✳</i></span><% } %></div></div>
+    <div class="brand-ribbon" aria-hidden="true" data-motion-scene><div class="ribbon-track"><% for (let n = 0; n < 2; n++) { %><span>ANALYSER <i>•</i> COMPRENDRE <i>•</i> SUIVRE <i>•</i> PROGRESSER <i>•</i></span><% } %></div></div>
 
     <section id="experience" class="section experience-section" aria-labelledby="experience-title" data-motion-scene><div class="container">
       <div class="section-heading" data-reveal><div><p class="eyebrow">01 / Entrez dans le jeu</p><h2 id="experience-title">Plus qu’un score.<br><span>Une vision du match.</span></h2></div><p>Chaque rencontre a son histoire.<br>Explorez les trois moments de votre expérience PronoWin.</p></div>
@@ -163,7 +163,7 @@
     </div></section>
   </main>
 
-  <footer class="footer"><div class="container"><div class="footer-wordmark" aria-hidden="true"><span class="footer-word">Prono<span class="footer-win">Win</span></span><span class="wordmark-star">✳</span></div>
+  <footer class="footer"><div class="container"><div class="footer-wordmark" aria-hidden="true"><span class="footer-word">Prono<span class="footer-win">Win</span></span></div>
     <div class="footer-top">
       <div class="footer-brand"><a href="/" class="brand"><img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="32" height="32"><span class="brand-name">Prono<span class="brand-win">Win</span></span></a><p class="footer-tagline"><%= site.tagline %>.</p><span class="adult-label">18+ · Jouez de manière responsable</span></div>
       <nav class="footer-col" aria-label="L’application"><h2 class="footer-col-title">L’application</h2><ul><li><a href="#fonctionnalites">Fonctionnalités</a></li><li><a href="#tarifs">Les formules</a></li><li><a href="#comparer">Comparer les offres</a></li><li><a href="#telecharger">Disponibilité</a></li></ul></nav>
