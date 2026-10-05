@@ -9,6 +9,8 @@
  * client Axios et un seul jeu de fichiers de données — les dupliquer aurait
  * créé autant d'occasions de les faire diverger.
  */
+const { instantDepuisFormulaire, heureLocale, valeurChampDans } = require('../lib/programmation');
+
 module.exports = (app, ctx) => {
   const {
     api, requireAuth, requireMain, requirePerm, logAction, sendCSV,
@@ -325,7 +327,7 @@ module.exports = (app, ctx) => {
 
   // ─── RECHERCHE GLOBALE ────────────────────────────────────────────────────────
 
-  app.get('/admin/notifications', requireAuth, requirePerm('notifications'), (req, res) => {
+  app.get('/admin/notifications', requireAuth, requirePerm('notifications'), async (req, res) => {
     const allHistory = loadNotifHistory();
     const searchH    = (req.query.search_history ?? '').trim().toLowerCase();
     const history    = searchH
@@ -342,8 +344,18 @@ module.exports = (app, ctx) => {
       thisMonth:  allHistory.filter(h => now - new Date(h.sentAt).getTime() < msMonth).length,
     };
 
+    // Les notifications programmées : une lecture impossible n'empêche pas
+    // d'envoyer — la section ne s'affiche simplement pas.
+    let programmations = null;
+    try {
+      programmations = (await api(req.admin.jeton).get('/admin/programmations/notifications')).data;
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+    }
+
     res.render('notifications', {
       SEGMENTS, history, histStats, searchH,
+      programmations, heureLocale, valeurProgrammation: valeurChampDans(60),
       success: req.query.success ?? null,
       error:   req.query.error   ?? null,
     });
@@ -407,6 +419,33 @@ module.exports = (app, ctx) => {
     }
 
     const a = api(req.admin.jeton);
+
+    // Plus tard : la notification est confiée au serveur, qui l'enverra seul.
+    if (req.body.quand === 'plus_tard') {
+      if (segment === 'user') {
+        return res.redirect('/admin/notifications?error=' + encodeURIComponent("L'envoi de test à une seule personne part tout de suite."));
+      }
+      const quand = instantDepuisFormulaire(req.body, 'envoyer_le');
+      if (!quand) {
+        return res.redirect('/admin/notifications?error=' + encodeURIComponent("Choisissez la date et l'heure d'envoi."));
+      }
+      try {
+        await a.post('/admin/programmations/notifications', {
+          title: title.trim(), body: body.trim(), segment, prevue_le: quand.toISOString(),
+          ...(data_url  ? { deep_link: data_url } : {}),
+          ...(image_url ? { image: image_url }    : {}),
+        });
+        const segMeta = SEGMENTS.find(s => s.key === segment) ?? { label: segment };
+        logAction(req, 'notification_programmee', `"${title.trim()}" → ${segMeta.label}`,
+          { title, segment, prevueLe: quand.toISOString() });
+        return res.redirect('/admin/notifications?success=' + encodeURIComponent(
+          `Notification programmée pour le ${heureLocale(quand.toISOString())} (heure de Ouagadougou).`));
+      } catch (e) {
+        if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+        return res.redirect('/admin/notifications?error=' + encodeURIComponent(e.response?.data?.message ?? 'Programmation impossible.'));
+      }
+    }
+
     try {
       const r = await a.post('/admin/notifications/send', {
         title: title.trim(),
@@ -448,6 +487,17 @@ module.exports = (app, ctx) => {
       res.redirect('/admin/notifications?' + (sent === 0 ? 'error=' : 'success=') + encodeURIComponent(message));
     } catch (e) {
       res.redirect('/admin/notifications?error=' + encodeURIComponent(e.response?.data?.message ?? 'Erreur lors de l\'envoi.'));
+    }
+  });
+
+  app.post('/admin/notifications/programmations/:id/annuler', requireAuth, requirePerm('notifications', 'write'), async (req, res) => {
+    try {
+      await api(req.admin.jeton).delete('/admin/programmations/notifications/' + encodeURIComponent(req.params.id));
+      logAction(req, 'programmation_annulee', `Notification programmée #${req.params.id}`, { programmation: req.params.id });
+      res.redirect('/admin/notifications?success=' + encodeURIComponent('Notification programmée annulée : elle ne partira pas.'));
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      res.redirect('/admin/notifications?error=' + encodeURIComponent(e.response?.data?.message ?? 'Annulation impossible.'));
     }
   });
 

@@ -143,6 +143,32 @@
 
 <% if(error){ %><div class="alert alert-error"><%= error %></div><% } %>
 
+<%
+  const _prog      = (typeof programmation !== 'undefined') ? programmation : null;
+  const _progEchec = (typeof programmationEchec !== 'undefined') ? programmationEchec : null;
+  const _heure     = (typeof heureLocale === 'function') ? heureLocale : (iso => iso);
+  const _valeurProg = (typeof valeurProgrammation !== 'undefined') ? valeurProgrammation : '';
+%>
+<% if (typeof query !== 'undefined' && query.programmation === 'annulee') { %>
+  <div class="alert alert-success">Programmation annulée : le pronostic reste en brouillon.</div>
+<% } %>
+<% if (_prog) { %>
+  <%# Bandeau d'état, pas un message d'action : il reste dans la page. %>
+  <div class="alert alert-warning" data-toast="skip"><div>
+    <strong>Publication programmée le <%= _heure(_prog.prevueLe) %></strong> (heure de Ouagadougou)<%= _prog.creeePar ? ', par ' + _prog.creeePar : '' %>.
+    Les membres seront prévenus à ce moment-là. Enregistrer des modifications en brouillon ne change pas l'heure.
+  </div>
+  <form method="POST" action="/admin/pronostics/programmations/<%= _prog.id %>/annuler" class="pf-prog-annuler">
+    <input type="hidden" name="match_id" value="<%= match.id %>">
+    <button type="submit" class="btn btn-outline btn-sm">Annuler la programmation</button>
+  </form></div>
+<% } else if (_progEchec) { %>
+  <div class="alert alert-error" data-toast="skip"><div>
+    <strong>La publication programmée le <%= _heure(_progEchec.prevueLe) %> n'a pas eu lieu.</strong>
+    <%= _progEchec.compteRendu %>
+  </div></div>
+<% } %>
+
 <style>
 /* La colonne gauche s'étire sur toute la hauteur de la ligne (align-items par
    défaut) : c'est ce qui permet au bloc `.pf-side` de rester collé pendant que
@@ -164,6 +190,15 @@
    Les libellés courts ne remplacent les longs que sur ce format : l'action
    reste nommée, seul le complément tombe. */
 .lbl-court { display:none; }
+/* Publication programmée : hors de la barre d'actions, qui doit tenir sur une
+   rangée au téléphone. Placée après elle dans le formulaire : le premier
+   bouton reste « Publier », celui que déclenche la touche Entrée. */
+.pf-programmer        { margin-top:16px; padding:14px; }
+.pf-programmer-titre  { display:block; font-size:.72rem; font-weight:700; color:var(--text-m); text-transform:uppercase; letter-spacing:.05em; margin-bottom:.5rem; }
+.pf-programmer-ligne  { display:flex; gap:.5rem; flex-wrap:wrap; align-items:center; }
+.pf-programmer-ligne input[type=datetime-local] { width:auto; min-height:44px; }
+.pf-programmer-aide   { margin:.5rem 0 0; font-size:.75rem; color:var(--text-dim); line-height:1.55; }
+.pf-prog-annuler      { margin:0 0 0 auto; flex-shrink:0; }
 @media(max-width:900px) {
   /* Une rangée seulement quand la barre ne porte que des boutons. Sur un match
      terminé elle porte une note et « Dépublier » : forcés côte à côte, le
@@ -530,6 +565,23 @@
         </button>
         <% } %>
       </div>
+      <% if (!_termine && !(isEdit && pro.is_published)) { %>
+      <div class="pf-programmer card cr-panel">
+        <label for="publier-le" class="pf-programmer-titre"><%= _prog ? "Changer l'heure de publication" : 'Ou publier plus tard' %></label>
+        <div class="pf-programmer-ligne">
+          <input type="datetime-local" id="publier-le" name="publier_le" data-programmation
+                 value="<%= _prog ? _prog.prevueLe.slice(0, 16) : _valeurProg %>">
+          <input type="hidden" name="quand_iso" value="">
+          <button type="submit" name="publish" value="programmer" class="btn btn-outline">
+            <svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg> Programmer
+          </button>
+        </div>
+        <p class="pf-programmer-aide">
+          Le pronostic est enregistré en brouillon, puis publié automatiquement à l'heure choisie — celle de
+          votre appareil —, au plus tard 5 minutes avant le coup d'envoi. Les membres sont prévenus à ce moment-là.
+        </p>
+      </div>
+      <% } %>
 </form>
 
 <%# Dépublication : formulaire séparé, et nécessairement hors du précédent —
@@ -581,7 +633,8 @@ document.getElementById('odds-rec').addEventListener('input', etatCote);
    c'est le premier du formulaire, donc le soumetteur implicite. */
 document.getElementById('pro-form').addEventListener('submit', function (e) {
   const b = e.submitter;
-  if (!b || b.name !== 'publish' || b.value !== 'true') return;
+  // Une publication programmée est une publication : même seuil.
+  if (!b || b.name !== 'publish' || (b.value !== 'true' && b.value !== 'programmer')) return;
   if (etatCote()) return;
   e.preventDefault();
   const champ  = document.getElementById('odds-rec');
@@ -1107,4 +1160,5 @@ etatCote();
 </div>
 <% } %>
 
+<%- include('_programmation_script') %>
 <%- include('layout_bottom') %>

@@ -357,6 +357,14 @@ const views = [
     matches: [fakePro], statusFilter: '', competition: '', success: true,
     flash: { ok: 'publie', match: 'Sevilla – Rayo Vallecano', tip: 'Plus de 0.5' },
   }],
+  ['pronostics (brouillon programmé)', 'pronostics', {
+    ...base, page: 'pronostics',
+    matches: [{ ...fakePro, is_published: false, status: 'SCHEDULED',
+                pronostic: { ...fakePro.pronostic, is_published: false } }],
+    programmees: { [fakePro.id]: '06 oct., 09:00' },
+    statusFilter: '', competition: '', success: false,
+    flash: { ok: 'programme', match: 'PSG – OM', tip: '', quand: '06 oct., 09:00' },
+  }],
   ['pronostics (brouillon)', 'pronostics', {
     ...base, page: 'pronostics',
     matches: [fakePro], statusFilter: '', competition: '', success: false,
@@ -388,6 +396,27 @@ const views = [
     match: { ...fakePro, status: 'FINISHED', homeScore: 2, awayScore: 1,
              pronostic: { ...fakePro.pronostic, id: 'p1', is_published: true, result: 'WIN' } },
   }],
+  // Programmation : le formulaire d'un brouillon offre « Programmer » ; une
+  // publication prévue s'annonce avec son bouton d'annulation ; un échec
+  // récent dit pourquoi le pronostic n'est pas parti.
+  ...(() => {
+    const brouillon = { ...fakePro, is_published: false, status: 'SCHEDULED',
+      pronostic: { ...fakePro.pronostic, id: 'p1', is_published: false } };
+    const prog = (p) => ({ id: 'g1', type: 'publication_pronostic', statut: 'prevue',
+      prevueLe: '2026-10-06T09:00:00.000Z', creeePar: 'Carlos', creeeLe: '2026-10-05T18:00:00.000Z',
+      executeeLe: null, compteRendu: null, charge: null, pronostic: null, ...p });
+    const outils = { heureLocale: require('./lib/programmation').heureLocale, valeurProgrammation: '2026-10-06T09:00' };
+    return [
+      ['pronostic_form (brouillon programmable)', 'pronostic_form', {
+        ...base, page: 'pronostics', match: brouillon, programmation: null, programmationEchec: null, ...outils }],
+      ['pronostic_form (publication programmée)', 'pronostic_form', {
+        ...base, page: 'pronostics', match: brouillon, programmation: prog({}), programmationEchec: null,
+        query: { programmation: 'annulee' }, ...outils }],
+      ['pronostic_form (programmation en échec)', 'pronostic_form', {
+        ...base, page: 'pronostics', match: brouillon, programmation: null, ...outils,
+        programmationEchec: prog({ statut: 'echec', compteRendu: 'PSG – OM : le match a commencé, le pronostic reste en brouillon.' }) }],
+    ];
+  })(),
   ['pronostic_form (echec de depublication)', 'pronostic_form', {
     ...base, page: 'pronostics',
     match: { ...fakePro, pronostic: { ...fakePro.pronostic, id: 'p1', is_published: true } },
@@ -1133,6 +1162,27 @@ const views = [
   ['notifications (avec historique)', 'notifications', {
     ...base, page: 'notifications',
     SEGMENTS, history: notifHistory, histStats, searchH: '',
+  }],
+  ['notifications (programmées)', 'notifications', {
+    ...base, page: 'notifications',
+    SEGMENTS, history: notifHistory, histStats, searchH: '',
+    heureLocale: require('./lib/programmation').heureLocale, valeurProgrammation: '2026-10-06T18:00',
+    programmations: {
+      aVenir: [
+        { id: 'n1', type: 'notification', statut: 'prevue', prevueLe: '2026-10-06T18:00:00.000Z', creeePar: 'Carlos',
+          charge: { segment: 'premium', title: 'Le choc de ce soir', body: 'Notre pronostic est en ligne.' } },
+        { id: 'n2', type: 'notification', statut: 'en_cours', prevueLe: '2026-10-05T18:00:00.000Z', creeePar: null,
+          charge: { segment: 'all', title: 'En cours d\'envoi', body: '…' } },
+      ],
+      passees: [
+        { id: 'n3', type: 'notification', statut: 'executee', prevueLe: '2026-10-04T18:00:00.000Z',
+          compteRendu: 'Envoyée à 412 membres.', charge: { segment: 'all', title: 'Bilan de la semaine', body: '…' } },
+        { id: 'n4', type: 'notification', statut: 'echec', prevueLe: '2026-10-03T18:00:00.000Z',
+          compteRendu: 'Non envoyée : 95 minutes de retard sur l\'heure prévue.', charge: { segment: 'free', title: 'Offre', body: '…' } },
+        { id: 'n5', type: 'notification', statut: 'annulee', prevueLe: '2026-10-02T18:00:00.000Z',
+          compteRendu: 'Annulée par Carlos.', charge: { segment: 'all', title: 'Doublon', body: '…' } },
+      ],
+    },
   }],
   ['notifications (vide)', 'notifications', {
     ...base, page: 'notifications',

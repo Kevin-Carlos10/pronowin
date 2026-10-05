@@ -8,6 +8,9 @@ import { repondreErreur } from '../utils/erreurs';
 import { lireSante } from '../services/sante.service';
 import { ajouterAuJournal, verifierChaine } from '../services/journal_admin.service';
 import { resumeAchatsStore, reverifierAchatStore } from '../services/achats_store_admin.service';
+import {
+  programmerPublication, programmerNotification, annulerProgrammation, listerProgrammations,
+} from '../services/programmations.service';
 const r   = Router();
 const svc = new AdminAuthService();
 const subSvc = new SubscriptionService();
@@ -135,6 +138,61 @@ r.post('/achats-store/:id/reverifier', adminMiddleware, async (req: AdminRequest
     if (!resultat) { res.status(404).json({ message: 'Achat introuvable.' }); return; }
     res.json(resultat);
   } catch (e: any) { repondreErreur(res, e, 502); }
+});
+
+// ─── Programmations ──────────────────────────────────────────────────────────
+//
+// Publier un pronostic, envoyer une notification, à une heure choisie. Une
+// route par type : chacun relève de sa propre permission.
+
+/** L'instant demandé : une date ISO, avec son fuseau. */
+const instantDe = (v: unknown) => new Date(typeof v === 'string' ? v : NaN);
+const auteurDe = (req: AdminRequest) => req.acteurAdmin?.nom ?? 'Administrateur';
+
+r.get('/programmations/pronostics', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    const pronosticId = typeof req.query.pronostic === 'string' ? req.query.pronostic : undefined;
+    res.json(await listerProgrammations('publication_pronostic', { pronosticId }));
+  } catch (e: any) { repondreErreur(res, e); }
+});
+
+r.post('/programmations/pronostics', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    res.status(201).json(await programmerPublication({
+      pronosticId: typeof req.body?.pronostic_id === 'string' ? req.body.pronostic_id : undefined,
+      matchId:     typeof req.body?.match_id === 'string' ? req.body.match_id : undefined,
+      prevueLe:    instantDe(req.body?.prevue_le),
+      auteur:      auteurDe(req),
+    }));
+  } catch (e: any) { repondreErreur(res, e, 422); }
+});
+
+r.delete('/programmations/pronostics/:id', adminMiddleware, async (req: AdminRequest, res) => {
+  try { res.json(await annulerProgrammation(req.params.id, 'publication_pronostic', auteurDe(req))); }
+  catch (e: any) { repondreErreur(res, e, 409); }
+});
+
+r.get('/programmations/notifications', adminMiddleware, async (_req: AdminRequest, res) => {
+  try { res.json(await listerProgrammations('notification')); }
+  catch (e: any) { repondreErreur(res, e); }
+});
+
+r.post('/programmations/notifications', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    const b = req.body ?? {};
+    res.status(201).json(await programmerNotification({
+      segment: String(b.segment ?? ''), title: String(b.title ?? ''), body: String(b.body ?? ''),
+      deepLink: typeof b.deep_link === 'string' ? b.deep_link : null,
+      imageUrl: typeof b.image === 'string' ? b.image : null,
+      prevueLe: instantDe(b.prevue_le),
+      auteur:   auteurDe(req),
+    }));
+  } catch (e: any) { repondreErreur(res, e, 422); }
+});
+
+r.delete('/programmations/notifications/:id', adminMiddleware, async (req: AdminRequest, res) => {
+  try { res.json(await annulerProgrammation(req.params.id, 'notification', auteurDe(req))); }
+  catch (e: any) { repondreErreur(res, e, 409); }
 });
 
 // ─── Méthodes de paiement Mobile Money ───────────────────────────────────────

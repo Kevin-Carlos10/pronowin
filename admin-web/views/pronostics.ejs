@@ -27,10 +27,13 @@
 /* ── Countdown badge ────────────────────────────────────────────────────────── */
 
 /* ── Groupe par championnat (Mes pronostics) ──────────────────────────────────── */
+/* Un brouillon programmé partira seul : il ne doit pas se lire « oublié ». */
+.status-prog { display:block; font-size:.7rem; color:var(--text-dim); margin-top:.15rem; white-space:nowrap; }
 </style>
 
 <%
   const _total     = matches.length;
+  const _programmees = (typeof programmees !== 'undefined' && programmees) ? programmees : {};
   const _published = matches.filter(m => m.is_published).length;
   const _drafts    = matches.filter(m => m.has_pronostic && !m.is_published).length;
   // Le pronostic gratuit du jour : sans repere visible, l'administrateur ne
@@ -339,6 +342,7 @@
           <td>
             <% if(m.is_published) { %><span class="status pub">Publié</span>
             <% } else if(m.has_pronostic) { %><span class="status draft">Brouillon</span>
+              <% if (_programmees[m.id]) { %><span class="status-prog">publication programmée · <%= _programmees[m.id] %></span><% } %>
             <% } else { %><span class="status none">Sans prono</span><% } %>
             <span data-match-result>
             <% if(isFinished && m.has_pronostic) { %>
@@ -406,19 +410,27 @@
     apostrophe casserait le script. %>
 <% if (typeof flash !== 'undefined' && flash) { %>
 <div id="flash-prono" hidden
-     data-ok="<%= flash.ok %>" data-match="<%= flash.match %>" data-tip="<%= flash.tip %>"></div>
+     data-ok="<%= flash.ok %>" data-match="<%= flash.match %>" data-tip="<%= flash.tip %>"
+     data-quand="<%= flash.quand ?? '' %>"></div>
 <% } %>
 
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   const _fp = document.getElementById('flash-prono');
   window.__flashProno = _fp ? {
-    ok: _fp.dataset.ok, match: _fp.dataset.match, tip: _fp.dataset.tip,
+    ok: _fp.dataset.ok, match: _fp.dataset.match, tip: _fp.dataset.tip, quand: _fp.dataset.quand,
   } : null;
   // Confirmation de publication / brouillon.
   const flash = document.getElementById('flash-success');
   const info  = window.__flashProno ?? null;
-  if (typeof showToast === 'function' && (flash || info)) {
+  if (typeof showToast === 'function' && info && info.ok === 'programme') {
+    showToast({
+      type:   'success',
+      titre:  'Publication programmée',
+      detail: [info.match, info.quand ? 'le ' + info.quand + ' (heure de Ouagadougou)' : ''].filter(Boolean).join('  ·  '),
+      duree:  6000,
+    });
+  } else if (typeof showToast === 'function' && (flash || info)) {
     const brouillon = info && info.ok === 'brouillon';
     const detail    = info
       ? [info.match, info.tip].filter(Boolean).join('  ·  ')

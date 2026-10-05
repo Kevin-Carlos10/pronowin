@@ -9,6 +9,8 @@
  * client Axios et un seul jeu de fichiers de données — les dupliquer aurait
  * créé autant d'occasions de les faire diverger.
  */
+const { instantDepuisFormulaire, heureLocale, valeurChampDans } = require('../lib/programmation');
+
 module.exports = (app, ctx) => {
   const {
     api, requireAuth, requireMain, requirePerm, logAction, sendCSV,
@@ -48,7 +50,7 @@ module.exports = (app, ctx) => {
     const mine          = req.query.mine === '1';
     const live          = req.query.live === '1';
     try {
-      const [r, leaguesRes] = await Promise.all([
+      const [r, leaguesRes, progRes] = await Promise.all([
         a.get('/pronostics/admin/upcoming', { params: {
           ...(competition ? { competition } : {}),
           // Plafond d'affichage : « Tout » ouvre sur plusieurs milliers de
@@ -61,18 +63,26 @@ module.exports = (app, ctx) => {
         // /admin/leagues (liste blanche du flux public), plutôt qu'une liste
         // figée dans le template — reste à jour automatiquement.
         a.get('/pronostics/admin/leagues').catch(() => ({ data: [] })),
+        // Les publications programmées : un brouillon qui partira seul ne
+        // doit pas se confondre avec un brouillon oublié.
+        a.get('/admin/programmations/pronostics').catch(() => ({ data: { aVenir: [] } })),
       ]);
+      const programmees = {};
+      for (const p of progRes.data?.aVenir ?? []) {
+        if (p.pronostic?.matchId) programmees[p.pronostic.matchId] = heureLocale(p.prevueLe);
+      }
       const visibleLeagues = (leaguesRes.data ?? []).filter(l => l.isVisible);
       // Total avant troncature — l'en-tête existe pour que la page annonce
       // « 400 sur 3 197 » au lieu de laisser croire qu'il n'y a que 400 matchs.
       const totalMatchs = parseInt(r.headers?.['x-total-count'] ?? '', 10);
-      res.render('pronostics', { adminName: req.admin.nom ?? 'Admin', matches: r.data ?? [], visibleLeagues, competition, statusFilter, q, date, mine, live,
+      res.render('pronostics', { adminName: req.admin.nom ?? 'Admin', matches: r.data ?? [], visibleLeagues, competition, statusFilter, q, date, mine, live, programmees,
         totalMatchs: Number.isFinite(totalMatchs) ? totalMatchs : null,
         success: req.query.success === '1', error: null,
         flash: req.query.ok ? {
-          ok:    req.query.ok === 'publie' ? 'publie' : 'brouillon',
+          ok:    ['publie', 'programme'].includes(req.query.ok) ? req.query.ok : 'brouillon',
           match: sanitize(req.query.match ?? '', 80),
           tip:   sanitize(req.query.tip   ?? '', 60),
+          quand: sanitize(req.query.quand ?? '', 40),
         } : null });
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
@@ -126,11 +136,43 @@ module.exports = (app, ctx) => {
     }
   });
 
+  /**
+   * Ce que le formulaire doit dire d'une publication programmée : celle qui
+   * est prévue, ou — s'il n'y en a plus — la dernière qui a échoué dans les
+   * deux derniers jours. Une lecture impossible n'empêche pas d'éditer.
+   */
+  async function etatProgrammation(a, pronosticId) {
+    const vide = { programmation: null, programmationEchec: null, heureLocale, valeurProgrammation: valeurChampDans(60) };
+    if (!pronosticId) return vide;
+    try {
+      const r = await a.get('/admin/programmations/pronostics', { params: { pronostic: pronosticId } });
+      const derniere = r.data?.passees?.[0];
+      return { ...vide,
+        programmation: r.data?.aVenir?.[0] ?? null,
+        programmationEchec: derniere && derniere.statut === 'echec'
+          && Date.now() - new Date(derniere.prevueLe).getTime() < 2 * 86_400_000 ? derniere : null };
+    } catch { return vide; }
+  }
+
+  app.post('/admin/pronostics/programmations/:id/annuler', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
+    const matchId = String(req.body.match_id ?? '');
+    const retour  = /^[\w-]{1,64}$/.test(matchId) ? '/admin/pronostics/edit/' + matchId : '/admin/pronostics';
+    try {
+      await api(req.admin.jeton).delete('/admin/programmations/pronostics/' + encodeURIComponent(req.params.id));
+      logAction(req, 'programmation_annulee', `Publication programmée #${req.params.id}`, { programmation: req.params.id, matchId });
+      res.redirect(retour + (retour.includes('/edit/') ? '?programmation=annulee' : ''));
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      res.redirect(retour + '?depublish_error=' + encodeURIComponent(e.response?.data?.message ?? e.message));
+    }
+  });
+
   app.get('/admin/pronostics/edit/:matchId', requireAuth, requirePerm('pronostics'), async (req, res) => {
     const a = api(req.admin.jeton);
     try {
       const r = await a.get('/pronostics/admin/match/' + req.params.matchId);
-      res.render('pronostic_form', { adminName: req.admin.nom ?? 'Admin', match: r.data, error: null, query: req.query });
+      res.render('pronostic_form', { adminName: req.admin.nom ?? 'Admin', match: r.data, error: null, query: req.query,
+        ...(await etatProgrammation(a, r.data?.pronostic?.id)) });
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
       res.redirect('/admin/pronostics');
@@ -139,8 +181,38 @@ module.exports = (app, ctx) => {
 
   app.post('/admin/pronostics/edit/:matchId', requireAuth, requirePerm('pronostics', 'write'), async (req, res) => {
     const a = api(req.admin.jeton);
+    // « Programmer » : enregistrer en brouillon, puis demander la publication
+    // à l'heure choisie. Sans heure valable, rien n'est écrit.
+    const programmer = req.body.publish === 'programmer';
+    const quand = programmer ? instantDepuisFormulaire(req.body, 'publier_le') : null;
+    const { publier_le, quand_iso, ...champs } = req.body;
+    const reafficher = async (message) => {
+      try {
+        const r2 = await a.get('/pronostics/admin/match/' + req.params.matchId);
+        res.render('pronostic_form', { adminName: req.admin.nom ?? 'Admin', match: r2.data, error: message, query: {},
+          ...(await etatProgrammation(a, r2.data?.pronostic?.id)) });
+      } catch { res.redirect('/admin/pronostics'); }
+    };
+    if (programmer && !quand) return reafficher("Choisissez la date et l'heure de publication.");
     try {
-      await a.post('/pronostics/admin/pronostic', { ...req.body, match_id: req.params.matchId, is_premium: req.body.is_premium === 'on', publish: req.body.publish === 'true' });
+      const enregistre = await a.post('/pronostics/admin/pronostic', { ...champs, match_id: req.params.matchId, is_premium: req.body.is_premium === 'on', publish: req.body.publish === 'true' });
+      if (programmer) {
+        const libelleMatch = req.body.home_team && req.body.away_team
+          ? `${req.body.home_team} – ${req.body.away_team}` : `Match #${req.params.matchId}`;
+        try {
+          await a.post('/admin/programmations/pronostics', {
+            pronostic_id: enregistre.data?.id, match_id: req.params.matchId, prevue_le: quand.toISOString(),
+          });
+        } catch (e) {
+          if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+          return reafficher("Brouillon enregistré, mais la publication n'a pas pu être programmée : "
+            + (e.response?.data?.message ?? e.message));
+        }
+        logAction(req, 'pronostic_programme', libelleMatch, { matchId: req.params.matchId, prevueLe: quand.toISOString() });
+        return res.redirect('/admin/pronostics?' + new URLSearchParams({
+          ok: 'programme', match: libelleMatch.slice(0, 80), quand: heureLocale(quand.toISOString()),
+        }).toString());
+      }
       // Le formulaire renvoie les noms d'équipe en champs cachés : le journal
       // affichait « Match #09fa3d5a-a0c7-4011-a5f1… », un identifiant que
       // personne ne peut relier à un match en le lisant.

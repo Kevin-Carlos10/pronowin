@@ -8,6 +8,27 @@
 /* ── Stats ───────────────────────────────────────────────────────────────────── */
 .nf-stats { display:grid; grid-template-columns:repeat(4,1fr); gap:.65rem; margin-bottom:1rem; }
 @media(max-width:700px) { .nf-stats { grid-template-columns:repeat(2,1fr); } }
+/* Envoi programmé */
+.nf-quand        { padding:1.25rem; margin-bottom:1rem; }
+.nf-quand h3     { font-size:.95rem; font-weight:700; margin:0 0 .75rem; }
+.nf-quand-choix  { display:flex; gap:1rem; flex-wrap:wrap; align-items:center; }
+.nf-quand-choix label { display:flex; align-items:center; gap:.4rem; font-size:.88rem; cursor:pointer;
+                        text-transform:none; letter-spacing:normal; font-weight:600; color:var(--text); margin:0; }
+.nf-quand-choix input[type=radio] { width:auto; }
+.nf-quand-heure  { width:auto; min-height:44px; }
+.nf-quand-aide   { margin:.55rem 0 0; font-size:.75rem; color:var(--text-dim); line-height:1.55; }
+.nf-prog         { padding:0; overflow:hidden; margin-top:1rem; }
+.nf-prog-tete    { padding:.85rem 1.25rem; border-bottom:1px solid var(--border); }
+.nf-prog-tete h3 { font-size:.95rem; font-weight:700; margin:0; }
+.nf-prog-ligne   { display:flex; gap:.75rem; align-items:flex-start; padding:.75rem 1.25rem; border-bottom:1px solid var(--border); }
+.nf-prog-ligne:last-child { border-bottom:0; }
+.nf-prog-corps   { flex:1; min-width:0; }
+.nf-prog-titre   { font-weight:700; font-size:.88rem; }
+.nf-prog-meta    { font-size:.75rem; color:var(--text-dim); margin-top:.15rem; line-height:1.5; }
+.nf-prog-cr      { font-size:.75rem; margin-top:.2rem; }
+.nf-prog-cr.ok   { color:var(--on-success); }
+.nf-prog-cr.ko   { color:var(--on-danger); }
+.nf-prog-annuler { margin:0; flex-shrink:0; }
 .nf-stat  { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--border-s); border-radius:14px; padding:.9rem 1.1rem; transition:transform .2s,box-shadow .2s; }
 .nf-stat:hover { transform:translateY(-2px); box-shadow:0 8px 24px rgba(0,0,0,.2); }
 .nf-stat .v { font-size:1.6rem; font-weight:900; line-height:1; margin-top:.1rem; letter-spacing:-.03em; }
@@ -191,12 +212,67 @@
         </details>
       </div>
 
+      <!-- Quand -->
+      <div class="card cr-panel nf-quand">
+        <h3><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg> Quand</h3>
+        <div class="nf-quand-choix">
+          <label><input type="radio" name="quand" value="maintenant" checked onchange="onQuandChange()"> Maintenant</label>
+          <label><input type="radio" name="quand" value="plus_tard" onchange="onQuandChange()"> Plus tard, le</label>
+          <input class="input nf-quand-heure" type="datetime-local" name="envoyer_le" id="envoyer-le"
+                 value="<%= typeof valeurProgrammation !== 'undefined' ? valeurProgrammation : '' %>"
+                 aria-label="Date et heure d'envoi" onfocus="choisirPlusTard()">
+          <input type="hidden" name="quand_iso" id="quand-iso" value="">
+        </div>
+        <p class="nf-quand-aide">
+          Heure de votre appareil. Une notification programmée part toute seule ; si le serveur était arrêté à
+          l'heure dite, elle ne part pas avec plus d'une heure de retard. L'envoi de test à une seule personne part
+          toujours tout de suite.
+        </p>
+      </div>
+
       <!-- Bouton envoi -->
       <button type="button" class="btn btn-primary" style="width:100%;justify-content:center;padding:.85rem;font-size:1rem"
-        onclick="confirmSend()">
-        <svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> Envoyer la notification
+        onclick="confirmSend()" id="btn-envoi">
+        <svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> <span id="btn-envoi-libelle">Envoyer la notification</span>
       </button>
     </form>
+
+    <!-- ── Programmées ── -->
+    <% const _progs = (typeof programmations !== 'undefined' && programmations) ? programmations : { aVenir: [], passees: [] };
+       const _heure = (typeof heureLocale === 'function') ? heureLocale : (iso => iso);
+       const _segLib = k => (SEGMENTS.find(x => x.key === k) || { label: k }).label; %>
+    <% if (_progs.aVenir.length || _progs.passees.length) { %>
+    <div class="card cr-panel nf-prog">
+      <div class="nf-prog-tete"><h3><svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg> Notifications programmées</h3></div>
+      <% _progs.aVenir.forEach(p => { const c = p.charge || {}; %>
+      <div class="nf-prog-ligne">
+        <div class="nf-prog-corps">
+          <div class="nf-prog-titre"><%= c.title %></div>
+          <div class="nf-prog-meta">
+            <%= p.statut === 'en_cours' ? 'Envoi en cours' : 'Le ' + _heure(p.prevueLe) + ' (heure de Ouagadougou)' %>
+            · <%= _segLib(c.segment) %><%= p.creeePar ? ' · par ' + p.creeePar : '' %>
+          </div>
+        </div>
+        <% if (p.statut === 'prevue' && hasPerm('notifications', 'write')) { %>
+        <form method="POST" action="/admin/notifications/programmations/<%= p.id %>/annuler" class="nf-prog-annuler">
+          <button type="submit" class="btn btn-outline btn-sm">Annuler</button>
+        </form>
+        <% } %>
+      </div>
+      <% }) %>
+      <% _progs.passees.slice(0, 5).forEach(p => { const c = p.charge || {}; %>
+      <div class="nf-prog-ligne">
+        <div class="nf-prog-corps">
+          <div class="nf-prog-titre"><%= c.title %></div>
+          <div class="nf-prog-meta">Prévue le <%= _heure(p.prevueLe) %> · <%= _segLib(c.segment) %></div>
+          <div class="nf-prog-cr <%= p.statut === 'executee' ? 'ok' : p.statut === 'echec' ? 'ko' : '' %>">
+            <%= p.statut === 'executee' ? '✓ ' : p.statut === 'echec' ? '✗ ' : '' %><%= p.compteRendu || p.statut %>
+          </div>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+    <% } %>
 
     <!-- ── Historique ── -->
     <div class="card cr-panel" style="padding:0;overflow:hidden;margin-top:1rem">
@@ -413,12 +489,39 @@ function confirmSend() {
     ? 'l’utilisateur ' + target
     : count + ' utilisateurs (' + segMeta.label + ')';
 
+  // Envoi programmé : l'heure choisie, convertie ici en instant — la
+  // soumission par script ne déclenche pas l'événement « submit ».
+  const plusTard = document.querySelector('input[name=quand]:checked')?.value === 'plus_tard';
+  const champHeure = document.getElementById('envoyer-le');
+  const instant = plusTard && champHeure.value ? new Date(champHeure.value) : null;
+  if (plusTard && segKey === 'user') { showToast('L’envoi de test part tout de suite : choisissez « Maintenant ».', 'error'); return; }
+  if (plusTard && (!instant || !isFinite(instant.getTime()) || instant.getTime() < Date.now() + 60000)) {
+    showToast('Choisissez une date et une heure à venir.', 'error'); return;
+  }
+  document.getElementById('quand-iso').value = instant ? instant.toISOString() : '';
+  const quandTxt = instant
+    ? ' le ' + instant.toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : '';
+
   askConfirm({
-    icon:'megaphone', title:'Confirmer l\'envoi',
-    msg:'Vous allez envoyer "' + title + '" à ' + dest + '. Cette action est irréversible.',
-    btnLabel:'Envoyer', btnClass:'btn-primary',
+    icon:'megaphone', title: plusTard ? 'Confirmer la programmation' : 'Confirmer l\'envoi',
+    msg: plusTard
+      ? 'La notification "' + title + '" partira' + quandTxt + ' vers ' + dest + '. Vous pourrez l’annuler d’ici là.'
+      : 'Vous allez envoyer "' + title + '" à ' + dest + '. Cette action est irréversible.',
+    btnLabel: plusTard ? 'Programmer' : 'Envoyer', btnClass:'btn-primary',
     onConfirm: () => document.getElementById('notif-form').submit(),
   });
+}
+
+/* ── Maintenant / plus tard ── */
+function onQuandChange() {
+  const plusTard = document.querySelector('input[name=quand]:checked')?.value === 'plus_tard';
+  document.getElementById('btn-envoi-libelle').textContent =
+    plusTard ? 'Programmer la notification' : 'Envoyer la notification';
+}
+function choisirPlusTard() {
+  const r = document.querySelector('input[name=quand][value=plus_tard]');
+  if (r && !r.checked) { r.checked = true; onQuandChange(); }
 }
 
 /* ── Supprimer historique ── */

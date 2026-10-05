@@ -5,6 +5,7 @@ import { signalerAchatsEnRetard, SEUIL_ATTENTE_HEURES, INTERVALLE_CONTROLE_MS } 
 import { SubscriptionService } from './services/subscription.service';
 import { FileNotificationsIap } from './services/iap_notifications.service';
 import { suivre } from './services/etat_taches';
+import { executerProgrammationsEchues } from './services/programmations.service';
 
 /**
  * Les tâches planifiées, hors du serveur HTTP (constat P1 de l'audit du
@@ -127,6 +128,15 @@ export function demarrerTaches(): () => void {
   logger.info(
     `Alerte achats non activés — contrôle toutes les ${SEUIL_ATTENTE_HEURES} h`,
   );
+
+  // ─── PUBLICATIONS ET NOTIFICATIONS PROGRAMMÉES ────────────────────────────
+  // Hors du bloc football, pour la même raison que l'alerte ci-dessus : une
+  // notification programmée ne dépend pas de la clé du fournisseur.
+  programmer(setInterval(() => {
+    suivre('programmations', () => executerProgrammationsEchues(),
+      ({ executees }) => `${executees} exécutée(s)`).catch((err: Error) =>
+      logger.error('[Programmations] Erreur', { message: err.message }));
+  }, 60_000));
 
   return () => {
     arrete = true;

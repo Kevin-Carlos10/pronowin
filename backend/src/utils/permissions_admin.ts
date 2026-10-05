@@ -95,6 +95,14 @@ const REGLES: Regle[] = [
   [LIRE,   /^\/admin\/achats-store$/,                          section('abonnements', 'read')],
   [ECRIRE, /^\/admin\/achats-store\/[^/]+\/reverifier$/,        section('abonnements', 'write')],
 
+  // ── Programmations : chaque type relève de sa section ──
+  [LIRE,   /^\/admin\/programmations\/pronostics$/,                section('pronostics', 'read')],
+  [ECRIRE, /^\/admin\/programmations\/pronostics$/,                section('pronostics', 'write')],
+  [SUPPR,  /^\/admin\/programmations\/pronostics\/[^/]+$/,          section('pronostics', 'write')],
+  [LIRE,   /^\/admin\/programmations\/notifications$/,             section('notifications', 'read')],
+  [ECRIRE, /^\/admin\/programmations\/notifications$/,             section('notifications', 'write')],
+  [SUPPR,  /^\/admin\/programmations\/notifications\/[^/]+$/,       section('notifications', 'write')],
+
   // ── Bankroll ──
   [LIRE,   /^\/bankroll\/admin\/(list|stats|[^/]+)$/,           section('bankroll', 'read')],
 

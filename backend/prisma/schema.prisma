@@ -293,6 +293,31 @@ model Match {
 /// Les variables d'environnement restent la valeur de repli : une clé absente
 /// de cette table retombe sur le `.env`, ce qui laisse le comportement
 /// inchangé tant que personne n'a rien enregistré.
+/// Une action d'administration programmée : publier un pronostic, envoyer
+/// une notification. Le processus des tâches l'exécute à l'heure dite
+/// (`services/programmations.service.ts`).
+model Programmation {
+  id          String    @id @default(uuid())
+  /// publication_pronostic | notification
+  type        String
+  pronosticId String?   @map("pronostic_id")
+  /// Notification : { segment, title, body, deepLink?, imageUrl? }
+  charge      Json?
+  prevueLe    DateTime  @map("prevue_le")
+  /// prevue | en_cours | executee | annulee | echec
+  statut      String    @default("prevue")
+  creeePar    String?   @map("creee_par")
+  creeeLe     DateTime  @default(now()) @map("creee_le")
+  /// Début de l'exécution, puis sa fin.
+  executeeLe  DateTime? @map("executee_le")
+  /// Ce qui s'est passé, en clair : « Publié », « Envoyée à 412 membres »…
+  compteRendu String?   @map("compte_rendu")
+
+  @@index([statut, prevueLe])
+  @@index([pronosticId])
+  @@map("programmations")
+}
+
 /// La dernière version de l'application vue pour chaque membre connecté,
 /// d'après les en-têtes `X-App-*` envoyés depuis la 1.0.18. Écrite au plus
 /// toutes les six heures par membre (`services/version_app.service.ts`).
