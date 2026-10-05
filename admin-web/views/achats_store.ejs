@@ -19,6 +19,19 @@
 .as-notifs li { display: flex; flex-wrap: wrap; gap: .4rem .8rem; align-items: baseline;
                 padding: .55rem .9rem; border-bottom: 1px solid var(--border); font-size: .82rem; }
 .as-notifs li:last-child { border-bottom: 0; }
+.as-ok        { color: var(--on-success); }
+.as-warn      { color: var(--on-warning); }
+.as-err       { color: var(--on-danger); }
+.as-dim       { color: var(--text-dim); }
+.as-m         { color: var(--text-m); }
+.as-type      { color: var(--text); }
+.as-erreur    { color: var(--on-danger); flex-basis: 100%; }
+.as-compte    { font-size: .8rem; color: var(--text-m); }
+.as-carte     { padding: 0; overflow: hidden; }
+.as-note      { font-size: .75rem; color: var(--text-dim); margin-top: .7rem; line-height: 1.6; }
+.as-titre     { margin: 1.6rem 0 .8rem; font-size: 1rem; }
+.as-titre-sous { font-weight: 400; color: var(--text-dim); font-size: .78rem; }
+.empty-state.as-vide { padding: 2rem; }
 @media (max-width: 760px) {
   .as-tuiles    { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -97,19 +110,19 @@
     <div class="l">en cours sur Google Play</div>
   </div>
   <div class="as-tuile metric-card">
-    <div class="v" style="color:var(--on-success)"><%= _st.nouveaux30j %></div>
-    <div class="l">nouveaux abonnés<br><span style="color:var(--text-dim)">30 derniers jours</span></div>
+    <div class="v as-ok"><%= _st.nouveaux30j %></div>
+    <div class="l">nouveaux abonnés<br><span class="as-dim">30 derniers jours</span></div>
   </div>
   <div class="as-tuile metric-card">
     <div class="v"><%= _st.renouvellements30j %></div>
-    <div class="l">renouvellements<br><span style="color:var(--text-dim)">30 derniers jours</span></div>
+    <div class="l">renouvellements<br><span class="as-dim">30 derniers jours</span></div>
   </div>
   <div class="as-tuile metric-card">
-    <div class="v" style="color:var(--on-warning)"><%= _st.resilies %></div>
+    <div class="v as-warn"><%= _st.resilies %></div>
     <div class="l">résiliés, encore en cours</div>
   </div>
   <div class="as-tuile metric-card">
-    <div class="v" style="color:var(--on-danger)"><%= _st.impayes %></div>
+    <div class="v as-err"><%= _st.impayes %></div>
     <div class="l">paiements en échec</div>
   </div>
   <div class="as-tuile metric-card">
@@ -118,7 +131,7 @@
   </div>
   <div class="as-tuile metric-card">
     <div class="v"><%= _st.expires30j %></div>
-    <div class="l">expirés<br><span style="color:var(--text-dim)">30 derniers jours</span></div>
+    <div class="l">expirés<br><span class="as-dim">30 derniers jours</span></div>
   </div>
 </div>
 
@@ -144,7 +157,7 @@
 
 <section class="command-surface">
 <form method="GET" action="/admin/achats-store" class="filterbar">
-  <svg class="ic" aria-hidden="true" style="color:var(--text-m)"><use href="#ic-search"/></svg>
+  <svg class="ic as-m" aria-hidden="true"><use href="#ic-search"/></svg>
   <input type="search" name="q" value="<%= _f.q %>" autocomplete="off" maxlength="100"
          aria-label="Rechercher un abonnement"
          placeholder="Pseudo, e-mail, numéro de transaction…">
@@ -168,7 +181,7 @@
   </a>
   <% } %>
   <span class="spacer"></span>
-  <span style="font-size:.8rem;color:var(--text-m)"><%= _d.total %> abonnement<%= _d.total !== 1 ? 's' : '' %></span>
+  <span class="as-compte"><%= _d.total %> abonnement<%= _d.total !== 1 ? 's' : '' %></span>
 </form>
 </section>
 
@@ -189,7 +202,7 @@
   </div>
 <% } else { %>
 
-<div class="card cr-panel" style="padding:0;overflow:hidden">
+<div class="card cr-panel as-carte">
   <div class="table-wrap">
   <table class="as-tab">
     <thead>
@@ -257,7 +270,7 @@
             </button>
           </form>
           <% } else { %>
-            <span style="color:var(--text-dim)">—</span>
+            <span class="as-dim">—</span>
           <% } %>
         </div></td>
       </tr>
@@ -277,38 +290,38 @@
 
 <% } %>
 
-<p style="font-size:.75rem;color:var(--text-dim);margin-top:.7rem;line-height:1.6">
+<p class="as-note">
   Les chiffres du haut excluent les achats de test (TestFlight, testeurs Google). « Revérifier » ne
   facture rien : le serveur redemande l'état de l'abonnement au store et l'applique au compte.
   Le montant n'est connu que pour l'App Store ; Google ne le transmet pas à la vérification.
 </p>
 
-<h3 style="margin:1.6rem 0 .8rem;font-size:1rem">
+<h3 class="as-titre">
   Dernières notifications des stores
-  <small style="font-weight:400;color:var(--text-dim);font-size:.78rem">
+  <small class="as-titre-sous">
     — renouvellements, résiliations et remboursements annoncés par Apple et Google
   </small>
 </h3>
 
 <% if (_notifs.length === 0) { %>
   <div class="card">
-    <div class="empty-state" style="padding:2rem">
+    <div class="empty-state as-vide">
       <div class="empty-state-title">Aucune notification reçue</div>
       <div class="empty-state-desc">Apple et Google en envoient une à chaque achat, renouvellement ou remboursement.</div>
     </div>
   </div>
 <% } else { %>
-<div class="card cr-panel" style="padding:0;overflow:hidden">
+<div class="card cr-panel as-carte">
   <ul class="as-notifs">
     <% _notifs.forEach(n => { %>
     <li>
-      <span class="as-num" style="color:var(--text-m)"><%= _heure(n.recueLe) %></span>
+      <span class="as-num as-m"><%= _heure(n.recueLe) %></span>
       <strong><%= _STORES[n.store] ?? n.store %></strong>
-      <span class="as-mono" style="color:var(--text)"><%= n.type %></span>
+      <span class="as-mono as-type"><%= n.type %></span>
       <span class="badge <%= _clsNotif(n.statut) %>"><%= _NOTIFS[n.statut] ?? n.statut %></span>
-      <% if (n.tentatives > 1) { %><span style="color:var(--text-dim)"><%= n.tentatives %> tentatives</span><% } %>
+      <% if (n.tentatives > 1) { %><span class="as-dim"><%= n.tentatives %> tentatives</span><% } %>
       <% if (n.erreur && n.statut !== 'traitee') { %>
-        <span style="color:var(--on-danger);flex-basis:100%"><%= n.erreur %></span>
+        <span class="as-erreur"><%= n.erreur %></span>
       <% } %>
     </li>
     <% }) %>

@@ -13,6 +13,7 @@ r.get('/signups',      C.getSignups);          // GET /admin/stats/signups?days=
 r.get('/pronostics',   C.getPronosticsStats);  // GET /admin/stats/pronostics?days=30
 r.get('/monthly',      C.getMonthly);          // GET /admin/stats/monthly          (12 mois)
 r.get('/leagues',      C.getLeaguePerformance);// GET /admin/stats/leagues?days=30
+r.get('/fiabilite',    C.getFiabilite);        // GET /admin/stats/fiabilite?days=90 (sans days : tout)
 r.get('/online',       C.getOnlineCount);      // GET /admin/stats/online           (non caché)
 
 export default r;

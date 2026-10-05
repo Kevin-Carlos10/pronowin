@@ -15,6 +15,8 @@ const base = {
   // recoivent du serveur, le harnais doit la fournir aussi, sinon _perm_table
   // rendrait ici avec une regle differente de celle en production.
   niveauAccorde: require('./lib/permissions').niveauAccorde,
+  // Idem : injectee par res.locals en service.
+  MARCHES_FR: require('./lib/marches').MARCHES_FR,
 };
 
 // Les `icon:` doivent rester des identifiants du sprite (views/_icons.ejs),
@@ -794,6 +796,60 @@ const views = [
   ['code promo (API muette)', 'code_promo', {
     ...base, page: 'code_promo', config: null, stats: null,
     erreur: 'connect ECONNREFUSED',
+  }],
+
+  // ── Fiabilité de l'indice de confiance ──
+  //
+  // Le cas nominal porte les quatre verdicts, un remboursement, un marché
+  // brut traduit, un marché brut inconnu et des pronostics reconstitués.
+  ['fiabilite (tout l\'historique)', 'fiabilite', {
+    ...base, page: 'fiabilite', erreur: null, jours: null, periodes: [30, 90, 365],
+    libelleMarche: require('./lib/marches').libelleMarche,
+    donnees: (() => {
+      const g = (cle, n, gagnes, annonce, verdict, extra = {}) => ({
+        cle, tranches: n, gagnes, rembourses: 0,
+        tauxReel: n ? Math.round(gagnes / n * 100) : null, annonceMoyen: n ? annonce : null,
+        ecart: n ? Math.round(gagnes / n * 100) - annonce : null,
+        intervalle: n ? [Math.max(0, Math.round(gagnes / n * 100) - 15), Math.min(100, Math.round(gagnes / n * 100) + 12)] : null,
+        verdict, coteMoyenne: n ? 1.72 : null, chanceCote: n ? 58 : null,
+        rendement: { unites: n ? 3.4 : 0, paris: n, roi_pct: n ? 6.8 : null }, ...extra,
+      });
+      return {
+        jours: null, echantillonMinimal: 10, reconstitues: 31,
+        global: g('global', 120, 78, 72, 'trop_optimiste'),
+        tranches: [
+          g('1-49', 0, 0, 0, 'echantillon_faible'),
+          g('50-59', 8, 5, 55, 'echantillon_faible', { rembourses: 1 }),
+          g('60-69', 30, 21, 64, 'fiable'),
+          g('70-79', 45, 28, 74, 'fiable'),
+          g('80-89', 30, 19, 85, 'trop_optimiste', { rendement: { unites: -4.2, paris: 30, roi_pct: -14 } }),
+          g('90-99', 7, 5, 90, 'echantillon_faible'),
+        ],
+        marches: [
+          g('win1', 40, 27, 74, 'fiable'),
+          g('other:Goals Over/Under', 35, 30, 66, 'trop_prudent'),
+          g('over25', 20, 10, 75, 'trop_optimiste'),
+          g('other:Une Cote Inconnue', 3, 2, 70, 'echantillon_faible'),
+          g('other:', 2, 1, 60, 'echantillon_faible'),
+        ],
+        formules: [g('premium', 90, 56, 74, 'trop_optimiste'), g('gratuit', 30, 22, 66, 'fiable')],
+      };
+    })(),
+  }],
+  ['fiabilite (aucun pronostic réglé)', 'fiabilite', {
+    ...base, page: 'fiabilite', erreur: null, jours: 30, periodes: [30, 90, 365],
+    libelleMarche: require('./lib/marches').libelleMarche,
+    donnees: {
+      jours: 30, echantillonMinimal: 10, reconstitues: 0,
+      global: { cle: 'global', tranches: 0, gagnes: 0, rembourses: 0, tauxReel: null, annonceMoyen: null,
+                ecart: null, intervalle: null, verdict: 'echantillon_faible', coteMoyenne: null,
+                chanceCote: null, rendement: { unites: 0, paris: 0, roi_pct: null } },
+      tranches: [], marches: [], formules: [],
+    },
+  }],
+  ['fiabilite (API muette)', 'fiabilite', {
+    ...base, page: 'fiabilite', donnees: null, erreur: 'connect ECONNREFUSED', jours: 90,
+    periodes: [30, 90, 365],
   }],
 
   // ── Achats App Store / Google Play ──

@@ -4,6 +4,7 @@ import { StatsService } from '../services/stats.service';
 import { prisma } from '../lib/prisma';
 import { rendementUnites } from '../utils/rendement';
 import { repondreErreur } from '../utils/erreurs';
+import { resumeFiabilite } from '../services/fiabilite_confiance.service';
 
 const svc = new StatsService();
 
@@ -193,5 +194,19 @@ export const getLeaguePerformance = async (req: AdminRequest, res: Response) => 
     .sort((a, b) => b.total - a.total || (b.win_rate ?? 0) - (a.win_rate ?? 0));
 
     res.json(out);
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
+ * GET /admin/stats/fiabilite?days=90 — l'indice de confiance annoncé, comparé
+ * au taux de réussite réel, par tranche et par marché.
+ *
+ * Sans `days`, tout l'historique : les tranches se remplissent lentement, et
+ * une fenêtre de 30 jours laisse la plupart sous le seuil d'interprétation.
+ */
+export const getFiabilite = async (req: AdminRequest, res: Response) => {
+  try {
+    const jours = parseInt(String(req.query.days ?? '')) || null;
+    res.json(await resumeFiabilite({ jours }));
   } catch (e: any) { repondreErreur(res, e); }
 };

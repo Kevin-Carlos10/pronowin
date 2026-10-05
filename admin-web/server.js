@@ -455,6 +455,7 @@ function saveNotifHistory(d)  { return ecrireJson(NOTIF_FILE, d.slice(0, 200), 0
 // `icon` porte un identifiant du sprite SVG (views/_icons.ejs), pas un emoji :
 // les vues rendent <svg><use href="#ic-…"/></svg>, donc la teinte suit le thème.
 const { ACTION_LABELS } = require('./lib/action_labels');
+const { MARCHES_FR } = require('./lib/marches');
 
 
 function logAction(req, action, target = '', details = {}) {
@@ -989,6 +990,8 @@ app.use((req, res, next) => {
   // gardait sa propre copie, qui renvoyait le premier niveau au lieu du plus
   // eleve : la fenetre n'affichait qu'une case cochee sur trois.
   res.locals.niveauAccorde = niveauAccorde;
+  // Noms des marchés de paris en français (formulaire de pronostic).
+  res.locals.MARCHES_FR = MARCHES_FR;
   // Injecter les paramètres globaux (annonce, titre…)
   const settings = loadSettings();
   res.locals.settings = settings;

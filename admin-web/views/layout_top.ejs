@@ -112,6 +112,7 @@
 
     <% if (hasPerm('statistiques')) { %>
     <a href="/admin/statistiques" class="nav-item <%= page==='statistiques' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg></span> Statistiques</a>
+    <a href="/admin/fiabilite" class="nav-item <%= page==='fiabilite' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg></span> Fiabilité des pronostics</a>
     <% } %>
 
     <% if (hasPerm('users')) { %>
