@@ -88,6 +88,10 @@ const REGLES: Regle[] = [
   // ── Abonnements (preuves Premium) ──
   [LIRE,   /^\/subscriptions\/admin\/proofs$/,                  section('abonnements', 'read')],
   [ECRIRE, /^\/subscriptions\/admin\/proofs\/[^/]+$/,           section('abonnements', 'write')],
+  // Achats App Store / Google Play : le même écran que les preuves, côté
+  // stores. Revérifier peut accorder le Premium, comme valider une preuve.
+  [LIRE,   /^\/admin\/achats-store$/,                          section('abonnements', 'read')],
+  [ECRIRE, /^\/admin\/achats-store\/[^/]+\/reverifier$/,        section('abonnements', 'write')],
 
   // ── Bankroll ──
   [LIRE,   /^\/bankroll\/admin\/(list|stats|[^/]+)$/,           section('bankroll', 'read')],

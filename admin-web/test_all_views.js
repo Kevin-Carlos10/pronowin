@@ -796,6 +796,88 @@ const views = [
     erreur: 'connect ECONNREFUSED',
   }],
 
+  // ── Achats App Store / Google Play ──
+  //
+  // Le cas nominal porte une anomalie (payé, compte resté gratuit), un compte
+  // supprimé, un achat de test et une notification en échec : ce sont les
+  // lignes que l'écran existe pour montrer.
+  ['achats store (avec anomalie)', 'achats_store', {
+    ...base, page: 'achats_store', erreur: null,
+    filtres: { store: '', etat: '', tests: true, q: '', page: 1 },
+    lienStore: (f) => '/admin/achats-store?page=' + f.page,
+    donnees: {
+      stats: {
+        actifs: { apple: 12, google: 3 }, nouveaux30j: 4, renouvellements30j: 9,
+        resilies: 2, impayes: 1, rembourses: 1, expires30j: 3,
+        anomalies: 1, tests: 2, notificationsEnEchec: 1,
+      },
+      total: 120, page: 1, parPage: 50,
+      abonnements: [
+        { id: 'p1', store: 'apple', formule: 'mensuel', produit: 'com.pronowin.premium.monthly',
+          etat: 'actif', test: false, renouvellementAuto: true,
+          premierAchat: '2026-09-02T10:00:00Z', derniereMaj: '2026-10-02T10:00:00Z',
+          echeance: '2026-11-02T10:00:00Z', paiements: 2, montant: '14.99 USD', transaction: '2000000712345678',
+          compte: { id: 'u1', pseudo: 'Awa', email: 'awa@example.com', premium: false, supprime: false },
+          anomalie: true },
+        { id: 'p2', store: 'google', formule: 'annuel', produit: 'com.pronowin.premium.annual',
+          etat: 'resilie', test: false, renouvellementAuto: false,
+          premierAchat: '2026-03-01T10:00:00Z', derniereMaj: '2026-09-20T10:00:00Z',
+          echeance: '2027-03-01T10:00:00Z', paiements: 1, montant: null, transaction: 'GPA.3344-5566-7788-99001',
+          compte: { id: 'u2', pseudo: 'Issa', email: null, premium: true, supprime: false },
+          anomalie: false },
+        { id: 'p3', store: 'apple', formule: 'mensuel', produit: 'com.pronowin.premium.monthly',
+          etat: 'rembourse', test: false, renouvellementAuto: null,
+          premierAchat: '2026-08-01T10:00:00Z', derniereMaj: '2026-08-15T10:00:00Z',
+          echeance: '2026-09-01T10:00:00Z', paiements: 1, montant: '14.99 USD', transaction: '2000000700000001',
+          compte: { id: 'u3', pseudo: 'compte-supprime', email: null, premium: false, supprime: true },
+          anomalie: false },
+        { id: 'p4', store: 'apple', formule: 'autre', produit: 'com.pronowin.premium.weekly',
+          etat: 'impaye', test: true, renouvellementAuto: true,
+          premierAchat: '2026-10-01T10:00:00Z', derniereMaj: '2026-10-04T10:00:00Z',
+          echeance: '2026-10-08T10:00:00Z', paiements: 3, montant: null, transaction: '2000000799999999',
+          compte: { id: 'u4', pseudo: 'Testeur', email: 'test@example.com', premium: true, supprime: false },
+          anomalie: false },
+      ],
+      notifications: [
+        { id: 'n1', store: 'apple', statut: 'traitee', tentatives: 1, recueLe: '2026-10-04T08:00:00Z',
+          traiteeLe: '2026-10-04T08:00:01Z', erreur: null, type: 'DID_RENEW' },
+        { id: 'n2', store: 'google', statut: 'echec', tentatives: 3, recueLe: '2026-10-03T08:00:00Z',
+          traiteeLe: null, erreur: 'Jeton Google refusé', type: 'RENEWED' },
+      ],
+    },
+  }],
+  ['achats store (aucun achat)', 'achats_store', {
+    ...base, page: 'achats_store', erreur: null,
+    filtres: { store: '', etat: '', tests: false, q: '', page: 1 },
+    lienStore: () => '/admin/achats-store',
+    donnees: {
+      stats: {
+        actifs: { apple: 0, google: 0 }, nouveaux30j: 0, renouvellements30j: 0,
+        resilies: 0, impayes: 0, rembourses: 0, expires30j: 0,
+        anomalies: 0, tests: 0, notificationsEnEchec: 0,
+      },
+      total: 0, page: 1, parPage: 50, abonnements: [], notifications: [],
+    },
+  }],
+  ['achats store (recherche infructueuse)', 'achats_store', {
+    ...base, page: 'achats_store', erreur: null,
+    filtres: { store: 'google', etat: 'anomalie', tests: false, q: 'personne', page: 1 },
+    lienStore: () => '/admin/achats-store',
+    donnees: {
+      stats: {
+        actifs: { apple: 1, google: 0 }, nouveaux30j: 1, renouvellements30j: 0,
+        resilies: 0, impayes: 0, rembourses: 0, expires30j: 0,
+        anomalies: 0, tests: 0, notificationsEnEchec: 0,
+      },
+      total: 0, page: 1, parPage: 50, abonnements: [], notifications: [],
+    },
+  }],
+  ['achats store (API muette)', 'achats_store', {
+    ...base, page: 'achats_store', donnees: null, erreur: 'connect ECONNREFUSED',
+    filtres: { store: '', etat: '', tests: false, q: '', page: 1 },
+    lienStore: () => '/admin/achats-store',
+  }],
+
   // ── Méthodes de paiement ──
   ['paiements (liste)', 'paiements', {
     ...base, page: 'paiements',

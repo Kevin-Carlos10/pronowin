@@ -1,0 +1,321 @@
+<%- include('layout_top', {page:'achats_store'}) %>
+
+<style>
+/* Huit tuiles : deux rangées de quatre, jamais sept et une orpheline. */
+.as-tuiles   { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; margin-bottom: 1.2rem; }
+.as-tuile    { background: var(--surface-d); border: 1px solid var(--border); border-radius: 12px; padding: .85rem 1rem; }
+.as-tuile .v { font-size: 1.5rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.as-tuile .l { font-size: .72rem; color: var(--text-m); margin-top: .2rem; line-height: 1.45; }
+.as-tab      { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.as-tab th   { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+               color: var(--text-m); padding: .55rem .7rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.as-tab td   { padding: .6rem .7rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.as-tab tr:last-child td { border-bottom: 0; }
+.as-tab tr.as-anomalie td { background: color-mix(in srgb, var(--on-danger) 7%, transparent); }
+.as-sous     { display: block; font-size: .72rem; color: var(--text-dim); margin-top: .15rem; }
+.as-num      { font-variant-numeric: tabular-nums; }
+.as-mono     { font-family: monospace; font-size: .74rem; color: var(--text-dim); word-break: break-all; }
+.as-notifs   { list-style: none; margin: 0; padding: 0; }
+.as-notifs li { display: flex; flex-wrap: wrap; gap: .4rem .8rem; align-items: baseline;
+                padding: .55rem .9rem; border-bottom: 1px solid var(--border); font-size: .82rem; }
+.as-notifs li:last-child { border-bottom: 0; }
+@media (max-width: 760px) {
+  .as-tuiles    { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
+
+<%
+  const _d      = (typeof donnees !== 'undefined' && donnees) ? donnees : null;
+  const _err    = typeof erreur !== 'undefined' ? erreur : null;
+  const _f      = (typeof filtres !== 'undefined' && filtres) ? filtres : { store: '', etat: '', tests: false, q: '', page: 1 };
+  const _lien   = (typeof lienStore === 'function') ? lienStore : (() => '/admin/achats-store');
+  const _st     = _d ? _d.stats : null;
+  const _rows   = _d ? (_d.abonnements ?? []) : [];
+  const _notifs = _d ? (_d.notifications ?? []) : [];
+  const _pages  = _d ? Math.max(1, Math.ceil(_d.total / _d.parPage)) : 1;
+
+  const _date = (iso) => iso
+    ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' })
+    : '—';
+  const _heure = (iso) => iso
+    ? new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : '—';
+
+  const _STORES = { apple: 'App Store', google: 'Google Play' };
+  const _ETATS = {
+    actif:     { label: 'Actif',             cls: 'badge-ok' },
+    resilie:   { label: 'Résilié',           cls: 'badge-warn', aide: "court jusqu'à l'échéance" },
+    impaye:    { label: 'Paiement en échec', cls: 'badge-err',  aide: 'le store retente le prélèvement' },
+    expire:    { label: 'Expiré',            cls: 'badge-info' },
+    rembourse: { label: 'Remboursé',         cls: 'badge-purple' },
+  };
+  const _NOTIFS = {
+    recue: 'reçue', en_cours: 'en cours', traitee: 'traitée', ignoree: 'ignorée',
+    echec: 'en échec', abandonnee: 'abandonnée',
+  };
+  const _clsNotif = (s) => s === 'traitee' ? 'badge-ok'
+    : (s === 'echec' || s === 'abandonnee') ? 'badge-err' : 'badge-info';
+%>
+
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Finances · iPhone et Android</p>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg> Achats App Store / Google Play</h1>
+    <p class="workspace-description">
+      Les abonnements payés dans l'application, une ligne par abonnement, avec le compte PronoWin qui en profite.
+    </p>
+  </div>
+  <div class="workspace-actions">
+    <% if (_st) { %>
+      <span class="context-chip"><%= _st.actifs.apple + _st.actifs.google %> en cours</span>
+      <% if (_st.anomalies) { %>
+        <span class="live-state" data-state="waiting"><%= _st.anomalies %> anomalie<%= _st.anomalies > 1 ? 's' : '' %></span>
+      <% } else { %>
+        <span class="live-state">Aucune anomalie</span>
+      <% } %>
+    <% } %>
+  </div>
+</header>
+
+<% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+<% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+<% if (!_d) { %>
+  <div class="alert alert-error">
+    <strong><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> API injoignable</strong>
+    — impossible de lire les achats<%= _err ? ' : ' + _err : '.' %>
+  </div>
+<% } else { %>
+
+<div class="as-tuiles metric-grid">
+  <div class="as-tuile metric-card">
+    <div class="v"><%= _st.actifs.apple %></div>
+    <div class="l">en cours sur l'App Store</div>
+  </div>
+  <div class="as-tuile metric-card">
+    <div class="v"><%= _st.actifs.google %></div>
+    <div class="l">en cours sur Google Play</div>
+  </div>
+  <div class="as-tuile metric-card">
+    <div class="v" style="color:var(--on-success)"><%= _st.nouveaux30j %></div>
+    <div class="l">nouveaux abonnés<br><span style="color:var(--text-dim)">30 derniers jours</span></div>
+  </div>
+  <div class="as-tuile metric-card">
+    <div class="v"><%= _st.renouvellements30j %></div>
+    <div class="l">renouvellements<br><span style="color:var(--text-dim)">30 derniers jours</span></div>
+  </div>
+  <div class="as-tuile metric-card">
+    <div class="v" style="color:var(--on-warning)"><%= _st.resilies %></div>
+    <div class="l">résiliés, encore en cours</div>
+  </div>
+  <div class="as-tuile metric-card">
+    <div class="v" style="color:var(--on-danger)"><%= _st.impayes %></div>
+    <div class="l">paiements en échec</div>
+  </div>
+  <div class="as-tuile metric-card">
+    <div class="v"><%= _st.rembourses %></div>
+    <div class="l">remboursés</div>
+  </div>
+  <div class="as-tuile metric-card">
+    <div class="v"><%= _st.expires30j %></div>
+    <div class="l">expirés<br><span style="color:var(--text-dim)">30 derniers jours</span></div>
+  </div>
+</div>
+
+<%# Bandeaux d'état, pas des messages d'action : ils restent dans la page
+    au lieu de devenir aussi des toasts à chaque chargement. %>
+<% if (_st.anomalies) { %>
+  <div class="alert alert-error" data-toast="skip"><div>
+    <strong><%= _st.anomalies %> abonnement<%= _st.anomalies > 1 ? 's' : '' %> payé<%= _st.anomalies > 1 ? 's' : '' %> sans Premium.</strong>
+    Le store a encaissé, mais le compte est resté gratuit. « Revérifier » redemande l'état
+    au store et accorde le Premium s'il est confirmé.
+    <% if (_f.etat !== 'anomalie') { %>
+      <a href="<%= _lien({ ..._f, etat: 'anomalie', page: 1 }) %>">Voir uniquement les anomalies</a>
+    <% } %>
+  </div></div>
+<% } %>
+
+<% if (_st.notificationsEnEchec) { %>
+  <div class="alert alert-error" data-toast="skip"><div>
+    <strong><%= _st.notificationsEnEchec %> notification<%= _st.notificationsEnEchec > 1 ? 's' : '' %> du store non traitée<%= _st.notificationsEnEchec > 1 ? 's' : '' %>.</strong>
+    Un renouvellement ou un remboursement annoncé par Apple ou Google n'a pas été appliqué. Le détail est en bas de page.
+  </div></div>
+<% } %>
+
+<section class="command-surface">
+<form method="GET" action="/admin/achats-store" class="filterbar">
+  <svg class="ic" aria-hidden="true" style="color:var(--text-m)"><use href="#ic-search"/></svg>
+  <input type="search" name="q" value="<%= _f.q %>" autocomplete="off" maxlength="100"
+         aria-label="Rechercher un abonnement"
+         placeholder="Pseudo, e-mail, numéro de transaction…">
+  <select name="store" aria-label="Filtrer par store">
+    <option value="">Tous les stores</option>
+    <option value="apple"  <%= _f.store === 'apple'  ? 'selected' : '' %>>App Store</option>
+    <option value="google" <%= _f.store === 'google' ? 'selected' : '' %>>Google Play</option>
+  </select>
+  <select name="etat" aria-label="Filtrer par état">
+    <option value="">Tous les états</option>
+    <option value="anomalie"  <%= _f.etat === 'anomalie'  ? 'selected' : '' %>>Anomalies</option>
+    <% Object.keys(_ETATS).forEach(k => { %>
+    <option value="<%= k %>" <%= _f.etat === k ? 'selected' : '' %>><%= _ETATS[k].label %></option>
+    <% }) %>
+  </select>
+  <label><input type="checkbox" name="tests" value="1" <%= _f.tests ? 'checked' : '' %>> Achats de test (<%= _st.tests %>)</label>
+  <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+  <% if (_f.q || _f.store || _f.etat || _f.tests) { %>
+  <a href="/admin/achats-store" class="btn btn-outline btn-sm">
+    <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Effacer
+  </a>
+  <% } %>
+  <span class="spacer"></span>
+  <span style="font-size:.8rem;color:var(--text-m)"><%= _d.total %> abonnement<%= _d.total !== 1 ? 's' : '' %></span>
+</form>
+</section>
+
+<% if (_rows.length === 0) { %>
+  <div class="card">
+    <div class="empty-state">
+      <% if (_f.q || _f.store || _f.etat) { %>
+        <div class="empty-state-title">Aucun abonnement ne correspond</div>
+        <div class="empty-state-desc">Changez la recherche ou les filtres.</div>
+      <% } else { %>
+        <div class="empty-state-title">Aucun achat dans l'application pour l'instant</div>
+        <div class="empty-state-desc">
+          Les abonnements payés sur iPhone ou Android apparaîtront ici dès le premier achat.
+          Les paiements Mobile Money restent dans « Preuves Premium ».
+        </div>
+      <% } %>
+    </div>
+  </div>
+<% } else { %>
+
+<div class="card cr-panel" style="padding:0;overflow:hidden">
+  <div class="table-wrap">
+  <table class="as-tab">
+    <thead>
+      <tr>
+        <th scope="col">Compte</th>
+        <th scope="col">Store · formule</th>
+        <th scope="col">État</th>
+        <th scope="col">Échéance</th>
+        <th scope="col">Abonné depuis</th>
+        <th scope="col">Paiements</th>
+        <th scope="col">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% _rows.forEach(a => { const e = _ETATS[a.etat] ?? { label: a.etat, cls: 'badge-info' }; %>
+      <tr class="<%= a.anomalie ? 'as-anomalie' : '' %>">
+        <td><div>
+          <% if (hasPerm('users') && !a.compte.supprime) { %>
+            <a href="/admin/users/<%= encodeURIComponent(a.compte.id) %>"><strong><%= a.compte.pseudo %></strong></a>
+          <% } else { %>
+            <strong><%= a.compte.pseudo %></strong>
+          <% } %>
+          <span class="as-sous"><%= a.compte.email ?? 'pas d\'e-mail' %></span>
+          <% if (a.compte.supprime) { %>
+            <span class="badge badge-info">compte supprimé</span>
+          <% } else if (a.compte.premium) { %>
+            <span class="badge badge-ok">Premium</span>
+          <% } else { %>
+            <span class="badge badge-warn">gratuit</span>
+          <% } %>
+          <% if (a.test) { %><span class="badge badge-purple">test</span><% } %>
+        </div></td>
+        <td><div>
+          <%= _STORES[a.store] ?? a.store %>
+          <span class="as-sous">
+            <%= a.formule === 'mensuel' ? 'Mensuel' : a.formule === 'annuel' ? 'Annuel' : a.produit %><%= a.montant ? ' · ' + a.montant : '' %>
+          </span>
+        </div></td>
+        <td><div>
+          <span class="badge <%= e.cls %>"><%= e.label %></span>
+          <% if (a.anomalie) { %><span class="badge badge-err">payé, compte non Premium</span><% } %>
+          <span class="as-sous">
+            <%= e.aide ?? (a.renouvellementAuto === false ? 'renouvellement coupé'
+                         : a.renouvellementAuto === true ? 'renouvellement automatique' : '') %>
+          </span>
+        </div></td>
+        <td class="as-num"><div><%= _date(a.echeance) %></div></td>
+        <td class="as-num"><div><%= _date(a.premierAchat) %></div></td>
+        <td class="as-num"><div>
+          <%= a.paiements %>
+          <span class="as-sous as-mono" title="Numéro de la dernière transaction"><%= a.transaction %></span>
+        </div></td>
+        <td><div>
+          <% if (hasPerm('abonnements', 'write') && !a.compte.supprime) { %>
+          <form method="POST" action="/admin/achats-store/<%= encodeURIComponent(a.id) %>/reverifier">
+            <input type="hidden" name="pseudo" value="<%= a.compte.pseudo %>">
+            <input type="hidden" name="store"  value="<%= _f.store %>">
+            <input type="hidden" name="etat"   value="<%= _f.etat %>">
+            <input type="hidden" name="q"      value="<%= _f.q %>">
+            <input type="hidden" name="page"   value="<%= _f.page %>">
+            <% if (_f.tests) { %><input type="hidden" name="tests" value="1"><% } %>
+            <button type="submit" class="btn <%= a.anomalie ? 'btn-primary' : 'btn-outline' %> btn-sm"
+                    title="Redemander l'état de cet abonnement au store et le reporter sur le compte">
+              <svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Revérifier
+            </button>
+          </form>
+          <% } else { %>
+            <span style="color:var(--text-dim)">—</span>
+          <% } %>
+        </div></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<% if (_pages > 1) { %>
+<div class="pagination">
+  <a href="<%= _lien({ ..._f, page: _f.page - 1 }) %>" class="btn btn-outline btn-sm <%= _f.page <= 1 ? 'disabled' : '' %>" aria-label="Page précédente">‹</a>
+  <span>Page <strong><%= _f.page %></strong> / <%= _pages %></span>
+  <a href="<%= _lien({ ..._f, page: _f.page + 1 }) %>" class="btn btn-outline btn-sm <%= _f.page >= _pages ? 'disabled' : '' %>" aria-label="Page suivante">›</a>
+</div>
+<% } %>
+
+<% } %>
+
+<p style="font-size:.75rem;color:var(--text-dim);margin-top:.7rem;line-height:1.6">
+  Les chiffres du haut excluent les achats de test (TestFlight, testeurs Google). « Revérifier » ne
+  facture rien : le serveur redemande l'état de l'abonnement au store et l'applique au compte.
+  Le montant n'est connu que pour l'App Store ; Google ne le transmet pas à la vérification.
+</p>
+
+<h3 style="margin:1.6rem 0 .8rem;font-size:1rem">
+  Dernières notifications des stores
+  <small style="font-weight:400;color:var(--text-dim);font-size:.78rem">
+    — renouvellements, résiliations et remboursements annoncés par Apple et Google
+  </small>
+</h3>
+
+<% if (_notifs.length === 0) { %>
+  <div class="card">
+    <div class="empty-state" style="padding:2rem">
+      <div class="empty-state-title">Aucune notification reçue</div>
+      <div class="empty-state-desc">Apple et Google en envoient une à chaque achat, renouvellement ou remboursement.</div>
+    </div>
+  </div>
+<% } else { %>
+<div class="card cr-panel" style="padding:0;overflow:hidden">
+  <ul class="as-notifs">
+    <% _notifs.forEach(n => { %>
+    <li>
+      <span class="as-num" style="color:var(--text-m)"><%= _heure(n.recueLe) %></span>
+      <strong><%= _STORES[n.store] ?? n.store %></strong>
+      <span class="as-mono" style="color:var(--text)"><%= n.type %></span>
+      <span class="badge <%= _clsNotif(n.statut) %>"><%= _NOTIFS[n.statut] ?? n.statut %></span>
+      <% if (n.tentatives > 1) { %><span style="color:var(--text-dim)"><%= n.tentatives %> tentatives</span><% } %>
+      <% if (n.erreur && n.statut !== 'traitee') { %>
+        <span style="color:var(--on-danger);flex-basis:100%"><%= n.erreur %></span>
+      <% } %>
+    </li>
+    <% }) %>
+  </ul>
+</div>
+<% } %>
+
+<% } %>
+
+<%- include('layout_bottom') %>

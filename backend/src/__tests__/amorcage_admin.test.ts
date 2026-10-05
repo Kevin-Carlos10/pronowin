@@ -42,6 +42,9 @@ jest.mock('../services/subscription.service', () => ({
 // « aucun secret configuré » répond 403 au lieu de 404.
 jest.mock('../services/sante.service', () => ({ lireSante: async () => ({}) }));
 jest.mock('../services/journal_admin.service', () => ({ ajouterAuJournal: async () => ({}), verifierChaine: async () => ({}) }));
+jest.mock('../services/achats_store_admin.service', () => ({
+  resumeAchatsStore: async () => ({}), reverifierAchatStore: async () => null,
+}));
 
 const ENV_INITIAL = { ...process.env };
 afterEach(() => { process.env = { ...ENV_INITIAL }; });

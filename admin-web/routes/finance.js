@@ -250,6 +250,81 @@ module.exports = (app, ctx) => {
     }
   });
 
+  // ─── ACHATS APP STORE / GOOGLE PLAY ───────────────────────────────────────
+  //
+  // Les abonnements vendus dans l'application iPhone ou Android, rapprochés
+  // du compte PronoWin qui en profite. Avant cet écran, une vente Apple ne se
+  // voyait que dans App Store Connect, et un abonnement payé mais resté
+  // gratuit ne se découvrait que par la réclamation de son acheteur.
+
+  const ETATS_STORE = ['actif', 'resilie', 'impaye', 'expire', 'rembourse', 'anomalie'];
+
+  /** Les filtres de l'écran, relus depuis la requête ou le formulaire. */
+  const filtresStore = (q) => ({
+    store: ['apple', 'google'].includes(q.store) ? q.store : '',
+    etat:  ETATS_STORE.includes(q.etat) ? q.etat : '',
+    tests: q.tests === '1',
+    q:     String(q.q ?? '').trim().slice(0, 100),
+    page:  Math.max(1, parseInt(q.page) || 1),
+  });
+
+  /** L'adresse de l'écran avec ces filtres — jamais une adresse reçue telle quelle. */
+  const lienStore = (f, message) => {
+    const p = new URLSearchParams();
+    if (f.store) p.set('store', f.store);
+    if (f.etat)  p.set('etat', f.etat);
+    if (f.tests) p.set('tests', '1');
+    if (f.q)     p.set('q', f.q);
+    if (f.page > 1) p.set('page', String(f.page));
+    if (message) p.set(...message);
+    const qs = p.toString();
+    return '/admin/achats-store' + (qs ? '?' + qs : '');
+  };
+
+  app.get('/admin/achats-store', requireAuth, requirePerm('abonnements'), async (req, res) => {
+    const filtres = filtresStore(req.query);
+    let donnees = null, erreur = null;
+    try {
+      const r = await api(req.admin.jeton).get('/admin/achats-store', { params: {
+        ...(filtres.store ? { store: filtres.store } : {}),
+        ...(filtres.etat  ? { etat:  filtres.etat  } : {}),
+        ...(filtres.tests ? { tests: '1' } : {}),
+        ...(filtres.q     ? { q:     filtres.q     } : {}),
+        page: filtres.page,
+      } });
+      donnees = r.data;
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      erreur = e.response?.data?.message ?? e.message;
+    }
+    res.render('achats_store', {
+      donnees, erreur, filtres, lienStore,
+      success: req.query.success ?? null,
+      error:   req.query.error   ?? null,
+    });
+  });
+
+  // Redemande au store l'état d'un abonnement et le reporte sur le compte :
+  // le remède à une anomalie, sans attendre que l'acheteur réclame.
+  app.post('/admin/achats-store/:id/reverifier', requireAuth, requirePerm('abonnements', 'write'), async (req, res) => {
+    const filtres = filtresStore(req.body);
+    const pseudo  = sanitize(req.body.pseudo ?? '', 60);
+    try {
+      const r = await api(req.admin.jeton).post('/admin/achats-store/' + encodeURIComponent(req.params.id) + '/reverifier');
+      logAction(req, 'achat_store_reverifie', `Achat store de ${pseudo || req.params.id}`, {
+        achat: req.params.id, statut: r.data?.status, actif: r.data?.active, echeance: r.data?.expires_at,
+      });
+      const echeance = r.data?.expires_at ? new Date(r.data.expires_at).toLocaleDateString('fr-FR') : '—';
+      const message = r.data?.active
+        ? `Revérifié auprès du store : abonnement en cours jusqu'au ${echeance}, Premium accordé à ${pseudo || 'ce compte'}.`
+        : `Revérifié auprès du store : l'abonnement n'est plus actif (${r.data?.status ?? 'inconnu'}).`;
+      res.redirect(lienStore(filtres, ['success', message]));
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      res.redirect(lienStore(filtres, ['error', 'Revérification impossible : ' + (e.response?.data?.message ?? e.message)]));
+    }
+  });
+
   app.get('/admin/paiements', requireAuth, requireMain, async (req, res) => {
     let methodes = null, erreur = null;
     try {

@@ -7,6 +7,7 @@ import * as Methodes from '../services/payment_method.service';
 import { repondreErreur } from '../utils/erreurs';
 import { lireSante } from '../services/sante.service';
 import { ajouterAuJournal, verifierChaine } from '../services/journal_admin.service';
+import { resumeAchatsStore, reverifierAchatStore } from '../services/achats_store_admin.service';
 const r   = Router();
 const svc = new AdminAuthService();
 const subSvc = new SubscriptionService();
@@ -101,6 +102,39 @@ r.get('/promo-stats', adminMiddleware, async (req: AdminRequest, res) => {
     const jours = Math.min(parseInt((req.query.days as string) ?? '30') || 30, 365);
     res.json(await subSvc.statistiquesCodePromo(jours));
   } catch (e: any) { repondreErreur(res, e); }
+});
+
+// ─── Achats App Store et Google Play ─────────────────────────────────────────
+//
+// Les abonnements vendus par les stores, regroupés par abonnement, avec leurs
+// anomalies (payé chez le store, compte non Premium) et les notifications
+// reçues des stores. Aucun écran ne les montrait.
+
+r.get('/achats-store', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    const store = req.query.store === 'apple' || req.query.store === 'google' ? req.query.store : undefined;
+    const etats = ['actif', 'resilie', 'impaye', 'expire', 'rembourse', 'anomalie'];
+    const etat  = typeof req.query.etat === 'string' && etats.includes(req.query.etat) ? req.query.etat : undefined;
+    res.json(await resumeAchatsStore({
+      store, etat,
+      tests:     req.query.tests === '1',
+      recherche: typeof req.query.q === 'string' ? req.query.q.slice(0, 100) : undefined,
+      page:      parseInt(String(req.query.page ?? '1')) || 1,
+    }));
+  } catch (e: any) { repondreErreur(res, e); }
+});
+
+/**
+ * POST /admin/achats-store/:id/reverifier — redemande au store l'état d'un
+ * abonnement et le reporte sur le compte. Sert les anomalies : un achat payé
+ * dont la vérification n'a pas abouti au moment de l'achat.
+ */
+r.post('/achats-store/:id/reverifier', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    const resultat = await reverifierAchatStore(req.params.id);
+    if (!resultat) { res.status(404).json({ message: 'Achat introuvable.' }); return; }
+    res.json(resultat);
+  } catch (e: any) { repondreErreur(res, e, 502); }
 });
 
 // ─── Méthodes de paiement Mobile Money ───────────────────────────────────────
