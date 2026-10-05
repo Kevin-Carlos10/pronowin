@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { rendementUnites } from '../utils/rendement';
 import { repondreErreur } from '../utils/erreurs';
 import { resumeFiabilite } from '../services/fiabilite_confiance.service';
+import { ventesParCanal, fideliteAbonnes, exportComptable } from '../services/revenus_canaux.service';
 
 const svc = new StatsService();
 
@@ -208,5 +209,31 @@ export const getFiabilite = async (req: AdminRequest, res: Response) => {
   try {
     const jours = parseInt(String(req.query.days ?? '')) || null;
     res.json(await resumeFiabilite({ jours }));
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/** GET /admin/stats/canaux?days=30 — les ventes de la période, par canal. */
+export const getCanaux = async (req: AdminRequest, res: Response) => {
+  try {
+    res.json(await ventesParCanal({ jours: parseInt(String(req.query.days ?? '30')) || 30 }));
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
+ * GET /admin/stats/fidelite?days=90 — taux de renouvellement par canal, et les
+ * deux listes à relancer : Premium qui expire dans la semaine, Premium
+ * terminé ces 30 derniers jours. Pseudos seulement : le contact se lit sur
+ * la fiche du compte, sous sa propre permission.
+ */
+export const getFidelite = async (req: AdminRequest, res: Response) => {
+  try {
+    res.json(await fideliteAbonnes({ jours: parseInt(String(req.query.days ?? '90')) || 90 }));
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/** GET /admin/stats/export-comptable?mois=AAAA-MM — les ventes du mois, une par ligne. */
+export const getExportComptable = async (req: AdminRequest, res: Response) => {
+  try {
+    res.json(await exportComptable(String(req.query.mois ?? '')));
   } catch (e: any) { repondreErreur(res, e); }
 };

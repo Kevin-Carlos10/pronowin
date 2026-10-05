@@ -59,6 +59,7 @@ const ACTION_LABELS = {
   bankroll_exported:         { label: 'Export bankrolls',        icon: 'target', cat: 'finance' },
   versements_exportes:       { label: 'Export versements dus',   icon: 'download', cat: 'finance' },
   revenus_exportes:          { label: 'Export revenus',          icon: 'download', cat: 'finance' },
+  export_comptable:          { label: 'Export comptable',        icon: 'download', cat: 'finance' },
   achat_store_reverifie:     { label: 'Achat store revérifié',   icon: 'refresh', cat: 'finance' },
   league_visibility_toggle:  { label: 'Ligue affichée/masquée',   icon: 'trophy', cat: 'pronostic' },
   league_visibility_bulk:    { label: 'Ligues modifiées en lot',  icon: 'trophy', cat: 'pronostic' },

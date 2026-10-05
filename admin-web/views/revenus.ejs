@@ -47,6 +47,21 @@
                border:1px solid var(--border); color:var(--text-m); text-decoration:none; }
 .rv-periode:hover { background:var(--surface-d); color:var(--text); }
 .rv-periode.on    { background:var(--btn-primary); border-color:var(--btn-primary); color:#fff; }
+
+/* ── Ventes par canal ─────────────────────────────────────────────────────── */
+.rv-canaux   { background:var(--surface); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:1.25rem; }
+.rv-canal    { display:grid; grid-template-columns:1.4fr .8fr .8fr .9fr 1.6fr; gap:.75rem; align-items:center;
+               padding:.7rem 1.1rem; border-bottom:1px solid var(--border); font-size:.85rem; }
+.rv-canal:last-child { border-bottom:0; }
+.rv-canal.rv-entete  { font-size:.68rem; }
+.rv-canal .nom   { font-weight:700; }
+.rv-canal .fort  { font-weight:800; color:var(--on-success); }
+.rv-canal .sous  { display:block; font-size:.7rem; color:var(--text-dim); font-weight:400; margin-top:.1rem; }
+.rv-canal.total  { background:var(--surface-d); font-weight:800; }
+.rv-note         { font-size:.75rem; color:var(--text-dim); margin:-.6rem 0 1.25rem; line-height:1.6; }
+.rv-export       { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+.rv-export select { width:auto; padding:.3rem .5rem; font-size:.78rem; }
+@media (max-width:760px){ .rv-canal { grid-template-columns:1fr 1fr; } }
 </style>
 
 <%
@@ -69,6 +84,16 @@
 
   const _picMois = Math.max(1, ..._mensuel.map(m => m.revenue ?? 0));
   const _fcfa    = n => (n ?? 0).toLocaleString('fr-FR');
+
+  const _canaux  = (typeof canaux !== 'undefined') ? canaux : null;
+  const _libCan  = (typeof libelleCanal === 'function') ? libelleCanal : (c => c);
+  // Les douze derniers mois, pour l'export comptable (le mois en cours compris).
+  const _moisExport = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(Date.UTC(new Date().getUTCFullYear(), new Date().getUTCMonth() - i, 1));
+    return { val: d.toISOString().slice(0, 7),
+             lib: d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' }) };
+  });
+  const _storeMontant = l => l.store.map(x => x.montant.toLocaleString('fr-FR', { minimumFractionDigits: 2 }) + ' ' + x.devise).join(' + ');
 %>
 
 <header class="topbar workspace-header finance-workspace-header">
@@ -127,6 +152,69 @@
     <div class="s">historique mensuel disponible</div>
   </div>
 </div>
+
+<!-- ── Ventes par canal ─────────────────────────────────────────────────── -->
+<div class="control-section-head">
+  <div>
+    <h2>Ventes par canal</h2>
+    <p>Ce que rapporte chaque moyen de paiement sur les <%= _jours %> derniers jours.</p>
+  </div>
+  <div class="rv-export">
+    <%# Le détail des ventes d'un mois, une ligne par vente, pour le comptable. %>
+    <form method="GET" action="/admin/revenus/export-comptable" class="rv-export">
+      <select name="mois" aria-label="Mois de l'export comptable">
+        <% _moisExport.forEach(m => { %><option value="<%= m.val %>"><%= m.lib %></option><% }) %>
+      </select>
+      <button type="submit" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export comptable</button>
+    </form>
+    <a class="context-chip" href="/admin/fidelite">Fidélité des abonnés</a>
+  </div>
+</div>
+<% if (!_canaux) { %>
+  <p class="rv-note">Ventes par canal indisponibles : la lecture a échoué. Ce n'est pas une absence de ventes.</p>
+<% } else if (!_canaux.canaux.length) { %>
+  <p class="rv-note">Aucune vente sur la période.</p>
+<% } else { %>
+<div class="rv-canaux cr-panel">
+  <div class="rv-canal rv-entete">
+    <div>Canal</div><div>Ventes</div><div>Nouveaux</div><div>Réabonnements</div><div>Encaissé</div>
+  </div>
+  <% _canaux.canaux.forEach(l => { %>
+  <div class="rv-canal">
+    <div class="nom"><%= _libCan(l.canal) %></div>
+    <div><%= l.ventes %></div>
+    <div><%= l.nouveaux %></div>
+    <div><%= l.reabonnements %></div>
+    <div>
+      <% if (l.canal === 'partenaire' || l.canal === 'offert') { %>
+        <span class="sous"><%= l.canal === 'partenaire' ? 'mois offerts — rémunérés par la commission du partenaire' : 'accès offerts' %></span>
+      <% } else { %>
+        <% if (l.fcfa > 0 || (!l.store.length && !l.montantsInconnus)) { %><span class="fort"><%= _fcfa(l.fcfa) %> FCFA</span><% } %>
+        <% if (l.store.length) { %>
+          <span class="fort"><%= _storeMontant(l) %></span>
+          <span class="sous">payé par les clients, avant la commission <%= l.canal === 'apple' ? "d'Apple" : 'de Google' %></span>
+        <% } %>
+        <% if (l.montantsInconnus) { %>
+          <span class="sous"><%= l.montantsInconnus %> vente<%= l.montantsInconnus > 1 ? 's' : '' %> sans montant transmis par le store</span>
+        <% } %>
+      <% } %>
+    </div>
+  </div>
+  <% }) %>
+  <div class="rv-canal total">
+    <div>Total</div><div><%= _canaux.total.ventes %></div><div><%= _canaux.total.nouveaux %></div>
+    <div><%= _canaux.total.ventes - _canaux.total.nouveaux %></div><div><%= _fcfa(_canaux.total.fcfa) %> FCFA<% if (_canaux.canaux.some(l => l.store.length)) { %> + stores<% } %></div>
+  </div>
+</div>
+<p class="rv-note">
+  « Nouveaux » : premier abonnement du compte, tous canaux confondus. Un abonnement store est compté à chaque
+  renouvellement mensuel ou annuel.
+  <% if (_canaux.tests) { %>
+    <%= _canaux.tests %> achat<%= _canaux.tests > 1 ? 's' : '' %> de test (TestFlight, vérification d'Apple)
+    écarté<%= _canaux.tests > 1 ? 's' : '' %>.
+  <% } %>
+</p>
+<% } %>
 
 <!-- ── Histogramme quotidien ────────────────────────────────────────────── -->
 <%# Rendu côté serveur, sans bibliothèque : la page Journal chargeait un

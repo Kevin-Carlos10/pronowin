@@ -14,6 +14,9 @@ r.get('/pronostics',   C.getPronosticsStats);  // GET /admin/stats/pronostics?da
 r.get('/monthly',      C.getMonthly);          // GET /admin/stats/monthly          (12 mois)
 r.get('/leagues',      C.getLeaguePerformance);// GET /admin/stats/leagues?days=30
 r.get('/fiabilite',    C.getFiabilite);        // GET /admin/stats/fiabilite?days=90 (sans days : tout)
+r.get('/canaux',       C.getCanaux);           // GET /admin/stats/canaux?days=30
+r.get('/fidelite',     C.getFidelite);         // GET /admin/stats/fidelite?days=90
+r.get('/export-comptable', C.getExportComptable); // GET /admin/stats/export-comptable?mois=2026-09
 r.get('/online',       C.getOnlineCount);      // GET /admin/stats/online           (non caché)
 
 export default r;

@@ -612,6 +612,21 @@ const views = [
       { month: '2026-03', label: 'mars 26', revenue: 31000, new_users: 21 },
       { month: '2026-04', label: 'avr. 26', revenue: 27500, new_users: 17 },
     ],
+    // Les cinq façons de rendre un montant : FCFA, prix store, montant non
+    // transmis, mois offert, accès offert — et des achats de test écartés.
+    libelleCanal: require('./lib/canaux').libelleCanal,
+    canaux: {
+      jours: 30, tests: 2,
+      total: { ventes: 21, nouveaux: 9, fcfa: 48000 },
+      canaux: [
+        { canal: 'mobile_money', ventes: 12, nouveaux: 4, reabonnements: 8, fcfa: 48000, montantsInconnus: 0, store: [] },
+        { canal: 'apple', ventes: 3, nouveaux: 2, reabonnements: 1, fcfa: 0, montantsInconnus: 0,
+          store: [{ devise: 'USD', montant: 14.97 }, { devise: 'EUR', montant: 4.99 }] },
+        { canal: 'google', ventes: 1, nouveaux: 0, reabonnements: 1, fcfa: 0, montantsInconnus: 1, store: [] },
+        { canal: 'partenaire', ventes: 4, nouveaux: 3, reabonnements: 1, fcfa: 0, montantsInconnus: 0, store: [] },
+        { canal: 'offert', ventes: 1, nouveaux: 0, reabonnements: 1, fcfa: 0, montantsInconnus: 0, store: [] },
+      ],
+    },
   }],
   ['revenus (aucun encaissement)', 'revenus', {
     ...base, page: 'revenus', jours: 7, erreur: null,
@@ -619,6 +634,10 @@ const views = [
       date: '2026-08-0' + (i + 1), label: (i + 1) + ' août', amount: 0,
     })),
     mensuel: [],
+  }],
+  ['revenus (ventes par canal illisibles)', 'revenus', {
+    ...base, page: 'revenus', jours: 30, erreur: null, mensuel: [], canaux: null,
+    serie: [{ date: '2026-09-01', label: '1 sept.', amount: 2000 }],
   }],
   // Une lecture en echec ne doit pas se lire « 0 FCFA ».
   ['revenus (lecture impossible)', 'revenus', {
@@ -796,6 +815,53 @@ const views = [
   ['code promo (API muette)', 'code_promo', {
     ...base, page: 'code_promo', config: null, stats: null,
     erreur: 'connect ECONNREFUSED',
+  }],
+
+  // ── Fidélité des abonnés ──
+  ['fidelite (avec relances)', 'fidelite', {
+    ...base, page: 'fidelite', erreur: null, jours: 90, fenetres: [30, 90, 365],
+    libelleCanal: require('./lib/canaux').libelleCanal,
+    donnees: {
+      fenetreJours: 90, delaiJours: 7,
+      global: { canal: 'global', fins: 40, renouvelees: 22, taux: 55 },
+      parCanal: [
+        { canal: 'mobile_money', fins: 30, renouvelees: 14, taux: 47 },
+        { canal: 'apple', fins: 8, renouvelees: 7, taux: 88 },
+        { canal: 'google', fins: 2, renouvelees: 1, taux: 50 },
+        { canal: 'partenaire', fins: 12, renouvelees: 2, taux: 17 },
+      ],
+      mensuel: ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'].map((mois, i) => ({
+        mois, fins: [4, 6, 9, 8, 10, 3][i], renouvelees: [2, 3, 5, 5, 6, 1][i],
+        taux: [50, 50, 56, 63, 60, 33][i], enCours: i === 5,
+      })),
+      bientot: [
+        { userId: 'u1', pseudo: 'Awa', canal: 'mobile_money', finLe: new Date(Date.now() + 2 * 86400e3).toISOString(),
+          paiements: 4, totalFcfa: 8000, abonneDepuis: '2026-05-02T00:00:00Z' },
+        { userId: 'u2', pseudo: 'Issa', canal: 'apple', finLe: new Date(Date.now() + 6 * 86400e3).toISOString(),
+          paiements: 2, totalFcfa: 0, abonneDepuis: '2026-08-10T00:00:00Z' },
+      ],
+      partis: [
+        { userId: 'u3', pseudo: 'Moussa', canal: 'mobile_money', finLe: new Date(Date.now() - 3 * 86400e3).toISOString(),
+          paiements: 1, totalFcfa: 2000, abonneDepuis: '2026-08-30T00:00:00Z' },
+        { userId: 'u4', pseudo: 'Fatou', canal: 'partenaire', finLe: new Date(Date.now() - 1 * 86400e3).toISOString(),
+          paiements: 0, totalFcfa: 0, abonneDepuis: '2026-09-04T00:00:00Z' },
+      ],
+    },
+  }],
+  ['fidelite (rien à relancer)', 'fidelite', {
+    ...base, page: 'fidelite', erreur: null, jours: 30, fenetres: [30, 90, 365],
+    libelleCanal: require('./lib/canaux').libelleCanal,
+    donnees: {
+      fenetreJours: 30, delaiJours: 7,
+      global: { canal: 'global', fins: 0, renouvelees: 0, taux: null },
+      parCanal: [], bientot: [], partis: [],
+      mensuel: ['2026-05', '2026-06', '2026-07', '2026-08', '2026-09', '2026-10'].map(mois => ({
+        mois, fins: 0, renouvelees: 0, taux: null, enCours: mois === '2026-10',
+      })),
+    },
+  }],
+  ['fidelite (API muette)', 'fidelite', {
+    ...base, page: 'fidelite', donnees: null, erreur: 'connect ECONNREFUSED', jours: 90, fenetres: [30, 90, 365],
   }],
 
   // ── Fiabilité de l'indice de confiance ──
