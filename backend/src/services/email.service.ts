@@ -2,15 +2,41 @@ import nodemailer from 'nodemailer';
 import logger from '../utils/logger';
 import { ServiceIndisponible } from '../utils/erreurs';
 
+const port = parseInt(process.env.SMTP_PORT ?? '587');
 const transporter = nodemailer.createTransport({
   host:   process.env.SMTP_HOST   ?? 'smtp.gmail.com',
-  port:   parseInt(process.env.SMTP_PORT ?? '587'),
-  secure: false,
+  port,
+  // 465 parle TLS d'emblée ; 587 (Gmail, Brevo) commence en clair puis
+  // passe en TLS (STARTTLS).
+  secure: port === 465,
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
 });
+
+/**
+ * L'expéditeur des courriels.
+ *
+ * Il était toujours l'identifiant SMTP : une adresse Gmail personnelle
+ * affichée sous le nom « PronoWin ». Une marque sur une adresse gratuite,
+ * pour un message qui contient un code : c'est le profil d'un hameçonnage,
+ * et Gmail rangeait les codes en indésirables (constaté sur les vidéos du
+ * 3 octobre 2026).
+ *
+ * `EMAIL_FROM` permet d'envoyer depuis le domaine (« PronoWin
+ * <noreply@pronowin.space> ») par un relais qui le signe — l'identifiant
+ * d'un tel relais n'est d'ailleurs pas une adresse. Sans elle, rien ne
+ * change.
+ */
+function expediteur(nom = 'PronoWin'): string {
+  return process.env.EMAIL_FROM?.trim() || `"${nom}" <${process.env.SMTP_USER}>`;
+}
+
+/** Où arrivent les réponses : une adresse d'envoi « noreply » ne lit rien. */
+function adresseReponse(): string | undefined {
+  return process.env.EMAIL_REPLY_TO?.trim() || undefined;
+}
 
 /**
  * Envoie un code de connexion par courriel.
@@ -50,22 +76,42 @@ export async function sendEmailOtp(email: string, code: string): Promise<void> {
   logger.info(`[Email] OTP envoyé à ${email}`);
 }
 
-async function envoyerCode(email: string, code: string): Promise<void> {
-  await transporter.sendMail({
-    from:    `"PronoWin" <${process.env.SMTP_USER}>`,
-    to:      email,
-    subject: 'Votre code de vérification PronoWin',
-    text: `PronoWin\n\nVotre code de vérification est : ${code}\n\nCe code expire dans 10 minutes. Ne le partagez avec personne.`,
+/**
+ * Le courriel du code de connexion.
+ *
+ * Le code est dans l'objet : il se lit dans la notification du téléphone,
+ * sans ouvrir la messagerie — c'est là qu'on le cherche, l'application
+ * ouverte à côté. Et le message dit pourquoi on le reçoit : un code sans
+ * contexte est ce qu'un filtre, et un lecteur, prennent pour une arnaque.
+ */
+export function contenuCode(code: string): { subject: string; text: string; html: string } {
+  const raison = 'Vous recevez cet e-mail parce qu\'une connexion à l\'application PronoWin '
+    + 'a été demandée avec cette adresse. Si ce n\'est pas vous, ignorez-le : '
+    + 'personne ne pourra se connecter sans ce code.';
+  return {
+    subject: `${code} est votre code PronoWin`,
+    text: `Votre code de connexion PronoWin : ${code}\n\n`
+      + `Il expire dans 10 minutes. Ne le communiquez à personne : l'équipe PronoWin ne vous le demandera jamais.\n\n`
+      + `${raison}\n\n— PronoWin · https://pronowin.space`,
     html: `
-      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto">
-        <h2 style="color:#1a1a2e">PronoWin</h2>
-        <p>Votre code de vérification est :</p>
-        <div style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#e94560;padding:16px 0">
-          ${code}
-        </div>
-        <p style="color:#666;font-size:13px">Ce code expire dans 10 minutes. Ne le partagez avec personne.</p>
+      <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#1a1a2e">
+        <h2 style="margin:0 0 16px">PronoWin</h2>
+        <p>Votre code de connexion :</p>
+        <div style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#c2410c;padding:12px 0">${code}</div>
+        <p>Il expire dans 10 minutes. Ne le communiquez à personne : l'équipe PronoWin ne vous le demandera jamais.</p>
+        <p style="color:#666;font-size:13px;margin-top:24px">${raison}</p>
+        <p style="color:#666;font-size:13px">PronoWin · <a href="https://pronowin.space" style="color:#666">pronowin.space</a></p>
       </div>
     `,
+  };
+}
+
+async function envoyerCode(email: string, code: string): Promise<void> {
+  await transporter.sendMail({
+    from:    expediteur(),
+    replyTo: adresseReponse(),
+    to:      email,
+    ...contenuCode(code),
   });
 }
 
@@ -92,7 +138,9 @@ export async function envoyerAlerteAdmin(
 ): Promise<boolean> {
   // Lue à l'appel et non au chargement du module : l'environnement d'un
   // processus de longue durée peut changer, et un banc doit pouvoir la poser.
-  const destinataire = process.env.ADMIN_ALERT_EMAIL ?? process.env.SMTP_USER;
+  // Avec un relais, l'identifiant SMTP n'est pas une boîte aux lettres :
+  // l'adresse de réponse passe avant lui.
+  const destinataire = process.env.ADMIN_ALERT_EMAIL ?? adresseReponse() ?? process.env.SMTP_USER;
 
   if (!process.env.SMTP_USER || !process.env.SMTP_PASS || !destinataire) {
     logger.warn(`[Alerte] SMTP non configuré — non envoyée : ${sujet}`);
@@ -101,7 +149,7 @@ export async function envoyerAlerteAdmin(
 
   try {
     await transporter.sendMail({
-      from:    `"PronoWin — alerte" <${process.env.SMTP_USER}>`,
+      from:    expediteur('PronoWin — alerte'),
       to:      destinataire,
       subject: sujet,
       text:    corps,
