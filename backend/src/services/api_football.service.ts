@@ -6,6 +6,7 @@ import { ApiFootballInsights } from './api_football_insights.service';
 import { zoneDepuisDescription } from './zones_classement';
 import { traduireAbsence, estSuspension } from './traduction_absences';
 import { noterQuota } from './etat_taches';
+import { compterAppel } from './consommation_football.service';
 import { journal } from '../utils/logger';
 
 // Mapping Football-Data.org codes → API-Football league IDs + saison de repli.
@@ -329,8 +330,13 @@ export class ApiFootballService {
       timeout: 10000,
     });
     // Le quota restant voyage dans chaque réponse : on le relève pour le
-    // tableau de bord (constat I6).
-    this.client.interceptors.response.use((r) => { noterQuota(r.headers as any); return r; });
+    // tableau de bord (constat I6). Chaque appel est aussi compté, par
+    // famille, pour l'écran de consommation du panneau — échecs compris :
+    // le fournisseur les décompte aussi.
+    this.client.interceptors.response.use(
+      (r) => { noterQuota(r.headers as any); compterAppel(r.config, { entetes: r.headers as any }); return r; },
+      (e) => { compterAppel(e?.config, { echec: true, entetes: e?.response?.headers }); return Promise.reject(e); },
+    );
   }
 
   private static _normalizeTeamName(s: string): string {

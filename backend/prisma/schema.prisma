@@ -293,6 +293,33 @@ model Match {
 /// Les variables d'environnement restent la valeur de repli : une clé absente
 /// de cette table retombe sur le `.env`, ce qui laisse le comportement
 /// inchangé tant que personne n'a rien enregistré.
+/// Appels à API-Football, par jour (UTC, comme le quota du fournisseur) et
+/// par famille d'appel. Chaque processus compte en mémoire et verse ses
+/// totaux chaque minute (`services/consommation_football.service.ts`) : l'API
+/// et le processus des tâches partagent la clé, donc le quota.
+model ConsommationFootball {
+  jour    String
+  famille String
+  appels  Int    @default(0)
+  echecs  Int    @default(0)
+
+  @@id([jour, famille])
+  @@map("consommation_football")
+}
+
+/// Le quota relevé dans les réponses du fournisseur, par jour : la plus
+/// petite valeur restante vue. `limite − restantMin` est ce que le
+/// fournisseur a compté — appels de ce serveur, et de tout autre poste qui
+/// utiliserait la même clé.
+model QuotaFootballJour {
+  jour       String   @id
+  limite     Int
+  restantMin Int      @map("restant_min")
+  releveLe   DateTime @map("releve_le")
+
+  @@map("quota_football_jours")
+}
+
 model AppSetting {
   key       String   @id
   value     String

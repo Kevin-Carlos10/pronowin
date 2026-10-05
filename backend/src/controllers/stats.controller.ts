@@ -6,6 +6,7 @@ import { rendementUnites } from '../utils/rendement';
 import { repondreErreur } from '../utils/erreurs';
 import { resumeFiabilite } from '../services/fiabilite_confiance.service';
 import { ventesParCanal, fideliteAbonnes, exportComptable } from '../services/revenus_canaux.service';
+import { resumeConsommation } from '../services/consommation_football.service';
 
 const svc = new StatsService();
 
@@ -236,4 +237,14 @@ export const getExportComptable = async (req: AdminRequest, res: Response) => {
   try {
     res.json(await exportComptable(String(req.query.mois ?? '')));
   } catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
+ * GET /admin/stats/football — la consommation du quota d'API-Football : par
+ * jour sur 30 jours, par famille d'appel, et le décompte du fournisseur.
+ * Réservée à l'administrateur principal, comme la page Santé.
+ */
+export const getFootball = async (_req: AdminRequest, res: Response) => {
+  try { res.json(await resumeConsommation()); }
+  catch (e: any) { repondreErreur(res, e); }
 };

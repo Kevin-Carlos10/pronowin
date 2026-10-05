@@ -63,6 +63,8 @@ const REGLES: Regle[] = [
   // ── Réservé à l'administrateur principal ──
   [TOUT,   /^\/admin\/(app-config|promo-stats|profile\/password|sante)$/, { acces: 'principal' }],
   [TOUT,   /^\/admin\/payment-methods(\/[^/]+)?$/,              { acces: 'principal' }],
+  // Consommation du quota football : une donnée d'exploitation, comme la santé.
+  [LIRE,   /^\/admin\/stats\/football$/,                        { acces: 'principal' }],
 
   // ── Statistiques ──
   [LIRE,   /^\/admin\/stats\/[a-z-]+$/,                         section('statistiques', 'read')],

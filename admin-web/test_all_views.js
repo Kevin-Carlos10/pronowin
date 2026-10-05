@@ -817,6 +817,50 @@ const views = [
     erreur: 'connect ECONNREFUSED',
   }],
 
+  // ── Consommation de l'API football ──
+  //
+  // Le cas tendu porte les deux alertes : épuisement projeté avant minuit,
+  // et requêtes faites avec la même clé hors de ce serveur.
+  ...(() => {
+    const jours = (aujourdhui, mesuresDepuis) => Array.from({ length: 30 }, (_, i) => {
+      const jour = new Date(Date.UTC(2026, 9, 5) - (29 - i) * 86400e3).toISOString().slice(0, 10);
+      const mesure = i >= mesuresDepuis;
+      const v = i === 29 ? aujourdhui : 3000 + (i % 5) * 400;
+      return { jour, serveur: mesure ? v - 50 : 0, echecs: mesure ? i % 3 : 0,
+               fournisseur: mesure && i > 20 ? v : null, limite: mesure && i > 20 ? 7500 : null, mesure };
+    });
+    const familles = [
+      { famille: '/fixtures?live', appels: 14200, echecs: 3, part: 61.2 },
+      { famille: '/odds', appels: 4100, echecs: 0, part: 17.7 },
+      { famille: '/fixtures/lineups', appels: 2300, echecs: 1, part: 9.9 },
+      { famille: '/players', appels: 1900, echecs: 0, part: 8.2 },
+      { famille: '/inconnu/nouveau', appels: 700, echecs: 0, part: 3 },
+    ];
+    const aujourdhui = (p) => ({
+      jour: '2026-10-05', remiseAZero: '2026-10-06T00:00:00.000Z', releveLe: new Date(Date.now() - 4 * 60e3).toISOString(),
+      limite: 7500, echecs: 2, ...p,
+    });
+    const cas = (titre, donnees) => [titre, 'football', { ...base, page: 'football', erreur: null,
+      libelleFamille: require('./lib/football').libelleFamille, donnees }];
+    return [
+      cas('football (journée normale)', {
+        aujourdhui: aujourdhui({ serveur: 2950, fournisseur: 3000, restant: 4500, horsServeur: 50, projection: 5200 }),
+        moyenne7j: 3800, jours: jours(3000, 10),
+        familles: { aujourdhui: familles.slice(0, 3).map(f => ({ ...f, appels: Math.round(f.appels / 7) })), septJours: familles },
+      }),
+      cas('football (quota menacé, clé utilisée ailleurs)', {
+        aujourdhui: aujourdhui({ serveur: 4200, fournisseur: 6100, restant: 1400, horsServeur: 1900, projection: 9800 }),
+        moyenne7j: 4100, jours: jours(6100, 0), familles: { aujourdhui: familles, septJours: familles },
+      }),
+      cas('football (première mise en ligne)', {
+        aujourdhui: aujourdhui({ serveur: 0, echecs: 0, fournisseur: null, limite: null, restant: null, releveLe: null,
+                                horsServeur: null, projection: null }),
+        moyenne7j: null, jours: jours(0, 30), familles: { aujourdhui: [], septJours: [] },
+      }),
+      ['football (API muette)', 'football', { ...base, page: 'football', donnees: null, erreur: 'connect ECONNREFUSED' }],
+    ];
+  })(),
+
   // ── Fidélité des abonnés ──
   ['fidelite (avec relances)', 'fidelite', {
     ...base, page: 'fidelite', erreur: null, jours: 90, fenetres: [30, 90, 365],
