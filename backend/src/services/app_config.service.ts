@@ -171,7 +171,7 @@ export function codesPromoParPlateforme(
 }
 
 /** Ordre sémantique de deux versions « x.y.z ». Le build après « + » est ignoré. */
-function comparerVersions(a: string, b: string): number {
+export function comparerVersions(a: string, b: string): number {
   const parse = (v: string) => {
     const parts = v.split('+')[0].split('.').map(p => parseInt(p.trim(), 10) || 0);
     while (parts.length < 3) parts.push(0);

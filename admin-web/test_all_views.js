@@ -861,6 +861,39 @@ const views = [
     ];
   })(),
 
+  // ── Versions de l'application ──
+  ...(() => {
+    const config = { store: { min: '1.0.0', derniere: '1.0.0' }, apk: { min: '1.0.15', derniere: '1.0.19' } };
+    const cas = (titre, donnees) => [titre, 'versions', { ...base, page: 'versions', erreur: null,
+      jours: 30, fenetres: [7, 30, 90], donnees: { jours: 30, premiereVersionDeclaree: '1.0.18', versionMuette: '1.0.17',
+        configuration: config, ...donnees } }];
+    return [
+      cas('versions (parc mélangé)', {
+        actifs: 240, aJour: 120, enRetard: 40, enRetardPremium: 6, inconnus: 80, inconnusPremium: 12,
+        references: { ios: '1.0.19', play: '1.0.19', apk: '1.0.19' },
+        versions: [
+          { version: '1.0.19', plateforme: 'android', canal: 'direct', famille: 'apk', membres: 70, premium: 20, aJour: true, part: 29.2 },
+          { version: '1.0.19', plateforme: 'ios', canal: 'store', famille: 'ios', membres: 50, premium: 30, aJour: true, part: 20.8 },
+          { version: '1.0.18', plateforme: 'android', canal: 'direct', famille: 'apk', membres: 40, premium: 6, aJour: false, part: 16.7 },
+        ],
+        listeEnRetard: [
+          { userId: 'u1', pseudo: 'Awa', premium: true, version: '1.0.18', famille: 'apk', vuLe: '2026-10-04T10:00:00Z' },
+          { userId: 'u2', pseudo: 'Issa', premium: false, version: '1.0.18', famille: 'apk', vuLe: '2026-10-01T10:00:00Z' },
+        ],
+      }),
+      cas('versions (avant la 1.0.18)', {
+        actifs: 180, aJour: 0, enRetard: 0, enRetardPremium: 0, inconnus: 180, inconnusPremium: 25,
+        references: { ios: '1.0.0', play: '1.0.0', apk: '1.0.19' }, versions: [], listeEnRetard: [],
+      }),
+      cas('versions (aucun actif)', {
+        actifs: 0, aJour: 0, enRetard: 0, enRetardPremium: 0, inconnus: 0, inconnusPremium: 0,
+        references: { ios: '1.0.0', play: '1.0.0', apk: '1.0.0' }, versions: [], listeEnRetard: [],
+      }),
+      ['versions (API muette)', 'versions', { ...base, page: 'versions', donnees: null, erreur: 'connect ECONNREFUSED',
+        jours: 30, fenetres: [7, 30, 90] }],
+    ];
+  })(),
+
   // ── Fidélité des abonnés ──
   ['fidelite (avec relances)', 'fidelite', {
     ...base, page: 'fidelite', erreur: null, jours: 90, fenetres: [30, 90, 365],

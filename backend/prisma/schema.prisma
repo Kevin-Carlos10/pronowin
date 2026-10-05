@@ -293,6 +293,21 @@ model Match {
 /// Les variables d'environnement restent la valeur de repli : une clé absente
 /// de cette table retombe sur le `.env`, ce qui laisse le comportement
 /// inchangé tant que personne n'a rien enregistré.
+/// La dernière version de l'application vue pour chaque membre connecté,
+/// d'après les en-têtes `X-App-*` envoyés depuis la 1.0.18. Écrite au plus
+/// toutes les six heures par membre (`services/version_app.service.ts`).
+model VersionAppCompte {
+  userId     String   @id @map("user_id")
+  version    String
+  build      Int?
+  plateforme String
+  canal      String?
+  vuLe       DateTime @map("vu_le")
+
+  @@index([version])
+  @@map("versions_app_comptes")
+}
+
 /// Appels à API-Football, par jour (UTC, comme le quota du fournisseur) et
 /// par famille d'appel. Chaque processus compte en mémoire et verse ses
 /// totaux chaque minute (`services/consommation_football.service.ts`) : l'API

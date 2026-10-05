@@ -7,6 +7,7 @@ import { repondreErreur } from '../utils/erreurs';
 import { resumeFiabilite } from '../services/fiabilite_confiance.service';
 import { ventesParCanal, fideliteAbonnes, exportComptable } from '../services/revenus_canaux.service';
 import { resumeConsommation } from '../services/consommation_football.service';
+import { resumeVersions } from '../services/version_app.service';
 
 const svc = new StatsService();
 
@@ -246,5 +247,14 @@ export const getExportComptable = async (req: AdminRequest, res: Response) => {
  */
 export const getFootball = async (_req: AdminRequest, res: Response) => {
   try { res.json(await resumeConsommation()); }
+  catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
+ * GET /admin/stats/versions?days=30 — les versions de l'application chez les
+ * membres actifs, et ceux qui sont en retard. Pseudos seulement.
+ */
+export const getVersions = async (req: AdminRequest, res: Response) => {
+  try { res.json(await resumeVersions({ jours: parseInt(String(req.query.days ?? '30')) || 30 })); }
   catch (e: any) { repondreErreur(res, e); }
 };

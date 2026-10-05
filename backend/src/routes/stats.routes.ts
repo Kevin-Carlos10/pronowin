@@ -18,6 +18,7 @@ r.get('/canaux',       C.getCanaux);           // GET /admin/stats/canaux?days=3
 r.get('/fidelite',     C.getFidelite);         // GET /admin/stats/fidelite?days=90
 r.get('/export-comptable', C.getExportComptable); // GET /admin/stats/export-comptable?mois=2026-09
 r.get('/football',     C.getFootball);         // GET /admin/stats/football          (principal seulement)
+r.get('/versions',     C.getVersions);         // GET /admin/stats/versions?days=30
 r.get('/online',       C.getOnlineCount);      // GET /admin/stats/online           (non caché)
 
 export default r;

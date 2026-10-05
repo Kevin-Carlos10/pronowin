@@ -4,6 +4,7 @@ import jwt from 'jsonwebtoken';
 import { prisma } from '../lib/prisma';
 import { matchTermine } from '../services/verrou_pronostic';
 import { repondreErreur } from '../utils/erreurs';
+import { noterVersionApp } from '../services/version_app.service';
 
 /**
  * Au plus une écriture de `lastSeenAt` par fenêtre.
@@ -68,6 +69,8 @@ export async function authMiddleware(
     req.userId = payload.userId;
     // Sans attendre : l'horodatage ne doit pas retarder la réponse.
     noterActivite(payload.userId, (user as any).lastSeenAt);
+    // La version de l'application, quand elle la déclare (1.0.18 et après).
+    noterVersionApp(payload.userId, req.headers as Record<string, unknown>);
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
@@ -101,6 +104,7 @@ export async function optionalAuthMiddleware(
     if (user && !(user as any).deletedAt && user.isActive) {
       req.userId = payload.userId;
       noterActivite(payload.userId, (user as any).lastSeenAt);
+      noterVersionApp(payload.userId, req.headers as Record<string, unknown>);
     }
   } catch {
     // Token invalide/expiré → on continue en anonyme plutôt que de bloquer.

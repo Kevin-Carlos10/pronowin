@@ -6,9 +6,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../config/distribution_channel.dart';
 import '../constants/app_constants.dart';
 import '../storage/secure_storage.dart';
 import 'cache_interceptor.dart';
+import 'entetes_app.dart';
 import 'performance_interceptor.dart';
 
 final dioProvider = Provider<Dio>((ref) {
@@ -136,6 +138,12 @@ class DioClient {
           final token = await _storage.read(AppConstants.accessTokenKey);
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
+          }
+          // Version et canal de l'application, pour l'API PronoWin seulement :
+          // une requête vers un autre hôte n'a pas à les recevoir.
+          if (options.uri.host == Uri.parse(AppConstants.baseUrl).host) {
+            options.headers.addAll(
+                await EntetesApp.lire(() => _ref.read(canalDistributionProvider)));
           }
           return handler.next(options);
         },
