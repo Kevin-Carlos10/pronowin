@@ -11,6 +11,7 @@ import { analyzePronostic } from '../services/ai_prediction.service';
 import { buildUserProfile, getPersonalizedPronostics } from '../services/personalized_ai.service';
 import { settleBets }      from '../services/bankroll.service';
 import { apiFootballService, apiFootballInsights } from '../services/api_football.service';
+import { CLASSEMENTS_JOUEURS, type ClassementJoueurs } from '../services/api_football_insights.service';
 import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
 import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
 import { repondreErreur } from '../utils/erreurs';
@@ -871,19 +872,26 @@ export const getPlayerRatings = async (req: AuthRequest, res: Response) => {
   } catch (e: any) { repondreErreur(res, e); }
 };
 
-/** GET /pronostics/top-scorers?league=PL — meilleurs buteurs d'une compétition. */
+/**
+ * GET /pronostics/top-scorers?league=PL[&type=passeurs] — un palmarès
+ * individuel d'une compétition : buteurs (par défaut, ce que demandent les
+ * versions de l'application antérieures au type), passeurs, cartons jaunes ou
+ * rouges.
+ */
 export const getTopScorers = async (req: AuthRequest, res: Response) => {
   try {
     const code = (req.query.league as string) ?? '';
     const info = LEAGUE_INFO(code);
     if (!info) { res.status(400).json({ message: 'Compétition inconnue.' }); return; }
+    const type = (req.query.type as string | undefined) ?? 'buteurs';
+    if (!(type in CLASSEMENTS_JOUEURS)) { res.status(400).json({ message: 'Classement inconnu.' }); return; }
 
     // Même piège que le classement : `info.season` est un repli codé en dur,
     // pas la saison en cours. Un palmarès de buteurs figé sur l'exercice
     // précédent se lit comme une information à jour.
     const saison = (await saisonCourante(code)) ?? info.season;
-    const scorers = await apiFootballInsights.getTopScorers(info.id, saison);
-    if (!scorers) { res.status(503).json({ message: 'Classement des buteurs indisponible.' }); return; }
+    const scorers = await apiFootballInsights.getTopPlayers(type as ClassementJoueurs, info.id, saison);
+    if (!scorers) { res.status(503).json({ message: 'Classement indisponible.' }); return; }
     res.json(scorers);
   } catch (e: any) { repondreErreur(res, e); }
 };

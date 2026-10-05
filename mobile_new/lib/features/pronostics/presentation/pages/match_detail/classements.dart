@@ -261,23 +261,65 @@ class _StandingsCell extends StatelessWidget {
 
 // ─── H2H ─────────────────────────────────────────────────────────────────────
 
-/// Meilleurs buteurs de la compétition, sous le classement.
+/// Les palmarès individuels de la compétition, sous le classement : buteurs,
+/// passeurs, cartons jaunes et rouges.
 ///
 /// Contextuel plutôt qu'une page à part : l'utilisateur regarde déjà cette
 /// compétition, et un écran de plus dans la navigation coûterait plus qu'il
-/// ne rapporte.
-class _MeilleursButeurs extends ConsumerWidget {
+/// ne rapporte. Seuls les buteurs étaient affichés, alors que l'API publie les
+/// quatre au même prix — et les cartons servent directement les pronostics
+/// « nombre de cartons ».
+class _MeilleursButeurs extends ConsumerStatefulWidget {
   final String leagueCode;
   const _MeilleursButeurs({required this.leagueCode});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    if (leagueCode.isEmpty || leagueCode.startsWith('AF_')) {
-      return const SizedBox.shrink();
-    }
+  ConsumerState<_MeilleursButeurs> createState() => _MeilleursButeursState();
+}
 
-    final buteurs = ref.watch(topScorersProvider(leagueCode)).valueOrNull;
-    if (buteurs == null || buteurs.isEmpty) return const SizedBox.shrink();
+class _MeilleursButeursState extends ConsumerState<_MeilleursButeurs> {
+  Palmares _palmares = Palmares.buteurs;
+
+  static String _titre(BuildContext context, Palmares p) => switch (p) {
+    Palmares.buteurs  => tr(context, "Buteurs"),
+    Palmares.passeurs => tr(context, "Passeurs"),
+    Palmares.jaunes   => tr(context, "Cartons jaunes"),
+    Palmares.rouges   => tr(context, "Cartons rouges"),
+  };
+
+  static int _valeur(TopScorer j, Palmares p) => switch (p) {
+    Palmares.buteurs  => j.goals,
+    Palmares.passeurs => j.assists,
+    Palmares.jaunes   => j.yellowCards,
+    Palmares.rouges   => j.redCards,
+  };
+
+  static String _lecture(BuildContext context, TopScorer j, Palmares p) => switch (p) {
+    Palmares.buteurs  => tr(context, "{arg0}. {arg1}, {arg2}, {arg3} buts en {arg4} matchs", [j.rank, j.name, j.team, j.goals, j.appearances]),
+    Palmares.passeurs => tr(context, "{arg0}. {arg1}, {arg2}, {arg3} passes décisives en {arg4} matchs", [j.rank, j.name, j.team, j.assists, j.appearances]),
+    Palmares.jaunes   => tr(context, "{arg0}. {arg1}, {arg2}, {arg3} cartons jaunes en {arg4} matchs", [j.rank, j.name, j.team, j.yellowCards, j.appearances]),
+    Palmares.rouges   => tr(context, "{arg0}. {arg1}, {arg2}, {arg3} cartons rouges en {arg4} matchs", [j.rank, j.name, j.team, j.redCards, j.appearances]),
+  };
+
+  Color _couleur(BuildContext context, Palmares p) => switch (p) {
+    Palmares.buteurs  => context.cl.error,
+    Palmares.passeurs => context.cl.info,
+    Palmares.jaunes   => context.cl.warning,
+    Palmares.rouges   => context.cl.error,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final code = widget.leagueCode;
+    if (code.isEmpty || code.startsWith('AF_')) return const SizedBox.shrink();
+
+    // La carte n'existe que si la compétition publie au moins ses buteurs :
+    // une compétition sans palmarès n'a pas de raison d'afficher des onglets.
+    final buteurs = ref.watch(topScorersProvider((code: code, palmares: Palmares.buteurs)));
+    if ((buteurs.valueOrNull ?? const <TopScorer>[]).isEmpty) return const SizedBox.shrink();
+
+    final liste = ref.watch(topScorersProvider((code: code, palmares: _palmares)));
+    final couleur = _couleur(context, _palmares);
 
     return Container(
       width: double.infinity,
@@ -294,63 +336,103 @@ class _MeilleursButeurs extends ConsumerWidget {
             decoration: BoxDecoration(
               color: context.cl.error.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10)),
-            child: Icon(Icons.sports_soccer_rounded,
+            child: Icon(Icons.emoji_events_rounded,
                 color: context.cl.error, size: 16)),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(tr(context, "Meilleurs buteurs"),
+            child: Text(tr(context, "Meilleurs joueurs de la compétition"),
               style: TextStyle(
                 color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           ),
         ]),
-        const SizedBox(height: 14),
-        for (final b in buteurs.take(10))
-          Padding(
-            padding: const EdgeInsets.only(bottom: 9),
-            child: Semantics(
-              label: tr(context, "{arg0}. {arg1}, {arg2}, {arg3} buts en {arg4} matchs", [b.rank, b.name, b.team, b.goals, b.appearances]),
-              excludeSemantics: true,
-              child: Row(children: [
-                SizedBox(width: 18,
-                  child: Text('${b.rank}',
-                    style: TextStyle(
-                      color: b.rank <= 3 ? context.cl.error : context.cl.textM,
-                      fontSize: 11, fontWeight: FontWeight.w700))),
-                _PhotoJoueur(url: b.photo, taille: 26),
-                const SizedBox(width: 9),
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text(b.name,
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context.cl.textP, fontSize: 12,
-                        fontWeight: FontWeight.w600)),
-                    Text(b.team,
-                      maxLines: 1, overflow: TextOverflow.ellipsis,
-                      style: TextStyle(color: context.cl.textM, fontSize: 10)),
-                  ])),
-                const SizedBox(width: 8),
-                // Les passes décisives situent le profil : un buteur pur n'a
-                // pas le même intérêt qu'un joueur impliqué sur tous les buts.
-                if (b.assists > 0) ...[
-                  Text('${b.assists}',
-                    style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
-                  Icon(Icons.assistant_rounded,
-                      color: context.cl.textM, size: 11),
-                  const SizedBox(width: 8),
-                ],
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: context.cl.error.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(7)),
-                  child: Text('${b.goals}',
-                    style: TextStyle(
-                      color: context.cl.error, fontSize: 12,
-                      fontWeight: FontWeight.w800))),
-              ]),
+        const SizedBox(height: 12),
+        // Retour à la ligne plutôt que défilement : les quatre choix restent
+        // visibles, même avec le texte agrandi.
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final p in Palmares.values)
+            ChoiceChip(
+              key: Key('palmares-${p.name}'),
+              label: Text(_titre(context, p)),
+              selected: p == _palmares,
+              onSelected: (_) => setState(() => _palmares = p),
+              labelStyle: TextStyle(
+                fontSize: 11.5,
+                fontWeight: p == _palmares ? FontWeight.w700 : FontWeight.w500,
+                color: p == _palmares ? context.cl.textP : context.cl.textS),
+              selectedColor: _couleur(context, p).withValues(alpha: 0.16),
+              side: BorderSide(color: p == _palmares
+                  ? _couleur(context, p).withValues(alpha: 0.5)
+                  : context.cl.borderSoft),
+              showCheckmark: false,
+              visualDensity: VisualDensity.compact,
             ),
-          ),
+        ]),
+        const SizedBox(height: 14),
+        ...liste.when(
+          loading: () => [const Padding(
+            padding: EdgeInsets.symmetric(vertical: 18),
+            child: Center(child: SizedBox(width: 20, height: 20,
+              child: CircularProgressIndicator(strokeWidth: 2))))],
+          error: (_, _) => [Padding(
+            padding: const EdgeInsets.symmetric(vertical: 10),
+            child: Text(tr(context, "Ce classement est momentanément indisponible."),
+              style: TextStyle(color: context.cl.textM, fontSize: 12)))],
+          data: (joueurs) {
+            // Un carton rouge reste rare : une liste de zéros n'apprend rien.
+            final utiles = joueurs.where((j) => _valeur(j, _palmares) > 0).take(10).toList();
+            if (utiles.isEmpty) {
+              return [Padding(
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                child: Text(tr(context, "Pas encore de données pour ce classement cette saison."),
+                  style: TextStyle(color: context.cl.textM, fontSize: 12)))];
+            }
+            return [
+              for (final j in utiles)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 9),
+                  child: Semantics(
+                    label: _lecture(context, j, _palmares),
+                    excludeSemantics: true,
+                    child: Row(children: [
+                      SizedBox(width: 18,
+                        child: Text('${j.rank}',
+                          style: TextStyle(
+                            color: j.rank <= 3 ? couleur : context.cl.textM,
+                            fontSize: 11, fontWeight: FontWeight.w700))),
+                      _PhotoJoueur(url: j.photo, taille: 26),
+                      const SizedBox(width: 9),
+                      Expanded(child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start, children: [
+                          Text(j.name,
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              color: context.cl.textP, fontSize: 12,
+                              fontWeight: FontWeight.w600)),
+                          Text(j.team,
+                            maxLines: 1, overflow: TextOverflow.ellipsis,
+                            style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                        ])),
+                      const SizedBox(width: 8),
+                      Text(tr(context, "{arg0} m.", [j.appearances]),
+                        style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+                      const SizedBox(width: 8),
+                      Container(
+                        constraints: const BoxConstraints(minWidth: 30),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: couleur.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(7)),
+                        child: Text('${_valeur(j, _palmares)}',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: couleur, fontSize: 12,
+                            fontWeight: FontWeight.w800))),
+                    ]),
+                  ),
+                ),
+            ];
+          },
+        ),
       ]),
     );
   }

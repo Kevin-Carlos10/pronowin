@@ -169,7 +169,25 @@ export interface TopScorer {
   assists: number;
   penalties: number;
   appearances: number;
+  yellowCards: number;
+  redCards:    number;
 }
+
+/**
+ * Les palmarès individuels d'une compétition que l'API publie.
+ *
+ * Seuls les buteurs étaient lus. Les passeurs et les cartons viennent du
+ * même plan, au même prix — une requête par compétition et par saison, gardée
+ * six heures — et les cartons servent directement les marchés « nombre de
+ * cartons » sur lesquels portent des pronostics.
+ */
+export const CLASSEMENTS_JOUEURS = {
+  buteurs:  '/players/topscorers',
+  passeurs: '/players/topassists',
+  jaunes:   '/players/topyellowcards',
+  rouges:   '/players/topredcards',
+} as const;
+export type ClassementJoueurs = keyof typeof CLASSEMENTS_JOUEURS;
 
 const scorersCache = new Map<string, { data: TopScorer[]; ts: number }>();
 const SCORERS_TTL = 6 * 60 * 60 * 1000;
@@ -432,14 +450,25 @@ export class ApiFootballInsights {
   async getTopScorers(
     leagueId: number, season: number, limit = 15,
   ): Promise<TopScorer[] | null> {
+    return this.getTopPlayers('buteurs', leagueId, season, limit);
+  }
+
+  /**
+   * Un palmarès individuel d'une compétition, dans l'ordre que l'API lui
+   * donne (buts, passes décisives, cartons jaunes ou rouges).
+   */
+  async getTopPlayers(
+    type: ClassementJoueurs, leagueId: number, season: number, limit = 15,
+  ): Promise<TopScorer[] | null> {
     if (!this.hasKey()) return null;
 
-    const cle = `${leagueId}_${season}`;
+    const cle = `${type}_${leagueId}_${season}`;
     const hit = scorersCache.get(cle);
     if (hit && Date.now() - hit.ts < SCORERS_TTL) return hit.data.slice(0, limit);
 
+    const chemin = CLASSEMENTS_JOUEURS[type];
     try {
-      const r = await this.client.get('/players/topscorers', {
+      const r = await this.client.get(chemin, {
         params: { league: leagueId, season },
       });
       const raw: any[] = r.data?.response ?? [];
@@ -457,13 +486,15 @@ export class ApiFootballInsights {
           assists:     st.goals?.assists ?? 0,
           penalties:   st.penalty?.scored ?? 0,
           appearances: st.games?.appearences ?? 0,
+          yellowCards: st.cards?.yellow ?? 0,
+          redCards:    st.cards?.red ?? 0,
         };
       });
 
       scorersCache.set(cle, { data, ts: Date.now() });
       return data.slice(0, limit);
     } catch (e) {
-      journal.error('[ApiFootball] /players/topscorers indisponible:', (e as Error).message);
+      journal.error(`[ApiFootball] ${chemin} indisponible:`, (e as Error).message);
       return null;
     }
   }

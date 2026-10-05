@@ -55,6 +55,10 @@ part 'match_detail/miser.dart';
 part 'match_detail/statistiques.dart';
 part 'match_detail/analyse_modele.dart';
 
+/// La carte des palmarès d'une compétition, seule, pour les bancs d'essai.
+@visibleForTesting
+Widget palmaresCompetitionSeul(String leagueCode) => _MeilleursButeurs(leagueCode: leagueCode);
+
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.

@@ -1054,7 +1054,7 @@ final playerRatingsProvider =
 // ─── Meilleurs buteurs ───────────────────────────────────────────────────────
 
 class TopScorer {
-  final int rank, goals, assists, penalties, appearances;
+  final int rank, goals, assists, penalties, appearances, yellowCards, redCards;
   final String name, team;
   final String? photo, teamLogo;
 
@@ -1063,6 +1063,7 @@ class TopScorer {
     required this.team, this.teamLogo,
     required this.goals, required this.assists,
     required this.penalties, required this.appearances,
+    this.yellowCards = 0, this.redCards = 0,
   });
 
   factory TopScorer.fromJson(Map<String, dynamic> j) => TopScorer(
@@ -1075,17 +1076,25 @@ class TopScorer {
     assists:     (j['assists'] as num?)?.toInt() ?? 0,
     penalties:   (j['penalties'] as num?)?.toInt() ?? 0,
     appearances: (j['appearances'] as num?)?.toInt() ?? 0,
+    yellowCards: (j['yellowCards'] as num?)?.toInt() ?? 0,
+    redCards:    (j['redCards'] as num?)?.toInt() ?? 0,
   );
 }
+
+/// Les palmarès individuels d'une compétition, tels que le serveur les nomme.
+enum Palmares { buteurs, passeurs, jaunes, rouges }
 
 /// Buteurs d'une compétition, par code interne (`PL`, `PD`, `CL`…).
 ///
 /// Les codes `AF_*` (compétitions hors des sept suivies) n'ont pas d'entrée
 /// dans la table du backend : l'appel répond 400 et le widget s'efface.
-final topScorersProvider =
-    FutureProvider.autoDispose.family<List<TopScorer>, String>((ref, code) async {
-  final r = await ref.read(dioProvider)
-      .get('/pronostics/top-scorers', queryParameters: {'league': code});
+///
+/// Le palmarès choisi (buteurs, passeurs, cartons) est un paramètre du même
+/// appel : le serveur garde chacun six heures, une requête par compétition.
+final topScorersProvider = FutureProvider.autoDispose
+    .family<List<TopScorer>, ({String code, Palmares palmares})>((ref, p) async {
+  final r = await ref.read(dioProvider).get('/pronostics/top-scorers',
+      queryParameters: {'league': p.code, 'type': p.palmares.name});
   return (r.data as List)
       .map((e) => TopScorer.fromJson(e as Map<String, dynamic>))
       .toList();
