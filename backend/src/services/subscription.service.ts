@@ -9,6 +9,7 @@ import { lireConfig, codePromoPour, codesPromoParPlateforme } from './app_config
 import { cleDe } from './s3.service';
 import { ErreurMetier, ServiceIndisponible } from '../utils/erreurs';
 import { envoyerAlerteAdmin } from './email.service';
+import { STATUTS_AVEC_ACCES } from './iap_statuts';
 
 // Import S3 de façon lazy pour éviter le crash si AWS pas configuré
 let s3Svc: any = null;
@@ -327,7 +328,7 @@ export class SubscriptionService {
       let achat: { store: string; productId: string; expiresAt: Date } | null = null;
       try {
         achat = await prisma.iapPurchase.findFirst({
-          where:   { userId, status: { in: ['active', 'grace_period'] }, expiresAt: { gt: new Date() } },
+          where:   { userId, status: { in: STATUTS_AVEC_ACCES }, expiresAt: { gt: new Date() } },
           orderBy: { expiresAt: 'desc' },
           select:  { store: true, productId: true, expiresAt: true },
         });

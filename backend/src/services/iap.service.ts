@@ -6,6 +6,7 @@ import { SubscriptionService } from './subscription.service';
 import { NotificationService } from './notification.service';
 import { ErreurMetier } from '../utils/erreurs';
 import logger from '../utils/logger';
+import { STATUTS_AVEC_ACCES } from './iap_statuts';
 
 const notifSvc = new NotificationService();
 // Même motif que dans referral.service : instanciation différée pour ne pas
@@ -285,7 +286,9 @@ export class IapService {
       throw new Error('Reçu de test refusé en production.');
     }
 
-    const active = v.status === 'active' || v.status === 'grace_period';
+    // `canceled` : résilié chez Google, mais payé jusqu'à l'échéance.
+    const active = STATUTS_AVEC_ACCES.includes(v.status)
+      && (v.status !== 'canceled' || v.expiresAt.getTime() > Date.now());
     const donnees = {
       userId, store: v.store, productId: v.productId,
       transactionId: v.transactionId, originalTransactionId: v.originalTransactionId,
@@ -415,7 +418,7 @@ export class IapService {
     const maintenant = new Date();
     const [store, autres] = await Promise.all([
       prisma.iapPurchase.findFirst({
-        where:   { userId, status: { in: ['active', 'grace_period'] }, expiresAt: { gt: maintenant } },
+        where:   { userId, status: { in: STATUTS_AVEC_ACCES }, expiresAt: { gt: maintenant } },
         orderBy: { expiresAt: 'desc' }, select: { expiresAt: true },
       }),
       prisma.subscription.findFirst({
@@ -443,7 +446,7 @@ export class IapService {
     // fermer l'accès ouvert par l'annuel.
     const autreAchat = await prisma.iapPurchase.findFirst({
       where: {
-        userId, status: { in: ['active', 'grace_period'] },
+        userId, status: { in: STATUTS_AVEC_ACCES },
         expiresAt: { gt: maintenant },
       },
     });

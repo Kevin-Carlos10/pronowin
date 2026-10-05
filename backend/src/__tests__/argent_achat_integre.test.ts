@@ -164,6 +164,38 @@ describe('un achat remboursé ferme l\'accès', () => {
   });
 });
 
+describe('une résiliation Google court jusqu\'au terme payé', () => {
+  // Google répond `canceled` pour un abonnement dont le renouvellement est
+  // coupé mais qui court jusqu'à son échéance. Le serveur y lisait une fin
+  // d'accès : résilier depuis Google Play retirait le Premium le jour même.
+  async function verifierGoogle(statut: string, expire = DANS_30_JOURS()) {
+    jest.spyOn(iap, 'verifyGoogle').mockResolvedValue({
+      ...recu(statut, expire), store: 'google' as const,
+      productId: 'com.pronowin.premium.monthly',
+    });
+    return iap.verifyAndRecord({ userId: 'abonne', store: 'google', receipt: 'jeton-google' });
+  }
+
+  it('résilié mais payé : l\'accès reste', async () => {
+    await verifierGoogle('active');
+    const r = await verifierGoogle('canceled');
+    expect(r.active).toBe(true);
+    expect(compte().subscriptionPlan).toBe('premium');
+  });
+
+  it('résilié dès l\'achat : l\'accès s\'ouvre quand même', async () => {
+    const r = await verifierGoogle('canceled');
+    expect(r.active).toBe(true);
+    expect(compte().subscriptionPlan).toBe('premium');
+  });
+
+  it('résilié et arrivé à échéance : l\'accès se ferme', async () => {
+    await verifierGoogle('active');
+    await verifierGoogle('canceled', new Date(Date.now() - JOUR));
+    expect(compte().subscriptionPlan).toBe('free');
+  });
+});
+
 describe('un octroi de Premium est entier, ou n\'a pas lieu', () => {
   it('l\'historique et le compte sont écrits ensemble', async () => {
     await abonnements.grantPremium({
