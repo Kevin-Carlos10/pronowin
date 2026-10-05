@@ -304,7 +304,9 @@ class _PitchPlayer extends StatelessWidget {
   Widget build(BuildContext context) => Flexible(
     // Dernier filet : si la ligne est vraiment trop basse (petit écran, 5
     // lignes), l'ensemble photo+nom est réduit au lieu de déborder.
-    child: FittedBox(
+    child: LienJoueur(id: player.id, nom: player.name, photo: player.photoUrl,
+      rayon: BorderRadius.circular(40),
+      child: FittedBox(
       fit: BoxFit.scaleDown,
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Stack(clipBehavior: Clip.none, children: [
@@ -352,7 +354,7 @@ class _PitchPlayer extends StatelessWidget {
             color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w600,
             shadows: [Shadow(color: Colors.black87, blurRadius: 3)])),
       ]),
-    ),
+    )),
   );
 }
 
@@ -516,7 +518,9 @@ class _PlayerChip extends StatelessWidget {
   const _PlayerChip({required this.player, required this.color});
 
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => LienJoueur(
+    id: player.id, nom: player.name, photo: player.photoUrl, rayon: BorderRadius.circular(8),
+    child: Container(
     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
     decoration: BoxDecoration(
       color: context.cl.surfaceD,
@@ -531,7 +535,7 @@ class _PlayerChip extends StatelessWidget {
       Text(player.name,
         style: TextStyle(color: context.cl.textS, fontSize: 11)),
     ]),
-  );
+  ));
 }
 
 // ─── BLESSURES / SUSPENSIONS ────────────────────────────────────────────────────

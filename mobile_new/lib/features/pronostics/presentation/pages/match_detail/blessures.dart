@@ -137,6 +137,7 @@ class _InjuryRow extends StatelessWidget {
     final isRed = player.reason.toLowerCase().contains('rouge');
     return Padding(
       padding: const EdgeInsets.only(bottom: 9),
+      child: LienJoueur(id: player.id, nom: player.name, photo: player.photo,
       child: Row(children: [
         // Photo du joueur : fournie par l API dans la meme reponse et jamais
         // lue. Un visage se reconnait plus vite qu un patronyme abrege —
@@ -175,7 +176,7 @@ class _InjuryRow extends StatelessWidget {
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ),
-      ]),
+      ])),
     );
   }
 }

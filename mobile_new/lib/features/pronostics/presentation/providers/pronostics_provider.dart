@@ -476,6 +476,7 @@ final lineupsProvider = FutureProvider.autoDispose.family<LineupsData, String>((
 
 // ─── Blessures / suspensions ───────────────────────────────────────────────────
 class InjuredPlayer {
+  final int? id;
   final String name;
   final bool   isHome;
   final String type;
@@ -489,12 +490,13 @@ class InjuredPlayer {
   /// Suspension (carton) plutot qu indisponibilite physique.
   final bool suspension;
   const InjuredPlayer({
-    required this.name, required this.isHome,
+    this.id, required this.name, required this.isHome,
     required this.type, required this.reason,
     this.photo, this.suspension = false,
   });
 
   factory InjuredPlayer.fromJson(Map<String, dynamic> j) => InjuredPlayer(
+    id:     (j['id'] as num?)?.toInt(),
     name:   j['name'] as String? ?? '',
     isHome: j['team'] == 'home',
     type:   j['type'] as String? ?? 'Injured',
@@ -1018,6 +1020,7 @@ final liveOddsProvider =
 // ─── Notes de joueurs ────────────────────────────────────────────────────────
 
 class PlayerRating {
+  final int? id;
   final String name;
   final String? photo;
   final String team; // 'home' | 'away'
@@ -1025,12 +1028,13 @@ class PlayerRating {
   final int minutes, goals, assists, shots, passes;
 
   const PlayerRating({
-    required this.name, this.photo, required this.team, required this.rating,
+    this.id, required this.name, this.photo, required this.team, required this.rating,
     required this.minutes, required this.goals, required this.assists,
     required this.shots, required this.passes,
   });
 
   factory PlayerRating.fromJson(Map<String, dynamic> j) => PlayerRating(
+    id:      (j['id'] as num?)?.toInt(),
     name:    j['name'] as String? ?? '',
     photo:   j['photo'] as String?,
     team:    j['team'] as String? ?? 'home',
@@ -1057,9 +1061,10 @@ class TopScorer {
   final int rank, goals, assists, penalties, appearances, yellowCards, redCards;
   final String name, team;
   final String? photo, teamLogo;
+  final int? id;
 
   const TopScorer({
-    required this.rank, required this.name, this.photo,
+    required this.rank, required this.name, this.photo, this.id,
     required this.team, this.teamLogo,
     required this.goals, required this.assists,
     required this.penalties, required this.appearances,
@@ -1067,6 +1072,7 @@ class TopScorer {
   });
 
   factory TopScorer.fromJson(Map<String, dynamic> j) => TopScorer(
+    id:          (j['id'] as num?)?.toInt(),
     rank:        (j['rank'] as num?)?.toInt() ?? 0,
     name:        j['name'] as String? ?? '',
     photo:       j['photo'] as String?,

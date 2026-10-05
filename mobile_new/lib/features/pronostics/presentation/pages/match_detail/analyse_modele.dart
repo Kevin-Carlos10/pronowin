@@ -723,7 +723,8 @@ class _NotesJoueurs extends ConsumerWidget {
 
         // L'homme du match en évidence : c'est le seul nom que la plupart des
         // lecteurs retiendront, autant le sortir de la liste.
-        Semantics(
+        LienJoueur(id: homme.id, nom: homme.name, photo: homme.photo, rayon: BorderRadius.circular(12),
+        child: Semantics(
           label: tr(context, "Homme du match : {arg0}, note {arg1}, {arg2} minutes jouées", [homme.name, homme.rating, homme.minutes]),
           excludeSemantics: true,
           child: Container(
@@ -756,12 +757,13 @@ class _NotesJoueurs extends ConsumerWidget {
               _Note(valeur: homme.rating, grande: true),
             ]),
           ),
-        ),
+        )),
 
         const SizedBox(height: 12),
         for (final j in suite)
           Padding(
             padding: const EdgeInsets.only(bottom: 8),
+            child: LienJoueur(id: j.id, nom: j.name, photo: j.photo,
             child: Semantics(
               label: tr(context, "{arg0}, note {arg1}", [j.name, j.rating]),
               excludeSemantics: true,
@@ -778,7 +780,7 @@ class _NotesJoueurs extends ConsumerWidget {
                 const SizedBox(width: 10),
                 _Note(valeur: j.rating),
               ]),
-            ),
+            )),
           ),
       ]),
     );

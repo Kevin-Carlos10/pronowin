@@ -32,6 +32,7 @@ import '../widgets/comments_section.dart';
 import '../widgets/prono_share_card.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
 import 'match_detail/bookmaker_cotes.dart';
+import '../../../joueurs/presentation/pages/fiche_joueur_page.dart';
 import '../../domain/entities/verdict_comparaison.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../core/config/bookmaker_affiliation.dart';

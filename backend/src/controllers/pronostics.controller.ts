@@ -10,7 +10,7 @@ import { cache, CACHE_KEYS, CACHE_TTL } from '../services/cache.service';
 import { analyzePronostic } from '../services/ai_prediction.service';
 import { buildUserProfile, getPersonalizedPronostics } from '../services/personalized_ai.service';
 import { settleBets }      from '../services/bankroll.service';
-import { apiFootballService, apiFootballInsights } from '../services/api_football.service';
+import { apiFootballService, apiFootballInsights, fichesJoueurs } from '../services/api_football.service';
 import { CLASSEMENTS_JOUEURS, type ClassementJoueurs } from '../services/api_football_insights.service';
 import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
 import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
@@ -893,6 +893,26 @@ export const getTopScorers = async (req: AuthRequest, res: Response) => {
     const scorers = await apiFootballInsights.getTopPlayers(type as ClassementJoueurs, info.id, saison);
     if (!scorers) { res.status(503).json({ message: 'Classement indisponible.' }); return; }
     res.json(scorers);
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
+ * GET /pronostics/joueurs/:playerId[?saison=2026] — la fiche d'un joueur :
+ * profil, statistiques de la saison par compétition, absences, transferts.
+ * Ouverte aux invités, comme le reste de la donnée API-Football.
+ */
+export const getFicheJoueur = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Number(req.params.playerId);
+    if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ message: 'Joueur inconnu.' }); return; }
+    const saisonDemandee = req.query.saison !== undefined ? Number(req.query.saison) : undefined;
+    if (saisonDemandee !== undefined && !(Number.isInteger(saisonDemandee) && saisonDemandee >= 2010 && saisonDemandee <= 2100)) {
+      res.status(400).json({ message: 'Saison invalide.' }); return;
+    }
+    const fiche = await fichesJoueurs.fiche(id, saisonDemandee);
+    if (fiche === 'introuvable') { res.status(404).json({ message: 'Joueur introuvable.' }); return; }
+    if (!fiche) { res.status(503).json({ message: 'Fiche du joueur momentanément indisponible.' }); return; }
+    res.json(fiche);
   } catch (e: any) { repondreErreur(res, e); }
 };
 

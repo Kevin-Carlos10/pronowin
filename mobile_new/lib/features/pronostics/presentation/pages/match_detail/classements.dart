@@ -390,6 +390,7 @@ class _MeilleursButeursState extends ConsumerState<_MeilleursButeurs> {
               for (final j in utiles)
                 Padding(
                   padding: const EdgeInsets.only(bottom: 9),
+                  child: LienJoueur(id: j.id, nom: j.name, photo: j.photo,
                   child: Semantics(
                     label: _lecture(context, j, _palmares),
                     excludeSemantics: true,
@@ -428,7 +429,7 @@ class _MeilleursButeursState extends ConsumerState<_MeilleursButeurs> {
                             color: couleur, fontSize: 12,
                             fontWeight: FontWeight.w800))),
                     ]),
-                  ),
+                  )),
                 ),
             ];
           },
