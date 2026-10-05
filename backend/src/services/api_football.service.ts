@@ -1,6 +1,7 @@
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import type { H2HResult, H2HMatch } from './football_data.service';
 import { FichesJoueurs } from './fiche_joueur.service';
+import { FichesEquipes } from './fiche_equipe.service';
 import { ApiFootballInsights } from './api_football_insights.service';
 import { zoneDepuisDescription } from './zones_classement';
 import { traduireAbsence, estSuspension } from './traduction_absences';
@@ -953,6 +954,12 @@ export const apiFootballInsights = new ApiFootballInsights(
 
 /** Fiches joueurs, sur le même compte et le même quota. */
 export const fichesJoueurs = new FichesJoueurs(
+  apiFootballService.httpClient,
+  () => apiFootballService.hasApiKey,
+);
+
+/** Fiches équipes, idem. */
+export const fichesEquipes = new FichesEquipes(
   apiFootballService.httpClient,
   () => apiFootballService.hasApiKey,
 );

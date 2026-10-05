@@ -25,6 +25,8 @@ import '../../features/pronostics/presentation/pages/historique_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../../features/bankroll/presentation/pages/bet_detail_page.dart';
 import '../../features/joueurs/presentation/pages/fiche_joueur_page.dart';
+import '../../features/equipes/presentation/pages/fiche_equipe_page.dart';
+import '../../features/equipes/presentation/providers/fiche_equipe_provider.dart';
 import '../../features/joueurs/presentation/providers/fiche_joueur_provider.dart';
 import '../../features/bankroll/presentation/providers/bankroll_provider.dart';
 import '../../features/performance/presentation/pages/performance_page.dart';
@@ -268,7 +270,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             matchId:   s.pathParameters['id']!,
             preloaded: s.extra as MatchEntity?)),
       ),
-      // Ouverte aux invités, comme le détail d'un match.
+      // Ouvertes aux invités, comme le détail d'un match.
+      GoRoute(
+        path: '/equipes/:id',
+        pageBuilder: (_, s) => slideRightPage(
+          state: s,
+          child: FicheEquipePage(
+            id:     int.tryParse(s.pathParameters['id'] ?? '') ?? 0,
+            apercu: s.extra is ApercuEquipe ? s.extra as ApercuEquipe : null)),
+      ),
       GoRoute(
         path: '/joueurs/:id',
         pageBuilder: (_, s) => slideRightPage(

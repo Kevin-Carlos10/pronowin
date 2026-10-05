@@ -108,6 +108,10 @@ export interface TeamSeasonStats {
   failedToScoreTotal:  number;
   penaltyScored:       number;
   penaltyPercentage:   string | null;
+  /** Matchs joués, gagnés, nuls, perdus — fournis dans la même réponse. */
+  bilan?:              { joues: number; victoires: number; nuls: number; defaites: number };
+  /** Le système le plus aligné cette saison, ex. « 4-3-3 ». */
+  systeme?:            string | null;
 }
 
 const seasonStatsCache = new Map<string, { data: TeamSeasonStats; ts: number }>();
@@ -323,6 +327,14 @@ export class ApiFootballInsights {
         failedToScoreTotal: d.failed_to_score?.total ?? 0,
         penaltyScored:      d.penalty?.scored?.total ?? 0,
         penaltyPercentage:  d.penalty?.scored?.percentage ?? null,
+        bilan: {
+          joues:     d.fixtures?.played?.total ?? 0,
+          victoires: d.fixtures?.wins?.total ?? 0,
+          nuls:      d.fixtures?.draws?.total ?? 0,
+          defaites:  d.fixtures?.loses?.total ?? 0,
+        },
+        systeme: [...(d.lineups ?? [])]
+          .sort((a: any, b: any) => (b?.played ?? 0) - (a?.played ?? 0))[0]?.formation ?? null,
       };
 
       seasonStatsCache.set(cle, { data, ts: Date.now() });

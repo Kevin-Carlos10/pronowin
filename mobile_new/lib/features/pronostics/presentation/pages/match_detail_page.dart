@@ -33,6 +33,7 @@ import '../widgets/prono_share_card.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
 import 'match_detail/bookmaker_cotes.dart';
 import '../../../joueurs/presentation/pages/fiche_joueur_page.dart';
+import '../../../equipes/presentation/pages/fiche_equipe_page.dart';
 import '../../domain/entities/verdict_comparaison.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../core/config/bookmaker_affiliation.dart';
@@ -790,8 +791,10 @@ class _MatchHeader extends ConsumerWidget {
       const SizedBox(height: 22),
 
       Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Domicile
-        Expanded(child: Column(children: [
+        // Domicile — l'écusson et le nom ouvrent la fiche de l'équipe.
+        Expanded(child: LienEquipe(
+          nom: match.homeTeam, logo: match.homeTeamLogo, competition: match.leagueCountry,
+          child: Column(children: [
           Hero(
             tag: 'team_home_${match.homeTeam}',
             child: _TeamLogo(url: match.homeTeamLogo ?? '', size: 64),
@@ -802,7 +805,7 @@ class _MatchHeader extends ConsumerWidget {
               fontSize: 14, fontWeight: FontWeight.w700),
             textAlign: TextAlign.center,
             maxLines: 2, overflow: TextOverflow.ellipsis),
-        ])),
+        ]))),
 
         // Score / statut central
         Padding(
@@ -861,7 +864,9 @@ class _MatchHeader extends ConsumerWidget {
         ),
 
         // Extérieur
-        Expanded(child: Column(children: [
+        Expanded(child: LienEquipe(
+          nom: match.awayTeam, logo: match.awayTeamLogo, competition: match.leagueCountry,
+          child: Column(children: [
           Hero(
             tag: 'team_away_${match.awayTeam}',
             child: _TeamLogo(url: match.awayTeamLogo ?? '', size: 64),
@@ -872,7 +877,7 @@ class _MatchHeader extends ConsumerWidget {
               fontSize: 14, fontWeight: FontWeight.w700),
             textAlign: TextAlign.center,
             maxLines: 2, overflow: TextOverflow.ellipsis),
-        ])),
+        ]))),
       ]),
     ]),
   )));

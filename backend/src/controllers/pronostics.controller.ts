@@ -10,7 +10,7 @@ import { cache, CACHE_KEYS, CACHE_TTL } from '../services/cache.service';
 import { analyzePronostic } from '../services/ai_prediction.service';
 import { buildUserProfile, getPersonalizedPronostics } from '../services/personalized_ai.service';
 import { settleBets }      from '../services/bankroll.service';
-import { apiFootballService, apiFootballInsights, fichesJoueurs } from '../services/api_football.service';
+import { apiFootballService, apiFootballInsights, fichesJoueurs, fichesEquipes } from '../services/api_football.service';
 import { CLASSEMENTS_JOUEURS, type ClassementJoueurs } from '../services/api_football_insights.service';
 import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
 import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
@@ -913,6 +913,34 @@ export const getFicheJoueur = async (req: AuthRequest, res: Response) => {
     if (fiche === 'introuvable') { res.status(404).json({ message: 'Joueur introuvable.' }); return; }
     if (!fiche) { res.status(503).json({ message: 'Fiche du joueur momentanément indisponible.' }); return; }
     res.json(fiche);
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
+ * GET /pronostics/equipes/:teamId[?league=PL] — la fiche d'une équipe : club,
+ * stade, entraîneur, effectif ; et, quand la compétition est connue, le bilan
+ * de la saison dans cette compétition. Ouverte aux invités.
+ */
+export const getFicheEquipe = async (req: AuthRequest, res: Response) => {
+  try {
+    const id = Number(req.params.teamId);
+    if (!Number.isInteger(id) || id <= 0) { res.status(400).json({ message: 'Équipe inconnue.' }); return; }
+
+    const fiche = await fichesEquipes.fiche(id);
+    if (fiche === 'introuvable') { res.status(404).json({ message: 'Équipe introuvable.' }); return; }
+    if (!fiche) { res.status(503).json({ message: "Fiche de l'équipe momentanément indisponible." }); return; }
+
+    // Le bilan dépend d'une compétition : sans elle (ou hors des compétitions
+    // suivies), la fiche se publie sans, plutôt que de deviner.
+    const code = typeof req.query.league === 'string' ? req.query.league : '';
+    const info = code ? LEAGUE_INFO(code) : null;
+    let saison: number | null = null;
+    let stats = null;
+    if (info) {
+      saison = (await saisonCourante(code)) ?? info.season;
+      stats = await apiFootballInsights.getTeamSeasonStats(info.id, saison, id);
+    }
+    res.json({ ...fiche, league: info ? code : null, season: saison, seasonStats: stats });
   } catch (e: any) { repondreErreur(res, e); }
 };
 

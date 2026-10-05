@@ -31,6 +31,7 @@ r.get ('/bilan-premium', optionalAuthMiddleware, C.getBilanPremium);
 // Avant `/:id` : sans cela Express prendrait « top-scorers » pour un identifiant.
 r.get ('/top-scorers', optionalAuthMiddleware, C.getTopScorers);
 r.get ('/joueurs/:playerId', optionalAuthMiddleware, C.getFicheJoueur);
+r.get ('/equipes/:teamId',  optionalAuthMiddleware, C.getFicheEquipe);
 r.get ('/for-you',     authMiddleware, premiumMiddleware, C.getForYou);
 r.get ('/history',   authMiddleware, C.getHistory);
 // ── Détail d'un match : ouvert aux invités ────────────────────────────────────
