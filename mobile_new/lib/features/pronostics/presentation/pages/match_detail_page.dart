@@ -35,6 +35,7 @@ import '../../../abonnement/presentation/providers/iap_provider.dart';
 import 'match_detail/bookmaker_cotes.dart';
 import '../../../joueurs/presentation/pages/fiche_joueur_page.dart';
 import '../../../equipes/presentation/pages/fiche_equipe_page.dart';
+import '../../../../core/utils/noms_equipes.dart';
 import '../../domain/entities/avis_compares.dart';
 import '../../domain/entities/verdict_comparaison.dart';
 import '../../../../shared/utils/retour.dart';
@@ -408,7 +409,8 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         ],
         if (match.hasPronostic) ...[
         entree(_AIAnalysisCard(matchId: match.id, status: match.status,
-                confianceAnalyste: match.pourcentageConfiance),
+                confianceAnalyste: match.pourcentageConfiance,
+                equipes: [match.homeTeam, match.awayTeam]),
             delaiMs: 190),
         const SizedBox(height: 16),
         // Le « pourquoi » chiffré, juste sous l'analyse : c'est la question que
@@ -445,13 +447,11 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         const SizedBox(height: 16),
         if (match.hasPronostic) _ButsParTranche(matchId: match.id),
       ])),
-      if (showCompositions) (tr(context, "Compositions"), _LineupsCard(match: match)),
-      if (showBlessures) (tr(context, "Blessures"), _InjuriesCard(
-        matchId: match.id,
-        homeTeam: match.homeTeam,
-        awayTeam: match.awayTeam,
-        homeLogo: match.homeTeamLogo,
-        awayLogo: match.awayTeamLogo)),
+      // « Classements », toujours présent, vient avant les onglets qui
+      // attendent leur réponse réseau (compositions, blessures, face-à-face) :
+      // ceux-là s'ajoutent ainsi au bout de la barre, sans décaler ceux qu'on
+      // voit déjà. « Face à face » arrivait au milieu de la rangée après
+      // l'ouverture (vidéo du 5 octobre 2026).
       if (showClassements) (tr(context, "Classements"), Column(children: [
         _StandingsCard(
           matchId: match.id,
@@ -459,6 +459,13 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           awayTeam: match.awayTeam),
         _MeilleursButeurs(leagueCode: match.leagueCountry),
       ])),
+      if (showCompositions) (tr(context, "Compositions"), _LineupsCard(match: match)),
+      if (showBlessures) (tr(context, "Blessures"), _InjuriesCard(
+        matchId: match.id,
+        homeTeam: match.homeTeam,
+        awayTeam: match.awayTeam,
+        homeLogo: match.homeTeamLogo,
+        awayLogo: match.awayTeamLogo)),
       if (showFaceAFace) (tr(context, "Face à face"), Column(children: [
         _H2HCard(
           matchId: match.id,
@@ -479,8 +486,11 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         leading: IconButton(
           icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => retourOuAller(context, repli: _repli)),
+        // Deux lignes plutôt que des points de suspension : entre le retour et
+        // les trois actions, « UEFA Nations League » devenait « UEFA Nation… ».
         title: Text(match.league,
-          style: TextStyle(fontSize: 14, color: context.cl.textS)),
+          maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 13.5, height: 1.15, color: context.cl.textS)),
         centerTitle: true,
         actions: [
           // Bouton favori

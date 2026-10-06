@@ -4,6 +4,7 @@ import path from 'path';
 import https from 'https';
 import http  from 'http';
 import { fetchRssNews, proxyImage } from '../services/rss.service';
+import { extraitTexte } from '../utils/extrait';
 
 const router = Router();
 
@@ -102,7 +103,7 @@ router.get('/', async (req: Request, res: Response) => {
     .map((a: any) => ({
       id:         a.id,
       titre:      a.title,
-      resume:     (a.summary || a.content || '').slice(0, 300),
+      resume:     extraitTexte(a.summary || a.content),
       categorie:  a.category ?? 'news',
       emoji:      a.emoji ?? '📰',
       image_url:  a.imageUrl || null,

@@ -1,6 +1,8 @@
 ﻿
 import { prisma } from '../lib/prisma';
 import { journal } from '../utils/logger';
+import { rencontre, traduireEquipes } from '../utils/noms_equipes';
+import { harmoniserNotification } from '../utils/notifications_anciennes';
 
 // Topics FCM — correspondent aux préférences utilisateur côté Flutter
 export const FCM_TOPICS = {
@@ -162,11 +164,12 @@ export class NotificationService {
 
   /** Récupérer les notifications d'un utilisateur */
   async getNotifications(userId: string, limit = 50) {
-    return prisma.notification.findMany({
+    const liste = await prisma.notification.findMany({
       where:   { userId },
       orderBy: { createdAt: 'desc' },
       take:    limit,
     });
+    return liste.map(harmoniserNotification);
   }
 
   /** Marquer une notification comme lue */
@@ -537,7 +540,7 @@ export class NotificationService {
   async notifyMatchSoon(homeTeam: string, awayTeam: string, pronosticId: string, matchId?: string) {
     const payload = {
       title: 'Match dans 1 heure !',
-      body:  `${homeTeam} vs ${awayTeam} — Consultez notre pronostic maintenant.`,
+      body:  `${rencontre(homeTeam, awayTeam)} — Consultez notre pronostic maintenant.`,
       data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
     };
     const sends = [this.sendToTopic(FCM_TOPICS.match, payload)];
@@ -576,10 +579,11 @@ export class NotificationService {
     // — il n'y a aucune raison de cacher l'existence d'un pronostic VIP,
     // seulement son contenu.
     const affiche = params.isPremium ? 'pronostic VIP disponible'
-                                     : params.predictionLabel;
+                                     : traduireEquipes(params.predictionLabel, [params.homeTeam, params.awayTeam]);
+    const match   = rencontre(params.homeTeam, params.awayTeam);
     const body    = isLive
-      ? `${params.homeTeam} vs ${params.awayTeam} en cours — ${affiche}`
-      : `${params.homeTeam} vs ${params.awayTeam} — ${affiche}`;
+      ? `${match} en cours — ${affiche}`
+      : `${match} — ${affiche}`;
     return this.sendToTopic(FCM_TOPICS.match, {
       title, body,
       data: { deep_link: `/pronostics/${params.pronosticId}`, type: 'match' },
@@ -600,8 +604,8 @@ export class NotificationService {
                 : 'Pronostic perdant';
     const score  = `${params.homeScore}-${params.awayScore}`;
     return this.sendToTopic(FCM_TOPICS.match, {
-      title: `Résultat : ${label}`,
-      body:  `${params.homeTeam} vs ${params.awayTeam} — Score final : ${score}`,
+      title: label,
+      body:  `${rencontre(params.homeTeam, params.awayTeam)} — score final : ${score}`,
       data:  {
         deep_link: `/pronostics/${params.pronosticId}`,
         type:      'match',

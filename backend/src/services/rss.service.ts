@@ -1,4 +1,5 @@
 import Parser from 'rss-parser';
+import { extraitTexte } from '../utils/extrait';
 
 const parser = new Parser({
   timeout: 8000,
@@ -99,7 +100,7 @@ export async function fetchRssNews(): Promise<RssArticle[]> {
         return {
           id,
           titre:      item.title ?? '',
-          resume:     item.contentSnippet?.slice(0, 300) ?? item.content?.slice(0, 300) ?? '',
+          resume:     extraitTexte(item.contentSnippet ?? item.content),
           categorie:  feed.label,
           emoji:      feed.emoji,
           image_url:  extractImage(item), // brut — proxé à la demande dans news.routes.ts

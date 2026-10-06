@@ -11,6 +11,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../../../shared/utils/premium_nav.dart';
+import '../../../../shared/utils/montant.dart';
 import '../../domain/entities/tutorial_entity.dart';
 import '../providers/tutorial_provider.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
@@ -441,26 +442,27 @@ class _MetaRow extends StatelessWidget {
   const _MetaRow({required this.tutorial});
 
   @override
-  Widget build(BuildContext context) => Row(
+  // `Wrap` et son espacement : sans durée, la rangée ne commence plus par un
+  // blanc, et les pastilles passent à la ligne en grand texte.
+  Widget build(BuildContext context) => Wrap(
+        spacing: 8,
+        runSpacing: 6,
         children: [
-          _MetaChip(
-              icon: Icons.access_time_rounded,
-              label: tutorial.durationText,
-              color: context.cl.info),
-          if (tutorial.viewCount > 0) ...[
-            const SizedBox(width: 8),
+          if (tutorial.aUneDuree)
+            _MetaChip(
+                icon: Icons.access_time_rounded,
+                label: tutorial.durationText,
+                color: context.cl.info),
+          if (tutorial.viewCount > 0)
             _MetaChip(
                 icon: Icons.visibility_rounded,
                 label: tr(context, "{arg0} vues", [tutorial.viewCount]),
                 color: context.cl.textM),
-          ],
-          if (tutorial.rating > 0) ...[
-            const SizedBox(width: 8),
+          if (tutorial.rating > 0)
             _MetaChip(
                 icon: Icons.star_rounded,
-                label: tutorial.rating.toStringAsFixed(1),
+                label: decimalFr(tutorial.rating),
                 color: context.cl.warning),
-          ],
         ],
       );
 }

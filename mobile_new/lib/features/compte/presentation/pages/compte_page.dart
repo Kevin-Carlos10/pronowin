@@ -24,6 +24,7 @@ import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/utils/partage_parrainage.dart';
 import '../../../../shared/utils/messages.dart';
 import 'package:pronowin/shared/utils/initiale.dart';
+import '../../../../shared/widgets/skeletons.dart';
 
 
 /// Tout ce que l'ecran du compte lit pour cet utilisateur.
@@ -93,8 +94,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
     ref.watch(referralStatsProvider);
 
     return profileAsync.when(
-      loading: () => const Scaffold(
-        body: Center(child: CircularProgressIndicator(color: AppColors.primary))),
+      loading: () => const _CompteSquelette(),
       error: (_, _) => Scaffold(
         body: Center(
           child: Padding(
@@ -1123,14 +1123,16 @@ class _ParrainageTab extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // ── Comment ça marche ───────────────────────────────────────────────
+        // Le barème est dit une fois, dans les tuiles juste au-dessus. Les
+        // étapes le répétaient, puis l'encart « Aucun filleul » une troisième
+        // fois (vidéo du 5 octobre 2026) : elles disent désormais le
+        // déroulé, pas les montants.
          _SectionLabel(tr(context, "COMMENT ÇA MARCHE")),
         _InfoCard(children: [
           _HowToStep(n: 1, text: tr(context, "Partage ton code avec tes amis")),
           _HowToStep(n: 2, text: tr(context, "Ils créent leur compte avec ce code")),
           _HowToStep(n: 3,
-            text: estStore
-                ? tr(context, "Tu gagnes {arg0} d'abonnement dès qu'ils passent Premium", [libelleJours(joursL1)])
-                : tr(context, "Tu gagnes {arg0} {arg1} dès qu'ils passent Premium", [comL1, devise]),
+            text: tr(context, "Ta récompense tombe dès qu'ils passent Premium"),
             last: true),
         ]),
         const SizedBox(height: 16),
@@ -1193,9 +1195,7 @@ class _ParrainageTab extends ConsumerWidget {
                   color: context.cl.textP, fontSize: 14.5, fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
               Text(
-                estStore
-                  ? tr(context, "Partage ton code : chaque ami qui s'abonne te rapporte {arg0} d'abonnement, et ceux qu'il parraine à son tour {arg1}.", [libelleJours(joursL1), libelleJours(joursL2)])
-                  : tr(context, "Partage ton code : chaque ami qui s'abonne te rapporte {arg0} {arg1}, et ceux qu'il parraine à son tour {arg2} {arg3}.", [comL1, devise, comL2, devise]),
+                tr(context, "Les amis inscrits avec ton code apparaîtront ici."),
                 textAlign: TextAlign.center,
                 style: TextStyle(color: context.cl.textM, fontSize: 12.5, height: 1.45)),
             ]),
@@ -1585,3 +1585,53 @@ class _StatBox extends StatelessWidget {
 /// Le solde, lui, existait deja cote serveur et n'apparaissait sur aucun ecran
 /// de cette page — seules les statistiques de paris y figuraient, sans jamais
 /// dire combien il reste.
+
+/// La page Compte pendant le chargement du profil : la silhouette de
+/// l'en-tête, des onglets et des premières cartes.
+///
+/// C'était un écran entièrement vide, avec au centre un indicateur qui, à
+/// son premier tour, n'est qu'un point (vidéo du 5 octobre 2026) : on se
+/// demandait si l'onglet avait planté. La silhouette dit où le contenu va
+/// arriver, et rien ne saute quand il arrive.
+class _CompteSquelette extends StatelessWidget {
+  const _CompteSquelette();
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+        key: const Key('compte-squelette'),
+        body: Semantics(
+          label: tr(context, "Chargement du profil…"),
+          child: ExcludeSemantics(
+            child: SafeArea(
+              child: ListView(
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
+                children: [
+                  const Center(child: SkeletonBox(width: 84, height: 84, circle: true)),
+                  const SizedBox(height: 14),
+                  const Center(child: SkeletonBox(width: 170, height: 20, radius: 6)),
+                  const SizedBox(height: 8),
+                  const Center(child: SkeletonBox(width: 110, height: 12, radius: 6)),
+                  const SizedBox(height: 12),
+                  const Center(child: SkeletonBox(width: 84, height: 24, radius: 12)),
+                  const SizedBox(height: 28),
+                  Row(children: const [
+                    Expanded(child: SkeletonBox(height: 14, radius: 6)),
+                    SizedBox(width: 24),
+                    Expanded(child: SkeletonBox(height: 14, radius: 6)),
+                    SizedBox(width: 24),
+                    Expanded(child: SkeletonBox(height: 14, radius: 6)),
+                  ]),
+                  const SizedBox(height: 24),
+                  const SkeletonBox(height: 120, radius: 16),
+                  const SizedBox(height: 14),
+                  const SkeletonBox(height: 72, radius: 14),
+                  const SizedBox(height: 14),
+                  const SkeletonBox(height: 72, radius: 14),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+}

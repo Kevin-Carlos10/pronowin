@@ -675,15 +675,17 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
           const SizedBox(height: 6),
           _DeleteWarning(tr(context, "Tu perds l'accès à tes gains de parrainage")),
           const SizedBox(height: 6),
-          // Anonymisé, pas effacé — c'est ce que fait `deleteAccount`.
-          _DeleteWarning(tr(context, "Ton historique est conservé sous forme anonyme")),
+          // Anonymisé, pas effacé — c'est ce que fait `deleteAccount`. Une
+          // information, pas une perte : la croix rouge la rangeait avec ce
+          // qu'on perd (vidéo du 5 octobre 2026).
+          _DeleteWarning(tr(context, "Ton historique est conservé sous forme anonyme"), neutre: true),
         ]),
       ),
       const SizedBox(height: 20),
 
       Align(
         alignment: Alignment.centerLeft,
-        child: Text(tr(context, "Tapez SUPPRIMER pour confirmer"),
+        child: Text(tr(context, "Tape SUPPRIMER pour confirmer"),
           style: TextStyle(color: context.cl.textS, fontSize: 12, fontWeight: FontWeight.w600))),
       const SizedBox(height: 8),
       TextField(
@@ -691,9 +693,10 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
         onChanged: (v) => setState(() => _input = v),
         textCapitalization: TextCapitalization.characters,
         style: TextStyle(color: context.cl.textP, fontWeight: FontWeight.w600, letterSpacing: 1),
+        // Pas d'indication « SUPPRIMER » dans le champ : en capitales grasses,
+        // elle passait pour un texte déjà saisi, et le bouton restait grisé
+        // sans qu'on comprenne pourquoi. La consigne est juste au-dessus.
         decoration: InputDecoration(
-          hintText: 'SUPPRIMER',
-          hintStyle: TextStyle(color: context.cl.textM, letterSpacing: 1),
           filled: true,
           fillColor: context.cl.surfaceD,
           border: OutlineInputBorder(
@@ -763,12 +766,16 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
 
 class _DeleteWarning extends StatelessWidget {
   final String text;
-  const _DeleteWarning(this.text);
+  /// Une information (ce qui est conservé), et non une perte.
+  final bool neutre;
+  const _DeleteWarning(this.text, {this.neutre = false});
   @override
   Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      Icon(Icons.close_rounded, color: context.cl.error, size: 14),
+      neutre
+        ? Icon(Icons.info_outline_rounded, color: context.cl.textM, size: 14)
+        : Icon(Icons.close_rounded, color: context.cl.error, size: 14),
       const SizedBox(width: 8),
       Expanded(child: Text(text, style: TextStyle(
         color: context.cl.textS, fontSize: 12, height: 1.4))),

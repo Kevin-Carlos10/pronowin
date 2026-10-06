@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -47,4 +49,21 @@ void main() {
       expect(initiale, 'B', reason: 'l\'initiale est celle du prénom, comme « Bonjour, boss »');
     });
   }
+
+  testWidgets('pendant le chargement, la silhouette de la page, pas un écran vide', (t) async {
+    // Vu sur iPhone : un onglet tout blanc, avec au centre un indicateur
+    // réduit à un point.
+    final enAttente = Completer<Map<String, dynamic>>();
+    final r = await mesurerEcran(t, ecran: const ComptePage(), theme: AppTheme.light,
+        echelle: 1.0, largeur: 390, defilements: 0,
+        surcharges: [
+          ...surcharges.skip(1),
+          profileProvider.overrideWith((ref) => enAttente.future),
+        ],
+        verifier: () {
+          expect(find.byKey(const Key('compte-squelette')), findsOneWidget);
+          expect(find.byType(CircularProgressIndicator), findsNothing);
+        });
+    expect(r.debordements, isEmpty);
+  });
 }

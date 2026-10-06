@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 
 import { NotificationService } from './notification.service';
 import { nomDevise } from '../utils/devise';
+import { rencontre } from '../utils/noms_equipes';
 import { prisma } from '../lib/prisma';
 import { ErreurMetier } from '../utils/erreurs';
 import { lireConfig } from './app_config.service';
@@ -637,7 +638,7 @@ export async function settleBets(pronosticId: string, result: SettlementResult) 
     include: { match: true },
   });
   const matchStr = pronostic?.match
-    ? `${pronostic.match.homeTeam} vs ${pronostic.match.awayTeam}`
+    ? rencontre(pronostic.match.homeTeam, pronostic.match.awayTeam)
     : 'votre pronostic';
 
   for (const bet of changedBets) {

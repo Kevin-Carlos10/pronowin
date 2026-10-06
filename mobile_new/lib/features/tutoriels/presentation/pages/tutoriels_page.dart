@@ -11,6 +11,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../widgets/tutorial_icons.dart';
 import '../providers/tutoriels_provider.dart';
+import '../../../../shared/utils/montant.dart';
 import '../../domain/entities/tutorial_entity.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/utils/rafraichir.dart';
@@ -579,11 +580,17 @@ class _FeaturedCardState extends State<_FeaturedCard>
             Container(
               height: 180,
               decoration: BoxDecoration(
+                // Plus dense en bas, là où se pose le titre : les miniatures
+                // portent souvent leur propre texte (« VALUE BET TECHNIQUE
+                // GAGNANTE »), et le titre de la carte s'écrivait par-dessus,
+                // illisible (vidéo du 5 octobre 2026).
                 gradient: LinearGradient(
                   colors: [
-                    Colors.black.withValues(alpha: tuto.thumbnailUrl != null ? 0.65 : 0.0),
-                    Colors.black.withValues(alpha: tuto.thumbnailUrl != null ? 0.2 : 0.0),
+                    Colors.black.withValues(alpha: tuto.thumbnailUrl != null ? 0.9 : 0.0),
+                    Colors.black.withValues(alpha: tuto.thumbnailUrl != null ? 0.6 : 0.0),
+                    Colors.black.withValues(alpha: tuto.thumbnailUrl != null ? 0.15 : 0.0),
                   ],
+                  stops: const [0, 0.55, 1],
                   begin: Alignment.bottomCenter, end: Alignment.topCenter)),
             ),
 
@@ -637,14 +644,16 @@ class _FeaturedCardState extends State<_FeaturedCard>
                   // Footer méta
                   Row(children: [
                     _LevelBadge(level: tuto.level),
-                    const SizedBox(width: 8),
-                    Icon(Icons.access_time_rounded, size: 12, color: Colors.white70),
-                    const SizedBox(width: 3),
-                    Text(tuto.durationText, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                    if (tuto.aUneDuree) ...[
+                      const SizedBox(width: 8),
+                      Icon(Icons.access_time_rounded, size: 12, color: Colors.white70),
+                      const SizedBox(width: 3),
+                      Text(tuto.durationText, style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                    ],
                     if (tuto.rating > 0) ...[
                       const SizedBox(width: 8),
                       Icon(Icons.star_rounded, size: 12, color: context.cl.warning),
-                      Text(' ${tuto.rating.toStringAsFixed(1)}', style: TextStyle(
+                      Text(' ${decimalFr(tuto.rating)}', style: TextStyle(
                         color: context.cl.warning, fontSize: 11, fontWeight: FontWeight.w700)),
                     ],
                     const Spacer(),
@@ -733,6 +742,7 @@ class _TutoCard extends StatelessWidget {
                   : _EmojiIcon(tuto: tuto, catColor: _catColor(context), emojiSize: 40),
 
               // Badge durée (bas droite, comme sur une miniature vidéo)
+              if (tuto.aUneDuree)
               Positioned(
                 right: 8, bottom: 8,
                 child: Container(
@@ -773,14 +783,16 @@ class _TutoCard extends StatelessWidget {
               const SizedBox(height: 6),
               Row(children: [
                 _LevelBadge(level: tuto.level),
-                const SizedBox(width: 8),
-                Icon(Icons.access_time_rounded, size: 12, color: context.cl.textM),
-                const SizedBox(width: 3),
-                Text(tuto.durationText, style: TextStyle(color: context.cl.textM, fontSize: 12)),
+                if (tuto.aUneDuree) ...[
+                  const SizedBox(width: 8),
+                  Icon(Icons.access_time_rounded, size: 12, color: context.cl.textM),
+                  const SizedBox(width: 3),
+                  Text(tuto.durationText, style: TextStyle(color: context.cl.textM, fontSize: 12)),
+                ],
                 if (tuto.rating > 0) ...[
                   const SizedBox(width: 8),
                   Icon(Icons.star_rounded, size: 12, color: context.cl.warning),
-                  Text(' ${tuto.rating.toStringAsFixed(1)}', style: TextStyle(
+                  Text(' ${decimalFr(tuto.rating)}', style: TextStyle(
                     color: context.cl.warning, fontSize: 12, fontWeight: FontWeight.w600)),
                 ],
               ]),
@@ -854,7 +866,9 @@ class _PressableTutoCardState extends State<_PressableTutoCard>
       // Sans libellé, la carte s'annonçait « Débutant », « 4 min », « 1 240 »,
       // « 4.6 » — quatre fragments avant même le titre, et rien ne disait
       // qu'elle était verrouillée.
-      label: tr(context, "{arg0}. {arg1} Niveau {arg2}, durée {arg3}.{arg4}", [t.title, t.description, t.levelLabel, t.durationLabel, verrouille ? tr(context, " Réservé aux membres Premium.") : ""]),
+      label: t.aUneDuree
+          ? tr(context, "{arg0}. {arg1} Niveau {arg2}, durée {arg3}.{arg4}", [t.title, t.description, t.levelLabel, t.durationLabel, verrouille ? tr(context, " Réservé aux membres Premium.") : ""])
+          : tr(context, "{arg0}. {arg1} Niveau {arg2}.{arg3}", [t.title, t.description, t.levelLabel, verrouille ? tr(context, " Réservé aux membres Premium.") : ""]),
       excludeSemantics: true,
       child: GestureDetector(
         onTapDown: (_) => _ctrl.forward(),

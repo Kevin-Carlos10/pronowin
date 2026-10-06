@@ -255,17 +255,9 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
           onPressed: () => retourOuAller(context, repli: _repli),
         ),
         title:  Text(tr(context, "Modifier le profil")),
-        actions: [
-          TextButton(
-            onPressed: _loading ? null : _save,
-            child: _loading
-              ? const SizedBox(width: 18, height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.primary))
-              :  Text(tr(context, "Enregistrer"), style: TextStyle(
-                  color: context.cl.accent, fontWeight: FontWeight.w600)),
-          ),
-        ],
+        // Plus d'« Enregistrer » dans la barre : il doublait le bouton du bas,
+        // et deux boutons pour la même action font se demander s'ils font la
+        // même chose (vidéo du 5 octobre 2026).
       ),
       body: ListView(
         padding: const EdgeInsets.all(20),
@@ -385,6 +377,15 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                 style: TextStyle(color: context.cl.success, fontSize: 11)),
             ]),
           ),
+          // L'avis d'âge, à côté de la date qu'il concerne, en simple
+          // indication. Il était encadré en couleur d'alerte sous l'e-mail, et
+          // se lisait comme une erreur adressée à un utilisateur de 20 ans.
+          Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              tr(context, "PronoWin est réservé aux personnes de 18 ans et plus."),
+              style: TextStyle(color: context.cl.textM, fontSize: 11)),
+          ),
           const SizedBox(height: 16),
 
           _FieldLabel(tr(context, "Numéro de téléphone")),
@@ -431,22 +432,6 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
               hintText: 'exemple@email.com',
               prefixIcon: Icon(Icons.email_rounded,
                 size: 20, color: context.cl.textM)),
-          ),
-          const SizedBox(height: 12),
-
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: context.cl.warning.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: context.cl.warning.withValues(alpha: 0.2))),
-            child:  Row(children: [
-              Icon(Icons.info_outline_rounded, color: context.cl.warning, size: 16),
-              SizedBox(width: 8),
-              Expanded(child: Text(
-                tr(context, "PronoWin est réservé aux personnes de 18 ans et plus."),
-                style: TextStyle(color: context.cl.warning, fontSize: 12))),
-            ]),
           ),
           const SizedBox(height: 28),
 

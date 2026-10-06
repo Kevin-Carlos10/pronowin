@@ -62,6 +62,28 @@ function formSignal(
  * handicap serait une invention : on rend `null` et le calcul se passe de ce
  * signal, comme il se passe déjà de la forme sur ces marchés.
  */
+/**
+ * Points de forme sur les cinq derniers matchs : 3 par victoire, 1 par nul.
+ *
+ * `homeFormPoints` / `awayFormPoints` n'étaient écrits nulle part : ils
+ * restaient à 0 sur tous les matchs. Chaque analyse annonçait donc « Aucune
+ * donnée de forme récente n'est disponible pour ces équipes » — jusque sur
+ * France – Belgique (vidéo du 5 octobre 2026) —, et la carte « Forme » de la
+ * fiche du match ne s'affichait jamais.
+ *
+ * Le fournisseur donne pourtant la forme, dans la prédiction déjà demandée
+ * pour l'analyse : une séquence de saison chronologique (« WDLWW… »), la plus
+ * récente à droite. `null` si elle manque.
+ */
+export function pointsDeForme(sequence: string | null | undefined): number | null {
+  const s = (sequence ?? '').toUpperCase().replace(/[^WDL]/g, '');
+  if (!s) return null;
+  return [...s.slice(-5)].reduce((t, c) => t + (c === 'W' ? 3 : c === 'D' ? 1 : 0), 0);
+}
+
+/** La phrase d'une analyse calculée sans forme, quand elle n'était pas connue. */
+const SANS_FORME = 'Aucune donnée de forme récente';
+
 export function modelSignal(
   predictionType: string,
   prediction: MatchPrediction | null,
@@ -223,8 +245,12 @@ export async function analyzePronostic(id: string): Promise<StatPrediction> {
     return { probability, explanation };
   }
 
-  // Résultat déjà en cache → retourner directement
-  if (prono.aiProbability !== null && prono.aiExplanation !== null) {
+  // Résultat déjà en cache → retourner directement — sauf une analyse faite
+  // sans la forme, sur un match à venir : la forme est peut-être connue
+  // désormais (voir `pointsDeForme`), elle est recalculée.
+  const sansForme = prono.aiExplanation?.includes(SANS_FORME) === true
+    && prono.match.status === 'SCHEDULED';
+  if (prono.aiProbability !== null && prono.aiExplanation !== null && !sansForme) {
     return {
       probability: Math.round(prono.aiProbability!),
       explanation: prono.aiExplanation!,
@@ -239,14 +265,31 @@ export async function analyzePronostic(id: string): Promise<StatPrediction> {
     : null;
   const model = modelSignal(prono.predictionType, prediction);
 
+  // La forme manquante se lit dans la prédiction, et se garde sur le match :
+  // la fiche l'affiche alors elle aussi.
+  let homeFormPoints = prono.match.homeFormPoints ?? 0;
+  let awayFormPoints = prono.match.awayFormPoints ?? 0;
+  if (homeFormPoints + awayFormPoints === 0 && prediction) {
+    const h = pointsDeForme(prediction.formHome);
+    const a = pointsDeForme(prediction.formAway);
+    if (h !== null && a !== null) {
+      homeFormPoints = h;
+      awayFormPoints = a;
+      await prisma.match.update({
+        where: { id: prono.match.id },
+        data:  { homeFormPoints: h, awayFormPoints: a },
+      }).catch(() => { /* l'analyse vaut mieux qu'une forme non gardée */ });
+    }
+  }
+
   const probability = computeProbability(
     prono.predictionType,
     prono.oddsHome,
     prono.oddsDraw,
     prono.oddsAway,
     prono.oddsRecommended,
-    prono.match.homeFormPoints ?? 0,
-    prono.match.awayFormPoints ?? 0,
+    homeFormPoints,
+    awayFormPoints,
     model,
   );
 
@@ -255,8 +298,8 @@ export async function analyzePronostic(id: string): Promise<StatPrediction> {
     awayTeam:        prono.match.awayTeam,
     predictionType:  prono.predictionType,
     probability,
-    homeFormPoints:  prono.match.homeFormPoints ?? 0,
-    awayFormPoints:  prono.match.awayFormPoints ?? 0,
+    homeFormPoints,
+    awayFormPoints,
     oddsRecommended: prono.oddsRecommended,
     modelPercent:    model === null ? null : Math.round(model * 100),
   });

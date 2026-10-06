@@ -9,6 +9,7 @@ import { _resolvePronosticResult, type ScoreLine } from './settlement';
 import { estVerrouille } from './verrou_pronostic';
 import { construireRecherche } from './recherche_matchs';
 import { journal } from '../utils/logger';
+import { nomEquipe, rencontre, traduireEquipes } from '../utils/noms_equipes';
 import { pourcentageConfiance, pourcentageDepuisNiveau } from '../utils/confiance';
 
 const notifSvc  = new NotificationService();
@@ -622,7 +623,7 @@ export class PronosticsService {
         for (const fav of favorites) {
           notifSvc.sendToUser(fav.userId, {
             title: 'Match en direct !',
-            body:  `${match.homeTeam} vs ${match.awayTeam} vient de commencer.`,
+            body:  `${rencontre(match.homeTeam, match.awayTeam)} vient de commencer.`,
             data:  {
               type:      'match_live',
               deep_link: liveProno ? `/pronostics/${liveProno.id}` : '',
@@ -643,7 +644,7 @@ export class PronosticsService {
           const scoreStr = `${homeScore} - ${awayScore}`;
           for (const fav of favorites) {
             notifSvc.sendToUser(fav.userId, {
-              title: `Fin de match : ${match.homeTeam} ${scoreStr} ${match.awayTeam}`,
+              title: `Fin de match : ${nomEquipe(match.homeTeam)} ${scoreStr} ${nomEquipe(match.awayTeam)}`,
               body:  'Le match est terminé. Consultez le résultat de votre pronostic.',
               data:  {
                 type:      'match_finished',
@@ -683,7 +684,7 @@ export class PronosticsService {
             for (const fav of favorites) {
               notifSvc.sendToUser(fav.userId, {
                 title: label,
-                body:  `${match.homeTeam} ${homeScore}-${awayScore} ${match.awayTeam} · Prono : ${prono.predictionLabel}`,
+                body:  `${nomEquipe(match.homeTeam)} ${homeScore}-${awayScore} ${nomEquipe(match.awayTeam)} · Prono : ${traduireEquipes(prono.predictionLabel, [match.homeTeam, match.awayTeam])}`,
                 data:  {
                   type:      'prono_result',
                   deep_link: `/pronostics/${prono.id}`,

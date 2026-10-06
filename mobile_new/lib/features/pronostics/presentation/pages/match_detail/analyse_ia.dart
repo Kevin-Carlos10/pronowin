@@ -10,8 +10,11 @@ class _AIAnalysisCard extends ConsumerWidget {
   final MatchStatus status;
   /// Indice de confiance de l'analyste, pour relier les deux pourcentages.
   final int? confianceAnalyste;
+  /// Les deux équipes : l'explication du serveur les nomme comme le
+  /// fournisseur (« Belgium »), l'écran comme l'application (« Belgique »).
+  final List<String> equipes;
   const _AIAnalysisCard({required this.matchId, this.status = MatchStatus.upcoming,
-      this.confianceAnalyste});
+      this.confianceAnalyste, this.equipes = const []});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -94,7 +97,7 @@ class _AIAnalysisCard extends ConsumerWidget {
             return _AIErrorState(
               onRetry: () => ref.invalidate(aiAnalysisProvider(matchId)));
           },
-          data: (ai) => _AIData(analysis: ai, confianceAnalyste: confianceAnalyste),
+          data: (ai) => _AIData(analysis: ai, confianceAnalyste: confianceAnalyste, equipes: equipes),
         ),
       ]),
     );
@@ -104,7 +107,8 @@ class _AIAnalysisCard extends ConsumerWidget {
 class _AIData extends StatelessWidget {
   final AiAnalysis analysis;
   final int? confianceAnalyste;
-  const _AIData({required this.analysis, this.confianceAnalyste});
+  final List<String> equipes;
+  const _AIData({required this.analysis, this.confianceAnalyste, this.equipes = const []});
 
   // Le pourcentage est un texte de 28 px : en clair, les teintes vives du
   // sombre n'y tenaient pas (citron #84CC16 sur blanc : 1,9:1).
@@ -190,7 +194,7 @@ class _AIData extends StatelessWidget {
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('✦ ', style: TextStyle(color: Color(0xFF6C3AE8), fontSize: 12)),
           Expanded(
-            child: Text(analysis.explanation,
+            child: Text(traduireEquipesDansLibelle(analysis.explanation, equipes),
               style: TextStyle(
                 color: context.cl.textS,
                 fontSize: 12,

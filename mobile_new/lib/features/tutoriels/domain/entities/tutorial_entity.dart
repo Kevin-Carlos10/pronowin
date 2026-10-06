@@ -108,10 +108,17 @@ class TutorialEntity {
   String get categoryLabel => TutorialCategoryInfo.labelFor(category);
   String get categoryEmoji => TutorialCategoryInfo.emojiFor(category);
 
+  /// Une durée est-elle connue ? Sans elle, l'écran affichait « ⏱ — ».
+  bool get aUneDuree => durationSeconds >= 60;
+
+  /// « 9 min », « 1 h 05 » — avec espaces insécables, à la française
+  /// (« 9min » auparavant).
   String get durationText {
     final m = durationSeconds ~/ 60;
     if (m == 0) return '—';
-    return m < 60 ? '${m}min' : '${m ~/ 60}h${(m % 60).toString().padLeft(2, '0')}';
+    return m < 60
+        ? '$m\u00A0min'
+        : '${m ~/ 60}\u00A0h\u00A0${(m % 60).toString().padLeft(2, '0')}';
   }
 
   // Alias pour compatibilité avec du code qui utilise durationLabel

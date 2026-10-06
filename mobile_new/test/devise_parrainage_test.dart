@@ -50,14 +50,23 @@ void main() {
     });
 
     test('tous les montants de commission portent la même variable', () {
-      // Six emplacements affichent une commission. Si l'un gardait son propre
-      // libellé, l'incohérence reviendrait exactement là où elle était.
+      // Trois emplacements affichent une commission : les deux tuiles du
+      // barème et le compteur des filleuls indirects. Ils étaient six — les
+      // étapes et l'encart « Aucun filleul » répétaient le barème (vidéo du
+      // 5 octobre 2026). Si l'un gardait son propre libellé, l'incohérence
+      // reviendrait exactement là où elle était.
       final avecDevise =
           RegExp(r'\$comL[12] \$devise').allMatches(code).length +
           // Les phrases traduites reçoivent montant ET devise en paramètres.
           RegExp(r'\bcomL[12],\s*devise\b').allMatches(code).length;
+      // Toute commission affichée, sans exception : interpolée ou passée en
+      // paramètre, hors de sa déclaration.
+      final affichees =
+          RegExp(r'\$comL[12]\b').allMatches(code).length +
+          RegExp(r'\bcomL[12],').allMatches(code).length;
 
-      expect(avecDevise, greaterThanOrEqualTo(6));
+      expect(avecDevise, greaterThanOrEqualTo(3));
+      expect(avecDevise, affichees, reason: 'une commission s\'affiche sans la devise');
     });
 
     test('le solde et les commissions emploient la même source', () {

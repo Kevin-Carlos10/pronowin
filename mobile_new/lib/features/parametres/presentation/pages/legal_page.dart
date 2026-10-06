@@ -242,8 +242,12 @@ List<LegalSection> sectionsLegales(LegalType type,
       //
       // Quelqu'un qui ouvre cette page va mal. On lui donne d'abord ce qui
       // marche là où il est, puis les ressources particulières à un pays.
+      //
+      // Des puces « • » comme dans les autres sections : les émojis (🌍 👥 🌐
+      // 📞) faisaient de la page la seule illustrée, sur un sujet qui ne s'y
+      // prête pas. Et la ligne française dit à qui elle s'adresse.
       LegalSection('📞', trCurrent("Ressources d'aide"),
-        trCurrent("Si vous pensez, pour vous-même ou pour un proche, avoir un problème avec le jeu, une aide existe — et en parler est le premier pas.\n\n🌍 Où que vous soyez : parlez-en à un médecin, à un psychologue, au service de psychiatrie d'un hôpital ou à un centre de santé de votre localité. Ces professionnels sont tenus au secret.\n\n👥 En parler à quelqu'un de confiance — un proche, un ami — change souvent davantage qu'un numéro. Le silence est ce qui aggrave le plus les choses.\n\n🌐 Gamblers Anonymous, groupes d'entraide présents dans de nombreux pays : www.gamblersanonymous.org\n\n📞 France — Joueurs Info Service : 09 74 75 13 13 (anonyme, gratuit, non surtaxé)\n\nDepuis l'Application, vous pouvez à tout moment demander la mise en pause ou la clôture de votre compte PronoWin en contactant notre support.")),
+        trCurrent("Si vous pensez, pour vous-même ou pour un proche, avoir un problème avec le jeu, une aide existe — et en parler est le premier pas.\n\n• Où que vous soyez : parlez-en à un médecin, à un psychologue, au service de psychiatrie d'un hôpital ou à un centre de santé de votre localité. Ces professionnels sont tenus au secret.\n\n• En parler à quelqu'un de confiance — un proche, un ami — change souvent davantage qu'un numéro. Le silence est ce qui aggrave le plus les choses.\n\n• Gamblers Anonymous, groupes d'entraide présents dans de nombreux pays : www.gamblersanonymous.org\n\n• Si vous résidez en France — Joueurs Info Service : 09 74 75 13 13 (anonyme, gratuit, non surtaxé)\n\nDepuis l'Application, vous pouvez à tout moment demander la mise en pause ou la clôture de votre compte PronoWin en contactant notre support.")),
       LegalSection('✅', trCurrent("Engagement de PronoWin"),
         trCurrent("PronoWin s'engage à :\n• Afficher des messages clairs sur le caractère informatif de ses pronostics et sur les risques liés aux paris sportifs\n• Ne jamais cibler ou solliciter des utilisateurs identifiés comme vulnérables\n• Vérifier l'âge de ses utilisateurs (18 ans ou plus requis) à la création de compte\n• Fournir un outil de suivi de bankroll pour aider à une gestion responsable\n• Permettre la mise en pause ou la clôture d'un compte sur simple demande, sans condition")),
     ],
