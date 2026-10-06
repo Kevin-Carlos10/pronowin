@@ -5,9 +5,9 @@ import 'package:pronowin/features/abonnement/domain/tarifs_premium.dart';
 /// 5 000 FCFA / mois », écrit en dur, alors qu'aucun tarif du système ne valait
 /// 5 000. L'utilisateur tapait, et découvrait 6 000.
 void main() {
-  // Espace insécable fine émise par `montantExact` — un espace ordinaire ici
+  // Espace insécable émise par `montantExact` — un espace ordinaire ici
   // ferait échouer la comparaison pour une raison invisible à la lecture.
-  const fine = ' ';
+  const fine = '\u00A0';
 
   const complet = {
     'premium_price_monthly_fcfa': 6000,

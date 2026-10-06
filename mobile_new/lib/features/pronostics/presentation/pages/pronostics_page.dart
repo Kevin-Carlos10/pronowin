@@ -103,8 +103,10 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
       _pastDays + _futureDays,
       (i) => today.subtract(Duration(days: _pastDays - i)),
     );
-    // Scroll vers aujourd'hui après le premier frame
-    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToToday());
+    // Le recentrage sur le jour choisi appartient à la bande elle-même
+    // (`_DateScrollBarState`) : elle est reconstruite à chaque retour sur
+    // l'onglet, et un recentrage fait une seule fois, ici, ne valait que pour
+    // le premier affichage.
     _listScrollCtrl.addListener(_onListScroll);
   }
 
@@ -115,15 +117,6 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
       ..removeListener(_onListScroll)
       ..dispose();
     super.dispose();
-  }
-
-  void _scrollToToday() {
-    // Chaque chip fait ~60px, on centre sur l'index _pastDays
-    const itemWidth = 60.0;
-    final offset = (_pastDays * itemWidth) - 100;
-    if (_dateScrollCtrl.hasClients) {
-      _dateScrollCtrl.jumpTo(offset.clamp(0, _dateScrollCtrl.position.maxScrollExtent));
-    }
   }
 
   bool _isSameDay(DateTime a, DateTime b) =>
@@ -767,20 +760,73 @@ class _StatusMeta {
 // ══════════════════════════════════════════════════════════════════════════════
 // SÉLECTEUR DE DATE HORIZONTAL
 // ══════════════════════════════════════════════════════════════════════════════
-class _DateScrollBar extends StatelessWidget {
+///
+/// ── Toujours centrée sur le jour choisi ──────────────────────────────────────
+///
+/// Le recentrage n'avait lieu qu'une fois, au premier affichage de la page.
+/// Or la bande est reconstruite à chaque retour sur l'onglet « Pronos » —
+/// depuis « Pour toi », la recherche, les filtres —, et une liste neuve
+/// repart de son début : trente jours en arrière. Vu en test : la bande
+/// montrait « sam. 5, dim. 6… » de septembre, le jour choisi hors de vue, et
+/// rien ne disait le mois — « sam. 5 » se lisait comme aujourd'hui, lundi 5.
+///
+/// Elle se recentre désormais à chaque construction et à chaque changement de
+/// jour, et le 1er de chaque mois porte le nom du mois.
+class _DateScrollBar extends StatefulWidget {
   final List<DateTime> dates;
   final DateTime selectedDate;
   final Map<String, int> matchCountByDay;
   final void Function(DateTime) onSelect;
-  final ScrollController? scrollController;
+  /// Celui de la page, qui le libère : la bande ne fait que le piloter.
+  final ScrollController scrollController;
 
   const _DateScrollBar({
     required this.dates,
     required this.selectedDate,
     required this.matchCountByDay,
     required this.onSelect,
-    this.scrollController,
+    required this.scrollController,
   });
+
+  @override
+  State<_DateScrollBar> createState() => _DateScrollBarState();
+}
+
+class _DateScrollBarState extends State<_DateScrollBar> {
+  /// Largeur d'une pastille (52) et de l'espace qui la suit (8).
+  static const _largeurPastille = 52.0;
+  static const _pas = _largeurPastille + 8;
+
+  ScrollController get _ctrl => widget.scrollController;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _centrer(anime: false));
+  }
+
+  @override
+  void didUpdateWidget(covariant _DateScrollBar avant) {
+    super.didUpdateWidget(avant);
+    if (!_isSameDay(avant.selectedDate, widget.selectedDate)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _centrer(anime: true));
+    }
+  }
+
+  /// Amène la pastille du jour choisi au milieu de la bande.
+  void _centrer({required bool anime}) {
+    if (!mounted || !_ctrl.hasClients) return;
+    final i = widget.dates.indexWhere((d) => _isSameDay(d, widget.selectedDate));
+    if (i < 0) return;
+    final position = _ctrl.position;
+    final cible = (i * _pas + _largeurPastille / 2 - position.viewportDimension / 2)
+        .clamp(0.0, position.maxScrollExtent);
+    if (anime) {
+      _ctrl.animateTo(cible, duration: const Duration(milliseconds: 250), curve: Curves.easeOut);
+    } else {
+      _ctrl.jumpTo(cible);
+    }
+  }
 
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
@@ -791,7 +837,7 @@ class _DateScrollBar extends StatelessWidget {
     final key = '${d.year.toString().padLeft(4, '0')}-'
         '${d.month.toString().padLeft(2, '0')}-'
         '${d.day.toString().padLeft(2, '0')}';
-    return matchCountByDay[key] ?? 0;
+    return widget.matchCountByDay[key] ?? 0;
   }
 
   @override
@@ -813,24 +859,28 @@ class _DateScrollBar extends StatelessWidget {
       child: SizedBox(
         height: 72 * echelle,
         child: ListView.separated(
-          controller: scrollController,
+          controller: _ctrl,
           scrollDirection: Axis.horizontal,
-          itemCount: dates.length,
+          itemCount: widget.dates.length,
           separatorBuilder: (_, _) => const SizedBox(width: 8),
           itemBuilder: (_, i) {
-            final date       = dates[i];
-            final isSelected = _isSameDay(date, selectedDate);
+            final date       = widget.dates[i];
+            final isSelected = _isSameDay(date, widget.selectedDate);
             final isToday    = _isSameDay(date, now);
             final count      = _countForDate(date);
             final hasMatches = count > 0;
+            // Le 1er du mois porte le nom du mois : sans repère, « sam. 5 »
+            // d'un autre mois se confondait avec le 5 du mois en cours.
             final dayName    = isToday
                 ? tr(context, "Auj.")
-                : DateFormat('E').format(date);
+                : date.day == 1
+                    ? DateFormat('MMM').format(date)
+                    : DateFormat('E').format(date);
 
             return GestureDetector(
               onTap: () {
                 HapticFeedback.selectionClick();
-                onSelect(date);
+                widget.onSelect(date);
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
@@ -1609,7 +1659,7 @@ class _ForYouProfileCard extends StatelessWidget {
             decoration: BoxDecoration(
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(10)),
-            child: Text('${profile.winRate}% win rate',
+            child: Text(tr(context, "{arg0} % de réussite", [profile.winRate]),
               style: const TextStyle(color: Colors.white, fontSize: 10,
                   fontWeight: FontWeight.w700))),
         ]),

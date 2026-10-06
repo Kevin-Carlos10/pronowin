@@ -120,7 +120,7 @@ void main() {
       await initializeDateFormatting('en');
       final date = DateTime(2026, 9, 30, 18, 45);
       const failure = NetworkFailure();
-      expect(montantExact(2025), '2\u202f025');
+      expect(montantExact(2025), '2\u00a0025');
       expect(AppDateFormatter.shortDate(date), contains('sept.'));
       AppStrings.setCurrentLanguage('en');
       expect(montantExact(2025), '2,025');

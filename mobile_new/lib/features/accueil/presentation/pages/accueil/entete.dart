@@ -383,7 +383,7 @@ class _QuickStats extends ConsumerWidget {
           const SizedBox(width: 10),
           _StatChip(
             icon: Icons.trending_up_rounded,
-            label: tr(context, "Taux win"),
+            label: tr(context, "Réussite"),
             value: totalFinished >= 3 ? '$winRate%' : '—',
             color: context.cl.success,
             hint: totalFinished < 3 ? tr(context, "Disponible après 3 pronos terminés") : null,

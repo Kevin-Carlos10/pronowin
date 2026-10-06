@@ -373,9 +373,6 @@ class _BankrollMiniWidget extends ConsumerWidget {
                         settled.where((b) => b.result != 'PUSH').length * 100,
                 serie:    0,
               );
-        final winRate = bilanCarte.taux == null
-            ? '—'
-            : '${bilanCarte.taux!.toStringAsFixed(0)}%';
         final pending = resume?.enAttente
             ?? bankroll.bets.where((b) => b.result == null).length;
 
@@ -456,7 +453,7 @@ class _BankrollMiniWidget extends ConsumerWidget {
                     // n'affiche donc rien : l'écran Bankroll, qu'un appui sur
                     // la carte ouvre, porte la phrase complète.
                     if (bilanCarte.taux != null)
-                      Text('$winRate win',
+                      Text(tr(context, "{arg0} % de réussite", [bilanCarte.taux!.toStringAsFixed(0)]),
                           style: TextStyle(
                               color: context.cl.textM, fontSize: 10)),
                     if (pending > 0) ...[

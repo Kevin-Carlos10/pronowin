@@ -36,10 +36,13 @@ void main() {
     });
   });
 
-  /// Espace fine insécable (U+202F). Écrite en échappement plutôt qu'au
-  /// clavier : un caractère invisible dans une chaîne attendue rend l'échec
-  /// illisible — « 2 025 » contre « 2 025 », visuellement identiques.
-  const fine = ' ';
+  /// Espace insécable (U+00A0). Écrite en échappement plutôt qu'au clavier :
+  /// un caractère invisible dans une chaîne attendue rend l'échec illisible —
+  /// « 2 025 » contre « 2 025 », visuellement identiques.
+  ///
+  /// Ce fut l'espace fine (U+202F), que l'iPhone affichait presque sans
+  /// largeur : « 101679 FCFA ». Le nom reste, pour ne pas réécrire chaque cas.
+  const fine = '\u00A0';
 
   group('montantExact — la page détail ne doit rien arrondir', () {
     test('le cas signalé : 2 025 reste 2 025', () {
@@ -59,9 +62,11 @@ void main() {
       expect(montantExact(0), '0');
     });
 
-    test('le séparateur est une espace fine insécable', () {
-      // Une espace ordinaire couperait « 2 025 » en fin de ligne.
-      expect(montantExact(2025).codeUnits, contains(0x202F));
+    test('le séparateur est une espace insécable, visible sur iPhone', () {
+      // Une espace ordinaire couperait « 2 025 » en fin de ligne ; l'espace
+      // fine (U+202F) ne se voyait pas sur iPhone.
+      expect(montantExact(2025).codeUnits, contains(0x00A0));
+      expect(montantExact(2025).codeUnits, isNot(contains(0x202F)));
       expect(montantExact(2025).codeUnits, isNot(contains(0x0020)));
     });
 

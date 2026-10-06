@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../shared/utils/montant.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../shared/utils/rafraichir.dart';
@@ -295,7 +296,7 @@ class _PerformanceView extends StatelessWidget {
             const SizedBox(width: 8),
             Expanded(child: _StatChip(
               icon:  Icons.trending_up_rounded,
-              label: 'Win rate',
+              label: tr(context, "Réussite"),
               value: '${perf.winRate}%',
               color: perf.winRate >= 55 ? context.cl.success : context.cl.warning)),
             const SizedBox(width: 8),
@@ -415,7 +416,8 @@ class _ROICard extends StatelessWidget {
                 style: TextStyle(color: context.cl.textM, fontSize: 9,
                   fontWeight: FontWeight.w700, letterSpacing: 0.5)),
               const SizedBox(height: 2),
-              Text('${isPositive ? '+' : ''}${perf.roi}%',
+              // Virgule et espace à la française : « +21,7 % », pas « +21.7% ».
+              Text('${isPositive ? '+' : ''}${decimalFr(perf.roi)}\u00A0%',
                 style: TextStyle(color: color, fontSize: 18,
                     fontWeight: FontWeight.w900)),
             ]),
@@ -426,7 +428,7 @@ class _ROICard extends StatelessWidget {
         // Le pourcentage seul ne dit pas de quoi il est le pourcentage. Formulé
         // en francs sur une mise ronde, il se comprend sans définition.
         Text(
-          tr(context, "Rentabilité : {arg0}{arg1} F de gain net pour 100 F misés.", [isPositive ? '+' : '', perf.roi]),
+          tr(context, "Rentabilité : {arg0}{arg1} F de gain net pour 100 F misés.", [isPositive ? '+' : '', decimalFr(perf.roi)]),
           style: TextStyle(color: context.cl.textM, fontSize: 10.5, height: 1.35)),
 
         const SizedBox(height: 16),
@@ -535,9 +537,12 @@ class _SimulationChart extends StatelessWidget {
         Row(children: [
           Icon(Icons.show_chart_rounded, size: 14, color: lineColor),
           const SizedBox(width: 6),
-          Text(tr(context, "Évolution simulée ({arg0} pronos)", [history.length]),
-            style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
-          const Spacer(),
+          // Le titre prend la place qui reste : collé à « Mise : … », il se
+          // lisait « (137 pronos)Mise : 1 000 FCFA/prono ».
+          Expanded(child: Text(tr(context, "Évolution simulée ({arg0} pronos)", [history.length]),
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700))),
+          const SizedBox(width: 8),
           Text(tr(context, "Mise : {arg0} FCFA/prono", [_fmt(stake.toDouble())]),
             style: TextStyle(color: context.cl.textM, fontSize: 10)),
         ]),

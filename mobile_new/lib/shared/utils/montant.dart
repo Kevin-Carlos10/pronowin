@@ -17,7 +17,14 @@ library;
 
 import 'package:intl/intl.dart';
 
-/// Montant exact, milliers séparés par une espace insécable fine.
+/// Montant exact, milliers séparés par une espace insécable.
+///
+/// L'espace était l'espace **fine** insécable (U+202F), la règle typographique
+/// française. Sur iPhone, la police de l'application la rend presque sans
+/// largeur : vu en test, « 101679 FCFA » sur la Bankroll, « +3104 FCFA » sur
+/// le détail d'un pari, à côté d'autres montants correctement espacés. Une
+/// espace insécable ordinaire (U+00A0) se voit partout et ne coupe pas non
+/// plus le nombre en fin de ligne.
 ///
 /// `2025` → `2 025`. Aucune décimale : les devises visées (FCFA, GNF) n'en
 /// utilisent pas à l'affichage courant, et un centime affiché sur un pari
@@ -28,7 +35,7 @@ String montantExact(num valeur) {
   final tampon = StringBuffer();
   for (var i = 0; i < chiffres.length; i++) {
     // Espace insécable : « 2 025 » ne doit jamais se couper en fin de ligne.
-    if (i > 0 && (chiffres.length - i) % 3 == 0) tampon.write(Intl.defaultLocale?.startsWith('en') == true ? ',' : ' ');
+    if (i > 0 && (chiffres.length - i) % 3 == 0) tampon.write(Intl.defaultLocale?.startsWith('en') == true ? ',' : '\u00A0');
     tampon.write(chiffres[i]);
   }
   return negatif ? '-$tampon' : tampon.toString();

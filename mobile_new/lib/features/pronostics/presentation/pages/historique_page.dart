@@ -130,7 +130,12 @@ class HistoriquePage extends ConsumerWidget {
       final pred   = MatchEntity.applyTeamNames(
           e['predictionLabel'] as String? ?? '', homeTeam: home, awayTeam: away);
       final odds   = (e['oddsRecommended'] as num?)?.toStringAsFixed(2) ?? '';
-      final result = e['result'] as String? ?? tr(context, "EN ATTENTE");
+      final result = switch (e['result'] as String?) {
+        'WIN'  => tr(context, "Gagné"),
+        'LOSS' => tr(context, "Perdu"),
+        'PUSH' => tr(context, "Remboursé"),
+        _      => tr(context, "En attente"),
+      };
       buf.writeln('"$date","$home vs $away","$league","$pred",$odds,$result');
     }
     final bytes = utf8.encode(buf.toString());
@@ -158,7 +163,10 @@ class _PeriodBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
-      child: Row(
+      // Une rangée fixe débordait sur un écran étroit, ou texte agrandi :
+      // les pastilles passent désormais à la ligne.
+      child: Wrap(
+        runSpacing: 8,
         children: _PeriodFilter.values.map((p) {
           final active = p == selected;
           return Padding(
@@ -206,14 +214,16 @@ class _ResultBar extends StatelessWidget {
 
     final specs = [
       (_ResultFilter.all,     tr(context, "Tous"),        context.cl.textP,   context.cl.border),
-      (_ResultFilter.win,     'WIN',          context.cl.success,  context.cl.success),
-      (_ResultFilter.loss,    'LOSS',         context.cl.error,    context.cl.error),
+      (_ResultFilter.win,     tr(context, "Gagnés"), context.cl.success,  context.cl.success),
+      (_ResultFilter.loss,    tr(context, "Perdus"), context.cl.error,    context.cl.error),
       (_ResultFilter.pending, tr(context, "En attente"),   context.cl.warning,  context.cl.warning),
     ];
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-      child: Row(
+      // Même règle : « En attente » sortait déjà de l'écran à 390 px.
+      child: Wrap(
+        runSpacing: 8,
         children: specs.map((s) {
           final (f, label, color, borderColor) = s;
           final active = f == selected;
@@ -231,7 +241,7 @@ class _ResultBar extends StatelessWidget {
                   border: Border.all(
                     color: active ? borderColor : context.cl.border,
                     width: active ? 1.2 : 0.8)),
-                child: Row(children: [
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
                   Text(label, style: TextStyle(
                     color: active ? color : context.cl.textS,
                     fontSize: 11, fontWeight: FontWeight.w700)),
@@ -597,6 +607,9 @@ class _EntryCard extends StatelessWidget {
     final result     = entry['result'] as String?;
     final isPending  = result == null;
     final isWin      = result == 'WIN';
+    // Un remboursement (PUSH) s'affichait comme une défaite : croix rouge et
+    // « LOSS », pour une mise rendue.
+    final isPush     = result == 'PUSH';
     final homeTeam   = match['homeTeam']  as String? ?? '';
     final awayTeam   = match['awayTeam']  as String? ?? '';
     final homeScore  = match['homeScore'] as int?;
@@ -610,6 +623,7 @@ class _EntryCard extends StatelessWidget {
 
     final resultColor = isPending ? context.cl.warning
                       : isWin    ? context.cl.success
+                      : isPush   ? context.cl.textS
                       : context.cl.error;
 
     final scoreStr = (homeScore != null && awayScore != null)
@@ -633,6 +647,7 @@ class _EntryCard extends StatelessWidget {
           child: Icon(
             isPending ? Icons.schedule_rounded
             : isWin  ? Icons.check_rounded
+            : isPush ? Icons.undo_rounded
             : Icons.close_rounded,
             color: resultColor, size: 20)),
         const SizedBox(width: 12),
@@ -653,23 +668,30 @@ class _EntryCard extends StatelessWidget {
                 color: context.cl.textM, fontSize: 11)),
           ]),
           const SizedBox(height: 5),
-          Row(children: [
+          // Un libellé long (« Joueur va marquer un but à tout moment :
+          // Mikel Oyarzabal ») sortait de la carte, cote comprise : il se
+          // replie désormais sur deux lignes, et la cote passe dessous s'il
+          // le faut.
+          Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
                 color: AppColors.primary.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6)),
-              child: Text(pred, style: TextStyle(
+              child: Text(pred, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(
                 color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w700))),
-            const SizedBox(width: 6),
             Text('@ ${odds.toStringAsFixed(2)}',
               style: TextStyle(color: context.cl.textS, fontSize: 11)),
           ]),
         ])),
 
         // Label
+        const SizedBox(width: 8),
         Text(
-          isPending ? 'WAIT' : (isWin ? 'WIN' : 'LOSS'),
+          isPending ? tr(context, "En attente")
+          : isWin   ? tr(context, "Gagné")
+          : isPush  ? tr(context, "Remboursé")
+          : tr(context, "Perdu"),
           style: TextStyle(color: resultColor,
             fontSize: 11, fontWeight: FontWeight.w800)),
       ]),
