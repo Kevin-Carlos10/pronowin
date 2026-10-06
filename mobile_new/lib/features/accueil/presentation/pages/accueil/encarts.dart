@@ -181,7 +181,7 @@ class _FavoriteTile extends ConsumerWidget {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    fav['home_team'] as String? ?? '',
+                    nomEquipe(fav['home_team'] as String? ?? ''),
                     style: TextStyle(
                         color: context.cl.textP,
                         fontSize: 10,
@@ -198,7 +198,7 @@ class _FavoriteTile extends ConsumerWidget {
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
-                    fav['away_team'] as String? ?? '',
+                    nomEquipe(fav['away_team'] as String? ?? ''),
                     style: TextStyle(
                         color: context.cl.textP,
                         fontSize: 10,

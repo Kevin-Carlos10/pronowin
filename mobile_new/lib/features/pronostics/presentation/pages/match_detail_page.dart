@@ -35,6 +35,7 @@ import '../../../abonnement/presentation/providers/iap_provider.dart';
 import 'match_detail/bookmaker_cotes.dart';
 import '../../../joueurs/presentation/pages/fiche_joueur_page.dart';
 import '../../../equipes/presentation/pages/fiche_equipe_page.dart';
+import '../../domain/entities/avis_compares.dart';
 import '../../domain/entities/verdict_comparaison.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../core/config/bookmaker_affiliation.dart';
@@ -406,12 +407,13 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           const SizedBox(height: 16),
         ],
         if (match.hasPronostic) ...[
-        entree(_AIAnalysisCard(matchId: match.id, status: match.status),
+        entree(_AIAnalysisCard(matchId: match.id, status: match.status,
+                confianceAnalyste: match.pourcentageConfiance),
             delaiMs: 190),
         const SizedBox(height: 16),
         // Le « pourquoi » chiffré, juste sous l'analyse : c'est la question que
         // se pose l'utilisateur immédiatement après avoir lu le pronostic.
-        entree(_AnalyseModele(matchId: match.id), delaiMs: 210),
+        entree(_AnalyseModele(matchId: match.id, pari: match.predictionType), delaiMs: 210),
         ],
         if (!match.hasPronostic) Padding(
           padding: const EdgeInsets.symmetric(vertical: 12),
@@ -1761,7 +1763,9 @@ class _DetailConfidenceBar extends StatelessWidget {
         Row(children: [
           // Le libellé cède la place au chiffre : « INDICE DE CONFIANCE »
           // passe sur deux lignes à 180 % au lieu de déborder.
-          Expanded(child: Text(tr(context, "INDICE DE CONFIANCE"),
+          // « de l'analyste » : un pourcentage sans auteur se confondait avec
+          // la « probabilité de succès » calculée plus bas.
+          Expanded(child: Text(tr(context, "CONFIANCE DE L'ANALYSTE"),
               style: TextStyle(
                   color: context.cl.textM,
                   fontSize: 10,

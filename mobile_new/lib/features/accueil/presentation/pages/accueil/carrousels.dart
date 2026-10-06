@@ -43,7 +43,7 @@ class _LiveMatchesCarousel extends StatelessWidget {
                 HapticFeedback.lightImpact();
                 showPremiumGateSheet(context,
                     matchLabel:
-                        '${match['home_team'] ?? ''} vs ${match['away_team'] ?? ''}');
+                        '${nomEquipe(match['home_team'] as String? ?? '')} vs ${nomEquipe(match['away_team'] as String? ?? '')}');
               },
             ),
           );

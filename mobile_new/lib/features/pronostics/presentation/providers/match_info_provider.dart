@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
+import 'package:pronowin/core/utils/noms_equipes.dart';
 
 class PeriodScore {
   final int? home, away;
@@ -41,8 +42,8 @@ class MatchInfo {
       referee: j['referee'] as String?,
       round: j['round'] as String?,
       phase: j['phase'] as String?,
-      homeTeam: j['home_team'] as String?,
-      awayTeam: j['away_team'] as String?,
+      homeTeam: nomEquipeOuNul(j['home_team'] as String?),
+      awayTeam: nomEquipeOuNul(j['away_team'] as String?),
       season: j['season'] as int?,
       elapsed: j['elapsed'] as int?,
       extra: j['extra'] as int?,

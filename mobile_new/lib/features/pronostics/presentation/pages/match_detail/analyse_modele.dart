@@ -25,7 +25,10 @@ String _libellePourcent(double v) => v < 1 ? '< 1 %' : '${v.round()} %';
 /// « Pourquoi ce pronostic » — la lecture du match par le modèle statistique.
 class _AnalyseModele extends ConsumerWidget {
   final String matchId;
-  const _AnalyseModele({required this.matchId});
+  /// Le pari publié : le titre « Pourquoi ce pronostic » ne se justifie que si
+  /// le modèle va dans son sens.
+  final PredictionType? pari;
+  const _AnalyseModele({required this.matchId, this.pari});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -44,6 +47,18 @@ class _AnalyseModele extends ConsumerWidget {
     // la même règle que le bilan Premium, qui se tait sous dix pronostics
     // tranchés plutôt que d'annoncer 100 % sur trois.
     if (!data.modeleExploitable) return const SizedBox.shrink();
+
+    // « Pourquoi ce pronostic » présentait ce modèle comme la justification du
+    // pari, y compris quand il disait le contraire : vu sur France – Belgique,
+    // « France gagne » au-dessus de « Le modèle ne départage pas les deux
+    // équipes ». Le titre ne l'annonce plus que s'il le soutient vraiment.
+    final synthese = data.comparisons.where((a) => a.label == _cleSynthese).firstOrNull;
+    final soutien = (pari == null || synthese == null)
+        ? null
+        : VerdictComparaison(
+            domicile: synthese.home, exterieur: synthese.away,
+            nomDomicile: data.homeTeam, nomExterieur: data.awayTeam,
+          ).soutient(pari!);
 
     return Container(
       width: double.infinity,
@@ -64,11 +79,18 @@ class _AnalyseModele extends ConsumerWidget {
                 color: AppColors.primary, size: 16)),
           const SizedBox(width: 10),
           Expanded(
-            child: Text(tr(context, "Pourquoi ce pronostic"),
+            child: Text(soutien == true
+                ? tr(context, "Pourquoi ce pronostic")
+                : tr(context, "L'avis du modèle externe"),
               style: TextStyle(
                 color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           ),
         ]),
+        if (soutien == false) ...[
+          const SizedBox(height: 6),
+          Text(tr(context, "Ce modèle ne va pas dans le sens de notre pronostic : c'est un second avis, à lire comme tel."),
+            style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.4)),
+        ],
         const SizedBox(height: 14),
 
         // La conclusion d'abord. La section s'appelle « Pourquoi ce

@@ -1,5 +1,6 @@
 import 'package:pronowin/l10n/app_strings.dart';
 import 'package:equatable/equatable.dart';
+import 'package:pronowin/core/utils/noms_equipes.dart';
 
 enum PredictionType  { win1, draw, win2, btts, over25, under25, over35, under35, other }
 enum MatchStatus     { upcoming, live, finished }
@@ -169,8 +170,14 @@ class MatchEntity extends Equatable {
   /// ex. "Vainqueur du match : Domicile"). Statique et réutilisable par les
   /// widgets qui travaillent sur les réponses API brutes (`Map<String,dynamic>`)
   /// plutôt que sur un MatchEntity (ex. cartes de la page Accueil).
+  ///
+  /// Le nom anglais d'une sélection, recopié dans le libellé par le formulaire
+  /// du panneau (« Norway gagne »), y est aussi traduit — celui des deux
+  /// équipes du match seulement, pour ne jamais toucher un nom de joueur.
   static String applyTeamNames(String label, {required String homeTeam, required String awayTeam}) =>
-      label.replaceAll(_domicileRe, homeTeam).replaceAll(_exterieurRe, awayTeam);
+      traduireEquipesDansLibelle(
+        label.replaceAll(_domicileRe, homeTeam).replaceAll(_exterieurRe, awayTeam),
+        [homeTeam, awayTeam]);
 
   /// [predictionLabel] avec les camps génériques substitués — voir [applyTeamNames].
   String get displayPredictionLabel =>

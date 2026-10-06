@@ -1441,4 +1441,10 @@ const englishMessages = <String, String>{
   "Temps réglementaire (en cours)": "Regular time (in progress)",
   "Prolongations (en cours)": "Extra time (in progress)",
   "Tirs au but (en cours)": "Penalty shootout (in progress)",
+  "Le calcul rejoint l'avis de notre analyste : {arg0} % contre {arg1} %.": "The calculation agrees with our analyst: {arg0}% vs {arg1}%.",
+  "Le calcul, fondé sur les cotes et la forme, est plus prudent que notre analyste : {arg0} % contre {arg1} %.": "The calculation, based on odds and form, is more cautious than our analyst: {arg0}% vs {arg1}%.",
+  "Le calcul, fondé sur les cotes et la forme, est plus confiant que notre analyste : {arg0} % contre {arg1} %.": "The calculation, based on odds and form, is more confident than our analyst: {arg0}% vs {arg1}%.",
+  "L'avis du modèle externe": "The external model's view",
+  "Ce modèle ne va pas dans le sens de notre pronostic : c'est un second avis, à lire comme tel.": "This model does not back our prediction: read it as a second opinion.",
+  "CONFIANCE DE L'ANALYSTE": "ANALYST CONFIDENCE",
 };

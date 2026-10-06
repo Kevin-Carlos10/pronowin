@@ -1,4 +1,6 @@
 import 'package:pronowin/l10n/app_strings.dart';
+
+import 'match_entity.dart';
 /// Ce que la synthèse du modèle permet — et ne permet pas — d'affirmer.
 ///
 /// L'axe `total` du fournisseur agrège les critères avec ses propres
@@ -52,6 +54,18 @@ class VerdictComparaison {
   /// Le favori joue-t-il à domicile ? Détermine la couleur employée, qui doit
   /// rester celle de la barre correspondante.
   bool get favoriADomicile => domicile > exterieur;
+
+  /// Ce verdict va-t-il dans le sens du pari publié ?
+  ///
+  /// `true` ou `false` pour une victoire de l'une des équipes ; `null` pour
+  /// tout autre pari — un nul, les buts, un marché brut —, que ce verdict, qui
+  /// ne dit que « qui l'emporte », ne permet pas de juger. Un modèle qui ne
+  /// départage pas les équipes ne soutient pas une victoire.
+  bool? soutient(PredictionType pari) => switch (pari) {
+        PredictionType.win1 => !indecis && favoriADomicile,
+        PredictionType.win2 => !indecis && !favoriADomicile,
+        _                   => null,
+      };
 
   /// Phrase de tête, telle qu'elle s'affiche.
   String get titre => indecis

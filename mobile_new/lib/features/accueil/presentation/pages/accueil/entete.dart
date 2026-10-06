@@ -670,8 +670,8 @@ class _LockedPronoPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final homeTeam     = prono['home_team'] as String? ?? '';
-    final awayTeam     = prono['away_team'] as String? ?? '';
+    final homeTeam     = nomEquipe(prono['home_team'] as String? ?? '');
+    final awayTeam     = nomEquipe(prono['away_team'] as String? ?? '');
     final homeLogoUrl  = prono['home_team_logo'] as String?;
     final awayLogoUrl  = prono['away_team_logo'] as String?;
     final predLabel    = (prono['prediction_label'] as String? ?? '').isEmpty

@@ -12,6 +12,7 @@ import '../../domain/repositories/pronostics_repository.dart';
 import '../../domain/usecases/get_matches_usecase.dart';
 import '../../domain/usecases/get_match_detail_usecase.dart';
 import '../../domain/usecases/get_leagues_usecase.dart';
+import 'package:pronowin/core/utils/noms_equipes.dart';
 
 // ─── DI ──────────────────────────────────────────────────────────────────────
 final pronosticsDataSourceProvider = Provider<PronosticsRemoteDataSource>(
@@ -372,8 +373,8 @@ final h2hProvider = FutureProvider.autoDispose.family<H2HData, String>((ref, id)
     final mm = m as Map<String, dynamic>;
     return H2HMatchResult(
       date:      DateTime.parse(mm['date'] as String).toLocal(),
-      homeTeam:  mm['home_team'] as String,
-      awayTeam:  mm['away_team'] as String,
+      homeTeam:  nomEquipe(mm['home_team'] as String),
+      awayTeam:  nomEquipe(mm['away_team'] as String),
       homeScore: (mm['home_score'] as num).toInt(),
       awayScore: (mm['away_score'] as num).toInt(),
       winner:    mm['winner'] as String? ?? 'DRAW',
@@ -382,8 +383,8 @@ final h2hProvider = FutureProvider.autoDispose.family<H2HData, String>((ref, id)
   }).toList();
 
   return H2HData(
-    homeTeam:     d['home_team'] as String,
-    awayTeam:     d['away_team'] as String,
+    homeTeam:     nomEquipe(d['home_team'] as String),
+    awayTeam:     nomEquipe(d['away_team'] as String),
     homeWins:     (hAgg['wins']   as num).toInt(),
     awayWins:     (aAgg['wins']   as num).toInt(),
     draws:        (hAgg['draws']  as num).toInt(),
@@ -563,7 +564,7 @@ class StandingRow {
     stale: j['stale'] == true,
     updatedAt: DateTime.tryParse(j['updatedAt'] as String? ?? ''),
     rank:      (j['rank'] as num).toInt(),
-    teamName:  j['teamName'] as String? ?? '',
+    teamName:  nomEquipe(j['teamName'] as String? ?? ''),
     teamLogo:  j['teamLogo'] as String?,
     played:    (j['played'] as num?)?.toInt() ?? 0,
     win:       (j['win'] as num?)?.toInt() ?? 0,
@@ -634,7 +635,7 @@ final matchStatsProvider = FutureProvider.autoDispose.family<MatchStatsData?, St
       return MatchEvent(
         minute: (m['minute'] as num).toInt(),
         extra:  m['extra'] != null ? (m['extra'] as num).toInt() : null,
-        team:   m['team']   as String? ?? '',
+        team:   nomEquipe(m['team']   as String? ?? ''),
         player: m['player'] as String? ?? '',
         assist: m['assist'] as String?,
         type:   m['type']   as String? ?? '',
@@ -652,8 +653,8 @@ final matchStatsProvider = FutureProvider.autoDispose.family<MatchStatsData?, St
       stale: d['stale'] == true,
       events:    events,
       stats:     stats,
-      homeTeam:  d['home_team'] as String,
-      awayTeam:  d['away_team'] as String,
+      homeTeam:  nomEquipe(d['home_team'] as String),
+      awayTeam:  nomEquipe(d['away_team'] as String),
     );
   } on DioException catch (e) {
     if (e.response?.statusCode == 400 || e.response?.statusCode == 404) return null;
@@ -707,8 +708,8 @@ class ForYouProno {
     id:               j['id'] as String,
     league:           j['league'] as String,
     leagueCode:       j['league_code'] as String,
-    homeTeam:         j['home_team'] as String,
-    awayTeam:         j['away_team'] as String,
+    homeTeam:         nomEquipe(j['home_team'] as String),
+    awayTeam:         nomEquipe(j['away_team'] as String),
     predictionType:   j['prediction_type'] as String,
     predictionLabel:  j['prediction_label'] as String,
     oddsRecommended:  (j['odds_recommended'] as num).toDouble(),
@@ -970,8 +971,8 @@ class MatchInsights {
       cleanSheetAway: (cs['away'] as num?)?.toInt() ?? 0,
       goalsByMinuteHome: _minutes(gm['home']),
       goalsByMinuteAway: _minutes(gm['away']),
-      homeTeam: j['home_team'] as String? ?? '',
-      awayTeam: j['away_team'] as String? ?? '',
+      homeTeam: nomEquipe(j['home_team'] as String? ?? ''),
+      awayTeam: nomEquipe(j['away_team'] as String? ?? ''),
     );
   }
 }
@@ -1116,7 +1117,7 @@ class TopScorer {
     rank:        (j['rank'] as num?)?.toInt() ?? 0,
     name:        j['name'] as String? ?? '',
     photo:       j['photo'] as String?,
-    team:        j['team'] as String? ?? '',
+    team:        nomEquipe(j['team'] as String? ?? ''),
     teamLogo:    j['teamLogo'] as String?,
     goals:       (j['goals'] as num?)?.toInt() ?? 0,
     assists:     (j['assists'] as num?)?.toInt() ?? 0,

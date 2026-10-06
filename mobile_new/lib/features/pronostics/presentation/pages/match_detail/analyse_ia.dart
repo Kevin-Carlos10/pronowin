@@ -8,7 +8,10 @@ part of '../match_detail_page.dart';
 class _AIAnalysisCard extends ConsumerWidget {
   final String matchId;
   final MatchStatus status;
-  const _AIAnalysisCard({required this.matchId, this.status = MatchStatus.upcoming});
+  /// Indice de confiance de l'analyste, pour relier les deux pourcentages.
+  final int? confianceAnalyste;
+  const _AIAnalysisCard({required this.matchId, this.status = MatchStatus.upcoming,
+      this.confianceAnalyste});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -91,7 +94,7 @@ class _AIAnalysisCard extends ConsumerWidget {
             return _AIErrorState(
               onRetry: () => ref.invalidate(aiAnalysisProvider(matchId)));
           },
-          data: (ai) => _AIData(analysis: ai),
+          data: (ai) => _AIData(analysis: ai, confianceAnalyste: confianceAnalyste),
         ),
       ]),
     );
@@ -100,7 +103,8 @@ class _AIAnalysisCard extends ConsumerWidget {
 
 class _AIData extends StatelessWidget {
   final AiAnalysis analysis;
-  const _AIData({required this.analysis});
+  final int? confianceAnalyste;
+  const _AIData({required this.analysis, this.confianceAnalyste});
 
   // Le pourcentage est un texte de 28 px : en clair, les teintes vives du
   // sombre n'y tenaient pas (citron #84CC16 sur blanc : 1,9:1).
@@ -159,6 +163,23 @@ class _AIData extends StatelessWidget {
             )),
         ),
       ]),
+      // Les deux pourcentages de la fiche, reliés : sans cette phrase,
+      // « 85 % » sur le pronostic et « 58 % » ici se lisaient comme une
+      // contradiction de l'application.
+      if (confianceAnalyste != null) ...[
+        const SizedBox(height: 12),
+        Builder(builder: (context) {
+          final avis = AvisCompares(calcul: analysis.probability, analyste: confianceAnalyste!);
+          return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Icon(avis.concordants ? Icons.check_circle_outline_rounded : Icons.compare_arrows_rounded,
+                size: 15, color: avis.concordants ? context.cl.success : context.cl.warning),
+            const SizedBox(width: 6),
+            Expanded(child: Text(avis.phrase,
+                style: TextStyle(color: context.cl.textS, fontSize: 11.5, height: 1.4,
+                    fontWeight: FontWeight.w600))),
+          ]);
+        }),
+      ],
       const SizedBox(height: 14),
       Container(
         padding: const EdgeInsets.all(12),

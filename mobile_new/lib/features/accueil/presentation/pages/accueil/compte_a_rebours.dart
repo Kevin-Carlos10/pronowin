@@ -163,7 +163,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                   Expanded(child: Column(children: [
                     TeamLogoWidget(url: prono['home_team_logo'] as String?, size: 52),
                     const SizedBox(height: 7),
-                    Text(prono['home_team'] as String? ?? '',
+                    Text(nomEquipe(prono['home_team'] as String? ?? ''),
                       style: TextStyle(color: context.cl.textP,
                         fontSize: 12, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center, maxLines: 2,
@@ -192,7 +192,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                   Expanded(child: Column(children: [
                     TeamLogoWidget(url: prono['away_team_logo'] as String?, size: 52),
                     const SizedBox(height: 7),
-                    Text(prono['away_team'] as String? ?? '',
+                    Text(nomEquipe(prono['away_team'] as String? ?? ''),
                       style: TextStyle(color: context.cl.textP,
                         fontSize: 12, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center, maxLines: 2,

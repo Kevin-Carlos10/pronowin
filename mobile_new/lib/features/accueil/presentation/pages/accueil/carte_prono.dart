@@ -93,7 +93,7 @@ class _PronosticCard extends ConsumerWidget {
     // suite : « PROCHAIN MATCH mar. 11 août 16h00 Bodo/Glimt VS UEFA Champions
     // League Union St. Gilloise 07 HEURES ». Un libellé rédigé vaut mieux.
     final annonce = StringBuffer()
-      ..write(tr(context, "{arg0} contre {arg1}", [prono['home_team'], prono['away_team']]));
+      ..write(tr(context, "{arg0} contre {arg1}", [nomEquipe(prono['home_team'] as String? ?? ''), nomEquipe(prono['away_team'] as String? ?? '')]));
     if (isLive) {
       annonce.write(tr(context, ", en direct"));
       if (hasScore) annonce.write(tr(context, ", score {arg0} à {arg1}", [homeScore, awayScore]));
@@ -227,8 +227,8 @@ class _PronosticCard extends ConsumerWidget {
                           context,
                           ref: ref,
                           pronosticId: prono['id'] as String? ?? '',
-                          homeTeam: prono['home_team'] as String? ?? '',
-                          awayTeam: prono['away_team'] as String? ?? '',
+                          homeTeam: nomEquipe(prono['home_team'] as String? ?? ''),
+                          awayTeam: nomEquipe(prono['away_team'] as String? ?? ''),
                           predictionLabel: fullLabel,
                           confidenceScore: conf,
                           oddsRecommended: odds,
@@ -277,7 +277,7 @@ class _PronosticCard extends ConsumerWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          prono['home_team'] as String? ?? '',
+                          nomEquipe(prono['home_team'] as String? ?? ''),
                           textAlign: TextAlign.end,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
@@ -316,7 +316,7 @@ class _PronosticCard extends ConsumerWidget {
                       const SizedBox(width: 7),
                       Flexible(
                         child: Text(
-                          prono['away_team'] as String? ?? '',
+                          nomEquipe(prono['away_team'] as String? ?? ''),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -496,8 +496,8 @@ class _PronosticCard extends ConsumerWidget {
                 final ap = prono['away_form_points'] as int? ?? 0;
                 if (hp == 0 && ap == 0) return const SizedBox.shrink();
                 return _FormRow(
-                  homeName: prono['home_team'] as String? ?? '',
-                  awayName: prono['away_team'] as String? ?? '',
+                  homeName: nomEquipe(prono['home_team'] as String? ?? ''),
+                  awayName: nomEquipe(prono['away_team'] as String? ?? ''),
                   homePoints: hp,
                   awayPoints: ap,
                 );

@@ -11,6 +11,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/match_entity.dart' show MatchEntity;
 import '../../../../core/services/prono_share_service.dart';
+import 'package:pronowin/core/utils/noms_equipes.dart';
 
 // ─── Filtres ──────────────────────────────────────────────────────────────────
 enum _ResultFilter { all, win, loss, pending }
@@ -124,8 +125,8 @@ class HistoriquePage extends ConsumerWidget {
     for (final e in entries) {
       final match  = e['match'] as Map<String, dynamic>? ?? {};
       final date   = match['matchDate'] as String? ?? '';
-      final home   = match['homeTeam']  as String? ?? '';
-      final away   = match['awayTeam']  as String? ?? '';
+      final home   = nomEquipe(match['homeTeam']  as String? ?? '');
+      final away   = nomEquipe(match['awayTeam']  as String? ?? '');
       final league = match['league']    as String? ?? '';
       final pred   = MatchEntity.applyTeamNames(
           e['predictionLabel'] as String? ?? '', homeTeam: home, awayTeam: away);
@@ -610,8 +611,8 @@ class _EntryCard extends StatelessWidget {
     // Un remboursement (PUSH) s'affichait comme une défaite : croix rouge et
     // « LOSS », pour une mise rendue.
     final isPush     = result == 'PUSH';
-    final homeTeam   = match['homeTeam']  as String? ?? '';
-    final awayTeam   = match['awayTeam']  as String? ?? '';
+    final homeTeam   = nomEquipe(match['homeTeam']  as String? ?? '');
+    final awayTeam   = nomEquipe(match['awayTeam']  as String? ?? '');
     final homeScore  = match['homeScore'] as int?;
     final awayScore  = match['awayScore'] as int?;
     final league     = match['league']    as String? ?? '';

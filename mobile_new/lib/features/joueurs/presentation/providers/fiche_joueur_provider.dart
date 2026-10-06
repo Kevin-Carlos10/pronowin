@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/dio_client.dart';
+import 'package:pronowin/core/utils/noms_equipes.dart';
 
 /// Les statistiques d'un joueur dans une compétition, sur une saison.
 class StatsCompetition {
@@ -25,7 +26,7 @@ class StatsCompetition {
   static int _n(Object? v) => (v as num?)?.toInt() ?? 0;
 
   factory StatsCompetition.fromJson(Map<String, dynamic> j) => StatsCompetition(
-    team: j['team'] as String? ?? '', league: j['league'] as String? ?? '',
+    team: nomEquipe(j['team'] as String? ?? ''), league: j['league'] as String? ?? '',
     teamLogo: j['teamLogo'] as String?, leagueLogo: j['leagueLogo'] as String?,
     position: j['position'] as String?,
     appearances: _n(j['appearances']), lineups: _n(j['lineups']), minutes: _n(j['minutes']),

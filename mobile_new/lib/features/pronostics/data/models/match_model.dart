@@ -1,4 +1,5 @@
 import '../../domain/entities/match_entity.dart';
+import 'package:pronowin/core/utils/noms_equipes.dart';
 
 class MatchModel extends MatchEntity {
   const MatchModel({
@@ -36,8 +37,8 @@ class MatchModel extends MatchEntity {
     id:              j['id'] as String,
     league:          j['league'] as String,
     leagueCountry:   j['league_country'] as String? ?? '',
-    homeTeam:        j['home_team'] as String,
-    awayTeam:        j['away_team'] as String,
+    homeTeam:        nomEquipe(j['home_team'] as String),
+    awayTeam:        nomEquipe(j['away_team'] as String),
     homeTeamLogo:    j['home_team_logo'] as String?,
     awayTeamLogo:    j['away_team_logo'] as String?,
     // `.toLocal()` est indispensable, pas cosmétique : l'API sérialise en Zulu

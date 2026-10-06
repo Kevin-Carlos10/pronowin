@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pronowin/features/pronostics/domain/entities/match_entity.dart';
 import 'package:pronowin/features/pronostics/domain/entities/verdict_comparaison.dart';
 
 VerdictComparaison _v(double dom, double ext) => VerdictComparaison(
@@ -68,6 +69,31 @@ void main() {
     test('favoriADomicile correspond toujours au camp qui domine', () {
       expect(_v(83, 17).favoriADomicile, isTrue);
       expect(_v(17, 83).favoriADomicile, isFalse);
+    });
+  });
+
+  // « Pourquoi ce pronostic » ne s'affiche que si le modèle soutient le pari.
+  // Vu sur France – Belgique : « France gagne » au-dessus de « Le modèle ne
+  // départage pas les deux équipes ».
+  group('le modèle soutient-il le pari publié ?', () {
+    test('une victoire à domicile, avec un modèle qui penche à domicile', () {
+      expect(_v(70, 30).soutient(PredictionType.win1), isTrue);
+      expect(_v(70, 30).soutient(PredictionType.win2), isFalse);
+    });
+
+    test("une victoire à l'extérieur, avec un modèle qui penche à l'extérieur", () {
+      expect(_v(17, 83).soutient(PredictionType.win2), isTrue);
+      expect(_v(17, 83).soutient(PredictionType.win1), isFalse);
+    });
+
+    test('le cas de France – Belgique : un modèle indécis ne soutient pas une victoire', () {
+      expect(_v(54, 46).soutient(PredictionType.win1), isFalse);
+    });
+
+    test('un nul ou un pari sur les buts ne se juge pas à cette aune', () {
+      for (final pari in [PredictionType.draw, PredictionType.btts, PredictionType.over25, PredictionType.other]) {
+        expect(_v(70, 30).soutient(pari), isNull, reason: pari.name);
+      }
     });
   });
 }

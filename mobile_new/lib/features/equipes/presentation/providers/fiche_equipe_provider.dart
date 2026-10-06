@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/network/dio_client.dart';
+import 'package:pronowin/core/utils/noms_equipes.dart';
 
 /// L'identifiant d'une équipe chez le fournisseur, lu dans l'adresse de son
 /// logo (`…/football/teams/85.png`).
@@ -68,8 +69,8 @@ class FicheEquipe {
     return FicheEquipe(
       partial: j['partial'] == true,
       id: (j['id'] as num).toInt(),
-      name: j['name'] as String? ?? '',
-      country: j['country'] as String?, logo: j['logo'] as String?,
+      name: nomEquipe(j['name'] as String? ?? ''),
+      country: nomEquipeOuNul(j['country'] as String?), logo: j['logo'] as String?,
       founded: (j['founded'] as num?)?.toInt(),
       venue: v == null ? null : (name: v['name'] as String?, city: v['city'] as String?,
           capacity: (v['capacity'] as num?)?.toInt(), image: v['image'] as String?),

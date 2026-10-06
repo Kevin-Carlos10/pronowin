@@ -34,6 +34,7 @@ import '../../../../shared/utils/verrou_pari.dart';
 import '../../../../shared/utils/verrou_pronostic.dart';
 import '../../../../shared/utils/rafraichir.dart';
 import '../providers/carte_vedette.dart';
+import 'package:pronowin/core/utils/noms_equipes.dart';
 
 // Découpé en fichiers `part` : le fichier faisait 4 406 lignes pour une
 // cinquantaine de classes privées — plus gros que match_detail_page avant
@@ -64,8 +65,8 @@ bool _estPseudoGenere(String? nom) =>
 
 String _teamLabel(Map<String, dynamic> p) => MatchEntity.applyTeamNames(
       p['prediction_label'] as String? ?? '',
-      homeTeam: p['home_team'] as String? ?? '',
-      awayTeam: p['away_team'] as String? ?? '',
+      homeTeam: nomEquipe(p['home_team'] as String? ?? ''),
+      awayTeam: nomEquipe(p['away_team'] as String? ?? ''),
     );
 
 class AccueilPage extends ConsumerStatefulWidget {

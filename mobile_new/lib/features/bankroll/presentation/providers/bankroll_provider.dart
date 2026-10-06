@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../shared/utils/resume_paris.dart';
 import '../../../pronostics/domain/entities/match_entity.dart' show MatchEntity;
+import 'package:pronowin/core/utils/noms_equipes.dart';
 
 // ─── Entités ──────────────────────────────────────────────────────────────────
 class BankrollBet {
@@ -82,8 +83,8 @@ class BankrollBet {
     createdAt:       DateTime.parse(j['created_at'] as String).toLocal(),
     settledAt:       j['settled_at'] != null
         ? DateTime.tryParse(j['settled_at'] as String) : null,
-    homeTeam:        (j['match'] as Map)['home_team'] as String,
-    awayTeam:        (j['match'] as Map)['away_team'] as String,
+    homeTeam:        nomEquipe((j['match'] as Map)['home_team'] as String),
+    awayTeam:        nomEquipe((j['match'] as Map)['away_team'] as String),
     league:          (j['match'] as Map)['league'] as String,
     matchDate:       DateTime.tryParse((j['match'] as Map)['match_date'] as String? ?? '')?.toLocal(),
     homeTeamLogo:    (j['match'] as Map)['home_team_logo'] as String?,
