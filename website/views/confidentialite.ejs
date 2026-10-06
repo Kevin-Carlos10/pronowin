@@ -18,7 +18,7 @@
         <span class="brand-name">Prono<span class="brand-win">Win</span></span>
       </a>
       <div class="nav-actions">
-        <a href="/" class="nav-cta">Retour au site</a>
+        <% if (!locals.depuisApp) { %><a href="/" class="nav-cta">Retour au site</a><% } %>
       </div>
     </div>
   </header>
@@ -256,8 +256,8 @@
         <a href="/suppression-compte">Supprimer mon compte</a>
         <span aria-hidden="true"> · </span>
         <a href="/mentions-legales">Mentions légales</a>
-        <span aria-hidden="true"> · </span>
-        <a href="/">Retour au site</a>
+        <% if (!locals.depuisApp) { %><span aria-hidden="true"> · </span>
+        <a href="/">Retour au site</a><% } %>
       </p>
     </section>
   </main>

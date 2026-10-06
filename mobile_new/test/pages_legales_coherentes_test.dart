@@ -59,10 +59,15 @@ void main() {
     }
   });
 
-  test('l\'ouverture passe par le navigateur du système', () {
+  test('l\'ouverture passe par le navigateur du système, par-dessus l\'app', () {
     final source = lire(liens);
+    // Le navigateur du système, affiché par-dessus l'application : sortir de
+    // l'application obligeait à passer par le sélecteur d'applications pour
+    // revenir (vidéo du 5 octobre 2026).
+    expect(source, contains('LaunchMode.inAppBrowserView'),
+        reason: 'les pages légales doivent s\'ouvrir par-dessus l\'application');
     expect(source, contains('LaunchMode.externalApplication'),
-        reason: 'les pages légales doivent s\'ouvrir hors de l\'application');
+        reason: 'le navigateur externe reste le repli');
     expect(source, isNot(contains("context.push('/navigateur'")),
         reason: 'la webview interne empilait son en-tête sous celui du site, '
                 'dont le « Retour à l\'accueil » ramenait la page commerciale '

@@ -79,12 +79,49 @@ class _ProofBand extends ConsumerWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 /// Sans ça, celui qui a suivi les pronostics d'hier soir ne sait pas s'il a
 /// gagné en ouvrant l'app le matin — il doit aller fouiller l'historique.
+/// La place du bilan d'hier, à sa hauteur exacte : même marge, même
+/// remplissage, une rangée de 18 px comme l'icône qui la règle.
+class _BandeauHierSquelette extends StatelessWidget {
+  const _BandeauHierSquelette();
+
+  @override
+  Widget build(BuildContext context) => Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        decoration: BoxDecoration(
+          color: context.cl.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: context.cl.border, width: 0.8),
+        ),
+        child: SizedBox(
+          height: 18,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: FractionallySizedBox(
+              widthFactor: 0.55,
+              child: Container(
+                height: 10,
+                decoration: BoxDecoration(
+                  color: context.cl.borderSoft,
+                  borderRadius: BorderRadius.circular(5)),
+              ),
+            ),
+          ),
+        ),
+      );
+}
+
 class _YesterdayRecap extends ConsumerWidget {
   const _YesterdayRecap();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final list = ref.watch(hierProvider).valueOrNull;
+    final hier = ref.watch(hierProvider);
+    // Sa place est tenue pendant le chargement. Le bilan arrivait après la
+    // carte « Top du jour » et la poussait vers le bas, sous le doigt de
+    // l'utilisateur (vidéo du 5 octobre 2026).
+    if (hier.isLoading && !hier.hasValue) return const _BandeauHierSquelette();
+    final list = hier.valueOrNull;
     if (list == null || list.isEmpty) return const SizedBox.shrink();
 
     final regles = list

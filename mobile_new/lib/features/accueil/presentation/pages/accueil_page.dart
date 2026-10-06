@@ -35,6 +35,7 @@ import '../../../../shared/utils/verrou_pronostic.dart';
 import '../../../../shared/utils/rafraichir.dart';
 import '../providers/carte_vedette.dart';
 import 'package:pronowin/core/utils/noms_equipes.dart';
+import 'package:pronowin/shared/utils/initiale.dart';
 
 // Découpé en fichiers `part` : le fichier faisait 4 406 lignes pour une
 // cinquantaine de classes privées — plus gros que match_detail_page avant
@@ -284,12 +285,11 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
 
                   // ─── PRONOSTICS DU JOUR (filtrés + triés) ────────────────
                   pronostics.when(
-                    loading: () => Column(children: [
-                      _SectionHeader(title: tr(context, "Pronostics du jour"),
-                          onMore: () => context.go('/pronostics')),
-                      const SizedBox(height: 12),
-                      const _PronosticsShimmer(),
-                    ]),
+                    // Rien pendant le chargement : la carte « Top du jour »
+                    // porte déjà le squelette de l'écran. Cette section en
+                    // affichait un second, qui disparaissait ensuite quand le
+                    // jour ne comptait qu'un pronostic — déjà en vedette.
+                    loading: () => const SizedBox.shrink(),
                     error: (_, _) => _ErrorCard(
                         onRetry: () => ref.invalidate(pronosticsJourProvider)),
                     data: (list) {

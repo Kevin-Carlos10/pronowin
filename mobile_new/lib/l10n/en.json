@@ -1444,5 +1444,10 @@
   "Le calcul, fondé sur les cotes et la forme, est plus confiant que notre analyste : {arg0} % contre {arg1} %.": "The calculation, based on odds and form, is more confident than our analyst: {arg0}% vs {arg1}%.",
   "L'avis du modèle externe": "The external model's view",
   "Ce modèle ne va pas dans le sens de notre pronostic : c'est un second avis, à lire comme tel.": "This model does not back our prediction: read it as a second opinion.",
-  "CONFIANCE DE L'ANALYSTE": "ANALYST CONFIDENCE"
+  "CONFIANCE DE L'ANALYSTE": "ANALYST CONFIDENCE",
+  "1 j restant": "1 day left",
+  "Tu as déjà misé sur les pronostics qui te correspondent": "You have already bet on the predictions that match you",
+  "Les pronostics déjà misés n'apparaissent plus ici : ils sont suivis dans ta bankroll.": "Predictions you have already bet on no longer appear here: they are tracked in your bankroll.",
+  "Reviens demain : de nouveaux pronostics sont publiés chaque jour.": "Come back tomorrow: new predictions are published every day.",
+  "Voir ma bankroll": "View my bankroll"
 }

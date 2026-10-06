@@ -11,6 +11,16 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 app.use(express.static(path.join(__dirname, 'public')));
 
+// Une page légale ouverte depuis l'application (`?app=1`) s'affiche dans le
+// navigateur intégré, par-dessus l'app : un bouton « Retour au site » y
+// menait à la page d'accueil commerciale, qui propose de télécharger
+// l'application. Les vues le masquent dans ce cas — on revient à l'app par
+// le bouton du navigateur intégré.
+app.use((req, res, next) => {
+  res.locals.depuisApp = req.query.app === '1';
+  next();
+});
+
 const site = {
   name: 'PronoWin',
   // « Des pronostics gagnants, des gains grandissants » : double promesse —

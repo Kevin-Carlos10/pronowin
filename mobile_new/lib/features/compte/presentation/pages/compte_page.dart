@@ -23,6 +23,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/utils/partage_parrainage.dart';
 import '../../../../shared/utils/messages.dart';
+import 'package:pronowin/shared/utils/initiale.dart';
 
 
 /// Tout ce que l'ecran du compte lit pour cet utilisateur.
@@ -148,7 +149,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
         final earnings    = (profile['referral_earnings'] as num?)?.toInt() ?? 0;
         final avatarUrl   = profile['avatar_url']       as String?;
         final displayName = fullName.isNotEmpty ? fullName : pseudo;
-        final initiale    = displayName.isNotEmpty ? displayName[0].toUpperCase() : 'P';
+        final initiale    = initialeAvatar(prenom: firstName, pseudo: pseudo);
 
         return Scaffold(
           body: RefreshIndicator(
@@ -160,8 +161,9 @@ class _ComptePageState extends ConsumerState<ComptePage>
                 // 235 était trop court : le contenu (avatar + nom + pseudo +
                 // pastille) débordait sur la TabBar, la pastille « Gratuit »
                 // se superposant au libellé « Abonnement ». La zone flexible
-                // inclut la TabBar (46px) et la barre d'état.
-                expandedHeight: 262,
+                // inclut la TabBar (46px) et la barre d'état. Elle grandit avec
+                // la taille du texte : à 180 %, nom et pastilles débordaient.
+                expandedHeight: 262 + (MediaQuery.textScalerOf(context).scale(1) - 1) * 40,
                 pinned: true,
                 backgroundColor: context.cl.bg,
                 automaticallyImplyLeading: false,
@@ -184,7 +186,13 @@ class _ComptePageState extends ConsumerState<ComptePage>
                         end: Alignment.bottomCenter)),
                     child: SafeArea(
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        // La bande des onglets (46 px) recouvre le bas de cette
+                        // zone. Le contenu était centré sur toute sa hauteur,
+                        // onglets compris : les pastilles « PREMIUM » et
+                        // « 1 j restant » finissaient sous les onglets, à moitié
+                        // cachées (vidéo du 5 octobre 2026). Il se centre
+                        // désormais au-dessus d'eux.
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 46),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -228,7 +236,9 @@ class _ComptePageState extends ConsumerState<ComptePage>
                                   return isPremium && days > 0
                                     ? Padding(
                                         padding: const EdgeInsets.only(left: 8),
-                                        child: _Badge(label: tr(context, "{arg0} j restants", [days]),
+                                        child: _Badge(label: days == 1
+                                              ? tr(context, "1 j restant")
+                                              : tr(context, "{arg0} j restants", [days]),
                                           color: context.cl.success))
                                     : const SizedBox.shrink();
                                 },

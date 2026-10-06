@@ -92,14 +92,28 @@ class PagesLegales {
     // la coupure, le messager si.
     final messager = ScaffoldMessenger.maybeOf(context);
 
+    // ── Par-dessus l'application, plus à sa place ─────────────────────────
+    //
+    // Le navigateur du système faisait quitter l'application : vu sur iPhone
+    // (5 octobre 2026), il fallait passer par le sélecteur d'applications pour
+    // revenir. `inAppBrowserView` affiche le même navigateur — Safari sur
+    // iPhone, Chrome sur Android — par-dessus l'application, avec un bouton
+    // qui y ramène. Ce n'est pas la webview interne d'autrefois : pas de
+    // seconde barre, et le site, prévenu par `app=1`, masque son « Retour au
+    // site » qui menait à la page commerciale.
+    //
+    // S'il n'est pas disponible, le navigateur du système prend le relais,
+    // puis le message d'échec.
+    final adresse = _depuisApp(url);
     var ouverte = false;
-    try {
-      ouverte = await launchUrl(Uri.parse(url),
-          mode: LaunchMode.externalApplication);
-    } catch (e) {
-      debugPrint('[Légal] ouverture de $url impossible : $e');
+    for (final mode in const [LaunchMode.inAppBrowserView, LaunchMode.externalApplication]) {
+      try {
+        ouverte = await launchUrl(adresse, mode: mode);
+      } catch (e) {
+        debugPrint('[Légal] ouverture de $url ($mode) impossible : $e');
+      }
+      if (ouverte) return;
     }
-    if (ouverte) return;
 
     debugPrint('[Légal] aucun navigateur n\'a pris $url');
     afficherMessageVia(messager,
@@ -113,6 +127,12 @@ class PagesLegales {
         onPressed: () => Clipboard.setData(ClipboardData(text: url)),
       ),
     );
+  }
+
+  /// L'adresse, marquée comme ouverte depuis l'application.
+  static Uri _depuisApp(String url) {
+    final u = Uri.parse(url);
+    return u.replace(queryParameters: {...u.queryParameters, 'app': '1'});
   }
 
   /// Le titre de la barre, pour chaque page.

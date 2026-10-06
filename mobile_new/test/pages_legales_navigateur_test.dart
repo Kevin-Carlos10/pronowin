@@ -91,20 +91,28 @@ void main() {
       appels.where((a) => a.method == 'launch').firstOrNull;
 
   group('quand un navigateur répond', () {
-    testWidgets('la page part à l\'extérieur, pas dans l\'application',
+    testWidgets('la page s\'ouvre par-dessus l\'application, marquée app=1',
         (tester) async {
       await poser(tester);
       await toucher(tester);
 
       final l = lancement();
       expect(l, isNotNull, reason: 'aucune ouverture demandée');
-      expect(l!.arguments['url'], url);
+      // `app=1` : le site masque alors son « Retour au site ».
+      expect(l!.arguments['url'], '$url?app=1');
+      // Un seul lancement : le navigateur intégré a répondu, pas de repli.
+      expect(appels.where((a) => a.method == 'launch'), hasLength(1));
+    });
 
-      // `useWebView: false` est ce qui distingue `externalApplication` d'une
-      // vue intégrée. C'est la demande de l'utilisateur, et le seul moyen de
-      // la vérifier autrement qu'en relisant le source.
-      expect(l.arguments['useWebView'], isFalse,
-          reason: 'la page s\'ouvrirait encore dans l\'application');
+    testWidgets('sans navigateur intégré, le navigateur externe prend le relais',
+        (tester) async {
+      var n = 0;
+      reponse = () => ++n > 1;   // le premier refuse, le second accepte
+      await poser(tester);
+      await toucher(tester);
+
+      expect(appels.where((a) => a.method == 'launch'), hasLength(2));
+      expect(find.byType(SnackBar), findsNothing);
     });
 
     testWidgets('et l\'écran ne se plaint de rien', (tester) async {

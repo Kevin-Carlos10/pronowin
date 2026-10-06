@@ -255,7 +255,7 @@ class _AvatarInitials extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
     child: Text(
-      user?.pseudo?.isNotEmpty == true ? (user!.pseudo as String)[0].toUpperCase() : 'P',
+      initialeAvatar(prenom: user?.firstName as String?, pseudo: user?.pseudo as String?),
       style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
     ),
   );

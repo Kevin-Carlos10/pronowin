@@ -16,6 +16,7 @@ import '../providers/compte_provider.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../shared/utils/age.dart';
 import '../../../../shared/utils/messages.dart';
+import 'package:pronowin/shared/utils/initiale.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -245,8 +246,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   Widget build(BuildContext context) {
     final profile    = ref.watch(profileProvider).valueOrNull;
     final avatarUrl  = profile?['avatar_url'] as String?;
-    final initiale   = _pseudoCtrl.text.isNotEmpty
-      ? _pseudoCtrl.text[0].toUpperCase() : 'P';
+    final initiale   = initialeAvatar(prenom: _firstNameCtrl.text, pseudo: _pseudoCtrl.text);
 
     return Scaffold(
       appBar: AppBar(

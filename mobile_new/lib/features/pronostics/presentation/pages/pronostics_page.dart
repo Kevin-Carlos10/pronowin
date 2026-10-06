@@ -18,6 +18,7 @@ import '../../../../shared/widgets/skeletons.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/providers/favoris_provider.dart';
 import '../../../../shared/widgets/logotype_pronowin.dart';
+import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 
 class PronosticsPage extends ConsumerStatefulWidget {
   const PronosticsPage({super.key});
@@ -1598,7 +1599,7 @@ class _ForYouView extends StatelessWidget {
 
         // ── Liste recommandations ────────────────────────────────────────
         if (recs.isEmpty)
-          _ForYouEmpty()
+          const _ForYouEmpty()
         else
           ...recs.asMap().entries.map((e) => context.entree(
             _ForYouCard(rec: e.value, isPremium: isPremium), e.key)),
@@ -1782,25 +1783,51 @@ class _ForYouCard extends StatelessWidget {
   }
 }
 
-class _ForYouEmpty extends StatelessWidget {
+/// « Pour toi » sans recommandation.
+///
+/// Le serveur écarte les pronostics déjà misés : ils sont dans la bankroll,
+/// les proposer de nouveau n'aurait pas de sens. Mais l'écran annonçait alors
+/// « Aucun prono disponible pour toi aujourd'hui », et invitait à parier —
+/// vu le 5 octobre 2026, le jour où le seul pronostic publié, qui
+/// correspondait exactement au profil, était déjà misé. Il dit désormais
+/// pourquoi la liste est vide.
+class _ForYouEmpty extends ConsumerWidget {
+  const _ForYouEmpty();
+
   @override
-  Widget build(BuildContext context) => Center(
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        const Text('🤖', style: TextStyle(fontSize: 48)),
-        const SizedBox(height: 16),
-        Text(tr(context, "Aucun prono disponible pour toi aujourd'hui"),
-          style: TextStyle(color: context.cl.textP, fontSize: 15,
-              fontWeight: FontWeight.w700),
-          textAlign: TextAlign.center),
-        const SizedBox(height: 8),
-        Text(tr(context, "Reviens demain ou parie sur les pronos disponibles pour affiner ton profil."),
-          style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.4),
-          textAlign: TextAlign.center),
-      ]),
-    ),
-  ).animate().fadeIn(duration: 350.ms);
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enCours = ref.watch(bankrollProvider).valueOrNull
+        ?.bets.where((b) => b.result == null).length ?? 0;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 48),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('🤖', style: TextStyle(fontSize: 48)),
+          const SizedBox(height: 16),
+          Text(enCours > 0
+              ? tr(context, "Tu as déjà misé sur les pronostics qui te correspondent")
+              : tr(context, "Aucun prono disponible pour toi aujourd'hui"),
+            style: TextStyle(color: context.cl.textP, fontSize: 15,
+                fontWeight: FontWeight.w700),
+            textAlign: TextAlign.center),
+          const SizedBox(height: 8),
+          Text(enCours > 0
+              ? tr(context, "Les pronostics déjà misés n'apparaissent plus ici : ils sont suivis dans ta bankroll.")
+              : tr(context, "Reviens demain : de nouveaux pronostics sont publiés chaque jour."),
+            style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.4),
+            textAlign: TextAlign.center),
+          if (enCours > 0) ...[
+            const SizedBox(height: 16),
+            OutlinedButton.icon(
+              onPressed: () => context.go('/bankroll'),
+              icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
+              label: Text(tr(context, "Voir ma bankroll"))),
+          ],
+        ]),
+      ),
+    ).animate().fadeIn(duration: 350.ms);
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
