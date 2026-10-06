@@ -1,4 +1,5 @@
 import type { AxiosInstance } from 'axios';
+import { enrichissementsFootball } from './enrichissements_football';
 import { traduireAbsence, estSuspension } from './traduction_absences';
 import { journal } from '../utils/logger';
 
@@ -81,11 +82,10 @@ export interface FicheJoueur {
   /** Les plus récentes d'abord, cinq au plus. */
   absences:    AbsenceJoueur[];
   transferts:  TransfertJoueur[];
+  partial?: boolean;
 }
 
 const FICHE_TTL = 12 * 60 * 60 * 1000;
-const FICHES_MAX = 2000;
-const fichesCache = new Map<string, { data: FicheJoueur | 'introuvable'; ts: number }>();
 
 /** La saison d'API-Football : l'année où elle commence (juillet). */
 export function saisonParDefaut(maintenant = new Date()): number {
@@ -149,22 +149,18 @@ export class FichesJoueurs {
   async fiche(playerId: number, saison?: number): Promise<FicheJoueur | 'introuvable' | null> {
     if (!this.hasKey()) return null;
 
-    const cle = `${playerId}_${saison ?? 'auto'}`;
-    const hit = fichesCache.get(cle);
-    if (hit && Date.now() - hit.ts < FICHE_TTL) return hit.data;
-
     try {
       const saisons = saison ? [saison] : [saisonParDefaut(), saisonParDefaut() - 1];
       let profil: any = null;
       let saisonRetenue = saisons[0];
       for (const s of saisons) {
-        const r = await this.client.get('/players', { params: { id: playerId, season: s } });
-        const p = r.data?.response?.[0];
+        const rows = await enrichissementsFootball(this.client).get('/players', { id: playerId, season: s }, FICHE_TTL);
+        const p = rows[0];
+        if (p && !p.player) throw new Error('Invalid player profile');
         if (p) { profil = p; saisonRetenue = s; }
         if (p && (p.statistics ?? []).some((x: any) => nombre(x?.games?.appearences) > 0)) break;
       }
       if (!profil) {
-        this.garder(cle, 'introuvable');
         return 'introuvable';
       }
 
@@ -191,10 +187,11 @@ export class FichesJoueurs {
           .map(versStats)
           .filter((s: StatsCompetition) => s.appearances > 0)
           .sort((a: StatsCompetition, b: StatsCompetition) => b.appearances - a.appearances || b.minutes - a.minutes),
-        absences,
-        transferts,
+        absences: absences ?? [],
+        transferts: transferts ?? [],
+        partial: absences === null || transferts === null,
       };
-      this.garder(cle, fiche);
+
       return fiche;
     } catch (e) {
       journal.error('[ApiFootball] fiche joueur indisponible:', (e as Error).message);
@@ -202,10 +199,10 @@ export class FichesJoueurs {
     }
   }
 
-  private async absences(playerId: number): Promise<AbsenceJoueur[]> {
+  private async absences(playerId: number): Promise<AbsenceJoueur[] | null> {
     try {
-      const r = await this.client.get('/sidelined', { params: { player: playerId } });
-      return (r.data?.response ?? [])
+      const rows = await enrichissementsFootball(this.client).get('/sidelined', { player: playerId }, FICHE_TTL);
+      return rows
         .map((a: any) => ({
           motif:      traduireAbsence(a?.type) || 'Absence',
           suspension: estSuspension(a?.type ?? ''),
@@ -216,14 +213,14 @@ export class FichesJoueurs {
         .slice(0, 5);
     } catch (e) {
       journal.error('[ApiFootball] /sidelined indisponible:', (e as Error).message);
-      return [];
+      return null;
     }
   }
 
-  private async transferts(playerId: number): Promise<TransfertJoueur[]> {
+  private async transferts(playerId: number): Promise<TransfertJoueur[] | null> {
     try {
-      const r = await this.client.get('/transfers', { params: { player: playerId } });
-      return (r.data?.response?.[0]?.transfers ?? [])
+      const rows = await enrichissementsFootball(this.client).get('/transfers', { player: playerId }, FICHE_TTL);
+      return (rows[0]?.transfers ?? [])
         .map((t: any) => ({
           date:       t?.date ?? null,
           type:       traduireTypeTransfert(t?.type),
@@ -236,15 +233,8 @@ export class FichesJoueurs {
         .slice(0, 5);
     } catch (e) {
       journal.error('[ApiFootball] /transfers indisponible:', (e as Error).message);
-      return [];
+      return null;
     }
   }
 
-  private garder(cle: string, data: FicheJoueur | 'introuvable') {
-    if (fichesCache.size >= FICHES_MAX) {
-      const plusAncienne = fichesCache.keys().next().value;
-      if (plusAncienne !== undefined) fichesCache.delete(plusAncienne);
-    }
-    fichesCache.set(cle, { data, ts: Date.now() });
-  }
 }

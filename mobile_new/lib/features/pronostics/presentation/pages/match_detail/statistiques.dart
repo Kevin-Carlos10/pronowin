@@ -39,9 +39,27 @@ class _MatchStatsCard extends ConsumerWidget {
               fontWeight: FontWeight.w700)),
         ]),
         const SizedBox(height: 14),
-        statsAsync.when(
+        if (statsAsync.valueOrNull != null) ...[
+          _FraicheurDonnees(updatedAt: statsAsync.valueOrNull!.updatedAt,
+            stale: statsAsync.hasError || statsAsync.valueOrNull!.stale),
+          const SizedBox(height: 12),
+          if (statsAsync.valueOrNull!.stats.isEmpty)
+            Text(tr(context, statsAsync.valueOrNull!.statsStatus == 'unsupported'
+              ? "Les statistiques ne sont pas couvertes pour cette compétition."
+              : statsAsync.valueOrNull!.statsStatus == 'unavailable'
+                ? "Statistiques momentanément indisponibles."
+                : "Les statistiques ne sont pas encore publiées pour ce match."),
+              style: TextStyle(color: context.cl.textS))
+          else _StatsList(stats: statsAsync.valueOrNull!.stats,
+            homeTeam: statsAsync.valueOrNull!.homeTeam,
+            awayTeam: statsAsync.valueOrNull!.awayTeam),
+        ] else statsAsync.when(
           loading: () => _StatsLoading(),
-          error: (_, _) => _StatsUnavailable(),
+          error: (_, _) => Column(children: [
+            _StatsUnavailable(),
+            TextButton(onPressed: () => ref.invalidate(matchStatsProvider(matchId)),
+              child: Text(tr(context, "Réessayer"))),
+          ]),
           data: (data) => data == null
             ? _StatsUnavailable()
             : _StatsList(stats: data.stats,
@@ -64,8 +82,12 @@ class _MatchEventsCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(matchStatsProvider(matchId));
     final data = statsAsync.valueOrNull;
-    if (data == null || !_EventsList.hasNotable(data.events)) {
-      return const SizedBox.shrink();
+    if (data == null) {
+      return Padding(padding: const EdgeInsets.all(16),
+        child: Text(tr(context, statsAsync.hasError
+          ? "Événements momentanément indisponibles."
+          : statsAsync.isLoading ? "Chargement des événements…" : "Événements non fournis pour ce match."),
+          style: TextStyle(color: context.cl.textS)));
     }
 
     return Container(
@@ -82,6 +104,9 @@ class _MatchEventsCard extends ConsumerWidget {
           color: context.cl.info,
           title: tr(context, "Faits marquants")),
         const SizedBox(height: 14),
+        _FraicheurDonnees(updatedAt: data.updatedAt,
+          stale: statsAsync.hasError || data.stale),
+        const SizedBox(height: 12),
         // En-tête et filet reprennent exactement la structure d'une ligne
         // d'événement (colonne minute + 2 colonnes + colonne icône) : leur
         // alignement est ainsi garanti par construction plutôt que par un
@@ -107,7 +132,11 @@ class _MatchEventsCard extends ConsumerWidget {
               const Expanded(child: SizedBox()),
             ]),
           ),
-          _EventsList(events: data.events,
+          if (data.events.isEmpty && (data.eventsStatus == 'unsupported' || data.eventsStatus == 'unavailable'))
+            Text(tr(context, data.eventsStatus == 'unsupported'
+              ? "Les événements ne sont pas couverts pour cette compétition."
+              : "Événements momentanément indisponibles."), style: TextStyle(color: context.cl.textS))
+          else _EventsList(events: data.events,
             homeTeam: data.homeTeam, awayTeam: data.awayTeam),
         ]),
       ]),
@@ -156,13 +185,9 @@ class _EventsList extends StatelessWidget {
   static const double minuteWidth = 38;
   static const double iconWidth   = 24;
 
-  /// Seuls les buts et les cartons sont affichés — les remplacements et autres
-  /// événements alourdiraient la liste sans intérêt.
-  static bool _isNotable(MatchEvent e) => e.type == 'Goal' || e.type == 'Card';
+  /// Inclut les remplacements et la VAR pour suivre les changements du match.
+  static bool _isNotable(MatchEvent e) => const {'Goal', 'Card', 'subst', 'Var'}.contains(e.type);
 
-  /// Permet au parent de décider s'il doit afficher la carte, en appliquant
-  /// exactement le même filtre que le rendu.
-  static bool hasNotable(List<MatchEvent> events) => events.any(_isNotable);
 
   static Widget _eventIcon(BuildContext context, MatchEvent e) {
     if (e.type == 'Goal') {
@@ -187,7 +212,7 @@ class _EventsList extends StatelessWidget {
       return Icon(Icons.sports_soccer_rounded, color: context.cl.success, size: 16);
     }
     if (e.type == 'Card') {
-      final isRed = e.detail.contains('Red');
+      final isRed = e.detail.toLowerCase().contains('red');
       return Container(
         width: 11, height: 15,
         decoration: BoxDecoration(
@@ -196,6 +221,7 @@ class _EventsList extends StatelessWidget {
         ),
       );
     }
+    if (e.type == 'Var') return Icon(Icons.tv_rounded, color: context.cl.info, size: 16);
     if (e.type == 'subst') {
       return Icon(Icons.swap_horiz_rounded, color: context.cl.info, size: 16);
     }
@@ -207,7 +233,7 @@ class _EventsList extends StatelessWidget {
     final notable = events.where(_isNotable).toList();
 
     if (notable.isEmpty) {
-      return Text(tr(context, "Aucun événement notable."),
+      return Text(tr(context, "Aucun événement reçu pour le moment."),
         style: TextStyle(color: context.cl.textM, fontSize: 12));
     }
 
@@ -257,11 +283,19 @@ class _EventItem extends StatelessWidget {
     crossAxisAlignment: align == TextAlign.right
       ? CrossAxisAlignment.end : CrossAxisAlignment.start,
     children: [
-      Text(event.player,
+      Text(event.player.isEmpty ? tr(context, "Événement") : event.player,
         textAlign: align,
         style: TextStyle(color: context.cl.textP, fontSize: 12,
           fontWeight: FontWeight.w600),
         maxLines: 1, overflow: TextOverflow.ellipsis),
+      Text(tr(context, switch (event.detail) {
+        'Normal Goal' => 'But', 'Own Goal' => 'But contre son camp',
+        'Penalty' => 'Penalty marqué', 'Missed Penalty' => 'Penalty manqué',
+        'Yellow Card' => 'Carton jaune', 'Red Card' => 'Carton rouge',
+        'Second Yellow card' || 'Second Yellow Card' => 'Deuxième carton jaune',
+        'Goal cancelled' => 'But annulé', 'Penalty confirmed' => 'Penalty confirmé',
+        _ => event.type == 'subst' ? 'Remplacement' : event.type == 'Var' ? 'VAR' : event.detail,
+      }), textAlign: align, style: TextStyle(color: context.cl.textS, fontSize: 10)),
       if (event.assist != null && event.assist!.isNotEmpty)
         Text('↳ ${event.assist}',
           textAlign: align,
@@ -324,8 +358,8 @@ class _StatsList extends StatelessWidget {
     // La possession sert d'en-tête visuel : c'est la seule stat qui se lit
     // naturellement comme un partage à 100 %, les autres sont des compteurs.
     final possession = filtered
-      .where((s) => s.label == 'Ball Possession').firstOrNull;
-    final others = filtered.where((s) => s.label != 'Ball Possession');
+      .where((s) => s.label == 'Ball Possession' && s.home != null && s.away != null).firstOrNull;
+    final others = filtered.where((s) => s != possession);
 
     return Column(children: [
       Padding(
@@ -437,8 +471,8 @@ class _StatRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final h = _statValue(home), a = _statValue(away);
-    final homeLeads = h != a && (lowerIsBetter ? h < a : h > a);
-    final awayLeads = h != a && (lowerIsBetter ? a < h : a > h);
+    final homeLeads = home != null && away != null && h != a && (lowerIsBetter ? h < a : h > a);
+    final awayLeads = home != null && away != null && h != a && (lowerIsBetter ? a < h : a > h);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 5),
@@ -467,7 +501,7 @@ class _StatRow extends StatelessWidget {
   }
 
   Widget _value(BuildContext context, dynamic v, Color color, bool leads, Color onColor) {
-    final text = Text('${v ?? 0}',
+    final text = Text('${v ?? '—'}',
       style: TextStyle(
         color: leads ? onColor : context.cl.textP,
         fontSize: 12.5,
@@ -522,3 +556,19 @@ class _StatsUnavailable extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+
+/// Date du relevé fournisseur, jamais l'heure d'un simple rafraîchissement local.
+class _FraicheurDonnees extends StatelessWidget {
+  final DateTime? updatedAt;
+  final bool stale;
+  const _FraicheurDonnees({this.updatedAt, required this.stale});
+  @override
+  Widget build(BuildContext context) {
+    if (updatedAt == null && !stale) return const SizedBox.shrink();
+    final heure = updatedAt == null ? null : DateFormat.Hm().format(updatedAt!.toLocal());
+    return Text(stale
+      ? tr(context, "Actualisation interrompue · dernières données reçues")
+      : tr(context, "Actualisé à {arg0}", [heure]),
+      style: TextStyle(color: stale ? context.cl.warning : context.cl.textS, fontSize: 11));
+  }
+}

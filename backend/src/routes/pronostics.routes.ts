@@ -46,6 +46,7 @@ r.get ('/:id/h2h',         optionalAuthMiddleware, C.getH2H);
 r.get ('/:id/lineups',     optionalAuthMiddleware, C.getLineups);
 r.get ('/:id/injuries',    optionalAuthMiddleware, C.getInjuries);
 r.get ('/:id/standings',   optionalAuthMiddleware, C.getStandings);
+r.get ('/:id/match-info', optionalAuthMiddleware, C.getMatchInfo);
 r.get ('/:id/match-stats', optionalAuthMiddleware, C.getMatchStats);
 r.get ('/:id/insights',    optionalAuthMiddleware, C.getMatchInsights);
 r.get ('/:id/live-odds',   optionalAuthMiddleware, C.getLiveOdds);

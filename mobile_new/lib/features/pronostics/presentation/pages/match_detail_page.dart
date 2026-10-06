@@ -28,6 +28,7 @@ import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../domain/entities/match_entity.dart';
 import '../providers/pronostics_provider.dart';
+import '../providers/match_info_provider.dart';
 import '../widgets/comments_section.dart';
 import '../widgets/prono_share_card.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
@@ -55,6 +56,7 @@ part 'match_detail/analyse_ia.dart';
 part 'match_detail/forme.dart';
 part 'match_detail/miser.dart';
 part 'match_detail/statistiques.dart';
+part 'match_detail/informations.dart';
 part 'match_detail/analyse_modele.dart';
 
 /// La carte des palmarès d'une compétition, seule, pour les bancs d'essai.
@@ -83,6 +85,11 @@ class MatchDetailPage extends ConsumerStatefulWidget {
 class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   Timer? _liveTimer;
+  bool _releveEnCours = false;
+  String? _statutDuFlux;
+  DateTime? _dernieresStats;
+  DateTime? _dernieresCotes;
+  DateTime? _dernieresCompositions;
 
   /// L'application est-elle au premier plan ?
   bool _premierPlan = true;
@@ -113,17 +120,50 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
   /// Relève le score, sauf si personne ne le regarde : application en
   /// arrière-plan, ou page recouverte par une autre.
   Future<void> _releverScore() async {
-    if (!mounted || !_premierPlan) return;
+    if (!mounted || !_premierPlan || _releveEnCours) return;
     if (!(ModalRoute.of(context)?.isCurrent ?? true)) return;
-    ref.invalidate(liveScoreProvider(widget.matchId));
+    final match = ref.read(matchDetailProvider(widget.matchId)).valueOrNull ?? widget.preloaded;
+    if (match == null) return;
+    _releveEnCours = true;
     try {
-      await ref.read(liveScoreProvider(widget.matchId).future);
-      // L'horodatage n'avance qu'après une réponse reçue : il était posé au
-      // déclenchement de la minuterie, et rajeunissait donc même quand la
-      // requête échouait — un score vieux d'une heure affiché « à l'instant ».
-      if (mounted) setState(() => _dernierRefresh = DateTime.now());
+      ref.invalidate(liveScoreProvider(match.id));
+      final score = await ref.read(liveScoreProvider(match.id).future);
+      if (!mounted) return;
+      setState(() {
+        _dernierRefresh = DateTime.now();
+        _statutDuFlux = score.status;
+      });
+      final attendu = switch (match.status) {
+        MatchStatus.upcoming => 'SCHEDULED',
+        MatchStatus.live => 'LIVE',
+        MatchStatus.finished => 'FINISHED',
+      };
+      final transition = score.status != attendu;
+      if (transition) ref.invalidate(matchDetailProvider(widget.matchId));
+      ref.invalidate(matchInfoProvider(match.id));
+      final now = DateTime.now();
+      if ((score.status == 'LIVE' || score.status == 'FINISHED') &&
+          (transition || _dernieresStats == null || now.difference(_dernieresStats!).inSeconds >= 60)) {
+        _dernieresStats = now;
+        ref.invalidate(matchStatsProvider(match.id));
+      }
+      if (score.status == 'LIVE' &&
+          (_dernieresCotes == null || now.difference(_dernieresCotes!).inSeconds >= 120)) {
+        _dernieresCotes = now;
+        ref.invalidate(liveOddsProvider(match.id));
+      }
+      if (_dernieresCompositions == null || now.difference(_dernieresCompositions!).inSeconds >= 120) {
+        _dernieresCompositions = now;
+        ref.invalidate(lineupsProvider(match.id));
+      }
+      if (transition && score.status == 'FINISHED') {
+        ref.invalidate(playerRatingsProvider(match.id));
+        ref.invalidate(standingsProvider(match.id));
+      }
     } catch (_) {
-      // Échec réseau : la donnée affichée reste celle d'avant, avec sa date.
+      // Garder le dernier relevé et sa date jusqu'à une réponse réussie.
+    } finally {
+      _releveEnCours = false;
     }
   }
 
@@ -202,7 +242,10 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     final match = matchAsync.valueOrNull ?? widget.preloaded;
 
     // Démarrer/arrêter le polling selon le statut du match
-    if (match?.status == MatchStatus.live) {
+    final procheDuCoupEnvoi = match?.status == MatchStatus.upcoming &&
+        match!.matchDate.difference(DateTime.now()).inMinutes <= 60;
+    final fluxActif = _statutDuFlux == null || const {'LIVE', 'SCHEDULED'}.contains(_statutDuFlux);
+    if (fluxActif && (match?.status == MatchStatus.live || procheDuCoupEnvoi)) {
       if (_liveTimer == null) _startLivePolling();
     } else {
       _stopLivePolling();
@@ -246,7 +289,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
       matchTermine:       match.status == MatchStatus.finished,
       utilisateurPremium: isPremium,
     );
-    final isRefreshing = matchAsync.isLoading && match.status == MatchStatus.live;
+    final isRefreshing = ref.watch(liveScoreProvider(match.id)).isLoading;
     final isFav = ref.watch(favorisProvider).valueOrNull
             ?.matchIds.contains(match.id) ??
         false;
@@ -265,7 +308,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     // face-à-face...), qui n'a jamais fait partie de l'offre payante. Les
     // masquer ne protégeait rien et transformait la page en cul-de-sac pour
     // les invités comme pour les comptes gratuits.
-    final showTabs = match.hasPronostic;
+    // Les onglets football sont aussi accessibles sans pronostic.
 
     // Un onglet dont l'appel est encore en vol n'est pas encore affichable —
     // mais il ne doit plus retenir toute la page. « Détails » porte la carte
@@ -273,7 +316,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     // immédiatement, et les onglets secondaires s'ajoutent à mesure. Avant, un
     // classement de championnat lent cachait le pronostic derrière un spinner
     // plein écran.
-    final ongletsEnCours = showTabs && (
+    final ongletsEnCours = (
       lineupsAsync.isLoading || injuriesAsync.isLoading ||
       standingsAsync.isLoading || h2hAsync.isLoading ||
       statsAsync.isLoading);
@@ -284,31 +327,24 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     bool visibleOrPrompt(AsyncValue<Object?> async, bool Function() hasContent) {
       final status = _statusOf(async.error);
       if (status == 401) return true;
+      if (async.hasValue && hasContent()) return true;
       if (async.isLoading) return false;
       if (async.hasError) return false;
       return hasContent();
     }
 
-    final showCotes        = showTabs && match.status != MatchStatus.finished;
-    final showStats        = showTabs && visibleOrPrompt(statsAsync,
-      () => statsAsync.valueOrNull != null);
+    final showCotes = match.hasPronostic && match.status != MatchStatus.finished;
+    final showStats = match.status != MatchStatus.upcoming;
+    // L'onglet reste stable pendant le rafraîchissement et les coupures réseau.
     // Les faits marquants vivent dans l'onglet Détails, pas dans Statistiques.
-    final showEvents = showTabs &&
-      _EventsList.hasNotable(statsAsync.valueOrNull?.events ?? const []);
-    final showCompositions = showTabs && visibleOrPrompt(lineupsAsync,
+    final showEvents = match.status != MatchStatus.upcoming;
+    final showCompositions = visibleOrPrompt(lineupsAsync,
       () => lineupsAsync.valueOrNull?.available == true);
-    final showBlessures    = showTabs && visibleOrPrompt(injuriesAsync,
+    final showBlessures    = visibleOrPrompt(injuriesAsync,
       () => injuriesAsync.valueOrNull?.isNotEmpty == true);
-    // Même condition que la carte elle-même : un classement qui ne contient
-    // aucune des deux équipes (tour qualificatif → tableau de la phase de
-    // ligue) ne mérite pas son onglet.
-    final showClassements  = showTabs && visibleOrPrompt(standingsAsync, () {
-      final rows = standingsAsync.valueOrNull;
-      return rows != null && rows.isNotEmpty && rows.any((r) =>
-          _StandingsCard.memeEquipe(r.teamName, match.homeTeam) ||
-          _StandingsCard.memeEquipe(r.teamName, match.awayTeam));
-    });
-    final showFaceAFace    = showTabs && visibleOrPrompt(h2hAsync,
+    // Stable even when the provider is temporarily unavailable.
+    const showClassements = true;
+    final showFaceAFace    = visibleOrPrompt(h2hAsync,
       () => h2hAsync.valueOrNull?.matches.isNotEmpty == true);
 
     // Entrée en cascade : chaque carte apparaît légèrement après la précédente,
@@ -350,7 +386,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         SingleChildScrollView(padding: rembourrage, child: child);
 
     final tabs = <(String, Widget)>[
-      if (showTabs) (tr(context, "Détails"), Column(children: [
+      (tr(context, "Détails"), Column(children: [
         // Entrée en cascade : chaque carte apparaît légèrement après la
         // précédente, ce qui guide le regard de haut en bas au lieu d'afficher
         // le bloc d'un coup.
@@ -358,6 +394,8 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           entree(_PronosticCard(match: match, isLocked: isLocked)),
           const SizedBox(height: 16),
         ],
+        _MatchInformationCard(matchId: match.id),
+        const SizedBox(height: 16),
         if (showEvents) ...[
           entree(_MatchEventsCard(matchId: match.id, match: match),
               delaiMs: 90),
@@ -367,12 +405,18 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           entree(_FormCard(match: match), delaiMs: 140),
           const SizedBox(height: 16),
         ],
+        if (match.hasPronostic) ...[
         entree(_AIAnalysisCard(matchId: match.id, status: match.status),
             delaiMs: 190),
         const SizedBox(height: 16),
         // Le « pourquoi » chiffré, juste sous l'analyse : c'est la question que
         // se pose l'utilisateur immédiatement après avoir lu le pronostic.
         entree(_AnalyseModele(matchId: match.id), delaiMs: 210),
+        ],
+        if (!match.hasPronostic) Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text(tr(context, "Aucun pronostic publié pour ce match."),
+            style: TextStyle(color: context.cl.textS))),
         if (match.status == MatchStatus.live) ...[
           const SizedBox(height: 16),
           entree(_CotesEnDirect(matchId: match.id), delaiMs: 230),
@@ -382,7 +426,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           entree(_NotesJoueurs(matchId: match.id), delaiMs: 230),
         ],
         const SizedBox(height: 16),
-        if (match.status == MatchStatus.upcoming) ...[
+        if (match.hasPronostic && match.status == MatchStatus.upcoming) ...[
           entree(_MiserButton(match: match), delaiMs: 240),
           const SizedBox(height: 16),
         ],
@@ -390,13 +434,14 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           entree(_AnalystCard(match: match), delaiMs: 270),
           const SizedBox(height: 16),
         ],
-        entree(CommentsSection(pronosticId: match.id), delaiMs: 310),
+        if (match.hasPronostic)
+          entree(CommentsSection(pronosticId: match.id), delaiMs: 310),
       ])),
       if (showCotes) (tr(context, "Cotes"), _OddsCard(match: match)),
       if (showStats) (tr(context, "Statistiques"), Column(children: [
         _MatchStatsCard(matchId: match.id),
         const SizedBox(height: 16),
-        _ButsParTranche(matchId: match.id),
+        if (match.hasPronostic) _ButsParTranche(matchId: match.id),
       ])),
       if (showCompositions) (tr(context, "Compositions"), _LineupsCard(match: match)),
       if (showBlessures) (tr(context, "Blessures"), _InjuriesCard(
@@ -422,7 +467,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         // effectifs entièrement renouvelés — un 2-0 de mai 2025 ne dit plus
         // grand-chose. La saison en cours dit ce que valent les deux équipes
         // *aujourd'hui*, et ces chiffres étaient déjà disponibles sans être lus.
-        _SaisonEnCours(match: match),
+        if (match.hasPronostic) _SaisonEnCours(match: match),
       ])),
     ];
 
@@ -490,7 +535,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
       body: Column(children: [
         // Page sans barre d'onglets : l'en-tête reste fixe, il n'y a pas
         // d'espace à récupérer.
-        if (!showTabs || (tabs.length <= 1 && !ongletsEnCours))
+        if (tabs.length <= 1 && !ongletsEnCours)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             child: context.animationsReduites
@@ -499,28 +544,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
                   .animate().fadeIn(duration: 350.ms)
                   .slideY(begin: -0.04, end: 0, curve: Curves.easeOutCubic),
           ),
-        if (!showTabs) ...[
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-              child: Column(children: [
-                if (match.hasPronostic) ...[
-                  entree(_PronosticCard(match: match, isLocked: isLocked),
-                      delaiMs: 130),
-                  const SizedBox(height: 16),
-                ],
-                if (match.status == MatchStatus.finished) ...[
-                  entree(_MatchStatsCard(matchId: match.id), delaiMs: 170),
-                  const SizedBox(height: 16),
-                ],
-                if (isLocked)
-                  entree(_PremiumBanner(
-                      onTap: () => goToPremium(context, ref)),
-                      delaiMs: 200),
-              ]),
-            ),
-          ),
-        ] else if (tabs.length <= 1 && !ongletsEnCours) ...[
+        if (tabs.length <= 1 && !ongletsEnCours) ...[
           Expanded(child: ongletSeul(tabs.first.$2)),
         ] else ...[
           // L'en-tête occupait ~23 % de la hauteur d'écran sur *chaque* onglet

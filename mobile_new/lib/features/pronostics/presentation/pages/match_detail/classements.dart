@@ -38,26 +38,10 @@ class _StandingsCard extends ConsumerWidget {
     return na == nb || na.contains(nb) || nb.contains(na);
   }
 
-  bool _concerneCeMatch(List<StandingRow> rows) => rows.any((r) =>
-      memeEquipe(r.teamName, homeTeam) || memeEquipe(r.teamName, awayTeam));
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final standingsAsync = ref.watch(standingsProvider(matchId));
     final status = _statusOf(standingsAsync.error);
-
-    // Bloqué sur le plan gratuit (ou match sans classement, ex. amical) → rien
-    if (standingsAsync.hasError && status != 401) return const SizedBox.shrink();
-    if (status == null && standingsAsync.valueOrNull?.isEmpty == true) return const SizedBox.shrink();
-
-    // Un classement qui ne contient aucune des deux équipes n'a rien à faire
-    // ici. C'est le cas des tours qualificatifs, où API-Football renvoie le
-    // tableau de la phase de ligue : 36 équipes, dont ni l'une ni l'autre de
-    // celles qu'on regarde. Mieux vaut pas d'onglet qu'un onglet trompeur.
-    final rows = standingsAsync.valueOrNull;
-    if (rows != null && rows.isNotEmpty && !_concerneCeMatch(rows)) {
-      return const SizedBox.shrink();
-    }
 
     return Container(
       width: double.infinity,
@@ -87,14 +71,99 @@ class _StandingsCard extends ConsumerWidget {
         const SizedBox(height: 12),
         status == 401
           ?  _CardLoginPrompt(message: tr(context, "Connecte-toi pour voir le classement."))
-          : standingsAsync.when(
-              loading: () => _H2HLoading(),
-              error: (_, _) => const SizedBox.shrink(),
-              data: (rows) => _StandingsTable(
-                rows: rows, homeTeam: homeTeam, awayTeam: awayTeam),
-            ),
+          : standingsAsync.hasValue && standingsAsync.valueOrNull!.isNotEmpty
+            ? _GroupedStandings(rows: standingsAsync.valueOrNull!, homeTeam: homeTeam,
+                awayTeam: awayTeam, failed: standingsAsync.hasError)
+            : standingsAsync.when(
+                loading: () => _H2HLoading(),
+                error: (_, _) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(tr(context, status == 404
+                    ? "Le fournisseur ne propose pas de classement pour cette compétition."
+                    : "Le classement est momentanément indisponible."),
+                    style: TextStyle(color: context.cl.textS)),
+                  if (status != 404) TextButton(
+                    onPressed: () => ref.invalidate(standingsProvider(matchId)),
+                    child: Text(tr(context, "Réessayer"))),
+                ]),
+                data: (_) => Text(tr(context, "Le classement n'est pas encore publié pour cette saison."),
+                  style: TextStyle(color: context.cl.textS)),
+              ),
       ]),
     );
+  }
+}
+
+
+/// Group selection stays independent of rankings (several groups can have rank 1).
+class _GroupedStandings extends StatefulWidget {
+  final List<StandingRow> rows;
+  final String homeTeam, awayTeam;
+  final bool failed;
+  const _GroupedStandings({required this.rows, required this.homeTeam,
+    required this.awayTeam, this.failed = false});
+  @override
+  State<_GroupedStandings> createState() => _GroupedStandingsState();
+}
+
+class _GroupedStandingsState extends State<_GroupedStandings> {
+  String? _selected;
+  @override
+  void didUpdateWidget(covariant _GroupedStandings oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.homeTeam != widget.homeTeam || oldWidget.awayTeam != widget.awayTeam) _selected = null;
+  }
+  @override
+  Widget build(BuildContext context) {
+    final groups = <String, List<StandingRow>>{};
+    for (final row in widget.rows) { (groups[row.groupId] ??= []).add(row); }
+    bool concerned(StandingRow r) => r.isMatchTeam ??
+      (_StandingsCard.memeEquipe(r.teamName, widget.homeTeam) ||
+       _StandingsCard.memeEquipe(r.teamName, widget.awayTeam));
+    final preferred = widget.rows.where(concerned).firstOrNull?.groupId ?? groups.keys.first;
+    final chosen = groups.containsKey(_selected) ? _selected! : preferred;
+    final rows = groups[chosen]!;
+    String label(String id) {
+      final name = groups[id]!.first.groupName;
+      if (name == null || name.trim().isEmpty) {
+        return tr(context, "Groupe {arg0}", [groups.keys.toList().indexOf(id) + 1]);
+      }
+      if (name.startsWith('Group ')) return tr(context, "Groupe {arg0}", [name.substring(6)]);
+      return name;
+    }
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      if (rows.first.season != null) Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(tr(context, "Saison {arg0}", [rows.first.season]),
+          style: TextStyle(color: context.cl.textS, fontSize: 12))),
+      if (groups.length > 1) ...[
+        Text(tr(context, "Groupe"), style: TextStyle(color: context.cl.textS)),
+        DropdownButton<String>(
+          key: const Key('standings-group'),
+          isExpanded: true, itemHeight: null, value: chosen,
+          dropdownColor: context.cl.surface,
+          items: [for (final id in groups.keys) DropdownMenuItem(value: id,
+            child: Padding(padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Text(label(id), style: TextStyle(color: context.cl.textP))))],
+          onChanged: (id) => setState(() => _selected = id)),
+        const SizedBox(height: 8),
+      ] else if (rows.first.groupName != null) Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Text(label(chosen), style: TextStyle(color: context.cl.textS))),
+      if (!widget.rows.any(concerned)) Padding(
+        padding: const EdgeInsets.only(bottom: 12),
+        child: Text(tr(context, "Classement de la compétition : les équipes de ce match n'y figurent pas."),
+          style: TextStyle(color: context.cl.textS, fontSize: 12))),
+      if (rows.first.updatedAt != null || widget.failed || rows.first.stale) ...[
+        _FraicheurDonnees(updatedAt: rows.first.updatedAt, stale: widget.failed || rows.first.stale),
+        const SizedBox(height: 12),
+      ],
+      LayoutBuilder(builder: (context, constraints) {
+        final minWidth = MediaQuery.textScalerOf(context).scale(310);
+        return SingleChildScrollView(scrollDirection: Axis.horizontal,
+          child: SizedBox(width: constraints.maxWidth < minWidth ? minWidth : constraints.maxWidth,
+            child: _StandingsTable(rows: rows, homeTeam: widget.homeTeam, awayTeam: widget.awayTeam)));
+      }),
+    ]);
   }
 }
 
@@ -150,11 +219,11 @@ class _StandingsTable extends StatelessWidget {
                 color: couleur ?? context.cl.border,
                 borderRadius: BorderRadius.circular(2))),
             const SizedBox(width: 7),
-            Text(r.zone!,
+            Expanded(child: Text(tr(context, r.zone!),
               style: TextStyle(
                 color: couleur ?? context.cl.textM,
                 fontSize: 10, fontWeight: FontWeight.w700,
-                letterSpacing: 0.2)),
+                letterSpacing: 0.2))),
           ]),
         ));
       }
@@ -165,7 +234,7 @@ class _StandingsTable extends StatelessWidget {
 
     return Column(children: [
       Row(children: [
-        const SizedBox(width: 22),
+        SizedBox(width: MediaQuery.textScalerOf(context).scale(22)),
         Expanded(child: Text(tr(context, "Équipe"),
           style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600))),
         _StandingsHeaderCell('J'),
@@ -190,8 +259,8 @@ class _LigneClassement extends StatelessWidget {
   Widget build(BuildContext context) {
     // Les deux equipes du match sont surlignees : sans repere, il fallait
     // parcourir trente-six lignes pour retrouver celles qu'on est venu voir.
-    final concernee = _StandingsCard.memeEquipe(row.teamName, homeTeam) ||
-                      _StandingsCard.memeEquipe(row.teamName, awayTeam);
+    final concernee = row.isMatchTeam ?? (_StandingsCard.memeEquipe(row.teamName, homeTeam) ||
+                      _StandingsCard.memeEquipe(row.teamName, awayTeam));
     final couleurZone = _couleurZone(row.zoneNature);
 
     return Container(
@@ -207,7 +276,7 @@ class _LigneClassement extends StatelessWidget {
       child: Row(children: [
         // Le rang porte la couleur de sa zone : le reperage marche aussi en
         // faisant defiler, une fois l'en-tete sorti de l'ecran.
-        SizedBox(width: 22, child: Text('${row.rank}',
+        SizedBox(width: MediaQuery.textScalerOf(context).scale(22), child: Text('${row.rank}',
           style: TextStyle(
             color: concernee
                 ? context.cl.accent
@@ -234,7 +303,7 @@ class _LigneClassement extends StatelessWidget {
             fontWeight: concernee ? FontWeight.w700 : FontWeight.w400))),
         _StandingsCell('${row.played}'),
         _StandingsCell(row.goalsDiff > 0 ? '+${row.goalsDiff}' : '${row.goalsDiff}'),
-        SizedBox(width: 28, child: Text('${row.points}', textAlign: TextAlign.center,
+        SizedBox(width: MediaQuery.textScalerOf(context).scale(28), child: Text('${row.points}', textAlign: TextAlign.center,
           style: TextStyle(color: context.cl.textP, fontSize: 11.5, fontWeight: FontWeight.w800))),
       ]),
     );
@@ -245,7 +314,7 @@ class _StandingsHeaderCell extends StatelessWidget {
   final String label;
   const _StandingsHeaderCell(this.label);
   @override
-  Widget build(BuildContext context) => SizedBox(width: 24,
+  Widget build(BuildContext context) => SizedBox(width: MediaQuery.textScalerOf(context).scale(24),
     child: Text(label, textAlign: TextAlign.center,
       style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600)));
 }
@@ -254,7 +323,7 @@ class _StandingsCell extends StatelessWidget {
   final String value;
   const _StandingsCell(this.value);
   @override
-  Widget build(BuildContext context) => SizedBox(width: 24,
+  Widget build(BuildContext context) => SizedBox(width: MediaQuery.textScalerOf(context).scale(24),
     child: Text(value, textAlign: TextAlign.center,
       style: TextStyle(color: context.cl.textS, fontSize: 11)));
 }

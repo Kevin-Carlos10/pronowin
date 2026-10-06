@@ -561,21 +561,19 @@ class _CotesEnDirect extends ConsumerWidget {
   final String matchId;
   const _CotesEnDirect({required this.matchId});
 
-  /// Les marchés réellement utiles à un parieur pendant le match. `/odds/live`
-  /// en renvoie 37, dont beaucoup de niches (« qui marquera le 10e but »)
-  /// qui noieraient l'information.
-  static const _marchesUtiles = {
-    'Match Winner', 'Asian Handicap', 'Match Goals', 'Both Teams Score',
-    'Double Chance', 'Over/Under Line',
-  };
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final data = ref.watch(liveOddsProvider(matchId)).valueOrNull;
+    final async = ref.watch(liveOddsProvider(matchId));
+    final data = async.valueOrNull;
     if (data == null || data.markets.isEmpty) return const SizedBox.shrink();
+    if ((data.updatedAt != null && DateTime.now().difference(data.updatedAt!).inMinutes >= 5) ||
+        (async.hasError && data.updatedAt == null)) {
+      return Text(tr(context, "Cotes en direct momentanément indisponibles."),
+        style: TextStyle(color: context.cl.textS));
+    }
 
     final marches = data.markets
-        .where((m) => _marchesUtiles.contains(m.name))
+        .where((m) => m.principal)
         .toList();
     if (marches.isEmpty) return const SizedBox.shrink();
 
@@ -602,12 +600,14 @@ class _CotesEnDirect extends ConsumerWidget {
                 color: context.cl.error, fontSize: 12, fontWeight: FontWeight.w800)),
         ]),
         const SizedBox(height: 4),
-        Text(tr(context, "Elles évoluent avec le match, contrairement aux cotes d'ouverture."),
+        _FraicheurDonnees(updatedAt: data.updatedAt, stale: data.stale || async.hasError),
+        const SizedBox(height: 4),
+        Text(tr(context, "Actualisation automatique toutes les 2 minutes."),
           style: TextStyle(color: context.cl.textM, fontSize: 10.5, height: 1.35)),
         const SizedBox(height: 14),
 
         for (final m in marches) ...[
-          Text(m.name.toUpperCase(),
+          Text(tr(context, m.name).toUpperCase(),
             style: TextStyle(
               color: context.cl.textM, fontSize: 9,
               fontWeight: FontWeight.w700, letterSpacing: 0.6)),

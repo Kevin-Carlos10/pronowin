@@ -75,6 +75,13 @@ class _FicheJoueurPageState extends ConsumerState<FicheJoueurPage> {
           final indice = _competition.clamp(0, f.stats.isEmpty ? 0 : f.stats.length - 1);
           return ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 32), children: [
             _EnTete(nom: f.name, photo: f.photo, fiche: f),
+          if (f.partial) Padding(padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr(context, "Certaines informations sont momentanément indisponibles."),
+                style: TextStyle(color: cl.textS)),
+              TextButton(onPressed: () => ref.invalidate(ficheJoueurProvider(widget.id)),
+                child: Text(tr(context, "Réessayer"))),
+            ])),
             const SizedBox(height: 14),
             _Identite(fiche: f),
             const SizedBox(height: 14),

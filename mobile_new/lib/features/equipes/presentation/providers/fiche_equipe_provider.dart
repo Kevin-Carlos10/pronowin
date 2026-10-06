@@ -48,6 +48,7 @@ class BilanSaison {
 }
 
 class FicheEquipe {
+  final bool partial;
   final int id;
   final String name;
   final String? country, logo;
@@ -58,13 +59,14 @@ class FicheEquipe {
   final int? season;
   final BilanSaison? bilan;
 
-  const FicheEquipe({required this.id, required this.name, this.country, this.logo, this.founded,
+  const FicheEquipe({this.partial = false,required this.id, required this.name, this.country, this.logo, this.founded,
       this.venue, this.coach, this.squad = const [], this.season, this.bilan});
 
   factory FicheEquipe.fromJson(Map<String, dynamic> j) {
     final v = j['venue'] as Map<String, dynamic>?;
     final c = j['coach'] as Map<String, dynamic>?;
     return FicheEquipe(
+      partial: j['partial'] == true,
       id: (j['id'] as num).toInt(),
       name: j['name'] as String? ?? '',
       country: j['country'] as String?, logo: j['logo'] as String?,

@@ -357,7 +357,18 @@ export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
           })
         : Promise.resolve(null),
     ]);
-    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+    if (!prono || !prono.isPublished) {
+      const match = prono?.match ?? await prisma.match.findUnique({ where: { id: req.params.id } });
+      if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+      res.json({ id: match.id, league: match.league, league_country: match.leagueCode,
+        home_team: match.homeTeam, away_team: match.awayTeam,
+        home_team_logo: match.homeTeamLogo, away_team_logo: match.awayTeamLogo,
+        match_date: match.matchDate, status: match.status.toLowerCase(),
+        home_score: match.homeScore, away_score: match.awayScore,
+        home_form_points: match.homeFormPoints, away_form_points: match.awayFormPoints,
+        has_pronostic: false, is_premium: false, locked: false });
+      return;
+    }
 
     const userIsPremium = user?.subscriptionPlan === 'premium' &&
       (!user.subscriptionExpiresAt || user.subscriptionExpiresAt > new Date());
@@ -421,15 +432,15 @@ export const getPronosticScore = async (req: AuthRequest, res: Response) => {
     // Accepte un id de pronostic OU de match : la page détail relaie celui que
     // lui a transmis l'écran d'origine (cf. findPronoByIdOrMatchId). Sans ça,
     // le score live ne se rafraîchissait jamais depuis l'onglet Pronostics.
-    const prono = await findPronoByIdOrMatchId(req.params.id);
-    if (!prono) { res.status(404).json({ message: 'Introuvable.' }); return; }
+    const match = await findMatchByIdOrPronoId(req.params.id);
+    if (!match) { res.status(404).json({ message: 'Introuvable.' }); return; }
     res.json({
-      homeScore: prono.match.homeScore,
-      awayScore: prono.match.awayScore,
-      status:    prono.match.status,
+      homeScore: match.homeScore,
+      awayScore: match.awayScore,
+      status:    match.status,
       // Minute de jeu — l'écran de direct affichait un score sans jamais dire
       // où on en était dans le match.
-      elapsed:   prono.match.elapsedMinutes,
+      elapsed:   match.elapsedMinutes,
     });
   } catch (e: any) { repondreErreur(res, e); }
 };
@@ -711,6 +722,12 @@ async function findPronoByIdOrMatchId(id: string) {
 }
 
 
+/** Les données football existent même sans contenu éditorial publié. */
+async function findMatchByIdOrPronoId(id: string) {
+  const prono = await findPronoByIdOrMatchId(id);
+  return prono?.match ?? prisma.match.findUnique({ where: { id } });
+}
+
 // ─── Enrichissements API-Football (plan Pro) ─────────────────────────────────
 //
 // Tous ces endpoints sont *optionnels* : ils enrichissent un match, ils ne le
@@ -826,14 +843,14 @@ export const getMatchInsights = async (req: AuthRequest, res: Response) => {
  */
 export const getLiveOdds = async (req: AuthRequest, res: Response) => {
   try {
-    const prono = await findPronoByIdOrMatchId(req.params.id);
-    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
-    if (prono.match.status !== 'LIVE') {
+    const match = await findMatchByIdOrPronoId(req.params.id);
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+    if (match.status !== 'LIVE') {
       res.status(400).json({ message: 'Cotes en direct réservées aux matchs en cours.' });
       return;
     }
 
-    const fixtureId = fixtureIdDe(prono.match);
+    const fixtureId = fixtureIdDe(match);
     if (!fixtureId) { res.status(404).json({ message: 'Données détaillées indisponibles pour ce match.' }); return; }
 
     const odds = await apiFootballInsights.getLiveOdds(fixtureId);
@@ -842,8 +859,10 @@ export const getLiveOdds = async (req: AuthRequest, res: Response) => {
     res.json({
       elapsed: odds.elapsed,
       markets: odds.markets,
-      // Cote d'ouverture du pronostic, pour situer la variation.
-      opening_odd: prono.oddsRecommended,
+      // Compatibilité anciens clients : ne pas exposer ici le choix éditorial Premium.
+      opening_odd: null,
+      updated_at: odds.updated_at,
+      stale: odds.stale,
     });
   } catch (e: any) { repondreErreur(res, e); }
 };
@@ -851,22 +870,22 @@ export const getLiveOdds = async (req: AuthRequest, res: Response) => {
 /** GET /pronostics/:id/ratings — notes des joueurs d'un match terminé. */
 export const getPlayerRatings = async (req: AuthRequest, res: Response) => {
   try {
-    const prono = await findPronoByIdOrMatchId(req.params.id);
-    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
-    if (prono.match.status !== 'FINISHED') {
+    const match = await findMatchByIdOrPronoId(req.params.id);
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+    if (match.status !== 'FINISHED') {
       res.status(400).json({ message: 'Notes disponibles après le coup de sifflet final.' });
       return;
     }
 
-    const fixtureId = fixtureIdDe(prono.match);
+    const fixtureId = fixtureIdDe(match);
     if (!fixtureId) { res.status(404).json({ message: 'Données détaillées indisponibles pour ce match.' }); return; }
 
     const ratings = await apiFootballInsights.getPlayerRatings(fixtureId);
     if (!ratings?.length) { res.status(503).json({ message: 'Notes indisponibles.' }); return; }
 
     res.json({
-      home_team: prono.match.homeTeam,
-      away_team: prono.match.awayTeam,
+      home_team: match.homeTeam,
+      away_team: match.awayTeam,
       players:   ratings,
     });
   } catch (e: any) { repondreErreur(res, e); }
@@ -967,18 +986,18 @@ export const getAdminPrediction = async (req: AdminRequest, res: Response) => {
 
 export const getH2H = async (req: AuthRequest, res: Response) => {
   try {
-    const prono = await findPronoByIdOrMatchId(req.params.id);
-    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+    const match = await findMatchByIdOrPronoId(req.params.id);
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
 
-    const externalId = prono.match.externalId;
+    const externalId = match.externalId;
     if (!externalId) { res.status(404).json({ message: 'ID externe manquant.' }); return; }
 
     // Deux fournisseurs identifient les matchs différemment : football-data.org
-    // par externalId direct, API-Football par ID d'équipe (retrouvé via date + noms).
-    const h2h = prono.match.source === 'API_FOOTBALL'
+    // par externalId direct ; API-Football retrouve les équipes via la fixture officielle.
+    const h2h = match.source === 'API_FOOTBALL'
       ? await apiFootballService.getH2H(
-          prono.match.homeTeam, prono.match.awayTeam,
-          new Date(prono.match.matchDate).toISOString().split('T')[0], 10,
+          match.homeTeam, match.awayTeam,
+          new Date(match.matchDate).toISOString().split('T')[0], 10, fixtureIdDe(match) ?? undefined,
         )
       : await fdSvc.getH2H(externalId, 10);
 
@@ -1001,8 +1020,8 @@ export const getH2H = async (req: AuthRequest, res: Response) => {
     res.json({
       aggregates:  h2h.aggregates,
       matches:     finished,
-      home_team:   prono.match.homeTeam,
-      away_team:   prono.match.awayTeam,
+      home_team:   match.homeTeam,
+      away_team:   match.awayTeam,
     });
   } catch (e: any) { repondreErreur(res, e); }
 };
@@ -1010,17 +1029,17 @@ export const getH2H = async (req: AuthRequest, res: Response) => {
 // Compositions d'équipe — uniquement disponibles côté API-Football (source unique désormais)
 export const getLineups = async (req: AuthRequest, res: Response) => {
   try {
-    const prono = await findPronoByIdOrMatchId(req.params.id);
-    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+    const match = await findMatchByIdOrPronoId(req.params.id);
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
 
-    if (prono.match.source !== 'API_FOOTBALL') {
+    if (match.source !== 'API_FOOTBALL') {
       res.json({ available: false, home: null, away: null });
       return;
     }
 
     const lineups = await apiFootballService.getLineups(
-      prono.match.homeTeam, prono.match.awayTeam,
-      new Date(prono.match.matchDate).toISOString().split('T')[0],
+      match.homeTeam, match.awayTeam,
+      new Date(match.matchDate).toISOString().split('T')[0], fixtureIdDe(match) ?? undefined,
     );
 
     if (!lineups) { res.status(503).json({ message: 'Compositions indisponibles.' }); return; }
@@ -1031,14 +1050,14 @@ export const getLineups = async (req: AuthRequest, res: Response) => {
 // Blessures / suspensions — uniquement disponibles côté API-Football
 export const getInjuries = async (req: AuthRequest, res: Response) => {
   try {
-    const prono = await findPronoByIdOrMatchId(req.params.id);
-    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+    const match = await findMatchByIdOrPronoId(req.params.id);
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
 
-    if (prono.match.source !== 'API_FOOTBALL') { res.json([]); return; }
+    if (match.source !== 'API_FOOTBALL') { res.json([]); return; }
 
     const injuries = await apiFootballService.getInjuries(
-      prono.match.homeTeam, prono.match.awayTeam,
-      new Date(prono.match.matchDate).toISOString().split('T')[0],
+      match.homeTeam, match.awayTeam,
+      new Date(match.matchDate).toISOString().split('T')[0], fixtureIdDe(match) ?? undefined,
     );
 
     if (injuries === null) { res.status(503).json({ message: 'Blessures indisponibles.' }); return; }
@@ -1046,15 +1065,22 @@ export const getInjuries = async (req: AuthRequest, res: Response) => {
   } catch (e: any) { repondreErreur(res, e); }
 };
 
-// Classement de la ligue du match — grandes ligues suivies uniquement
+// Classement de la compétition et de la saison du match, tous groupes.
 export const getStandings = async (req: AuthRequest, res: Response) => {
   try {
-    const prono = await findPronoByIdOrMatchId(req.params.id);
-    if (!prono) { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
+    const match = await findMatchByIdOrPronoId(req.params.id);
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
 
-    const standings = await apiFootballService.getStandings(prono.match.leagueCode);
-    if (standings === null) { res.status(503).json({ message: 'Classement indisponible.' }); return; }
-    res.json(standings);
+    const standings = await apiFootballService.getStandings(match.leagueCode, match.matchDate,
+      match.source === 'API_FOOTBALL' ? match.externalId : undefined);
+    if (standings.status === 'unavailable') { res.status(503).json({ code: 'STANDINGS_UNAVAILABLE', message: 'Classement momentanément indisponible.' }); return; }
+    if (standings.status === 'unsupported') { res.status(404).json({ code: 'STANDINGS_UNSUPPORTED', message: 'Classement non couvert pour cette compétition.' }); return; }
+    const rows = standings.rows;
+    if (req.query?.groups === 'all') { res.json(rows); return; }
+    // Older apps accept one flat table. Prefer a participating team's group;
+    // new apps opt in to every group explicitly.
+    const group = rows.find(r => r.isMatchTeam)?.groupId ?? rows[0]?.groupId;
+    res.json(rows.filter(r => r.groupId === group));
   } catch (e: any) { repondreErreur(res, e); }
 };
 
@@ -1110,37 +1136,31 @@ export const getMatchFromDB = async (req: AdminRequest, res: Response) => {
   } catch (e: any) { repondreErreur(res, e); }
 };
 
-// GET /pronostics/:id/match-stats — stats détaillées d'un match terminé via API-Football
+// GET /pronostics/:id/match-stats — statistiques et événements, en direct ou terminés
 export const getMatchStats = async (req: AuthRequest, res: Response) => {
   try {
-    // Cherche d'abord par pronostic ID, sinon directement par match ID
-    let match: any = null;
-
-    const pronostic = await prisma.pronostic.findUnique({
-      where:   { id: req.params.id },
-      include: { match: true },
-    });
-    if (pronostic) {
-      match = pronostic.match;
-    } else {
-      match = await prisma.match.findUnique({ where: { id: req.params.id } });
-    }
-
+    const match = await findMatchByIdOrPronoId(req.params.id);
     if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
-    if (match.status !== 'FINISHED') {
-      res.status(400).json({ message: 'Les stats ne sont disponibles que pour les matchs terminés.' });
-      return;
+    const fixtureId = fixtureIdDe(match);
+    if (!fixtureId) { res.status(404).json({ message: 'Données détaillées indisponibles pour ce match.' }); return; }
+    if (!['LIVE', 'FINISHED'].includes(match.status)) {
+      res.status(400).json({ message: 'Statistiques disponibles à partir du coup d’envoi.' }); return;
     }
-
-    const matchDate = new Date(match.matchDate).toISOString().split('T')[0];
-    const stats = await apiFootballService.getMatchStats(
-      match.leagueCode ?? '',
-      match.homeTeam,
-      match.awayTeam,
-      matchDate,
-    );
-
-    if (!stats) { res.status(404).json({ message: 'Stats non disponibles pour ce match.' }); return; }
+    const stats = await apiFootballService.getMatchStats(fixtureId, match.status);
+    if (!stats) { res.status(503).json({ message: 'Statistiques momentanément indisponibles.' }); return; }
     res.json(stats);
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+// GET /pronostics/:id/match-info — public, including fixtures without a prediction.
+export const getMatchInfo = async (req: AuthRequest, res: Response) => {
+  try {
+    const match = await findMatchByIdOrPronoId(req.params.id);
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+    const id = fixtureIdDe(match);
+    if (!id) { res.status(404).json({ message: 'Informations non fournies pour ce match.' }); return; }
+    const info = await apiFootballService.getMatchInfo(id, match.status, match.matchDate);
+    if (!info) { res.status(503).json({ message: 'Informations du match momentanément indisponibles.' }); return; }
+    res.json(info);
   } catch (e: any) { repondreErreur(res, e); }
 };

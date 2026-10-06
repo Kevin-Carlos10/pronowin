@@ -70,6 +70,7 @@ class TransfertJoueur {
 
 /// La fiche d'un joueur, telle que `/pronostics/joueurs/:id` la publie.
 class FicheJoueur {
+  final bool partial;
   final int id;
   final String name;
   final String? photo, nationality, height, weight, birthPlace;
@@ -81,7 +82,7 @@ class FicheJoueur {
   final List<AbsenceJoueur> absences;
   final List<TransfertJoueur> transferts;
 
-  const FicheJoueur({
+  const FicheJoueur({this.partial = false,
     required this.id, required this.name, required this.season,
     this.photo, this.nationality, this.height, this.weight, this.birthPlace, this.age,
     this.birthDate, this.injured = false,
@@ -92,6 +93,7 @@ class FicheJoueur {
   StatsCompetition? get principale => stats.isEmpty ? null : stats.first;
 
   factory FicheJoueur.fromJson(Map<String, dynamic> j) => FicheJoueur(
+    partial: j['partial'] == true,
     id: (j['id'] as num).toInt(),
     name: j['name'] as String? ?? '',
     photo: j['photo'] as String?,

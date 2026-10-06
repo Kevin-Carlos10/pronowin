@@ -1,4 +1,6 @@
 import type { AxiosInstance } from 'axios';
+import { CacheFootball, responseFootball, exigerQuotaEnrichissement } from './cache_football';
+import { enrichissementsFootball } from './enrichissements_football';
 import { traduireRecommandation } from './traduction_recommandation';
 import { extraireLigne, libelleSansLigne, marcheLisible, traduireMarche } from './cotes_live';
 import { evaluerFiabilite } from './fiabilite_modele';
@@ -67,7 +69,6 @@ export interface MatchPrediction {
 }
 
 /** Les prédictions d'un match ne bougent quasiment pas — cache long. */
-const predictionCache = new Map<number, { data: MatchPrediction; ts: number }>();
 const PREDICTION_TTL = 6 * 60 * 60 * 1000; // 6 h
 
 /**
@@ -114,7 +115,6 @@ export interface TeamSeasonStats {
   systeme?:            string | null;
 }
 
-const seasonStatsCache = new Map<string, { data: TeamSeasonStats; ts: number }>();
 const SEASON_STATS_TTL = 24 * 60 * 60 * 1000;
 
 // ─── Cotes en direct ──────────────────────────────────────────────────────────
@@ -125,10 +125,12 @@ export interface LiveOddValue {
   /** Seuil du marché — « 2.5 », « -0.5 ». Absent quand il n'y en a pas. */
   ligne?: string;
 }
-export interface LiveOddMarket { name: string; values: LiveOddValue[]; }
+export interface LiveOddMarket { key?: string; name: string; values: LiveOddValue[]; }
 
 export interface LiveOdds {
   fixtureId: number;
+  updated_at?: string | null;
+  stale?: boolean;
   elapsed:   number | null;
   markets:   LiveOddMarket[];
 }
@@ -138,7 +140,6 @@ export interface LiveOdds {
  * les matchs en cours d'un coup. Un appel toutes les 2 minutes suffit — les
  * cotes bougent, mais pas au point de justifier 30 s (× 4 le coût en quota).
  */
-let liveOddsCache: { data: Map<number, LiveOdds>; ts: number } | null = null;
 const LIVE_ODDS_TTL = 2 * 60 * 1000;
 
 // ─── Notes de joueurs ─────────────────────────────────────────────────────────
@@ -157,8 +158,7 @@ export interface PlayerRating {
 }
 
 /** Un match terminé ne change plus : cache très long. */
-const ratingsCache = new Map<number, { data: PlayerRating[]; ts: number }>();
-const RATINGS_TTL = 7 * 24 * 60 * 60 * 1000;
+const RATINGS_TTL = 5 * 60 * 1000;
 
 // ─── Buteurs ──────────────────────────────────────────────────────────────────
 
@@ -193,12 +193,12 @@ export const CLASSEMENTS_JOUEURS = {
 } as const;
 export type ClassementJoueurs = keyof typeof CLASSEMENTS_JOUEURS;
 
-const scorersCache = new Map<string, { data: TopScorer[]; ts: number }>();
 const SCORERS_TTL = 6 * 60 * 60 * 1000;
 
 // ══════════════════════════════════════════════════════════════════════════════
 
 export class ApiFootballInsights {
+  private liveOddsCache = new CacheFootball<Map<number, LiveOdds>>(1, 5 * 60_000);
   /**
    * Reçoit le client Axios déjà configuré par `ApiFootballService` plutôt que
    * d'en créer un second : une seule clé, un seul endroit où la lire, et les
@@ -213,12 +213,9 @@ export class ApiFootballInsights {
   async getPrediction(fixtureId: number): Promise<MatchPrediction | null> {
     if (!this.hasKey()) return null;
 
-    const hit = predictionCache.get(fixtureId);
-    if (hit && Date.now() - hit.ts < PREDICTION_TTL) return hit.data;
-
     try {
-      const r = await this.client.get('/predictions', { params: { fixture: fixtureId } });
-      const d = r.data?.response?.[0];
+      const rows = await enrichissementsFootball(this.client).get('/predictions', { fixture: fixtureId }, PREDICTION_TTL);
+      const d = rows[0];
       if (!d) return null;
 
       const p = d.predictions ?? {};
@@ -272,7 +269,6 @@ export class ApiFootballInsights {
           `[ApiFootball] prédiction inexploitable pour la fixture ${fixtureId} : ${verdict.raison}`);
       }
 
-      predictionCache.set(fixtureId, { data, ts: Date.now() });
       return data;
     } catch (e) {
       journal.error('[ApiFootball] /predictions indisponible:', (e as Error).message);
@@ -286,15 +282,9 @@ export class ApiFootballInsights {
   ): Promise<TeamSeasonStats | null> {
     if (!this.hasKey()) return null;
 
-    const cle = `${leagueId}_${season}_${teamId}`;
-    const hit = seasonStatsCache.get(cle);
-    if (hit && Date.now() - hit.ts < SEASON_STATS_TTL) return hit.data;
-
     try {
-      const r = await this.client.get('/teams/statistics', {
-        params: { league: leagueId, season, team: teamId },
-      });
-      const d = r.data?.response;
+      const d = await enrichissementsFootball(this.client).object('/teams/statistics',
+        { league: leagueId, season, team: teamId }, SEASON_STATS_TTL);
       if (!d?.goals) return null;
 
       const parMinute = (bloc: any): Record<string, number> => {
@@ -337,7 +327,6 @@ export class ApiFootballInsights {
           .sort((a: any, b: any) => (b?.played ?? 0) - (a?.played ?? 0))[0]?.formation ?? null,
       };
 
-      seasonStatsCache.set(cle, { data, ts: Date.now() });
       return data;
     } catch (e) {
       journal.error('[ApiFootball] /teams/statistics indisponible:', (e as Error).message);
@@ -353,30 +342,31 @@ export class ApiFootballInsights {
    * une requête par match, pour la même donnée.
    */
   async getLiveOdds(fixtureId: number): Promise<LiveOdds | null> {
-    const toutes = await this._getAllLiveOdds();
-    return toutes?.get(fixtureId) ?? null;
+    const result = await this.liveOddsCache.read('all', LIVE_ODDS_TTL, () => this._getAllLiveOdds());
+    const odds = result.data?.get(fixtureId);
+    return odds ? { ...odds, updated_at: result.updatedAt, stale: result.stale } : null;
   }
 
-  private async _getAllLiveOdds(): Promise<Map<number, LiveOdds> | null> {
-    if (!this.hasKey()) return null;
-    if (liveOddsCache && Date.now() - liveOddsCache.ts < LIVE_ODDS_TTL) {
-      return liveOddsCache.data;
-    }
+  private async _getAllLiveOdds(): Promise<Map<number, LiveOdds>> {
+    if (!this.hasKey()) throw new Error('Football API unavailable');
 
     try {
+      exigerQuotaEnrichissement();
       const r = await this.client.get('/odds/live');
-      const raw: any[] = r.data?.response ?? [];
+      const raw = responseFootball(r.data);
 
       const map = new Map<number, LiveOdds>();
       for (const m of raw) {
         const id = m.fixture?.id;
-        if (!id) continue;
+        if (!id || m.status?.blocked || m.status?.stopped || m.status?.finished) continue;
         map.set(id, {
           fixtureId: id,
           elapsed:   m.fixture?.status?.elapsed ?? null,
           markets: (m.odds ?? []).map((o: any) => ({
+            key: String(o.name ?? '').trim().toLowerCase(),
             name: traduireMarche(o.name ?? ''),
             values: (o.values ?? [])
+              .filter((v: any) => !o.suspended && !o.blocked && !o.stopped && !v.suspended && !v.blocked && !v.stopped)
               .map((v: any) => {
                 const ligne = extraireLigne(v);
                 return {
@@ -399,11 +389,10 @@ export class ApiFootballInsights {
         });
       }
 
-      liveOddsCache = { data: map, ts: Date.now() };
       return map;
     } catch (e) {
       journal.error('[ApiFootball] /odds/live indisponible:', (e as Error).message);
-      return null;
+      throw e;
     }
   }
 
@@ -413,12 +402,8 @@ export class ApiFootballInsights {
   ): Promise<PlayerRating[] | null> {
     if (!this.hasKey()) return null;
 
-    const hit = ratingsCache.get(fixtureId);
-    if (hit && Date.now() - hit.ts < RATINGS_TTL) return hit.data;
-
     try {
-      const r = await this.client.get('/fixtures/players', { params: { fixture: fixtureId } });
-      const raw: any[] = r.data?.response ?? [];
+      const raw = await enrichissementsFootball(this.client).get('/fixtures/players', { fixture: fixtureId }, RATINGS_TTL);
 
       const out: PlayerRating[] = [];
       for (const eq of raw) {
@@ -450,7 +435,7 @@ export class ApiFootballInsights {
       }
 
       out.sort((a, b) => b.rating - a.rating);
-      ratingsCache.set(fixtureId, { data: out, ts: Date.now() });
+
       return out;
     } catch (e) {
       journal.error('[ApiFootball] /fixtures/players indisponible:', (e as Error).message);
@@ -474,16 +459,9 @@ export class ApiFootballInsights {
   ): Promise<TopScorer[] | null> {
     if (!this.hasKey()) return null;
 
-    const cle = `${type}_${leagueId}_${season}`;
-    const hit = scorersCache.get(cle);
-    if (hit && Date.now() - hit.ts < SCORERS_TTL) return hit.data.slice(0, limit);
-
     const chemin = CLASSEMENTS_JOUEURS[type];
     try {
-      const r = await this.client.get(chemin, {
-        params: { league: leagueId, season },
-      });
-      const raw: any[] = r.data?.response ?? [];
+      const raw = await enrichissementsFootball(this.client).get(chemin, { league: leagueId, season }, SCORERS_TTL);
 
       const data: TopScorer[] = raw.map((e, i) => {
         const st = e.statistics?.[0] ?? {};
@@ -503,7 +481,6 @@ export class ApiFootballInsights {
         };
       });
 
-      scorersCache.set(cle, { data, ts: Date.now() });
       return data.slice(0, limit);
     } catch (e) {
       journal.error(`[ApiFootball] ${chemin} indisponible:`, (e as Error).message);

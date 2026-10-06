@@ -1,9 +1,16 @@
+import { MatchInfoService } from './match_info.service';
+import { MatchLiveService } from './match_live.service';
+import type { MatchStatsResult } from './match_live.service';
+export type { MatchEvent, MatchStat, MatchStatsResult } from './match_live.service';
 import axios, { AxiosError, AxiosInstance } from 'axios';
 import type { H2HResult, H2HMatch } from './football_data.service';
 import { FichesJoueurs } from './fiche_joueur.service';
 import { FichesEquipes } from './fiche_equipe.service';
 import { ApiFootballInsights } from './api_football_insights.service';
-import { zoneDepuisDescription } from './zones_classement';
+import { ClassementsFootball } from './classements_football.service';
+export type { StandingRow } from './classements_football.service';
+import { enrichissementsFootball } from './enrichissements_football';
+import { exigerQuotaEnrichissement } from './cache_football';
 import { traduireAbsence, estSuspension } from './traduction_absences';
 import { noterQuota } from './etat_taches';
 import { compterAppel } from './consommation_football.service';
@@ -162,34 +169,6 @@ export function matchStatusPriority(
   }
 }
 
-export interface MatchEvent {
-  minute:   number;
-  extra:    number | null;
-  team:     string;
-  player:   string;
-  assist:   string | null;
-  type:     'Goal' | 'Card' | 'subst' | string;
-  detail:   string; // 'Normal Goal', 'Yellow Card', 'Red Card', etc.
-}
-
-export interface MatchStat {
-  label: string;
-  home:  string | number | null;
-  away:  string | number | null;
-}
-
-export interface MatchStatsResult {
-  fixture_id: number;
-  events:     MatchEvent[];
-  stats:      MatchStat[];
-  home_team:  string;
-  away_team:  string;
-}
-
-// Cache simple en mémoire — les stats d'un match terminé ne changent plus
-const statsCache = new Map<string, { data: MatchStatsResult; ts: number }>();
-const CACHE_TTL = 24 * 60 * 60 * 1000; // 24h pour les matchs terminés
-
 // Cache des fixtures par date — partagé par la découverte de matchs ET la sync
 // des scores en direct. TTL calé juste sous l'intervalle de sync live (30s,
 // cf. index.ts) : un TTL plus long annulerait le bénéfice de l'intervalle
@@ -226,7 +205,6 @@ export interface LineupsResult {
 }
 
 // Compositions publiées peu avant le coup d'envoi — cache court pour rester à jour.
-const lineupsCache = new Map<string, { data: LineupsResult; ts: number }>();
 const LINEUPS_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
 // ─── Blessures / suspensions ────────────────────────────────────────────────
@@ -244,7 +222,6 @@ export interface InjuredPlayer {
   suspension: boolean;
 }
 
-const injuriesCache = new Map<string, { data: InjuredPlayer[]; ts: number }>();
 const INJURIES_CACHE_TTL = 30 * 60 * 1000; // 30 minutes — évolue peu dans la journée
 
 // ─── Cotes (1xBet) ───────────────────────────────────────────────────────────
@@ -292,30 +269,11 @@ const ODDS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // ─── Classement ──────────────────────────────────────────────────────────────
 
-export interface StandingRow {
-  rank:        number;
-  teamName:    string;
-  teamLogo:    string | null;
-  played:      number;
-  win:         number;
-  draw:        number;
-  lose:        number;
-  goalsDiff:   number;
-  points:      number;
-  form:        string | null; // ex. "WWDLW"
-  /// Zone de qualification ou de relegation, traduite. `null` si aucune.
-  zone:        string | null;
-  /// Nature de la zone, pour la couleur : c1, c3, c4, barrage, promotion,
-  /// relegation. Separee du libelle : une couleur ne doit pas dependre d une
-  /// chaine de caracteres.
-  zoneNature:  string | null;
-}
-
-const standingsCache = new Map<string, { data: StandingRow[]; ts: number }>();
-const STANDINGS_CACHE_TTL = 2 * 60 * 60 * 1000; // 2h — un classement ne bouge pas vite, mais autant refléter les matchs de la journée assez tôt
-
 export class ApiFootballService {
   private client: AxiosInstance;
+  private matchLive: MatchLiveService;
+  private matchInfo: MatchInfoService;
+  private classements: ClassementsFootball;
 
   /** Exposé pour `ApiFootballInsights`, qui partage la même clé et le même quota. */
   get httpClient(): AxiosInstance { return this.client; }
@@ -329,12 +287,32 @@ export class ApiFootballService {
       },
       timeout: 10000,
     });
+    this.matchLive = new MatchLiveService(this.client, () => this._hasKey());
+    this.matchInfo = new MatchInfoService(this.client, () => this._hasKey(), id => {
+      // Reuse the score synchronizer's recent raw fixtures without another API call.
+      for (const entry of friendliesCache.values()) {
+        if (Date.now() - entry.ts >= FRIENDLIES_CACHE_TTL) continue;
+        const fixture = entry.data.find(f => f.fixture.id === id);
+        if (fixture) return fixture;
+      }
+      return null;
+    });
+    this.classements = new ClassementsFootball(this.client, id => this.matchLive.fixture(id));
+    this.client.interceptors.request.use(config => {
+      // Keep the main fixture/score sync and settlement odds available.
+      if (config.url !== '/fixtures' && config.url !== '/odds') exigerQuotaEnrichissement();
+      return config;
+    });
     // Le quota restant voyage dans chaque réponse : on le relève pour le
     // tableau de bord (constat I6). Chaque appel est aussi compté, par
     // famille, pour l'écran de consommation du panneau — échecs compris :
     // le fournisseur les décompte aussi.
     this.client.interceptors.response.use(
-      (r) => { noterQuota(r.headers as any); compterAppel(r.config, { entetes: r.headers as any }); return r; },
+      (r) => { noterQuota(r.headers as any);
+        const rejected = !!r.data?.errors && Object.keys(r.data.errors).length > 0;
+        compterAppel(r.config, { entetes: r.headers as any, echec: rejected });
+        if (rejected) throw new Error('Football provider rejected request');
+        return r; },
       (e) => { compterAppel(e?.config, { echec: true, entetes: e?.response?.headers }); return Promise.reject(e); },
     );
   }
@@ -347,8 +325,7 @@ export class ApiFootballService {
 
   /** Recherche souple d'une fixture par équipes + date (fonctionne sur toutes les ligues, plan gratuit inclus). */
   private async _findFixtureByTeams(homeTeam: string, awayTeam: string, matchDate: string): Promise<any | null> {
-    const fixtureRes = await this.client.get('/fixtures', { params: { date: matchDate } });
-    const fixtures: any[] = fixtureRes.data?.response ?? [];
+    const fixtures = await enrichissementsFootball(this.client).get('/fixtures', { date: matchDate }, 60_000);
 
     const h = ApiFootballService._normalizeTeamName(homeTeam);
     const a = ApiFootballService._normalizeTeamName(awayTeam);
@@ -363,72 +340,12 @@ export class ApiFootballService {
     }) ?? null;
   }
 
-  async getMatchStats(
-    leagueCode: string,
-    homeTeam: string,
-    awayTeam: string,
-    matchDate: string, // YYYY-MM-DD
-  ): Promise<MatchStatsResult | null> {
-    const cacheKey = `${leagueCode}_${homeTeam}_${awayTeam}_${matchDate}`;
-    const cached = statsCache.get(cacheKey);
-    if (cached && Date.now() - cached.ts < CACHE_TTL) return cached.data;
+  getMatchInfo(fixtureId: number, status: string, matchDate: Date) {
+    return this.matchInfo.get(fixtureId, status, matchDate);
+  }
 
-    if (!this._hasKey()) {
-      journal.warn('[ApiFootball] Clé API_FOOTBALL_KEY manquante dans .env');
-      return null;
-    }
-
-    try {
-      // On cherche par date uniquement (league+season filtre trop sur le plan gratuit) —
-      // fonctionne pour n'importe quelle ligue, pas besoin de la connaître à l'avance.
-      const fixture = await this._findFixtureByTeams(homeTeam, awayTeam, matchDate);
-      if (!fixture) return null;
-
-      const fixtureId = fixture.fixture?.id;
-
-      // 2 — Récupérer events + stats en parallèle
-      const [eventsRes, statsRes] = await Promise.all([
-        this.client.get('/fixtures/events',     { params: { fixture: fixtureId } }),
-        this.client.get('/fixtures/statistics', { params: { fixture: fixtureId } }),
-      ]);
-
-      // Parser les événements
-      const rawEvents: any[] = eventsRes.data?.response ?? [];
-      const events: MatchEvent[] = rawEvents.map(e => ({
-        minute: e.time?.elapsed ?? 0,
-        extra:  e.time?.extra   ?? null,
-        team:   e.team?.name    ?? '',
-        player: e.player?.name  ?? '',
-        assist: e.assist?.name  ?? null,
-        type:   e.type   ?? '',
-        detail: e.detail ?? '',
-      }));
-
-      // Parser les statistiques
-      const rawStats: any[] = statsRes.data?.response ?? [];
-      const homeStats = rawStats[0]?.statistics ?? [];
-      const awayStats = rawStats[1]?.statistics ?? [];
-      const stats: MatchStat[] = homeStats.map((s: any, i: number) => ({
-        label: s.type,
-        home:  s.value,
-        away:  awayStats[i]?.value ?? null,
-      }));
-
-      const result: MatchStatsResult = {
-        fixture_id: fixtureId,
-        events,
-        stats,
-        home_team: fixture.teams?.home?.name ?? homeTeam,
-        away_team: fixture.teams?.away?.name ?? awayTeam,
-      };
-
-      statsCache.set(cacheKey, { data: result, ts: Date.now() });
-      return result;
-
-    } catch (err: any) {
-      journal.error('[ApiFootball] Erreur:', err.response?.data ?? err.message);
-      return null;
-    }
+  getMatchStats(fixtureId: number, status: string): Promise<MatchStatsResult | null> {
+    return this.matchLive.stats(fixtureId, status);
   }
 
   // ── Amicaux ("World - Friendlies", league id 10) ───────────────────────────
@@ -587,19 +504,19 @@ export class ApiFootballService {
     awayTeam: string,
     matchDate: string, // YYYY-MM-DD
     limit = 10,
+    fixtureId?: number,
   ): Promise<H2HResult | null> {
     if (!this._hasKey()) return null;
 
     try {
-      const fixture = await this._findFixtureByTeams(homeTeam, awayTeam, matchDate);
+      const fixture = fixtureId ? await this.matchLive.fixture(fixtureId)
+        : await this._findFixtureByTeams(homeTeam, awayTeam, matchDate);
       const homeTeamId = fixture?.teams?.home?.id;
       const awayTeamId = fixture?.teams?.away?.id;
       if (!homeTeamId || !awayTeamId) return null;
 
-      const r = await this.client.get('/fixtures/headtohead', {
-        params: { h2h: `${homeTeamId}-${awayTeamId}`, last: limit },
-      });
-      const fixtures: AFFixture[] = r.data?.response ?? [];
+      const fixtures: AFFixture[] = await enrichissementsFootball(this.client).get('/fixtures/headtohead',
+        { h2h: `${homeTeamId}-${awayTeamId}`, last: limit }, 60 * 60_000);
 
       let homeWins = 0, awayWins = 0, draws = 0;
       // Nombre de rencontres réellement comptabilisées, à ne pas confondre avec
@@ -666,25 +583,21 @@ export class ApiFootballService {
    * formation). Publiées par les clubs ~30-60 min avant le coup d'envoi —
    * `available: false` tant qu'elles ne sont pas encore sorties.
    */
-  async getLineups(homeTeam: string, awayTeam: string, matchDate: string): Promise<LineupsResult | null> {
+  async getLineups(homeTeam: string, awayTeam: string, matchDate: string, fixtureId?: number): Promise<LineupsResult | null> {
     if (!this._hasKey()) return null;
 
-    const cacheKey = `lineups_${homeTeam}_${awayTeam}_${matchDate}`;
-    const cached = lineupsCache.get(cacheKey);
-    if (cached && Date.now() - cached.ts < LINEUPS_CACHE_TTL) return cached.data;
 
     try {
-      const fixture = await this._findFixtureByTeams(homeTeam, awayTeam, matchDate);
+      const fixture = fixtureId ? await this.matchLive.fixture(fixtureId)
+        : await this._findFixtureByTeams(homeTeam, awayTeam, matchDate);
       if (!fixture) return null;
 
-      const r = await this.client.get('/fixtures/lineups', {
-        params: { fixture: fixture.fixture.id },
-      });
-      const raw: any[] = r.data?.response ?? [];
+      const raw = await enrichissementsFootball(this.client).get('/fixtures/lineups',
+        { fixture: fixture.fixture.id }, LINEUPS_CACHE_TTL);
 
       if (raw.length < 2) {
         const result: LineupsResult = { available: false, home: null, away: null };
-        lineupsCache.set(cacheKey, { data: result, ts: Date.now() });
+
         return result;
       }
 
@@ -711,15 +624,16 @@ export class ApiFootballService {
       });
 
       // L'API ne garantit pas l'ordre home/away — on recale sur l'id d'équipe.
-      const homeSide = raw.find(s => s.team?.id === fixture.teams?.home?.id) ?? raw[0];
-      const awaySide = raw.find(s => s.team?.id === fixture.teams?.away?.id) ?? raw[1];
+      const homeSide = raw.find(s => s.team?.id === fixture.teams?.home?.id);
+      const awaySide = raw.find(s => s.team?.id === fixture.teams?.away?.id);
+      if (!homeSide || !awaySide) return { available: false, home: null, away: null };
 
       const result: LineupsResult = {
         available: true,
         home: format(homeSide),
         away: format(awaySide),
       };
-      lineupsCache.set(cacheKey, { data: result, ts: Date.now() });
+
       return result;
     } catch (err) {
       const e = err as AxiosError;
@@ -731,21 +645,17 @@ export class ApiFootballService {
   // ── Blessures / suspensions ─────────────────────────────────────────────────
 
   /** Joueurs indisponibles (blessure, suspension) pour les deux équipes d'un match. */
-  async getInjuries(homeTeam: string, awayTeam: string, matchDate: string): Promise<InjuredPlayer[] | null> {
+  async getInjuries(homeTeam: string, awayTeam: string, matchDate: string, fixtureId?: number): Promise<InjuredPlayer[] | null> {
     if (!this._hasKey()) return null;
 
-    const cacheKey = `injuries_${homeTeam}_${awayTeam}_${matchDate}`;
-    const cached = injuriesCache.get(cacheKey);
-    if (cached && Date.now() - cached.ts < INJURIES_CACHE_TTL) return cached.data;
 
     try {
-      const fixture = await this._findFixtureByTeams(homeTeam, awayTeam, matchDate);
+      const fixture = fixtureId ? await this.matchLive.fixture(fixtureId)
+        : await this._findFixtureByTeams(homeTeam, awayTeam, matchDate);
       if (!fixture) return null;
 
-      const r = await this.client.get('/injuries', {
-        params: { fixture: fixture.fixture.id },
-      });
-      const raw: any[] = r.data?.response ?? [];
+      const raw = await enrichissementsFootball(this.client).get('/injuries',
+        { fixture: fixture.fixture.id }, INJURIES_CACHE_TTL);
 
       const mapped: InjuredPlayer[] = raw.map(item => ({
         // Pour ouvrir sa fiche depuis la liste des absents.
@@ -774,7 +684,6 @@ export class ApiFootballService {
         return true;
       });
 
-      injuriesCache.set(cacheKey, { data: result, ts: Date.now() });
       return result;
     } catch (err) {
       const e = err as AxiosError;
@@ -885,64 +794,13 @@ export class ApiFootballService {
 
   // ── Classement ───────────────────────────────────────────────────────────────
 
-  /**
-   * Classement d'une ligue suivie (WC/PL/BL1/SA/PD/FL1/CL — pas les amicaux,
-   * qui n'ont pas de tableau). ⚠️ Combine league+season, donc bloqué sur le
-   * plan gratuit ("Free plans do not have access to this season") tant que
-   * l'abonnement payant n'est pas actif — retourne null proprement dans ce cas.
-   */
-  async getStandings(leagueCode: string): Promise<StandingRow[] | null> {
-    if (!this._hasKey()) return null;
-    const league = LEAGUE_MAP[leagueCode];
-    if (!league || leagueCode === 'FRIENDLY') return null;
-
-    // La saison est demandée à l'API, pas lue dans une constante : c'est le
-    // gel de cette constante qui faisait servir la table finale de la saison
-    // précédente à chaque rentrée d'août.
-    const saison = (await saisonCourante(leagueCode)) ?? league.season;
-
-    // La clé de cache porte la saison. Sans elle, le jour du basculement, les
-    // deux heures de cache continueraient de servir l'ancien tableau.
-    const cacheKey = `standings_${leagueCode}_${saison}`;
-    const cached = standingsCache.get(cacheKey);
-    if (cached && Date.now() - cached.ts < STANDINGS_CACHE_TTL) return cached.data;
-
-    try {
-      const r = await this.client.get('/standings', {
-        params: { league: league.id, season: saison },
-      });
-      if (r.data?.errors && Object.keys(r.data.errors).length > 0) {
-        journal.warn('[ApiFootball] Classement indisponible (plan) :', JSON.stringify(r.data.errors));
-        return null;
-      }
-
-      const table: any[] = r.data?.response?.[0]?.league?.standings?.[0] ?? [];
-      const result: StandingRow[] = table.map(row => ({
-        rank:      row.rank,
-        teamName:  row.team?.name ?? '',
-        teamLogo:  row.team?.logo ?? null,
-        played:    row.all?.played ?? 0,
-        win:       row.all?.win ?? 0,
-        draw:      row.all?.draw ?? 0,
-        lose:      row.all?.lose ?? 0,
-        goalsDiff: row.goalsDiff ?? 0,
-        points:    row.points ?? 0,
-        form:      row.form ?? null,
-        // `description` porte la zone de qualification ou de relégation. Elle
-        // arrive en anglais et sous forme libre — « Promotion - Champions
-        // League (Group Stage) » — et n'était pas lue du tout.
-        zone:       zoneDepuisDescription(row.description)?.libelle ?? null,
-        zoneNature: zoneDepuisDescription(row.description)?.nature  ?? null,
-      }));
-
-      standingsCache.set(cacheKey, { data: result, ts: Date.now() });
-      return result;
-    } catch (err) {
-      const e = err as AxiosError;
-      journal.error('[ApiFootball] Erreur standings:', (e.response?.data as any) ?? e.message);
-      return null;
-    }
+  /** Classement de la compétition et de la saison du match, tous groupes. */
+  async getStandings(leagueCode: string, matchDate: Date, fixtureId?: number) {
+    if (!this._hasKey()) return { status: 'unavailable' as const, rows: [], season: null };
+    const leagueId = LEAGUE_MAP[leagueCode]?.id ?? (/^AF_\d+$/.test(leagueCode) ? Number(leagueCode.slice(3)) : undefined);
+    return this.classements.get({ fixtureId, leagueId, matchDate });
   }
+
 }
 
 export const apiFootballService = new ApiFootballService();

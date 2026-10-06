@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:dio/dio.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/cache/cache_service.dart';
 import '../../data/datasources/pronostics_remote_datasource.dart';
@@ -519,6 +520,12 @@ final injuriesProvider = FutureProvider.autoDispose.family<List<InjuredPlayer>, 
 
 // ─── Classement ─────────────────────────────────────────────────────────────────
 class StandingRow {
+  final String groupId;
+  final String? groupName;
+  final int? season, teamId;
+  final bool? isMatchTeam;
+  final bool stale;
+  final DateTime? updatedAt;
   final int    rank;
   final String teamName;
   final String? teamLogo;
@@ -539,6 +546,8 @@ class StandingRow {
   final String? zoneNature;
 
   const StandingRow({
+    this.groupId = '0', this.groupName, this.season, this.teamId,
+    this.isMatchTeam, this.stale = false, this.updatedAt,
     required this.rank, required this.teamName, this.teamLogo,
     required this.played, required this.win, required this.draw, required this.lose,
     required this.goalsDiff, required this.points, this.form,
@@ -546,6 +555,13 @@ class StandingRow {
   });
 
   factory StandingRow.fromJson(Map<String, dynamic> j) => StandingRow(
+    groupId: j['groupId']?.toString() ?? '0',
+    groupName: j['groupName'] as String?,
+    season: (j['season'] as num?)?.toInt(),
+    teamId: (j['teamId'] as num?)?.toInt(),
+    isMatchTeam: j['isMatchTeam'] as bool?,
+    stale: j['stale'] == true,
+    updatedAt: DateTime.tryParse(j['updatedAt'] as String? ?? ''),
     rank:      (j['rank'] as num).toInt(),
     teamName:  j['teamName'] as String? ?? '',
     teamLogo:  j['teamLogo'] as String?,
@@ -563,13 +579,13 @@ class StandingRow {
 
 final standingsProvider = FutureProvider.autoDispose.family<List<StandingRow>, String>((ref, id) async {
   final dio = ref.read(dioProvider);
-  final r   = await dio.get('/pronostics/$id/standings');
+  final r   = await dio.get('/pronostics/$id/standings', queryParameters: {'groups': 'all'});
   return (r.data as List)
     .map((e) => StandingRow.fromJson(e as Map<String, dynamic>))
     .toList();
 });
 
-// ─── Statistiques match terminé (API-Football) ───────────────────────────────
+// ─── Statistiques et événements du match (API-Football) ───────────────────────────────
 class MatchEvent {
   final int    minute;
   final int?   extra;
@@ -593,12 +609,16 @@ class MatchStat {
 }
 
 class MatchStatsData {
+  final String? eventsStatus, statsStatus;
   final int             fixtureId;
+  final DateTime? updatedAt;
+  final bool stale;
   final List<MatchEvent> events;
   final List<MatchStat>  stats;
   final String          homeTeam;
   final String          awayTeam;
-  const MatchStatsData({
+  const MatchStatsData({this.eventsStatus, this.statsStatus,
+    this.updatedAt, this.stale = false,
     required this.fixtureId, required this.events,
     required this.stats, required this.homeTeam, required this.awayTeam,
   });
@@ -627,13 +647,17 @@ final matchStatsProvider = FutureProvider.autoDispose.family<MatchStatsData?, St
     }).toList();
     return MatchStatsData(
       fixtureId: (d['fixture_id'] as num).toInt(),
+      eventsStatus: d['events_status'] as String?, statsStatus: d['stats_status'] as String?,
+      updatedAt: DateTime.tryParse(d['updated_at'] as String? ?? ''),
+      stale: d['stale'] == true,
       events:    events,
       stats:     stats,
       homeTeam:  d['home_team'] as String,
       awayTeam:  d['away_team'] as String,
     );
-  } catch (_) {
-    return null;
+  } on DioException catch (e) {
+    if (e.response?.statusCode == 400 || e.response?.statusCode == 404) return null;
+    rethrow;
   }
 });
 
@@ -979,23 +1003,39 @@ class LiveOddValue {
 }
 
 class LiveOddMarket {
+  final String? key;
   final String name;
   final List<LiveOddValue> values;
-  const LiveOddMarket({required this.name, required this.values});
+  const LiveOddMarket({this.key, required this.name, required this.values});
+
+  // Une clé stable sert au tri ; le libellé traduit ne doit pas servir d'identifiant.
+  // Les noms FR/EN restent acceptés pendant un déploiement progressif du serveur.
+  bool get principal => const {
+    'match winner', 'fulltime result', 'asian handicap', 'match goals',
+    'both teams score', 'both teams to score', 'double chance',
+    'over/under line', 'goals over/under', 'over/under',
+    'vainqueur du match', 'résultat final', 'handicap asiatique',
+    'total de buts', 'les deux équipes marquent', 'plus / moins de buts',
+  }.contains((key ?? name).trim().toLowerCase());
 }
 
 class LiveOddsData {
+  final DateTime? updatedAt;
+  final bool stale;
   final int? elapsed;
   final double openingOdd;
   final List<LiveOddMarket> markets;
-  const LiveOddsData({this.elapsed, required this.openingOdd, required this.markets});
+  const LiveOddsData({this.elapsed, this.updatedAt, this.stale = false, required this.openingOdd, required this.markets});
 
   factory LiveOddsData.fromJson(Map<String, dynamic> j) => LiveOddsData(
+    updatedAt: DateTime.tryParse(j['updated_at'] as String? ?? ''),
+    stale: j['stale'] == true,
     elapsed:    (j['elapsed'] as num?)?.toInt(),
     openingOdd: (j['opening_odd'] as num?)?.toDouble() ?? 0,
     markets: ((j['markets'] as List?) ?? const []).map((m) {
       final mm = m as Map<String, dynamic>;
       return LiveOddMarket(
+        key: mm['key'] as String?,
         name: mm['name'] as String? ?? '',
         values: ((mm['values'] as List?) ?? const []).map((v) {
           final vv = v as Map<String, dynamic>;

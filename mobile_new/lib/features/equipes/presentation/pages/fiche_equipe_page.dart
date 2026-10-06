@@ -84,6 +84,13 @@ class FicheEquipePage extends ConsumerWidget {
               onRetry: () => ref.invalidate(ficheEquipeProvider(cle))),
         data: (f) => ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 32), children: [
           _EnTete(nom: f.name, logo: f.logo ?? apercu?.logo, fiche: f),
+          if (f.partial) Padding(padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr(context, "Certaines informations sont momentanément indisponibles."),
+                style: TextStyle(color: cl.textS)),
+              TextButton(onPressed: () => ref.invalidate(ficheEquipeProvider(cle)),
+                child: Text(tr(context, "Réessayer"))),
+            ])),
           if (f.bilan != null) ...[const SizedBox(height: 14), _Saison(fiche: f)],
           if (f.venue != null || f.coach != null) ...[const SizedBox(height: 14), _StadeEtEntraineur(fiche: f)],
           if (f.squad.isNotEmpty) ...[const SizedBox(height: 14), _Effectif(joueurs: f.squad)],

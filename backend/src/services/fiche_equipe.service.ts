@@ -1,4 +1,5 @@
 import type { AxiosInstance } from 'axios';
+import { enrichissementsFootball } from './enrichissements_football';
 import { journal } from '../utils/logger';
 
 /**
@@ -43,11 +44,10 @@ export interface FicheEquipe {
     photo:       string | null;
   } | null;
   squad: JoueurEffectif[];
+  partial?: boolean;
 }
 
 const FICHE_TTL = 24 * 60 * 60 * 1000;
-const FICHES_MAX = 1000;
-const cache = new Map<number, { data: FicheEquipe | 'introuvable'; ts: number }>();
 
 const ORDRE_POSTES: Record<string, number> = { Goalkeeper: 0, Defender: 1, Midfielder: 2, Attacker: 3 };
 
@@ -70,28 +70,27 @@ export class FichesEquipes {
   async fiche(teamId: number): Promise<FicheEquipe | 'introuvable' | null> {
     if (!this.hasKey()) return null;
 
-    const hit = cache.get(teamId);
-    if (hit && Date.now() - hit.ts < FICHE_TTL) return hit.data;
-
     try {
-      const r = await this.client.get('/teams', { params: { id: teamId } });
-      const t = r.data?.response?.[0];
+      const api = enrichissementsFootball(this.client);
+      const rows = await api.get('/teams', { id: teamId }, FICHE_TTL);
+      const t = rows[0];
+      if (t && !t.team) throw new Error('Invalid team profile');
       if (!t?.team) {
-        this.garder(teamId, 'introuvable');
         return 'introuvable';
       }
 
+      let partial = false;
       const [coachs, effectif] = await Promise.all([
-        this.client.get('/coachs', { params: { team: teamId } })
-          .then((x) => x.data?.response ?? [])
-          .catch((e) => { journal.error('[ApiFootball] /coachs indisponible:', e.message); return []; }),
-        this.client.get('/players/squads', { params: { team: teamId } })
-          .then((x) => x.data?.response?.[0]?.players ?? [])
-          .catch((e) => { journal.error('[ApiFootball] /players/squads indisponible:', e.message); return []; }),
+        api.get('/coachs', { team: teamId }, FICHE_TTL)
+          .catch((e) => { partial = true; journal.error('[ApiFootball] /coachs indisponible:', e.message); return []; }),
+        api.get('/players/squads', { team: teamId }, FICHE_TTL)
+          .then((x) => x[0]?.players ?? [])
+          .catch((e) => { partial = true; journal.error('[ApiFootball] /players/squads indisponible:', e.message); return []; }),
       ]);
 
       const c = entraineurActuel(coachs, teamId);
       const fiche: FicheEquipe = {
+        partial,
         id:      t.team.id ?? teamId,
         name:    t.team.name ?? '',
         country: t.team.country ?? null,
@@ -123,7 +122,7 @@ export class FichesEquipes {
             (ORDRE_POSTES[a.position ?? ''] ?? 9) - (ORDRE_POSTES[b.position ?? ''] ?? 9)
             || (a.number ?? 999) - (b.number ?? 999)),
       };
-      this.garder(teamId, fiche);
+
       return fiche;
     } catch (e) {
       journal.error('[ApiFootball] fiche équipe indisponible:', (e as Error).message);
@@ -131,11 +130,4 @@ export class FichesEquipes {
     }
   }
 
-  private garder(teamId: number, data: FicheEquipe | 'introuvable') {
-    if (cache.size >= FICHES_MAX) {
-      const plusAncienne = cache.keys().next().value;
-      if (plusAncienne !== undefined) cache.delete(plusAncienne);
-    }
-    cache.set(teamId, { data, ts: Date.now() });
-  }
 }
