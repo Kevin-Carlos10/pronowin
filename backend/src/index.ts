@@ -145,8 +145,9 @@ app.use(globalLim);
  * désormais la base, avec un délai court, et répond 503 si celle-ci ne suit
  * pas. `/health/live` dit seulement que le processus répond.
  */
-app.get('/health/live', (_, res) => res.json({ status: 'ok' }));
-app.get('/health', async (_, res) => {
+// Public monitoring uses the API prefix; local probes retain their original paths.
+app.get(['/health/live', '/api/v1/health/live'], (_, res) => res.json({ status: 'ok' }));
+app.get(['/health', '/api/v1/health'], async (_, res) => {
   const debut = Date.now();
   try {
     await Promise.race([
