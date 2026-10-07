@@ -90,8 +90,11 @@ it('cotes live: clé stable, marchés suspendus exclus, un seul appel partagé',
   const [a, b] = await Promise.all([svc.getLiveOdds(42), svc.getLiveOdds(43)]);
   expect(client.get).toHaveBeenCalledTimes(1); expect(b).toBeNull();
   expect(a!.markets).toEqual([
-    { key: 'match winner', name: 'Vainqueur du match', values: [{ value: 'Home', odd: 1.8 }] },
-    { key: 'match goals', name: 'Total de buts', values: [{ value: 'Over', odd: 1.9, ligne: '2.5' }] },
+    // Chaque sélection porte ses deux libellés, pour l'app en français et en anglais.
+    { key: 'match winner', name: 'Vainqueur du match',
+      values: [{ value: 'Home', odd: 1.8, labels: { fr: 'Domicile', en: 'Home' } }] },
+    { key: 'match goals', name: 'Total de buts',
+      values: [{ value: 'Over', odd: 1.9, ligne: '2.5', labels: { fr: 'Plus de', en: 'Over' } }] },
   ]);
   jest.advanceTimersByTime(120_001);
   client.get.mockRejectedValueOnce(new Error('offline'));

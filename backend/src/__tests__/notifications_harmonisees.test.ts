@@ -5,7 +5,8 @@
 import fs from 'fs';
 import path from 'path';
 import { harmoniserNotification } from '../utils/notifications_anciennes';
-import { nomEquipe, PAYS } from '../utils/noms_equipes';
+import { nomEquipe, traduireEquipes } from '../utils/noms_equipes';
+import { catalog } from '../i18n/football';
 
 describe('les anciennes notifications, réécrites à la lecture', () => {
   it('les titres du système perdent leur émoji et leur majuscule', () => {
@@ -41,18 +42,23 @@ describe('les sélections nommées en français', () => {
     expect(nomEquipe('Barcelona')).toBe('Barcelona');
   });
 
-  it('la table du serveur est celle du mobile', () => {
-    // Deux copies, deux langages : c'est précisément ce qui diverge.
-    const dart = fs.readFileSync(
-      path.join(__dirname, '..', '..', '..', 'mobile_new', 'lib', 'core', 'utils', 'noms_equipes.dart'), 'utf8');
-    const debut = dart.indexOf('const _pays');
-    const bloc = dart.slice(debut, dart.indexOf('\n};', debut));
-    const mobile: Record<string, string> = {};
-    for (const m of bloc.matchAll(/(?:'([^']*)'|"([^"]*)")\s*:\s*(?:'([^']*)'|"([^"]*)")/g)) {
-      mobile[m[1] ?? m[2]] = m[3] ?? m[4];
+  it('les noms viennent du catalogue partagé avec le mobile et le panneau', () => {
+    // Une seule table : le serveur en portait une copie recopiée à la main,
+    // que le catalogue généré (`translations:check`) a rendue inutile.
+    const pays = catalog.countries as { en: string; fr: string; aliases: string[] }[];
+    expect(pays.length).toBeGreaterThan(100);
+    for (const p of pays) {
+      expect(nomEquipe(p.en)).toBe(p.fr);
+      for (const alias of p.aliases) expect(nomEquipe(alias)).toBe(p.fr);
     }
-    expect(Object.keys(mobile).length).toBeGreaterThan(100);
-    expect(PAYS).toEqual(mobile);
+  });
+
+  it('dans un libellé, seules les deux équipes du match sont traduites', () => {
+    expect(traduireEquipes('Norway gagne', ['Norway', 'Italy'])).toBe('Norvège gagne');
+    // Les variantes connues du catalogue aussi.
+    expect(traduireEquipes("Cote D'Ivoire gagne", ['Ivory Coast', 'Ghana'])).toBe("Côte d'Ivoire gagne");
+    // Un joueur qui porte un nom de pays n'est pas touché.
+    expect(traduireEquipes('Jordan Henderson buteur', ['England', 'Spain'])).toBe('Jordan Henderson buteur');
   });
 
   it('les notifications de match passent par `nomEquipe`', () => {

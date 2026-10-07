@@ -71,7 +71,9 @@ void main() {
     });
 
     test('le motif affiché est celui du serveur', () {
-      expect(code.contains('Text(player.reason'), isTrue);
+      // Passé seulement par le catalogue partagé, pour la langue de l'app —
+      // pas par une table propre à l'écran.
+      expect(code.contains('Text(FootballLabels.absence(player.reason'), isTrue);
       expect(code.contains('Text(_label'), isFalse);
     });
 
