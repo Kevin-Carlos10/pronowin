@@ -694,6 +694,7 @@ app.set('views', path.join(__dirname, 'views'));
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(cookieParser());
+app.use(require('./lib/ui-language').middleware);
 // Le proxy public réserve /admin au panneau ; les autres chemins vont au site.
 app.use('/admin/assets', express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'public')));
@@ -992,6 +993,7 @@ app.use((req, res, next) => {
   res.locals.niveauAccorde = niveauAccorde;
   // Noms des marchés de paris en français (formulaire de pronostic).
   res.locals.MARCHES_FR = MARCHES_FR;
+  res.locals.STATUTS_FR = Object.fromEntries(require('../backend/src/i18n/football').catalog.statuses.flatMap(s => [s.en, ...s.aliases].map(k => [k, s.fr])));
   // Injecter les paramètres globaux (annonce, titre…)
   const settings = loadSettings();
   res.locals.settings = settings;

@@ -247,7 +247,7 @@ class _FeaturedNewsCard extends StatelessWidget {
                   ]),
                   const Spacer(),
                   // Titre
-                  Text(news['titre'] as String? ?? '',
+                  Text(editorialField(news, 'titre'),
                     style: const TextStyle(
                       color: Colors.white, fontSize: 15,
                       fontWeight: FontWeight.w800, height: 1.3),
@@ -331,7 +331,7 @@ class _CompactNewsCard extends StatelessWidget {
               ),
               const SizedBox(height: 5),
               // Titre
-              Text(news['titre'] as String? ?? '',
+              Text(editorialField(news, 'titre'),
                 style: TextStyle(
                   color: isRead ? context.cl.textS : context.cl.textP,
                   fontSize: 12,
@@ -386,7 +386,7 @@ class _NewsDetailSheet extends StatelessWidget {
     final cat       = news['categorie'] as String?;
     final accent    = context.cl.lisible(_newsAccent(cat));
     final imgUrl    = news['image_url'] as String?;
-    final resume    = news['resume'] as String? ?? '';
+    final resume    = editorialField(news, 'resume');
     final sourceUrl = news['source_url'] as String?;
     final hasSource = sourceUrl != null && sourceUrl.isNotEmpty;
 
@@ -459,7 +459,7 @@ class _NewsDetailSheet extends StatelessWidget {
                   const SizedBox(height: 14),
 
                   // Titre
-                  Text(news['titre'] as String? ?? '',
+                  Text(editorialField(news, 'titre'),
                     style: TextStyle(
                       color: context.cl.textP, fontSize: 20,
                       fontWeight: FontWeight.w800, height: 1.3)),
@@ -486,7 +486,7 @@ class _NewsDetailSheet extends StatelessWidget {
                         onTap: () {
                           context.push('/navigateur', extra: {
                             'url':   sourceUrl,
-                            'title': news['titre'] as String? ?? '',
+                            'title': editorialField(news, 'titre'),
                           });
                         },
                         child: Container(

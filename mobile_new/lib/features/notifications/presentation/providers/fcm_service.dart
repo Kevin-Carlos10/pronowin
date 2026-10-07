@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -217,6 +218,7 @@ class FCMService {
     try {
       await ref.read(dioProvider).post('/notifications/register-token', data: {
         'fcm_token': token,
+        'language': AppStrings.current.locale.languageCode,
         // « android » était écrit en dur : chaque iPhone était enregistré
         // comme un Android.
         'platform':  plateforme(),

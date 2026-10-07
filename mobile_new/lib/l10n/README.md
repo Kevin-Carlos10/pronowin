@@ -32,10 +32,22 @@ language requires a new catalogue, delegate locale, and picker option.
 
 ## Content supplied by the server
 
-Analyst notes, prediction market labels, tutorial bodies, news, comments, team
-names and remote push notifications are not machine-translated. They retain the
-language in which they were published. Serving translated editorial content and
-push notifications requires backend fields and a server-side language preference.
+Known football markets, selections, countries, rounds, absences and transfers use
+football_labels.dart and the generated shared football catalogue. Display labels
+follow FR/EN; raw values remain unchanged. Run the backend generator and both
+football translation test suites when extending the vocabulary.
+
+Analyst notes, custom predictions, tutorial bodies and news support optional
+English fields supplied by the server. editorial_text.dart selects English when
+present, otherwise the original. Cache serialization preserves both originals.
+Editors enter English content in admin; neither arbitrary prose, RSS nor user
+comments are automatically machine-translated.
+
+Notifications carry both languages in data and the inbox. FCM token registration
+includes the device language; settings migrate public and favourite subscriptions
+between the original French topic and its _en counterpart. Failed offline sync
+retains the local preference and is retried on startup. Backend deployment and
+the bilingual content migration must precede the new mobile release.
 
 Do not translate arbitrary user data or hide a server message by replacing it
 with a generic message. Keep account/purchase state, currency and stake rules
@@ -48,5 +60,8 @@ placeholder safety, language persistence, switching on the real settings screen,
 the welcome screens, English match cards at 320 px with enlarged text, and that
 switching languages leaves stored tutorial data unchanged.
 
-A new mobile build is required to deliver these bundled translations. No backend,
-website, admin, app version, or publication setting is changed by this feature.
+A new mobile build is required to deliver these bundled translations. See
+backend/src/i18n/README.md for migration and server/admin deployment order.
+No app version or publication setting is changed by the translation work.
+The editorial translation test also verifies cached sources, language changes,
+recommendations, bankroll labels and notification read-state preservation.

@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', { page: 'bans' }) %>
 
 <style>
@@ -89,7 +90,7 @@
 <header class="workspace-header">
   <div class="workspace-heading">
     <p class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Modération & confiance</p>
-    <h1><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannissements</h1>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> <%= uiText("Bannissements") %></h1>
     <p class="workspace-description">
       <% if (filter === 'active') { %><strong><%= stats.active %></strong> ban<%= stats.active!==1?'s':'' %> actif<%= stats.active!==1?'s':'' %> à suivre.
       <% } else if (filter === 'expired') { %><strong><%= total %></strong> entrée<%= total!==1?'s':'' %> levée<%= total!==1?'s':'' %> ou expirée<%= total!==1?'s':'' %>.
@@ -199,17 +200,17 @@
         Durée
       </label>
       <select class="input" id="qb-duration" aria-label="Durée du bannissement">
-        <option value="1">1 jour</option>
+        <option value="1"><%= uiText("1 jour") %></option>
         <option value="3">3 jours</option>
-        <option value="7" selected>7 jours</option>
+        <option value="7" selected><%= uiText("7 jours") %></option>
         <option value="14">14 jours</option>
-        <option value="30">30 jours</option>
-        <option value="90">90 jours</option>
+        <option value="30"><%= uiText("30 jours") %></option>
+        <option value="90"><%= uiText("90 jours") %></option>
         <option value="0">Permanent ♾️</option>
       </select>
     </div>
     <div style="grid-column:1/-1;display:flex;justify-content:flex-end;gap:.5rem">
-      <button class="btn btn-outline" onclick="toggleQuickBan()">Annuler</button>
+      <button class="btn btn-outline" onclick="toggleQuickBan()"><%= uiText("Annuler") %></button>
       <button class="btn btn-danger" type="button" onclick="submitQuickBan()">
         <svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir
       </button>
@@ -234,7 +235,7 @@
   <form method="GET" action="/admin/bans" style="display:flex;gap:.4rem;flex:1;max-width:340px">
     <input type="hidden" name="filter" value="<%= filter %>">
     <input class="input" type="search" name="search" value="<%= search %>"
-      placeholder="Pseudo, raison, admin…" style="flex:1" aria-label="Rechercher">
+      placeholder="Pseudo, raison, admin…" style="flex:1" aria-label="<%= uiText("Rechercher") %>">
     <button class="btn btn-primary btn-sm" type="submit" aria-label="Lancer la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></button>
     <% if (search) { %>
     <a href="/admin/bans?filter=<%= filter %>" class="btn btn-outline btn-sm" aria-label="Effacer la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></a>
@@ -279,7 +280,7 @@
     <div style="background:var(--surface-d);border:1px solid var(--border);border-radius:12px;padding:.85rem .9rem">
       <div style="font-size:.8rem;font-weight:700;margin-bottom:.25rem">Où bannir</div>
       <div style="font-size:.74rem;color:var(--text-dim);line-height:1.5">
-        Depuis la fiche d'un utilisateur, section <em>Modération</em>. Une raison est obligatoire.
+        Depuis la fiche d'un utilisateur, section <em><%= uiText("Modération") %></em>. Une raison est obligatoire.
       </div>
     </div>
     <div style="background:var(--surface-d);border:1px solid var(--border);border-radius:12px;padding:.85rem .9rem">
@@ -320,13 +321,13 @@
   <table>
     <thead>
       <tr>
-        <th scope="col">Utilisateur</th>
+        <th scope="col"><%= uiText("Utilisateur") %></th>
         <th scope="col">Raison</th>
         <th scope="col">Durée</th>
         <th scope="col">Banni le</th>
         <th scope="col">Expire le</th>
         <th scope="col">Par</th>
-        <th scope="col">Statut</th>
+        <th scope="col"><%= uiText("Statut") %></th>
         <th scope="col" style="text-align:right">Actions</th>
       </tr>
     </thead>
@@ -406,7 +407,7 @@
         <% } else if (isSoon) { %>
           <span class="st-pill st-soon"><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Expire bientôt</span>
         <% } else { %>
-          <span class="st-pill st-active"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Actif</span>
+          <span class="st-pill st-active"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> <%= uiText("Actif") %></span>
         <% } %>
       </td>
 

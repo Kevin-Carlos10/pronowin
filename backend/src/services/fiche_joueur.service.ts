@@ -1,5 +1,6 @@
 import type { AxiosInstance } from 'axios';
 import { enrichissementsFootball } from './enrichissements_football';
+import { transfer } from '../i18n/football';
 import { traduireAbsence, estSuspension } from './traduction_absences';
 import { journal } from '../utils/logger';
 
@@ -97,10 +98,7 @@ const nombre = (v: unknown): number => (typeof v === 'number' && Number.isFinite
 export function traduireTypeTransfert(type: unknown): string {
   const t = typeof type === 'string' ? type.trim() : '';
   if (!t || /^n\/?a$/i.test(t) || /^transfer$/i.test(t)) return 'Transfert';
-  if (/^loan$/i.test(t)) return 'Prêt';
-  if (/^back from loan$/i.test(t)) return 'Retour de prêt';
-  if (/^free( transfer)?$/i.test(t)) return 'Libre';
-  return t; // un montant (« € 25M ») se lit tel quel
+  return transfer(t, 'fr').text; // un montant (« € 25M ») se lit tel quel
 }
 
 export function versStats(s: any): StatsCompetition {

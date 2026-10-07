@@ -725,7 +725,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div class="sri-info">
             <div class="sri-title">${highlight(tx.user?.pseudo ?? '—', q)} · <strong>${(tx.amount??0).toLocaleString()} FCFA</strong></div>
-            <div class="sri-sub">Versement · ${esc(tx.status ?? '')} · ${esc(tx.paymentMethod?.replace(/_/g,' ') ?? '')}</div>
+            <div class="sri-sub">Versement · ${esc((<%- JSON.stringify(STATUTS_FR) %>)[String(tx.status ?? '').toLowerCase()] ?? tx.status ?? '')} · ${esc(tx.paymentMethod?.replace(/_/g,' ') ?? '')}</div>
           </div>
           <div class="sri-arrow">→</div>
         </a>`;

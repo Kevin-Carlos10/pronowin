@@ -1307,3 +1307,9 @@ html.light[data-accent="blue"] { --primary: #1D4ED8; }
 html.light[data-accent="green"] { --primary: #047857; }
 html.light[data-accent="purple"] { --primary: #6D28D9; }
 html.light[data-accent="pink"] { --primary: #BE185D; }
+
+/* Preview publication labels without changing the stored selection. */
+.translation-preview { grid-column: 1 / -1; padding: 1rem; border: 1px solid var(--border); border-radius: 12px; background: var(--bg-soft); }
+.translation-preview-title { font-weight: 600; }
+.translation-preview small { color: var(--text-m); }
+#translation-unknown { color: var(--on-warning); overflow-wrap: anywhere; }

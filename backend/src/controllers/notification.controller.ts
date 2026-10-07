@@ -1,3 +1,4 @@
+import { englishPair } from '../i18n/editorial';
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { AdminRequest } from '../middleware/admin.middleware';
@@ -15,6 +16,7 @@ export const getMyNotifications = async (req: AuthRequest, res: Response) => {
       id:         n.id,
       title:      n.title,
       body:       n.body,
+      title_en: n.titleEn, body_en: n.bodyEn,
       type:       n.type,
       is_read:    n.isRead,
       deep_link:  n.deepLink,
@@ -47,7 +49,7 @@ export const registerToken = async (req: AuthRequest, res: Response) => {
     res.status(422).json({ message: 'fcm_token requis.' }); return;
   }
   try {
-    await svc.registerToken(req.userId!, fcm_token.trim(), platform === 'ios' ? 'ios' : 'android');
+    await svc.registerToken(req.userId!, fcm_token.trim(), platform === 'ios' ? 'ios' : 'android', typeof req.body.language === 'string' ? req.body.language : undefined);
     res.json({ success: true });
   } catch (e: any) { repondreErreur(res, e); }
 };
@@ -57,6 +59,7 @@ export const sendToUser = async (req: AdminRequest, res: Response) => {
   if (!title || !body) { res.status(422).json({ message: 'title et body requis.' }); return; }
   try {
     const result = await svc.sendToUser(req.params.userId, {
+      ...englishPair(req.body.title_en, req.body.body_en),
       title, body, data: deep_link ? { deep_link } : {},
     });
     if (!result.success && (result as any).reason === 'no_token') {
@@ -101,6 +104,7 @@ export const sendSegment = async (req: AdminRequest, res: Response) => {
   };
 
   try {
+    Object.assign(charge, englishPair(req.body.title_en, req.body.body_en));
     // Cible unique : le formulaire admin propose ce mode pour tester un message
     // avant diffusion. `target_user` n'était pas transmis et « user » n'existe
     // pas comme segment — l'envoi échouait systématiquement.
@@ -116,6 +120,6 @@ export const sendToTopic = async (req: AdminRequest, res: Response) => {
   const { topic, title, body, deep_link } = req.body;
   if (!topic || !title || !body) { res.status(422).json({ message: 'topic, title et body requis.' }); return; }
   try {
-    res.json(await svc.sendToTopic(topic, { title, body, data: deep_link ? { deep_link } : {} }));
+    res.json(await svc.sendToTopic(topic, { ...englishPair(req.body.title_en, req.body.body_en), title, body, data: deep_link ? { deep_link } : {} }));
   } catch (e: any) { repondreErreur(res, e); }
 };

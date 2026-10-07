@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -100,6 +101,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 
     // Synchroniser les topics FCM avec les préférences sauvegardées
     await _syncAllTopics(state);
+    await _syncLanguage();
   }
 
   // ─── Synchroniser tous les topics au démarrage ────────────────────────────
@@ -113,11 +115,14 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   // ─── S'abonner ou se désabonner d'un topic FCM ───────────────────────────
   Future<void> _setTopic(String topic, bool subscribe) async {
     try {
+      final selected = state.lang == 'en' ? '${topic}_en' : topic;
+      final other = state.lang == 'en' ? topic : '${topic}_en';
+      await _fcm.unsubscribeFromTopic(other);
       if (subscribe) {
-        await _fcm.subscribeToTopic(topic);
+        await _fcm.subscribeToTopic(selected);
         debugPrint('[FCM Topics] ✅ Abonné à : $topic');
       } else {
-        await _fcm.unsubscribeFromTopic(topic);
+        await _fcm.unsubscribeFromTopic(selected);
         debugPrint('[FCM Topics] 🔕 Désabonné de : $topic');
       }
     } catch (e) {
@@ -149,8 +154,22 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     _languageWrite = _languageWrite.catchError((Object _) {}).then((_) async {
       final p = await SharedPreferences.getInstance();
       await p.setString(_kLang, language);
+      await _syncAllTopics(state);
+      await _syncLanguage();
     });
     return _languageWrite;
+  }
+
+  Future<void> _syncLanguage() async {
+    try {
+      final token = await _fcm.getToken();
+      if (token != null) {
+        await _ref.read(dioProvider).post('/notifications/register-token', data: {
+          'fcm_token': token, 'language': state.lang,
+          'platform': defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android',
+        });
+      }
+    } catch (_) { /* Local preference is retained; token registration retries at startup. */ }
   }
 
   // ─── Toggle notification (local + FCM topic + serveur) ────────────────────

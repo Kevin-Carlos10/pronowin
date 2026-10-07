@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'tutoriels'}) %>
 
 <style>
@@ -102,7 +103,7 @@
 <header class="workspace-header">
   <div class="workspace-heading">
     <p class="workspace-eyebrow">Contenu & apprentissage</p>
-    <h1><svg class="ic" aria-hidden="true"><use href="#ic-book"/></svg> Tutoriels</h1>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-book"/></svg> <%= uiText("Tutoriels") %></h1>
     <p class="workspace-description"><%= stats.total %> tutoriel<%= stats.total!==1?'s':'' %>, dont <%= stats.premium %> Premium et <%= stats.free %> gratuit<%= stats.free!==1?'s':'' %>.</p>
   </div>
   <div class="workspace-actions">
@@ -123,30 +124,30 @@
   <div class="tut-stat metric-card"><div class="v" style="color:var(--on-info)"><%= stats.total %></div><div class="l">Total</div></div>
   <div class="tut-stat metric-card"><div class="v" style="color:var(--on-warning)"><%= stats.premium %></div><div class="l">Premium</div></div>
   <div class="tut-stat metric-card"><div class="v" style="color:var(--on-success)"><%= stats.free %></div><div class="l">Gratuits</div></div>
-  <div class="tut-stat metric-card"><div class="v" style="color:var(--on-purple)"><%= stats.beginner %></div><div class="l">Débutant</div></div>
+  <div class="tut-stat metric-card"><div class="v" style="color:var(--on-purple)"><%= stats.beginner %></div><div class="l"><%= uiText("Débutant") %></div></div>
   <div class="tut-stat metric-card"><div class="v" style="color:var(--on-warning)"><%= stats.intermediate %></div><div class="l">Interm.</div></div>
-  <div class="tut-stat metric-card"><div class="v" style="color:var(--on-danger)"><%= stats.advanced %></div><div class="l">Avancé</div></div>
+  <div class="tut-stat metric-card"><div class="v" style="color:var(--on-danger)"><%= stats.advanced %></div><div class="l"><%= uiText("Avancé") %></div></div>
   <div class="tut-stat metric-card"><div class="v" style="color:var(--primary-texte)"><%= _totalViews.toLocaleString() %></div><div class="l">Vues total</div></div>
 </div>
 
 <!-- ── Filtres ────────────────────────────────────────────────────────────────── -->
 <div class="card cr-panel command-surface" style="padding:.8rem 1.1rem;margin-bottom:1rem">
   <form method="GET" action="/admin/tutoriels" class="tut-filter">
-    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Titre, description, auteur…" aria-label="Rechercher">
-    <select name="category" onchange="this.form.submit()" aria-label="Catégorie">
+    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Titre, description, auteur…" aria-label="<%= uiText("Rechercher") %>">
+    <select name="category" onchange="this.form.submit()" aria-label="<%= uiText("Catégorie") %>">
       <option value="">Toutes catégories</option>
       <% (locals.categories||[]).forEach(c => { %>
         <option value="<%= c %>" <%= category===c ?'selected':'' %>><%= _catCfg[c] || '📚' %> <%= catLabel(c) %></option>
       <% }) %>
     </select>
-    <select name="level" onchange="this.form.submit()" aria-label="Niveau">
+    <select name="level" onchange="this.form.submit()" aria-label="<%= uiText("Niveau") %>">
       <option value="">Tous niveaux</option>
       <% const _lvlEmoji = { beginner:'🟢', intermediate:'🟡', advanced:'🔴' }; %>
       <% (levels||[]).forEach(l => { %>
         <option value="<%= l %>" <%= level===l ?'selected':'' %>><%= _lvlEmoji[l] || '📊' %> <%= (_lvlCfg[l]||{}).label || l %></option>
       <% }) %>
     </select>
-    <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+    <button type="submit" class="btn btn-primary btn-sm"><%= uiText("Filtrer") %></button>
     <% if(_hasFilter){ %><a href="/admin/tutoriels" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a><% } %>
     <span style="margin-left:auto;font-size:.78rem;color:var(--text-dim)"><%= total %> résultat<%= total!==1?'s':'' %></span>
   </form>
@@ -196,14 +197,14 @@
     <div class="tut-row">
       <% if(dur!=='—') { %><span>⏱ <%= dur %></span><% } %>
       <span><svg class="ic" aria-hidden="true"><use href="#ic-star"/></svg> <%= rating %></span>
-      <% if(!t.isPremium) { %><span style="color:var(--on-success)"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Gratuit</span><% } %>
+      <% if(!t.isPremium) { %><span style="color:var(--on-success)"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> <%= uiText("Gratuit") %></span><% } %>
     </div>
   </div>
 
   <!-- Actions -->
   <div class="tut-card-foot">
     <% if(hasPerm('tutoriels','write')) { %>
-    <a href="/admin/tutoriels/<%= t.id %>/edit" class="btn btn-sm btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier</a>
+    <a href="/admin/tutoriels/<%= t.id %>/edit" class="btn btn-sm btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> <%= uiText("Modifier") %></a>
     <form method="POST" action="/admin/tutoriels/<%= t.id %>/premium" style="margin:0">
       <button type="submit" class="btn btn-sm btn-outline" title="<%= t.isPremium ? 'Passer Gratuit' : 'Passer Premium' %>">
         <%= t.isPremium ? '🔓 Gratuit' : '👑 Premium' %>

@@ -1,3 +1,4 @@
+import { market } from '../i18n/football';
 import { journal } from '../utils/logger';
 /**
  * Cotes en direct : ne montrer que ce qui se lit sans ambiguïté.
@@ -96,38 +97,17 @@ export interface LigneValeur { value: string; odd: number; ligne?: string }
  * tel quel** et journalisé : mieux vaut un mot anglais qu'une traduction
  * inventée, et le journal dit lesquels ajouter.
  */
-const NOMS_MARCHES: Record<string, string> = {
-  'over/under line':        'Plus / Moins de buts',
-  'over/under':             'Plus / Moins de buts',
-  'goals over/under':       'Plus / Moins de buts',
-  'match goals':            'Total de buts',
-  'total':                  'Total',
-  'asian handicap':         'Handicap asiatique',
-  'handicap':               'Handicap',
-  'match winner':           'Vainqueur du match',
-  'fulltime result':        'Résultat final',
-  'both teams score':       'Les deux équipes marquent',
-  'both teams to score':    'Les deux équipes marquent',
-  'double chance':          'Double chance',
-  'correct score':          'Score exact',
-  'first team to score':    'Première équipe à marquer',
-  'next goal':              'Prochain but',
-  'odd/even':               'Pair / Impair',
-  'corners over under':     'Plus / Moins de corners',
-  'cards over under':       'Plus / Moins de cartons',
-  'half time result':       'Résultat à la mi-temps',
-  'to qualify':             'Qualification',
-  'result/total goals':     'Résultat et total de buts',
-};
+
 
 const inconnus = new Set<string>();
 
 export function traduireMarche(nom: string): string {
   const cle = nom.trim().toLowerCase();
-  const connu = NOMS_MARCHES[cle];
-  if (connu) return connu;
+  const traduit = market(nom, 'fr');
+  if (traduit.known) return traduit.text;
 
   if (cle && !inconnus.has(cle)) {
+    if (inconnus.size >= 200) inconnus.clear();
     inconnus.add(cle);
     journal.warn(`[CotesLive] marché non traduit : « ${nom} »`);
   }

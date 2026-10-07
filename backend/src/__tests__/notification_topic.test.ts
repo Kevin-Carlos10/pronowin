@@ -59,7 +59,8 @@ describe('notifications par sujet', () => {
     });
 
     expect(ancienneApi).not.toHaveBeenCalled();
-    expect(envoyes).toHaveLength(1);
+    expect(envoyes).toHaveLength(2);
+    expect(envoyes[1].topic).toBe('match_updates_en');
     expect(envoyes[0].topic).toBe('match_updates');
     expect(r.success).toBe(true);
   });

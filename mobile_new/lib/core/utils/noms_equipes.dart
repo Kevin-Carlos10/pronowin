@@ -1,3 +1,5 @@
+import 'package:pronowin/l10n/football_labels.dart';
+import 'package:pronowin/l10n/app_strings.dart';
 /// Les sélections nationales, en français.
 ///
 /// Le fournisseur de données écrit les pays en anglais : « Belgium »,
@@ -13,17 +15,7 @@
 /// Seules les sélections nationales sont concernées : un nom de club ne se
 /// traduit pas. La catégorie qui suit le nom (« U21 », « W ») est conservée :
 /// « Spain U21 » → « Espagne U21 ».
-String nomEquipe(String nom) {
-  final brut = nom.trim();
-  final direct = _pays[brut];
-  if (direct != null) return direct;
-  final m = _categorie.firstMatch(brut);
-  if (m != null) {
-    final base = _pays[m.group(1)!.trim()];
-    if (base != null) return '$base ${m.group(2)}';
-  }
-  return nom;
-}
+String nomEquipe(String nom) => FootballLabels.country(nom);
 
 /// Variante tolérante pour les champs facultatifs.
 String? nomEquipeOuNul(String? nom) => nom == null ? null : nomEquipe(nom);
@@ -38,66 +30,13 @@ String? nomEquipeOuNul(String? nom) => nom == null ? null : nomEquipe(nom);
 /// anglais ou déjà traduits.
 String traduireEquipesDansLibelle(String libelle, Iterable<String> equipes) {
   var s = libelle;
+  final language = AppStrings.current.locale.languageCode;
   for (final equipe in equipes) {
-    final fr = nomEquipe(equipe);
-    for (final entree in _pays.entries) {
-      if (entree.value != fr) continue;
-      s = s.replaceAll(RegExp('(?<![\\p{L}])${RegExp.escape(entree.key)}(?![\\p{L}])', unicode: true), fr);
+    final localized = FootballLabels.country(equipe, language: language);
+    for (final from in {FootballLabels.country(equipe, language: 'fr'), FootballLabels.country(equipe, language: 'en')}) {
+      if (from == localized || from.isEmpty) continue;
+      s = s.replaceAll(RegExp('(?<![\\p{L}])${RegExp.escape(from)}(?![\\p{L}])', unicode: true), localized);
     }
   }
   return s;
 }
-
-final _categorie = RegExp(r'^(.+?)\s+(U\d{2}|W)$');
-
-const _pays = <String, String>{
-  // Europe
-  'Albania': 'Albanie', 'Andorra': 'Andorre', 'Armenia': 'Arménie', 'Austria': 'Autriche',
-  'Azerbaijan': 'Azerbaïdjan', 'Belarus': 'Biélorussie', 'Belgium': 'Belgique',
-  'Bosnia & Herzegovina': 'Bosnie-Herzégovine', 'Bosnia and Herzegovina': 'Bosnie-Herzégovine',
-  'Bulgaria': 'Bulgarie', 'Croatia': 'Croatie', 'Cyprus': 'Chypre', 'Czech Republic': 'Tchéquie',
-  'Czechia': 'Tchéquie', 'Denmark': 'Danemark', 'England': 'Angleterre', 'Estonia': 'Estonie',
-  'Faroe Islands': 'Îles Féroé', 'Finland': 'Finlande', 'Georgia': 'Géorgie', 'Germany': 'Allemagne',
-  'Greece': 'Grèce', 'Hungary': 'Hongrie', 'Iceland': 'Islande', 'Israel': 'Israël', 'Italy': 'Italie',
-  'Kazakhstan': 'Kazakhstan', 'Kosovo': 'Kosovo', 'Latvia': 'Lettonie', 'Lithuania': 'Lituanie',
-  'Moldova': 'Moldavie', 'Montenegro': 'Monténégro', 'Netherlands': 'Pays-Bas',
-  'North Macedonia': 'Macédoine du Nord', 'FYR Macedonia': 'Macédoine du Nord',
-  'Northern Ireland': 'Irlande du Nord', 'Norway': 'Norvège', 'Poland': 'Pologne',
-  'Rep. Of Ireland': 'Irlande', 'Republic of Ireland': 'Irlande', 'Ireland': 'Irlande',
-  'Romania': 'Roumanie', 'Russia': 'Russie', 'Scotland': 'Écosse', 'Serbia': 'Serbie',
-  'Slovakia': 'Slovaquie', 'Slovenia': 'Slovénie', 'Spain': 'Espagne', 'Sweden': 'Suède',
-  'Switzerland': 'Suisse', 'Turkey': 'Turquie', 'Türkiye': 'Turquie', 'Ukraine': 'Ukraine',
-  'Wales': 'Pays de Galles',
-  // Afrique
-  'Algeria': 'Algérie', 'Benin': 'Bénin', 'Botswana': 'Botswana', 'Burundi': 'Burundi',
-  'Cameroon': 'Cameroun', 'Cape Verde Islands': 'Cap-Vert', 'Cape Verde': 'Cap-Vert',
-  'Central African Republic': 'Centrafrique', 'Chad': 'Tchad', 'Comoros': 'Comores',
-  'Congo': 'Congo', 'Congo DR': 'RD Congo', 'DR Congo': 'RD Congo', 'Djibouti': 'Djibouti',
-  'Egypt': 'Égypte', 'Equatorial Guinea': 'Guinée équatoriale', 'Eritrea': 'Érythrée',
-  'Eswatini': 'Eswatini', 'Ethiopia': 'Éthiopie', 'Gambia': 'Gambie', 'Guinea': 'Guinée',
-  'Guinea-Bissau': 'Guinée-Bissau', 'Ivory Coast': "Côte d'Ivoire", "Cote D'Ivoire": "Côte d'Ivoire",
-  'Kenya': 'Kenya', 'Lesotho': 'Lesotho', 'Liberia': 'Liberia', 'Libya': 'Libye',
-  'Madagascar': 'Madagascar', 'Malawi': 'Malawi', 'Mauritania': 'Mauritanie', 'Mauritius': 'Maurice',
-  'Morocco': 'Maroc', 'Mozambique': 'Mozambique', 'Namibia': 'Namibie', 'Nigeria': 'Nigeria',
-  'Rwanda': 'Rwanda', 'Sao Tome and Principe': 'Sao Tomé-et-Principe', 'Senegal': 'Sénégal',
-  'Seychelles': 'Seychelles', 'Sierra Leone': 'Sierra Leone', 'Somalia': 'Somalie',
-  'South Africa': 'Afrique du Sud', 'South Sudan': 'Soudan du Sud', 'Sudan': 'Soudan',
-  'Tanzania': 'Tanzanie', 'Tunisia': 'Tunisie', 'Uganda': 'Ouganda', 'Zambia': 'Zambie',
-  'Zimbabwe': 'Zimbabwe',
-  // Amériques
-  'Argentina': 'Argentine', 'Bolivia': 'Bolivie', 'Brazil': 'Brésil', 'Canada': 'Canada',
-  'Chile': 'Chili', 'Colombia': 'Colombie', 'Costa Rica': 'Costa Rica', 'Curacao': 'Curaçao',
-  'Ecuador': 'Équateur', 'El Salvador': 'Salvador', 'Guatemala': 'Guatemala', 'Haiti': 'Haïti',
-  'Honduras': 'Honduras', 'Jamaica': 'Jamaïque', 'Mexico': 'Mexique', 'Panama': 'Panama',
-  'Paraguay': 'Paraguay', 'Peru': 'Pérou', 'Trinidad and Tobago': 'Trinité-et-Tobago',
-  'Uruguay': 'Uruguay', 'USA': 'États-Unis', 'United States': 'États-Unis', 'Venezuela': 'Venezuela',
-  // Asie et Océanie
-  'Australia': 'Australie', 'Bahrain': 'Bahreïn', 'China': 'Chine', 'China PR': 'Chine',
-  'India': 'Inde', 'Indonesia': 'Indonésie', 'Iran': 'Iran', 'Iraq': 'Irak', 'Japan': 'Japon',
-  'Jordan': 'Jordanie', 'Korea Republic': 'Corée du Sud', 'South Korea': 'Corée du Sud',
-  'North Korea': 'Corée du Nord', 'Kuwait': 'Koweït', 'Lebanon': 'Liban', 'Malaysia': 'Malaisie',
-  'New Zealand': 'Nouvelle-Zélande', 'Oman': 'Oman', 'Palestine': 'Palestine', 'Qatar': 'Qatar',
-  'Saudi Arabia': 'Arabie saoudite', 'Syria': 'Syrie', 'Thailand': 'Thaïlande',
-  'United Arab Emirates': 'Émirats arabes unis', 'Uzbekistan': 'Ouzbékistan', 'Vietnam': 'Viêt Nam',
-  'Yemen': 'Yémen',
-};

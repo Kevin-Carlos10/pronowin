@@ -132,7 +132,7 @@ class _AnalyseModele extends ConsumerWidget {
                         color: context.cl.accent, fontSize: 9.5,
                         fontWeight: FontWeight.w800, letterSpacing: 0.5)),
                     const SizedBox(height: 3),
-                    Text(data.advice!,
+                    Text(data.localizedAdvice!,
                       style: TextStyle(
                         color: context.cl.textS, fontSize: 12, height: 1.35)),
                   ],
@@ -629,7 +629,7 @@ class _CotesEnDirect extends ConsumerWidget {
         const SizedBox(height: 14),
 
         for (final m in marches) ...[
-          Text(tr(context, m.name).toUpperCase(),
+          Text(FootballLabels.market(m.name, language: AppStrings.of(context).locale.languageCode).text.toUpperCase(),
             style: TextStyle(
               color: context.cl.textM, fontSize: 9,
               fontWeight: FontWeight.w700, letterSpacing: 0.6)),

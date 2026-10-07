@@ -17,6 +17,7 @@ export interface UserProfile {
 export interface PersonalizedRecommendation {
   score:      number;
   reasons:    string[];
+  reasons_en: string[];
   pronostic:  any;
 }
 
@@ -145,40 +146,41 @@ export async function getPersonalizedPronostics(
 
   const scored = pronostics.map((p) => {
     let score   = 0;
-    const reasons: string[] = [];
+    const reasons: string[] = [], reasonsEn: string[] = [];
+    const reason = (fr: string, en: string) => { reasons.push(fr); reasonsEn.push(en); };
 
     // ── Ligue favorite ──────────────────────────────────────────────────
     const leagueIdx = profile.topLeagues.indexOf(p.match.league);
     if (leagueIdx === 0) {
-      score += 40; reasons.push('Ta ligue préférée 🏆');
+      score += 40; reason('Ta ligue préférée 🏆', 'Your favourite league 🏆');
     } else if (leagueIdx === 1) {
-      score += 28; reasons.push('Une de tes meilleures ligues');
+      score += 28; reason('Une de tes meilleures ligues', 'One of your best leagues');
     } else if (leagueIdx === 2) {
-      score += 18; reasons.push('Ligue où tu performes bien');
+      score += 18; reason('Ligue où tu performes bien', 'A league where you perform well');
     }
 
     // ── Type de pari favori ─────────────────────────────────────────────
     const typeIdx = profile.topBetTypes.indexOf(p.predictionType);
     if (typeIdx === 0) {
-      score += 30; reasons.push(`Ton type de pari gagnant (${_typeLabel(p.predictionType)})`);
+      score += 30; reason(`Ton type de pari gagnant (${_typeLabel(p.predictionType)})`, `Your successful bet type (${_typeLabelEn(p.predictionType)})`);
     } else if (typeIdx === 1) {
-      score += 18; reasons.push(`Type de pari maîtrisé (${_typeLabel(p.predictionType)})`);
+      score += 18; reason(`Type de pari maîtrisé (${_typeLabel(p.predictionType)})`, `A familiar bet type (${_typeLabelEn(p.predictionType)})`);
     }
 
     // ── Zone de cotes ───────────────────────────────────────────────────
     const odds = p.oddsRecommended;
     if (odds >= profile.oddsSweetMin && odds <= profile.oddsSweetMax) {
       score += 20;
-      reasons.push(`Cote dans ta zone de confort (${odds.toFixed(2)})`);
+      reason(`Cote dans ta zone de confort (${odds.toFixed(2)})`, `Odds within your usual range (${odds.toFixed(2)})`);
     } else if (odds >= profile.oddsSweetMin - 0.3 && odds <= profile.oddsSweetMax + 0.3) {
       score += 10;
-      reasons.push(`Cote proche de tes habitudes (${odds.toFixed(2)})`);
+      reason(`Cote proche de tes habitudes (${odds.toFixed(2)})`, `Odds close to your usual range (${odds.toFixed(2)})`);
     }
 
     // ── Confiance de l'analyste ─────────────────────────────────────────
     const confNorm = Math.max(0, Math.min(p.confidenceScore, 5)) / 5;
     score += Math.round(confNorm * 10);
-    if (p.confidenceScore >= 4) reasons.push('Forte confiance de l\'analyste');
+    if (p.confidenceScore >= 4) reason('Forte confiance de l\'analyste', "High analyst confidence");
 
     // ── Probabilité statistique ─────────────────────────────────────────
     const aiProb = p.aiProbability ?? computeProbability(
@@ -187,20 +189,21 @@ export async function getPersonalizedPronostics(
       p.match.homeFormPoints, p.match.awayFormPoints,
     );
     if (aiProb >= 75) {
-      score += 8; reasons.push(`Probabilité statistique élevée (${aiProb}%)`);
+      score += 8; reason(`Probabilité statistique élevée (${aiProb}%)`, `High statistical probability (${aiProb}%)`);
     }
 
     // Fallback si l'utilisateur n'a pas d'historique
     if (profile.isEmpty && reasons.length === 0) {
-      if (p.confidenceScore >= 4) reasons.push('Sélection haute confiance');
-      if (p.isPremium) reasons.push('Pronostic VIP');
+      if (p.confidenceScore >= 4) reason('Sélection haute confiance', 'High-confidence selection');
+      if (p.isPremium) reason('Pronostic VIP', 'VIP prediction');
     }
 
-    if (reasons.length === 0) reasons.push('Pronostic de qualité sélectionné pour toi');
+    if (reasons.length === 0) reason('Pronostic de qualité sélectionné pour toi', 'A prediction selected for you');
 
     return {
       score,
       reasons: reasons.slice(0, 3),
+      reasons_en: reasonsEn.slice(0, 3),
       pronostic: {
         id:             p.id,
         match_id:       p.matchId,
@@ -211,10 +214,12 @@ export async function getPersonalizedPronostics(
         match_date:     p.match.matchDate,
         prediction_type:  p.predictionType,
         prediction_label: p.predictionLabel,
+        prediction_label_en: p.predictionLabelEn ?? null,
         odds_recommended: p.oddsRecommended,
         confidence_score: p.confidenceScore,
         confidence_pct: pourcentageConfiance(p),
         analyst_note:   p.analystNote,
+        analyst_note_en: p.analystNoteEn ?? null,
         is_premium:     p.isPremium,
         ai_probability: Math.round(aiProb),
         analyst_name:   p.analyst?.name ?? 'Analyste',
@@ -238,4 +243,8 @@ function _typeLabel(t: string): string {
     over35:  'Plus de 3.5 buts',
     under35: 'Moins de 3.5 buts',
   } as Record<string, string>)[t] ?? t;
+}
+
+function _typeLabelEn(t: string): string {
+  return ({win1:'1 (Home win)',draw:'Draw',win2:'2 (Away win)',btts:'Both teams to score',over25:'Over 2.5 goals',under25:'Under 2.5 goals',over35:'Over 3.5 goals',under35:'Under 3.5 goals'} as Record<string,string>)[t] ?? t;
 }

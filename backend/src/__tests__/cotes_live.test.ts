@@ -174,6 +174,6 @@ describe('noms de marchés', () => {
   // Même règle que pour les recommandations : un nom inconnu passe tel quel et
   // se signale, plutôt que d'être traduit au jugé.
   it('rend intact un marché inconnu', () => {
-    expect(traduireMarche('Player Shots On Target')).toBe('Player Shots On Target');
+    expect(traduireMarche('Unlisted Market')).toBe('Unlisted Market');
   });
 });

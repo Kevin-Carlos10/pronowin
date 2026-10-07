@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'historique'}) %>
 <link rel="stylesheet" href="/admin/assets/finance-control-room.css">
 <section class="finance-page finance-page--history">
@@ -106,7 +107,7 @@
   </div>
   <div class="hi-stat metric-card">
     <div class="v" style="color:var(--on-danger)"><%= stats.pending_count || 0 %></div>
-    <div class="l">En attente</div>
+    <div class="l"><%= uiText("En attente") %></div>
   </div>
   <div class="hi-stat metric-card">
     <div class="v" style="color:var(--on-danger)"><%= stats.pending_volume ? (stats.pending_volume/1000).toFixed(0)+'k' : '0' %></div>
@@ -134,10 +135,10 @@
 
     <!-- Ligne principale -->
     <div class="hi-filter" style="margin-bottom:<%= _hasAdv ? '.75rem' : '0' %>">
-      <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, ID 1xBet…" aria-label="Rechercher">
+      <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, ID 1xBet…" aria-label="<%= uiText("Rechercher") %>">
 
 
-      <select name="status" onchange="this.form.submit()" aria-label="Statut">
+      <select name="status" onchange="this.form.submit()" aria-label="<%= uiText("Statut") %>">
         <option value="">Tous statuts</option>
         <option value="pending"    <%= status==='pending'    ?'selected':'' %>>⏳ En attente</option>
         <option value="processing" <%= status==='processing' ?'selected':'' %>>🔄 En cours</option>
@@ -155,7 +156,7 @@
       <button type="button" class="btn btn-outline btn-sm" onclick="toggleAdv()" id="adv-btn">
         <svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg> <%= _hasAdv ? 'Dates ▲' : 'Dates ▼' %>
       </button>
-      <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+      <button type="submit" class="btn btn-primary btn-sm"><%= uiText("Filtrer") %></button>
       <% if(_hasFilter){ %><a href="/admin/historique" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a><% } %>
     </div>
 
@@ -223,13 +224,13 @@
     <table class="hi-table">
       <thead>
        <tr>
-         <th scope="col">Utilisateur</th>
+         <th scope="col"><%= uiText("Utilisateur") %></th>
          <th scope="col">Type</th>
-         <th scope="col">Montant</th>
+         <th scope="col"><%= uiText("Montant") %></th>
           <th scope="col">Méthode</th>
           <th scope="col">ID 1xBet</th>
           <th scope="col">N° Envoyeur</th>
-          <th scope="col">Statut</th>
+          <th scope="col"><%= uiText("Statut") %></th>
           <th scope="col">Date</th>
           <% if(hasPerm('historique','write')) { %><th scope="col" style="width:40px"></th><% } %>
         </tr>
@@ -272,7 +273,7 @@
             data-id="<%= tx.id %>"
             data-status="<%= tx.status %>"
             data-note="<%= (tx.adminNote||'').replace(/"/g,'&quot;') %>"
-            onclick="openEdit(this)" title="Modifier"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg></button>
+            onclick="openEdit(this)" title="<%= uiText("Modifier") %>"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg></button>
         </td>
         <% } %>
       </tr>
@@ -303,8 +304,8 @@
     <h3><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier la transaction</h3>
     <form id="edit-form" method="POST">
       <div class="form-group" style="margin-bottom:.9rem">
-        <label>Statut</label>
-        <select class="input" name="status" id="edit-status" aria-label="Statut">
+        <label><%= uiText("Statut") %></label>
+        <select class="input" name="status" id="edit-status" aria-label="<%= uiText("Statut") %>">
           <option value="pending">⏳ En attente</option>
           <option value="processing">🔄 En cours</option>
           <option value="completed">✅ Confirmé</option>
@@ -316,7 +317,7 @@
         <textarea class="input" name="admin_note" id="edit-note" rows="3" placeholder="Note visible dans l'historique…" aria-label="Note administrateur"></textarea>
       </div>
       <div style="display:flex;gap:.75rem">
-        <button type="button" class="btn btn-outline" onclick="closeEditModal()" style="flex:1">Annuler</button>
+        <button type="button" class="btn btn-outline" onclick="closeEditModal()" style="flex:1"><%= uiText("Annuler") %></button>
         <button type="submit" class="btn btn-primary" style="flex:1"><svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> Sauvegarder</button>
       </div>
     </form>

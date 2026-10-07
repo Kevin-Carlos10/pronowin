@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/football_labels.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -185,7 +186,7 @@ class _Identite extends StatelessWidget {
   Widget build(BuildContext context) {
     final f = fiche;
     final lignes = <(String, String)>[
-      if (f.nationality != null) (tr(context, "Nationalité"), f.nationality!),
+      if (f.nationality != null) (tr(context, "Nationalité"), FootballLabels.country(f.nationality!, language: AppStrings.of(context).locale.languageCode)),
       if (f.age != null) (tr(context, "Âge"), tr(context, "{arg0} ans", [f.age])),
       if (f.birthDate != null) (tr(context, "Naissance"),
           [DateFormat('d MMMM y').format(f.birthDate!), if (f.birthPlace != null) f.birthPlace!].join(' · ')),
@@ -334,7 +335,7 @@ class _Absences extends StatelessWidget {
                 size: 17, color: a.suspension ? cl.warning : cl.error),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(a.motif, style: TextStyle(color: cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
+                Text(FootballLabels.absence(a.motif).text, style: TextStyle(color: cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
                 if (a.debut != null)
                   Text(
                     a.fin != null
@@ -367,7 +368,7 @@ class _Transferts extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 12),
             child: Semantics(
               label: tr(context, "{arg0} : de {arg1} à {arg2}, {arg3}",
-                [t.date == null ? '' : format.format(t.date!), t.depuis, t.vers, t.type]),
+                [t.date == null ? '' : format.format(t.date!), t.depuis, t.vers, FootballLabels.transfer(t.type).text]),
               excludeSemantics: true,
               child: Row(children: [
                 SizedBox(width: 62, child: Text(t.date == null ? '' : format.format(t.date!),
@@ -384,7 +385,7 @@ class _Transferts extends StatelessWidget {
                 Flexible(child: Text(t.vers, maxLines: 2, overflow: TextOverflow.ellipsis,
                   style: TextStyle(color: cl.textP, fontSize: 12, fontWeight: FontWeight.w600))),
                 const SizedBox(width: 6),
-                Text(t.type, style: TextStyle(color: cl.textM, fontSize: 11)),
+                Text(FootballLabels.transfer(t.type).text, style: TextStyle(color: cl.textM, fontSize: 11)),
               ]),
             ),
           ),

@@ -1,3 +1,4 @@
+const { optionalText } = require('../../backend/src/i18n/editorial-values');
 /**
  * Routes « contenu » — extraites de server.js.
  *
@@ -189,7 +190,22 @@ module.exports = (app, ctx) => {
     });
   });
 
-  app.post('/admin/actualites', requireAuth, requirePerm('actualites', 'write'), (req, res) => {
+  function validateNewsTranslation(req, res, next) {
+    try {
+      optionalText(req.body.title_en, 300);
+      optionalText(req.body.summary_en, 5000);
+      optionalText(req.body.content_en);
+      next();
+    } catch (error) {
+      const previous = req.params.id ? loadNews().find(a => a.id === req.params.id) : null;
+      const article = {...previous, ...req.body, titleEn: typeof req.body.title_en === 'string' ? req.body.title_en : '',
+        summaryEn: typeof req.body.summary_en === 'string' ? req.body.summary_en : '', contentEn: typeof req.body.content_en === 'string' ? req.body.content_en : ''};
+      res.status(422).render('actualite_form', {adminName: req.admin.nom ?? 'Admin', article,
+        isEdit: !!previous, categories: getNewsCategories(), success: null, error: error.message});
+    }
+  }
+
+  app.post('/admin/actualites', requireAuth, requirePerm('actualites', 'write'), validateNewsTranslation, (req, res) => {
     const { title, summary, content, category, imageUrl, sourceUrl, isPremiumOnly, isPinned } = req.body;
     if (!title?.trim()) return res.redirect('/admin/actualites/new?error=' + encodeURIComponent('Le titre est obligatoire.'));
 
@@ -198,6 +214,7 @@ module.exports = (app, ctx) => {
     const article = {
       id:           uid(),
       title:        title.trim(),
+      titleEn: optionalText(req.body.title_en, 300), summaryEn: optionalText(req.body.summary_en, 5000), contentEn: optionalText(req.body.content_en),
       slug:         slugify(title),
       summary:      (summary || '').trim(),
       content:      (content || '').trim(),
@@ -231,7 +248,7 @@ module.exports = (app, ctx) => {
     });
   });
 
-  app.post('/admin/actualites/:id/edit', requireAuth, requirePerm('actualites', 'write'), (req, res) => {
+  app.post('/admin/actualites/:id/edit', requireAuth, requirePerm('actualites', 'write'), validateNewsTranslation, (req, res) => {
     const all = loadNews();
     const idx = all.findIndex(n => n.id === req.params.id);
     if (idx === -1) return res.redirect('/admin/actualites?error=' + encodeURIComponent('Article introuvable.'));
@@ -242,6 +259,9 @@ module.exports = (app, ctx) => {
     all[idx] = {
       ...old,
       title:        (req.body.title || old.title).trim(),
+      titleEn: optionalText(req.body.title_en, 300) ?? (req.body.title_en === undefined ? old.titleEn : null),
+      summaryEn: optionalText(req.body.summary_en, 5000) ?? (req.body.summary_en === undefined ? old.summaryEn : null),
+      contentEn: optionalText(req.body.content_en) ?? (req.body.content_en === undefined ? old.contentEn : null),
       slug:         slugify(req.body.title || old.title),
       summary:      (req.body.summary || '').trim(),
       content:      (req.body.content || '').trim(),
@@ -303,6 +323,7 @@ module.exports = (app, ctx) => {
       .map(a => ({
         id:         a.id,
         titre:      a.title,
+        titre_en: a.titleEn ?? null, resume_en: a.summaryEn?.slice(0, 200) ?? a.contentEn?.slice(0, 200) ?? null,
         resume:     a.summary?.slice(0, 200) ?? a.content?.slice(0, 200) ?? '',
         categorie:  a.category ?? 'news',
         emoji:      a.emoji ?? '📰',
@@ -431,6 +452,7 @@ module.exports = (app, ctx) => {
       }
       try {
         await a.post('/admin/programmations/notifications', {
+          title_en: req.body.title_en, body_en: req.body.body_en,
           title: title.trim(), body: body.trim(), segment, prevue_le: quand.toISOString(),
           ...(data_url  ? { deep_link: data_url } : {}),
           ...(image_url ? { image: image_url }    : {}),
@@ -448,6 +470,7 @@ module.exports = (app, ctx) => {
 
     try {
       const r = await a.post('/admin/notifications/send', {
+        title_en: req.body.title_en, body_en: req.body.body_en,
         title: title.trim(),
         body:  body.trim(),
         segment,

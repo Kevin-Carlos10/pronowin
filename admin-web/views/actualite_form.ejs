@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'actualites'}) %>
 
 <style>
@@ -98,6 +99,12 @@ input[name=category] { display:none; }
 <% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"   style="display:none"><%= error   %></div><% } %>
 
 <form method="POST" action="/admin/actualites<%= isNew ? '' : '/'+art.id+'/edit' %>" id="af-form">
+<fieldset class="translation-preview" lang="en"><legend>English translation</legend><p><%= uiText("Champs facultatifs : sans traduction, le texte français est conservé.") %></p>
+<div class="form-group"><label for="i18n-title_en">Title</label><textarea class="input" id="i18n-title_en" name="title_en" rows="3" maxlength="300"><%= (art).titleEn || '' %></textarea></div>
+<div class="form-group"><label for="i18n-summary_en">Summary</label><textarea class="input" id="i18n-summary_en" name="summary_en" rows="3" maxlength="5000"><%= (art).summaryEn || '' %></textarea></div>
+<div class="form-group"><label for="i18n-content_en">Article</label><textarea class="input" id="i18n-content_en" name="content_en" rows="3" maxlength="50000"><%= (art).contentEn || '' %></textarea></div>
+</fieldset>
+
 <div class="af-grid">
 
   <!-- ── Colonne gauche : formulaire ── -->
@@ -106,10 +113,10 @@ input[name=category] { display:none; }
     <!-- Titre -->
     <div class="card cr-panel" style="padding:1.25rem;margin-bottom:1rem">
       <div class="af-field">
-        <label>Titre <span style="color:var(--on-danger)">*</span> <span class="af-counter" id="cnt-title">0/120</span></label>
+        <label><%= uiText("Titre") %> <span style="color:var(--on-danger)">*</span> <span class="af-counter" id="cnt-title">0/120</span></label>
         <input class="input" type="text" name="title" id="inp-title" value="<%= art.title||'' %>"
           placeholder="Ex : Grosse cote du week-end 🔥"
-          oninput="updateCounter('inp-title','cnt-title',120);updatePreview()" required aria-label="Titre">
+          oninput="updateCounter('inp-title','cnt-title',120);updatePreview()" required aria-label="<%= uiText("Titre") %>">
       </div>
       <div class="af-field" style="margin-bottom:0">
         <label>Résumé (affiché dans la liste) <span class="af-counter" id="cnt-summary">0/250</span></label>
@@ -125,7 +132,7 @@ input[name=category] { display:none; }
         <label>Contenu complet <span class="af-counter" id="cnt-content">0/5000</span></label>
         <textarea class="input" name="content" id="inp-content" rows="12"
           placeholder="Contenu de l'article… Vous pouvez utiliser du HTML basique : &lt;b&gt;, &lt;i&gt;, &lt;ul&gt;, &lt;li&gt;, &lt;a href=&quot;…&quot;&gt;…"
-          oninput="updateCounter('inp-content','cnt-content',5000)" aria-label="Contenu"><%= art.content||'' %></textarea>
+          oninput="updateCounter('inp-content','cnt-content',5000)" aria-label="<%= uiText("Contenu") %>"><%= art.content||'' %></textarea>
         <div class="hint">HTML basique supporté. Évitez les scripts.</div>
       </div>
     </div>
@@ -133,7 +140,7 @@ input[name=category] { display:none; }
     <!-- Catégorie -->
     <div class="card cr-panel" style="padding:1.25rem;margin-bottom:1rem">
       <div class="af-field" style="margin-bottom:0">
-        <label>Catégorie</label>
+        <label><%= uiText("Catégorie") %></label>
         <input type="hidden" name="category" id="inp-cat" value="<%= selCat %>">
         <div class="af-cat-pills">
           <% catList.forEach(c => { %>
@@ -209,7 +216,7 @@ input[name=category] { display:none; }
     <!-- Actions -->
     <div style="display:flex;gap:.75rem;flex-wrap:wrap">
       <button type="submit" class="btn btn-primary"><%= isNew ? '🚀 Créer l\'article' : '💾 Enregistrer' %></button>
-      <a href="/admin/actualites" class="btn btn-outline">Annuler</a>
+      <a href="/admin/actualites" class="btn btn-outline"><%= uiText("Annuler") %></a>
       <% if(isEdit && hasPerm('actualites','write')) { %>
       <form method="POST" action="/admin/actualites/<%= art.id %>/publish" style="margin:0">
         <button class="btn btn-outline" type="submit">
@@ -221,7 +228,7 @@ input[name=category] { display:none; }
       <button type="button" class="btn btn-danger" style="margin-left:auto"
         data-id="<%= art.id %>"
         data-title="<%= art.title.replace(/"/g,'&quot;') %>"
-        onclick="delArt(this.dataset.id, this.dataset.title)"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Supprimer</button>
+        onclick="delArt(this.dataset.id, this.dataset.title)"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> <%= uiText("Supprimer") %></button>
       <form method="POST" action="/admin/actualites/<%= art.id %>/delete" id="del-<%= art.id %>" style="display:none"></form>
       <% } %>
     </div>
@@ -257,7 +264,7 @@ input[name=category] { display:none; }
       <div style="font-size:.72rem;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.7rem">Informations</div>
       <div class="af-stat-row"><span class="k">Vues</span><span class="v" style="color:var(--primary-texte)"><%= (art.viewCount||0).toLocaleString() %></span></div>
       <div class="af-stat-row"><span class="k">Likes</span><span class="v" style="color:var(--on-danger)"><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> <%= art.likeCount||0 %></span></div>
-      <div class="af-stat-row"><span class="k">Auteur</span><span class="v"><%= art.authorName||'Admin' %></span></div>
+      <div class="af-stat-row"><span class="k"><%= uiText("Auteur") %></span><span class="v"><%= art.authorName||'Admin' %></span></div>
       <div class="af-stat-row"><span class="k">Créé le</span><span class="v"><%= fmtDate(art.createdAt) %></span></div>
       <div class="af-stat-row"><span class="k">Modifié le</span><span class="v"><%= fmtDate(art.updatedAt) %></span></div>
       <div class="af-stat-row"><span class="k">Publié le</span><span class="v"><%= art.publishedAt ? fmtDate(art.publishedAt) : '—' %></span></div>

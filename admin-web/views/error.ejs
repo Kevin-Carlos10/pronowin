@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%
   var _status  = (typeof status  !== 'undefined') ? status  : 500;
   var _title   = (typeof title   !== 'undefined') ? title   : 'Erreur';
@@ -53,7 +54,7 @@
     </div>
 
     <div class="divider-line"></div>
-    <a href="/admin/logout" style="color:var(--text-dim);font-size:.8rem;text-decoration:none;"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> Se déconnecter</a>
+    <a href="/admin/logout" style="color:var(--text-dim);font-size:.8rem;text-decoration:none;"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> <%= uiText("Se déconnecter") %></a>
   </div>
 </div>
 </body>

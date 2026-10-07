@@ -127,8 +127,7 @@ class _GroupedStandingsState extends State<_GroupedStandings> {
       if (name == null || name.trim().isEmpty) {
         return tr(context, "Groupe {arg0}", [groups.keys.toList().indexOf(id) + 1]);
       }
-      if (name.startsWith('Group ')) return tr(context, "Groupe {arg0}", [name.substring(6)]);
-      return name;
+      return FootballLabels.round(name, language: AppStrings.of(context).locale.languageCode);
     }
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       if (rows.first.season != null) Padding(

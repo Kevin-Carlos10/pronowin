@@ -182,6 +182,7 @@ r.post('/programmations/notifications', adminMiddleware, async (req: AdminReques
     const b = req.body ?? {};
     res.status(201).json(await programmerNotification({
       segment: String(b.segment ?? ''), title: String(b.title ?? ''), body: String(b.body ?? ''),
+      titleEn: b.title_en, bodyEn: b.body_en,
       deepLink: typeof b.deep_link === 'string' ? b.deep_link : null,
       imageUrl: typeof b.image === 'string' ? b.image : null,
       prevueLe: instantDe(b.prevue_le),

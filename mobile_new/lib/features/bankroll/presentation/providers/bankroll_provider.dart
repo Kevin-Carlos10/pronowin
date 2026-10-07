@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/editorial_text.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../shared/utils/resume_paris.dart';
@@ -28,7 +29,9 @@ class BankrollBet {
   final String? matchStatus;
   final int?    homeScore;
   final int?    awayScore;
-  final String  predictionLabel;
+  final String _predictionLabel;
+  final String? predictionLabelEn;
+  String get predictionLabel => editorialText(_predictionLabel, predictionLabelEn);
   final int     confidenceScore;
   /// Indice saisi par l'analyste ; nul côté serveur ancien.
   final int?    confidencePct;
@@ -60,13 +63,14 @@ class BankrollBet {
     this.matchStatus,
     this.homeScore,
     this.awayScore,
-    required this.predictionLabel,
+    required String predictionLabel,
+    this.predictionLabelEn,
     required this.confidenceScore,
     this.confidencePct,
     required this.currency,
     this.miseConfirmee = false,
     this.aConfirmer = false,
-  });
+  }) : _predictionLabel = predictionLabel;
 
   // La devise n'est pas répétée dans le JSON de chaque pari — c'est une
   // propriété du bankroll parent, transmise explicitement par l'appelant.
@@ -93,6 +97,7 @@ class BankrollBet {
     homeScore:       ((j['match'] as Map)['home_score'] as num?)?.toInt(),
     awayScore:       ((j['match'] as Map)['away_score'] as num?)?.toInt(),
     predictionLabel: j['prediction_label'] as String,
+    predictionLabelEn: j['prediction_label_en'] as String?,
     confidenceScore: (j['confidence_score'] as num).toInt(),
     confidencePct:   (j['confidence_pct'] as num?)?.toInt(),
     currency:        currency,

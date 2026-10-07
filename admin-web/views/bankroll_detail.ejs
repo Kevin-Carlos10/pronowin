@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'bankroll'}) %>
 
 <%
@@ -40,10 +41,10 @@
 <!-- Stats -->
 <div class="stats-grid metric-grid" style="margin-bottom:16px">
   <div class="stat-card metric-card s-blue"><div class="lbl">Solde actuel</div><div class="val"><%= Math.round(stats.currentBalance).toLocaleString('fr-FR') %> <%= stats.currency %></div></div>
-  <div class="stat-card metric-card s-purple"><div class="lbl">Budget total</div><div class="val"><%= Math.round(stats.totalBudget).toLocaleString('fr-FR') %> <%= stats.currency %></div></div>
+  <div class="stat-card metric-card s-purple"><div class="lbl"><%= uiText("Budget total") %></div><div class="val"><%= Math.round(stats.totalBudget).toLocaleString('fr-FR') %> <%= stats.currency %></div></div>
   <div class="stat-card metric-card <%= stats.totalProfit >= 0 ? 's-green' : 's-red' %>"><div class="lbl">Profit total</div><div class="val"><%= stats.totalProfit >= 0 ? '+' : '' %><%= Math.round(stats.totalProfit).toLocaleString('fr-FR') %></div></div>
   <div class="stat-card metric-card <%= stats.roi >= 0 ? 's-green' : 's-red' %>"><div class="lbl">ROI</div><div class="val"><%= stats.roi >= 0 ? '+' : '' %><%= stats.roi %>%</div></div>
-  <div class="stat-card metric-card s-orange"><div class="lbl">Taux de réussite</div><div class="val"><%= stats.totalBets > 0 ? stats.winRate.toFixed(0) + '%' : '—' %></div></div>
+  <div class="stat-card metric-card s-orange"><div class="lbl"><%= uiText("Taux de réussite") %></div><div class="val"><%= stats.totalBets > 0 ? stats.winRate.toFixed(0) + '%' : '—' %></div></div>
   <div class="stat-card metric-card s-teal"><div class="lbl">Total paris</div><div class="val"><%= stats.totalBets %></div></div>
 </div>
 
@@ -67,9 +68,9 @@
     <thead>
       <tr>
         <th scope="col">Match</th>
-        <th scope="col">Pronostic</th>
-        <th scope="col">Mise</th>
-        <th scope="col">Cote</th>
+        <th scope="col"><%= uiText("Pronostic") %></th>
+        <th scope="col"><%= uiText("Mise") %></th>
+        <th scope="col"><%= uiText("Cote") %></th>
         <th scope="col">Gain potentiel</th>
         <th scope="col">Résultat</th>
         <th scope="col">Date</th>
@@ -92,11 +93,11 @@
       <td style="font-size:13px;color:var(--text-m)"><%= Math.round(bet.potential_gain).toLocaleString('fr-FR') %></td>
       <td>
         <% if(bet.result === 'WIN'){ %>
-          <span class="badge badge-ok"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Gagné</span>
+          <span class="badge badge-ok"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> <%= uiText("Gagné") %></span>
         <% } else if(bet.result === 'LOSS'){ %>
-          <span class="badge badge-err"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Perdu</span>
+          <span class="badge badge-err"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= uiText("Perdu") %></span>
         <% } else if(bet.result === 'PUSH'){ %>
-          <span class="badge badge-info"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Remboursé</span>
+          <span class="badge badge-info"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> <%= uiText("Remboursé") %></span>
         <% } else { %>
           <span class="badge" style="background:var(--surface-d);color:var(--text-dim)">⏳ En attente</span>
         <% } %>
@@ -129,7 +130,7 @@
     <% } %>
   </div>
   <div class="table-wrap"><table>
-    <thead><tr><th scope="col">Date</th><th scope="col">Mouvement</th><th scope="col">Montant</th><th scope="col">Solde après</th><th scope="col">Détail</th></tr></thead>
+    <thead><tr><th scope="col">Date</th><th scope="col">Mouvement</th><th scope="col"><%= uiText("Montant") %></th><th scope="col"><%= uiText("Solde après") %></th><th scope="col">Détail</th></tr></thead>
     <tbody>
     <% const _libelles = { ouverture: 'Ouverture', reprise: 'Reprise du solde', budget: 'Budget modifié', devise: 'Changement de devise',
          mise: 'Mise', reglement: 'Règlement', correction_mise: 'Mise réelle corrigée', reinitialisation: 'Réinitialisation' }; %>

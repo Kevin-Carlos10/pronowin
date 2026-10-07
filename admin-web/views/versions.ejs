@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'versions'}) %>
 
 <style>
@@ -167,7 +168,7 @@
   <div class="table-wrap">
   <table class="vs-tab">
     <thead>
-      <tr><th scope="col">Compte</th><th scope="col">Version</th><th scope="col">Canal</th><th scope="col">Dernière visite</th></tr>
+      <tr><th scope="col"><%= uiText("Compte") %></th><th scope="col">Version</th><th scope="col">Canal</th><th scope="col">Dernière visite</th></tr>
     </thead>
     <tbody>
       <% _d.listeEnRetard.forEach(m => { %>

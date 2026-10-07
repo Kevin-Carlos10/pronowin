@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'audit'}) %>
 
 <style>
@@ -125,7 +126,7 @@
 <div class="workspace-header audit-workspace">
   <div class="workspace-heading">
     <div class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Gouvernance &amp; traçabilité</div>
-    <h1><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Journal d'activité</h1>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> <%= uiText("Journal d'activité") %></h1>
     <p class="workspace-description"><%= totalAll %> entrée<%= totalAll > 1 ? 's' : '' %> au total<%= _hasFilter ? ' · ' + total + ' filtrée' + (total>1?'s':'') : '' %>. Explorez les actions, leur auteur et les détails conservés pour chaque opération.</p>
     <%# La copie en base, chaînée par empreintes (constats A3, D02) : ce qui
         fait foi en cas de contestation. %>
@@ -174,7 +175,7 @@
     <div style="font-size:.62rem;color:var(--text-dim);margin-top:2px">identités distinctes</div>
   </div>
   <div class="au-stat" style="border-left-color:var(--warning)">
-    <div class="l">7 derniers jours</div>
+    <div class="l"><%= uiText("7 derniers jours") %></div>
     <div class="v" style="color:var(--on-warning)"><%= (typeof chartCounts!=='undefined') ? chartCounts.reduce((a,b)=>a+b,0) : 0 %></div>
   </div>
 </div>
@@ -184,7 +185,7 @@
     <h2>Lecture opérationnelle</h2>
     <p>Repérez les variations d'activité avant d'ouvrir le registre détaillé.</p>
   </div>
-  <span class="context-chip">7 derniers jours</span>
+  <span class="context-chip"><%= uiText("7 derniers jours") %></span>
 </div>
 
 <!-- ── Overview : graphique + catégories ─────────────────────────────────── -->
@@ -249,7 +250,7 @@
       <span class="au-cat-count"><%= count %></span>
     </div><% }); %>
     <% if (!Object.values(catCounts||{}).some(v=>v>0)) { %>
-    <div style="color:var(--text-dim);font-size:.8rem">Aucune donnée</div>
+    <div style="color:var(--text-dim);font-size:.8rem"><%= uiText("Aucune donnée") %></div>
     <% } %>
   </div>
 </div>
@@ -266,9 +267,9 @@
   <form method="GET" action="/admin/audit">
     <div class="filter-row">
       <div class="fg">
-        <label>Catégorie</label>
-        <select name="cat" aria-label="Catégorie">
-          <option value="">Toutes</option>
+        <label><%= uiText("Catégorie") %></label>
+        <select name="cat" aria-label="<%= uiText("Catégorie") %>">
+          <option value=""><%= uiText("Toutes") %></option>
           <% Object.entries(_catConfig).forEach(([key, cfg]) => { %>
           <option value="<%= key %>" <%=filters.cat===key?'selected':''%>><%= cfg.icon %> <%= cfg.label %></option>
           <% }); %>
@@ -278,7 +279,7 @@
         <label>Admin</label>
         <% if (adminList && adminList.length > 1) { %>
         <select name="admin" aria-label="Administrateur">
-          <option value="">Tous</option>
+          <option value=""><%= uiText("Tous") %></option>
           <% (adminList||[]).forEach(a => { %>
           <option value="<%= a %>" <%=filters.admin===a?'selected':''%>><%= a %></option>
           <% }); %>
@@ -292,7 +293,7 @@
         <input type="date" name="date" value="<%= filters.date %>" aria-label="Date">
       </div>
       <div style="display:flex;gap:.4rem;align-items:flex-end">
-        <button class="btn btn-primary btn-sm" type="submit">Filtrer</button>
+        <button class="btn btn-primary btn-sm" type="submit"><%= uiText("Filtrer") %></button>
         <% if (_hasFilter) { %><a href="/admin/audit" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a><% } %>
       </div>
     </div>
@@ -357,7 +358,7 @@
       <% if (hasDetails) { %>
       <tr class="au-detail-row" id="detail-<%= idx %>" style="display:none">
         <td colspan="6">
-          <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.05em;font-weight:700">Détails</div>
+          <div style="font-size:.7rem;color:var(--text-dim);margin-bottom:.35rem;text-transform:uppercase;letter-spacing:.05em;font-weight:700"><%= uiText("Détails") %></div>
           <div class="au-detail-pre"><%= detailStr %></div>
         </td>
       </tr>

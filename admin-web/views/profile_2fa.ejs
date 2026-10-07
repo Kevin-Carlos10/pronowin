@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'profile'}) %>
 
 <style>
@@ -78,7 +79,7 @@
       </div>
       <span class="twofa-status attention">Action requise</span>
     </div>
-    <a href="/admin/logout" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> Se déconnecter</a>
+    <a href="/admin/logout" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> <%= uiText("Se déconnecter") %></a>
   </div>
 <% } else if (codesSecours) { %>
   <div class="card cr-panel twofa-card twofa-card--recovery">
@@ -118,7 +119,7 @@
         <label for="code-off" style="display:block;font-size:.75rem;color:var(--text-m);margin-bottom:.3rem">Code actuel, pour désactiver</label>
         <input class="input fa-code" id="code-off" name="code" inputmode="numeric" autocomplete="one-time-code" required>
       </div>
-      <button type="submit" class="btn btn-danger">Désactiver</button>
+      <button type="submit" class="btn btn-danger"><%= uiText("Désactiver") %></button>
     </form>
     <% } else { %>
     <p style="font-size:.82rem;color:var(--text-dim);margin:0">Obligatoire sur ce panneau : elle ne peut pas être désactivée.</p>

@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'abonnements'}) %>
 <link rel="stylesheet" href="/admin/assets/finance-control-room.css">
 <section class="finance-page finance-page--subscriptions">
@@ -125,7 +126,7 @@
 <header class="topbar workspace-header finance-workspace-header">
   <div class="workspace-heading">
     <div class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Opérations financières</div>
-    <h1><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Preuves Premium</h1>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> <%= uiText("Preuves Premium") %></h1>
     <p class="workspace-description">Contrôlez chaque demande, consultez sa preuve et enregistrez une décision traçable avant d'accorder l'accès Premium.</p>
   </div>
   <div class="workspace-actions">
@@ -196,7 +197,7 @@
 <% if (_c) { %>
 <div class="stats-grid metric-grid finance-metric-grid" style="margin-bottom:14px">
   <div class="stat-card metric-card <%= _c.en_attente > 0 ? 's-orange' : 's-blue' %>">
-    <div class="lbl">En attente</div><div class="val"><%= _c.en_attente %></div>
+    <div class="lbl"><%= uiText("En attente") %></div><div class="val"><%= _c.en_attente %></div>
   </div>
   <div class="stat-card metric-card s-green">
     <div class="lbl">Approuvées</div><div class="val"><%= _c.approuvees %></div>
@@ -246,10 +247,10 @@
     <option value="xbet_account_screenshot">Code partenaire</option>
   </select>
   <% } %>
-  <button type="submit" class="btn btn-primary btn-sm">Rechercher</button>
+  <button type="submit" class="btn btn-primary btn-sm"><%= uiText("Rechercher") %></button>
   <% if (_q) { %>
   <a href="<%= _lien(_stat, '') %>" class="btn btn-outline btn-sm">
-    <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Effacer
+    <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= uiText("Effacer") %>
   </a>
   <% } %>
   <span class="spacer"></span>
@@ -367,7 +368,7 @@
 <div class="pf-hscroll">
   <div class="pf-hist cr-panel" style="min-width:760px">
     <div class="pf-hrow pf-hhead">
-      <div>Utilisateur</div><div>Type</div><div>Montant</div><div>Décision</div><div>Note admin</div>
+      <div><%= uiText("Utilisateur") %></div><div>Type</div><div><%= uiText("Montant") %></div><div>Décision</div><div>Note admin</div>
     </div>
     <% _sorted.forEach(p => {
          const _decide = p.status === 'approved';
@@ -484,7 +485,7 @@
         </div>
       <% } else { %>
         <div style="margin-bottom:8px">
-          <p style="font-size:12px;color:var(--text-dim)">Plateforme partenaire</p>
+          <p style="font-size:12px;color:var(--text-dim)"><%= uiText("Plateforme partenaire") %></p>
           <p style="font-size:15px;font-weight:700;color:var(--on-purple)"><%= platformLabels[p.platform] ?? p.platform ?? '⚠ Non renseignée' %></p>
         </div>
         <div style="margin-bottom:8px">

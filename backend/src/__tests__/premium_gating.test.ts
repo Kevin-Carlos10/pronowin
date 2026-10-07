@@ -38,6 +38,7 @@ const PICK = '+2.5 buts';
 const premiumPronostic = (over: any = {}) => ({
   id: 'prono-1', matchId: 'match-1',
   predictionType: 'over25', predictionLabel: PICK,
+  predictionLabelEn: 'PRIVATE EN PICK', analystNoteEn: 'PRIVATE EN NOTE',
   oddsHome: 1.8, oddsDraw: 3.4, oddsAway: 4.2, oddsRecommended: 1.95,
   confidenceScore: 4, isPremium: true, isPublished: true,
   analystNote: 'Note réservée aux abonnés.', result: 'WIN',
@@ -82,6 +83,9 @@ describe('Étanchéité du pronostic premium — getPublishedPronostics', () => 
     expect(row.analyst_note).toBeNull();
     // Aucun champ de la réponse ne doit contenir le pick, même indirectement.
     expect(JSON.stringify(row)).not.toContain(PICK);
+    expect(JSON.stringify(row)).not.toContain('PRIVATE EN');
+    expect(row.prediction_label_en).toBeNull();
+    expect(row.analyst_note_en).toBeNull();
   });
 
   it('un utilisateur gratuit ne reçoit pas non plus le pronostic', async () => {
@@ -90,6 +94,9 @@ describe('Étanchéité du pronostic premium — getPublishedPronostics', () => 
 
     expect(row.locked).toBe(true);
     expect(JSON.stringify(row)).not.toContain(PICK);
+    expect(JSON.stringify(row)).not.toContain('PRIVATE EN');
+    expect(row.prediction_label_en).toBeNull();
+    expect(row.analyst_note_en).toBeNull();
   });
 
   it('un abonné dont l\'abonnement a expiré est traité comme gratuit', async () => {
@@ -98,6 +105,9 @@ describe('Étanchéité du pronostic premium — getPublishedPronostics', () => 
 
     expect(row.locked).toBe(true);
     expect(JSON.stringify(row)).not.toContain(PICK);
+    expect(JSON.stringify(row)).not.toContain('PRIVATE EN');
+    expect(row.prediction_label_en).toBeNull();
+    expect(row.analyst_note_en).toBeNull();
   });
 
   it('un abonné actif reçoit le pronostic complet', async () => {
@@ -106,6 +116,8 @@ describe('Étanchéité du pronostic premium — getPublishedPronostics', () => 
 
     expect(row.locked).toBe(false);
     expect(row.prediction_label).toBe(PICK);
+    expect(row.prediction_label_en).toBe('PRIVATE EN PICK');
+    expect(row.analyst_note_en).toBe('PRIVATE EN NOTE');
     expect(row.confidence_score).toBe(4);
     expect(row.analyst_note).toBe('Note réservée aux abonnés.');
   });
@@ -133,6 +145,8 @@ describe('Étanchéité du pronostic premium — getPublishedPronostics', () => 
 
     expect(row.locked).toBe(false);
     expect(row.prediction_label).toBe(PICK);
+    expect(row.prediction_label_en).toBe('PRIVATE EN PICK');
+    expect(row.analyst_note_en).toBe('PRIVATE EN NOTE');
   });
 });
 
@@ -158,6 +172,9 @@ describe('Étanchéité du pronostic premium — getAllMatches', () => {
     expect(row.locked).toBe(true);
     expect(row.prediction_label).toBeNull();
     expect(JSON.stringify(row)).not.toContain(PICK);
+    expect(JSON.stringify(row)).not.toContain('PRIVATE EN');
+    expect(row.prediction_label_en).toBeNull();
+    expect(row.analyst_note_en).toBeNull();
   });
 
   it('un abonné actif le reçoit', async () => {
@@ -166,5 +183,7 @@ describe('Étanchéité du pronostic premium — getAllMatches', () => {
 
     expect(row.locked).toBe(false);
     expect(row.prediction_label).toBe(PICK);
+    expect(row.prediction_label_en).toBe('PRIVATE EN PICK');
+    expect(row.analyst_note_en).toBe('PRIVATE EN NOTE');
   });
 });

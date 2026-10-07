@@ -1,5 +1,4 @@
 import '../../domain/entities/match_entity.dart';
-import 'package:pronowin/core/utils/noms_equipes.dart';
 
 class MatchModel extends MatchEntity {
   const MatchModel({
@@ -26,6 +25,7 @@ class MatchModel extends MatchEntity {
     super.confidencePct,
     required super.isPremium,
     super.analystNote,
+    super.analystNoteEn, super.predictionLabelEn,
     required super.homeFormPoints,
     required super.awayFormPoints,
     super.aiProbability,
@@ -37,8 +37,8 @@ class MatchModel extends MatchEntity {
     id:              j['id'] as String,
     league:          j['league'] as String,
     leagueCountry:   j['league_country'] as String? ?? '',
-    homeTeam:        nomEquipe(j['home_team'] as String),
-    awayTeam:        nomEquipe(j['away_team'] as String),
+    homeTeam:        j['home_team'] as String,
+    awayTeam:        j['away_team'] as String,
     homeTeamLogo:    j['home_team_logo'] as String?,
     awayTeamLogo:    j['away_team_logo'] as String?,
     // `.toLocal()` est indispensable, pas cosmétique : l'API sérialise en Zulu
@@ -63,6 +63,7 @@ class MatchModel extends MatchEntity {
     confidencePct:   (j['confidence_pct'] as num?)?.toInt(),
     isPremium:       j['is_premium'] as bool? ?? false,
     analystNote:     j['analyst_note'] as String?,
+    analystNoteEn: j['analyst_note_en'] as String?, predictionLabelEn: j['prediction_label_en'] as String?,
     homeFormPoints:  j['home_form_points'] as int? ?? 0,
     awayFormPoints:  j['away_form_points'] as int? ?? 0,
     aiProbability:   (j['ai_probability'] as num?)?.toDouble(),
@@ -74,8 +75,8 @@ class MatchModel extends MatchEntity {
     'id':               id,
     'league':           league,
     'league_country':   leagueCountry,
-    'home_team':        homeTeam,
-    'away_team':        awayTeam,
+    'home_team':        sourceHomeTeam,
+    'away_team':        sourceAwayTeam,
     'home_team_logo':   homeTeamLogo,
     'away_team_logo':   awayTeamLogo,
     'match_date':       matchDate.toIso8601String(),
@@ -84,7 +85,8 @@ class MatchModel extends MatchEntity {
     'away_score':       awayScore,
     'has_pronostic':    hasPronostic,
     'prediction_type':  predictionType.name,
-    'prediction_label': predictionLabel,
+    'prediction_label': sourcePredictionLabel,
+    'prediction_label_en': predictionLabelEn,
     'locked': isLocked,
     'odds_recommended': oddsRecommended,
     'odds_home':        oddsHome,
@@ -93,7 +95,8 @@ class MatchModel extends MatchEntity {
     'confidence_score': confidenceScore,
     'confidence_pct':   confidencePct,
     'is_premium':       isPremium,
-    'analyst_note':     analystNote,
+    'analyst_note':     sourceAnalystNote,
+    'analyst_note_en': analystNoteEn,
     'home_form_points': homeFormPoints,
     'away_form_points': awayFormPoints,
     'result':           switch (result) {

@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%
   // formId : 'create' (prefix 'cp') ou 'modal' (prefix 'mp')
   // existingPerms : tableau de permissions actuelles
@@ -26,7 +27,7 @@
           <th scope="col" style="width:40%">Section</th>
           <th scope="col" class="perm-level-head lvl-read"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> Lire</th>
           <th scope="col" class="perm-level-head lvl-write"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Écrire</th>
-          <th scope="col" class="perm-level-head lvl-delete"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Supprimer</th>
+          <th scope="col" class="perm-level-head lvl-delete"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> <%= uiText("Supprimer") %></th>
         </tr>
       </thead>
       <tbody>

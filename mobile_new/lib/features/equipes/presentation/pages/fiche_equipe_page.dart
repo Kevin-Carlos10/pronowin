@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/football_labels.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -119,7 +120,7 @@ class _EnTete extends StatelessWidget {
   Widget build(BuildContext context) {
     final cl = context.cl;
     final details = [
-      if (fiche?.country != null) fiche!.country!,
+      if (fiche?.country != null) FootballLabels.country(fiche!.country!),
       if (fiche?.founded != null) tr(context, "fondé en {arg0}", [fiche!.founded]),
     ].join(' · ');
     return Container(
@@ -271,7 +272,7 @@ class _StadeEtEntraineur extends StatelessWidget {
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(c.name, style: TextStyle(color: cl.textP, fontSize: 14, fontWeight: FontWeight.w700)),
               Text([
-                if (c.nationality != null) c.nationality!,
+                if (c.nationality != null) FootballLabels.country(c.nationality!),
                 if (c.age != null) tr(context, "{arg0} ans", [c.age]),
               ].join(' · '), style: TextStyle(color: cl.textS, fontSize: 12.5)),
             ])),

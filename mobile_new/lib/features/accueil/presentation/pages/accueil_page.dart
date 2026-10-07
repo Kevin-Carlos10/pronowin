@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/editorial_text.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:async';
 import 'dart:math' as math;

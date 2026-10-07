@@ -1,3 +1,4 @@
+import { optionalText } from '../i18n/editorial';
 ﻿import { Prisma, MatchSource, Match } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { ApiFootballService, apiFootballService, mapAFStatus, matchStatusPriority } from './api_football.service';
@@ -407,7 +408,7 @@ export class PronosticsService {
       where:  { matchId: { in: matchIds } },
       select: {
         id: true, matchId: true, isPublished: true, isPremium: true,
-        predictionLabel: true, confidenceScore: true, confidencePct: true, oddsRecommended: true,
+        predictionLabel: true, predictionLabelEn: true, confidenceScore: true, confidencePct: true, oddsRecommended: true,
         result: true, createdAt: true,
         // Le pronostic « gratuit du jour » : l'administrateur doit voir lequel
         // est en vitrine, sinon il ne peut pas le choisir en connaissance de
@@ -443,6 +444,7 @@ export class PronosticsService {
             id:                prono.id,
             tip:               prono.predictionLabel,
             prediction_label:  prono.predictionLabel,
+            prediction_label_en: prono.predictionLabelEn,
             confidence_score:  prono.confidenceScore,
             confidence_pct:  pourcentageConfiance(prono),
             odds:              prono.oddsRecommended,
@@ -743,6 +745,7 @@ export class PronosticsService {
     analystId:       string;
     predictionType:  string;
     predictionLabel: string;
+    predictionLabelEn?: string; analystNoteEn?: string;
     marketName?:     string;
     marketValue?:    string;
     oddsHome:        number;
@@ -769,6 +772,7 @@ export class PronosticsService {
       analystId:       params.analystId,
       predictionType:  params.predictionType as any,
       predictionLabel: params.predictionLabel,
+      predictionLabelEn: optionalText(params.predictionLabelEn, 500), analystNoteEn: optionalText(params.analystNoteEn),
       // Uniquement renseigné quand predictionType === 'other' (marché hors des 8 connus)
       marketName:      params.predictionType === 'other' ? (params.marketName  ?? null) : null,
       marketValue:     params.predictionType === 'other' ? (params.marketValue ?? null) : null,
@@ -977,6 +981,7 @@ export class PronosticsService {
       // payants lisibles. Le masquage doit être fait par le serveur.
       prediction_type:  locked ? null : p.predictionType,
       prediction_label: locked ? null : p.predictionLabel,
+      prediction_label_en: locked ? null : p.predictionLabelEn ?? null,
       odds_home:        p.oddsHome,
       odds_draw:        p.oddsDraw,
       odds_away:        p.oddsAway,
@@ -985,6 +990,7 @@ export class PronosticsService {
       confidence_pct: locked ? null : pourcentageConfiance(p),
       is_premium:       p.isPremium,
       analyst_note:     locked ? null : p.analystNote,
+      analyst_note_en:     locked ? null : p.analystNoteEn ?? null,
       analyst_name:     p.analyst.name,
       result:           p.result,
       home_form_points: p.match.homeFormPoints,
@@ -1056,6 +1062,7 @@ export class PronosticsService {
       elapsed:          p.match.elapsedMinutes,
       prediction_type:  p.predictionType,
       prediction_label: p.predictionLabel,
+      prediction_label_en: p.predictionLabelEn ?? null,
       odds_recommended: p.oddsRecommended,
       odds_home:        p.oddsHome,
       odds_draw:        p.oddsDraw,
@@ -1065,6 +1072,7 @@ export class PronosticsService {
       is_premium:       false,
       is_daily_free:    true,
       analyst_note:     p.analystNote,
+      analyst_note_en:     p.analystNoteEn ?? null,
       analyst_name:     p.analyst.name,
       result:           p.result,
       home_form_points: p.match.homeFormPoints,
@@ -1312,6 +1320,8 @@ export class PronosticsService {
         confidence_pct: hasPronostic && !mLocked ? pourcentageConfiance(p!)   : null,
         is_premium:       hasPronostic ? p!.isPremium                     : false,
         analyst_note:     hasPronostic && !mLocked ? p!.analystNote       : null,
+        analyst_note_en: hasPronostic && !mLocked ? p!.analystNoteEn : null,
+        prediction_label_en: hasPronostic && !mLocked ? p!.predictionLabelEn : null,
         analyst_name:     hasPronostic ? p!.analyst.name                  : null,
         result:           hasPronostic ? p!.result                        : null,
         home_form_points: m.homeFormPoints,

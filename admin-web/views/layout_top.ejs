@@ -1,5 +1,6 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="<%= typeof adminLanguage === 'string' ? adminLanguage : 'fr' %>">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -23,6 +24,7 @@
       document.documentElement.setAttribute('data-accent', accent);
     })();
   </script>
+  <script src="/admin/assets/admin-language.js" defer></script>
 </head>
 <body>
 
@@ -35,10 +37,10 @@
 <div class="confirm-overlay" id="confirm-overlay">
   <div class="confirm-box" role="dialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-msg" tabindex="-1">
     <div class="confirm-icon" id="confirm-icon"><svg class="ic ic-xl" aria-hidden="true"><use href="#ic-alert"/></svg></div>
-    <h3 id="confirm-title">Confirmer l'action</h3>
-    <p id="confirm-msg">Êtes-vous sûr de vouloir effectuer cette action ?</p>
+    <h3 id="confirm-title"><%= uiText("Confirmer l'action") %></h3>
+    <p id="confirm-msg"><%= uiText("Êtes-vous sûr de vouloir effectuer cette action ?") %></p>
     <div class="confirm-actions">
-      <button type="button" class="btn btn-outline" id="confirm-cancel-btn" onclick="closeConfirm()">Annuler</button>
+      <button type="button" class="btn btn-outline" id="confirm-cancel-btn" onclick="closeConfirm()"><%= uiText("Annuler") %></button>
       <%# Ce bouton n'appelait rien depuis le commit initial. « Annuler » avait
           son `onclick`, pas lui : la boîte s'ouvrait, on cliquait, il ne se
           passait rien — et comme aucune erreur n'apparaissait, on croyait le
@@ -47,7 +49,7 @@
           un versement, supprimer un sous-admin, un tutoriel, une actualité, un
           pronostic, vider le journal d'audit. Aucune de ces actions ne pouvait
           aboutir depuis l'interface. %>
-      <button type="button" class="btn btn-primary" id="confirm-ok-btn" onclick="submitConfirm()">Confirmer</button>
+      <button type="button" class="btn btn-primary" id="confirm-ok-btn" onclick="submitConfirm()"><%= uiText("Confirmer") %></button>
     </div>
   </div>
 </div>
@@ -59,11 +61,11 @@
 <div class="session-overlay" id="session-overlay">
   <div class="session-box">
     <div style="font-size:2.5rem;margin-bottom:.75rem"><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg></div>
-    <h3>Session sur le point d'expirer</h3>
+    <h3><%= uiText("Session sur le point d'expirer") %></h3>
     <p>Vous avez été inactif pendant un moment.<br>Votre session se fermera dans <strong id="session-countdown">02:00</strong>.</p>
     <div style="display:flex;gap:.75rem;justify-content:center;margin-top:1.5rem">
-      <button class="btn btn-primary" onclick="extendSession()"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Rester connecté</button>
-      <a href="/admin/logout" class="btn btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> Se déconnecter</a>
+      <button class="btn btn-primary" onclick="extendSession()"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> <%= uiText("Rester connecté") %></button>
+      <a href="/admin/logout" class="btn btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> <%= uiText("Se déconnecter") %></a>
     </div>
   </div>
 </div>
@@ -73,12 +75,12 @@
   <div class="search-box">
     <div class="search-input-wrap">
       <span class="search-icon"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></span>
-      <input type="text" id="search-input" placeholder="Rechercher un utilisateur, pronostic, actualité…" autocomplete="off" aria-label="Rechercher un utilisateur, pronostic, actualité">
+      <input type="text" id="search-input" placeholder="<%= uiText("Rechercher un utilisateur, pronostic, actualité…") %>" autocomplete="off" aria-label="<%= uiText("Rechercher un utilisateur, pronostic, actualité") %>">
       <kbd class="search-esc" onclick="closeSearch()">Esc</kbd>
     </div>
     <div class="search-results" id="search-results">
       <div class="search-hint">
-        <span><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Utilisateurs</span><span><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Pronostics</span><span><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg> Actualités</span>
+        <span><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> <%= uiText("Utilisateurs") %></span><span><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> <%= uiText("Pronostics") %></span><span><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg> <%= uiText("Actualités") %></span>
       </div>
     </div>
   </div>
@@ -103,51 +105,51 @@
   <!-- Bouton recherche sidebar -->
   <div style="padding:0 12px 12px">
     <button class="sidebar-search-btn" onclick="openSearch()" title="Ctrl+K ou /">
-      <span><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></span> <span>Rechercher…</span> <kbd>/</kbd>
+      <span><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></span> <span><%= uiText("Rechercher…") %></span> <kbd>/</kbd>
     </button>
   </div>
 
   <nav>
-    <a href="/admin/dashboard" class="nav-item <%= page==='dashboard' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg></span> Tableau de bord</a>
+    <a href="/admin/dashboard" class="nav-item <%= page==='dashboard' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg></span> <%= uiText("Tableau de bord") %></a>
 
     <% if (hasPerm('statistiques')) { %>
-    <a href="/admin/statistiques" class="nav-item <%= page==='statistiques' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg></span> Statistiques</a>
-    <a href="/admin/fiabilite" class="nav-item <%= page==='fiabilite' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg></span> Fiabilité des pronostics</a>
-    <a href="/admin/versions" class="nav-item <%= page==='versions' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg></span> Versions de l'app</a>
+    <a href="/admin/statistiques" class="nav-item <%= page==='statistiques' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg></span> <%= uiText("Statistiques") %></a>
+    <a href="/admin/fiabilite" class="nav-item <%= page==='fiabilite' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg></span> <%= uiText("Fiabilité des pronostics") %></a>
+    <a href="/admin/versions" class="nav-item <%= page==='versions' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg></span> <%= uiText("Versions de l'app") %></a>
     <% } %>
 
     <% if (hasPerm('users')) { %>
-    <a href="/admin/users" class="nav-item <%= page==='users' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span> Utilisateurs</a>
-    <a href="/admin/moderation" class="nav-item <%= page==='moderation' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-flag"/></svg></span> Modération</a>
+    <a href="/admin/users" class="nav-item <%= page==='users' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span> <%= uiText("Utilisateurs") %></a>
+    <a href="/admin/moderation" class="nav-item <%= page==='moderation' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-flag"/></svg></span> <%= uiText("Modération") %></a>
     <% } %>
 
     <% if (hasPerm('pronostics')) { %>
-    <a href="/admin/pronostics" class="nav-item <%= page==='pronostics' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></span> Pronostics</a>
-    <a href="/admin/leagues" class="nav-item <%= page==='leagues' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg></span> Ligues</a>
+    <a href="/admin/pronostics" class="nav-item <%= page==='pronostics' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></span> <%= uiText("Pronostics") %></a>
+    <a href="/admin/leagues" class="nav-item <%= page==='leagues' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg></span> <%= uiText("Ligues") %></a>
     <% } %>
 
     <% if (hasPerm('abonnements') || hasPerm('transactions') || hasPerm('historique') || hasPerm('bankroll')) { %>
-    <div class="sidebar-section">Finances</div>
+    <div class="sidebar-section"><%= uiText("Finances") %></div>
     <% } %>
 
     <%# Revenus en tete du groupe Finances : c'est le chiffre qu'on vient
         chercher en premier sur une activite par abonnement. %>
     <% if (hasPerm('statistiques')) { %>
     <a href="/admin/revenus" class="nav-item <%= page==='revenus' ?'active':'' %>">
-      <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg></span> Revenus
+      <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg></span> <%= uiText("Revenus") %>
     </a>
     <a href="/admin/fidelite" class="nav-item <%= page==='fidelite' ?'active':'' %>">
-      <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg></span> Fidélité des abonnés
+      <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg></span> <%= uiText("Fidélité des abonnés") %>
     </a>
     <% } %>
 
     <% if (hasPerm('abonnements')) { %>
     <a href="/admin/abonnements" class="nav-item <%= page==='abonnements' ?'active':'' %>">
-      <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> Preuves Premium
+      <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span> <%= uiText("Preuves Premium") %>
       <span class="nav-badge" id="badge-proofs"></span>
     </a>
-    <a href="/admin/achats-store" class="nav-item <%= page==='achats_store' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg></span> Achats App Store / Play</a>
-    <a href="/admin/code-promo" class="nav-item <%= page==='code_promo' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg></span> Code promo</a>
+    <a href="/admin/achats-store" class="nav-item <%= page==='achats_store' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg></span> <%= uiText("Achats App Store / Play") %></a>
+    <a href="/admin/code-promo" class="nav-item <%= page==='code_promo' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg></span> <%= uiText("Code promo") %></a>
     <% } %>
 
     <%# Versements, Historique et Méthodes de paiement occupaient trois entrées
@@ -158,7 +160,7 @@
     <% if (hasPerm('transactions') || hasPerm('historique') || isMain) { %>
     <a href="<%= hasPerm('transactions') ? '/admin/transactions' : hasPerm('historique') ? '/admin/historique' : '/admin/paiements' %>"
        class="nav-item <%= ['transactions','historique','paiements'].includes(page) ? 'active' : '' %>">
-      <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg></span> Paiements
+      <span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg></span> <%= uiText("Paiements") %>
       <span class="nav-badge" id="badge-tx"></span>
     </a>
     <% } %>
@@ -168,15 +170,15 @@
     <% } %>
 
     <% if (hasPerm('tutoriels') || hasPerm('notifications') || hasPerm('actualites')) { %>
-    <div class="sidebar-section">Contenu</div>
+    <div class="sidebar-section"><%= uiText("Contenu") %></div>
     <% } %>
 
     <% if (hasPerm('actualites')) { %>
-    <a href="/admin/actualites" class="nav-item <%= page==='actualites' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg></span> Actualités</a>
+    <a href="/admin/actualites" class="nav-item <%= page==='actualites' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg></span> <%= uiText("Actualités") %></a>
     <% } %>
 
     <% if (hasPerm('tutoriels')) { %>
-    <a href="/admin/tutoriels" class="nav-item <%= page==='tutoriels' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-book"/></svg></span> Tutoriels</a>
+    <a href="/admin/tutoriels" class="nav-item <%= page==='tutoriels' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-book"/></svg></span> <%= uiText("Tutoriels") %></a>
     <% } %>
 
     <% if (hasPerm('notifications')) { %>
@@ -185,11 +187,11 @@
 
     <% if (isMain) { %>
     <div class="sidebar-section">Administration</div>
-    <a href="/admin/sub-admins" class="nav-item <%= page==='sub-admins' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg></span> Sous-admins</a>
-    <a href="/admin/bans"       class="nav-item <%= page==='bans'       ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg></span> Bannissements</a>
-    <a href="/admin/audit"      class="nav-item <%= page==='audit'      ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg></span> Journal d'activité</a>
-    <a href="/admin/football"   class="nav-item <%= page==='football'   ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></span> API football</a>
-    <a href="/admin/settings"   class="nav-item <%= page==='settings'   ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg></span> Paramètres</a>
+    <a href="/admin/sub-admins" class="nav-item <%= page==='sub-admins' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg></span> <%= uiText("Sous-admins") %></a>
+    <a href="/admin/bans"       class="nav-item <%= page==='bans'       ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg></span> <%= uiText("Bannissements") %></a>
+    <a href="/admin/audit"      class="nav-item <%= page==='audit'      ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg></span> <%= uiText("Journal d'activité") %></a>
+    <a href="/admin/football"   class="nav-item <%= page==='football'   ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></span> <%= uiText("API football") %></a>
+    <a href="/admin/settings"   class="nav-item <%= page==='settings'   ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg></span> <%= uiText("Paramètres") %></a>
     <% } %>
   </nav>
 
@@ -197,11 +199,16 @@
 
   <!-- ── Panneau thème ── -->
   <div class="theme-panel">
+    <label for="admin-language">Français / English</label>
+    <select id="admin-language" class="input" aria-label="Interface language" onchange="setAdminLanguage(this.value)">
+      <option value="fr" <%= typeof adminLanguage !== 'string' || adminLanguage === 'fr' ? 'selected' : '' %>>Français</option>
+      <option value="en" <%= typeof adminLanguage === 'string' && adminLanguage === 'en' ? 'selected' : '' %>>English</option>
+    </select>
     <div class="theme-panel-row">
-      <span class="theme-panel-lbl">Thème</span>
+      <span class="theme-panel-lbl"><%= uiText("Thème") %></span>
       <div class="mode-toggle">
-        <button class="mode-btn" id="mode-dark"  onclick="setMode('dark')"  title="Mode sombre" aria-label="Activer le thème sombre"><svg class="ic" aria-hidden="true"><use href="#ic-moon"/></svg></button>
-        <button class="mode-btn" id="mode-light" onclick="setMode('light')" title="Mode clair" aria-label="Activer le thème clair"><svg class="ic" aria-hidden="true"><use href="#ic-sun"/></svg></button>
+        <button class="mode-btn" id="mode-dark"  onclick="setMode('dark')"  title="<%= uiText("Mode sombre") %>" aria-label="<%= uiText("Activer le thème sombre") %>"><svg class="ic" aria-hidden="true"><use href="#ic-moon"/></svg></button>
+        <button class="mode-btn" id="mode-light" onclick="setMode('light')" title="<%= uiText("Mode clair") %>" aria-label="<%= uiText("Activer le thème clair") %>"><svg class="ic" aria-hidden="true"><use href="#ic-sun"/></svg></button>
       </div>
     </div>
   </div>
@@ -216,25 +223,25 @@
         <div style="font-size:.7rem;color:<%= adminRole==='sub'?'var(--on-warning)':'var(--on-success)' %>"><%= adminRole==='sub'?'Sous-admin':'Admin principal' %></div>
       </div>
     </a>
-    <a href="/admin/logout" class="nav-item nav-logout"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg></span> Déconnexion</a>
+    <a href="/admin/logout" class="nav-item nav-logout"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg></span> <%= uiText("Déconnexion") %></a>
   </div>
 </aside>
 
 <!-- ── Bottom Navigation Bar (mobile) ── -->
-<nav class="bottom-nav" id="bottom-nav" aria-label="Navigation mobile">
+<nav class="bottom-nav" id="bottom-nav" aria-label="<%= uiText("Navigation mobile") %>">
   <div class="bottom-nav-items">
-    <a href="/admin/dashboard" class="bottom-nav-item <%= page==='dashboard'?'active':'' %>" aria-label="Tableau de bord">
+    <a href="/admin/dashboard" class="bottom-nav-item <%= page==='dashboard'?'active':'' %>" aria-label="<%= uiText("Tableau de bord") %>">
       <span class="bottom-nav-icon"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg></span>
-      <span>Accueil</span>
+      <span><%= uiText("Accueil") %></span>
     </a>
     <%# « Utilisateurs » et « Stats » s'excluaient mutuellement — un `if/else`
         qui gaspillait un créneau alors que la barre n'en compte que cinq pour
         vingt-trois destinations. Chacun s'affiche désormais selon sa propre
         permission. %>
     <% if (hasPerm('users')) { %>
-    <a href="/admin/users" class="bottom-nav-item <%= page==='users'?'active':'' %>" aria-label="Utilisateurs">
+    <a href="/admin/users" class="bottom-nav-item <%= page==='users'?'active':'' %>" aria-label="<%= uiText("Utilisateurs") %>">
       <span class="bottom-nav-icon"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span>
-      <span>Utilisateurs</span>
+      <span><%= uiText("Utilisateurs") %></span>
     </a>
     <% } %>
 
@@ -252,22 +259,22 @@
         visible dans tous les cas. Quatre créneaux répartis également se lisent
         mieux qu'un cinquième qui répète son voisin. %>
     <% if (hasPerm('pronostics')) { %>
-    <a href="/admin/pronostics" class="bottom-nav-fab" aria-label="Pronostics">
+    <a href="/admin/pronostics" class="bottom-nav-fab" aria-label="<%= uiText("Pronostics") %>">
       <div class="bottom-nav-fab-circle"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></div>
-      <span class="bottom-nav-fab-lbl">Pronostics</span>
+      <span class="bottom-nav-fab-lbl"><%= uiText("Pronostics") %></span>
     </a>
     <% } %>
 
     <% if (hasPerm('statistiques')) { %>
-    <a href="/admin/statistiques" class="bottom-nav-item <%= page==='statistiques'?'active':'' %>" aria-label="Statistiques">
+    <a href="/admin/statistiques" class="bottom-nav-item <%= page==='statistiques'?'active':'' %>" aria-label="<%= uiText("Statistiques") %>">
       <span class="bottom-nav-icon"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg></span>
       <span>Stats</span>
     </a>
     <% } %>
 
-    <a href="/admin/profile" class="bottom-nav-item <%= page==='profile'?'active':'' %>" aria-label="Profil">
+    <a href="/admin/profile" class="bottom-nav-item <%= page==='profile'?'active':'' %>" aria-label="<%= uiText("Profil") %>">
       <span class="bottom-nav-icon"><svg class="ic" aria-hidden="true"><use href="#ic-user"/></svg></span>
-      <span>Profil</span>
+      <span><%= uiText("Profil") %></span>
     </a>
   </div>
 </nav>
@@ -279,7 +286,7 @@
 <div class="mobile-bar">
   <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu"><svg class="ic" aria-hidden="true"><use href="#ic-menu"/></svg></button>
   <span class="mobile-bar-title">Prono<span>Win</span> Admin</span>
-  <button class="search-trigger-btn" onclick="openSearch()" title="Recherche (Ctrl+K)" aria-label="Ouvrir la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></button>
+  <button class="search-trigger-btn" onclick="openSearch()" title="<%= uiText("Recherche (Ctrl+K)") %>" aria-label="<%= uiText("Ouvrir la recherche") %>"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></button>
 </div>
 
 <%

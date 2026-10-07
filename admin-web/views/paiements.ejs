@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'paiements'}) %>
 <link rel="stylesheet" href="/admin/assets/finance-control-room.css">
 <section class="finance-page finance-page--methods">
@@ -97,7 +98,7 @@
         <div class="action-menu-list finance-action-menu-list">
           <button type="button" class="btn btn-outline btn-sm"
                   onclick="modifier('<%= m.id %>', <%= JSON.stringify(m.label) %>, <%= JSON.stringify(m.phone) %>, <%= m.sortOrder %>, <%= JSON.stringify(m.ussdTemplate || '') %>)">
-            <svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier
+            <svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> <%= uiText("Modifier") %>
           </button>
           <form method="POST" action="/admin/paiements/<%= m.id %>/toggle">
             <button type="submit" class="btn btn-outline btn-sm">
@@ -108,7 +109,7 @@
           <form method="POST" action="/admin/paiements/<%= m.id %>/supprimer"
                 onsubmit="return confirm('Supprimer « <%= m.label %> » ?\n\nS\'il a déjà servi à un paiement, il sera seulement masqué pour ne pas rendre l\'historique illisible.')">
             <button type="submit" class="btn btn-danger btn-sm" aria-label="Supprimer <%= m.label %>">
-              <svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Supprimer
+              <svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> <%= uiText("Supprimer") %>
             </button>
           </form>
         </div>
@@ -175,8 +176,8 @@
     </div>
 
     <div style="display:flex;gap:.5rem">
-      <button type="button" class="btn btn-outline" style="flex:1" onclick="fermerEdit()">Annuler</button>
-      <button type="submit" class="btn btn-primary" style="flex:1">Enregistrer</button>
+      <button type="button" class="btn btn-outline" style="flex:1" onclick="fermerEdit()"><%= uiText("Annuler") %></button>
+      <button type="submit" class="btn btn-primary" style="flex:1"><%= uiText("Enregistrer") %></button>
     </div>
   </form>
 </div>

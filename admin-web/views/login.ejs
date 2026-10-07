@@ -1,5 +1,6 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <!DOCTYPE html>
-<html lang="fr" id="login-html">
+<html lang="<%= typeof adminLanguage === 'string' ? adminLanguage : 'fr' %>" id="login-html">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -492,7 +493,7 @@
     </header>
 
     <div class="brand-body">
-      <div class="pill rise" style="--d:.12s"><span class="pill-dot"></span>En direct</div>
+      <div class="pill rise" style="--d:.12s"><span class="pill-dot"></span><%= uiText("En direct") %></div>
 
       <p class="brand-title rise" style="--d:.18s">Pilotez vos pronostics<br><em>en temps réel</em></p>
       <p class="brand-lede rise" style="--d:.24s">
@@ -613,7 +614,7 @@
           </div>
         </div>
         <button type="submit" class="submit rise" style="--d:.3s">
-          <span>Vérifier</span>
+          <span><%= uiText("Vérifier") %></span>
           <svg class="ic arrow" aria-hidden="true"><use href="#ic-arrow-right"/></svg>
         </button>
         <p style="margin-top:1rem;font-size:.82rem"><a href="/admin/login">← Recommencer la connexion</a></p>
@@ -658,7 +659,7 @@
 
         <button type="submit" class="submit rise" id="submit-btn" style="--d:<%= _showGauge ? '.46s' : '.40s' %>">
           <span class="spinner" id="spinner"></span>
-          <span id="btn-label">Se connecter</span>
+          <span id="btn-label"><%= uiText("Se connecter") %></span>
           <svg class="ic arrow" id="btn-arrow" aria-hidden="true"><use href="#ic-arrow-right"/></svg>
         </button>
 

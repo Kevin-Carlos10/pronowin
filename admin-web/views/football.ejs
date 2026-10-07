@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'football'}) %>
 
 <style>
@@ -115,7 +116,7 @@
   </div></div>
 <% } %>
 
-<h3 class="fo-titre">30 derniers jours <small>— requêtes par jour<%= seuil ? ', limite en pointillé' : '' %></small></h3>
+<h3 class="fo-titre"><%= uiText("30 derniers jours") %> <small>— requêtes par jour<%= seuil ? ', limite en pointillé' : '' %></small></h3>
 <div class="card cr-panel fo-graph">
   <% if (!mesures.length) { %>
     <div class="empty-state fo-vide">
@@ -149,7 +150,7 @@
   <div class="table-wrap">
   <table class="fo-tab">
     <thead>
-      <tr><th scope="col">Usage</th><th scope="col">Aujourd'hui</th><th scope="col">7 derniers jours</th><th scope="col">Par jour</th><th scope="col">Échecs</th></tr>
+      <tr><th scope="col">Usage</th><th scope="col">Aujourd'hui</th><th scope="col"><%= uiText("7 derniers jours") %></th><th scope="col">Par jour</th><th scope="col">Échecs</th></tr>
     </thead>
     <tbody>
       <% _d.familles.septJours.forEach(f => { const t = auj.get(f.famille); %>

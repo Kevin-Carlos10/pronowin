@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'users'}) %>
 
 <%
@@ -21,7 +22,7 @@
 <header class="workspace-header">
   <div class="workspace-heading">
     <p class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Relation client</p>
-    <h1><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> Utilisateurs</h1>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg> <%= uiText("Utilisateurs") %></h1>
     <p class="workspace-description" id="result-count">
       Retrouvez un compte, segmentez la base ou préparez une action encadrée. <strong><%= total %></strong> résultat<%= total>1?'s':'' %> correspondent au périmètre affiché.
     </p>
@@ -102,7 +103,7 @@
   <a href="/admin/users?date_from=<%= _todayIso %>" class="stat-card metric-card s-green stat-link" aria-current="<%= _isToday ? 'true':'false' %>">
     <div class="lbl">Nouveaux (auj.)</div><div class="val"><%= stats.newToday %></div></a>
   <a href="/admin/users?date_from=<%= _weekIso %>" class="stat-card metric-card s-purple stat-link" aria-current="<%= _isWeek ? 'true':'false' %>">
-    <div class="lbl">Cette semaine</div><div class="val"><%= stats.newWeek %></div></a>
+    <div class="lbl"><%= uiText("Cette semaine") %></div><div class="val"><%= stats.newWeek %></div></a>
   <a href="/admin/users?status=suspended" class="stat-card metric-card s-red stat-link" aria-current="<%= _isSuspended ? 'true':'false' %>">
     <div class="lbl">Suspendus</div><div class="val"><%= stats.suspended %></div></a>
   <%# Le taux de conversion n'est pas un sous-ensemble de la liste : rien à filtrer. %>
@@ -125,15 +126,15 @@
     <!-- Ligne principale -->
     <div class="filter-main-row">
       <input type="text" name="search" id="f-search" value="<%= search %>"
-        placeholder="🔍 Rechercher pseudo, téléphone, email, ID 1xBet…" class="filter-search-input" aria-label="Rechercher">
+        placeholder="🔍 Rechercher pseudo, téléphone, email, ID 1xBet…" class="filter-search-input" aria-label="<%= uiText("Rechercher") %>">
 
       <select name="plan" id="f-plan" aria-label="Plan">
         <option value="">Tous les plans</option>
-        <option value="free"    <%= plan==='free'    ?'selected':'' %>>Gratuit</option>
+        <option value="free"    <%= plan==='free'    ?'selected':'' %>><%= uiText("Gratuit") %></option>
         <option value="premium" <%= plan==='premium' ?'selected':'' %>>Premium</option>
       </select>
 
-      <select name="status" id="f-status" aria-label="Statut">
+      <select name="status" id="f-status" aria-label="<%= uiText("Statut") %>">
         <option value="">Tous statuts</option>
         <option value="active"    <%= status==='active'    ?'selected':'' %>>Actifs</option>
         <option value="suspended" <%= status==='suspended' ?'selected':'' %>>Suspendus</option>
@@ -147,12 +148,12 @@
       </select>
 
       <div class="filter-actions-row">
-        <button type="submit" class="btn btn-primary">Filtrer</button>
+        <button type="submit" class="btn btn-primary"><%= uiText("Filtrer") %></button>
         <button type="button" class="btn btn-outline" onclick="toggleAdvanced()" id="adv-toggle-btn">
           <svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Avancé <% if(_hasAdv){ %><span class="filter-adv-badge">!</span><% } %>
         </button>
         <% if(_hasAny){ %>
-        <a href="/admin/users" class="btn btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Tout effacer</a>
+        <a href="/admin/users" class="btn btn-outline"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= uiText("Tout effacer") %></a>
         <% } %>
       </div>
     </div>
@@ -228,19 +229,19 @@
     <button type="button" class="btn btn-sm btn-outline" onclick="uBulkNotify()"><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> Notifier</button>
     <button type="button" class="btn btn-sm btn-outline" onclick="uBulkSuspend(false)"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg> Réactiver</button>
     <button type="button" class="btn btn-sm btn-danger"  onclick="uBulkSuspend(true)"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-danger)"><use href="#ic-dot"/></svg> Suspendre</button>
-    <button type="button" class="btn btn-sm btn-outline" onclick="uClearSelection()">Annuler</button>
+    <button type="button" class="btn btn-sm btn-outline" onclick="uClearSelection()"><%= uiText("Annuler") %></button>
   </div>
 
   <div class="table-wrap"><table>
     <thead>
       <tr>
         <th scope="col" style="width:34px"><input type="checkbox" id="u-check-all" onchange="uToggleAll(this)" aria-label="Tout sélectionner"></th>
-        <th scope="col" data-sort="pseudo">Utilisateur</th>
+        <th scope="col" data-sort="pseudo"><%= uiText("Utilisateur") %></th>
         <th scope="col">Téléphone</th>
         <th scope="col">1xBet ID</th>
         <th scope="col" data-sort="subscriptionPlan">Plan</th>
         <th scope="col" data-sort="createdAt">Inscrit le</th>
-        <th scope="col" data-sort="isActive">Statut</th>
+        <th scope="col" data-sort="isActive"><%= uiText("Statut") %></th>
         <th scope="col" style="text-align:right">Actions</th>
       </tr>
     </thead>
@@ -275,7 +276,7 @@
           <div><span class="badge badge-warn"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span>
           <p class="users-cr-premium-note"><%= u.days_left %>j restants</p></div>
         <% } else { %>
-          <span class="badge users-cr-free">Gratuit</span>
+          <span class="badge users-cr-free"><%= uiText("Gratuit") %></span>
         <% } %>
       </td>
       <td class="users-cr-muted">

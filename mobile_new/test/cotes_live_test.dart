@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pronowin/features/pronostics/presentation/providers/pronostics_provider.dart';
 
@@ -6,15 +7,17 @@ import 'package:pronowin/features/pronostics/presentation/providers/pronostics_p
 /// libellé, contrairement au flux pré-match pour lequel l'analyseur avait été
 /// écrit, et il était donc perdu en chemin.
 void main() {
+  setUp(() => AppStrings.setCurrentLanguage('fr'));
+  tearDown(() => AppStrings.setCurrentLanguage('fr'));
   group('libellé d\'une cote en direct', () {
     test('porte le seuil quand il existe', () {
       const v = LiveOddValue(value: 'Over', odd: 1.90, ligne: '2.5');
-      expect(v.libelle, 'Over 2.5');
+      expect(v.libelle, 'Plus de 2,5');
     });
 
-    test('reste inchangé quand le marché n\'a pas de seuil', () {
+    test('traduit la sélection sans inventer de seuil', () {
       const v = LiveOddValue(value: 'Home', odd: 1.45);
-      expect(v.libelle, 'Home');
+      expect(v.libelle, 'Domicile');
     });
 
     test('distingue deux lignes du même marché', () {
@@ -27,7 +30,7 @@ void main() {
 
     test('un seuil négatif de handicap est conservé', () {
       const v = LiveOddValue(value: 'Home', odd: 1.95, ligne: '-0.5');
-      expect(v.libelle, 'Home -0.5');
+      expect(v.libelle, 'Domicile -0,5');
     });
   });
 
@@ -43,14 +46,14 @@ void main() {
         {'value': 'Over',  'odd': 1.9, 'ligne': '2.5'},
         {'value': 'Under', 'odd': 1.9, 'ligne': '2.5'},
       ]));
-      expect(d.markets.first.values.first.libelle, 'Over 2.5');
+      expect(d.markets.first.values.first.libelle, 'Plus de 2,5');
       expect(d.elapsed, 45);
     });
 
     test('absence de seuil : le libellé ne s\'invente rien', () {
       final d = LiveOddsData.fromJson(reponse([{'value': 'Yes', 'odd': 1.7}]));
       expect(d.markets.first.values.first.ligne, isNull);
-      expect(d.markets.first.values.first.libelle, 'Yes');
+      expect(d.markets.first.values.first.libelle, 'Oui');
     });
 
     // Une chaîne vide n'est pas un seuil : la traiter comme tel produirait un
@@ -58,7 +61,7 @@ void main() {
     test('un seuil vide est traité comme absent', () {
       final d = LiveOddsData.fromJson(reponse([{'value': 'Over', 'odd': 1.9, 'ligne': ''}]));
       expect(d.markets.first.values.first.ligne, isNull);
-      expect(d.markets.first.values.first.libelle, 'Over');
+      expect(d.markets.first.values.first.libelle, 'Plus de');
     });
 
     test('le nom du marché arrive déjà traduit du serveur', () {

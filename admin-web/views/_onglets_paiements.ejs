@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%#
   Sous-navigation des écrans de paiement.
 
@@ -24,7 +25,7 @@
   <% if (hasPerm('historique')) { %>
   <a class="sous-onglet <%= actif === 'historique' ? 'on' : '' %>" href="/admin/historique"
      aria-current="<%= actif === 'historique' ? 'page' : 'false' %>">
-    <svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Historique
+    <svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> <%= uiText("Historique") %>
   </a>
   <% } %>
   <% if (typeof isMain !== 'undefined' && isMain) { %>

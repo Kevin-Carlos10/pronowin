@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'fiabilite'}) %>
 
 <style>
@@ -153,7 +154,7 @@
     <thead>
       <tr>
         <th scope="col">Confiance annoncée</th>
-        <th scope="col">Pronostics</th>
+        <th scope="col"><%= uiText("Pronostics") %></th>
         <th scope="col">Annoncé</th>
         <th scope="col">Réel</th>
         <th scope="col">Comparaison</th>
@@ -215,7 +216,7 @@
     <thead>
       <tr>
         <th scope="col">Pari</th>
-        <th scope="col">Pronostics</th>
+        <th scope="col"><%= uiText("Pronostics") %></th>
         <th scope="col">Annoncé</th>
         <th scope="col">Réel</th>
         <th scope="col">Verdict</th>
@@ -257,7 +258,7 @@
   <table class="fb-tab">
     <thead>
       <tr>
-        <th scope="col">Pronostics</th>
+        <th scope="col"><%= uiText("Pronostics") %></th>
         <th scope="col">Nombre</th>
         <th scope="col">Annoncé</th>
         <th scope="col">Réel</th>

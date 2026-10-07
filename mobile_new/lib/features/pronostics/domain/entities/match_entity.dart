@@ -1,6 +1,8 @@
+import 'package:pronowin/l10n/editorial_text.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'package:equatable/equatable.dart';
 import 'package:pronowin/core/utils/noms_equipes.dart';
+import 'package:pronowin/l10n/football_labels.dart';
 
 enum PredictionType  { win1, draw, win2, btts, over25, under25, over35, under35, other }
 enum MatchStatus     { upcoming, live, finished }
@@ -13,8 +15,13 @@ class MatchEntity extends Equatable {
   final String id;
   final String league;
   final String leagueCountry;
-  final String homeTeam;
-  final String awayTeam;
+  final String _homeTeam;
+  String get homeTeam => nomEquipe(_homeTeam);
+  final String _awayTeam;
+  String get awayTeam => nomEquipe(_awayTeam);
+  // Cache/serialization uses provider data, not the current display language.
+  String get sourceHomeTeam => _homeTeam;
+  String get sourceAwayTeam => _awayTeam;
   final String? homeTeamLogo;
   final String? awayTeamLogo;
   final DateTime matchDate;
@@ -22,7 +29,10 @@ class MatchEntity extends Equatable {
   final int? homeScore;
   final int? awayScore;
   final PredictionType predictionType;
-  final String predictionLabel;
+  final String _predictionLabel;
+  final String? predictionLabelEn;
+  String get predictionLabel => editorialText(_predictionLabel, predictionLabelEn);
+  String get sourcePredictionLabel => _predictionLabel;
 
   /// Le serveur a retiré le pronostic de la réponse (contenu premium hors
   /// abonnement). Distingue « pas encore de pronostic » de « pronostic
@@ -40,7 +50,10 @@ class MatchEntity extends Equatable {
   /// le serveur ne l'envoie pas encore : voir [pourcentageConfiance].
   final int? confidencePct;
   final bool isPremium;
-  final String? analystNote;
+  final String? _analystNote;
+  final String? analystNoteEn;
+  String? get analystNote => _analystNote == null && analystNoteEn == null ? null : editorialText(_analystNote ?? '', analystNoteEn);
+  String? get sourceAnalystNote => _analystNote;
   final int homeFormPoints;
   final int awayFormPoints;
   final double? aiProbability;
@@ -55,8 +68,8 @@ class MatchEntity extends Equatable {
     required this.id,
     required this.league,
     required this.leagueCountry,
-    required this.homeTeam,
-    required this.awayTeam,
+    required String homeTeam,
+    required String awayTeam,
     this.homeTeamLogo,
     this.awayTeamLogo,
     required this.matchDate,
@@ -64,7 +77,8 @@ class MatchEntity extends Equatable {
     this.homeScore,
     this.awayScore,
     required this.predictionType,
-    required this.predictionLabel,
+    required String predictionLabel,
+    this.predictionLabelEn,
     required this.oddsRecommended,
     required this.oddsHome,
     required this.oddsDraw,
@@ -72,7 +86,8 @@ class MatchEntity extends Equatable {
     required this.confidenceScore,
     this.confidencePct,
     required this.isPremium,
-    this.analystNote,
+    String? analystNote,
+    this.analystNoteEn,
     required this.homeFormPoints,
     required this.awayFormPoints,
     this.aiProbability,
@@ -80,7 +95,7 @@ class MatchEntity extends Equatable {
     this.hasPronostic = true,
     this.isLocked = false,
     this.result,
-  });
+  }) : _homeTeam = homeTeam, _awayTeam = awayTeam, _predictionLabel = predictionLabel, _analystNote = analystNote;
 
   ConfidenceLevel get confidence {
     if (confidenceScore >= 5) return ConfidenceLevel.veryHigh;
@@ -176,7 +191,8 @@ class MatchEntity extends Equatable {
   /// équipes du match seulement, pour ne jamais toucher un nom de joueur.
   static String applyTeamNames(String label, {required String homeTeam, required String awayTeam}) =>
       traduireEquipesDansLibelle(
-        label.replaceAll(_domicileRe, homeTeam).replaceAll(_exterieurRe, awayTeam),
+        FootballLabels.prediction(label, home: homeTeam, away: awayTeam).text
+            .replaceAll(_domicileRe, homeTeam).replaceAll(_exterieurRe, awayTeam),
         [homeTeam, awayTeam]);
 
   /// [predictionLabel] avec les camps génériques substitués — voir [applyTeamNames].

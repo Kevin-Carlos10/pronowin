@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'bankroll'}) %>
 
 <%
@@ -74,7 +75,7 @@
     <div class="val"><%= _st.roi === null ? '—' : (_st.roi >= 0 ? '+' : '') + _st.roi + '%' %></div>
   </div>
   <div class="stat-card metric-card s-orange">
-    <div class="lbl">Taux de réussite</div>
+    <div class="lbl"><%= uiText("Taux de réussite") %></div>
     <div class="val"><%= _st.win_rate === null ? '—' : _st.win_rate + '%' %></div>
   </div>
   <div class="stat-card metric-card <%= _st.pending_bets > 0 ? 's-orange' : 's-blue' %>">
@@ -101,11 +102,11 @@
            aria-label="Rechercher un utilisateur"
            placeholder="Rechercher pseudo, téléphone, email…">
     <button type="submit" class="btn btn-sm btn-primary">
-      <svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg> Filtrer
+      <svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg> <%= uiText("Filtrer") %>
     </button>
     <% if(search){ %>
       <a href="/admin/bankroll" class="btn btn-sm btn-outline">
-        <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Effacer
+        <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= uiText("Effacer") %>
       </a>
     <% } %>
   </form>
@@ -137,11 +138,11 @@
       <table class="dt">
         <thead>
           <tr>
-            <th scope="col" data-sort="pseudo">Utilisateur</th>
+            <th scope="col" data-sort="pseudo"><%= uiText("Utilisateur") %></th>
             <th scope="col" class="num" data-sort="currentBalance">Solde</th>
             <th scope="col" class="num" data-sort="totalBudget">Budget</th>
-            <th scope="col" class="num">Paris</th>
-            <th scope="col" class="num">Réussite</th>
+            <th scope="col" class="num"><%= uiText("Paris") %></th>
+            <th scope="col" class="num"><%= uiText("Réussite") %></th>
             <th scope="col" class="num">Profit</th>
             <th scope="col" class="num" title="Profit rapporté au total misé sur les paris tranchés">ROI</th>
             <th scope="col" class="col-act">Actions</th>
@@ -191,7 +192,7 @@
           </td>
           <td class="col-act">
             <a href="/admin/bankroll/<%= b.user_id %>" class="btn btn-sm btn-outline">
-              Voir <svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"/></svg>
+              <%= uiText("Voir") %> <svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"/></svg>
             </a>
           </td>
         </tr>

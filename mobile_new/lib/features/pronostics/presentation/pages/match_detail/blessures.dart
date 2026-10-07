@@ -171,7 +171,7 @@ class _InjuryRow extends StatelessWidget {
             style: TextStyle(color: context.cl.textP, fontSize: 12.5))),
         const SizedBox(width: 10),
         Flexible(
-          child: Text(player.reason,
+          child: Text(FootballLabels.absence(player.reason, language: AppStrings.of(context).locale.languageCode).text,
             textAlign: TextAlign.right,
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: TextStyle(color: context.cl.textM, fontSize: 11)),

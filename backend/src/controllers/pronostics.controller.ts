@@ -412,10 +412,12 @@ export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
       // Le pronostic lui-même : c'est ce qui se vend.
       prediction_type:  locked ? null : prono.predictionType,
       prediction_label: locked ? null : prono.predictionLabel,
+      prediction_label_en: locked ? null : prono.predictionLabelEn ?? null,
       odds_recommended: locked ? null : prono.oddsRecommended,
       confidence_score: locked ? null : prono.confidenceScore,
       confidence_pct: locked ? null : pourcentageConfiance(prono),
       analyst_note:     locked ? null : prono.analystNote,
+      analyst_note_en:     locked ? null : prono.analystNoteEn ?? null,
       analyst_name:     locked ? null : prono.analyst.name,
       ai_probability:   locked ? null : prono.aiProbability,
       ai_explanation:   locked ? null : prono.aiExplanation,
@@ -518,6 +520,7 @@ export const upsertPronostic = async (req: AdminRequest, res: Response) => {
       confidenceScore: confidence,
       confidencePct,
       analystNote:     b.analyst_note,
+      analystNoteEn: b.analyst_note_en, predictionLabelEn: b.prediction_label_en,
       isPremium:       b.is_premium === true || b.is_premium === 'true',
       publish,
     });
@@ -530,6 +533,7 @@ export const upsertPronostic = async (req: AdminRequest, res: Response) => {
           awayTeam:        match.awayTeam,
           pronosticId:     p.id,
           predictionLabel: b.prediction_label,
+          predictionLabelEn: p.predictionLabelEn,
           isPremium:       b.is_premium === true || b.is_premium === 'true',
           matchStatus:     match.status,
         }).catch(() => {});
@@ -557,6 +561,7 @@ export const togglePublish = async (req: AdminRequest, res: Response) => {
           awayTeam:        prono.match.awayTeam,
           pronosticId:     prono.id,
           predictionLabel: prono.predictionLabel,
+          predictionLabelEn: prono.predictionLabelEn,
           isPremium:       prono.isPremium,
           matchStatus:     prono.match.status,
         }).catch(() => {});
@@ -798,6 +803,7 @@ export const getMatchInsights = async (req: AuthRequest, res: Response) => {
       source_probabilites: marche ? 'marche' : (utilisable ? 'modele' : null),
       marge_bookmaker: marche?.margePct ?? null,
       advice:         utilisable ? prediction.advice : null,
+      advice_en:      utilisable ? prediction.adviceEn ?? null : null,
       winner_name:    utilisable ? prediction.winnerName : null,
       winner_comment: utilisable ? prediction.winnerComment : null,
       // Le marché d'abord, le modèle en repli. Si aucun des deux ne tient, on
@@ -1116,6 +1122,7 @@ export const getMatchFromDB = async (req: AdminRequest, res: Response) => {
         id:                p.id,
         prediction_type:   p.predictionType,
         prediction_label:  p.predictionLabel,
+        prediction_label_en:  p.predictionLabelEn ?? null,
         market_name:       p.marketName,
         market_value:      p.marketValue,
         odds_home:         p.oddsHome,
@@ -1125,6 +1132,7 @@ export const getMatchFromDB = async (req: AdminRequest, res: Response) => {
         confidence_score:  p.confidenceScore,
         confidence_pct:  pourcentageConfiance(p),
         analyst_note:      p.analystNote,
+        analyst_note_en:      p.analystNoteEn ?? null,
         is_premium:        p.isPremium,
         is_published:      p.isPublished,
         result:            p.result,

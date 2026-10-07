@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', { page: 'settings' }) %>
 
 <style>
@@ -106,7 +107,7 @@
 <div class="workspace-header settings-cr-workspace">
   <div class="workspace-heading">
     <div class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Gouvernance &amp; configuration</div>
-    <h1><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> Paramètres</h1>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-settings"/></svg> <%= uiText("Paramètres") %></h1>
     <p class="workspace-description">Réglez l'application, les règles d'accès, la continuité de service et les opérations irréversibles depuis un espace structuré par impact.</p>
   </div>
   <div class="workspace-actions">
@@ -347,7 +348,7 @@
           De 5 à 100.
         </small>
       </div>
-      <button class="btn btn-primary" type="submit">Enregistrer</button>
+      <button class="btn btn-primary" type="submit"><%= uiText("Enregistrer") %></button>
     </form>
     <% } else { %>
       <p class="desc">Réglage indisponible : l'API n'a pas répondu.</p>
@@ -596,7 +597,7 @@
 
   <!-- ── Zone danger ────────────────────────────────────────────────────────── -->
   <div class="danger-zone settings-cr-danger">
-    <h2><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> Zone de danger</h2>
+    <h2><svg class="ic" aria-hidden="true"><use href="#ic-alert"/></svg> <%= uiText("Zone de danger") %></h2>
     <p style="font-size:.78rem;color:var(--text-dim)">Ces actions sont irréversibles. Effectuez une sauvegarde avant de procéder.</p>
     <div class="danger-grid">
 

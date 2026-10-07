@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/football_labels.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:async';
 import 'dart:ui';

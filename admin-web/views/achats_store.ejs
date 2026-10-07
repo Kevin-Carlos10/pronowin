@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'achats_store'}) %>
 
 <style>
@@ -111,11 +112,11 @@
   </div>
   <div class="as-tuile metric-card">
     <div class="v as-ok"><%= _st.nouveaux30j %></div>
-    <div class="l">nouveaux abonnés<br><span class="as-dim">30 derniers jours</span></div>
+    <div class="l">nouveaux abonnés<br><span class="as-dim"><%= uiText("30 derniers jours") %></span></div>
   </div>
   <div class="as-tuile metric-card">
     <div class="v"><%= _st.renouvellements30j %></div>
-    <div class="l">renouvellements<br><span class="as-dim">30 derniers jours</span></div>
+    <div class="l">renouvellements<br><span class="as-dim"><%= uiText("30 derniers jours") %></span></div>
   </div>
   <div class="as-tuile metric-card">
     <div class="v as-warn"><%= _st.resilies %></div>
@@ -131,7 +132,7 @@
   </div>
   <div class="as-tuile metric-card">
     <div class="v"><%= _st.expires30j %></div>
-    <div class="l">expirés<br><span class="as-dim">30 derniers jours</span></div>
+    <div class="l">expirés<br><span class="as-dim"><%= uiText("30 derniers jours") %></span></div>
   </div>
 </div>
 
@@ -174,10 +175,10 @@
     <% }) %>
   </select>
   <label><input type="checkbox" name="tests" value="1" <%= _f.tests ? 'checked' : '' %>> Achats de test (<%= _st.tests %>)</label>
-  <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+  <button type="submit" class="btn btn-primary btn-sm"><%= uiText("Filtrer") %></button>
   <% if (_f.q || _f.store || _f.etat || _f.tests) { %>
   <a href="/admin/achats-store" class="btn btn-outline btn-sm">
-    <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Effacer
+    <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= uiText("Effacer") %>
   </a>
   <% } %>
   <span class="spacer"></span>
@@ -207,12 +208,12 @@
   <table class="as-tab">
     <thead>
       <tr>
-        <th scope="col">Compte</th>
+        <th scope="col"><%= uiText("Compte") %></th>
         <th scope="col">Store · formule</th>
         <th scope="col">État</th>
         <th scope="col">Échéance</th>
         <th scope="col">Abonné depuis</th>
-        <th scope="col">Paiements</th>
+        <th scope="col"><%= uiText("Paiements") %></th>
         <th scope="col">Action</th>
       </tr>
     </thead>

@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'revenus'}) %>
 <link rel="stylesheet" href="/admin/assets/finance-control-room.css">
 <section class="finance-page finance-page--revenue">
@@ -99,7 +100,7 @@
 <header class="topbar workspace-header finance-workspace-header">
   <div class="workspace-heading">
     <div class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Pilotage financier</div>
-    <h1><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> Revenus</h1>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-money"/></svg> <%= uiText("Revenus") %></h1>
     <p class="workspace-description">Suivez les encaissements d'abonnements, leur rythme quotidien et leur évolution dans le temps.</p>
   </div>
   <div class="workspace-actions finance-period-controls">
@@ -167,7 +168,7 @@
       </select>
       <button type="submit" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export comptable</button>
     </form>
-    <a class="context-chip" href="/admin/fidelite">Fidélité des abonnés</a>
+    <a class="context-chip" href="/admin/fidelite"><%= uiText("Fidélité des abonnés") %></a>
   </div>
 </div>
 <% if (!_canaux) { %>
@@ -298,7 +299,7 @@
   Source : les abonnements enregistrés (<code>Subscription.amountPaid</code>) — un revenu est compté
   au moment où l'abonnement est accordé, c'est-à-dire à l'approbation de la preuve ou à la validation
   d'un achat par un store. Les demandes de versement de parrainage ne sont pas déduites ici ;
-  elles figurent dans <a href="/admin/historique" style="color:var(--primary-texte)">Historique</a>.
+  elles figurent dans <a href="/admin/historique" style="color:var(--primary-texte)"><%= uiText("Historique") %></a>.
 </p>
 
 <% } %>

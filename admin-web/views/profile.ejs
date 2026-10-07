@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'profile'}) %>
 
 <style>
@@ -112,7 +113,7 @@
   <div class="workspace-actions">
     <span class="context-chip"><%= isMain ? 'Accès complet' : 'Permissions limitées' %></span>
     <span class="live-state">Session active</span>
-    <a href="/admin/logout" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> Déconnexion</a>
+    <a href="/admin/logout" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-logout"/></svg> <%= uiText("Déconnexion") %></a>
   </div>
 </div>
 
@@ -150,7 +151,7 @@
           <span class="pf-lbl">Identifiant</span>
           <div style="display:flex;align-items:center;gap:.3rem">
             <code style="font-size:.78rem;background:var(--surface-d);padding:.12rem .4rem;border-radius:4px;color:var(--primary-texte)" id="pf-username"><%= sub.username %></code>
-            <button class="pf-copy" onclick="copyText('<%= sub.username %>','pf-username-check')" title="Copier"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg></button>
+            <button class="pf-copy" onclick="copyText('<%= sub.username %>','pf-username-check')" title="<%= uiText("Copier") %>"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg></button>
             <span id="pf-username-check" style="font-size:.68rem;color:var(--on-success);display:none"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg></span>
           </div>
         </div>
@@ -181,8 +182,8 @@
       <!-- Mes stats personnelles -->
       <div class="pf-stats">
         <div class="pf-stat"><div class="v" style="color:var(--primary-texte)"><%= statsMe.total %></div><div class="l">Actions</div></div>
-        <div class="pf-stat"><div class="v" style="color:var(--on-info)"><%= statsMe.week %></div><div class="l">Ce mois</div></div>
-        <div class="pf-stat"><div class="v" style="color:var(--on-success)"><%= statsMe.today %></div><div class="l">Auj.</div></div>
+        <div class="pf-stat"><div class="v" style="color:var(--on-info)"><%= statsMe.week %></div><div class="l"><%= uiText("Ce mois") %></div></div>
+        <div class="pf-stat"><div class="v" style="color:var(--on-success)"><%= statsMe.today %></div><div class="l"><%= uiText("Auj.") %></div></div>
       </div>
 
       <!-- Permissions sous-admin -->
@@ -305,10 +306,10 @@
       <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-sparkle"/></svg> Préférences visuelles</div>
 
       <div style="margin-bottom:1rem">
-        <div style="font-size:.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:.55rem">Thème</div>
+        <div style="font-size:.72rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:.55rem"><%= uiText("Thème") %></div>
         <div class="pf-theme-btns">
-          <button class="pf-theme-btn" id="btn-dark"  onclick="applyTheme('dark')"><svg class="ic" aria-hidden="true"><use href="#ic-moon"/></svg> Sombre</button>
-          <button class="pf-theme-btn" id="btn-light" onclick="applyTheme('light')"><svg class="ic" aria-hidden="true"><use href="#ic-sun"/></svg> Clair</button>
+          <button class="pf-theme-btn" id="btn-dark"  onclick="applyTheme('dark')"><svg class="ic" aria-hidden="true"><use href="#ic-moon"/></svg> <%= uiText("Sombre") %></button>
+          <button class="pf-theme-btn" id="btn-light" onclick="applyTheme('light')"><svg class="ic" aria-hidden="true"><use href="#ic-sun"/></svg> <%= uiText("Clair") %></button>
         </div>
       </div>
 
@@ -327,7 +328,7 @@
     <!-- Session + sécurité -->
     <div class="pf-card cr-panel">
       <div class="pf-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-lock"/></svg> Session &amp; Sécurité</div>
-      <div class="pf-row"><span class="pf-lbl">Statut</span><span style="color:var(--on-success);font-weight:600"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg> Connecté</span></div>
+      <div class="pf-row"><span class="pf-lbl"><%= uiText("Statut") %></span><span style="color:var(--on-success);font-weight:600"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg> Connecté</span></div>
       <div class="pf-row"><span class="pf-lbl">IP actuelle</span><span class="pf-val" style="font-family:monospace;font-size:.78rem"><%= currentIp %></span></div>
       <div class="pf-row"><span class="pf-lbl">Timeout inactivité</span><span class="pf-val">30 min</span></div>
       <div class="pf-row" style="border-bottom:0"><span class="pf-lbl">Durée max.</span><span class="pf-val">8 h (30 j si "Se souvenir")</span></div>

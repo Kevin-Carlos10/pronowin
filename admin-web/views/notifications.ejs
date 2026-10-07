@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'notifications'}) %>
 
 <style>
@@ -123,8 +124,8 @@
 <div class="nf-stats metric-grid">
   <div class="nf-stat metric-card"><div class="v" style="color:var(--primary-texte)"><%= histStats.total %></div><div class="l">Campagnes</div></div>
   <div class="nf-stat metric-card"><div class="v" style="color:var(--on-success)"><%= histStats.totalSent.toLocaleString('fr-FR') %></div><div class="l">Envois total</div></div>
-  <div class="nf-stat metric-card"><div class="v" style="color:var(--on-info)"><%= histStats.thisWeek %></div><div class="l">Cette semaine</div></div>
-  <div class="nf-stat metric-card"><div class="v" style="color:var(--on-warning)"><%= histStats.thisMonth %></div><div class="l">Ce mois</div></div>
+  <div class="nf-stat metric-card"><div class="v" style="color:var(--on-info)"><%= histStats.thisWeek %></div><div class="l"><%= uiText("Cette semaine") %></div></div>
+  <div class="nf-stat metric-card"><div class="v" style="color:var(--on-warning)"><%= histStats.thisMonth %></div><div class="l"><%= uiText("Ce mois") %></div></div>
 </div>
 
 <div class="notif-grid">
@@ -132,6 +133,11 @@
   <!-- ── Colonne principale ── -->
   <div>
     <form method="POST" action="/admin/notifications/send" id="notif-form">
+<fieldset class="translation-preview" lang="en"><legend>English translation</legend><p><%= uiText("Champs facultatifs : sans traduction, le texte français est conservé.") %></p>
+<div class="form-group"><label for="i18n-title_en">Notification title</label><textarea class="input" id="i18n-title_en" name="title_en" rows="3" maxlength="100"><%= ({}).titleEn || '' %></textarea></div>
+<div class="form-group"><label for="i18n-body_en">Notification message</label><textarea class="input" id="i18n-body_en" name="body_en" rows="3" maxlength="300"><%= ({}).bodyEn || '' %></textarea></div>
+</fieldset>
+
 
       <!-- Ciblage -->
       <div class="card cr-panel" style="padding:1.25rem;margin-bottom:1rem">
@@ -168,21 +174,21 @@
 
         <div style="margin-top:.75rem;font-size:.82rem;color:var(--text-dim)">
           Destinataires estimés : <strong role="status" id="total-count" style="color:var(--primary-texte);font-size:1rem">…</strong>
-          <button type="button" class="btn btn-outline btn-sm" id="retry-count" hidden onclick="loadCount(document.querySelector('input[name=segment]:checked').value)">Réessayer</button>
+          <button type="button" class="btn btn-outline btn-sm" id="retry-count" hidden onclick="loadCount(document.querySelector('input[name=segment]:checked').value)"><%= uiText("Réessayer") %></button>
         </div>
       </div>
 
       <!-- Contenu -->
       <div class="card cr-panel" style="padding:1.25rem;margin-bottom:1rem">
-        <h3 style="font-size:.95rem;font-weight:700;margin-bottom:.75rem"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Contenu</h3>
+        <h3 style="font-size:.95rem;font-weight:700;margin-bottom:.75rem"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> <%= uiText("Contenu") %></h3>
 
         <div class="form-group" style="margin-bottom:1rem">
           <label style="display:block;font-size:.82rem;font-weight:700;color:var(--text-m);margin-bottom:.4rem">
-            Titre <span style="color:var(--text-dim);font-weight:400">(max 100 car.)</span>
+            <%= uiText("Titre") %> <span style="color:var(--text-dim);font-weight:400">(max 100 car.)</span>
           </label>
           <input class="input" type="text" name="title" id="notif-title" maxlength="100" required
             placeholder="Ex : 🎯 Nouveau pronostic disponible !"
-            oninput="updatePreview();countChars('notif-title','title-counter',100)" aria-label="Titre">
+            oninput="updatePreview();countChars('notif-title','title-counter',100)" aria-label="<%= uiText("Titre") %>">
           <div class="char-counter" id="title-counter">0 / 100</div>
         </div>
 
@@ -255,7 +261,7 @@
         </div>
         <% if (p.statut === 'prevue' && hasPerm('notifications', 'write')) { %>
         <form method="POST" action="/admin/notifications/programmations/<%= p.id %>/annuler" class="nf-prog-annuler">
-          <button type="submit" class="btn btn-outline btn-sm">Annuler</button>
+          <button type="submit" class="btn btn-outline btn-sm"><%= uiText("Annuler") %></button>
         </form>
         <% } %>
       </div>
@@ -280,8 +286,8 @@
         <h3 style="font-size:.95rem;font-weight:700;margin:0;flex:1"><svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg> Historique des envois</h3>
         <form method="GET" action="/admin/notifications" style="display:flex;gap:.4rem">
           <input class="input" type="text" name="search_history" value="<%= searchH %>"
-            placeholder="Rechercher…" style="font-size:.8rem;padding:.35rem .65rem;width:160px" aria-label="Rechercher">
-          <button type="submit" class="btn btn-outline btn-sm" aria-label="Rechercher"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></button>
+            placeholder="<%= uiText("Rechercher…") %>" style="font-size:.8rem;padding:.35rem .65rem;width:160px" aria-label="<%= uiText("Rechercher") %>">
+          <button type="submit" class="btn btn-outline btn-sm" aria-label="<%= uiText("Rechercher") %>"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg></button>
           <% if(searchH){ %><a href="/admin/notifications" class="btn btn-outline btn-sm" aria-label="Effacer la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></a><% } %>
         </form>
       </div>

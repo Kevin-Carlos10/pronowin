@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%#
   Santé du système — tableau de bord de l'administrateur principal.
 
@@ -112,7 +113,7 @@
 %>
 <section class="sante card" aria-labelledby="sante-titre">
   <div class="sante-entete">
-    <div><h2 id="sante-titre" class="sante-titre">Santé du système</h2>
+    <div><h2 id="sante-titre" class="sante-titre"><%= uiText("Santé du système") %></h2>
       <p class="sante-resume"><%= _attention.length ? `${_attention.length} point${_attention.length > 1 ? 's' : ''} à examiner` : 'Tous les services sont opérationnels' %> · <%= _normaux.length %> service<%= _normaux.length > 1 ? 's' : '' %> opérationnel<%= _normaux.length > 1 ? 's' : '' %></p>
     </div>
     <span class="sante-horodatage">État à l’ouverture · <%= new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', timeZone: 'Africa/Ouagadougou' }) %> UTC</span>

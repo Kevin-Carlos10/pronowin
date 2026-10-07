@@ -2,6 +2,7 @@ import type { AxiosInstance } from 'axios';
 import { CacheFootball, responseFootball, exigerQuotaEnrichissement } from './cache_football';
 import { enrichissementsFootball } from './enrichissements_football';
 import { traduireRecommandation } from './traduction_recommandation';
+import { selection } from '../i18n/football';
 import { extraireLigne, libelleSansLigne, marcheLisible, traduireMarche } from './cotes_live';
 import { evaluerFiabilite } from './fiabilite_modele';
 import { journal } from '../utils/logger';
@@ -35,6 +36,7 @@ export interface PredictionComparison {
 export interface MatchPrediction {
   /** Conseil brut du modèle, ex. « Combo Double chance : Nice or draw ». */
   advice:      string | null;
+  adviceEn?:   string | null;
   winnerName:  string | null;
   winnerComment: string | null;
   percentHome: number;
@@ -121,6 +123,7 @@ const SEASON_STATS_TTL = 24 * 60 * 60 * 1000;
 
 export interface LiveOddValue {
   value: string;
+  labels?: { fr: string; en: string };
   odd:   number;
   /** Seuil du marché — « 2.5 », « -0.5 ». Absent quand il n'y en a pas. */
   ligne?: string;
@@ -227,6 +230,7 @@ export class ApiFootballInsights {
         // Traduit ici, à la frontière du fournisseur : tous les consommateurs
         // en bénéficient, et aucun écran n'a à connaître l'anglais d'origine.
         advice:        traduireRecommandation(p.advice),
+        adviceEn:      typeof p.advice === 'string' ? p.advice.trim() || null : null,
         winnerName:    p.winner?.name ?? null,
         winnerComment: p.winner?.comment ?? null,
         percentHome:   pct(p.percent?.home),
@@ -373,6 +377,10 @@ export class ApiFootballInsights {
                   // Le seuil est porté à part : le laisser dans le libellé le
                   // ferait apparaître deux fois là où l'API l'y met déjà.
                   value: libelleSansLigne(String(v.value ?? '')),
+                  labels: {
+                    fr: selection(libelleSansLigne(String(v.value ?? '')), 'fr').text,
+                    en: selection(libelleSansLigne(String(v.value ?? '')), 'en').text,
+                  },
                   odd:   parseFloat(v.odd),
                   ...(ligne ? { ligne } : {}),
                 };

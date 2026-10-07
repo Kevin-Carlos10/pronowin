@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'fidelite'}) %>
 
 <style>
@@ -54,7 +55,7 @@
 <header class="workspace-header">
   <div class="workspace-heading">
     <p class="workspace-eyebrow">Finances · abonnés</p>
-    <h1><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> Fidélité des abonnés</h1>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> <%= uiText("Fidélité des abonnés") %></h1>
     <p class="workspace-description">
       Qui renouvelle son Premium, par moyen de paiement, et qui relancer : ceux dont l'accès s'arrête
       cette semaine, et ceux qui sont partis.
@@ -167,7 +168,7 @@
   <div class="table-wrap">
   <table class="fd-tab">
     <thead>
-      <tr><th scope="col">Compte</th><th scope="col">Canal</th><th scope="col">Fin</th><th scope="col">Paiements</th><th scope="col">Total payé</th></tr>
+      <tr><th scope="col"><%= uiText("Compte") %></th><th scope="col">Canal</th><th scope="col">Fin</th><th scope="col"><%= uiText("Paiements") %></th><th scope="col">Total payé</th></tr>
     </thead>
     <tbody>
       <% _d.bientot.forEach(c => { %>
@@ -201,7 +202,7 @@
   <div class="table-wrap">
   <table class="fd-tab">
     <thead>
-      <tr><th scope="col">Compte</th><th scope="col">Dernier canal</th><th scope="col">Terminé</th><th scope="col">Paiements</th><th scope="col">Total payé</th></tr>
+      <tr><th scope="col"><%= uiText("Compte") %></th><th scope="col">Dernier canal</th><th scope="col"><%= uiText("Terminé") %></th><th scope="col"><%= uiText("Paiements") %></th><th scope="col">Total payé</th></tr>
     </thead>
     <tbody>
       <% _d.partis.forEach(c => { %>

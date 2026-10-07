@@ -36,6 +36,8 @@ export const create = async (req: AdminRequest, res: Response) => {
   try {
     const t = await svc.create({
       title:           req.body.title,
+      titleEn: req.body.title_en, descriptionEn: req.body.description_en,
+      articleContent: req.body.article_content, articleContentEn: req.body.article_content_en,
       description:     req.body.description,
       level:           req.body.level,
       category:        req.body.category,
@@ -53,6 +55,8 @@ export const update = async (req: AdminRequest, res: Response) => {
   try {
     const t = await svc.update(req.params.id, {
       title:           req.body.title,
+      titleEn: req.body.title_en, descriptionEn: req.body.description_en,
+      articleContent: req.body.article_content, articleContentEn: req.body.article_content_en,
       description:     req.body.description,
       level:           req.body.level,
       category:        req.body.category,

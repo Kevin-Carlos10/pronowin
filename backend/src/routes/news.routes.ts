@@ -103,6 +103,7 @@ router.get('/', async (req: Request, res: Response) => {
     .map((a: any) => ({
       id:         a.id,
       titre:      a.title,
+      titre_en: a.titleEn ?? null, resume_en: a.summaryEn || a.contentEn ? extraitTexte(a.summaryEn || a.contentEn) : null,
       resume:     extraitTexte(a.summary || a.content),
       categorie:  a.category ?? 'news',
       emoji:      a.emoji ?? '📰',
@@ -154,6 +155,7 @@ router.get('/:id', (req: Request, res: Response) => {
   res.json({
     id:           article.id,
     titre:        article.title,
+    titre_en: article.titleEn ?? null, resume_en: article.summaryEn ?? null, contenu_en: article.contentEn ?? null,
     resume:       article.summary || '',
     contenu:      article.content || '',
     categorie:    article.category ?? 'news',

@@ -129,7 +129,7 @@ class _MatchInformationCard extends ConsumerWidget {
                 [info.venue, info.city].whereType<String>().join(' · '),
               ),
             if (info.referee != null) row('Arbitre', info.referee!),
-            if (info.round != null) row('Tour de compétition', info.round!),
+            if (info.round != null) row('Tour de compétition', FootballLabels.round(info.round!, language: AppStrings.of(context).locale.languageCode)),
             if (info.season != null) row('Saison', info.season.toString()),
             if (!['NS', 'TBD', 'PST', 'CANC'].contains(info.phase) &&
                 info.scores.values.any((s) => s.available)) ...[

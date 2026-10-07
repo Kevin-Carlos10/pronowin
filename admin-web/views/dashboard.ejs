@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'dashboard'}) %>
 
 <style>
@@ -199,15 +200,15 @@
 <div class="dashboard-workspace">
 <header class="workspace-header">
   <div class="workspace-heading">
-    <p class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg> Centre de pilotage</p>
-    <h1>Tableau de bord</h1>
+    <p class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-dashboard"/></svg> <%= uiText("Centre de pilotage") %></p>
+    <h1><%= uiText("Tableau de bord") %></h1>
     <p class="workspace-description">Bonjour, <strong><%= adminName %></strong>. Priorisez les tâches en attente, puis suivez l’activité et la santé de PronoWin.</p>
   </div>
   <div class="workspace-actions">
     <span id="live-indicator" class="live-state" data-state="waiting">Connexion en cours…</span>
     <span class="context-chip" id="dash-date"></span>
     <a href="/admin/pronostics" class="btn btn-primary btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Gérer les pronostics</a>
-    <button class="btn btn-outline btn-sm" type="button" onclick="refreshAll()" id="refresh-btn"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Actualiser</button>
+    <button class="btn btn-outline btn-sm" type="button" onclick="refreshAll()" id="refresh-btn"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> <%= uiText("Actualiser") %></button>
   </div>
 </header>
 
@@ -263,18 +264,18 @@
 <% } %>
 
 <div class="control-section-head">
-  <div><h2>Indicateurs clés</h2><p>Une lecture immédiate de l’acquisition, de la conversion et de l’activité.</p></div>
+  <div><h2><%= uiText("Indicateurs clés") %></h2><p>Une lecture immédiate de l’acquisition, de la conversion et de l’activité.</p></div>
 </div>
 <div class="kpi-grid metric-grid">
   <a href="/admin/users" class="kpi-card metric-card blue">
     <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span>
-    <div class="kpi-lbl">Utilisateurs totaux</div>
+    <div class="kpi-lbl"><%= uiText("Utilisateurs totaux") %></div>
     <div class="kpi-val" id="kpi-users"><%= stats.totalUsers ?? 0 %></div>
     <div class="kpi-delta neu" id="kpi-users-delta">— cette semaine</div>
   </a>
   <a href="/admin/users?plan=premium" class="kpi-card metric-card orange">
     <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg></span>
-    <div class="kpi-lbl">Membres Premium</div>
+    <div class="kpi-lbl"><%= uiText("Membres Premium") %></div>
     <div class="kpi-val" id="kpi-premium"><%= stats.premiumUsers ?? 0 %></div>
     <div class="kpi-delta neu" id="kpi-conv-rate"><%= stats.totalUsers > 0 ? (Math.min(stats.premiumUsers || 0, stats.totalUsers) / stats.totalUsers * 100).toLocaleString('fr-FR', { maximumFractionDigits: 1 }) + ' % des membres' : 'Aucun membre' %></div>
   </a>
@@ -286,7 +287,7 @@
   </a>
   <button type="button" class="kpi-card metric-card teal" id="kpi-active-card" title="Voir les utilisateurs connectés" aria-haspopup="dialog" aria-controls="online-modal">
     <span class="kpi-icon-badge"><span class="kpi-pulse-dot"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg></span></span>
-    <div class="kpi-lbl">Connectés maintenant</div>
+    <div class="kpi-lbl"><%= uiText("Connectés maintenant") %></div>
     <div class="kpi-val" id="kpi-active"><%= stats.activeUsers ?? 0 %></div>
     <div class="kpi-delta neu">ces 2 dernières minutes</div>
   </button>
@@ -296,7 +297,7 @@
 <div class="charts-main">
   <div class="chart-card cr-panel">
     <div class="chart-card-header">
-      <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg> Inscriptions <span class="chart-card-sub">— 14 derniers jours</span></div>
+      <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg> <%= uiText("Inscriptions") %> <span class="chart-card-sub">— 14 derniers jours</span></div>
       <span class="chart-stat-badge" id="badge-signups">…</span>
     </div>
     <div class="chart-wrap" style="height:200px"><canvas id="chart-signups" role="img" aria-label="Inscriptions quotidiennes" aria-describedby="signups-summary"></canvas></div>
@@ -330,8 +331,8 @@
     <p class="chart-summary" id="pronos-summary">Chargement des résultats…</p>
   </div>
   <div class="chart-card cr-panel dashboard-reading">
-    <div class="chart-card-header"><div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Bilan des pronostics</div><span class="chart-stat-badge">30 derniers jours</span></div>
-    <dl class="result-counts"><div><dt>Gagnés</dt><dd id="result-won">—</dd></div><div><dt>Perdus</dt><dd id="result-lost">—</dd></div><div><dt>En cours</dt><dd id="result-pending">—</dd></div></dl>
+    <div class="chart-card-header"><div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Bilan des pronostics</div><span class="chart-stat-badge"><%= uiText("30 derniers jours") %></span></div>
+    <dl class="result-counts"><div><dt><%= uiText("Gagnés") %></dt><dd id="result-won">—</dd></div><div><dt><%= uiText("Perdus") %></dt><dd id="result-lost">—</dd></div><div><dt>En cours</dt><dd id="result-pending">—</dd></div></dl>
     <p class="premium-note">Le taux de réussite porte sur les pronostics gagnés et perdus. Les pronostics en cours sont exclus.</p>
     <a href="/admin/pronostics" class="btn btn-outline btn-sm">Consulter les pronostics →</a>
   </div>
@@ -746,13 +747,13 @@ document.addEventListener('DOMContentLoaded', function() {
       <h3 id="online-title" style="margin:0;font-size:1rem;font-weight:700"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-success)"><use href="#ic-dot"/></svg> Utilisateurs connectés</h3>
       <div style="font-size:.78rem;color:var(--text-dim);margin-top:.2rem">actifs ces 2 dernières minutes — <span id="online-count">…</span> en ligne</div>
     </div>
-    <button id="online-close" aria-label="Fermer le panneau" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1;padding:.2rem .4rem" title="Fermer"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
+    <button id="online-close" aria-label="Fermer le panneau" style="background:none;border:none;color:var(--text-dim);font-size:1.3rem;cursor:pointer;line-height:1;padding:.2rem .4rem" title="<%= uiText("Fermer") %>"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
   </div>
   <div style="overflow-y:auto;flex:1">
     <div class="table-wrap">
       <table class="dash-table" style="width:100%">
         <thead><tr>
-          <th scope="col">Utilisateur</th>
+          <th scope="col"><%= uiText("Utilisateur") %></th>
           <th scope="col">Pays</th>
           <th scope="col">Plan</th>
           <th scope="col">Vu</th>

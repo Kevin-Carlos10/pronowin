@@ -61,6 +61,7 @@ export const getFavorites = async (req: AuthRequest, res: Response) => {
         has_pronostic:    p !== null,
         // Pronostic (valeurs par défaut si pas de prono)
         prediction_type:  locked ? null : (p?.predictionType  ?? 'win1'),
+        prediction_label_en: locked ? null : (p?.predictionLabelEn ?? null),
         prediction_label: locked ? null : (p?.predictionLabel ?? ''),
         odds_recommended: locked ? null : (p?.oddsRecommended ?? 0),
         odds_home:        p?.oddsHome        ?? 0,
@@ -70,6 +71,7 @@ export const getFavorites = async (req: AuthRequest, res: Response) => {
         confidence_pct: locked || !p ? null : pourcentageConfiance(p),
         locked,
         is_premium:       p?.isPremium       ?? false,
+        analyst_note_en: locked ? null : (p?.analystNoteEn ?? null),
         analyst_note:     locked ? null : (p?.analystNote ?? null),
         home_form_points: f.match.homeFormPoints ?? 0,
         away_form_points: f.match.awayFormPoints ?? 0,

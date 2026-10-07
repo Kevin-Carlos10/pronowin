@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'transactions'}) %>
 <link rel="stylesheet" href="/admin/assets/finance-control-room.css">
 <section class="finance-page finance-page--transactions">
@@ -177,7 +178,7 @@
 <!-- ── Stats rapides ─────────────────────────────────────────────────────── -->
 <div class="tx-stats metric-grid">
   <div class="tx-stat metric-card blue">
-    <div class="lbl">En attente</div>
+    <div class="lbl"><%= uiText("En attente") %></div>
     <div class="val"><%= _total %></div>
   </div>
   <div class="tx-stat metric-card orange">
@@ -195,7 +196,7 @@
     </div>
   </div>
   <form method="GET" action="/admin/transactions" class="tx-filter-row">
-    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, 1xBet ID…" aria-label="Rechercher">
+    <input type="text" name="search" value="<%= search %>" placeholder="🔍 Pseudo, téléphone, 1xBet ID…" aria-label="<%= uiText("Rechercher") %>">
 
     <select name="method" aria-label="Méthode">
       <option value="">Toutes méthodes</option>
@@ -203,7 +204,7 @@
       <option value="<%= m %>" <%= method===m ?'selected':'' %>><%= _methodLabel(m) %></option>
       <% }) %>
     </select>
-    <button type="submit" class="btn btn-primary btn-sm">Filtrer</button>
+    <button type="submit" class="btn btn-primary btn-sm"><%= uiText("Filtrer") %></button>
     <% if (search || method) { %>
     <a href="/admin/transactions" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a>
     <% } %>

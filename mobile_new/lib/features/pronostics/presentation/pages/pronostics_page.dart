@@ -1749,7 +1749,7 @@ class _ForYouCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: AppColors.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8)),
-                    child: Text(p.predictionLabel, style: TextStyle(
+                    child: Text(MatchEntity.applyTeamNames(p.predictionLabel, homeTeam: p.homeTeam, awayTeam: p.awayTeam), style: TextStyle(
                       color: context.cl.accent, fontSize: 10,
                       fontWeight: FontWeight.w700))),
                   const SizedBox(width: 8),

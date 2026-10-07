@@ -1,0 +1,1618 @@
+{
+  "markets": [
+    {
+      "en": "Match Winner",
+      "fr": "Vainqueur du match",
+      "aliases": [
+        "Vainqueur du match"
+      ]
+    },
+    {
+      "en": "First Half Winner",
+      "fr": "Vainqueur 1ère mi-temps",
+      "aliases": [
+        "1st Half Winner"
+      ]
+    },
+    {
+      "en": "Second Half Winner",
+      "fr": "Vainqueur 2ème mi-temps",
+      "aliases": [
+        "2nd Half Winner"
+      ]
+    },
+    {
+      "en": "Asian Handicap",
+      "fr": "Handicap asiatique",
+      "aliases": []
+    },
+    {
+      "en": "Asian Handicap First Half",
+      "fr": "Handicap asiatique — 1ère MT",
+      "aliases": [
+        "Asian Handicap 1st Half"
+      ]
+    },
+    {
+      "en": "Asian Handicap (2nd Half)",
+      "fr": "Handicap asiatique — 2ème MT",
+      "aliases": []
+    },
+    {
+      "en": "Goals Over/Under",
+      "fr": "Plus / Moins de buts",
+      "aliases": [
+        "Total buts +/-",
+        "Over/Under Line",
+        "Over/Under"
+      ]
+    },
+    {
+      "en": "Goals Over/Under First Half",
+      "fr": "Total buts +/- — 1ère MT",
+      "aliases": [
+        "Goals Over/Under 1st Half"
+      ]
+    },
+    {
+      "en": "Goals Over/Under - Second Half",
+      "fr": "Total buts +/- — 2ème MT",
+      "aliases": [
+        "Goals Over/Under - 2nd Half"
+      ]
+    },
+    {
+      "en": "HT/FT Double",
+      "fr": "Double mi-temps / fin de match",
+      "aliases": []
+    },
+    {
+      "en": "Both Teams Score",
+      "fr": "Les deux équipes marquent",
+      "aliases": [
+        "Les deux équipes marquent",
+        "Both Teams To Score",
+        "Both Teams To Score"
+      ]
+    },
+    {
+      "en": "Both Teams Score - First Half",
+      "fr": "Les deux équipes marquent — 1ère MT",
+      "aliases": [
+        "Both Teams Score - 1st Half",
+        "Both Teams To Score - First Half"
+      ]
+    },
+    {
+      "en": "Both Teams To Score - Second Half",
+      "fr": "Les deux équipes marquent — 2ème MT",
+      "aliases": [
+        "Both Teams To Score - 2nd Half"
+      ]
+    },
+    {
+      "en": "Exact Score",
+      "fr": "Score exact",
+      "aliases": [
+        "Score exact",
+        "Correct Score"
+      ]
+    },
+    {
+      "en": "Highest Scoring Half",
+      "fr": "Mi-temps la plus prolifique",
+      "aliases": []
+    },
+    {
+      "en": "Correct Score - First Half",
+      "fr": "Score exact — 1ère MT",
+      "aliases": [
+        "Correct Score - 1st Half"
+      ]
+    },
+    {
+      "en": "Correct Score - Second Half",
+      "fr": "Score exact — 2ème MT",
+      "aliases": [
+        "Correct Score - 2nd Half"
+      ]
+    },
+    {
+      "en": "Double Chance",
+      "fr": "Double chance",
+      "aliases": []
+    },
+    {
+      "en": "Double Chance - First Half",
+      "fr": "Double chance — 1ère MT",
+      "aliases": [
+        "Double Chance - 1st Half"
+      ]
+    },
+    {
+      "en": "Double Chance - Second Half",
+      "fr": "Double chance — 2ème MT",
+      "aliases": [
+        "Double Chance - 2nd Half"
+      ]
+    },
+    {
+      "en": "Total - Home",
+      "fr": "Total buts domicile",
+      "aliases": []
+    },
+    {
+      "en": "Total - Away",
+      "fr": "Total buts extérieur",
+      "aliases": []
+    },
+    {
+      "en": "Odd/Even",
+      "fr": "Pair / Impair",
+      "aliases": [
+        "Pair/Impair"
+      ]
+    },
+    {
+      "en": "Odd/Even - First Half",
+      "fr": "Pair/Impair — 1ère MT",
+      "aliases": [
+        "Odd/Even - 1st Half"
+      ]
+    },
+    {
+      "en": "Odd/Even - Second Half",
+      "fr": "Pair/Impair — 2ème MT",
+      "aliases": [
+        "Odd/Even - 2nd Half"
+      ]
+    },
+    {
+      "en": "Home Odd/Even",
+      "fr": "Pair/Impair domicile",
+      "aliases": []
+    },
+    {
+      "en": "Away Odd/Even",
+      "fr": "Pair/Impair extérieur",
+      "aliases": []
+    },
+    {
+      "en": "To Qualify",
+      "fr": "Qualification",
+      "aliases": []
+    },
+    {
+      "en": "Home Team Total Goals(1st Half)",
+      "fr": "Total buts domicile (1ère MT)",
+      "aliases": []
+    },
+    {
+      "en": "Away Team Total Goals(1st Half)",
+      "fr": "Total buts extérieur (1ère MT)",
+      "aliases": []
+    },
+    {
+      "en": "Home Team Total Goals(2nd Half)",
+      "fr": "Total buts domicile (2ème MT)",
+      "aliases": []
+    },
+    {
+      "en": "Away Team Total Goals(2nd Half)",
+      "fr": "Total buts extérieur (2ème MT)",
+      "aliases": []
+    },
+    {
+      "en": "Fulltime Result",
+      "fr": "Résultat final",
+      "aliases": [
+        "Full Time Result"
+      ]
+    },
+    {
+      "en": "Match Goals",
+      "fr": "Total de buts",
+      "aliases": []
+    },
+    {
+      "en": "Total",
+      "fr": "Total",
+      "aliases": []
+    },
+    {
+      "en": "Handicap",
+      "fr": "Handicap",
+      "aliases": []
+    },
+    {
+      "en": "First Team To Score",
+      "fr": "Première équipe à marquer",
+      "aliases": []
+    },
+    {
+      "en": "Next Goal",
+      "fr": "Prochain but",
+      "aliases": []
+    },
+    {
+      "en": "Corners Over Under",
+      "fr": "Plus / Moins de corners",
+      "aliases": [
+        "Corners Over/Under"
+      ]
+    },
+    {
+      "en": "Cards Over Under",
+      "fr": "Plus / Moins de cartons",
+      "aliases": [
+        "Cards Over/Under"
+      ]
+    },
+    {
+      "en": "Half Time Result",
+      "fr": "Résultat à la mi-temps",
+      "aliases": []
+    },
+    {
+      "en": "Result/Total Goals",
+      "fr": "Résultat et total de buts",
+      "aliases": []
+    },
+    {
+      "en": "Player Shots On Target",
+      "fr": "Tirs cadrés du joueur",
+      "aliases": []
+    },
+    {
+      "en": "Player Shots",
+      "fr": "Tirs du joueur",
+      "aliases": []
+    },
+    {
+      "en": "Anytime Goal Scorer",
+      "fr": "Buteur à tout moment",
+      "aliases": [
+        "Anytime Goalscorer"
+      ]
+    },
+    {
+      "en": "First Goal Scorer",
+      "fr": "Premier buteur",
+      "aliases": [
+        "First Goalscorer"
+      ]
+    },
+    {
+      "en": "Last Goal Scorer",
+      "fr": "Dernier buteur",
+      "aliases": [
+        "Last Goalscorer"
+      ]
+    },
+    {
+      "en": "Home Team To Score",
+      "fr": "L’équipe à domicile marque",
+      "aliases": []
+    },
+    {
+      "en": "Away Team To Score",
+      "fr": "L’équipe à l’extérieur marque",
+      "aliases": []
+    },
+    {
+      "en": "Clean Sheet - Home",
+      "fr": "Domicile sans encaisser de but",
+      "aliases": []
+    },
+    {
+      "en": "Clean Sheet - Away",
+      "fr": "Extérieur sans encaisser de but",
+      "aliases": []
+    }
+  ],
+  "selections": [
+    {
+      "en": "Home",
+      "fr": "Domicile",
+      "aliases": []
+    },
+    {
+      "en": "Away",
+      "fr": "Extérieur",
+      "aliases": []
+    },
+    {
+      "en": "Draw",
+      "fr": "Nul",
+      "aliases": [
+        "Match nul"
+      ]
+    },
+    {
+      "en": "Yes",
+      "fr": "Oui",
+      "aliases": []
+    },
+    {
+      "en": "No",
+      "fr": "Non",
+      "aliases": []
+    },
+    {
+      "en": "Odd",
+      "fr": "Impair",
+      "aliases": []
+    },
+    {
+      "en": "Even",
+      "fr": "Pair",
+      "aliases": []
+    },
+    {
+      "en": "Over",
+      "fr": "Plus de",
+      "aliases": []
+    },
+    {
+      "en": "Under",
+      "fr": "Moins de",
+      "aliases": []
+    },
+    {
+      "en": "Exactly",
+      "fr": "Exactement",
+      "aliases": []
+    },
+    {
+      "en": "Neither",
+      "fr": "Aucune des deux",
+      "aliases": []
+    },
+    {
+      "en": "Both",
+      "fr": "Les deux",
+      "aliases": []
+    },
+    {
+      "en": "First Half",
+      "fr": "1ère MT",
+      "aliases": [
+        "1st Half",
+        "1ère mi-temps"
+      ]
+    },
+    {
+      "en": "Second Half",
+      "fr": "2ème MT",
+      "aliases": [
+        "2nd Half",
+        "2ème mi-temps"
+      ]
+    },
+    {
+      "en": "No Goal",
+      "fr": "Aucun but",
+      "aliases": [
+        "No Goals"
+      ]
+    },
+    {
+      "en": "Equal",
+      "fr": "Égalité",
+      "aliases": []
+    },
+    {
+      "en": "None",
+      "fr": "Aucun",
+      "aliases": []
+    }
+  ],
+  "rounds": [
+    {
+      "en": "Round of 16",
+      "fr": "Huitièmes de finale",
+      "aliases": []
+    },
+    {
+      "en": "Quarter-finals",
+      "fr": "Quarts de finale",
+      "aliases": [
+        "Quarter Finals"
+      ]
+    },
+    {
+      "en": "Semi-finals",
+      "fr": "Demi-finales",
+      "aliases": [
+        "Semi Finals"
+      ]
+    },
+    {
+      "en": "Final",
+      "fr": "Finale",
+      "aliases": []
+    },
+    {
+      "en": "Third Place",
+      "fr": "Match pour la troisième place",
+      "aliases": []
+    },
+    {
+      "en": "Regular Season",
+      "fr": "Saison régulière",
+      "aliases": []
+    },
+    {
+      "en": "Group Stage",
+      "fr": "Phase de groupes",
+      "aliases": []
+    },
+    {
+      "en": "Relegation Round",
+      "fr": "Phase de relégation",
+      "aliases": []
+    },
+    {
+      "en": "Championship Round",
+      "fr": "Phase de championnat",
+      "aliases": []
+    }
+  ],
+  "countries": [
+    {
+      "en": "Albania",
+      "fr": "Albanie",
+      "aliases": []
+    },
+    {
+      "en": "Andorra",
+      "fr": "Andorre",
+      "aliases": []
+    },
+    {
+      "en": "Armenia",
+      "fr": "Arménie",
+      "aliases": []
+    },
+    {
+      "en": "Austria",
+      "fr": "Autriche",
+      "aliases": []
+    },
+    {
+      "en": "Azerbaijan",
+      "fr": "Azerbaïdjan",
+      "aliases": []
+    },
+    {
+      "en": "Belarus",
+      "fr": "Biélorussie",
+      "aliases": []
+    },
+    {
+      "en": "Belgium",
+      "fr": "Belgique",
+      "aliases": []
+    },
+    {
+      "en": "Bosnia & Herzegovina",
+      "fr": "Bosnie-Herzégovine",
+      "aliases": []
+    },
+    {
+      "en": "Bosnia and Herzegovina",
+      "fr": "Bosnie-Herzégovine",
+      "aliases": []
+    },
+    {
+      "en": "Bulgaria",
+      "fr": "Bulgarie",
+      "aliases": []
+    },
+    {
+      "en": "Croatia",
+      "fr": "Croatie",
+      "aliases": []
+    },
+    {
+      "en": "Cyprus",
+      "fr": "Chypre",
+      "aliases": []
+    },
+    {
+      "en": "Czech Republic",
+      "fr": "Tchéquie",
+      "aliases": []
+    },
+    {
+      "en": "Czechia",
+      "fr": "Tchéquie",
+      "aliases": []
+    },
+    {
+      "en": "Denmark",
+      "fr": "Danemark",
+      "aliases": []
+    },
+    {
+      "en": "England",
+      "fr": "Angleterre",
+      "aliases": []
+    },
+    {
+      "en": "Estonia",
+      "fr": "Estonie",
+      "aliases": []
+    },
+    {
+      "en": "Faroe Islands",
+      "fr": "Îles Féroé",
+      "aliases": []
+    },
+    {
+      "en": "Finland",
+      "fr": "Finlande",
+      "aliases": []
+    },
+    {
+      "en": "Georgia",
+      "fr": "Géorgie",
+      "aliases": []
+    },
+    {
+      "en": "Germany",
+      "fr": "Allemagne",
+      "aliases": []
+    },
+    {
+      "en": "Greece",
+      "fr": "Grèce",
+      "aliases": []
+    },
+    {
+      "en": "Hungary",
+      "fr": "Hongrie",
+      "aliases": []
+    },
+    {
+      "en": "Iceland",
+      "fr": "Islande",
+      "aliases": []
+    },
+    {
+      "en": "Israel",
+      "fr": "Israël",
+      "aliases": []
+    },
+    {
+      "en": "Italy",
+      "fr": "Italie",
+      "aliases": []
+    },
+    {
+      "en": "Kazakhstan",
+      "fr": "Kazakhstan",
+      "aliases": []
+    },
+    {
+      "en": "Kosovo",
+      "fr": "Kosovo",
+      "aliases": []
+    },
+    {
+      "en": "Latvia",
+      "fr": "Lettonie",
+      "aliases": []
+    },
+    {
+      "en": "Lithuania",
+      "fr": "Lituanie",
+      "aliases": []
+    },
+    {
+      "en": "Moldova",
+      "fr": "Moldavie",
+      "aliases": []
+    },
+    {
+      "en": "Montenegro",
+      "fr": "Monténégro",
+      "aliases": []
+    },
+    {
+      "en": "Netherlands",
+      "fr": "Pays-Bas",
+      "aliases": []
+    },
+    {
+      "en": "North Macedonia",
+      "fr": "Macédoine du Nord",
+      "aliases": []
+    },
+    {
+      "en": "FYR Macedonia",
+      "fr": "Macédoine du Nord",
+      "aliases": []
+    },
+    {
+      "en": "Northern Ireland",
+      "fr": "Irlande du Nord",
+      "aliases": []
+    },
+    {
+      "en": "Norway",
+      "fr": "Norvège",
+      "aliases": []
+    },
+    {
+      "en": "Poland",
+      "fr": "Pologne",
+      "aliases": []
+    },
+    {
+      "en": "Rep. Of Ireland",
+      "fr": "Irlande",
+      "aliases": []
+    },
+    {
+      "en": "Republic of Ireland",
+      "fr": "Irlande",
+      "aliases": []
+    },
+    {
+      "en": "Ireland",
+      "fr": "Irlande",
+      "aliases": []
+    },
+    {
+      "en": "Romania",
+      "fr": "Roumanie",
+      "aliases": []
+    },
+    {
+      "en": "Russia",
+      "fr": "Russie",
+      "aliases": []
+    },
+    {
+      "en": "Scotland",
+      "fr": "Écosse",
+      "aliases": []
+    },
+    {
+      "en": "Serbia",
+      "fr": "Serbie",
+      "aliases": []
+    },
+    {
+      "en": "Slovakia",
+      "fr": "Slovaquie",
+      "aliases": []
+    },
+    {
+      "en": "Slovenia",
+      "fr": "Slovénie",
+      "aliases": []
+    },
+    {
+      "en": "Spain",
+      "fr": "Espagne",
+      "aliases": []
+    },
+    {
+      "en": "Sweden",
+      "fr": "Suède",
+      "aliases": []
+    },
+    {
+      "en": "Switzerland",
+      "fr": "Suisse",
+      "aliases": []
+    },
+    {
+      "en": "Turkey",
+      "fr": "Turquie",
+      "aliases": []
+    },
+    {
+      "en": "Türkiye",
+      "fr": "Turquie",
+      "aliases": []
+    },
+    {
+      "en": "Ukraine",
+      "fr": "Ukraine",
+      "aliases": []
+    },
+    {
+      "en": "Wales",
+      "fr": "Pays de Galles",
+      "aliases": []
+    },
+    {
+      "en": "Algeria",
+      "fr": "Algérie",
+      "aliases": []
+    },
+    {
+      "en": "Benin",
+      "fr": "Bénin",
+      "aliases": []
+    },
+    {
+      "en": "Botswana",
+      "fr": "Botswana",
+      "aliases": []
+    },
+    {
+      "en": "Burundi",
+      "fr": "Burundi",
+      "aliases": []
+    },
+    {
+      "en": "Cameroon",
+      "fr": "Cameroun",
+      "aliases": []
+    },
+    {
+      "en": "Cape Verde Islands",
+      "fr": "Cap-Vert",
+      "aliases": []
+    },
+    {
+      "en": "Cape Verde",
+      "fr": "Cap-Vert",
+      "aliases": []
+    },
+    {
+      "en": "Central African Republic",
+      "fr": "Centrafrique",
+      "aliases": []
+    },
+    {
+      "en": "Chad",
+      "fr": "Tchad",
+      "aliases": []
+    },
+    {
+      "en": "Comoros",
+      "fr": "Comores",
+      "aliases": []
+    },
+    {
+      "en": "Congo",
+      "fr": "Congo",
+      "aliases": []
+    },
+    {
+      "en": "Congo DR",
+      "fr": "RD Congo",
+      "aliases": []
+    },
+    {
+      "en": "DR Congo",
+      "fr": "RD Congo",
+      "aliases": []
+    },
+    {
+      "en": "Djibouti",
+      "fr": "Djibouti",
+      "aliases": []
+    },
+    {
+      "en": "Egypt",
+      "fr": "Égypte",
+      "aliases": []
+    },
+    {
+      "en": "Equatorial Guinea",
+      "fr": "Guinée équatoriale",
+      "aliases": []
+    },
+    {
+      "en": "Eritrea",
+      "fr": "Érythrée",
+      "aliases": []
+    },
+    {
+      "en": "Eswatini",
+      "fr": "Eswatini",
+      "aliases": []
+    },
+    {
+      "en": "Ethiopia",
+      "fr": "Éthiopie",
+      "aliases": []
+    },
+    {
+      "en": "Gambia",
+      "fr": "Gambie",
+      "aliases": []
+    },
+    {
+      "en": "Guinea",
+      "fr": "Guinée",
+      "aliases": []
+    },
+    {
+      "en": "Guinea-Bissau",
+      "fr": "Guinée-Bissau",
+      "aliases": []
+    },
+    {
+      "en": "Kenya",
+      "fr": "Kenya",
+      "aliases": []
+    },
+    {
+      "en": "Lesotho",
+      "fr": "Lesotho",
+      "aliases": []
+    },
+    {
+      "en": "Liberia",
+      "fr": "Liberia",
+      "aliases": []
+    },
+    {
+      "en": "Libya",
+      "fr": "Libye",
+      "aliases": []
+    },
+    {
+      "en": "Madagascar",
+      "fr": "Madagascar",
+      "aliases": []
+    },
+    {
+      "en": "Malawi",
+      "fr": "Malawi",
+      "aliases": []
+    },
+    {
+      "en": "Mauritania",
+      "fr": "Mauritanie",
+      "aliases": []
+    },
+    {
+      "en": "Mauritius",
+      "fr": "Maurice",
+      "aliases": []
+    },
+    {
+      "en": "Morocco",
+      "fr": "Maroc",
+      "aliases": []
+    },
+    {
+      "en": "Mozambique",
+      "fr": "Mozambique",
+      "aliases": []
+    },
+    {
+      "en": "Namibia",
+      "fr": "Namibie",
+      "aliases": []
+    },
+    {
+      "en": "Nigeria",
+      "fr": "Nigeria",
+      "aliases": []
+    },
+    {
+      "en": "Rwanda",
+      "fr": "Rwanda",
+      "aliases": []
+    },
+    {
+      "en": "Sao Tome and Principe",
+      "fr": "Sao Tomé-et-Principe",
+      "aliases": []
+    },
+    {
+      "en": "Senegal",
+      "fr": "Sénégal",
+      "aliases": []
+    },
+    {
+      "en": "Seychelles",
+      "fr": "Seychelles",
+      "aliases": []
+    },
+    {
+      "en": "Sierra Leone",
+      "fr": "Sierra Leone",
+      "aliases": []
+    },
+    {
+      "en": "Somalia",
+      "fr": "Somalie",
+      "aliases": []
+    },
+    {
+      "en": "South Africa",
+      "fr": "Afrique du Sud",
+      "aliases": []
+    },
+    {
+      "en": "South Sudan",
+      "fr": "Soudan du Sud",
+      "aliases": []
+    },
+    {
+      "en": "Sudan",
+      "fr": "Soudan",
+      "aliases": []
+    },
+    {
+      "en": "Tanzania",
+      "fr": "Tanzanie",
+      "aliases": []
+    },
+    {
+      "en": "Tunisia",
+      "fr": "Tunisie",
+      "aliases": []
+    },
+    {
+      "en": "Uganda",
+      "fr": "Ouganda",
+      "aliases": []
+    },
+    {
+      "en": "Zambia",
+      "fr": "Zambie",
+      "aliases": []
+    },
+    {
+      "en": "Zimbabwe",
+      "fr": "Zimbabwe",
+      "aliases": []
+    },
+    {
+      "en": "Argentina",
+      "fr": "Argentine",
+      "aliases": []
+    },
+    {
+      "en": "Bolivia",
+      "fr": "Bolivie",
+      "aliases": []
+    },
+    {
+      "en": "Brazil",
+      "fr": "Brésil",
+      "aliases": []
+    },
+    {
+      "en": "Canada",
+      "fr": "Canada",
+      "aliases": []
+    },
+    {
+      "en": "Chile",
+      "fr": "Chili",
+      "aliases": []
+    },
+    {
+      "en": "Colombia",
+      "fr": "Colombie",
+      "aliases": []
+    },
+    {
+      "en": "Costa Rica",
+      "fr": "Costa Rica",
+      "aliases": []
+    },
+    {
+      "en": "Curacao",
+      "fr": "Curaçao",
+      "aliases": []
+    },
+    {
+      "en": "Ecuador",
+      "fr": "Équateur",
+      "aliases": []
+    },
+    {
+      "en": "El Salvador",
+      "fr": "Salvador",
+      "aliases": []
+    },
+    {
+      "en": "Guatemala",
+      "fr": "Guatemala",
+      "aliases": []
+    },
+    {
+      "en": "Haiti",
+      "fr": "Haïti",
+      "aliases": []
+    },
+    {
+      "en": "Honduras",
+      "fr": "Honduras",
+      "aliases": []
+    },
+    {
+      "en": "Jamaica",
+      "fr": "Jamaïque",
+      "aliases": []
+    },
+    {
+      "en": "Mexico",
+      "fr": "Mexique",
+      "aliases": []
+    },
+    {
+      "en": "Panama",
+      "fr": "Panama",
+      "aliases": []
+    },
+    {
+      "en": "Paraguay",
+      "fr": "Paraguay",
+      "aliases": []
+    },
+    {
+      "en": "Peru",
+      "fr": "Pérou",
+      "aliases": []
+    },
+    {
+      "en": "Trinidad and Tobago",
+      "fr": "Trinité-et-Tobago",
+      "aliases": []
+    },
+    {
+      "en": "Uruguay",
+      "fr": "Uruguay",
+      "aliases": []
+    },
+    {
+      "en": "USA",
+      "fr": "États-Unis",
+      "aliases": []
+    },
+    {
+      "en": "United States",
+      "fr": "États-Unis",
+      "aliases": []
+    },
+    {
+      "en": "Venezuela",
+      "fr": "Venezuela",
+      "aliases": []
+    },
+    {
+      "en": "Australia",
+      "fr": "Australie",
+      "aliases": []
+    },
+    {
+      "en": "Bahrain",
+      "fr": "Bahreïn",
+      "aliases": []
+    },
+    {
+      "en": "China",
+      "fr": "Chine",
+      "aliases": []
+    },
+    {
+      "en": "China PR",
+      "fr": "Chine",
+      "aliases": []
+    },
+    {
+      "en": "India",
+      "fr": "Inde",
+      "aliases": []
+    },
+    {
+      "en": "Indonesia",
+      "fr": "Indonésie",
+      "aliases": []
+    },
+    {
+      "en": "Iran",
+      "fr": "Iran",
+      "aliases": []
+    },
+    {
+      "en": "Iraq",
+      "fr": "Irak",
+      "aliases": []
+    },
+    {
+      "en": "Japan",
+      "fr": "Japon",
+      "aliases": []
+    },
+    {
+      "en": "Jordan",
+      "fr": "Jordanie",
+      "aliases": []
+    },
+    {
+      "en": "Korea Republic",
+      "fr": "Corée du Sud",
+      "aliases": []
+    },
+    {
+      "en": "South Korea",
+      "fr": "Corée du Sud",
+      "aliases": []
+    },
+    {
+      "en": "North Korea",
+      "fr": "Corée du Nord",
+      "aliases": []
+    },
+    {
+      "en": "Kuwait",
+      "fr": "Koweït",
+      "aliases": []
+    },
+    {
+      "en": "Lebanon",
+      "fr": "Liban",
+      "aliases": []
+    },
+    {
+      "en": "Malaysia",
+      "fr": "Malaisie",
+      "aliases": []
+    },
+    {
+      "en": "New Zealand",
+      "fr": "Nouvelle-Zélande",
+      "aliases": []
+    },
+    {
+      "en": "Oman",
+      "fr": "Oman",
+      "aliases": []
+    },
+    {
+      "en": "Palestine",
+      "fr": "Palestine",
+      "aliases": []
+    },
+    {
+      "en": "Qatar",
+      "fr": "Qatar",
+      "aliases": []
+    },
+    {
+      "en": "Saudi Arabia",
+      "fr": "Arabie saoudite",
+      "aliases": []
+    },
+    {
+      "en": "Syria",
+      "fr": "Syrie",
+      "aliases": []
+    },
+    {
+      "en": "Thailand",
+      "fr": "Thaïlande",
+      "aliases": []
+    },
+    {
+      "en": "United Arab Emirates",
+      "fr": "Émirats arabes unis",
+      "aliases": []
+    },
+    {
+      "en": "Uzbekistan",
+      "fr": "Ouzbékistan",
+      "aliases": []
+    },
+    {
+      "en": "Vietnam",
+      "fr": "Viêt Nam",
+      "aliases": []
+    },
+    {
+      "en": "Yemen",
+      "fr": "Yémen",
+      "aliases": []
+    },
+    {
+      "en": "Ivory Coast",
+      "fr": "Côte d'Ivoire",
+      "aliases": [
+        "Cote D'Ivoire"
+      ]
+    }
+  ],
+  "roundRules": [
+    {
+      "patterns": [
+        "^League ([A-Z]) - Group ([A-Z0-9]+)$",
+        "^Ligue ([A-Z]) - Groupe ([A-Z0-9]+)$"
+      ],
+      "fr": "Ligue {1} - Groupe {2}",
+      "en": "League {1} - Group {2}"
+    },
+    {
+      "patterns": [
+        "^League ([A-Z]) - (\\d+)$",
+        "^Ligue ([A-Z]) - Journée (\\d+)$"
+      ],
+      "fr": "Ligue {1} - Journée {2}",
+      "en": "League {1} - {2}"
+    },
+    {
+      "patterns": [
+        "^Group ([A-Z0-9]+)$",
+        "^Groupe ([A-Z0-9]+)$"
+      ],
+      "fr": "Groupe {1}",
+      "en": "Group {1}"
+    },
+    {
+      "patterns": [
+        "^Regular Season - (\\d+)$",
+        "^Saison régulière - Journée (\\d+)$"
+      ],
+      "fr": "Saison régulière - Journée {1}",
+      "en": "Regular Season - {1}"
+    },
+    {
+      "patterns": [
+        "^Round (\\d+)$",
+        "^Tour (\\d+)$"
+      ],
+      "fr": "Tour {1}",
+      "en": "Round {1}"
+    }
+  ],
+  "absences": [
+    {
+      "en": "Knee Injury",
+      "fr": "Blessure au genou",
+      "aliases": [
+        "knee"
+      ]
+    },
+    {
+      "en": "Ankle Injury",
+      "fr": "Blessure à la cheville",
+      "aliases": [
+        "ankle"
+      ]
+    },
+    {
+      "en": "Thigh Injury",
+      "fr": "Blessure à la cuisse",
+      "aliases": [
+        "thigh"
+      ]
+    },
+    {
+      "en": "Hamstring Injury",
+      "fr": "Blessure aux ischio-jambiers",
+      "aliases": [
+        "hamstring"
+      ]
+    },
+    {
+      "en": "Muscle Injury",
+      "fr": "Blessure musculaire",
+      "aliases": [
+        "muscle"
+      ]
+    },
+    {
+      "en": "Calf Injury",
+      "fr": "Blessure au mollet",
+      "aliases": [
+        "calf"
+      ]
+    },
+    {
+      "en": "Groin Injury",
+      "fr": "Blessure à l'aine",
+      "aliases": [
+        "groin"
+      ]
+    },
+    {
+      "en": "Back Injury",
+      "fr": "Blessure au dos",
+      "aliases": [
+        "back"
+      ]
+    },
+    {
+      "en": "Shoulder Injury",
+      "fr": "Blessure à l'épaule",
+      "aliases": [
+        "shoulder"
+      ]
+    },
+    {
+      "en": "Foot Injury",
+      "fr": "Blessure au pied",
+      "aliases": [
+        "foot"
+      ]
+    },
+    {
+      "en": "Hip Injury",
+      "fr": "Blessure à la hanche",
+      "aliases": [
+        "hip"
+      ]
+    },
+    {
+      "en": "Head Injury",
+      "fr": "Blessure à la tête",
+      "aliases": [
+        "head"
+      ]
+    },
+    {
+      "en": "Neck Injury",
+      "fr": "Blessure à la nuque",
+      "aliases": [
+        "neck"
+      ]
+    },
+    {
+      "en": "Arm Injury",
+      "fr": "Blessure au bras",
+      "aliases": [
+        "arm"
+      ]
+    },
+    {
+      "en": "Hand Injury",
+      "fr": "Blessure à la main",
+      "aliases": [
+        "hand"
+      ]
+    },
+    {
+      "en": "Wrist Injury",
+      "fr": "Blessure au poignet",
+      "aliases": [
+        "wrist"
+      ]
+    },
+    {
+      "en": "Elbow Injury",
+      "fr": "Blessure au coude",
+      "aliases": [
+        "elbow"
+      ]
+    },
+    {
+      "en": "Toe Injury",
+      "fr": "Blessure à l'orteil",
+      "aliases": [
+        "toe"
+      ]
+    },
+    {
+      "en": "Rib Injury",
+      "fr": "Blessure aux côtes",
+      "aliases": [
+        "rib"
+      ]
+    },
+    {
+      "en": "Chest Injury",
+      "fr": "Blessure à la poitrine",
+      "aliases": [
+        "chest"
+      ]
+    },
+    {
+      "en": "Abdominal Injury",
+      "fr": "Blessure abdominale",
+      "aliases": [
+        "abdominal"
+      ]
+    },
+    {
+      "en": "Achilles Injury",
+      "fr": "Blessure au tendon d'Achille",
+      "aliases": [
+        "achilles"
+      ]
+    },
+    {
+      "en": "Ligament Injury",
+      "fr": "Blessure ligamentaire",
+      "aliases": [
+        "ligament"
+      ]
+    },
+    {
+      "en": "Fitness Injury",
+      "fr": "Blessure physique",
+      "aliases": [
+        "fitness"
+      ]
+    },
+    {
+      "en": "Yellow cards",
+      "fr": "Suspendu (cartons jaunes)",
+      "aliases": []
+    },
+    {
+      "en": "Yellow card",
+      "fr": "Suspendu (carton jaune)",
+      "aliases": []
+    },
+    {
+      "en": "Red card",
+      "fr": "Suspendu (carton rouge)",
+      "aliases": []
+    },
+    {
+      "en": "Suspended",
+      "fr": "Suspendu",
+      "aliases": []
+    },
+    {
+      "en": "Inactive",
+      "fr": "Indisponible",
+      "aliases": []
+    },
+    {
+      "en": "Injury",
+      "fr": "Blessé",
+      "aliases": []
+    },
+    {
+      "en": "Injured",
+      "fr": "Blessé",
+      "aliases": []
+    },
+    {
+      "en": "Illness",
+      "fr": "Maladie",
+      "aliases": []
+    },
+    {
+      "en": "Personal reasons",
+      "fr": "Raisons personnelles",
+      "aliases": []
+    },
+    {
+      "en": "National team",
+      "fr": "Sélection nationale",
+      "aliases": []
+    },
+    {
+      "en": "Coach decision",
+      "fr": "Choix de l'entraîneur",
+      "aliases": []
+    },
+    {
+      "en": "Rest",
+      "fr": "Au repos",
+      "aliases": []
+    },
+    {
+      "en": "Broken leg",
+      "fr": "Jambe cassée",
+      "aliases": []
+    },
+    {
+      "en": "Broken foot",
+      "fr": "Pied cassé",
+      "aliases": []
+    },
+    {
+      "en": "Broken arm",
+      "fr": "Bras cassé",
+      "aliases": []
+    },
+    {
+      "en": "Questionable",
+      "fr": "Incertain",
+      "aliases": []
+    },
+    {
+      "en": "Missing fixture",
+      "fr": "Absent",
+      "aliases": []
+    },
+    {
+      "en": "Unknown",
+      "fr": "Motif inconnu",
+      "aliases": []
+    }
+  ],
+  "transfers": [
+    {
+      "en": "Loan",
+      "fr": "Prêt",
+      "aliases": []
+    },
+    {
+      "en": "Back from loan",
+      "fr": "Retour de prêt",
+      "aliases": []
+    },
+    {
+      "en": "Free transfer",
+      "fr": "Libre",
+      "aliases": [
+        "Free"
+      ]
+    },
+    {
+      "en": "Transfer",
+      "fr": "Transfert",
+      "aliases": [
+        "N/A",
+        "NA"
+      ]
+    }
+  ],
+  "statuses": [
+    {
+      "en": "active",
+      "fr": "Actif",
+      "aliases": []
+    },
+    {
+      "en": "inactive",
+      "fr": "Inactif",
+      "aliases": []
+    },
+    {
+      "en": "expired",
+      "fr": "Expiré",
+      "aliases": []
+    },
+    {
+      "en": "cancelled",
+      "fr": "Annulé",
+      "aliases": [
+        "canceled"
+      ]
+    },
+    {
+      "en": "pending",
+      "fr": "En attente",
+      "aliases": []
+    },
+    {
+      "en": "completed",
+      "fr": "Confirmé",
+      "aliases": []
+    },
+    {
+      "en": "rejected",
+      "fr": "Rejeté",
+      "aliases": []
+    },
+    {
+      "en": "approved",
+      "fr": "Approuvé",
+      "aliases": []
+    },
+    {
+      "en": "processing",
+      "fr": "En cours",
+      "aliases": []
+    },
+    {
+      "en": "failed",
+      "fr": "Échoué",
+      "aliases": []
+    },
+    {
+      "en": "refunded",
+      "fr": "Remboursé",
+      "aliases": []
+    }
+  ]
+}

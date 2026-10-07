@@ -17,16 +17,26 @@ import { journal } from '../utils/logger';
 
 export class TutorialService {
 
-  private fmt(t: any, prog?: { isCompleted: boolean; watchedSeconds: number } | null) {
+  private async hasPremium(userId?: string): Promise<boolean> {
+    if (!userId) return false;
+    const user = await prisma.user.findUnique({where: {id: userId}, select: {subscriptionPlan: true, subscriptionExpiresAt: true}});
+    return user?.subscriptionPlan === 'premium' && !!user.subscriptionExpiresAt && user.subscriptionExpiresAt > new Date();
+  }
+
+  private fmt(t: any, prog?: { isCompleted: boolean; watchedSeconds: number } | null, premium = false) {
+    const locked = !!(t.isPremium ?? t.is_premium) && !premium;
     return {
       id:               t.id,
       title:            t.title,
+      title_en: t.titleEn ?? null, description_en: t.descriptionEn ?? null,
+      article_content_en: locked ? null : t.articleContentEn ?? null,
+      locked,
       description:      t.description,
       level:            t.level,
       category:         t.category,
       thumbnail_url:    t.thumbnailUrl    ?? t.thumbnail_url    ?? null,
-      video_url:        t.videoUrl        ?? t.video_url        ?? null,
-      article_content:  t.articleContent  ?? t.article_content  ?? null,
+      video_url:        locked ? null : t.videoUrl ?? t.video_url ?? null,
+      article_content:  locked ? null : t.articleContent ?? t.article_content ?? null,
       duration_seconds: t.durationSeconds ?? t.duration_seconds ?? 0,
       is_premium:       t.isPremium       ?? t.is_premium       ?? false,
       has_video:        t.hasVideo        ?? t.has_video        ?? false,
@@ -60,7 +70,8 @@ export class TutorialService {
         progMap = new Map(progList.map(p => [p.tutorialId, p]));
       }
 
-      return tutorials.map(t => this.fmt(t, progMap.get(t.id) ?? null));
+      const premium = tutorials.some(t => t.isPremium) ? await this.hasPremium(params.userId) : false;
+      return tutorials.map(t => this.fmt(t, progMap.get(t.id) ?? null, premium));
 
     } catch (e: any) {
       // Une panne de base ne se déguise pas en catalogue.
@@ -92,7 +103,7 @@ export class TutorialService {
         select: { isCompleted: true, watchedSeconds: true },
       }) : null;
 
-      return this.fmt(t, prog);
+      return this.fmt(t, prog, t.isPremium ? await this.hasPremium(userId) : false);
     } catch (e: any) {
       // Même raison qu'au-dessus : un identifiant demandé doit rendre le
       // tutoriel demandé, ou un échec. Pas un autre tutoriel.

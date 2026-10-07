@@ -1,3 +1,4 @@
+import { englishPair } from '../i18n/editorial';
 import { prisma } from '../lib/prisma';
 import { ErreurMetier } from '../utils/erreurs';
 import { journal } from '../utils/logger';
@@ -95,7 +96,7 @@ export async function programmerPublication(params: {
 }
 
 export async function programmerNotification(params: {
-  segment: string; title: string; body: string; deepLink?: string | null; imageUrl?: string | null;
+  segment: string; title: string; body: string; titleEn?: string; bodyEn?: string; deepLink?: string | null; imageUrl?: string | null;
   prevueLe: Date; auteur?: string;
 }, maintenant = new Date()) {
   verifierHeure(params.prevueLe, maintenant);
@@ -111,7 +112,7 @@ export async function programmerNotification(params: {
   }
   return prisma.programmation.create({ data: {
     type: 'notification', prevueLe: params.prevueLe, creeePar: params.auteur ?? null,
-    charge: { segment: params.segment, title, body,
+    charge: { segment: params.segment, title, body, ...englishPair(params.titleEn, params.bodyEn),
               ...(params.deepLink ? { deepLink: params.deepLink } : {}),
               ...(params.imageUrl ? { imageUrl: params.imageUrl } : {}) },
   } });
@@ -200,6 +201,7 @@ async function envoyerNotification(charge: any, prevueLe: Date, maintenant: Date
   }
   const r: any = await notifSvc().sendToSegment(String(charge?.segment ?? ''), {
     title: String(charge?.title ?? ''), body: String(charge?.body ?? ''),
+    titleEn: typeof charge?.titleEn === 'string' ? charge.titleEn : undefined, bodyEn: typeof charge?.bodyEn === 'string' ? charge.bodyEn : undefined,
     deepLink: charge?.deepLink ?? undefined, imageUrl: charge?.imageUrl ?? undefined,
   });
   const envoyes = Number(r?.sent ?? 0);

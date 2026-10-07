@@ -1,3 +1,5 @@
+import { country, prediction } from '../i18n/football';
+import { bilingual, forLanguage, BilingualPayload } from '../i18n/notifications';
 ﻿
 import { prisma } from '../lib/prisma';
 import { journal } from '../utils/logger';
@@ -134,11 +136,11 @@ export class NotificationService {
    * téléphone repris par un autre compte cesse donc de recevoir les
    * notifications du précédent (constat I12).
    */
-  async registerToken(userId: string, jeton: string, plateforme: string) {
+  async registerToken(userId: string, jeton: string, plateforme: string, language?: string) {
     await prisma.appareilNotification.upsert({
       where:  { jeton },
-      create: { userId, jeton, plateforme },
-      update: { userId, plateforme, vuLe: new Date() },
+      create: { userId, jeton, plateforme, language: language === 'en' ? 'en' : 'fr' },
+      update: { userId, plateforme, vuLe: new Date(), ...(language ? {language: language === 'en' ? 'en' : 'fr'} : {}) },
     });
     // Un jeton qui n'est jamais signalé mort par Firebase — appareil perdu,
     // application jamais rouverte — resterait sinon indéfiniment.
@@ -169,7 +171,7 @@ export class NotificationService {
       orderBy: { createdAt: 'desc' },
       take:    limit,
     });
-    return liste.map(harmoniserNotification);
+    return liste.map(n => bilingual(harmoniserNotification(n)));
   }
 
   /** Marquer une notification comme lue */
@@ -190,12 +192,13 @@ export class NotificationService {
 
   /** Sauvegarder une notification en base (pour l'historique) */
   private async _saveNotification(userId: string, payload: {
-    title: string; body: string; type?: string; deepLink?: string;
+    title: string; body: string; titleEn?: string | null; bodyEn?: string | null; type?: string; deepLink?: string;
   }) {
     try {
       await prisma.notification.create({
         data: {
           userId,
+          titleEn: payload.titleEn, bodyEn: payload.bodyEn,
           title:    payload.title,
           body:     payload.body,
           type:     payload.type ?? 'system',
@@ -217,16 +220,18 @@ export class NotificationService {
    * push ne doit pas effacer la trace dans la liste in-app.
    */
   async sendToUser(userId: string, payload: {
-    title: string; body: string; data?: Record<string, string>;
+    title: string; body: string; titleEn?: string | null; bodyEn?: string | null; data?: Record<string, string>;
   }, category?: NotifCategory) {
     const user = await prisma.user.findUnique({
       where:  { id: userId },
-      select: { notificationPrefs: true, appareils: { select: { jeton: true } } },
+      select: { notificationPrefs: true, appareils: { select: { jeton: true, language: true } } },
     });
+    payload = bilingual(payload);
     // Toujours sauvegarder en base pour l'historique
     await this._saveNotification(userId, {
       title:    payload.title,
       body:     payload.body,
+      titleEn: payload.titleEn, bodyEn: payload.bodyEn,
       type:     payload.data?.['type'],
       deepLink: payload.data?.['deep_link'],
     });
@@ -238,12 +243,29 @@ export class NotificationService {
       journal.info(`[FCM] Pas de token pour user ${userId} — notif sauvegardée en base`);
       return { success: false, reason: 'no_token' };
     }
-    return this._envoyerAuxAppareils(user.appareils.map(a => a.jeton), payload);
+    const results = [];
+    for (const language of ['fr','en']) {
+      const tokens = user.appareils.filter(a => (a.language || 'fr') === language).map(a => a.jeton);
+      if(tokens.length) results.push(await this._envoyerAuxAppareils(tokens, forLanguage(payload, language)));
+    }
+    return {success: results.some(r => r.success),
+      error: (results.find(r => !r.success) as any)?.error,
+      envoyes: results.reduce((sum, r) => sum + ((r as any).envoyes ?? 0), 0),
+      simulated: results.every(r => (r as any).simulated), results};
+  }
+
+  async sendToTopic(topic: string, payload: BilingualPayload) {
+    const results = await Promise.all([
+      this._sendToTopic(topic, forLanguage(payload, 'fr')),
+      this._sendToTopic(topic + '_en', forLanguage(payload, 'en')),
+    ]);
+    return {success: results.every(r => r.success), error: (results.find(r => !r.success) as any)?.error,
+      simulated: results.every(r => (r as any).simulated), results};
   }
 
   /** Envoyer à un topic FCM (tous les abonnés à ce type de notif) */
-  async sendToTopic(topic: string, payload: {
-    title: string; body: string; data?: Record<string, string>;
+  private async _sendToTopic(topic: string, payload: {
+    title: string; body: string; titleEn?: string | null; bodyEn?: string | null; data?: Record<string, string>;
   }) {
     const fa = await getAdmin();
     if (!fa) {
@@ -287,7 +309,7 @@ export class NotificationService {
    * jetons que Firebase déclare morts sont oubliés.
    */
   private async _envoyerAuxAppareils(jetons: string[], payload: {
-    title: string; body: string; data?: Record<string, string>;
+    title: string; body: string; titleEn?: string | null; bodyEn?: string | null; data?: Record<string, string>;
   }) {
     const fa = await getAdmin();
     if (!fa) {
@@ -361,8 +383,9 @@ export class NotificationService {
    * aussi ce qui permet de respecter l'interrupteur « Offres & Promotions ».
    */
   async sendToSegment(segment: string, payload: {
-    title: string; body: string; deepLink?: string; imageUrl?: string;
+    title: string; body: string; titleEn?: string | null; bodyEn?: string | null; deepLink?: string; imageUrl?: string;
   }) {
+    payload = bilingual(payload);
     const users = await this._reachableUsers(segment);
     if (users.length === 0) return { segment, sent: 0, failed: 0, pruned: 0 };
 
@@ -370,6 +393,7 @@ export class NotificationService {
     await prisma.notification.createMany({
       data: users.map(u => ({
         userId:   u.id,
+        titleEn: payload.titleEn, bodyEn: payload.bodyEn,
         title:    payload.title,
         body:     payload.body,
         type:     CAMPAIGN_CATEGORY,
@@ -392,23 +416,27 @@ export class NotificationService {
     // Un compte peut avoir plusieurs appareils : on envoie par jeton, mais le
     // compte rendu compte des personnes — une personne est atteinte dès qu'un
     // de ses appareils a reçu.
-    const envois = users.flatMap(u => u.appareils.map(a => ({ userId: u.id, jeton: a.jeton })));
+    const envois = users.flatMap(u => u.appareils.map(a => ({ userId: u.id, jeton: a.jeton, language: a.language || 'fr' })));
     const atteints = new Set<string>();
     const dead: string[] = [];
 
     // FCM plafonne le multicast à 500 jetons par appel.
-    for (let i = 0; i < envois.length; i += 500) {
-      const lot    = envois.slice(i, i + 500);
+    for (const language of ['fr', 'en']) {
+    const localized = forLanguage(payload, language);
+    const localizedEnvois = envois.filter(e => e.language === language);
+    for (let i = 0; i < localizedEnvois.length; i += 500) {
+      const lot    = localizedEnvois.slice(i, i + 500);
       const tokens = lot.map(e => e.jeton);
       try {
         const r = await fa.messaging().sendEachForMulticast({
           tokens,
           notification: {
-            title: payload.title,
-            body:  payload.body,
+            title: localized.title,
+            body:  localized.body,
             ...(payload.imageUrl ? { imageUrl: payload.imageUrl } : {}),
           },
           data: {
+            ...localized.data,
             type: CAMPAIGN_CATEGORY,
             ...(payload.deepLink ? { deep_link: payload.deepLink } : {}),
           },
@@ -425,6 +453,7 @@ export class NotificationService {
       } catch (e: any) {
         journal.error('[FCM] Erreur lot segment:', e.message);
       }
+    }
     }
     const sent = atteints.size;
     const failed = users.length - sent;
@@ -459,7 +488,7 @@ export class NotificationService {
    * à un problème de serveur alors que le pseudo est simplement mal orthographié.
    */
   async sendToHandle(handle: string, payload: {
-    title: string; body: string; deepLink?: string; imageUrl?: string;
+    title: string; body: string; titleEn?: string | null; bodyEn?: string | null; deepLink?: string; imageUrl?: string;
   }) {
     const recherche = handle.trim();
     if (!recherche) throw new Error('Indiquez le pseudo ou le numéro du destinataire.');
@@ -490,6 +519,7 @@ export class NotificationService {
     }
 
     const r = await this.sendToUser(user.id, {
+      titleEn: payload.titleEn, bodyEn: payload.bodyEn,
       title: payload.title,
       body:  payload.body,
       data:  {
@@ -511,7 +541,7 @@ export class NotificationService {
   private async _reachableUsers(segment: string) {
     const users = await prisma.user.findMany({
       where:  { ...segmentWhere(segment), appareils: { some: {} } },
-      select: { id: true, notificationPrefs: true, appareils: { select: { jeton: true } } },
+      select: { id: true, notificationPrefs: true, appareils: { select: { jeton: true, language: true } } },
     });
     return users.filter(u => isNotifEnabled(u.notificationPrefs, CAMPAIGN_CATEGORY));
   }
@@ -540,6 +570,8 @@ export class NotificationService {
   async notifyMatchSoon(homeTeam: string, awayTeam: string, pronosticId: string, matchId?: string) {
     const payload = {
       title: 'Match dans 1 heure !',
+      titleEn: 'Match starts in 1 hour!',
+      bodyEn: `${country(homeTeam, 'en')} vs ${country(awayTeam, 'en')} — Read our prediction now.`,
       body:  `${rencontre(homeTeam, awayTeam)} — Consultez notre pronostic maintenant.`,
       data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
     };
@@ -554,6 +586,7 @@ export class NotificationService {
     awayTeam:        string;
     pronosticId:     string;
     predictionLabel: string;
+    predictionLabelEn?: string | null;
     isPremium:       boolean;
     matchStatus?:    string;
   }) {
@@ -586,6 +619,9 @@ export class NotificationService {
       : `${match} — ${affiche}`;
     return this.sendToTopic(FCM_TOPICS.match, {
       title, body,
+      titleEn: prefix + (isLive ? 'LIVE prediction' : 'New prediction published'),
+      bodyEn: country(params.homeTeam, 'en') + ' vs ' + country(params.awayTeam, 'en') + (isLive ? ' live — ' : ' — ') +
+        (params.isPremium ? 'VIP prediction available' : params.predictionLabelEn || prediction(params.predictionLabel, 'en', params.homeTeam, params.awayTeam).text),
       data: { deep_link: `/pronostics/${params.pronosticId}`, type: 'match' },
     });
   }
@@ -605,6 +641,7 @@ export class NotificationService {
     const score  = `${params.homeScore}-${params.awayScore}`;
     return this.sendToTopic(FCM_TOPICS.match, {
       title: label,
+      bodyEn: `${country(params.homeTeam, 'en')} vs ${country(params.awayTeam, 'en')} — final score: ${score}`,
       body:  `${rencontre(params.homeTeam, params.awayTeam)} — score final : ${score}`,
       data:  {
         deep_link: `/pronostics/${params.pronosticId}`,

@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', { page: 'moderation' }) %>
 
 <%# Les commentaires signalés depuis l'application. L'App Store (règle 1.2) et
@@ -43,7 +44,7 @@
 </header>
 
 <nav class="view-tabs" aria-label="Vues de modération">
-  <a href="/admin/moderation" class="view-tab" aria-current="<%= statut === 'en_attente' ? 'page' : 'false' %>"><svg class="ic" aria-hidden="true"><use href="#ic-flag"/></svg> À traiter <span>(<%= aTraiter %>)</span></a>
+  <a href="/admin/moderation" class="view-tab" aria-current="<%= statut === 'en_attente' ? 'page' : 'false' %>"><svg class="ic" aria-hidden="true"><use href="#ic-flag"/></svg> <%= uiText("À traiter") %> <span>(<%= aTraiter %>)</span></a>
   <a href="/admin/moderation?statut=traites" class="view-tab" aria-current="<%= statut === 'traites' ? 'page' : 'false' %>"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Traités</a>
 </nav>
 

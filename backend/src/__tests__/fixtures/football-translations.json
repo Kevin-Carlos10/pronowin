@@ -1,0 +1,310 @@
+[
+  {
+    "method": "market",
+    "input": "  match winner  ",
+    "fr": "Vainqueur du match",
+    "en": "Match Winner",
+    "known": true
+  },
+  {
+    "method": "market",
+    "input": "Both Teams To Score",
+    "fr": "Les deux équipes marquent",
+    "en": "Both Teams Score",
+    "known": true
+  },
+  {
+    "method": "market",
+    "input": "Correct Score",
+    "fr": "Score exact",
+    "en": "Exact Score",
+    "known": true
+  },
+  {
+    "method": "market",
+    "input": "Odd/Even",
+    "fr": "Pair / Impair",
+    "en": "Odd/Even",
+    "known": true
+  },
+  {
+    "method": "market",
+    "input": "Total buts +/-",
+    "fr": "Plus / Moins de buts",
+    "en": "Goals Over/Under",
+    "known": true
+  },
+  {
+    "method": "market",
+    "input": "Goals Over/Under First Half",
+    "fr": "Total buts +/- — 1ère MT",
+    "en": "Goals Over/Under First Half",
+    "known": true
+  },
+  {
+    "method": "market",
+    "input": "Goals Over/Under - Second Half",
+    "fr": "Total buts +/- — 2ème MT",
+    "en": "Goals Over/Under - Second Half",
+    "known": true
+  },
+  {
+    "method": "selection",
+    "input": "over 2.5",
+    "fr": "Plus de 2,5",
+    "en": "Over 2.5",
+    "known": true
+  },
+  {
+    "method": "selection",
+    "input": "UNDER 0.5",
+    "fr": "Moins de 0,5",
+    "en": "Under 0.5",
+    "known": true
+  },
+  {
+    "method": "selection",
+    "input": "Moins de 3,5",
+    "fr": "Moins de 3,5",
+    "en": "Under 3.5",
+    "known": true
+  },
+  {
+    "method": "selection",
+    "input": "Home -0.5",
+    "fr": "Domicile -0,5",
+    "en": "Home -0.5",
+    "known": true
+  },
+  {
+    "method": "selection",
+    "input": "yes",
+    "fr": "Oui",
+    "en": "Yes",
+    "known": true
+  },
+  {
+    "method": "selection",
+    "input": "exactly 2",
+    "fr": "Exactement 2",
+    "en": "Exactly 2",
+    "known": true
+  },
+  {
+    "method": "selection",
+    "input": "Neither",
+    "fr": "Aucune des deux",
+    "en": "Neither",
+    "known": true
+  },
+  {
+    "method": "selection",
+    "input": "Home or Draw",
+    "fr": "Domicile ou Nul",
+    "en": "Home or Draw",
+    "known": true
+  },
+  {
+    "method": "selection",
+    "input": "Home/Draw",
+    "fr": "Domicile / Nul",
+    "en": "Home / Draw",
+    "known": true
+  },
+  {
+    "method": "selection",
+    "input": "2:1",
+    "fr": "2:1",
+    "en": "2:1",
+    "known": true
+  },
+  {
+    "method": "selection",
+    "input": "1X",
+    "fr": "1X",
+    "en": "1X",
+    "known": true
+  },
+  {
+    "method": "selection",
+    "input": "Home and Over 2.5",
+    "fr": "Domicile et Plus de 2,5",
+    "en": "Home and Over 2.5",
+    "known": true
+  },
+  {
+    "method": "selection",
+    "input": "Jordan Henderson",
+    "fr": "Jordan Henderson",
+    "en": "Jordan Henderson",
+    "known": false
+  },
+  {
+    "method": "market",
+    "input": "Unlisted Market",
+    "fr": "Unlisted Market",
+    "en": "Unlisted Market",
+    "known": false
+  },
+  {
+    "method": "prediction",
+    "input": "Double Chance : Away or Draw",
+    "fr": "Double chance : Extérieur ou Nul",
+    "en": "Double Chance : Away or Draw",
+    "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "Both Teams To Score : Yes",
+    "fr": "Les deux équipes marquent : Oui",
+    "en": "Both Teams Score : Yes",
+    "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "Les deux équipes marquent : Oui",
+    "fr": "Les deux équipes marquent : Oui",
+    "en": "Both Teams Score : Yes",
+    "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "+2.5 buts",
+    "fr": "Plus de 2,5 buts",
+    "en": "Over 2.5 goals",
+    "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "-3.5 buts",
+    "fr": "Moins de 3,5 buts",
+    "en": "Under 3.5 goals",
+    "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "Analyse personnelle : Jordan Henderson en forme",
+    "fr": "Analyse personnelle : Jordan Henderson en forme",
+    "en": "Analyse personnelle : Jordan Henderson en forme",
+    "known": false
+  },
+  {
+    "method": "round",
+    "input": "League A - Group A",
+    "fr": "Ligue A - Groupe A",
+    "en": "League A - Group A",
+    "known": true
+  },
+  {
+    "method": "round",
+    "input": "League C - 4",
+    "fr": "Ligue C - Journée 4",
+    "en": "League C - 4",
+    "known": true
+  },
+  {
+    "method": "round",
+    "input": "Regular Season - 12",
+    "fr": "Saison régulière - Journée 12",
+    "en": "Regular Season - 12",
+    "known": true
+  },
+  {
+    "method": "round",
+    "input": "Group B",
+    "fr": "Groupe B",
+    "en": "Group B",
+    "known": true
+  },
+  {
+    "method": "round",
+    "input": "Quarter-finals",
+    "fr": "Quarts de finale",
+    "en": "Quarter-finals",
+    "known": true
+  },
+  {
+    "method": "country",
+    "input": "Netherlands",
+    "fr": "Pays-Bas",
+    "en": "Netherlands",
+    "known": true
+  },
+  {
+    "method": "country",
+    "input": "Pays-Bas",
+    "fr": "Pays-Bas",
+    "en": "Netherlands",
+    "known": true
+  },
+  {
+    "method": "country",
+    "input": "Spain U21",
+    "fr": "Espagne U21",
+    "en": "Spain U21",
+    "known": true
+  },
+  {
+    "method": "country",
+    "input": "Manchester United",
+    "fr": "Manchester United",
+    "en": "Manchester United",
+    "known": true
+  },
+  {
+    "method": "absence",
+    "input": "Hamstring Injury",
+    "fr": "Blessure aux ischio-jambiers",
+    "en": "Hamstring Injury",
+    "known": true
+  },
+  {
+    "method": "absence",
+    "input": "Blessure au genou",
+    "fr": "Blessure au genou",
+    "en": "Knee Injury",
+    "known": true
+  },
+  {
+    "method": "absence",
+    "input": "red card",
+    "fr": "Suspendu (carton rouge)",
+    "en": "Red card",
+    "known": true
+  },
+  {
+    "method": "absence",
+    "input": "Strange Diagnosis",
+    "fr": "Strange Diagnosis",
+    "en": "Strange Diagnosis",
+    "known": false
+  },
+  {
+    "method": "transfer",
+    "input": "Prêt",
+    "fr": "Prêt",
+    "en": "Loan",
+    "known": true
+  },
+  {
+    "method": "transfer",
+    "input": "Back from loan",
+    "fr": "Retour de prêt",
+    "en": "Back from loan",
+    "known": true
+  },
+  {
+    "method": "transfer",
+    "input": "€ 25M",
+    "fr": "€ 25M",
+    "en": "€ 25M",
+    "known": false
+  },
+  {
+    "method": "country",
+    "input": "Cote D'Ivoire",
+    "fr": "Côte d'Ivoire",
+    "en": "Ivory Coast",
+    "known": true
+  }
+]

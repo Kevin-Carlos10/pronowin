@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'leagues'}) %>
 
 <%
@@ -21,7 +22,7 @@
 <header class="workspace-header">
   <div class="workspace-heading">
     <p class="workspace-eyebrow">Catalogue & visibilité</p>
-    <h1><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg> Ligues</h1>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg> <%= uiText("Ligues") %></h1>
     <p class="workspace-description">Choisissez les compétitions visibles dans le flux « Tous les matchs ». Les matchs avec un pronostic publié restent toujours accessibles.</p>
   </div>
   <div class="workspace-actions">
@@ -127,7 +128,7 @@
   <input class="input" type="search" id="lg-search-input"
          aria-label="Rechercher une compétition"
          placeholder="Rechercher une compétition…" oninput="lgFilter()" autocomplete="off">
-  <button type="button" class="lg-search-clear" onclick="lgClearSearch()" title="Effacer" aria-label="Effacer la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
+  <button type="button" class="lg-search-clear" onclick="lgClearSearch()" title="<%= uiText("Effacer") %>" aria-label="Effacer la recherche"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg></button>
 </div>
 </section>
 
@@ -137,7 +138,7 @@
     <span class="spacer"></span>
     <button type="button" class="btn btn-sm btn-primary" onclick="lgBulk(true)"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Afficher dans l'app</button>
     <button type="button" class="btn btn-sm btn-outline" onclick="lgBulk(false)"><svg class="ic" aria-hidden="true"><use href="#ic-eye-off"/></svg> Masquer</button>
-    <button type="button" class="btn btn-sm btn-outline" onclick="lgClearSelection()">Annuler</button>
+    <button type="button" class="btn btn-sm btn-outline" onclick="lgClearSelection()"><%= uiText("Annuler") %></button>
   </div>
 
   <div class="dt-scroll">
@@ -151,7 +152,7 @@
             </th>
             <th scope="col">Compétition</th>
             <th scope="col" class="num">Matchs (60 j)</th>
-            <th scope="col" class="num">À venir</th>
+            <th scope="col" class="num"><%= uiText("À venir") %></th>
             <th scope="col" style="width:110px">Dans l'app</th>
           </tr>
         </thead>

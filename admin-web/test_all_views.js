@@ -17,6 +17,7 @@ const base = {
   niveauAccorde: require('./lib/permissions').niveauAccorde,
   // Idem : injectee par res.locals en service.
   MARCHES_FR: require('./lib/marches').MARCHES_FR,
+  STATUTS_FR: Object.fromEntries(require('../backend/src/i18n/football').catalog.statuses.flatMap(s => [s.en, ...s.aliases].map(k => [k, s.fr]))),
 };
 
 // Les `icon:` doivent rester des identifiants du sprite (views/_icons.ejs),

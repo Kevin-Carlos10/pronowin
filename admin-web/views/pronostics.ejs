@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'pronostics'}) %>
 
 <style>
@@ -65,7 +66,7 @@
 <header class="workspace-header">
   <div class="workspace-heading">
     <p class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Desk sportif</p>
-    <h1><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> Pronostics</h1>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg> <%= uiText("Pronostics") %></h1>
     <%# Le total avant troncature vient de l'en-tête X-Total-Count. L'afficher
         évite de laisser croire que la liste est complète quand elle est
         plafonnée à 400. %>
@@ -109,7 +110,7 @@
   </a>
   <a href="/admin/pronostics?live=1"
      class="view-tab" <% if (typeof live !== 'undefined' && live) { %>aria-current="page"<% } %>>
-    <svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-danger)"><use href="#ic-dot"/></svg> Match en direct
+    <svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-danger)"><use href="#ic-dot"/></svg> <%= uiText("Match en direct") %>
   </a>
 </nav>
 
@@ -130,7 +131,7 @@
 
 <!-- ── Stats ─────────────────────────────────────────────────────────────────── -->
 <div class="pro-stats metric-grid">
-  <div class="pro-stat metric-card blue"><div class="l">Matchs</div><div class="v"><%= _total %></div></div>
+  <div class="pro-stat metric-card blue"><div class="l"><%= uiText("Matchs") %></div><div class="v"><%= _total %></div></div>
   <div class="pro-stat metric-card green"><div class="l">Publiés</div><div class="v"><%= _published %></div></div>
   <div class="pro-stat metric-card" style="border-left-color:var(--primary)"><div class="l">Vitrine du jour</div><div class="v" style="font-size:1.15rem;color:var(--primary-texte)"><%= _vitrine ? "1" : "—" %></div></div>
   <div class="pro-stat metric-card orange"><div class="l">Brouillons</div><div class="v"><%= _drafts %></div></div>
@@ -200,17 +201,17 @@
         <option value="<%= l.leagueCode %>" <%= competition===l.leagueCode ?'selected':'' %>><%= _libelle(l) %></option>
       <% }) %>
     </select>
-    <select name="status" onchange="this.form.submit()" aria-label="Statut">
+    <select name="status" onchange="this.form.submit()" aria-label="<%= uiText("Statut") %>">
       <option value="">Tous statuts</option>
       <option value="published" <%= _statusFilter==='published'?'selected':'' %>>✅ Publiés</option>
       <option value="draft"     <%= _statusFilter==='draft'    ?'selected':'' %>>✏️ Brouillons</option>
       <option value="none"      <%= _statusFilter==='none'     ?'selected':'' %>>— Sans prono</option>
     </select>
-    <input type="text" name="q" placeholder="🔍 Équipe ou ligue..." value="<%= typeof q !== 'undefined' ? q : '' %>" aria-label="Rechercher">
+    <input type="text" name="q" placeholder="🔍 Équipe ou ligue..." value="<%= typeof q !== 'undefined' ? q : '' %>" aria-label="<%= uiText("Rechercher") %>">
     <% if((typeof mine === 'undefined' || !mine) && (typeof live === 'undefined' || !live)) { %>
     <input type="date" name="date" title="Voir les matchs d'une date précise (passée ou à venir)" value="<%= typeof date !== 'undefined' ? date : '' %>">
     <% } %>
-    <button type="submit" class="btn btn-outline btn-sm">Filtrer</button>
+    <button type="submit" class="btn btn-outline btn-sm"><%= uiText("Filtrer") %></button>
     <% if(competition || _statusFilter || (typeof q !== 'undefined' && q) || (typeof date !== 'undefined' && date)) { %>
     <a href="/admin/pronostics<%= (typeof live !== 'undefined' && live) ? '?live=1' : (typeof mine !== 'undefined' && mine) ? '?mine=1' : '' %>" class="btn btn-outline btn-sm"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Reset</a>
     <% } %>
@@ -255,10 +256,10 @@
   <div class="bulkbar" id="pro-bulk">
     <span class="count" id="pro-bulk-n">0</span>&nbsp;pronostic(s) sélectionné(s)
     <span class="spacer"></span>
-    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="WIN"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Gagné</button>
-    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="LOSS"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Perdu</button>
-    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="PUSH"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Remboursé</button>
-    <button type="button" class="btn btn-sm btn-outline" id="pro-bulk-clear">Annuler</button>
+    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="WIN"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> <%= uiText("Gagné") %></button>
+    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="LOSS"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= uiText("Perdu") %></button>
+    <button type="button" class="btn btn-sm btn-outline bulk-result" data-result="PUSH"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> <%= uiText("Remboursé") %></button>
+    <button type="button" class="btn btn-sm btn-outline" id="pro-bulk-clear"><%= uiText("Annuler") %></button>
   </div>
   <div class="dt-scroll">
   <div class="table-wrap">
@@ -269,10 +270,10 @@
           <th scope="col">Coup d'envoi</th>
           <% if(!_isGrouped) { %><th scope="col">Compétition</th><% } %>
           <th scope="col">Match</th>
-          <th scope="col">Pronostic</th>
-          <th scope="col" class="num">Cote</th>
+          <th scope="col"><%= uiText("Pronostic") %></th>
+          <th scope="col" class="num"><%= uiText("Cote") %></th>
           <th scope="col" class="num">Conf.</th>
-          <th scope="col">Statut</th>
+          <th scope="col"><%= uiText("Statut") %></th>
           <th scope="col" class="col-act">Actions</th>
         </tr>
       </thead>
@@ -340,16 +341,16 @@
           <td class="num"><%= (m.has_pronostic && m.pronostic && m.pronostic.odds) ? m.pronostic.odds : '—' %></td>
           <td class="num"><%= conf ? conf + ' %' : '—' %></td>
           <td>
-            <% if(m.is_published) { %><span class="status pub">Publié</span>
-            <% } else if(m.has_pronostic) { %><span class="status draft">Brouillon</span>
+            <% if(m.is_published) { %><span class="status pub"><%= uiText("Publié") %></span>
+            <% } else if(m.has_pronostic) { %><span class="status draft"><%= uiText("Brouillon") %></span>
               <% if (_programmees[m.id]) { %><span class="status-prog">publication programmée · <%= _programmees[m.id] %></span><% } %>
             <% } else { %><span class="status none">Sans prono</span><% } %>
             <span data-match-result>
             <% if(isFinished && m.has_pronostic) { %>
               <% const _r = m.pronostic?.result; %>
-              <% if(_r === 'WIN') { %><span class="badge badge-ok" style="margin-left:.4rem"><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg> Gagné</span>
-              <% } else if(_r === 'LOSS') { %><span class="badge badge-error" style="margin-left:.4rem"><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> Perdu</span>
-              <% } else if(_r === 'PUSH') { %><span class="badge badge-info" style="margin-left:.4rem"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Remboursé</span>
+              <% if(_r === 'WIN') { %><span class="badge badge-ok" style="margin-left:.4rem"><svg class="ic" aria-hidden="true"><use href="#ic-trophy"/></svg> <%= uiText("Gagné") %></span>
+              <% } else if(_r === 'LOSS') { %><span class="badge badge-error" style="margin-left:.4rem"><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> <%= uiText("Perdu") %></span>
+              <% } else if(_r === 'PUSH') { %><span class="badge badge-info" style="margin-left:.4rem"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> <%= uiText("Remboursé") %></span>
               <% } else { %><span class="badge badge-warn" style="margin-left:.4rem">⏳ En attente</span><% } %>
             <% } %>
             </span>

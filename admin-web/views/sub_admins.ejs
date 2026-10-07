@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', { page: 'sub-admins' }) %>
 
 <style>
@@ -258,7 +259,7 @@
       <div class="sa-username">@<%= sub.username %></div>
       <div class="sa-status">
         <% if (isActive) { %>
-        <span class="badge badge-ok"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Actif</span>
+        <span class="badge badge-ok"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> <%= uiText("Actif") %></span>
         <% } else { %>
         <span class="badge badge-err"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Inactif</span>
         <% } %>
@@ -370,7 +371,7 @@
       <p>Créer et modifier : publier un pronostic, approuver un versement.</p>
     </div>
     <div>
-      <span class="perm-badge delete"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Supprimer</span>
+      <span class="perm-badge delete"><svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> <%= uiText("Supprimer") %></span>
       <p>Effacer définitivement. À n'accorder qu'en connaissance de cause.</p>
     </div>
   </div>
@@ -420,11 +421,11 @@
 
     <div style="margin-top:1.1rem;display:flex;gap:.6rem;align-items:center;flex-wrap:wrap">
       <button class="btn btn-primary" type="submit">Créer le sous-admin</button>
-      <button class="btn btn-outline" type="button" onclick="document.getElementById('create-form').reset();pwdStrength('create-pwd','create-pwd-bar','create-pwd-label')">Réinitialiser</button>
+      <button class="btn btn-outline" type="button" onclick="document.getElementById('create-form').reset();pwdStrength('create-pwd','create-pwd-bar','create-pwd-label')"><%= uiText("Réinitialiser") %></button>
       <div style="display:flex;gap:.4rem;margin-left:auto">
         <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('create','write')"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Tout Écriture</button>
         <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('create','read')"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> Tout Lecture</button>
-        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('create',null)"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Effacer</button>
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('create',null)"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= uiText("Effacer") %></button>
       </div>
     </div>
   </form>
@@ -441,11 +442,11 @@
       <div style="display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.75rem">
         <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('modal','write')"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Tout Écriture</button>
         <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('modal','read')"><svg class="ic" aria-hidden="true"><use href="#ic-eye"/></svg> Tout Lecture</button>
-        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('modal',null)"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> Effacer</button>
+        <button class="btn btn-outline btn-sm" type="button" onclick="setAllPerms('modal',null)"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= uiText("Effacer") %></button>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-outline" type="button" onclick="closeModal('modal-perms')">Annuler</button>
-        <button class="btn btn-primary" type="submit"><svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> Enregistrer</button>
+        <button class="btn btn-outline" type="button" onclick="closeModal('modal-perms')"><%= uiText("Annuler") %></button>
+        <button class="btn btn-primary" type="submit"><svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> <%= uiText("Enregistrer") %></button>
       </div>
     </form>
   </div>
@@ -469,8 +470,8 @@
                autocomplete="new-password" aria-label="Répéter le mot de passe">
       </div>
       <div class="modal-actions">
-        <button class="btn btn-outline" type="button" onclick="closeModal('modal-pwd')">Annuler</button>
-        <button class="btn btn-primary" type="submit">Modifier</button>
+        <button class="btn btn-outline" type="button" onclick="closeModal('modal-pwd')"><%= uiText("Annuler") %></button>
+        <button class="btn btn-primary" type="submit"><%= uiText("Modifier") %></button>
       </div>
     </form>
   </div>

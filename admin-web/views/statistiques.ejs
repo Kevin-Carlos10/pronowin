@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'statistiques'}) %>
 
 <style>
@@ -68,7 +69,7 @@
 <header class="workspace-header">
   <div class="workspace-heading">
     <p class="workspace-eyebrow">Observabilité produit</p>
-    <h1><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg> Statistiques avancées</h1>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-chart"/></svg> <%= uiText("Statistiques avancées") %></h1>
     <p class="workspace-description" id="period-label">Chargement des indicateurs de la période…</p>
   </div>
   <div class="workspace-actions period-bar" aria-label="Choisir la période d'analyse">
@@ -76,7 +77,7 @@
     <button onclick="setPeriod(30)" id="btn-30"  class="btn btn-outline btn-sm">30j</button>
     <button onclick="setPeriod(90)" id="btn-90"  class="btn btn-outline btn-sm">90j</button>
     <button onclick="setPeriod(0)"  id="btn-all" class="btn btn-outline btn-sm">Tout</button>
-    <button onclick="refreshAll()"  class="btn btn-outline btn-sm" title="Actualiser" aria-label="Actualiser les statistiques"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg></button>
+    <button onclick="refreshAll()"  class="btn btn-outline btn-sm" title="<%= uiText("Actualiser") %>" aria-label="Actualiser les statistiques"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg></button>
   </div>
 </header>
 
@@ -144,7 +145,7 @@
         <table class="top-table" id="t-leagues">
           <thead>
             <tr><th scope="col">Compétition</th><th scope="col" style="text-align:right">Réglés</th>
-                <th scope="col" style="text-align:right">Cote moy.</th><th scope="col" style="text-align:right" title="Gain net pour 1 unité misée sur chaque pronostic">Rendement</th><th scope="col" style="width:150px">Réussite</th></tr>
+                <th scope="col" style="text-align:right">Cote moy.</th><th scope="col" style="text-align:right" title="Gain net pour 1 unité misée sur chaque pronostic">Rendement</th><th scope="col" style="width:150px"><%= uiText("Réussite") %></th></tr>
           </thead>
           <tbody></tbody>
         </table>

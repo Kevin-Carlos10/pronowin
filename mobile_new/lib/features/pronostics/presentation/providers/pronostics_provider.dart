@@ -1,3 +1,6 @@
+import 'package:pronowin/l10n/editorial_text.dart';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'package:pronowin/l10n/football_labels.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/network/dio_client.dart';
@@ -677,46 +680,57 @@ final dailyPronoProvider = FutureProvider<MatchEntity?>((ref) async {
 // ─── Pronostics IA personnalisés ──────────────────────────────────────────────
 class ForYouRec {
   final int            score;
-  final List<String>   reasons;
+  final List<String> _reasons;
+  final List<String>? reasonsEn;
+  List<String> get reasons => AppStrings.current.locale.languageCode == 'en' && reasonsEn?.length == _reasons.length ? reasonsEn! : _reasons;
   final ForYouProno    pronostic;
-  const ForYouRec({required this.score, required this.reasons, required this.pronostic});
+  const ForYouRec({required this.score, required List<String> reasons, this.reasonsEn, required this.pronostic}) : _reasons = reasons;
 
   factory ForYouRec.fromJson(Map<String, dynamic> j) => ForYouRec(
     score:     (j['score'] as num).toInt(),
     reasons:   List<String>.from(j['reasons'] as List),
+    reasonsEn: j['reasons_en'] is List ? List<String>.from(j['reasons_en'] as List) : null,
     pronostic: ForYouProno.fromJson(j['pronostic'] as Map<String, dynamic>),
   );
 }
 
 class ForYouProno {
-  final String  id, league, leagueCode, homeTeam, awayTeam;
-  final String  predictionType, predictionLabel;
+  final String id, league, leagueCode;
+  final String _homeTeam, _awayTeam;
+  String get homeTeam => nomEquipe(_homeTeam);
+  String get awayTeam => nomEquipe(_awayTeam);
+  final String predictionType, _predictionLabel;
+  final String? predictionLabelEn;
+  String get predictionLabel => editorialText(_predictionLabel, predictionLabelEn);
   final double  oddsRecommended;
   final int     confidenceScore, aiProbability;
-  final String? analystNote, analystName;
+  final String? _analystNote, analystName, analystNoteEn;
+  String? get analystNote => _analystNote == null && analystNoteEn == null ? null : editorialText(_analystNote ?? '', analystNoteEn);
   final bool    isPremium;
   final DateTime matchDate;
   const ForYouProno({
     required this.id, required this.league, required this.leagueCode,
-    required this.homeTeam, required this.awayTeam,
-    required this.predictionType, required this.predictionLabel,
+    required String homeTeam, required String awayTeam,
+    required this.predictionType, required String predictionLabel, this.predictionLabelEn,
     required this.oddsRecommended, required this.confidenceScore,
     required this.aiProbability, required this.matchDate,
-    this.analystNote, this.analystName, this.isPremium = false,
-  });
+    String? analystNote, this.analystNoteEn, this.analystName, this.isPremium = false,
+  }) : _homeTeam = homeTeam, _awayTeam = awayTeam, _predictionLabel = predictionLabel, _analystNote = analystNote;
   factory ForYouProno.fromJson(Map<String, dynamic> j) => ForYouProno(
     id:               j['id'] as String,
     league:           j['league'] as String,
     leagueCode:       j['league_code'] as String,
-    homeTeam:         nomEquipe(j['home_team'] as String),
-    awayTeam:         nomEquipe(j['away_team'] as String),
+    homeTeam:         j['home_team'] as String,
+    awayTeam:         j['away_team'] as String,
     predictionType:   j['prediction_type'] as String,
     predictionLabel:  j['prediction_label'] as String,
+    predictionLabelEn: j['prediction_label_en'] as String?,
     oddsRecommended:  (j['odds_recommended'] as num).toDouble(),
     confidenceScore:  (j['confidence_score'] as num).toInt(),
     aiProbability:    (j['ai_probability'] as num).toInt(),
     matchDate:        DateTime.parse(j['match_date'] as String).toLocal(),
     analystNote:      j['analyst_note'] as String?,
+    analystNoteEn: j['analyst_note_en'] as String?,
     analystName:      j['analyst_name'] as String?,
     isPremium:        (j['is_premium'] as bool?) ?? false,
   );
@@ -866,7 +880,8 @@ class ComparisonAxis {
 }
 
 class MatchInsights {
-  final String? advice, winnerName, winnerComment, underOver;
+  final String? advice, adviceEn, winnerName, winnerComment, underOver;
+  String? get localizedAdvice => AppStrings.current.locale.languageCode == 'en' ? adviceEn ?? advice : advice;
   final double percentHome, percentDraw, percentAway;
   final List<ComparisonAxis> comparisons;
   final String? formHome, formAway;
@@ -913,7 +928,7 @@ class MatchInsights {
   bool get probabilitesDuMarche => sourceProbabilites == 'marche';
 
   const MatchInsights({
-    this.advice, this.winnerName, this.winnerComment, this.underOver,
+    this.advice, this.adviceEn, this.winnerName, this.winnerComment, this.underOver,
     required this.percentHome, required this.percentDraw, required this.percentAway,
     required this.comparisons,
     this.modeleExploitable = true,
@@ -947,6 +962,7 @@ class MatchInsights {
     }
     return MatchInsights(
       advice:        j['advice'] as String?,
+      adviceEn:      j['advice_en'] as String?,
       winnerName:    j['winner_name'] as String?,
       winnerComment: j['winner_comment'] as String?,
       underOver:     j['under_over'] as String?,
@@ -1000,7 +1016,7 @@ class LiveOddValue {
   const LiveOddValue({required this.value, required this.odd, this.ligne});
 
   /// « Plus de 2.5 », « Home -0.5 », ou le libellé seul.
-  String get libelle => ligne == null ? value : '$value $ligne';
+  String get libelle => FootballLabels.selection(ligne == null ? value : '$value $ligne').text;
 }
 
 class LiveOddMarket {

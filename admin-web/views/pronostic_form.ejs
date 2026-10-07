@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'pronostics'}) %>
 
 <style>
@@ -134,9 +135,9 @@
   </div>
   <div class="workspace-actions">
   <% if(isEdit && pro.is_published) { %>
-  <span class="badge badge-ok"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Publié</span>
+  <span class="badge badge-ok"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> <%= uiText("Publié") %></span>
   <% } else if(isEdit) { %>
-  <span class="badge badge-warn"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Brouillon</span>
+  <span class="badge badge-warn"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> <%= uiText("Brouillon") %></span>
   <% } %>
   </div>
 </header>
@@ -250,6 +251,11 @@
 <% } %>
 
 <form method="POST" action="/admin/pronostics/edit/<%= match.id %>" id="pro-form">
+<fieldset class="translation-preview" lang="en" <%= _termine ? 'disabled' : '' %>><legend>English translation</legend><p><%= uiText("Champs facultatifs : sans traduction, le texte français est conservé.") %></p>
+<div class="form-group"><label for="i18n-prediction_label_en">Custom prediction label</label><textarea class="input" id="i18n-prediction_label_en" name="prediction_label_en" rows="3" maxlength="500"><%= (pro).prediction_label_en || '' %></textarea></div>
+<div class="form-group"><label for="i18n-analyst_note_en">Analyst note</label><textarea class="input" id="i18n-analyst_note_en" name="analyst_note_en" rows="3" maxlength="50000"><%= (pro).analyst_note_en || '' %></textarea></div>
+</fieldset>
+
 <div class="prono-mobile-summary"><strong><%= match.homeTeam %> — <%= match.awayTeam %></strong><span><%= match.league %> · <%= dateStr %> · <%= timeStr %></span></div>
 <div class="pf-main-grid">
 
@@ -261,7 +267,7 @@
         <% if(match.leagueLogo){ %><img src="<%= match.leagueLogo %>" style="width:18px;height:18px;object-fit:contain" onerror="this.style.display='none'" alt=""><% } %>
         <span class="badge badge-info" style="font-size:.7rem"><%= match.league %></span>
         <% if(isLive){ %>
-        <span class="badge" style="font-size:.7rem;background:color-mix(in srgb,var(--error) 15%,transparent);color:var(--on-danger)"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-danger)"><use href="#ic-dot"/></svg> EN DIRECT</span>
+        <span class="badge" style="font-size:.7rem;background:color-mix(in srgb,var(--error) 15%,transparent);color:var(--on-danger)"><svg class="ic ic-sm" aria-hidden="true" style="color:var(--on-danger)"><use href="#ic-dot"/></svg> <%= uiText("EN DIRECT") %></span>
         <% } %>
       </div>
 
@@ -306,7 +312,7 @@
 
     <% if(isEdit) { %>
     <div class="card cr-panel" style="margin-top:.75rem;padding:.85rem 1rem">
-      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);font-weight:700;margin-bottom:.6rem">Historique</div>
+      <div style="font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--text-dim);font-weight:700;margin-bottom:.6rem"><%= uiText("Historique") %></div>
       <% if(pro.createdAt){ %><div style="font-size:.78rem;color:var(--text-m)"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Créé le <%= new Date(pro.createdAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></div><% } %>
       <% if(pro.updatedAt){ %><div style="font-size:.78rem;color:var(--text-m);margin-top:.3rem"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Modifié le <%= new Date(pro.updatedAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></div><% } %>
       <% if(pro.publishedAt){ %><div style="font-size:.78rem;color:var(--on-success);margin-top:.3rem"><svg class="ic" aria-hidden="true"><use href="#ic-rocket"/></svg> Publié le <%= new Date(pro.publishedAt).toLocaleDateString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></div><% } %>
@@ -321,16 +327,16 @@
       <div id="recap-label" style="font-size:.88rem;font-weight:700;line-height:1.35;word-break:break-word">—</div>
       <div style="display:flex;gap:1.25rem;margin-top:.55rem">
         <div>
-          <div style="font-size:.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em">Cote</div>
+          <div style="font-size:.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em"><%= uiText("Cote") %></div>
           <div id="recap-odd" style="font-size:1.05rem;font-weight:800">—</div>
         </div>
         <div>
-          <div style="font-size:.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em">Confiance</div>
+          <div style="font-size:.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em"><%= uiText("Confiance") %></div>
           <div id="recap-conf" style="font-size:1.05rem;font-weight:800">—</div>
         </div>
         <div>
           <div style="font-size:.66rem;color:var(--text-dim);text-transform:uppercase;letter-spacing:.04em">Accès</div>
-          <div id="recap-access" style="font-size:.88rem;font-weight:700;margin-top:.15rem">Tous</div>
+          <div id="recap-access" style="font-size:.88rem;font-weight:700;margin-top:.15rem"><%= uiText("Tous") %></div>
         </div>
       </div>
 
@@ -423,7 +429,7 @@
       <!-- Cotes -->
       <div class="form-group" style="margin-bottom:1.1rem">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:.5rem;gap:.5rem;flex-wrap:wrap">
-          <label style="margin:0" id="lbl-odds">Cotes</label>
+          <label style="margin:0" id="lbl-odds"><%= uiText("Cotes") %></label>
           <button type="button" id="btn-fetch-odds" onclick="fetchOdds()"
             style="display:flex;align-items:center;gap:.4rem;padding:.3rem .75rem;font-size:.78rem;
                    background:rgba(var(--primary-rgb),.12);border:1px solid var(--primary);
@@ -492,6 +498,14 @@
           </p>
         </div>
 
+        <div class="form-group translation-preview">
+          <p class="translation-preview-title">Aperçu des libellés dans l’application</p>
+          <p><strong>Français :</strong> <span id="preview-fr" lang="fr"></span><br><small id="preview-state-fr"></small></p>
+          <p><strong>English :</strong> <span id="preview-en" lang="en"></span><br><small id="preview-state-en"></small></p>
+          <p id="translation-unknown" role="status" hidden></p>
+          <small>Les marchés reconnus sont traduits automatiquement. Pour un texte personnalisé, renseignez la traduction anglaise dans le champ prévu. Cet aperçu nécessite la version mobile intégrant ces traductions.</small>
+        </div>
+
         <!-- Confiance : un pourcentage saisi par l'analyste. Le niveau 1–5 qui
              sert au barème de mise en est déduit par le serveur. -->
         <div class="form-group" style="margin-bottom:1.1rem">
@@ -513,7 +527,7 @@
 
       <!-- Note analyste -->
       <div class="form-group" style="margin-bottom:1.1rem">
-        <label for="analyst-note">Note analyste <span class="badge badge-warn" style="font-size:.65rem;vertical-align:middle"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span></label>
+        <label for="analyst-note"><%= uiText("Note analyste") %> <span class="badge badge-warn" style="font-size:.65rem;vertical-align:middle"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Premium</span></label>
         <textarea class="input" id="analyst-note" name="analyst_note" rows="4"
                   placeholder="Analyse détaillée du match, contexte, absents clés…"><%= pro.analyst_note||'' %></textarea>
       </div>
@@ -553,7 +567,7 @@
           <svg class="ic" aria-hidden="true"><use href="#ic-rocket"/></svg> <span class="lbl-long"><%= isEdit && pro.is_published ? 'Enregistrer les modifications' : 'Publier maintenant' %></span><span class="lbl-court"><%= isEdit && pro.is_published ? 'Enregistrer' : 'Publier' %></span>
         </button>
         <button type="submit" name="publish" value="false" class="btn btn-outline" style="justify-content:center">
-          <svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> <span class="lbl-long">Sauvegarder brouillon</span><span class="lbl-court">Brouillon</span>
+          <svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> <span class="lbl-long">Sauvegarder brouillon</span><span class="lbl-court"><%= uiText("Brouillon") %></span>
         </button>
         <% } %>
         <%# La depublication reste offerte, match termine ou non : elle passe par
@@ -561,7 +575,7 @@
         <% if(isEdit && pro.is_published) { %>
         <button type="button" class="btn btn-danger btn-sm" style="justify-content:center"
           onclick="askConfirm({icon:'trash',title:'Dépublier',msg:'Retirer ce pronostic de la liste publique ?',btnLabel:'Dépublier',btnClass:'btn-danger',onConfirm:()=>depublish()})">
-          <svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> Dépublier
+          <svg class="ic" aria-hidden="true"><use href="#ic-trash"/></svg> <%= uiText("Dépublier") %>
         </button>
         <% } %>
       </div>
@@ -573,7 +587,7 @@
                  value="<%= _prog ? _prog.prevueLe.slice(0, 16) : _valeurProg %>">
           <input type="hidden" name="quand_iso" value="">
           <button type="submit" name="publish" value="programmer" class="btn btn-outline">
-            <svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg> Programmer
+            <svg class="ic" aria-hidden="true"><use href="#ic-clock"/></svg> <%= uiText("Programmer") %>
           </button>
         </div>
         <p class="pf-programmer-aide">
@@ -596,6 +610,7 @@
 </form>
 <% } %>
 
+<script src="/admin/assets/football-i18n.js"></script>
 <script>
 /* Cote minimale de publication — même valeur que COTE_MINIMALE_PUBLICATION
    dans backend/src/services/pronostics.service.ts ; un banc les tient égales.
@@ -683,6 +698,15 @@ setConf(document.getElementById('conf-input').value, 'champ');
 /* ── Récapitulatif (colonne gauche) ── */
 function updateRecap() {
   const label = document.getElementById('pred-label').value.trim();
+  const home = <%- JSON.stringify(match.homeTeam).replace(/</g, '\\u003c') %>;
+  const away = <%- JSON.stringify(match.awayTeam).replace(/</g, '\\u003c') %>;
+  for (const language of ['fr', 'en']) {
+    const manualEnglish = document.getElementById('i18n-prediction_label_en').value.trim();
+    const translated = PronoFootball.prediction(language === 'en' && manualEnglish ? manualEnglish : label, language, home, away);
+    if (language === 'en' && manualEnglish) translated.known = true;
+    document.getElementById('preview-' + language).textContent = translated.text || '—';
+    document.getElementById('preview-state-' + language).textContent = translated.known ? 'Traduction disponible' : 'Texte personnalisé ou traduction à relire';
+  }
   const odd   = document.getElementById('odds-rec').value;
   const conf  = parseInt(document.getElementById('conf-input').value, 10);
   const vip   = document.getElementById('is-premium').checked;
@@ -697,6 +721,7 @@ function updateRecap() {
   acc.style.color  = vip ? 'var(--on-warning)' : 'var(--text)';
 }
 document.getElementById('pred-label').addEventListener('input', updateRecap);
+document.getElementById('i18n-prediction_label_en').addEventListener('input', updateRecap);
 
 /* Libellé public généré : il décrit le pronostic sélectionné, donc changer de
    pronostic le régénère — comme la cote recommandée. Garder l'ancien texte
@@ -704,6 +729,10 @@ document.getElementById('pred-label').addEventListener('input', updateRecap);
    était réellement enregistré (cas vu en test : marché personnalisé puis
    retour sur une option standard). */
 function setLabel(text) {
+  // A translation of a previous selection must not describe a new market.
+  if (document.getElementById('pred-label').value !== text) {
+    document.getElementById('i18n-prediction_label_en').value = '';
+  }
   document.getElementById('pred-label').value = text;
   updateRecap();
 }
@@ -796,7 +825,7 @@ function setType(v) {
 // Table partagée avec l'écran de fiabilité : voir lib/marches.js.
 const MARKET_NAME_FR = <%- JSON.stringify(MARCHES_FR) %>;
 function translateMarketName(name) {
-  return MARKET_NAME_FR[name] || name;
+  return PronoFootball.market(name, 'fr').text;
 }
 // Noms réels des équipes — utilisés à la place de "Domicile"/"Extérieur"
 // pour que le libellé public (et l'aperçu des cotes ci-dessous) dise
@@ -811,30 +840,8 @@ const AWAY_TEAM = <%- JSON.stringify(match.awayTeam) %>;
    (« McTominay »). Une particule reste comme le flux l'écrit : « van » dans
    « Virgil van Dijk », mais « De » dans « Kevin De Bruyne ».
    Le libellé reste modifiable : c'est l'analyste qui a le dernier mot. */
-const PARTICULES = new Set(['de','del','della','der','den','di','da','do','dos','das','du','des','la','le','van','von','ter','ten','bin','al','el','y','e']);
-function nomPropre(valeur) {
-  const v = String(valeur).trim();
-  if (!/^[\p{L}'’. -]+$/u.test(v) || !/\s/.test(v)) return v;
-  return v.split(/(\s+|-)/).map((mot, i) => {
-    if (!mot.trim() || mot === '-') return mot;
-    if (i > 0 && PARTICULES.has(mot.toLowerCase())) return mot;
-    return mot.charAt(0).toLocaleUpperCase('fr') + mot.slice(1);
-  }).join('');
-}
-/* ── fin des noms propres ── */
 function translateMarketValue(value) {
-  return nomPropre(String(value)
-    .replace(/\b1st Half\b/gi, '1ère MT')
-    .replace(/\b2nd Half\b/gi, '2ème MT')
-    .replace(/\bHome\b/g,  HOME_TEAM)
-    .replace(/\bAway\b/g,  AWAY_TEAM)
-    .replace(/\bDraw\b/g,  'Nul')
-    .replace(/\bOver\b/g,  'Plus de')
-    .replace(/\bUnder\b/g, 'Moins de')
-    .replace(/\bYes\b/g,   'Oui')
-    .replace(/\bNo\b/g,    'Non')
-    .replace(/\bOdd\b/g,   'Impair')
-    .replace(/\bEven\b/g,  'Pair'));
+  return PronoFootball.selection(value, 'fr', HOME_TEAM, AWAY_TEAM).text;
 }
 // Bannière "marché personnalisé" pré-remplie au chargement (édition d'un
 // pronostic existant) — traduite depuis les champs cachés déjà renseignés
@@ -880,7 +887,9 @@ function clearCustomPick(opts) {
 function renderMarketsAccordion(markets) {
   const container = document.getElementById('markets-accordion');
   container.innerHTML = '';
+  const unknown = new Set();
   (markets || []).forEach(m => {
+    if (!PronoFootball.market(m.name, 'fr').known) unknown.add(m.name);
     const details = document.createElement('details');
     details.className = 'market-group';
     const summary = document.createElement('summary');
@@ -892,6 +901,7 @@ function renderMarketsAccordion(markets) {
     m.values.forEach(v => {
       const chip = document.createElement('button');
       chip.type = 'button';
+      if (!PronoFootball.selection(v.value, 'fr', HOME_TEAM, AWAY_TEAM).known) unknown.add(m.name + ' : ' + v.value);
       chip.className = 'market-value-chip';
       chip.textContent = translateMarketValue(v.value) + ' · ' + v.odd.toFixed(2);
       chip.onclick = () => selectCustomMarket(m.name, v.value, v.odd, chip);
@@ -900,6 +910,9 @@ function renderMarketsAccordion(markets) {
     details.appendChild(chipsWrap);
     container.appendChild(details);
   });
+  const warning = document.getElementById('translation-unknown');
+  warning.hidden = unknown.size === 0;
+  warning.textContent = unknown.size ? 'Traductions à vérifier : ' + [...unknown].slice(0,12).join(' ; ') + (unknown.size > 12 ? '…' : '') : '';
   document.getElementById('markets-count').textContent = (markets || []).length + ' marchés';
   document.getElementById('all-markets-section').style.display = markets && markets.length ? 'block' : 'none';
 }
@@ -1102,7 +1115,7 @@ etatCote();
     <% } else if(pro.result === 'LOSS') { %>
       <span class="badge badge-error" style="margin-left:auto;font-size:.82rem;padding:.3rem .75rem"><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> LOSS</span>
     <% } else if(pro.result === 'PUSH') { %>
-      <span class="badge" style="margin-left:auto;background:color-mix(in srgb,var(--info) 15%,transparent);color:var(--on-info);font-size:.82rem;padding:.3rem .75rem"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Remboursé</span>
+      <span class="badge" style="margin-left:auto;background:color-mix(in srgb,var(--info) 15%,transparent);color:var(--on-info);font-size:.82rem;padding:.3rem .75rem"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> <%= uiText("Remboursé") %></span>
     <% } else { %>
       <span class="badge" style="margin-left:auto;background:var(--surface-d);color:var(--text-dim);font-size:.82rem;padding:.3rem .75rem">— Non défini</span>
     <% } %>

@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/editorial_text.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 // ─── Enums ────────────────────────────────────────────────────────────────────
 enum TutorialLevel {
@@ -66,13 +67,22 @@ class TutorialCategoryInfo {
 // ─── Entity ───────────────────────────────────────────────────────────────────
 class TutorialEntity {
   final String           id;
-  final String           title;
-  final String           description;
+  final String _title;
+  final String? titleEn;
+  String get title => editorialText(_title, titleEn);
+  String get sourceTitle => _title;
+  final String _description;
+  final String? descriptionEn;
+  String get description => editorialText(_description, descriptionEn);
+  String get sourceDescription => _description;
   final TutorialLevel    level;
   final String           category; // texte libre côté back — voir TutorialCategoryInfo
   final String?          thumbnailUrl;
   final String?          videoUrl;
-  final String?          articleContent;  // contenu article texte
+  final String? _articleContent;
+  final String? articleContentEn;
+  String? get articleContent => _articleContent == null && articleContentEn == null ? null : editorialText(_articleContent ?? '', articleContentEn);
+  String? get sourceArticleContent => _articleContent;  // contenu article texte
   final String?          authorName;
   final String?          authorAvatar;
   final int              durationSeconds;
@@ -85,13 +95,16 @@ class TutorialEntity {
 
   const TutorialEntity({
     required this.id,
-    required this.title,
-    required this.description,
+    required String title,
+    this.titleEn,
+    required String description,
+    this.descriptionEn,
     required this.level,
     required this.category,
     this.thumbnailUrl,
     this.videoUrl,
-    this.articleContent,
+    String? articleContent,
+    this.articleContentEn,
     this.authorName,
     this.authorAvatar,
     this.durationSeconds = 0,
@@ -101,7 +114,7 @@ class TutorialEntity {
     this.hasVideo        = false,
     this.isCompleted     = false,
     this.publishedAt,
-  });
+  }) : _title = title, _description = description, _articleContent = articleContent;
 
   // ─── Getters pratiques ────────────────────────────────────────────────────
   String get levelLabel    => level.label;
@@ -128,13 +141,16 @@ class TutorialEntity {
   factory TutorialEntity.fromJson(Map<String, dynamic> j) => TutorialEntity(
     id:              j['id']          as String,
     title:           j['title']       as String,
+    titleEn: j['title_en'] as String?,
     description:     j['description'] as String? ?? '',
+    descriptionEn: j['description_en'] as String?,
     level:           TutorialLevel.fromString(j['level'] as String?),
     category:        (j['category'] as String?)?.trim().isNotEmpty == true
       ? (j['category'] as String).trim() : 'valuebet',
     thumbnailUrl:    j['thumbnail_url']  as String?,
     videoUrl:        j['video_url']      as String?,
     articleContent:  j['article_content'] as String?,
+    articleContentEn: j['article_content_en'] as String?,
     authorName:      j['author_name']    as String?,
     authorAvatar:    j['author_avatar']  as String?,
     durationSeconds: (j['duration_seconds'] as num?)?.toInt() ?? 0,
@@ -150,13 +166,16 @@ class TutorialEntity {
   // ─── toJson ───────────────────────────────────────────────────────────────
   Map<String, dynamic> toJson() => {
     'id':               id,
-    'title':            title,
-    'description':      description,
+    'title':            _title,
+    'title_en': titleEn,
+    'description':      _description,
+    'description_en': descriptionEn,
     'level':            level.name,
     'category':         category,
     'thumbnail_url':    thumbnailUrl,
     'video_url':        videoUrl,
-    'article_content':  articleContent,
+    'article_content':  _articleContent,
+    'article_content_en': articleContentEn,
     'author_name':      authorName,
     'author_avatar':    authorAvatar,
     'duration_seconds': durationSeconds,
@@ -178,13 +197,16 @@ class TutorialEntity {
     DateTime? publishedAt,
   }) => TutorialEntity(
     id:              id              ?? this.id,
-    title:           title           ?? this.title,
-    description:     description     ?? this.description,
+    title:           title           ?? _title,
+    titleEn: titleEn,
+    description:     description     ?? _description,
+    descriptionEn: descriptionEn,
     level:           level           ?? this.level,
     category:        category        ?? this.category,
     thumbnailUrl:    thumbnailUrl    ?? this.thumbnailUrl,
     videoUrl:        videoUrl        ?? this.videoUrl,
-    articleContent:  articleContent  ?? this.articleContent,
+    articleContent:  articleContent  ?? _articleContent,
+    articleContentEn: articleContentEn,
     authorName:      authorName      ?? this.authorName,
     authorAvatar:    authorAvatar    ?? this.authorAvatar,
     durationSeconds: durationSeconds ?? this.durationSeconds,

@@ -1,3 +1,4 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
 <%- include('layout_top', {page:'users'}) %>
 
 <%
@@ -112,17 +113,17 @@
       <div class="form-group" style="margin-bottom:1.25rem">
         <label>Durée</label>
         <select class="input" name="duration_days" aria-label="Durée en jours">
-          <option value="1">1 jour</option>
+          <option value="1"><%= uiText("1 jour") %></option>
           <option value="3">3 jours</option>
-          <option value="7" selected>7 jours</option>
+          <option value="7" selected><%= uiText("7 jours") %></option>
           <option value="14">14 jours</option>
-          <option value="30">30 jours</option>
-          <option value="90">90 jours</option>
+          <option value="30"><%= uiText("30 jours") %></option>
+          <option value="90"><%= uiText("90 jours") %></option>
           <option value="0">🚫 Permanent</option>
         </select>
       </div>
       <div style="display:flex;gap:.6rem;justify-content:flex-end">
-        <button type="button" class="btn btn-outline" onclick="closeModal('modal-ban')">Annuler</button>
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-ban')"><%= uiText("Annuler") %></button>
         <button type="button" class="btn btn-danger" data-pseudo="<%= user.pseudo %>"
           onclick="(function(btn){var form=document.getElementById('ud-ban-form');if(!form.reportValidity())return;askConfirm({icon:'ban',title:'Confirmer le bannissement',msg:'Le compte <strong>'+btn.dataset.pseudo+'</strong> sera bloqué et cette décision sera journalisée.',btnLabel:'Bannir le compte',btnClass:'btn-danger',onConfirm:function(){form.requestSubmit()}})})(this)"><svg class="ic" aria-hidden="true"><use href="#ic-ban"/></svg> Bannir</button>
       </div>
@@ -134,10 +135,10 @@
   <div class="ud-modal-box">
     <div class="ud-modal-title"><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg> Envoyer une notification</div>
     <form method="POST" action="/admin/users/<%= user.id %>/notify">
-      <div class="form-group" style="margin-bottom:.9rem"><label>Titre</label><input class="input" type="text" name="title" required placeholder="Ex : Votre dépôt a été validé" aria-label="Titre"></div>
+      <div class="form-group" style="margin-bottom:.9rem"><label><%= uiText("Titre") %></label><input class="input" type="text" name="title" required placeholder="Ex : Votre dépôt a été validé" aria-label="<%= uiText("Titre") %>"></div>
       <div class="form-group" style="margin-bottom:1.25rem"><label>Message</label><textarea class="input" name="body" rows="3" required placeholder="Contenu de la notification…" aria-label="Message"></textarea></div>
       <div style="display:flex;gap:.6rem;justify-content:flex-end">
-        <button type="button" class="btn btn-outline" onclick="closeModal('modal-notif')">Annuler</button>
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-notif')"><%= uiText("Annuler") %></button>
         <button type="submit" class="btn btn-primary"><svg class="ic" aria-hidden="true"><use href="#ic-upload"/></svg> Envoyer</button>
       </div>
     </form>
@@ -148,9 +149,9 @@
   <div class="ud-modal-box">
     <div class="ud-modal-title"><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Modifier le pseudo</div>
     <form method="POST" action="/admin/users/<%= user.id %>/pseudo">
-      <div class="form-group" style="margin-bottom:1.25rem"><label>Nouveau pseudo</label><input class="input" type="text" name="pseudo" value="<%= user.pseudo %>" required minlength="3" aria-label="Pseudo"></div>
+      <div class="form-group" style="margin-bottom:1.25rem"><label>Nouveau pseudo</label><input class="input" type="text" name="pseudo" value="<%= user.pseudo %>" required minlength="3" aria-label="<%= uiText("Pseudo") %>"></div>
       <div style="display:flex;gap:.6rem;justify-content:flex-end">
-        <button type="button" class="btn btn-outline" onclick="closeModal('modal-pseudo')">Annuler</button>
+        <button type="button" class="btn btn-outline" onclick="closeModal('modal-pseudo')"><%= uiText("Annuler") %></button>
         <button type="submit" class="btn btn-primary">Sauvegarder</button>
       </div>
     </form>
@@ -169,7 +170,7 @@
   <div class="workspace-actions">
     <a href="/admin/users" class="btn btn-outline btn-sm">← Utilisateurs</a>
     <span class="context-chip"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> ID&nbsp;<%= user.id %></span>
-    <a href="/admin/users/<%= user.id %>" class="btn btn-outline btn-sm" title="Recharger la fiche"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Actualiser</a>
+    <a href="/admin/users/<%= user.id %>" class="btn btn-outline btn-sm" title="Recharger la fiche"><svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> <%= uiText("Actualiser") %></a>
   </div>
 </header>
 
@@ -217,7 +218,7 @@
           <span class="ud-health-label">Accès</span><span class="ud-health-value"><%= _udAccountState %></span>
         </div>
         <div class="ud-health-item <%= user.is_premium ? 'ud-health-item--warn' : '' %>">
-          <span class="ud-health-label">Abonnement</span><span class="ud-health-value"><%= user.is_premium ? (user.days_left || 0) + 'j Premium' : 'Gratuit' %></span>
+          <span class="ud-health-label"><%= uiText("Abonnement") %></span><span class="ud-health-value"><%= user.is_premium ? (user.days_left || 0) + 'j Premium' : 'Gratuit' %></span>
         </div>
         <div class="ud-health-item">
           <span class="ud-health-label">Dernière activité</span><span class="ud-health-value"><%= _udLastSeen %></span>
@@ -271,7 +272,7 @@
       <div class="ud-panel" id="tab-subs">
         <div class="table-wrap">
           <table>
-            <thead><tr><th scope="col">Plan</th><th scope="col">Statut</th><th scope="col">Début</th><th scope="col">Fin</th><th scope="col">Source</th></tr></thead>
+            <thead><tr><th scope="col">Plan</th><th scope="col"><%= uiText("Statut") %></th><th scope="col">Début</th><th scope="col">Fin</th><th scope="col">Source</th></tr></thead>
             <tbody>
             <% if (!subscriptions.length) { %>
             <tr><td colspan="5" style="text-align:center;padding:1.6rem 1rem;color:var(--text-dim);font-size:.84rem">
@@ -281,7 +282,7 @@
             <% subscriptions.forEach(sub => { %>
             <tr>
               <td><span class="badge badge-warn"><%= sub.plan || sub.subscriptionPlan || 'Premium' %></span></td>
-              <td><span class="badge <%= sub.status==='active'?'badge-ok':'badge-err' %>"><%= sub.status || '—' %></span></td>
+              <td><span class="badge <%= sub.status==='active'?'badge-ok':'badge-err' %>"><%= STATUTS_FR[String(sub.status).toLowerCase()] || sub.status || '—' %></span></td>
               <td style="font-size:.78rem;color:var(--text-m)"><%= sub.startDate ? new Date(sub.startDate).toLocaleDateString('fr-FR') : '—' %></td>
               <td style="font-size:.78rem;color:var(--text-m)"><%= sub.endDate ? new Date(sub.endDate).toLocaleDateString('fr-FR') : '—' %></td>
               <td style="font-size:.78rem;color:var(--text-dim)"><%= sub.source || '—' %></td>
@@ -298,7 +299,7 @@
       <div class="ud-panel" id="tab-refs">
         <div class="table-wrap">
           <table>
-            <thead><tr><th scope="col">Filleul</th><th scope="col">Téléphone</th><th scope="col">Plan</th><th scope="col">Niveau</th><th scope="col">Commission</th></tr></thead>
+            <thead><tr><th scope="col">Filleul</th><th scope="col">Téléphone</th><th scope="col">Plan</th><th scope="col"><%= uiText("Niveau") %></th><th scope="col">Commission</th></tr></thead>
             <tbody>
             <% if (!referrals.length) { %>
             <tr><td colspan="5" style="text-align:center;padding:1.6rem 1rem;color:var(--text-dim);font-size:.84rem">
@@ -332,7 +333,7 @@
 
       <!-- Premium -->
       <div class="ud-action-section">
-        <div class="ud-action-title"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> Abonnement Premium</div>
+        <div class="ud-action-title"><svg class="ic" aria-hidden="true"><use href="#ic-crown"/></svg> <%= uiText("Abonnement Premium") %></div>
         <% if(user.is_premium) { %>
         <div class="ud-premium-box">
           Premium actif — <%= user.days_left %> jour<%= user.days_left > 1 ? 's' : '' %> restant<%= user.days_left > 1 ? 's' : '' %>

@@ -1,3 +1,5 @@
+import 'package:pronowin/l10n/app_strings.dart';
+import 'package:pronowin/features/parametres/presentation/providers/settings_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -85,6 +87,7 @@ Future<void> effacerFavorisLocaux({bool resilierSujets = true}) async {
       for (final id in p.getStringList(cle) ?? const <String>[]) {
         try {
           await FirebaseMessaging.instance.unsubscribeFromTopic('match_$id');
+          await FirebaseMessaging.instance.unsubscribeFromTopic('match_${id}_en');
         } catch (_) {
           // Un sujet non résilié vaut mieux qu'une déconnexion qui échoue.
         }
@@ -113,11 +116,16 @@ class FavorisNotifier extends AsyncNotifier<EtatFavoris> {
     // dépendance, les favoris du compte précédent restaient affichés jusqu'au
     // redémarrage de l'application.
     ref.watch(authProvider);
+    ref.watch(settingsProvider.select((s) => s.lang));
+    ref.watch(settingsProvider.select((s) => s.notifMatch));
 
     final compte = _compteId;
     if (compte == null) return const EtatFavoris();
 
     final p = await SharedPreferences.getInstance();
+    for (final id in p.getStringList(cleFavorisMatchs(compte)) ?? <String>[]) {
+      await _syncMatchTopic(id, ref.read(settingsProvider).notifMatch);
+    }
     final local = EtatFavoris(
       matchIds: Set.from(p.getStringList(cleFavorisMatchs(compte)) ?? const []),
       ligues:   Set.from(p.getStringList(cleFavorisLigues(compte)) ?? const []),
@@ -171,17 +179,21 @@ class FavorisNotifier extends AsyncNotifier<EtatFavoris> {
       return;
     }
 
+    await _syncMatchTopic(matchId, ajoute && ref.read(settingsProvider).notifMatch);
+  }
+
+  Future<void> _syncMatchTopic(String matchId, bool enabled) async {
     try {
-      final sujet = 'match_$matchId';
-      if (ajoute) {
-        await FirebaseMessaging.instance.subscribeToTopic(sujet);
+      final base = 'match_$matchId';
+      final selected = AppStrings.current.locale.languageCode == 'en' ? '${base}_en' : base;
+      final other = selected == base ? '${base}_en' : base;
+      await FirebaseMessaging.instance.unsubscribeFromTopic(other);
+      if (enabled) {
+        await FirebaseMessaging.instance.subscribeToTopic(selected);
       } else {
-        await FirebaseMessaging.instance.unsubscribeFromTopic(sujet);
+        await FirebaseMessaging.instance.unsubscribeFromTopic(selected);
       }
-    } catch (_) {
-      // Les notifications sont un supplément : leur échec ne doit pas défaire
-      // un favori que le serveur a accepté.
-    }
+    } catch (_) { /* Retried on next settings/session refresh. */ }
   }
 
   /// Met ou retire une ligue des favoris. Purement local.

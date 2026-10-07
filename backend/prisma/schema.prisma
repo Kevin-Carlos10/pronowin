@@ -162,6 +162,8 @@ model UserFavoriteMatch {
 }
 
 model Notification {
+  titleEn String? @map("title_en")
+  bodyEn String? @map("body_en")
   id        String   @id @default(uuid())
   userId    String   @map("user_id")
   title     String
@@ -427,6 +429,8 @@ enum MatchSource {
 }
 
 model Pronostic {
+  predictionLabelEn String? @map("prediction_label_en")
+  analystNoteEn String? @map("analyst_note_en")
   id              String          @id @default(uuid())
   matchId         String          @unique @map("match_id")
   analystId       String          @map("analyst_id")
@@ -593,6 +597,7 @@ model JournalAdmin {
 /// Ici un jeton est unique — il n'appartient qu'au compte qui l'a enregistré
 /// en dernier.
 model AppareilNotification {
+  language String @default("fr")
   id         String   @id @default(uuid())
   userId     String   @map("user_id")
   jeton      String   @unique
@@ -669,6 +674,9 @@ model Referral {
 }
 
 model Tutorial {
+  titleEn String? @map("title_en")
+  descriptionEn String? @map("description_en")
+  articleContentEn String? @map("article_content_en")
   id              String             @id
   title           String
   description     String
