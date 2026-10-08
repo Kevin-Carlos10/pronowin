@@ -48,11 +48,11 @@ class _FormCard extends StatelessWidget {
         Row(children: [
           Text(tr(context, "{arg0} pts", [match.homeFormPoints]),
             style: TextStyle(
-              color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w800)),
+              color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
           const Spacer(),
           Text(tr(context, "{arg0} pts", [match.awayFormPoints]),
             style: TextStyle(
-              color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w800)),
+              color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
         ]),
         const SizedBox(height: 8),
         TweenAnimationBuilder<double>(

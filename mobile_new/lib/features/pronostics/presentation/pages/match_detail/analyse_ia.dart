@@ -163,7 +163,7 @@ class _AIData extends StatelessWidget {
             style: TextStyle(
               color: _probColor(context.cl),
               fontSize: 28,
-              fontWeight: FontWeight.w900,
+              fontWeight: FontWeight.w700,
             )),
         ),
       ]),
@@ -358,7 +358,7 @@ class _AIPremiumLockedStateState extends State<_AIPremiumLockedState>
                 style: TextStyle(
                   color: context.cl.textP,
                   fontSize: 13.5,
-                  fontWeight: FontWeight.w800)),
+                  fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text(_subtitle,
                 textAlign: TextAlign.center,
@@ -383,7 +383,7 @@ class _AIPremiumLockedStateState extends State<_AIPremiumLockedState>
                     style: const TextStyle(
                       color: Colors.black,
                       fontSize: 12,
-                      fontWeight: FontWeight.w800)),
+                      fontWeight: FontWeight.w700)),
                 ]),
               ).animate(
                   onPlay: (c) {

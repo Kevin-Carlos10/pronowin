@@ -130,7 +130,7 @@ class _EnTete extends StatelessWidget {
         TeamLogoWidget(url: logo, size: 64),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(nom, style: TextStyle(color: cl.textP, fontSize: 19, fontWeight: FontWeight.w800)),
+          Text(nom, style: TextStyle(color: cl.textP, fontSize: 19, fontWeight: FontWeight.w700)),
           if (details.isNotEmpty) ...[
             const SizedBox(height: 4),
             Text(details, style: TextStyle(color: cl.textS, fontSize: 13)),
@@ -160,7 +160,7 @@ class _Saison extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 6),
       decoration: BoxDecoration(color: cl.surfaceDeep, borderRadius: BorderRadius.circular(12)),
       child: Column(children: [
-        Text(valeur, style: TextStyle(color: couleur ?? cl.textP, fontSize: 18, fontWeight: FontWeight.w800)),
+        Text(valeur, style: TextStyle(color: couleur ?? cl.textP, fontSize: 18, fontWeight: FontWeight.w700)),
         const SizedBox(height: 2),
         Text(libelle, textAlign: TextAlign.center, style: TextStyle(color: cl.textM, fontSize: 11)),
       ]),
@@ -207,7 +207,7 @@ class _Saison extends StatelessWidget {
                     color: (c == 'W' ? cl.success : c == 'D' ? cl.warning : cl.error).withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(6)),
                   child: Text(c == 'W' ? tr(context, "V") : c == 'D' ? tr(context, "N") : tr(context, "D"),
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w800,
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700,
                       color: c == 'W' ? cl.success : c == 'D' ? cl.warning : cl.error)),
                 ),
             ]),

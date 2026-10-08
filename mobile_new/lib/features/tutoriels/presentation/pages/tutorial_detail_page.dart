@@ -220,7 +220,7 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
                         style: TextStyle(
                             color: context.cl.textP,
                             fontSize: 22,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w700,
                             height: 1.25))
                       .animate().fadeIn(duration: 300.ms, delay: 80.ms),
 
@@ -539,7 +539,7 @@ class _MarkdownRenderer extends StatelessWidget {
               style: TextStyle(
                   color: context.cl.textP,
                   fontSize: 20,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   height: 1.3)),
         ));
         continue;
@@ -640,7 +640,7 @@ class _MarkdownRenderer extends StatelessWidget {
                   style: TextStyle(
                       color: catColor,
                       fontSize: 10,
-                      fontWeight: FontWeight.w800)))),
+                      fontWeight: FontWeight.w700)))),
             Expanded(
               child: _InlineRichText(
                   text: text,
@@ -737,7 +737,7 @@ class _InlineRichText extends StatelessWidget {
         spans.add(TextSpan(
             text: m.group(2),
             style: baseStyle.copyWith(
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
                 color: context.cl.textP)));
       } else if (m.group(3) != null) {
         // *italic*
@@ -920,7 +920,7 @@ class _PremiumLock extends ConsumerWidget {
                               style: TextStyle(
                                   color: context.cl.warning,
                                   fontSize: 18,
-                                  fontWeight: FontWeight.w800)),
+                                  fontWeight: FontWeight.w700)),
                           const SizedBox(height: 8),
                           Text(
                             tr(context, "Débloquez ce tutoriel et tous\nles contenus exclusifs avec Premium."),
@@ -960,7 +960,7 @@ class _PremiumLock extends ConsumerWidget {
                                       style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 14,
-                                          fontWeight: FontWeight.w800)),
+                                          fontWeight: FontWeight.w700)),
                                 ]),
                             ).animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
                               .shimmer(duration: 2200.ms, delay: 800.ms, color: Colors.white24),

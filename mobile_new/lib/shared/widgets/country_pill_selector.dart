@@ -212,7 +212,7 @@ class _CountrySheetState extends State<_CountrySheet> {
                     style: TextStyle(
                       color: context.cl.textP,
                       fontSize: 17,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       letterSpacing: -0.3)),
                   const SizedBox(height: 2),
                   Text(tr(context, "{arg0} pays disponibles", [_all.length]),
@@ -312,7 +312,7 @@ class _SectionLabel extends StatelessWidget {
       style: TextStyle(
         color: context.cl.textM,
         fontSize: 10.5,
-        fontWeight: FontWeight.w800,
+        fontWeight: FontWeight.w700,
         letterSpacing: 0.9)),
   );
 }

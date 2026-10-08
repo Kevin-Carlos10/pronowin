@@ -288,10 +288,10 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
                             url:   avatarUrl,
                             repli: Center(child: Text(initiale,
                               style: const TextStyle(color: Colors.white,
-                                fontSize: 32, fontWeight: FontWeight.w800))))
+                                fontSize: 32, fontWeight: FontWeight.w700))))
                         : Center(child: Text(initiale,
                             style: const TextStyle(color: Colors.white,
-                              fontSize: 32, fontWeight: FontWeight.w800))),
+                              fontSize: 32, fontWeight: FontWeight.w700))),
                 ),
               ),
               Positioned(

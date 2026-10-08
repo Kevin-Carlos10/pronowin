@@ -67,7 +67,7 @@ class GuestLockedView extends StatelessWidget {
                 ),
                 const SizedBox(height: 24),
                 Text(tr(context, title), textAlign: TextAlign.center, style: TextStyle(
-                  color: context.cl.textP, fontSize: 19, fontWeight: FontWeight.w800)),
+                  color: context.cl.textP, fontSize: 19, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 10),
                 Text(tr(context, message), textAlign: TextAlign.center, style: TextStyle(
                   color: context.cl.textS, fontSize: 13.5, height: 1.5)),

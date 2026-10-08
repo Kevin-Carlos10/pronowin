@@ -151,7 +151,7 @@ class _EnTete extends StatelessWidget {
         ),
         const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(nom, style: TextStyle(color: cl.textP, fontSize: 19, fontWeight: FontWeight.w800)),
+          Text(nom, style: TextStyle(color: cl.textP, fontSize: 19, fontWeight: FontWeight.w700)),
           if (principale != null) ...[
             const SizedBox(height: 6),
             Row(children: [
@@ -302,7 +302,7 @@ class _Saison extends StatelessWidget {
                   color: cl.surfaceDeep,
                   borderRadius: BorderRadius.circular(12)),
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(valeur, style: TextStyle(color: cl.textP, fontSize: 17, fontWeight: FontWeight.w800)),
+                  Text(valeur, style: TextStyle(color: cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
                   Text(libelle, style: TextStyle(color: cl.textM, fontSize: 11.5)),
                 ]),

@@ -323,7 +323,7 @@ class _EcranMiseAJourState extends State<EcranMiseAJour> {
                         color: Colors.white,
                         fontSize: 30,
                         height: 1.15,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: -0.8,
                       ),
                     ),
@@ -451,7 +451,7 @@ class _Boutons extends StatelessWidget {
               _libelle,
               style: const TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
                 color: Colors.white,
               ),
             ),

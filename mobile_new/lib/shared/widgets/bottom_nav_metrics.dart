@@ -21,29 +21,22 @@ import 'package:flutter/widgets.dart';
 class BottomNavMetrics {
   const BottomNavMetrics._();
 
-  /// Taille du libellé sous chaque icône.
-  ///
-  /// Il valait 10, et la barre entière tombait à 82 % au défilement : le
-  /// libellé se lisait alors autour de 8 px et la cible perdait près d'un
-  /// cinquième de sa surface — sur l'élément qu'on touche le plus souvent, et
-  /// souvent d'une seule main.
-  static const double taillePolice = 11.5;
+  /// Taille des icônes, seules dans la barre depuis qu'elle suit le modèle
+  /// d'Instagram (8 octobre 2026) : le libellé sous chaque icône est parti.
+  static const double tailleIcone = 26;
 
-  /// Hauteur de la barre, à l'échelle de texte de l'appareil.
+  /// Hauteur de la barre : fixe.
   ///
-  /// Elle valait 64 en dur. Quelqu'un ayant agrandi les caractères de son
-  /// système voyait donc le libellé grandir dans une barre qui, elle, ne
-  /// bougeait pas — jusqu'au débordement.
+  /// Elle suivait l'échelle de texte de l'appareil, pour qu'un libellé agrandi
+  /// ne déborde pas. Sans libellé, plus rien n'y grandit avec les caractères :
+  /// une barre plus haute volerait de la place au contenu pour rien.
   ///
   /// Elle est lue par la barre **et** par [bottomNavSpace] : les listes
   /// réservent ainsi d'elles-mêmes la place réelle, sans qu'aucune page n'ait
   /// à être retouchée.
-  static double hauteur(BuildContext context) {
-    final rendue = MediaQuery.textScalerOf(context).scale(taillePolice);
-    return _hauteurBase + (rendue - taillePolice) * 1.3;
-  }
+  static double hauteur(BuildContext context) => _hauteurBase;
 
-  static const double _hauteurBase = 64;
+  static const double _hauteurBase = 62;
 
   /// Marge sous la barre, entre elle et l'encoche.
   static const double margeBasse = 4;

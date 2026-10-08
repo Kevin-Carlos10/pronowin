@@ -254,7 +254,7 @@ class _ResultBar extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8)),
                     child: Text('$n', style: TextStyle(
                       color: active ? color : context.cl.textM,
-                      fontSize: 10, fontWeight: FontWeight.w800))),
+                      fontSize: 10, fontWeight: FontWeight.w700))),
                 ]),
               ),
             ),
@@ -403,7 +403,7 @@ class _PerformanceChart extends StatelessWidget {
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10)),
             child: Text('${lastPct.toStringAsFixed(0)}%', style: TextStyle(
-              color: color, fontSize: 12, fontWeight: FontWeight.w800))),
+              color: color, fontSize: 12, fontWeight: FontWeight.w700))),
         ]),
         const SizedBox(height: 16),
         SizedBox(
@@ -546,7 +546,7 @@ class _BigStat extends StatelessWidget {
   const _BigStat({required this.label, required this.value, required this.color});
   @override
   Widget build(BuildContext context) => Column(children: [
-    Text(value, style: TextStyle(color: color, fontSize: 26, fontWeight: FontWeight.w900)),
+    Text(value, style: TextStyle(color: color, fontSize: 26, fontWeight: FontWeight.w700)),
     const SizedBox(height: 2),
     Text(label, style: TextStyle(color: context.cl.textM, fontSize: 11)),
   ]);
@@ -694,7 +694,7 @@ class _EntryCard extends StatelessWidget {
           : isPush  ? tr(context, "Remboursé")
           : tr(context, "Perdu"),
           style: TextStyle(color: resultColor,
-            fontSize: 11, fontWeight: FontWeight.w800)),
+            fontSize: 11, fontWeight: FontWeight.w700)),
       ]),
     );
   }

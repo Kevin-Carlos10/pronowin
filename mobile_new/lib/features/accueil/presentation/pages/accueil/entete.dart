@@ -112,7 +112,7 @@ class _SliverHeader extends ConsumerWidget {
                                 style: const TextStyle(
                                     color: Colors.white,
                                     fontSize: 8,
-                                    fontWeight: FontWeight.w800),
+                                    fontWeight: FontWeight.w700),
                               ),
                             ),
                           ),
@@ -204,7 +204,7 @@ class _SliverHeader extends ConsumerWidget {
                                     style: TextStyle(
                                         color: Colors.white,
                                         fontSize: 9,
-                                        fontWeight: FontWeight.w800,
+                                        fontWeight: FontWeight.w700,
                                         letterSpacing: 0.5)),
                               ],
                             ),
@@ -256,7 +256,7 @@ class _AvatarInitials extends StatelessWidget {
   Widget build(BuildContext context) => Center(
     child: Text(
       initialeAvatar(prenom: user?.firstName as String?, pseudo: user?.pseudo as String?),
-      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w800),
+      style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.w700),
     ),
   );
 }
@@ -438,7 +438,7 @@ class _StatChip extends StatelessWidget {
               style: TextStyle(
                   color: isEmpty ? context.cl.textM : color,
                   fontSize: 13,
-                  fontWeight: FontWeight.w800)),
+                  fontWeight: FontWeight.w700)),
           const SizedBox(height: 1),
           Text(label,
               style: TextStyle(
@@ -619,7 +619,7 @@ class _PremiumBanner extends ConsumerWidget {
                               child: const Text('PREMIUM',
                                 style: TextStyle(
                                   color: Color(0xFFFFD700),
-                                  fontSize: 9, fontWeight: FontWeight.w800,
+                                  fontSize: 9, fontWeight: FontWeight.w700,
                                   letterSpacing: 0.5)),
                             ),
                           ]),
@@ -651,7 +651,7 @@ class _PremiumBanner extends ConsumerWidget {
                           style: TextStyle(
                               color: Colors.white,
                               fontSize: 13,
-                              fontWeight: FontWeight.w800)),
+                              fontWeight: FontWeight.w700)),
                     ),
                   ],
                 ),
@@ -703,7 +703,7 @@ class _LockedPronoPreview extends StatelessWidget {
                   Text('VS',
                     style: TextStyle(
                       color: context.cl.textM, fontSize: 16,
-                      fontWeight: FontWeight.w900, letterSpacing: 2)),
+                      fontWeight: FontWeight.w700, letterSpacing: 2)),
                   const SizedBox(height: 4),
                   if (oddsRec != null)
                     Container(
@@ -715,7 +715,7 @@ class _LockedPronoPreview extends StatelessWidget {
                       child: Text(oddsRec.toStringAsFixed(2),
                         style: TextStyle(
                           color: context.cl.success,
-                          fontSize: 11, fontWeight: FontWeight.w800)),
+                          fontSize: 11, fontWeight: FontWeight.w700)),
                     ),
                 ]),
               ),
@@ -759,7 +759,7 @@ class _LockedPronoPreview extends StatelessWidget {
                     Text(predLabel,
                       style: TextStyle(
                         color: context.cl.textP,
-                        fontSize: 13, fontWeight: FontWeight.w800),
+                        fontSize: 13, fontWeight: FontWeight.w700),
                       maxLines: 1, overflow: TextOverflow.ellipsis),
                   ],
                 ),

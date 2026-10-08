@@ -252,7 +252,7 @@ class _EarningsBanner extends StatelessWidget {
               builder: (_, v, _) => Text(
                 v.toLocaleString(),
                 style: const TextStyle(
-                  color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
+                  color: Colors.white, fontSize: 36, fontWeight: FontWeight.w700),
               ),
             ),
             Padding(
@@ -346,7 +346,7 @@ class _ReferralCodeCard extends StatelessWidget {
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Text(code, style: const TextStyle(
               color: Color(0xFFA78BFA), fontSize: 28,
-              fontWeight: FontWeight.w800, letterSpacing: 6)),
+              fontWeight: FontWeight.w700, letterSpacing: 6)),
             const SizedBox(width: 12),
             const Icon(Icons.copy_rounded, color: Color(0xFFA78BFA), size: 20),
           ]),
@@ -634,7 +634,7 @@ class _StatChip extends StatelessWidget {
           duration: const Duration(milliseconds: 700),
           curve: Curves.easeOutCubic,
           builder: (_, v, _) => Text('$v', style: TextStyle(
-              color: color, fontSize: 24, fontWeight: FontWeight.w800)),
+              color: color, fontSize: 24, fontWeight: FontWeight.w700)),
         ),
         Text(sub, style: TextStyle(color: context.cl.textM, fontSize: 10)),
       ]),

@@ -182,7 +182,7 @@ class _PronosticCard extends ConsumerWidget {
                             style: TextStyle(
                                 color: context.cl.error,
                                 fontSize: 9,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
                                 letterSpacing: 0.8)),
                       ],
                     ),
@@ -304,7 +304,7 @@ class _PronosticCard extends ConsumerWidget {
                           style: TextStyle(
                               color: context.cl.textM,
                               fontSize: 11,
-                              fontWeight: FontWeight.w800,
+                              fontWeight: FontWeight.w700,
                               letterSpacing: 0.5)),
                 ),
 
@@ -398,7 +398,7 @@ class _PronosticCard extends ConsumerWidget {
                             style: TextStyle(
                                 color: context.cl.accent,
                                 fontSize: 13,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
                                 height: 1.2),
                           ),
                         ],
@@ -421,7 +421,7 @@ class _PronosticCard extends ConsumerWidget {
                             style: TextStyle(
                                 color: context.cl.success,
                                 fontSize: 14,
-                                fontWeight: FontWeight.w800),
+                                fontWeight: FontWeight.w700),
                           ),
                         ],
                       ),
@@ -536,7 +536,7 @@ class _InlineScore extends StatelessWidget {
         style: TextStyle(
             color: color,
             fontSize: 15,
-            fontWeight: FontWeight.w900,
+            fontWeight: FontWeight.w700,
             letterSpacing: 1),
       ),
     );
@@ -767,7 +767,7 @@ class _MatchCountdownInlineState extends State<_MatchCountdownInline> {
           Icon(Icons.timer_outlined, size: 13, color: AppColors.primary),
           const SizedBox(width: 5),
           Text(tr(context, "Coup d'envoi dans "), style: TextStyle(color: context.cl.textM, fontSize: 11)),
-          Text(timeStr, style: TextStyle(color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w800)),
+          Text(timeStr, style: TextStyle(color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w700)),
         ],
       ),
     );
@@ -829,7 +829,7 @@ class _FormRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Center(child: Text(r,
-                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w800))),
+                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700))),
               )),
               const Spacer(),
               ...awaySeries.map((r) => Container(
@@ -840,7 +840,7 @@ class _FormRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Center(child: Text(r,
-                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w800))),
+                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700))),
               )),
               const SizedBox(width: 6),
               Text(awayName.split(' ').first,

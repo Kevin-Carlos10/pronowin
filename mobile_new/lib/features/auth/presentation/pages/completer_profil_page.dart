@@ -343,7 +343,7 @@ class _SectionHeader extends StatelessWidget {
       ),
       const SizedBox(width: 16),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w800)),
+        Text(title, style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
         Text(subtitle, style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.4)),
       ])),

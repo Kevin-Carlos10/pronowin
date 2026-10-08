@@ -135,7 +135,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                           const SizedBox(width: 5),
                            Text(tr(context, "PROCHAIN MATCH"),
                             style: TextStyle(color: context.cl.accent, fontSize: 9,
-                              fontWeight: FontWeight.w800, letterSpacing: 0.6)),
+                              fontWeight: FontWeight.w700, letterSpacing: 0.6)),
                         ]),
                       ),
                   ]),
@@ -149,7 +149,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                           borderRadius: BorderRadius.circular(6)),
                         child: Text('PREMIUM',
                           style: TextStyle(color: context.cl.warning, fontSize: 8,
-                            fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                            fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                       ),
                     Text(
                       DateFormat("EEE d MMM · HH:mm").format(matchDate),
@@ -179,7 +179,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                       child: Column(children: [
                         Text('VS',
                           style: TextStyle(color: context.cl.textM, fontSize: 20,
-                            fontWeight: FontWeight.w900, letterSpacing: 3)),
+                            fontWeight: FontWeight.w700, letterSpacing: 3)),
                         const SizedBox(height: 4),
                         Text(prono['league'] as String? ?? '',
                           style: TextStyle(color: context.cl.textM, fontSize: 9),
@@ -256,7 +256,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                                       ? const Color(0xFFFFD700)
                                       : context.cl.textP,
                                   fontSize: 13,
-                                  fontWeight: FontWeight.w800,
+                                  fontWeight: FontWeight.w700,
                                   height: 1.25),
                             ),
                           ),
@@ -305,7 +305,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                                                 ? context.cl.textM
                                                 : context.cl.success,
                                             fontSize: 13,
-                                            fontWeight: FontWeight.w800)),
+                                            fontWeight: FontWeight.w700)),
                                   ],
                                 ),
                               ),
@@ -335,7 +335,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                     // est derrière le bouton, c'est l'analyse.
                     Text(isLocked ? tr(context, "Débloquer avec Premium") : tr(context, "Voir l'analyse"),
                       style: const TextStyle(color: Colors.white, fontSize: 13,
-                        fontWeight: FontWeight.w800)),
+                        fontWeight: FontWeight.w700)),
                     const SizedBox(width: 6),
                     Icon(isLocked ? Icons.lock_open_rounded : Icons.arrow_forward_rounded,
                       color: Colors.white, size: 15),
@@ -421,7 +421,7 @@ class _CountUnit extends StatelessWidget {
               style: TextStyle(
                   color: context.cl.textP,
                   fontSize: 22,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   fontFeatures: [FontFeature.tabularFigures()]),
             ),
           ),
@@ -443,7 +443,7 @@ class _CountDivider extends StatelessWidget {
             style: TextStyle(
                 color: context.cl.accent,
                 fontSize: 20,
-                fontWeight: FontWeight.w900)),
+                fontWeight: FontWeight.w700)),
       );
 }
 
@@ -497,7 +497,7 @@ class _BadgeTopDuJour extends StatelessWidget {
           const SizedBox(width: 4),
           Text(tr(context, "TOP DU JOUR"),
             style: TextStyle(color: context.cl.dore, fontSize: 9,
-              fontWeight: FontWeight.w800, letterSpacing: 0.6)),
+              fontWeight: FontWeight.w700, letterSpacing: 0.6)),
         ]),
       );
 }

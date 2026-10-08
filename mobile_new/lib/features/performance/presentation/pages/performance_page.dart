@@ -398,7 +398,7 @@ class _ROICard extends StatelessWidget {
                   child: Text(
                     '${isPositive ? '+' : '-'}${_fmt(v.toDouble())} FCFA',
                     style: TextStyle(color: context.cl.textP, fontSize: 26,
-                        fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                        fontWeight: FontWeight.w700, letterSpacing: -0.5)),
                 ),
               ),
             ]),
@@ -419,7 +419,7 @@ class _ROICard extends StatelessWidget {
               // Virgule et espace à la française : « +21,7 % », pas « +21.7% ».
               Text('${isPositive ? '+' : ''}${decimalFr(perf.roi)}\u00A0%',
                 style: TextStyle(color: color, fontSize: 18,
-                    fontWeight: FontWeight.w900)),
+                    fontWeight: FontWeight.w700)),
             ]),
           ),
         ]),
@@ -672,7 +672,7 @@ class _LeaguesCard extends StatelessWidget {
               child: Center(child: Text('${i + 1}',
                 style: TextStyle(
                   color: i == 0 ? context.cl.warning : context.cl.textM,
-                  fontSize: 11, fontWeight: FontWeight.w800)))),
+                  fontSize: 11, fontWeight: FontWeight.w700)))),
             const SizedBox(width: 10),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(l.league, style: TextStyle(
@@ -685,7 +685,7 @@ class _LeaguesCard extends StatelessWidget {
               '${isPos ? '+' : ''}${_fmt(l.netGain.toDouble())} F',
               style: TextStyle(
                 color: isPos ? context.cl.success : context.cl.error,
-                fontSize: 12, fontWeight: FontWeight.w800)),
+                fontSize: 12, fontWeight: FontWeight.w700)),
           ]),
         );
       }),
@@ -753,7 +753,7 @@ class _StatChip extends StatelessWidget {
       Icon(icon, color: color, size: 18),
       const SizedBox(height: 5),
       Text(value, style: TextStyle(
-        color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w800)),
+        color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w700)),
       Text(label, style: TextStyle(color: context.cl.textM, fontSize: 9),
         textAlign: TextAlign.center),
     ]),

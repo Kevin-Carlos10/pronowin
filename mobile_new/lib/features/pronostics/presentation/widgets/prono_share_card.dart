@@ -151,7 +151,7 @@ class PronoShareCard extends StatelessWidget {
                                   ? context.cl.error
                                   : Colors.white,
                               fontSize: 22,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w700,
                               letterSpacing: 2,
                             ),
                           ),
@@ -161,7 +161,7 @@ class PronoShareCard extends StatelessWidget {
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.3),
                             fontSize: 18,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w700,
                             letterSpacing: 3,
                           ),
                         ),
@@ -234,7 +234,7 @@ class PronoShareCard extends StatelessWidget {
                         Icon(icon, color: color, size: 18),
                         const SizedBox(width: 8),
                         Text(label, style: TextStyle(
-                          color: color, fontSize: 14, fontWeight: FontWeight.w800)),
+                          color: color, fontSize: 14, fontWeight: FontWeight.w700)),
                       ],
                     ),
                   );
@@ -265,7 +265,7 @@ class PronoShareCard extends StatelessWidget {
                     style: TextStyle(
                       color: context.cl.accent,
                       fontSize: 10,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       letterSpacing: 2,
                     ),
                   ),
@@ -275,7 +275,7 @@ class PronoShareCard extends StatelessWidget {
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -312,7 +312,7 @@ class PronoShareCard extends StatelessWidget {
                         style: TextStyle(
                           color: context.cl.success,
                           fontSize: 22,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ]),
@@ -355,7 +355,7 @@ class PronoShareCard extends StatelessWidget {
                         style: TextStyle(
                           color: _confColor,
                           fontSize: 22,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ]),

@@ -219,7 +219,7 @@ class _FeaturedNewsCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6)),
                       child: Text(cat ?? '',
                         style: const TextStyle(
-                          color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                          color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
                     ),
                     if (isPinned) ...[
                       const SizedBox(width: 6),
@@ -250,7 +250,7 @@ class _FeaturedNewsCard extends StatelessWidget {
                   Text(editorialField(news, 'titre'),
                     style: const TextStyle(
                       color: Colors.white, fontSize: 15,
-                      fontWeight: FontWeight.w800, height: 1.3),
+                      fontWeight: FontWeight.w700, height: 1.3),
                     maxLines: 3, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 8),
                   // Date + emoji
@@ -462,7 +462,7 @@ class _NewsDetailSheet extends StatelessWidget {
                   Text(editorialField(news, 'titre'),
                     style: TextStyle(
                       color: context.cl.textP, fontSize: 20,
-                      fontWeight: FontWeight.w800, height: 1.3)),
+                      fontWeight: FontWeight.w700, height: 1.3)),
 
                   if (resume.isNotEmpty) ...[
                     const SizedBox(height: 14),

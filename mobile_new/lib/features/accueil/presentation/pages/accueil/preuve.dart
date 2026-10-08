@@ -52,14 +52,14 @@ class _ProofBand extends ConsumerWidget {
                         text: tr(context, "{arg0} gagnés", [wins]),
                         style: TextStyle(
                             color: context.cl.textP,
-                            fontWeight: FontWeight.w800)),
+                            fontWeight: FontWeight.w700)),
                     const TextSpan(text: ' · '),
                     TextSpan(
                       text: '${positif ? '+' : ''}${roi.toStringAsFixed(1)} %',
                       style: TextStyle(
                           color:
                               positif ? context.cl.success : context.cl.error,
-                          fontWeight: FontWeight.w800),
+                          fontWeight: FontWeight.w700),
                     ),
                   ],
                 ),
@@ -160,7 +160,7 @@ class _YesterdayRecap extends ConsumerWidget {
                           color: gagnes * 2 >= regles.length
                               ? context.cl.success
                               : context.cl.error,
-                          fontWeight: FontWeight.w800),
+                          fontWeight: FontWeight.w700),
                     ),
                      TextSpan(text: tr(context, " pronostic")),
                     TextSpan(text: regles.length > 1 ? tr(context, "s gagnés") : tr(context, " gagné")),

@@ -303,7 +303,7 @@ class _LigneClassement extends StatelessWidget {
         _StandingsCell('${row.played}'),
         _StandingsCell(row.goalsDiff > 0 ? '+${row.goalsDiff}' : '${row.goalsDiff}'),
         SizedBox(width: MediaQuery.textScalerOf(context).scale(28), child: Text('${row.points}', textAlign: TextAlign.center,
-          style: TextStyle(color: context.cl.textP, fontSize: 11.5, fontWeight: FontWeight.w800))),
+          style: TextStyle(color: context.cl.textP, fontSize: 11.5, fontWeight: FontWeight.w700))),
       ]),
     );
   }
@@ -495,7 +495,7 @@ class _MeilleursButeursState extends ConsumerState<_MeilleursButeurs> {
                           textAlign: TextAlign.center,
                           style: TextStyle(
                             color: couleur, fontSize: 12,
-                            fontWeight: FontWeight.w800))),
+                            fontWeight: FontWeight.w700))),
                     ]),
                   )),
                 ),

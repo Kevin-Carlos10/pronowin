@@ -150,7 +150,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                 color: context.cl.success, size: 34)),
           const SizedBox(height: 14),
           Text(tr(context, "Mise enregistrée !"), style: TextStyle(
-            color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w800)),
+            color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
           Text(
             '${montantExact(_confirmedStake!)} ${nomDevise(_confirmedCurrency)} · ${widget.homeTeam} – ${widget.awayTeam}',
@@ -231,7 +231,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                     color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
                   const SizedBox(width: 6),
                   Text(BookmakerAffiliation.nom, style: const TextStyle(
-                    color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900,
+                    color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700,
                     letterSpacing: 0.5)),
                   const SizedBox(width: 6),
                   const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
@@ -365,7 +365,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                     Text('${montantExact(stake)} $currency',
                       style: TextStyle(
                         color: context.cl.success, fontSize: 28,
-                        fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                        fontWeight: FontWeight.w700, letterSpacing: -0.5)),
                   ]),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),

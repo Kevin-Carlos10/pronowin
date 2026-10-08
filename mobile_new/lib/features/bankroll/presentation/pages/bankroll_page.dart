@@ -650,7 +650,7 @@ class _WeeklySummary extends StatelessWidget {
             '${isGain ? '+' : ''}${montantExact(profit)} ${nomDevise(bankroll.currency)}',
             style: TextStyle(
               color: isGain ? context.cl.success : context.cl.error,
-              fontSize: 13, fontWeight: FontWeight.w800)),
+              fontSize: 13, fontWeight: FontWeight.w700)),
           Text(tr(context, "cette semaine"), style: TextStyle(color: context.cl.textM, fontSize: 9)),
         ]),
       ]),
@@ -865,7 +865,7 @@ class _BalanceCard extends StatelessWidget {
               '${montantExact(bankroll.currentBalance)} $d',
               style: TextStyle(
                 color: context.cl.textP, fontSize: 28,
-                fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                fontWeight: FontWeight.w700, letterSpacing: -0.5)),
           ]),
           // Aligné à gauche : quand il passe sous le disponible, un bloc
           // aligné à droite flottait au milieu de la carte.
@@ -949,7 +949,7 @@ class _StatChip extends StatelessWidget {
       Icon(icon, color: color, size: 18),
       const SizedBox(height: 6),
       Text(value, style: TextStyle(
-          color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w800)),
+          color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
       Text(label, style: TextStyle(color: context.cl.textM, fontSize: 10)),
     ]),
   ));
@@ -1088,7 +1088,7 @@ class _SetupView extends StatelessWidget {
                 color: context.cl.success, size: 44)),
           const SizedBox(height: 24),
           Text(tr(context, "Configure ta bankroll"), style: TextStyle(
-              color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
+              color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           // Le mot est expliqué là où il apparaît pour la première fois.
           //

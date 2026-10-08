@@ -429,7 +429,7 @@ class _PossessionBar extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   child: Text('${home ?? 0}',
                     style: const TextStyle(
-                      color: Colors.white, fontSize: 13, fontWeight: FontWeight.w800)),
+                      color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)),
                 ),
               ),
             ),
@@ -443,7 +443,7 @@ class _PossessionBar extends StatelessWidget {
                   fit: BoxFit.scaleDown,
                   child: Text('${away ?? 0}',
                     style: const TextStyle(
-                      color: Colors.black, fontSize: 13, fontWeight: FontWeight.w800)),
+                      color: Colors.black, fontSize: 13, fontWeight: FontWeight.w700)),
                 ),
               ),
             ),

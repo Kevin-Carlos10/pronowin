@@ -133,12 +133,12 @@ class _EnTeteStatut extends StatelessWidget {
           const SizedBox(width: 12),
           Expanded(
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text(statut, style: TextStyle(color: couleur, fontSize: 14, fontWeight: FontWeight.w800)),
+              Text(statut, style: TextStyle(color: couleur, fontSize: 14, fontWeight: FontWeight.w700)),
               if (detail != null) ...[
                 const SizedBox(height: 2),
                 Text(detail,
                   style: regle
-                      ? TextStyle(color: couleur, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -0.4)
+                      ? TextStyle(color: couleur, fontSize: 22, fontWeight: FontWeight.w700, letterSpacing: -0.4)
                       : TextStyle(color: cl.textS, fontSize: 13)),
               ],
               const SizedBox(height: 4),
@@ -192,7 +192,7 @@ class _CarteMatch extends StatelessWidget {
         const SizedBox(height: 8),
         Text(nom,
           textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: cl.textP, fontSize: 14, fontWeight: FontWeight.w800)),
+          style: TextStyle(color: cl.textP, fontSize: 14, fontWeight: FontWeight.w700)),
       ]),
     );
 
@@ -231,7 +231,7 @@ class _CarteMatch extends StatelessWidget {
                                 : debut != null ? DateFormat.Hm().format(debut) : 'VS',
                       style: TextStyle(
                         color: bet.matchStatus == 'live' ? cl.error : cl.textP,
-                        fontSize: aScore ? 22 : 18, fontWeight: FontWeight.w900)),
+                        fontSize: aScore ? 22 : 18, fontWeight: FontWeight.w700)),
                     if (debut != null) ...[
                       const SizedBox(height: 4),
                       // La date du match — la fiche montrait celle du pari.
@@ -365,7 +365,7 @@ class _Issue extends StatelessWidget {
       FittedBox(
         fit: BoxFit.scaleDown,
         alignment: Alignment.centerLeft,
-        child: Text(montant, style: TextStyle(color: couleur, fontSize: 17, fontWeight: FontWeight.w900)),
+        child: Text(montant, style: TextStyle(color: couleur, fontSize: 17, fontWeight: FontWeight.w700)),
       ),
     ]),
   );

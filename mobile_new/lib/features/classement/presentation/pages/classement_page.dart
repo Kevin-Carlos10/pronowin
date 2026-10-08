@@ -153,7 +153,7 @@ class _ClassementAppBar extends StatelessWidget {
              duration: 1400.ms, curve: Curves.easeInOut),
         const SizedBox(width: 10),
         RichText(text: TextSpan(
-          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: context.cl.textP),
+          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: context.cl.textP),
           children: [TextSpan(text: tr(context, "Classement"), style: const TextStyle(color: _gold))],
         )),
       ]).animate().fadeIn(duration: 400.ms).slideY(begin: -0.04, end: 0),
@@ -347,7 +347,7 @@ class _PodiumCol extends StatelessWidget {
               child: Text(
                 '#${e.rank}',
                 style: TextStyle(
-                  color: color, fontSize: 18, fontWeight: FontWeight.w900),
+                  color: color, fontSize: 18, fontWeight: FontWeight.w700),
               ),
             ),
           ),
@@ -402,7 +402,7 @@ class _Initiale extends StatelessWidget {
       style: TextStyle(
         color: context.cl.textP,
         fontSize: size * 0.42,
-        fontWeight: FontWeight.w800),
+        fontWeight: FontWeight.w700),
     ),
   );
 }
@@ -467,7 +467,7 @@ class _EntryTile extends StatelessWidget {
             style: TextStyle(
               color: e.rank <= 5 ? context.cl.accent : context.cl.textM,
               fontSize: 13,
-              fontWeight: FontWeight.w800),
+              fontWeight: FontWeight.w700),
           ),
         ),
         const SizedBox(width: 10),

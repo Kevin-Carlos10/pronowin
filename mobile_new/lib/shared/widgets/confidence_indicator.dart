@@ -55,7 +55,7 @@ class ConfidenceIndicator extends StatelessWidget {
           ),
           const SizedBox(height: 2),
         ],
-        Text(MatchEntity.affichageConfiance(pourcentage), style: TextStyle(color: colorFor(context, _niveau), fontSize: 15, fontWeight: FontWeight.w800)),
+        Text(MatchEntity.affichageConfiance(pourcentage), style: TextStyle(color: colorFor(context, _niveau), fontSize: 15, fontWeight: FontWeight.w700)),
       ]),
     ),
   );

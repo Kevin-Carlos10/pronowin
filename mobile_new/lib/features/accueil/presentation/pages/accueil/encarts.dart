@@ -159,7 +159,7 @@ class _FavoriteTile extends ConsumerWidget {
                         style: TextStyle(
                             color: context.cl.error,
                             fontSize: 8,
-                            fontWeight: FontWeight.w800)),
+                            fontWeight: FontWeight.w700)),
                   ),
                 // Bouton retirer
                 GestureDetector(
@@ -216,7 +216,7 @@ class _FavoriteTile extends ConsumerWidget {
                 style: TextStyle(
                     color: isLive ? context.cl.error : context.cl.textP,
                     fontSize: 13,
-                    fontWeight: FontWeight.w900),
+                    fontWeight: FontWeight.w700),
               )
             else if (fav['match_date'] != null)
               Text(
@@ -422,7 +422,7 @@ class _BankrollMiniWidget extends ConsumerWidget {
                     Text('${_fmt(bankroll.currentBalance)} ${nomDevise(bankroll.currency)}',
                         style: TextStyle(
                             color: context.cl.textP, fontSize: 16,
-                            fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+                            fontWeight: FontWeight.w700, letterSpacing: -0.3)),
                   ],
                 )),
 

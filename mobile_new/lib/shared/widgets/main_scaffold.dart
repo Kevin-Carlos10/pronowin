@@ -58,12 +58,15 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
     loggedIn ? const ComptePage()  : _guestPages[4]!,
   ];
 
+  // Au trait au repos, pleine quand l'onglet est ouvert — comme Instagram.
+  // Le ballon remplace la courbe de « Pronos » : sans libellé, l'icône doit
+  // dire seule de quoi parle l'onglet.
   static const _navItems = [
-    _NavItemData(icon: Icons.home_rounded,                      label: 'Accueil'),
-    _NavItemData(icon: Icons.trending_up_rounded,               label: 'Pronos'),
-    _NavItemData(icon: Icons.account_balance_wallet_rounded,    label: 'Bankroll'),
-    _NavItemData(icon: Icons.play_circle_outline_rounded,       label: 'Tutoriels'),
-    _NavItemData(icon: Icons.person_rounded,                    label: 'Compte'),
+    _NavItemData(icon: Icons.home_outlined,                   active: Icons.home_rounded,                   label: 'Accueil'),
+    _NavItemData(icon: Icons.sports_soccer_outlined,          active: Icons.sports_soccer,                  label: 'Pronos'),
+    _NavItemData(icon: Icons.account_balance_wallet_outlined, active: Icons.account_balance_wallet_rounded, label: 'Bankroll'),
+    _NavItemData(icon: Icons.play_circle_outline_rounded,     active: Icons.play_circle_rounded,            label: 'Tutoriels'),
+    _NavItemData(icon: Icons.account_circle_outlined,         active: Icons.account_circle,                 label: 'Compte'),
   ];
 
   @override
@@ -156,11 +159,18 @@ Widget barreNavigationSeule({int index = 0}) => _FloatingNavBar(
 // ─── DATA ─────────────────────────────────────────────────────────────────────
 class _NavItemData {
   final IconData icon;
+  final IconData active;
   final String label;
-  const _NavItemData({required this.icon, required this.label});
+  const _NavItemData({required this.icon, required this.active, required this.label});
 }
 
 // ─── FLOATING NAV BAR ─────────────────────────────────────────────────────────
+/// La barre façon Instagram : une capsule flottante, translucide, des icônes
+/// sans libellé ; l'onglet ouvert a son icône pleine, posée sur une pastille
+/// grise qui glisse d'un onglet à l'autre.
+///
+/// Sans libellé, chaque case garde son nom pour les lecteurs d'écran
+/// (`Semantics`), et l'affiche sur un appui long (`Tooltip`).
 class _FloatingNavBar extends StatelessWidget {
   final int currentIndex;
   final List<_NavItemData> items;
@@ -178,51 +188,70 @@ class _FloatingNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final sombre = context.isDark;
+    final contraste = sombre ? Colors.white : Colors.black;
+    final hauteur = BottomNavMetrics.hauteur(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          12, 0, 12, bottomPadding + BottomNavMetrics.margeBasse),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(22),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-          child: Container(
-            height: BottomNavMetrics.hauteur(context),
-            decoration: BoxDecoration(
-              color: context.cl.surface.withValues(alpha: 0.85),
-              borderRadius: BorderRadius.circular(22),
-              border: Border.all(
-                color: context.cl.border.withValues(alpha: 0.6),
-                width: 0.5,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.35),
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-                BoxShadow(
-                  color: AppColors.primary.withValues(alpha: 0.06),
-                  blurRadius: 16,
-                  offset: const Offset(0, 2),
-                ),
-              ],
+          16, 0, 16, bottomPadding + BottomNavMetrics.margeBasse),
+      child: DecoratedBox(
+        decoration: ShapeDecoration(
+          shape: const StadiumBorder(),
+          shadows: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: sombre ? 0.45 : 0.10),
+              blurRadius: 24,
+              offset: const Offset(0, 6),
             ),
-            // Cinq cases qui se partagent la largeur. Elles faisaient 60 px
-            // chacune : 300 px de cases et 24 de marges pour un écran de 320.
-            // La zone tactile couvre maintenant toute la case.
-            child: Row(
-              children: List.generate(items.length, (i) {
-                final item = items[i];
-                final sel = i == currentIndex;
-
-                return Expanded(
-                  child: _NavItemWidget(
-                    item: item,
-                    isSelected: sel,
-                    scale: iconScales[i],
-                    onTap: () => onTap(i),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(hauteur / 2),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            child: Container(
+              height: hauteur,
+              padding: const EdgeInsets.all(5),
+              decoration: ShapeDecoration(
+                color: (sombre ? const Color(0xFF1C1F26) : Colors.white)
+                    .withValues(alpha: 0.92),
+                shape: StadiumBorder(
+                  side: BorderSide(
+                    color: contraste.withValues(alpha: sombre ? 0.10 : 0.08),
+                    width: 0.6,
                   ),
-                );
+                ),
+              ),
+              // Cinq cases qui se partagent la largeur, la pastille de
+              // l'onglet ouvert glissant derrière elles.
+              child: LayoutBuilder(builder: (context, contraintes) {
+                final largeur = contraintes.maxWidth / items.length;
+                return Stack(children: [
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 280),
+                    curve: Curves.easeOutCubic,
+                    left: largeur * currentIndex,
+                    top: 0,
+                    bottom: 0,
+                    width: largeur,
+                    child: DecoratedBox(
+                      decoration: ShapeDecoration(
+                        shape: const StadiumBorder(),
+                        color: contraste.withValues(alpha: sombre ? 0.14 : 0.08),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: List.generate(items.length, (i) => Expanded(
+                      child: _NavItemWidget(
+                        item: items[i],
+                        isSelected: i == currentIndex,
+                        scale: iconScales[i],
+                        onTap: () => onTap(i),
+                      ),
+                    )),
+                  ),
+                ]);
               }),
             ),
           ),
@@ -248,62 +277,32 @@ class _NavItemWidget extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final nom = tr(context, item.label);
     return Semantics(
-      label:    tr(context, item.label),
+      label:    nom,
       selected: isSelected,
       button:   true,
-      child: GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: ExcludeSemantics(
-          child: SizedBox(
-            width: double.infinity,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                AnimatedBuilder(
-                  animation: scale,
-                  builder: (_, child) => Transform.scale(
-                    scale: scale.value,
-                    child: child,
-                  ),
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 220),
-                    curve: Curves.easeOutCubic,
-                    width: isSelected ? 40 : 28,
-                    height: 28,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? AppColors.primary.withValues(alpha: 0.15)
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      item.icon,
-                      color: isSelected ? AppColors.primary : context.cl.textM,
-                      size: 22,
-                    ),
+      child: Tooltip(
+        message: nom,
+        excludeFromSemantics: true,
+        child: GestureDetector(
+          onTap: onTap,
+          behavior: HitTestBehavior.opaque,
+          child: ExcludeSemantics(
+            child: Center(
+              child: AnimatedBuilder(
+                animation: scale,
+                builder: (_, child) => Transform.scale(scale: scale.value, child: child),
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 180),
+                  child: Icon(
+                    isSelected ? item.active : item.icon,
+                    key: ValueKey(isSelected),
+                    color: context.cl.textP,
+                    size: BottomNavMetrics.tailleIcone,
                   ),
                 ),
-                const SizedBox(height: 3),
-                AnimatedDefaultTextStyle(
-                  duration: const Duration(milliseconds: 220),
-                  style: TextStyle(
-                    color: isSelected ? context.cl.accent : context.cl.textM,
-                    fontSize: BottomNavMetrics.taillePolice,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w400,
-                  ),
-                  // Réduit seulement s'il ne tient pas : « Tutoriels » à
-                  // 180 % est plus large qu'une case de 320 px.
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 2),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(tr(context, item.label), maxLines: 1),
-                    ),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -311,4 +310,3 @@ class _NavItemWidget extends StatelessWidget {
     );
   }
 }
-

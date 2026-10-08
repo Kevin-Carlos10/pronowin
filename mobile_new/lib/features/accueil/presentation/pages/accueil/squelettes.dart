@@ -35,7 +35,7 @@ class _SectionHeader extends StatelessWidget {
             style: TextStyle(
                 color: context.cl.textP,
                 fontSize: 15,
-                fontWeight: FontWeight.w800)),
+                fontWeight: FontWeight.w700)),
         if (showBadge != null) ...[
           const SizedBox(width: 8),
           Container(
@@ -48,7 +48,7 @@ class _SectionHeader extends StatelessWidget {
                 style: const TextStyle(
                     color: Colors.white,
                     fontSize: 9,
-                    fontWeight: FontWeight.w800)),
+                    fontWeight: FontWeight.w700)),
           ),
         ],
         const Spacer(),

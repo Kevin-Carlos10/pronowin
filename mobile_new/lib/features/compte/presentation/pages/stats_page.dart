@@ -206,7 +206,7 @@ class _KpiCard extends StatelessWidget {
         ]),
         const SizedBox(height: 8),
         Text(value, style: TextStyle(
-            fontSize: 22, fontWeight: FontWeight.w800, color: color)),
+            fontSize: 22, fontWeight: FontWeight.w700, color: color)),
         const SizedBox(height: 4),
         Text(sub, style: TextStyle(fontSize: 10, color: context.cl.textS),
             overflow: TextOverflow.ellipsis),

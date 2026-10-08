@@ -137,7 +137,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
               duration: const Duration(milliseconds: 900),
               curve: Curves.easeOutCubic,
               builder: (_, v, _) => Text('$v FCFA', style: const TextStyle(
-                color: Color(0xFFA78BFA), fontSize: 20, fontWeight: FontWeight.w800)),
+                color: Color(0xFFA78BFA), fontSize: 20, fontWeight: FontWeight.w700)),
             ),
           ]),
         ]),
@@ -236,7 +236,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
             duration: const Duration(milliseconds: 800),
             curve: Curves.easeOutCubic,
             builder: (_, v, _) => Text(tr(context, "{arg0} jours Premium", [v]), style: TextStyle(
-              color: context.cl.dore, fontSize: 28, fontWeight: FontWeight.w800)),
+              color: context.cl.dore, fontSize: 28, fontWeight: FontWeight.w700)),
           ),
           const SizedBox(height: 6),
           // Le canal store ne chiffre jamais les récompenses en monnaie : ce
@@ -356,7 +356,7 @@ class _RetraitPageState extends ConsumerState<RetraitParrainagePage>
            .fadeIn(duration: 400.ms),
           const SizedBox(height: 20),
           Text(tr(context, "Demande envoyée !"), style: TextStyle(
-            color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
+            color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w700)),
           const SizedBox(height: 10),
           Text(msg, style: TextStyle(
             color: context.cl.textS, fontSize: 13, height: 1.5),

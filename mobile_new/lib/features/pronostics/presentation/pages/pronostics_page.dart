@@ -639,7 +639,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                     child: Center(child: Text('$activeAdvancedCount',
                       style: const TextStyle(
                         color: Colors.white, fontSize: 8,
-                        fontWeight: FontWeight.w800))))),
+                        fontWeight: FontWeight.w700))))),
               ]),
             ),
           ),
@@ -679,7 +679,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                         child: Text(unread > 9 ? '9+' : '$unread',
                           style: const TextStyle(
                             color: Colors.white, fontSize: 8,
-                            fontWeight: FontWeight.w800))))),
+                            fontWeight: FontWeight.w700))))),
                 ]),
               ),
             ),
@@ -918,7 +918,7 @@ class _DateScrollBarState extends State<_DateScrollBar> {
                       color: isSelected
                           ? Colors.white
                           : hasMatches ? context.cl.textP : context.cl.textM,
-                      fontSize: 17, fontWeight: FontWeight.w800)),
+                      fontSize: 17, fontWeight: FontWeight.w700)),
                     const SizedBox(height: 2),
                     // Badge nombre de matchs
                     AnimatedSwitcher(
@@ -1086,7 +1086,7 @@ class _TierSectionHeader extends StatelessWidget {
       Icon(icon, size: 16, color: color),
       const SizedBox(width: 7),
       Text(label.toUpperCase(), style: TextStyle(
-        color: color, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.6)),
+        color: color, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6)),
       const SizedBox(width: 8),
       Expanded(child: Container(height: 1, color: color.withValues(alpha: 0.18))),
       const SizedBox(width: 8),
@@ -1727,7 +1727,7 @@ class _ForYouCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8)),
                 child: Text('${p.aiProbability}% est.',
                   style: const TextStyle(color: Color(0xFFAB7CF6),
-                      fontSize: 10, fontWeight: FontWeight.w800))),
+                      fontSize: 10, fontWeight: FontWeight.w700))),
               if (isLocked) ...[
                 const SizedBox(width: 6),
                 Icon(Icons.lock_rounded, color: context.cl.warning, size: 14)],

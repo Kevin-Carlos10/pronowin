@@ -635,7 +635,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
       const SizedBox(height: 16),
 
       Text(tr(context, "Supprimer le compte"), style: TextStyle(
-        color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
+        color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w700)),
       const SizedBox(height: 8),
       // Annonçait « Toutes tes données, ton historique et ton abonnement
       // seront définitivement supprimés ». Aucune des trois affirmations

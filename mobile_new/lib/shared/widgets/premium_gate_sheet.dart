@@ -108,7 +108,7 @@ class _PremiumGateSheet extends ConsumerWidget {
               const SizedBox(height: 14),
               Text(tr(context, "Contenu Premium"), style: TextStyle(
                 color: context.cl.textP, fontSize: 18,
-                fontWeight: FontWeight.w800, letterSpacing: -0.3)),
+                fontWeight: FontWeight.w700, letterSpacing: -0.3)),
               const SizedBox(height: 6),
               if (matchLabel != null)
                 Text(matchLabel!, style: TextStyle(
@@ -168,7 +168,7 @@ class _PremiumGateSheet extends ConsumerWidget {
                 // été écrite ne l'utilisait pas.
                 Text(premiumMonthlyPriceLabel(ref, sub), style: TextStyle(
                   color: context.cl.accent, fontSize: 16,
-                  fontWeight: FontWeight.w900)),
+                  fontWeight: FontWeight.w700)),
                 Text(tr(context, " / mois"), style: TextStyle(
                   color: context.cl.textS, fontSize: 13)),
               ],
@@ -268,7 +268,7 @@ class _TauxReussiteReel extends ConsumerWidget {
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Text(tr(context, "{arg0} % de réussite", [taux]),
               style: TextStyle(color: couleur, fontSize: 15,
-                  fontWeight: FontWeight.w800)),
+                  fontWeight: FontWeight.w700)),
             const SizedBox(height: 2),
             Text(
               tr(context, "{arg0} gagnés sur {arg1} pronostics VIP tranchés — {arg2} derniers jours", [bilan.gagnes, bilan.pronosticsTranches, bilan.periodeJours]),

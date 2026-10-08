@@ -333,7 +333,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                           style: TextStyle(
                               color: context.cl.success,
                               fontSize: 12,
-                              fontWeight: FontWeight.w800),
+                              fontWeight: FontWeight.w700),
                         ),
                       ),
                     ],
@@ -469,7 +469,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                     const SizedBox(height: 4),
                     const Text('VIP', style: TextStyle(
                       color: Color(0xFFDAA520), fontSize: 9,
-                      fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                      fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                   ]),
                 ]),
               ),
@@ -508,7 +508,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                 SizedBox(width: 7),
                 Text(tr(context, "Voir le pronostic VIP"), style: TextStyle(
                   color: Colors.white, fontSize: 12,
-                  fontWeight: FontWeight.w800, letterSpacing: 0.2)),
+                  fontWeight: FontWeight.w700, letterSpacing: 0.2)),
               ],
             ),
           ),
@@ -735,7 +735,7 @@ class _VipBadgeState extends State<_VipBadge>
                 style: TextStyle(
                     color: Colors.white,
                     fontSize: 9,
-                    fontWeight: FontWeight.w800,
+                    fontWeight: FontWeight.w700,
                     letterSpacing: 0.5)),
           ],
         ),
@@ -861,7 +861,7 @@ class _OddsCell extends StatelessWidget {
             style: TextStyle(
               color: color,
               fontSize: 13,
-              fontWeight: highlighted ? FontWeight.w800 : FontWeight.w600)),
+              fontWeight: highlighted ? FontWeight.w700 : FontWeight.w600)),
         ]),
       ),
     );
@@ -1020,7 +1020,7 @@ class _ScoreCenter extends StatelessWidget {
                 style: TextStyle(
                   color: isLive ? context.cl.error : context.cl.textP,
                   fontSize: 18,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: 1.5,
                 ),
               ),

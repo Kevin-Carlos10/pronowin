@@ -350,7 +350,7 @@ class _SlideContent extends StatelessWidget {
             style: TextStyle(
               color:      context.cl.textP,
               fontSize:   26,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
               height:     1.2,
               letterSpacing: -0.3,
             ),

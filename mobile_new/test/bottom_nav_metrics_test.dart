@@ -77,35 +77,21 @@ void main() {
     });
   });
 
-  group("la barre suit l'échelle de texte du téléphone", () {
-    // La hauteur valait 64 en dur. Quelqu'un ayant agrandi les caractères de
-    // son système voyait le libellé grandir dans une barre qui, elle, ne
-    // bougeait pas — jusqu'au débordement.
-    testWidgets('elle grandit avec les caractères', (tester) async {
+  group("sans libellé, la barre ne grandit plus avec les caractères", () {
+    // Elle suivait l'échelle de texte pour qu'un libellé agrandi ne déborde
+    // pas. Depuis qu'elle suit le modèle d'Instagram (icônes seules), rien
+    // n'y grandit : une barre plus haute volerait de la place au contenu.
+    testWidgets('même hauteur à 100 % et à 150 %', (tester) async {
       final normal = await mesurer(tester);
       final grand  = await mesurer(tester, echelleTexte: 1.5);
-
-      expect(grand.hauteur, greaterThan(normal.hauteur),
-          reason: "le libellé agrandi déborderait d'une barre figée");
+      expect(grand.hauteur, normal.hauteur);
+      expect(normal.hauteur, 62);
     });
 
-    testWidgets('et la place réservée suit toute seule', (tester) async {
-      // Le couplage qui compte : une barre plus haute sans réservation plus
-      // grande masquerait la dernière ligne de chaque liste — le défaut même
-      // que ce fichier a été écrit pour empêcher.
-      final normal = await mesurer(tester, insetBas: 34);
-      final grand  = await mesurer(tester, insetBas: 34, echelleTexte: 1.5);
-
-      expect(grand.espace, greaterThan(normal.espace));
+    testWidgets('et la place réservée la couvre toujours', (tester) async {
+      final grand = await mesurer(tester, insetBas: 34, echelleTexte: 1.5);
       expect(grand.espace,
           greaterThanOrEqualTo(grand.hauteur + BottomNavMetrics.margeBasse + 34));
-    });
-
-    testWidgets("à l'échelle normale, rien ne change", (tester) async {
-      // Le contre-test : faire grandir la barre sans raison volerait de la
-      // place au contenu sur tous les appareils.
-      final m = await mesurer(tester);
-      expect(m.hauteur, 64);
     });
   });
 }
@@ -154,10 +140,13 @@ void _barreStable() {
       expect(source, isNot(contains('_navVisible')));
     });
 
-    test('le libellé vient de la métrique partagée', () {
-      // Écrit en dur, il divergerait de la hauteur calculée à partir de lui.
-      expect(source, contains('BottomNavMetrics.taillePolice'));
-      expect(BottomNavMetrics.taillePolice, greaterThan(10));
+    test('sans libellé visible, chaque onglet garde son nom', () {
+      // Icônes seules, comme Instagram : le nom reste lu par les lecteurs
+      // d'écran et s'affiche sur un appui long.
+      expect(source, contains('Semantics('));
+      expect(source, contains('Tooltip('));
+      expect(source, contains('BottomNavMetrics.tailleIcone'));
+      expect(BottomNavMetrics.tailleIcone, greaterThanOrEqualTo(24));
     });
   });
 }

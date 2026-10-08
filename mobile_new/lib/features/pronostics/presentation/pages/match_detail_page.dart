@@ -731,7 +731,7 @@ class _EnTeteCompacte extends ConsumerWidget {
                 color: match.status == MatchStatus.live
                     ? context.cl.success
                     : context.cl.textP,
-                fontSize: 14, fontWeight: FontWeight.w800)),
+                fontSize: 14, fontWeight: FontWeight.w700)),
           ),
           Flexible(
             child: Text(match.awayTeam,
@@ -884,7 +884,7 @@ class _MatchHeader extends ConsumerWidget {
                   color: match.status == MatchStatus.live
                     ? context.cl.success
                     : context.cl.textP,
-                  fontSize: 24, fontWeight: FontWeight.w800,
+                  fontSize: 24, fontWeight: FontWeight.w700,
                   letterSpacing: 2))),
             if (isRefreshingScore) ...[
               const SizedBox(height: 6),
@@ -1013,7 +1013,7 @@ class _PronosticCard extends StatelessWidget {
             style: TextStyle(
               color: context.cl.accent,
               fontSize: 10.5,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
               letterSpacing: 0.8)),
           const SizedBox(height: 7),
         ],
@@ -1021,7 +1021,7 @@ class _PronosticCard extends StatelessWidget {
           style: TextStyle(
             color: context.cl.textP,
             fontSize: 22,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
             height: 1.2)),
         const SizedBox(height: 16),
         Container(height: 1, color: context.cl.borderSoft),
@@ -1040,7 +1040,7 @@ class _PronosticCard extends StatelessWidget {
                 style: TextStyle(
                   color: context.cl.textP,
                   fontSize: 19,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   height: 1)),
             ]),
             const SizedBox(width: 28),
@@ -1253,7 +1253,7 @@ class _VerdictStripState extends State<_VerdictStrip>
             opacity: echelle.clamp(0.0, 1.0),
             child: Text(label,
               style: TextStyle(
-                color: color, fontSize: 14, fontWeight: FontWeight.w800)),
+                color: color, fontSize: 14, fontWeight: FontWeight.w700)),
           ),
         ),
       ]),
@@ -1426,7 +1426,7 @@ class _CoteRecommandee extends StatelessWidget {
       Text(match.oddsRecommended.toStringAsFixed(2),
         style: TextStyle(
           color: context.cl.success, fontSize: 22,
-          fontWeight: FontWeight.w800, height: 1)),
+          fontWeight: FontWeight.w700, height: 1)),
     ]),
   );
 }
@@ -1470,7 +1470,7 @@ class _OddPill extends StatelessWidget {
         Text(value > 0 ? value.toStringAsFixed(2) : '—',
           style: TextStyle(
             color: isRecommended ? context.cl.success : context.cl.textP,
-            fontSize: 14, fontWeight: FontWeight.w800)),
+            fontSize: 14, fontWeight: FontWeight.w700)),
       ]),
     ),
   );
@@ -1789,7 +1789,7 @@ class _DetailConfidenceBar extends StatelessWidget {
             curve: Curves.easeOutCubic,
             builder: (_, val, child) => Text(MatchEntity.affichageConfiance(val),
                 style: TextStyle(
-                    color: _color(context), fontSize: 15, fontWeight: FontWeight.w800,
+                    color: _color(context), fontSize: 15, fontWeight: FontWeight.w700,
                     height: 1)),
           ),
         ]),

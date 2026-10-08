@@ -157,7 +157,7 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         color: context.cl.textP,
-                        fontSize: 22, fontWeight: FontWeight.w800,
+                        fontSize: 22, fontWeight: FontWeight.w700,
                         letterSpacing: -0.4),
                     ).animate().fadeIn(duration: 400.ms, delay: 80.ms),
 

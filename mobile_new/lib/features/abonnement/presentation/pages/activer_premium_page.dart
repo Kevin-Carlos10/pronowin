@@ -724,7 +724,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         Text(tr(context, "Active ton mois Premium avec {arg0}", [_tarifs.libellePlateformes]),
           style: TextStyle(
             color: context.cl.textP, fontSize: 19,
-            fontWeight: FontWeight.w800, letterSpacing: -0.3, height: 1.25)),
+            fontWeight: FontWeight.w700, letterSpacing: -0.3, height: 1.25)),
         const SizedBox(height: 8),
         Text(
           tr(context, "{arg0} après ton premier dépôt. Une seule fois par compte ; ensuite, le tarif normal s'applique.", [_tarifs.libelleOffreCode]),
@@ -962,7 +962,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
            .fadeIn(duration: 400.ms),
           const SizedBox(height: 20),
           Text(tr(context, "Preuve soumise !"), style: TextStyle(
-            color: context.cl.textP, fontSize: 22, fontWeight: FontWeight.w800),
+            color: context.cl.textP, fontSize: 22, fontWeight: FontWeight.w700),
             textAlign: TextAlign.center),
           const SizedBox(height: 10),
           Text(
@@ -1287,7 +1287,7 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
           child: Row(children: [
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(formaterNumero(_numero!), style: const TextStyle(
-                fontSize: 21, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                fontSize: 21, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
               const SizedBox(height: 2),
               Text(_operateur, style: TextStyle(
                 fontSize: 11, color: context.cl.textS)),
@@ -1352,7 +1352,7 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
                       softWrap: false,
                       style: const TextStyle(
                         fontSize: 17,
-                        fontWeight: FontWeight.w800,
+                        fontWeight: FontWeight.w700,
                         letterSpacing: 0.5,
                         fontFamily: 'monospace')),
                   ),
@@ -1766,7 +1766,7 @@ class _PromoCodeCardState extends State<_PromoCodeCard>
           const SizedBox(height: 14),
           Text(widget.promoCode, style: const TextStyle(
             color: Colors.white, fontSize: 32,
-            fontWeight: FontWeight.w900, letterSpacing: 5)),
+            fontWeight: FontWeight.w700, letterSpacing: 5)),
           const SizedBox(height: 12),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -2158,14 +2158,14 @@ class _PaywallPage extends StatelessWidget {
             SizedBox(width: 6),
             Text(tr(context, "PRONOSTICS PREMIUM"), style: TextStyle(
               color: Colors.white, fontSize: 10,
-              fontWeight: FontWeight.w800, letterSpacing: 1.2)),
+              fontWeight: FontWeight.w700, letterSpacing: 1.2)),
           ]),
         ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1, end: 0),
         const SizedBox(height: 16),
         RichText(
           textAlign: TextAlign.center,
           text: const TextSpan(
-            style: TextStyle(fontSize: 34, fontWeight: FontWeight.w900, height: 1.1),
+            style: TextStyle(fontSize: 34, fontWeight: FontWeight.w700, height: 1.1),
             children: [
               TextSpan(text: 'PronoWin ', style: TextStyle(color: Colors.white)),
               TextSpan(text: 'PRO', style: TextStyle(
@@ -2394,12 +2394,12 @@ class _IapSection extends StatelessWidget {
                 color: context.cl.success.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(6)),
               child:  Text(offerts.toUpperCase(), style: TextStyle(
-                color: context.cl.success, fontSize: 9, fontWeight: FontWeight.w800))),
+                color: context.cl.success, fontSize: 9, fontWeight: FontWeight.w700))),
           ]),
           const SizedBox(height: 14),
           // `p.price` est déjà formaté et localisé par le store.
           Text(p.price, style: const TextStyle(
-            color: Colors.white, fontSize: 30, fontWeight: FontWeight.w800, height: 1)),
+            color: Colors.white, fontSize: 30, fontWeight: FontWeight.w700, height: 1)),
         ]),
       ),
       const SizedBox(height: 18),
@@ -2651,7 +2651,7 @@ class _MethodCard extends StatelessWidget {
               // une ligne (141 px de trop) ; le badge passe dessous.
               Wrap(spacing: 10, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
                 Text(title, style: const TextStyle(
-                  color: Colors.white, fontSize: 17, fontWeight: FontWeight.w800)),
+                  color: Colors.white, fontSize: 17, fontWeight: FontWeight.w700)),
                 if (badge != null) ...[
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -2659,7 +2659,7 @@ class _MethodCard extends StatelessWidget {
                       color: color,
                       borderRadius: BorderRadius.circular(6)),
                     child: Text(badge!, style: const TextStyle(
-                      color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.8))),
+                      color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.8))),
                 ],
               ]),
               const SizedBox(height: 4),
@@ -2667,7 +2667,7 @@ class _MethodCard extends StatelessWidget {
             ])),
             Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
               Text(montantDollars(price), style: TextStyle(
-                color: color, fontSize: 22, fontWeight: FontWeight.w900)),
+                color: color, fontSize: 22, fontWeight: FontWeight.w700)),
               Text(period, style: const TextStyle(color: Colors.white38, fontSize: 11)),
             ]),
           ]),
@@ -2732,7 +2732,7 @@ class _PaywallCTA extends StatelessWidget {
           Text(
             label,
             style: const TextStyle(
-              color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(width: 8),
           const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
         ]),

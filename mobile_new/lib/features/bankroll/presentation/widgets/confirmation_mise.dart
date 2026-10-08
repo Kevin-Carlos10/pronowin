@@ -108,7 +108,7 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
       couleur: AppColors.primary,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text(tr(context, "Tu as bien misé {arg0} ?", [mise]),
-          style: TextStyle(color: cl.textP, fontSize: 15.5, fontWeight: FontWeight.w800)),
+          style: TextStyle(color: cl.textP, fontSize: 15.5, fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
         Text(tr(context, "Chez ton bookmaker, sur ce pari. Ta bankroll suit ta mise réelle."),
           style: TextStyle(color: cl.textM, fontSize: 12.5)),

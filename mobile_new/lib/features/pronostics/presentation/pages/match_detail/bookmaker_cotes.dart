@@ -200,7 +200,7 @@ class _LogoPartenaire extends StatelessWidget {
                 style: TextStyle(
                   color: Color(0xFF0A2A5E),
                   fontSize: 14,
-                  fontWeight: FontWeight.w900,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: -0.2,
                 ),
               ),
@@ -271,7 +271,7 @@ class _CoteCliquable extends StatelessWidget {
                       ? context.cl.textM
                       : (recommandee ? context.cl.success : context.cl.textP),
                   fontSize: 15,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ]),

@@ -45,7 +45,7 @@ class ConfirmationPremiumActive extends StatelessWidget {
       ),
       const SizedBox(height: 20),
       Text(tr(context, "Premium activé !"), textAlign: TextAlign.center,
-        style: TextStyle(color: context.cl.textP, fontSize: 22, fontWeight: FontWeight.w800)),
+        style: TextStyle(color: context.cl.textP, fontSize: 22, fontWeight: FontWeight.w700)),
       const SizedBox(height: 10),
       Text(tr(context, "Tous les pronostics VIP et l'analyse statistique de chaque match sont débloqués."),
         textAlign: TextAlign.center,

@@ -210,7 +210,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                             const SizedBox(height: 10),
                             Text(displayName, style: TextStyle(
                               color: context.cl.textP,
-                              fontSize: 22, fontWeight: FontWeight.w800))
+                              fontSize: 22, fontWeight: FontWeight.w700))
                               .animate(delay: 120.ms)
                               .fadeIn(duration: 300.ms)
                               .slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic),
@@ -579,13 +579,13 @@ class _FreeState extends ConsumerWidget {
               const SizedBox(width: 14),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                  Text(tr(context, "Passer à Premium"), style: TextStyle(
-                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
                 Text(tr(context, "Débloquez tout PronoWin"), style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
               ])),
               Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Text(premiumMonthlyPriceLabel(ref, sub), style: TextStyle(
-                  color: context.cl.dore, fontSize: 22, fontWeight: FontWeight.w900)),
+                  color: context.cl.dore, fontSize: 22, fontWeight: FontWeight.w700)),
                 Text(tr(context, "/mois"), style: const TextStyle(
                   color: Colors.white54, fontSize: 10)),
               ]),
@@ -606,7 +606,7 @@ class _FreeState extends ConsumerWidget {
                   blurRadius: 12, offset: const Offset(0, 4))]),
               child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                  Text(tr(context, "Activer maintenant"), style: TextStyle(
-                  color: Colors.white, fontSize: 14, fontWeight: FontWeight.w800)),
+                  color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
                 const SizedBox(width: 8),
                 const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
               ]),
@@ -767,7 +767,7 @@ class _PremiumState extends ConsumerWidget {
             const SizedBox(width: 14),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                Text(tr(context, "Plan Premium Actif"), style: TextStyle(
-                color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800)),
+                color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700)),
               Text(
                 daysLeft <= 0
                   ? tr(context, "Actif sans limite")
@@ -1056,7 +1056,7 @@ class _ParrainageTab extends ConsumerWidget {
                     builder: (_, v, _) => Text(
                       estStore ? tr(context, "{arg0} jours Premium", [v]) : '$v $devise',
                       style: const TextStyle(
-                        color: _purple, fontSize: 24, fontWeight: FontWeight.w800)),
+                        color: _purple, fontSize: 24, fontWeight: FontWeight.w700)),
                   ),
                 ]),
               ),
@@ -1147,7 +1147,7 @@ class _ParrainageTab extends ConsumerWidget {
           child: Row(children: [
             Text(refCode, style: const TextStyle(
               color: _purple, fontSize: 22,
-              fontWeight: FontWeight.w800, letterSpacing: 4)),
+              fontWeight: FontWeight.w700, letterSpacing: 4)),
             const Spacer(),
             IconButton(
               tooltip: tr(context, "Copier le code"),
@@ -1373,10 +1373,10 @@ class _ProfileAvatar extends StatelessWidget {
                     url:   avatarUrl,
                     repli: Center(child: Text(initiale,
                       style: const TextStyle(color: Colors.white,
-                        fontSize: 28, fontWeight: FontWeight.w800))))
+                        fontSize: 28, fontWeight: FontWeight.w700))))
                 : Center(child: Text(initiale,
                     style: const TextStyle(color: Colors.white,
-                      fontSize: 28, fontWeight: FontWeight.w800))),
+                      fontSize: 28, fontWeight: FontWeight.w700))),
             ),
           ),
         ),
@@ -1391,7 +1391,7 @@ class _ProfileAvatar extends StatelessWidget {
             border: Border.all(color: lv.color.withValues(alpha: 0.6), width: 1)),
           child: Text('${lv.emoji} ${lv.name}',
             style: TextStyle(color: lv.color,
-              fontSize: 9, fontWeight: FontWeight.w800)),
+              fontSize: 9, fontWeight: FontWeight.w700)),
         ),
       ),
       Positioned(
@@ -1487,7 +1487,7 @@ class _PremiumBadgeState extends State<_PremiumBadge>
           SizedBox(width: 5),
           Text('PREMIUM', style: TextStyle(
             color: Colors.white, fontSize: 11,
-            fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+            fontWeight: FontWeight.w700, letterSpacing: 0.5)),
         ]),
       ),
     );
@@ -1510,7 +1510,7 @@ class _RewardTile extends StatelessWidget {
       border: Border.all(color: color.withValues(alpha: 0.28), width: 0.8)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(amount, style: TextStyle(
-        color: color, fontSize: 20, fontWeight: FontWeight.w800, height: 1)),
+        color: color, fontSize: 20, fontWeight: FontWeight.w700, height: 1)),
       const SizedBox(height: 5),
       Text(tr(context, label),
         maxLines: 2, overflow: TextOverflow.ellipsis,
@@ -1537,7 +1537,7 @@ class _HowToStep extends StatelessWidget {
           color: const Color(0xFFA78BFA).withValues(alpha: 0.15),
           shape: BoxShape.circle),
         child: Text('$n', style: const TextStyle(
-          color: Color(0xFFA78BFA), fontSize: 11.5, fontWeight: FontWeight.w800)),
+          color: Color(0xFFA78BFA), fontSize: 11.5, fontWeight: FontWeight.w700)),
       ),
       const SizedBox(width: 11),
       Expanded(
@@ -1566,7 +1566,7 @@ class _StatBox extends StatelessWidget {
           duration: const Duration(milliseconds: 800),
           curve: Curves.easeOutCubic,
           builder: (_, v, _) => Text('$v', style: TextStyle(
-            color: color, fontSize: 22, fontWeight: FontWeight.w800)),
+            color: color, fontSize: 22, fontWeight: FontWeight.w700)),
         ),
         Text(tr(context, sub), style: TextStyle(color: context.cl.textM, fontSize: 10)),
       ])));

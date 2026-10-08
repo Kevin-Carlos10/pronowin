@@ -83,7 +83,9 @@ class AppCl {
   // écart comparable à celui du thème clair. `app_contraste_test.dart`
   // recalcule les rapports depuis ce fichier — une palette qui repasserait
   // sous le seuil fait tomber le banc.
-  Color get textP     => isDark ? const Color(0xFFE2E8F0) : const Color(0xFF1A202C);
+  // Le noir et le blanc presque purs du texte d'Instagram (8 octobre 2026),
+  // à la place d'un gris bleuté : le texte principal se détache mieux.
+  Color get textP     => isDark ? const Color(0xFFF5F5F5) : const Color(0xFF0C1014);
   Color get textS     => isDark ? const Color(0xFF95A0B8) : const Color(0xFF4A5568);
   Color get textM     => isDark ? const Color(0xFF7D8592) : const Color(0xFF666F7B);
 

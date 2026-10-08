@@ -86,7 +86,7 @@ class _H2HContent extends StatelessWidget {
               builder: (_, v, _) => Text('$v',
                 style: TextStyle(
                   color: context.cl.success,
-                  fontSize: 24, fontWeight: FontWeight.w900)),
+                  fontSize: 24, fontWeight: FontWeight.w700)),
             ),
             Text(h2h.homeTeam,
               textAlign: TextAlign.center,
@@ -102,7 +102,7 @@ class _H2HContent extends StatelessWidget {
             builder: (_, v, _) => Text('$v',
               style: TextStyle(
                 color: context.cl.textM,
-                fontSize: 24, fontWeight: FontWeight.w900)),
+                fontSize: 24, fontWeight: FontWeight.w700)),
           ),
           Text(tr(context, "Nuls"),
             style: TextStyle(color: context.cl.textM, fontSize: 10)),
@@ -116,7 +116,7 @@ class _H2HContent extends StatelessWidget {
               builder: (_, v, _) => Text('$v',
                 style: TextStyle(
                   color: context.cl.error,
-                  fontSize: 24, fontWeight: FontWeight.w900)),
+                  fontSize: 24, fontWeight: FontWeight.w700)),
             ),
             Text(h2h.awayTeam,
               textAlign: TextAlign.center,
@@ -264,7 +264,7 @@ class _H2HRow extends StatelessWidget {
             child: Text('${match.homeScore} - ${match.awayScore}',
               style: TextStyle(
                 color: context.cl.textP,
-                fontSize: 14, fontWeight: FontWeight.w800)),
+                fontSize: 14, fontWeight: FontWeight.w700)),
           ),
           _teamSide(context, match.awayTeam, alignEnd: false),
         ]),
@@ -394,7 +394,7 @@ class _LigneSaison extends StatelessWidget {
         child: Text(gauche ?? '—',
           style: TextStyle(
             color: gauche == null ? context.cl.textM : context.cl.textP,
-            fontSize: 13, fontWeight: FontWeight.w800))),
+            fontSize: 13, fontWeight: FontWeight.w700))),
       Expanded(child: Text(libelle,
         textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis,
         style: TextStyle(color: context.cl.textM, fontSize: 11.5))),
@@ -403,7 +403,7 @@ class _LigneSaison extends StatelessWidget {
           textAlign: TextAlign.right,
           style: TextStyle(
             color: droite == null ? context.cl.textM : context.cl.textP,
-            fontSize: 13, fontWeight: FontWeight.w800))),
+            fontSize: 13, fontWeight: FontWeight.w700))),
     ]),
   );
 }

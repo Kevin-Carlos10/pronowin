@@ -130,7 +130,7 @@ class _AnalyseModele extends ConsumerWidget {
                     Text(tr(context, "Marché suggéré par le modèle"),
                       style: TextStyle(
                         color: context.cl.accent, fontSize: 9.5,
-                        fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                        fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                     const SizedBox(height: 3),
                     Text(data.localizedAdvice!,
                       style: TextStyle(
@@ -210,7 +210,7 @@ class _BarreIssues extends StatelessWidget {
                   style: TextStyle(
                     color: v == max && v > 0 ? c : context.cl.textS,
                     fontSize: 15,
-                    fontWeight: v == max && v > 0 ? FontWeight.w800 : FontWeight.w600)),
+                    fontWeight: v == max && v > 0 ? FontWeight.w700 : FontWeight.w600)),
                 const SizedBox(height: 2),
                 Text(nom,
                   maxLines: 1, overflow: TextOverflow.ellipsis,
@@ -294,7 +294,7 @@ class _VerdictModele extends StatelessWidget {
             Text(verdict.titre,
               style: TextStyle(
                 color: verdict.indecis ? context.cl.textP : accent,
-                fontSize: 13.5, fontWeight: FontWeight.w800, height: 1.25)),
+                fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.25)),
             const SizedBox(height: 2),
             Text(
               verdict.indecis
@@ -389,7 +389,7 @@ class _AxesComparaison extends StatelessWidget {
                   style: TextStyle(
                     color: domGagne ? context.cl.success : context.cl.textM,
                     fontSize: 11,
-                    fontWeight: domGagne ? FontWeight.w800 : FontWeight.w500)),
+                    fontWeight: domGagne ? FontWeight.w700 : FontWeight.w500)),
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -415,7 +415,7 @@ class _AxesComparaison extends StatelessWidget {
                   style: TextStyle(
                     color: extGagne ? context.cl.info : context.cl.textM,
                     fontSize: 11,
-                    fontWeight: extGagne ? FontWeight.w800 : FontWeight.w500)),
+                    fontWeight: extGagne ? FontWeight.w700 : FontWeight.w500)),
               ),
               const SizedBox(width: 8),
               // 74 px tronquaient « Modèle de Poisson » — le seul des sept
@@ -619,7 +619,7 @@ class _CotesEnDirect extends ConsumerWidget {
           if (data.elapsed != null)
             Text("${data.elapsed}'",
               style: TextStyle(
-                color: context.cl.error, fontSize: 12, fontWeight: FontWeight.w800)),
+                color: context.cl.error, fontSize: 12, fontWeight: FontWeight.w700)),
         ]),
         const SizedBox(height: 4),
         _FraicheurDonnees(updatedAt: data.updatedAt, stale: data.stale || async.hasError),
@@ -653,7 +653,7 @@ class _CotesEnDirect extends ConsumerWidget {
                   Text(v.odd.toStringAsFixed(2),
                     style: TextStyle(
                       color: context.cl.textP, fontSize: 12,
-                      fontWeight: FontWeight.w800)),
+                      fontWeight: FontWeight.w700)),
                 ]),
               ),
           ]),
@@ -764,7 +764,7 @@ class _NotesJoueurs extends ConsumerWidget {
                   Text(tr(context, "HOMME DU MATCH"),
                     style: TextStyle(
                       color: context.cl.warning, fontSize: 8.5,
-                      fontWeight: FontWeight.w800, letterSpacing: 0.7)),
+                      fontWeight: FontWeight.w700, letterSpacing: 0.7)),
                   const SizedBox(height: 3),
                   Text(homme.name,
                     maxLines: 1, overflow: TextOverflow.ellipsis,
@@ -851,7 +851,7 @@ class _Note extends StatelessWidget {
         border: Border.all(color: c.withValues(alpha: 0.35), width: 0.8)),
       child: Text(valeur.toStringAsFixed(1),
         style: TextStyle(
-          color: c, fontSize: grande ? 16 : 12, fontWeight: FontWeight.w800)),
+          color: c, fontSize: grande ? 16 : 12, fontWeight: FontWeight.w700)),
     );
   }
 }

@@ -379,7 +379,7 @@ class _VoteBar extends StatelessWidget {
                   fontSize: 11, fontWeight: FontWeight.w700)),
                 Text('${vote.agree}', style: TextStyle(
                   color: userAgreed ? context.cl.success : context.cl.textS,
-                  fontSize: 13, fontWeight: FontWeight.w800)),
+                  fontSize: 13, fontWeight: FontWeight.w700)),
               ]),
             ),
           )),
@@ -406,7 +406,7 @@ class _VoteBar extends StatelessWidget {
                   fontSize: 11, fontWeight: FontWeight.w700)),
                 Text('${vote.disagree}', style: TextStyle(
                   color: userDis ? context.cl.error : context.cl.textS,
-                  fontSize: 13, fontWeight: FontWeight.w800)),
+                  fontSize: 13, fontWeight: FontWeight.w700)),
               ]),
             ),
           )),
@@ -562,7 +562,7 @@ class _SingleComment extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8)),
                 child: Text('Tipster ✓', style: TextStyle(
                   color: context.cl.warning, fontSize: 9,
-                  fontWeight: FontWeight.w800))),
+                  fontWeight: FontWeight.w700))),
             ],
           ])),
           Text(timeStr, style: TextStyle(color: context.cl.textM, fontSize: 10)),
@@ -942,7 +942,7 @@ class _CommentsPremiumLockedState extends State<_CommentsPremiumLocked>
                   style: TextStyle(
                     color: context.cl.textP,
                     fontSize: 13.5,
-                    fontWeight: FontWeight.w800)),
+                    fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 Text(tr(context, "Lisez et partagez les analyses de la communauté"),
                   textAlign: TextAlign.center,
@@ -967,7 +967,7 @@ class _CommentsPremiumLockedState extends State<_CommentsPremiumLocked>
                       style: TextStyle(
                         color: Colors.black,
                         fontSize: 12,
-                        fontWeight: FontWeight.w800)),
+                        fontWeight: FontWeight.w700)),
                   ]),
                 ).animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
                  .shimmer(duration: 2200.ms, delay: 700.ms, color: Colors.white70),

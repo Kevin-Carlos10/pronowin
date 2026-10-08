@@ -199,12 +199,12 @@ class _TerrainEquipe extends StatelessWidget {
           Flexible(child: Text(nom,
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w800))),
+              color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700))),
           if (equipe.formation != null) ...[
             const SizedBox(width: 10),
             Text(equipe.formation!,
               style: TextStyle(
-                color: couleur, fontSize: 12.5, fontWeight: FontWeight.w800,
+                color: couleur, fontSize: 12.5, fontWeight: FontWeight.w700,
                 letterSpacing: 0.4)),
           ],
         ]),
@@ -343,7 +343,7 @@ class _PitchPlayer extends StatelessWidget {
                 ),
                 child: Text('${player.number}',
                   style: TextStyle(
-                    color: _surPastille, fontSize: 8.5, fontWeight: FontWeight.w900)),
+                    color: _surPastille, fontSize: 8.5, fontWeight: FontWeight.w700)),
               ),
             ),
         ]),
@@ -403,7 +403,7 @@ class _TeamCoachRow extends StatelessWidget {
           color: color.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(6)),
         child: Text(team.formation!,
-          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800)),
+          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
       ),
       const SizedBox(width: 8),
     ],
@@ -529,7 +529,7 @@ class _PlayerChip extends StatelessWidget {
     child: Row(mainAxisSize: MainAxisSize.min, children: [
       if (player.number != null) ...[
         Text('${player.number}',
-          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w800)),
+          style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w700)),
         const SizedBox(width: 4),
       ],
       Text(player.name,

@@ -614,7 +614,7 @@ class _FeaturedCardState extends State<_FeaturedCard>
                           decoration: BoxDecoration(color: _catColor(context), shape: BoxShape.circle)),
                         const SizedBox(width: 5),
                          Text(tr(context, "À LA UNE"), style: TextStyle(
-                          color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 0.5)),
+                          color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                       ]),
                     ),
                     const Spacer(),
@@ -627,7 +627,7 @@ class _FeaturedCardState extends State<_FeaturedCard>
                         child: const Row(mainAxisSize: MainAxisSize.min, children: [
                           Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 10),
                           SizedBox(width: 3),
-                          Text('PREMIUM', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w800)),
+                          Text('PREMIUM', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
                         ]),
                       ),
                   ]),
@@ -636,7 +636,7 @@ class _FeaturedCardState extends State<_FeaturedCard>
                   // Titre
                   Text(tuto.title,
                     style: const TextStyle(color: Colors.white, fontSize: 15,
-                      fontWeight: FontWeight.w800, height: 1.25,
+                      fontWeight: FontWeight.w700, height: 1.25,
                       shadows: [Shadow(color: Colors.black38, blurRadius: 6)]),
                     maxLines: 2, overflow: TextOverflow.ellipsis),
                   const SizedBox(height: 8),
