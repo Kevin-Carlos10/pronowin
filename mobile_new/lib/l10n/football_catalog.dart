@@ -499,6 +499,11 @@ const footballCatalogJson = r'''{
       "en": "Player Fouls Committed",
       "fr": "Fautes commises par le joueur",
       "aliases": []
+    },
+    {
+      "en": "Win Both Halves",
+      "fr": "Gagne les deux mi-temps",
+      "aliases": []
     }
   ],
   "selections": [

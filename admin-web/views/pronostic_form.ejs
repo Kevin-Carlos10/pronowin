@@ -42,6 +42,14 @@
 .type-pill:hover, .type-pill.active { background:rgba(var(--primary-rgb),.12); border-color:var(--primary); color:var(--primary-texte); }
 .pill-odd { margin-left:.35rem; font-weight:800; }
 
+/* ── Libellé qui ne décrit plus le marché enregistré ───────────────────────── */
+.libelle-ecart { margin-top:.5rem; padding:.6rem .75rem; border-radius:8px;
+  border:1px solid var(--error); background:rgba(var(--error-rgb),.08); }
+.libelle-ecart p { margin:0 0 .5rem; font-size:var(--fs-s); color:var(--text); }
+.libelle-ecart strong { color:var(--on-danger); }
+.libelle-ecart-actions { display:flex; flex-wrap:wrap; gap:.5rem; }
+.libelle-ecart-actions .btn { min-height:44px; }
+
 /* ── Autres marchés 1xBet (hors API, cote saisie) ─────────────────────────── */
 .marches-plus { margin-top:.6rem; }
 .marches-plus-corps { padding:.75rem; display:grid; gap:.6rem; }
@@ -528,6 +536,15 @@
             Régénéré à chaque changement de pronostic. Tes retouches sont conservées
             tant que tu ne changes pas d'option.
           </p>
+          <div class="libelle-ecart" id="libelle-ecart" role="alert" hidden>
+            <p><strong><%= uiText("Ce libellé ne décrit plus le marché sélectionné.") %></strong>
+              <%= uiText("Le résultat sera calculé sur ce marché, pas sur ton texte :") %>
+              « <span id="libelle-ecart-attendu"></span> ».</p>
+            <div class="libelle-ecart-actions">
+              <button type="button" class="btn btn-outline btn-sm" id="btn-retablir-libelle"><%= uiText("Rétablir le libellé du marché") %></button>
+              <button type="button" class="btn btn-outline btn-sm" id="btn-marche-libre"><%= uiText("Marché libre : je réglerai le résultat à la main") %></button>
+            </div>
+          </div>
         </div>
 
         <div class="form-group translation-preview">
@@ -963,6 +980,7 @@ const MP_TEXTES = <%- JSON.stringify({
   corners: uiText('Total corners'), cornersEquipe: uiText('Corners de l’équipe'),
   cartons: uiText('Cartons jaunes'),
   joueur: uiText('Joueur'), tirs: uiText('Tirs'), tirsCadres: uiText('Tirs cadrés'), fautes: uiText('Fautes'),
+  marcheLibre: uiText('Marché libre — résultat à régler à la main'),
   chargementJoueurs: uiText('Chargement des joueurs…'),
   effectifIndisponible: uiText('Effectif indisponible pour ce match'),
   groupeJoueurs: uiText('Réglés avec les statistiques des joueurs'),
@@ -1123,6 +1141,77 @@ function utiliserMarchePlus() {
     document.getElementById('custom-pick-text').textContent = libelles.fr + ' (' + cote.toFixed(2) + ')';
   }
 }
+
+/* ── Le libellé décrit-il le marché enregistré ? ──
+   Le résultat se calcule sur le marché sélectionné, jamais sur le texte. Un
+   libellé réécrit à la main pour un autre pari (« Haaland buteur » sur
+   « moins de 6,5 buts », « Bellingham plus de 1,5 fautes subies » sur
+   « Angleterre gagne ») publiait un pronostic réglé sur un pari caché : sept
+   résultats faux relevés le 8 octobre 2026. Le formulaire refuse désormais
+   l'enregistrement tant que le texte ne décrit pas le marché — ou que le
+   pronostic n'est pas passé en « marché libre », réglé à la main. */
+function libelleAttendu() {
+  const type = document.getElementById('type-input').value;
+  if (type !== 'other') return typeLabels[type] || null;
+  const nom = document.getElementById('market-name-input').value;
+  const valeur = document.getElementById('market-value-input').value;
+  // Marché libre : aucun règlement automatique, le texte fait foi.
+  if (!nom || !valeur) return null;
+  return mpLibelles(nom, valeur).fr;
+}
+
+/* Deux libellés équivalents se lisent pareil : « Plus de 0.5 » et « Plus de
+   0,5 », « Nul/Lens » et « Nul / Lens », la casse d'un nom. */
+function libelleNormalise(texte) {
+  return PronoFootball.prediction(String(texte || ''), 'fr', HOME_TEAM, AWAY_TEAM).text
+    .toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
+function libelleCoherent() {
+  const attendu = libelleAttendu();
+  return attendu === null
+    || libelleNormalise(document.getElementById('pred-label').value) === libelleNormalise(attendu);
+}
+
+function marcheLibre() {
+  document.getElementById('type-input').value = 'other';
+  document.getElementById('market-name-input').value = '';
+  document.getElementById('market-value-input').value = '';
+  document.querySelectorAll('.type-pill').forEach(p => { p.classList.remove('active'); p.setAttribute('aria-pressed', 'false'); });
+  document.getElementById('custom-pick-banner').style.display = 'flex';
+  document.getElementById('custom-pick-text').textContent = MP_TEXTES.marcheLibre;
+  document.getElementById('libelle-ecart').hidden = true;
+}
+
+function retablirLibelle() {
+  setLabel(libelleAttendu());
+  document.getElementById('libelle-ecart').hidden = true;
+}
+
+document.getElementById('pro-form').addEventListener('submit', function (e) {
+  if (libelleCoherent()) return;
+  e.preventDefault();
+  document.getElementById('libelle-ecart-attendu').textContent = libelleAttendu();
+  const zone = document.getElementById('libelle-ecart');
+  zone.hidden = false;
+  zone.scrollIntoView({ block: 'center' });
+});
+
+(function initGardeLibelle() {
+  const boutonRetablir = document.getElementById('btn-retablir-libelle');
+  const boutonMarcheLibre = document.getElementById('btn-marche-libre');
+  boutonRetablir.addEventListener('click', retablirLibelle);
+  boutonMarcheLibre.addEventListener('click', marcheLibre);
+  // Un pronostic déjà en marché libre le dit dans sa bannière.
+  if (document.getElementById('type-input').value === 'other'
+      && !document.getElementById('market-name-input').value) {
+    document.getElementById('custom-pick-banner').style.display = 'flex';
+    document.getElementById('custom-pick-text').textContent = MP_TEXTES.marcheLibre;
+  }
+  document.getElementById('pred-label').addEventListener('input', () => {
+    if (libelleCoherent()) document.getElementById('libelle-ecart').hidden = true;
+  });
+})();
 
 (function initMarchesPlus() {
   const select = document.getElementById('mp-marche');

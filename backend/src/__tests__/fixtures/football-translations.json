@@ -369,5 +369,12 @@
     "fr": "Expulsion : Non",
     "en": "Red Card : No",
     "known": true
+  },
+  {
+    "method": "market",
+    "input": "Win Both Halves",
+    "fr": "Gagne les deux mi-temps",
+    "en": "Win Both Halves",
+    "known": true
   }
 ]

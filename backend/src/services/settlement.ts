@@ -204,6 +204,12 @@ export function _computeCustomMarketResult(
       return sh && s ? (s.home === sh.home && s.away === sh.away ? 'WIN' : 'LOSS') : null;
     }
 
+    // Un marché de l'API publié sans règle de règlement (Albanie – Saint-Marin,
+    // 6 octobre 2026) : réglé à la main jusqu'ici.
+    case 'Win Both Halves':
+      return fh && sh && (marketValue === 'Home' || marketValue === 'Away')
+        ? (_winner(fh) === marketValue && _winner(sh) === marketValue ? 'WIN' : 'LOSS') : null;
+
     case 'Highest Scoring Half': {
       if (!fh || !sh) return null;
       const fhTotal = fh.home + fh.away, shTotal = sh.home + sh.away;

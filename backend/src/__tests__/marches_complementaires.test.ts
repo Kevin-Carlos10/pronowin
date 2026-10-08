@@ -118,6 +118,17 @@ describe('handicap européen', () => {
   });
 });
 
+describe("un marché de l'API ajouté au règlement", () => {
+  it('gagne les deux mi-temps (Albanie 2-1 Saint-Marin, 1-0 puis 1-1 : perdu)', () => {
+    const marche = (v: string, ft: ScoreLine, fh: ScoreLine | null) =>
+      _resolvePronosticResult({ predictionType: 'other', marketName: 'Win Both Halves', marketValue: v }, ft, fh);
+    expect(marche('Home', s(2, 1), s(1, 0))).toBe('LOSS');
+    expect(marche('Home', s(3, 0), s(1, 0))).toBe('WIN');
+    expect(marche('Away', s(0, 2), s(0, 1))).toBe('WIN');
+    expect(marche('Home', s(3, 0), null)).toBeNull();
+  });
+});
+
 describe('valeurs illisibles et marchés inconnus', () => {
   it('ne règlent rien plutôt que de deviner', () => {
     expect(r('To Win Either Half', 'Home')).toBeNull();

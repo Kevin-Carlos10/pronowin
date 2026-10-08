@@ -167,5 +167,10 @@
   "Chargement des joueurs…": "Loading players…",
   "Effectif indisponible pour ce match": "Squad unavailable for this match",
   "Réglés avec les statistiques des joueurs": "Settled from player statistics",
-  "Réglé avec les statistiques du joueur, environ 2 h 15 après le coup d’envoi. S’il ne joue pas, le pari est remboursé.": "Settled from the player's statistics, about 2 h 15 after kick-off. If the player does not play, the bet is refunded."
+  "Réglé avec les statistiques du joueur, environ 2 h 15 après le coup d’envoi. S’il ne joue pas, le pari est remboursé.": "Settled from the player's statistics, about 2 h 15 after kick-off. If the player does not play, the bet is refunded.",
+  "Ce libellé ne décrit plus le marché sélectionné.": "This label no longer describes the selected market.",
+  "Le résultat sera calculé sur ce marché, pas sur ton texte :": "The result will be settled on that market, not on your text:",
+  "Rétablir le libellé du marché": "Restore the market label",
+  "Marché libre : je réglerai le résultat à la main": "Free market: I will settle the result by hand",
+  "Marché libre — résultat à régler à la main": "Free market — result to be settled by hand"
 }
