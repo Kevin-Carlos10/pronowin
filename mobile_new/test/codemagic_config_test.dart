@@ -37,7 +37,12 @@ void main() {
     expect(w, contains('android-release'));
   });
 
-  test('l\'identifiant Google du YAML est celui de google-services.json', () {
+  // google-services.json est un secret : absent du dépôt et de GitHub,
+  // restauré par Codemagic avant ses propres tests, où ce contrôle s'exécute.
+  final sansSecret = File('android/app/google-services.json').existsSync()
+      ? null
+      : 'google-services.json absent (secret restauré par Codemagic)';
+  test('l\'identifiant Google du YAML est celui de google-services.json', skip: sansSecret, () {
     final json = jsonDecode(
         File('android/app/google-services.json').readAsStringSync()) as Map;
 

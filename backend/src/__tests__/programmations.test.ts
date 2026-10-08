@@ -60,10 +60,16 @@ describe('ce qui se refuse avant toute écriture', () => {
 const marque = `banc-prog-${Date.now()}`;
 const matchs: string[] = [];
 const programmations: string[] = [];
+let adminDeBanc: string | null = null;
 
 async function brouillon(coupEnvoiDansMin: number, cote = 1.8) {
-  const admin = await prisma.admin.findFirst({ select: { id: true } });
-  if (!admin) throw new Error('Aucun administrateur dans la base locale.');
+  // Une base vierge (celle de GitHub) n'a pas d'administrateur : le banc crée
+  // le sien, et le retire à la fin.
+  let admin = await prisma.admin.findFirst({ select: { id: true } });
+  if (!admin) {
+    admin = await prisma.admin.create({ data: { email: `${marque}@banc.local`, passwordHash: 'banc', name: 'Banc' }, select: { id: true } });
+    adminDeBanc = admin.id;
+  }
   const m = await prisma.match.create({ data: {
     externalId: Math.floor(Math.random() * 1e9), league: marque, leagueCode: 'BANC',
     homeTeam: `${marque}-A`, awayTeam: `${marque}-B`, matchDate: dans(coupEnvoiDansMin),
@@ -82,6 +88,7 @@ afterAll(async () => {
   ] } });
   await prisma.pronostic.deleteMany({ where: { matchId: { in: matchs } } });
   await prisma.match.deleteMany({ where: { id: { in: matchs } } });
+  if (adminDeBanc) await prisma.admin.delete({ where: { id: adminDeBanc } });
   await prisma.$disconnect();
 });
 

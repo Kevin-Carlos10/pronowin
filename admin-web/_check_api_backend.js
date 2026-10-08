@@ -16,7 +16,9 @@
 const fs   = require('fs');
 const path = require('path');
 
-const BACKEND = 'C:/xampp/htdocs/PronoWin/backend/src';
+// Relatif : écrit en dur (« C:/xampp/… »), il n'existait que sur le poste de
+// développement, et la vérification échouait partout ailleurs.
+const BACKEND = path.join(__dirname, '..', 'backend', 'src');
 
 // ── Routes du backend ───────────────────────────────────────────────────────
 const routes = new Set();

@@ -20,6 +20,15 @@ void main() {
   final plistApp    = File('$racineIos/Info.plist');
   final jsonAndroid = File('android/app/google-services.json');
 
+  // Deux fichiers secrets, absents du dépôt et de GitHub : Codemagic les
+  // restaure avant ses tests, et ce banc y vérifie leur contenu. Ailleurs,
+  // il n'a rien à lire.
+  if (!plistGoogle.existsSync() || !jsonAndroid.existsSync()) {
+    test('configuration Google iOS', () {},
+        skip: 'GoogleService-Info.plist ou google-services.json absent (secrets restaurés par Codemagic)');
+    return;
+  }
+
   String? valeurPlist(String contenu, String cle) {
     final m = RegExp('<key>$cle</key>\\s*<string>([^<]*)</string>').firstMatch(contenu);
     return m?.group(1);

@@ -69,7 +69,13 @@ jobs:
         with:
           node-version: 22
           cache: npm
-          cache-dependency-path: admin-web/package-lock.json
+          cache-dependency-path: |
+            admin-web/package-lock.json
+            backend/package-lock.json
+      # Les vérifications du panneau lisent le code du serveur (TypeScript,
+      # catalogue des traductions, module des marchés).
+      - run: npm ci
+        working-directory: backend
       - run: npm ci
       - run: npm test
 
@@ -86,6 +92,9 @@ jobs:
           flutter-version: 3.41.9
           channel: stable
           cache: true
+      # Le banc d'écran mesure le texte avec Roboto, que le SDK ne télécharge
+      # pas d'office (bin/cache/artifacts/material_fonts).
+      - run: flutter precache --universal
       - run: flutter pub get
       - run: flutter analyze --no-fatal-infos
       - run: flutter test
