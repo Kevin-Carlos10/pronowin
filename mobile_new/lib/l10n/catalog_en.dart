@@ -1471,4 +1471,5 @@ const englishMessages = <String, String>{
   "Tous les marchés": "All markets",
   "Les autres marchés sont momentanément indisponibles.": "Other markets are temporarily unavailable.",
   "Cotes indicatives, actualisées toutes les cinq minutes jusqu'au coup d'envoi.": "Indicative odds, updated every five minutes until kick-off.",
+  "Cartons": "Cards",
 };

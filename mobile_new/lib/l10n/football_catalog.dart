@@ -604,6 +604,106 @@ const footballCatalogJson = r'''{
       "en": "Away Player Shots Total",
       "fr": "Total de tirs extérieur",
       "aliases": []
+    },
+    {
+      "en": "Yellow Over/Under",
+      "fr": "Plus / Moins de cartons jaunes",
+      "aliases": []
+    },
+    {
+      "en": "Yellow Over/Under (1st Half)",
+      "fr": "Plus / Moins de cartons jaunes — 1ère MT",
+      "aliases": []
+    },
+    {
+      "en": "Yellow Over/Under (2nd Half)",
+      "fr": "Plus / Moins de cartons jaunes — 2ème MT",
+      "aliases": []
+    },
+    {
+      "en": "Home Team Yellow Cards",
+      "fr": "Cartons jaunes domicile",
+      "aliases": []
+    },
+    {
+      "en": "Away Team Yellow Cards",
+      "fr": "Cartons jaunes extérieur",
+      "aliases": []
+    },
+    {
+      "en": "Yellow Cards 1x2",
+      "fr": "Équipe avec le plus de cartons jaunes",
+      "aliases": []
+    },
+    {
+      "en": "Yellow Cards 1x2 (1st Half)",
+      "fr": "Équipe avec le plus de cartons jaunes — 1ère MT",
+      "aliases": []
+    },
+    {
+      "en": "Yellow Cards 1x2 (2nd Half)",
+      "fr": "Équipe avec le plus de cartons jaunes — 2ème MT",
+      "aliases": []
+    },
+    {
+      "en": "Yellow Asian Handicap",
+      "fr": "Handicap asiatique cartons jaunes",
+      "aliases": []
+    },
+    {
+      "en": "Yellow Asian Handicap (1st Half)",
+      "fr": "Handicap asiatique cartons jaunes — 1ère MT",
+      "aliases": []
+    },
+    {
+      "en": "Yellow Asian Handicap (2nd Half)",
+      "fr": "Handicap asiatique cartons jaunes — 2ème MT",
+      "aliases": []
+    },
+    {
+      "en": "Yellow Double Chance",
+      "fr": "Double chance cartons jaunes",
+      "aliases": []
+    },
+    {
+      "en": "Yellow Odd/Even",
+      "fr": "Pair/Impair cartons jaunes",
+      "aliases": []
+    },
+    {
+      "en": "Fouls. Total",
+      "fr": "Total fautes du match",
+      "aliases": []
+    },
+    {
+      "en": "Fouls. Home Total",
+      "fr": "Total fautes domicile",
+      "aliases": []
+    },
+    {
+      "en": "Fouls. Away Total",
+      "fr": "Total fautes extérieur",
+      "aliases": []
+    },
+    {
+      "en": "Fouls. 1x2",
+      "fr": "Équipe avec le plus de fautes",
+      "aliases": []
+    },
+    {
+      "en": "Fouls. Double Chance",
+      "fr": "Double chance fautes",
+      "aliases": []
+    },
+    {
+      "en": "Fouls. Handicap",
+      "fr": "Handicap fautes",
+      "aliases": []
+    },
+    {
+      "en": "Fouls. Odd/Even",
+      "fr": "Pair/Impair fautes",
+      "aliases": []
     }
   ],
   "selections": [

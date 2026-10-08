@@ -17,6 +17,7 @@ const _marches = [
   MarcheCote('Goals Over/Under', [CoteMarche('Over 2.5', 1.9), CoteMarche('Under 2.5', 1.95)]),
   MarcheCote('Both Teams Score', [CoteMarche('Yes', 1.7), CoteMarche('No', 2.1)]),
   MarcheCote('Corners 1x2 (1st Half)', [CoteMarche('Home', 1.6), CoteMarche('Draw', 4.5), CoteMarche('Away', 3.1)]),
+  MarcheCote('Yellow Over/Under', [CoteMarche('Over 3.5', 1.75), CoteMarche('Under 3.5', 2.0)]),
   // Nom inconnu du catalogue, puis valeur inconnue : écartés en entier.
   MarcheCote('Corners Race To', [CoteMarche('Home 3', 1.5), CoteMarche('Draw 3', 9.0)]),
   MarcheCote('Total Shots', [CoteMarche('Over 25.5', 1.8), CoteMarche('Draw 3', 2.0)]),
@@ -91,7 +92,7 @@ void main() {
     // Les marchés que le catalogue ne sait pas nommer entièrement : absents.
     expect(find.textContaining('Race'), findsNothing);
     expect(find.text('Total de tirs du match'), findsNothing);
-    expect(find.text('4'), findsOneWidget);
+    expect(find.text('5'), findsOneWidget);
 
     // Filtre « Corners » : le seul marché de corners reste, replié.
     await t.tap(find.byKey(const Key('cotes-famille-corners')));
@@ -102,6 +103,12 @@ void main() {
     await t.tap(find.byKey(const Key('marche-Corners 1x2 (1st Half)')));
     await t.pump(const Duration(milliseconds: 300));
     expect(find.text('1.60'), findsOneWidget);
+
+    // Les cartons ont leur famille, pas celle des buts.
+    await t.tap(find.byKey(const Key('cotes-famille-cartons')));
+    await t.pump(const Duration(milliseconds: 300));
+    expect(find.text('Plus / Moins de cartons jaunes'), findsOneWidget);
+    expect(find.text('Équipe avec le plus de corners — 1ère MT'), findsNothing);
     expect(t.takeException(), isNull);
     await t.pumpWidget(const SizedBox()); await t.pump();
   });

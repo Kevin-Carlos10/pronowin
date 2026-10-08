@@ -6,7 +6,7 @@
 part of '../match_detail_page.dart';
 
 /// Les familles de marchés, pour trier une liste d'une cinquantaine.
-enum _FamilleMarche { principaux, buts, miTemps, corners, tirs }
+enum _FamilleMarche { principaux, buts, miTemps, corners, tirs, cartons, fautes }
 
 const _marchesPrincipaux = {
   'match winner', 'double chance', 'both teams score', 'goals over/under',
@@ -17,6 +17,8 @@ _FamilleMarche _familleDe(String nom) {
   final n = nom.toLowerCase();
   if (n.contains('corner')) return _FamilleMarche.corners;
   if (n.contains('shot')) return _FamilleMarche.tirs;
+  if (n.contains('yellow') || n.contains('card')) return _FamilleMarche.cartons;
+  if (n.startsWith('fouls')) return _FamilleMarche.fautes;
   if (_marchesPrincipaux.contains(n)) return _FamilleMarche.principaux;
   if (RegExp(r'half|ht/ft').hasMatch(n)) return _FamilleMarche.miTemps;
   return _FamilleMarche.buts;
@@ -80,6 +82,8 @@ class _ToutesLesCotesState extends ConsumerState<_ToutesLesCotes> {
     _FamilleMarche.miTemps     => tr(context, "Mi-temps"),
     _FamilleMarche.corners     => tr(context, "Corners"),
     _FamilleMarche.tirs        => tr(context, "Tirs"),
+    _FamilleMarche.cartons     => tr(context, "Cartons"),
+    _FamilleMarche.fautes      => tr(context, "Fautes"),
   };
 
   @override
