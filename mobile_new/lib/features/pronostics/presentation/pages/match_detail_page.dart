@@ -30,6 +30,7 @@ import '../../../../features/abonnement/presentation/providers/subscription_prov
 import '../../domain/entities/match_entity.dart';
 import '../providers/pronostics_provider.dart';
 import '../providers/match_info_provider.dart';
+import '../providers/fiche_match_provider.dart';
 import '../widgets/comments_section.dart';
 import '../widgets/prono_share_card.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
@@ -61,6 +62,7 @@ part 'match_detail/miser.dart';
 part 'match_detail/statistiques.dart';
 part 'match_detail/informations.dart';
 part 'match_detail/analyse_modele.dart';
+part 'match_detail/toutes_cotes.dart';
 
 /// La carte des palmarès d'une compétition, seule, pour les bancs d'essai.
 @visibleForTesting
@@ -305,6 +307,9 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     final standingsAsync = ref.watch(standingsProvider(match.id));
     final h2hAsync       = ref.watch(h2hProvider(match.id));
     final statsAsync     = ref.watch(matchStatsProvider(match.id));
+    // Les cotes de tous les marchés n'existent qu'avant le coup d'envoi.
+    final avantMatch     = match.status == MatchStatus.upcoming;
+    final cotesAsync     = avantMatch ? ref.watch(cotesMarchesProvider(match.id)) : null;
 
     // Les onglets restent visibles même sur un pronostic verrouillé : ils ne
     // servent que de la donnée de match (compositions, classements,
@@ -322,7 +327,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     final ongletsEnCours = (
       lineupsAsync.isLoading || injuriesAsync.isLoading ||
       standingsAsync.isLoading || h2hAsync.isLoading ||
-      statsAsync.isLoading);
+      statsAsync.isLoading || (cotesAsync?.isLoading ?? false));
 
     // Un 401 (invité) affiche quand même l'onglet — avec une invite à se
     // connecter à l'intérieur — plutôt que de le cacher comme s'il n'y avait
@@ -336,7 +341,14 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
       return hasContent();
     }
 
-    final showCotes = match.hasPronostic && match.status != MatchStatus.finished;
+    // Le bandeau 1X2 du pronostic, au-dessus des autres marchés.
+    final bandeau1x2 = match.oddsHome > 0 || match.oddsDraw > 0 || match.oddsAway > 0;
+    // Un match sans pronostic a aussi son onglet, dès qu'un marché est coté :
+    // comme les autres onglets football, c'est de la donnée, pas l'offre.
+    final showCotes = (match.hasPronostic && match.status != MatchStatus.finished) ||
+      _marchesAffichables(cotesAsync?.valueOrNull ?? const [], match,
+        langue: AppStrings.of(context).locale.languageCode,
+        sans1x2: bandeau1x2).isNotEmpty;
     final showStats = match.status != MatchStatus.upcoming;
     // L'onglet reste stable pendant le rafraîchissement et les coupures réseau.
     // Les faits marquants vivent dans l'onglet Détails, pas dans Statistiques.
@@ -404,10 +416,8 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
               delaiMs: 90),
           const SizedBox(height: 16),
         ],
-        if (match.homeFormPoints > 0 || match.awayFormPoints > 0) ...[
-          entree(_FormCard(match: match), delaiMs: 140),
-          const SizedBox(height: 16),
-        ],
+        // Porte sa propre marge : absente, elle ne laisse pas de trou.
+        entree(_FormeRecente(match: match), delaiMs: 140),
         if (match.hasPronostic) ...[
         entree(_AIAnalysisCard(matchId: match.id, status: match.status,
                 confianceAnalyste: match.pourcentageConfiance,
@@ -442,7 +452,11 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         if (match.hasPronostic)
           entree(CommentsSection(pronosticId: match.id), delaiMs: 310),
       ])),
-      if (showCotes) (tr(context, "Cotes"), _OddsCard(match: match)),
+      if (showCotes) (tr(context, "Cotes"), Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        _OddsCard(match: match),
+        if (avantMatch) _ToutesLesCotes(match: match, sans1x2: bandeau1x2),
+      ])),
       if (showStats) (tr(context, "Statistiques"), Column(children: [
         _MatchStatsCard(matchId: match.id),
         const SizedBox(height: 16),

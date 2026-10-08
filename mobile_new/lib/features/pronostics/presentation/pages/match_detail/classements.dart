@@ -94,6 +94,12 @@ class _StandingsCard extends ConsumerWidget {
 }
 
 
+/// Les quatre lectures d'un classement que propose Sofascore : le général, le
+/// classement des seuls matchs à domicile, celui des matchs à l'extérieur, et
+/// la forme des cinq dernières journées. Pour un pronostic, « 3ᵉ à domicile,
+/// 14ᵉ à l'extérieur » en dit plus qu'un rang général.
+enum _VueClassement { general, domicile, exterieur, forme }
+
 /// Group selection stays independent of rankings (several groups can have rank 1).
 class _GroupedStandings extends StatefulWidget {
   final List<StandingRow> rows;
@@ -107,6 +113,15 @@ class _GroupedStandings extends StatefulWidget {
 
 class _GroupedStandingsState extends State<_GroupedStandings> {
   String? _selected;
+  _VueClassement _vue = _VueClassement.general;
+
+  String _titreVue(BuildContext context, _VueClassement v) => switch (v) {
+    _VueClassement.general   => tr(context, "Général"),
+    _VueClassement.domicile  => tr(context, "Domicile"),
+    _VueClassement.exterieur => tr(context, "Extérieur"),
+    _VueClassement.forme     => tr(context, "Forme"),
+  };
+
   @override
   void didUpdateWidget(covariant _GroupedStandings oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -121,7 +136,22 @@ class _GroupedStandingsState extends State<_GroupedStandings> {
        _StandingsCard.memeEquipe(r.teamName, widget.awayTeam));
     final preferred = widget.rows.where(concerned).firstOrNull?.groupId ?? groups.keys.first;
     final chosen = groups.containsKey(_selected) ? _selected! : preferred;
-    final rows = groups[chosen]!;
+    final groupe = groups[chosen]!;
+    // Une vue n'est proposée que si chaque ligne a de quoi la remplir : un
+    // serveur antérieur n'envoie pas les bilans, un début de saison pas la
+    // forme.
+    final vues = [
+      _VueClassement.general,
+      if (groupe.every((r) => r.home != null && r.away != null)) ...[
+        _VueClassement.domicile, _VueClassement.exterieur],
+      if (groupe.any((r) => r.form?.isNotEmpty == true)) _VueClassement.forme,
+    ];
+    final vue = vues.contains(_vue) ? _vue : _VueClassement.general;
+    final rows = switch (vue) {
+      _VueClassement.domicile  => classementSurTerrain(groupe, domicile: true) ?? groupe,
+      _VueClassement.exterieur => classementSurTerrain(groupe, domicile: false) ?? groupe,
+      _                        => groupe,
+    };
     String label(String id) {
       final name = groups[id]!.first.groupName;
       if (name == null || name.trim().isEmpty) {
@@ -156,11 +186,36 @@ class _GroupedStandingsState extends State<_GroupedStandings> {
         _FraicheurDonnees(updatedAt: rows.first.updatedAt, stale: widget.failed || rows.first.stale),
         const SizedBox(height: 12),
       ],
+      if (vues.length > 1) ...[
+        // Retour à la ligne plutôt que défilement : les choix restent tous
+        // visibles, même avec le texte agrandi.
+        Wrap(spacing: 6, runSpacing: 6, children: [
+          for (final v in vues)
+            ChoiceChip(
+              key: Key('classement-${v.name}'),
+              label: Text(_titreVue(context, v)),
+              selected: v == vue,
+              onSelected: (_) => setState(() => _vue = v),
+              labelStyle: TextStyle(
+                fontSize: 11.5,
+                fontWeight: v == vue ? FontWeight.w700 : FontWeight.w500,
+                color: v == vue ? context.cl.textP : context.cl.textS),
+              selectedColor: context.cl.info.withValues(alpha: 0.16),
+              side: BorderSide(color: v == vue
+                  ? context.cl.info.withValues(alpha: 0.5)
+                  : context.cl.borderSoft),
+              showCheckmark: false,
+              visualDensity: VisualDensity.compact,
+            ),
+        ]),
+        const SizedBox(height: 12),
+      ],
       LayoutBuilder(builder: (context, constraints) {
         final minWidth = MediaQuery.textScalerOf(context).scale(310);
         return SingleChildScrollView(scrollDirection: Axis.horizontal,
           child: SizedBox(width: constraints.maxWidth < minWidth ? minWidth : constraints.maxWidth,
-            child: _StandingsTable(rows: rows, homeTeam: widget.homeTeam, awayTeam: widget.awayTeam)));
+            child: _StandingsTable(rows: rows, homeTeam: widget.homeTeam, awayTeam: widget.awayTeam,
+              forme: vue == _VueClassement.forme)));
       }),
     ]);
   }
@@ -198,8 +253,16 @@ class _StandingsTable extends StatelessWidget {
   final List<StandingRow> rows;
   final String homeTeam;
   final String awayTeam;
+
+  /// Vue « Forme » : les cinq dernières issues à la place des matchs joués et
+  /// de la différence de buts.
+  final bool forme;
   const _StandingsTable({
-    required this.rows, required this.homeTeam, required this.awayTeam});
+    required this.rows, required this.homeTeam, required this.awayTeam,
+    this.forme = false});
+
+  /// Cinq pastilles de 15 et leurs écarts.
+  static const largeurForme = 92.0;
 
   @override
   Widget build(BuildContext context) {
@@ -228,7 +291,7 @@ class _StandingsTable extends StatelessWidget {
       }
       zonePrecedente = r.zone;
       lignes.add(_LigneClassement(
-        row: r, homeTeam: homeTeam, awayTeam: awayTeam));
+        row: r, homeTeam: homeTeam, awayTeam: awayTeam, forme: forme));
     }
 
     return Column(children: [
@@ -236,8 +299,13 @@ class _StandingsTable extends StatelessWidget {
         SizedBox(width: MediaQuery.textScalerOf(context).scale(22)),
         Expanded(child: Text(tr(context, "Équipe"),
           style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600))),
-        _StandingsHeaderCell('J'),
-        _StandingsHeaderCell('+/-'),
+        if (forme)
+          SizedBox(width: largeurForme, child: Text(tr(context, "Forme"), textAlign: TextAlign.center,
+            style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600)))
+        else ...[
+          _StandingsHeaderCell('J'),
+          _StandingsHeaderCell('+/-'),
+        ],
         _StandingsHeaderCell('Pts'),
       ]),
       const SizedBox(height: 6),
@@ -251,8 +319,10 @@ class _StandingsTable extends StatelessWidget {
 class _LigneClassement extends StatelessWidget {
   final StandingRow row;
   final String homeTeam, awayTeam;
+  final bool forme;
   const _LigneClassement({
-    required this.row, required this.homeTeam, required this.awayTeam});
+    required this.row, required this.homeTeam, required this.awayTeam,
+    this.forme = false});
 
   @override
   Widget build(BuildContext context) {
@@ -300,8 +370,14 @@ class _LigneClassement extends StatelessWidget {
             color: concernee ? context.cl.textP : context.cl.textS,
             fontSize: 11.5,
             fontWeight: concernee ? FontWeight.w700 : FontWeight.w400))),
-        _StandingsCell('${row.played}'),
-        _StandingsCell(row.goalsDiff > 0 ? '+${row.goalsDiff}' : '${row.goalsDiff}'),
+        if (forme)
+          SizedBox(width: _StandingsTable.largeurForme, child: Center(child: _RangeeForme(
+            formeChronologique(row.form).reversed.take(5).toList().reversed.toList(),
+            taille: 15)))
+        else ...[
+          _StandingsCell('${row.played}'),
+          _StandingsCell(row.goalsDiff > 0 ? '+${row.goalsDiff}' : '${row.goalsDiff}'),
+        ],
         SizedBox(width: MediaQuery.textScalerOf(context).scale(28), child: Text('${row.points}', textAlign: TextAlign.center,
           style: TextStyle(color: context.cl.textP, fontSize: 11.5, fontWeight: FontWeight.w700))),
       ]),

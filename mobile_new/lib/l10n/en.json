@@ -1453,5 +1453,20 @@
   "{arg0}. {arg1} Niveau {arg2}.{arg3}": "{arg0}. {arg1} Level {arg2}.{arg3}",
   "Ta récompense tombe dès qu'ils passent Premium": "Your reward arrives as soon as they go Premium",
   "Les amis inscrits avec ton code apparaîtront ici.": "Friends who sign up with your code will appear here.",
-  "Chargement du profil…": "Loading profile…"
+  "Chargement du profil…": "Loading profile…",
+  "Victoire": "Win",
+  "Match nul": "Draw",
+  "Défaite": "Loss",
+  "Forme récente": "Recent form",
+  "Domicile": "Home",
+  "Extérieur": "Away",
+  "Général": "Overall",
+  "Aucun match récent connu pour cette équipe.": "No recent match known for this team.",
+  "Principaux": "Main",
+  "Mi-temps": "Halves",
+  "Corners": "Corners",
+  "Tirs": "Shots",
+  "Tous les marchés": "All markets",
+  "Les autres marchés sont momentanément indisponibles.": "Other markets are temporarily unavailable.",
+  "Cotes indicatives, actualisées toutes les cinq minutes jusqu'au coup d'envoi.": "Indicative odds, updated every five minutes until kick-off."
 }

@@ -523,6 +523,23 @@ final injuriesProvider = FutureProvider.autoDispose.family<List<InjuredPlayer>, 
 });
 
 // ─── Classement ─────────────────────────────────────────────────────────────────
+
+/// Le bilan d'une équipe sur un terrain — à domicile ou à l'extérieur.
+class Bilan {
+  final int played, win, draw, lose, goalsFor, goalsAgainst, points;
+  const Bilan({
+    required this.played, required this.win, required this.draw, required this.lose,
+    required this.goalsFor, required this.goalsAgainst, required this.points,
+  });
+
+  static Bilan? fromJson(Object? j) {
+    if (j is! Map) return null;
+    int n(String k) => (j[k] as num?)?.toInt() ?? 0;
+    return Bilan(played: n('played'), win: n('win'), draw: n('draw'), lose: n('lose'),
+      goalsFor: n('goalsFor'), goalsAgainst: n('goalsAgainst'), points: n('points'));
+  }
+}
+
 class StandingRow {
   final String groupId;
   final String? groupName;
@@ -549,14 +566,29 @@ class StandingRow {
   /// doit pas dépendre d'une chaîne de caractères.
   final String? zoneNature;
 
+  /// Bilans par terrain, pour le classement « Domicile » et « Extérieur » que
+  /// propose Sofascore. Absents d'un serveur antérieur au 8 octobre 2026.
+  final Bilan? home, away;
+
   const StandingRow({
     this.groupId = '0', this.groupName, this.season, this.teamId,
     this.isMatchTeam, this.stale = false, this.updatedAt,
     required this.rank, required this.teamName, this.teamLogo,
     required this.played, required this.win, required this.draw, required this.lose,
     required this.goalsDiff, required this.points, this.form,
-    this.zone, this.zoneNature,
+    this.zone, this.zoneNature, this.home, this.away,
   });
+
+  /// La même équipe, classée sur un seul terrain : rang, matchs et points de
+  /// ce bilan. Sans zone — une place qualificative se gagne au classement
+  /// général, pas au classement à domicile.
+  StandingRow surTerrain(Bilan b, int rang) => StandingRow(
+    groupId: groupId, groupName: groupName, season: season, teamId: teamId,
+    isMatchTeam: isMatchTeam, stale: stale, updatedAt: updatedAt,
+    rank: rang, teamName: teamName, teamLogo: teamLogo,
+    played: b.played, win: b.win, draw: b.draw, lose: b.lose,
+    goalsDiff: b.goalsFor - b.goalsAgainst, points: b.points, form: form,
+  );
 
   factory StandingRow.fromJson(Map<String, dynamic> j) => StandingRow(
     groupId: j['groupId']?.toString() ?? '0',
@@ -578,7 +610,26 @@ class StandingRow {
     form:      j['form'] as String?,
     zone:       j['zone'] as String?,
     zoneNature: j['zoneNature'] as String?,
+    home: Bilan.fromJson(j['home']),
+    away: Bilan.fromJson(j['away']),
   );
+}
+
+/// Un groupe du classement recomposé sur un terrain, départagé comme le
+/// fournisseur départage le général : points, différence de buts, buts
+/// marqués. `null` si une ligne n'a pas son bilan (serveur plus ancien).
+List<StandingRow>? classementSurTerrain(List<StandingRow> rows, {required bool domicile}) {
+  final bilans = [for (final r in rows) (r, domicile ? r.home : r.away)];
+  if (bilans.any((b) => b.$2 == null)) return null;
+  bilans.sort((a, b) {
+    final x = a.$2!, y = b.$2!;
+    return y.points.compareTo(x.points) != 0 ? y.points.compareTo(x.points)
+      : (y.goalsFor - y.goalsAgainst).compareTo(x.goalsFor - x.goalsAgainst) != 0
+        ? (y.goalsFor - y.goalsAgainst).compareTo(x.goalsFor - x.goalsAgainst)
+      : y.goalsFor.compareTo(x.goalsFor) != 0 ? y.goalsFor.compareTo(x.goalsFor)
+      : a.$1.rank.compareTo(b.$1.rank);
+  });
+  return [for (var i = 0; i < bilans.length; i++) bilans[i].$1.surTerrain(bilans[i].$2!, i + 1)];
 }
 
 final standingsProvider = FutureProvider.autoDispose.family<List<StandingRow>, String>((ref, id) async {
