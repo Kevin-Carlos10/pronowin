@@ -13,6 +13,14 @@
  * aucun état.
  */
 
+// Les marchés 1xBet absents de l'API (« gagne au moins une mi-temps »,
+// combinés, handicap européen…) : le module que le panneau utilise pour
+// construire leur valeur est aussi celui qui les règle.
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const marchesComplementaires = require('../marches/complementaires') as {
+  regler(nom: string, valeur: string, ft: ScoreLine, fh: ScoreLine | null): 'WIN' | 'LOSS' | null;
+};
+
 // Calcule WIN ou LOSS selon le type de pronostic et le score final
 export function _computeResult(
   type: string,
@@ -249,10 +257,11 @@ export function _computeCustomMarketResult(
       return sh && h ? _asianHandicapResult(h.side, h.line, sh) : null;
     }
 
-    // "To Qualify" (concept aller-retour) et tout marché non reconnu restent
-    // en résolution manuelle via les boutons WIN/LOSS/Remboursé de l'admin.
+    // Les marchés 1xBet hors API se règlent par leur module ; "To Qualify"
+    // (concept aller-retour) et tout marché non reconnu restent en résolution
+    // manuelle via les boutons WIN/LOSS/Remboursé de l'admin.
     default:
-      return null;
+      return marchesComplementaires.regler(marketName, marketValue, ft, fh);
   }
 }
 

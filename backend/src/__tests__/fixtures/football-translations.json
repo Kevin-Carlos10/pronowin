@@ -306,5 +306,40 @@
     "fr": "Côte d'Ivoire",
     "en": "Ivory Coast",
     "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "Nul dans au moins une mi-temps : Oui",
+    "fr": "Nul dans au moins une mi-temps : Oui",
+    "en": "Draw In Either Half : Yes",
+    "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "Handicap européen : Nul / -1",
+    "fr": "Handicap européen : Nul / -1",
+    "en": "European Handicap : Draw / -1",
+    "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "Double chance + les deux équipes marquent : 1X / Non",
+    "fr": "Double chance + les deux équipes marquent : 1X / Non",
+    "en": "Double Chance/Both Teams Score : 1X / No",
+    "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "Au moins une équipe marque : Plus de 1,5 / Oui",
+    "fr": "Au moins une équipe marque : Plus de 1,5 / Oui",
+    "en": "At Least One Team To Score : Over 1.5 / Yes",
+    "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "Mi-temps/fin + total : Nul / Nul / Moins de 2,5 / Oui",
+    "fr": "Mi-temps/fin + total : Nul / Nul / Moins de 2,5 / Oui",
+    "en": "HT/FT/Total : Draw / Draw / Under 2.5 / Yes",
+    "known": true
   }
 ]

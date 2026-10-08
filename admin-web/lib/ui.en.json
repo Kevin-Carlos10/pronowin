@@ -131,5 +131,21 @@
   "Abonnement": "Subscription",
   "Abonnement Premium": "Premium subscription",
   "Santé du système": "System health",
-  "Article en français": "French article"
+  "Article en français": "French article",
+  "Autres marchés 1xBet (cote à saisir)": "Other 1xBet markets (enter the odds)",
+  "Marchés absents de l’API : recopie la cote affichée par 1xBet. Le résultat se calcule tout seul avec le score du match.": "Markets missing from the API: copy the odds shown by 1xBet. The result is settled automatically from the match score.",
+  "Marché": "Market",
+  "Choisir un marché": "Choose a market",
+  "Cote 1xBet": "1xBet odds",
+  "Utiliser ce marché": "Use this market",
+  "Équipe": "Team",
+  "Résultat": "Result",
+  "Mi-temps": "Half-time",
+  "Double chance": "Double chance",
+  "Total": "Total",
+  "Buts d’au moins une équipe": "Goals by at least one team",
+  "Oui / Non": "Yes / No",
+  "Handicap (nul : celui de l’équipe 1)": "Handicap (draw: the home team’s)",
+  "Choisis toutes les options du marché.": "Choose every option of the market.",
+  "Saisis la cote 1xBet (au moins 1,01).": "Enter the 1xBet odds (at least 1.01)."
 }

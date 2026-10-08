@@ -308,6 +308,76 @@
       "en": "Clean Sheet - Away",
       "fr": "Extérieur sans encaisser de but",
       "aliases": []
+    },
+    {
+      "en": "To Win Either Half",
+      "fr": "Gagne au moins une mi-temps",
+      "aliases": []
+    },
+    {
+      "en": "Draw In Either Half",
+      "fr": "Nul dans au moins une mi-temps",
+      "aliases": []
+    },
+    {
+      "en": "Goal In Both Halves",
+      "fr": "But dans chaque mi-temps",
+      "aliases": []
+    },
+    {
+      "en": "To Score In Both Halves",
+      "fr": "Marque dans les deux mi-temps",
+      "aliases": []
+    },
+    {
+      "en": "Result/Both Teams Score",
+      "fr": "Résultat + les deux équipes marquent",
+      "aliases": []
+    },
+    {
+      "en": "Double Chance/Both Teams Score",
+      "fr": "Double chance + les deux équipes marquent",
+      "aliases": []
+    },
+    {
+      "en": "Both Teams Score/Total",
+      "fr": "Les deux équipes marquent + total",
+      "aliases": []
+    },
+    {
+      "en": "European Handicap",
+      "fr": "Handicap européen",
+      "aliases": []
+    },
+    {
+      "en": "HT/FT/Total",
+      "fr": "Mi-temps/fin + total",
+      "aliases": []
+    },
+    {
+      "en": "To Win To Nil",
+      "fr": "Gagne sans encaisser",
+      "aliases": []
+    },
+    {
+      "en": "Either Team To Win To Nil",
+      "fr": "Une équipe gagne sans encaisser",
+      "aliases": []
+    },
+    {
+      "en": "Double Chance/Team Total",
+      "fr": "Double chance + total d'une équipe",
+      "aliases": []
+    },
+    {
+      "en": "At Least One Team To Score",
+      "fr": "Au moins une équipe marque",
+      "aliases": []
+    },
+    {
+      "en": "At Least One Team Not To Score/Total",
+      "fr": "Au moins une équipe ne marque pas + total",
+      "aliases": []
     }
   ],
   "selections": [

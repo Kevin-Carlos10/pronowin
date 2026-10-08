@@ -42,6 +42,16 @@
 .type-pill:hover, .type-pill.active { background:rgba(var(--primary-rgb),.12); border-color:var(--primary); color:var(--primary-texte); }
 .pill-odd { margin-left:.35rem; font-weight:800; }
 
+/* ── Autres marchés 1xBet (hors API, cote saisie) ─────────────────────────── */
+.marches-plus { margin-top:.6rem; }
+.marches-plus-corps { padding:.75rem; display:grid; gap:.6rem; }
+.marches-plus-aide { font-size:var(--fs-xs); color:var(--text-m); margin:0; }
+.marches-plus-options { display:grid; grid-template-columns:repeat(auto-fit,minmax(9rem,1fr)); gap:.6rem; }
+.marches-plus-corps label { display:block; font-size:var(--fs-xs); color:var(--text-m); margin-bottom:.25rem; font-weight:600; }
+.marches-plus-apercu { font-size:var(--fs-s); color:var(--text); margin:0; min-height:1.2em; }
+.marches-plus-erreur { font-size:var(--fs-s); color:var(--on-danger); margin:0; font-weight:600; }
+.marches-plus-corps .btn { justify-self:start; min-height:44px; }
+
 /* ── Tous les marchés (accordéon) ─────────────────────────────────────────────── */
 .markets-wrap { border:1px solid var(--border); border-radius:8px; overflow:hidden; }
 .markets-wrap > summary {
@@ -424,6 +434,27 @@
           </summary>
           <div id="markets-accordion" style="padding:.6rem .5rem 0"></div>
         </details>
+
+        <!-- Marchés que l'API ne fournit pas : la cote se recopie depuis 1xBet,
+             le résultat se règle avec le score (backend/src/marches/). -->
+        <details class="markets-wrap marches-plus" id="marches-plus">
+          <summary><span><%= uiText("Autres marchés 1xBet (cote à saisir)") %></span></summary>
+          <div class="marches-plus-corps">
+            <p class="marches-plus-aide"><%= uiText("Marchés absents de l’API : recopie la cote affichée par 1xBet. Le résultat se calcule tout seul avec le score du match.") %></p>
+            <div>
+              <label for="mp-marche"><%= uiText("Marché") %></label>
+              <select class="input" id="mp-marche"><option value=""><%= uiText("Choisir un marché") %></option></select>
+            </div>
+            <div class="marches-plus-options" id="mp-options"></div>
+            <div>
+              <label for="mp-cote"><%= uiText("Cote 1xBet") %></label>
+              <input class="input" type="number" id="mp-cote" step="0.001" min="1.01" inputmode="decimal" placeholder="1.80">
+            </div>
+            <p class="marches-plus-apercu" id="mp-apercu" aria-live="polite"></p>
+            <p class="marches-plus-erreur" id="mp-erreur" role="alert" hidden></p>
+            <button type="button" class="btn btn-outline" id="mp-utiliser"><%= uiText("Utiliser ce marché") %></button>
+          </div>
+        </details>
       </div>
 
       <!-- Cotes -->
@@ -611,6 +642,7 @@
 <% } %>
 
 <script src="/admin/assets/football-i18n.js"></script>
+<script src="/admin/assets/marches-complementaires.js"></script>
 <script>
 /* Cote minimale de publication — même valeur que COTE_MINIMALE_PUBLICATION
    dans backend/src/services/pronostics.service.ts ; un banc les tient égales.
@@ -916,6 +948,104 @@ function renderMarketsAccordion(markets) {
   document.getElementById('markets-count').textContent = (markets || []).length + ' marchés';
   document.getElementById('all-markets-section').style.display = markets && markets.length ? 'block' : 'none';
 }
+
+/* ── Autres marchés 1xBet : hors API, cote saisie, résultat réglé par le score ──
+   La valeur est construite par le module même qui la règlera
+   (backend/src/marches/complementaires.js, copie générée : PronoMarches). */
+const MP_TEXTES = <%- JSON.stringify({
+  equipe: uiText('Équipe'), issue: uiText('Résultat'), issueMt: uiText('Mi-temps'),
+  double: uiText('Double chance'), total: uiText('Total'),
+  auMoins: uiText('Buts d’au moins une équipe'), ouiNon: uiText('Oui / Non'),
+  handicap: uiText('Handicap (nul : celui de l’équipe 1)'),
+  incomplet: uiText('Choisis toutes les options du marché.'),
+  coteInvalide: uiText('Saisis la cote 1xBet (au moins 1,01).'),
+}).replace(/</g, '\\u003c') %>;
+
+function mpChoixPossibles(option) {
+  const texte = v => PronoFootball.selection(v, 'fr', HOME_TEAM, AWAY_TEAM).text;
+  const J = PronoMarches.JETONS;
+  switch (option) {
+    case 'equipe':  return J.equipe.map(v => [v, texte(v)]);
+    case 'issue':
+    case 'issueMt': return J.issue.map(v => [v, texte(v)]);
+    case 'double':  return J.double.map(v => [v, v]);
+    case 'ouiNon':  return J.ouiNon.map(v => [v, texte(v)]);
+    case 'total':   return ['Over', 'Under'].flatMap(sens => PronoMarches.LIGNES.map(l => [sens + ' ' + l, texte(sens + ' ' + l)]));
+    case 'auMoins': return PronoMarches.LIGNES.map(l => ['Over ' + l, texte('Over ' + l)]);
+    case 'handicap': return [-4, -3, -2, -1, 1, 2, 3, 4].map(h => [String(h), (h > 0 ? '+' : '') + h]);
+  }
+  return [];
+}
+
+function mpChoix() {
+  const choix = {};
+  document.querySelectorAll('#mp-options select').forEach(sel => {
+    choix[sel.dataset.option] = sel.dataset.option === 'handicap' ? Number(sel.value) : sel.value;
+  });
+  return choix;
+}
+
+function mpValeur() {
+  const nom = document.getElementById('mp-marche').value;
+  return nom ? { nom, valeur: PronoMarches.encoder(nom, mpChoix()) } : null;
+}
+
+function mpApercu() {
+  const choix = mpValeur();
+  document.getElementById('mp-apercu').textContent = choix && choix.valeur
+    ? translateMarketName(choix.nom) + ' : ' + translateMarketValue(choix.valeur) : '';
+  document.getElementById('mp-erreur').hidden = true;
+}
+
+function mpAfficherOptions() {
+  const nom = document.getElementById('mp-marche').value;
+  const zone = document.getElementById('mp-options');
+  zone.innerHTML = '';
+  const marche = PronoMarches.MARCHES.find(m => m.nom === nom);
+  (marche ? marche.options : []).forEach(option => {
+    const bloc = document.createElement('div');
+    const label = document.createElement('label');
+    label.htmlFor = 'mp-opt-' + option;
+    label.textContent = MP_TEXTES[option] || option;
+    const sel = document.createElement('select');
+    sel.className = 'input';
+    sel.id = 'mp-opt-' + option;
+    sel.dataset.option = option;
+    mpChoixPossibles(option).forEach(([valeur, texte]) => {
+      const o = document.createElement('option');
+      o.value = valeur;
+      o.textContent = texte;
+      sel.appendChild(o);
+    });
+    sel.addEventListener('change', mpApercu);
+    bloc.appendChild(label);
+    bloc.appendChild(sel);
+    zone.appendChild(bloc);
+  });
+  mpApercu();
+}
+
+function utiliserMarchePlus() {
+  const choix = mpValeur();
+  const cote = parseFloat(String(document.getElementById('mp-cote').value).replace(',', '.'));
+  const erreur = document.getElementById('mp-erreur');
+  if (!choix || !choix.valeur) { erreur.textContent = MP_TEXTES.incomplet; erreur.hidden = false; return; }
+  if (!(cote >= 1.01)) { erreur.textContent = MP_TEXTES.coteInvalide; erreur.hidden = false; return; }
+  erreur.hidden = true;
+  selectCustomMarket(choix.nom, choix.valeur, cote, null);
+}
+
+(function initMarchesPlus() {
+  const select = document.getElementById('mp-marche');
+  PronoMarches.MARCHES.forEach(m => {
+    const o = document.createElement('option');
+    o.value = m.nom;
+    o.textContent = translateMarketName(m.nom);
+    select.appendChild(o);
+  });
+  select.addEventListener('change', mpAfficherOptions);
+  document.getElementById('mp-utiliser').addEventListener('click', utiliserMarchePlus);
+})();
 
 /* ── VIP toggle ── */
 function toggleVip() {
