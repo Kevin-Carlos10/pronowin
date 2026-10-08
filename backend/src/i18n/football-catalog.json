@@ -458,6 +458,46 @@
       "en": "Total Yellow Cards",
       "fr": "Total cartons jaunes",
       "aliases": []
+    },
+    {
+      "en": "Player To Score",
+      "fr": "Buteur",
+      "aliases": []
+    },
+    {
+      "en": "Player To Assist",
+      "fr": "Passeur décisif",
+      "aliases": []
+    },
+    {
+      "en": "Player To Score Or Assist",
+      "fr": "Buteur ou passeur décisif",
+      "aliases": []
+    },
+    {
+      "en": "Player To Be Booked",
+      "fr": "Joueur averti",
+      "aliases": []
+    },
+    {
+      "en": "Player Total Shots",
+      "fr": "Total de tirs du joueur",
+      "aliases": []
+    },
+    {
+      "en": "Player Total Shots On Target",
+      "fr": "Total de tirs cadrés du joueur",
+      "aliases": []
+    },
+    {
+      "en": "Player Fouls Drawn",
+      "fr": "Fautes subies par le joueur",
+      "aliases": []
+    },
+    {
+      "en": "Player Fouls Committed",
+      "fr": "Fautes commises par le joueur",
+      "aliases": []
     }
   ],
   "selections": [

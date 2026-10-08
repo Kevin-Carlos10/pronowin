@@ -13,6 +13,10 @@
  *   85'   Brentford, deuxième jaune (expulsion)
  *   90+3' Brentford, but                                   2-2
  * Corners 6 – 4, cartons jaunes 1 – 2, un rouge.
+ *
+ * Feuille des joueurs : John McGinn (Villa, 90 min, 1 but, 3 tirs dont
+ * 1 cadré, 2 fautes subies, averti), un remplaçant resté sur le banc, et
+ * Mikkel Damsgaard (Brentford, 78 min, 1 passe décisive, 2 fautes commises).
  */
 import { normaliserDonnees, resoudrePronostic, ATTENTE_APRES_COUP_ENVOI } from '../services/donnees_reglement';
 
@@ -22,7 +26,22 @@ const { MARCHES, encoder, regler, LIGNES_PAR_OPTION } = require('../marches/comp
 const ev = (elapsed: number, extra: number | null, team: number, type: string, detail: string) =>
   ({ time: { elapsed, extra }, team: { id: team }, type, detail });
 
-function fiche(options: { statut?: string; sans?: number; ownGoalTeam?: number; events?: any[] } = {}) {
+const joueur = (id: number, name: string, minutes: number | null, s: any = {}) => ({
+  player: { id, name },
+  statistics: [{ games: { minutes }, shots: s.shots ?? { total: null, on: null }, goals: s.goals ?? { total: null, assists: null },
+    fouls: s.fouls ?? { drawn: null, committed: null }, cards: s.cards ?? { yellow: null, red: null } }],
+});
+const FEUILLE = [
+  { team: { id: 66 }, players: [
+    joueur(19221, 'John McGinn', 90, { shots: { total: 3, on: 1 }, goals: { total: 1, assists: null }, fouls: { drawn: 2, committed: 1 }, cards: { yellow: 1, red: 0 } }),
+    joueur(111, 'Resté sur le banc', null),
+  ] },
+  { team: { id: 55 }, players: [
+    joueur(50, 'Mikkel Damsgaard', 78, { goals: { total: null, assists: 1 }, fouls: { drawn: null, committed: 2 } }),
+  ] },
+];
+
+function fiche(options: { statut?: string; sans?: number; ownGoalTeam?: number; events?: any[]; players?: any[] } = {}) {
   const events = options.events ?? [
     ev(12, null, 66, 'Goal', 'Normal Goal'),
     ev(30, null, 66, 'Card', 'Yellow Card'),
@@ -44,6 +63,7 @@ function fiche(options: { statut?: string; sans?: number; ownGoalTeam?: number; 
       { team: { id: 66 }, statistics: [{ type: 'Corner Kicks', value: 6 }, { type: 'Yellow Cards', value: 1 }, { type: 'Red Cards', value: null }] },
       { team: { id: 55 }, statistics: [{ type: 'Corner Kicks', value: 4 }, { type: 'Yellow Cards', value: 2 }, { type: 'Red Cards', value: 1 }] },
     ],
+    players: options.players ?? FEUILLE,
   };
 }
 
@@ -145,11 +165,58 @@ describe('corners et cartons', () => {
   });
 });
 
+describe('les joueurs (phase 3)', () => {
+  const MG = 'John McGinn #19221', DA = 'Mikkel Damsgaard #50';
+
+  it('la feuille du fournisseur, `null` lu comme zéro', () => {
+    expect(D!.joueurs.disponibles).toBe(true);
+    expect(D!.joueurs.liste[50]).toEqual({ minutes: 78, buts: 0, passes: 1, tirs: 0, tirsCadres: 0, fautesSubies: 0, fautesCommises: 2, cartons: 0 });
+    expect(D!.joueurs.liste[111].minutes).toBeNull();
+  });
+
+  it('buteur, passeur, averti', () => {
+    expect(r('Player To Score', MG + ' / Yes')).toBe('WIN');
+    expect(r('Player To Score', DA + ' / Yes')).toBe('LOSS');
+    expect(r('Player To Assist', DA + ' / Yes')).toBe('WIN');
+    expect(r('Player To Score Or Assist', DA + ' / No')).toBe('LOSS');
+    expect(r('Player To Be Booked', MG + ' / Yes')).toBe('WIN');
+    expect(r('Player To Be Booked', DA + ' / Yes')).toBe('LOSS');
+  });
+
+  it('tirs, tirs cadrés, fautes subies et commises', () => {
+    expect(r('Player Total Shots', MG + ' / Over 2.5')).toBe('WIN');            // 3
+    expect(r('Player Total Shots On Target', MG + ' / Over 1.5')).toBe('LOSS'); // 1
+    expect(r('Player Fouls Drawn', MG + ' / Over 1.5')).toBe('WIN');            // 2
+    expect(r('Player Fouls Drawn', DA + ' / Over 0.5')).toBe('LOSS');           // aucune
+    expect(r('Player Fouls Committed', DA + ' / Over 1.5')).toBe('WIN');
+  });
+
+  it('un joueur qui n\'a pas joué : remboursé', () => {
+    expect(r('Player Fouls Drawn', 'Resté sur le banc #111 / Over 0.5')).toBe('PUSH');
+    expect(r('Player To Score', 'Absent de la feuille #999 / No')).toBe('PUSH');
+  });
+
+  it('prolongation, ou feuille incomplète : à la main', () => {
+    expect(regler('Player To Score', MG + ' / Yes', FT, FH, normaliserDonnees(fiche({ statut: 'AET' })))).toBeNull();
+    const uneSeuleEquipe = normaliserDonnees(fiche({ players: [FEUILLE[0]] }));
+    expect(uneSeuleEquipe!.joueurs.disponibles).toBe(false);
+    // Damsgaard « absent » ne voudrait rien dire : la feuille de Brentford manque.
+    expect(regler('Player To Assist', DA + ' / Yes', FT, FH, uneSeuleEquipe)).toBeNull();
+  });
+
+  it('le joueur s\'écrit « Nom #id », sans « / » ni « # » dans le nom', () => {
+    expect(encoder('Player To Score', { joueur: { id: 7, nom: 'A/B #C' }, ouiNon: 'Yes' })).toBe('A B C #7 / Yes');
+    expect(encoder('Player To Score', { joueur: { id: 0, nom: 'X' }, ouiNon: 'Yes' })).toBeNull();
+    expect(encoder('Player To Score', { joueur: null, ouiNon: 'Yes' })).toBeNull();
+  });
+});
+
 describe('le panneau et le moteur parlent la même langue', () => {
   const exemples: Record<string, unknown> = {
     equipe: 'Away', issue: 'Draw', issueMt: 'Home', double: 'X2', ouiNon: 'No', minute: '45',
     nButs: '2', premier: 'Neither', total: 'Under 2.5', auMoins: 'Over 0.5', corners: 'Over 9.5',
     cornersEquipe: 'Under 4.5', cartons: 'Over 2.5', handicap: -2,
+    joueur: { id: 19221, nom: 'John McGinn' }, tirs: 'Over 1.5', tirsCadres: 'Over 0.5', fautes: 'Over 0.5',
   };
   it('chaque valeur construite par le panneau est réglée, données comprises', () => {
     for (const m of MARCHES as { nom: string; options: string[] }[]) {

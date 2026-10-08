@@ -108,7 +108,7 @@ const REGLES: Regle[] = [
 
   // ── Pronostics ──
   [LIRE,   /^\/pronostics\/admin\/(leagues|upcoming)$/,         section('pronostics', 'read')],
-  [LIRE,   /^\/pronostics\/admin\/match\/[^/]+(\/odds|\/prediction)?$/, section('pronostics', 'read')],
+  [LIRE,   /^\/pronostics\/admin\/match\/[^/]+(\/odds|\/prediction|\/joueurs)?$/, section('pronostics', 'read')],
   // Relevé des scores affichés dans la liste : un POST, mais une lecture.
   [ECRIRE, /^\/pronostics\/admin\/scores$/,                     section('pronostics', 'read')],
   [ECRIRE, /^\/pronostics\/admin\/(leagues-bulk|leagues\/[^/]+|pronostic|sync-scores)$/, section('pronostics', 'write')],

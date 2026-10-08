@@ -18,7 +18,7 @@
 // construire leur valeur est aussi celui qui les règle.
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const marchesComplementaires = require('../marches/complementaires') as {
-  regler(nom: string, valeur: string, ft: ScoreLine, fh: ScoreLine | null): 'WIN' | 'LOSS' | null;
+  regler(nom: string, valeur: string, ft: ScoreLine, fh: ScoreLine | null): 'WIN' | 'LOSS' | 'PUSH' | null;
 };
 
 // Calcule WIN ou LOSS selon le type de pronostic et le score final

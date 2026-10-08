@@ -1,10 +1,11 @@
 /**
- * Les données d'un match terminé dont ont besoin les marchés 1xBet de la
- * phase 2 (buts et leur minute, penalties, cartons, corners), et le
- * règlement de ces pronostics.
+ * Les données d'un match terminé dont ont besoin les marchés 1xBet des
+ * phases 2 et 3 (buts et leur minute, penalties, cartons, corners,
+ * statistiques des joueurs), et le règlement de ces pronostics.
  *
  * Un seul appel au fournisseur par match (`/fixtures?id=` renvoie ensemble
- * les événements et les statistiques), gardé dix minutes : la boucle de
+ * les événements, les statistiques des équipes et celles des joueurs),
+ * gardé dix minutes : la boucle de
  * synchronisation repasse sur les pronostics non réglés à chaque tour, et
  * ne doit pas réinterroger le fournisseur à chaque fois.
  *
@@ -20,18 +21,24 @@ import { journal } from '../utils/logger';
 
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const marches = require('../marches/complementaires') as {
-  besoinDeDonnees(nom: string | null): 'evenements' | 'statistiques' | null;
-  regler(nom: string, valeur: string, ft: ScoreLine, fh: ScoreLine | null, donnees?: DonneesMatch | null): 'WIN' | 'LOSS' | null;
+  besoinDeDonnees(nom: string | null): 'evenements' | 'statistiques' | 'joueurs' | null;
+  regler(nom: string, valeur: string, ft: ScoreLine, fh: ScoreLine | null, donnees?: DonneesMatch | null): 'WIN' | 'LOSS' | 'PUSH' | null;
 };
 
 export interface EvenementMatch {
   minute: number; extra: number | null; equipe: 'Home' | 'Away'; type: string; detail: string;
 }
 export interface StatsEquipe { corners: number | null; jaunes: number | null; rouges: number | null }
+export interface StatsJoueur {
+  minutes: number | null; buts: number; passes: number; tirs: number; tirsCadres: number;
+  fautesSubies: number; fautesCommises: number; cartons: number;
+}
 export interface DonneesMatch {
   prolongation: boolean;
   evenements: EvenementMatch[];
   stats: { Home: StatsEquipe; Away: StatsEquipe } | null;
+  /** `disponibles` : la feuille des deux équipes est là — un joueur absent n'a donc pas joué. */
+  joueurs: { disponibles: boolean; liste: Record<number, StatsJoueur> };
 }
 
 export const ATTENTE_APRES_COUP_ENVOI = 135 * 60_000;
@@ -62,10 +69,32 @@ export function normaliserDonnees(f: any): DonneesMatch | null {
   };
   const sh = lignes('Home'), sa = lignes('Away');
 
+  // Les joueurs : le fournisseur écrit `null` pour zéro.
+  const n = (v: unknown) => (typeof v === 'number' ? v : Number(v) || 0);
+  const liste: Record<number, StatsJoueur> = {};
+  const equipesAvecFeuille = new Set<string>();
+  for (const bloc of f.players ?? []) {
+    const camp = equipe(bloc?.team?.id);
+    if (!camp || !Array.isArray(bloc.players) || bloc.players.length === 0) continue;
+    equipesAvecFeuille.add(camp);
+    for (const p of bloc.players) {
+      const id = p?.player?.id, s = p?.statistics?.[0];
+      if (!id || !s) continue;
+      liste[id] = {
+        minutes: typeof s.games?.minutes === 'number' ? s.games.minutes : null,
+        buts: n(s.goals?.total), passes: n(s.goals?.assists),
+        tirs: n(s.shots?.total), tirsCadres: n(s.shots?.on),
+        fautesSubies: n(s.fouls?.drawn), fautesCommises: n(s.fouls?.committed),
+        cartons: n(s.cards?.yellow) + n(s.cards?.red),
+      };
+    }
+  }
+
   return {
     prolongation: statut === 'AET' || statut === 'PEN',
     evenements,
     stats: sh && sa ? { Home: sh, Away: sa } : null,
+    joueurs: { disponibles: equipesAvecFeuille.size === 2, liste },
   };
 }
 

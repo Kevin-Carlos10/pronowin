@@ -41,10 +41,12 @@ const moteur = require('../backend/src/marches/complementaires');
   const script = [...html.matchAll(/<script[^>]*>(.*?)<[/]script>/gs)].find(m => m[1].includes('function utiliserMarchePlus'))[1];
   const source = ts.createSourceFile('form.js', script, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
   const voulues = new Set(['updateRecap', 'setLabel', 'translateMarketName', 'translateMarketValue', 'selectCustomMarket',
-    'mpChoixPossibles', 'mpChoix', 'mpValeur', 'mpApercu', 'mpAfficherOptions', 'utiliserMarchePlus']);
+    'mpChoixPossibles', 'mpChoix', 'mpValeur', 'mpApercu', 'mpAfficherOptions', 'utiliserMarchePlus',
+    'mpLibelles', 'mpRemplirJoueurs', 'mpChargerJoueurs']);
   const fonctions = source.statements.filter(s => ts.isFunctionDeclaration(s) && voulues.has(s.name?.text))
     .map(s => s.getFullText(source)).join('\n');
-  const textes = source.statements.find(s => ts.isVariableStatement(s) && s.getText(source).includes('MP_TEXTES')).getFullText(source);
+  const textes = source.statements.filter(s => ts.isVariableStatement(s)
+    && /MP_TEXTES|MP_JOUEURS|MP_NOMS/.test(s.getText(source))).map(s => s.getFullText(source)).join('\n');
 
   const noeuds = new Map();
   function element(tag) {
@@ -66,6 +68,8 @@ const moteur = require('../backend/src/marches/complementaires');
       querySelectorAll: q => q === '#mp-options select' ? selects() : [],
     },
     setRecommendedOdd: v => { noeud('odds-rec').value = v; },
+    // L'effectif ne répond pas : on voit l'état « chargement ».
+    fetch: () => new Promise(() => {}),
   });
   vm.runInContext(fs.readFileSync('public/football-i18n.js', 'utf8'), context);
   vm.runInContext(fs.readFileSync('public/marches-complementaires.js', 'utf8'), context);
@@ -111,6 +115,25 @@ const moteur = require('../backend/src/marches/complementaires');
   context.mpAfficherOptions();
   assert.equal(noeud('mp-note').hidden, true);
 
+  // Un marché joueur : l'effectif se charge, puis le joueur se choisit.
+  noeud('mp-marche').value = 'Player Fouls Drawn';
+  context.mpAfficherOptions();
+  assert.deepEqual(selects().map(s => s.dataset.option), ['joueur', 'fautes']);
+  assert.equal(selects()[0].children[0].textContent, 'Chargement des joueurs…');
+  assert.equal(context.mpValeur().valeur, null);
+  assert.match(noeud('mp-note').textContent, /remboursé/);
+  vm.runInContext(`MP_JOUEURS = { home: [{ id: 19221, name: 'John McGinn', number: 7 }], away: [{ id: 50, name: 'Mikkel Damsgaard', number: 24 }] };
+    MP_NOMS[19221] = 'John McGinn'; MP_NOMS[50] = 'Mikkel Damsgaard';`, context);
+  context.mpAfficherOptions();
+  assert.deepEqual(selects()[0].children.map(g => g.label), ['Aston Villa', 'Brentford']);
+  assert.equal(selects()[0].children[0].children[0].textContent, 'John McGinn (7)');
+  noeud('mp-cote').value = '1.09';
+  context.utiliserMarchePlus();
+  assert.equal(noeud('market-value-input').value, 'John McGinn #19221 / Over 0.5');
+  assert.equal(noeud('pred-label').value, 'Fautes subies par le joueur : John McGinn / Plus de 0,5');
+  assert.equal(noeud('i18n-prediction_label_en').value, 'Player Fouls Drawn : John McGinn / Over 0.5');
+  assert.equal(noeud('preview-en').textContent, 'Player Fouls Drawn : John McGinn / Over 0.5');
+
   // Les données d'un match (2-1, 1-1 à la pause), telles que le serveur les
   // lit pour la phase 2 (services/donnees_reglement.ts).
   const but = (minute, equipe) => ({ minute, extra: null, equipe, type: 'Goal', detail: 'Normal Goal' });
@@ -118,6 +141,7 @@ const moteur = require('../backend/src/marches/complementaires');
     prolongation: false,
     evenements: [but(20, 'Home'), but(40, 'Away'), { minute: 55, extra: null, equipe: 'Away', type: 'Card', detail: 'Yellow Card' }, but(70, 'Home')],
     stats: { Home: { corners: 7, jaunes: 1, rouges: 0 }, Away: { corners: 3, jaunes: 2, rouges: 0 } },
+    joueurs: { disponibles: true, liste: { 19221: { minutes: 90, buts: 1, passes: 0, tirs: 3, tirsCadres: 2, fautesSubies: 2, fautesCommises: 1, cartons: 0 } } },
   };
 
   // Chaque marché, avec les premiers choix proposés, donne une valeur réglable.
@@ -128,8 +152,9 @@ const moteur = require('../backend/src/marches/complementaires');
     const valeur = context.mpValeur().valeur;
     assert.ok(valeur, m.nom + ' : aucune valeur');
     assert.notEqual(moteur.regler(m.nom, valeur, { home: 2, away: 1 }, { home: 1, away: 1 }, donnees), null, m.nom + ' : ' + valeur);
-    assert.ok(context.PronoFootball.prediction(context.translateMarketName(m.nom) + ' : ' + context.translateMarketValue(valeur),
-      'en', 'Aston Villa', 'Brentford').known, m.nom + ' : libellé anglais introuvable');
+    const libelles = context.mpLibelles(m.nom, valeur);
+    assert.ok(libelles.en || context.PronoFootball.prediction(libelles.fr, 'en', 'Aston Villa', 'Brentford').known,
+      m.nom + ' : libellé anglais introuvable');
   }
 
   console.log('OK : autres marchés 1xBet — choix, cote, libellé FR/EN et valeur réglée par le serveur, pour les '

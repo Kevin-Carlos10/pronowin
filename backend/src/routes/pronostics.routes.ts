@@ -68,6 +68,7 @@ r.get ('/admin/upcoming',                  adminMiddleware, C.fetchUpcoming);
 r.get ('/admin/stats',                     adminMiddleware, C.getAdminStats);
 r.get ('/admin/match/:matchId/odds',       adminMiddleware, C.getMatchOdds);
 r.get ('/admin/match/:matchId/prediction', adminMiddleware, C.getAdminPrediction);
+r.get ('/admin/match/:matchId/joueurs',    adminMiddleware, C.getMatchPlayers);
 r.get ('/admin/match/:matchId',            adminMiddleware, C.getMatchFromDB);
 r.post('/admin/pronostic',                 adminMiddleware, valider({ body: pronosticAdmin }), C.upsertPronostic);
 r.patch('/admin/pronostic/:id/publish',    adminMiddleware, C.togglePublish);

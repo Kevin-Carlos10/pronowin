@@ -159,5 +159,13 @@
   "Réglés avec les événements du match": "Settled from match events",
   "Réglés avec les statistiques du match": "Settled from match statistics",
   "Réglé avec les buts, cartons et penalties du match, environ 2 h 15 après le coup d’envoi. Si les données ne sont pas sûres (prolongation, flux incomplet), il reste à régler à la main.": "Settled from the match goals, cards and penalties, about 2 h 15 after kick-off. If the data is not reliable (extra time, incomplete feed), it stays to be settled by hand.",
-  "Réglé avec les statistiques du match (corners, cartons), environ 2 h 15 après le coup d’envoi. Sans statistiques, il reste à régler à la main.": "Settled from the match statistics (corners, cards), about 2 h 15 after kick-off. Without statistics, it stays to be settled by hand."
+  "Réglé avec les statistiques du match (corners, cartons), environ 2 h 15 après le coup d’envoi. Sans statistiques, il reste à régler à la main.": "Settled from the match statistics (corners, cards), about 2 h 15 after kick-off. Without statistics, it stays to be settled by hand.",
+  "Joueur": "Player",
+  "Tirs": "Shots",
+  "Tirs cadrés": "Shots on target",
+  "Fautes": "Fouls",
+  "Chargement des joueurs…": "Loading players…",
+  "Effectif indisponible pour ce match": "Squad unavailable for this match",
+  "Réglés avec les statistiques des joueurs": "Settled from player statistics",
+  "Réglé avec les statistiques du joueur, environ 2 h 15 après le coup d’envoi. S’il ne joue pas, le pari est remboursé.": "Settled from the player's statistics, about 2 h 15 after kick-off. If the player does not play, the bet is refunded."
 }

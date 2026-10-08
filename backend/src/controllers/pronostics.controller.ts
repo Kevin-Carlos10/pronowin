@@ -718,6 +718,37 @@ export const getMatchOdds = async (req: AdminRequest, res: Response) => {
   } catch (e: any) { repondreErreur(res, e, 422); }
 };
 
+/**
+ * GET /admin/match/:matchId/joueurs — l'effectif des deux équipes, pour les
+ * marchés « joueur » du formulaire (buteur, tirs, fautes…). Les fiches
+ * équipes sont gardées 24 h : ouvrir dix formulaires du même match ne coûte
+ * pas dix lectures.
+ */
+export const getMatchPlayers = async (req: AdminRequest, res: Response) => {
+  try {
+    const match = await prisma.match.findUnique({ where: { id: req.params.matchId } });
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+    const fixtureId = fixtureIdDe(match);
+    const fixture: any = fixtureId ? await apiFootballService.getFixtureById(fixtureId) : null;
+    const equipes = [fixture?.teams?.home?.id, fixture?.teams?.away?.id];
+    if (!equipes[0] || !equipes[1]) {
+      res.status(422).json({ message: 'Effectifs indisponibles pour ce match.' });
+      return;
+    }
+    const fiches = await Promise.all(equipes.map((id: number) => fichesEquipes.fiche(id)));
+    const effectif = (f: Awaited<ReturnType<typeof fichesEquipes.fiche>>) =>
+      f && f !== 'introuvable'
+        ? f.squad.filter(p => p.id && p.name).map(p => ({ id: p.id, name: p.name, number: p.number, position: p.position }))
+        : [];
+    const joueurs = { home: effectif(fiches[0]), away: effectif(fiches[1]) };
+    if (!joueurs.home.length && !joueurs.away.length) {
+      res.status(422).json({ message: 'Effectifs indisponibles pour ce match.' });
+      return;
+    }
+    res.json(joueurs);
+  } catch (e: any) { repondreErreur(res, e, 422); }
+};
+
 // H2H — historique des confrontations directes
 // Cherche un pronostic par son ID OU par le matchId — car la liste renvoie des match UUIDs
 async function findPronoByIdOrMatchId(id: string) {

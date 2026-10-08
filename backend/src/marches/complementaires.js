@@ -12,7 +12,10 @@
 //   - phase 2 : réglés avec les événements du match (buts et leur minute,
 //     cartons, penalties) ou ses statistiques (corners, cartons jaunes),
 //     lus auprès du fournisseur une fois le match terminé
-//     (services/donnees_reglement.ts).
+//     (services/donnees_reglement.ts) ;
+//   - phase 3 : réglés avec les statistiques d'un joueur (buts, passes
+//     décisives, tirs, fautes, cartons), de la même lecture. Un joueur qui
+//     n'a pas joué : pari remboursé, comme chez 1xBet.
 //
 // Convention 1xBet reprise telle quelle : dans un combiné, « Oui / Non » porte
 // sur la combinaison entière. « V1 et les deux équipes marquent – Non » se
@@ -33,6 +36,9 @@ const LIGNES_PAR_OPTION = {
   corners:       [5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5, 13.5, 14.5],
   cornersEquipe: [1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5],
   cartons:       [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5],
+  tirs:          [0.5, 1.5, 2.5, 3.5, 4.5, 5.5],
+  tirsCadres:    [0.5, 1.5, 2.5, 3.5],
+  fautes:        [0.5, 1.5, 2.5, 3.5],
 };
 
 // Les éléments qu'un marché demande, dans l'ordre de sa valeur.
@@ -42,8 +48,12 @@ const LIGNES_PAR_OPTION = {
 //   premier : Home | Neither | Away
 //   total, corners, cornersEquipe, cartons : Over n | Under n
 //   auMoins : Over n                 handicap : entier non nul
+//   joueur  : « Nom #identifiant » du fournisseur (« John McGinn #19221 ») ;
+//             le nom garde la valeur lisible, l'identifiant la rend sûre
+//   tirs, tirsCadres, fautes : Over n | Under n
 //
-// `donnees` : ce qu'il faut en plus du score — 'evenements' ou 'statistiques'.
+// `donnees` : ce qu'il faut en plus du score — 'evenements', 'statistiques'
+// ou 'joueurs'.
 const MARCHES = [
   // ── Phase 1 : le score suffit ──
   { nom: 'To Win Either Half',           options: ['equipe', 'ouiNon'],                    miTemps: true },
@@ -80,6 +90,16 @@ const MARCHES = [
   { nom: 'Corners 1X2',                  options: ['issue'],               donnees: 'statistiques' },
   { nom: 'Result/Total Corners',         options: ['issue', 'corners', 'ouiNon'], donnees: 'statistiques' },
   { nom: 'Total Yellow Cards',           options: ['cartons'],             donnees: 'statistiques' },
+
+  // ── Phase 3 : un joueur ──
+  { nom: 'Player To Score',              options: ['joueur', 'ouiNon'],    donnees: 'joueurs' },
+  { nom: 'Player To Assist',             options: ['joueur', 'ouiNon'],    donnees: 'joueurs' },
+  { nom: 'Player To Score Or Assist',    options: ['joueur', 'ouiNon'],    donnees: 'joueurs' },
+  { nom: 'Player To Be Booked',          options: ['joueur', 'ouiNon'],    donnees: 'joueurs' },
+  { nom: 'Player Total Shots',           options: ['joueur', 'tirs'],      donnees: 'joueurs' },
+  { nom: 'Player Total Shots On Target', options: ['joueur', 'tirsCadres'], donnees: 'joueurs' },
+  { nom: 'Player Fouls Drawn',           options: ['joueur', 'fautes'],    donnees: 'joueurs' },
+  { nom: 'Player Fouls Committed',       options: ['joueur', 'fautes'],    donnees: 'joueurs' },
 ];
 
 const MINUTES = [10, 15, 20, 30, 45, 60, 75, 80];
@@ -126,10 +146,28 @@ function encoder(nom, choix) {
   const jetons = [];
   for (const o of m.options) {
     const v = choix[o];
+    if (o === 'joueur') {
+      const j = jetonJoueur(v);
+      if (!j) return null;
+      jetons.push(j);
+      continue;
+    }
     if (JETONS[o] ? !JETONS[o].includes(String(v)) : !lireLigne(v, o)) return null;
     jetons.push(String(v));
   }
   return jetons.join(' / ');
+}
+
+/** { id: 19221, nom: 'John McGinn' } → « John McGinn #19221 » (sans « / » ni « # » dans le nom). */
+function jetonJoueur(j) {
+  const id = Number(j?.id);
+  const nom = String(j?.nom ?? '').replace(/[/#]/g, ' ').replace(/\s+/g, ' ').trim();
+  return Number.isInteger(id) && id > 0 && nom ? nom + ' #' + id : null;
+}
+
+function lireJoueur(jeton) {
+  const m = /^(.+?)\s*#(\d+)$/.exec(String(jeton ?? '').trim());
+  return m ? { nom: m[1], id: Number(m[2]) } : null;
 }
 
 // ── Lire la valeur ──────────────────────────────────────────────────────────
@@ -148,7 +186,11 @@ function lire(m, valeur) {
   const t = {};
   for (let i = 0; i < jetons.length; i++) {
     const o = m.options[i];
-    if (JETONS[o]) {
+    if (o === 'joueur') {
+      const j = lireJoueur(jetons[i]);
+      if (!j) return null;
+      t.joueur = j;
+    } else if (JETONS[o]) {
       if (!JETONS[o].includes(jetons[i])) return null;
       t[o] = ['minute', 'nButs'].includes(o) ? Number(jetons[i]) : jetons[i];
     } else {
@@ -293,6 +335,16 @@ const VERDICTS = {
   'Corners 1X2':             (t, c) => { const s = statistique(c.donnees, 'corners'); return s && gagnant(s) === t.issue; },
   'Result/Total Corners':    (t, c) => { const s = statistique(c.donnees, 'corners'); return s && gagnant(c.ft) === t.issue && respecte(t.corners, total(s)); },
   'Total Yellow Cards':      (t, c) => { const s = statistique(c.donnees, 'jaunes'); return s && respecte(t.cartons, total(s)); },
+
+  // Phase 3 — un joueur (`c.joueur` : ses statistiques, il a joué)
+  'Player To Score':              (t, c) => c.joueur.buts > 0,
+  'Player To Assist':             (t, c) => c.joueur.passes > 0,
+  'Player To Score Or Assist':    (t, c) => c.joueur.buts > 0 || c.joueur.passes > 0,
+  'Player To Be Booked':          (t, c) => c.joueur.cartons > 0,
+  'Player Total Shots':           (t, c) => respecte(t.tirs, c.joueur.tirs),
+  'Player Total Shots On Target': (t, c) => respecte(t.tirsCadres, c.joueur.tirsCadres),
+  'Player Fouls Drawn':           (t, c) => respecte(t.fautes, c.joueur.fautesSubies),
+  'Player Fouls Committed':       (t, c) => respecte(t.fautes, c.joueur.fautesCommises),
 };
 
 // Un carton rouge du temps réglementaire (deuxième jaune compris) — ou relevé
@@ -309,9 +361,13 @@ function aEuRouge(donnees) {
  * besoin, ou données du match absentes ou incohérentes — le pronostic reste
  * alors à régler à la main, plutôt que d'être réglé sur une supposition.
  *
- * `donnees` (phase 2) : { prolongation, evenements: [{ minute, extra, equipe:
- * 'Home'|'Away', type, detail }], stats: { Home: { corners, jaunes, rouges },
- * Away: {…} } | null } — voir services/donnees_reglement.ts.
+ * `donnees` (phases 2 et 3) : { prolongation, evenements: [{ minute, extra,
+ * equipe: 'Home'|'Away', type, detail }], stats: { Home: { corners, jaunes,
+ * rouges }, Away: {…} } | null, joueurs: { disponibles, liste: { [id]:
+ * { minutes, buts, passes, tirs, tirsCadres, fautesSubies, fautesCommises,
+ * cartons } } } } — voir services/donnees_reglement.ts.
+ *
+ * PUSH (remboursé) : marché d'un joueur qui n'a pas joué.
  */
 function regler(nom, valeur, ft, fh, donnees) {
   const m = marche(nom);
@@ -332,10 +388,21 @@ function regler(nom, valeur, ft, fh, donnees) {
   const t = lire(m, valeur);
   if (!t) return null;
   const c = { ft, fh, sh, donnees, buts: m.donnees === 'evenements' ? chronologie(donnees, ft, fh) : null };
+  if (m.donnees === 'joueurs') {
+    // Les statistiques des joueurs comptent la prolongation : comme pour les
+    // corners, on ne règle que le temps réglementaire. Sans feuille de
+    // statistiques des deux équipes, rien n'est décidé.
+    const j = donnees.joueurs;
+    if (donnees.prolongation || !j || !j.disponibles) return null;
+    const stats = j.liste?.[t.joueur.id];
+    // Absent de la feuille, ou resté sur le banc : pari remboursé.
+    if (!stats || !(stats.minutes > 0)) return 'PUSH';
+    c.joueur = stats;
+  }
   const verdict = VERDICTS[nom](t, c);
   if (verdict === null || verdict === undefined) return null;
   if (m.options.includes('ouiNon')) return verdict === (t.ouiNon === 'Yes') ? 'WIN' : 'LOSS';
   return verdict ? 'WIN' : 'LOSS';
 }
 
-module.exports = { MARCHES, JETONS, LIGNES, LIGNES_PAR_OPTION, MINUTES, encoder, regler, besoinDeDonnees };
+module.exports = { MARCHES, JETONS, LIGNES, LIGNES_PAR_OPTION, MINUTES, encoder, regler, besoinDeDonnees, lireJoueur };

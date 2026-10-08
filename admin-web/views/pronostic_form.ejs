@@ -962,6 +962,11 @@ const MP_TEXTES = <%- JSON.stringify({
   nButs: uiText('Nombre de buts'), premier: uiText('Premier à les marquer'),
   corners: uiText('Total corners'), cornersEquipe: uiText('Corners de l’équipe'),
   cartons: uiText('Cartons jaunes'),
+  joueur: uiText('Joueur'), tirs: uiText('Tirs'), tirsCadres: uiText('Tirs cadrés'), fautes: uiText('Fautes'),
+  chargementJoueurs: uiText('Chargement des joueurs…'),
+  effectifIndisponible: uiText('Effectif indisponible pour ce match'),
+  groupeJoueurs: uiText('Réglés avec les statistiques des joueurs'),
+  noteJoueurs: uiText('Réglé avec les statistiques du joueur, environ 2 h 15 après le coup d’envoi. S’il ne joue pas, le pari est remboursé.'),
   groupeScore: uiText('Réglés avec le score'),
   groupeEvenements: uiText('Réglés avec les événements du match'),
   groupeStatistiques: uiText('Réglés avec les statistiques du match'),
@@ -983,10 +988,75 @@ function mpChoixPossibles(option) {
   return sens.flatMap(s => lignes.map(l => [s + ' ' + l, texte(s + ' ' + l)]));
 }
 
+/* L'effectif des deux équipes, chargé à la première demande d'un marché
+   « joueur » : null tant qu'on ne l'a pas demandé, 'chargement', 'erreur', ou
+   { home: [...], away: [...] }. */
+let MP_JOUEURS = null;
+const MP_NOMS = {};
+function mpChargerJoueurs() {
+  if (MP_JOUEURS !== null) return;
+  MP_JOUEURS = 'chargement';
+  fetch('/admin/pronostics/edit/<%= match.id %>/joueurs', { headers: { Accept: 'application/json' } })
+    .then(r => r.ok ? r.json() : Promise.reject(new Error(String(r.status))))
+    .then(j => {
+      MP_JOUEURS = { home: j.home || [], away: j.away || [] };
+      [...MP_JOUEURS.home, ...MP_JOUEURS.away].forEach(p => { MP_NOMS[p.id] = p.name; });
+    })
+    .catch(() => { MP_JOUEURS = 'erreur'; })
+    .then(() => mpAfficherOptions());
+}
+
+/* La liste des joueurs, par équipe — ou un message tant qu'elle n'est pas là. */
+function mpRemplirJoueurs(sel) {
+  if (!MP_JOUEURS || MP_JOUEURS === 'chargement' || MP_JOUEURS === 'erreur') {
+    mpChargerJoueurs();
+    const o = document.createElement('option');
+    o.value = '';
+    o.textContent = MP_JOUEURS === 'erreur' ? MP_TEXTES.effectifIndisponible : MP_TEXTES.chargementJoueurs;
+    sel.appendChild(o);
+    return;
+  }
+  [[HOME_TEAM, MP_JOUEURS.home], [AWAY_TEAM, MP_JOUEURS.away]].forEach(([equipe, joueurs]) => {
+    if (!joueurs.length) return;
+    const groupe = document.createElement('optgroup');
+    groupe.label = equipe;
+    joueurs.forEach(p => {
+      const o = document.createElement('option');
+      o.value = String(p.id);
+      o.textContent = p.name + (p.number ? ' (' + p.number + ')' : '');
+      groupe.appendChild(o);
+    });
+    sel.appendChild(groupe);
+  });
+  const premier = MP_JOUEURS.home[0] || MP_JOUEURS.away[0];
+  if (premier) sel.value = String(premier.id);
+}
+
+/* Libellés public d'un marché : « Marché : sélection ». Pour un joueur, le
+   nom reste tel quel et la traduction anglaise est écrite d'avance — un nom
+   propre n'est pas dans le catalogue, et la phrase anglaise ne se déduirait
+   pas toute seule. */
+function mpLibelles(nom, valeur) {
+  const marche = PronoMarches.MARCHES.find(m => m.nom === nom);
+  if (!marche || !marche.options.includes('joueur')) {
+    return { fr: translateMarketName(nom) + ' : ' + translateMarketValue(valeur), en: null };
+  }
+  const [premier, ...reste] = valeur.split(' / ');
+  const joueur = PronoMarches.lireJoueur(premier);
+  const suite = reste.join(' / ');
+  return {
+    fr: translateMarketName(nom) + ' : ' + joueur.nom + ' / ' + translateMarketValue(suite),
+    en: PronoFootball.market(nom, 'en').text + ' : ' + joueur.nom + ' / ' + PronoFootball.selection(suite, 'en').text,
+  };
+}
+
 function mpChoix() {
   const choix = {};
   document.querySelectorAll('#mp-options select').forEach(sel => {
-    choix[sel.dataset.option] = sel.dataset.option === 'handicap' ? Number(sel.value) : sel.value;
+    const o = sel.dataset.option;
+    choix[o] = o === 'handicap' ? Number(sel.value)
+      : o === 'joueur' ? (sel.value ? { id: Number(sel.value), nom: MP_NOMS[sel.value] } : null)
+      : sel.value;
   });
   return choix;
 }
@@ -999,7 +1069,7 @@ function mpValeur() {
 function mpApercu() {
   const choix = mpValeur();
   document.getElementById('mp-apercu').textContent = choix && choix.valeur
-    ? translateMarketName(choix.nom) + ' : ' + translateMarketValue(choix.valeur) : '';
+    ? mpLibelles(choix.nom, choix.valeur).fr : '';
   document.getElementById('mp-erreur').hidden = true;
 }
 
@@ -1010,7 +1080,8 @@ function mpAfficherOptions() {
   const marche = PronoMarches.MARCHES.find(m => m.nom === nom);
   const note = document.getElementById('mp-note');
   note.textContent = marche && marche.donnees === 'evenements' ? MP_TEXTES.noteEvenements
-    : marche && marche.donnees === 'statistiques' ? MP_TEXTES.noteStatistiques : '';
+    : marche && marche.donnees === 'statistiques' ? MP_TEXTES.noteStatistiques
+    : marche && marche.donnees === 'joueurs' ? MP_TEXTES.noteJoueurs : '';
   note.hidden = !note.textContent;
   (marche ? marche.options : []).forEach(option => {
     const bloc = document.createElement('div');
@@ -1021,7 +1092,8 @@ function mpAfficherOptions() {
     sel.className = 'input';
     sel.id = 'mp-opt-' + option;
     sel.dataset.option = option;
-    mpChoixPossibles(option).forEach(([valeur, texte]) => {
+    if (option === 'joueur') mpRemplirJoueurs(sel);
+    else mpChoixPossibles(option).forEach(([valeur, texte]) => {
       const o = document.createElement('option');
       o.value = valeur;
       o.textContent = texte;
@@ -1043,11 +1115,19 @@ function utiliserMarchePlus() {
   if (!(cote >= 1.01)) { erreur.textContent = MP_TEXTES.coteInvalide; erreur.hidden = false; return; }
   erreur.hidden = true;
   selectCustomMarket(choix.nom, choix.valeur, cote, null);
+  const libelles = mpLibelles(choix.nom, choix.valeur);
+  if (libelles.en) {
+    setLabel(libelles.fr);
+    document.getElementById('i18n-prediction_label_en').value = libelles.en;
+    updateRecap();
+    document.getElementById('custom-pick-text').textContent = libelles.fr + ' (' + cote.toFixed(2) + ')';
+  }
 }
 
 (function initMarchesPlus() {
   const select = document.getElementById('mp-marche');
-  [['', MP_TEXTES.groupeScore], ['evenements', MP_TEXTES.groupeEvenements], ['statistiques', MP_TEXTES.groupeStatistiques]]
+  [['', MP_TEXTES.groupeScore], ['evenements', MP_TEXTES.groupeEvenements], ['statistiques', MP_TEXTES.groupeStatistiques],
+   ['joueurs', MP_TEXTES.groupeJoueurs]]
     .forEach(([donnees, titre]) => {
       const groupe = document.createElement('optgroup');
       groupe.label = titre;

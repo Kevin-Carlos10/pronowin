@@ -123,6 +123,18 @@ module.exports = (app, ctx) => {
     }
   });
 
+  // Effectif des deux équipes — pour les marchés « joueur » du formulaire.
+
+  app.get('/admin/pronostics/edit/:matchId/joueurs', requireAuth, requirePerm('pronostics'), async (req, res) => {
+    const a = api(req.admin.jeton);
+    try {
+      const r = await a.get('/pronostics/admin/match/' + req.params.matchId + '/joueurs');
+      res.json(r.data);
+    } catch (e) {
+      res.status(e.response?.status ?? 500).json({ message: e.response?.data?.message ?? e.message });
+    }
+  });
+
   // Avis du modèle API-Football pour ce match — aide à la décision affichée à
   // côté des cotes 1xBet dans le formulaire.
 
