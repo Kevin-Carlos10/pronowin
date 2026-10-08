@@ -201,9 +201,11 @@ export class SubscriptionService {
    * job ne regardait `subscriptionExpiresAt`. Appelé une fois par jour depuis
    * index.ts.
    *
-   * L'idempotence repose sur les paliers : on ne notifie que le jour où il
-   * reste exactement 7, 3 ou 1 jour(s), donc au plus une fois par palier tant
-   * que le job ne tourne qu'une fois par jour.
+   * On ne notifie que le jour où il reste exactement 7, 3 ou 1 jour(s). Et
+   * une seule fois : la tâche part aussi deux minutes après chaque démarrage
+   * du serveur, et un jour de déploiements envoyait le même « Ton Premium
+   * expire demain » deux ou trois fois (vidéo du 8 octobre 2026). Un rappel
+   * du même palier déjà envoyé dans les 20 dernières heures n'est pas refait.
    */
   async notifyExpiringSubscriptions() {
     const now = new Date();
@@ -225,6 +227,15 @@ export class SubscriptionService {
       });
 
       for (const u of users) {
+        const deja = await prisma.notification.findFirst({
+          where: {
+            userId:    u.id,
+            title:     { contains: days === 1 ? 'expire demain' : `expire dans ${days} jours` },
+            createdAt: { gte: new Date(now.getTime() - 20 * 3600_000) },
+          },
+          select: { id: true },
+        });
+        if (deja) continue;
         await notifSvc.sendToUser(u.id, {
           title: days === 1
             ? '⏳ Ton Premium expire demain'
