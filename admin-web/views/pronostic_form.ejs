@@ -446,6 +446,7 @@
               <select class="input" id="mp-marche"><option value=""><%= uiText("Choisir un marché") %></option></select>
             </div>
             <div class="marches-plus-options" id="mp-options"></div>
+            <p class="marches-plus-aide" id="mp-note" hidden></p>
             <div>
               <label for="mp-cote"><%= uiText("Cote 1xBet") %></label>
               <input class="input" type="number" id="mp-cote" step="0.001" min="1.01" inputmode="decimal" placeholder="1.80">
@@ -957,24 +958,29 @@ const MP_TEXTES = <%- JSON.stringify({
   double: uiText('Double chance'), total: uiText('Total'),
   auMoins: uiText('Buts d’au moins une équipe'), ouiNon: uiText('Oui / Non'),
   handicap: uiText('Handicap (nul : celui de l’équipe 1)'),
+  minute: uiText('Minute (incluse)'), minuteN: uiText('{n}e minute'),
+  nButs: uiText('Nombre de buts'), premier: uiText('Premier à les marquer'),
+  corners: uiText('Total corners'), cornersEquipe: uiText('Corners de l’équipe'),
+  cartons: uiText('Cartons jaunes'),
+  groupeScore: uiText('Réglés avec le score'),
+  groupeEvenements: uiText('Réglés avec les événements du match'),
+  groupeStatistiques: uiText('Réglés avec les statistiques du match'),
+  noteEvenements: uiText('Réglé avec les buts, cartons et penalties du match, environ 2 h 15 après le coup d’envoi. Si les données ne sont pas sûres (prolongation, flux incomplet), il reste à régler à la main.'),
+  noteStatistiques: uiText('Réglé avec les statistiques du match (corners, cartons), environ 2 h 15 après le coup d’envoi. Sans statistiques, il reste à régler à la main.'),
   incomplet: uiText('Choisis toutes les options du marché.'),
   coteInvalide: uiText('Saisis la cote 1xBet (au moins 1,01).'),
 }).replace(/</g, '\\u003c') %>;
 
 function mpChoixPossibles(option) {
   const texte = v => PronoFootball.selection(v, 'fr', HOME_TEAM, AWAY_TEAM).text;
-  const J = PronoMarches.JETONS;
-  switch (option) {
-    case 'equipe':  return J.equipe.map(v => [v, texte(v)]);
-    case 'issue':
-    case 'issueMt': return J.issue.map(v => [v, texte(v)]);
-    case 'double':  return J.double.map(v => [v, v]);
-    case 'ouiNon':  return J.ouiNon.map(v => [v, texte(v)]);
-    case 'total':   return ['Over', 'Under'].flatMap(sens => PronoMarches.LIGNES.map(l => [sens + ' ' + l, texte(sens + ' ' + l)]));
-    case 'auMoins': return PronoMarches.LIGNES.map(l => ['Over ' + l, texte('Over ' + l)]);
-    case 'handicap': return [-4, -3, -2, -1, 1, 2, 3, 4].map(h => [String(h), (h > 0 ? '+' : '') + h]);
-  }
-  return [];
+  if (option === 'handicap') return [-4, -3, -2, -1, 1, 2, 3, 4].map(h => [String(h), (h > 0 ? '+' : '') + h]);
+  if (option === 'minute') return PronoMarches.JETONS.minute.map(v => [v, MP_TEXTES.minuteN.replace('{n}', v)]);
+  const jetons = PronoMarches.JETONS[option];
+  if (jetons) return jetons.map(v => [v, texte(v)]);
+  // Les totaux : les lignes proposées pour cette sorte (buts, corners, cartons).
+  const lignes = PronoMarches.LIGNES_PAR_OPTION[option] || [];
+  const sens = option === 'auMoins' ? ['Over'] : ['Over', 'Under'];
+  return sens.flatMap(s => lignes.map(l => [s + ' ' + l, texte(s + ' ' + l)]));
 }
 
 function mpChoix() {
@@ -1002,6 +1008,10 @@ function mpAfficherOptions() {
   const zone = document.getElementById('mp-options');
   zone.innerHTML = '';
   const marche = PronoMarches.MARCHES.find(m => m.nom === nom);
+  const note = document.getElementById('mp-note');
+  note.textContent = marche && marche.donnees === 'evenements' ? MP_TEXTES.noteEvenements
+    : marche && marche.donnees === 'statistiques' ? MP_TEXTES.noteStatistiques : '';
+  note.hidden = !note.textContent;
   (marche ? marche.options : []).forEach(option => {
     const bloc = document.createElement('div');
     const label = document.createElement('label');
@@ -1037,12 +1047,18 @@ function utiliserMarchePlus() {
 
 (function initMarchesPlus() {
   const select = document.getElementById('mp-marche');
-  PronoMarches.MARCHES.forEach(m => {
-    const o = document.createElement('option');
-    o.value = m.nom;
-    o.textContent = translateMarketName(m.nom);
-    select.appendChild(o);
-  });
+  [['', MP_TEXTES.groupeScore], ['evenements', MP_TEXTES.groupeEvenements], ['statistiques', MP_TEXTES.groupeStatistiques]]
+    .forEach(([donnees, titre]) => {
+      const groupe = document.createElement('optgroup');
+      groupe.label = titre;
+      PronoMarches.MARCHES.filter(m => (m.donnees || '') === donnees).forEach(m => {
+        const o = document.createElement('option');
+        o.value = m.nom;
+        o.textContent = translateMarketName(m.nom);
+        groupe.appendChild(o);
+      });
+      select.appendChild(groupe);
+    });
   select.addEventListener('change', mpAfficherOptions);
   document.getElementById('mp-utiliser').addEventListener('click', utiliserMarchePlus);
 })();

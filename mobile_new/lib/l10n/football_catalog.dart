@@ -379,6 +379,86 @@ const footballCatalogJson = r'''{
       "en": "At Least One Team Not To Score/Total",
       "fr": "Au moins une équipe ne marque pas + total",
       "aliases": []
+    },
+    {
+      "en": "Result At Minute",
+      "fr": "Résultat à la minute",
+      "aliases": []
+    },
+    {
+      "en": "Double Chance At Minute",
+      "fr": "Double chance à la minute",
+      "aliases": []
+    },
+    {
+      "en": "Total At Minute",
+      "fr": "Total à la minute",
+      "aliases": []
+    },
+    {
+      "en": "Both Teams To Score By Minute",
+      "fr": "Les deux équipes marquent avant la minute",
+      "aliases": []
+    },
+    {
+      "en": "Goal In Added Time",
+      "fr": "But dans le temps additionnel",
+      "aliases": []
+    },
+    {
+      "en": "First To Score Goals",
+      "fr": "Premier à N buts",
+      "aliases": []
+    },
+    {
+      "en": "Score First And Lose",
+      "fr": "Marque le premier but et perd",
+      "aliases": []
+    },
+    {
+      "en": "Own Goal",
+      "fr": "But contre son camp",
+      "aliases": []
+    },
+    {
+      "en": "Penalty Awarded",
+      "fr": "Penalty accordé",
+      "aliases": []
+    },
+    {
+      "en": "Red Card",
+      "fr": "Expulsion",
+      "aliases": []
+    },
+    {
+      "en": "Penalty Awarded Or Red Card",
+      "fr": "Penalty accordé ou expulsion",
+      "aliases": []
+    },
+    {
+      "en": "Total Corners",
+      "fr": "Total corners",
+      "aliases": []
+    },
+    {
+      "en": "Team Total Corners",
+      "fr": "Corners d'une équipe",
+      "aliases": []
+    },
+    {
+      "en": "Corners 1X2",
+      "fr": "Équipe avec le plus de corners",
+      "aliases": []
+    },
+    {
+      "en": "Result/Total Corners",
+      "fr": "Résultat + total corners",
+      "aliases": []
+    },
+    {
+      "en": "Total Yellow Cards",
+      "fr": "Total cartons jaunes",
+      "aliases": []
     }
   ],
   "selections": [

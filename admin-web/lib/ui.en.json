@@ -147,5 +147,17 @@
   "Oui / Non": "Yes / No",
   "Handicap (nul : celui de l’équipe 1)": "Handicap (draw: the home team’s)",
   "Choisis toutes les options du marché.": "Choose every option of the market.",
-  "Saisis la cote 1xBet (au moins 1,01).": "Enter the 1xBet odds (at least 1.01)."
+  "Saisis la cote 1xBet (au moins 1,01).": "Enter the 1xBet odds (at least 1.01).",
+  "Minute (incluse)": "Minute (included)",
+  "{n}e minute": "Minute {n}",
+  "Nombre de buts": "Number of goals",
+  "Premier à les marquer": "First to score them",
+  "Total corners": "Total corners",
+  "Corners de l’équipe": "Team corners",
+  "Cartons jaunes": "Yellow cards",
+  "Réglés avec le score": "Settled from the score",
+  "Réglés avec les événements du match": "Settled from match events",
+  "Réglés avec les statistiques du match": "Settled from match statistics",
+  "Réglé avec les buts, cartons et penalties du match, environ 2 h 15 après le coup d’envoi. Si les données ne sont pas sûres (prolongation, flux incomplet), il reste à régler à la main.": "Settled from the match goals, cards and penalties, about 2 h 15 after kick-off. If the data is not reliable (extra time, incomplete feed), it stays to be settled by hand.",
+  "Réglé avec les statistiques du match (corners, cartons), environ 2 h 15 après le coup d’envoi. Sans statistiques, il reste à régler à la main.": "Settled from the match statistics (corners, cards), about 2 h 15 after kick-off. Without statistics, it stays to be settled by hand."
 }

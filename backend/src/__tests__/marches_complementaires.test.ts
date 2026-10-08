@@ -136,7 +136,9 @@ describe('le panneau et le moteur parlent la même langue', () => {
   };
 
   it('chaque valeur construite par le panneau est réglée par le moteur', () => {
-    for (const m of MARCHES as { nom: string; options: string[] }[]) {
+    // Phase 1 seulement : la phase 2 a besoin des données du match
+    // (marches_donnees_match.test.ts).
+    for (const m of (MARCHES as { nom: string; options: string[]; donnees?: string }[]).filter(x => !x.donnees)) {
       const choix = Object.fromEntries(m.options.map(o => [o, exemples[o]]));
       const valeur = encoder(m.nom, choix);
       expect(valeur).not.toBeNull();

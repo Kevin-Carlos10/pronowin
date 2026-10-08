@@ -341,5 +341,33 @@
     "fr": "Mi-temps/fin + total : Nul / Nul / Moins de 2,5 / Oui",
     "en": "HT/FT/Total : Draw / Draw / Under 2.5 / Yes",
     "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "Résultat à la minute : 45 / Nul",
+    "fr": "Résultat à la minute : 45 / Nul",
+    "en": "Result At Minute : 45 / Draw",
+    "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "Premier à N buts : 2 / Aucune des deux",
+    "fr": "Premier à N buts : 2 / Aucune des deux",
+    "en": "First To Score Goals : 2 / Neither",
+    "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "Total corners : Plus de 9,5",
+    "fr": "Total corners : Plus de 9,5",
+    "en": "Total Corners : Over 9.5",
+    "known": true
+  },
+  {
+    "method": "prediction",
+    "input": "Expulsion : Non",
+    "fr": "Expulsion : Non",
+    "en": "Red Card : No",
+    "known": true
   }
 ]

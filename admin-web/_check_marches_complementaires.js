@@ -100,6 +100,26 @@ const moteur = require('../backend/src/marches/complementaires');
   // 1-0 à la pause, 1-2 à la fin : Brentford gagne la 2e mi-temps.
   assert.equal(moteur.regler('To Win Either Half', 'Away / Yes', { home: 1, away: 2 }, { home: 1, away: 0 }), 'WIN');
 
+  // Un marché de la phase 2 : minutes nommées, et une note sur son règlement.
+  noeud('mp-marche').value = 'Result At Minute';
+  context.mpAfficherOptions();
+  assert.deepEqual(selects().map(s => s.dataset.option), ['minute', 'issue']);
+  assert.equal(selects()[0].children[0].textContent, '10e minute');
+  assert.equal(noeud('mp-note').hidden, false);
+  assert.match(noeud('mp-note').textContent, /2 h 15/);
+  noeud('mp-marche').value = 'To Win Either Half';
+  context.mpAfficherOptions();
+  assert.equal(noeud('mp-note').hidden, true);
+
+  // Les données d'un match (2-1, 1-1 à la pause), telles que le serveur les
+  // lit pour la phase 2 (services/donnees_reglement.ts).
+  const but = (minute, equipe) => ({ minute, extra: null, equipe, type: 'Goal', detail: 'Normal Goal' });
+  const donnees = {
+    prolongation: false,
+    evenements: [but(20, 'Home'), but(40, 'Away'), { minute: 55, extra: null, equipe: 'Away', type: 'Card', detail: 'Yellow Card' }, but(70, 'Home')],
+    stats: { Home: { corners: 7, jaunes: 1, rouges: 0 }, Away: { corners: 3, jaunes: 2, rouges: 0 } },
+  };
+
   // Chaque marché, avec les premiers choix proposés, donne une valeur réglable.
   for (const m of moteur.MARCHES) {
     noeud('mp-marche').value = m.nom;
@@ -107,7 +127,7 @@ const moteur = require('../backend/src/marches/complementaires');
     assert.equal(selects().length, m.options.length, m.nom);
     const valeur = context.mpValeur().valeur;
     assert.ok(valeur, m.nom + ' : aucune valeur');
-    assert.notEqual(moteur.regler(m.nom, valeur, { home: 2, away: 1 }, { home: 1, away: 1 }), null, m.nom + ' : ' + valeur);
+    assert.notEqual(moteur.regler(m.nom, valeur, { home: 2, away: 1 }, { home: 1, away: 1 }, donnees), null, m.nom + ' : ' + valeur);
     assert.ok(context.PronoFootball.prediction(context.translateMarketName(m.nom) + ' : ' + context.translateMarketValue(valeur),
       'en', 'Aston Villa', 'Brentford').known, m.nom + ' : libellé anglais introuvable');
   }

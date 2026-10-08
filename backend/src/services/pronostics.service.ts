@@ -7,6 +7,7 @@ import { settleBets } from './bankroll.service';
 // Moteur de règlement — extrait dans son propre module pour être testable
 // sans base de données (cf. settlement.ts).
 import { _resolvePronosticResult, type ScoreLine } from './settlement';
+import { resoudrePronostic } from './donnees_reglement';
 import { estVerrouille } from './verrou_pronostic';
 import { construireRecherche } from './recherche_matchs';
 import { journal } from '../utils/logger';
@@ -710,15 +711,19 @@ export class PronosticsService {
       include: { match: { select: {
         id: true, homeTeam: true, awayTeam: true, homeScore: true, awayScore: true,
         homeScoreHT: true, awayScoreHT: true,
+        // Les marchés 1xBet de la phase 2 relisent les événements et les
+        // statistiques du match auprès du fournisseur (donnees_reglement.ts).
+        source: true, externalId: true, matchDate: true,
       } } },
     });
     for (const prono of unresolvedPronos) {
       const { homeScore, awayScore, homeScoreHT, awayScoreHT } = prono.match;
-      const result = _resolvePronosticResult(
+      const result = await resoudrePronostic(
         prono,
+        prono.match,
         { home: homeScore!, away: awayScore! },
         homeScoreHT !== null && awayScoreHT !== null ? { home: homeScoreHT, away: awayScoreHT } : null,
-      );
+      ).catch((err: any) => { journal.error('[PronoSvc]', err.message); return null; });
       if (result) {
         await prisma.pronostic.update({ where: { id: prono.id }, data: { result } });
         resolved++;
