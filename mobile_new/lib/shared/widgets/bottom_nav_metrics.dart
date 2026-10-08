@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 /// Géométrie de la barre de navigation du bas, en un seul endroit.
@@ -34,12 +37,40 @@ class BottomNavMetrics {
   /// Elle est lue par la barre **et** par [bottomNavSpace] : les listes
   /// réservent ainsi d'elles-mêmes la place réelle, sans qu'aucune page n'ait
   /// à être retouchée.
+  ///
+  /// 61 : celle de Threads, mesurée sur un iPhone 16 Pro (vidéo du
+  /// 8 octobre 2026) ; Instagram est à 58.
   static double hauteur(BuildContext context) => _hauteurBase;
 
-  static const double _hauteurBase = 62;
+  static const double _hauteurBase = 61;
 
-  /// Marge sous la barre, entre elle et l'encoche.
+  /// Marges de part et d'autre de la barre : 21, comme Threads et Instagram.
+  static const double margeLaterale = 21;
+
+  /// Marge sous la barre, entre elle et l'encoche, là où la barre reste
+  /// au-dessus de celle-ci (Android).
   static const double margeBasse = 4;
+
+  /// Distance entre le bas de la barre et le bord de l'écran.
+  ///
+  /// Sur un iPhone à barre d'accueil, Threads et Instagram posent leur barre à
+  /// 21 pt du bord : elle descend dans l'encoche (34 pt) et s'arrête juste
+  /// au-dessus du trait d'accueil. La nôtre restait au-dessus de l'encoche,
+  /// à 38 pt — visiblement plus haute à côté d'eux.
+  ///
+  /// Ailleurs elle reste au-dessus de l'encoche : sur Android, celle-ci peut
+  /// contenir les trois boutons de navigation, qu'une barre ne doit pas
+  /// recouvrir.
+  static double ecartBas(BuildContext context) {
+    final encoche = MediaQuery.of(context).padding.bottom;
+    if (defaultTargetPlatform == TargetPlatform.iOS && encoche > 0) {
+      return math.max(encoche - _remonteeIos, 12);
+    }
+    return encoche + margeBasse;
+  }
+
+  /// 34 − 13 = 21 pt sur un iPhone à barre d'accueil.
+  static const double _remonteeIos = 13;
 }
 
 /// Place à réserver en bas d'une liste défilante pour que son dernier élément
@@ -49,6 +80,5 @@ class BottomNavMetrics {
 /// lui, le dernier élément affleure la barre au lieu de s'en détacher.
 double bottomNavSpace(BuildContext context, {double supplement = 16}) =>
     BottomNavMetrics.hauteur(context) +
-    BottomNavMetrics.margeBasse +
-    MediaQuery.of(context).padding.bottom +
+    BottomNavMetrics.ecartBas(context) +
     supplement;

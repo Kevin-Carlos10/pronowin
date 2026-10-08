@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pronowin/core/widgets/image_distante.dart';
+import 'package:pronowin/core/theme/typographie.dart';
 
 /// Deux réglages invisibles qui décident du confort réel de l'application.
 ///
@@ -139,15 +141,20 @@ void main() {
     // Les commentaires citent volontairement le défaut corrigé : les inclure
     // rendrait le contrôle rouge pour la phrase qui explique la correction.
     final main = codeSeul('lib/main.dart');
+    // Les bornes vivent avec l'agrandissement « façon Threads », que
+    // `main.dart` applique (8 octobre 2026).
+    final typo = codeSeul('lib/core/theme/typographie.dart');
 
     test('le réglage système n\'est plus annulé', () {
       expect(main.contains('TextScaler.noScaling'), isFalse,
         reason: 'ignorer le réglage prive de l\'application ceux qui en ont '
                 'le plus besoin');
+      expect(main, contains('echelleTexte(systeme)'),
+        reason: 'l\'échelle de l\'application part de celle du téléphone');
     });
 
     test('il est borné, et la borne laisse passer les réglages courants', () {
-      final m = RegExp(r'maxScaleFactor:\s*([\d.]+)').firstMatch(main);
+      final m = RegExp(r'maxScaleFactor:\s*([\d.]+)').firstMatch(typo);
       expect(m, isNotNull, reason: 'aucune borne haute déclarée');
 
       final max = double.parse(m!.group(1)!);
@@ -158,6 +165,37 @@ void main() {
       // (constat M13). Relever cette borne exige de relever d'abord celles de
       // ces deux bancs.
       expect(max, lessThanOrEqualTo(1.8));
+    });
+
+    test('nos tailles agrandies, le réglage du téléphone par-dessus', () {
+      // Téléphone au réglage par défaut : 13 → 15,6, comme Threads.
+      expect(echelleTexte(TextScaler.noScaling).scale(13), closeTo(15.6, 1e-9));
+      // Texte agrandi dans les réglages : il grandit encore ici…
+      expect(echelleTexte(const TextScaler.linear(1.3)).scale(10), closeTo(15.6, 1e-9));
+      // …jusqu'à la borne mesurée par les bancs, sur l'échelle finale.
+      expect(echelleTexte(const TextScaler.linear(1.6)).scale(10), closeTo(18, 1e-9));
+      expect(echelleTexte(const TextScaler.linear(3)).scale(10), closeTo(18, 1e-9));
+      // Texte réduit : le plancher tient.
+      expect(echelleTexte(const TextScaler.linear(0.5)).scale(10), closeTo(9, 1e-9));
+      // Même réglage, même échelle : MediaQuery ne reconstruit pas pour rien.
+      expect(echelleTexte(TextScaler.noScaling), echelleTexte(TextScaler.noScaling));
+    });
+
+    test('lettres resserrées comme iOS, interligne naturel', () {
+      // Material 3 ajoutait +0,25 entre les lettres et un interligne de 1,43 :
+      // nos mots paraissaient étirés à côté de ceux de Threads.
+      final android = typographie(const ColorScheme.light()).englishLike;
+      expect(android.bodyMedium!.letterSpacing, 0);
+      expect(android.bodyMedium!.height, isNull);
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        final ios = typographie(const ColorScheme.light()).englishLike;
+        expect(ios.bodyMedium!.letterSpacing, chasseTexte);
+        expect(ios.bodyMedium!.letterSpacing, lessThan(0));
+        expect(ios.bodyLarge!.height, isNull);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
     });
   });
 }

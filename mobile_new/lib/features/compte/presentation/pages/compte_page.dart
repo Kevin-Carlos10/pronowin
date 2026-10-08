@@ -1289,13 +1289,15 @@ class _LinkRow extends StatelessWidget {
         Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // 14 et 12 : agrandis d'un cran par l'échelle de l'application,
+            // ils rejoignent les lignes de réglages de Threads (17 et 15).
             Text(tr(context, label), style: TextStyle(
-              color: context.cl.textP, fontSize: 13,
+              color: context.cl.textP, fontSize: 14,
               fontWeight: FontWeight.w500)),
             if (sousTitre != null) ...[
               const SizedBox(height: 2),
               Text(sousTitre!, style: TextStyle(
-                color: context.cl.textM, fontSize: 11)),
+                color: context.cl.textM, fontSize: 12)),
             ],
           ])),
         const SizedBox(width: 8),

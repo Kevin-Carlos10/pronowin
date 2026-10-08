@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pronowin/shared/widgets/bottom_nav_metrics.dart';
@@ -19,7 +20,7 @@ void main() {
   /// l'appareil, sans quoi un libellé agrandi déborderait d'une barre figée.
   /// Le mesurer plutôt que l'écrire ici évite d'en recopier la valeur — c'est
   /// exactement la duplication que ce fichier existe pour empêcher.
-  Future<({double hauteur, double espace})> mesurer(
+  Future<({double hauteur, double espace, double ecart})> mesurer(
     WidgetTester tester, {
     double insetBas = 0,
     double echelleTexte = 1,
@@ -27,6 +28,7 @@ void main() {
   }) async {
     late double hauteur;
     late double espace;
+    late double ecart;
     await tester.pumpWidget(MediaQuery(
       data: MediaQueryData(
         padding: EdgeInsets.only(bottom: insetBas),
@@ -35,10 +37,11 @@ void main() {
       child: Builder(builder: (context) {
         hauteur = BottomNavMetrics.hauteur(context);
         espace  = bottomNavSpace(context, supplement: supplement);
+        ecart   = BottomNavMetrics.ecartBas(context);
         return const SizedBox.shrink();
       }),
     ));
-    return (hauteur: hauteur, espace: espace);
+    return (hauteur: hauteur, espace: espace, ecart: ecart);
   }
 
   group('bottomNavSpace couvre la barre sur tous les appareils', () {
@@ -46,11 +49,27 @@ void main() {
     for (final inset in [0.0, 24.0, 34.0, 48.0]) {
       testWidgets('encoche de $inset px', (tester) async {
         final m = await mesurer(tester, insetBas: inset);
-        expect(m.espace,
-            greaterThanOrEqualTo(m.hauteur + BottomNavMetrics.margeBasse + inset),
+        // Hors iPhone, la barre reste au-dessus de l'encoche : sur Android,
+        // celle-ci peut contenir les boutons de navigation.
+        expect(m.ecart, inset + BottomNavMetrics.margeBasse);
+        expect(m.espace, greaterThanOrEqualTo(m.hauteur + m.ecart),
             reason: 'la dernière ligne passerait sous la barre');
       });
     }
+
+    testWidgets('iPhone : à 21 pt du bord, comme Threads et Instagram', (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      try {
+        final iphone = await mesurer(tester, insetBas: 34);
+        expect(iphone.ecart, 21,
+            reason: 'mesuré sur leurs vidéos du 8 octobre 2026 ; la nôtre était à 38');
+        expect(iphone.espace, greaterThanOrEqualTo(iphone.hauteur + iphone.ecart));
+        // Sans barre d'accueil (iPhone à bouton), elle ne colle pas au bord.
+        expect((await mesurer(tester)).ecart, BottomNavMetrics.margeBasse);
+      } finally {
+        debugDefaultTargetPlatformOverride = null;
+      }
+    });
 
     testWidgets('l\'ancienne valeur écrite à la main était bien trop courte',
         (tester) async {
@@ -61,10 +80,10 @@ void main() {
       final android = await mesurer(tester, insetBas: 24);
 
       expect(ancienneValeur,
-          lessThan(iphone.hauteur + BottomNavMetrics.margeBasse + 34),
-          reason: 'sur iPhone, 80 px laissaient 22 px de contenu masqués');
+          lessThan(iphone.hauteur + iphone.ecart),
+          reason: 'sur iPhone, 80 px laissaient du contenu masqué');
       expect(ancienneValeur,
-          lessThan(android.hauteur + BottomNavMetrics.margeBasse + 24),
+          lessThan(android.hauteur + android.ecart),
           reason: 'en navigation gestuelle Android aussi');
 
       // Et la valeur dérivée, elle, tient.
@@ -73,7 +92,7 @@ void main() {
 
     testWidgets('le supplément de respiration est réglable', (tester) async {
       final m = await mesurer(tester, supplement: 0);
-      expect(m.espace, m.hauteur + BottomNavMetrics.margeBasse);
+      expect(m.espace, m.hauteur + m.ecart);
     });
   });
 
@@ -85,13 +104,13 @@ void main() {
       final normal = await mesurer(tester);
       final grand  = await mesurer(tester, echelleTexte: 1.5);
       expect(grand.hauteur, normal.hauteur);
-      expect(normal.hauteur, 62);
+      // Celle de Threads.
+      expect(normal.hauteur, 61);
     });
 
     testWidgets('et la place réservée la couvre toujours', (tester) async {
       final grand = await mesurer(tester, insetBas: 34, echelleTexte: 1.5);
-      expect(grand.espace,
-          greaterThanOrEqualTo(grand.hauteur + BottomNavMetrics.margeBasse + 34));
+      expect(grand.espace, greaterThanOrEqualTo(grand.hauteur + grand.ecart));
     });
   });
 }

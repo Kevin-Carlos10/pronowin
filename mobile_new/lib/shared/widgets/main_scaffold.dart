@@ -104,8 +104,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
 
   @override
   Widget build(BuildContext context) {
-    final bottomPadding = MediaQuery.of(context).padding.bottom;
-    final loggedIn       = ref.watch(effectiveLoggedInProvider);
+    final loggedIn = ref.watch(effectiveLoggedInProvider);
 
     return Scaffold(
       extendBody: true,
@@ -138,7 +137,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
         currentIndex: _currentIndex,
         items: _navItems,
         iconScales: _iconScales,
-        bottomPadding: bottomPadding,
         onTap: _onTap,
       ),
     );
@@ -152,7 +150,6 @@ Widget barreNavigationSeule({int index = 0}) => _FloatingNavBar(
       currentIndex: index,
       items: _MainScaffoldState._navItems,
       iconScales: List.filled(5, const AlwaysStoppedAnimation<double>(1)),
-      bottomPadding: 0,
       onTap: (_) {},
     );
 
@@ -175,14 +172,12 @@ class _FloatingNavBar extends StatelessWidget {
   final int currentIndex;
   final List<_NavItemData> items;
   final List<Animation<double>> iconScales;
-  final double bottomPadding;
   final void Function(int) onTap;
 
   const _FloatingNavBar({
     required this.currentIndex,
     required this.items,
     required this.iconScales,
-    required this.bottomPadding,
     required this.onTap,
   });
 
@@ -193,28 +188,36 @@ class _FloatingNavBar extends StatelessWidget {
     final hauteur = BottomNavMetrics.hauteur(context);
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          16, 0, 16, bottomPadding + BottomNavMetrics.margeBasse),
+          BottomNavMetrics.margeLaterale, 0,
+          BottomNavMetrics.margeLaterale, BottomNavMetrics.ecartBas(context)),
       child: DecoratedBox(
         decoration: ShapeDecoration(
           shape: const StadiumBorder(),
           shadows: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: sombre ? 0.45 : 0.10),
-              blurRadius: 24,
+              color: Colors.black.withValues(alpha: sombre ? 0.35 : 0.08),
+              blurRadius: 28,
               offset: const Offset(0, 6),
             ),
           ],
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(hauteur / 2),
+          // Verre dépoli, comme Threads et Instagram : le contenu reste
+          // visible sous la barre, flouté et éclairci. Elle était blanche à
+          // 92 % — un bandeau opaque à côté d'eux. Mesuré sur leurs vidéos :
+          // un voile blanc d'environ 27 % chez Threads (verre « Liquid
+          // Glass » d'iOS), 66 % chez Instagram. 62 % garde les icônes noires
+          // lisibles sur une photo sombre, que le flou seul ne suffit pas à
+          // éclaircir.
           child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+            filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
             child: Container(
               height: hauteur,
               padding: const EdgeInsets.all(5),
               decoration: ShapeDecoration(
                 color: (sombre ? const Color(0xFF1C1F26) : Colors.white)
-                    .withValues(alpha: 0.92),
+                    .withValues(alpha: 0.62),
                 shape: StadiumBorder(
                   side: BorderSide(
                     color: contraste.withValues(alpha: sombre ? 0.10 : 0.08),

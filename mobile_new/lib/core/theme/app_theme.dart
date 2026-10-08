@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'typographie.dart';
 
 
 // ─── Couleurs fixes (identiques dans les deux thèmes) ─────────────────────────
@@ -261,6 +262,7 @@ class AppTheme {
     brightness:      Brightness.dark,
     scaffoldBackgroundColor: AppColors.background,
     colorScheme: _schemaSombre,
+    typography: typographie(_schemaSombre),
     appBarTheme: const AppBarTheme(
       backgroundColor:  AppColors.background,
       elevation:        0,
@@ -318,6 +320,7 @@ class AppTheme {
     brightness:      Brightness.light,
     scaffoldBackgroundColor: const Color(0xFFF5F7FA),
     colorScheme: _schemaClair,
+    typography: typographie(_schemaClair),
     appBarTheme: const AppBarTheme(
       backgroundColor:  Colors.white,
       elevation:        0,

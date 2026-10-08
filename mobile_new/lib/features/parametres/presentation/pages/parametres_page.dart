@@ -996,7 +996,7 @@ class _SwitchTile extends StatelessWidget {
                 .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
               child: child)),
           child: Text(subtitle!, key: ValueKey(subtitle),
-            style: TextStyle(color: context.cl.textM, fontSize: 11)),
+            style: TextStyle(color: context.cl.textM, fontSize: 12)),
         ),
       ])),
       if (unavailable)
@@ -1045,7 +1045,7 @@ class _NavTile extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title, style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w500)),
-          if (subtitle != null) Text(subtitle!, style: TextStyle(color: context.cl.textM, fontSize: 11)),
+          if (subtitle != null) Text(subtitle!, style: TextStyle(color: context.cl.textM, fontSize: 12)),
         ])),
         if (trailing != null) Text(trailing!, style: TextStyle(color: context.cl.textS, fontSize: 13)),
         const SizedBox(width: 4),
@@ -1078,7 +1078,7 @@ class _DangerNavTile extends StatelessWidget {
            Text(tr(context, "Supprimer le compte"), style: TextStyle(
             color: context.cl.error, fontSize: 14, fontWeight: FontWeight.w500)),
           if (subtitle != null) Text(subtitle!, style: TextStyle(
-            color: context.cl.error.withValues(alpha: 0.6), fontSize: 11)),
+            color: context.cl.error.withValues(alpha: 0.6), fontSize: 12)),
         ])),
         Icon(Icons.chevron_right_rounded, color: context.cl.error.withValues(alpha: 0.5), size: 18),
       ]),

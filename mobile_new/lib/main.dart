@@ -17,6 +17,7 @@ import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'core/constants/app_constants.dart' show AppConstants;
 import 'core/router/app_router.dart' show appRouterProvider, onboardingDoneProvider;
 import 'core/theme/app_theme.dart';
+import 'core/theme/typographie.dart';
 import 'core/widgets/splash_screen.dart';
 import 'core/services/crashlytics_service.dart';
 import 'core/services/remote_config_service.dart';
@@ -350,7 +351,10 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
           ),
           child: MediaQuery(
             data: MediaQuery.of(context).copyWith(
-              textScaler: systeme.clamp(minScaleFactor: 0.9, maxScaleFactor: 1.8),
+              // Agrandie d'un cran pour rejoindre les tailles de Threads, le
+              // réglage du téléphone s'appliquant par-dessus, avec les mêmes
+              // bornes sur l'échelle finale : voir `typographie.dart`.
+              textScaler: echelleTexte(systeme),
             ),
             child: child!,
           ),
