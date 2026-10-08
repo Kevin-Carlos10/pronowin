@@ -503,6 +503,106 @@
       "en": "Win Both Halves",
       "fr": "Gagne les deux mi-temps",
       "aliases": []
+    },
+    {
+      "en": "Corners Asian Handicap",
+      "fr": "Handicap asiatique corners",
+      "aliases": []
+    },
+    {
+      "en": "Corners Asian Handicap (1st Half)",
+      "fr": "Handicap asiatique corners — 1ère MT",
+      "aliases": []
+    },
+    {
+      "en": "Corners Asian Handicap (2nd Half)",
+      "fr": "Handicap asiatique corners — 2ème MT",
+      "aliases": []
+    },
+    {
+      "en": "Corners 1x2 (1st Half)",
+      "fr": "Équipe avec le plus de corners — 1ère MT",
+      "aliases": []
+    },
+    {
+      "en": "Corners 1x2 (2nd Half)",
+      "fr": "Équipe avec le plus de corners — 2ème MT",
+      "aliases": []
+    },
+    {
+      "en": "Corners. Double Chance",
+      "fr": "Double chance corners",
+      "aliases": []
+    },
+    {
+      "en": "Corners. Odd/Even",
+      "fr": "Pair/Impair corners",
+      "aliases": []
+    },
+    {
+      "en": "Total Corners (1st Half)",
+      "fr": "Total corners — 1ère MT",
+      "aliases": []
+    },
+    {
+      "en": "Total Corners (2nd Half)",
+      "fr": "Total corners — 2ème MT",
+      "aliases": []
+    },
+    {
+      "en": "Home Corners Over/Under",
+      "fr": "Total corners domicile",
+      "aliases": []
+    },
+    {
+      "en": "Away Corners Over/Under",
+      "fr": "Total corners extérieur",
+      "aliases": []
+    },
+    {
+      "en": "Home Total Corners (1st Half)",
+      "fr": "Total corners domicile (1ère MT)",
+      "aliases": []
+    },
+    {
+      "en": "Home Total Corners (2nd Half)",
+      "fr": "Total corners domicile (2ème MT)",
+      "aliases": []
+    },
+    {
+      "en": "Away Total Corners (1st Half)",
+      "fr": "Total corners extérieur (1ère MT)",
+      "aliases": []
+    },
+    {
+      "en": "Away Total Corners (2nd Half)",
+      "fr": "Total corners extérieur (2ème MT)",
+      "aliases": []
+    },
+    {
+      "en": "Shots.1x2",
+      "fr": "Équipe avec le plus de tirs",
+      "aliases": []
+    },
+    {
+      "en": "ShotOnTarget 1x2",
+      "fr": "Équipe avec le plus de tirs cadrés",
+      "aliases": []
+    },
+    {
+      "en": "Total Shots",
+      "fr": "Total de tirs du match",
+      "aliases": []
+    },
+    {
+      "en": "Total ShotOnGoal",
+      "fr": "Total de tirs cadrés du match",
+      "aliases": []
+    },
+    {
+      "en": "Away Player Shots Total",
+      "fr": "Total de tirs extérieur",
+      "aliases": []
     }
   ],
   "selections": [

@@ -2,9 +2,16 @@ import type { AxiosInstance } from 'axios';
 import { enrichissementsFootball } from './enrichissements_football';
 import { zoneDepuisDescription } from './zones_classement';
 
+/** Le bilan d'une équipe sur un terrain : à domicile, à l'extérieur. */
+export interface Bilan {
+  played: number; win: number; draw: number; lose: number; goalsFor: number; goalsAgainst: number; points: number;
+}
 export interface StandingRow {
   rank: number; teamName: string; teamLogo: string | null; teamId: number | null;
   played: number; win: number; draw: number; lose: number; goalsDiff: number; points: number;
+  goalsFor: number; goalsAgainst: number;
+  /** Comme Sofascore : le classement domicile ou extérieur se recompose de ces bilans. */
+  home: Bilan; away: Bilan;
   form: string | null; zone: string | null; zoneNature: string | null;
   groupId: string; groupName: string | null; season: number;
   isMatchTeam: boolean | null; updatedAt: string | null; stale: boolean;
@@ -12,6 +19,16 @@ export interface StandingRow {
 export interface ClassementMatch {
   status: 'available' | 'pending' | 'unsupported' | 'unavailable';
   rows: StandingRow[]; season: number | null;
+}
+
+function bilan(b: any): Bilan {
+  const win = b?.win ?? 0, draw = b?.draw ?? 0;
+  return {
+    played: b?.played ?? 0, win, draw, lose: b?.lose ?? 0,
+    goalsFor: b?.goals?.for ?? 0, goalsAgainst: b?.goals?.against ?? 0,
+    // Le fournisseur ne donne pas les points par terrain : 3 par victoire, 1 par nul.
+    points: win * 3 + draw,
+  };
 }
 
 export class ClassementsFootball {
@@ -56,6 +73,8 @@ export class ClassementsFootball {
           rank: row.rank, teamId: row.team.id, teamName: row.team.name ?? '', teamLogo: row.team.logo ?? null,
           played: row.all?.played ?? 0, win: row.all?.win ?? 0, draw: row.all?.draw ?? 0, lose: row.all?.lose ?? 0,
           goalsDiff: row.goalsDiff ?? 0, points: row.points ?? 0, form: row.form ?? null,
+          goalsFor: row.all?.goals?.for ?? 0, goalsAgainst: row.all?.goals?.against ?? 0,
+          home: bilan(row.home), away: bilan(row.away),
           zone: zone?.libelle ?? null, zoneNature: zone?.nature ?? null,
           groupId: group[0]?.group || String(index), groupName: row.group ?? null, season: season!,
           isMatchTeam: home && away ? row.team.id === home || row.team.id === away : null,

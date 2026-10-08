@@ -6,12 +6,13 @@ jest.mock('../services/pronostics.service');
 jest.mock('../services/notification.service');
 jest.mock('../services/football_data.service');
 jest.mock('../services/api_football.service', () => ({
-  apiFootballService: { getMatchInfo: jest.fn(), getMatchStats: jest.fn(), getLineups: jest.fn(), getStandings: jest.fn() },
+  apiFootballService: { getMatchInfo: jest.fn(), getMatchStats: jest.fn(), getLineups: jest.fn(), getStandings: jest.fn(),
+    getFormeRecente: jest.fn(), getOdds1xBet: jest.fn() },
   apiFootballInsights: { getLiveOdds: jest.fn() },
 }));
 import { prisma } from '../lib/prisma';
 import { apiFootballService } from '../services/api_football.service';
-import { getMatchInfo, getPronosticDetail, getPronosticScore, getMatchStats, getLineups, getStandings } from '../controllers/pronostics.controller';
+import { getMatchInfo, getPronosticDetail, getPronosticScore, getMatchStats, getLineups, getStandings, getFormeRecente, getCotes } from '../controllers/pronostics.controller';
 const match = { id: 'm', status: 'LIVE', externalId: 42, source: 'API_FOOTBALL', homeTeam: 'A', awayTeam: 'B',
   league: 'Premier League', leagueCode: 'PL', matchDate: new Date(), homeScore: 2, awayScore: 1, elapsedMinutes: 45 };
 const response = () => { const r: any = { json: jest.fn() }; r.status = jest.fn(() => r); return r; };
@@ -80,4 +81,37 @@ it('informations du match: accès public, identifiant exact et indisponibilité 
   (prisma.match.findUnique as jest.Mock).mockResolvedValue({...match,source:'OTHER'});
   const other=response(); await getMatchInfo({params:{id:'m'}} as any,other); expect(other.status).toHaveBeenCalledWith(404);
   expect(apiFootballService.getMatchInfo).not.toHaveBeenCalled();
+});
+
+it('forme récente: identifiant fournisseur, indisponibilité explicite, autre fournisseur sans appel', async () => {
+  (apiFootballService.getFormeRecente as jest.Mock).mockResolvedValue({ home: [], away: [] });
+  const r=response(); await getFormeRecente({params:{id:'m'}} as any,r);
+  expect(apiFootballService.getFormeRecente).toHaveBeenCalledWith(42);
+  expect(r.json).toHaveBeenCalledWith({ home: [], away: [] });
+  (apiFootballService.getFormeRecente as jest.Mock).mockResolvedValue(null);
+  const down=response(); await getFormeRecente({params:{id:'m'}} as any,down); expect(down.status).toHaveBeenCalledWith(503);
+  jest.clearAllMocks();
+  (prisma.match.findUnique as jest.Mock).mockResolvedValue({...match,source:'OTHER'});
+  const other=response(); await getFormeRecente({params:{id:'m'}} as any,other); expect(other.status).toHaveBeenCalledWith(404);
+  expect(apiFootballService.getFormeRecente).not.toHaveBeenCalled();
+});
+
+it('cotes: tous les marchés avant le coup d’envoi, sans nom de bookmaker ni type interne', async () => {
+  (prisma.match.findUnique as jest.Mock).mockResolvedValue({ ...match, status: 'SCHEDULED' });
+  (apiFootballService.getOdds1xBet as jest.Mock).mockResolvedValue({ source: '1xBet', options: [{ type: 'win1' }],
+    markets: [{ name: 'Match Winner', values: [{ value: 'Home', odd: 1.8, type: 'win1' }, { value: 'Draw', odd: 3.4 }] }] });
+  const r=response(); await getCotes({params:{id:'m'}} as any,r);
+  expect(apiFootballService.getOdds1xBet).toHaveBeenCalledWith('A','B',match.matchDate.toISOString().slice(0,10),42);
+  expect(r.json).toHaveBeenCalledWith({ markets: [{ name: 'Match Winner', values: [{ value: 'Home', odd: 1.8 }, { value: 'Draw', odd: 3.4 }] }] });
+  expect(JSON.stringify(r.json.mock.calls[0][0])).not.toMatch(/1xBet/);
+  (apiFootballService.getOdds1xBet as jest.Mock).mockResolvedValue(null);
+  const down=response(); await getCotes({params:{id:'m'}} as any,down); expect(down.status).toHaveBeenCalledWith(503);
+});
+
+it('cotes: fermées une fois le match commencé, et pour un autre fournisseur', async () => {
+  for (const m of [match, { ...match, status: 'FINISHED' }, { ...match, status: 'SCHEDULED', source: 'OTHER' }]) {
+    (prisma.match.findUnique as jest.Mock).mockResolvedValue(m);
+    const r=response(); await getCotes({params:{id:'m'}} as any,r); expect(r.status).toHaveBeenCalledWith(404);
+  }
+  expect(apiFootballService.getOdds1xBet).not.toHaveBeenCalled();
 });

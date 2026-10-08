@@ -1,5 +1,6 @@
 import { MatchInfoService } from './match_info.service';
 import { MatchLiveService } from './match_live.service';
+import { FormeRecenteFootball } from './forme_recente.service';
 import type { MatchStatsResult } from './match_live.service';
 export type { MatchEvent, MatchStat, MatchStatsResult } from './match_live.service';
 import axios, { AxiosError, AxiosInstance } from 'axios';
@@ -272,6 +273,7 @@ const ODDS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 export class ApiFootballService {
   private client: AxiosInstance;
   private matchLive: MatchLiveService;
+  private formeRecente!: FormeRecenteFootball;
   private matchInfo: MatchInfoService;
   private classements: ClassementsFootball;
 
@@ -298,6 +300,7 @@ export class ApiFootballService {
       return null;
     });
     this.classements = new ClassementsFootball(this.client, id => this.matchLive.fixture(id));
+    this.formeRecente = new FormeRecenteFootball(this.client, id => this.matchLive.fixture(id));
     this.client.interceptors.request.use(config => {
       // Keep the main fixture/score sync and settlement odds available.
       if (config.url !== '/fixtures' && config.url !== '/odds') exigerQuotaEnrichissement();
@@ -793,6 +796,12 @@ export class ApiFootballService {
   }
 
   // ── Classement ───────────────────────────────────────────────────────────────
+
+  /** Les cinq derniers matchs terminés de chaque équipe du match. */
+  async getFormeRecente(fixtureId: number) {
+    if (!this._hasKey()) return null;
+    return this.formeRecente.get(fixtureId);
+  }
 
   /** Classement de la compétition et de la saison du match, tous groupes. */
   async getStandings(leagueCode: string, matchDate: Date, fixtureId?: number) {

@@ -1121,6 +1121,44 @@ export const getStandings = async (req: AuthRequest, res: Response) => {
   } catch (e: any) { repondreErreur(res, e); }
 };
 
+/**
+ * GET /pronostics/:id/forme-recente — les cinq derniers matchs terminés de
+ * chaque équipe. Ouvert aux invités : c'est de la donnée football, pas le
+ * produit vendu.
+ */
+export const getFormeRecente = async (req: AuthRequest, res: Response) => {
+  try {
+    const match = await findMatchByIdOrPronoId(req.params.id);
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+    const fixtureId = fixtureIdDe(match);
+    if (!fixtureId) { res.status(404).json({ code: 'FORME_UNSUPPORTED', message: 'Forme récente indisponible pour ce match.' }); return; }
+    const forme = await apiFootballService.getFormeRecente(fixtureId);
+    if (!forme) { res.status(503).json({ code: 'FORME_UNAVAILABLE', message: 'Forme récente momentanément indisponible.' }); return; }
+    res.json(forme);
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
+ * GET /pronostics/:id/cotes — tous les marchés cotés du match, avant le coup
+ * d'envoi : ce que Sofascore et 1xBet montrent, et que la fiche réduisait au
+ * 1X2. Sans le nom du bookmaker : l'application des boutiques n'en cite
+ * aucun. Les valeurs restent brutes (anglais du fournisseur) ; l'application
+ * les traduit par le catalogue partagé.
+ */
+export const getCotes = async (req: AuthRequest, res: Response) => {
+  try {
+    const match = await findMatchByIdOrPronoId(req.params.id);
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+    if (match.status !== 'SCHEDULED') { res.status(404).json({ code: 'COTES_FERMEES', message: 'Cotes disponibles avant le coup d\'envoi seulement.' }); return; }
+    const fixtureId = fixtureIdDe(match);
+    if (!fixtureId) { res.status(404).json({ code: 'COTES_UNSUPPORTED', message: 'Cotes indisponibles pour ce match.' }); return; }
+    const odds = await apiFootballService.getOdds1xBet(match.homeTeam, match.awayTeam,
+      match.matchDate.toISOString().slice(0, 10), fixtureId);
+    if (!odds) { res.status(503).json({ code: 'COTES_UNAVAILABLE', message: 'Cotes momentanément indisponibles.' }); return; }
+    res.json({ markets: odds.markets.map(m => ({ name: m.name, values: m.values.map(v => ({ value: v.value, odd: v.odd })) })) });
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
 // Analyse statistique d'un pronostic : probabilité calculée à partir de la
 // cote et de la forme, plus une explication du calcul. Aucun modèle génératif
 // n'est appelé (cf. ai_prediction.service.ts).
