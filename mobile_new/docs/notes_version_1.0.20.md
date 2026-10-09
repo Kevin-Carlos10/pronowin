@@ -8,8 +8,10 @@ adresse locale, permissions propres à chaque canal) :
   (53,6 Mo), à envoyer dans la Play Console (Production → Créer une version).
 - Téléchargement direct : `build/app/outputs/flutter-apk/` —
   `app-direct-release.apk` (universel, 71 Mo), `app-arm64-v8a-direct-release.apk`
-  (26,2 Mo), `app-armeabi-v7a-direct-release.apk` (24,6 Mo). Non publiés dans
-  `/downloads` à ce jour.
+  (26,2 Mo), `app-armeabi-v7a-direct-release.apk` (24,6 Mo). Publiés dans
+  `/downloads` le 9 octobre 2026 (anciens fichiers gardés en
+  `*-1.0.19-sauvegarde-*`), `APK_LATEST_VERSION=1.0.20`, mise à jour non
+  obligatoire.
 - iPhone : build Codemagic n°27 (workflow « iOS — envoi vers TestFlight »). Le
   numéro de build iOS suit TestFlight, où la 1.0.20 avait déjà reçu les builds
   38 et 39 (révision 311a709) : celui-ci prendra le suivant.
