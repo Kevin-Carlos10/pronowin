@@ -549,28 +549,29 @@ class _ResultBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isWin = result == 'WIN';
+    // Un remboursement (PUSH) affichait « Perdu » : le badge ne connaissait que
+    // WIN et le reste. La page du match disait « Pronostic remboursé » pour le
+    // même pronostic (Lens 2-1 Lyon, « Total buts extérieur : plus de 1 »).
+    final (color, icon, label) = switch (result) {
+      'WIN'  => (context.cl.success, Icons.check_circle_rounded, tr(context, "Gagné")),
+      'PUSH' => (context.cl.info, Icons.replay_rounded, tr(context, "Remboursé")),
+      _      => (context.cl.error, Icons.cancel_rounded, tr(context, "Perdu")),
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: isWin
-            ? context.cl.success.withValues(alpha: 0.15)
-            : context.cl.error.withValues(alpha: 0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            isWin ? Icons.check_circle_rounded : Icons.cancel_rounded,
-            color: isWin ? context.cl.success : context.cl.error,
-            size: 11,
-          ),
+          Icon(icon, color: color, size: 11),
           const SizedBox(width: 3),
           Text(
-            isWin ? tr(context, "Gagné") : tr(context, "Perdu"),
+            label,
             style: TextStyle(
-              color: isWin ? context.cl.success : context.cl.error,
+              color: color,
               fontSize: 10,
               fontWeight: FontWeight.w700,
             ),

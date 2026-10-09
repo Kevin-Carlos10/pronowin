@@ -237,8 +237,17 @@ Future<void> _chargerPolices() async {
     fail('Polices Material introuvables (cherchées dans $racines) : '
         'sans elles, la mesure ne vaut rien.');
   }
-  ByteData octets(String f) =>
-      ByteData.sublistView(File('${dossier.path}/$f').readAsBytesSync());
+  // Le SDK livre « Roboto-Regular.ttf » : la casse ne compte pas sous Windows,
+  // elle compte sous Linux, où les 18 bancs d'écran échouaient en CI.
+  final parNom = {
+    for (final f in dossier.listSync().whereType<File>())
+      f.uri.pathSegments.last.toLowerCase(): f,
+  };
+  ByteData octets(String f) {
+    final fichier = parNom[f.toLowerCase()];
+    if (fichier == null) fail('Police $f absente de ${dossier.path}.');
+    return ByteData.sublistView(fichier.readAsBytesSync());
+  }
   final roboto = FontLoader('Roboto');
   for (final f in ['roboto-regular.ttf', 'roboto-medium.ttf', 'roboto-bold.ttf', 'roboto-black.ttf']) {
     roboto.addFont(Future.value(octets(f)));

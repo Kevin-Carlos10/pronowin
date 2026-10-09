@@ -126,7 +126,10 @@ class _YesterdayRecap extends ConsumerWidget {
 
     final regles = list
         .map((e) => e as Map<String, dynamic>)
-        .where((p) => p['result'] != null)
+        // Un pronostic remboursé n'est ni gagné ni perdu : le compter ici
+        // affichait « 1 sur 2 gagnés » pour un gain et un remboursement. Même
+        // dénominateur que les autres taux de l'application.
+        .where((p) => p['result'] == 'WIN' || p['result'] == 'LOSS')
         .toList();
     if (regles.isEmpty) return const SizedBox.shrink();
 
