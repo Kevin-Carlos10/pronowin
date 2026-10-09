@@ -8,6 +8,7 @@ import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:in_app_review/in_app_review.dart';
 import '../../../../core/config/contact_support.dart';
+import '../../../../shared/widgets/logo_marque.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
@@ -555,11 +556,11 @@ class ParametresPage extends ConsumerWidget {
               onTap: () => ContactSupport.ouvrirEmail(),
             ),
             _AboutChip(
-              icon: Icons.send_rounded, label: 'Telegram', color: const Color(0xFF29A9EA),
+              marque: Marque.telegram, label: 'Telegram', color: Marque.telegram.couleur,
               onTap: () => ContactSupport.ouvrirTelegram(),
             ),
             _AboutChip(
-              icon: Icons.chat_rounded, label: 'WhatsApp', color: const Color(0xFF25D366),
+              marque: Marque.whatsapp, label: 'WhatsApp', color: Marque.whatsapp.couleur,
               onTap: () => ContactSupport.ouvrirWhatsapp(),
             ),
             _AboutChip(
@@ -892,11 +893,15 @@ class _ThemeOption extends StatelessWidget {
 
 // ─── _AboutChip ───────────────────────────────────────────────────────────────
 class _AboutChip extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+
+  /// Le vrai logo du réseau, à la place d'une icône générique.
+  final Marque? marque;
   final String label;
   final Color color;
   final VoidCallback? onTap;
-  const _AboutChip({required this.icon, required this.label, required this.color, this.onTap});
+  const _AboutChip({this.icon, this.marque, required this.label, required this.color, this.onTap})
+      : assert(icon != null || marque != null);
   @override
   Widget build(BuildContext context) {
     final chip = Container(
@@ -906,7 +911,7 @@ class _AboutChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: color.withValues(alpha: 0.25))),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Icon(icon, color: color, size: 13),
+        if (marque != null) LogoMarque(marque!, taille: 14) else Icon(icon, color: color, size: 13),
         const SizedBox(width: 5),
         Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
       ]),

@@ -16,6 +16,7 @@ import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import 'package:go_router/go_router.dart';
 import 'moderation_commentaire.dart';
 import '../../../../shared/utils/messages.dart';
+import '../../../../shared/widgets/logo_marque.dart';
 
 // ── Modèles ───────────────────────────────────────────────────────────────────
 class PronosticComment {
@@ -336,6 +337,11 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
 }
 
 // ── Vote bar ──────────────────────────────────────────────────────────────────
+/// La barre de vote seule, pour les bancs d'essai.
+@visibleForTesting
+Widget barreDeVoteSeule(PronosticVoteData vote) =>
+    _VoteBar(vote: vote, onAgree: () {}, onDisagree: () {});
+
 class _VoteBar extends StatelessWidget {
   final PronosticVoteData vote;
   final VoidCallback onAgree, onDisagree;
@@ -374,7 +380,7 @@ class _VoteBar extends StatelessWidget {
               child: Column(children: [
                 Text('👍', style: const TextStyle(fontSize: 20)),
                 const SizedBox(height: 4),
-                Text('D\'accord', style: TextStyle(
+                Text(tr(context, "D'accord"), style: TextStyle(
                   color: userAgreed ? context.cl.success : context.cl.textM,
                   fontSize: 11, fontWeight: FontWeight.w700)),
                 Text('${vote.agree}', style: TextStyle(
@@ -412,7 +418,25 @@ class _VoteBar extends StatelessWidget {
           )),
         ]),
         if (total > 0) ...[
-          const SizedBox(height: 10),
+          const SizedBox(height: 12),
+          // La part d'accord, en clair, au-dessus de la barre : la barre
+          // seule, avec « 12 avis · 85% d'accord » en 10 pt dessous, ne se
+          // lisait pas d'un coup d'œil (revue de la fiche, 9 octobre 2026).
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Expanded(
+              child: Text(
+                tr(context, "{arg0} d'accord", [
+                  AppStrings.of(context).locale.languageCode == 'en'
+                      ? '${(agreePct * 100).round()}%'
+                      : '${(agreePct * 100).round()}\u00A0%']),
+                style: TextStyle(
+                  color: agreePct >= 0.5 ? context.cl.success : context.cl.error,
+                  fontSize: 15, fontWeight: FontWeight.w700)),
+            ),
+            Text(AppStrings.of(context).count(total, one: "{arg0} vote", other: "{arg0} votes"),
+              style: TextStyle(color: context.cl.textM, fontSize: 11)),
+          ]),
+          const SizedBox(height: 6),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: TweenAnimationBuilder<double>(
@@ -429,9 +453,6 @@ class _VoteBar extends StatelessWidget {
               ]),
             ),
           ),
-          const SizedBox(height: 4),
-          Text(tr(context, "{arg0} avis · {arg1}% d'accord", [total, (agreePct * 100).round()]),
-            style: TextStyle(color: context.cl.textM, fontSize: 10)),
         ],
       ]),
     );
@@ -779,14 +800,12 @@ class _CanauxCommunaute extends StatelessWidget {
         Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
           _BoutonCanal(
             libelle: 'Telegram',
-            icone: Icons.send_rounded,
-            couleur: Color(0xFF29A9EA),
+            marque: Marque.telegram,
             onTap: ContactSupport.ouvrirTelegram),
           SizedBox(width: 10),
           _BoutonCanal(
             libelle: 'WhatsApp',
-            icone: Icons.chat_rounded,
-            couleur: Color(0xFF25D366),
+            marque: Marque.whatsapp,
             onTap: ContactSupport.ouvrirWhatsapp),
         ]),
       ]),
@@ -797,12 +816,12 @@ class _CanauxCommunaute extends StatelessWidget {
 /// Bouton d'ouverture d'un canal externe.
 class _BoutonCanal extends StatelessWidget {
   final String libelle;
-  final IconData icone;
-  final Color couleur;
+  final Marque marque;
   final Future<void> Function() onTap;
   const _BoutonCanal({
-    required this.libelle, required this.icone,
-    required this.couleur, required this.onTap});
+    required this.libelle, required this.marque, required this.onTap});
+
+  Color get couleur => marque.couleur;
 
   @override
   Widget build(BuildContext context) => Semantics(
@@ -824,7 +843,7 @@ class _BoutonCanal extends StatelessWidget {
           border: Border.all(color: couleur.withValues(alpha: 0.32), width: 0.8),
         ),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icone, color: couleur, size: 15),
+          LogoMarque(marque, taille: 16),
           const SizedBox(width: 7),
           Text(libelle,
             style: TextStyle(

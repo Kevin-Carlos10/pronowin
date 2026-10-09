@@ -332,7 +332,13 @@ class _LigneClassement extends StatelessWidget {
                       _StandingsCard.memeEquipe(row.teamName, awayTeam));
     final couleurZone = _couleurZone(row.zoneNature);
 
-    return Container(
+    // Toute la ligne ouvre la fiche de l'équipe : le nom seul ferait une
+    // cible de quelques pixels de haut (demande du 9 octobre 2026).
+    return LienEquipe(
+      nom: row.teamName, logo: row.teamLogo, id: row.teamId,
+      competition: row.groupName,
+      rayon: BorderRadius.circular(7),
+      child: Container(
       padding: const EdgeInsets.symmetric(vertical: 5, horizontal: 6),
       margin: const EdgeInsets.symmetric(vertical: 1),
       decoration: BoxDecoration(
@@ -381,7 +387,7 @@ class _LigneClassement extends StatelessWidget {
         SizedBox(width: MediaQuery.textScalerOf(context).scale(28), child: Text('${row.points}', textAlign: TextAlign.center,
           style: TextStyle(color: context.cl.textP, fontSize: 11.5, fontWeight: FontWeight.w700))),
       ]),
-    );
+    ));
   }
 }
 

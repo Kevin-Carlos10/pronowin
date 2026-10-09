@@ -182,8 +182,9 @@ class _ShareSheetState extends State<_ShareSheet> {
             Row(children: [
               Expanded(child: _ShareBtn(
                 fallbackIcon: Icons.chat_rounded,
+                marque: Marque.whatsapp,
                 label: 'WhatsApp',
-                color: const Color(0xFF25D366),
+                color: Marque.whatsapp.couleur,
                 onTap: () async {
                   final encoded = Uri.encodeComponent(text);
                   await _launchShare('https://wa.me/?text=$encoded');
@@ -193,8 +194,9 @@ class _ShareSheetState extends State<_ShareSheet> {
               const SizedBox(width: 10),
               Expanded(child: _ShareBtn(
                 fallbackIcon: Icons.send_rounded,
+                marque: Marque.telegram,
                 label: 'Telegram',
-                color: const Color(0xFF0088CC),
+                color: Marque.telegram.couleur,
                 onTap: () async {
                   final encoded = Uri.encodeComponent(text);
                   await _launchShare(
@@ -223,11 +225,15 @@ class _ShareSheetState extends State<_ShareSheet> {
 
 class _ShareBtn extends StatelessWidget {
   final IconData fallbackIcon;
+
+  /// Le vrai logo du réseau, quand le bouton en ouvre un.
+  final Marque? marque;
   final String label;
   final Color color;
   final VoidCallback onTap;
   const _ShareBtn({
     required this.fallbackIcon,
+    this.marque,
     required this.label,
     required this.color,
     required this.onTap,
@@ -248,7 +254,9 @@ class _ShareBtn extends StatelessWidget {
           decoration: BoxDecoration(
             color: color.withValues(alpha: 0.15),
             shape: BoxShape.circle),
-          child: Center(child: Icon(fallbackIcon, color: color, size: 20)),
+          child: Center(child: marque != null
+              ? LogoMarque(marque!, taille: 22)
+              : Icon(fallbackIcon, color: color, size: 20)),
         ),
         const SizedBox(height: 8),
         Text(label, style: TextStyle(

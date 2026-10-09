@@ -283,16 +283,23 @@ class _LigneMatchRecent extends StatelessWidget {
           child: Text(
             m.date == null ? '' : DateFormat('dd/MM', langue).format(m.date!),
             style: TextStyle(color: context.cl.textM, fontSize: 11))),
-        _TeamLogo(url: m.adversaireLogo ?? '', size: 20),
-        const SizedBox(width: 10),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(m.adversaire,
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: context.cl.textP, fontSize: 12.5, fontWeight: FontWeight.w600)),
-          Text(sousTitre,
-            maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
-        ])),
+        // L'adversaire ouvre sa fiche, comme dans le classement.
+        Expanded(child: LienEquipe(
+          nom: m.adversaire, logo: m.adversaireLogo,
+          rayon: BorderRadius.circular(8),
+          child: Row(children: [
+            _TeamLogo(url: m.adversaireLogo ?? '', size: 20),
+            const SizedBox(width: 10),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(m.adversaire,
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: context.cl.textP, fontSize: 12.5, fontWeight: FontWeight.w600)),
+              Text(sousTitre,
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+            ])),
+          ]),
+        )),
         const SizedBox(width: 8),
         Text('${m.butsPour}-${m.butsContre}',
           style: TextStyle(

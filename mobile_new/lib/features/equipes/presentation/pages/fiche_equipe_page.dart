@@ -12,31 +12,37 @@ import '../../../../shared/widgets/erreur_chargement.dart';
 import '../../../joueurs/presentation/pages/fiche_joueur_page.dart';
 import '../providers/fiche_equipe_provider.dart';
 
-/// Ouvre la fiche d'une équipe, d'après son logo. Sans identifiant lisible
-/// dans le logo, il n'y a rien à ouvrir.
+/// Ouvre la fiche d'une équipe, d'après son identifiant ou, à défaut, son
+/// logo. Sans l'un ni l'autre, il n'y a rien à ouvrir.
 void ouvrirFicheEquipe(BuildContext context,
-    {required String nom, String? logo, String? competition}) {
-  final id = idEquipeDepuisLogo(logo);
-  if (id == null) return;
-  context.push('/equipes/$id', extra: (nom: nom, logo: logo, competition: competition));
+    {required String nom, String? logo, String? competition, int? id}) {
+  final equipe = id ?? idEquipeDepuisLogo(logo);
+  if (equipe == null) return;
+  context.push('/equipes/$equipe', extra: (nom: nom, logo: logo, competition: competition));
 }
 
 /// Rend un écusson ou un nom d'équipe touchable : il ouvre la fiche.
+///
+/// [id] quand l'écran le connaît — le classement le reçoit du serveur ;
+/// sinon il se lit dans l'adresse du logo.
 class LienEquipe extends StatelessWidget {
   final String nom;
   final String? logo, competition;
+  final int? id;
+  final BorderRadius rayon;
   final Widget child;
-  const LienEquipe({super.key, required this.nom, required this.logo, this.competition, required this.child});
+  const LienEquipe({super.key, required this.nom, required this.logo, this.competition,
+    this.id, this.rayon = const BorderRadius.all(Radius.circular(14)), required this.child});
 
   @override
   Widget build(BuildContext context) {
-    if (idEquipeDepuisLogo(logo) == null) return child;
+    if ((id ?? idEquipeDepuisLogo(logo)) == null) return child;
     return Semantics(
       button: true,
       onTapHint: tr(context, "ouvrir la fiche de l'équipe"),
       child: InkWell(
-        borderRadius: BorderRadius.circular(14),
-        onTap: () => ouvrirFicheEquipe(context, nom: nom, logo: logo, competition: competition),
+        borderRadius: rayon,
+        onTap: () => ouvrirFicheEquipe(context, nom: nom, logo: logo, competition: competition, id: id),
         child: child,
       ),
     );

@@ -46,6 +46,7 @@ import '../../../../core/services/analyse_usage.dart';
 import '../../../../core/network/failures.dart';
 import '../../../../shared/widgets/erreur_chargement.dart';
 import '../../../../shared/utils/messages.dart';
+import '../../../../shared/widgets/logo_marque.dart';
 
 
 // Découpé en fichiers `part` : le fichier faisait 3 604 lignes pour une
@@ -67,6 +68,10 @@ part 'match_detail/toutes_cotes.dart';
 /// La carte des palmarès d'une compétition, seule, pour les bancs d'essai.
 @visibleForTesting
 Widget palmaresCompetitionSeul(String leagueCode) => _MeilleursButeurs(leagueCode: leagueCode);
+
+/// « Pourquoi ce pronostic » seul, pour les bancs d'essai.
+@visibleForTesting
+Widget analyseModeleSeule(String matchId) => _AnalyseModele(matchId: matchId);
 
 
 /// Ou revenir quand la page a ete ouverte sans historique —

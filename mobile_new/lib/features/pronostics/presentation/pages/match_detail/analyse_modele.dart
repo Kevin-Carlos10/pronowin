@@ -158,8 +158,8 @@ class _AnalyseModele extends ConsumerWidget {
           // barres restent la lecture du modèle externe. Les confondre, c'était
           // afficher « < 1 % » à côté d'une cote qui disait 48,5 %.
           data.probabilitesDuMarche
-            ? tr(context, "Barres : modèle statistique externe — forme, attaque, défense, confrontations directes et distribution de Poisson.")
-            : tr(context, "Modèle statistique externe — forme, attaque, défense, confrontations directes et distribution de Poisson."),
+            ? tr(context, "Barres : modèle statistique externe — forme, attaque, défense, face-à-face et simulation des buts.")
+            : tr(context, "Modèle statistique externe — forme, attaque, défense, face-à-face et simulation des buts."),
           style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.4)),
       ]),
     );
@@ -192,7 +192,9 @@ class _BarreIssues extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         child: SizedBox(
           height: 7,
-          child: Row(children: [
+          // `stretch` : sans lui, les segments mesuraient 0 px de haut (voir
+          // `_AxesComparaison`).
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
             for (final (_, v, c) in issues)
               if (v > 0) Expanded(flex: (v * 10).round(), child: ColoredBox(color: c)),
           ]),
@@ -316,25 +318,105 @@ class _VerdictModele extends StatelessWidget {
 /// 9.45 contre 1.35). La donnée n'est pas fausse : c'est une **répartition**
 /// de l'avantage entre deux équipes, pas une note absolue. Le lecteur ne
 /// pouvait pas le deviner.
+/// Un critère du modèle, nommé et expliqué pour un parieur.
+typedef _Critere = ({String nom, String explication});
+
+/// Les critères en clair.
+///
+/// Le serveur les nomme dans les termes du fournisseur — « Poisson »,
+/// « Confrontations » — et l'écran les affichait tels quels, en français même
+/// dans l'application en anglais. « Poisson 100/0 » ne disait rien à un
+/// parieur (revue de la fiche, 9 octobre 2026). La clé reste celle du
+/// serveur ; seul l'affichage change.
+_Critere? _critere(BuildContext context, String cle) => switch (cle) {
+  'Forme' => (
+    nom: tr(context, "Forme récente"),
+    explication: tr(context, "Les résultats des derniers matchs de chaque équipe.")),
+  'Attaque' => (
+    nom: tr(context, "Attaque"),
+    explication: tr(context, "La capacité à marquer, d'après les buts inscrits cette saison.")),
+  'Défense' => (
+    nom: tr(context, "Défense"),
+    explication: tr(context, "La solidité défensive, d'après les buts encaissés cette saison.")),
+  'Buts' => (
+    nom: tr(context, "Buts"),
+    explication: tr(context, "Le bilan des buts marqués et encaissés, réunis.")),
+  'Confrontations' => (
+    nom: tr(context, "Face à face"),
+    explication: tr(context, "Les résultats des matchs déjà joués entre ces deux équipes.")),
+  'Poisson' => (
+    nom: tr(context, "Simulation des buts"),
+    explication: tr(context, "Les chances de victoire calculées en simulant le nombre de buts de chaque équipe (loi de Poisson).")),
+  _ => null,
+};
+
+/// « 63 % » en français, « 63% » en anglais.
+String _pourcent(BuildContext context, double v) =>
+    AppStrings.of(context).locale.languageCode == 'en'
+        ? '${v.round()}%'
+        : '${v.round()}\u00A0%';
+
+/// Les deux équipes, et la porte vers l'explication des critères.
 class _LegendeAxes extends StatelessWidget {
   final MatchInsights data;
   const _LegendeAxes({required this.data});
 
+  void _expliquer(BuildContext context) => showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (context) => SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(tr(context, "Comprendre les critères"),
+            style: TextStyle(color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text(tr(context, "Chaque barre partage l'avantage entre les deux équipes, sur 100 : 80 contre 20, l'une domine nettement ; 50 contre 50, aucune ne se détache."),
+            style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.4)),
+          const SizedBox(height: 14),
+          for (final axe in data.comparisons.where((a) => a.label != _cleSynthese))
+            if (_critere(context, axe.label) case final c?)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(c.nom,
+                    style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(c.explication,
+                    style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.4)),
+                ]),
+              ),
+        ]),
+      ),
+    ),
+  );
+
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Row(children: [
+  Widget build(BuildContext context) => Row(children: [
+    Expanded(
+      child: Row(children: [
         _Pastille(couleur: context.cl.success, nom: data.homeTeam),
         const SizedBox(width: 14),
         _Pastille(couleur: context.cl.info, nom: data.awayTeam),
       ]),
-      const SizedBox(height: 7),
-      Text(
-        tr(context, "Répartition de l'avantage sur chaque critère : 100 signifie que tout l'avantage est d'un côté, 50-50 qu'aucune équipe ne se détache."),
-        style: TextStyle(color: context.cl.textM, fontSize: 10.5, height: 1.4)),
-    ],
-  );
+    ),
+    // Le (?) : ce que mesure chaque critère, sans charger la carte.
+    Semantics(
+      button: true,
+      label: tr(context, "Comprendre les critères"),
+      excludeSemantics: true,
+      child: InkWell(
+        key: const Key('criteres-aide'),
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => _expliquer(context),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(Icons.help_outline_rounded, size: 18, color: context.cl.textM),
+        ),
+      ),
+    ),
+  ]);
 }
 
 class _Pastille extends StatelessWidget {
@@ -360,6 +442,16 @@ class _Pastille extends StatelessWidget {
 
 /// Les axes en barres opposées, domicile à gauche, extérieur à droite.
 ///
+/// Plutôt qu'un radar : chaque critère partage 100 entre les deux équipes, et
+/// un radar dessinerait deux formes complémentaires — deux fois la même
+/// information, à lire en tournant la tête. La barre opposée se lit d'un
+/// regard : qui domine, et de combien.
+///
+/// Elles mesuraient 5 px, chiffres et libellé en 10 pt rangés sur la même
+/// ligne : on devait les déchiffrer. Désormais le nom du critère est au-dessus,
+/// les pourcentages aux deux bouts, et le côté qui domine est en couleur
+/// pleine.
+///
 /// La synthèse en est exclue : elle est promue en verdict au-dessus, et la
 /// répéter ici ferait croire à un septième critère indépendant.
 class _AxesComparaison extends StatelessWidget {
@@ -371,9 +463,9 @@ class _AxesComparaison extends StatelessWidget {
     children: [
       for (final axe in data.comparisons.where((a) => a.label != _cleSynthese))
         Padding(
-          padding: const EdgeInsets.only(bottom: 7),
+          padding: const EdgeInsets.only(bottom: 12),
           child: Semantics(
-            label: tr(context, "{arg0} : {arg1} pour cent pour {arg2}, {arg3} pour cent pour {arg4}", [axe.label, axe.home.round(), data.homeTeam, axe.away.round(), data.awayTeam]),
+            label: tr(context, "{arg0} : {arg1} pour cent pour {arg2}, {arg3} pour cent pour {arg4}", [_critere(context, axe.label)?.nom ?? axe.label, axe.home.round(), data.homeTeam, axe.away.round(), data.awayTeam]),
             excludeSemantics: true,
             child: Builder(builder: (context) {
               // `>=` mettait le domicile en vert dès l'égalité : un axe à 0/0
@@ -381,53 +473,48 @@ class _AxesComparaison extends StatelessWidget {
               // vert signale un écart, pas une absence de départage.
               final domGagne = axe.home > axe.away;
               final extGagne = axe.away > axe.home;
-              return Row(children: [
-              SizedBox(
-                width: 30,
-                child: Text('${axe.home.round()}',
-                  textAlign: TextAlign.right,
-                  style: TextStyle(
-                    color: domGagne ? context.cl.success : context.cl.textM,
-                    fontSize: 11,
-                    fontWeight: domGagne ? FontWeight.w700 : FontWeight.w500)),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
+              final egalite  = !domGagne && !extGagne;
+              final dom = context.cl.success, ext = context.cl.info;
+              TextStyle chiffre(bool gagne, Color c) => TextStyle(
+                color: gagne ? c : context.cl.textM,
+                fontSize: 13,
+                fontWeight: gagne ? FontWeight.w700 : FontWeight.w500,
+                fontFeatures: const [FontFeature.tabularFigures()]);
+              return Column(children: [
+                Row(children: [
+                  Text(_pourcent(context, axe.home), style: chiffre(domGagne, dom)),
+                  Expanded(
+                    child: Text(_critere(context, axe.label)?.nom ?? axe.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: context.cl.textS, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ),
+                  Text(_pourcent(context, axe.away), style: chiffre(extGagne, ext)),
+                ]),
+                const SizedBox(height: 5),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
                   child: SizedBox(
-                    height: 5,
-                    child: Row(children: [
+                    height: 8,
+                    // `stretch` : un ColoredBox sans enfant prend la plus petite
+                    // taille permise. Centrées, les deux moitiés mesuraient 0 px
+                    // de haut — les barres n'apparaissaient pas, il ne restait
+                    // que les chiffres (revue du 9 octobre 2026).
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
                       Expanded(
                         flex: (axe.home * 10).round().clamp(0, 1000),
-                        child: ColoredBox(color: context.cl.success)),
+                        child: ColoredBox(color: dom.withValues(
+                          alpha: domGagne || egalite ? 1 : 0.35))),
+                      const SizedBox(width: 2),
                       Expanded(
                         flex: (axe.away * 10).round().clamp(0, 1000),
-                        child: ColoredBox(color: context.cl.info)),
+                        child: ColoredBox(color: ext.withValues(
+                          alpha: extGagne || egalite ? 1 : 0.35))),
                     ]),
                   ),
                 ),
-              ),
-              const SizedBox(width: 8),
-              SizedBox(
-                width: 30,
-                child: Text('${axe.away.round()}',
-                  style: TextStyle(
-                    color: extGagne ? context.cl.info : context.cl.textM,
-                    fontSize: 11,
-                    fontWeight: extGagne ? FontWeight.w700 : FontWeight.w500)),
-              ),
-              const SizedBox(width: 8),
-              // 74 px tronquaient « Modèle de Poisson » — le seul des sept
-              // libellés à dépasser. Le libellé est désormais l'élément
-              // souple : c'est la barre qui cède de la place, pas le mot.
-              SizedBox(
-                width: 96,
-                child: Text(axe.label,
-                  maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: context.cl.textM, fontSize: 10)),
-              ),
-            ]);
+              ]);
             }),
           ),
         ),
