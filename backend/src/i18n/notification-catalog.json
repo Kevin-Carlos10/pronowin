@@ -1,0 +1,132 @@
+{
+  "exact": {
+    "Premium activé !": "Premium activated!",
+    "Bienvenue Premium !": "Welcome to Premium!",
+    "Parrainage récompensé !": "Referral rewarded!",
+    "Nouveau filleul !": "New referral!",
+    "Match dans 1 heure !": "Match starts in 1 hour!",
+    "Match en direct !": "Match is live!",
+    "Pronostic gagnant !": "Winning prediction!",
+    "Pronostic remboursé": "Prediction refunded",
+    "Pronostic perdant": "Losing prediction",
+    "Résultat corrigé : gagnant": "Corrected result: win",
+    "Résultat corrigé : remboursé": "Corrected result: refund",
+    "Résultat corrigé : perdu": "Corrected result: loss",
+    "Abonnement Premium interrompu": "Premium subscription ended",
+    "Ton accès Premium a pris fin. Tu peux le réactiver à tout moment.": "Your Premium access has ended. You can reactivate it at any time.",
+    "Versement effectué !": "Payout completed!",
+    "Versement effectué": "Payout completed",
+    "Versement refusé": "Payout declined",
+    "Preuve refusée": "Proof declined",
+    "Votre demande n'a pas pu être traitée. Contactez le support.": "Your request could not be processed. Contact support.",
+    "Votre preuve n'a pas pu être validée.": "Your proof could not be validated.",
+    "Compte suspendu": "Account suspended",
+    "Votre compte a été suspendu. Contactez le support.": "Your account has been suspended. Contact support.",
+    "Le match est terminé. Consultez le résultat de votre pronostic.": "The match has ended. Check your prediction result.",
+    "⏳ Ton Premium expire demain": "Your Premium expires tomorrow",
+    "Renouvelle maintenant pour ne pas perdre l'accès aux pronostics VIP.": "Renew now to keep access to VIP predictions.",
+    "Renouvelle depuis Compte › Abonnement pour rester couvert sans interruption.": "Renew from Account › Subscription to keep uninterrupted access.",
+    "Pronostic EN DIRECT": "LIVE prediction",
+    "Nouveau pronostic publié": "New prediction published",
+    "[VIP] Pronostic EN DIRECT": "[VIP] LIVE prediction",
+    "[VIP] Nouveau pronostic publié": "[VIP] New prediction published"
+  },
+  "rules": [
+    [
+      "^Accès Premium actif pour (\\d+) jours\\. Profitez des pronostics VIP !$",
+      "Premium access is active for $1 days. Explore VIP predictions!"
+    ],
+    [
+      "^(.+) s'est abonné Premium ! \\+(.+) FCFA crédités\\.$",
+      "$1 subscribed to Premium! +$2 FCFA credited."
+    ],
+    [
+      "^(.+) — Consultez notre pronostic maintenant\\.$",
+      "$1 — Read our prediction now."
+    ],
+    [
+      "^(.+) vient de commencer\\.$",
+      "$1 has just started."
+    ],
+    [
+      "^Fin de match : (.+)$",
+      "Full time: $1"
+    ],
+    [
+      "^(.+) — score final : (.+)$",
+      "$1 — final score: $2"
+    ],
+    [
+      "^(.+) en cours — pronostic VIP disponible$",
+      "$1 live — VIP prediction available"
+    ],
+    [
+      "^(.+) — pronostic VIP disponible$",
+      "$1 — VIP prediction available"
+    ],
+    [
+      "^(.+) en cours — (.+)$",
+      "$1 live — $2"
+    ],
+    [
+      "^(.+) · Prono : (.+)$",
+      "$1 · Prediction: $2"
+    ],
+    [
+      "^(.+) FCFA envoyés sur votre Mobile Money\\.$",
+      "$1 FCFA sent to your Mobile Money account."
+    ],
+    [
+      "^(.+) vient de rejoindre PronoWin avec votre code\\. \\+(.+) FCFA quand il s'abonne Premium !$",
+      "$1 joined PronoWin using your code. +$2 FCFA when they subscribe to Premium!"
+    ],
+    [
+      "^Commission L(\\d+) reçue !$",
+      "Level $1 commission received!"
+    ],
+    [
+      "^(.+) vient de s'abonner Premium ! \\+(.+) FCFA crédités sur votre compte\\.$",
+      "$1 subscribed to Premium! +$2 FCFA credited to your account."
+    ],
+    [
+      "^Votre accès Premium a été activé pour (\\d+) jours? par l’équipe PronoWin\\.$",
+      "Your Premium access was activated for $1 days by the PronoWin team."
+    ],
+    [
+      "^Votre accès Premium a été activé pour (\\d+) jours? par l'équipe PronoWin\\.$",
+      "Your Premium access was activated for $1 days by the PronoWin team."
+    ],
+    [
+      "^Votre accès Premium est activé pour (\\d+) jours? !$",
+      "Your Premium access is active for $1 days!"
+    ],
+    [
+      "^⏳ Ton Premium expire dans (\\d+) jours$",
+      "Your Premium expires in $1 days"
+    ],
+    [
+      "^(.+) : retour de (.+) crédité, gain net \\+(.+)\\.$",
+      "$1: return of $2 credited, net profit +$3."
+    ],
+    [
+      "^\\+(.+) sur (.+)\\. Votre bankroll est mise à jour !$",
+      "+$1 on $2. Your bankroll has been updated."
+    ],
+    [
+      "^(.+) : la mise de (.+) a été remboursée après correction\\.$",
+      "$1: the stake of $2 was refunded after correction."
+    ],
+    [
+      "^(.+) de mise remboursée sur (.+)\\.$",
+      "$1 stake refunded on $2."
+    ],
+    [
+      "^(.+) : le résultat a été corrigé\\. Mise de (.+) perdue\\.$",
+      "$1: the result was corrected. Stake of $2 lost."
+    ],
+    [
+      "^-(.+) sur (.+)\\. Ne lâchez pas !$",
+      "-$1 on $2."
+    ]
+  ]
+}

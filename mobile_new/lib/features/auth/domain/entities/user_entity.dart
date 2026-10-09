@@ -9,6 +9,7 @@ class UserEntity extends Equatable {
   final String pseudo;
   final String? firstName;
   final String? lastName;
+  final DateTime? birthDate;
   final String? avatarUrl;
   final String countryCode;
   final SubscriptionPlan subscriptionPlan;
@@ -27,6 +28,7 @@ class UserEntity extends Equatable {
     required this.pseudo,
     this.firstName,
     this.lastName,
+    this.birthDate,
     this.avatarUrl,
     required this.countryCode,
     required this.subscriptionPlan,
@@ -44,8 +46,12 @@ class UserEntity extends Equatable {
       subscriptionPlan == SubscriptionPlan.premium &&
       (subscriptionExpiresAt == null || subscriptionExpiresAt!.isAfter(DateTime.now()));
 
-  // Vrai si au moins un canal est vérifié (pour accéder au premium)
-  bool get isProfileComplete => phoneVerified || emailVerified;
+  // Vrai si les infos essentielles (nom, prénom, date de naissance, téléphone) sont renseignées
+  bool get isProfileComplete =>
+      (firstName?.isNotEmpty ?? false) &&
+      (lastName?.isNotEmpty ?? false) &&
+      birthDate != null &&
+      (phoneNumber?.isNotEmpty ?? false);
 
   // Nom à afficher : prénom si dispo, sinon pseudo
   String get displayName {

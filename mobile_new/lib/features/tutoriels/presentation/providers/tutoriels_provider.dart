@@ -22,6 +22,6 @@ final tutorielsProvider = FutureProvider.autoDispose<List<TutorialEntity>>((ref)
   }
 });
 
-final selectedCategoryProvider = StateProvider<TutorialCategory?>((ref) => null);
+final selectedCategoryProvider = StateProvider<String?>((ref) => null);
 final selectedLevelProvider    = StateProvider<TutorialLevel?>((ref) => null);
 final searchQueryProvider      = StateProvider<String>((ref) => '');

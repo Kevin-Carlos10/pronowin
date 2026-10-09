@@ -1,11 +1,14 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../domain/entities/match_entity.dart';
+import '../../../../shared/widgets/logotype_pronowin.dart';
 
 /// Carte stylisée PronoWin destinée à être capturée en image puis partagée.
-/// Dimensions logiques : 360 × 560 px → 1080 × 1680 px à pixelRatio 3.
+/// Largeur logique 360 px ; hauteur adaptée au contenu sans vide artificiel.
 class PronoShareCard extends StatelessWidget {
   final MatchEntity match;
   const PronoShareCard({super.key, required this.match});
@@ -17,25 +20,21 @@ class PronoShareCard extends StatelessWidget {
     return AppColors.error;
   }
 
-  String get _confLabel {
-    if (match.confidenceScore >= 5) return 'Excellent';
-    if (match.confidenceScore >= 4) return 'Fort';
-    if (match.confidenceScore >= 3) return 'Bon';
-    return 'Faible';
-  }
+  // Le libellé est parti avec les cinq points : la carte dit désormais un
+  // pourcentage, comme le reste de l'application. Seule la couleur reste, et
+  // elle ne nomme rien — elle nuance un chiffre déjà lisible.
 
   @override
   Widget build(BuildContext context) {
-    final won = match.predictionWon;
+    final result = match.result;
 
-    return SizedBox(
+    // L'image partagée est toujours sombre, quel que soit le thème.
+    return SurfaceSombre(builder: (context) => SizedBox(
       width:  360,
-      height: 560,
       child: Stack(children: [
 
         // ── Fond dégradé ───────────────────────────────────────────────────────
-        Container(
-          width: 360, height: 560,
+        Positioned.fill(child: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [Color(0xFF0A0E1A), Color(0xFF111827), Color(0xFF0D1535)],
@@ -43,7 +42,7 @@ class PronoShareCard extends StatelessWidget {
               end: Alignment.bottomCenter,
             ),
           ),
-        ),
+        )),
 
         // ── Motif points décoratifs ────────────────────────────────────────────
         Positioned(
@@ -78,20 +77,10 @@ class PronoShareCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  RichText(
-                    text: const TextSpan(
-                      style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: -0.5,
-                      ),
-                      children: [
-                        TextSpan(text: 'Prono', style: TextStyle(color: Colors.white)),
-                        TextSpan(text: 'Win',   style: TextStyle(color: AppColors.primary)),
-                      ],
-                    ),
-                  ),
-                  Container(
+                  // L'image partagée est toujours sombre, quel que soit le thème.
+                  const LogotypePronoWin(taille: 22, surFondSombre: true),
+                  const SizedBox(width: 10),
+                  Flexible(child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.07),
@@ -99,13 +88,14 @@ class PronoShareCard extends StatelessWidget {
                     ),
                     child: Text(
                       match.league,
+                      maxLines: 2, overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
+                  )),
                 ],
               ),
 
@@ -145,12 +135,12 @@ class PronoShareCard extends StatelessWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                           decoration: BoxDecoration(
                             color: match.status == MatchStatus.live
-                                ? AppColors.error.withValues(alpha: 0.15)
+                                ? context.cl.error.withValues(alpha: 0.15)
                                 : Colors.white.withValues(alpha: 0.08),
                             borderRadius: BorderRadius.circular(12),
                             border: Border.all(
                               color: match.status == MatchStatus.live
-                                  ? AppColors.error.withValues(alpha: 0.5)
+                                  ? context.cl.error.withValues(alpha: 0.5)
                                   : Colors.white.withValues(alpha: 0.12),
                             ),
                           ),
@@ -158,10 +148,10 @@ class PronoShareCard extends StatelessWidget {
                             '${match.homeScore} - ${match.awayScore}',
                             style: TextStyle(
                               color: match.status == MatchStatus.live
-                                  ? AppColors.error
+                                  ? context.cl.error
                                   : Colors.white,
                               fontSize: 22,
-                              fontWeight: FontWeight.w900,
+                              fontWeight: FontWeight.w700,
                               letterSpacing: 2,
                             ),
                           ),
@@ -171,15 +161,15 @@ class PronoShareCard extends StatelessWidget {
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.3),
                             fontSize: 18,
-                            fontWeight: FontWeight.w900,
+                            fontWeight: FontWeight.w700,
                             letterSpacing: 3,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          DateFormat('HH:mm', 'fr_FR').format(match.matchDate),
-                          style: const TextStyle(
-                            color: AppColors.primary,
+                          DateFormat('HH:mm').format(match.matchDate),
+                          style: TextStyle(
+                            color: context.cl.accent,
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
                           ),
@@ -213,41 +203,42 @@ class PronoShareCard extends StatelessWidget {
               const SizedBox(height: 24),
 
               // ── Badge résultat (si terminé) ──────────────────────────────────
-              if (won != null)
-                Container(
-                  margin: const EdgeInsets.only(bottom: 16),
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: won
-                        ? AppColors.success.withValues(alpha: 0.15)
-                        : AppColors.error.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: won
-                          ? AppColors.success.withValues(alpha: 0.5)
-                          : AppColors.error.withValues(alpha: 0.5),
+              if (result != null)
+                Builder(builder: (_) {
+                  final color = switch (result) {
+                    PronosticResult.win  => context.cl.success,
+                    PronosticResult.loss => context.cl.error,
+                    PronosticResult.push => context.cl.info,
+                  };
+                  final icon = switch (result) {
+                    PronosticResult.win  => Icons.check_circle_rounded,
+                    PronosticResult.loss => Icons.cancel_rounded,
+                    PronosticResult.push => Icons.replay_rounded,
+                  };
+                  final label = switch (result) {
+                    PronosticResult.win  => tr(context, "Pronostic GAGNANT "),
+                    PronosticResult.loss => tr(context, "Pronostic PERDU"),
+                    PronosticResult.push => tr(context, "Pronostic REMBOURSÉ 🔄"),
+                  };
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: color.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: color.withValues(alpha: 0.5)),
                     ),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        won ? Icons.check_circle_rounded : Icons.cancel_rounded,
-                        color: won ? AppColors.success : AppColors.error,
-                        size: 18,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        won ? 'Pronostic GAGNANT ✅' : 'Pronostic PERDU',
-                        style: TextStyle(
-                          color: won ? AppColors.success : AppColors.error,
-                          fontSize: 14,
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(icon, color: color, size: 18),
+                        const SizedBox(width: 8),
+                        Text(label, style: TextStyle(
+                          color: color, fontSize: 14, fontWeight: FontWeight.w700)),
+                      ],
+                    ),
+                  );
+                }),
 
               // ── Bloc pronostic ────────────────────────────────────────────────
               Container(
@@ -269,22 +260,22 @@ class PronoShareCard extends StatelessWidget {
                   ),
                 ),
                 child: Column(children: [
-                  const Text(
-                    'PRONOSTIC',
+                   Text(
+                    tr(context, "PRONOSTIC"),
                     style: TextStyle(
-                      color: AppColors.primary,
+                      color: context.cl.accent,
                       fontSize: 10,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                       letterSpacing: 2,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    match.predictionLabel,
+                    match.displayPredictionLabel,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 20,
-                      fontWeight: FontWeight.w900,
+                      fontWeight: FontWeight.w700,
                     ),
                     textAlign: TextAlign.center,
                   ),
@@ -300,16 +291,16 @@ class PronoShareCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.10),
+                      color: context.cl.success.withValues(alpha: 0.10),
                       borderRadius: BorderRadius.circular(12),
                       border: Border.all(
-                          color: AppColors.success.withValues(alpha: 0.25)),
+                          color: context.cl.success.withValues(alpha: 0.25)),
                     ),
                     child: Column(children: [
                       Text(
-                        'COTE',
+                        tr(context, "COTE"),
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.45),
+                          color: Colors.white.withValues(alpha: 0.75),
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
@@ -318,10 +309,10 @@ class PronoShareCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         match.oddsRecommended.toStringAsFixed(2),
-                        style: const TextStyle(
-                          color: AppColors.success,
+                        style: TextStyle(
+                          color: context.cl.success,
                           fontSize: 22,
-                          fontWeight: FontWeight.w900,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
                     ]),
@@ -342,34 +333,28 @@ class PronoShareCard extends StatelessWidget {
                     ),
                     child: Column(children: [
                       Text(
-                        'CONFIANCE',
+                        tr(context, "CONFIANCE"),
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.45),
+                          color: Colors.white.withValues(alpha: 0.75),
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
                         ),
                       ),
-                      const SizedBox(height: 6),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: List.generate(5, (i) => Container(
-                          width: 10, height: 10,
-                          margin: const EdgeInsets.symmetric(horizontal: 2),
-                          decoration: BoxDecoration(
-                            color: i < match.confidenceScore
-                                ? _confColor
-                                : Colors.white.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                        )),
-                      ),
+                      // La carte affichait cinq points et un mot — « Bon ». Le
+                      // reste de l'application dit la confiance en pourcentage
+                      // depuis qu'un adjectif a été jugé trop vague pour un
+                      // pari ; cette carte était restée en arrière, et c'est
+                      // elle qui sort de l'application quand on partage.
+                      //
+                      // Même forme que la cote, à gauche : deux tuiles, deux
+                      // chiffres. Le mot ne disait pas ce que « Bon » vaut.
                       const SizedBox(height: 4),
                       Text(
-                        _confLabel,
+                        MatchEntity.affichageConfiance(match.pourcentageConfiance),
                         style: TextStyle(
                           color: _confColor,
-                          fontSize: 11,
+                          fontSize: 22,
                           fontWeight: FontWeight.w700,
                         ),
                       ),
@@ -378,7 +363,7 @@ class PronoShareCard extends StatelessWidget {
                 ),
               ]),
 
-              const Spacer(),
+              const SizedBox(height: 20),
 
               // ── Séparateur ────────────────────────────────────────────────────
               Container(
@@ -388,23 +373,23 @@ class PronoShareCard extends StatelessWidget {
               ),
 
               // ── Date + CTA ────────────────────────────────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Wrap(
+                alignment: WrapAlignment.center, spacing: 16, runSpacing: 8,
                 children: [
-                  Row(children: [
+                  Row(mainAxisSize: MainAxisSize.min, children: [
                     Icon(Icons.calendar_today_rounded,
                         color: Colors.white.withValues(alpha: 0.4), size: 11),
                     const SizedBox(width: 5),
                     Text(
-                      DateFormat('dd MMM · HH:mm', 'fr_FR').format(match.matchDate),
+                      DateFormat('dd MMM · HH:mm', AppStrings.of(context).locale.languageCode).format(match.matchDate),
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.45),
+                        color: Colors.white.withValues(alpha: 0.75),
                         fontSize: 11,
                       ),
                     ),
                   ]),
                   Text(
-                    'pronowin.app',
+                    AppConstants.domaine,
                     style: TextStyle(
                       color: AppColors.primary.withValues(alpha: 0.8),
                       fontSize: 11,
@@ -417,6 +402,6 @@ class PronoShareCard extends StatelessWidget {
           ),
         ),
       ]),
-    );
+    ));
   }
 }

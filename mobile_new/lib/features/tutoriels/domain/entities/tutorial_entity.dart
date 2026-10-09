@@ -1,3 +1,5 @@
+import 'package:pronowin/l10n/editorial_text.dart';
+import 'package:pronowin/l10n/app_strings.dart';
 // ─── Enums ────────────────────────────────────────────────────────────────────
 enum TutorialLevel {
   beginner,
@@ -5,9 +7,9 @@ enum TutorialLevel {
   advanced;
 
   String get label => switch (this) {
-    TutorialLevel.beginner     => 'Débutant',
-    TutorialLevel.intermediate => 'Intermédiaire',
-    TutorialLevel.advanced     => 'Avancé',
+    TutorialLevel.beginner     => trCurrent("Débutant"),
+    TutorialLevel.intermediate => trCurrent("Intermédiaire"),
+    TutorialLevel.advanced     => trCurrent("Avancé"),
   };
 
   static TutorialLevel fromString(String? s) => switch (s) {
@@ -17,64 +19,70 @@ enum TutorialLevel {
   };
 }
 
-enum TutorialCategory {
-  valuebet,
-  bankroll,
-  martingale,
-  trading,
-  psychology,
-  statistics,
-  strategie,
-  analyse,
-  psychologie;
-
-  String get label => switch (this) {
-    TutorialCategory.valuebet    => 'Value Bet',
-    TutorialCategory.bankroll    => 'Bankroll',
-    TutorialCategory.martingale  => 'Martingale',
-    TutorialCategory.trading     => 'Trading',
-    TutorialCategory.psychology  => 'Psychologie',
-    TutorialCategory.psychologie => 'Psychologie',
-    TutorialCategory.statistics  => 'Statistiques',
-    TutorialCategory.strategie   => 'Stratégie',
-    TutorialCategory.analyse     => 'Analyse',
+// Les catégories sont créées librement par l'admin (texte libre côté back),
+// pas une liste figée — on garde la valeur brute et on ne fait que des
+// suggestions d'affichage (libellé/emoji) pour les catégories qu'on reconnaît,
+// avec un repli générique pour toute nouvelle catégorie inconnue de ce code.
+class TutorialCategoryInfo {
+  static const Map<String, String> _labels = {
+    'valuebet':    'Value Bet',
+    'bankroll':    'Bankroll',
+    'martingale':  'Martingale',
+    'trading':     'Trading',
+    'psychology':  'Psychologie',
+    'psychologie': 'Psychologie',
+    'statistics':  'Statistiques',
+    'strategie':   'Stratégie',
+    'analyse':     'Analyse',
   };
 
-  String get emoji => switch (this) {
-    TutorialCategory.valuebet    => '🎯',
-    TutorialCategory.bankroll    => '💰',
-    TutorialCategory.martingale  => '🔄',
-    TutorialCategory.trading     => '⚡',
-    TutorialCategory.psychology  => '🧠',
-    TutorialCategory.psychologie => '🧠',
-    TutorialCategory.statistics  => '📊',
-    TutorialCategory.strategie   => '♟️',
-    TutorialCategory.analyse     => '📊',
+  static const Map<String, String> _emojis = {
+    'valuebet':    '🎯',
+    'bankroll':    '💰',
+    'martingale':  '🔄',
+    'trading':     '⚡',
+    'psychology':  '🧠',
+    'psychologie': '🧠',
+    'statistics':  '📊',
+    'strategie':   '♟️',
+    'analyse':     '📊',
   };
 
-  static TutorialCategory fromString(String? s) => switch (s?.toLowerCase()) {
-    'bankroll'    => TutorialCategory.bankroll,
-    'martingale'  => TutorialCategory.martingale,
-    'trading'     => TutorialCategory.trading,
-    'psychology'  => TutorialCategory.psychology,
-    'psychologie' => TutorialCategory.psychologie,
-    'statistics'  => TutorialCategory.statistics,
-    'strategie'   => TutorialCategory.strategie,
-    'analyse'     => TutorialCategory.analyse,
-    _             => TutorialCategory.valuebet,
-  };
+  static String labelFor(String category) =>
+      _labels.containsKey(category.toLowerCase())
+        ? trCurrent(_labels[category.toLowerCase()]!) : _titleCase(category);
+
+  static String emojiFor(String category) =>
+      _emojis[category.toLowerCase()] ?? '📚';
+
+  static String _titleCase(String s) => s
+      .replaceAll(RegExp(r'[_-]+'), ' ')
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((w) => w.isNotEmpty)
+      .map((w) => w[0].toUpperCase() + w.substring(1))
+      .join(' ');
 }
 
 // ─── Entity ───────────────────────────────────────────────────────────────────
 class TutorialEntity {
   final String           id;
-  final String           title;
-  final String           description;
+  final String _title;
+  final String? titleEn;
+  String get title => editorialText(_title, titleEn);
+  String get sourceTitle => _title;
+  final String _description;
+  final String? descriptionEn;
+  String get description => editorialText(_description, descriptionEn);
+  String get sourceDescription => _description;
   final TutorialLevel    level;
-  final TutorialCategory category;
+  final String           category; // texte libre côté back — voir TutorialCategoryInfo
   final String?          thumbnailUrl;
   final String?          videoUrl;
-  final String?          articleContent;  // contenu article texte
+  final String? _articleContent;
+  final String? articleContentEn;
+  String? get articleContent => _articleContent == null && articleContentEn == null ? null : editorialText(_articleContent ?? '', articleContentEn);
+  String? get sourceArticleContent => _articleContent;  // contenu article texte
   final String?          authorName;
   final String?          authorAvatar;
   final int              durationSeconds;
@@ -87,13 +95,16 @@ class TutorialEntity {
 
   const TutorialEntity({
     required this.id,
-    required this.title,
-    required this.description,
+    required String title,
+    this.titleEn,
+    required String description,
+    this.descriptionEn,
     required this.level,
     required this.category,
     this.thumbnailUrl,
     this.videoUrl,
-    this.articleContent,
+    String? articleContent,
+    this.articleContentEn,
     this.authorName,
     this.authorAvatar,
     this.durationSeconds = 0,
@@ -103,17 +114,24 @@ class TutorialEntity {
     this.hasVideo        = false,
     this.isCompleted     = false,
     this.publishedAt,
-  });
+  }) : _title = title, _description = description, _articleContent = articleContent;
 
   // ─── Getters pratiques ────────────────────────────────────────────────────
   String get levelLabel    => level.label;
-  String get categoryLabel => category.label;
-  String get categoryEmoji => category.emoji;
+  String get categoryLabel => TutorialCategoryInfo.labelFor(category);
+  String get categoryEmoji => TutorialCategoryInfo.emojiFor(category);
 
+  /// Une durée est-elle connue ? Sans elle, l'écran affichait « ⏱ — ».
+  bool get aUneDuree => durationSeconds >= 60;
+
+  /// « 9 min », « 1 h 05 » — avec espaces insécables, à la française
+  /// (« 9min » auparavant).
   String get durationText {
     final m = durationSeconds ~/ 60;
     if (m == 0) return '—';
-    return m < 60 ? '${m}min' : '${m ~/ 60}h${(m % 60).toString().padLeft(2, '0')}';
+    return m < 60
+        ? '$m\u00A0min'
+        : '${m ~/ 60}\u00A0h\u00A0${(m % 60).toString().padLeft(2, '0')}';
   }
 
   // Alias pour compatibilité avec du code qui utilise durationLabel
@@ -123,12 +141,16 @@ class TutorialEntity {
   factory TutorialEntity.fromJson(Map<String, dynamic> j) => TutorialEntity(
     id:              j['id']          as String,
     title:           j['title']       as String,
+    titleEn: j['title_en'] as String?,
     description:     j['description'] as String? ?? '',
+    descriptionEn: j['description_en'] as String?,
     level:           TutorialLevel.fromString(j['level'] as String?),
-    category:        TutorialCategory.fromString(j['category'] as String?),
+    category:        (j['category'] as String?)?.trim().isNotEmpty == true
+      ? (j['category'] as String).trim() : 'valuebet',
     thumbnailUrl:    j['thumbnail_url']  as String?,
     videoUrl:        j['video_url']      as String?,
     articleContent:  j['article_content'] as String?,
+    articleContentEn: j['article_content_en'] as String?,
     authorName:      j['author_name']    as String?,
     authorAvatar:    j['author_avatar']  as String?,
     durationSeconds: (j['duration_seconds'] as num?)?.toInt() ?? 0,
@@ -144,13 +166,16 @@ class TutorialEntity {
   // ─── toJson ───────────────────────────────────────────────────────────────
   Map<String, dynamic> toJson() => {
     'id':               id,
-    'title':            title,
-    'description':      description,
+    'title':            _title,
+    'title_en': titleEn,
+    'description':      _description,
+    'description_en': descriptionEn,
     'level':            level.name,
-    'category':         category.name,
+    'category':         category,
     'thumbnail_url':    thumbnailUrl,
     'video_url':        videoUrl,
-    'article_content':  articleContent,
+    'article_content':  _articleContent,
+    'article_content_en': articleContentEn,
     'author_name':      authorName,
     'author_avatar':    authorAvatar,
     'duration_seconds': durationSeconds,
@@ -164,7 +189,7 @@ class TutorialEntity {
 
   TutorialEntity copyWith({
     String? id, String? title, String? description,
-    TutorialLevel? level, TutorialCategory? category,
+    TutorialLevel? level, String? category,
     String? thumbnailUrl, String? videoUrl, String? articleContent,
     String? authorName, String? authorAvatar,
     int? durationSeconds, int? viewCount, double? rating,
@@ -172,13 +197,16 @@ class TutorialEntity {
     DateTime? publishedAt,
   }) => TutorialEntity(
     id:              id              ?? this.id,
-    title:           title           ?? this.title,
-    description:     description     ?? this.description,
+    title:           title           ?? _title,
+    titleEn: titleEn,
+    description:     description     ?? _description,
+    descriptionEn: descriptionEn,
     level:           level           ?? this.level,
     category:        category        ?? this.category,
     thumbnailUrl:    thumbnailUrl    ?? this.thumbnailUrl,
     videoUrl:        videoUrl        ?? this.videoUrl,
-    articleContent:  articleContent  ?? this.articleContent,
+    articleContent:  articleContent  ?? _articleContent,
+    articleContentEn: articleContentEn,
     authorName:      authorName      ?? this.authorName,
     authorAvatar:    authorAvatar    ?? this.authorAvatar,
     durationSeconds: durationSeconds ?? this.durationSeconds,

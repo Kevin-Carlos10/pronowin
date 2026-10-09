@@ -1,0 +1,127 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
+<%- include('layout_top', { page: 'moderation' }) %>
+
+<%# Les commentaires signalés depuis l'application. L'App Store (règle 1.2) et
+    Google Play exigent un examen rapide : les CGU promettent 24 heures. %>
+<style>
+.mod-liste { display:flex; flex-direction:column; gap:.75rem; }
+.mod-carte { padding:1rem 1.1rem; }
+.mod-entete { display:flex; flex-wrap:wrap; gap:.5rem; align-items:center; justify-content:space-between; }
+.mod-meta { font-size:.82rem; color:var(--text-dim); }
+.mod-texte { margin:.6rem 0 .75rem; white-space:pre-wrap; overflow-wrap:anywhere; }
+.mod-signalements { list-style:none; margin:0 0 .75rem; padding:0; display:flex; flex-direction:column; gap:.3rem; }
+.mod-signalements li { font-size:.82rem; color:var(--text-dim); }
+.mod-actions { display:flex; flex-wrap:wrap; gap:.5rem; justify-content:flex-end; }
+.mod-actions form { display:inline; }
+.mod-pagination-info { font-size:.82rem; color:var(--text-dim); padding:0 .5rem; }
+</style>
+
+<%
+  const MOTIFS = {
+    spam: 'Spam ou publicité', insulte: 'Insulte ou harcèlement', haine: 'Propos haineux',
+    sexuel: 'Contenu sexuel', autre: 'Autre',
+  };
+  function quand(iso) {
+    return iso
+      ? new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+      : '—';
+  }
+  const lien = (p) => '/admin/moderation?' + (statut === 'traites' ? 'statut=traites&' : '') + 'page=' + p;
+%>
+
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-flag"/></svg> Modération & confiance</p>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-comment"/></svg> Modération des commentaires</h1>
+    <p class="workspace-description">
+      <% if (statut === 'en_attente') { %>
+        <strong><%= aTraiter %></strong> commentaire<%= aTraiter !== 1 ? 's' : '' %> signalé<%= aTraiter !== 1 ? 's' : '' %> à examiner, sous 24 heures comme l'annoncent les CGU.
+      <% } else { %>
+        <strong><%= total %></strong> commentaire<%= total !== 1 ? 's' : '' %> déjà tranché<%= total !== 1 ? 's' : '' %>.
+      <% } %>
+    </p>
+  </div>
+</header>
+
+<nav class="view-tabs" aria-label="Vues de modération">
+  <a href="/admin/moderation" class="view-tab" aria-current="<%= statut === 'en_attente' ? 'page' : 'false' %>"><svg class="ic" aria-hidden="true"><use href="#ic-flag"/></svg> <%= uiText("À traiter") %> <span>(<%= aTraiter %>)</span></a>
+  <a href="/admin/moderation?statut=traites" class="view-tab" aria-current="<%= statut === 'traites' ? 'page' : 'false' %>"><svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Traités</a>
+</nav>
+
+<aside class="cr-callout" aria-label="Règles de modération">
+  <svg class="ic cr-callout-icon" aria-hidden="true"><use href="#ic-info"/></svg>
+  <div>
+    <div class="cr-callout-title">Retirer masque le commentaire pour tous ; rejeter le rétablit</div>
+    <div class="cr-callout-copy">Au-delà de trois signalements, le serveur masque d'office le commentaire en attendant votre décision. Pour sanctionner un auteur récidiviste, ouvrez sa fiche et bannissez-le.</div>
+  </div>
+</aside>
+
+<% if (success) { %><div class="alert alert-success" hidden><%= success %></div><% } %>
+<% if (error)   { %><div class="alert alert-error" hidden><%= error %></div><% } %>
+
+<% if (!data.length) { %>
+<div class="card">
+  <div class="empty-state">
+    <div class="empty-state-title"><%= statut === 'en_attente' ? 'Aucun commentaire à examiner' : 'Aucune décision pour l’instant' %></div>
+    <div class="empty-state-desc"><%= statut === 'en_attente'
+      ? 'Les signalements envoyés depuis l’application apparaîtront ici, et un courriel d’alerte vous préviendra.'
+      : 'Les commentaires retirés ou rétablis apparaîtront ici avec la décision prise.' %></div>
+  </div>
+</div>
+<% } else { %>
+<div class="mod-liste">
+  <% data.forEach((c) => { %>
+  <article class="card mod-carte">
+    <div class="mod-entete">
+      <div>
+        <a href="/admin/users/<%= c.auteur.id %>"><strong><%= c.auteur.pseudo %></strong></a>
+        <span class="mod-meta"> · <%= c.match %> · publié le <%= quand(c.publie_le) %></span>
+      </div>
+      <div>
+        <% if (c.masque) { %><span class="badge badge-warn">Masqué</span><% } else { %><span class="badge badge-ok">Visible</span><% } %>
+        <span class="badge badge-err"><%= c.signalements.length %> signalement<%= c.signalements.length !== 1 ? 's' : '' %></span>
+      </div>
+    </div>
+    <p class="mod-texte"><%= c.contenu %></p>
+    <ul class="mod-signalements">
+      <% c.signalements.forEach((s) => { %>
+      <li>
+        <strong><%= MOTIFS[s.motif] ?? s.motif %></strong> — par <%= s.par %>, <%= quand(s.le) %><% if (s.detail) { %> : « <%= s.detail %> »<% } %>
+        <% if (s.traite_par) { %> · <%= s.statut === 'retenu' ? 'retenu' : 'rejeté' %> par <%= s.traite_par %>, <%= quand(s.traite_le) %><% } %>
+      </li>
+      <% }) %>
+    </ul>
+    <% if (statut === 'en_attente') { %>
+    <div class="mod-actions">
+      <form method="POST" action="/admin/moderation/<%= c.comment_id %>">
+        <input type="hidden" name="decision" value="rejeter">
+        <input type="hidden" name="auteur" value="<%= c.auteur.pseudo %>">
+        <button type="button" class="btn btn-outline btn-sm" data-pseudo="<%= c.auteur.pseudo %>"
+          onclick="(function(btn){askConfirm({icon:'check',title:'Rejeter les signalements',msg:'Le commentaire de <strong>'+btn.dataset.pseudo+'</strong> redeviendra visible pour tous.',btnLabel:'Rejeter',btnClass:'btn-outline',onConfirm:function(){btn.closest('form').submit()}})})(this)">
+          <svg class="ic" aria-hidden="true"><use href="#ic-check"/></svg> Rejeter les signalements
+        </button>
+      </form>
+      <form method="POST" action="/admin/moderation/<%= c.comment_id %>">
+        <input type="hidden" name="decision" value="retenir">
+        <input type="hidden" name="auteur" value="<%= c.auteur.pseudo %>">
+        <button type="button" class="btn btn-danger btn-sm" data-pseudo="<%= c.auteur.pseudo %>"
+          onclick="(function(btn){askConfirm({icon:'flag',title:'Retirer le commentaire',msg:'Le commentaire de <strong>'+btn.dataset.pseudo+'</strong> ne sera plus visible.',btnLabel:'Retirer',btnClass:'btn-danger',onConfirm:function(){btn.closest('form').submit()}})})(this)">
+          <svg class="ic" aria-hidden="true"><use href="#ic-flag"/></svg> Retirer le commentaire
+        </button>
+      </form>
+    </div>
+    <% } %>
+  </article>
+  <% }) %>
+</div>
+
+<% if (totalPages > 1) { %>
+<div class="pagination">
+  <a href="<%= lien(page - 1) %>" class="btn btn-outline btn-sm <%= page <= 1 ? 'disabled' : '' %>" aria-label="Page précédente">‹</a>
+  <span class="mod-pagination-info">Page <strong><%= page %></strong> / <%= totalPages %> · <%= total %> commentaire<%= total !== 1 ? 's' : '' %></span>
+  <a href="<%= lien(page + 1) %>" class="btn btn-outline btn-sm <%= page >= totalPages ? 'disabled' : '' %>" aria-label="Page suivante">›</a>
+</div>
+<% } %>
+<% } %>
+
+<%- include('layout_bottom') %>

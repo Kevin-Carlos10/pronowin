@@ -1,3 +1,4 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -5,10 +6,27 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
+import 'package:in_app_review/in_app_review.dart';
+import '../../../../core/config/contact_support.dart';
+import '../../../../shared/widgets/logo_marque.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/config/distribution_channel.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../compte/presentation/pages/compte_page.dart' show rafraichirDonneesCompte;
 import '../providers/settings_provider.dart';
 import '../providers/security_provider.dart';
+import '../../../../shared/utils/retour.dart';
+import '../../../../core/config/pages_legales.dart';
+import '../../../../shared/widgets/logotype_pronowin.dart';
+import '../../../../shared/utils/messages.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/compte';
+
+
+/// L'année du copyright était figée à 2026 dans deux textes distincts.
+final _copyrightYear = DateTime.now().year;
 
 class ParametresPage extends ConsumerWidget {
   const ParametresPage({super.key});
@@ -17,32 +35,35 @@ class ParametresPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings     = ref.watch(settingsProvider);
     final bioAvailable = ref.watch(bioAvailableProvider);
+    // La version était écrite en dur à trois endroits (ligne « À propos »,
+    // pied de page, feuille À propos) : trois vérités à maintenir en phase.
+    final appVersion   = ref.watch(appVersionProvider).value ?? '';
 
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
+          onPressed: () => retourOuAller(context, repli: _repli),
         ),
-        title: const Text('Paramètres'),
+        title:  Text(tr(context, "Paramètres")),
       ),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
         children: [
 
           // ─── APPARENCE ────────────────────────────────────────────────
-          _SectionHeader('Apparence')
+          _SectionHeader(tr(context, "Apparence"))
             .animate().fadeIn(duration: 300.ms, delay: 50.ms),
           _SettingsCard(children: [
             _NavTile(
               icon: Icons.dark_mode_rounded, iconColor: const Color(0xFF818CF8),
-              title: 'Thème', trailing: settings.themeName,
+              title: tr(context, "Thème"), trailing: settings.themeName,
               onTap: () => _showThemePicker(context, ref, settings.themeMode),
             ),
             const _Divider(),
             _NavTile(
-              icon: Icons.language_rounded, iconColor: AppColors.info,
-              title: 'Langue', trailing: settings.langName,
+              icon: Icons.language_rounded, iconColor: context.cl.info,
+              title: tr(context, "Langue"), trailing: settings.langName,
               onTap: () => _showLangPicker(context, ref, settings.lang),
             ),
           ]).animate(delay: 80.ms).fadeIn(duration: 300.ms)
@@ -50,40 +71,33 @@ class ParametresPage extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ─── NOTIFICATIONS ────────────────────────────────────────────
-          _SectionHeader('Notifications')
+          _SectionHeader(tr(context, "Notifications"))
             .animate().fadeIn(duration: 300.ms, delay: 100.ms),
           _SettingsCard(children: [
             _SwitchTile(
-              icon: Icons.sports_soccer_rounded, iconColor: AppColors.success,
-              title: 'Alertes matchs', subtitle: '1h avant chaque pronostic',
+              icon: Icons.sports_soccer_rounded, iconColor: context.cl.info,
+              title: tr(context, "Alertes matchs"), subtitle: tr(context, "1h avant chaque pronostic"),
               value: settings.notifMatch,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('match'),
             ),
             const _Divider(),
             _SwitchTile(
-              icon: Icons.local_offer_rounded, iconColor: AppColors.primaryLight,
-              title: 'Offres & Promotions', subtitle: 'Codes promo et offres spéciales',
+              icon: Icons.local_offer_rounded, iconColor: AppColors.primary,
+              title: tr(context, "Offres & Promotions"), subtitle: tr(context, "Codes promo et offres spéciales"),
               value: settings.notifPromo,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('promo'),
             ),
             const _Divider(),
             _SwitchTile(
-              icon: Icons.people_rounded, iconColor: const Color(0xFFA78BFA),
-              title: 'Parrainage', subtitle: 'Quand un filleul s\'abonne',
+              icon: Icons.people_rounded, iconColor: AppColors.primary,
+              title: tr(context, "Parrainage"), subtitle: tr(context, "Quand un filleul s'abonne"),
               value: settings.notifReferral,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('referral'),
             ),
             const _Divider(),
             _SwitchTile(
-              icon: Icons.account_balance_wallet_rounded, iconColor: AppColors.warning,
-              title: 'Paiements', subtitle: 'Dépôts et retraits',
-              value: settings.notifPayment,
-              onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('payment'),
-            ),
-            const _Divider(),
-            _SwitchTile(
-              icon: Icons.workspace_premium_rounded, iconColor: AppColors.info,
-              title: 'Abonnement Premium', subtitle: 'Expiration et renouvellement',
+              icon: Icons.workspace_premium_rounded, iconColor: AppColors.primary,
+              title: tr(context, "Abonnement Premium"), subtitle: tr(context, "Expiration et renouvellement"),
               value: settings.notifPremium,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('premium'),
             ),
@@ -92,17 +106,17 @@ class ParametresPage extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ─── SÉCURITÉ ─────────────────────────────────────────────────
-          _SectionHeader('Sécurité')
+          _SectionHeader(tr(context, "Sécurité"))
             .animate().fadeIn(duration: 300.ms, delay: 150.ms),
           _SettingsCard(children: [
 
             // Code PIN
             _SwitchTile(
-              icon: Icons.pin_rounded, iconColor: AppColors.warning,
-              title: 'Code PIN',
+              icon: Icons.pin_rounded, iconColor: context.cl.success,
+              title: tr(context, "Code PIN"),
               subtitle: settings.pinEnabled
-                ? 'Actif — l\'app se verrouille à la fermeture'
-                : 'Protéger l\'app avec un code à 4 chiffres',
+                ? tr(context, "Actif — au démarrage et après 30 s en arrière-plan")
+                : tr(context, "Protéger l'app avec un code à 4 chiffres"),
               value: settings.pinEnabled,
               onChanged: (v) async {
                 if (v) {
@@ -117,40 +131,34 @@ class ParametresPage extends ConsumerWidget {
             // Biométrie
             bioAvailable.when(
               data: (available) => _SwitchTile(
-                icon: Icons.fingerprint_rounded, iconColor: AppColors.success,
-                title: 'Biométrie',
+                icon: Icons.fingerprint_rounded, iconColor: context.cl.success,
+                title: tr(context, "Biométrie"),
                 subtitle: available
                   ? (settings.bioEnabled
-                      ? 'Actif — déverrouillage par empreinte'
-                      : 'Déverrouiller avec empreinte / Face ID')
-                  : 'Non disponible sur cet appareil',
+                      ? tr(context, "Actif — biométrie de cet appareil")
+                      : tr(context, "Déverrouiller avec empreinte / Face ID"))
+                  : tr(context, "Non disponible sur cet appareil"),
                 value: settings.bioEnabled && available,
+                unavailable: !available,
                 onChanged: available ? (v) async {
                   if (v) {
                     final auth = LocalAuthentication();
                     try {
                       final ok = await auth.authenticate(
-                        localizedReason: 'Confirmez pour activer la biométrie',
+                        localizedReason: tr(context, "Confirmez pour activer la biométrie"),
                         options: const AuthenticationOptions(
                           biometricOnly: false, stickyAuth: true),
                       );
                       if (ok) {
                         await ref.read(settingsProvider.notifier).setBioEnabled(true);
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                            content: Text('✅ Biométrie activée !'),
-                            backgroundColor: AppColors.success,
-                            behavior: SnackBarBehavior.floating,
-                          ));
+                          afficherMessage(context, tr(context, "Biométrie activée"), type: TypeMessage.succes);
                         }
                       }
                     } catch (e) {
+                      debugPrint('[Bio] Activation refusée : $e');
                       if (context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                          content: Text('Erreur biométrie : $e'),
-                          backgroundColor: AppColors.error,
-                          behavior: SnackBarBehavior.floating,
-                        ));
+                        afficherMessage(context, messageErreurBio(e), type: TypeMessage.erreur);
                       }
                     }
                   } else {
@@ -160,13 +168,13 @@ class ParametresPage extends ConsumerWidget {
               ),
               loading: () => _SwitchTile(
                 icon: Icons.fingerprint_rounded, iconColor: context.cl.textM,
-                title: 'Biométrie', subtitle: 'Vérification en cours...',
+                title: tr(context, "Biométrie"), subtitle: tr(context, "Vérification en cours..."),
                 value: false, onChanged: null,
               ),
               error: (_, _) => _SwitchTile(
                 icon: Icons.fingerprint_rounded, iconColor: context.cl.textM,
-                title: 'Biométrie', subtitle: 'Non disponible sur cet appareil',
-                value: false, onChanged: null,
+                title: tr(context, "Biométrie"), subtitle: tr(context, "Non disponible sur cet appareil"),
+                value: false, onChanged: null, unavailable: true,
               ),
             ),
             const _Divider(),
@@ -174,18 +182,18 @@ class ParametresPage extends ConsumerWidget {
             // Changer le PIN (si activé)
             if (settings.pinEnabled) ...[
               _NavTile(
-                icon: Icons.edit_rounded, iconColor: AppColors.info,
-                title: 'Changer le code PIN',
-                subtitle: 'Modifier ton code de sécurité',
+                icon: Icons.edit_rounded, iconColor: context.cl.info,
+                title: tr(context, "Changer le code PIN"),
+                subtitle: tr(context, "Modifier ton code de sécurité"),
                 onTap: () => context.push('/parametres/pin'),
               ),
               const _Divider(),
             ],
 
             _NavTile(
-              icon: Icons.devices_rounded, iconColor: AppColors.info,
-              title: 'Sessions actives',
-              subtitle: 'Voir et gérer tes connexions',
+              icon: Icons.devices_rounded, iconColor: context.cl.info,
+              title: tr(context, "Cet appareil"),
+              subtitle: tr(context, "Consulter la connexion sur ce téléphone"),
               onTap: () => _showSessionsSheet(context),
             ),
           ]).animate(delay: 180.ms).fadeIn(duration: 300.ms)
@@ -193,18 +201,24 @@ class ParametresPage extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ─── COMPTE ───────────────────────────────────────────────────
-          _SectionHeader('Mon compte')
+          _SectionHeader(tr(context, "Mon compte"))
             .animate().fadeIn(duration: 300.ms, delay: 200.ms),
           _SettingsCard(children: [
             _NavTile(
               icon: Icons.edit_rounded, iconColor: AppColors.primary,
-              title: 'Modifier le profil', subtitle: 'Pseudo, email, avatar',
+              title: tr(context, "Modifier le profil"), subtitle: tr(context, "Pseudo, email, avatar"),
               onTap: () => context.push('/compte/edit'),
             ),
             const _Divider(),
             _NavTile(
+              icon: Icons.block_rounded, iconColor: context.cl.error,
+              title: tr(context, "Membres bloqués"), subtitle: tr(context, "Ceux dont tu ne vois plus les commentaires"),
+              onTap: () => context.push('/parametres/bloques'),
+            ),
+            const _Divider(),
+            _NavTile(
               icon: Icons.storage_rounded, iconColor: context.cl.textS,
-              title: 'Vider le cache', subtitle: 'Libérer l\'espace de stockage',
+              title: tr(context, "Vider le cache"), subtitle: tr(context, "Libérer l'espace de stockage"),
               onTap: () => _showClearCacheSheet(context, ref),
             ),
           ]).animate(delay: 230.ms).fadeIn(duration: 300.ms)
@@ -212,42 +226,92 @@ class ParametresPage extends ConsumerWidget {
           const SizedBox(height: 20),
 
           // ─── LÉGAL ────────────────────────────────────────────────────
-          _SectionHeader('Informations légales')
+          _SectionHeader(tr(context, "Informations légales"))
             .animate().fadeIn(duration: 300.ms, delay: 250.ms),
           _SettingsCard(children: [
+            // Les trois textes publics vivent sur le site, et l'application
+            // y renvoie — comme les mentions légales le faisaient déjà seules.
+            // Ce sont les documents qu'on cite, qu'un examinateur ouvre, et
+            // qu'un utilisateur doit pouvoir lire sans avoir l'application
+            // sous la main. Les recopier ici créerait un second original.
+            //
+            // « Jeu responsable » reste embarqué : le site n'en a pas de page,
+            // et ces ressources doivent rester atteignables même hors ligne.
             _NavTile(
               icon: Icons.description_rounded, iconColor: context.cl.textM,
-              title: 'Conditions d\'utilisation',
-              onTap: () => context.push('/parametres/cgu'),
+              title: tr(context, "Conditions d'utilisation"),
+              onTap: () => PagesLegales.ouvrir(
+                context,
+                PagesLegales.cgu(estStore: ref.read(isStoreBuildProvider)),
+                titre: PagesLegales.titreCgu),
             ),
             const _Divider(),
             _NavTile(
               icon: Icons.privacy_tip_rounded, iconColor: context.cl.textM,
-              title: 'Politique de confidentialité',
-              onTap: () => context.push('/parametres/confidentialite'),
+              title: tr(context, "Politique de confidentialité"),
+              onTap: () => PagesLegales.ouvrir(
+                context, PagesLegales.confidentialite,
+                titre: PagesLegales.titreConfidentialite),
             ),
             const _Divider(),
             _NavTile(
-              icon: Icons.casino_rounded, iconColor: AppColors.warning,
-              title: 'Jeu responsable', subtitle: 'Ressources et aide',
+              icon: Icons.casino_rounded, iconColor: context.cl.warning,
+              title: tr(context, "Jeu responsable"), subtitle: tr(context, "Ressources et aide"),
               onTap: () => context.push('/parametres/jeu-responsable'),
+            ),
+            const _Divider(),
+            // Les mentions légales vivent sur le site, pas ici — c'est une
+            // obligation du site, et elles portent l'identité de l'éditeur.
+            // La dupliquer dans l'application créerait un second endroit où ce
+            // nom et cette adresse devraient rester à jour, et l'un des deux
+            // finirait par mentir. On y renvoie, on ne la recopie pas.
+            _NavTile(
+              icon: Icons.gavel_rounded, iconColor: context.cl.textM,
+              title: tr(context, "Mentions légales"), subtitle: tr(context, "Éditeur et hébergeur"),
+              onTap: () => PagesLegales.ouvrir(
+                context, PagesLegales.mentionsLegales,
+                titre: tr(context, "Mentions légales")),
             ),
             const _Divider(),
             _NavTile(
               icon: Icons.info_outline_rounded, iconColor: context.cl.textM,
-              title: 'À propos', trailing: 'v1.0.0',
-              onTap: () => _showAboutSheet(context),
+              title: tr(context, "À propos"), trailing: appVersion,
+              onTap: () => _showAboutSheet(context, appVersion),
             ),
           ]).animate(delay: 280.ms).fadeIn(duration: 300.ms)
             .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
-          const SizedBox(height: 8),
+          const SizedBox(height: 20),
+
+          // ─── ZONE DE DANGER ───────────────────────────────────────────
+          // La suppression de compte était entièrement codée (feuille de
+          // confirmation, provider, endpoint) mais n'apparaissait nulle part
+          // dans l'app. Apple (5.1.1(v)) et Google Play l'exigent dès lors
+          // qu'on permet la création d'un compte.
+          _SectionHeader(tr(context, "Zone de danger"))
+            .animate().fadeIn(duration: 300.ms, delay: 300.ms),
+          _SettingsCard(children: [
+            _DangerNavTile(
+              icon: Icons.delete_forever_rounded,
+              // Disait « Effacer définitivement tes données ». Le serveur
+              // anonymise : il vide les champs personnels et garde la ligne,
+              // l'historique et la bankroll. Promettre un effacement définitif
+              // sur le bouton qui ne l'exécute pas est la pire place pour
+              // cette inexactitude — c'est celle que l'on cite pour exercer un
+              // droit à l'effacement.
+              subtitle: tr(context, "Fermer ton compte et effacer tes informations"),
+              onTap: () => _showDeleteAccountSheet(context, ref),
+            ),
+          ]).animate(delay: 320.ms).fadeIn(duration: 300.ms)
+            .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
+          const SizedBox(height: 12),
+
           Center(
             child: Text(
-              'PronoWin v1.0.0\n© 2026 PronoWin. Tous droits réservés.',
+              tr(context, "© {arg0} PronoWin. Tous droits réservés.", [_copyrightYear]),
               style: TextStyle(color: context.cl.textM, fontSize: 11),
               textAlign: TextAlign.center,
             ),
-          ).animate(delay: 330.ms).fadeIn(duration: 400.ms),
+          ).animate(delay: 360.ms).fadeIn(duration: 400.ms),
         ],
       ),
     );
@@ -261,19 +325,16 @@ class ParametresPage extends ConsumerWidget {
       isScrollControlled: true,
       builder: (_) => _ConfirmSheet(
         icon: Icons.lock_reset_rounded,
-        iconColor: AppColors.warning,
-        title: 'Désactiver le PIN ?',
-        body: 'L\'application ne sera plus protégée par un code PIN.\nTa sécurité sera réduite.',
-        confirmLabel: 'Désactiver',
-        confirmColor: AppColors.warning,
+        iconColor: context.cl.warning,
+        title: tr(context, "Désactiver le PIN ?"),
+        body: tr(context, "L'application ne sera plus protégée par un code PIN.\nTa sécurité sera réduite."),
+        confirmLabel: tr(context, "Désactiver"),
+        confirmColor: context.cl.warning,
         onConfirm: () async {
           await ref.read(settingsProvider.notifier).setPinEnabled(false);
           if (context.mounted) {
             Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Code PIN désactivé'),
-              behavior: SnackBarBehavior.floating,
-            ));
+            afficherMessage(context, tr(context, "Code PIN désactivé"));
           }
         },
       ),
@@ -295,14 +356,14 @@ class ParametresPage extends ConsumerWidget {
             margin: const EdgeInsets.only(bottom: 20),
             decoration: BoxDecoration(
                 color: ctx.cl.borderS, borderRadius: BorderRadius.circular(2))),
-          Text('Choisir le thème',
+          Text(tr(ctx, "Choisir le thème"),
               style: TextStyle(
                   color: ctx.cl.textP,
                   fontSize: 17,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
           _ThemeOption(
-            icon: Icons.dark_mode_rounded, label: 'Sombre',
+            icon: Icons.dark_mode_rounded, label: tr(ctx, "Sombre"),
             selected: current == ThemeMode.dark,
             onTap: () {
               ref.read(settingsProvider.notifier).setTheme(ThemeMode.dark);
@@ -311,7 +372,7 @@ class ParametresPage extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           _ThemeOption(
-            icon: Icons.light_mode_rounded, label: 'Clair',
+            icon: Icons.light_mode_rounded, label: tr(ctx, "Clair"),
             selected: current == ThemeMode.light,
             onTap: () {
               ref.read(settingsProvider.notifier).setTheme(ThemeMode.light);
@@ -320,7 +381,7 @@ class ParametresPage extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           _ThemeOption(
-            icon: Icons.brightness_auto_rounded, label: 'Système',
+            icon: Icons.brightness_auto_rounded, label: tr(ctx, "Système"),
             selected: current == ThemeMode.system,
             onTap: () {
               ref.read(settingsProvider.notifier).setTheme(ThemeMode.system);
@@ -341,11 +402,12 @@ class ParametresPage extends ConsumerWidget {
         Container(width: 40, height: 4, margin: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(color: ctx.cl.borderS, borderRadius: BorderRadius.circular(2))),
         Padding(padding: const EdgeInsets.only(bottom: 8),
-          child: Text('Choisir la langue', style: TextStyle(
+          child: Text(tr(ctx, "Choisir la langue"), style: TextStyle(
             color: ctx.cl.textP, fontSize: 16, fontWeight: FontWeight.w600))),
-        _LangOption(flag: '🇫🇷', label: 'Français', code: 'fr', selected: current == 'fr',
+        _LangOption(flag: '🇫🇷', label: tr(ctx, "Français"), code: 'fr', selected: current == 'fr',
           onTap: () { ref.read(settingsProvider.notifier).setLang('fr'); Navigator.pop(ctx); }),
-        _LangOptionSoon(flag: '🇬🇧', label: 'English'),
+        _LangOption(flag: '🇬🇧', label: 'English', code: 'en', selected: current == 'en',
+          onTap: () { ref.read(settingsProvider.notifier).setLang('en'); Navigator.pop(ctx); }),
         const SizedBox(height: 16),
       ]),
     );
@@ -360,26 +422,22 @@ class ParametresPage extends ConsumerWidget {
       builder: (_) => _ConfirmSheet(
         icon: Icons.storage_rounded,
         iconColor: context.cl.textS,
-        title: 'Vider le cache ?',
-        body: 'Les données temporaires seront supprimées.\nTes paramètres et ta session seront conservés.',
-        confirmLabel: 'Vider le cache',
+        title: tr(context, "Vider le cache ?"),
+        body: tr(context, "Les données temporaires seront supprimées.\nTes paramètres et ta session seront conservés."),
+        confirmLabel: tr(context, "Vider le cache"),
         confirmColor: AppColors.primary,
         onConfirm: () async {
           await ref.read(settingsProvider.notifier).clearCache();
           if (context.mounted) {
             Navigator.pop(context);
-            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-              content: Text('Cache vidé ✅'),
-              backgroundColor: AppColors.success,
-              behavior: SnackBarBehavior.floating,
-            ));
+            afficherMessage(context, tr(context, "Cache vidé"), type: TypeMessage.succes);
           }
         },
       ),
     );
   }
 
-  // ─── Bottom sheet : Sessions actives ──────────────────────────────────────────
+  // ─── Bottom sheet : Cet appareil ──────────────────────────────────────────
   void _showSessionsSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -395,45 +453,45 @@ class ParametresPage extends ConsumerWidget {
           Row(children: [
             Container(width: 42, height: 42,
               decoration: BoxDecoration(
-                color: AppColors.info.withValues(alpha: 0.12),
+                color: context.cl.info.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12)),
-              child: const Icon(Icons.devices_rounded, color: AppColors.info, size: 22)),
+              child: Icon(Icons.devices_rounded, color: context.cl.info, size: 22)),
             const SizedBox(width: 14),
-            Text('Sessions actives', style: TextStyle(
+            Text(tr(context, "Cet appareil"), style: TextStyle(
               color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(height: 20),
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.06),
+              color: context.cl.success.withValues(alpha: 0.06),
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.success.withValues(alpha: 0.25))),
+              border: Border.all(color: context.cl.success.withValues(alpha: 0.25))),
             child: Row(children: [
               Container(width: 40, height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
+                  color: context.cl.success.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(10)),
-                child: Icon(Platform.isIOS ? Icons.phone_iphone_rounded : Icons.phone_android_rounded, color: AppColors.success, size: 20)),
+                child: Icon(Platform.isIOS ? Icons.phone_iphone_rounded : Icons.phone_android_rounded, color: context.cl.success, size: 20)),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('${Platform.isIOS ? 'iPhone' : 'Android'} · Cet appareil', style: TextStyle(
+                Text(tr(context, "{arg0} · Cet appareil", [Platform.isIOS ? 'iPhone' : 'Android']), style: TextStyle(
                   color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
-                Text('Connecté maintenant', style: TextStyle(
+                Text(tr(context, "Connecté maintenant"), style: TextStyle(
                   color: context.cl.textM, fontSize: 11)),
               ])),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
+                  color: context.cl.success.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20)),
-                child: const Text('Actif', style: TextStyle(
-                  color: AppColors.success, fontSize: 11, fontWeight: FontWeight.w700))),
+                child:  Text(tr(context, "Actif"), style: TextStyle(
+                  color: context.cl.success, fontSize: 11, fontWeight: FontWeight.w700))),
             ]),
           ),
           const SizedBox(height: 12),
           Text(
-            'Pour sécuriser ton compte, déconnecte-toi si tu reconnais une session suspecte.',
+            tr(context, "Cet écran affiche uniquement ce téléphone. Il ne liste pas les connexions sur tes autres appareils."),
             style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.5),
             textAlign: TextAlign.center),
           const SizedBox(height: 20),
@@ -446,7 +504,7 @@ class ParametresPage extends ConsumerWidget {
                 side: BorderSide(color: context.cl.border),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Fermer'),
+              child:  Text(tr(context, "Fermer")),
             ),
           ),
         ]),
@@ -455,7 +513,7 @@ class ParametresPage extends ConsumerWidget {
   }
 
   // ─── Bottom sheet : À propos ──────────────────────────────────────────────────
-  void _showAboutSheet(BuildContext context) {
+  void _showAboutSheet(BuildContext context, String version) {
     showModalBottomSheet(
       context: context,
       backgroundColor: context.cl.surface,
@@ -471,7 +529,7 @@ class ParametresPage extends ConsumerWidget {
             width: 72, height: 72,
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryLight],
+                colors: AppColors.degradeMarque,
                 begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(20),
               boxShadow: [BoxShadow(
@@ -480,25 +538,35 @@ class ParametresPage extends ConsumerWidget {
             child: const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 38),
           ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
           const SizedBox(height: 16),
-          RichText(text: TextSpan(
-            style: const TextStyle(fontSize: 26, fontWeight: FontWeight.w800),
-            children: [
-              TextSpan(text: 'Prono', style: TextStyle(color: context.cl.textP)),
-              const TextSpan(text: 'Win', style: TextStyle(color: AppColors.primaryLight)),
-            ],
-          )),
+          const LogotypePronoWin(taille: 26),
           const SizedBox(height: 6),
-          Text('Version 1.0.0', style: TextStyle(color: context.cl.textS, fontSize: 13)),
+          Text(tr(context, "Version {arg0}", [version.replaceFirst('v', '')]),
+            style: TextStyle(color: context.cl.textS, fontSize: 13)),
           const SizedBox(height: 4),
-          Text('© 2026 PronoWin. Tous droits réservés.',
+          Text(tr(context, "© {arg0} PronoWin. Tous droits réservés.", [_copyrightYear]),
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
           const SizedBox(height: 20),
-          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            _AboutChip(icon: Icons.sports_soccer_rounded, label: 'Pronostics', color: AppColors.success),
-            const SizedBox(width: 8),
-            _AboutChip(icon: Icons.workspace_premium_rounded, label: 'Premium', color: AppColors.warning),
-            const SizedBox(width: 8),
-            _AboutChip(icon: Icons.people_rounded, label: 'Parrainage', color: const Color(0xFFA78BFA)),
+          Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 8, children: [
+            _AboutChip(
+              icon: Icons.star_rounded, label: tr(context, "Noter l'application"), color: context.cl.warning,
+              onTap: () => InAppReview.instance.openStoreListing().catchError((_) {}),
+            ),
+            _AboutChip(
+              icon: Icons.mail_outline_rounded, label: tr(context, "Nous contacter"), color: context.cl.info,
+              onTap: () => ContactSupport.ouvrirEmail(),
+            ),
+            _AboutChip(
+              marque: Marque.telegram, label: 'Telegram', color: Marque.telegram.couleur,
+              onTap: () => ContactSupport.ouvrirTelegram(),
+            ),
+            _AboutChip(
+              marque: Marque.whatsapp, label: 'WhatsApp', color: Marque.whatsapp.couleur,
+              onTap: () => ContactSupport.ouvrirWhatsapp(),
+            ),
+            _AboutChip(
+              icon: Icons.facebook_rounded, label: 'Facebook', color: const Color(0xFF1877F2),
+              onTap: () => ContactSupport.ouvrirFacebook(),
+            ),
           ]),
           const SizedBox(height: 20),
           SizedBox(
@@ -510,7 +578,7 @@ class ParametresPage extends ConsumerWidget {
                 side: BorderSide(color: context.cl.border),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text('Fermer'),
+              child:  Text(tr(context, "Fermer")),
             ),
           ),
         ]),
@@ -561,17 +629,22 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
       Container(
         width: 72, height: 72,
         decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.12),
+          color: context.cl.error.withValues(alpha: 0.12),
           shape: BoxShape.circle,
-          border: Border.all(color: AppColors.error.withValues(alpha: 0.3), width: 1.5)),
-        child: const Icon(Icons.delete_forever_rounded, color: AppColors.error, size: 36)),
+          border: Border.all(color: context.cl.error.withValues(alpha: 0.3), width: 1.5)),
+        child: Icon(Icons.delete_forever_rounded, color: context.cl.error, size: 36)),
       const SizedBox(height: 16),
 
-      Text('Supprimer le compte', style: TextStyle(
-        color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
+      Text(tr(context, "Supprimer le compte"), style: TextStyle(
+        color: context.cl.textP, fontSize: 20, fontWeight: FontWeight.w700)),
       const SizedBox(height: 8),
+      // Annonçait « Toutes tes données, ton historique et ton abonnement
+      // seront définitivement supprimés ». Aucune des trois affirmations
+      // n'était exacte : le serveur anonymise le compte — il vide les champs
+      // personnels, met `isActive` à faux et conserve la ligne, l'historique
+      // et la bankroll —, et il ne touche jamais à l'abonnement.
       Text(
-        'Cette action est irréversible. Toutes tes données, ton historique et ton abonnement seront définitivement supprimés.',
+        tr(context, "Cette action est irréversible. Tes informations personnelles sont effacées et tu perds l'accès à ton compte."),
         style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
         textAlign: TextAlign.center),
       const SizedBox(height: 20),
@@ -579,22 +652,41 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
       Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.06),
+          color: context.cl.error.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.error.withValues(alpha: 0.2))),
+          border: Border.all(color: context.cl.error.withValues(alpha: 0.2))),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _DeleteWarning('Ton abonnement Premium sera annulé'),
+          // « Ton abonnement Premium sera annulé » était faux, et
+          // dangereusement : la suppression ne touche ni `subscriptionPlan`
+          // ni `subscriptionExpiresAt`, et aucune résiliation n'est appelée
+          // nulle part. En facturation Google Play, seul Google peut résilier.
+          //
+          // Quelqu'un qui supprime son compte pour cesser de payer continuait
+          // donc d'être débité tous les mois, après avoir lu le contraire sur
+          // l'écran qui le lui demandait. C'est l'avertissement qui devait le
+          // protéger qui causait le prélèvement.
+          //
+          // Et la boutique est celle du téléphone : l'iPhone affichait « depuis
+          // le Play Store » (vidéo du 3 octobre 2026).
+          _DeleteWarning(!widget.ref.read(isStoreBuildProvider)
+              ? tr(context, "Ton abonnement n'est ni résilié ni remboursé")
+              : Platform.isIOS
+                ? tr(context, "Ton abonnement n'est pas résilié : fais-le depuis l'App Store (Réglages, puis ton nom, puis Abonnements)")
+                : tr(context, "Ton abonnement n'est pas résilié : fais-le depuis le Play Store")),
           const SizedBox(height: 6),
-          _DeleteWarning('Tes gains de parrainage seront perdus'),
+          _DeleteWarning(tr(context, "Tu perds l'accès à tes gains de parrainage")),
           const SizedBox(height: 6),
-          _DeleteWarning('Ton historique sera effacé définitivement'),
+          // Anonymisé, pas effacé — c'est ce que fait `deleteAccount`. Une
+          // information, pas une perte : la croix rouge la rangeait avec ce
+          // qu'on perd (vidéo du 5 octobre 2026).
+          _DeleteWarning(tr(context, "Ton historique est conservé sous forme anonyme"), neutre: true),
         ]),
       ),
       const SizedBox(height: 20),
 
       Align(
         alignment: Alignment.centerLeft,
-        child: Text('Tapez SUPPRIMER pour confirmer',
+        child: Text(tr(context, "Tape SUPPRIMER pour confirmer"),
           style: TextStyle(color: context.cl.textS, fontSize: 12, fontWeight: FontWeight.w600))),
       const SizedBox(height: 8),
       TextField(
@@ -602,9 +694,10 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
         onChanged: (v) => setState(() => _input = v),
         textCapitalization: TextCapitalization.characters,
         style: TextStyle(color: context.cl.textP, fontWeight: FontWeight.w600, letterSpacing: 1),
+        // Pas d'indication « SUPPRIMER » dans le champ : en capitales grasses,
+        // elle passait pour un texte déjà saisi, et le bouton restait grisé
+        // sans qu'on comprenne pourquoi. La consigne est juste au-dessus.
         decoration: InputDecoration(
-          hintText: 'SUPPRIMER',
-          hintStyle: TextStyle(color: context.cl.textM, letterSpacing: 1),
           filled: true,
           fillColor: context.cl.surfaceD,
           border: OutlineInputBorder(
@@ -612,11 +705,11 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
             borderSide: BorderSide(color: context.cl.borderS)),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
-            borderSide: const BorderSide(color: AppColors.error, width: 1.5)),
+            borderSide: BorderSide(color: context.cl.error, width: 1.5)),
           enabledBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(12),
             borderSide: BorderSide(
-              color: _confirmed ? AppColors.error.withValues(alpha: 0.5) : context.cl.borderS,
+              color: _confirmed ? context.cl.error.withValues(alpha: 0.5) : context.cl.borderS,
               width: _confirmed ? 1.5 : 0.5)),
         ),
       ),
@@ -631,22 +724,22 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          child: const Text('Annuler'),
+          child:  Text(tr(context, "Annuler")),
         )),
         const SizedBox(width: 12),
         Expanded(child: ElevatedButton(
           onPressed: (_confirmed && !_loading) ? _deleteAccount : null,
           style: ElevatedButton.styleFrom(
-            backgroundColor: AppColors.error,
+            backgroundColor: AppColors.fondErreur,
             foregroundColor: Colors.white,
-            disabledBackgroundColor: AppColors.error.withValues(alpha: 0.3),
+            disabledBackgroundColor: context.cl.error.withValues(alpha: 0.3),
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
           child: _loading
             ? const SizedBox(width: 18, height: 18,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : const Text('Supprimer', style: TextStyle(fontWeight: FontWeight.w700)),
+            :  Text(tr(context, "Supprimer"), style: TextStyle(fontWeight: FontWeight.w700)),
         )),
       ]),
     ]),
@@ -657,15 +750,16 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
     HapticFeedback.heavyImpact();
     try {
       await widget.ref.read(authProvider.notifier).deleteAccount();
+      // Comme à la déconnexion : ce qui a été lu pour le compte supprimé
+      // repart, et l'état de connexion avec. La déconnexion le faisait, pas la
+      // suppression — la connexion suivante partait d'un « connecté » périmé.
+      rafraichirDonneesCompte(widget.ref);
+      widget.ref.invalidate(isLoggedInProvider);
       if (mounted) Navigator.pop(context);
     } catch (e) {
       if (mounted) {
         setState(() => _loading = false);
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erreur : $e'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ));
+        afficherMessage(context, tr(context, "Erreur : {arg0}", [e]), type: TypeMessage.erreur);
       }
     }
   }
@@ -673,12 +767,16 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
 
 class _DeleteWarning extends StatelessWidget {
   final String text;
-  const _DeleteWarning(this.text);
+  /// Une information (ce qui est conservé), et non une perte.
+  final bool neutre;
+  const _DeleteWarning(this.text, {this.neutre = false});
   @override
   Widget build(BuildContext context) => Row(
     crossAxisAlignment: CrossAxisAlignment.start,
     children: [
-      const Icon(Icons.close_rounded, color: AppColors.error, size: 14),
+      neutre
+        ? Icon(Icons.info_outline_rounded, color: context.cl.textM, size: 14)
+        : Icon(Icons.close_rounded, color: context.cl.error, size: 14),
       const SizedBox(width: 8),
       Expanded(child: Text(text, style: TextStyle(
         color: context.cl.textS, fontSize: 12, height: 1.4))),
@@ -737,7 +835,7 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
             padding: const EdgeInsets.symmetric(vertical: 14),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
-          child: const Text('Annuler'),
+          child:  Text(tr(context, "Annuler")),
         )),
         const SizedBox(width: 12),
         Expanded(child: ElevatedButton(
@@ -785,7 +883,7 @@ class _ThemeOption extends StatelessWidget {
         Icon(icon, color: selected ? AppColors.primary : context.cl.textS, size: 22),
         const SizedBox(width: 14),
         Expanded(child: Text(label, style: TextStyle(
-            color: selected ? AppColors.primary : context.cl.textP,
+            color: selected ? context.cl.accent : context.cl.textP,
             fontSize: 15, fontWeight: selected ? FontWeight.w600 : FontWeight.w400))),
         if (selected) const Icon(Icons.check_rounded, color: AppColors.primary, size: 20),
       ]),
@@ -795,23 +893,32 @@ class _ThemeOption extends StatelessWidget {
 
 // ─── _AboutChip ───────────────────────────────────────────────────────────────
 class _AboutChip extends StatelessWidget {
-  final IconData icon;
+  final IconData? icon;
+
+  /// Le vrai logo du réseau, à la place d'une icône générique.
+  final Marque? marque;
   final String label;
   final Color color;
-  const _AboutChip({required this.icon, required this.label, required this.color});
+  final VoidCallback? onTap;
+  const _AboutChip({this.icon, this.marque, required this.label, required this.color, this.onTap})
+      : assert(icon != null || marque != null);
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-    decoration: BoxDecoration(
-      color: color.withValues(alpha: 0.1),
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: color.withValues(alpha: 0.25))),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(icon, color: color, size: 13),
-      const SizedBox(width: 5),
-      Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
-    ]),
-  );
+  Widget build(BuildContext context) {
+    final chip = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: color.withValues(alpha: 0.25))),
+      child: Row(mainAxisSize: MainAxisSize.min, children: [
+        if (marque != null) LogoMarque(marque!, taille: 14) else Icon(icon, color: color, size: 13),
+        const SizedBox(width: 5),
+        Text(label, style: TextStyle(color: color, fontSize: 11, fontWeight: FontWeight.w600)),
+      ]),
+    );
+    if (onTap == null) return chip;
+    return GestureDetector(onTap: onTap, child: chip);
+  }
 }
 
 // ─── Widgets ─────────────────────────────────────────────────────────────────
@@ -851,10 +958,32 @@ class _SwitchTile extends StatelessWidget {
   final IconData icon; final Color iconColor;
   final String title; final String? subtitle;
   final bool value; final ValueChanged<bool>? onChanged;
+  /// Rend l'interrupteur non pertinent (fonction indisponible sur l'appareil) :
+  /// on affiche un tiret plutôt qu'un switch mort, qu'on confondait avec un
+  /// simple « éteint ».
+  final bool unavailable;
   const _SwitchTile({required this.icon, required this.iconColor,
-    required this.title, this.subtitle, required this.value, required this.onChanged});
+    required this.title, this.subtitle, required this.value,
+    required this.onChanged, this.unavailable = false});
+
   @override
-  Widget build(BuildContext context) => Padding(
+  Widget build(BuildContext context) {
+    // Toute la ligne est cliquable, comme sur _NavTile : les deux se
+    // ressemblent trait pour trait, mais seul l'interrupteur répondait ici —
+    // une cible de ~50×30 px sur une ligne large de 350.
+    final row = _buildRow(context);
+    if (onChanged == null) return row;
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        onChanged!(!value);
+      },
+      borderRadius: BorderRadius.circular(16),
+      child: row,
+    );
+  }
+
+  Widget _buildRow(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     child: Row(children: [
       Container(width: 38, height: 38,
@@ -872,26 +1001,32 @@ class _SwitchTile extends StatelessWidget {
                 .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
               child: child)),
           child: Text(subtitle!, key: ValueKey(subtitle),
-            style: TextStyle(color: context.cl.textM, fontSize: 11)),
+            style: TextStyle(color: context.cl.textM, fontSize: 12)),
         ),
       ])),
-      Switch(
-        value: value,
-        onChanged: onChanged == null ? null : (v) {
-          HapticFeedback.selectionClick();
-          onChanged!(v);
-        },
-        thumbColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return Colors.white;
-          return context.cl.textM;
-        }),
-        trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.disabled)) return context.cl.borderS.withValues(alpha: 0.4);
-          if (states.contains(WidgetState.selected)) return AppColors.primary;
-          return context.cl.borderS;
-        }),
-        trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
-      ),
+      if (unavailable)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          child: Icon(Icons.do_not_disturb_on_outlined,
+            color: context.cl.textM.withValues(alpha: 0.5), size: 20))
+      else
+        Switch(
+          value: value,
+          onChanged: onChanged == null ? null : (v) {
+            HapticFeedback.selectionClick();
+            onChanged!(v);
+          },
+          thumbColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.selected)) return Colors.white;
+            return context.cl.textM;
+          }),
+          trackColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.disabled)) return context.cl.borderS.withValues(alpha: 0.4);
+            if (states.contains(WidgetState.selected)) return AppColors.primary;
+            return context.cl.borderS;
+          }),
+          trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+        ),
     ]),
   );
 }
@@ -915,7 +1050,7 @@ class _NavTile extends StatelessWidget {
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(title, style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w500)),
-          if (subtitle != null) Text(subtitle!, style: TextStyle(color: context.cl.textM, fontSize: 11)),
+          if (subtitle != null) Text(subtitle!, style: TextStyle(color: context.cl.textM, fontSize: 12)),
         ])),
         if (trailing != null) Text(trailing!, style: TextStyle(color: context.cl.textS, fontSize: 13)),
         const SizedBox(width: 4),
@@ -927,10 +1062,11 @@ class _NavTile extends StatelessWidget {
 
 class _DangerNavTile extends StatelessWidget {
   final IconData icon;
-  final String title; final String? subtitle;
+  final String? subtitle;
   final VoidCallback onTap;
-  const _DangerNavTile({required this.icon, required this.title,
-    this.subtitle, required this.onTap});
+  // Le paramètre `title` a été retiré : il était requis mais jamais lu, le
+  // libellé étant écrit en dur plus bas.
+  const _DangerNavTile({required this.icon, this.subtitle, required this.onTap});
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap, borderRadius: BorderRadius.circular(16),
@@ -939,17 +1075,17 @@ class _DangerNavTile extends StatelessWidget {
       child: Row(children: [
         Container(width: 38, height: 38,
           decoration: BoxDecoration(
-            color: AppColors.error.withValues(alpha: 0.10),
+            color: context.cl.error.withValues(alpha: 0.10),
             borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, color: AppColors.error, size: 20)),
+          child: Icon(icon, color: context.cl.error, size: 20)),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Supprimer le compte', style: TextStyle(
-            color: AppColors.error, fontSize: 14, fontWeight: FontWeight.w500)),
+           Text(tr(context, "Supprimer le compte"), style: TextStyle(
+            color: context.cl.error, fontSize: 14, fontWeight: FontWeight.w500)),
           if (subtitle != null) Text(subtitle!, style: TextStyle(
-            color: AppColors.error.withValues(alpha: 0.6), fontSize: 11)),
+            color: context.cl.error.withValues(alpha: 0.6), fontSize: 12)),
         ])),
-        Icon(Icons.chevron_right_rounded, color: AppColors.error.withValues(alpha: 0.5), size: 18),
+        Icon(Icons.chevron_right_rounded, color: context.cl.error.withValues(alpha: 0.5), size: 18),
       ]),
     ),
   );
@@ -967,29 +1103,8 @@ class _LangOption extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListTile(
     leading: Text(flag, style: const TextStyle(fontSize: 24)),
-    title: Text(label, style: TextStyle(color: selected ? AppColors.primary : context.cl.textP)),
+    title: Text(label, style: TextStyle(color: selected ? context.cl.accent : context.cl.textP)),
     trailing: selected ? const Icon(Icons.check_rounded, color: AppColors.primary, size: 20) : null,
     onTap: onTap,
-  );
-}
-
-class _LangOptionSoon extends StatelessWidget {
-  final String flag, label;
-  const _LangOptionSoon({required this.flag, required this.label});
-  @override
-  Widget build(BuildContext context) => ListTile(
-    leading: Text(flag, style: const TextStyle(fontSize: 24)),
-    title: Text(label, style: TextStyle(color: context.cl.textM)),
-    trailing: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.primaryLight.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.primaryLight.withValues(alpha: 0.3), width: 0.5),
-      ),
-      child: const Text('Bientôt', style: TextStyle(
-        color: AppColors.primaryLight, fontSize: 11, fontWeight: FontWeight.w600)),
-    ),
-    enabled: false,
   );
 }

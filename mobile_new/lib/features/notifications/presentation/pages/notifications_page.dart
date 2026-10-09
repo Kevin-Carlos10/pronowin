@@ -1,4 +1,6 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
+import '../../../../core/utils/motion.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -43,7 +45,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
           Container(width: 32, height: 32,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryLight],
+                colors: AppColors.degradeMarque,
                 begin: Alignment.topLeft, end: Alignment.bottomRight),
               borderRadius: BorderRadius.circular(9),
               boxShadow: const [BoxShadow(color: Color(0x59E8541A),
@@ -57,7 +59,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                     color: Colors.white, shape: BoxShape.circle))),
             ])),
           const SizedBox(width: 10),
-          Text('Notifications',
+          Text(tr(context, "Notifications"),
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
               color: context.cl.textP)),
           if (unread > 0) ...[
@@ -69,7 +71,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                 key: ValueKey(unread),
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: AppColors.error,
+                  color: AppColors.fondErreur,
                   borderRadius: BorderRadius.circular(10),
                   boxShadow: const [BoxShadow(color: Color(0x66EF4444),
                     blurRadius: 6, offset: Offset(0, 2))]),
@@ -86,7 +88,7 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
                 ref.read(notificationNotifierProvider.notifier).markAllRead();
               },
               icon: const Icon(Icons.done_all_rounded, size: 16),
-              label: const Text('Tout lire', style: TextStyle(fontSize: 13)),
+              label:  Text(tr(context, "Tout lire"), style: TextStyle(fontSize: 13)),
             ),
         ],
         bottom: const PreferredSize(
@@ -100,14 +102,14 @@ class _NotificationsPageState extends ConsumerState<NotificationsPage> {
           child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
             Icon(Icons.wifi_off_rounded, color: context.cl.textM, size: 44),
             const SizedBox(height: 12),
-            Text('Impossible de charger les notifications',
+            Text(tr(context, "Impossible de charger les notifications"),
               style: TextStyle(color: context.cl.textS, fontSize: 13),
               textAlign: TextAlign.center),
             const SizedBox(height: 16),
             TextButton.icon(
               onPressed: () => ref.read(notificationNotifierProvider.notifier).fetch(),
               icon: const Icon(Icons.refresh_rounded, size: 18),
-              label: const Text('Réessayer'),
+              label:  Text(tr(context, "Réessayer")),
             ),
           ]).animate().fadeIn(duration: 350.ms).scale(
               begin: const Offset(0.92, 0.92), end: const Offset(1, 1),
@@ -128,12 +130,13 @@ class _FilterBar extends ConsumerWidget {
     final active = ref.watch(notifTypeFilterProvider);
 
     final filters = <NotificationType?, String>{
-      null:                      'Tous',
+      null:                      tr(context, "Tous"),
       NotificationType.match:    'Match',
       NotificationType.promo:    'Promo',
-      NotificationType.system:   'Système',
-      NotificationType.payment:  'Paiement',
-      NotificationType.referral: 'Parrainage',
+      NotificationType.system:   tr(context, "Système"),
+      // « Paiement » a fusionné dans « Parrainage » : il ne contenait que le
+      // versement des gains de parrainage, et menait déjà à cette page.
+      NotificationType.referral: tr(context, "Parrainage"),
     };
 
     return SizedBox(
@@ -165,7 +168,7 @@ class _FilterBar extends ConsumerWidget {
               child: Row(mainAxisSize: MainAxisSize.min, children: [
                 if (type != null) ...[
                   Icon(_typeIcon(type), size: 13,
-                    color: sel ? Colors.white : _typeColor(type)),
+                    color: sel ? Colors.white : _typeColor(context, type)),
                   const SizedBox(width: 5),
                 ],
                 Text(label,
@@ -180,22 +183,32 @@ class _FilterBar extends ConsumerWidget {
     );
   }
 
-  Color _typeColor(NotificationType t) => switch (t) {
-    NotificationType.match    => AppColors.success,
-    NotificationType.promo    => AppColors.primaryLight,
-    NotificationType.system   => AppColors.info,
-    NotificationType.payment  => AppColors.warning,
-    NotificationType.referral => const Color(0xFFA78BFA),
-  };
-
-  IconData _typeIcon(NotificationType t) => switch (t) {
-    NotificationType.match    => Icons.sports_soccer_rounded,
-    NotificationType.promo    => Icons.local_offer_rounded,
-    NotificationType.system   => Icons.notifications_rounded,
-    NotificationType.payment  => Icons.account_balance_wallet_rounded,
-    NotificationType.referral => Icons.people_rounded,
-  };
+  Color _typeColor(BuildContext context, NotificationType t) => context.cl.lisible(couleurDeType(t));
+  IconData _typeIcon(NotificationType t) => iconeDeType(t);
 }
+
+
+// ─── Apparence d'une rubrique ────────────────────────────────────────────────
+//
+// Ces deux tables étaient écrites deux fois dans ce fichier : une paire pour
+// les pastilles de filtre, une paire pour la vignette de chaque notification.
+// Retirer « Paiement » demandait donc quatre modifications pour un seul
+// changement — et rien n'obligeait les deux copies à rester d'accord sur la
+// couleur d'une rubrique.
+
+Color couleurDeType(NotificationType t) => switch (t) {
+  NotificationType.match    => AppColors.success,
+  NotificationType.promo    => AppColors.primaryLight,
+  NotificationType.system   => AppColors.info,
+  NotificationType.referral => const Color(0xFFA78BFA),
+};
+
+IconData iconeDeType(NotificationType t) => switch (t) {
+  NotificationType.match    => Icons.sports_soccer_rounded,
+  NotificationType.promo    => Icons.local_offer_rounded,
+  NotificationType.system   => Icons.notifications_rounded,
+  NotificationType.referral => Icons.people_rounded,
+};
 
 // ─── Corps principal (groupé par date) ───────────────────────────────────────
 class _NotifBody extends ConsumerWidget {
@@ -216,11 +229,11 @@ class _NotifBody extends ConsumerWidget {
             child: Icon(Icons.notifications_off_outlined,
               color: context.cl.textM, size: 36)),
           const SizedBox(height: 16),
-          Text(filter == null ? 'Aucune notification' : 'Aucune notification ici',
+          Text(filter == null ? tr(context, "Aucune notification") : tr(context, "Aucune notification ici"),
             style: TextStyle(color: context.cl.textP,
               fontSize: 16, fontWeight: FontWeight.w600)),
           const SizedBox(height: 6),
-          Text(filter == null ? 'Vous êtes à jour !' : 'Essayez un autre filtre',
+          Text(filter == null ? tr(context, "Vous êtes à jour !") : tr(context, "Essayez un autre filtre"),
             style: TextStyle(color: context.cl.textS, fontSize: 13)),
         ]).animate().fadeIn(duration: 400.ms).scale(begin: const Offset(0.9, 0.9)),
       );
@@ -269,9 +282,9 @@ class _NotifBody extends ConsumerWidget {
       final key = _dayKey(n.createdAt);
       final String label;
       if (key == todayStr)                             { label = "Aujourd'hui"; }
-      else if (key == yestStr)                         { label = 'Hier'; }
-      else if (now.difference(n.createdAt).inDays < 7) { label = 'Cette semaine'; }
-      else                                             { label = 'Plus ancien'; }
+      else if (key == yestStr)                         { label = trCurrent("Hier"); }
+      else if (now.difference(n.createdAt).inDays < 7) { label = trCurrent("Cette semaine"); }
+      else                                             { label = trCurrent("Plus ancien"); }
       result.putIfAbsent(label, () => []).add(n);
     }
     return result;
@@ -322,8 +335,8 @@ class _SwipeTile extends ConsumerWidget {
         child: Row(children: [
           Icon(Icons.mark_email_read_rounded, color: AppColors.primary, size: 22),
           const SizedBox(width: 8),
-          Text('Marquer lu', style: TextStyle(
-            color: AppColors.primary, fontWeight: FontWeight.w600, fontSize: 13)),
+          Text(tr(context, "Marquer lu"), style: TextStyle(
+            color: context.cl.accent, fontWeight: FontWeight.w600, fontSize: 13)),
         ]),
       ),
       confirmDismiss: (_) async {
@@ -388,8 +401,8 @@ class _NotifTile extends StatelessWidget {
         Container(
           width: 40, height: 40,
           decoration: BoxDecoration(
-            color: _typeColor.withValues(alpha: 0.12), shape: BoxShape.circle),
-          child: Icon(_typeIcon, color: _typeColor, size: 20),
+            color: _typeColor(context).withValues(alpha: 0.12), shape: BoxShape.circle),
+          child: Icon(_typeIcon, color: _typeColor(context), size: 20),
         ),
         const SizedBox(width: 12),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -414,21 +427,8 @@ class _NotifTile extends StatelessWidget {
     ),
   );
 
-  Color get _typeColor => switch (notif.type) {
-    NotificationType.match    => AppColors.success,
-    NotificationType.promo    => AppColors.primaryLight,
-    NotificationType.system   => AppColors.info,
-    NotificationType.payment  => AppColors.warning,
-    NotificationType.referral => const Color(0xFFA78BFA),
-  };
-
-  IconData get _typeIcon => switch (notif.type) {
-    NotificationType.match    => Icons.sports_soccer_rounded,
-    NotificationType.promo    => Icons.local_offer_rounded,
-    NotificationType.system   => Icons.notifications_rounded,
-    NotificationType.payment  => Icons.account_balance_wallet_rounded,
-    NotificationType.referral => Icons.people_rounded,
-  };
+  Color _typeColor(BuildContext context) => context.cl.lisible(couleurDeType(notif.type));
+  IconData get _typeIcon => iconeDeType(notif.type);
 
   String _formatDate(DateTime d) {
     final now  = DateTime.now();
@@ -457,9 +457,17 @@ class _UnreadDotState extends State<_UnreadDot>
     _ctrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1000),
-    )..repeat(reverse: true);
+    );
     _pulse = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Boucle infinie : coupée si l'utilisateur a réduit les animations.
+    // Ce hook est aussi rappelé quand le réglage système change.
+    context.boucler(_ctrl, reverse: true);
   }
 
   @override

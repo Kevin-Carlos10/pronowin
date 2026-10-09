@@ -1,12 +1,19 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
+import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/bankroll_provider.dart';
+import '../../../../core/config/distribution_channel.dart';
+import '../../../../core/config/bookmaker_affiliation.dart';
+import '../../../../shared/utils/devise.dart';
+import '../../../pronostics/domain/entities/match_entity.dart';
+import '../../../../shared/utils/montant.dart';
+import '../../../../core/services/analyse_usage.dart';
 
 Future<bool> showMiserDialog(
   BuildContext context, {
@@ -65,32 +72,13 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
   double? _confirmedStake;
   String? _confirmedCurrency;
 
-  // confidenceScore = 1-5 (étoiles choisies par l'admin à la publication)
-  String get _ruleLabel {
-    if (widget.confidenceScore >= 5) return '5% du solde  ·  Confiance maximale';
-    if (widget.confidenceScore >= 3) return '3% du solde  ·  Confiance moyenne';
-    return '1,5% du solde  ·  Confiance faible';
-  }
-
-  Color get _confColor {
-    if (widget.confidenceScore >= 5) return AppColors.success;
-    if (widget.confidenceScore >= 3) return AppColors.warning;
-    return AppColors.error;
-  }
-
-  String get _confLabel {
-    if (widget.confidenceScore >= 5) return '${widget.confidenceScore}/5';
-    if (widget.confidenceScore >= 3) return '${widget.confidenceScore}/5';
-    return '${widget.confidenceScore}/5';
-  }
-
-  Future<void> _launch1xBet() async {
-    const url = 'https://1xbet.com';
-    final uri = Uri.parse(url);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
+  /// Passe par le chemin unique d'ouverture.
+  ///
+  /// Cet ecran avait sa propre copie de `launchUrl` — celle-la meme que le
+  /// commentaire de `BookmakerAffiliation` redoutait. Elle ne connaissait pas
+  /// le garde « aucun partenariat configure », et `canLaunchUrl` sur une URL
+  /// vide echoue en silence : le bouton ne faisait rien, sans rien dire.
+  Future<void> _ouvrirPartenaire() => BookmakerAffiliation.ouvrir();
 
   Future<void> _submit(double stake, String currency) async {
     setState(() { _loading = true; _error = null; });
@@ -101,35 +89,42 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
       });
       ref.invalidate(bankrollProvider);
       HapticFeedback.mediumImpact();
-      if (mounted) setState(() {
+      AnalyseUsage.pariEnregistre(widget.confidenceScore);
+      if (mounted) {
+        setState(() {
         _confirmed        = true;
         _confirmedStake   = stake;
         _confirmedCurrency = currency;
         _loading          = false;
       });
+      }
     } catch (e) {
       String msg;
       if (e is DioException) {
         final code    = e.response?.data?['code']    as String?;
         final srvMsg  = e.response?.data?['message'] as String?;
-        if (code == 'BET_ALREADY_PLACED' || srvMsg?.contains('déjà misé') == true) {
-          msg = 'Tu as déjà placé un pari sur ce match.';
+        if (code == 'STAKE_CHANGED') {
+          ref.invalidate(suggestedStakeProvider(widget.pronosticId));
+          ref.invalidate(bankrollProvider);
+          msg = trCurrent("Le solde ou le pronostic a changé. Vérifie le montant recalculé puis confirme à nouveau.");
+        } else if (code == 'BET_ALREADY_PLACED' || srvMsg?.contains('déjà misé') == true) {
+          msg = trCurrent("Tu as déjà placé un pari sur ce match.");
           _alreadyBet = true;
         } else if (srvMsg?.contains('Solde insuffisant') == true) {
-          msg = 'Solde insuffisant dans ton bankroll.';
+          msg = trCurrent("Solde insuffisant dans ta bankroll.");
         } else {
-          msg = srvMsg ?? 'Erreur lors de la mise.';
+          msg = srvMsg ?? trCurrent("Erreur lors de la mise.");
         }
       } else {
-        msg = 'Erreur lors de la mise.';
+        msg = trCurrent("Erreur lors de la mise.");
       }
-      setState(() { _error = msg; _loading = false; });
+      if (mounted) setState(() { _error = msg; _loading = false; });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final suggestAsync = ref.watch(suggestedStakeProvider(widget.confidenceScore));
+    final suggestAsync = ref.watch(suggestedStakeProvider(widget.pronosticId));
 
     // ── Vue post-confirmation ────────────────────────────────────────────────
     if (_confirmed && _confirmedStake != null) {
@@ -149,16 +144,16 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
           Container(
             width: 64, height: 64,
             decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: 0.12),
+              color: context.cl.success.withValues(alpha: 0.12),
               shape: BoxShape.circle),
-            child: const Icon(Icons.check_circle_rounded,
-                color: AppColors.success, size: 34)),
+            child: Icon(Icons.check_circle_rounded,
+                color: context.cl.success, size: 34)),
           const SizedBox(height: 14),
-          Text('Mise enregistrée !', style: TextStyle(
-            color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w800)),
+          Text(tr(context, "Mise enregistrée !"), style: TextStyle(
+            color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
           Text(
-            '${_formatAmount(_confirmedStake!)} ${_confirmedCurrency ?? ''} · ${widget.homeTeam} – ${widget.awayTeam}',
+            '${montantExact(_confirmedStake!)} ${nomDevise(_confirmedCurrency)} · ${widget.homeTeam} – ${widget.awayTeam}',
             style: TextStyle(color: context.cl.textM, fontSize: 12),
             textAlign: TextAlign.center),
 
@@ -168,19 +163,34 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: 0.07),
+              color: context.cl.warning.withValues(alpha: 0.07),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                color: AppColors.warning.withValues(alpha: 0.3), width: 0.8)),
+                color: context.cl.warning.withValues(alpha: 0.3), width: 0.8)),
             child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Icon(Icons.shield_rounded, color: AppColors.warning, size: 18),
+              Icon(Icons.shield_rounded, color: context.cl.warning, size: 18),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                const Text('Rappel de discipline', style: TextStyle(
-                  color: AppColors.warning, fontSize: 13, fontWeight: FontWeight.w700)),
+                 Text(tr(context, "Rappel de discipline"), style: TextStyle(
+                  color: context.cl.warning, fontSize: 13, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
+                // Ce rappel disait « Mise exactement 4 800 XOF sur le
+                // bookmaker ». Deux choses en partent.
+                //
+                // L'opérateur, d'abord : PronoWin calcule une mise et en tient
+                // le registre, il ne la place nulle part. Un build destiné à
+                // Google Play n'a pas à désigner un guichet de paris — et le
+                // conseil, lui, garde toute sa force sans lui.
+                //
+                // Le montant ensuite, qui était réécrit ici alors que la carte
+                // juste au-dessus l'affiche en gros caractères. La même valeur
+                // passait par deux formatages distincts, dans le même dialogue,
+                // à quinze lignes d'écart : le jour où l'un des deux change,
+                // l'écran se contredit sous les yeux de l'utilisateur, au
+                // moment précis où on lui demande de faire confiance au
+                // chiffre.
                 Text(
-                  'Mise exactement ${_formatAmount(_confirmedStake!)} ${_confirmedCurrency ?? ''} sur le bookmaker. Ne dépasse jamais ce montant, même si tu te sens confiant.',
+                  tr(context, "Cet enregistrement suit ton budget. Il ne place aucun pari et ne transfère aucun argent."),
                   style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.45)),
               ])),
             ]),
@@ -188,36 +198,52 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
 
           const SizedBox(height: 16),
 
-          // Bouton 1xBet
-          GestureDetector(
-            onTap: _launch1xBet,
-            child: Container(
-              width: double.infinity, height: 52,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  colors: [Color(0xFF1A73E8), Color(0xFF1557B0)]),
-                borderRadius: BorderRadius.circular(14),
-                boxShadow: [BoxShadow(
-                  color: const Color(0xFF1A73E8).withValues(alpha: 0.35),
-                  blurRadius: 12, offset: const Offset(0, 5))]),
-              child: const Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                Text('Aller miser sur', style: TextStyle(
-                  color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-                SizedBox(width: 6),
-                Text('1xBet', style: TextStyle(
-                  color: Colors.white, fontSize: 16, fontWeight: FontWeight.w900,
-                  letterSpacing: 0.5)),
-                SizedBox(width: 6),
-                Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
-              ]),
-            ),
-          ).animate(delay: 80.ms).fadeIn(duration: 300.ms),
-
-          const SizedBox(height: 10),
+          // Renvoi vers le bookmaker — masqué sur les builds publiés en store.
+          //
+          // Un lien sortant vers un opérateur de paris fait basculer l'app dans
+          // la politique « jeux d'argent réel » d'Apple et de Google : licence
+          // exigée par pays, diffusion restreinte, et le plus souvent un rejet
+          // au review. Sur les builds APK distribués en direct, le renvoi reste
+          // en place — c'est un modèle d'affiliation légitime hors des stores.
+          // `disponible` etait declare et jamais appele : le bouton
+          // s'affichait sans partenariat configure, se laissait presser, et
+          // `ouvrir()` sortait en silence. Un bouton mort, place juste apres
+          // la confirmation d'une mise.
+          if (!ref.watch(isStoreBuildProvider) &&
+              BookmakerAffiliation.disponible) ...[
+            GestureDetector(
+              onTap: _ouvrirPartenaire,
+              child: Container(
+                width: double.infinity, height: 52,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF1A73E8), Color(0xFF1557B0)]),
+                  borderRadius: BorderRadius.circular(14),
+                  boxShadow: [BoxShadow(
+                    color: const Color(0xFF1A73E8).withValues(alpha: 0.35),
+                    blurRadius: 12, offset: const Offset(0, 5))]),
+                // Le nom venait d'une constante ecrite ici — « 1xBet » —
+                // alors que le serveur le publie. Deux sources pour une
+                // enseigne : le jour d'un changement de partenaire, ce bouton
+                // aurait continue d'en nommer un autre.
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                   Text(tr(context, "Aller miser sur"), style: TextStyle(
+                    color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 6),
+                  Text(BookmakerAffiliation.nom, style: const TextStyle(
+                    color: Colors.white, fontSize: 16, fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5)),
+                  const SizedBox(width: 6),
+                  const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 18),
+                ]),
+              ),
+            ).animate(delay: 80.ms).fadeIn(duration: 300.ms),
+            const SizedBox(height: 10),
+          ],
 
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Fermer', style: TextStyle(
+            child: Text(tr(context, "Fermer"), style: TextStyle(
               color: context.cl.textM, fontSize: 13))),
         ]),
       );
@@ -231,17 +257,30 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
         20, 16, 20, MediaQuery.of(context).viewInsets.bottom + 28),
       child: suggestAsync.when(
         loading: () => const _LoadingSkeleton(),
+        // On se fie au code HTTP, pas au texte de l'exception : le backend
+        // répond 404 « Pas de bankroll configurée. » et l'ancien test
+        // `contains('Configure')` ne matchait pas ce libellé (« configurée »),
+        // si bien qu'un simple budget non configuré affichait « Impossible de
+        // calculer la mise. », message sans issue.
         error: (e, _) => _ErrorView(
-          message: e.toString().contains('Configure')
-              ? 'Configure ton budget bankroll d\'abord.'
-              : 'Impossible de calculer la mise.'),
+          noBankroll:  e is DioException && e.response?.statusCode == 404,
+          nonConnecte: e is DioException && e.response?.statusCode == 401),
         data: (s) {
           final stake    = (s['suggested_amount'] as num).toDouble();
           final balance  = (s['current_balance']  as num).toDouble();
-          final currency = s['currency'] as String;
+          final currencyCode = s['currency'] as String;
+          final currency = nomDevise(currencyCode);
           final gain     = stake * widget.oddsRecommended;
+          final confidence = (s['confidence_score'] as num?)?.toInt() ?? widget.confidenceScore;
+          final percent = (s['stake_percent'] as num?)?.toDouble() ?? (confidence >= 5 ? 5.0 : confidence >= 3 ? 3.0 : 1.5);
+          final confColor = confidence >= 4 ? context.cl.success : context.cl.warning;
+          final confLabel = MatchEntity.affichageConfiance(
+              (s['confidence_pct'] as num?)?.toInt() ?? MatchEntity.pourcentageDepuisNiveau(confidence));
+          final percentLabel = percent == percent.roundToDouble() ? percent.toStringAsFixed(0) : percent.toString();
+          final ruleLabel = tr(context, "{arg0} % du solde", [percentLabel.replaceAll('.', ',')]);
+          final canSubmit = stake.isFinite && stake > 0 && stake <= balance;
 
-          return Column(mainAxisSize: MainAxisSize.min, children: [
+          return SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
 
             // Handle
             Container(width: 40, height: 4,
@@ -254,17 +293,17 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
               Container(
                 width: 38, height: 38,
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(alpha: 0.12),
+                  color: context.cl.success.withValues(alpha: 0.12),
                   shape: BoxShape.circle),
-                child: const Icon(Icons.savings_rounded,
-                  color: AppColors.success, size: 20)),
+                child: Icon(Icons.savings_rounded,
+                  color: context.cl.success, size: 20)),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Valider ma mise', style: TextStyle(
+                Text(tr(context, "Valider ma mise"), style: TextStyle(
                   color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
                 Text('${widget.homeTeam} – ${widget.awayTeam}',
                   style: TextStyle(color: context.cl.textM, fontSize: 11),
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
               ])),
             ]),
 
@@ -279,26 +318,26 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                 border: Border.all(color: context.cl.border, width: 0.5)),
               child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('Pronostic', style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                  Text(tr(context, "Pronostic"), style: TextStyle(color: context.cl.textM, fontSize: 10)),
                   const SizedBox(height: 2),
                   Text(widget.predictionLabel, style: TextStyle(
                     color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
                 ])),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text('Cote', style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                  Text(tr(context, "Cote"), style: TextStyle(color: context.cl.textM, fontSize: 10)),
                   Text('x${widget.oddsRecommended.toStringAsFixed(2)}',
-                    style: const TextStyle(color: AppColors.primary,
+                    style: TextStyle(color: context.cl.accent,
                       fontSize: 13, fontWeight: FontWeight.w700)),
                 ]),
                 const SizedBox(width: 16),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text('Confiance', style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                  Text(tr(context, "Confiance"), style: TextStyle(color: context.cl.textM, fontSize: 10)),
                   Row(children: [
                     Container(width: 6, height: 6,
-                      decoration: BoxDecoration(color: _confColor, shape: BoxShape.circle)),
+                      decoration: BoxDecoration(color: confColor, shape: BoxShape.circle)),
                     const SizedBox(width: 4),
-                    Text(_confLabel, style: TextStyle(
-                      color: _confColor, fontSize: 12, fontWeight: FontWeight.w700)),
+                    Text(confLabel, style: TextStyle(
+                      color: confColor, fontSize: 12, fontWeight: FontWeight.w700)),
                   ]),
                 ]),
               ]),
@@ -312,43 +351,43 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
               padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
               decoration: BoxDecoration(
                 gradient: LinearGradient(colors: [
-                  AppColors.success.withValues(alpha: 0.10),
-                  AppColors.success.withValues(alpha: 0.04),
+                  context.cl.success.withValues(alpha: 0.10),
+                  context.cl.success.withValues(alpha: 0.04),
                 ]),
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(
-                  color: AppColors.success.withValues(alpha: 0.3), width: 1)),
+                  color: context.cl.success.withValues(alpha: 0.3), width: 1)),
               child: Column(children: [
-                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+                Wrap(spacing: 12, runSpacing: 8, crossAxisAlignment: WrapCrossAlignment.center, children: [
                   Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                    Text('Mise calculée', style: TextStyle(
+                    Text(tr(context, "Mise calculée"), style: TextStyle(
                       color: context.cl.textS, fontSize: 12)),
                     const SizedBox(height: 4),
-                    Text('${_formatAmount(stake)} $currency',
-                      style: const TextStyle(
-                        color: AppColors.success, fontSize: 28,
-                        fontWeight: FontWeight.w900, letterSpacing: -0.5)),
+                    Text('${montantExact(stake)} $currency',
+                      style: TextStyle(
+                        color: context.cl.success, fontSize: 28,
+                        fontWeight: FontWeight.w700, letterSpacing: -0.5)),
                   ]),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: _confColor.withValues(alpha: 0.12),
+                      color: confColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: _confColor.withValues(alpha: 0.3), width: 0.7)),
-                    child: Text(_ruleLabel, style: TextStyle(
-                      color: _confColor, fontSize: 10, fontWeight: FontWeight.w700)),
+                        color: confColor.withValues(alpha: 0.3), width: 0.7)),
+                    child: Text(ruleLabel, style: TextStyle(
+                      color: confColor, fontSize: 10, fontWeight: FontWeight.w700)),
                   ),
                 ]),
                 const SizedBox(height: 10),
-                Divider(color: AppColors.success.withValues(alpha: 0.15), height: 1),
+                Divider(color: context.cl.success.withValues(alpha: 0.15), height: 1),
                 const SizedBox(height: 10),
                 Row(children: [
-                  const Icon(Icons.info_outline_rounded,
-                    color: AppColors.success, size: 13),
+                  Icon(Icons.info_outline_rounded,
+                    color: context.cl.success, size: 13),
                   const SizedBox(width: 6),
                   Expanded(child: Text(
-                    'Montant fixé par la discipline bankroll — non modifiable.',
+                    tr(context, "Barème fixe selon la confiance de l’analyste : 1–39 % → 1,5 % du solde · 40–79 % → 3 % · 80–99 % → 5 %. Montant arrondi à l’unité inférieure."),
                     style: TextStyle(color: context.cl.textS, fontSize: 11))),
                 ]),
               ]),
@@ -359,37 +398,41 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
             // Gain potentiel + solde restant
             Row(children: [
               Expanded(child: _InfoChip(
-                label: 'Gain potentiel',
-                value: '+${_formatAmount(gain)} $currency',
+                label: tr(context, "Retour brut si gagné"),
+                value: '${montantExact(gain)} $currency',
                 color: AppColors.primary)),
               const SizedBox(width: 10),
               Expanded(child: _InfoChip(
-                label: 'Solde après',
-                value: '${_formatAmount(balance - stake)} $currency',
+                label: tr(context, "Solde après"),
+                value: '${montantExact(balance - stake)} $currency',
                 color: context.cl.textS)),
             ]),
 
+            if (!canSubmit) ...[
+              const SizedBox(height: 12),
+               Text(tr(context, "Le montant calculé est inférieur à l’unité monétaire disponible. Aucune mise ne peut être enregistrée."), style: TextStyle(color: context.cl.warning)),
+            ],
             if (_error != null) ...[
               const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: (_alreadyBet ? AppColors.warning : AppColors.error).withValues(alpha: 0.08),
+                  color: (_alreadyBet ? context.cl.warning : context.cl.error).withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                   border: Border.all(
-                    color: (_alreadyBet ? AppColors.warning : AppColors.error).withValues(alpha: 0.25),
+                    color: (_alreadyBet ? context.cl.warning : context.cl.error).withValues(alpha: 0.25),
                     width: 0.5,
                   ),
                 ),
                 child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Icon(
                     _alreadyBet ? Icons.info_outline_rounded : Icons.warning_amber_rounded,
-                    color: _alreadyBet ? AppColors.warning : AppColors.error,
+                    color: _alreadyBet ? context.cl.warning : context.cl.error,
                     size: 16,
                   ),
                   const SizedBox(width: 8),
                   Expanded(child: Text(_error!, style: TextStyle(
-                    color: _alreadyBet ? AppColors.warning : AppColors.error,
+                    color: _alreadyBet ? context.cl.warning : context.cl.error,
                     fontSize: 12,
                     height: 1.4,
                   ))),
@@ -401,31 +444,31 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
 
             // Bouton confirmer
             GestureDetector(
-              onTap: (_loading || _alreadyBet) ? null : () => _submit(stake, currency),
+              onTap: (_loading || _alreadyBet || !canSubmit) ? null : () => _submit(stake, currencyCode),
               child: AnimatedContainer(
                 duration: 200.ms,
                 width: double.infinity, height: 54,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: (_loading || _alreadyBet)
-                      ? [AppColors.success.withValues(alpha: 0.5),
+                    colors: (_loading || _alreadyBet || !canSubmit)
+                      ? [context.cl.success.withValues(alpha: 0.5),
                          const Color(0xFF059669).withValues(alpha: 0.5)]
-                      : [AppColors.success, const Color(0xFF059669)]),
+                      : [context.cl.success, const Color(0xFF059669)]),
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: _loading ? [] : [BoxShadow(
-                    color: AppColors.success.withValues(alpha: 0.4),
+                    color: context.cl.success.withValues(alpha: 0.4),
                     blurRadius: 14, offset: const Offset(0, 6))]),
                 child: Center(child: _loading
                   ? const SizedBox(width: 22, height: 22,
                       child: CircularProgressIndicator(
                         color: Colors.white, strokeWidth: 2.5))
-                  : const Row(mainAxisSize: MainAxisSize.min, children: [
+                  :  Row(mainAxisSize: MainAxisSize.min, children: [
                       Icon(Icons.check_circle_rounded,
                         color: Colors.white, size: 20),
                       SizedBox(width: 8),
-                      Text('Confirmer la mise', style: TextStyle(
+                      Flexible(child: Text(tr(context, "Enregistrer dans mon suivi"), textAlign: TextAlign.center, style: TextStyle(
                         color: Colors.white, fontSize: 16,
-                        fontWeight: FontWeight.w700)),
+                        fontWeight: FontWeight.w700))),
                     ])),
               ),
             ),
@@ -433,10 +476,10 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
             const SizedBox(height: 10),
             TextButton(
               onPressed: () => Navigator.pop(context, false),
-              child: Text('Annuler', style: TextStyle(
+              child: Text(tr(context, "Annuler"), style: TextStyle(
                 color: context.cl.textM, fontSize: 13)),
             ),
-          ]);
+          ]));
         },
       ),
     );
@@ -479,7 +522,7 @@ class _LoadingSkeleton extends StatelessWidget {
         decoration: BoxDecoration(
           color: context.cl.border, borderRadius: BorderRadius.circular(2))),
       const SizedBox(height: 60),
-      const CircularProgressIndicator(color: AppColors.success, strokeWidth: 2),
+      CircularProgressIndicator(color: context.cl.success, strokeWidth: 2),
       const SizedBox(height: 60),
     ],
   );
@@ -487,33 +530,71 @@ class _LoadingSkeleton extends StatelessWidget {
 
 // ─── Vue erreur ───────────────────────────────────────────────────────────────
 class _ErrorView extends StatelessWidget {
-  final String message;
-  const _ErrorView({required this.message});
+  /// true = budget jamais configuré (404). L'utilisateur n'a alors rien à
+  /// « réessayer » : on l'envoie configurer son bankroll.
+  final bool noBankroll;
+
+  /// true = requête refusée faute de session (401). Sans ce cas, un invité
+  /// lisait « Vérifie ta connexion » alors que sa connexion allait très bien.
+  final bool nonConnecte;
+
+  const _ErrorView({required this.noBankroll, this.nonConnecte = false});
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 40),
+    padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 8),
     child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Icon(Icons.account_balance_wallet_outlined,
-        color: AppColors.warning, size: 40),
-      const SizedBox(height: 12),
-      Text(message, style: TextStyle(color: context.cl.textS, fontSize: 14),
+      Icon(
+        nonConnecte
+          ? Icons.lock_outline_rounded
+          : noBankroll
+            ? Icons.account_balance_wallet_outlined
+            : Icons.cloud_off_rounded,
+        color: context.cl.warning, size: 40),
+      const SizedBox(height: 14),
+      Text(
+        nonConnecte
+          ? tr(context, "Connecte-toi pour suivre tes mises")
+          : noBankroll
+            ? tr(context, "Configure ton budget d'abord")
+            : tr(context, "Impossible de calculer la mise"),
+        style: TextStyle(
+          color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w700),
+        textAlign: TextAlign.center),
+      const SizedBox(height: 6),
+      Text(
+        nonConnecte
+          ? tr(context, "La mise conseillée dépend de ton budget, donc de ton compte. Connecte-toi pour l'obtenir.")
+          : noBankroll
+            ? tr(context, "Ta bankroll n'est pas encore paramétrée. Définis ton budget pour que l'app calcule une mise adaptée à chaque pronostic.")
+            : tr(context, "Vérifie ta connexion et réessaie."),
+        style: TextStyle(color: context.cl.textM, fontSize: 12.5, height: 1.4),
         textAlign: TextAlign.center),
       const SizedBox(height: 20),
+      if (noBankroll || nonConnecte)
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.fondSucces,
+              padding: const EdgeInsets.symmetric(vertical: 13),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12))),
+            onPressed: () {
+              Navigator.pop(context, false);
+              context.push(nonConnecte ? '/auth' : '/bankroll');
+            },
+            child: Text(
+              nonConnecte ? tr(context, "Me connecter") : tr(context, "Configurer mon budget"),
+              style: const TextStyle(
+                color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
+          ),
+        ),
       TextButton(
         onPressed: () => Navigator.pop(context, false),
-        child: const Text('Fermer')),
+        child:  Text(tr(context, "Fermer"))),
     ]),
   );
 }
 
 // ─── Formatter ────────────────────────────────────────────────────────────────
-String _formatAmount(double amount) {
-  final s   = amount.abs().toStringAsFixed(0);
-  final buf = StringBuffer();
-  for (var i = 0; i < s.length; i++) {
-    if (i > 0 && (s.length - i) % 3 == 0) buf.write(' ');
-    buf.write(s[i]);
-  }
-  return amount < 0 ? '-${buf.toString()}' : buf.toString();
-}

@@ -1,0 +1,246 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
+<%- include('layout_top', {page:'fidelite'}) %>
+
+<style>
+.fd-tuiles   { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; margin-bottom: 1.2rem; }
+.fd-tuile    { background: var(--surface-d); border: 1px solid var(--border); border-radius: 12px; padding: .85rem 1rem; }
+.fd-tuile .v { font-size: 1.5rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.fd-tuile .l { font-size: .72rem; color: var(--text-m); margin-top: .2rem; line-height: 1.45; }
+.fd-tab      { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.fd-tab th   { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+               color: var(--text-m); padding: .55rem .7rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.fd-tab td   { padding: .6rem .7rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.fd-tab tr:last-child td { border-bottom: 0; }
+.fd-num      { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fd-sous     { display: block; font-size: .72rem; color: var(--text-dim); margin-top: .15rem; }
+.fd-dim      { color: var(--text-dim); }
+.fd-ok       { color: var(--on-success); }
+.fd-warn     { color: var(--on-warning); }
+.fd-err      { color: var(--on-danger); }
+.fd-carte    { padding: 0; overflow: hidden; }
+.fd-titre    { margin: 1.6rem 0 .8rem; font-size: 1rem; }
+.fd-titre small { font-weight: 400; color: var(--text-dim); font-size: .78rem; }
+.fd-periodes { display: flex; gap: .4rem; flex-wrap: wrap; }
+.fd-jauge    { display: block; width: 100%; min-width: 80px; height: 6px; }
+.fd-jauge .fond  { fill: var(--surface-d); }
+.fd-jauge .plein { fill: var(--on-success); }
+.fd-aide     { padding: .85rem 1.1rem; margin-top: 1.2rem; }
+.fd-aide p   { margin: 0; font-size: .8rem; color: var(--text-m); line-height: 1.65; }
+.empty-state.fd-vide { padding: 2rem; }
+@media (max-width: 760px) {
+  .fd-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
+
+<%
+  const _d    = (typeof donnees !== 'undefined' && donnees) ? donnees : null;
+  const _err  = typeof erreur !== 'undefined' ? erreur : null;
+  const _j    = typeof jours !== 'undefined' ? jours : 90;
+  const _fen  = (typeof fenetres !== 'undefined' && fenetres) ? fenetres : [30, 90, 365];
+  const _can  = (typeof libelleCanal === 'function') ? libelleCanal : (c => c);
+
+  const _nomFen = j => j === 365 ? '1 an' : j + ' jours';
+  const _date = iso => iso ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
+  const _fcfa = n => (n ?? 0).toLocaleString('fr-FR');
+  const _pct  = t => t === null || t === undefined ? '—' : t + ' %';
+  const _cls  = t => t === null || t === undefined ? '' : t >= 60 ? 'fd-ok' : t >= 35 ? 'fd-warn' : 'fd-err';
+  const _jours = iso => Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 86400000));
+  const _dans  = iso => Math.max(0, Math.ceil((new Date(iso).getTime() - Date.now()) / 86400000));
+  const _store = c => c === 'apple' || c === 'google';
+  const _moisLib = m => new Date(m + '-01T00:00:00Z').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const _ligneCanal = c => c === 'partenaire' ? 'Code partenaire — mois offert devenu payant'
+                        : c === 'offert' ? "Offert par l'équipe — devenu payant" : _can(c);
+%>
+
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Finances · abonnés</p>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-heart"/></svg> <%= uiText("Fidélité des abonnés") %></h1>
+    <p class="workspace-description">
+      Qui renouvelle son Premium, par moyen de paiement, et qui relancer : ceux dont l'accès s'arrête
+      cette semaine, et ceux qui sont partis.
+    </p>
+  </div>
+  <div class="workspace-actions">
+    <nav class="fd-periodes" aria-label="Période des taux">
+      <% _fen.forEach(j => { %>
+        <a href="/admin/fidelite?jours=<%= j %>" class="btn btn-sm <%= _j === j ? 'btn-primary' : 'btn-outline' %>"
+           <%= _j === j ? 'aria-current=page' : '' %>><%= _nomFen(j) %></a>
+      <% }) %>
+    </nav>
+  </div>
+</header>
+
+<% if (!_d) { %>
+  <div class="alert alert-error">
+    <strong><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> API injoignable</strong>
+    — impossible de lire les abonnements<%= _err ? ' : ' + _err : '.' %>
+  </div>
+<% } else { const g = _d.global; %>
+
+<div class="fd-tuiles metric-grid">
+  <div class="fd-tuile metric-card">
+    <div class="v <%= _cls(g.taux) %>"><%= _pct(g.taux) %></div>
+    <div class="l">renouvellent leur Premium<br><span class="fd-dim"><%= g.renouvelees %> sur <%= g.fins %> fins · <%= _nomFen(_j) %></span></div>
+  </div>
+  <div class="fd-tuile metric-card">
+    <div class="v"><%= g.fins - g.renouvelees %></div>
+    <div class="l">n'ont pas renouvelé<br><span class="fd-dim"><%= _nomFen(_j) %></span></div>
+  </div>
+  <div class="fd-tuile metric-card">
+    <div class="v fd-warn"><%= _d.bientot.length %></div>
+    <div class="l">Premium qui s'arrête<br><span class="fd-dim">dans les 7 jours</span></div>
+  </div>
+  <div class="fd-tuile metric-card">
+    <div class="v fd-err"><%= _d.partis.length %></div>
+    <div class="l">Premium terminé<br><span class="fd-dim">ces 30 derniers jours</span></div>
+  </div>
+</div>
+
+<h3 class="fd-titre">Par moyen de paiement <small>— fins d'abonnement sur <%= _nomFen(_j) %></small></h3>
+<% if (!_d.parCanal.length) { %>
+  <div class="card"><div class="empty-state fd-vide">
+    <div class="empty-state-title">Aucune fin d'abonnement sur cette période</div>
+    <div class="empty-state-desc">Un taux se calcule une fois la fin passée de <%= _d.delaiJours %> jours. Essayez une période plus longue.</div>
+  </div></div>
+<% } else { %>
+<div class="card cr-panel fd-carte">
+  <div class="table-wrap">
+  <table class="fd-tab">
+    <thead>
+      <tr><th scope="col">Canal</th><th scope="col">Fins</th><th scope="col">Renouvelées</th><th scope="col">Taux</th><th scope="col">Part</th></tr>
+    </thead>
+    <tbody>
+      <% _d.parCanal.forEach(c => { %>
+      <tr>
+        <td><div><strong><%= _ligneCanal(c.canal) %></strong>
+          <% if (_store(c.canal)) { %><span class="fd-sous">renouvellement automatique, sauf résiliation</span><% } %>
+          <% if (c.canal === 'mobile_money') { %><span class="fd-sous">l'abonné doit repayer lui-même</span><% } %>
+        </div></td>
+        <td class="fd-num"><div><%= c.fins %></div></td>
+        <td class="fd-num"><div><%= c.renouvelees %></div></td>
+        <td class="fd-num <%= _cls(c.taux) %>"><div><strong><%= _pct(c.taux) %></strong></div></td>
+        <td><div>
+          <%# Échelle de 0 à 100 : la largeur est un attribut SVG, pas un style. %>
+          <svg class="fd-jauge" viewBox="0 0 100 6" preserveAspectRatio="none" role="img" aria-label="<%= _pct(c.taux) %>">
+            <rect class="fond" x="0" y="0" width="100" height="6"/>
+            <rect class="plein" x="0" y="0" width="<%= c.taux ?? 0 %>" height="6"/>
+          </svg>
+        </div></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+</div>
+<% } %>
+
+<h3 class="fd-titre">Mois par mois <small>— abonnements payants arrivés à leur fin</small></h3>
+<div class="card cr-panel fd-carte">
+  <div class="table-wrap">
+  <table class="fd-tab">
+    <thead>
+      <tr><th scope="col">Mois de fin</th><th scope="col">Fins</th><th scope="col">Renouvelées</th><th scope="col">Taux</th></tr>
+    </thead>
+    <tbody>
+      <% _d.mensuel.slice().reverse().forEach(m => { %>
+      <tr>
+        <td><div><strong><%= _moisLib(m.mois) %></strong>
+          <% if (m.enCours) { %><span class="fd-sous">provisoire : des fins attendent encore leur issue</span><% } %>
+        </div></td>
+        <td class="fd-num"><div><%= m.fins %></div></td>
+        <td class="fd-num"><div><%= m.renouvelees %></div></td>
+        <td class="fd-num <%= _cls(m.taux) %>"><div><%= _pct(m.taux) %></div></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<h3 class="fd-titre">Premium qui s'arrête dans les 7 jours <small>— à rappeler avant la fin</small></h3>
+<% if (!_d.bientot.length) { %>
+  <div class="card"><div class="empty-state fd-vide">
+    <div class="empty-state-title">Aucun Premium ne s'arrête cette semaine</div>
+  </div></div>
+<% } else { %>
+<div class="card cr-panel fd-carte">
+  <div class="table-wrap">
+  <table class="fd-tab">
+    <thead>
+      <tr><th scope="col"><%= uiText("Compte") %></th><th scope="col">Canal</th><th scope="col">Fin</th><th scope="col"><%= uiText("Paiements") %></th><th scope="col">Total payé</th></tr>
+    </thead>
+    <tbody>
+      <% _d.bientot.forEach(c => { %>
+      <tr>
+        <td><div>
+          <% if (hasPerm('users')) { %><a href="/admin/users/<%= encodeURIComponent(c.userId) %>"><strong><%= c.pseudo %></strong></a>
+          <% } else { %><strong><%= c.pseudo %></strong><% } %>
+          <span class="fd-sous">abonné depuis le <%= _date(c.abonneDepuis) %></span>
+        </div></td>
+        <td><div><%= _can(c.canal) %>
+          <% if (_store(c.canal)) { %><span class="fd-sous">se renouvelle seul, sauf résiliation</span><% } %>
+        </div></td>
+        <td class="fd-num"><div><%= _date(c.finLe) %><span class="fd-sous">dans <%= _dans(c.finLe) %> jour<%= _dans(c.finLe) > 1 ? 's' : '' %></span></div></td>
+        <td class="fd-num"><div><%= c.paiements %></div></td>
+        <td class="fd-num"><div><%= c.totalFcfa ? _fcfa(c.totalFcfa) + ' FCFA' : '—' %></div></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+</div>
+<% } %>
+
+<h3 class="fd-titre">Premium terminé ces 30 derniers jours <small>— sans renouvellement à ce jour</small></h3>
+<% if (!_d.partis.length) { %>
+  <div class="card"><div class="empty-state fd-vide">
+    <div class="empty-state-title">Personne n'est parti ces 30 derniers jours</div>
+  </div></div>
+<% } else { %>
+<div class="card cr-panel fd-carte">
+  <div class="table-wrap">
+  <table class="fd-tab">
+    <thead>
+      <tr><th scope="col"><%= uiText("Compte") %></th><th scope="col">Dernier canal</th><th scope="col"><%= uiText("Terminé") %></th><th scope="col"><%= uiText("Paiements") %></th><th scope="col">Total payé</th></tr>
+    </thead>
+    <tbody>
+      <% _d.partis.forEach(c => { %>
+      <tr>
+        <td><div>
+          <% if (hasPerm('users')) { %><a href="/admin/users/<%= encodeURIComponent(c.userId) %>"><strong><%= c.pseudo %></strong></a>
+          <% } else { %><strong><%= c.pseudo %></strong><% } %>
+          <span class="fd-sous">abonné depuis le <%= _date(c.abonneDepuis) %></span>
+        </div></td>
+        <td><div><%= _can(c.canal) %></div></td>
+        <td class="fd-num"><div><%= _date(c.finLe) %><span class="fd-sous">il y a <%= _jours(c.finLe) %> jour<%= _jours(c.finLe) > 1 ? 's' : '' %></span></div></td>
+        <td class="fd-num"><div><%= c.paiements %></div></td>
+        <td class="fd-num"><div><%= c.totalFcfa ? _fcfa(c.totalFcfa) + ' FCFA' : '—' %></div></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+</div>
+<% } %>
+
+<div class="card cr-panel cr-callout fd-aide">
+  <p>
+    <strong>Comment lire cette page.</strong>
+    Un abonnement est « renouvelé » si un autre prend le relais au plus tard <%= _d.delaiJours %> jours
+    après sa fin — réabonnement anticipé, paiement Mobile Money arrivé avec quelques jours de retard, ou
+    abonnement plus long déjà en cours. Une fin n'est comptée qu'une fois ce délai écoulé : avant, on ne
+    sait pas encore.
+    <br>
+    Le taux principal ne compte que les abonnements payés. Les mois offerts (code partenaire, geste de
+    l'équipe) ont leur propre ligne : leur taux dit combien sont devenus des abonnés payants.
+    Les achats de test (TestFlight, vérification d'Apple) sont écartés.
+    <% if (hasPerm('users')) { %>
+      <br>Le numéro de téléphone se lit sur la fiche du compte : cliquez sur le pseudo.
+    <% } %>
+  </p>
+</div>
+
+<% } %>
+
+<%- include('layout_bottom') %>

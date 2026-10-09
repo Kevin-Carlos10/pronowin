@@ -1,3 +1,5 @@
+import 'package:pronowin/l10n/editorial_text.dart';
+import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:dio/dio.dart';
@@ -6,8 +8,14 @@ import '../../../../core/network/dio_client.dart';
 // ─── Modèle ───────────────────────────────────────────────────────────────────
 class AppNotification {
   final String           id;
-  final String           title;
-  final String           body;
+  final String _title;
+  final String? titleEn;
+  String get title => editorialText(_title, titleEn);
+  String get sourceTitle => _title;
+  final String _body;
+  final String? bodyEn;
+  String get body => editorialText(_body, bodyEn);
+  String get sourceBody => _body;
   final NotificationType type;
   final bool             isRead;
   final DateTime         createdAt;
@@ -15,18 +23,22 @@ class AppNotification {
 
   const AppNotification({
     required this.id,
-    required this.title,
-    required this.body,
+    required String title,
+    this.titleEn,
+    required String body,
+    this.bodyEn,
     required this.type,
     required this.isRead,
     required this.createdAt,
     this.deepLink,
-  });
+  }) : _title = title, _body = body;
 
   factory AppNotification.fromJson(Map<String, dynamic> j) => AppNotification(
     id:        j['id']        as String,
     title:     j['title']     as String,
+    titleEn: j['title_en'] as String?,
     body:      j['body']      as String,
+    bodyEn: j['body_en'] as String?,
     type:      _typeFromString(j['type'] as String? ?? 'system'),
     isRead:    j['is_read']   as bool?   ?? false,
     createdAt: DateTime.tryParse(j['created_at'] as String? ?? '')?.toLocal()
@@ -35,23 +47,52 @@ class AppNotification {
   );
 
   AppNotification copyWith({bool? isRead}) => AppNotification(
-    id: id, title: title, body: body, type: type,
+    id: id, title: _title, body: _body, titleEn: titleEn, bodyEn: bodyEn, type: type,
     isRead: isRead ?? this.isRead,
     createdAt: createdAt, deepLink: deepLink,
   );
 
   static NotificationType _typeFromString(String s) => typeFromString(s);
 
+  /// Le type envoyé par le serveur, ramené à une rubrique de l'écran.
+  ///
+  /// Quatre types tombaient dans le repli `_` et se rangeaient donc en
+  /// « Système » : `prono_result`, `match_live`, `match_finished` et
+  /// `premium`. Les trois premiers sont des notifications de match — le filtre
+  /// « Match » n'en montrait qu'une partie, et rien ne pouvait le signaler :
+  /// un repli silencieux ne se voit qu'en comparant deux listes.
+  ///
+  /// « Paiement » a disparu des rubriques. Il ne contenait que le versement
+  /// des gains de parrainage — « Versement effectué », « Versement refusé » —
+  /// qui mène d'ailleurs à `/parrainage`. Sur une application où l'on paie un
+  /// abonnement, le mot laissait croire à l'historique de ses propres
+  /// paiements. Ces notifications rejoignent donc « Parrainage », où elles
+  /// appartiennent.
+  ///
+  /// Le repli subsiste : une version du serveur plus récente que celle de
+  /// l'application ne doit pas faire disparaître une notification. Mais il
+  /// crie en débogage, et `notifications_classement_test.dart` compare cette
+  /// liste à ce que le serveur produit réellement.
   static NotificationType typeFromString(String s) => switch (s) {
-    'match'    => NotificationType.match,
-    'promo'    => NotificationType.promo,
-    'payment'  => NotificationType.payment,
-    'referral' => NotificationType.referral,
-    _          => NotificationType.system,
+    'match' || 'match_live' || 'match_finished' || 'prono_result'
+                            => NotificationType.match,
+    'promo'                 => NotificationType.promo,
+    'payment' || 'referral' => NotificationType.referral,
+    'premium' || 'system'   => NotificationType.system,
+    _ => _replide(s),
   };
+
+  static NotificationType _replide(String s) {
+    assert(() {
+      debugPrint('[Notifications] type inconnu « $s » — rangé en Système. '
+                 'Ajoutez-le à typeFromString.');
+      return true;
+    }());
+    return NotificationType.system;
+  }
 }
 
-enum NotificationType { match, promo, system, payment, referral }
+enum NotificationType { match, promo, system, referral }
 
 // ─── Notifier avec API ────────────────────────────────────────────────────────
 class NotificationNotifier
@@ -106,8 +147,9 @@ AppNotification remoteMessageToNotification(RemoteMessage message) {
   return AppNotification(
     id:        message.messageId
                ?? DateTime.now().millisecondsSinceEpoch.toString(),
-    title:     message.notification?.title ?? 'PronoWin',
-    body:      message.notification?.body  ?? '',
+    title:     data['title_fr'] as String? ?? message.notification?.title ?? 'PronoWin',
+    titleEn: data['title_en'] as String?, bodyEn: data['body_en'] as String?,
+    body:      data['body_fr'] as String? ?? message.notification?.body ?? '',
     type:      AppNotification.typeFromString(
                  data['type'] as String? ?? 'system'),
     isRead:    false,

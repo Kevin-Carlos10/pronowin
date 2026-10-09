@@ -3,7 +3,8 @@ import fs   from 'fs';
 import path from 'path';
 import https from 'https';
 import http  from 'http';
-import { fetchRssNews } from '../services/rss.service';
+import { fetchRssNews, proxyImage } from '../services/rss.service';
+import { extraitTexte } from '../utils/extrait';
 
 const router = Router();
 
@@ -31,7 +32,16 @@ function relTimeShort(d: Date): string {
 }
 
 // ─── Proxy image (contourne les restrictions CDN côté client mobile) ──────────
-const ALLOWED_HOSTS = ['images.bfmtv.com'];
+// Suffixes de domaine autorisés (pas de correspondance exacte) : BFMTV sert ses
+// images RSS via des sous-domaines CDN qui changent (ex. observé en prod :
+// io-fsly-bfmtv.cdn.nextradiotv.com), jamais "images.bfmtv.com" directement.
+const ALLOWED_HOST_SUFFIXES = ['bfmtv.com', 'nextradiotv.com'];
+
+function isAllowedImageHost(hostname: string): boolean {
+  return ALLOWED_HOST_SUFFIXES.some(
+    (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`)
+  );
+}
 
 router.get('/image-proxy', (req: Request, res: Response) => {
   const raw = req.query.url as string | undefined;
@@ -40,7 +50,7 @@ router.get('/image-proxy', (req: Request, res: Response) => {
   let target: URL;
   try { target = new URL(raw); } catch { return res.status(400).end(); }
 
-  if (!ALLOWED_HOSTS.includes(target.hostname)) {
+  if (!isAllowedImageHost(target.hostname)) {
     return res.status(403).end();
   }
 
@@ -82,14 +92,19 @@ router.get('/image-proxy', (req: Request, res: Response) => {
 });
 
 // GET /api/v1/actualites — articles admin épinglés + flux RSS fusionnés
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
+  // Base recalculée depuis la requête entrante — fonctionne quel que soit le
+  // moyen utilisé par le client pour joindre le backend (IP locale, domaine...).
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+
   // 1. Articles admin publiés
   const adminArticles = loadNews()
     .filter((a: any) => a.isPublished)
     .map((a: any) => ({
       id:         a.id,
       titre:      a.title,
-      resume:     (a.summary || a.content || '').slice(0, 300),
+      titre_en: a.titleEn ?? null, resume_en: a.summaryEn || a.contentEn ? extraitTexte(a.summaryEn || a.contentEn) : null,
+      resume:     extraitTexte(a.summary || a.content),
       categorie:  a.category ?? 'news',
       emoji:      a.emoji ?? '📰',
       image_url:  a.imageUrl || null,
@@ -103,7 +118,10 @@ router.get('/', async (_req: Request, res: Response) => {
   // 2. Articles RSS (fire-and-forget si erreur réseau)
   let rssArticles: any[] = [];
   try {
-    rssArticles = await fetchRssNews();
+    rssArticles = (await fetchRssNews()).map((a) => ({
+      ...a,
+      image_url: proxyImage(a.image_url, baseUrl),
+    }));
   } catch {
     // Réseau indisponible → on continue avec les articles admin seuls
   }
@@ -137,6 +155,7 @@ router.get('/:id', (req: Request, res: Response) => {
   res.json({
     id:           article.id,
     titre:        article.title,
+    titre_en: article.titleEn ?? null, resume_en: article.summaryEn ?? null, contenu_en: article.contentEn ?? null,
     resume:       article.summary || '',
     contenu:      article.content || '',
     categorie:    article.category ?? 'news',

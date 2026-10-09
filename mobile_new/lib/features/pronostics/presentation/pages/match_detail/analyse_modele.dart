@@ -1,0 +1,945 @@
+// Enrichissements API-Football — extrait de match_detail_page.dart.
+//
+// `part` et non un fichier autonome : ces classes sont privées à la
+// bibliothèque (préfixe `_`) et doivent le rester.
+//
+// Règle commune à tout ce fichier : ce sont des **bonus**. Une erreur du
+// fournisseur fait disparaître la section, sans message ni bouton Réessayer —
+// on ne demande pas à l'utilisateur de gérer l'indisponibilité d'un contenu
+// qu'il n'a pas demandé.
+part of '../match_detail_page.dart';
+
+/// Probabilité d'issue, formulée sans jamais annoncer l'impossible.
+///
+/// Le fournisseur renvoie parfois « 0 % » pour l'outsider — c'est ce qu'affichait
+/// l'écran pour Elche recevant le Barça. Aucun modèle sérieux ne donne zéro
+/// chance à une équipe de football : c'est un arrondi, pas une prédiction. Le
+/// lire tel quel engage la crédibilité de PronoWin, pas celle d'API-Football.
+///
+/// « < 1 % » dit la même chose — c'est très peu probable — sans affirmer que
+/// c'est exclu. Le cas « aucune donnée » est traité en amont : la barre entière
+/// disparaît si les trois issues sont nulles, plutôt que d'afficher trois
+/// « < 1 % » qui ne feraient pas 100 %.
+String _libellePourcent(double v) => v < 1 ? '< 1 %' : '${v.round()} %';
+
+/// « Pourquoi ce pronostic » — la lecture du match par le modèle statistique.
+class _AnalyseModele extends ConsumerWidget {
+  final String matchId;
+  /// Le pari publié : le titre « Pourquoi ce pronostic » ne se justifie que si
+  /// le modèle va dans son sens.
+  final PredictionType? pari;
+  const _AnalyseModele({required this.matchId, this.pari});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(matchInsightsProvider(matchId));
+    final data  = async.valueOrNull;
+    if (data == null || data.comparisons.isEmpty) return const SizedBox.shrink();
+
+    // Sortie inexploitable : la section entière disparaît.
+    //
+    // Sur Lask Linz – Celtic, le fournisseur donnait 0 % à Lask Linz et 100 %
+    // de l'avantage à Celtic sur les cinq critères. Lask Linz a gagné 4–1.
+    //
+    // Afficher « < 1 % » adoucissait le libellé sans changer le fond : l'écran
+    // continuait de présenter une butée numérique comme une lecture du match,
+    // sous le titre « Pourquoi ce pronostic ». Mieux vaut ne rien dire — c'est
+    // la même règle que le bilan Premium, qui se tait sous dix pronostics
+    // tranchés plutôt que d'annoncer 100 % sur trois.
+    if (!data.modeleExploitable) return const SizedBox.shrink();
+
+    // « Pourquoi ce pronostic » présentait ce modèle comme la justification du
+    // pari, y compris quand il disait le contraire : vu sur France – Belgique,
+    // « France gagne » au-dessus de « Le modèle ne départage pas les deux
+    // équipes ». Le titre ne l'annonce plus que s'il le soutient vraiment.
+    final synthese = data.comparisons.where((a) => a.label == _cleSynthese).firstOrNull;
+    final soutien = (pari == null || synthese == null)
+        ? null
+        : VerdictComparaison(
+            domicile: synthese.home, exterieur: synthese.away,
+            nomDomicile: data.homeTeam, nomExterieur: data.awayTeam,
+          ).soutient(pari!);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.cl.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.cl.borderSoft, width: 0.8),
+      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10)),
+            child: const Icon(Icons.insights_rounded,
+                color: AppColors.primary, size: 16)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(tr(context, "L'avis du modèle externe"),
+              style: TextStyle(
+                color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
+          ),
+        ]),
+        if (soutien == false) ...[
+          const SizedBox(height: 6),
+          Text(tr(context, "Ce modèle ne va pas dans le sens de notre pronostic : c'est un second avis, à lire comme tel."),
+            style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.4)),
+        ],
+        const SizedBox(height: 14),
+
+        // La conclusion d'abord. La section s'appelle « Pourquoi ce
+        // pronostic » : elle ouvrait pourtant sur des barres brutes, en
+        // laissant le lecteur assembler lui-même un verdict qui figurait en
+        // sixième ligne d'une liste de six.
+        Text(tr(context, "Les critères comparent les équipes ; ils ne mesurent pas la probabilité de réussite de ton pronostic."),
+          style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.4)),
+        const SizedBox(height: 10),
+        _VerdictModele(data: data),
+        const SizedBox(height: 14),
+
+        _BarreIssues(data: data),
+
+        if (data.advice != null && data.advice!.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.20), width: 0.8)),
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              const Padding(
+                padding: EdgeInsets.only(top: 1),
+                child: Icon(Icons.lightbulb_outline_rounded,
+                    color: AppColors.primary, size: 15),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Ce conseil vient du modèle tiers, pas de la rédaction :
+                    // il peut différer du pronostic PronoWin affiché plus haut,
+                    // et deux recommandations sans étiquette sur le même écran
+                    // laissent le lecteur choisir au hasard.
+                    Text(tr(context, "Marché suggéré par le modèle"),
+                      style: TextStyle(
+                        color: context.cl.accent, fontSize: 9.5,
+                        fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                    const SizedBox(height: 3),
+                    Text(data.localizedAdvice!,
+                      style: TextStyle(
+                        color: context.cl.textS, fontSize: 12, height: 1.35)),
+                  ],
+                ),
+              ),
+            ]),
+          ),
+        ],
+
+        const SizedBox(height: 16),
+        _LegendeAxes(data: data),
+        const SizedBox(height: 11),
+        _AxesComparaison(data: data),
+
+        const SizedBox(height: 12),
+        // Le fournisseur n'est plus nommé, mais la distinction reste : ces
+        // chiffres viennent d'un modèle tiers, pas d'une mesure de PronoWin.
+        // Laisser croire le contraire serait une régression d'honnêteté, pas
+        // un simple changement de libellé.
+        Text(
+          // Les deux sources sont nommées séparément : les pourcentages
+          // viennent désormais du marché quand les cotes le permettent, les
+          // barres restent la lecture du modèle externe. Les confondre, c'était
+          // afficher « < 1 % » à côté d'une cote qui disait 48,5 %.
+          data.probabilitesDuMarche
+            ? tr(context, "Barres : modèle statistique externe — forme, attaque, défense, face-à-face et simulation des buts.")
+            : tr(context, "Modèle statistique externe — forme, attaque, défense, face-à-face et simulation des buts."),
+          style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.4)),
+      ]),
+    );
+  }
+}
+
+/// Les trois issues du match en parts proportionnelles.
+class _BarreIssues extends StatelessWidget {
+  final MatchInsights data;
+  const _BarreIssues({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final issues = [
+      (data.homeTeam, data.percentHome, context.cl.success),
+      (tr(context, "Nul"),         data.percentDraw, context.cl.warning),
+      (data.awayTeam, data.percentAway, context.cl.info),
+    ];
+    final max = issues.map((e) => e.$2).reduce((a, b) => a > b ? a : b);
+
+    // Trois issues à zéro, ce n'est pas un match impossible : c'est un modèle
+    // qui n'a rien à dire. Mieux vaut ne rien montrer que trois « < 1 % » dont
+    // la somme ne ferait pas 100 %.
+    if (max <= 0) return const SizedBox.shrink();
+
+    return Column(children: [
+      // Une seule barre segmentée plutôt que trois jauges : la somme fait 100 %,
+      // autant le montrer.
+      ClipRRect(
+        borderRadius: BorderRadius.circular(4),
+        child: SizedBox(
+          height: 7,
+          // `stretch` : sans lui, les segments mesuraient 0 px de haut (voir
+          // `_AxesComparaison`).
+          child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            for (final (_, v, c) in issues)
+              if (v > 0) Expanded(flex: (v * 10).round(), child: ColoredBox(color: c)),
+          ]),
+        ),
+      ),
+      const SizedBox(height: 10),
+      Row(children: [
+        for (final (nom, v, c) in issues)
+          Expanded(
+            child: Semantics(
+              label: '$nom : ${_libellePourcent(v)}',
+              excludeSemantics: true,
+              child: Column(children: [
+                Text(_libellePourcent(v),
+                  style: TextStyle(
+                    color: v == max && v > 0 ? c : context.cl.textS,
+                    fontSize: 15,
+                    fontWeight: v == max && v > 0 ? FontWeight.w700 : FontWeight.w600)),
+                const SizedBox(height: 2),
+                Text(nom,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: context.cl.textM, fontSize: 10)),
+              ]),
+            ),
+          ),
+      ]),
+
+      // Nommer la source des pourcentages.
+      //
+      // Ils viennent des cotes quand celles-ci sont exploitables : un prix de
+      // marché agrège bien plus d'information qu'un modèle bâti sur les seuls
+      // buts marqués. Sans cette mention, un lecteur les prendrait pour un
+      // calcul maison — et ne saurait pas pourquoi ils diffèrent des barres,
+      // qui restent la lecture du modèle externe.
+      if (data.probabilitesDuMarche) ...[
+        const SizedBox(height: 6),
+        Text(
+          data.margeBookmaker != null
+            ? tr(context, "Probabilités du marché, marge de {arg0} % retirée.", [decimalFr(data.margeBookmaker!)])
+            : tr(context, "Probabilités déduites des cotes du marché."),
+          textAlign: TextAlign.center,
+          style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.35)),
+      ],
+    ]);
+  }
+}
+
+/// Nom de l'axe qui porte la synthèse pondérée du fournisseur.
+const _cleSynthese = 'Synthèse';
+
+/// Verdict du modèle, en une phrase et un chiffre.
+///
+/// La synthèse était la sixième ligne d'une liste de six, au même poids visuel
+/// que « Buts » ou « Confrontations ». C'est pourtant la seule qui réponde à la
+/// question posée par le titre de la section. Sortie de la liste, elle devient
+/// la conclusion — et les axes deviennent ce qu'ils sont : les pièces qui la
+/// soutiennent.
+class _VerdictModele extends StatelessWidget {
+  final MatchInsights data;
+  const _VerdictModele({required this.data});
+
+  @override
+  Widget build(BuildContext context) {
+    final synthese = data.comparisons
+        .where((a) => a.label == _cleSynthese)
+        .firstOrNull;
+    if (synthese == null) return const SizedBox.shrink();
+
+    // La règle du verdict vit hors du widget : elle décide si l'écran affirme
+    // ou non un penchant, ce qui mérite d'être testé plutôt que constaté.
+    final verdict = VerdictComparaison(
+      domicile:     synthese.home,
+      exterieur:    synthese.away,
+      nomDomicile:  data.homeTeam,
+      nomExterieur: data.awayTeam,
+    );
+
+    final accent = verdict.indecis
+        ? context.cl.textM
+        : (verdict.favoriADomicile ? context.cl.success : context.cl.info);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.09),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: accent.withValues(alpha: 0.28), width: 0.9),
+      ),
+      child: Row(children: [
+        Icon(verdict.indecis
+              ? Icons.balance_rounded
+              : Icons.trending_up_rounded,
+          color: accent, size: 18),
+        const SizedBox(width: 11),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(verdict.titre,
+              style: TextStyle(
+                color: verdict.indecis ? context.cl.textP : accent,
+                fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.25)),
+            const SizedBox(height: 2),
+            Text(
+              verdict.indecis
+                ? tr(context, "Avantage réparti à {arg0} / {arg1} sur l'ensemble des critères", [synthese.home.round(), synthese.away.round()])
+                : tr(context, "{arg0} % de l'avantage sur l'ensemble des critères", [verdict.partFavori]),
+              style: TextStyle(
+                color: context.cl.textM, fontSize: 11, height: 1.3)),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
+/// Légende des deux couleurs, et surtout : ce que mesurent ces nombres.
+///
+/// Sans elle, « Elche 100 · Barcelona 0 » se lit « Elche est parfait, le Barça
+/// est nul » — une absurdité que le reste de l'écran dément aussitôt (cote
+/// 9.45 contre 1.35). La donnée n'est pas fausse : c'est une **répartition**
+/// de l'avantage entre deux équipes, pas une note absolue. Le lecteur ne
+/// pouvait pas le deviner.
+/// Un critère du modèle, nommé et expliqué pour un parieur.
+typedef _Critere = ({String nom, String explication});
+
+/// Les critères en clair.
+///
+/// Le serveur les nomme dans les termes du fournisseur — « Poisson »,
+/// « Confrontations » — et l'écran les affichait tels quels, en français même
+/// dans l'application en anglais. « Poisson 100/0 » ne disait rien à un
+/// parieur (revue de la fiche, 9 octobre 2026). La clé reste celle du
+/// serveur ; seul l'affichage change.
+_Critere? _critere(BuildContext context, String cle) => switch (cle) {
+  'Forme' => (
+    nom: tr(context, "Forme récente"),
+    explication: tr(context, "Les résultats des derniers matchs de chaque équipe.")),
+  'Attaque' => (
+    nom: tr(context, "Attaque"),
+    explication: tr(context, "La capacité à marquer, d'après les buts inscrits cette saison.")),
+  'Défense' => (
+    nom: tr(context, "Défense"),
+    explication: tr(context, "La solidité défensive, d'après les buts encaissés cette saison.")),
+  'Buts' => (
+    nom: tr(context, "Buts"),
+    explication: tr(context, "Le bilan des buts marqués et encaissés, réunis.")),
+  'Confrontations' => (
+    nom: tr(context, "Face à face"),
+    explication: tr(context, "Les résultats des matchs déjà joués entre ces deux équipes.")),
+  'Poisson' => (
+    nom: tr(context, "Simulation des buts"),
+    explication: tr(context, "Les chances de victoire calculées en simulant le nombre de buts de chaque équipe (loi de Poisson).")),
+  _ => null,
+};
+
+/// « 63 % » en français, « 63% » en anglais.
+String _pourcent(BuildContext context, double v) =>
+    AppStrings.of(context).locale.languageCode == 'en'
+        ? '${v.round()}%'
+        : '${v.round()}\u00A0%';
+
+/// Les deux équipes, et la porte vers l'explication des critères.
+class _LegendeAxes extends StatelessWidget {
+  final MatchInsights data;
+  const _LegendeAxes({required this.data});
+
+  void _expliquer(BuildContext context) => showModalBottomSheet<void>(
+    context: context,
+    showDragHandle: true,
+    isScrollControlled: true,
+    builder: (context) => SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(tr(context, "Comprendre les critères"),
+            style: TextStyle(color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Text(tr(context, "Chaque barre partage l'avantage entre les deux équipes, sur 100 : 80 contre 20, l'une domine nettement ; 50 contre 50, aucune ne se détache."),
+            style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.4)),
+          const SizedBox(height: 14),
+          for (final axe in data.comparisons.where((a) => a.label != _cleSynthese))
+            if (_critere(context, axe.label) case final c?)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(c.nom,
+                    style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 2),
+                  Text(c.explication,
+                    style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.4)),
+                ]),
+              ),
+        ]),
+      ),
+    ),
+  );
+
+  @override
+  Widget build(BuildContext context) => Row(children: [
+    Expanded(
+      child: Row(children: [
+        _Pastille(couleur: context.cl.success, nom: data.homeTeam),
+        const SizedBox(width: 14),
+        _Pastille(couleur: context.cl.info, nom: data.awayTeam),
+      ]),
+    ),
+    // Le (?) : ce que mesure chaque critère, sans charger la carte.
+    Semantics(
+      button: true,
+      label: tr(context, "Comprendre les critères"),
+      excludeSemantics: true,
+      child: InkWell(
+        key: const Key('criteres-aide'),
+        borderRadius: BorderRadius.circular(20),
+        onTap: () => _expliquer(context),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(Icons.help_outline_rounded, size: 18, color: context.cl.textM),
+        ),
+      ),
+    ),
+  ]);
+}
+
+class _Pastille extends StatelessWidget {
+  final Color couleur;
+  final String nom;
+  const _Pastille({required this.couleur, required this.nom});
+
+  @override
+  Widget build(BuildContext context) => Flexible(
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(width: 8, height: 8,
+        decoration: BoxDecoration(color: couleur, shape: BoxShape.circle)),
+      const SizedBox(width: 6),
+      Flexible(
+        child: Text(nom,
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: context.cl.textS, fontSize: 11, fontWeight: FontWeight.w600)),
+      ),
+    ]),
+  );
+}
+
+/// Les axes en barres opposées, domicile à gauche, extérieur à droite.
+///
+/// Plutôt qu'un radar : chaque critère partage 100 entre les deux équipes, et
+/// un radar dessinerait deux formes complémentaires — deux fois la même
+/// information, à lire en tournant la tête. La barre opposée se lit d'un
+/// regard : qui domine, et de combien.
+///
+/// Elles mesuraient 5 px, chiffres et libellé en 10 pt rangés sur la même
+/// ligne : on devait les déchiffrer. Désormais le nom du critère est au-dessus,
+/// les pourcentages aux deux bouts, et le côté qui domine est en couleur
+/// pleine.
+///
+/// La synthèse en est exclue : elle est promue en verdict au-dessus, et la
+/// répéter ici ferait croire à un septième critère indépendant.
+class _AxesComparaison extends StatelessWidget {
+  final MatchInsights data;
+  const _AxesComparaison({required this.data});
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      for (final axe in data.comparisons.where((a) => a.label != _cleSynthese))
+        Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Semantics(
+            label: tr(context, "{arg0} : {arg1} pour cent pour {arg2}, {arg3} pour cent pour {arg4}", [_critere(context, axe.label)?.nom ?? axe.label, axe.home.round(), data.homeTeam, axe.away.round(), data.awayTeam]),
+            excludeSemantics: true,
+            child: Builder(builder: (context) {
+              // `>=` mettait le domicile en vert dès l'égalité : un axe à 0/0
+              // ou à 50/50 s'affichait comme un avantage qui n'existe pas. Le
+              // vert signale un écart, pas une absence de départage.
+              final domGagne = axe.home > axe.away;
+              final extGagne = axe.away > axe.home;
+              final egalite  = !domGagne && !extGagne;
+              final dom = context.cl.success, ext = context.cl.info;
+              TextStyle chiffre(bool gagne, Color c) => TextStyle(
+                color: gagne ? c : context.cl.textM,
+                fontSize: 13,
+                fontWeight: gagne ? FontWeight.w700 : FontWeight.w500,
+                fontFeatures: const [FontFeature.tabularFigures()]);
+              return Column(children: [
+                Row(children: [
+                  Text(_pourcent(context, axe.home), style: chiffre(domGagne, dom)),
+                  Expanded(
+                    child: Text(_critere(context, axe.label)?.nom ?? axe.label,
+                      textAlign: TextAlign.center,
+                      maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: context.cl.textS, fontSize: 12, fontWeight: FontWeight.w600)),
+                  ),
+                  Text(_pourcent(context, axe.away), style: chiffre(extGagne, ext)),
+                ]),
+                const SizedBox(height: 5),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(5),
+                  child: SizedBox(
+                    height: 8,
+                    // `stretch` : un ColoredBox sans enfant prend la plus petite
+                    // taille permise. Centrées, les deux moitiés mesuraient 0 px
+                    // de haut — les barres n'apparaissaient pas, il ne restait
+                    // que les chiffres (revue du 9 octobre 2026).
+                    child: Row(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                      Expanded(
+                        flex: (axe.home * 10).round().clamp(0, 1000),
+                        child: ColoredBox(color: dom.withValues(
+                          alpha: domGagne || egalite ? 1 : 0.35))),
+                      const SizedBox(width: 2),
+                      Expanded(
+                        flex: (axe.away * 10).round().clamp(0, 1000),
+                        child: ColoredBox(color: ext.withValues(
+                          alpha: extGagne || egalite ? 1 : 0.35))),
+                    ]),
+                  ),
+                ),
+              ]);
+            }),
+          ),
+        ),
+    ],
+  );
+}
+
+/// Quand une équipe marque — profil de buts par tranche de 15 minutes.
+///
+/// C'est la donnée qui justifie un pari « but en seconde période » : un profil
+/// concentré après la 75ᵉ ne se devine pas depuis un score final.
+class _ButsParTranche extends ConsumerWidget {
+  final String matchId;
+  const _ButsParTranche({required this.matchId});
+
+  static const _tranches = ['0-15', '16-30', '31-45', '46-60', '61-75', '76-90'];
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final data = ref.watch(matchInsightsProvider(matchId)).valueOrNull;
+    final dom  = data?.goalsByMinuteHome;
+    final ext  = data?.goalsByMinuteAway;
+    if (data == null || (dom == null && ext == null)) return const SizedBox.shrink();
+
+    final maxi = [
+      ...(dom?.values ?? const <int>[]),
+      ...(ext?.values ?? const <int>[]),
+    ].fold<int>(1, (a, b) => b > a ? b : a);
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.cl.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.cl.borderSoft, width: 0.8)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: context.cl.warning.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10)),
+            child: Icon(Icons.schedule_rounded,
+                color: context.cl.warning, size: 16)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(tr(context, "Quand marquent-ils ?"),
+              style: TextStyle(
+                color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
+          ),
+        ]),
+        const SizedBox(height: 6),
+        Text(tr(context, "Buts marqués cette saison, par tranche de 15 minutes"),
+          style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+        const SizedBox(height: 16),
+
+        SizedBox(
+          height: 96,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              for (final t in _tranches)
+                Expanded(
+                  child: Semantics(
+                    label: tr(context, "{arg0} minutes : {arg1} buts pour {arg2}, {arg3} pour {arg4}", [t, dom?[t] ?? 0, data.homeTeam, ext?[t] ?? 0, data.awayTeam]),
+                    excludeSemantics: true,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.end,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            _Colonne(valeur: dom?[t] ?? 0, maxi: maxi,
+                                couleur: context.cl.success),
+                            const SizedBox(width: 3),
+                            _Colonne(valeur: ext?[t] ?? 0, maxi: maxi,
+                                couleur: context.cl.info),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        Text(t.split('-')[1],
+                          style: TextStyle(color: context.cl.textM, fontSize: 9)),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(children: [
+          _Legende(couleur: context.cl.success, texte: data.homeTeam),
+          const SizedBox(width: 14),
+          _Legende(couleur: context.cl.info, texte: data.awayTeam),
+        ]),
+      ]),
+    );
+  }
+}
+
+class _Colonne extends StatelessWidget {
+  final int valeur, maxi;
+  final Color couleur;
+  const _Colonne({required this.valeur, required this.maxi, required this.couleur});
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    tween: Tween(begin: 0, end: maxi == 0 ? 0 : valeur / maxi),
+    duration: context.duree(const Duration(milliseconds: 700)),
+    curve: Curves.easeOutCubic,
+    builder: (_, v, _) => Column(mainAxisSize: MainAxisSize.min, children: [
+      if (valeur > 0)
+        Text('$valeur',
+          style: TextStyle(color: couleur, fontSize: 9, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 2),
+      Container(
+        width: 11,
+        // 3 px de socle : une tranche à zéro doit rester visible comme une
+        // tranche, pas disparaître de l'axe.
+        height: 3 + v * 58,
+        decoration: BoxDecoration(
+          color: valeur > 0 ? couleur : context.cl.borderS,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(3))),
+      ),
+    ]),
+  );
+}
+
+class _Legende extends StatelessWidget {
+  final Color couleur;
+  final String texte;
+  const _Legende({required this.couleur, required this.texte});
+
+  @override
+  Widget build(BuildContext context) => Flexible(
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Container(width: 8, height: 8,
+        decoration: BoxDecoration(color: couleur, shape: BoxShape.circle)),
+      const SizedBox(width: 5),
+      Flexible(
+        child: Text(texte,
+          maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+      ),
+    ]),
+  );
+}
+
+/// Cotes qui suivent le match, avec la variation depuis l'ouverture.
+class _CotesEnDirect extends ConsumerWidget {
+  final String matchId;
+  const _CotesEnDirect({required this.matchId});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(liveOddsProvider(matchId));
+    final data = async.valueOrNull;
+    if (data == null || data.markets.isEmpty) return const SizedBox.shrink();
+    if ((data.updatedAt != null && DateTime.now().difference(data.updatedAt!).inMinutes >= 5) ||
+        (async.hasError && data.updatedAt == null)) {
+      return Text(tr(context, "Cotes en direct momentanément indisponibles."),
+        style: TextStyle(color: context.cl.textS));
+    }
+
+    final marches = data.markets
+        .where((m) => m.principal)
+        .toList();
+    if (marches.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.cl.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: context.cl.error.withValues(alpha: 0.25), width: 0.8)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          _LivePastille(),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(tr(context, "Cotes en direct"),
+              style: TextStyle(
+                color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
+          ),
+          if (data.elapsed != null)
+            Text("${data.elapsed}'",
+              style: TextStyle(
+                color: context.cl.error, fontSize: 12, fontWeight: FontWeight.w700)),
+        ]),
+        const SizedBox(height: 4),
+        _FraicheurDonnees(updatedAt: data.updatedAt, stale: data.stale || async.hasError),
+        const SizedBox(height: 4),
+        Text(tr(context, "Actualisation automatique toutes les 2 minutes."),
+          style: TextStyle(color: context.cl.textM, fontSize: 10.5, height: 1.35)),
+        const SizedBox(height: 14),
+
+        for (final m in marches) ...[
+          Text(FootballLabels.market(m.name, language: AppStrings.of(context).locale.languageCode).text.toUpperCase(),
+            style: TextStyle(
+              color: context.cl.textM, fontSize: 9,
+              fontWeight: FontWeight.w700, letterSpacing: 0.6)),
+          const SizedBox(height: 6),
+          Wrap(spacing: 6, runSpacing: 6, children: [
+            for (final v in m.values.take(6))
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 6),
+                decoration: BoxDecoration(
+                  color: context.cl.surfaceDeep,
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: context.cl.borderSoft, width: 0.5)),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  // `libelle` porte le seuil quand il existe : « Over 2.5 » et
+                  // non « Over ». Sans lui, trois lignes Over/Under
+                  // s'affichaient à l'identique, et la cote pouvait se lire
+                  // comme un nombre de buts.
+                  Text(v.libelle,
+                    style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                  const SizedBox(width: 6),
+                  Text(v.odd.toStringAsFixed(2),
+                    style: TextStyle(
+                      color: context.cl.textP, fontSize: 12,
+                      fontWeight: FontWeight.w700)),
+                ]),
+              ),
+          ]),
+          const SizedBox(height: 12),
+        ],
+      ]),
+    );
+  }
+}
+
+/// Point rouge pulsant, réutilisé par la carte de cotes live.
+class _LivePastille extends StatefulWidget {
+  @override
+  State<_LivePastille> createState() => _LivePastilleState();
+}
+
+class _LivePastilleState extends State<_LivePastille>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this, duration: const Duration(milliseconds: 900));
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    context.boucler(_c, reverse: true);
+  }
+
+  @override
+  void dispose() { _c.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _c,
+    builder: (_, _) => Container(
+      width: 8, height: 8,
+      decoration: BoxDecoration(
+        color: context.cl.error.withValues(alpha: 0.4 + 0.6 * _c.value),
+        shape: BoxShape.circle),
+    ),
+  );
+}
+
+/// Notes des joueurs après le coup de sifflet final.
+class _NotesJoueurs extends ConsumerWidget {
+  final String matchId;
+  const _NotesJoueurs({required this.matchId});
+
+  // La note est un texte posé sur sa propre teinte : en clair, il lui faut
+  // les variantes foncées (citron #84CC16 sur blanc : 1,9:1).
+  static Color _couleurNote(AppCl cl, double n) => n >= 8
+      ? cl.success
+      : n >= 7
+          ? (cl.isDark ? const Color(0xFF84CC16) : const Color(0xFF4D7C0F))
+          : n >= 6
+              ? cl.warning
+              : cl.error;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final joueurs = ref.watch(playerRatingsProvider(matchId)).valueOrNull;
+    if (joueurs == null || joueurs.isEmpty) return const SizedBox.shrink();
+
+    final homme = joueurs.first;
+    final suite = joueurs.skip(1).take(5).toList();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: context.cl.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: context.cl.borderSoft, width: 0.8)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: context.cl.warning.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(10)),
+            child: Icon(Icons.star_rounded, color: context.cl.warning, size: 16)),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(tr(context, "Notes des joueurs"),
+              style: TextStyle(
+                color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
+          ),
+        ]),
+        const SizedBox(height: 14),
+
+        // L'homme du match en évidence : c'est le seul nom que la plupart des
+        // lecteurs retiendront, autant le sortir de la liste.
+        LienJoueur(id: homme.id, nom: homme.name, photo: homme.photo, rayon: BorderRadius.circular(12),
+        child: Semantics(
+          label: tr(context, "Homme du match : {arg0}, note {arg1}, {arg2} minutes jouées", [homme.name, homme.rating, homme.minutes]),
+          excludeSemantics: true,
+          child: Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: context.cl.warning.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: context.cl.warning.withValues(alpha: 0.22), width: 0.8)),
+            child: Row(children: [
+              _PhotoJoueur(url: homme.photo, taille: 42),
+              const SizedBox(width: 12),
+              Expanded(child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(tr(context, "HOMME DU MATCH"),
+                    style: TextStyle(
+                      color: context.cl.warning, fontSize: 8.5,
+                      fontWeight: FontWeight.w700, letterSpacing: 0.7)),
+                  const SizedBox(height: 3),
+                  Text(homme.name,
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: context.cl.textP, fontSize: 14,
+                      fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(
+                    tr(context, "{arg0} min · {arg1}{arg2}", [homme.minutes, AppStrings.of(context).count(homme.shots, one: "{arg0} tir", other: "{arg0} tirs"), homme.goals > 0 ? " · ${AppStrings.of(context).count(homme.goals, one: "{arg0} but", other: "{arg0} buts")}" : ""]),
+                    style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+                ])),
+              _Note(valeur: homme.rating, grande: true),
+            ]),
+          ),
+        )),
+
+        const SizedBox(height: 12),
+        for (final j in suite)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: LienJoueur(id: j.id, nom: j.name, photo: j.photo,
+            child: Semantics(
+              label: tr(context, "{arg0}, note {arg1}", [j.name, j.rating]),
+              excludeSemantics: true,
+              child: Row(children: [
+                _PhotoJoueur(url: j.photo, taille: 26),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(j.name,
+                    maxLines: 1, overflow: TextOverflow.ellipsis,
+                    style: TextStyle(color: context.cl.textS, fontSize: 12)),
+                ),
+                Text('${j.minutes}′',
+                  style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                const SizedBox(width: 10),
+                _Note(valeur: j.rating),
+              ]),
+            )),
+          ),
+      ]),
+    );
+  }
+}
+
+class _PhotoJoueur extends StatelessWidget {
+  final String? url;
+  final double taille;
+  const _PhotoJoueur({required this.url, required this.taille});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: taille, height: taille,
+    decoration: BoxDecoration(
+      color: context.cl.surfaceDeep,
+      shape: BoxShape.circle,
+      border: Border.all(color: context.cl.borderSoft, width: 0.5)),
+    child: ClipOval(
+      child: url == null
+        ? Icon(Icons.person_rounded, color: context.cl.textM, size: taille * 0.55)
+        // Le CDN renvoie un 404 pour les joueurs sans photo.
+        : ImageDistante(
+            url:     url,
+            largeur: taille, hauteur: taille,
+            repli:   Icon(Icons.person_rounded,
+                          color: context.cl.textM, size: taille * 0.55)),
+    ),
+  );
+}
+
+class _Note extends StatelessWidget {
+  final double valeur;
+  final bool grande;
+  const _Note({required this.valeur, this.grande = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final c = _NotesJoueurs._couleurNote(context.cl, valeur);
+    return Container(
+      padding: EdgeInsets.symmetric(
+        horizontal: grande ? 10 : 7, vertical: grande ? 6 : 3),
+      decoration: BoxDecoration(
+        color: c.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: c.withValues(alpha: 0.35), width: 0.8)),
+      child: Text(valeur.toStringAsFixed(1),
+        style: TextStyle(
+          color: c, fontSize: grande ? 16 : 12, fontWeight: FontWeight.w700)),
+    );
+  }
+}
