@@ -95,7 +95,7 @@ class _AnalyseModele extends ConsumerWidget {
         // pronostic » : elle ouvrait pourtant sur des barres brutes, en
         // laissant le lecteur assembler lui-même un verdict qui figurait en
         // sixième ligne d'une liste de six.
-        Text(tr(context, "Source : API-Football. Les critères comparent les équipes ; ils ne mesurent pas la probabilité de réussite de ton pronostic."),
+        Text(tr(context, "Les critères comparent les équipes ; ils ne mesurent pas la probabilité de réussite de ton pronostic."),
           style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.4)),
         const SizedBox(height: 10),
         _VerdictModele(data: data),

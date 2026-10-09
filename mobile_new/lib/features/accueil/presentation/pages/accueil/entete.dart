@@ -20,27 +20,14 @@ class _SliverHeader extends ConsumerWidget {
             ? tr(context, "Bon après-midi")
             : tr(context, "Bonsoir");
 
-    // ── Hauteur de l'en-tête ────────────────────────────────────────────
-    //
-    // Elle valait 140 en dur, marge haute de 48 comprise. Deux hypothèses
-    // dedans, toutes deux fausses quelque part :
-    //
-    //   · un texte à taille normale — à 180 %, le contenu débordait de
-    //     20 px, et la ligne d'abonnement, qui passe alors sur deux lignes,
-    //     en demande une de plus ;
-    //   · une barre d'état de 48 px au plus — l'encoche des iPhone récents
-    //     en fait 59.
-    //
-    // Le contenu mesure 108 à taille normale (logo, salutation, ligne
-    // d'abonnement) ; ce que le texte agrandi ajoute est mesuré par
-    // `accueil_texte_agrandi_test.dart`. `SliverAppBar` ajoute lui-même la
-    // barre d'état à `expandedHeight` : on la retire donc de la marge.
-    final echelle   = MediaQuery.textScalerOf(context).scale(100) / 100;
+    final echelle = MediaQuery.textScalerOf(context).scale(100) / 100;
     final barreEtat = MediaQuery.paddingOf(context).top;
-    final margeHaut = math.max(48.0, barreEtat + 8);
-    final contenu   = 108 + (echelle - 1) * 55;
+    final margeHaut = barreEtat + 8;
+    final contenu = 108 + (echelle - 1) * 55;
 
     return SliverAppBar(
+      toolbarHeight: hauteurEnteteOnglet,
+      scrolledUnderElevation: 0,
       expandedHeight: margeHaut - barreEtat + contenu + 12,
       // Onglet racine : aucune page à quitter. Sans ça Flutter ajoute une
       // flèche de retour, qui venait se superposer au logo.
@@ -71,7 +58,7 @@ class _SliverHeader extends ConsumerWidget {
                   // Le logotype partagé : « Prono » suit le thème. La copie
                   // écrite ici le figeait en blanc, invisible sur l'en-tête
                   // clair — et le test du logotype ne la voyait pas.
-                  const LogotypePronoWin(taille: 26),
+                  const LogotypePronoWin(taille: 30),
                   Semantics(
                     button: true,
                     label: unreadCount > 0
@@ -88,10 +75,10 @@ class _SliverHeader extends ConsumerWidget {
                       children: [
                         const SizedBox(width: 48, height: 48),
                         Container(
-                          width: 38, height: 38,
+                          width: 48, height: 48,
                           decoration: BoxDecoration(
                             color: context.cl.surface,
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(24),
                             border: Border.all(color: context.cl.border, width: 0.5),
                           ),
                           child: Icon(Icons.notifications_rounded,

@@ -1,3 +1,4 @@
+import '../../../../shared/widgets/entete_onglet.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/image_distante.dart';
@@ -163,19 +164,29 @@ class _ComptePageState extends ConsumerState<ComptePage>
                 // se superposant au libellé « Abonnement ». La zone flexible
                 // inclut la TabBar (46px) et la barre d'état. Elle grandit avec
                 // la taille du texte : à 180 %, nom et pastilles débordaient.
-                expandedHeight: 262 + (MediaQuery.textScalerOf(context).scale(1) - 1) * 40,
+                toolbarHeight: hauteurEnteteOnglet,
+                titleSpacing: 16,
+                centerTitle: false,
+                elevation: 0,
+                scrolledUnderElevation: 0,
+                title: TitreOnglet(tr(context, "Compte")),
+                expandedHeight: hauteurEnteteOnglet + 262 + (MediaQuery.textScalerOf(context).scale(1) - 1) * 40,
                 pinned: true,
                 backgroundColor: context.cl.bg,
                 automaticallyImplyLeading: false,
                 actions: [
-                  IconButton(
+                  ActionEntete(child: IconButton(
+                    tooltip: tr(context, "Paramètres"),
                     icon: Icon(Icons.settings_rounded, color: context.cl.textS),
                     onPressed: () => context.push('/parametres'),
-                  ),
-                  IconButton(
+                  )),
+                  const SizedBox(width: 8),
+                  ActionEntete(child: IconButton(
+                    tooltip: tr(context, "Déconnexion"),
                     icon: Icon(Icons.logout_rounded, color: context.cl.error),
                     onPressed: () => _showLogoutSheet(context, ref),
-                  ),
+                  )),
+                  const SizedBox(width: 16),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
                   background: Container(
@@ -192,7 +203,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                         // « 1 j restant » finissaient sous les onglets, à moitié
                         // cachées (vidéo du 5 octobre 2026). Il se centre
                         // désormais au-dessus d'eux.
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 46),
+                        padding: const EdgeInsets.fromLTRB(20, hauteurEnteteOnglet, 20, 46),
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [

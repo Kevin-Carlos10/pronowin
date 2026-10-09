@@ -361,61 +361,13 @@ class _VoteBar extends StatelessWidget {
           style: TextStyle(color: context.cl.textS, fontSize: 12)),
         const SizedBox(height: 10),
         Row(children: [
-          // Bouton D'accord
-          Expanded(child: GestureDetector(
-            onTap: onAgree,
-            child: AnimatedContainer(
-              duration: 180.ms,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: userAgreed
-                    ? context.cl.success.withValues(alpha: 0.15)
-                    : context.cl.bg,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: userAgreed
-                      ? context.cl.success
-                      : context.cl.border,
-                  width: userAgreed ? 1.5 : 0.5)),
-              child: Column(children: [
-                Text('👍', style: const TextStyle(fontSize: 20)),
-                const SizedBox(height: 4),
-                Text(tr(context, "D'accord"), style: TextStyle(
-                  color: userAgreed ? context.cl.success : context.cl.textM,
-                  fontSize: 11, fontWeight: FontWeight.w700)),
-                Text('${vote.agree}', style: TextStyle(
-                  color: userAgreed ? context.cl.success : context.cl.textS,
-                  fontSize: 13, fontWeight: FontWeight.w700)),
-              ]),
-            ),
-          )),
-          const SizedBox(width: 10),
-          // Bouton Pas convaincu
-          Expanded(child: GestureDetector(
-            onTap: onDisagree,
-            child: AnimatedContainer(
-              duration: 180.ms,
-              padding: const EdgeInsets.symmetric(vertical: 10),
-              decoration: BoxDecoration(
-                color: userDis
-                    ? context.cl.error.withValues(alpha: 0.12)
-                    : context.cl.bg,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(
-                  color: userDis ? context.cl.error : context.cl.border,
-                  width: userDis ? 1.5 : 0.5)),
-              child: Column(children: [
-                Text('👎', style: const TextStyle(fontSize: 20)),
-                const SizedBox(height: 4),
-                Text(tr(context, "Pas convaincu"), style: TextStyle(
-                  color: userDis ? context.cl.error : context.cl.textM,
-                  fontSize: 11, fontWeight: FontWeight.w700)),
-                Text('${vote.disagree}', style: TextStyle(
-                  color: userDis ? context.cl.error : context.cl.textS,
-                  fontSize: 13, fontWeight: FontWeight.w700)),
-              ]),
-            ),
-          )),
+          Expanded(child: _BoutonVoteCompact(
+            label: tr(context, "D'accord"), emoji: '👍', nombre: vote.agree,
+            selectionne: userAgreed, couleur: context.cl.success, onTap: onAgree)),
+          const SizedBox(width: 8),
+          Expanded(child: _BoutonVoteCompact(
+            label: tr(context, "Pas convaincu"), emoji: '👎', nombre: vote.disagree,
+            selectionne: userDis, couleur: context.cl.error, onTap: onDisagree)),
         ]),
         if (total > 0) ...[
           const SizedBox(height: 12),
@@ -457,6 +409,43 @@ class _VoteBar extends StatelessWidget {
       ]),
     );
   }
+}
+
+/// Une ligne compacte ; la zone tactile reste d'au moins 48 px.
+class _BoutonVoteCompact extends StatelessWidget {
+  final String label, emoji;
+  final int nombre;
+  final bool selectionne;
+  final Color couleur;
+  final VoidCallback onTap;
+  const _BoutonVoteCompact({required this.label, required this.emoji,
+    required this.nombre, required this.selectionne, required this.couleur,
+    required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    selected: selectionne,
+    child: OutlinedButton(
+      onPressed: onTap,
+      style: OutlinedButton.styleFrom(
+        minimumSize: const Size(0, 48),
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        foregroundColor: selectionne ? couleur : context.cl.textS,
+        backgroundColor: selectionne ? couleur.withValues(alpha: 0.12) : context.cl.bg,
+        side: BorderSide(color: selectionne ? couleur : context.cl.border,
+          width: selectionne ? 1.2 : 0.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
+      child: Row(children: [
+        ExcludeSemantics(child: Text(emoji, style: const TextStyle(fontSize: 16))),
+        const SizedBox(width: 6),
+        Expanded(flex: 4, child: Text(label,
+          style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600))),
+        const SizedBox(width: 4),
+        Flexible(child: FittedBox(fit: BoxFit.scaleDown, child: Text('$nombre',
+          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w700)))),
+      ]),
+    ),
+  );
 }
 
 // ── Tile commentaire ──────────────────────────────────────────────────────────
@@ -732,14 +721,6 @@ class _CommentInput extends StatelessWidget {
                   : const Icon(Icons.send_rounded, color: Colors.white, size: 18)),
           ),
         ]),
-      ),
-      // Les règles, là où l'on écrit (règle 1.2 de l'App Store : la tolérance
-      // zéro doit être connue de qui publie).
-      Padding(
-        padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-        child: Text(
-          tr(context, "Commentaires modérés : ni insulte, ni haine, ni publicité, ni numéro. Tu peux signaler un commentaire ou bloquer un membre avec le menu « ⋯ »."),
-          style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.35)),
       ),
     ],
   );

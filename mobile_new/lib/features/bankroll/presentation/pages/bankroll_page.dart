@@ -1,3 +1,4 @@
+import '../../../../shared/widgets/entete_onglet.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'package:dio/dio.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -211,32 +212,18 @@ class _BankrollView extends StatelessWidget {
         backgroundColor: context.cl.bg,
         elevation: 0,
         automaticallyImplyLeading: false,
-        title: Row(children: [
-          Container(
-            width: 32, height: 32,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [context.cl.success, Color(0xFF34D399)],
-                begin: Alignment.topLeft, end: Alignment.bottomRight),
-              borderRadius: BorderRadius.circular(9),
-              boxShadow: [BoxShadow(color: context.cl.success.withValues(alpha: 0.35),
-                  blurRadius: 8, offset: const Offset(0, 3))]),
-            child: const Icon(Icons.account_balance_wallet_rounded,
-                color: Colors.white, size: 17)),
-          const SizedBox(width: 10),
-          RichText(text: TextSpan(
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
-                color: context.cl.textP),
-            children: [
-              TextSpan(text: 'Bank'),
-              TextSpan(text: 'roll', style: TextStyle(color: context.cl.success)),
-            ],
-          )),
-          const Spacer(),
-          IconButton(
-            icon: Icon(Icons.tune_rounded, color: context.cl.textM, size: 20),
-            onPressed: onSetBudget),
-        ]),
+        toolbarHeight: hauteurEnteteOnglet,
+        titleSpacing: 16,
+        centerTitle: false,
+        scrolledUnderElevation: 0,
+        title: const TitreOnglet('Bankroll'),
+        actions: [
+          ActionEntete(child: IconButton(
+            tooltip: tr(context, "Paramètres"),
+            icon: Icon(Icons.tune_rounded, color: context.cl.textP),
+            onPressed: onSetBudget)),
+          const SizedBox(width: 16),
+        ],
       ),
 
       SliverToBoxAdapter(child: Padding(

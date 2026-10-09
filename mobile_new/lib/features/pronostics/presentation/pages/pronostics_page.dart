@@ -1,3 +1,4 @@
+import '../../../../shared/widgets/entete_onglet.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/utils/motion.dart';
@@ -570,15 +571,16 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
     List<String> availableLeagues,
     List<MatchEntity> matchsDuJour,
   ) => AppBar(
-    title: Row(children: [
-      Container(
-        width: 32, height: 32,
-        decoration: BoxDecoration(
-          color: AppColors.primary, borderRadius: BorderRadius.circular(8)),
-        child: const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 18)),
-      const SizedBox(width: 10),
-      const LogotypePronoWin(taille: 17),
-    ]),
+    toolbarHeight: hauteurEnteteOnglet,
+    titleSpacing: 16,
+    centerTitle: false,
+    automaticallyImplyLeading: false,
+    backgroundColor: context.cl.bg,
+    elevation: 0,
+    scrolledUnderElevation: 0,
+    title: const FittedBox(fit: BoxFit.scaleDown,
+      alignment: Alignment.centerLeft,
+      child: LogotypePronoWin(taille: 30)),
     actions: [
       // Bouton recherche
       Semantics(
@@ -586,14 +588,13 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
         button: true,
         child: GestureDetector(
           onTap: () => context.push('/recherche'),
-          child: Padding(
-            padding: const EdgeInsets.only(right: 4),
+          child: ActionEntete(
             child: ExcludeSemantics(
               child: Icon(Icons.search_rounded, color: context.cl.textS, size: 24)),
           ),
         ),
       ),
-      const SizedBox(width: 8),
+      const SizedBox(width: 4),
       // Bouton filtres avancés
       Semantics(
         label: activeAdvancedCount > 0
@@ -623,8 +624,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
               ),
             );
           },
-          child: Padding(
-            padding: const EdgeInsets.only(right: 4),
+          child: ActionEntete(
             child: ExcludeSemantics(
               child: Stack(clipBehavior: Clip.none, children: [
                 Icon(Icons.tune_rounded, color: activeAdvancedCount > 0
@@ -645,7 +645,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
           ),
         ),
       ),
-      const SizedBox(width: 8),
+      const SizedBox(width: 4),
       // Le compteur de non-lues était lu en tête du `build` de la page.
       // Une notification qui arrivait reconstruisait donc **tout l'écran** :
       // la barre de dates, les filtres, et surtout l'assemblage de la liste —
@@ -662,8 +662,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
           button: true,
           child: GestureDetector(
             onTap: () => context.push('/notifications'),
-            child: Padding(
-              padding: const EdgeInsets.only(right: 16),
+            child: ActionEntete(
               child: ExcludeSemantics(
                 child: Stack(clipBehavior: Clip.none, children: [
                   Icon(Icons.notifications_none_rounded,
@@ -686,6 +685,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
           ),
         );
       }),
+      const SizedBox(width: 16),
     ],
   );
 }

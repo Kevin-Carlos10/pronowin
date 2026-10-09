@@ -1516,4 +1516,6 @@ const englishMessages = <String, String>{
   "Chargement des statistiques de l’équipe…": "Loading team statistics…",
   "Réussite personnelle": "Personal win rate",
   "{arg0}% de réussite sur nos pronostics publiés — historique complet": "{arg0}% win rate on our published predictions — full history",
+  "Plus récent en haut · Scores domicile–extérieur": "Latest at the top · Home–away scores",
+  "Les critères comparent les équipes ; ils ne mesurent pas la probabilité de réussite de ton pronostic.": "The criteria compare the teams; they do not measure the probability of your prediction winning.",
 };

@@ -164,108 +164,272 @@ class _RangeeForme extends StatelessWidget {
   );
 }
 
-/// « Forme récente » : les cinq derniers matchs de chaque équipe, comme sur la
-/// fiche d'un match Sofascore ou 1xBet. Remplace la jauge de points, qui
-/// disait qui était en forme sans dire contre qui ni comment.
-///
-/// Sans donnée — match d'un autre fournisseur, panne, match terminé — la
-/// jauge reste : une carte vide n'apprendrait rien de plus qu'une carte
-/// absente.
-class _FormeRecente extends ConsumerStatefulWidget {
+/// Comparaison simultanée, du plus récent au plus ancien. Les scores gardent
+/// l'ordre domicile–extérieur ; la couleur concerne l'équipe de la colonne.
+class _FormeRecente extends ConsumerWidget {
   final MatchEntity match;
   const _FormeRecente({required this.match});
-  @override
-  ConsumerState<_FormeRecente> createState() => _FormeRecenteState();
-}
-
-class _FormeRecenteState extends ConsumerState<_FormeRecente> {
-  bool _domicile = true;
 
   @override
-  Widget build(BuildContext context) {
-    final match = widget.match;
-    // Un match terminé : les « derniers matchs » seraient ceux d'après.
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Après le match, la forme actuelle n'est plus celle de l'avant-match.
     final forme = match.status == MatchStatus.finished
         ? null
         : ref.watch(formeRecenteProvider(match.id)).valueOrNull;
     final jauge = match.homeFormPoints > 0 || match.awayFormPoints > 0;
-
     if (forme == null || forme.vide) {
       return jauge
           ? Padding(
               padding: const EdgeInsets.only(bottom: 16),
-              child: _FormCard(match: match))
+              child: _FormCard(match: match),
+            )
           : const SizedBox.shrink();
-    }
-
-    final matchs = _domicile ? forme.domicile : forme.exterieur;
-    Widget equipe(String nom, String? logo, List<MatchRecent> liste, bool estDomicile) {
-      final choisie = _domicile == estDomicile;
-      return Semantics(
-        button: true,
-        selected: choisie,
-        child: InkWell(
-          key: Key(estDomicile ? 'forme-domicile' : 'forme-exterieur'),
-          borderRadius: BorderRadius.circular(12),
-          onTap: () => setState(() => _domicile = estDomicile),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            decoration: BoxDecoration(
-              color: choisie ? context.cl.surfaceDeep : null,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: choisie ? context.cl.border : Colors.transparent, width: 0.8)),
-            child: Row(children: [
-              _TeamLogo(url: logo ?? '', size: 22),
-              const SizedBox(width: 10),
-              Expanded(child: Text(nom,
-                maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: context.cl.textP, fontSize: 13,
-                  fontWeight: choisie ? FontWeight.w700 : FontWeight.w500))),
-              const SizedBox(width: 8),
-              _RangeeForme([for (final m in liste.reversed) m.issue], taille: 20),
-            ]),
-          ),
-        ),
-      );
     }
 
     return Padding(
       padding: const EdgeInsets.only(bottom: 16),
       child: Container(
+        key: const Key('forme-comparaison'),
         width: double.infinity,
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(12, 16, 12, 12),
         decoration: BoxDecoration(
           color: context.cl.surface,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(20),
           border: Border.all(color: context.cl.borderSoft, width: 0.8),
         ),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          _CardHeader(
-            icon: Icons.insights_rounded,
-            color: context.cl.success,
-            title: tr(context, "Forme récente")),
-          const SizedBox(height: 12),
-          equipe(match.homeTeam, match.homeTeamLogo, forme.domicile, true),
-          const SizedBox(height: 4),
-          equipe(match.awayTeam, match.awayTeamLogo, forme.exterieur, false),
-          const SizedBox(height: 10),
-          Divider(height: 1, color: context.cl.borderSoft),
-          const SizedBox(height: 4),
-          if (matchs.isEmpty) Padding(
-            padding: const EdgeInsets.symmetric(vertical: 10),
-            child: Text(tr(context, "Aucun match récent connu pour cette équipe."),
-              style: TextStyle(color: context.cl.textS, fontSize: 12)))
-          else
-            for (final m in matchs) _LigneMatchRecent(m),
-        ]),
+        child: Column(
+          children: [
+            Semantics(
+              header: true,
+              child: Text(
+                tr(context, "Forme récente"),
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: context.cl.textP,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _ColonneForme(
+                    cle: 'forme-domicile',
+                    nom: match.homeTeam,
+                    logo: match.homeTeamLogo,
+                    matchs: forme.domicile.take(5).toList(),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: _ColonneForme(
+                    cle: 'forme-exterieur',
+                    nom: match.awayTeam,
+                    logo: match.awayTeamLogo,
+                    matchs: forme.exterieur.take(5).toList(),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              tr(context, "Plus récent en haut · Scores domicile–extérieur"),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: context.cl.textS, fontSize: 10),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-/// Un match récent : date, adversaire, terrain, score vu de l'équipe, issue.
+class _ColonneForme extends StatelessWidget {
+  final String cle, nom;
+  final String? logo;
+  final List<MatchRecent> matchs;
+  const _ColonneForme({
+    required this.cle,
+    required this.nom,
+    required this.logo,
+    required this.matchs,
+  });
+
+  void _ouvrir(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: context.cl.surface,
+      showDragHandle: true,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => ConstrainedBox(
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.sizeOf(context).height * 0.75,
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                nom,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: context.cl.textP,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                tr(context, "Plus récent en haut · Scores domicile–extérieur"),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: context.cl.textS, fontSize: 11),
+              ),
+              const SizedBox(height: 12),
+              for (final m in matchs) _LigneMatchRecent(m),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => Column(
+    children: [
+      TextButton(
+        key: Key(cle),
+        onPressed: matchs.isEmpty ? null : () => _ouvrir(context),
+        style: TextButton.styleFrom(
+          minimumSize: const Size.fromHeight(48),
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          foregroundColor: context.cl.textS,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(
+                nom,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (matchs.isNotEmpty)
+              const Icon(Icons.expand_more_rounded, size: 16),
+          ],
+        ),
+      ),
+      if (matchs.isEmpty)
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Text(
+            tr(context, "Aucun match récent connu pour cette équipe."),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: context.cl.textS, fontSize: 11),
+          ),
+        )
+      else
+        for (var i = 0; i < matchs.length; i++)
+          _ScoreForme(
+            key: Key('$cle-score-$i'),
+            m: matchs[i],
+            nom: nom,
+            logo: logo,
+          ),
+    ],
+  );
+}
+
+class _ScoreForme extends StatelessWidget {
+  final MatchRecent m;
+  final String nom;
+  final String? logo;
+  const _ScoreForme({super.key, required this.m, required this.nom, this.logo});
+
+  @override
+  Widget build(BuildContext context) {
+    final gauche = m.domicile ? nom : m.adversaire;
+    final droite = m.domicile ? m.adversaire : nom;
+    final butsGauche = m.domicile ? m.butsPour : m.butsContre;
+    final butsDroite = m.domicile ? m.butsContre : m.butsPour;
+    final couleur = switch (m.issue) {
+      IssueMatch.victoire => AppColors.fondSucces,
+      IssueMatch.nul => const Color(0xFF64748B),
+      IssueMatch.defaite => AppColors.fondErreur,
+    };
+    final date = m.date == null
+        ? ''
+        : DateFormat.yMMMd(
+            AppStrings.of(context).locale.languageCode,
+          ).format(m.date!);
+    final description =
+        '$gauche $butsGauche – $butsDroite $droite. '
+        '$nom : ${_PastilleIssue.nom(context, m.issue)}. $date';
+    return Semantics(
+      label: description,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: description,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 3),
+          child: Row(
+            children: [
+              _TeamLogo(
+                url: (m.domicile ? logo : m.adversaireLogo) ?? '',
+                size: 24,
+              ),
+              const SizedBox(width: 6),
+              Expanded(
+                child: Center(child: Container(
+                  width: 64,
+                  constraints: const BoxConstraints(minHeight: 28),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 5,
+                  ),
+                  alignment: Alignment.center,
+                  decoration: BoxDecoration(
+                    color: couleur,
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      '$butsGauche - $butsDroite',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        height: 1.1,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ),
+                )),
+              ),
+              const SizedBox(width: 6),
+              _TeamLogo(
+                url: (m.domicile ? m.adversaireLogo : logo) ?? '',
+                size: 24,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Un match récent : date, adversaire, terrain, score domicile–extérieur, issue.
 class _LigneMatchRecent extends StatelessWidget {
   final MatchRecent m;
   const _LigneMatchRecent(this.m);
@@ -301,7 +465,7 @@ class _LigneMatchRecent extends StatelessWidget {
           ]),
         )),
         const SizedBox(width: 8),
-        Text('${m.butsPour}-${m.butsContre}',
+        Text(m.domicile ? '${m.butsPour}-${m.butsContre}' : '${m.butsContre}-${m.butsPour}',
           style: TextStyle(
             color: _PastilleIssue.couleur(context, m.issue),
             fontSize: 13, fontWeight: FontWeight.w700,

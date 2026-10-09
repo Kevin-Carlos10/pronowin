@@ -70,6 +70,9 @@ void main() {
 
   testWidgets('forme récente : l\'adversaire ouvre sa fiche', (t) async {
     await _monter(t);
+    await t.ensureVisible(find.byKey(const Key('forme-domicile')));
+    await t.tap(find.byKey(const Key('forme-domicile')));
+    await t.pumpAndSettle();
     await t.ensureVisible(find.text('Brighton'));
     await t.tap(find.text('Brighton'));
     for (var i = 0; i < 10; i++) { await t.pump(const Duration(milliseconds: 100)); }

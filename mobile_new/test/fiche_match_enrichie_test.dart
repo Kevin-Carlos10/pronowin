@@ -113,17 +113,19 @@ void main() {
     await t.pumpWidget(const SizedBox()); await t.pump();
   });
 
-  testWidgets('forme récente : cinq pastilles par équipe et les matchs de l’équipe choisie', (t) async {
+  testWidgets('forme récente : les deux équipes sont visibles, les détails restent accessibles', (t) async {
     await _monter(t, AppTheme.dark);
     expect(find.text('Forme récente'), findsOneWidget);
-    expect(find.text('Brighton'), findsOneWidget);
-    expect(find.text('0-3'), findsOneWidget);
+    // Défaite à l'extérieur : Brighton 3-0 Home, et non Home 0-3.
+    expect(find.text('3 - 0'), findsNWidgets(2));
+    expect(find.byKey(const Key('forme-domicile-score-0')), findsOneWidget);
+    expect(find.byKey(const Key('forme-exterieur-score-0')), findsOneWidget);
     expect(find.text('Coventry'), findsNothing);
+    await t.ensureVisible(find.byKey(const Key('forme-exterieur')));
     await t.tap(find.byKey(const Key('forme-exterieur')));
-    await t.pump(const Duration(milliseconds: 300));
+    await t.pumpAndSettle();
     expect(find.text('Coventry'), findsOneWidget);
     expect(find.text('Brighton'), findsNothing);
-    expect(find.bySemanticsLabel(RegExp('Défaite')), findsWidgets);
     expect(t.takeException(), isNull);
     await t.pumpWidget(const SizedBox()); await t.pump();
   });

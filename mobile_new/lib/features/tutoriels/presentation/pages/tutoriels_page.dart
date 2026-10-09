@@ -1,3 +1,4 @@
+import '../../../../shared/widgets/entete_onglet.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/image_distante.dart';
@@ -118,26 +119,12 @@ class TutorielsPage extends ConsumerWidget {
                         size: 19, color: context.cl.textP),
                       onPressed: () => Navigator.of(context).pop())
                   : null,
-                title: Row(children: [
-                  Container(
-                    width: 32, height: 32,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [context.cl.info, Color(0xFF38BDF8)],
-                        begin: Alignment.topLeft, end: Alignment.bottomRight),
-                      borderRadius: BorderRadius.circular(9),
-                      boxShadow: [const BoxShadow(
-                        color: Color(0x59038DC8),
-                        blurRadius: 8, offset: Offset(0, 3))]),
-                    child: const Icon(Icons.school_rounded,
-                        color: Colors.white, size: 17)),
-                  const SizedBox(width: 10),
-                  RichText(text: TextSpan(
-                    style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700,
-                      color: context.cl.textP),
-                    children: [TextSpan(text: tr(context, "Tutoriels"), style: TextStyle(color: context.cl.info))],
-                  )),
-                  const Spacer(),
+                toolbarHeight: hauteurEnteteOnglet,
+                titleSpacing: 16,
+                centerTitle: false,
+                scrolledUnderElevation: 0,
+                title: TitreOnglet(tr(context, "Tutoriels")),
+                actions: [
                   // Badge progression
                   if (total > 0)
                     Container(
@@ -156,7 +143,8 @@ class TutorielsPage extends ConsumerWidget {
                                 color: context.cl.success, fontSize: 11, fontWeight: FontWeight.w700)),
                       ]),
                     ),
-                ]),
+                  const SizedBox(width: 16),
+                ],
               ),
 
               SliverToBoxAdapter(child: Column(

@@ -74,6 +74,9 @@ Widget palmaresCompetitionSeul(String leagueCode) => _MeilleursButeurs(leagueCod
 Widget analyseModeleSeule(String matchId) => _AnalyseModele(matchId: matchId);
 
 
+@visibleForTesting
+Widget formeRecenteSeule(MatchEntity match) => _FormeRecente(match: match);
+
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
 const _repli = '/pronostics';
