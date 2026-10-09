@@ -10,8 +10,9 @@ mises à jour visuelles de l'utilisateur (c2544a0) :
   mesurent pas la probabilité de réussite du pronostic ;
 - retouches des commentaires, de la bankroll, des tutoriels et du compte.
 
-Livraison : APK direct dans `/downloads` et `APK_LATEST_VERSION=1.0.21` (mise
-à jour non obligatoire) ; AAB Google Play
+Livraison : APK direct publiés dans `/downloads` le 9 octobre 2026 (anciens
+fichiers gardés en `*-1.0.20-sauvegarde-*`), `APK_LATEST_VERSION=1.0.21` (mise
+à jour non obligatoire) ; iPhone : build Codemagic n°29 (5d2e797) ; AAB Google Play
 `build/app/outputs/bundle/playRelease/app-play-release.aab` à envoyer dans la
 Play Console ; iPhone par Codemagic (workflow « iOS — envoi vers TestFlight »).
 Si la 1.0.20 n'a pas encore été envoyée sur Google Play, envoyer directement
