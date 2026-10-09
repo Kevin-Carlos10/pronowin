@@ -8,7 +8,7 @@ import '../../domain/entities/match_entity.dart';
 import '../../../../shared/widgets/logotype_pronowin.dart';
 
 /// Carte stylisée PronoWin destinée à être capturée en image puis partagée.
-/// Dimensions logiques : 360 × 560 px → 1080 × 1680 px à pixelRatio 3.
+/// Largeur logique 360 px ; hauteur adaptée au contenu sans vide artificiel.
 class PronoShareCard extends StatelessWidget {
   final MatchEntity match;
   const PronoShareCard({super.key, required this.match});
@@ -31,12 +31,10 @@ class PronoShareCard extends StatelessWidget {
     // L'image partagée est toujours sombre, quel que soit le thème.
     return SurfaceSombre(builder: (context) => SizedBox(
       width:  360,
-      height: 560,
       child: Stack(children: [
 
         // ── Fond dégradé ───────────────────────────────────────────────────────
-        Container(
-          width: 360, height: 560,
+        Positioned.fill(child: Container(
           decoration: const BoxDecoration(
             gradient: LinearGradient(
               colors: [Color(0xFF0A0E1A), Color(0xFF111827), Color(0xFF0D1535)],
@@ -44,7 +42,7 @@ class PronoShareCard extends StatelessWidget {
               end: Alignment.bottomCenter,
             ),
           ),
-        ),
+        )),
 
         // ── Motif points décoratifs ────────────────────────────────────────────
         Positioned(
@@ -81,7 +79,8 @@ class PronoShareCard extends StatelessWidget {
                 children: [
                   // L'image partagée est toujours sombre, quel que soit le thème.
                   const LogotypePronoWin(taille: 22, surFondSombre: true),
-                  Container(
+                  const SizedBox(width: 10),
+                  Flexible(child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
                       color: Colors.white.withValues(alpha: 0.07),
@@ -89,13 +88,14 @@ class PronoShareCard extends StatelessWidget {
                     ),
                     child: Text(
                       match.league,
+                      maxLines: 2, overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                  ),
+                  )),
                 ],
               ),
 
@@ -300,7 +300,7 @@ class PronoShareCard extends StatelessWidget {
                       Text(
                         tr(context, "COTE"),
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.45),
+                          color: Colors.white.withValues(alpha: 0.75),
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
@@ -335,7 +335,7 @@ class PronoShareCard extends StatelessWidget {
                       Text(
                         tr(context, "CONFIANCE"),
                         style: TextStyle(
-                          color: Colors.white.withValues(alpha: 0.45),
+                          color: Colors.white.withValues(alpha: 0.75),
                           fontSize: 9,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
@@ -363,7 +363,7 @@ class PronoShareCard extends StatelessWidget {
                 ),
               ]),
 
-              const Spacer(),
+              const SizedBox(height: 20),
 
               // ── Séparateur ────────────────────────────────────────────────────
               Container(
@@ -373,17 +373,17 @@ class PronoShareCard extends StatelessWidget {
               ),
 
               // ── Date + CTA ────────────────────────────────────────────────────
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              Wrap(
+                alignment: WrapAlignment.center, spacing: 16, runSpacing: 8,
                 children: [
-                  Row(children: [
+                  Row(mainAxisSize: MainAxisSize.min, children: [
                     Icon(Icons.calendar_today_rounded,
                         color: Colors.white.withValues(alpha: 0.4), size: 11),
                     const SizedBox(width: 5),
                     Text(
-                      DateFormat('dd MMM · HH:mm').format(match.matchDate),
+                      DateFormat('dd MMM · HH:mm', AppStrings.of(context).locale.languageCode).format(match.matchDate),
                       style: TextStyle(
-                        color: Colors.white.withValues(alpha: 0.45),
+                        color: Colors.white.withValues(alpha: 0.75),
                         fontSize: 11,
                       ),
                     ),

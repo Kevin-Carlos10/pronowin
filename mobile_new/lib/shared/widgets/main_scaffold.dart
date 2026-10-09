@@ -59,8 +59,6 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   ];
 
   // Au trait au repos, pleine quand l'onglet est ouvert — comme Instagram.
-  // Le ballon remplace la courbe de « Pronos » : sans libellé, l'icône doit
-  // dire seule de quoi parle l'onglet.
   static const _navItems = [
     _NavItemData(icon: Icons.home_outlined,                   active: Icons.home_rounded,                   label: 'Accueil'),
     _NavItemData(icon: Icons.sports_soccer_outlined,          active: Icons.sports_soccer,                  label: 'Pronos'),
@@ -108,7 +106,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
 
     return Scaffold(
       extendBody: true,
-      body: Column(
+      body: SafeArea(bottom: false, child: Column(
         children: [
           const OfflineBanner(),
           // La barre ne réagit plus au défilement, et le mécanisme qui le
@@ -122,7 +120,7 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
             ),
           ),
         ],
-      ),
+      )),
       // La barre garde sa taille, quoi qu'il arrive au défilement.
       //
       // Elle tombait à 82 % au scroll vers le bas, pour « laisser plus de
@@ -162,12 +160,7 @@ class _NavItemData {
 }
 
 // ─── FLOATING NAV BAR ─────────────────────────────────────────────────────────
-/// La barre façon Instagram : une capsule flottante, translucide, des icônes
-/// sans libellé ; l'onglet ouvert a son icône pleine, posée sur une pastille
-/// grise qui glisse d'un onglet à l'autre.
-///
-/// Sans libellé, chaque case garde son nom pour les lecteurs d'écran
-/// (`Semantics`), et l'affiche sur un appui long (`Tooltip`).
+/// Navigation avec noms visibles, état sélectionné et annonces accessibles.
 class _FloatingNavBar extends StatelessWidget {
   final int currentIndex;
   final List<_NavItemData> items;
@@ -292,8 +285,8 @@ class _NavItemWidget extends StatelessWidget {
           onTap: onTap,
           behavior: HitTestBehavior.opaque,
           child: ExcludeSemantics(
-            child: Center(
-              child: AnimatedBuilder(
+            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+              AnimatedBuilder(
                 animation: scale,
                 builder: (_, child) => Transform.scale(scale: scale.value, child: child),
                 child: AnimatedSwitcher(
@@ -301,12 +294,16 @@ class _NavItemWidget extends StatelessWidget {
                   child: Icon(
                     isSelected ? item.active : item.icon,
                     key: ValueKey(isSelected),
-                    color: context.cl.textP,
+                    color: isSelected ? AppColors.primaryBouton : context.cl.textS,
                     size: BottomNavMetrics.tailleIcone,
                   ),
                 ),
               ),
-            ),
+              const SizedBox(height: 3),
+              Text(nom, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
+                style: TextStyle(fontSize: 10, fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  color: isSelected ? AppColors.primaryBouton : context.cl.textS)),
+            ]),
           ),
         ),
       ),

@@ -24,25 +24,13 @@ import 'package:flutter/widgets.dart';
 class BottomNavMetrics {
   const BottomNavMetrics._();
 
-  /// Taille des icônes, seules dans la barre depuis qu'elle suit le modèle
-  /// d'Instagram (8 octobre 2026) : le libellé sous chaque icône est parti.
+  /// Icône et libellé restent visibles ; la hauteur suit le texte système.
   static const double tailleIcone = 26;
 
-  /// Hauteur de la barre : fixe.
-  ///
-  /// Elle suivait l'échelle de texte de l'appareil, pour qu'un libellé agrandi
-  /// ne déborde pas. Sans libellé, plus rien n'y grandit avec les caractères :
-  /// une barre plus haute volerait de la place au contenu pour rien.
-  ///
-  /// Elle est lue par la barre **et** par [bottomNavSpace] : les listes
-  /// réservent ainsi d'elles-mêmes la place réelle, sans qu'aucune page n'ait
-  /// à être retouchée.
-  ///
-  /// 61 : celle de Threads, mesurée sur un iPhone 16 Pro (vidéo du
-  /// 8 octobre 2026) ; Instagram est à 58.
-  static double hauteur(BuildContext context) => _hauteurBase;
+  static double hauteur(BuildContext context) =>
+      _hauteurBase + math.max(0, MediaQuery.textScalerOf(context).scale(22) - 22);
 
-  static const double _hauteurBase = 61;
+  static const double _hauteurBase = 70;
 
   /// Marges de part et d'autre de la barre : 21, comme Threads et Instagram.
   static const double margeLaterale = 21;

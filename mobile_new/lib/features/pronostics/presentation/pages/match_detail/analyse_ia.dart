@@ -126,7 +126,7 @@ class _AIData extends StatelessWidget {
       Row(children: [
         Expanded(
           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(tr(context, "PROBABILITÉ DE SUCCÈS"),
+            Text(tr(context, "ESTIMATION DU MODÈLE INTERNE"),
               style: TextStyle(
                 color: context.cl.textM,
                 fontSize: 10,

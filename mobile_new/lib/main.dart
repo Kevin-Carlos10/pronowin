@@ -188,6 +188,7 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
     with WidgetsBindingObserver {
 
   bool      _lockChecked  = false;
+  bool _privacyVisible = true;
   DateTime? _pausedAt;    // Moment où l'app est passée en background
 
   // Durée minimale en background avant de verrouiller (30 secondes)
@@ -216,44 +217,42 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    switch (state) {
-      case AppLifecycleState.paused:
-        // App vraiment en background → enregistrer l'heure
-        _pausedAt = DateTime.now();
-        debugPrint('[Lifecycle] App mise en pause à $_pausedAt');
-        break;
+    if (state == AppLifecycleState.resumed) {
+      _resumeProtected();
+    } else {
+      // Masquer aussi pendant l'ouverture du sélecteur d'applications.
+      if (mounted) setState(() => _privacyVisible = true);
+      if (state == AppLifecycleState.paused) _pausedAt = DateTime.now();
+    }
+  }
 
-      case AppLifecycleState.resumed:
-        if (!_lockChecked || _pausedAt == null) return;
-
-        // Calculer combien de temps l'app était en background
-        final elapsed = DateTime.now().difference(_pausedAt!);
-        debugPrint('[Lifecycle] App revenue — absente depuis ${elapsed.inSeconds}s');
-
-        // Ne verrouiller que si absente depuis plus de 30 secondes
-        if (elapsed >= _lockDelay) {
-          _checkLockOnResume();
-        }
-        _pausedAt = null;
-        break;
-
-      case AppLifecycleState.inactive:
-        // Clavier, dialogue système, notification — IGNORER
-        // Ne pas verrouiller ici
-        break;
-
-      default:
-        break;
+  Future<void> _resumeProtected() async {
+    if (!_lockChecked) return;
+    final paused = _pausedAt;
+    _pausedAt = null;
+    if (paused != null && DateTime.now().difference(paused) >= _lockDelay) {
+      await _checkLockOnResume();
+    }
+    // Laisser le routeur peindre le verrou avant de retirer le cache.
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      setState(() => _privacyVisible = false);
     }
   }
 
   Future<void> _checkLockOnStart() async {
+    await ref.read(settingsProvider.notifier).ready;
+    if (!mounted) return;
     final verrouiller = await doitVerrouiller(
       settings: ref.read(settingsProvider),
       pinStore: ref.read(pinStoreProvider));
     _lockChecked = true;
     if (verrouiller && mounted) {
       ref.read(appRouterProvider).go('/lock');
+    }
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted && WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      setState(() => _privacyVisible = false);
     }
   }
 
@@ -356,7 +355,16 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
               // bornes sur l'échelle finale : voir `typographie.dart`.
               textScaler: echelleTexte(systeme),
             ),
-            child: child!,
+            child: Stack(fit: StackFit.expand, children: [
+              ExcludeSemantics(excluding: _privacyVisible, child: child!),
+              if (_privacyVisible) Positioned.fill(
+                child: AbsorbPointer(child: ColoredBox(
+                  color: Theme.of(context).scaffoldBackgroundColor,
+                  child: Center(child: Icon(Icons.lock_outline_rounded,
+                    size: 48, color: Theme.of(context).colorScheme.primary)),
+                )),
+              ),
+            ]),
           ),
         );
       },

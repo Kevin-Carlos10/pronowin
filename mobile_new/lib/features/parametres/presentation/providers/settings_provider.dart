@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -74,8 +75,10 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
         lang:      _ref.read(initialLanguageProvider),
         themeMode: _ref.read(initialThemeModeProvider),
       )) {
-    _load();
+    ready = _load();
   }
+
+  late final Future<void> ready;
 
   FirebaseMessaging get _fcm => FirebaseMessaging.instance;
 
@@ -100,8 +103,8 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     AppStrings.setCurrentLanguage(state.lang);
 
     // Synchroniser les topics FCM avec les préférences sauvegardées
-    await _syncAllTopics(state);
-    await _syncLanguage();
+    unawaited(_syncAllTopics(state));
+    unawaited(_syncLanguage());
   }
 
   // ─── Synchroniser tous les topics au démarrage ────────────────────────────

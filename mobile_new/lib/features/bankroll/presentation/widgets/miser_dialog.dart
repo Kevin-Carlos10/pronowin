@@ -190,7 +190,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                 // moment précis où on lui demande de faire confiance au
                 // chiffre.
                 Text(
-                  tr(context, "Ne dépasse jamais ce montant, même si tu te sens confiant."),
+                  tr(context, "Cet enregistrement suit ton budget. Il ne place aucun pari et ne transfère aucun argent."),
                   style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.45)),
               ])),
             ]),
@@ -268,7 +268,8 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
         data: (s) {
           final stake    = (s['suggested_amount'] as num).toDouble();
           final balance  = (s['current_balance']  as num).toDouble();
-          final currency = s['currency'] as String;
+          final currencyCode = s['currency'] as String;
+          final currency = nomDevise(currencyCode);
           final gain     = stake * widget.oddsRecommended;
           final confidence = (s['confidence_score'] as num?)?.toInt() ?? widget.confidenceScore;
           final percent = (s['stake_percent'] as num?)?.toDouble() ?? (confidence >= 5 ? 5.0 : confidence >= 3 ? 3.0 : 1.5);
@@ -386,7 +387,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                     color: context.cl.success, size: 13),
                   const SizedBox(width: 6),
                   Expanded(child: Text(
-                    tr(context, "Barème imposé : 1–2/5 → 1,5 % · 3–4/5 → 3 % · 5/5 → 5 %. Calcul sur le solde disponible, arrondi à l’unité monétaire inférieure."),
+                    tr(context, "Barème fixe selon la confiance de l’analyste : 1–39 % → 1,5 % du solde · 40–79 % → 3 % · 80–99 % → 5 %. Montant arrondi à l’unité inférieure."),
                     style: TextStyle(color: context.cl.textS, fontSize: 11))),
                 ]),
               ]),
@@ -397,7 +398,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
             // Gain potentiel + solde restant
             Row(children: [
               Expanded(child: _InfoChip(
-                label: tr(context, "Retour si gagné"),
+                label: tr(context, "Retour brut si gagné"),
                 value: '${montantExact(gain)} $currency',
                 color: AppColors.primary)),
               const SizedBox(width: 10),
@@ -443,7 +444,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
 
             // Bouton confirmer
             GestureDetector(
-              onTap: (_loading || _alreadyBet || !canSubmit) ? null : () => _submit(stake, currency),
+              onTap: (_loading || _alreadyBet || !canSubmit) ? null : () => _submit(stake, currencyCode),
               child: AnimatedContainer(
                 duration: 200.ms,
                 width: double.infinity, height: 54,
@@ -465,7 +466,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                       Icon(Icons.check_circle_rounded,
                         color: Colors.white, size: 20),
                       SizedBox(width: 8),
-                      Flexible(child: Text(tr(context, "Confirmer la mise"), textAlign: TextAlign.center, style: TextStyle(
+                      Flexible(child: Text(tr(context, "Enregistrer dans mon suivi"), textAlign: TextAlign.center, style: TextStyle(
                         color: Colors.white, fontSize: 16,
                         fontWeight: FontWeight.w700))),
                     ])),

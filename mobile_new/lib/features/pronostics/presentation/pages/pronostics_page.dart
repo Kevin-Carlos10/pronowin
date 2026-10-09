@@ -412,7 +412,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                       favLeagues: favState.ligues,
                       isPremium: isPremium),
                   ..._buildTierSection(context,
-                      label:    tr(context, "Analyse en cours"),
+                      label:    tr(context, "Sans analyse publiée"),
                       icon:     Icons.hourglass_top_rounded,
                       color:    context.cl.textM,
                       matches:  analysisMatches,

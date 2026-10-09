@@ -568,7 +568,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
               // Un bandeau pleine largeur donne l'illusion qu'il y a la place,
               // mais son contenu n'en sait rien.
               Flexible(
-                child: Text(tr(context, "Analyse en cours..."),
+                child: Text(tr(context, "Aucune analyse publiée"),
                   style: TextStyle(
                     color: context.cl.textM,
                     fontSize: 12,

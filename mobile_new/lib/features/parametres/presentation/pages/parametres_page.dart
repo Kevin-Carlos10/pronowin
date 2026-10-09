@@ -115,7 +115,7 @@ class ParametresPage extends ConsumerWidget {
               icon: Icons.pin_rounded, iconColor: context.cl.success,
               title: tr(context, "Code PIN"),
               subtitle: settings.pinEnabled
-                ? tr(context, "Actif — l'app se verrouille à la fermeture")
+                ? tr(context, "Actif — au démarrage et après 30 s en arrière-plan")
                 : tr(context, "Protéger l'app avec un code à 4 chiffres"),
               value: settings.pinEnabled,
               onChanged: (v) async {
@@ -135,7 +135,7 @@ class ParametresPage extends ConsumerWidget {
                 title: tr(context, "Biométrie"),
                 subtitle: available
                   ? (settings.bioEnabled
-                      ? tr(context, "Actif — déverrouillage par empreinte")
+                      ? tr(context, "Actif — biométrie de cet appareil")
                       : tr(context, "Déverrouiller avec empreinte / Face ID"))
                   : tr(context, "Non disponible sur cet appareil"),
                 value: settings.bioEnabled && available,
@@ -192,8 +192,8 @@ class ParametresPage extends ConsumerWidget {
 
             _NavTile(
               icon: Icons.devices_rounded, iconColor: context.cl.info,
-              title: tr(context, "Sessions actives"),
-              subtitle: tr(context, "Voir et gérer tes connexions"),
+              title: tr(context, "Cet appareil"),
+              subtitle: tr(context, "Consulter la connexion sur ce téléphone"),
               onTap: () => _showSessionsSheet(context),
             ),
           ]).animate(delay: 180.ms).fadeIn(duration: 300.ms)
@@ -437,7 +437,7 @@ class ParametresPage extends ConsumerWidget {
     );
   }
 
-  // ─── Bottom sheet : Sessions actives ──────────────────────────────────────────
+  // ─── Bottom sheet : Cet appareil ──────────────────────────────────────────
   void _showSessionsSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -457,7 +457,7 @@ class ParametresPage extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(12)),
               child: Icon(Icons.devices_rounded, color: context.cl.info, size: 22)),
             const SizedBox(width: 14),
-            Text(tr(context, "Sessions actives"), style: TextStyle(
+            Text(tr(context, "Cet appareil"), style: TextStyle(
               color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
           ]),
           const SizedBox(height: 20),
@@ -491,7 +491,7 @@ class ParametresPage extends ConsumerWidget {
           ),
           const SizedBox(height: 12),
           Text(
-            tr(context, "Pour sécuriser ton compte, déconnecte-toi si tu reconnais une session suspecte."),
+            tr(context, "Cet écran affiche uniquement ce téléphone. Il ne liste pas les connexions sur tes autres appareils."),
             style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.5),
             textAlign: TextAlign.center),
           const SizedBox(height: 20),

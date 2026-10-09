@@ -201,7 +201,16 @@ class IapService {
   /// l'utilisateur peut fermer l'app pendant la transaction et celle-ci
   /// aboutira quand même.
   Future<void> buy(ProductDetails product) async {
-    final param = PurchaseParam(productDetails: product);
+    // Ne pas lancer de débit sans pouvoir le rattacher à la session courante.
+    final context = await _dio.post('/subscriptions/iap/purchase-context');
+    final binding = context.data[Platform.isIOS ? 'apple' : 'google'];
+    if (binding is! String || binding.isEmpty) {
+      throw StateError('Identifiant du compte indisponible pour cet achat.');
+    }
+    final param = PurchaseParam(
+      productDetails: product,
+      applicationUserName: binding,
+    );
     await _iap.buyNonConsumable(purchaseParam: param);
   }
 

@@ -269,7 +269,7 @@ class _BankrollView extends StatelessWidget {
           // ── Stats rapides ─────────────────────────────────────────────
           Row(children: [
             Expanded(child: _StatChip(
-              label: tr(context, "Paris"),
+              label: tr(context, "Paris tranchés"),
               value: '${settled.length}',
               icon:  Icons.receipt_long_rounded,
               color: context.cl.info,
@@ -287,7 +287,7 @@ class _BankrollView extends StatelessWidget {
               // juste en dessous dit déjà « Taux de réussite dès le prochain
               // pari tranché » : l'étiquette et son explication ne parlaient
               // pas la même langue.
-              label: tr(context, "Taux de réussite"),
+              label: tr(context, "Réussite personnelle"),
               // Sous le seuil, un tiret plutôt qu'un chiffre : les comptes
               // bruts « 1 gagné / 1 perdu » restent affichés juste à côté.
               value: winRate == null ? '—' : '${winRate.toStringAsFixed(0)}%',
@@ -1024,21 +1024,21 @@ class _BetCard extends StatelessWidget {
             ],
           ])),
           const SizedBox(width: 8),
-          Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-            Text('−${montantExact(bet.stakedAmount)}',
+          Flexible(child: Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Text(tr(context, "Mise {arg0}", [montantExact(bet.stakedAmount)]),
               style: TextStyle(color: context.cl.textP, fontSize: 12,
                   fontWeight: FontWeight.w700)),
             const SizedBox(height: 3),
             if (bet.profit != null)
               Text(
-                '${bet.profit! >= 0 ? '+' : ''}${montantExact(bet.profit!)}',
+                tr(context, "Net {arg0}", ['${bet.profit! >= 0 ? '+' : ''}${montantExact(bet.profit!)}']),
                 style: TextStyle(
                   color: bet.profit! >= 0 ? context.cl.success : context.cl.error,
                   fontSize: 12, fontWeight: FontWeight.w700))
             else
-              Text('→ ${montantExact(bet.potentialGain)}',
+              Text(tr(context, "Brut potentiel {arg0}", [montantExact(bet.potentialGain)]),
                 style: TextStyle(color: context.cl.textM, fontSize: 11)),
-          ]),
+          ])),
         ]),
       ),
     ));

@@ -556,7 +556,7 @@ class _PremiumBanner extends ConsumerWidget {
       // La formulation suit maintenant ce que la donnée mesure. La rendre
       // hebdomadaire pour de bon serait un autre changement : il faudrait
       // filtrer côté serveur, et le nombre annoncé s'en trouverait modifié.
-      headline = tr(context, "{arg0}% de réussite sur nos pronostics publiés", [winRate.toStringAsFixed(0)]);
+      headline = tr(context, "{arg0}% de réussite sur nos pronostics publiés — historique complet", [winRate.toStringAsFixed(0)]);
     } else if (vipList.length > 1) {
       headline = nbGrosseCote > 0
           ? tr(context, "{arg0} pronos VIP aujourd'hui, dont {arg1} à cote supérieure à 2", [vipList.length, nbGrosseCote])

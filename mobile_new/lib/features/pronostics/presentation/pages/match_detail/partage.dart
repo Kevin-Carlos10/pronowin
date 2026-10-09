@@ -178,6 +178,9 @@ class _ShareSheetState extends State<_ShareSheet> {
             ),
             const SizedBox(height: 12),
 
+            Text(tr(context, "Partager le texte et le lien du site uniquement (sans l’image)"),
+              textAlign: TextAlign.center, style: TextStyle(color: context.cl.textS, fontSize: 12)),
+            const SizedBox(height: 8),
             // ── Boutons alternatifs ──────────────────────────────────────────
             Row(children: [
               Expanded(child: _ShareBtn(
@@ -212,7 +215,7 @@ class _ShareSheetState extends State<_ShareSheet> {
                 onTap: () {
                   Clipboard.setData(ClipboardData(text: text));
                   Navigator.pop(context);
-                  afficherMessage(context, tr(context, "Pronostic copié !"), duree: Duration(seconds: 2));
+                  afficherMessage(context, tr(context, "Texte et lien copiés !"), duree: Duration(seconds: 2));
                 },
               )),
             ]),

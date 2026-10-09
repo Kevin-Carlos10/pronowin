@@ -9,6 +9,7 @@ import '../../../../core/widgets/image_distante.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../../../shared/utils/montant.dart';
 import '../../../../shared/widgets/erreur_chargement.dart';
+import '../../../../shared/widgets/skeletons.dart';
 import '../../../joueurs/presentation/pages/fiche_joueur_page.dart';
 import '../providers/fiche_equipe_provider.dart';
 
@@ -79,7 +80,12 @@ class FicheEquipePage extends ConsumerWidget {
       body: fiche.when(
         loading: () => ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 32), children: [
           _EnTete(nom: apercu?.nom ?? '', logo: apercu?.logo),
-          const Padding(padding: EdgeInsets.only(top: 40), child: Center(child: CircularProgressIndicator())),
+          const SizedBox(height: 16),
+          Text(tr(context, "Chargement des statistiques de l’équipe…"), style: TextStyle(color: cl.textS)),
+          const SizedBox(height: 16),
+          const SkeletonBox(height: 120),
+          const SizedBox(height: 16),
+          const SkeletonBox(height: 160),
         ]),
         error: (e, _) => e is EquipeIntrouvable
           ? Center(child: Padding(

@@ -96,16 +96,16 @@ void main() {
     });
   });
 
-  group("sans libellé, la barre ne grandit plus avec les caractères", () {
+  group("les libellés agrandis gardent leur place", () {
     // Elle suivait l'échelle de texte pour qu'un libellé agrandi ne déborde
     // pas. Depuis qu'elle suit le modèle d'Instagram (icônes seules), rien
     // n'y grandit : une barre plus haute volerait de la place au contenu.
-    testWidgets('même hauteur à 100 % et à 150 %', (tester) async {
+    testWidgets('hauteur adaptée à 100 % et à 150 %', (tester) async {
       final normal = await mesurer(tester);
       final grand  = await mesurer(tester, echelleTexte: 1.5);
-      expect(grand.hauteur, normal.hauteur);
+      expect(grand.hauteur, greaterThan(normal.hauteur));
       // Celle de Threads.
-      expect(normal.hauteur, 61);
+      expect(normal.hauteur, greaterThanOrEqualTo(64));
     });
 
     testWidgets('et la place réservée la couvre toujours', (tester) async {

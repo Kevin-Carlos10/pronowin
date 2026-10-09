@@ -99,10 +99,19 @@ void main() {
 
     testWidgets('en anglais, le bouton est traduit', (t) async {
       await _monter(t, _app(barreDeVoteSeule(
-        const PronosticVoteData(agree: 1, disagree: 0, total: 1)), langue: 'en'));
+        const PronosticVoteData(agree: 6, disagree: 2, total: 8)), langue: 'en'));
       expect(find.text('Agree'), findsOneWidget);
       expect(find.text("D'accord"), findsNothing);
-      expect(find.text('100% agree'), findsOneWidget);
+      expect(find.text('75% agree'), findsOneWidget);
+      expect(find.text('8 votes'), findsOneWidget);
+    });
+
+    testWidgets('sous cinq votes, des nombres bruts plutôt qu’un pourcentage', (t) async {
+      // « 100 % d'accord » sur une seule voix promettrait un consensus.
+      await _monter(t, _app(barreDeVoteSeule(
+        const PronosticVoteData(agree: 1, disagree: 0, total: 1))));
+      expect(find.text('1 sur 1 d’accord'), findsOneWidget);
+      expect(find.textContaining('%'), findsNothing);
       expect(find.text('1 vote'), findsOneWidget);
     });
   });

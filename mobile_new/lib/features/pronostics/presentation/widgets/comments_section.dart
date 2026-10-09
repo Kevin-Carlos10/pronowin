@@ -254,16 +254,16 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
                 borderRadius: BorderRadius.circular(10)),
               child: Icon(Icons.forum_rounded, color: context.cl.info, size: 16)),
             const SizedBox(width: 10),
-            Text(tr(context, "Avis de la communauté"),
+            Expanded(child: Text(tr(context, "Avis de la communauté"),
               style: TextStyle(color: context.cl.textP, fontSize: 13,
-                  fontWeight: FontWeight.w700)),
-            const Spacer(),
-            commentsAsync.when(
+                  fontWeight: FontWeight.w700))),
+            const SizedBox(width: 8),
+            Flexible(child: commentsAsync.when(
               loading: () => const SizedBox.shrink(),
               error:   (_, _) => const SizedBox.shrink(),
-              data: (d) => Text('${d.comments.length}',
+              data: (d) => Text(AppStrings.of(context).count(d.comments.length, one: "{arg0} commentaire", other: "{arg0} commentaires"),
                 style: TextStyle(color: context.cl.textM, fontSize: 12)),
-            ),
+            )),
           ]),
         ),
 
@@ -425,7 +425,7 @@ class _VoteBar extends StatelessWidget {
           Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
             Expanded(
               child: Text(
-                tr(context, "{arg0} d'accord", [
+                total < 5 ? tr(context, "{arg0} sur {arg1} d’accord", [vote.agree, total]) : tr(context, "{arg0} d'accord", [
                   AppStrings.of(context).locale.languageCode == 'en'
                       ? '${(agreePct * 100).round()}%'
                       : '${(agreePct * 100).round()}\u00A0%']),

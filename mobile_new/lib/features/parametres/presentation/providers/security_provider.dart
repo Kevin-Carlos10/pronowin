@@ -21,11 +21,11 @@ class SecurityState {
 
 // ─── Notifier ─────────────────────────────────────────────────────────────────
 class SecurityNotifier extends StateNotifier<SecurityState> {
-  SecurityNotifier() : super(const SecurityState()) {
+  SecurityNotifier(this._auth) : super(const SecurityState()) {
     _checkBioAvailability();
   }
 
-  final _auth = LocalAuthentication();
+  final LocalAuthentication _auth;
 
   /// Vérifie si la biométrie est disponible sur l'appareil
   Future<void> _checkBioAvailability() async {
@@ -33,6 +33,7 @@ class SecurityNotifier extends StateNotifier<SecurityState> {
       final canCheck = await _auth.canCheckBiometrics;
       final isSupported = await _auth.isDeviceSupported();
       final biometrics = canCheck ? await _auth.getAvailableBiometrics() : <BiometricType>[];
+      if (!mounted) return;
       state = SecurityState(
         bioAvailable: canCheck && isSupported,
         biometrics:   biometrics,
@@ -116,8 +117,10 @@ Future<bool> doitVerrouiller({
   return pinStore.hasPin();
 }
 
+final localAuthenticationProvider = Provider<LocalAuthentication>((ref) => LocalAuthentication());
+
 final securityProvider = StateNotifierProvider<SecurityNotifier, SecurityState>(
-  (_) => SecurityNotifier());
+  (ref) => SecurityNotifier(ref.read(localAuthenticationProvider)));
 
 // ─── Provider accessibilité biométrie ─────────────────────────────────────────
 final bioAvailableProvider = FutureProvider<bool>((ref) async {
