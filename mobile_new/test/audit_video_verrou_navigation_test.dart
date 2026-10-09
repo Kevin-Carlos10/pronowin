@@ -107,7 +107,10 @@ void main() {
   });
 
   for (final theme in [AppTheme.light, AppTheme.dark]) {
-    testWidgets('navigation lisible à 320 px et texte agrandi ${theme.brightness}', (tester) async {
+    // Icônes seules, comme Instagram (choix confirmé le 9 octobre 2026) : les
+    // noms ne s'affichent pas, mais chaque onglet reste nommé pour les
+    // lecteurs d'écran et sur un appui long.
+    testWidgets('navigation à 320 px et texte agrandi ${theme.brightness}', (tester) async {
       tester.view.physicalSize = const Size(320, 700);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
@@ -116,9 +119,13 @@ void main() {
         MediaQuery(data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.8)), child: child!),
         home: Scaffold(bottomNavigationBar: barreNavigationSeule())));
       await tester.pumpAndSettle();
+      final semantique = tester.ensureSemantics();
       for (final label in ['Accueil', 'Pronos', 'Bankroll', 'Tutoriels', 'Compte']) {
-        expect(find.text(label), findsOneWidget);
+        expect(find.text(label), findsNothing);
+        expect(find.bySemanticsLabel(label), findsOneWidget);
+        expect(find.byTooltip(label), findsOneWidget);
       }
+      semantique.dispose();
       expect(tester.takeException(), isNull);
     });
   }

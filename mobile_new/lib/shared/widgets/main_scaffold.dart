@@ -59,6 +59,8 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   ];
 
   // Au trait au repos, pleine quand l'onglet est ouvert — comme Instagram.
+  // Le ballon remplace la courbe de « Pronos » : sans libellé, l'icône doit
+  // dire seule de quoi parle l'onglet.
   static const _navItems = [
     _NavItemData(icon: Icons.home_outlined,                   active: Icons.home_rounded,                   label: 'Accueil'),
     _NavItemData(icon: Icons.sports_soccer_outlined,          active: Icons.sports_soccer,                  label: 'Pronos'),
@@ -160,7 +162,13 @@ class _NavItemData {
 }
 
 // ─── FLOATING NAV BAR ─────────────────────────────────────────────────────────
-/// Navigation avec noms visibles, état sélectionné et annonces accessibles.
+/// La barre façon Instagram : une capsule flottante, translucide, des icônes
+/// sans libellé ; l'onglet ouvert a son icône pleine, posée sur une pastille
+/// grise qui glisse d'un onglet à l'autre.
+///
+/// Sans libellé — c'est le choix du produit, rappelé le 9 octobre 2026 après
+/// une correction qui les avait remis. Chaque case garde son nom pour les
+/// lecteurs d'écran (`Semantics`), et l'affiche sur un appui long (`Tooltip`).
 class _FloatingNavBar extends StatelessWidget {
   final int currentIndex;
   final List<_NavItemData> items;
@@ -285,25 +293,23 @@ class _NavItemWidget extends StatelessWidget {
           onTap: onTap,
           behavior: HitTestBehavior.opaque,
           child: ExcludeSemantics(
-            child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-              AnimatedBuilder(
+            child: Center(
+              child: AnimatedBuilder(
                 animation: scale,
                 builder: (_, child) => Transform.scale(scale: scale.value, child: child),
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 180),
+                  // Noir, comme Instagram : l'état se lit à l'icône pleine et
+                  // à la pastille, pas à une couleur.
                   child: Icon(
                     isSelected ? item.active : item.icon,
                     key: ValueKey(isSelected),
-                    color: isSelected ? AppColors.primaryBouton : context.cl.textS,
+                    color: context.cl.textP,
                     size: BottomNavMetrics.tailleIcone,
                   ),
                 ),
               ),
-              const SizedBox(height: 3),
-              Text(nom, maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontSize: 10, fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                  color: isSelected ? AppColors.primaryBouton : context.cl.textS)),
-            ]),
+            ),
           ),
         ),
       ),
