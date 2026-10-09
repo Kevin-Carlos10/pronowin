@@ -26,15 +26,18 @@ let matchStatut = 'SCHEDULED';
 
 jest.mock('../lib/prisma', () => {
   const prisma: any = {
+    $queryRaw: jest.fn(async () => []),
     match: {
       findUnique: jest.fn(async ({ where }: any) => {
         ecritures.push('lecture:match');
         return { id: where.id, status: matchStatut };
       }),
+      findUniqueOrThrow: jest.fn(async ({ where }: any) => ({ id: where.id, status: matchStatut })),
       update: jest.fn(async () => { ecritures.push('match.update'); return {}; }),
     },
     pronostic: {
       findUnique: jest.fn(async ({ where }: any) => pronostics[where.id] ?? null),
+      findUniqueOrThrow: jest.fn(async ({ where }: any) => pronostics[where.id]),
       upsert: jest.fn(async ({ create }: any) => {
         ecritures.push('pronostic.upsert');
         const p = { id: 'p-' + create.matchId, ...create };

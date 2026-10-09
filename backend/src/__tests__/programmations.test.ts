@@ -1,3 +1,4 @@
+import { nettoyerPublications } from './aides/nettoyer_publications';
 /**
  * Publier un pronostic, envoyer une notification — à une heure choisie.
  *
@@ -86,7 +87,7 @@ afterAll(async () => {
   await prisma.programmation.deleteMany({ where: { OR: [
     { id: { in: programmations } }, { charge: { path: ['title'], string_contains: marque } },
   ] } });
-  await prisma.pronostic.deleteMany({ where: { matchId: { in: matchs } } });
+  await nettoyerPublications({ matchId: { in: matchs } });
   await prisma.match.deleteMany({ where: { id: { in: matchs } } });
   if (adminDeBanc) await prisma.admin.delete({ where: { id: adminDeBanc } });
   await prisma.$disconnect();

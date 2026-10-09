@@ -14,7 +14,7 @@ import { apiFootballService, apiFootballInsights, fichesJoueurs, fichesEquipes }
 import { CLASSEMENTS_JOUEURS, type ClassementJoueurs } from '../services/api_football_insights.service';
 import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
 import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
-import { repondreErreur } from '../utils/erreurs';
+import { repondreErreur, ErreurMetier } from '../utils/erreurs';
 import {
   niveauDepuisPourcentage, pourcentageConfiance, pourcentageDepuisNiveau, POURCENTAGE_MAX, POURCENTAGE_MIN,
 } from '../utils/confiance';
@@ -163,13 +163,13 @@ export const getBilanPremium = async (req: AuthRequest, res: Response) => {
     const [gagnes, perdus] = await Promise.all([
       prisma.pronostic.count({
         where: {
-          isPremium: true, isPublished: true, result: 'WIN',
+          isPremium: true, publicationRecordedAt: { not: null }, result: 'WIN',
           match: { status: 'FINISHED', matchDate: { gte: depuis } },
         },
       }),
       prisma.pronostic.count({
         where: {
-          isPremium: true, isPublished: true, result: 'LOSS',
+          isPremium: true, publicationRecordedAt: { not: null }, result: 'LOSS',
           match: { status: 'FINISHED', matchDate: { gte: depuis } },
         },
       }),
@@ -203,7 +203,7 @@ export const getPerformance = async (req: AuthRequest, res: Response) => {
 
     const pronostics = await prisma.pronostic.findMany({
       where: {
-        isPublished: true,
+        publicationRecordedAt: { not: null },
         result:      { not: null },
         match:       { status: 'FINISHED', matchDate: { gte: since } },
       },
@@ -357,7 +357,7 @@ export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
           })
         : Promise.resolve(null),
     ]);
-    if (!prono || !prono.isPublished) {
+    if (!prono || (!prono.isPublished && !(prono.publicationRecordedAt && prono.match.status === 'FINISHED'))) {
       const match = prono?.match ?? await prisma.match.findUnique({ where: { id: req.params.id } });
       if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
       res.json({ id: match.id, league: match.league, league_country: match.leagueCode,
@@ -548,7 +548,7 @@ export const upsertPronostic = async (req: AdminRequest, res: Response) => {
 export const togglePublish = async (req: AdminRequest, res: Response) => {
   try {
     const publish = req.body.publish === true || req.body.publish === 'true';
-    const p = await svc.togglePublish(req.params.id, publish);
+    const p = await svc.togglePublish(req.params.id, publish, req.adminId);
     // Notifier seulement à la publication (pas à la dépublication)
     if (publish) {
       const prono = await prisma.pronostic.findUnique({
@@ -620,9 +620,17 @@ export const setPronosticResult = async (req: AdminRequest, res: Response) => {
     if (result !== 'WIN' && result !== 'LOSS' && result !== 'PUSH' && result !== null) {
       res.status(400).json({ message: 'result doit être WIN, LOSS, PUSH ou null.' }); return;
     }
-    const p = await prisma.pronostic.update({
-      where: { id: req.params.id },
-      data:  { result },
+    const p = await prisma.$transaction(async tx => {
+      if (result === null) {
+        const ancien = await tx.pronostic.findUnique({ where: { id: req.params.id } });
+        if (ancien?.publicationRecordedAt && ancien.result !== null) {
+          throw new ErreurMetier('Un résultat publié reste dans le bilan. Corrigez son verdict si nécessaire.', 409);
+        }
+      }
+      await tx.$queryRaw`SELECT set_config('pronowin.actor', ${req.adminId ?? 'admin:inconnu'}, true)`;
+      return tx.pronostic.update({
+        where: { id: req.params.id }, data: { result },
+      });
     });
     cache.del('pronostics:');
     cache.del(CACHE_KEYS.publicStats);
@@ -654,7 +662,7 @@ export const getHistory = async (req: AuthRequest, res: Response) => {
 
     const pronostics = await prisma.pronostic.findMany({
       where: {
-        isPublished: true,
+        publicationRecordedAt: { not: null },
         result:      { not: null },
         match:       { status: 'FINISHED', matchDate: { gte: since } },
       },
@@ -673,6 +681,8 @@ export const getHistory = async (req: AuthRequest, res: Response) => {
 
     res.json(pronostics.map(p => ({
       id:              p.id,
+      withdrawn:       !p.isPublished,
+      publication_recorded_at: p.publicationRecordedAt,
       predictionLabel: p.predictionLabel,
       predictionType:  p.predictionType,
       oddsRecommended: p.oddsRecommended,
@@ -1208,6 +1218,7 @@ export const getMatchFromDB = async (req: AdminRequest, res: Response) => {
         createdAt:         p.createdAt,
         updatedAt:         p.updatedAt,
         publishedAt:       p.publishedAt,
+        publicationRecordedAt: p.publicationRecordedAt,
       } : null,
     });
   } catch (e: any) { repondreErreur(res, e); }

@@ -164,7 +164,7 @@ export async function resumeFiabilite(params: { jours?: number | null } = {}) {
   const jours = params.jours && params.jours > 0 ? Math.min(params.jours, 3650) : null;
   const lignes = await prisma.pronostic.findMany({
     where: {
-      isPublished: true,
+      publicationRecordedAt: { not: null },
       result: { in: ['WIN', 'LOSS', 'PUSH'] },
       ...(jours ? { match: { matchDate: { gte: new Date(Date.now() - jours * 86_400_000) } } } : {}),
     },

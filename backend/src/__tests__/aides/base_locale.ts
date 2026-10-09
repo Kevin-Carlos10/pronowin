@@ -16,11 +16,12 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 const url = process.env.DATABASE_URL ?? '';
-export const BASE_LOCALE = /@(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\//.test(url);
+export const BASE_LOCALE = /@(localhost|127\.0\.0\.1|\[::1\])(:\d+)?\//.test(url)
+  && /\/(pronowin_banc|pronowin_audit_test)(?:\?|$)/.test(url);
 
 if (!BASE_LOCALE) {
   // eslint-disable-next-line no-console
-  console.warn('[bancs] DATABASE_URL ne désigne pas une base locale : bancs sur base réelle sautés.');
+  console.warn('[bancs] DATABASE_URL ne désigne pas une base locale dédiée (pronowin_banc/pronowin_audit_test) : bancs sur base réelle sautés.');
 }
 
 /** `describe`, ou `describe.skip` hors base locale. */

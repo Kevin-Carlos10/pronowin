@@ -15,7 +15,7 @@ const { copier, RETENTION_JOURS } = require('../../../exploitation/pronowin-copi
 
 /** Les commandes S3, réduites à leur nom et à leurs paramètres. */
 const cmd = Object.fromEntries(
-  ['PutObjectCommand', 'DeleteObjectCommand', 'ListObjectsV2Command'].map((n) =>
+  ['GetPublicAccessBlockCommand', 'PutObjectCommand', 'DeleteObjectCommand', 'ListObjectsV2Command'].map((n) =>
     [n, class { constructor(public input: any) {} static nom = n; }]));
 
 function faux(objetsExistants: { Key: string; LastModified: Date }[] = []) {
@@ -23,6 +23,10 @@ function faux(objetsExistants: { Key: string; LastModified: Date }[] = []) {
   const s3 = {
     send: async (c: any) => {
       envois.push({ nom: c.constructor.nom, input: c.input });
+      if (c.constructor.nom === 'GetPublicAccessBlockCommand') return {
+        PublicAccessBlockConfiguration: { BlockPublicAcls: true, IgnorePublicAcls: true,
+          BlockPublicPolicy: true, RestrictPublicBuckets: true },
+      };
       if (c.constructor.nom === 'ListObjectsV2Command') return { Contents: objetsExistants };
       return {};
     },
@@ -79,14 +83,14 @@ describe('copie distante (O4)', () => {
   it(`au-delà de ${RETENTION_JOURS} jours, les copies distantes sont retirées`, async () => {
     const jours = (n: number) => new Date(maintenant.getTime() - n * 86400000);
     const { s3, envois } = faux([
-      { Key: 'prod/ancien.dump.enc', LastModified: jours(RETENTION_JOURS + 1) },
-      { Key: 'prod/recent.dump.enc', LastModified: jours(2) },
+      { Key: 'prod/pronowin_2026-08-01_0230.dump.enc', LastModified: jours(RETENTION_JOURS + 1) },
+      { Key: 'prod/pronowin_2026-09-23_0230.dump.enc', LastModified: jours(2) },
     ]);
     const r = await copier({ config, fichiers: [dump], s3, cmd, chiffrerFichier, maintenant, lire: async () => 403 });
 
     const retires = envois.filter((e) => e.nom === 'DeleteObjectCommand').map((e) => e.input.Key);
-    expect(retires).toContain('prod/ancien.dump.enc');
-    expect(retires).not.toContain('prod/recent.dump.enc');
+    expect(retires).toContain('prod/pronowin_2026-08-01_0230.dump.enc');
+    expect(retires).not.toContain('prod/pronowin_2026-09-23_0230.dump.enc');
     expect(r.supprimes).toBe(1);
   });
 
@@ -96,4 +100,22 @@ describe('copie distante (O4)', () => {
       chiffrerFichier: () => { /* rien d'écrit */ } })).rejects.toThrow(/sans résultat/);
     expect(envois.some((e) => e.nom === 'PutObjectCommand' && e.input.Key.endsWith('.enc'))).toBe(false);
   });
+});
+
+it.each(['absent', 'incomplet', 'interdit'])('refuse un contrôle de blocage public %s avant tout envoi', async mode => {
+  const { s3, envois } = faux();
+  const envoyer = s3.send;
+  s3.send = async (commande: any) => {
+    if (commande.constructor.nom === 'GetPublicAccessBlockCommand') {
+      if (mode === 'interdit') throw new Error('AccessDenied');
+      return (mode === 'absent' ? {} : {
+        PublicAccessBlockConfiguration: { BlockPublicAcls: true, IgnorePublicAcls: true,
+          BlockPublicPolicy: true, RestrictPublicBuckets: false },
+      }) as any;
+    }
+    return envoyer(commande);
+  };
+  await expect(copier({ config, fichiers: [dump], s3, cmd, chiffrerFichier, maintenant,
+    lire: async () => 403 })).rejects.toThrow();
+  expect(envois.some(e => e.nom === 'PutObjectCommand')).toBe(false);
 });

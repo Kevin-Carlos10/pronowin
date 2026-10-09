@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
-import { IapService, IAP_PRODUCTS, IapStoreName } from '../services/iap.service';
+import { IapService, IAP_PRODUCTS, IapStoreName, identifiantsAchat } from '../services/iap.service';
 import {
   FileNotificationsIap, identifiantApple, identifiantGoogle,
 } from '../services/iap_notifications.service';
@@ -9,6 +9,12 @@ import { repondreErreur } from '../utils/erreurs';
 
 const svc = new IapService();
 const file = new FileNotificationsIap(svc);
+
+/** POST authentifié : pas de cache partagé ni de repli sur un ancien compte. */
+export const purchaseContext = (req: AuthRequest, res: Response) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json(identifiantsAchat(req.userId!));
+};
 
 /**
  * GET /subscriptions/iap/products
@@ -37,7 +43,7 @@ export const verify = async (req: AuthRequest, res: Response) => {
   if (store !== 'apple' && store !== 'google') {
     res.status(422).json({ message: 'store doit valoir « apple » ou « google ».' }); return;
   }
-  if (!receipt?.trim()) {
+  if (typeof receipt !== 'string' || !receipt.trim()) {
     res.status(422).json({ message: 'receipt requis.' }); return;
   }
 

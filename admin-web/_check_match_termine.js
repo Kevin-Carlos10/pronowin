@@ -24,7 +24,13 @@ const griefs = [];
 (async () => {
   let termines = 0, ouverts = 0;
 
-  for (const [nom, vue, locals] of views) {
+  const base = views.find(([nom]) => nom === 'pronostic_form (edit)');
+  const publieAvantMatch = ['publication figée avant match', 'pronostic_form', {
+    ...base[2], match: { ...base[2].match, status: 'SCHEDULED',
+      pronostic: { ...base[2].match.pronostic, is_published: true,
+        publicationRecordedAt: '2026-10-08T12:00:00Z' } },
+  }];
+  for (const [nom, vue, locals] of [...views, publieAvantMatch]) {
     if (vue !== 'pronostic_form') continue;
     let html;
     try { html = await ejs.renderFile('views/pronostic_form.ejs', locals, opts); }
@@ -38,7 +44,7 @@ const griefs = [];
     const soumissions = pf.querySelectorAll('button[type="submit"]').length;
     const jeu = pf.querySelector('fieldset');
 
-    if (fini) {
+    if (fini || locals.match?.pronostic?.publicationRecordedAt) {
       termines++;
       if (soumissions > 0) {
         griefs.push(`${nom} : ${soumissions} bouton(s) de soumission sur un match `
@@ -63,15 +69,13 @@ const griefs = [];
       if (!/verrouill|n'est plus modifiable/i.test(texte)) {
         griefs.push(`${nom} : rien n'explique pourquoi le formulaire est inerte.`);
       }
-      // C'est le **libellé du bouton** qui doit nommer l'effet, pas une
-      // mention ailleurs dans la page : chercher le texte n'importe où laissait
-      // passer un bouton renommé tant que le bandeau y faisait référence.
-      const boutonBilan = d.querySelectorAll('button')
-        .some(b => /Retirer du bilan/i.test(b.text));
-      if (locals.match?.pronostic?.result && !boutonBilan) {
-        griefs.push(`${nom} : l'action qui retire le pronostic des statistiques `
-                  + `n'est pas nommée sur son bouton — « Réinitialiser » ne `
-                  + `laissait pas deviner qu'elle répondait à ce besoin.`);
+      if (d.querySelector('input[name="result"][value="null"]')) {
+        griefs.push(nom + ' : un résultat peut encore être retiré du bilan.');
+      }
+      const corrections = d.querySelectorAll('input[name="result"]')
+        .map(input => input.getAttribute('value'));
+      if (fini && locals.match?.pronostic?.id && !['WIN','LOSS','PUSH'].every(v => corrections.includes(v))) {
+        griefs.push(nom + ' : une correction de verdict manque.');
       }
     } else {
       ouverts++;
@@ -92,7 +96,7 @@ const griefs = [];
     return;
   }
 
-  console.log(`${termines} match(s) terminé(s) et ${ouverts} ouvert(s) examinés`);
+  console.log(`${termines} formulaire(s) verrouillé(s) et ${ouverts} ouvert(s) examinés`);
   if (griefs.length === 0) {
     console.log('\nL\'écran refuse ce que le serveur refuse, et le dit.');
   } else {

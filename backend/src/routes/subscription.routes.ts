@@ -12,6 +12,7 @@ r.get('/plans', C.getPlans);
 
 // ── Achat intégré (App Store / Google Play) ───────────────────────────────────
 r.get ('/iap/products', IAP.getProducts);
+r.post('/iap/purchase-context', authMiddleware, IAP.purchaseContext);
 r.post('/iap/verify',   authMiddleware, IAP.verify);
 
 // Webhooks des stores : pas d'authMiddleware, l'authenticité vient de la

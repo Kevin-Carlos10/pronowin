@@ -41,7 +41,18 @@
  * passent par `$transaction` et non par deux appels indépendants — sans quoi
  * aucune isolation ne pourrait les rattraper.
  */
-jest.mock('../lib/prisma', () => require('./aides/base_memoire').creerBase());
+jest.mock('../lib/prisma', () => {
+  const base = require('./aides/base_memoire').creerBase();
+  // La concurrence du verrou est testée sur PostgreSQL dans attribution_achats.
+  // Ce banc de remboursement accepte uniquement cette requête connue.
+  base.prisma.$queryRaw = async (parts: TemplateStringsArray) => {
+    if (parts.join('?') !== 'SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(?, 0))') {
+      throw new Error('Requête SQL non simulée par ce banc.');
+    }
+    return [{ locked: 1 }];
+  };
+  return base;
+});
 
 jest.mock('../services/notification.service', () => ({
   NotificationService: class {
@@ -49,7 +60,7 @@ jest.mock('../services/notification.service', () => ({
   },
 }));
 
-import { IapService } from '../services/iap.service';
+import { IapService, identifiantsAchat } from '../services/iap.service';
 import { SubscriptionService } from '../services/subscription.service';
 
 const { prisma, _base } = require('../lib/prisma');
@@ -71,6 +82,7 @@ function recu(statut: string, expire = DANS_30_JOURS()) {
     status: statut,
     environment: 'Production',
     payload: {},
+    accountBinding: identifiantsAchat('abonne').apple,
   };
 }
 
@@ -171,6 +183,7 @@ describe('une résiliation Google court jusqu\'au terme payé', () => {
   async function verifierGoogle(statut: string, expire = DANS_30_JOURS()) {
     jest.spyOn(iap, 'verifyGoogle').mockResolvedValue({
       ...recu(statut, expire), store: 'google' as const,
+      accountBinding: identifiantsAchat('abonne').google,
       productId: 'com.pronowin.premium.monthly',
     });
     return iap.verifyAndRecord({ userId: 'abonne', store: 'google', receipt: 'jeton-google' });

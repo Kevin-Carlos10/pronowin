@@ -429,6 +429,10 @@ enum MatchSource {
 }
 
 model Pronostic {
+  /// Date de scellement. Pour les anciens pronostics : date de migration,
+  /// jamais présentée comme leur date de publication originale.
+  publicationRecordedAt DateTime? @map("publication_recorded_at")
+  publicationSnapshot Json? @map("publication_snapshot")
   predictionLabelEn String? @map("prediction_label_en")
   analystNoteEn String? @map("analyst_note_en")
   id              String          @id @default(uuid())
@@ -466,11 +470,24 @@ model Pronostic {
   analyst         Admin           @relation(fields: [analystId], references: [id])
   match           Match           @relation(fields: [matchId], references: [id])
 
+  @@index([publicationRecordedAt], map: "pronostics_publication_recorded_idx")
   @@map("pronostics")
 }
 
 /// Versements Mobile Money des gains de parrainage, en attente de validation
 /// par un administrateur. Alimenté uniquement par `ReferralService`.
+model PronosticPublicationEvent {
+  id BigInt @id @default(autoincrement())
+  pronosticId String @map("pronostic_id")
+  action String
+  actor String?
+  beforeState Json? @map("before_state")
+  afterState Json @map("after_state")
+  createdAt DateTime @default(now()) @db.Timestamptz @map("created_at")
+  @@index([pronosticId, createdAt], map: "pronostic_publication_events_prono_idx")
+  @@map("pronostic_publication_events")
+}
+
 model Transaction {
   id            String            @id @default(uuid())
   userId        String            @map("user_id")

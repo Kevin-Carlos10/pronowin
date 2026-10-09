@@ -10,6 +10,7 @@ import { _resolvePronosticResult, type ScoreLine } from './settlement';
 import { resoudrePronostic } from './donnees_reglement';
 import { estVerrouille } from './verrou_pronostic';
 import { construireRecherche } from './recherche_matchs';
+import { ErreurMetier } from '../utils/erreurs';
 import { journal } from '../utils/logger';
 import { nomEquipe, rencontre, traduireEquipes } from '../utils/noms_equipes';
 import { pourcentageConfiance, pourcentageDepuisNiveau } from '../utils/confiance';
@@ -658,7 +659,7 @@ export class PronosticsService {
           }
         }
 
-        if (prono && prono.isPublished && !prono.result) {
+        if (prono && prono.publicationRecordedAt && !prono.result) {
           const result = _resolvePronosticResult(
             prono,
             { home: homeScore, away: awayScore },
@@ -704,7 +705,7 @@ export class PronosticsService {
     //    (cas : pronostic publié après la fin du match, ou serveur redémarré après la fin)
     const unresolvedPronos = await prisma.pronostic.findMany({
       where: {
-        isPublished: true,
+        publicationRecordedAt: { not: null },
         result:      null,
         match:       { status: 'FINISHED', homeScore: { not: null }, awayScore: { not: null } },
       },
@@ -794,6 +795,13 @@ export class PronosticsService {
     };
 
     return prisma.$transaction(async (tx) => {
+      // Même verrou pour les deux chemins de première publication.
+      await tx.$queryRaw`SELECT id FROM matches WHERE id = ${params.matchId} FOR UPDATE`;
+      await tx.$queryRaw`SELECT set_config('pronowin.actor', ${params.analystId}, true)`;
+      const existant = await tx.pronostic.findUnique({ where: { matchId: params.matchId } });
+      if (existant?.publicationRecordedAt) {
+        throw new ErreurMetier('Ce pronostic a déjà été publié : sa sélection, sa cote et son analyse sont figées. Vous pouvez le retirer de la liste, son résultat reste dans le bilan.', 409);
+      }
       const pronostic = await tx.pronostic.upsert({
         where:   { matchId: params.matchId },
         update:  { ...data, updatedAt: new Date() },
@@ -811,31 +819,27 @@ export class PronosticsService {
   }
 
   // ─── ADMIN — Publier / Dépublier ─────────────────────────────────────────────
-  async togglePublish(pronosticId: string, publish: boolean) {
+  async togglePublish(pronosticId: string, publish: boolean, actor?: string) {
     return prisma.$transaction(async (tx) => {
-      // Ce chemin publie sans rien recevoir d'autre qu'un identifiant : la cote
-      // à contrôler est celle qui est enregistrée. Sans cette lecture, un
-      // brouillon à 1,15 — autorisé — deviendrait public par ici en un clic,
-      // et la règle posée dans `upsertPronostic` serait contournée.
-      //
-      // La dépublication n'est jamais bloquée : il faut pouvoir retirer un
-      // pronostic publié avant l'existence de la règle.
-      if (publish) {
-        const existant = await tx.pronostic.findUnique({
-          where:  { id: pronosticId },
-          select: { oddsRecommended: true },
-        });
-        if (!existant) throw new Error('Pronostic introuvable.');
+      const premiereLecture = await tx.pronostic.findUnique({ where: { id: pronosticId } });
+      if (!premiereLecture) throw new ErreurMetier('Pronostic introuvable.', 404);
+      await tx.$queryRaw`SELECT id FROM matches WHERE id = ${premiereLecture.matchId} FOR UPDATE`;
+      if (actor) await tx.$queryRaw`SELECT set_config('pronowin.actor', ${actor}, true)`;
+      const existant = await tx.pronostic.findUniqueOrThrow({ where: { id: pronosticId } });
+      if (publish && !existant.publicationRecordedAt) {
         verifierCotePublication(existant.oddsRecommended);
+        const match = await tx.match.findUniqueOrThrow({ where: { id: existant.matchId } });
+        if (['FINISHED', 'CANCELLED'].includes(match.status)) {
+          throw new ErreurMetier('Impossible de publier après la fin ou l’annulation du match.', 409);
+        }
       }
-
       const pronostic = await tx.pronostic.update({
         where: { id: pronosticId },
-        data:  { isPublished: publish, publishedAt: publish ? new Date() : null },
+        // La date de première publication est conservée, même après un retrait.
+        data: { isPublished: publish },
       });
       await tx.match.update({
-        where: { id: pronostic.matchId },
-        data:  { hasPublishedPronostic: publish },
+        where: { id: pronostic.matchId }, data: { hasPublishedPronostic: publish },
       });
       return pronostic;
     });
@@ -1396,7 +1400,7 @@ export class PronosticsService {
 
     // Tous les pronostics terminés (résultat connu)
     const finished = await prisma.pronostic.findMany({
-      where: { isPublished: true, result: { in: ['WIN', 'LOSS'] } },
+      where: { publicationRecordedAt: { not: null }, result: { in: ['WIN', 'LOSS'] } },
       select: { result: true, publishedAt: true },
       orderBy: { publishedAt: 'desc' },
     });

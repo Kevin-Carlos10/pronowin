@@ -1,4 +1,6 @@
 import axios from 'axios';
+import { createHash } from 'node:crypto';
+import { Prisma } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import { JWT } from 'google-auth-library';
 import { prisma } from '../lib/prisma';
@@ -86,6 +88,8 @@ export interface VerifiedPurchase {
   status:                string;
   environment:           string;
   payload:               unknown;
+  accountBinding?:       string | null;
+  linkedPurchaseToken?:  string | null;
 }
 
 // ─── Configuration ────────────────────────────────────────────────────────────
@@ -119,6 +123,29 @@ const GOOGLE = {
 const ACCEPT_SANDBOX = process.env.IAP_ACCEPT_SANDBOX !== undefined
   ? process.env.IAP_ACCEPT_SANDBOX === 'true'
   : process.env.NODE_ENV !== 'production';
+
+/**
+ * Refus des achats Apple sans identifiant de compte (`appAccountToken`).
+ *
+ * Désactivé par défaut : aucune version distribuée de l'application ne le
+ * transmet encore — 1.0.16 en examen, 1.0.18 et 1.0.20 dans TestFlight. Le
+ * refus strict, livré seul, encaisserait le paiement puis refuserait
+ * l'activation, examinateur d'Apple compris. `IAP_EXIGER_COMPTE_APPLE=true`
+ * l'active une fois l'application qui transmet l'identifiant publiée
+ * (procédure : exploitation/corrections-audit-2026-10-08.md, étape 3).
+ *
+ * Lu à chaque appel, pas au chargement : le basculer ne demande qu'un
+ * redémarrage, et les tests le règlent cas par cas.
+ */
+export const exigerCompteApple = () => process.env.IAP_EXIGER_COMPTE_APPLE === 'true';
+
+/** Identifiants opaques transmis au store, jamais une adresse ou un téléphone. */
+export function identifiantsAchat(userId: string) {
+  return {
+    apple: userId.toLowerCase(),
+    google: createHash('sha256').update('pronowin:iap:' + userId).digest('hex'),
+  };
+}
 
 export class IapService {
 
@@ -194,6 +221,7 @@ export class IapService {
           status:                APPLE_STATUS[item.status] ?? 'unknown',
           environment:           info.environment ?? environment,
           payload:               { transaction: info, renewal },
+          accountBinding:        info.appAccountToken ?? null,
         };
       } catch (e: any) {
         // 404 : transaction inconnue de cet environnement, on tente l'autre.
@@ -258,6 +286,8 @@ export class IapService {
       // Google marque explicitement les achats de test.
       environment:           data.testPurchase ? 'Sandbox' : 'Production',
       payload:               data,
+      accountBinding:        data.externalAccountIdentifiers?.obfuscatedExternalAccountId ?? null,
+      linkedPurchaseToken:   data.linkedPurchaseToken ?? null,
     };
   }
 
@@ -296,45 +326,12 @@ export class IapService {
       payload: v.payload as any,
     };
 
-    // ── L'abonnement suit le compte store qui le paie ──
-    //
-    // La chaîne entière (`originalTransactionId`) est traitée d'un bloc : un
-    // renouvellement crée une nouvelle transaction, et le contrôle qui ne
-    // regardait que la transaction en cours laissait deux comptes en profiter.
-    //
-    // Elle restait attachée à son premier propriétaire, quoi qu'il arrive. Vu
-    // le 2 octobre 2026 : un second compte PronoWin sur le même iPhone —
-    // Apple répond « Vous êtes déjà abonné », la restauration est refusée ici,
-    // et ce compte ne peut plus jamais être Premium, ni en rachetant (Apple
-    // garde le même `originalTransactionId`). Un testeur d'Apple qui crée un
-    // second compte puis restaure ses achats tomberait sur ce refus.
-    //
-    // Désormais la chaîne passe au compte qui présente le reçu, et l'ancien
-    // perd l'accès qu'elle lui donnait — sans perdre celui qu'il a payé
-    // autrement. Un paiement, un Premium à la fois : le constat I9 tient.
-    //
-    // Pour Apple, le reçu est le numéro de transaction, que ni l'application
-    // ni les reçus d'Apple n'affichent. Chaque transfert entre deux comptes
-    // actifs est tout de même journalisé.
-    const chaine = [{ transactionId: v.transactionId }, { originalTransactionId: v.originalTransactionId }];
-    const anciens = await prisma.iapPurchase.findMany({
-      where:  { NOT: { userId }, OR: chaine },
-      select: { id: true, userId: true, user: { select: { deletedAt: true } } },
-    });
-    if (anciens.length) {
-      await prisma.iapPurchase.updateMany({
-        where: { id: { in: anciens.map((a) => a.id) } },
-        data:  { userId },
-      });
-      for (const ancien of new Set(anciens.map((a) => a.userId))) {
-        await this._revokeIfExpired(ancien);
-      }
-      const actifs = [...new Set(anciens.filter((a) => a.user.deletedAt === null).map((a) => a.userId))];
-      if (actifs.length) {
-        logger.warn('[IAP] abonnement transféré entre comptes', {
-          store: v.store, originalTransactionId: v.originalTransactionId, de: actifs, vers: userId,
-        });
-      }
+    // Seule l'identité renvoyée par le store est recevable.
+    if (v.accountBinding && v.accountBinding.toLowerCase() !== identifiantsAchat(userId)[store]) {
+      throw new ErreurMetier('Cet achat appartient à un autre compte PronoWin. Connectez-vous au compte utilisé pour acheter, ou contactez le support.', 409);
+    }
+    if (!Number.isFinite(v.expiresAt.getTime())) {
+      throw new ErreurMetier("Le store n'a pas fourni une échéance valide.", 422);
     }
 
     // ── Première fois qu'on voit cette transaction : l'inscrire et ouvrir
@@ -353,7 +350,10 @@ export class IapService {
     if (active) {
       try {
         await subSvc().grantPremium({
-          garde: async (t) => { await t.iapPurchase.create({ data: donnees }); },
+          garde: async (t) => {
+            await this._verifierTitulaire(t, v, userId);
+            await t.iapPurchase.create({ data: donnees });
+          },
           userId,
           expiresAt:     v.expiresAt,
           // Le store ne dit pas ce qui a été payé au moment de la validation :
@@ -371,10 +371,13 @@ export class IapService {
     }
 
     // ── Déjà vue, ou inactive : mettre l'état à jour, sans rien accorder ──
-    const enregistre = await prisma.iapPurchase.upsert({
-      where:  { transactionId: v.transactionId },
-      update: { status: v.status, expiresAt: v.expiresAt, payload: v.payload as any },
-      create: donnees,
+    const enregistre = await prisma.$transaction(async (t) => {
+      await this._verifierTitulaire(t, v, userId);
+      return t.iapPurchase.upsert({
+        where:  { transactionId: v.transactionId },
+        update: { status: v.status, expiresAt: v.expiresAt, payload: v.payload as any },
+        create: donnees,
+      });
     });
     // L'appel concurrent a pu inscrire la transaction pour un autre compte
     // entre notre contrôle et ici.
@@ -394,6 +397,35 @@ export class IapService {
     }
 
     return this._reponse(v, active);
+  }
+
+  /**
+   * Verrou transactionnel par chaîne : deux renouvellements différents
+   * ne peuvent pas être attribués simultanément à deux comptes.
+   * Une restauration ne transfère jamais la propriété, même après suppression.
+   */
+  private async _verifierTitulaire(t: Prisma.TransactionClient, v: VerifiedPurchase, userId: string) {
+    const chaines = [...new Set([v.originalTransactionId, v.linkedPurchaseToken].filter(Boolean) as string[])].sort();
+    for (const chaine of chaines) {
+      const cle = 'iap:' + v.store + ':' + chaine;
+      await t.$queryRaw`SELECT 1 AS locked FROM pg_advisory_xact_lock(hashtextextended(${cle}, 0))`;
+    }
+    const existants = await t.iapPurchase.findMany({
+      where: { store: v.store, OR: [
+        { transactionId: v.transactionId },
+        { originalTransactionId: { in: chaines } },
+      ] },
+      select: { userId: true },
+    });
+    if (existants.some(p => p.userId !== userId)) {
+      throw new ErreurMetier('Cet achat est déjà rattaché à un autre compte. Reconnectez-vous à ce compte ou contactez le support pour une récupération vérifiée.', 409);
+    }
+    // Un numéro Apple seul est un identifiant, pas une preuve de propriété.
+    // Les anciens achats déjà attribués restent restaurables. Refus actif
+    // seulement en mode strict : voir `exigerCompteApple`.
+    if (exigerCompteApple() && v.store === 'apple' && !v.accountBinding && existants.length === 0) {
+      throw new ErreurMetier("Cet ancien achat Apple nécessite une vérification par le support. Pour un nouvel achat, mettez l'application à jour.", 409);
+    }
   }
 
   private _reponse(v: { productId: string; expiresAt: Date; status: string }, active: boolean) {
