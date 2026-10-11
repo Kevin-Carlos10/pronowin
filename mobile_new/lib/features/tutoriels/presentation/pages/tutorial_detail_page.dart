@@ -1,7 +1,8 @@
+import '../widgets/lesson_learning.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:ui';
 import '../../../../core/utils/motion.dart';
-import '../widgets/tutorial_icons.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -22,12 +23,14 @@ import '../../../../shared/utils/messages.dart';
 /// par un lien profond de notification, qui remplace la pile.
 const _repli = '/tutoriels';
 
-
 class TutorialDetailPage extends ConsumerStatefulWidget {
-  final String          tutorialId;
+  final String tutorialId;
   final TutorialEntity? preloaded;
-  const TutorialDetailPage(
-      {super.key, required this.tutorialId, this.preloaded});
+  const TutorialDetailPage({
+    super.key,
+    required this.tutorialId,
+    this.preloaded,
+  });
 
   @override
   ConsumerState<TutorialDetailPage> createState() => _TutorialDetailPageState();
@@ -37,15 +40,15 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
     with SingleTickerProviderStateMixin {
   bool _completed = false;
   late AnimationController _checkCtrl;
-  late Animation<double>   _checkAnim;
 
   @override
   void initState() {
     super.initState();
     _completed = widget.preloaded?.isCompleted ?? false;
     _checkCtrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
-    _checkAnim = CurvedAnimation(parent: _checkCtrl, curve: Curves.elasticOut);
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    );
   }
 
   @override
@@ -90,10 +93,14 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
 
     // Non enregistré : une alerte, sur un fond où le blanc se lit. C'était
     // `warning` vif — 2,15:1 en thème sombre.
-    afficherMessage(context,
+    afficherMessage(
+      context,
       enregistre
           ? tr(context, "Tutoriel marqué comme terminé !")
-          : tr(context, "Progression non enregistrée : vérifie ta connexion et retouche « Terminé »."),
+          : tr(
+              context,
+              "Progression non enregistrée : vérifie ta connexion et retouche « Terminé ».",
+            ),
       type: enregistre ? TypeMessage.succes : TypeMessage.alerte,
       cle: Key(enregistre ? 'tutoriel-termine' : 'tutoriel-non-enregistre'),
       duree: Duration(seconds: enregistre ? 2 : 4),
@@ -102,16 +109,17 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
 
   /// Une page d'état, avec le même retour que la page pleine.
   Widget _cadre(BuildContext context, Widget contenu) => Scaffold(
-        backgroundColor: context.cl.bg,
-        appBar: AppBar(
-          backgroundColor: context.cl.bg,
-          elevation: 0,
-          leading: IconButton(
-              icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-              onPressed: () => retourOuAller(context, repli: _repli)),
-        ),
-        body: Center(child: contenu),
-      );
+    backgroundColor: context.cl.bg,
+    appBar: AppBar(
+      backgroundColor: context.cl.bg,
+      elevation: 0,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+        onPressed: () => retourOuAller(context, repli: _repli),
+      ),
+    ),
+    body: Center(child: contenu),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -125,36 +133,52 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
     final precharge = widget.preloaded;
     if (precharge != null) return _contenu(context, precharge);
 
-    return ref.watch(tutorialDetailProvider(widget.tutorialId)).when(
+    return ref
+        .watch(tutorialDetailProvider(widget.tutorialId))
+        .when(
           data: (t) => _contenu(context, t),
-          loading: () => _cadre(context,
-              const CircularProgressIndicator(color: AppColors.primary)),
+          loading: () => _cadre(
+            context,
+            const CircularProgressIndicator(color: AppColors.primary),
+          ),
           error: (_, _) => _cadre(
             context,
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                Icon(Icons.cloud_off_rounded, size: 40, color: context.cl.textM),
-                const SizedBox(height: 12),
-                Text(tr(context, "Ce tutoriel n'a pas pu être chargé."),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.cloud_off_rounded,
+                    size: 40,
+                    color: context.cl.textM,
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    tr(context, "Ce tutoriel n'a pas pu être chargé."),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: context.cl.textS, fontSize: 14)),
-                const SizedBox(height: 4),
-                // « Introuvable » désignait le tutoriel ; le plus souvent,
-                // c'est la connexion qui manque. Et rien ne permettait de
-                // réessayer sans quitter l'écran.
-                Text(tr(context, "Vérifie ta connexion, puis réessaie."),
+                    style: TextStyle(color: context.cl.textS, fontSize: 14),
+                  ),
+                  const SizedBox(height: 4),
+                  // « Introuvable » désignait le tutoriel ; le plus souvent,
+                  // c'est la connexion qui manque. Et rien ne permettait de
+                  // réessayer sans quitter l'écran.
+                  Text(
+                    tr(context, "Vérifie ta connexion, puis réessaie."),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: context.cl.textM, fontSize: 12)),
-                const SizedBox(height: 16),
-                OutlinedButton.icon(
-                  key: const Key('tutoriel-reessayer'),
-                  onPressed: () =>
-                      ref.invalidate(tutorialDetailProvider(widget.tutorialId)),
-                  icon: const Icon(Icons.refresh, size: 18),
-                  label:  Text(tr(context, "Réessayer")),
-                ),
-              ]),
+                    style: TextStyle(color: context.cl.textM, fontSize: 12),
+                  ),
+                  const SizedBox(height: 16),
+                  OutlinedButton.icon(
+                    key: const Key('tutoriel-reessayer'),
+                    onPressed: () => ref.invalidate(
+                      tutorialDetailProvider(widget.tutorialId),
+                    ),
+                    icon: const Icon(Icons.refresh, size: 18),
+                    label: Text(tr(context, "Réessayer")),
+                  ),
+                ],
+              ),
             ),
           ),
         );
@@ -176,266 +200,192 @@ class _TutorialDetailPageState extends ConsumerState<TutorialDetailPage>
         authState is AuthAuthenticated && authState.user.isPremium;
     final isPremiumLocked = t.isPremium && !lecteurPremium;
 
+    final raw = t.lessonContent[AppStrings.current.locale.languageCode];
+    final lesson = Map<String, dynamic>.from(
+      raw is Map ? raw : t.lessonContent['fr'] as Map? ?? {},
+    );
+    final recommendations =
+        ref.watch(tutorialsProvider).valueOrNull ?? <TutorialEntity>[];
+    final next = recommendations
+        .where(
+          (item) =>
+              item.id != t.id &&
+              !item.isCompleted &&
+              item.category == t.category,
+        )
+        .firstOrNull;
     return Scaffold(
       backgroundColor: context.cl.bg,
-      body: Stack(
-        children: [
-          // ── CONTENU PRINCIPAL ────────────────────────────────────────────
-          CustomScrollView(
-            // Le lecteur vidéo intègre une WebView native (platform view) qui
-            // ne se recompose pas correctement pendant le rebond élastique du
-            // scroll (tirer au-delà du haut/bas) — désactiver l'overscroll
-            // évite le décalage visuel de la vidéo par rapport à son cadre.
-            physics: const ClampingScrollPhysics(),
-            slivers: [
-              // ─── HEADER SLIVER ─────────────────────────────────────────
-              _HeroHeader(tutorial: t, catColor: catColor),
-
-              // ─── CORPS ─────────────────────────────────────────────────
-              SliverPadding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
-                sliver: SliverList(
-                  delegate: SliverChildListDelegate([
-
-                    // Tags
-                    Wrap(spacing: 8, runSpacing: 6, children: [
-                      _Tag(label: t.levelLabel,
-                          color: _levelColor(t.level)),
-                      _Tag(label: t.categoryLabel,
-                          color: catColor),
-                      if (t.isPremium)
-                        _Tag(label: 'Premium',
-                            icon: Icons.workspace_premium_rounded,
-                            color: context.cl.warning),
-                      if (_completed)
-                        _Tag(label: tr(context, "Terminé"),
-                            icon: Icons.check_circle_rounded,
-                            color: context.cl.success),
-                    ]).animate().fadeIn(duration: 300.ms, delay: 50.ms),
-
-                    const SizedBox(height: 14),
-
-                    // Titre
-                    Text(t.title,
-                        style: TextStyle(
-                            color: context.cl.textP,
-                            fontSize: 22,
-                            fontWeight: FontWeight.w700,
-                            height: 1.25))
-                      .animate().fadeIn(duration: 300.ms, delay: 80.ms),
-
-                    const SizedBox(height: 12),
-
-                    // Méta stats
-                    _MetaRow(tutorial: t)
-                      .animate().fadeIn(duration: 300.ms, delay: 110.ms),
-
-                    const SizedBox(height: 16),
-
-                    // Description intro
-                    Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: catColor.withValues(alpha: 0.07),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                            color: catColor.withValues(alpha: 0.2),
-                            width: 0.5)),
-                      child: Text(t.description,
-                          style: TextStyle(
-                              color: context.cl.textS,
-                              fontSize: 14,
-                              height: 1.65)),
-                    ).animate().fadeIn(duration: 300.ms, delay: 140.ms),
-
-                    const SizedBox(height: 24),
-
-                    // ── CONTENU (VERROUILLÉ OU NON) ──────────────────────
-                    if (isPremiumLocked)
-                      _PremiumLock(catColor: catColor)
-                        .animate().fadeIn(duration: 400.ms, delay: 160.ms)
-                    else ...[
-                      // Vidéo
-                      if (t.hasVideo && t.videoUrl != null) ...[
-                        _VideoSection(url: t.videoUrl!, duration: t.durationText)
-                          .animate().fadeIn(duration: 300.ms, delay: 160.ms),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // Article
-                      if (t.articleContent != null &&
-                          t.articleContent!.trim().isNotEmpty) ...[
-                        _SectionDivider(label: tr(context, "Contenu du tutoriel")),
-                        const SizedBox(height: 16),
-                        _MarkdownRenderer(
-                            content: t.articleContent!,
-                            catColor: catColor)
-                          .animate().fadeIn(duration: 400.ms, delay: 180.ms),
-                        const SizedBox(height: 24),
-                      ],
-
-                      // Si rien à afficher
-                      if (!t.hasVideo &&
-                          (t.articleContent == null ||
-                              t.articleContent!.trim().isEmpty))
-                        _PlaceholderContent(catColor: catColor)
-                          .animate().fadeIn(duration: 300.ms, delay: 160.ms),
-                    ],
-
-                    const SizedBox(height: 16),
-                  ]),
+      bottomNavigationBar: isPremiumLocked
+          ? null
+          : SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: FilledButton.icon(
+                  onPressed: _completed || t.isCompleted
+                      ? null
+                      : () => _markComplete(t),
+                  icon: Icon(
+                    _completed || t.isCompleted
+                        ? Icons.check_circle
+                        : Icons.check,
+                  ),
+                  label: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    child: Text(
+                      tr(
+                        context,
+                        _completed || t.isCompleted
+                            ? "Terminé"
+                            : "Marquer comme terminé",
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
                 ),
               ),
-            ],
-          ),
-
-          // ── BOUTON STICKY BAS ────────────────────────────────────────────
-          if (!isPremiumLocked)
-            Positioned(
-              bottom: 0, left: 0, right: 0,
-              child: _BottomBar(
-                completed: _completed,
-                checkAnim: _checkAnim,
-                catColor:  catColor,
-                onComplete: () => _markComplete(t),
-              ),
             ),
+      body: CustomScrollView(
+        physics: const ClampingScrollPhysics(),
+        slivers: [
+          SliverAppBar(
+            pinned: true,
+            backgroundColor: context.cl.bg,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios_new_rounded),
+              onPressed: () => retourOuAller(context, repli: _repli),
+            ),
+            title: Text(t.categoryLabel),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+            sliver: SliverList(
+              delegate: SliverChildListDelegate([
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    _Tag(label: t.levelLabel, color: _levelColor(t.level)),
+                    if (t.isPremium)
+                      _Tag(label: 'Premium', color: context.cl.warning),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                context.entree(
+                  Text(
+                    t.title,
+                    style: TextStyle(
+                      color: context.cl.textP,
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      height: 1.2,
+                    ),
+                  ),
+                  0,
+                ),
+                const SizedBox(height: 12),
+                _MetaRow(tutorial: t),
+                const SizedBox(height: 20),
+                if (isPremiumLocked)
+                  _PremiumLock(catColor: catColor)
+                else ...[
+                  if (t.hasVideo && t.videoUrl != null) ...[
+                    _VideoSection(
+                      url: t.videoUrl!,
+                      duration: t.durationText,
+                      chapters: (lesson['chapters'] as List? ?? [])
+                          .whereType<Map>()
+                          .toList(),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  if (t.description.trim().isNotEmpty)
+                    Text(
+                      t.description,
+                      style: TextStyle(
+                        color: context.cl.textS,
+                        fontSize: 15,
+                        height: 1.6,
+                      ),
+                    ),
+                  const SizedBox(height: 20),
+                  LessonPoints(
+                    title: tr(context, "Ce que tu vas apprendre"),
+                    items: lesson['objectives'],
+                  ),
+                  if (t.articleContent?.trim().isNotEmpty == true) ...[
+                    _SectionDivider(label: tr(context, "Contenu du tutoriel")),
+                    const SizedBox(height: 16),
+                    _MarkdownRenderer(
+                      content: t.articleContent!,
+                      catColor: catColor,
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+                  if (t.category.toLowerCase().replaceAll(' ', '') ==
+                      'valuebet')
+                    const ValueExercise(),
+                  LessonPoints(
+                    title: tr(context, "À retenir"),
+                    items: lesson['takeaways'],
+                  ),
+                  if (!t.hasVideo &&
+                      (t.articleContent?.trim().isEmpty ?? true) &&
+                      lesson.isEmpty)
+                    _PlaceholderContent(catColor: catColor),
+                  LessonQuiz(
+                    key: ValueKey(
+                      '${t.id}-${AppStrings.current.locale.languageCode}',
+                    ),
+                    questions: lesson['quiz'],
+                  ),
+                  if (next != null)
+                    Card(
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(16),
+                        leading: const Icon(Icons.school_outlined),
+                        title: Text(tr(context, "Pour continuer")),
+                        subtitle: Text(next.title),
+                        trailing: const Icon(Icons.arrow_forward),
+                        onTap: () => context.pushReplacement(
+                          '/tutoriels/${next.id}',
+                          extra: next,
+                        ),
+                      ),
+                    ),
+                ],
+              ]),
+            ),
+          ),
         ],
       ),
     );
   }
 
   static const Map<String, Color> _categoryColors = {
-    'valuebet':    AppColors.info,
-    'bankroll':    AppColors.success,
-    'strategie':   AppColors.primary,
-    'analyse':     AppColors.info,
+    'valuebet': AppColors.info,
+    'bankroll': AppColors.success,
+    'strategie': AppColors.primary,
+    'analyse': AppColors.info,
     'psychologie': Color(0xFFA78BFA),
-    'psychology':  Color(0xFFA78BFA),
-    'martingale':  AppColors.warning,
-    'trading':     AppColors.error,
-    'statistics':  AppColors.primaryLight,
+    'psychology': Color(0xFFA78BFA),
+    'martingale': AppColors.warning,
+    'trading': AppColors.error,
+    'statistics': AppColors.primaryLight,
   };
-  Color _categoryColor(String c) => _categoryColors[c.toLowerCase()] ?? AppColors.primaryLight;
+  Color _categoryColor(String c) =>
+      _categoryColors[c.toLowerCase()] ?? AppColors.primaryLight;
 
   Color _levelColor(TutorialLevel l) => switch (l) {
-    TutorialLevel.beginner     => context.cl.success,
+    TutorialLevel.beginner => context.cl.success,
     TutorialLevel.intermediate => context.cl.warning,
-    TutorialLevel.advanced     => context.cl.error,
+    TutorialLevel.advanced => context.cl.error,
   };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // HERO HEADER
-// ══════════════════════════════════════════════════════════════════════════════
-class _HeroHeader extends StatelessWidget {
-  final TutorialEntity tutorial;
-  final Color catColor;
-  const _HeroHeader({required this.tutorial, required this.catColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return SliverAppBar(
-      expandedHeight: 200,
-      pinned: true,
-      // Le titre n'apparaît qu'une fois la barre repliée : déplié, l'en-tête
-      // est une illustration ; le vrai titre est celui du corps de page.
-      title: _TitreReplie(titre: tutorial.title),
-      titleSpacing: 0,
-      backgroundColor: context.cl.bg,
-      elevation: 0,
-      leading: Padding(
-        padding: const EdgeInsets.all(8),
-        child: GestureDetector(
-          onTap: () => retourOuAller(context, repli: _repli),
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.35),
-              shape: BoxShape.circle),
-            child: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: Colors.white, size: 18)),
-        ),
-      ),
-      flexibleSpace: FlexibleSpaceBar(
-        collapseMode: CollapseMode.parallax,
-        background: Stack(children: [
-          // Fond : dégradé de couleur — la vraie miniature est déjà affichée
-          // par le lecteur vidéo plus bas, pas besoin de la dupliquer ici.
-          Positioned.fill(
-            child: _HeaderGradient(catColor: catColor, bgColor: context.cl.bg),
-          ),
-
-          // Overlay dégradé bas pour lisibilité du texte
-          Positioned.fill(child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                colors: [Colors.black54, Colors.black12, Colors.transparent],
-                begin: Alignment.bottomCenter, end: Alignment.topCenter)),
-          )),
-
-          // Contenu texte
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.end,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Emoji catégorie (Hero depuis la card)
-                  Hero(
-                    tag: 'tutorial_thumb_${tutorial.id}',
-                    child: Container(
-                      width: 64, height: 64,
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(
-                            color: Colors.white.withValues(alpha: 0.3), width: 0.8)),
-                      child: Center(
-                          child: Icon(tutorialCategoryIcon(tutorial.category),
-                              size: 32, color: Colors.white)),
-                    ),
-                  ).animate()
-                    .scale(begin: const Offset(0.55, 0.55), end: const Offset(1, 1),
-                      duration: 500.ms, curve: Curves.easeOutBack)
-                    .fadeIn(duration: 400.ms),
-                  const SizedBox(height: 12),
-                  Text(
-                    tutorial.categoryLabel.toUpperCase(),
-                    style: const TextStyle(
-                        color: Colors.white70,
-                        fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        letterSpacing: 1.2,
-                        shadows: [Shadow(color: Colors.black38, blurRadius: 8, offset: Offset(0, 2))]),
-                    maxLines: 1, overflow: TextOverflow.ellipsis,
-                  ).animate(delay: 120.ms)
-                    .fadeIn(duration: 350.ms)
-                    .slideY(begin: 0.12, end: 0, curve: Curves.easeOutCubic),
-                ],
-              ),
-            ),
-          ),
-        ]),
-      ),
-    );
-  }
-}
-
-class _HeaderGradient extends StatelessWidget {
-  final Color catColor, bgColor;
-  const _HeaderGradient({required this.catColor, required this.bgColor});
-  @override
-  Widget build(BuildContext context) => Container(
-    decoration: BoxDecoration(
-      gradient: LinearGradient(
-        colors: [catColor.withValues(alpha: 0.85), catColor.withValues(alpha: 0.4), bgColor],
-        begin: Alignment.topCenter, end: Alignment.bottomCenter)),
-  );
-}
-
-// ══════════════════════════════════════════════════════════════════════════════
-// MÉTA ROW
 // ══════════════════════════════════════════════════════════════════════════════
 class _MetaRow extends StatelessWidget {
   final TutorialEntity tutorial;
@@ -445,53 +395,65 @@ class _MetaRow extends StatelessWidget {
   // `Wrap` et son espacement : sans durée, la rangée ne commence plus par un
   // blanc, et les pastilles passent à la ligne en grand texte.
   Widget build(BuildContext context) => Wrap(
-        spacing: 8,
-        runSpacing: 6,
-        children: [
-          if (tutorial.aUneDuree)
-            _MetaChip(
-                icon: Icons.access_time_rounded,
-                label: tutorial.durationText,
-                color: context.cl.info),
-          if (tutorial.viewCount > 0)
-            _MetaChip(
-                icon: Icons.visibility_rounded,
-                label: tr(context, "{arg0} vues", [tutorial.viewCount]),
-                color: context.cl.textM),
-          if (tutorial.rating > 0)
-            _MetaChip(
-                icon: Icons.star_rounded,
-                label: decimalFr(tutorial.rating),
-                color: context.cl.warning),
-        ],
-      );
+    spacing: 8,
+    runSpacing: 6,
+    children: [
+      if (tutorial.aUneDuree)
+        _MetaChip(
+          icon: Icons.access_time_rounded,
+          label: tutorial.durationText,
+          color: context.cl.info,
+        ),
+      if (tutorial.viewCount > 0)
+        _MetaChip(
+          icon: Icons.visibility_rounded,
+          label: tr(context, "{arg0} vues", [tutorial.viewCount]),
+          color: context.cl.textM,
+        ),
+      if (tutorial.rating > 0)
+        _MetaChip(
+          icon: Icons.star_rounded,
+          label: decimalFr(tutorial.rating),
+          color: context.cl.warning,
+        ),
+    ],
+  );
 }
 
 class _MetaChip extends StatelessWidget {
   final IconData icon;
   final String label;
   final Color color;
-  const _MetaChip(
-      {required this.icon, required this.label, required this.color});
+  const _MetaChip({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-        decoration: BoxDecoration(
-          color: context.cl.surface,
-          borderRadius: BorderRadius.circular(20),
-          border:
-              Border.all(color: context.cl.border, width: 0.5)),
-        child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 4),
-          Text(label,
-              style: TextStyle(
-                  color: context.cl.textS,
-                  fontSize: 11,
-                  fontWeight: FontWeight.w500)),
-        ]),
-      );
+    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+    decoration: BoxDecoration(
+      color: context.cl.surface,
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: context.cl.border, width: 0.5),
+    ),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 12, color: color),
+        const SizedBox(width: 4),
+        Text(
+          label,
+          style: TextStyle(
+            color: context.cl.textS,
+            fontSize: 11,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ],
+    ),
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -502,16 +464,21 @@ class _SectionDivider extends StatelessWidget {
   const _SectionDivider({required this.label});
 
   @override
-  Widget build(BuildContext context) => Row(children: [
-        Text(label.toUpperCase(),
-            style: TextStyle(
-                color: context.cl.textM,
-                fontSize: 10,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.8)),
-        const SizedBox(width: 8),
-        Expanded(child: Divider(color: context.cl.border, height: 1)),
-      ]);
+  Widget build(BuildContext context) => Row(
+    children: [
+      Text(
+        label.toUpperCase(),
+        style: TextStyle(
+          color: context.cl.textM,
+          fontSize: 10,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.8,
+        ),
+      ),
+      const SizedBox(width: 8),
+      Expanded(child: Divider(color: context.cl.border, height: 1)),
+    ],
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -520,8 +487,7 @@ class _SectionDivider extends StatelessWidget {
 class _MarkdownRenderer extends StatelessWidget {
   final String content;
   final Color catColor;
-  const _MarkdownRenderer(
-      {required this.content, required this.catColor});
+  const _MarkdownRenderer({required this.content, required this.catColor});
 
   @override
   Widget build(BuildContext context) {
@@ -533,66 +499,85 @@ class _MarkdownRenderer extends StatelessWidget {
 
       // H1
       if (line.startsWith('# ')) {
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(top: 20, bottom: 8),
-          child: Text(_stripInline(line.substring(2)),
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 20, bottom: 8),
+            child: Text(
+              _stripInline(line.substring(2)),
               style: TextStyle(
-                  color: context.cl.textP,
-                  fontSize: 20,
-                  fontWeight: FontWeight.w700,
-                  height: 1.3)),
-        ));
+                color: context.cl.textP,
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                height: 1.3,
+              ),
+            ),
+          ),
+        );
         continue;
       }
 
       // H2
       if (line.startsWith('## ')) {
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(top: 16, bottom: 6),
-          child: Text(_stripInline(line.substring(3)),
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 16, bottom: 6),
+            child: Text(
+              _stripInline(line.substring(3)),
               style: TextStyle(
-                  color: context.cl.textP,
-                  fontSize: 16,
-                  fontWeight: FontWeight.w700,
-                  height: 1.3)),
-        ));
+                color: context.cl.textP,
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                height: 1.3,
+              ),
+            ),
+          ),
+        );
         continue;
       }
 
       // H3
       if (line.startsWith('### ')) {
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(top: 12, bottom: 4),
-          child: Text(_stripInline(line.substring(4)),
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(top: 12, bottom: 4),
+            child: Text(
+              _stripInline(line.substring(4)),
               style: TextStyle(
-                  color: context.cl.textP,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700)),
-        ));
+                color: context.cl.textP,
+                fontSize: 14,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        );
         continue;
       }
 
       // Blockquote
       if (line.startsWith('> ')) {
-        widgets.add(Container(
-          margin: const EdgeInsets.symmetric(vertical: 8),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-          decoration: BoxDecoration(
-            color: catColor.withValues(alpha: 0.07),
-            borderRadius: const BorderRadius.only(
-              topRight:    Radius.circular(8),
-              bottomRight: Radius.circular(8)),
-            border: Border(
-                left: BorderSide(color: catColor, width: 3))),
-          child: _InlineRichText(
+        widgets.add(
+          Container(
+            margin: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: catColor.withValues(alpha: 0.07),
+              borderRadius: const BorderRadius.only(
+                topRight: Radius.circular(8),
+                bottomRight: Radius.circular(8),
+              ),
+              border: Border(left: BorderSide(color: catColor, width: 3)),
+            ),
+            child: _InlineRichText(
               text: line.substring(2),
               baseStyle: TextStyle(
-                  color: context.cl.textS,
-                  fontSize: 14,
-                  fontStyle: FontStyle.italic,
-                  height: 1.6)),
-        ));
+                color: context.cl.textS,
+                fontSize: 14,
+                fontStyle: FontStyle.italic,
+                height: 1.6,
+              ),
+            ),
+          ),
+        );
         continue;
       }
 
@@ -601,65 +586,93 @@ class _MarkdownRenderer extends StatelessWidget {
           line.startsWith('• ') ||
           line.startsWith('* ')) {
         final text = line.substring(2);
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 5),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              width: 6, height: 6,
-              margin: const EdgeInsets.only(top: 7, right: 10),
-              decoration:
-                  BoxDecoration(color: catColor, shape: BoxShape.circle)),
-            Expanded(
-              child: _InlineRichText(
-                  text: text,
-                  baseStyle: TextStyle(
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 5),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  margin: const EdgeInsets.only(top: 7, right: 10),
+                  decoration: BoxDecoration(
+                    color: catColor,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                Expanded(
+                  child: _InlineRichText(
+                    text: text,
+                    baseStyle: TextStyle(
                       color: context.cl.textS,
                       fontSize: 14,
-                      height: 1.65)),
+                      height: 1.65,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        ));
+          ),
+        );
         continue;
       }
 
       // Numbered list
       final numMatch = RegExp(r'^\d+\. (.+)').firstMatch(line);
       if (numMatch != null) {
-        final num  = line.substring(0, line.indexOf('.'));
+        final num = line.substring(0, line.indexOf('.'));
         final text = numMatch.group(1)!;
-        widgets.add(Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 5),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Container(
-              width: 22, height: 22,
-              margin: const EdgeInsets.only(right: 10),
-              decoration: BoxDecoration(
-                color: catColor.withValues(alpha: 0.12),
-                shape: BoxShape.circle),
-              child: Center(child: Text(num,
-                  style: TextStyle(
-                      color: catColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w700)))),
-            Expanded(
-              child: _InlineRichText(
-                  text: text,
-                  baseStyle: TextStyle(
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 5),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 22,
+                  height: 22,
+                  margin: const EdgeInsets.only(right: 10),
+                  decoration: BoxDecoration(
+                    color: catColor.withValues(alpha: 0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      num,
+                      style: TextStyle(
+                        color: catColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: _InlineRichText(
+                    text: text,
+                    baseStyle: TextStyle(
                       color: context.cl.textS,
                       fontSize: 14,
-                      height: 1.65)),
+                      height: 1.65,
+                    ),
+                  ),
+                ),
+              ],
             ),
-          ]),
-        ));
+          ),
+        );
         continue;
       }
 
       // Divider
       if (line.trim() == '---' || line.trim() == '***') {
-        widgets.add(Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          child: Divider(color: context.cl.border),
-        ));
+        widgets.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Divider(color: context.cl.border),
+          ),
+        );
         continue;
       }
 
@@ -670,31 +683,36 @@ class _MarkdownRenderer extends StatelessWidget {
       }
 
       // Paragraphe normal
-      widgets.add(Padding(
-        padding: const EdgeInsets.only(bottom: 4),
-        child: _InlineRichText(
+      widgets.add(
+        Padding(
+          padding: const EdgeInsets.only(bottom: 4),
+          child: _InlineRichText(
             text: line,
             baseStyle: TextStyle(
-                color: context.cl.textS,
-                fontSize: 14,
-                height: 1.75)),
-      ));
+              color: context.cl.textS,
+              fontSize: 14,
+              height: 1.75,
+            ),
+          ),
+        ),
+      );
     }
 
     return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: widgets);
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: widgets,
+    );
   }
 
-  String _stripInline(String s) =>
-      s.replaceAll(RegExp(r'\*\*(.*?)\*\*'), r'$1')
-       .replaceAll(RegExp(r'\*(.*?)\*'), r'$1')
-       .replaceAll(RegExp(r'`(.*?)`'), r'$1');
+  String _stripInline(String s) => s
+      .replaceAll(RegExp(r'\*\*(.*?)\*\*'), r'$1')
+      .replaceAll(RegExp(r'\*(.*?)\*'), r'$1')
+      .replaceAll(RegExp(r'`(.*?)`'), r'$1');
 }
 
 /// Rend le texte inline avec **bold**, *italic*, `code`
 class _InlineRichText extends StatelessWidget {
-  final String    text;
+  final String text;
   final TextStyle baseStyle;
   const _InlineRichText({required this.text, required this.baseStyle});
 
@@ -706,7 +724,7 @@ class _InlineRichText extends StatelessWidget {
   }
 
   List<InlineSpan> _parse(BuildContext context, String input) {
-    final spans  = <InlineSpan>[];
+    final spans = <InlineSpan>[];
     // Ordre : code, bold, italic
     final pattern = RegExp(r'`(.*?)`|\*\*(.*?)\*\*|\*(.*?)\*');
     int last = 0;
@@ -717,33 +735,46 @@ class _InlineRichText extends StatelessWidget {
       }
       if (m.group(1) != null) {
         // `code`
-        spans.add(WidgetSpan(
-          alignment: PlaceholderAlignment.baseline,
-          baseline: TextBaseline.alphabetic,
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-            decoration: BoxDecoration(
-              color: context.cl.surfaceD,
-              borderRadius: BorderRadius.circular(4)),
-            child: Text(m.group(1)!,
+        spans.add(
+          WidgetSpan(
+            alignment: PlaceholderAlignment.baseline,
+            baseline: TextBaseline.alphabetic,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: context.cl.surfaceD,
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                m.group(1)!,
                 style: baseStyle.copyWith(
-                    fontFamily: 'monospace',
-                    fontSize: (baseStyle.fontSize ?? 14) - 1,
-                    color: context.cl.dore)),
+                  fontFamily: 'monospace',
+                  fontSize: (baseStyle.fontSize ?? 14) - 1,
+                  color: context.cl.dore,
+                ),
+              ),
+            ),
           ),
-        ));
+        );
       } else if (m.group(2) != null) {
         // **bold**
-        spans.add(TextSpan(
+        spans.add(
+          TextSpan(
             text: m.group(2),
             style: baseStyle.copyWith(
-                fontWeight: FontWeight.w700,
-                color: context.cl.textP)));
+              fontWeight: FontWeight.w700,
+              color: context.cl.textP,
+            ),
+          ),
+        );
       } else if (m.group(3) != null) {
         // *italic*
-        spans.add(TextSpan(
+        spans.add(
+          TextSpan(
             text: m.group(3),
-            style: baseStyle.copyWith(fontStyle: FontStyle.italic)));
+            style: baseStyle.copyWith(fontStyle: FontStyle.italic),
+          ),
+        );
       }
       last = m.end;
     }
@@ -759,7 +790,12 @@ class _InlineRichText extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 class _VideoSection extends StatefulWidget {
   final String url, duration;
-  const _VideoSection({required this.url, required this.duration});
+  final List<Map> chapters;
+  const _VideoSection({
+    required this.url,
+    required this.duration,
+    this.chapters = const [],
+  });
 
   @override
   State<_VideoSection> createState() => _VideoSectionState();
@@ -785,7 +821,10 @@ class _VideoSectionState extends State<_VideoSection> {
       _controller = YoutubePlayerController.fromVideoId(
         videoId: id,
         autoPlay: false,
-        params: const YoutubePlayerParams(showControls: true, showFullscreenButton: true),
+        params: const YoutubePlayerParams(
+          showControls: true,
+          showFullscreenButton: true,
+        ),
       );
     }
   }
@@ -808,12 +847,15 @@ class _VideoSectionState extends State<_VideoSection> {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(
-                color: AppColors.primary.withValues(alpha: 0.25), width: 0.8),
+              color: AppColors.primary.withValues(alpha: 0.25),
+              width: 0.8,
+            ),
             boxShadow: [
               BoxShadow(
                 color: AppColors.primary.withValues(alpha: 0.10),
                 blurRadius: 20,
-                offset: const Offset(0, 6)),
+                offset: const Offset(0, 6),
+              ),
             ],
           ),
           child: ClipRRect(
@@ -824,13 +866,36 @@ class _VideoSectionState extends State<_VideoSection> {
                     child: Container(
                       color: const Color(0xFF0A0E1A),
                       alignment: Alignment.center,
-                      child: Text(tr(context, "Vidéo indisponible"),
-                          style: TextStyle(color: Colors.white.withValues(alpha: 0.6))),
+                      child: Text(
+                        tr(context, "Vidéo indisponible"),
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.6),
+                        ),
+                      ),
                     ),
                   )
                 : YoutubePlayer(controller: controller, aspectRatio: 16 / 9),
           ),
         ),
+        if (controller != null && widget.chapters.isNotEmpty)
+          ExpansionTile(
+            tilePadding: EdgeInsets.zero,
+            title: Text(tr(context, "Chapitres")),
+            children: [
+              for (final chapter in widget.chapters)
+                ListTile(
+                  leading: const Icon(Icons.play_circle_outline),
+                  title: Text(chapter['title'] as String? ?? ''),
+                  trailing: Text(
+                    '${((chapter['seconds'] as num?)?.toInt() ?? 0) ~/ 60}:${(((chapter['seconds'] as num?)?.toInt() ?? 0) % 60).toString().padLeft(2, '0')}',
+                  ),
+                  onTap: () => controller.seekTo(
+                    seconds: (chapter['seconds'] as num).toDouble(),
+                    allowSeekAhead: true,
+                  ),
+                ),
+            ],
+          ),
       ],
     );
   }
@@ -847,141 +912,196 @@ class _PremiumLock extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sub = ref.watch(currentSubscriptionProvider).valueOrNull ?? const {};
     // Idem : le prix affiché doit correspondre au canal de distribution.
-    final priceLabel = tr(context, "{arg0}/mois", [premiumMonthlyPriceLabel(ref, sub)]);
+    final priceLabel = tr(context, "{arg0}/mois", [
+      premiumMonthlyPriceLabel(ref, sub),
+    ]);
     return Column(
-        children: [
-          // Aperçu flou du contenu
-          Stack(
-            children: [
-              // Contenu "fantôme" flou
-              ImageFiltered(
-                imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
-                child: Container(
-                  padding: const EdgeInsets.all(16),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _fakeTextLine(context, double.infinity),
-                      const SizedBox(height: 8),
-                      _fakeTextLine(context, double.infinity),
-                      const SizedBox(height: 8),
-                      _fakeTextLine(context, 200),
-                      const SizedBox(height: 16),
-                      _fakeTextLine(context, double.infinity),
-                      const SizedBox(height: 8),
-                      _fakeTextLine(context, 260),
-                    ],
-                  ),
+      children: [
+        // Aperçu flou du contenu
+        Stack(
+          children: [
+            // Contenu "fantôme" flou
+            ImageFiltered(
+              imageFilter: ImageFilter.blur(sigmaX: 6, sigmaY: 6),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _fakeTextLine(context, double.infinity),
+                    const SizedBox(height: 8),
+                    _fakeTextLine(context, double.infinity),
+                    const SizedBox(height: 8),
+                    _fakeTextLine(context, 200),
+                    const SizedBox(height: 16),
+                    _fakeTextLine(context, double.infinity),
+                    const SizedBox(height: 8),
+                    _fakeTextLine(context, 260),
+                  ],
                 ),
               ),
-              // Overlay + card premium
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 24),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      context.cl.bg.withValues(alpha: 0.6),
-                      context.cl.bg.withValues(alpha: 0.95),
-                    ],
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                  ),
+            ),
+            // Overlay + card premium
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 24),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    context.cl.bg.withValues(alpha: 0.6),
+                    context.cl.bg.withValues(alpha: 0.95),
+                  ],
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
                 ),
-                child: Center(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-                      child: Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: context.cl.surface.withValues(alpha: 0.85),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                              color: context.cl.warning.withValues(alpha: 0.4),
-                              width: 1)),
-                        child: Column(children: [
+              ),
+              child: Center(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+                    child: Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: context.cl.surface.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: context.cl.warning.withValues(alpha: 0.4),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
                           Container(
-                            width: 64, height: 64,
+                            width: 64,
+                            height: 64,
                             decoration: BoxDecoration(
                               gradient: const LinearGradient(
                                 colors: [Color(0xFFB8860B), Color(0xFFFFD700)],
                                 begin: Alignment.topLeft,
-                                end: Alignment.bottomRight),
+                                end: Alignment.bottomRight,
+                              ),
                               shape: BoxShape.circle,
-                              boxShadow: [BoxShadow(
-                                color: const Color(0xFFFFD700)
-                                    .withValues(alpha: 0.3),
-                                blurRadius: 16)]),
-                            child: const Icon(Icons.workspace_premium_rounded,
-                                color: Colors.white, size: 32)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: const Color(
+                                    0xFFFFD700,
+                                  ).withValues(alpha: 0.3),
+                                  blurRadius: 16,
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.workspace_premium_rounded,
+                              color: Colors.white,
+                              size: 32,
+                            ),
+                          ),
                           const SizedBox(height: 16),
-                           Text(tr(context, "Contenu Premium"),
-                              style: TextStyle(
-                                  color: context.cl.warning,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w700)),
+                          Text(
+                            tr(context, "Contenu Premium"),
+                            style: TextStyle(
+                              color: context.cl.warning,
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
                           const SizedBox(height: 8),
                           Text(
-                            tr(context, "Débloquez ce tutoriel et tous\nles contenus exclusifs avec Premium."),
+                            tr(
+                              context,
+                              "Débloquez ce tutoriel et tous\nles contenus exclusifs avec Premium.",
+                            ),
                             style: TextStyle(
-                                color: context.cl.textS,
-                                fontSize: 13,
-                                height: 1.5),
-                            textAlign: TextAlign.center),
+                              color: context.cl.textS,
+                              fontSize: 13,
+                              height: 1.5,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
                           const SizedBox(height: 20),
                           GestureDetector(
-                            onTap: () =>
-                                goToPremium(context, ref),
-                            child: Container(
-                              width: double.infinity,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 14),
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [
-                                    Color(0xFFB8860B),
-                                    Color(0xFFFFD700)
-                                  ]),
-                                borderRadius: BorderRadius.circular(14),
-                                boxShadow: [BoxShadow(
-                                  color: const Color(0xFFFFD700)
-                                      .withValues(alpha: 0.3),
-                                  blurRadius: 10,
-                                  offset: const Offset(0, 4))]),
-                              child: Row(
-                                mainAxisAlignment:
-                                    MainAxisAlignment.center,
-                                children: [
-                                  const Icon(Icons.workspace_premium_rounded,
-                                      color: Colors.white, size: 18),
-                                  const SizedBox(width: 8),
-                                  Text(tr(context, "Activer Premium — {arg0}", [priceLabel]),
-                                      style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w700)),
-                                ]),
-                            ).animate(onPlay: (c) { if (!context.animationsReduites) c.repeat(); })
-                              .shimmer(duration: 2200.ms, delay: 800.ms, color: Colors.white24),
+                            onTap: () => goToPremium(context, ref),
+                            child:
+                                Container(
+                                      width: double.infinity,
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 14,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        gradient: const LinearGradient(
+                                          colors: [
+                                            Color(0xFFB8860B),
+                                            Color(0xFFFFD700),
+                                          ],
+                                        ),
+                                        borderRadius: BorderRadius.circular(14),
+                                        boxShadow: [
+                                          BoxShadow(
+                                            color: const Color(
+                                              0xFFFFD700,
+                                            ).withValues(alpha: 0.3),
+                                            blurRadius: 10,
+                                            offset: const Offset(0, 4),
+                                          ),
+                                        ],
+                                      ),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          const Icon(
+                                            Icons.workspace_premium_rounded,
+                                            color: Colors.white,
+                                            size: 18,
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            tr(
+                                              context,
+                                              "Activer Premium — {arg0}",
+                                              [priceLabel],
+                                            ),
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    )
+                                    .animate(
+                                      onPlay: (c) {
+                                        if (!context.animationsReduites) { c.repeat(); }
+                                      },
+                                    )
+                                    .shimmer(
+                                      duration: 2200.ms,
+                                      delay: 800.ms,
+                                      color: Colors.white24,
+                                    ),
                           ),
-                        ]),
+                        ],
                       ),
                     ),
                   ),
                 ),
               ),
-            ],
-          ),
-        ],
-      );
+            ),
+          ],
+        ),
+      ],
+    );
   }
 
   Widget _fakeTextLine(BuildContext context, double width) => Container(
-        height: 12, width: width,
-        decoration: BoxDecoration(
-          color: context.cl.borderS,
-          borderRadius: BorderRadius.circular(6)));
+    height: 12,
+    width: width,
+    decoration: BoxDecoration(
+      color: context.cl.borderS,
+      borderRadius: BorderRadius.circular(6),
+    ),
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -993,205 +1113,53 @@ class _PlaceholderContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: catColor.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-              color: catColor.withValues(alpha: 0.2), width: 0.5)),
-        child: Column(children: [
-          const Text('📖', style: TextStyle(fontSize: 40)),
-          const SizedBox(height: 12),
-          Text(tr(context, "Contenu en préparation"),
-              style: TextStyle(
-                  color: context.cl.textP,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(height: 6),
-          Text(tr(context, "Ce tutoriel sera bientôt disponible."),
-              style: TextStyle(color: context.cl.textS, fontSize: 13),
-              textAlign: TextAlign.center),
-        ]),
-      );
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      color: catColor.withValues(alpha: 0.06),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: catColor.withValues(alpha: 0.2), width: 0.5),
+    ),
+    child: Column(
+      children: [
+        const Text('📖', style: TextStyle(fontSize: 40)),
+        const SizedBox(height: 12),
+        Text(
+          tr(context, "Contenu en préparation"),
+          style: TextStyle(
+            color: context.cl.textP,
+            fontSize: 15,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          tr(context, "Ce tutoriel sera bientôt disponible."),
+          style: TextStyle(color: context.cl.textS, fontSize: 13),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    ),
+  );
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
 // BOTTOM BAR — MARQUER COMME TERMINÉ
 // ══════════════════════════════════════════════════════════════════════════════
-class _BottomBar extends StatefulWidget {
-  final bool       completed;
-  final Animation<double> checkAnim;
-  final Color      catColor;
-  final VoidCallback onComplete;
-
-  const _BottomBar({
-    required this.completed,
-    required this.checkAnim,
-    required this.catColor,
-    required this.onComplete,
-  });
-
-  @override
-  State<_BottomBar> createState() => _BottomBarState();
-}
-
-class _BottomBarState extends State<_BottomBar>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _pressCtrl;
-  late Animation<double> _scale;
-
-  @override
-  void initState() {
-    super.initState();
-    _pressCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 80),
-      reverseDuration: const Duration(milliseconds: 150),
-    );
-    _scale = Tween(begin: 1.0, end: 0.97).animate(
-      CurvedAnimation(parent: _pressCtrl, curve: Curves.easeOut));
-  }
-
-  @override
-  void dispose() { _pressCtrl.dispose(); super.dispose(); }
-
-  @override
-  Widget build(BuildContext context) {
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-        child: Container(
-          padding: EdgeInsets.fromLTRB(
-              16, 12, 16, MediaQuery.of(context).padding.bottom + 12),
-          decoration: BoxDecoration(
-            color: context.cl.bg.withValues(alpha: 0.85),
-            border: Border(
-                top: BorderSide(
-                    color: context.cl.border, width: 0.5))),
-          child: GestureDetector(
-            onTapDown: widget.completed ? null : (_) => _pressCtrl.forward(),
-            onTapUp: widget.completed ? null : (_) {
-              _pressCtrl.reverse();
-              HapticFeedback.mediumImpact();
-              widget.onComplete();
-            },
-            onTapCancel: () => _pressCtrl.reverse(),
-            child: ScaleTransition(scale: _scale, child: AnimatedContainer(
-              duration: const Duration(milliseconds: 300),
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 15),
-              decoration: BoxDecoration(
-                gradient: widget.completed
-                    ? LinearGradient(
-                        colors: AppColors.degradeSucces)
-                    : LinearGradient(
-                        colors: [widget.catColor, widget.catColor.withValues(alpha: 0.8)]),
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: [
-                  BoxShadow(
-                    color: (widget.completed ? context.cl.success : widget.catColor)
-                        .withValues(alpha: 0.35),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4)),
-                ],
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (widget.completed)
-                    ScaleTransition(
-                      scale: widget.checkAnim,
-                      child: const Icon(Icons.check_circle_rounded,
-                          color: Colors.white, size: 20))
-                  else
-                    const Icon(Icons.check_rounded,
-                        color: Colors.white, size: 20),
-                  const SizedBox(width: 10),
-                  Text(
-                    widget.completed ? tr(context, "Tutoriel terminé ✓") : tr(context, "Marquer comme terminé"),
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700),
-                  ),
-                ],
-              ),
-            )),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-// ─── Tag ─────────────────────────────────────────────────────────────────────
-/// Titre qui n'apparaît que lorsque la barre est repliée.
-///
-/// `FlexibleSpaceBar` ne sait pas masquer un titre à l'état déplié : on calcule
-/// donc l'opacité à partir de la hauteur restante de la barre.
-class _TitreReplie extends StatelessWidget {
-  final String titre;
-  const _TitreReplie({required this.titre});
-
-  @override
-  Widget build(BuildContext context) {
-    final settings =
-        context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
-    final double t = settings == null
-        ? 1
-        : ((settings.maxExtent - settings.currentExtent) /
-                (settings.maxExtent - settings.minExtent))
-            .clamp(0.0, 1.0);
-    // Ne devient visible que sur le dernier tiers du repli.
-    final opacite = ((t - 0.65) / 0.35).clamp(0.0, 1.0);
-
-    return IgnorePointer(
-      child: Opacity(
-        opacity: opacite,
-        child: Text(titre,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-                color: context.cl.textP,
-                fontSize: 15,
-                fontWeight: FontWeight.w700)),
-      ),
-    );
-  }
-}
 
 class _Tag extends StatelessWidget {
+  const _Tag({required this.label, required this.color});
   final String label;
-  final Color  color;
-
-  /// Optionnelle : les pastilles Premium et Terminé portaient un 👑 et un ✓
-  /// collés dans leur libellé. Une icône prend la couleur de la pastille,
-  /// l'emoji gardait la sienne.
-  final IconData? icon;
-
-  const _Tag({required this.label, required this.color, this.icon});
-
+  final Color color;
   @override
   Widget build(BuildContext context) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(6),
-          border: Border.all(
-              color: color.withValues(alpha: 0.3), width: 0.5)),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (icon != null) ...[
-              Icon(icon, size: 12, color: color),
-              const SizedBox(width: 4),
-            ],
-            Text(label,
-                style: TextStyle(
-                    color: color,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600)),
-          ],
-        ));
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    decoration: BoxDecoration(
+      color: color.withValues(alpha: .1),
+      borderRadius: BorderRadius.circular(10),
+    ),
+    child: Text(
+      label,
+      style: TextStyle(color: color, fontWeight: FontWeight.w600),
+    ),
+  );
 }

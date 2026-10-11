@@ -59,7 +59,7 @@ class MatchModel extends MatchEntity {
     oddsHome:        (j['odds_home'] as num?)?.toDouble() ?? 0.0,
     oddsDraw:        (j['odds_draw'] as num?)?.toDouble() ?? 0.0,
     oddsAway:        (j['odds_away'] as num?)?.toDouble() ?? 0.0,
-    confidenceScore: j['confidence_score'] as int? ?? 1,
+    confidenceScore: j['confidence_score'] as int? ?? 0,
     confidencePct:   (j['confidence_pct'] as num?)?.toInt(),
     isPremium:       j['is_premium'] as bool? ?? false,
     analystNote:     j['analyst_note'] as String?,

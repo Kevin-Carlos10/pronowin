@@ -1,3 +1,4 @@
+import '../widgets/sessions_sheet.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -192,8 +193,8 @@ class ParametresPage extends ConsumerWidget {
 
             _NavTile(
               icon: Icons.devices_rounded, iconColor: context.cl.info,
-              title: tr(context, "Cet appareil"),
-              subtitle: tr(context, "Consulter la connexion sur ce téléphone"),
+              title: tr(context, "Appareils connectés"),
+              subtitle: tr(context, "Consulter les sessions de ton compte"),
               onTap: () => _showSessionsSheet(context),
             ),
           ]).animate(delay: 180.ms).fadeIn(duration: 300.ms)
@@ -437,78 +438,18 @@ class ParametresPage extends ConsumerWidget {
     );
   }
 
-  // ─── Bottom sheet : Cet appareil ──────────────────────────────────────────
   void _showSessionsSheet(BuildContext context) {
-    showModalBottomSheet(
+    showModalBottomSheet<void>(
       context: context,
       backgroundColor: context.cl.surface,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 40, height: 4,
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(color: context.cl.borderS, borderRadius: BorderRadius.circular(2))),
-          Row(children: [
-            Container(width: 42, height: 42,
-              decoration: BoxDecoration(
-                color: context.cl.info.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12)),
-              child: Icon(Icons.devices_rounded, color: context.cl.info, size: 22)),
-            const SizedBox(width: 14),
-            Text(tr(context, "Cet appareil"), style: TextStyle(
-              color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
-          ]),
-          const SizedBox(height: 20),
-          Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: context.cl.success.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: context.cl.success.withValues(alpha: 0.25))),
-            child: Row(children: [
-              Container(width: 40, height: 40,
-                decoration: BoxDecoration(
-                  color: context.cl.success.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(10)),
-                child: Icon(Platform.isIOS ? Icons.phone_iphone_rounded : Icons.phone_android_rounded, color: context.cl.success, size: 20)),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(tr(context, "{arg0} · Cet appareil", [Platform.isIOS ? 'iPhone' : 'Android']), style: TextStyle(
-                  color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
-                Text(tr(context, "Connecté maintenant"), style: TextStyle(
-                  color: context.cl.textM, fontSize: 11)),
-              ])),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                decoration: BoxDecoration(
-                  color: context.cl.success.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20)),
-                child:  Text(tr(context, "Actif"), style: TextStyle(
-                  color: context.cl.success, fontSize: 11, fontWeight: FontWeight.w700))),
-            ]),
-          ),
-          const SizedBox(height: 12),
-          Text(
-            tr(context, "Cet écran affiche uniquement ce téléphone. Il ne liste pas les connexions sur tes autres appareils."),
-            style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.5),
-            textAlign: TextAlign.center),
-          const SizedBox(height: 20),
-          SizedBox(
-            width: double.infinity, height: 48,
-            child: OutlinedButton(
-              onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: context.cl.textP,
-                side: BorderSide(color: context.cl.border),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-              child:  Text(tr(context, "Fermer")),
-            ),
-          ),
-        ]),
-      ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (context) => ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.8),
+        child: const SessionsSheet()),
     );
   }
 

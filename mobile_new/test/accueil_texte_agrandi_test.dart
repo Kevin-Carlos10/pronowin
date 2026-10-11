@@ -57,7 +57,7 @@ List<Override> _donnees() => [
       actualitesProvider.overrideWith((ref) async => const []),
       favoritesListProvider.overrideWith((ref) async => const []),
       bankrollProvider.overrideWith((ref) async => BankrollData(
-            id: 'b', totalBudget: 1000000, currentBalance: 997000, currency: 'XOF',
+            id: 'b', totalBudget: 1000000, currentBalance: 18951826, currency: 'XOF',
             bets: const [],
           )),
     ];

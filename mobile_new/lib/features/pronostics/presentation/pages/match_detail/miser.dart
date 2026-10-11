@@ -30,7 +30,7 @@ class _MiserButtonState extends ConsumerState<_MiserButton> {
         child:  Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           Icon(Icons.check_circle_rounded, color: context.cl.success, size: 18),
           SizedBox(width: 8),
-          Text(tr(context, "Mise enregistrée dans ta bankroll"),
+          Text(tr(context, "Sélection enregistrée dans ta bankroll"),
               style: TextStyle(color: context.cl.success,
                   fontSize: 13, fontWeight: FontWeight.w600)),
         ]),
@@ -76,16 +76,20 @@ class _MiserButtonState extends ConsumerState<_MiserButton> {
             color: context.cl.success.withValues(alpha: 0.35),
             blurRadius: 14, offset: const Offset(0, 5))]),
         child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-          const Icon(Icons.savings_rounded, color: Colors.white, size: 20),
+          const Icon(Icons.account_balance_wallet_rounded, color: Colors.white, size: 20),
           const SizedBox(width: 10),
-           Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(tr(context, "Valider ma mise"),
-                style: TextStyle(color: Colors.white,
-                    fontSize: 15, fontWeight: FontWeight.w700)),
-            Text(tr(context, "Ajouter à ma bankroll"),
-                style: TextStyle(color: Colors.white70, fontSize: 11)),
-          ]),
-          const Spacer(),
+          // Souple : « Valider ma sélection » est plus long que l'ancien
+          // « Miser », et débordait de 13 px à 180 % sur 360 px.
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(tr(context, "Valider ma sélection"),
+                  style: TextStyle(color: Colors.white,
+                      fontSize: 15, fontWeight: FontWeight.w700)),
+              Text(tr(context, "Ajouter à ma bankroll"),
+                  style: TextStyle(color: Colors.white70, fontSize: 11)),
+            ]),
+          ),
+          const SizedBox(width: 10),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
             decoration: BoxDecoration(

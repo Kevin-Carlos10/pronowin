@@ -224,18 +224,6 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
     final needsLogin = status == 401;
     final isGated    = isPremiumRequired || needsLogin;
 
-    // Les canaux ne s'affichaient que dans `_EmptyComments`, c'est-à-dire dans
-    // la seule branche `data` — celle qu'un compte Premium atteint. Un invité
-    // reçoit 401, un compte gratuit 403 : ni l'un ni l'autre n'arrivait jamais
-    // à cet état vide, donc ni l'un ni l'autre ne voyait les canaux. Le lien
-    // destiné à faire grandir la communauté était caché à tous ceux qui n'en
-    // faisaient pas déjà partie.
-    //
-    // La règle porte sur ce qu'il y a à lire, pas sur le statut : une section
-    // verrouillée n'a rien à lire non plus.
-    final aucunCommentaire = commentsAsync.valueOrNull?.comments.isEmpty ?? false;
-    final rienALire        = isGated || aucunCommentaire;
-
     return Container(
       decoration: BoxDecoration(
         color: context.cl.surface,
@@ -307,14 +295,14 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
               ),
         ),
 
-        // ── Canaux — dès qu'il n'y a rien à lire, quel qu'en soit le motif ─
+        // ── Canaux — visibles avec ou sans commentaires ─
         //
         // Volontairement en dehors de `_CommentsPremiumLocked` et de
         // `_CommentsGuestLocked` : ces deux widgets captent le tap sur toute
         // leur surface (l'un pour l'abonnement, l'autre pour l'inscription).
         // Des boutons posés à l'intérieur se disputeraient l'arène des
         // gestes avec eux.
-        if (rienALire) const _CanauxCommunaute(),
+        const _CanauxCommunaute(),
 
         // ── Input — réservé aux membres Premium ──────────────────────────
         if (!isGated) ...[
@@ -756,15 +744,8 @@ class _EmptyComments extends StatelessWidget {
   );
 }
 
-/// Les deux canaux, affiches des que la section n'a rien a lire.
-///
-/// Ils existaient deja — dans une modale, dans les Parametres, sous
-/// « A propos » : personne ne les trouvait. Ils vivent ici parce qu'un vide
-/// vaut moins qu'une porte ; quand des commentaires existent, la section fait
-/// son travail et n'a pas a pousser l'utilisateur hors de l'application.
-///
-/// Le separateur importe : sous le verrou Premium, sans lui, les deux boutons
-/// sembleraient faire partie de l'offre payante alors qu'ils sont gratuits.
+/// Les canaux restent accessibles quel que soit le contenu du fil.
+/// Le séparateur les distingue notamment de l'offre Premium.
 class _CanauxCommunaute extends StatelessWidget {
   const _CanauxCommunaute();
 
@@ -778,12 +759,13 @@ class _CanauxCommunaute extends StatelessWidget {
           textAlign: TextAlign.center,
           style: TextStyle(color: context.cl.textM, fontSize: 11.5, height: 1.4)),
         const SizedBox(height: 12),
-        Row(mainAxisAlignment: MainAxisAlignment.center, children: const [
+        // Retour à la ligne plutôt qu'une rangée figée : côte à côte, les
+        // deux boutons débordaient de 19 px à 180 % sur 360 px.
+        Wrap(alignment: WrapAlignment.center, spacing: 10, runSpacing: 8, children: const [
           _BoutonCanal(
             libelle: 'Telegram',
             marque: Marque.telegram,
             onTap: ContactSupport.ouvrirTelegram),
-          SizedBox(width: 10),
           _BoutonCanal(
             libelle: 'WhatsApp',
             marque: Marque.whatsapp,

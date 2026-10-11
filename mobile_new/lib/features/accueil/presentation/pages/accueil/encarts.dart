@@ -332,7 +332,6 @@ class _BankrollMiniWidget extends ConsumerWidget {
         // « −3 000 » en rouge alors que rien n'était perdu. La page Bankroll
         // avait été corrigée, pas ce résumé — le test ne lisait qu'elle.
         final profit      = bankroll.resultatNet;
-        final isProfit    = profit >= 0;
         final profitColor = profit > 0
             ? context.cl.success
             : profit < 0 ? context.cl.error : context.cl.textM;
@@ -394,88 +393,29 @@ class _BankrollMiniWidget extends ConsumerWidget {
                   color: context.cl.success.withValues(alpha: 0.06),
                   blurRadius: 12, offset: const Offset(0, 4))],
               ),
-              child: Row(children: [
-
-                // Icône wallet
-                Container(
-                  width: 40, height: 40,
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: AppColors.degradeSucces,
-                      begin: Alignment.topLeft, end: Alignment.bottomRight),
-                    borderRadius: BorderRadius.circular(12),
-                    boxShadow: [BoxShadow(
-                      color: context.cl.success.withValues(alpha: 0.3),
-                      blurRadius: 8, offset: const Offset(0, 3))]),
-                  child: const Icon(Icons.account_balance_wallet_rounded,
-                      color: Colors.white, size: 19)),
-                const SizedBox(width: 12),
-
-                // Solde
-                Expanded(child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(tr(context, "Ma bankroll"), style: TextStyle(
-                        color: context.cl.textM, fontSize: 11,
-                        fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 2),
-                    Text('${_fmt(bankroll.currentBalance)} ${nomDevise(bankroll.currency)}',
-                        style: TextStyle(
-                            color: context.cl.textP, fontSize: 16,
-                            fontWeight: FontWeight.w700, letterSpacing: -0.3)),
-                  ],
-                )),
-
-                // ROI + win rate
-                Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Row(mainAxisSize: MainAxisSize.min, children: [
-                    Icon(
-                      profit == 0
-                          ? Icons.trending_flat_rounded
-                          : isProfit
-                              ? Icons.trending_up_rounded
-                              : Icons.trending_down_rounded,
-                      color: profitColor, size: 13),
-                    const SizedBox(width: 3),
-                    Text('${profit > 0 ? '+' : ''}${_fmt(profit)}',
-                        semanticsLabel: '${tr(context, "Résultat net")} '
-                            '${profit > 0 ? '+' : ''}${_fmt(profit)}',
-                        style: TextStyle(color: profitColor,
-                            fontSize: 12, fontWeight: FontWeight.w700)),
-                  ]),
-                  const SizedBox(height: 4),
-                  Row(mainAxisSize: MainAxisSize.min, children: [
-                    // « — win » ne dit rien du tout.
-                    //
-                    // Sous le seuil, le taux est retenu ; cette carte est trop
-                    // étroite pour en expliquer la raison, et un tiret suivi
-                    // de « win » occupe la place sans rien apprendre. On
-                    // n'affiche donc rien : l'écran Bankroll, qu'un appui sur
-                    // la carte ouvre, porte la phrase complète.
-                    if (bilanCarte.taux != null)
-                      Text(tr(context, "{arg0} % de réussite", [bilanCarte.taux!.toStringAsFixed(0)]),
-                          style: TextStyle(
-                              color: context.cl.textM, fontSize: 10)),
-                    if (pending > 0) ...[
-                      const SizedBox(width: 6),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 6, vertical: 1),
-                        decoration: BoxDecoration(
-                          color: context.cl.warning.withValues(alpha: 0.15),
-                          borderRadius: BorderRadius.circular(6)),
-                        child: Text(tr(context, "{arg0} en cours", [pending]),
-                            style: TextStyle(
-                                color: context.cl.warning, fontSize: 9,
-                                fontWeight: FontWeight.w700)),
-                      ),
-                    ],
-                  ]),
+              child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                Row(children: [
+                  Icon(Icons.account_balance_wallet_rounded, color: context.cl.success, size: 24),
+                  const SizedBox(width: 10),
+                  Expanded(child: Text(tr(context, "Ma bankroll"),
+                    style: TextStyle(color: context.cl.textM, fontSize: 12))),
+                  Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 20),
                 ]),
-
-                const SizedBox(width: 8),
-                Icon(Icons.chevron_right_rounded,
-                    color: context.cl.textM, size: 18),
+                const SizedBox(height: 8),
+                Text('${_fmt(bankroll.currentBalance)} ${nomDevise(bankroll.currency)}',
+                  style: TextStyle(color: context.cl.textP, fontSize: 22,
+                    fontWeight: FontWeight.w700, letterSpacing: -0.3)),
+                const SizedBox(height: 10),
+                Wrap(spacing: 12, runSpacing: 6, children: [
+                  Text('${tr(context, "Résultat net")} : ${profit > 0 ? '+' : ''}${_fmt(profit)} ${nomDevise(bankroll.currency)}',
+                    style: TextStyle(color: profitColor, fontSize: 12, fontWeight: FontWeight.w600)),
+                  if (bilanCarte.taux != null)
+                    Text(tr(context, "{arg0} % de réussite", [bilanCarte.taux!.toStringAsFixed(0)]),
+                      style: TextStyle(color: context.cl.textM, fontSize: 11)),
+                  if (pending > 0)
+                    Text(tr(context, "{arg0} en cours", [pending]),
+                      style: TextStyle(color: context.cl.warning, fontSize: 11)),
+                ]),
               ]),
             ),
           ),

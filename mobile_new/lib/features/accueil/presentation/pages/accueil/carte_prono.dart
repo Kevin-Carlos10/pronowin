@@ -48,6 +48,7 @@ class _PronosticCard extends ConsumerWidget {
     // alors que le serveur en livre le contenu. Les trois lignes ont été
     // remontées pour que la règle ait la donnée qu'il lui faut.
     final isLocked  = estVerrouille(
+      contenuMasque: prono['locked'] == true,
       estPremium:         prono['is_premium'] as bool? ?? false,
       matchTermine:       isFinished,
       utilisateurPremium: isPremium,

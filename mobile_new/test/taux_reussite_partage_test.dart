@@ -68,6 +68,10 @@ void main() {
       // Palmarès du modèle : conditionné juste au-dessus par
       // `total >= echantillonCommercial`, la ligne du calcul reste locale.
       '? (won / total * 100).round()',
+      // Exercice « value bet » des tutoriels : l'espérance d'un pari fictif,
+      // probabilité × cote − 1, à partir de valeurs que l'élève saisit. Ce
+      // n'est pas un taux de réussite, et rien n'y est affirmé sur PronoWin.
+      'final value = (probability / 100 * odds - 1) * 100;',
     ];
 
     final fautes = <String>[];

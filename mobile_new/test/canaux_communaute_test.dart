@@ -1,14 +1,32 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
+import 'package:pronowin/core/theme/app_theme.dart';
+import 'package:pronowin/features/pronostics/presentation/widgets/comments_section.dart';
+import 'aides/banc_ecran.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pronowin/core/config/contact_support.dart';
 
-/// Les canaux Telegram et WhatsApp existaient — dans une modale, dans les
-/// Paramètres, sous « À propos ». Personne ne les trouvait.
-///
-/// Ils apparaissent désormais là où la section « Avis de la communauté » n'a
-/// rien à lire : envoyer ailleurs vaut mieux qu'un vide, et quand des
-/// commentaires existent, la section n'a pas à pousser l'utilisateur dehors.
 void main() {
+  setUpAll(preparerBanc);
+  for (final nombre in [0, 1, 3]) {
+    testWidgets('canaux visibles avec $nombre commentaires', (tester) async {
+      final result = await mesurerEcran(tester,
+        ecran: const Scaffold(body: SingleChildScrollView(child: CommentsSection(pronosticId: 'm'))),
+        theme: AppTheme.light, echelle: 1,
+        surcharges: [commentsProvider('m').overrideWith((ref) async => CommentsData(
+          vote: const PronosticVoteData(agree: 0, disagree: 0, total: 0),
+          comments: List.generate(nombre, (i) => PronosticComment(id: '$i', userId: 'autre',
+            content: 'Mon avis $i', isExpert: false, createdAt: DateTime(2026, 10, 11), userPseudo: 'Membre'))))],
+        verifier: () {
+          expect(find.text('Telegram'), findsOneWidget);
+          expect(find.text('WhatsApp'), findsOneWidget);
+          if (nombre > 0) expect(find.text('Mon avis 0'), findsOneWidget);
+        });
+      expect(result.autres, isEmpty);
+      expect(result.debordements, isEmpty);
+    });
+  }
+
   final section = File(
     'lib/features/pronostics/presentation/widgets/comments_section.dart',
   ).readAsStringSync();
@@ -47,30 +65,6 @@ void main() {
       expect(corps.contains('ouvrirTelegram'), isFalse,
         reason: '$verrou capte le tap sur toute sa surface');
     }
-  });
-
-  test('un compte gratuit et un invité voient les canaux', () {
-    // Le défaut corrigé : les canaux ne s'affichaient que dans `_EmptyComments`,
-    // atteint uniquement par la branche `data`. Un invité reçoit 401, un compte
-    // gratuit 403 — aucun des deux n'y arrivait, donc aucun des deux ne voyait
-    // le lien censé faire grandir la communauté.
-    expect(code.contains('final rienALire        = isGated || aucunCommentaire;'),
-      isTrue, reason: 'la condition porte sur ce qu\'il y a à lire, pas sur '
-                      'le statut de l\'utilisateur');
-    expect(code.contains('if (rienALire) const _CanauxCommunaute(),'), isTrue);
-
-    // Et le contre-exemple : la condition ne doit pas se restreindre aux
-    // comptes qui reçoivent une réponse.
-    expect(code.contains('if (aucunCommentaire) const _CanauxCommunaute()'),
-      isFalse);
-  });
-
-  test('une section qui a des commentaires ne pousse personne dehors', () {
-    // `rienALire` est faux dès qu'un commentaire existe : le bloc disparaît.
-    expect(code.contains('commentsAsync.valueOrNull?.comments.isEmpty ?? false'),
-      isTrue,
-      reason: 'sans commentaire chargé, la valeur par défaut doit être false — '
-              'un `?? true` afficherait les canaux pendant le chargement');
   });
 
   test('quitter l\'application est annoncé', () {

@@ -298,6 +298,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     //
     // La règle partagée tranche : payant, oui ; mais pas après le match.
     final isLocked = estVerrouille(
+      contenuMasque: match.isLocked,
       estPremium:         match.isPremium || match.isLocked,
       matchTermine:       match.status == MatchStatus.finished,
       utilisateurPremium: isPremium,

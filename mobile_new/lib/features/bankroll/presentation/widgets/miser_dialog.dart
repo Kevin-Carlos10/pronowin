@@ -149,7 +149,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
             child: Icon(Icons.check_circle_rounded,
                 color: context.cl.success, size: 34)),
           const SizedBox(height: 14),
-          Text(tr(context, "Mise enregistrée !"), style: TextStyle(
+          Text(tr(context, "Sélection enregistrée !"), style: TextStyle(
             color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w700)),
           const SizedBox(height: 4),
           Text(
@@ -295,11 +295,11 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                 decoration: BoxDecoration(
                   color: context.cl.success.withValues(alpha: 0.12),
                   shape: BoxShape.circle),
-                child: Icon(Icons.savings_rounded,
+                child: Icon(Icons.account_balance_wallet_rounded,
                   color: context.cl.success, size: 20)),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(tr(context, "Valider ma mise"), style: TextStyle(
+                Text(tr(context, "Valider ma sélection"), style: TextStyle(
                   color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
                 Text('${widget.homeTeam} – ${widget.awayTeam}',
                   style: TextStyle(color: context.cl.textM, fontSize: 11),
@@ -379,17 +379,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                       color: confColor, fontSize: 10, fontWeight: FontWeight.w700)),
                   ),
                 ]),
-                const SizedBox(height: 10),
-                Divider(color: context.cl.success.withValues(alpha: 0.15), height: 1),
-                const SizedBox(height: 10),
-                Row(children: [
-                  Icon(Icons.info_outline_rounded,
-                    color: context.cl.success, size: 13),
-                  const SizedBox(width: 6),
-                  Expanded(child: Text(
-                    tr(context, "Barème fixe selon la confiance de l’analyste : 1–39 % → 1,5 % du solde · 40–79 % → 3 % · 80–99 % → 5 %. Montant arrondi à l’unité inférieure."),
-                    style: TextStyle(color: context.cl.textS, fontSize: 11))),
-                ]),
+
               ]),
             ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.04, end: 0),
 
@@ -466,7 +456,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                       Icon(Icons.check_circle_rounded,
                         color: Colors.white, size: 20),
                       SizedBox(width: 8),
-                      Flexible(child: Text(tr(context, "Enregistrer dans mon suivi"), textAlign: TextAlign.center, style: TextStyle(
+                      Flexible(child: Text(tr(context, "Valider"), textAlign: TextAlign.center, style: TextStyle(
                         color: Colors.white, fontSize: 16,
                         fontWeight: FontWeight.w700))),
                     ])),

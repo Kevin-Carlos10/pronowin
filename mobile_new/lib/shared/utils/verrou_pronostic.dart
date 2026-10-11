@@ -27,10 +27,13 @@
 /// devenu un résultat, et le cacher ne vend plus rien, cela empêche seulement
 /// de juger sa fiabilité avant de s'abonner.
 bool estVerrouille({
+  bool contenuMasque = false,
   required bool estPremium,
   required bool matchTermine,
   required bool utilisateurPremium,
 }) {
+  // Une réponse expurgée ne devient pas lisible grâce à un état local.
+  if (contenuMasque) return true;
   if (!estPremium)         return false;
   if (utilisateurPremium)  return false;
   if (matchTermine)        return false;

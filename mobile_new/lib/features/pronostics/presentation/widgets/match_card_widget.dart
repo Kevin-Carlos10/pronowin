@@ -60,6 +60,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
     // Le statut manquait : une carte de match joué restait cadenassée, alors
     // que le serveur en livre le contenu.
     final locked  = estVerrouille(
+      contenuMasque: widget.match.isLocked,
       estPremium:         widget.match.isPremium,
       matchTermine:       widget.match.status == MatchStatus.finished,
       utilisateurPremium: widget.isPremiumUser,

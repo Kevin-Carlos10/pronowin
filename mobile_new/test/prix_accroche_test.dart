@@ -35,7 +35,7 @@ void main() {
       .join('\n');
 
   test('la feuille d\'accroche existe toujours', () {
-    expect(source, contains('À partir de'));
+    expect(source, contains('Abonnement mensuel'));
   });
 
   test('elle emploie le prix partagé, qui connaît le canal', () {

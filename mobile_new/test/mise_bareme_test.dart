@@ -29,7 +29,7 @@ void main() {
       expect(find.text('3 % du solde'), findsOneWidget);
       expect(find.byType(TextField), findsNothing); // aucun pourcentage personnel
       final button = tester.widget<GestureDetector>(find.ancestor(
-        of: find.text('Enregistrer dans mon suivi'), matching: find.byType(GestureDetector)).first);
+        of: find.text('Valider'), matching: find.byType(GestureDetector)).first);
       expect(button.onTap == null, stake == 0);
     });
   }

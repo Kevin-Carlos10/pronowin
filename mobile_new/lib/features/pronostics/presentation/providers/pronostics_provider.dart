@@ -1,3 +1,4 @@
+import '../../../auth/presentation/providers/auth_provider.dart';
 import 'package:pronowin/l10n/editorial_text.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'package:pronowin/l10n/football_labels.dart';
@@ -261,6 +262,7 @@ class MatchesPaginatedNotifier extends StateNotifier<MatchesPaginatedState> {
 
 final matchesPaginatedProvider =
     StateNotifierProvider.autoDispose<MatchesPaginatedNotifier, MatchesPaginatedState>((ref) {
+  ref.watch(authProvider);
   final filter       = ref.watch(pronosticsFilterProvider);
   final status       = ref.watch(statusFilterProvider);
   final hasPronostic = ref.watch(hasPronosticFilterProvider);
@@ -270,6 +272,7 @@ final matchesPaginatedProvider =
 
 // ─── Détail d'un match ────────────────────────────────────────────────────────
 final matchDetailProvider = FutureProvider.autoDispose.family<MatchEntity, String>((ref, id) async {
+  ref.watch(authProvider);
   final usecase  = GetMatchDetailUseCase(ref.read(pronosticsRepoProvider));
   final cacheKey = 'match_detail_$id';
   try {

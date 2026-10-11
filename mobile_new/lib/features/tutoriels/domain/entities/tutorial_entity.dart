@@ -1,5 +1,6 @@
 import 'package:pronowin/l10n/editorial_text.dart';
 import 'package:pronowin/l10n/app_strings.dart';
+
 // ─── Enums ────────────────────────────────────────────────────────────────────
 enum TutorialLevel {
   beginner,
@@ -7,15 +8,15 @@ enum TutorialLevel {
   advanced;
 
   String get label => switch (this) {
-    TutorialLevel.beginner     => trCurrent("Débutant"),
+    TutorialLevel.beginner => trCurrent("Débutant"),
     TutorialLevel.intermediate => trCurrent("Intermédiaire"),
-    TutorialLevel.advanced     => trCurrent("Avancé"),
+    TutorialLevel.advanced => trCurrent("Avancé"),
   };
 
   static TutorialLevel fromString(String? s) => switch (s) {
     'intermediate' => TutorialLevel.intermediate,
-    'advanced'     => TutorialLevel.advanced,
-    _              => TutorialLevel.beginner,
+    'advanced' => TutorialLevel.advanced,
+    _ => TutorialLevel.beginner,
   };
 }
 
@@ -25,32 +26,33 @@ enum TutorialLevel {
 // avec un repli générique pour toute nouvelle catégorie inconnue de ce code.
 class TutorialCategoryInfo {
   static const Map<String, String> _labels = {
-    'valuebet':    'Value Bet',
-    'bankroll':    'Bankroll',
-    'martingale':  'Martingale',
-    'trading':     'Trading',
-    'psychology':  'Psychologie',
+    'valuebet': 'Value Bet',
+    'bankroll': 'Bankroll',
+    'martingale': 'Martingale',
+    'trading': 'Trading',
+    'psychology': 'Psychologie',
     'psychologie': 'Psychologie',
-    'statistics':  'Statistiques',
-    'strategie':   'Stratégie',
-    'analyse':     'Analyse',
+    'statistics': 'Statistiques',
+    'strategie': 'Stratégie',
+    'analyse': 'Analyse',
   };
 
   static const Map<String, String> _emojis = {
-    'valuebet':    '🎯',
-    'bankroll':    '💰',
-    'martingale':  '🔄',
-    'trading':     '⚡',
-    'psychology':  '🧠',
+    'valuebet': '🎯',
+    'bankroll': '💰',
+    'martingale': '🔄',
+    'trading': '⚡',
+    'psychology': '🧠',
     'psychologie': '🧠',
-    'statistics':  '📊',
-    'strategie':   '♟️',
-    'analyse':     '📊',
+    'statistics': '📊',
+    'strategie': '♟️',
+    'analyse': '📊',
   };
 
   static String labelFor(String category) =>
       _labels.containsKey(category.toLowerCase())
-        ? trCurrent(_labels[category.toLowerCase()]!) : _titleCase(category);
+      ? trCurrent(_labels[category.toLowerCase()]!)
+      : _titleCase(category);
 
   static String emojiFor(String category) =>
       _emojis[category.toLowerCase()] ?? '📚';
@@ -66,7 +68,8 @@ class TutorialCategoryInfo {
 
 // ─── Entity ───────────────────────────────────────────────────────────────────
 class TutorialEntity {
-  final String           id;
+  final Map<String, dynamic> lessonContent;
+  final String id;
   final String _title;
   final String? titleEn;
   String get title => editorialText(_title, titleEn);
@@ -75,25 +78,29 @@ class TutorialEntity {
   final String? descriptionEn;
   String get description => editorialText(_description, descriptionEn);
   String get sourceDescription => _description;
-  final TutorialLevel    level;
-  final String           category; // texte libre côté back — voir TutorialCategoryInfo
-  final String?          thumbnailUrl;
-  final String?          videoUrl;
+  final TutorialLevel level;
+  final String category; // texte libre côté back — voir TutorialCategoryInfo
+  final String? thumbnailUrl;
+  final String? videoUrl;
   final String? _articleContent;
   final String? articleContentEn;
-  String? get articleContent => _articleContent == null && articleContentEn == null ? null : editorialText(_articleContent ?? '', articleContentEn);
-  String? get sourceArticleContent => _articleContent;  // contenu article texte
-  final String?          authorName;
-  final String?          authorAvatar;
-  final int              durationSeconds;
-  final int              viewCount;
-  final double           rating;
-  final bool             isPremium;
-  final bool             hasVideo;
-  final bool             isCompleted;
-  final DateTime?        publishedAt;
+  String? get articleContent =>
+      _articleContent == null && articleContentEn == null
+      ? null
+      : editorialText(_articleContent ?? '', articleContentEn);
+  String? get sourceArticleContent => _articleContent; // contenu article texte
+  final String? authorName;
+  final String? authorAvatar;
+  final int durationSeconds;
+  final int viewCount;
+  final double rating;
+  final bool isPremium;
+  final bool hasVideo;
+  final bool isCompleted;
+  final DateTime? publishedAt;
 
   const TutorialEntity({
+    this.lessonContent = const {},
     required this.id,
     required String title,
     this.titleEn,
@@ -108,16 +115,18 @@ class TutorialEntity {
     this.authorName,
     this.authorAvatar,
     this.durationSeconds = 0,
-    this.viewCount       = 0,
-    this.rating          = 0.0,
-    this.isPremium       = false,
-    this.hasVideo        = false,
-    this.isCompleted     = false,
+    this.viewCount = 0,
+    this.rating = 0.0,
+    this.isPremium = false,
+    this.hasVideo = false,
+    this.isCompleted = false,
     this.publishedAt,
-  }) : _title = title, _description = description, _articleContent = articleContent;
+  }) : _title = title,
+       _description = description,
+       _articleContent = articleContent;
 
   // ─── Getters pratiques ────────────────────────────────────────────────────
-  String get levelLabel    => level.label;
+  String get levelLabel => level.label;
   String get categoryLabel => TutorialCategoryInfo.labelFor(category);
   String get categoryEmoji => TutorialCategoryInfo.emojiFor(category);
 
@@ -139,106 +148,122 @@ class TutorialEntity {
 
   // ─── fromJson ─────────────────────────────────────────────────────────────
   factory TutorialEntity.fromJson(Map<String, dynamic> j) => TutorialEntity(
-    id:              j['id']          as String,
-    title:           j['title']       as String,
+    lessonContent: Map<String, dynamic>.from(j['lesson_content'] as Map? ?? {}),
+    id: j['id'] as String,
+    title: j['title'] as String,
     titleEn: j['title_en'] as String?,
-    description:     j['description'] as String? ?? '',
+    description: j['description'] as String? ?? '',
     descriptionEn: j['description_en'] as String?,
-    level:           TutorialLevel.fromString(j['level'] as String?),
-    category:        (j['category'] as String?)?.trim().isNotEmpty == true
-      ? (j['category'] as String).trim() : 'valuebet',
-    thumbnailUrl:    j['thumbnail_url']  as String?,
-    videoUrl:        j['video_url']      as String?,
-    articleContent:  j['article_content'] as String?,
+    level: TutorialLevel.fromString(j['level'] as String?),
+    category: (j['category'] as String?)?.trim().isNotEmpty == true
+        ? (j['category'] as String).trim()
+        : 'valuebet',
+    thumbnailUrl: j['thumbnail_url'] as String?,
+    videoUrl: j['video_url'] as String?,
+    articleContent: j['article_content'] as String?,
     articleContentEn: j['article_content_en'] as String?,
-    authorName:      j['author_name']    as String?,
-    authorAvatar:    j['author_avatar']  as String?,
+    authorName: j['author_name'] as String?,
+    authorAvatar: j['author_avatar'] as String?,
     durationSeconds: (j['duration_seconds'] as num?)?.toInt() ?? 0,
-    viewCount:       (j['view_count']       as num?)?.toInt() ?? 0,
-    rating:          (j['rating']           as num?)?.toDouble() ?? 0.0,
-    isPremium:       j['is_premium']  as bool? ?? false,
-    hasVideo:        j['has_video']   as bool? ?? false,
-    isCompleted:     j['is_completed'] as bool? ?? false,
-    publishedAt:     j['published_at'] != null
-      ? DateTime.tryParse(j['published_at'] as String) : null,
+    viewCount: (j['view_count'] as num?)?.toInt() ?? 0,
+    rating: (j['rating'] as num?)?.toDouble() ?? 0.0,
+    isPremium: j['is_premium'] as bool? ?? false,
+    hasVideo: j['has_video'] as bool? ?? false,
+    isCompleted: j['is_completed'] as bool? ?? false,
+    publishedAt: j['published_at'] != null
+        ? DateTime.tryParse(j['published_at'] as String)
+        : null,
   );
 
   // ─── toJson ───────────────────────────────────────────────────────────────
   Map<String, dynamic> toJson() => {
-    'id':               id,
-    'title':            _title,
+    'lesson_content': lessonContent,
+    'id': id,
+    'title': _title,
     'title_en': titleEn,
-    'description':      _description,
+    'description': _description,
     'description_en': descriptionEn,
-    'level':            level.name,
-    'category':         category,
-    'thumbnail_url':    thumbnailUrl,
-    'video_url':        videoUrl,
-    'article_content':  _articleContent,
+    'level': level.name,
+    'category': category,
+    'thumbnail_url': thumbnailUrl,
+    'video_url': videoUrl,
+    'article_content': _articleContent,
     'article_content_en': articleContentEn,
-    'author_name':      authorName,
-    'author_avatar':    authorAvatar,
+    'author_name': authorName,
+    'author_avatar': authorAvatar,
     'duration_seconds': durationSeconds,
-    'view_count':       viewCount,
-    'rating':           rating,
-    'is_premium':       isPremium,
-    'has_video':        hasVideo,
-    'is_completed':     isCompleted,
-    'published_at':     publishedAt?.toIso8601String(),
+    'view_count': viewCount,
+    'rating': rating,
+    'is_premium': isPremium,
+    'has_video': hasVideo,
+    'is_completed': isCompleted,
+    'published_at': publishedAt?.toIso8601String(),
   };
 
   TutorialEntity copyWith({
-    String? id, String? title, String? description,
-    TutorialLevel? level, String? category,
-    String? thumbnailUrl, String? videoUrl, String? articleContent,
-    String? authorName, String? authorAvatar,
-    int? durationSeconds, int? viewCount, double? rating,
-    bool? isPremium, bool? hasVideo, bool? isCompleted,
+    String? id,
+    String? title,
+    String? description,
+    TutorialLevel? level,
+    String? category,
+    String? thumbnailUrl,
+    String? videoUrl,
+    String? articleContent,
+    String? authorName,
+    String? authorAvatar,
+    int? durationSeconds,
+    int? viewCount,
+    double? rating,
+    bool? isPremium,
+    bool? hasVideo,
+    bool? isCompleted,
     DateTime? publishedAt,
   }) => TutorialEntity(
-    id:              id              ?? this.id,
-    title:           title           ?? _title,
+    lessonContent: lessonContent,
+    id: id ?? this.id,
+    title: title ?? _title,
     titleEn: titleEn,
-    description:     description     ?? _description,
+    description: description ?? _description,
     descriptionEn: descriptionEn,
-    level:           level           ?? this.level,
-    category:        category        ?? this.category,
-    thumbnailUrl:    thumbnailUrl    ?? this.thumbnailUrl,
-    videoUrl:        videoUrl        ?? this.videoUrl,
-    articleContent:  articleContent  ?? _articleContent,
+    level: level ?? this.level,
+    category: category ?? this.category,
+    thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+    videoUrl: videoUrl ?? this.videoUrl,
+    articleContent: articleContent ?? _articleContent,
     articleContentEn: articleContentEn,
-    authorName:      authorName      ?? this.authorName,
-    authorAvatar:    authorAvatar    ?? this.authorAvatar,
+    authorName: authorName ?? this.authorName,
+    authorAvatar: authorAvatar ?? this.authorAvatar,
     durationSeconds: durationSeconds ?? this.durationSeconds,
-    viewCount:       viewCount       ?? this.viewCount,
-    rating:          rating          ?? this.rating,
-    isPremium:       isPremium       ?? this.isPremium,
-    hasVideo:        hasVideo        ?? this.hasVideo,
-    isCompleted:     isCompleted     ?? this.isCompleted,
-    publishedAt:     publishedAt     ?? this.publishedAt,
+    viewCount: viewCount ?? this.viewCount,
+    rating: rating ?? this.rating,
+    isPremium: isPremium ?? this.isPremium,
+    hasVideo: hasVideo ?? this.hasVideo,
+    isCompleted: isCompleted ?? this.isCompleted,
+    publishedAt: publishedAt ?? this.publishedAt,
   );
 }
 
 // ─── Progress Entity ──────────────────────────────────────────────────────────
 class TutorialProgressEntity {
-  final String    tutorialId;
-  final bool      isCompleted;
+  final String tutorialId;
+  final bool isCompleted;
   final DateTime? completedAt;
-  final int       progressPercent;
+  final int progressPercent;
 
   const TutorialProgressEntity({
     required this.tutorialId,
-    this.isCompleted     = false,
+    this.isCompleted = false,
     this.completedAt,
     this.progressPercent = 0,
   });
 
   factory TutorialProgressEntity.fromJson(Map<String, dynamic> j) =>
-    TutorialProgressEntity(
-      tutorialId:      j['tutorial_id']     as String,
-      isCompleted:     j['is_completed']    as bool? ?? false,
-      progressPercent: (j['progress_percent'] as num?)?.toInt() ?? 0,
-      completedAt:     j['completed_at'] != null
-        ? DateTime.tryParse(j['completed_at'] as String) : null,
-    );
+      TutorialProgressEntity(
+        tutorialId: j['tutorial_id'] as String,
+        isCompleted: j['is_completed'] as bool? ?? false,
+        progressPercent: (j['progress_percent'] as num?)?.toInt() ?? 0,
+        completedAt: j['completed_at'] != null
+            ? DateTime.tryParse(j['completed_at'] as String)
+            : null,
+      );
 }
