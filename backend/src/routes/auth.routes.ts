@@ -43,6 +43,7 @@ router.post('/refresh',    AuthController.refreshToken);
 // active, ailleurs, échouait ouverte.
 
 // Routes protégées — profil & session
+router.post ('/sessions', authMiddleware, AuthController.listSessions);
 router.get  ('/profile',      authMiddleware, AuthController.getProfile);
 router.get  ('/streak',       authMiddleware, AuthController.getStreakHandler);
 router.post ('/logout',       authMiddleware, AuthController.logout);

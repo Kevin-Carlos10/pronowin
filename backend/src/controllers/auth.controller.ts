@@ -1,4 +1,5 @@
-﻿import { Request, Response } from 'express';
+﻿import { listerSessions } from '../services/sessions.service';
+import { Request, Response } from 'express';
 import { prisma } from '../lib/prisma';
 import { body, validationResult } from 'express-validator';
 import { AuthService } from '../services/auth.service';
@@ -382,4 +383,17 @@ export async function createAdmin(req: Request, res: Response): Promise<void> {
   } catch (error: any) {
     repondreErreur(res, error);
   }
+}
+
+/** Lecture POST : le jeton de compatibilité ne doit jamais figurer dans l'URL. */
+export async function listSessions(req: AuthRequest, res: Response): Promise<void> {
+  const token = req.body?.refresh_token;
+  if (token != null && (typeof token !== 'string' || token.length > 4096)) {
+    res.status(400).json({ message: 'Requête invalide.' }); return;
+  }
+  try {
+    const sessions = await listerSessions(req.userId!, req.sessionId, token, req.headers);
+    res.setHeader('Cache-Control', 'no-store');
+    res.json({ sessions });
+  } catch (e) { repondreErreur(res, e); }
 }

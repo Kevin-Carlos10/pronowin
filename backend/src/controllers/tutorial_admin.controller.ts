@@ -37,6 +37,7 @@ export const create = async (req: AdminRequest, res: Response) => {
     const t = await svc.create({
       title:           req.body.title,
       titleEn: req.body.title_en, descriptionEn: req.body.description_en,
+      lessonContent: req.body.lesson_content,
       articleContent: req.body.article_content, articleContentEn: req.body.article_content_en,
       description:     req.body.description,
       level:           req.body.level,
@@ -56,6 +57,7 @@ export const update = async (req: AdminRequest, res: Response) => {
     const t = await svc.update(req.params.id, {
       title:           req.body.title,
       titleEn: req.body.title_en, descriptionEn: req.body.description_en,
+      lessonContent: req.body.lesson_content,
       articleContent: req.body.article_content, articleContentEn: req.body.article_content_en,
       description:     req.body.description,
       level:           req.body.level,

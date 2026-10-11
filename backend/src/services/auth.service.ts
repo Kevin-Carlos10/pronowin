@@ -162,7 +162,11 @@ export class AuthService {
       throw new Error('Session compromise détectée. Veuillez vous reconnecter.');
     }
 
-    const newTokens = await this._generateTokens(record.userId);
+    const newTokens = await this._generateTokens(record.userId, {
+      sessionId: record.sessionId ?? record.id,
+      startedAt: record.startedAt ?? record.createdAt,
+      platform: record.platform,
+    });
     return newTokens; // { access_token, refresh_token }
   }
 
@@ -498,8 +502,11 @@ export class AuthService {
     return count === 1;
   }
 
-  private async _generateTokens(userId: string) {
-    const accessToken  = this._generateAccessToken(userId);
+  private async _generateTokens(userId: string, session?: {
+    sessionId: string; startedAt: Date; platform: string | null;
+  }) {
+    const sessionId = session?.sessionId ?? crypto.randomUUID();
+    const accessToken  = this._generateAccessToken(userId, sessionId);
     // Un identifiant propre à chaque jeton : sans lui, deux émissions dans la
     // même seconde pour le même compte produisaient le même jeton, que la
     // contrainte d'unicité refusait — une connexion qui échouait sans raison
@@ -512,15 +519,17 @@ export class AuthService {
 
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     await prisma.refreshToken.create({
-      data: { userId, token: empreinteJeton(refreshToken), expiresAt },
+      data: { userId, token: empreinteJeton(refreshToken), expiresAt, sessionId,
+        startedAt: session?.startedAt ?? new Date(), lastSeenAt: new Date(),
+        platform: session?.platform ?? null },
     });
 
     return { access_token: accessToken, refresh_token: refreshToken };
   }
 
-  private _generateAccessToken(userId: string): string {
+  private _generateAccessToken(userId: string, sessionId: string): string {
     return jwt.sign(
-      { userId },
+      { userId, sessionId },
       process.env.JWT_SECRET!,
       { expiresIn: process.env.JWT_EXPIRES_IN ?? '15m' } as jwt.SignOptions,
     );

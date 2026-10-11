@@ -36,6 +36,7 @@ export class TutorialService {
       category:         t.category,
       thumbnail_url:    t.thumbnailUrl    ?? t.thumbnail_url    ?? null,
       video_url:        locked ? null : t.videoUrl ?? t.video_url ?? null,
+      lesson_content: locked ? null : t.lessonContent ?? null,
       article_content:  locked ? null : t.articleContent ?? t.article_content ?? null,
       duration_seconds: t.durationSeconds ?? t.duration_seconds ?? 0,
       is_premium:       t.isPremium       ?? t.is_premium       ?? false,

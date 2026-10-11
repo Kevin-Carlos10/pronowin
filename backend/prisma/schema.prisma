@@ -198,8 +198,14 @@ model RefreshToken {
   expiresAt DateTime @map("expires_at")
   createdAt DateTime @default(now()) @map("created_at")
   used      Boolean  @default(false) @map("used")
+  sessionId String?  @default(uuid()) @map("session_id")
+  startedAt DateTime? @default(now()) @map("started_at")
+  lastSeenAt DateTime? @map("last_seen_at")
+  platform String? @map("platform")
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, used, expiresAt])
+  @@index([userId, sessionId])
   @@map("refresh_tokens")
 }
 
@@ -691,6 +697,7 @@ model Referral {
 }
 
 model Tutorial {
+  lessonContent Json? @map("lesson_content")
   titleEn String? @map("title_en")
   descriptionEn String? @map("description_en")
   articleContentEn String? @map("article_content_en")

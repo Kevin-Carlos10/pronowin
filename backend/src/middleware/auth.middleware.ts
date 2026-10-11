@@ -1,4 +1,5 @@
-﻿import { Request, Response, NextFunction } from 'express';
+﻿import { noterSession } from '../services/sessions.service';
+import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 import { prisma } from '../lib/prisma';
@@ -36,6 +37,7 @@ function estErreurDeJeton(e: unknown): boolean {
 
 export interface AuthRequest extends Request {
   userId?: string;
+  sessionId?: string;
 }
 
 export async function authMiddleware(
@@ -51,7 +53,7 @@ export async function authMiddleware(
   const token = authHeader.split(' ')[1];
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; sessionId?: string };
     
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
@@ -67,6 +69,8 @@ export async function authMiddleware(
     }
 
     req.userId = payload.userId;
+    req.sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : undefined;
+    void noterSession(payload.userId, req.sessionId, req.headers).catch(() => {});
     // Sans attendre : l'horodatage ne doit pas retarder la réponse.
     noterActivite(payload.userId, (user as any).lastSeenAt);
     // La version de l'application, quand elle la déclare (1.0.18 et après).
@@ -99,10 +103,12 @@ export async function optionalAuthMiddleware(
 
   const token = authHeader.split(' ')[1];
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; sessionId?: string };
     const user = await prisma.user.findUnique({ where: { id: payload.userId } });
     if (user && !(user as any).deletedAt && user.isActive) {
       req.userId = payload.userId;
+      req.sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : undefined;
+      void noterSession(payload.userId, req.sessionId, req.headers).catch(() => {});
       noterActivite(payload.userId, (user as any).lastSeenAt);
       noterVersionApp(payload.userId, req.headers as Record<string, unknown>);
     }
