@@ -14,8 +14,9 @@ même révision) :
 - textes agrandis : bouton de sélection et boutons Telegram/WhatsApp ne
   débordent plus à 180 % sur 360 px.
 
-Livraison : APK direct dans `/downloads` et `APK_LATEST_VERSION=1.0.22` (mise
-à jour non obligatoire) ; AAB Google Play
+Livraison : APK direct publiés dans `/downloads` le 11 octobre 2026 (anciens
+fichiers gardés en `*-1.0.21-sauvegarde-*`), `APK_LATEST_VERSION=1.0.22` (mise
+à jour non obligatoire) ; iPhone : build Codemagic n°31 (ddf0dbd) ; AAB Google Play
 `build/app/outputs/bundle/playRelease/app-play-release.aab` à envoyer dans la
 Play Console (remplace la 1.0.20 / 1.0.21 si elles n'ont pas été envoyées) ;
 iPhone par Codemagic (workflow « iOS — envoi vers TestFlight »).
