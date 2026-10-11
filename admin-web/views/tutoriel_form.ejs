@@ -128,7 +128,7 @@
           <label>À retenir (6 maximum)<textarea class="input" data-field="takeaways" rows="3"><%= (lesson.takeaways || []).join('\n') %></textarea></label>
           <p>Chapitres vidéo — titre et position en secondes (facultatif)</p>
           <% for(let i=0;i<10;i++){ const c=(lesson.chapters||[])[i]||{}; %>
-          <div data-chapter style="display:flex;gap:8px;margin:6px 0"><input class="input" data-title placeholder="Titre du chapitre" maxlength="160" value="<%= c.title||'' %>"><input class="input" data-seconds type="number" min="0" max="86400" placeholder="Secondes" value="<%= c.seconds ?? '' %>"></div>
+          <div data-chapter style="display:flex;gap:8px;margin:6px 0"><input class="input" data-title aria-label="Titre du chapitre" placeholder="Titre du chapitre" maxlength="160" value="<%= c.title||'' %>"><input class="input" data-seconds type="number" min="0" max="86400" aria-label="Durée du chapitre en secondes" placeholder="Secondes" value="<%= c.seconds ?? '' %>"></div>
           <% } %>
           <% for(let i=0;i<3;i++){ const q=(lesson.quiz||[])[i]||{}; %>
           <details data-question><summary>Question <%= i+1 %></summary>
