@@ -645,11 +645,16 @@ const MAJ_CGU = '1er octobre 2026';
 
 app.get('/cgu', (req, res) => {
   const canalDirect = req.query.canal === 'direct';
+  // La version iPhone ne contient aucune fonction de pari (refus d'Apple du
+  // 11 octobre 2026) : son contrat ne decrit ni bankroll, ni tutoriel de pari,
+  // ni « jeu responsable ». Non indexee, comme la variante directe.
+  const canalIOS = req.query.canal === 'ios';
   res.render('cgu', {
     site,
     dateMaj: MAJ_CGU,
     canalDirect,
-    sections: CGU[canalDirect ? 'direct' : 'store'],
+    canalIOS,
+    sections: CGU[canalDirect ? 'direct' : canalIOS ? 'ios' : 'store'],
   });
 });
 

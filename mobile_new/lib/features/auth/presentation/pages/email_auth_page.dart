@@ -17,6 +17,7 @@ import '../../../../core/config/distribution_channel.dart';
 import '../../../../core/config/pages_legales.dart';
 import '../../../../core/services/analyse_usage.dart';
 import '../../../../shared/utils/messages.dart';
+import 'package:pronowin/core/config/sans_pari.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -200,7 +201,8 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
                                 ..onTap = () => PagesLegales.ouvrir(
                                     context,
                                     PagesLegales.cgu(
-                                      estStore: ref.read(isStoreBuildProvider)),
+                                      estStore: ref.read(isStoreBuildProvider),
+                                      sansPari: ref.read(sansPariProvider)),
                                     titre: PagesLegales.titreCgu)),
                             const TextSpan(text: '.'),
                           ],

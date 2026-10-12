@@ -18,7 +18,17 @@ actif sur iOS :
 - plus de **tutoriels de stratégie de pari** (value bet, bankroll,
   martingale, trading) ;
 - textes ajustés : bandeau Premium, page d'abonnement, présentation du
-  premier lancement.
+  premier lancement ;
+- **Performance** : plus aucun montant (mise simulée, gain, rentabilité,
+  courbe de solde, gain par ligue) — restent les résultats ;
+- **Paramètres** : plus d'entrée « Jeu responsable » (icône de jeton de
+  casino) ;
+- **conditions d'utilisation** : version iPhone (`/cgu?canal=ios`) sans
+  bankroll, sans tutoriel de pari, sans section « Jeu responsable ». À
+  déployer sur le site avant l'examen.
+
+Seul un build compilé depuis le commit qui ajoute ces trois derniers points
+(ou plus récent) peut être soumis.
 
 Android (Google Play et APK direct) ne change pas.
 

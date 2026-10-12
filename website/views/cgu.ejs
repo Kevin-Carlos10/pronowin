@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Conditions générales d'utilisation - <%= site.name %></title>
   <meta name="description" content="Les conditions d'accès et d'utilisation de l'application PronoWin : éligibilité, abonnement, responsabilité, résiliation.">
-  <% if (canalDirect) { %>
+  <% if (canalDirect || (typeof canalIOS !== 'undefined' && canalIOS)) { %>
   <!-- Variante propre au téléchargement direct : elle décrit une offre qui
        n'existe pas dans la version distribuée par les boutiques. Elle n'est
        liée depuis aucune page du site et ne doit pas être indexée, faute de

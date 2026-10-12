@@ -37,9 +37,11 @@ void main() {
     site = jsonDecode(f.readAsStringSync()) as Map<String, dynamic>;
   });
 
-  for (final (canal, estStore) in [('direct', false), ('store', true)]) {
+  for (final (canal, estStore, estIOS) in [
+    ('direct', false, false), ('store', true, false), ('ios', true, true),
+  ]) {
     test('canal $canal : le site publie le texte de l\'application', () {
-      final attendu = sectionsLegales(LegalType.cgu, estStore: estStore);
+      final attendu = sectionsLegales(LegalType.cgu, estStore: estStore, estIOS: estIOS);
       final publie  = (site[canal] as List?) ?? const [];
 
       expect(publie.length, attendu.length,
@@ -60,6 +62,17 @@ void main() {
       }
     });
   }
+
+  test('le canal iPhone ne parle ni de bankroll, ni de tutoriel de pari, ni de jeu responsable', () {
+    final ios = jsonEncode(site['ios']);
+    expect(ios.toLowerCase().contains('bankroll'), isFalse);
+    expect(ios.contains('tutoriels pédagogiques sur les paris'), isFalse);
+    expect(ios.contains('Jeu responsable'), isFalse);
+    expect(ios.contains('paris placés'), isFalse);
+    expect(ios.contains('1xBet'), isFalse);
+    // La version des boutiques Android, elle, garde son contrat.
+    expect(jsonEncode(site['store']).contains('Jeu responsable'), isTrue);
+  });
 
   test('le canal store ne publie pas l\'article partenaire', () {
     // Cette différence est la raison d'être des deux listes. Si l'export les

@@ -33,9 +33,14 @@ import '../../shared/utils/messages.dart';
 /// même chose.
 class PagesLegales {
   /// Conditions générales d'utilisation, pour le canal donné.
-  static String cgu({required bool estStore}) => estStore
-      ? '${AppConstants.siteUrl}/cgu'
-      : '${AppConstants.siteUrl}/cgu?canal=direct';
+  ///
+  /// [sansPari] : la version iPhone (`sansPariProvider`), dont le contrat ne
+  /// décrit ni bankroll, ni tutoriel de pari, ni « jeu responsable ».
+  static String cgu({required bool estStore, bool sansPari = false}) => sansPari
+      ? '${AppConstants.siteUrl}/cgu?canal=ios'
+      : estStore
+          ? '${AppConstants.siteUrl}/cgu'
+          : '${AppConstants.siteUrl}/cgu?canal=direct';
 
   /// Mentions légales — elles vivent sur le site, et nulle part ailleurs.
   ///

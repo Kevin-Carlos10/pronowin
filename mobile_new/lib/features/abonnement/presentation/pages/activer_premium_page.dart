@@ -2118,7 +2118,7 @@ class _PaywallPage extends StatelessWidget {
                     _LienLegal(
                       libelle: tr(context, "CGU"),
                       onTap: () => PagesLegales.ouvrir(
-                        context, PagesLegales.cgu(estStore: iapMode),
+                        context, PagesLegales.cgu(estStore: iapMode, sansPari: sansPari(context)),
                         titre: PagesLegales.titreCgu)),
                     const _PointSeparateur(),
                     _LienLegal(

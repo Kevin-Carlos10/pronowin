@@ -11,6 +11,7 @@ import '../../../../shared/utils/montant.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../shared/utils/rafraichir.dart';
+import 'package:pronowin/core/config/sans_pari.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -248,6 +249,10 @@ class _PerformanceView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPositive = perf.simulatedNet >= 0;
+    // Sur iPhone (`sansPariProvider`), aucun montant : la simulation de mises
+    // — gain, rentabilité, courbe de solde — est du pari simulé aux yeux
+    // d'Apple. Restent les résultats : taux de réussite, gagnés, par ligue.
+    final sansArgent = sansPari(context);
 
     return RefreshIndicator(
       color: AppColors.primary,
@@ -257,6 +262,7 @@ class _PerformanceView extends StatelessWidget {
         children: [
 
           // ── Carte ROI principale ──────────────────────────────────────
+          if (!sansArgent) ...[
           _ROICard(perf: perf, isPositive: isPositive)
             .animate().fadeIn(duration: 350.ms).slideY(begin: -0.04, end: 0),
 
@@ -279,6 +285,7 @@ class _PerformanceView extends StatelessWidget {
           ).animate(delay: 60.ms).fadeIn(duration: 300.ms),
 
           const SizedBox(height: 14),
+          ],
 
           // ── Stats rapides 4 chips ─────────────────────────────────────
           Row(children: [
@@ -316,15 +323,15 @@ class _PerformanceView extends StatelessWidget {
           const SizedBox(height: 14),
 
           // ── Graphique évolution simulée ───────────────────────────────
-          if (perf.history.length >= 2)
+          if (perf.history.length >= 2 && !sansArgent)
             _SimulationChart(history: perf.history, stake: perf.stakeRef)
               .animate(delay: 120.ms).fadeIn(duration: 400.ms),
 
-          if (perf.history.length >= 2) const SizedBox(height: 14),
+          if (perf.history.length >= 2 && !sansArgent) const SizedBox(height: 14),
 
           // ── Meilleures ligues ─────────────────────────────────────────
           if (perf.bestLeagues.isNotEmpty)
-            _LeaguesCard(leagues: perf.bestLeagues)
+            _LeaguesCard(leagues: perf.bestLeagues, afficherGain: !sansArgent)
               .animate(delay: 160.ms).fadeIn(duration: 300.ms),
 
           const SizedBox(height: 14),
@@ -633,7 +640,10 @@ class _SimulationChart extends StatelessWidget {
 // ── Meilleures ligues ─────────────────────────────────────────────────────────
 class _LeaguesCard extends StatelessWidget {
   final List<LeagueStat> leagues;
-  const _LeaguesCard({required this.leagues});
+  const _LeaguesCard({required this.leagues, this.afficherGain = true});
+
+  /// Le gain simulé de chaque ligue — absent sur iPhone (`sansPariProvider`).
+  final bool afficherGain;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -681,7 +691,7 @@ class _LeaguesCard extends StatelessWidget {
               Text(tr(context, "{arg0}/{arg1} · {arg2}% réussite", [l.wins, l.total, l.winRate]),
                 style: TextStyle(color: context.cl.textM, fontSize: 10)),
             ])),
-            Text(
+            if (afficherGain) Text(
               '${isPos ? '+' : ''}${_fmt(l.netGain.toDouble())} F',
               style: TextStyle(
                 color: isPos ? context.cl.success : context.cl.error,

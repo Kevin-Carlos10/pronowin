@@ -183,7 +183,7 @@ const INJECTIONS = [
     // c'est-a-dire au moment ou un examinateur l'y trouve.
     nom: 'les CGU publiques decrivent le partenaire bookmaker',
     fichier: 'server.js',
-    de: "    sections: CGU[canalDirect ? 'direct' : 'store'],",
+    de: "    sections: CGU[canalDirect ? 'direct' : canalIOS ? 'ios' : 'store'],",
     vers: '    sections: CGU.direct,',
   },
   {

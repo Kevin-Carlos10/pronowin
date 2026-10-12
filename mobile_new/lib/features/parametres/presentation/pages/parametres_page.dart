@@ -20,6 +20,7 @@ import '../../../../shared/utils/retour.dart';
 import '../../../../core/config/pages_legales.dart';
 import '../../../../shared/widgets/logotype_pronowin.dart';
 import '../../../../shared/utils/messages.dart';
+import 'package:pronowin/core/config/sans_pari.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -243,7 +244,8 @@ class ParametresPage extends ConsumerWidget {
               title: tr(context, "Conditions d'utilisation"),
               onTap: () => PagesLegales.ouvrir(
                 context,
-                PagesLegales.cgu(estStore: ref.read(isStoreBuildProvider)),
+                PagesLegales.cgu(estStore: ref.read(isStoreBuildProvider),
+                    sansPari: ref.read(sansPariProvider)),
                 titre: PagesLegales.titreCgu),
             ),
             const _Divider(),
@@ -255,12 +257,17 @@ class ParametresPage extends ConsumerWidget {
                 titre: PagesLegales.titreConfidentialite),
             ),
             const _Divider(),
-            _NavTile(
-              icon: Icons.casino_rounded, iconColor: context.cl.warning,
-              title: tr(context, "Jeu responsable"), subtitle: tr(context, "Ressources et aide"),
-              onTap: () => context.push('/parametres/jeu-responsable'),
-            ),
-            const _Divider(),
+            // Pas sur iPhone (`sansPariProvider`) : l'application n'y propose
+            // rien qui touche au pari, et une page d'aide contre l'addiction au
+            // jeu, icône de jeton à l'appui, disait le contraire à l'examen.
+            if (!ref.watch(sansPariProvider)) ...[
+              _NavTile(
+                icon: Icons.casino_rounded, iconColor: context.cl.warning,
+                title: tr(context, "Jeu responsable"), subtitle: tr(context, "Ressources et aide"),
+                onTap: () => context.push('/parametres/jeu-responsable'),
+              ),
+              const _Divider(),
+            ],
             // Les mentions légales vivent sur le site, pas ici — c'est une
             // obligation du site, et elles portent l'identité de l'éditeur.
             // La dupliquer dans l'application créerait un second endroit où ce

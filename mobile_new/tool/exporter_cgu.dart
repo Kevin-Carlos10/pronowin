@@ -38,6 +38,11 @@ void main() {
               .map((s) => {'titre': s.title, 'texte': s.content})
               .toList();
     }
+    // La version iPhone, sans pari : ni bankroll, ni tutoriel de pari, ni
+    // « jeu responsable » (refus d'Apple du 11 octobre 2026).
+    contenu['ios'] = sectionsLegales(LegalType.cgu, estStore: true, estIOS: true)
+        .map((s) => {'titre': s.title, 'texte': s.content})
+        .toList();
 
     final fichier = File(destination);
     expect(fichier.parent.existsSync(), isTrue,
