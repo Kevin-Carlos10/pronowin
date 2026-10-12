@@ -673,7 +673,7 @@ app.get('/cgu', (req, res) => {
  * juridique dont la date de révision change toute seule chaque jour ne dit
  * plus rien de sa dernière révision.
  */
-const MAJ_CONFIDENTIALITE = '2 octobre 2026';
+const MAJ_CONFIDENTIALITE = '12 octobre 2026';
 
 app.get('/confidentialite', (req, res) => {
   res.render('confidentialite', { site, dateMaj: MAJ_CONFIDENTIALITE });

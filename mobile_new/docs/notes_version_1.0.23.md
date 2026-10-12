@@ -24,11 +24,13 @@ actif sur iOS :
 - **Paramètres** : plus d'entrée « Jeu responsable » (icône de jeton de
   casino) ;
 - **conditions d'utilisation** : version iPhone (`/cgu?canal=ios`) sans
-  bankroll, sans tutoriel de pari, sans section « Jeu responsable ». À
-  déployer sur le site avant l'examen.
+  bankroll, sans tutoriel de pari, sans section « Jeu responsable » (en ligne
+  depuis le 12 octobre, ce0bab0) ;
+- **politique de confidentialité** (dans l'app et sur le site) : les données
+  de bankroll y sont marquées « application Android uniquement ».
 
-Seul un build compilé depuis le commit qui ajoute ces trois derniers points
-(ou plus récent) peut être soumis.
+Seul un build compilé depuis le commit qui ajoute ce dernier point (ou plus
+récent) peut être soumis : ni celui de 7bb1bc4, ni celui de ce0bab0.
 
 Android (Google Play et APK direct) ne change pas.
 
@@ -37,12 +39,26 @@ Android (Google Play et APK direct) ne change pas.
 1. **Version** : renommer la version en attente (1.0.16) en **1.0.23**, puis
    choisir le build 1.0.23 envoyé par Codemagic.
 2. **Classification par âge** : Jeux de hasard (Gambling) **Non** ; Jeux de
-   hasard simulés **Aucun** ; le reste inchangé.
-3. **Captures d'écran** : les refaire depuis la 1.0.23 — aucune ne doit
-   montrer la Bankroll, une cote ou le bouton de sélection.
+   hasard simulés **Aucun** ; le reste inchangé. Si la tranche calculée
+   descend sous 18+, garder **18+** (remplacement par une tranche plus
+   élevée) : les conditions d'utilisation réservent l'app aux majeurs.
+3. **Captures d'écran** : les refaire depuis la 1.0.23 installée par
+   TestFlight — aucune ne doit montrer la Bankroll, une cote ou le bouton de
+   sélection. Dans l'ordre :
+   1. l'accueil avec les pronostics du jour ;
+   2. la fiche d'un match (choix de l'analyste, confiance, forme) ;
+   3. l'avis du modèle statistique ;
+   4. les classements ;
+   5. l'historique des résultats ;
+   6. la page Premium, avec ses prix.
+
+   Celles d'un iPhone 16 Pro (1206 × 2622) sont à convertir en 1290 × 2796
+   avant l'envoi. Sans captures anglaises, Apple reprend les françaises.
 4. **Fiche** : remplacer sous-titre, texte promotionnel, description et
    mots-clés par les textes ci-dessous (FR et EN). Vérifier aussi les noms et
-   descriptions des abonnements : ni « cotes » ni « bankroll ».
+   descriptions des abonnements : ni « cotes » ni « bankroll ». Si un contrat
+   de licence (CLUF) personnalisé est renseigné dans les informations de
+   l'app, son lien doit pointer vers `https://pronowin.space/cgu?canal=ios`.
 5. **Notes pour l'examen** : remplacer par le texte ci-dessous.
 6. **Répondre** au message d'Apple (texte ci-dessous), puis **Soumettre à
    nouveau**.
@@ -83,7 +99,13 @@ APPRENDRE
 PREMIUM
 • Pronostics VIP, analyses détaillées et espace communauté, par abonnement mensuel ou annuel
 
+ABONNEMENT
+PronoWin Premium est un abonnement à renouvellement automatique, mensuel ou annuel. Le paiement est débité sur ton compte Apple à la confirmation de l'achat. L'abonnement se renouvelle automatiquement, sauf résiliation au moins 24 heures avant la fin de la période en cours, depuis les réglages de ton compte App Store.
+
 PronoWin est un service d'information sportive. L'application ne propose aucun pari, ne contient aucun lien vers des opérateurs de paris et ne manipule aucun argent en dehors de l'abonnement.
+
+Conditions d'utilisation : https://pronowin.space/cgu?canal=ios
+Confidentialité : https://pronowin.space/confidentialite
 ```
 
 ### Description — EN
@@ -107,7 +129,13 @@ LEARN
 PREMIUM
 • VIP predictions, detailed analysis and a community space, with a monthly or annual subscription
 
+SUBSCRIPTION
+PronoWin Premium is an auto-renewable subscription, monthly or annual. Payment is charged to your Apple Account when you confirm the purchase. The subscription renews automatically unless cancelled at least 24 hours before the end of the current period, in your App Store account settings.
+
 PronoWin is a sports information service. The app offers no betting, contains no links to betting operators and handles no money other than the subscription.
+
+Terms of use: https://pronowin.space/cgu?canal=ios
+Privacy: https://pronowin.space/confidentialite
 ```
 
 ### Mots-clés (100 caractères)
@@ -122,8 +150,19 @@ PronoWin is a football (soccer) predictions and statistics app. Following your m
 
 The app shows our analysts' match predictions with a confidence index, team form, standings, head-to-head records, lineups, injuries and live match statistics. No bets can be placed, there are no links to betting operators, and no money is handled other than the In-App Purchase subscription, which unlocks analysis content only.
 
-Demo account: same as in the previous submission.
+Sign-in: use the demo account provided. Tap "Continue with email", enter the email, then enter the 6-digit code given as the password. No inbox access is needed. Sign in with Apple and Google are also available.
+
+Premium: auto-renewable subscriptions purchased with In-App Purchase (com.pronowin.premium.monthly and com.pronowin.premium.annual). To reach the purchase screen, tap any locked Premium prediction, or open the Account tab and tap "Upgrade to Premium" ("Passer à Premium" in French). Restore Purchases is on the same screen.
+
+Comments are filtered when posted; members can report a comment or block a member from the "⋯" menu, and reports are reviewed within 24 hours.
+
+Account deletion: Account tab > Settings (gear icon) > Delete account.
+
+Contact: pronowin2026@gmail.com
 ```
+
+Les champs « Nom d'utilisateur » et « Mot de passe » du compte de
+démonstration ne changent pas.
 
 ### Réponse à Apple (EN)
 
