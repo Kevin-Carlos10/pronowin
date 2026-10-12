@@ -59,7 +59,8 @@ function soldeExact(solde: number, devise: string | null | undefined): number {
 
 type Tx = Prisma.TransactionClient;
 export type TypeMouvement =
-  'ouverture' | 'budget' | 'devise' | 'mise' | 'reglement' | 'correction_mise' | 'reinitialisation';
+  'ouverture' | 'budget' | 'devise' | 'mise' | 'reglement' | 'correction_mise' | 'reinitialisation'
+  | 'annulation';
 
 /**
  * Déplace le solde disponible et l'inscrit au journal, dans la transaction de
@@ -675,6 +676,50 @@ export async function settleBets(pronosticId: string, result: SettlementResult) 
   }
 
   return changedBets.length;
+}
+
+// ── Sélection modifiée avant le coup d'envoi ─────────────────────────────────
+
+export interface PariAnnule { userId: string; montant: number; devise: string }
+
+/**
+ * L'analyste a changé la sélection d'un pronostic publié avant le coup
+ * d'envoi (12 octobre 2026) : une entrée de bankroll ne garde que la cote,
+ * elle serait réglée sur une sélection que l'abonné n'a pas jouée. Ces
+ * entrées sont annulées et la mise rendue, dans la transaction de l'appelant ;
+ * l'abonné peut valider la nouvelle sélection.
+ */
+export async function annulerParisSelectionModifiee(tx: Tx, pronosticId: string): Promise<PariAnnule[]> {
+  const paris = await tx.bankrollBet.findMany({
+    where:   { pronosticId, result: null },
+    include: { bankroll: { select: { userId: true, currency: true } } },
+  });
+  const annules: PariAnnule[] = [];
+  for (const pari of paris) {
+    const devise = pari.bankroll.currency ?? 'XOF';
+    await mouvoir(tx, pari.bankrollId, devise, pari.stakedAmount, 'annulation', {
+      pariId: pari.id, motif: 'Sélection modifiée par l’analyste : mise rendue',
+    });
+    await tx.bankrollBet.delete({ where: { id: pari.id } });
+    annules.push({ userId: pari.bankroll.userId, montant: pari.stakedAmount, devise });
+  }
+  return annules;
+}
+
+/** À appeler après la transaction : une notification n'annule rien. */
+export function notifierSelectionModifiee(
+  annules: PariAnnule[], pronosticId: string, match: { homeTeam: string; awayTeam: string },
+) {
+  const matchStr = rencontre(match.homeTeam, match.awayTeam);
+  for (const a of annules) {
+    notifSvc.sendToUser(a.userId, {
+      title: 'Sélection modifiée',
+      body:  `L’analyste a changé sa sélection sur ${matchStr}. Votre mise de `
+           + `${a.montant.toLocaleString('fr-FR')} ${nomDevise(a.devise)} vous a été rendue : `
+           + 'vous pouvez valider la nouvelle sélection.',
+      data:  { deep_link: `/pronostics/${pronosticId}`, type: 'match' },
+    }).catch(() => {});
+  }
 }
 
 // ── ADMIN — Liste de toutes les bankrolls ─────────────────────────────────────

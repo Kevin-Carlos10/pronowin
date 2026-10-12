@@ -11,10 +11,11 @@ const svc = new PronosticsService();
 const marque = 'publication-' + Date.now();
 let analystId: string;
 let numero = Math.floor(Math.random() * 100000000);
-async function match() {
+/** `dans` : délai avant le coup d'envoi, en millisecondes (négatif : commencé). */
+async function match(dans = 86400000) {
   return prisma.match.create({ data: {
     externalId: ++numero, league: 'Audit', leagueCode: 'AUDIT',
-    homeTeam: 'A', awayTeam: 'B', matchDate: new Date(Date.now() + 86400000),
+    homeTeam: 'A', awayTeam: 'B', matchDate: new Date(Date.now() + dans),
   } });
 }
 function demande(matchId: string, publish = true) {
@@ -36,7 +37,7 @@ suite('Publication immuable avec PostgreSQL', () => {
     }
     await prisma.$disconnect();
   });
-  it('un brouillon se modifie, puis la publication fige une copie et la date', async () => {
+  it("publié, il se modifie jusqu'au coup d'envoi, journalisé, puis se fige", async () => {
     const m = await match();
     const p = await svc.upsertPronostic(demande(m.id, false));
     expect(p.publicationRecordedAt).toBeNull();
@@ -45,6 +46,15 @@ suite('Publication immuable avec PostgreSQL', () => {
     expect(publie.publicationRecordedAt).not.toBeNull();
     expect((publie.publicationSnapshot as any).source).toBe('first_publication');
     expect((publie.publicationSnapshot as any).pronostic.odds_recommended).toBe(2.2);
+    // Avant le coup d'envoi (12 octobre 2026) : modifiable ; la trace de la
+    // première publication et sa date ne bougent pas.
+    const modifie = await svc.upsertPronostic({ ...demande(m.id), oddsRecommended: 2.4 });
+    expect(modifie.oddsRecommended).toBe(2.4);
+    expect(modifie.publishedAt).toEqual(publie.publishedAt);
+    expect((modifie.publicationSnapshot as any).pronostic.odds_recommended).toBe(2.2);
+    await expect(prisma.pronostic.update({ where: { id: p.id }, data: { publishedAt: new Date(0) } })).rejects.toThrow();
+    // Coup d'envoi passé : figé, par le service comme par la base.
+    await prisma.match.update({ where: { id: m.id }, data: { matchDate: new Date(Date.now() - 60000) } });
     await expect(svc.upsertPronostic(demande(m.id))).rejects.toMatchObject({ statut: 409 });
     await expect(prisma.pronostic.update({ where: { id: p.id }, data: { oddsRecommended: 9 } })).rejects.toThrow();
     await expect(prisma.pronostic.delete({ where: { id: p.id } })).rejects.toThrow();
@@ -53,7 +63,9 @@ suite('Publication immuable avec PostgreSQL', () => {
     const remis = await svc.togglePublish(p.id, true, analystId);
     expect(remis.publishedAt).toEqual(publie.publishedAt);
     const events = await prisma.pronosticPublicationEvent.findMany({ where: { pronosticId: p.id }, orderBy: { id: 'asc' } });
-    expect(events.map(e => e.action)).toEqual(['publication','retrait','reaffichage']);
+    expect(events.map(e => e.action)).toEqual(['publication','modification','retrait','reaffichage']);
+    expect((events[1].beforeState as any).odds_recommended).toBe(2.2);
+    expect((events[1].afterState as any).odds_recommended).toBe(2.4);
     expect(events.every(e => e.actor === analystId)).toBe(true);
   });
   it('retirer un perdant ne gonfle pas le bilan public et sa correction est tracée', async () => {
@@ -78,7 +90,8 @@ suite('Publication immuable avec PostgreSQL', () => {
     await expect(prisma.pronostic.update({ where: { id: p.id }, data: { isPublished: true } })).rejects.toThrow();
   });
   it('une modification concurrente ne réécrit jamais la sélection publiée', async () => {
-    const m = await match();
+    // Coup d'envoi passé : une fois publié, plus rien ne peut changer.
+    const m = await match(-60000);
     const p = await svc.upsertPronostic(demande(m.id, false));
     await Promise.allSettled([
       svc.togglePublish(p.id, true, analystId),

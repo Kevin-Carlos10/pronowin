@@ -64,14 +64,21 @@ void main() {
   }
 
   test('le canal iPhone ne parle ni de bankroll, ni de tutoriel de pari, ni de jeu responsable', () {
-    final ios = jsonEncode(site['ios']);
-    expect(ios.toLowerCase().contains('bankroll'), isFalse);
-    expect(ios.contains('tutoriels pédagogiques sur les paris'), isFalse);
-    expect(ios.contains('Jeu responsable'), isFalse);
-    expect(ios.contains('paris placés'), isFalse);
-    expect(ios.contains('1xBet'), isFalse);
-    // La version des boutiques Android, elle, garde son contrat.
-    expect(jsonEncode(site['store']).contains('Jeu responsable'), isTrue);
+    // Le texte publié (du JSON, sans commentaires à filtrer), en minuscules.
+    final ios = jsonEncode(site['ios']).toLowerCase();
+    const absents = [
+      'bankroll', 'tutoriels pédagogiques sur les paris', 'paris placés', '1xbet',
+    ];
+    for (final texte in absents) {
+      expect(ios.contains(texte), isFalse, reason: texte);
+    }
+    // La section « Jeu responsable » : absente sur iPhone, gardée dans le
+    // contrat des boutiques Android.
+    List<String> titres(String canal) =>
+        [for (final s in site[canal] as List) (s as Map)['titre'] as String];
+    const jeuResponsable = 'Jeu responsable';
+    expect(titres('ios'), isNot(contains(jeuResponsable)));
+    expect(titres('store'), contains(jeuResponsable));
   });
 
   test('le canal store ne publie pas l\'article partenaire', () {

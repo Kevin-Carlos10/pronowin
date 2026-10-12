@@ -25,12 +25,21 @@ const griefs = [];
   let termines = 0, ouverts = 0;
 
   const base = views.find(([nom]) => nom === 'pronostic_form (edit)');
-  const publieAvantMatch = ['publication figée avant match', 'pronostic_form', {
-    ...base[2], match: { ...base[2].match, status: 'SCHEDULED',
+  // Publié : modifiable jusqu'au coup d'envoi (12 octobre 2026), figé ensuite.
+  const publie = (nom, match) => [nom, 'pronostic_form', {
+    ...base[2], match: { ...base[2].match, ...match,
       pronostic: { ...base[2].match.pronostic, is_published: true,
         publicationRecordedAt: '2026-10-08T12:00:00Z' } },
   }];
-  for (const [nom, vue, locals] of [...views, publieAvantMatch]) {
+  const publieAvantMatch = publie('publié avant le coup d’envoi',
+    { status: 'SCHEDULED', matchDate: new Date(Date.now() + 86400000) });
+  const publieCommence = publie('publié, coup d’envoi passé',
+    { status: 'SCHEDULED', matchDate: new Date(Date.now() - 60000) });
+  const publieEnDirect = publie('publié, match en direct',
+    { status: 'LIVE', matchDate: new Date(Date.now() + 86400000) });
+  const commence = (m) => String(m?.status ?? '').toUpperCase() !== 'SCHEDULED'
+    || new Date(m?.matchDate).getTime() <= Date.now();
+  for (const [nom, vue, locals] of [...views, publieAvantMatch, publieCommence, publieEnDirect]) {
     if (vue !== 'pronostic_form') continue;
     let html;
     try { html = await ejs.renderFile('views/pronostic_form.ejs', locals, opts); }
@@ -44,7 +53,7 @@ const griefs = [];
     const soumissions = pf.querySelectorAll('button[type="submit"]').length;
     const jeu = pf.querySelector('fieldset');
 
-    if (fini || locals.match?.pronostic?.publicationRecordedAt) {
+    if (fini || (locals.match?.pronostic?.publicationRecordedAt && commence(locals.match))) {
       termines++;
       if (soumissions > 0) {
         griefs.push(`${nom} : ${soumissions} bouton(s) de soumission sur un match `

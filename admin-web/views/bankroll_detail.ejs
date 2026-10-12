@@ -133,7 +133,8 @@
     <thead><tr><th scope="col">Date</th><th scope="col">Mouvement</th><th scope="col"><%= uiText("Montant") %></th><th scope="col"><%= uiText("Solde après") %></th><th scope="col">Détail</th></tr></thead>
     <tbody>
     <% const _libelles = { ouverture: 'Ouverture', reprise: 'Reprise du solde', budget: 'Budget modifié', devise: 'Changement de devise',
-         mise: 'Mise', reglement: 'Règlement', correction_mise: 'Mise réelle corrigée', reinitialisation: 'Réinitialisation' }; %>
+         mise: 'Mise', reglement: 'Règlement', correction_mise: 'Mise réelle corrigée', reinitialisation: 'Réinitialisation',
+         annulation: 'Sélection modifiée — mise rendue' }; %>
     <% (bankroll.mouvements || []).forEach(m => { %>
     <tr>
       <td style="font-size:12px;color:var(--text-m)"><%= new Date(m.cree_le).toLocaleString('fr-FR',{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}) %></td>

@@ -506,6 +506,11 @@ export const upsertPronostic = async (req: AdminRequest, res: Response) => {
     }
     const confidencePct = pctSaisi ?? pourcentageDepuisNiveau(confidence);
     const publish = b.publish === true || b.publish === 'true';
+    // Un pronostic publié se modifie jusqu'au coup d'envoi : seule la première
+    // publication annonce un nouveau pronostic, pas chaque correction.
+    const dejaPublie = !!(await prisma.pronostic.findUnique({
+      where: { matchId: String(b.match_id ?? '') }, select: { publicationRecordedAt: true },
+    }))?.publicationRecordedAt;
     const p = await svc.upsertPronostic({
       matchId:         b.match_id,
       analystId:       req.adminId!,
@@ -525,7 +530,7 @@ export const upsertPronostic = async (req: AdminRequest, res: Response) => {
       publish,
     });
     // Notifier dès la création si déjà publié
-    if (publish) {
+    if (publish && !dejaPublie) {
       const match = await prisma.match.findUnique({ where: { id: b.match_id } });
       if (match) {
         notifSvc.notifyPronosticPublished({

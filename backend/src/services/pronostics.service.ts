@@ -3,7 +3,10 @@ import { optionalText } from '../i18n/editorial';
 import { prisma } from '../lib/prisma';
 import { ApiFootballService, apiFootballService, mapAFStatus, matchStatusPriority } from './api_football.service';
 import { NotificationService } from './notification.service';
-import { settleBets } from './bankroll.service';
+import {
+  annulerParisSelectionModifiee, notifierSelectionModifiee, settleBets, type PariAnnule,
+} from './bankroll.service';
+import { refusDePari } from './verrou_pari';
 // Moteur de règlement — extrait dans son propre module pour être testable
 // sans base de données (cf. settlement.ts).
 import { _resolvePronosticResult, type ScoreLine } from './settlement';
@@ -794,28 +797,50 @@ export class PronosticsService {
       publishedAt:     params.publish ? new Date() : null,
     };
 
-    return prisma.$transaction(async (tx) => {
+    const { pronostic, annules } = await prisma.$transaction(async (tx) => {
       // Même verrou pour les deux chemins de première publication.
       await tx.$queryRaw`SELECT id FROM matches WHERE id = ${params.matchId} FOR UPDATE`;
       await tx.$queryRaw`SELECT set_config('pronowin.actor', ${params.analystId}, true)`;
       const existant = await tx.pronostic.findUnique({ where: { matchId: params.matchId } });
+      const inclure = { match: true, analyst: { select: { name: true } } } as const;
+      let annules: PariAnnule[] = [];
+      let pronostic;
       if (existant?.publicationRecordedAt) {
-        throw new ErreurMetier('Ce pronostic a déjà été publié : sa sélection, sa cote et son analyse sont figées. Vous pouvez le retirer de la liste, son résultat reste dans le bilan.', 409);
+        // Publié : modifiable jusqu'au coup d'envoi (12 octobre 2026), puis
+        // figé. Même règle que les mises de bankroll ; la base la vérifie
+        // aussi (match_pas_commence) et journalise chaque modification.
+        const m = await tx.match.findUniqueOrThrow({ where: { id: params.matchId } });
+        if (refusDePari({ resultat: existant.result, statutMatch: m.status, dateMatch: m.matchDate })) {
+          throw new ErreurMetier('Le match a commencé : ce pronostic publié est figé. Vous pouvez encore le retirer de la liste, son résultat reste dans le bilan.', 409);
+        }
+        const selectionChangee = existant.predictionType !== data.predictionType
+          || (existant.marketName ?? null) !== (data.marketName ?? null)
+          || (existant.marketValue ?? null) !== (data.marketValue ?? null);
+        if (selectionChangee) annules = await annulerParisSelectionModifiee(tx, existant.id);
+        // Le match, l'analyste d'origine et la date de première publication
+        // restent ceux de la publication.
+        const { matchId: _m, analystId: _a, publishedAt: _p, ...modifiable } = data;
+        pronostic = await tx.pronostic.update({
+          where: { id: existant.id }, data: { ...modifiable, updatedAt: new Date() }, include: inclure,
+        });
+      } else {
+        pronostic = await tx.pronostic.upsert({
+          where:   { matchId: params.matchId },
+          update:  { ...data, updatedAt: new Date() },
+          create:  data,
+          include: inclure,
+        });
       }
-      const pronostic = await tx.pronostic.upsert({
-        where:   { matchId: params.matchId },
-        update:  { ...data, updatedAt: new Date() },
-        create:  data,
-        include: { match: true, analyst: { select: { name: true } } },
-      });
       // Garder la colonne dénormalisée du match synchronisée (utilisée pour
       // trier "prono d'abord" dans getAllMatches).
       await tx.match.update({
         where: { id: params.matchId },
         data:  { hasPublishedPronostic: params.publish },
       });
-      return pronostic;
+      return { pronostic, annules };
     });
+    if (annules.length > 0) notifierSelectionModifiee(annules, pronostic.id, pronostic.match);
+    return pronostic;
   }
 
   // ─── ADMIN — Publier / Dépublier ─────────────────────────────────────────────
