@@ -502,7 +502,8 @@ class _PremiumBanner extends ConsumerWidget {
         ) ??
         const <Map<String, dynamic>>[];
     final vipProno = vipList.isEmpty ? null : vipList.first;
-    final nbGrosseCote = vipList
+    final sansCote = ref.watch(sansPariProvider);
+    final nbGrosseCote = sansCote ? 0 : vipList
         .where((p) => ((p['odds_recommended'] as num?) ?? 0) >= 2)
         .length;
 
@@ -551,7 +552,9 @@ class _PremiumBanner extends ConsumerWidget {
     } else if (vipProno != null) {
       headline = tr(context, "Accède au pronostic VIP du jour");
     } else {
-      headline = tr(context, "Analyses détaillées · Cotes exclusives · VIP");
+      headline = sansCote
+          ? tr(context, "Analyses détaillées · Pronos VIP")
+          : tr(context, "Analyses détaillées · Cotes exclusives · VIP");
     }
 
     // Surface toujours sombre : son contenu lit le thème sombre, sinon les
@@ -664,7 +667,8 @@ class _LockedPronoPreview extends StatelessWidget {
     final predLabel    = (prono['prediction_label'] as String? ?? '').isEmpty
         ? '???'
         : _teamLabel(prono);
-    final oddsRec      = (prono['odds_recommended'] as num?)?.toDouble();
+    final oddsRec      = sansPari(context)
+        ? null : (prono['odds_recommended'] as num?)?.toDouble();
 
     return Stack(
       children: [
@@ -766,7 +770,9 @@ class _PremiumIllustration extends StatelessWidget {
   Widget build(BuildContext context) {
     final tiles = [
       (Icons.query_stats_rounded,    tr(context, "Analyses stats"),    Color(0xFF8B5CF6)),
-      (Icons.show_chart_rounded,     tr(context, "Cotes exclusives"),  Color(0xFF10B981)),
+      sansPari(context)
+          ? (Icons.insights_rounded,     tr(context, "Forme et classements"), Color(0xFF10B981))
+          : (Icons.show_chart_rounded,   tr(context, "Cotes exclusives"),  Color(0xFF10B981)),
       (Icons.workspace_premium_rounded, tr(context, "Pronos VIP"),     Color(0xFFFFD700)),
     ];
 

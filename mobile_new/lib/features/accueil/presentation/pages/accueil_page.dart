@@ -37,6 +37,7 @@ import '../../../../shared/utils/rafraichir.dart';
 import '../providers/carte_vedette.dart';
 import 'package:pronowin/core/utils/noms_equipes.dart';
 import 'package:pronowin/shared/utils/initiale.dart';
+import 'package:pronowin/core/config/sans_pari.dart';
 
 // Découpé en fichiers `part` : le fichier faisait 4 406 lignes pour une
 // cinquantaine de classes privées — plus gros que match_detail_page avant
@@ -397,6 +398,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                   // question posée en ouvrant l'app est « sur quoi je parie
                   // aujourd'hui ? ».
                   // ─── BANKROLL MINI-WIDGET ─────────────────────────────────
+                  if (!ref.watch(sansPariProvider))
                   const _BankrollMiniWidget()
                     .animate()
                     .fadeIn(duration: 400.ms, delay: 80.ms)

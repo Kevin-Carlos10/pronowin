@@ -20,6 +20,7 @@ import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/providers/favoris_provider.dart';
 import '../../../../shared/widgets/logotype_pronowin.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
+import 'package:pronowin/core/config/sans_pari.dart';
 
 class PronosticsPage extends ConsumerStatefulWidget {
   const PronosticsPage({super.key});
@@ -613,6 +614,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                 matchsDuJour:     matchsDuJour,
                 currentLeague:    ref.read(leagueFilterProvider),
                 currentOdds:      ref.read(oddsRangeFilterProvider),
+                afficherCotes:    !ref.read(sansPariProvider),
                 onApply: (league, odds) {
                   ref.read(leagueFilterProvider.notifier).state = league;
                   ref.read(oddsRangeFilterProvider.notifier).state = odds;
@@ -1259,6 +1261,9 @@ class _AdvancedFilterSheet extends StatefulWidget {
 
   final String? currentLeague;
   final OddsRange currentOdds;
+
+  /// Le filtre par cote — absent sur iPhone (`sansPariProvider`).
+  final bool afficherCotes;
   final void Function(String? league, OddsRange odds) onApply;
   final VoidCallback onReset;
 
@@ -1267,6 +1272,7 @@ class _AdvancedFilterSheet extends StatefulWidget {
     required this.matchsDuJour,
     required this.currentLeague,
     required this.currentOdds,
+    this.afficherCotes = true,
     required this.onApply,
     required this.onReset,
   });
@@ -1349,20 +1355,21 @@ class _AdvancedFilterSheetState extends State<_AdvancedFilterSheet> {
         ],
 
         // Section Cote
-        Text(tr(context, "COTE RECOMMANDÉE"), style: TextStyle(
-          color: context.cl.textM, fontSize: 11,
-          fontWeight: FontWeight.w600, letterSpacing: 1)),
-        const SizedBox(height: 10),
-        Wrap(spacing: 8, runSpacing: 8, children: oddsOptions.entries.map((e) =>
-          _FilterChip(
-            label: e.value,
-            active: _odds == e.key,
-            color: e.key == OddsRange.all ? null : _oddsColor(e.key),
-            onTap: () => setState(() => _odds = e.key),
-          ),
-        ).toList()),
-
-        const SizedBox(height: 28),
+        if (widget.afficherCotes) ...[
+          Text(tr(context, "COTE RECOMMANDÉE"), style: TextStyle(
+            color: context.cl.textM, fontSize: 11,
+            fontWeight: FontWeight.w600, letterSpacing: 1)),
+          const SizedBox(height: 10),
+          Wrap(spacing: 8, runSpacing: 8, children: oddsOptions.entries.map((e) =>
+            _FilterChip(
+              label: e.value,
+              active: _odds == e.key,
+              color: e.key == OddsRange.all ? null : _oddsColor(e.key),
+              onTap: () => setState(() => _odds = e.key),
+            ),
+          ).toList()),
+          const SizedBox(height: 28),
+        ],
 
         // Bouton Appliquer
         SizedBox(
@@ -1796,7 +1803,8 @@ class _ForYouEmpty extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final enCours = ref.watch(bankrollProvider).valueOrNull
+    // Sur iPhone, pas de bankroll : rien n'a pu être « déjà misé ».
+    final enCours = ref.watch(sansPariProvider) ? 0 : ref.watch(bankrollProvider).valueOrNull
         ?.bets.where((b) => b.result == null).length ?? 0;
 
     return Center(

@@ -14,6 +14,7 @@ import '../../domain/entities/match_entity.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../../shared/widgets/premium_gate_sheet.dart';
 import '../../../../shared/providers/favoris_provider.dart';
+import 'package:pronowin/core/config/sans_pari.dart';
 
 class MatchCardWidget extends ConsumerStatefulWidget {
   final MatchEntity match;
@@ -33,6 +34,10 @@ class MatchCardWidget extends ConsumerStatefulWidget {
 
 class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
     with SingleTickerProviderStateMixin {
+  /// Sur iPhone, la rencontre sans ses cotes (`sansPariProvider`).
+  MatchEntity get _match =>
+      ref.read(sansPariProvider) ? widget.match.sansCotes() : widget.match;
+
   late AnimationController _pressCtrl;
   late Animation<double> _scale;
 
@@ -60,22 +65,24 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
     // Le statut manquait : une carte de match joué restait cadenassée, alors
     // que le serveur en livre le contenu.
     final locked  = estVerrouille(
-      contenuMasque: widget.match.isLocked,
-      estPremium:         widget.match.isPremium,
-      matchTermine:       widget.match.status == MatchStatus.finished,
+      contenuMasque: _match.isLocked,
+      estPremium:         _match.isPremium,
+      matchTermine:       _match.status == MatchStatus.finished,
       utilisateurPremium: widget.isPremiumUser,
     );
-    final noProno = !widget.match.hasPronostic;
+    final noProno = !_match.hasPronostic;
 
-    final m = widget.match;
+    final m = _match;
     final semanticLabel = locked
         ? tr(context, "{arg0} contre {arg1}, {arg2}. Contenu premium verrouillé.", [m.homeTeam, m.awayTeam, m.league])
         : noProno
             ? tr(context, "{arg0} contre {arg1}, {arg2}. Pas de pronostic disponible.", [m.homeTeam, m.awayTeam, m.league])
-            : tr(context, "{arg0} contre {arg1}, {arg2}. Pronostic : {arg3}. Indice de confiance {arg4}. Cote recommandée {arg5}.", [m.homeTeam, m.awayTeam, m.league, m.displayPredictionLabel, MatchEntity.affichageConfiance(m.pourcentageConfiance), m.oddsRecommended.toStringAsFixed(2)]);
+            : m.oddsRecommended > 0
+                ? tr(context, "{arg0} contre {arg1}, {arg2}. Pronostic : {arg3}. Indice de confiance {arg4}. Cote recommandée {arg5}.", [m.homeTeam, m.awayTeam, m.league, m.displayPredictionLabel, MatchEntity.affichageConfiance(m.pourcentageConfiance), m.oddsRecommended.toStringAsFixed(2)])
+                : tr(context, "{arg0} contre {arg1}, {arg2}. Pronostic : {arg3}. Indice de confiance {arg4}.", [m.homeTeam, m.awayTeam, m.league, m.displayPredictionLabel, MatchEntity.affichageConfiance(m.pourcentageConfiance)]);
 
     // Matchs terminés sans pronostic → navigable pour voir les stats
-    final canNavigate = !noProno || widget.match.status == MatchStatus.finished;
+    final canNavigate = !noProno || _match.status == MatchStatus.finished;
 
     return Semantics(
       label:  semanticLabel,
@@ -87,9 +94,9 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
         HapticFeedback.lightImpact();
         if (locked) {
           showPremiumGateSheet(context,
-            matchLabel: '${widget.match.homeTeam} vs ${widget.match.awayTeam}');
+            matchLabel: '${_match.homeTeam} vs ${_match.awayTeam}');
         } else {
-          context.push('/pronostics/${widget.match.id}', extra: widget.match);
+          context.push('/pronostics/${_match.id}', extra: _match);
         }
       } : null,
       onTapCancel: () => _pressCtrl.reverse(),
@@ -101,17 +108,17 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
           color: context.cl.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: widget.match.status == MatchStatus.live
+            color: _match.status == MatchStatus.live
                 ? context.cl.error.withValues(alpha: 0.4)
                 : noProno
                     ? context.cl.border
                     : locked
                         ? const Color(0xFFDAA520).withValues(alpha: 0.5)
                         : AppColors.primary.withValues(alpha: 0.25),
-            width: widget.match.status == MatchStatus.live ? 1.5
+            width: _match.status == MatchStatus.live ? 1.5
                 : locked ? 1.0 : 0.5,
           ),
-          boxShadow: widget.match.status == MatchStatus.live
+          boxShadow: _match.status == MatchStatus.live
               ? [BoxShadow(
                     color: context.cl.error.withValues(alpha: 0.12),
                     blurRadius: 16,
@@ -145,9 +152,9 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
   // ─── HEADER ────────────────────────────────────────────────────────────────
   Widget _buildHeader(BuildContext context) {
     final isFav   = ref.watch(favorisProvider).valueOrNull
-            ?.matchIds.contains(widget.match.id) ??
+            ?.matchIds.contains(_match.id) ??
         false;
-    final hasBet  = ref.watch(betMatchIdsProvider).contains(widget.match.id);
+    final hasBet  = ref.watch(betMatchIdsProvider).contains(_match.id);
     return Container(
       padding: const EdgeInsets.fromLTRB(14, 11, 14, 0),
       child: Row(
@@ -177,7 +184,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                   const SizedBox(width: 5),
                   Flexible(
                     child: Text(
-                      widget.match.league,
+                      _match.league,
                       style: TextStyle(color: context.cl.textS, fontSize: 11),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -195,7 +202,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
             // rangée dépassait dès 411 px — sans même agrandir le texte.
             Flexible(
               child: Text(
-                DateFormat('dd/MM').format(widget.match.matchDate),
+                DateFormat('dd/MM').format(_match.matchDate),
                 style: TextStyle(color: context.cl.textM, fontSize: 10),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
@@ -214,7 +221,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.selectionClick();
-                ref.read(favorisProvider.notifier).basculerMatch(widget.match.id);
+                ref.read(favorisProvider.notifier).basculerMatch(_match.id);
               },
               child: ExcludeSemantics(
                 child: AnimatedSwitcher(
@@ -231,15 +238,15 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
           ),
           const SizedBox(width: 8),
           // Badge premium VIP
-          if (widget.match.isPremium) const _VipBadge(),
-          if (widget.match.isPremium) const SizedBox(width: 8),
+          if (_match.isPremium) const _VipBadge(),
+          if (_match.isPremium) const SizedBox(width: 8),
           // Heure / Statut LIVE
-          widget.match.status == MatchStatus.live
+          _match.status == MatchStatus.live
               ? const _LivePulse()
-              : widget.match.status == MatchStatus.finished
-                  ? _ResultBadge(match: widget.match)
+              : _match.status == MatchStatus.finished
+                  ? _ResultBadge(match: _match)
                   : Text(
-                      DateFormat('HH:mm').format(widget.match.matchDate),
+                      DateFormat('HH:mm').format(_match.matchDate),
                       style: TextStyle(
                           color: context.cl.dore,
                           fontSize: 12,
@@ -261,21 +268,21 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
             children: [
               Expanded(
                 child: _TeamColumn(
-                  name: widget.match.homeTeam,
-                  logo: widget.match.homeTeamLogo,
+                  name: _match.homeTeam,
+                  logo: _match.homeTeamLogo,
                   isHome: true,
-                  isWinner: widget.match.status == MatchStatus.finished &&
-                      (widget.match.homeScore ?? 0) > (widget.match.awayScore ?? 0),
+                  isWinner: _match.status == MatchStatus.finished &&
+                      (_match.homeScore ?? 0) > (_match.awayScore ?? 0),
                 ),
               ),
-              _ScoreCenter(match: widget.match),
+              _ScoreCenter(match: _match),
               Expanded(
                 child: _TeamColumn(
-                  name: widget.match.awayTeam,
-                  logo: widget.match.awayTeamLogo,
+                  name: _match.awayTeam,
+                  logo: _match.awayTeamLogo,
                   isHome: false,
-                  isWinner: widget.match.status == MatchStatus.finished &&
-                      (widget.match.awayScore ?? 0) > (widget.match.homeScore ?? 0),
+                  isWinner: _match.status == MatchStatus.finished &&
+                      (_match.awayScore ?? 0) > (_match.homeScore ?? 0),
                 ),
               ),
             ],
@@ -310,7 +317,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                     // « Total buts do… », « Double chan… » (2 octobre 2026).
                     Flexible(
                       child: Text(
-                        widget.match.displayPredictionLabel,
+                        _match.displayPredictionLabel,
                         style: TextStyle(
                             color: context.cl.accent,
                             fontSize: 12,
@@ -320,7 +327,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis),
                     ),
-                    if (widget.match.oddsRecommended > 0) ...[
+                    if (_match.oddsRecommended > 0) ...[
                       const SizedBox(width: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(
@@ -330,7 +337,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          widget.match.oddsRecommended.toStringAsFixed(2),
+                          _match.oddsRecommended.toStringAsFixed(2),
                           style: TextStyle(
                               color: context.cl.success,
                               fontSize: 12,
@@ -354,7 +361,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
             // moitié.
             ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 84),
-              child: ConfidenceIndicator(pourcentage: widget.match.pourcentageConfiance),
+              child: ConfidenceIndicator(pourcentage: _match.pourcentageConfiance),
             ),
           ]),
 
@@ -373,7 +380,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
             Expanded(child: Divider(color: context.cl.border, height: 1)),
           ]),
           const SizedBox(height: 6),
-          _OddsRow(match: widget.match),
+          _OddsRow(match: _match),
         ],
       ),
     );
@@ -388,8 +395,8 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
         // ── Équipes (VISIBLES) ──────────────────────────────────────────
         Row(children: [
           Expanded(child: _TeamColumn(
-            name: widget.match.homeTeam,
-            logo: widget.match.homeTeamLogo,
+            name: _match.homeTeam,
+            logo: _match.homeTeamLogo,
             isHome: true)),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 12),
@@ -397,8 +404,8 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
               color: context.cl.textM, fontSize: 13,
               fontWeight: FontWeight.w700))),
           Expanded(child: _TeamColumn(
-            name: widget.match.awayTeam,
-            logo: widget.match.awayTeamLogo,
+            name: _match.awayTeam,
+            logo: _match.awayTeamLogo,
             isHome: false)),
         ]),
 
@@ -480,16 +487,16 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
         const SizedBox(height: 8),
 
         // ── Cotes du marché « vainqueur », visibles même verrouillé ─────
-        if (widget.match.oddsHome > 0 || widget.match.oddsDraw > 0 ||
-            widget.match.oddsAway > 0)
-          _LockedOddsRow(match: widget.match),
+        if (_match.oddsHome > 0 || _match.oddsDraw > 0 ||
+            _match.oddsAway > 0)
+          _LockedOddsRow(match: _match),
 
         const SizedBox(height: 10),
 
         // ── CTA gold ────────────────────────────────────────────────────
         GestureDetector(
           onTap: () => showPremiumGateSheet(context,
-            matchLabel: '${widget.match.homeTeam} vs ${widget.match.awayTeam}'),
+            matchLabel: '${_match.homeTeam} vs ${_match.awayTeam}'),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 11),
@@ -527,25 +534,25 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
         Row(children: [
           Expanded(
             child: _TeamColumn(
-              name: widget.match.homeTeam,
-              logo: widget.match.homeTeamLogo,
+              name: _match.homeTeam,
+              logo: _match.homeTeamLogo,
               isHome: true,
-              isWinner: widget.match.status == MatchStatus.finished &&
-                  (widget.match.homeScore ?? 0) > (widget.match.awayScore ?? 0),
+              isWinner: _match.status == MatchStatus.finished &&
+                  (_match.homeScore ?? 0) > (_match.awayScore ?? 0),
             ),
           ),
-          _ScoreCenter(match: widget.match),
+          _ScoreCenter(match: _match),
           Expanded(
             child: _TeamColumn(
-              name: widget.match.awayTeam,
-              logo: widget.match.awayTeamLogo,
+              name: _match.awayTeam,
+              logo: _match.awayTeamLogo,
               isHome: false,
-              isWinner: widget.match.status == MatchStatus.finished &&
-                  (widget.match.awayScore ?? 0) > (widget.match.homeScore ?? 0),
+              isWinner: _match.status == MatchStatus.finished &&
+                  (_match.awayScore ?? 0) > (_match.homeScore ?? 0),
             ),
           ),
         ]),
-        if (widget.match.status != MatchStatus.finished) ...[
+        if (_match.status != MatchStatus.finished) ...[
           const SizedBox(height: 12),
           // Bandeau "Analyse en cours" (uniquement pour matchs non terminés)
           Container(

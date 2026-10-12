@@ -12,6 +12,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/match_entity.dart' show MatchEntity;
 import '../../../../core/services/prono_share_service.dart';
 import 'package:pronowin/core/utils/noms_equipes.dart';
+import 'package:pronowin/core/config/sans_pari.dart';
 
 // ─── Filtres ──────────────────────────────────────────────────────────────────
 enum _ResultFilter { all, win, loss, pending }
@@ -60,7 +61,11 @@ class HistoriquePage extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final period = ref.watch(_periodProvider);
-    final async  = ref.watch(historiqueProvider(period.days));
+    // Sur iPhone, l'historique sans ses cotes (`sansPariProvider`).
+    final brut   = ref.watch(historiqueProvider(period.days));
+    final async  = ref.watch(sansPariProvider)
+        ? brut.whenData((l) => [for (final e in l) {...e}..remove('oddsRecommended')])
+        : brut;
     final filter = ref.watch(_resultFilterProvider);
 
     return Scaffold(
@@ -681,8 +686,9 @@ class _EntryCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(6)),
               child: Text(pred, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(
                 color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w700))),
-            Text('@ ${odds.toStringAsFixed(2)}',
-              style: TextStyle(color: context.cl.textS, fontSize: 11)),
+            if (odds > 0)
+              Text('@ ${odds.toStringAsFixed(2)}',
+                style: TextStyle(color: context.cl.textS, fontSize: 11)),
           ]),
         ])),
 

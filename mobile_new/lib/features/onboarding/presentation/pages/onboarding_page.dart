@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/router/app_router.dart' show onboardingDoneProvider;
 import '../../../../core/theme/app_theme.dart';
+import 'package:pronowin/core/config/sans_pari.dart';
 
 // ─── Données slides ───────────────────────────────────────────────────────────
 class _Slide {
@@ -161,6 +162,32 @@ const _slides = [
 ];
 
 // ─── Page principale ──────────────────────────────────────────────────────────
+/// Les diapositives de la version iPhone (`sansPariProvider`) : sans la
+/// bankroll, ni cote, ni mise.
+final _slidesSansPari = [
+  for (final s in _slides)
+    if (s.title != 'Gère ta bankroll')
+      _Slide(
+        emoji: s.emoji,
+        title: s.title,
+        subtitle: switch (s.subtitle) {
+          'Apprends à parier intelligemment avec nos guides' => 'Apprends à lire un match avec nos guides',
+          "Les chiffres d'abord. La mise ensuite." => "Les chiffres d'abord.",
+          _ => s.subtitle,
+        },
+        bullets: [
+          for (final b in s.bullets)
+            switch (b) {
+              'Cotes recommandées et niveau de confiance' => 'Niveau de confiance de chaque pronostic',
+              'Value Bet, Bankroll, Stratégie...' => 'Statistiques, lecture de match, stratégie...',
+              _ => b,
+            },
+        ],
+        color: s.color,
+        colorDark: s.colorDark,
+      ),
+];
+
 class OnboardingPage extends ConsumerStatefulWidget {
   const OnboardingPage({super.key});
 
@@ -169,6 +196,8 @@ class OnboardingPage extends ConsumerStatefulWidget {
 }
 
 class _OnboardingPageState extends ConsumerState<OnboardingPage> {
+  List<_Slide> get _diapos => ref.read(sansPariProvider) ? _slidesSansPari : _slides;
+
   final _ctrl   = PageController();
   int  _current = 0;
 
@@ -177,7 +206,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
 
   void _next() {
     HapticFeedback.lightImpact();
-    if (_current < _slides.length - 1) {
+    if (_current < _diapos.length - 1) {
       _ctrl.nextPage(duration: const Duration(milliseconds: 380), curve: Curves.easeInOutCubic);
     } else {
       _finish();
@@ -199,7 +228,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
 
   @override
   Widget build(BuildContext context) {
-    final slide = _slides[_current];
+    final slide = _diapos[_current];
     return Scaffold(
       backgroundColor: context.cl.bg,
       body: Stack(children: [
@@ -253,23 +282,23 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                 ),
               ),
               const Spacer(),
-              if (_current < _slides.length - 1)
+              if (_current < _diapos.length - 1)
                 TextButton(onPressed: _skip, child: Text(tr(context, 'Passer'))),
             ]),
           ),
           Expanded(child: PageView.builder(
             controller: _ctrl,
-            itemCount:  _slides.length,
+            itemCount:  _diapos.length,
             onPageChanged: (i) {
               HapticFeedback.selectionClick();
               setState(() => _current = i);
             },
-            itemBuilder: (_, i) => _SlideContent(slide: _slides[i]),
+            itemBuilder: (_, i) => _SlideContent(slide: _diapos[i]),
           )),
           Padding(padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
             child: Column(children: [
               Row(mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(_slides.length, (i) {
+                children: List.generate(_diapos.length, (i) {
                   final active = i == _current;
                   return AnimatedContainer(
                     duration: const Duration(milliseconds: 280),
@@ -297,12 +326,12 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
                   ),
                   child: Center(child: Row(mainAxisSize: MainAxisSize.min, children: [
                     Text(
-                      _current < _slides.length - 1 ? tr(context, "Suivant") : tr(context, "Commencer !"),
+                      _current < _diapos.length - 1 ? tr(context, "Suivant") : tr(context, "Commencer !"),
                       style: const TextStyle(color: Colors.white, fontSize: 16,
                           fontWeight: FontWeight.w700, letterSpacing: 0.3)),
                     const SizedBox(width: 8),
                     Icon(
-                      _current < _slides.length - 1
+                      _current < _diapos.length - 1
                           ? Icons.arrow_forward_rounded
                           : Icons.rocket_launch_rounded,
                       color: Colors.white, size: 20),

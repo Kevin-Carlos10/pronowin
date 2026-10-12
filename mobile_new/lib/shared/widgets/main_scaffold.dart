@@ -14,6 +14,7 @@ import 'bottom_nav_metrics.dart';
 import 'pile_onglets_paresseuse.dart';
 import 'guest_locked_view.dart';
 import 'offline_banner.dart';
+import 'package:pronowin/core/config/sans_pari.dart';
 
 class MainScaffold extends ConsumerStatefulWidget {
   final int initialIndex;
@@ -61,6 +62,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   // Au trait au repos, pleine quand l'onglet est ouvert — comme Instagram.
   // Le ballon remplace la courbe de « Pronos » : sans libellé, l'icône doit
   // dire seule de quoi parle l'onglet.
+  /// L'onglet Bankroll, absent sur iPhone (`sansPariProvider`). Les autres
+  /// gardent leur numéro : `/tutoriels` reste l'onglet 3, `/compte` le 4.
+  static const _ongletBankroll = 2;
+
   static const _navItems = [
     _NavItemData(icon: Icons.home_outlined,                   active: Icons.home_rounded,                   label: 'Accueil'),
     _NavItemData(icon: Icons.sports_soccer_outlined,          active: Icons.sports_soccer,                  label: 'Pronos'),
@@ -73,6 +78,8 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    // Un lien vers la Bankroll, sur iPhone, ouvre l'accueil.
+    if (ref.read(sansPariProvider) && _currentIndex == _ongletBankroll) _currentIndex = 0;
     _iconControllers = List.generate(
       _navItems.length,
       (_) => AnimationController(
@@ -105,6 +112,11 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
   @override
   Widget build(BuildContext context) {
     final loggedIn = ref.watch(effectiveLoggedInProvider);
+    final sansPari = ref.watch(sansPariProvider);
+    final visibles = [
+      for (var i = 0; i < _navItems.length; i++)
+        if (!(sansPari && i == _ongletBankroll)) i,
+    ];
 
     return Scaffold(
       extendBody: true,
@@ -134,10 +146,10 @@ class _MainScaffoldState extends ConsumerState<MainScaffold>
       // Un élément de navigation est soit pleinement utilisable, soit absent.
       // Entre les deux, il occupe la place sans se laisser atteindre.
       bottomNavigationBar: _FloatingNavBar(
-        currentIndex: _currentIndex,
-        items: _navItems,
-        iconScales: _iconScales,
-        onTap: _onTap,
+        currentIndex: visibles.indexOf(_currentIndex).clamp(0, visibles.length - 1),
+        items: [for (final i in visibles) _navItems[i]],
+        iconScales: [for (final i in visibles) _iconScales[i]],
+        onTap: (v) => _onTap(visibles[v]),
       ),
     );
   }

@@ -286,8 +286,9 @@ class PronoShareCard extends StatelessWidget {
 
               // ── Cote + Confiance ──────────────────────────────────────────────
               Row(children: [
-                // Cote
-                Expanded(
+                // Cote — absente de la version iPhone, qui reçoit une
+                // rencontre sans cote (`sansPariProvider`).
+                if (match.oddsRecommended > 0) Expanded(
                   child: Container(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                     decoration: BoxDecoration(
@@ -319,7 +320,7 @@ class PronoShareCard extends StatelessWidget {
                   ),
                 ),
 
-                const SizedBox(width: 10),
+                if (match.oddsRecommended > 0) const SizedBox(width: 10),
 
                 // Confiance
                 Expanded(

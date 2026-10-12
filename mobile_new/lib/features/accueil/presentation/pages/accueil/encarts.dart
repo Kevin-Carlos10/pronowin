@@ -47,7 +47,9 @@ class _TutorielsBanner extends StatelessWidget {
               color: context.cl.textP,
               fontSize: 13, fontWeight: FontWeight.w700)),
           const SizedBox(height: 2),
-          Text(tr(context, "Stratégies, value bet, bankroll…"),
+          Text(sansPari(context)
+              ? tr(context, "Lecture de match, statistiques, stratégie…")
+              : tr(context, "Stratégies, value bet, bankroll…"),
             style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ])),
         Icon(Icons.arrow_forward_ios_rounded,

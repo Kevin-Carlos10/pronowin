@@ -70,7 +70,9 @@ class _PronosticCard extends ConsumerWidget {
 
     // « Total buts +/- : Plus de 2.5 » → marché discret + choix mis en avant.
     // Même hiérarchie que la carte vedette en tête de cet écran.
-    final odds       = (prono['odds_recommended'] as num?)?.toDouble();
+    // Sur iPhone, ni cote ni bouton Bankroll (`sansPariProvider`).
+    final odds       = ref.watch(sansPariProvider)
+        ? null : (prono['odds_recommended'] as num?)?.toDouble();
     final fullLabel  = _teamLabel(prono);
     final sepIndex   = fullLabel.indexOf(' : ');
     final marketName = sepIndex > 0 ? fullLabel.substring(0, sepIndex) : tr(context, "Pronostic");
@@ -103,7 +105,7 @@ class _PronosticCard extends ConsumerWidget {
       annonce.write(tr(context, ", pronostic réservé aux membres Premium"));
     } else {
       annonce.write(tr(context, ", pronostic {arg0}", [pickName]));
-      final c = prono['odds_recommended'] as num?;
+      final c = odds;
       if (c != null) annonce.write(tr(context, ", cote {arg0}", [c.toStringAsFixed(2)]));
       if (conf > 0) {
         annonce.write(tr(context, ", indice de confiance {arg0}", [MatchEntity.affichageConfiance(confPct)]));
@@ -405,7 +407,7 @@ class _PronosticCard extends ConsumerWidget {
                         ],
                       ),
                     ),
-                    if ((prono['odds_recommended'] as num?) != null) ...[
+                    if (odds != null) ...[
                       const SizedBox(width: 12),
                       Column(
                         children: [
@@ -417,8 +419,7 @@ class _PronosticCard extends ConsumerWidget {
                                   letterSpacing: 0.6)),
                           const SizedBox(height: 2),
                           Text(
-                            (prono['odds_recommended'] as num)
-                                .toStringAsFixed(2),
+                            odds.toStringAsFixed(2),
                             style: TextStyle(
                                 color: context.cl.success,
                                 fontSize: 14,

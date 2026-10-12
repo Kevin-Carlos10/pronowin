@@ -69,7 +69,8 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
           final matchId        = prono['id'] as String?;
           final rawPredLabel   = prono['prediction_label'] as String?;
           final predLabel      = (rawPredLabel?.isNotEmpty ?? false) ? _teamLabel(prono) : null;
-          final oddsRec        = (prono['odds_recommended'] as num?)?.toDouble();
+          final oddsRec        = ref.watch(sansPariProvider)
+              ? null : (prono['odds_recommended'] as num?)?.toDouble();
           final confidenceScore = prono['confidence_score'] as int? ?? 0;
           final isPremium      = prono['is_premium'] as bool? ?? false;
           // Prono premium + utilisateur gratuit → teaser verrouillé :

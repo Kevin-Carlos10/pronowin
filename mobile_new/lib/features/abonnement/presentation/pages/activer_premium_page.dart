@@ -30,6 +30,7 @@ import '../widgets/confirmation_premium_active.dart';
 import '../../../../core/config/pages_legales.dart';
 import '../../../../core/services/analyse_usage.dart';
 import '../../../../shared/utils/messages.dart';
+import 'package:pronowin/core/config/sans_pari.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -1988,6 +1989,14 @@ class _PaywallPage extends StatelessWidget {
     (Icons.account_balance_wallet_rounded, 'Suivi bankroll avancé'),
   ];
 
+  /// Sur iPhone (`sansPariProvider`), le suivi de bankroll n'existe pas.
+  static const _featuresSansPari = [
+    (Icons.star_rounded,          'Pronostics VIP illimités'),
+    (Icons.query_stats_rounded,    'Analyse statistique par match'),
+    (Icons.leaderboard_rounded,   'Classement & statistiques'),
+    (Icons.insights_rounded,      'Forme récente des équipes'),
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -2176,7 +2185,9 @@ class _PaywallPage extends StatelessWidget {
         ).animate(delay: 80.ms).fadeIn(duration: 400.ms).slideY(begin: 0.05, end: 0),
         const SizedBox(height: 10),
          Text(
-          tr(context, "Gérez tes pronostics avec les analyses\nVIP et le suivi bankroll professionnel."),
+          sansPari(context)
+              ? tr(context, "Suis tes pronostics avec les analyses\nVIP et les statistiques de chaque match.")
+              : tr(context, "Gérez tes pronostics avec les analyses\nVIP et le suivi bankroll professionnel."),
           style: TextStyle(color: Colors.white60, fontSize: 14, height: 1.5),
           textAlign: TextAlign.center,
         ).animate(delay: 140.ms).fadeIn(duration: 350.ms),
@@ -2205,7 +2216,7 @@ class _PaywallPage extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 10, mainAxisSpacing: 10,
       childAspectRatio: 2.6,
-      children: _features.asMap().entries.map((e) {
+      children: (sansPari(context) ? _featuresSansPari : _features).asMap().entries.map((e) {
         final (icon, label) = e.value;
         return Container(
           decoration: BoxDecoration(

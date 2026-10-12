@@ -97,6 +97,24 @@ class MatchEntity extends Equatable {
     this.result,
   }) : _homeTeam = homeTeam, _awayTeam = awayTeam, _predictionLabel = predictionLabel, _analystNote = analystNote;
 
+  /// La même rencontre, sans aucune cote : la version iPhone n'en affiche
+  /// pas (voir `sansPariProvider`). Chaque écran masque déjà une cote nulle ;
+  /// lui confier cette copie suffit, sans retoucher chaque affichage.
+  MatchEntity sansCotes() => MatchEntity(
+    id: id, league: league, leagueCountry: leagueCountry,
+    homeTeam: _homeTeam, awayTeam: _awayTeam,
+    homeTeamLogo: homeTeamLogo, awayTeamLogo: awayTeamLogo,
+    matchDate: matchDate, status: status, homeScore: homeScore, awayScore: awayScore,
+    predictionType: predictionType, predictionLabel: _predictionLabel,
+    predictionLabelEn: predictionLabelEn,
+    oddsRecommended: 0, oddsHome: 0, oddsDraw: 0, oddsAway: 0,
+    confidenceScore: confidenceScore, confidencePct: confidencePct, isPremium: isPremium,
+    analystNote: _analystNote, analystNoteEn: analystNoteEn,
+    homeFormPoints: homeFormPoints, awayFormPoints: awayFormPoints,
+    aiProbability: aiProbability, aiExplanation: aiExplanation,
+    hasPronostic: hasPronostic, isLocked: isLocked, result: result,
+  );
+
   ConfidenceLevel get confidence {
     if (confidenceScore >= 5) return ConfidenceLevel.veryHigh;
     if (confidenceScore >= 4) return ConfidenceLevel.high;

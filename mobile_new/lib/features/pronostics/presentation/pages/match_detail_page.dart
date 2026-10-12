@@ -47,6 +47,7 @@ import '../../../../core/network/failures.dart';
 import '../../../../shared/widgets/erreur_chargement.dart';
 import '../../../../shared/utils/messages.dart';
 import '../../../../shared/widgets/logo_marque.dart';
+import 'package:pronowin/core/config/sans_pari.dart';
 
 
 // Découpé en fichiers `part` : le fichier faisait 3 604 lignes pour une
@@ -252,7 +253,10 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
 
     // Utilise la donnée fraîche du provider, avec preloaded comme fallback
     final matchAsync = ref.watch(matchDetailProvider(widget.matchId));
-    final match = matchAsync.valueOrNull ?? widget.preloaded;
+    // Sur iPhone, la rencontre arrive sans cote : chaque carte de la fiche
+    // masque déjà une cote nulle (voir `sansPariProvider`).
+    final matchBrut = matchAsync.valueOrNull ?? widget.preloaded;
+    final match = ref.watch(sansPariProvider) ? matchBrut?.sansCotes() : matchBrut;
 
     // Démarrer/arrêter le polling selon le statut du match
     final procheDuCoupEnvoi = match?.status == MatchStatus.upcoming &&
@@ -318,7 +322,8 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     final statsAsync     = ref.watch(matchStatsProvider(match.id));
     // Les cotes de tous les marchés n'existent qu'avant le coup d'envoi.
     final avantMatch     = match.status == MatchStatus.upcoming;
-    final cotesAsync     = avantMatch ? ref.watch(cotesMarchesProvider(match.id)) : null;
+    final cotesAsync     = avantMatch && !ref.watch(sansPariProvider)
+        ? ref.watch(cotesMarchesProvider(match.id)) : null;
 
     // Les onglets restent visibles même sur un pronostic verrouillé : ils ne
     // servent que de la donnée de match (compositions, classements,
@@ -354,10 +359,12 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     final bandeau1x2 = match.oddsHome > 0 || match.oddsDraw > 0 || match.oddsAway > 0;
     // Un match sans pronostic a aussi son onglet, dès qu'un marché est coté :
     // comme les autres onglets football, c'est de la donnée, pas l'offre.
-    final showCotes = (match.hasPronostic && match.status != MatchStatus.finished) ||
+    // Pas d'onglet Cotes sur iPhone (`sansPariProvider`).
+    final showCotes = !ref.watch(sansPariProvider) && (
+      (match.hasPronostic && match.status != MatchStatus.finished) ||
       _marchesAffichables(cotesAsync?.valueOrNull ?? const [], match,
         langue: AppStrings.of(context).locale.languageCode,
-        sans1x2: bandeau1x2).isNotEmpty;
+        sans1x2: bandeau1x2).isNotEmpty);
     final showStats = match.status != MatchStatus.upcoming;
     // L'onglet reste stable pendant le rafraîchissement et les coupures réseau.
     // Les faits marquants vivent dans l'onglet Détails, pas dans Statistiques.
@@ -441,7 +448,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           padding: const EdgeInsets.symmetric(vertical: 12),
           child: Text(tr(context, "Aucun pronostic publié pour ce match."),
             style: TextStyle(color: context.cl.textS))),
-        if (match.status == MatchStatus.live) ...[
+        if (match.status == MatchStatus.live && !ref.watch(sansPariProvider)) ...[
           const SizedBox(height: 16),
           entree(_CotesEnDirect(matchId: match.id), delaiMs: 230),
         ],
@@ -450,7 +457,9 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           entree(_NotesJoueurs(matchId: match.id), delaiMs: 230),
         ],
         const SizedBox(height: 16),
-        if (match.hasPronostic && match.status == MatchStatus.upcoming) ...[
+        // Enregistrer une sélection dans la bankroll : pas sur iPhone.
+        if (match.hasPronostic && match.status == MatchStatus.upcoming
+            && !ref.watch(sansPariProvider)) ...[
           entree(_MiserButton(match: match), delaiMs: 240),
           const SizedBox(height: 16),
         ],
@@ -1598,7 +1607,9 @@ class _PremiumBannerState extends ConsumerState<_PremiumBanner>
             color: context.cl.textP, fontSize: 15,
             fontWeight: FontWeight.w700)),
           SizedBox(height: 3),
-          Text(tr(context, "Pronostic, cotes et analyse complète"),
+          Text(ref.watch(sansPariProvider)
+              ? tr(context, "Pronostic et analyse complète")
+              : tr(context, "Pronostic, cotes et analyse complète"),
             style: TextStyle(color: context.cl.textS, fontSize: 12)),
         ])),
         Container(
