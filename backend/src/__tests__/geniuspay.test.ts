@@ -25,6 +25,11 @@ describe('configuration', () => {
     expect(configGeniusPay({ ...SANDBOX, GENIUSPAY_SECRET_KEY: 'sk_live_x' })).toBeNull();
     expect(configGeniusPay({ GENIUSPAY_PUBLIC_KEY: 'cle', GENIUSPAY_SECRET_KEY: 'secret' })).toBeNull();
   });
+  it("la clé publique du tableau de bord commence par sk_sandbox_ : seul l'environnement compte", () => {
+    expect(configGeniusPay({ GENIUSPAY_PUBLIC_KEY: 'sk_sandbox_a', GENIUSPAY_SECRET_KEY: 'x9Y8secret' })?.environnement)
+      .toBe('sandbox');
+    expect(configGeniusPay({ GENIUSPAY_PUBLIC_KEY: 'sk_sandbox_a', GENIUSPAY_SECRET_KEY: 'sk_live_b' })).toBeNull();
+  });
   it('l\'environnement suit le préfixe des clés', () => {
     expect(configGeniusPay(SANDBOX)?.environnement).toBe('sandbox');
     expect(configGeniusPay({ GENIUSPAY_PUBLIC_KEY: 'pk_live_a', GENIUSPAY_SECRET_KEY: 'sk_live_b' })?.environnement)

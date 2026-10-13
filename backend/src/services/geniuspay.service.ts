@@ -26,13 +26,19 @@ import {
  *
  * ── Test et réel ─────────────────────────────────────────────────────────
  *
- * L'environnement vient du préfixe des clés (`pk_sandbox_` / `pk_live_`). En
+ * L'environnement vient du préfixe de la clé publique (`…_sandbox_` /
+ * `…_live_`). La documentation annonce `pk_sandbox_`, le tableau de bord
+ * affiche `sk_sandbox_` pour la même clé (13 octobre 2026) : seul le segment
+ * d'environnement compte. En
  * test, un paiement simulé accorderait un vrai Premium : le paiement n'est
  * alors proposé qu'aux comptes de GENIUSPAY_TESTEURS. Un paiement d'un autre
  * environnement que celui des clés n'accorde jamais rien.
  */
 
-export const URL_API_GENIUSPAY = 'https://pay.genius.ci/api/v1/merchant';
+// Le point d'entrée affiché par le tableau de bord GeniusPay (Intégrations →
+// Clés API), qui diffère de celui de la documentation (pay.genius.ci).
+export const URL_API_GENIUSPAY = (process.env.GENIUSPAY_API_URL ?? 'https://geniuspay.ci/api/v1/merchant')
+  .replace(/\/+$/, '');
 const URL_SITE = (process.env.PUBLIC_SITE_URL ?? 'https://pronowin.space').replace(/\/+$/, '');
 
 export type EnvironnementGeniusPay = 'sandbox' | 'live';
@@ -51,12 +57,12 @@ export function configGeniusPay(env: NodeJS.ProcessEnv = process.env): ConfigGen
   const clePublique = (env.GENIUSPAY_PUBLIC_KEY ?? '').trim();
   const cleSecrete  = (env.GENIUSPAY_SECRET_KEY ?? '').trim();
   if (!clePublique || !cleSecrete) return null;
-  const pub = /^pk_(sandbox|live)_/.exec(clePublique);
-  const sec = /^sk_(sandbox|live)_/.exec(cleSecrete);
-  if (!pub || !sec || pub[1] !== sec[1]) {
+  const pub = /^[a-z]+_(sandbox|live)_/.exec(clePublique);
+  const sec = /^[a-z]+_(sandbox|live)_/.exec(cleSecrete);
+  if (!pub || (sec && sec[1] !== pub[1])) {
     // Une clé de test avec une clé réelle : chaque appel échouerait, ou
     // pire, le serveur croirait être en test en encaissant du réel.
-    journal.error('[GeniusPay] Clés incohérentes : préfixes pk_/sk_ attendus, du même environnement.');
+    journal.error('[GeniusPay] Clés incohérentes : la clé publique doit dire sandbox ou live, et la secrète le même environnement.');
     return null;
   }
   return {
