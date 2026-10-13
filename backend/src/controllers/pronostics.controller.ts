@@ -7,7 +7,7 @@ import { PronosticsService } from '../services/pronostics.service';
 import { FootballDataService } from '../services/football_data.service';
 import { NotificationService } from '../services/notification.service';
 import { cache, CACHE_KEYS, CACHE_TTL } from '../services/cache.service';
-import { analyzePronostic } from '../services/ai_prediction.service';
+import { analyzePronostic, explicationSansCotes } from '../services/ai_prediction.service';
 import { buildUserProfile, getPersonalizedPronostics } from '../services/personalized_ai.service';
 import { settleBets }      from '../services/bankroll.service';
 import { apiFootballService, apiFootballInsights, fichesJoueurs, fichesEquipes } from '../services/api_football.service';
@@ -1180,7 +1180,10 @@ export const getCotes = async (req: AuthRequest, res: Response) => {
 export const getAiAnalysis = async (req: AuthRequest, res: Response) => {
   try {
     const result = await analyzePronostic(req.params.id);
-    res.json(result);
+    // La version iPhone n'affiche aucune cote (`sansPariProvider`).
+    res.json(req.query.sans_cotes === '1'
+      ? { ...result, explanation: explicationSansCotes(result.explanation) }
+      : result);
   } catch (e: any) {
     if (e.message === 'Pronostic not found') { res.status(404).json({ message: 'Pronostic introuvable.' }); return; }
     repondreErreur(res, e);

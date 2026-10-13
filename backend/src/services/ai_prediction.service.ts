@@ -222,6 +222,20 @@ export function explainPrediction(params: {
   return parts.join(' ');
 }
 
+/**
+ * L'explication sans aucune mention de cote ni de bookmaker, pour la version
+ * iPhone (13 octobre 2026) : Apple a refusé l'app tant qu'elle montrait des
+ * cotes, et les notes d'examen affirment qu'il n'y en a plus nulle part. Le
+ * calcul ne change pas ; seules les phrases qui nomment la cote disparaissent
+ * ou perdent leur dernière proposition.
+ */
+export function explicationSansCotes(explication: string): string {
+  return explication
+    .replace(/La cote de [\d.,]+ correspond à une probabilité implicite de \d+% \(marge du bookmaker incluse\)\.\s*/g, '')
+    .replace(/ : l'estimation repose uniquement sur la cote\./g, '.')
+    .trim();
+}
+
 // ── Main export ───────────────────────────────────────────────────────────────
 
 export async function analyzePronostic(id: string): Promise<StatPrediction> {

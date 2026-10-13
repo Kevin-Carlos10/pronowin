@@ -1591,4 +1591,8 @@ const englishMessages = <String, String>{
   "Un souci avec ton paiement ? Écris-nous": "A problem with your payment? Write to us",
   "Paiement Mobile Money — Premium non activé": "Mobile Money payment — Premium not activated",
   "Bonjour,\n\nJ'ai payé par Mobile Money mais mon Premium n'est pas activé.\n\nNuméro utilisé pour le paiement : \nMontant : \nDate et heure approximatives : \n\nMerci de vérifier.": "Hello,\n\nI paid by Mobile Money but my Premium is not activated.\n\nNumber used for the payment: \nAmount: \nApproximate date and time: \n\nPlease check.",
+  "Le calcul statistique est plus prudent que notre analyste : {arg0} % contre {arg1} %.": "The statistical calculation is more cautious than our analyst: {arg0}% vs {arg1}%.",
+  "Le calcul statistique est plus confiant que notre analyste : {arg0} % contre {arg1} %.": "The statistical calculation is more confident than our analyst: {arg0}% vs {arg1}%.",
+  "Probabilité de succès estimée par notre modèle statistique": "Success probability estimated by our statistical model",
+  "Estimations statistiques — forme, attaque, défense, face-à-face et simulation des buts.": "Statistical estimates — form, attack, defence, head-to-head and goal simulation.",
 };

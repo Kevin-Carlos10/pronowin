@@ -19,7 +19,11 @@ class AvisCompares {
   /// Indice de confiance de l'analyste, 0–100.
   final int analyste;
 
-  const AvisCompares({required this.calcul, required this.analyste});
+  /// Version iPhone (`sansPariProvider`) : la phrase ne nomme pas les cotes,
+  /// que l'app n'y affiche nulle part (refus d'Apple du 11 octobre 2026).
+  final bool sansCotes;
+
+  const AvisCompares({required this.calcul, required this.analyste, this.sansCotes = false});
 
   /// En deçà, les deux avis sont considérés comme concordants : quinze points
   /// séparent deux paliers de confiance, et un écart moindre ne change pas la
@@ -36,6 +40,10 @@ class AvisCompares {
 
   String get phrase => concordants
       ? trCurrent("Le calcul rejoint l'avis de notre analyste : {arg0} % contre {arg1} %.", [calcul, analyste])
+      : sansCotes
+          ? (calculPlusPrudent
+              ? trCurrent("Le calcul statistique est plus prudent que notre analyste : {arg0} % contre {arg1} %.", [calcul, analyste])
+              : trCurrent("Le calcul statistique est plus confiant que notre analyste : {arg0} % contre {arg1} %.", [calcul, analyste]))
       : calculPlusPrudent
           ? trCurrent("Le calcul, fondé sur les cotes et la forme, est plus prudent que notre analyste : {arg0} % contre {arg1} %.", [calcul, analyste])
           : trCurrent("Le calcul, fondé sur les cotes et la forme, est plus confiant que notre analyste : {arg0} % contre {arg1} %.", [calcul, analyste]);

@@ -17,6 +17,7 @@ import '../../domain/usecases/get_matches_usecase.dart';
 import '../../domain/usecases/get_match_detail_usecase.dart';
 import '../../domain/usecases/get_leagues_usecase.dart';
 import 'package:pronowin/core/utils/noms_equipes.dart';
+import 'package:pronowin/core/config/sans_pari.dart';
 
 // ─── DI ──────────────────────────────────────────────────────────────────────
 final pronosticsDataSourceProvider = Provider<PronosticsRemoteDataSource>(
@@ -328,7 +329,10 @@ class AiAnalysis {
 
 final aiAnalysisProvider = FutureProvider.autoDispose.family<AiAnalysis, String>((ref, id) async {
   final dio = ref.read(dioProvider);
-  final r   = await dio.get('/pronostics/$id/ai-analyze');
+  // Version iPhone : l'explication sans aucune mention de cote ni de
+  // bookmaker (refus d'Apple du 11 octobre 2026).
+  final r   = await dio.get('/pronostics/$id/ai-analyze',
+      queryParameters: ref.read(sansPariProvider) ? {'sans_cotes': '1'} : null);
   return AiAnalysis(
     probability: (r.data['probability'] as num).toInt(),
     explanation: r.data['explanation'] as String,

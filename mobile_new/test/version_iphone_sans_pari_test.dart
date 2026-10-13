@@ -19,6 +19,7 @@ import 'package:pronowin/core/config/sans_pari.dart';
 import 'package:pronowin/core/network/dio_client.dart';
 import 'package:pronowin/core/theme/app_theme.dart';
 import 'package:pronowin/features/pronostics/data/models/match_model.dart';
+import 'package:pronowin/features/pronostics/domain/entities/avis_compares.dart';
 import 'package:pronowin/features/pronostics/presentation/pages/match_detail_page.dart';
 import 'package:pronowin/features/pronostics/presentation/providers/fiche_match_provider.dart';
 import 'package:pronowin/features/pronostics/presentation/providers/pronostics_provider.dart';
@@ -53,6 +54,20 @@ class _ServeurTutoriels implements HttpClientAdapter {
         for (final c in ['valuebet', 'bankroll', 'martingale', 'trading', 'statistics', 'analyse'])
           {'id': c, 'title': 'Tuto $c', 'description': '', 'category': c, 'level': 'beginner'},
       ]), 200, headers: {Headers.contentTypeHeader: [Headers.jsonContentType]});
+  @override
+  void close({bool force = false}) {}
+}
+
+/// Le serveur de l'analyse : note les requêtes reçues.
+class _ServeurAnalyse implements HttpClientAdapter {
+  _ServeurAnalyse(this.requetes);
+  final List<RequestOptions> requetes;
+  @override
+  Future<ResponseBody> fetch(RequestOptions o, Stream<Uint8List>? s, Future<void>? a) async {
+    requetes.add(o);
+    return ResponseBody.fromString(jsonEncode({'probability': 71, 'explanation': 'Texte.'}), 200,
+        headers: {Headers.contentTypeHeader: [Headers.jsonContentType]});
+  }
   @override
   void close({bool force = false}) {}
 }
@@ -129,6 +144,33 @@ void main() {
       expect(categories, iphone
           ? {'statistics', 'analyse'}
           : {'valuebet', 'bankroll', 'martingale', 'trading', 'statistics', 'analyse'});
+    });
+  }
+
+  // Captures de la 1.0.23 (13 octobre 2026) : l'analyse statistique disait
+  // encore « fondé sur les cotes » et « La cote de 1.34… (marge du bookmaker
+  // incluse) » sur iPhone.
+  test('analyse statistique : la phrase de comparaison ne nomme pas les cotes sur iPhone', () {
+    for (final (calcul, analyste) in [(71, 95), (95, 60), (70, 72)]) {
+      final ios = AvisCompares(calcul: calcul, analyste: analyste, sansCotes: true).phrase;
+      expect(ios.toLowerCase().contains('cote'), isFalse, reason: ios);
+    }
+    expect(const AvisCompares(calcul: 71, analyste: 95).phrase.contains('cotes'), isTrue,
+        reason: 'Android garde sa phrase');
+  });
+
+  for (final iphone in [true, false]) {
+    test('analyse statistique (${iphone ? 'iPhone' : 'Android'}) : explication sans cotes demandée au serveur', () async {
+      final requetes = <RequestOptions>[];
+      final c = ProviderContainer(overrides: [
+        sansPariProvider.overrideWithValue(iphone),
+        dioProvider.overrideWithValue(Dio()..httpClientAdapter = _ServeurAnalyse(requetes)),
+      ]);
+      addTearDown(c.dispose);
+      final abonnement = c.listen(aiAnalysisProvider('p1'), (_, _) {});
+      addTearDown(abonnement.close);
+      await c.read(aiAnalysisProvider('p1').future);
+      expect(requetes.single.queryParameters['sans_cotes'], iphone ? '1' : isNull);
     });
   }
 

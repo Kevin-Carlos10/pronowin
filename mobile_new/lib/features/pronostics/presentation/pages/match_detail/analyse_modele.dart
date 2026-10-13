@@ -158,9 +158,12 @@ class _AnalyseModele extends ConsumerWidget {
           // viennent désormais du marché quand les cotes le permettent, les
           // barres restent la lecture du modèle externe. Les confondre, c'était
           // afficher « < 1 % » à côté d'une cote qui disait 48,5 %.
-          data.probabilitesDuMarche
-            ? tr(context, "Barres : modèle statistique externe — forme, attaque, défense, face-à-face et simulation des buts.")
-            : tr(context, "Modèle statistique externe — forme, attaque, défense, face-à-face et simulation des buts."),
+          // Version iPhone : ne pas renvoyer aux cotes, absentes de l'app.
+          sansPari(context)
+            ? tr(context, "Estimations statistiques — forme, attaque, défense, face-à-face et simulation des buts.")
+            : data.probabilitesDuMarche
+              ? tr(context, "Barres : modèle statistique externe — forme, attaque, défense, face-à-face et simulation des buts.")
+              : tr(context, "Modèle statistique externe — forme, attaque, défense, face-à-face et simulation des buts."),
           style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.4)),
       ]),
     );
@@ -231,7 +234,7 @@ class _BarreIssues extends StatelessWidget {
       // buts marqués. Sans cette mention, un lecteur les prendrait pour un
       // calcul maison — et ne saurait pas pourquoi ils diffèrent des barres,
       // qui restent la lecture du modèle externe.
-      if (data.probabilitesDuMarche) ...[
+      if (data.probabilitesDuMarche && !sansPari(context)) ...[
         const SizedBox(height: 6),
         Text(
           data.margeBookmaker != null

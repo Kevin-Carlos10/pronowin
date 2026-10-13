@@ -173,7 +173,8 @@ class _AIData extends StatelessWidget {
       if (confianceAnalyste != null) ...[
         const SizedBox(height: 12),
         Builder(builder: (context) {
-          final avis = AvisCompares(calcul: analysis.probability, analyste: confianceAnalyste!);
+          final avis = AvisCompares(calcul: analysis.probability, analyste: confianceAnalyste!,
+              sansCotes: sansPari(context));
           return Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Icon(avis.concordants ? Icons.check_circle_outline_rounded : Icons.compare_arrows_rounded,
                 size: 15, color: avis.concordants ? context.cl.success : context.cl.warning),
@@ -278,7 +279,9 @@ class _AIPremiumLockedStateState extends State<_AIPremiumLockedState>
     ? tr(context, "Gratuit, en 30 secondes — tu reviens directement sur ce match")
     : _isFinished
       ? tr(context, "Ce que le modèle avait anticipé, et sur quels critères")
-      : tr(context, "Probabilité de succès calculée à partir des cotes et de la forme");
+      : sansPari(context)
+        ? tr(context, "Probabilité de succès estimée par notre modèle statistique")
+        : tr(context, "Probabilité de succès calculée à partir des cotes et de la forme");
 
   String get _cta => widget.nonConnecte
     ? tr(context, "Créer mon compte")
