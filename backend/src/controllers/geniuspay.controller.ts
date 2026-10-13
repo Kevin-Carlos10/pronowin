@@ -54,9 +54,13 @@ export const etat = async (req: AuthRequest, res: Response) => {
 export const webhook = async (req: Request, res: Response) => {
   const corps = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
   try {
-    res.status(await traiterWebhook(req.headers, corps)).json({ recu: true });
+    const { code, relecture } = await traiterWebhook(req.headers, corps);
+    // Répondre d'abord : GeniusPay attend moins de 5 secondes.
+    res.status(code).json({ recu: true });
+    await relecture?.catch((e: Error) =>
+      journal.error('[GeniusPay] Relecture après webhook', { message: e.message }));
   } catch (e: any) {
     journal.error('[GeniusPay] Webhook', { message: e?.message });
-    res.status(500).json({ recu: false });
+    if (!res.headersSent) res.status(500).json({ recu: false });
   }
 };

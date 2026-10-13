@@ -302,29 +302,35 @@ export function signatureValide(
       && crypto.timingSafeEqual(Buffer.from(attendue), Buffer.from(recue)));
 }
 
-/** Code HTTP à renvoyer à GeniusPay. */
+/**
+ * Le code HTTP à renvoyer à GeniusPay, et la relecture à mener ensuite.
+ *
+ * GeniusPay attend une réponse en moins de 5 secondes (guide d'intégration
+ * des webhooks) ; la relecture interroge son API et peut prendre plus. Le
+ * contrôleur répond donc d'abord, puis attend `relecture`. Si elle échoue,
+ * le rapprochement périodique reprend le paiement.
+ */
 export async function traiterWebhook(
   entetes: Record<string, string | string[] | undefined>, corps: Buffer,
-): Promise<number> {
+): Promise<{ code: number; relecture?: Promise<unknown> }> {
   const cfg = configGeniusPay();
-  if (!cfg?.secretWebhook) return 503;
+  if (!cfg?.secretWebhook) return { code: 503 };
   const lire = (nom: string) => {
     const v = entetes[nom];
     return Array.isArray(v) ? v[0] : v;
   };
   if (!signatureValide(cfg.secretWebhook, lire('x-webhook-timestamp'), lire('x-webhook-signature'), corps)) {
     journal.warn('[GeniusPay] Webhook à la signature invalide, ignoré');
-    return 401;
+    return { code: 401 };
   }
   let evenement: any;
-  try { evenement = JSON.parse(corps.toString('utf8')); } catch { return 400; }
+  try { evenement = JSON.parse(corps.toString('utf8')); } catch { return { code: 400 }; }
 
   const reference = evenement?.data?.reference;
-  if (!reference) return 200; // webhook.test, cashout… : rien à rapprocher
+  if (!reference) return { code: 200 }; // webhook.test, cashout… : rien à rapprocher
   const ligne = await prisma.paiementGeniusPay.findUnique({
     where: { reference: String(reference) }, select: { id: true } });
-  if (!ligne) return 200;
+  if (!ligne) return { code: 200 };
   // Le contenu du webhook ne sert qu'à savoir *quoi* relire.
-  await rapprocherPaiement(ligne.id);
-  return 200;
+  return { code: 200, relecture: rapprocherPaiement(ligne.id) };
 }

@@ -192,11 +192,16 @@ decrireSurBaseLocale('paiements avec PostgreSQL', () => {
     const signe = (secret: string) =>
       crypto.createHmac('sha256', secret).update(`${t}.`).update(corps).digest('hex');
 
-    expect(await traiterWebhook({ 'x-webhook-timestamp': t, 'x-webhook-signature': signe('faux') }, corps)).toBe(401);
+    const refuse = await traiterWebhook({ 'x-webhook-timestamp': t, 'x-webhook-signature': signe('faux') }, corps);
+    expect(refuse).toEqual({ code: 401 });
     expect(await abonnements(u.id)).toHaveLength(0);
 
-    expect(await traiterWebhook({ 'x-webhook-timestamp': t, 'x-webhook-signature': signe('whsec_sandbox_banc') }, corps))
-      .toBe(200);
+    // La réponse part avant la relecture (GeniusPay attend moins de 5 s) ;
+    // le Premium suit, une fois la relecture menée.
+    const accepte = await traiterWebhook(
+      { 'x-webhook-timestamp': t, 'x-webhook-signature': signe('whsec_sandbox_banc') }, corps);
+    expect(accepte.code).toBe(200);
+    await accepte.relecture;
     expect(await abonnements(u.id)).toHaveLength(1);
   });
 });
