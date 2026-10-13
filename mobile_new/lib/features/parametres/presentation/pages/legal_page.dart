@@ -56,7 +56,7 @@ class LegalPage extends ConsumerWidget {
   /// change ne dit plus rien de sa dernière révision.
   String get _lastUpdated => switch (type) {
     LegalType.cgu             => trCurrent("1er octobre 2026"),
-    LegalType.confidentialite => trCurrent("12 octobre 2026"),
+    LegalType.confidentialite => trCurrent("13 octobre 2026"),
     LegalType.jeuResponsable  => trCurrent("Septembre 2026"),
   };
 
@@ -213,7 +213,7 @@ List<LegalSection> sectionsLegales(LegalType type,
       LegalSection(null, trCurrent("Base légale des traitements"),
         trCurrent("Selon les cas, ces traitements reposent sur : l'exécution du contrat qui vous lie à PronoWin (fourniture du Service) ; votre consentement (notifications{arg0}) ; l'intérêt légitime de PronoWin (sécurité, prévention de la fraude, amélioration du Service) ; ou le respect d'une obligation légale.", [estStore ? "" : trCurrent(", activation par code partenaire")])),
       LegalSection(null, trCurrent("Partage et destinataires des données"),
-        trCurrent("Vos données personnelles ne sont jamais vendues à des tiers. Elles peuvent être partagées, dans la stricte mesure nécessaire, avec : nos prestataires techniques (hébergement, envoi de SMS ou d'e-mails, notifications push, et Google Firebase pour les rapports de plantage, les mesures de performance et la mesure d'audience) agissant sur nos instructions ; Apple ou Google, si vous choisissez de vous connecter avec leur service ;{arg0} ou les autorités compétentes lorsque la loi l'exige.", [estStore ? "" : trCurrent(" nos partenaires (ex. vérification d'une activation via code 1xBet, avec votre consentement explicite) ;")])),
+        trCurrent("Vos données personnelles ne sont jamais vendues à des tiers. Elles peuvent être partagées, dans la stricte mesure nécessaire, avec : nos prestataires techniques (hébergement, envoi de SMS ou d'e-mails, notifications push, et Google Firebase pour les rapports de plantage, les mesures de performance et la mesure d'audience) agissant sur nos instructions ; Apple ou Google, si vous choisissez de vous connecter avec leur service ;{arg0} ou les autorités compétentes lorsque la loi l'exige.", [estStore ? "" : trCurrent(" GeniusPay, notre prestataire technique de paiement Mobile Money (nom, e-mail, téléphone et pays du compte, montant et formule), si vous payez votre abonnement par ce moyen ; nos partenaires (ex. vérification d'une activation via code 1xBet, avec votre consentement explicite) ;")])),
       LegalSection(null, trCurrent("Sécurité des données"),
         trCurrent("Vos données sont chiffrées en transit (HTTPS/TLS) et protégées au repos. L'accès à votre compte repose sur des jetons d'authentification (JWT) à durée de vie limitée, automatiquement renouvelés, ainsi que, si vous l'activez, un code PIN ou une authentification biométrique locale à votre appareil. Nous mettons en œuvre des mesures techniques et organisationnelles raisonnables pour prévenir tout accès non autorisé, perte ou divulgation de vos données.")),
       LegalSection(null, trCurrent("Durée de conservation"),

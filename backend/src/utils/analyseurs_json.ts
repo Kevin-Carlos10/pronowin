@@ -14,8 +14,11 @@ import express, { Express } from 'express';
  */
 export const ROUTES_IMAGE = ['/api/v1/subscriptions/submit-proof', '/api/v1/profile/avatar'];
 export const ROUTES_ADMIN = ['/api/v1/admin', '/api/v1/pronostics/admin', '/api/v1/comments'];
+/** Corps gardés bruts : leur signature porte sur les octets reçus. */
+export const ROUTES_BRUTES = ['/api/v1/subscriptions/geniuspay/webhook'];
 
 export function monterAnalyseursJson(app: Express) {
+  app.use(ROUTES_BRUTES, express.raw({ type: '*/*', limit: '256kb' }));
   app.use(ROUTES_IMAGE, express.json({ limit: '8mb' }));
   app.use(ROUTES_ADMIN, express.json({ limit: '2mb' }));
   app.use(express.json({ limit: '256kb' }));

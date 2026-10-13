@@ -6,6 +6,7 @@ import { SubscriptionService } from './services/subscription.service';
 import { FileNotificationsIap } from './services/iap_notifications.service';
 import { suivre } from './services/etat_taches';
 import { executerProgrammationsEchues } from './services/programmations.service';
+import { rapprocherPaiementsEnAttente } from './services/geniuspay.service';
 
 /**
  * Les tâches planifiées, hors du serveur HTTP (constat P1 de l'audit du
@@ -137,6 +138,16 @@ export function demarrerTaches(): () => void {
       ({ executees }) => `${executees} exécutée(s)`).catch((err: Error) =>
       logger.error('[Programmations] Erreur', { message: err.message }));
   }, 60_000));
+
+  // ─── PAIEMENTS GENIUSPAY ──────────────────────────────────────────────────
+  // Filet du webhook : un paiement confirmé chez GeniusPay dont aucune
+  // notification n'est arrivée (et que l'abonné n'a pas rouvert dans l'app)
+  // est retrouvé ici. Hors du bloc football, comme les alertes ci-dessus.
+  programmer(setInterval(() => {
+    suivre('rapprochement_geniuspay', () => rapprocherPaiementsEnAttente(),
+      ({ examines }) => `${examines} examiné(s)`).catch((err: Error) =>
+      logger.error('[GeniusPay] Rapprochement', { message: err.message }));
+  }, 5 * 60_000));
 
   return () => {
     arrete = true;

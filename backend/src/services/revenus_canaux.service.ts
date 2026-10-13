@@ -33,7 +33,8 @@ const JOUR = 86_400_000;
 
 // Les clés des méthodes Mobile Money, au cas où une ligne les porterait
 // directement plutôt que `manual_mobcash`.
-const MOBILE_MONEY = /^(manual_mobcash|mobile_money|orange_money|moov_money|wave|mtn_money)$/;
+// `geniuspay` : le paiement Mobile Money confirmé par GeniusPay (13 octobre 2026).
+const MOBILE_MONEY = /^(manual_mobcash|mobile_money|orange_money|moov_money|wave|mtn_money|geniuspay)$/;
 
 export function canalDe(moyen: string): Canal {
   if (moyen === 'iap_apple')  return 'apple';

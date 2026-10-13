@@ -68,6 +68,7 @@ model User {
   refreshTokens         RefreshToken[]
   proofSubmissions      SubscriptionProof[]
   subscriptions         Subscription[]
+  paiementsGeniusPay    PaiementGeniusPay[]
   transactions          Transaction[]
   tutorialProgress      TutorialProgress[]
   bankroll              UserBankroll?
@@ -654,6 +655,41 @@ model IapNotification {
   @@unique([store, evenementId])
   @@index([statut, prochaineTentative])
   @@map("iap_notifications")
+}
+
+/// Paiement Mobile Money par GeniusPay (13 octobre 2026).
+///
+/// Une ligne par tentative : elle naît avant l'appel à GeniusPay, reçoit sa
+/// référence (`MTX-…`) à la réponse, puis le statut que GeniusPay confirme.
+/// Le Premium n'est accordé qu'une fois (`premiumAccordeLe`), quel que soit
+/// le chemin qui confirme le paiement le premier : webhook, retour dans
+/// l'application ou rapprochement périodique.
+model PaiementGeniusPay {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  /// premium_monthly | premium_annual
+  plan             String
+  /// Montant demandé, en FCFA.
+  montant          Int
+  /// Référence GeniusPay ; nulle tant que GeniusPay n'a pas répondu.
+  reference        String?   @unique
+  /// pending | processing | completed | failed | cancelled | expired | refunded
+  statut           String    @default("pending")
+  /// sandbox | live : l'environnement des clés au moment de la création.
+  environnement    String
+  checkoutUrl      String?   @map("checkout_url")
+  /// Moyen choisi chez GeniusPay (orange_money, moov_money…), à la confirmation.
+  moyen            String?
+  frais            Int?
+  montantNet       Int?      @map("montant_net")
+  premiumAccordeLe DateTime? @map("premium_accorde_le")
+  creeLe           DateTime  @default(now()) @map("cree_le")
+  majLe            DateTime  @updatedAt @map("maj_le")
+  user             User      @relation(fields: [userId], references: [id])
+
+  @@index([userId, creeLe])
+  @@index([statut, creeLe])
+  @@map("paiements_geniuspay")
 }
 
 model SubscriptionProof {

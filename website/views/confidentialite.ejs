@@ -120,6 +120,13 @@
               <td>Événements d'utilisation associés à l'identifiant d'installation : ouverture d'un pronostic, affichage de l'offre Premium, étapes d'inscription et d'abonnement, sélection notée dans la bankroll (application Android uniquement), ouverture d'une notification. Ni nom, ni adresse e-mail, ni numéro de téléphone, ni montant.</td>
               <td>Comprendre quels écrans servent et où les inscriptions échouent, pour améliorer l'application. Jamais pour de la publicité.</td>
             </tr>
+            <%# GeniusPay (13 octobre 2026) : ses conditions imposent d'informer
+                les clients qu'il sert de prestataire technique de paiement. %>
+            <tr>
+              <th scope="row">Paiement Mobile Money (application Android en téléchargement direct)</th>
+              <td>Montant, formule, référence et statut du paiement. Si vous payez par la page de paiement automatique : nom, adresse e-mail, numéro de téléphone et pays du compte, transmis à GeniusPay pour ouvrir le paiement. Si vous envoyez une preuve de transfert : la capture d'écran et le numéro utilisé pour l'envoi.</td>
+              <td>Encaisser l'abonnement et activer le Premium. Le paiement lui-même se fait chez l'opérateur Mobile Money, sur la page de GeniusPay : PronoWin ne reçoit ni code secret ni identifiant de votre compte Mobile Money.</td>
+            </tr>
             <tr>
               <th scope="row">Abonnement App Store ou Google Play</th>
               <td>État de l'abonnement et informations de transaction nécessaires à sa vérification, transmises par Apple ou Google.</td>
@@ -163,7 +170,8 @@
         <li><strong>Google Firebase</strong>, pour les notifications, les rapports de plantage, les mesures de performance, la mesure d'audience et la configuration à distance ;</li>
         <li><strong>Apple</strong>, pour « Se connecter avec Apple » si vous choisissez cette méthode, et pour la facturation et la vérification des abonnements achetés sur l'App Store ;</li>
         <li><strong>Google Sign-In</strong>, uniquement si vous choisissez cette méthode de connexion ;</li>
-        <li><strong>Google Play</strong>, pour la facturation et la vérification des abonnements achetés via le Play Store.</li>
+        <li><strong>Google Play</strong>, pour la facturation et la vérification des abonnements achetés via le Play Store ;</li>
+        <li><strong>GeniusPay</strong> (GENIUS GROUPS SAS, Abidjan, Côte d'Ivoire), prestataire technique des paiements Mobile Money de l'application Android en téléchargement direct : il reçoit le montant, la formule et les nom, adresse e-mail, numéro de téléphone et pays du compte, uniquement si vous payez par ce moyen.</li>
       </ul>
       <p>
         Les informations sportives affichées proviennent d'API-Football.

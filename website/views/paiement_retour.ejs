@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <%# Page de retour du paiement GeniusPay (13 octobre 2026). Elle ne prouve
+      rien : le serveur confirme le paiement aupres de GeniusPay avant
+      d'activer le Premium. Elle renvoie seulement l'abonne dans l'application. %>
+  <meta name="robots" content="noindex, nofollow">
+  <title><%= echec ? 'Paiement non abouti' : 'Paiement en cours de confirmation' %> — <%= site.name %></title>
+  <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
+  <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <header class="navbar">
+    <div class="container">
+      <a href="/" class="brand">
+        <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
+        <span class="brand-name">Prono<span class="brand-win">Win</span></span>
+      </a>
+    </div>
+  </header>
+  <main class="container simple-page">
+    <% if (echec) { %>
+    <h1>Le paiement n’a pas abouti</h1>
+    <p>Aucun montant n’a été validé pour ton abonnement. Ferme cette page et retourne dans l’application PronoWin pour réessayer.</p>
+    <% } else { %>
+    <h1>Merci, ton paiement est en cours de confirmation</h1>
+    <p>Ferme cette page et retourne dans l’application PronoWin : ton Premium s’active dès que l’opérateur confirme le paiement, en général en quelques secondes.</p>
+    <p>Si rien ne change d’ici quelques minutes, écris-nous à <a href="mailto:<%= site.contactEmail %>"><%= site.contactEmail %></a> en indiquant l’heure du paiement.</p>
+    <% } %>
+  </main>
+</body>
+</html>

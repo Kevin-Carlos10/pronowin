@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../../../../core/utils/motion.dart';
 import 'dart:io';
 import 'package:country_picker/country_picker.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -28,6 +29,7 @@ import '../../../compte/presentation/pages/compte_page.dart' show rafraichirDonn
 import '../../../../shared/utils/retour.dart';
 import '../widgets/confirmation_premium_active.dart';
 import '../../../../core/config/pages_legales.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/analyse_usage.dart';
 import '../../../../shared/utils/messages.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
@@ -97,7 +99,7 @@ class ActiverPremiumPage extends ConsumerStatefulWidget {
 }
 
 class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tab;
   final _picker = ImagePicker();
 
@@ -204,6 +206,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     super.initState();
     _tab = TabController(length: 2, vsync: this);
     _tab.addListener(_onTabChanged);
+    WidgetsBinding.instance.addObserver(this);
     AnalyseUsage.paywallVu();
     if (ref.read(isStoreBuildProvider)) {
       _iapSub = ref.read(iapServiceProvider).results.listen(_onIapResult);
@@ -230,6 +233,8 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _gpMinuteur?.cancel();
     _iapSub?.cancel();
     _tab.removeListener(_onTabChanged);
     _tab.dispose();
@@ -425,6 +430,118 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       }
     }
     return moisOffertsAnnuel(_tarifs.mensuelUsd, _tarifs.annuelUsd);
+  }
+
+  // ─── Paiement Mobile Money automatique (GeniusPay) ─────────────────────────
+  //
+  // L'abonné paie sur la page GeniusPay ; le serveur confirme le paiement
+  // auprès de GeniusPay et accorde le Premium. L'écran ne fait que suivre :
+  // il interroge l'état toutes les quelques secondes, et tout de suite quand
+  // l'abonné revient dans l'application.
+
+  /// Proposé par le serveur à ce compte (canal direct seulement).
+  bool get _paiementAutomatique =>
+      !ref.read(isStoreBuildProvider) && _tarifs.paiementAutomatique;
+
+  bool    _gpOuverture = false;
+  String? _gpPaiement;
+  Timer?  _gpMinuteur;
+  int     _gpEssais = 0;
+
+  /// 150 × 4 s : dix minutes. Au-delà, le rapprochement côté serveur prend
+  /// le relais et l'abonné est prévenu par notification.
+  static const _gpEssaisMax = 150;
+
+  Future<void> _payerParGeniusPay() async {
+    setState(() => _gpOuverture = true);
+    try {
+      final r = await ref.read(dioProvider).post('/subscriptions/geniuspay',
+          data: {'plan': _planIdForSelectedPlan});
+      final id   = r.data['id'] as String;
+      final lien = Uri.parse(r.data['checkout_url'] as String);
+      var ouvert = false;
+      try {
+        ouvert = await launchUrl(lien, mode: LaunchMode.inAppBrowserView);
+      } catch (_) {}
+      if (!ouvert) {
+        try { ouvert = await launchUrl(lien, mode: LaunchMode.externalApplication); } catch (_) {}
+      }
+      if (!mounted) return;
+      if (!ouvert) {
+        _showSnack(tr(context, "Impossible d'ouvrir la page de paiement. Vérifie qu'un navigateur est installé."),
+            isError: true);
+        return;
+      }
+      setState(() { _gpPaiement = id; _gpEssais = 0; });
+      _gpMinuteur?.cancel();
+      _gpMinuteur = Timer.periodic(const Duration(seconds: 4), (_) => _verifierGeniusPay());
+    } on DioException catch (e) {
+      if (mounted) {
+        final donnees = e.response?.data;
+        _showSnack(donnees is Map && donnees['message'] is String
+            ? donnees['message'] as String
+            : tr(context, "Le paiement n'a pas pu être ouvert. Réessaie dans un instant."),
+            isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _gpOuverture = false);
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // De retour de la page de paiement : vérifier sans attendre le minuteur.
+    if (state == AppLifecycleState.resumed && _gpPaiement != null) _verifierGeniusPay();
+  }
+
+  Future<void> _verifierGeniusPay() async {
+    final id = _gpPaiement;
+    if (id == null || !mounted) return;
+    if (++_gpEssais > _gpEssaisMax) {
+      _gpMinuteur?.cancel();
+      setState(() => _gpPaiement = null);
+      _showSnack(tr(context, "Toujours pas de confirmation. Si tu as payé, ton Premium s'activera dès que l'opérateur confirmera : tu recevras une notification."));
+      return;
+    }
+    try {
+      final r = await ref.read(dioProvider).get('/subscriptions/geniuspay/$id');
+      if (!mounted || _gpPaiement != id) return;
+      final statut = r.data['statut'] as String? ?? 'pending';
+      if (r.data['premium_active'] == true) {
+        _gpMinuteur?.cancel();
+        setState(() => _gpPaiement = null);
+        final expire = DateTime.tryParse(r.data['expire_le'] as String? ?? '')?.toLocal();
+        _premiumActifApresPaiement(expire);
+      } else if (const ['failed', 'cancelled', 'expired', 'anomalie'].contains(statut)) {
+        _gpMinuteur?.cancel();
+        setState(() => _gpPaiement = null);
+        _showSnack(statut == 'anomalie'
+            ? tr(context, "Le paiement reçu ne correspond pas à la formule choisie. Notre équipe vérifie et te recontacte.")
+            : tr(context, "Le paiement n'a pas abouti. Aucun montant n'a été validé : tu peux réessayer."),
+            isError: true);
+      }
+    } catch (_) {
+      // Réseau : on réessaie au prochain tour.
+    }
+  }
+
+  /// Même confirmation qu'un achat intégré : le Premium est déjà actif.
+  void _premiumActifApresPaiement(DateTime? expire) {
+    ref.read(authProvider.notifier).refreshUser();
+    rafraichirDonneesCompte(ref);
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (feuille) => ConfirmationPremiumActive(
+        expireLe: expire ?? DateTime.now().add(Duration(days: _duration == 'annuel' ? 365 : 30)),
+        parStore: false,
+        onContinuer: () {
+          Navigator.pop(feuille);
+          retourOuAller(context, repli: _repli);
+        },
+      ),
+    );
   }
 
   // ─── Achat intégré ────────────────────────────────────────────────────────
@@ -649,6 +766,20 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     return ListView(
       padding: const EdgeInsets.all(20),
       children: [
+        if (_paiementAutomatique) ...[
+          _PaiementAutomatiqueCard(
+            montant:    _fcfaAmountForSelectedPlan,
+            ouverture:  _gpOuverture,
+            enAttente:  _gpPaiement != null,
+            onPayer:    _payerParGeniusPay,
+            onVerifier: _verifierGeniusPay,
+          ),
+          const SizedBox(height: 22),
+          Text(tr(context, "Ou paie par transfert et envoie la preuve"),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: context.cl.textM, fontSize: 12.5, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 16),
+        ],
         ..._buildPaymentFieldsSection(isCode: false, etapeTransfert: 1),
         const SizedBox(height: 16),
 
@@ -1398,6 +1529,66 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
 /// retrouvait devant un bouton définitivement désactivé, sans personne à qui
 /// s'adresser. C'est le pire moment possible pour un cul-de-sac : l'argent est
 /// déjà parti.
+/// Paiement Mobile Money automatique (GeniusPay, 13 octobre 2026).
+///
+/// L'abonné paie sur la page GeniusPay et le Premium s'active dès que le
+/// serveur a confirmé le paiement auprès de GeniusPay — sans capture ni
+/// attente d'un administrateur. La preuve manuelle reste en dessous.
+class _PaiementAutomatiqueCard extends StatelessWidget {
+  const _PaiementAutomatiqueCard({
+    required this.montant, required this.ouverture, required this.enAttente,
+    required this.onPayer, required this.onVerifier,
+  });
+  final int  montant;
+  final bool ouverture;
+  final bool enAttente;
+  final VoidCallback onPayer;
+  final VoidCallback onVerifier;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: context.cl.surface,
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: AppColors.primary.withValues(alpha: 0.35)),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+      Row(children: [
+        const Icon(Icons.bolt_rounded, color: AppColors.primary, size: 20),
+        const SizedBox(width: 8),
+        Expanded(child: Text(tr(context, "Paiement Mobile Money, activation immédiate"),
+          style: TextStyle(color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w700))),
+      ]),
+      const SizedBox(height: 6),
+      Text(tr(context, "Tu paies par Mobile Money sur la page sécurisée de notre prestataire GeniusPay, et ton Premium s'active dès la confirmation."),
+        style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.4)),
+      const SizedBox(height: 14),
+      if (enAttente) ...[
+        Row(children: [
+          const SizedBox(width: 16, height: 16,
+            child: CircularProgressIndicator(strokeWidth: 2)),
+          const SizedBox(width: 10),
+          Expanded(child: Text(tr(context, "En attente de la confirmation du paiement…"),
+            style: TextStyle(color: context.cl.textP, fontSize: 13))),
+        ]),
+        const SizedBox(height: 12),
+        _BoutonSecondaire(
+          icone:   Icons.refresh_rounded,
+          libelle: tr(context, "J'ai payé : vérifier maintenant"),
+          onTap:   onVerifier),
+      ] else
+        _SubmitButton(
+          label:     tr(context, "Payer {arg0} FCFA", [montantExact(montant)]),
+          icon:      Icons.lock_rounded,
+          isLoading: ouverture,
+          enabled:   !ouverture,
+          onTap:     onPayer,
+        ),
+    ]),
+  );
+}
+
 class _SortieDeSecours extends StatelessWidget {
   const _SortieDeSecours();
 
@@ -2038,9 +2229,11 @@ class _PaywallPage extends StatelessWidget {
                       // pendant que le serveur n'en publiait qu'un : cet écran
                       // promettait quatre choix, le suivant en offrait un. Et
                       // MTN n'opère même pas au Burkina Faso.
-                      subtitle:   tarifs.paiementDisponible
-                        ? tarifs.libelleOperateurs
-                        : tr(context, "Momentanément indisponible"),
+                      subtitle:   tarifs.paiementAutomatique
+                        ? tr(context, "Mobile Money · activation immédiate")
+                        : tarifs.paiementDisponible
+                          ? tarifs.libelleOperateurs
+                          : tr(context, "Momentanément indisponible"),
                       price:      duration == 'annuel' ? annualPrice : monthlyPrice,
                       period:     duration == 'annuel' ? tr(context, "/an") : tr(context, "/mois"),
                       badge:      duration == 'annuel' ? libelleMoisOfferts(moisOfferts)?.toUpperCase() : null,
@@ -2087,7 +2280,7 @@ class _PaywallPage extends StatelessWidget {
                     // écrans promettre l'ancien délai — sans qu'aucune erreur
                     // ne le signale. En achat intégré il n'y a aucune
                     // validation manuelle : c'est immédiat.
-                    iapMode
+                    iapMode || (method == 'direct' && tarifs.paiementAutomatique)
                       ? tr(context, "Accès Premium activé immédiatement après le paiement.")
                       : tr(context, "Activation vérifiée par notre équipe sous {arg0}.", [tr(context, method == 'code' ? tarifs.delaiCode : tarifs.delaiDirect)]),
                     style: const TextStyle(color: Colors.white38, fontSize: 11),

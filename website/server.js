@@ -673,10 +673,18 @@ app.get('/cgu', (req, res) => {
  * juridique dont la date de révision change toute seule chaque jour ne dit
  * plus rien de sa dernière révision.
  */
-const MAJ_CONFIDENTIALITE = '12 octobre 2026';
+const MAJ_CONFIDENTIALITE = '13 octobre 2026';
 
 app.get('/confidentialite', (req, res) => {
   res.render('confidentialite', { site, dateMaj: MAJ_CONFIDENTIALITE });
+});
+
+// Retour de la page de paiement GeniusPay (13 octobre 2026). Elle ne prouve
+// rien : le serveur confirme le paiement aupres de GeniusPay avant d'activer
+// le Premium. Elle renvoie l'abonne dans l'application. Non indexee.
+app.get('/paiement/retour', (req, res) => {
+  res.set('X-Robots-Tag', 'noindex, nofollow');
+  res.render('paiement_retour', { site, echec: req.query.statut === 'echec' });
 });
 
 app.get('/suppression-compte', (req, res) => {

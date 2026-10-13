@@ -3,6 +3,8 @@ import { Request }  from 'express';
 import { AuthRequest }  from '../middleware/auth.middleware';
 import { AdminRequest } from '../middleware/admin.middleware';
 import { SubscriptionService } from '../services/subscription.service';
+import { configGeniusPay, geniusPayOuvert } from '../services/geniuspay.service';
+import { prisma } from '../lib/prisma';
 import { repondreErreur } from '../utils/erreurs';
 
 const svc = new SubscriptionService();
@@ -12,7 +14,16 @@ export const getPlans = async (_: Request, res: Response) => res.json(await svc.
 
 // ── UTILISATEUR ───────────────────────────────────────────────────────────────
 export const getCurrent = async (req: AuthRequest, res: Response) => {
-  try { res.json(await svc.getCurrentSubscription(req.userId!)); }
+  try {
+    const [abonnement, compte] = await Promise.all([
+      svc.getCurrentSubscription(req.userId!),
+      prisma.user.findUnique({ where: { id: req.userId! }, select: { id: true, email: true } }),
+    ]);
+    // Le paiement Mobile Money automatique (GeniusPay) est-il proposé à ce
+    // compte ? En test, seulement aux comptes testeurs.
+    res.json({ ...abonnement,
+      paiement_geniuspay: !!compte && geniusPayOuvert(configGeniusPay(), compte) });
+  }
   catch (e: any) { repondreErreur(res, e); }
 };
 

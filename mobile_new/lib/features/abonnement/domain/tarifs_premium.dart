@@ -102,6 +102,11 @@ class TarifsPremium {
   /// ce cas l'écran doit le dire, pas inventer un numéro.
   final List<Map<String, dynamic>> moyensPaiement;
 
+  /// Le serveur propose-t-il à ce compte le paiement Mobile Money automatique
+  /// (GeniusPay, 13 octobre 2026) ? Le Premium s'active alors dès la
+  /// confirmation, sans preuve à envoyer.
+  final bool paiementAutomatique;
+
   const TarifsPremium({
     required this.mensuelDirect,
     required this.annuelDirect,
@@ -114,6 +119,7 @@ class TarifsPremium {
     required this.delaiDirect,
     required this.delaiCode,
     required this.moyensPaiement,
+    this.paiementAutomatique = false,
   });
 
   factory TarifsPremium.depuis(Map<String, dynamic>? d) {
@@ -160,6 +166,7 @@ class TarifsPremium {
               .where((m) => (m['phone'] ?? '').toString().trim().isNotEmpty)
               .toList() ??
           const [],
+      paiementAutomatique: d?['paiement_geniuspay'] == true,
     );
   }
 

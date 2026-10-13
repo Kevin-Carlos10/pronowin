@@ -14,11 +14,16 @@ import '../../../../core/utils/date_formatter.dart';
 /// L'acheteur, et l'examinateur d'Apple, lisaient qu'il fallait attendre
 /// quelque chose qui était déjà fait.
 class ConfirmationPremiumActive extends StatelessWidget {
-  const ConfirmationPremiumActive({super.key, required this.expireLe, required this.onContinuer});
+  const ConfirmationPremiumActive({
+    super.key, required this.expireLe, required this.onContinuer, this.parStore = true});
 
   /// La fin de la période payée, telle que le store l'a confirmée.
   final DateTime expireLe;
   final VoidCallback onContinuer;
+
+  /// `false` après un paiement Mobile Money (GeniusPay) : rien ne se
+  /// renouvelle seul, et il n'y a pas de compte store où résilier.
+  final bool parStore;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -59,8 +64,11 @@ class ConfirmationPremiumActive extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: context.cl.success.withValues(alpha: 0.25))),
         child: Text(
-          tr(context, "Actif jusqu'au {arg0}, renouvelé automatiquement. Résiliable à tout moment depuis les réglages de ton compte store.",
-            [AppDateFormatter.transactionDate(expireLe.toLocal())]),
+          parStore
+            ? tr(context, "Actif jusqu'au {arg0}, renouvelé automatiquement. Résiliable à tout moment depuis les réglages de ton compte store.",
+                [AppDateFormatter.transactionDate(expireLe.toLocal())])
+            : tr(context, "Actif jusqu'au {arg0}. Pas de renouvellement automatique : tu seras prévenu avant la fin.",
+                [AppDateFormatter.transactionDate(expireLe.toLocal())]),
           textAlign: TextAlign.center,
           style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.4)),
       ),
