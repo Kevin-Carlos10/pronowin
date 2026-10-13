@@ -121,8 +121,11 @@ void main() {
 
     await versLeFormulaire(tester);
     expect(find.text('Paiement Mobile Money, activation immédiate'), findsOneWidget);
-    // La preuve reste proposée, en secours.
-    expect(find.text('Ou paie par transfert et envoie la preuve'), findsOneWidget);
+    // Plus de preuve à envoyer ni de vérification manuelle : un recours au
+    // support à la place.
+    expect(find.textContaining('Envoyer la preuve'), findsNothing);
+    expect(find.textContaining('capture'), findsNothing);
+    expect(find.text('Un souci avec ton paiement ? Écris-nous'), findsOneWidget);
 
     await tester.tap(find.textContaining('Payer 6'));
     await tester.pump();

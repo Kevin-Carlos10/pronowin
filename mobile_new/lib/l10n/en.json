@@ -1577,12 +1577,16 @@
   "Toujours pas de confirmation. Si tu as payé, ton Premium s'activera dès que l'opérateur confirmera : tu recevras une notification.": "Still no confirmation. If you paid, your Premium will be activated as soon as the operator confirms: you'll get a notification.",
   "Le paiement reçu ne correspond pas à la formule choisie. Notre équipe vérifie et te recontacte.": "The payment received doesn't match the plan you chose. Our team is checking and will get back to you.",
   "Le paiement n'a pas abouti. Aucun montant n'a été validé : tu peux réessayer.": "The payment didn't go through. No payment was recorded: you can try again.",
-  "Ou paie par transfert et envoie la preuve": "Or pay by transfer and send the proof",
   "Paiement Mobile Money, activation immédiate": "Mobile Money payment, instant activation",
   "Tu paies par Mobile Money sur la page sécurisée de notre prestataire GeniusPay, et ton Premium s'active dès la confirmation.": "You pay by Mobile Money on the secure page of our provider GeniusPay, and your Premium is activated as soon as the payment is confirmed.",
   "En attente de la confirmation du paiement…": "Waiting for payment confirmation…",
   "J'ai payé : vérifier maintenant": "I've paid: check now",
   "Payer {arg0} FCFA": "Pay {arg0} FCFA",
   "Mobile Money · activation immédiate": "Mobile Money · instant activation",
-  "Actif jusqu'au {arg0}. Pas de renouvellement automatique : tu seras prévenu avant la fin.": "Active until {arg0}. No automatic renewal: you'll be notified before it ends."
+  "Actif jusqu'au {arg0}. Pas de renouvellement automatique : tu seras prévenu avant la fin.": "Active until {arg0}. No automatic renewal: you'll be notified before it ends.",
+  "Choisis ta formule, puis paie par Mobile Money sur la page sécurisée de notre prestataire GeniusPay. PronoWin ne voit jamais ton code secret.": "Choose your plan, then pay by Mobile Money on the secure page of our provider GeniusPay. PronoWin never sees your PIN.",
+  "Paiement direct : immédiatement, dès que l'opérateur confirme le paiement. Avec code promo : {arg0}, le temps de vérifier le compte partenaire.": "Direct payment: immediately, as soon as the operator confirms the payment. With a promo code: {arg0}, the time it takes to check the partner account.",
+  "Un souci avec ton paiement ? Écris-nous": "A problem with your payment? Write to us",
+  "Paiement Mobile Money — Premium non activé": "Mobile Money payment — Premium not activated",
+  "Bonjour,\n\nJ'ai payé par Mobile Money mais mon Premium n'est pas activé.\n\nNuméro utilisé pour le paiement : \nMontant : \nDate et heure approximatives : \n\nMerci de vérifier.": "Hello,\n\nI paid by Mobile Money but my Premium is not activated.\n\nNumber used for the payment: \nAmount: \nApproximate date and time: \n\nPlease check."
 }

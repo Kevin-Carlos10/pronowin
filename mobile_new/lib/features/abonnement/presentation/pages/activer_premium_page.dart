@@ -763,10 +763,14 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   // ONGLET PAIEMENT DIRECT
   // ══════════════════════════════════════════════════════'
   Widget _buildPaymentTab(SubmitProofState submitState) {
-    return ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        if (_paiementAutomatique) ...[
+    // Paiement automatique proposé : plus de preuve à envoyer ni de
+    // vérification manuelle (13 octobre 2026). Le parcours par capture
+    // revient de lui-même si le serveur ne propose plus GeniusPay — personne
+    // ne reste sans moyen de payer.
+    if (_paiementAutomatique) {
+      return ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
           _PaiementAutomatiqueCard(
             montant:    _fcfaAmountForSelectedPlan,
             ouverture:  _gpOuverture,
@@ -774,12 +778,14 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
             onPayer:    _payerParGeniusPay,
             onVerifier: _verifierGeniusPay,
           ),
-          const SizedBox(height: 22),
-          Text(tr(context, "Ou paie par transfert et envoie la preuve"),
-            textAlign: TextAlign.center,
-            style: TextStyle(color: context.cl.textM, fontSize: 12.5, fontWeight: FontWeight.w600)),
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
+          const _AidePaiementAutomatique(),
         ],
+      );
+    }
+    return ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
         ..._buildPaymentFieldsSection(isCode: false, etapeTransfert: 1),
         const SizedBox(height: 16),
 
@@ -1586,6 +1592,26 @@ class _PaiementAutomatiqueCard extends StatelessWidget {
           onTap:     onPayer,
         ),
     ]),
+  );
+}
+
+/// Le recours quand un paiement automatique ne s'active pas : écrire au
+/// support, avec ce qu'il faut pour retrouver le paiement chez GeniusPay.
+class _AidePaiementAutomatique extends StatelessWidget {
+  const _AidePaiementAutomatique();
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: TextButton.icon(
+      onPressed: () => ContactSupport.ouvrirEmail(
+        sujet: tr(context, "Paiement Mobile Money — Premium non activé"),
+        corps: tr(context, "Bonjour,\n\nJ'ai payé par Mobile Money mais mon Premium n'est pas activé.\n\nNuméro utilisé pour le paiement : \nMontant : \nDate et heure approximatives : \n\nMerci de vérifier."),
+      ),
+      icon: Icon(Icons.help_outline_rounded, size: 17, color: context.cl.textS),
+      label: Text(tr(context, "Un souci avec ton paiement ? Écris-nous"),
+        style: TextStyle(
+          color: context.cl.textS, fontSize: 12.5, fontWeight: FontWeight.w600)),
+    ),
   );
 }
 
@@ -2682,7 +2708,9 @@ class _PaywallFaq extends StatelessWidget {
       : <(String, String)>[
       (
         tr(context, "Comment se passe le paiement ?"),
-        tr(context, "Choisis ta formule, envoie le montant sur le numéro Mobile Money affiché à l'étape suivante{arg0}, puis soumets la capture d'écran de la transaction.", [tarifs.paiementDisponible ? ' (${tarifs.libelleOperateurs})' : '']),
+        tarifs.paiementAutomatique
+          ? tr(context, "Choisis ta formule, puis paie par Mobile Money sur la page sécurisée de notre prestataire GeniusPay. PronoWin ne voit jamais ton code secret.")
+          : tr(context, "Choisis ta formule, envoie le montant sur le numéro Mobile Money affiché à l'étape suivante{arg0}, puis soumets la capture d'écran de la transaction.", [tarifs.paiementDisponible ? ' (${tarifs.libelleOperateurs})' : '']),
       ),
       (
         tr(context, "C'est quoi l'option « Code Promo » ?"),
@@ -2694,7 +2722,9 @@ class _PaywallFaq extends StatelessWidget {
       ),
       (
         tr(context, "En combien de temps mon compte est activé ?"),
-        tr(context, "Paiement direct : {arg0}. Avec code promo : {arg1}, le temps de vérifier le compte partenaire.", [tr(context, tarifs.delaiDirect), tr(context, tarifs.delaiCode)]),
+        tarifs.paiementAutomatique
+          ? tr(context, "Paiement direct : immédiatement, dès que l'opérateur confirme le paiement. Avec code promo : {arg0}, le temps de vérifier le compte partenaire.", [tr(context, tarifs.delaiCode)])
+          : tr(context, "Paiement direct : {arg0}. Avec code promo : {arg1}, le temps de vérifier le compte partenaire.", [tr(context, tarifs.delaiDirect), tr(context, tarifs.delaiCode)]),
       ),
       (
         tr(context, "Suis-je prélevé automatiquement ensuite ?"),
