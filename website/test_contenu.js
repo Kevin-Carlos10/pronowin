@@ -417,8 +417,9 @@ test('la vitrine ne nomme aucun moyen de paiement', async () => {
   // du Centre, et la page s'adresse à tout le monde — avec des tarifs en
   // dollars, la combinaison devenait franchement bancale.
   //
-  // Le moyen de paiement se découvre dans l'application, au moment où la
-  // question se pose.
+  // Le moyen de paiement se découvre au moment où la question se pose :
+  // dans l'application, ou sur la page de paiement du site (/premium), où
+  // mènent les boutons des formules depuis le 13 octobre 2026.
   //
   // Ce contrôle ne vise que l'accueil. Les mentions légales gardent la
   // mention, et doivent la garder : un avis légal dit comment l'argent

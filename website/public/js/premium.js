@@ -224,6 +224,9 @@
     majBouton();
     if (!offre.disponible) { indisponible(); return; }
     var params = new URLSearchParams(window.location.search);
+    // Depuis les tarifs de l'accueil : la formule est deja choisie.
+    var formule = document.querySelector('input[name=plan][value="' + params.get('formule') + '"]');
+    if (formule) { formule.checked = true; majBouton(); }
     var id = params.get('p');
     if (id) suivre(id, params.get('statut') === 'echec');
   }).catch(indisponible);

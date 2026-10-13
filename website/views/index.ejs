@@ -117,7 +117,7 @@
 
   <!-- Pricing -->
     <section id="tarifs" class="section pricing-section" aria-labelledby="pricing-title"><div class="container">
-      <div class="section-heading"><div><p class="eyebrow">04 / À votre rythme</p><h2 id="pricing-title">Commencez gratuitement.<br>Allez plus loin avec Premium.</h2></div><p>Deux durées, le même accès Premium. Choisissez la formule qui vous convient dans l’application.</p></div>
+      <div class="section-heading"><div><p class="eyebrow">04 / À votre rythme</p><h2 id="pricing-title">Commencez gratuitement.<br>Allez plus loin avec Premium.</h2></div><p>Deux durées, le même accès Premium. Choisissez votre formule ici ou dans l’application.</p></div>
       <div class="pricing-grid"><% pricingPlans.forEach(function(plan) { %>
         <article data-reveal class="pricing-card <%= plan.highlight ? 'pricing-card--highlight' : '' %>">
           <div class="pricing-topline"><span class="plan-icon"><%- include('partials/icon', { name: plan.id === 'free' ? 'ball' : 'crown', size: 23 }) %></span><% if (plan.badge) { %><span class="pricing-badge"><%= plan.badge %></span><% } %></div>
@@ -125,10 +125,14 @@
           <% if (plan.price !== null) { %><div class="pricing-price"><%= plan.price %> <span>USD</span></div><% } else { %><div class="pricing-price pricing-price--absent">Voir le tarif dans l'application</div><% } %>
           <p class="pricing-period"><%= plan.period %></p>
           <ul class="pricing-features"><% plan.features.forEach(function(f) { %><li><%- include('partials/icon', { name: 'check', size: 17 }) %><span><%= f %></span></li><% }) %></ul>
-          <a href="#telecharger" class="btn <%= plan.highlight ? 'btn-primary' : 'btn-outline' %>" aria-label="<%= enLigne ? 'Accéder à ' + plan.name + ' dans l’application' : 'Voir la disponibilité de l’application pour ' + plan.name %>"><%= enLigne ? (plan.id === 'free' ? 'Commencer gratuitement' : 'Choisir cette formule') : 'Voir la disponibilité' %> <%- include('partials/icon', { name: 'arrow', size: 17 }) %></a>
+          <%# Les formules payantes menent a la page de paiement du site
+              (13 octobre 2026), formule deja choisie. Le moyen de paiement
+              n'est nomme que la-bas (test_contenu.js). %>
+          <% const payante = enLigne && plan.id !== 'free'; %>
+          <a href="<%= payante ? '/premium?formule=' + plan.id : '#telecharger' %>" class="btn <%= plan.highlight ? 'btn-primary' : 'btn-outline' %>" aria-label="<%= payante ? 'Payer ' + plan.name + ' en ligne' : enLigne ? 'Accéder à ' + plan.name + ' dans l’application' : 'Voir la disponibilité de l’application pour ' + plan.name %>"><%= enLigne ? (plan.id === 'free' ? 'Commencer gratuitement' : 'Choisir cette formule') : 'Voir la disponibilité' %> <%- include('partials/icon', { name: 'arrow', size: 17 }) %></a>
         </article>
       <% }) %></div>
-      <p class="pricing-note">Tarifs de référence en USD. Le montant final, la devise et les conditions de renouvellement sont affichés dans l’application avant tout paiement.</p>
+      <p class="pricing-note">Tarifs de référence en USD. Le montant final, la devise et les conditions de renouvellement sont affichés avant tout paiement, sur ce site comme dans l’application.</p>
       <details id="comparer" class="comparison-disclosure"><summary>Comparer toutes les fonctionnalités <%- include('partials/icon', { name: 'plus', size: 22 }) %></summary>
         <p class="compare-hint">Faites défiler le tableau horizontalement pour voir les trois formules.</p>
         <div class="compare-wrap" tabindex="0" role="region" aria-label="Comparaison des formules, tableau défilant"><table class="compare-table">

@@ -13,10 +13,14 @@
 <body>
   <header class="navbar">
     <div class="container">
-      <a href="/" class="brand">
+      <%# Ouverte depuis l'application (?app=1) : le logo ne mene pas a
+          l'accueil, qui propose le paiement Mobile Money — une app des
+          boutiques ne doit renvoyer vers aucun paiement externe. %>
+      <% const baliseMarque = locals.depuisApp ? 'span' : 'a'; %>
+      <<%= baliseMarque %> <%- locals.depuisApp ? '' : 'href="/" ' %>class="brand">
         <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
         <span class="brand-name">Prono<span class="brand-win">Win</span></span>
-      </a>
+      </<%= baliseMarque %>>
       <div class="nav-actions">
         <% if (!locals.depuisApp) { %><a href="/" class="nav-cta">Retour au site</a><% } %>
       </div>
