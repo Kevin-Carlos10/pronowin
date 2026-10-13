@@ -57,6 +57,9 @@
         <button class="btn btn-primary" type="submit">Valider</button>
       </form>
       <p class="pay-msg" id="msg-code" role="status"></p>
+      <%# La page ne dit pas si l'adresse est inscrite (paiement_web.service.ts) :
+          cette aide evite d'attendre un code qui ne viendra pas. %>
+      <p class="pay-note">Rien reçu après 2 minutes ? Vérifiez vos courriers indésirables, et l'adresse de votre compte dans l'application (Compte → Mes informations).</p>
       <button class="pay-lien" type="button" id="changer-adresse">Changer d'adresse</button>
     </section>
 
