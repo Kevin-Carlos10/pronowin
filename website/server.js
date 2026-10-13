@@ -679,6 +679,14 @@ app.get('/confidentialite', (req, res) => {
   res.render('confidentialite', { site, dateMaj: MAJ_CONFIDENTIALITE });
 });
 
+// Paiement Mobile Money depuis le site (13 octobre 2026) : pour les abonnes
+// de Google Play et de l'App Store, dont les applications imposent l'achat
+// integre. Le Premium porte par le compte vaut dans toutes les applications.
+// Les applications des boutiques ne renvoient jamais ici.
+app.get('/premium', (req, res) => {
+  res.render('premium', { site });
+});
+
 // Retour de la page de paiement GeniusPay (13 octobre 2026). Elle ne prouve
 // rien : le serveur confirme le paiement aupres de GeniusPay avant d'activer
 // le Premium. Elle renvoie l'abonne dans l'application. Non indexee.

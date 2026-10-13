@@ -385,3 +385,32 @@ a.store-badge:hover { border-color: var(--orange); }
 
 
 @media (max-width: 680px) { .legal-page { padding-block: 42px 64px; }.legal-callout { padding: 20px; }.legal-button { width: 100%; }.simple-page { padding-block: 80px; } }
+
+/* ── Paiement Mobile Money depuis le site (13 octobre 2026) ─────────────── */
+.pay-page { max-width: 560px; padding-block: 120px 80px; }
+.pay-page h1 { font-size: 2.1rem; line-height: 1.15; margin: 8px 0 12px; }
+.pay-intro { color: var(--muted); margin-bottom: 28px; }
+.pay-card { background: var(--white); border: 1px solid var(--line); border-radius: 14px; padding: 24px; margin-bottom: 18px; }
+.pay-card h2 { font-size: 1.15rem; margin-bottom: 8px; }
+.pay-card > p { color: var(--muted); font-size: .92rem; margin-bottom: 16px; }
+.pay-card form { display: grid; gap: 12px; }
+.pay-card label { font-size: .85rem; font-weight: 650; }
+.pay-card input[type=email], .pay-card input[type=text] { width: 100%; min-height: 50px; padding: 12px 14px; border: 1px solid #b7bdc8; border-radius: 9px; font: inherit; font-size: 1rem; background: var(--white); color: var(--ink); }
+.pay-card input:focus-visible { outline: 3px solid #ff8a4c66; outline-offset: 1px; border-color: var(--accent); }
+.pay-card .btn { width: 100%; }
+.pay-card .btn[disabled] { opacity: .55; cursor: not-allowed; }
+.pay-formules { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; border: 0; padding: 0; margin: 0; }
+.pay-formule { position: relative; display: grid; gap: 4px; padding: 16px; border: 1px solid #b7bdc8; border-radius: 11px; cursor: pointer; }
+.pay-formule input { position: absolute; opacity: 0; pointer-events: none; }
+.pay-formule:has(input:checked) { border: 2px solid var(--accent); padding: 15px; background: #fff7f2; }
+.pay-formule:has(input:focus-visible) { outline: 3px solid #ff8a4c66; }
+.pay-formule__nom { font-weight: 700; }
+.pay-formule__prix { font-size: 1.15rem; font-weight: 800; }
+.pay-formule__detail { color: var(--muted); font-size: .8rem; }
+.pay-note { color: var(--muted); font-size: .8rem; margin-top: 12px; }
+.pay-msg { font-size: .88rem; margin-top: 10px; min-height: 1em; }
+.pay-msg--erreur { color: #b42318; }
+.pay-lien { margin-top: 6px; background: none; border: 0; padding: 4px 0; color: var(--accent-strong); font: inherit; font-size: .88rem; text-decoration: underline; cursor: pointer; }
+.pay-legal { color: var(--muted); font-size: .8rem; margin-top: 22px; }
+.pay-legal a { color: var(--accent-strong); text-decoration: underline; }
+@media (max-width: 680px) { .pay-page { padding-block: 92px 56px; }.pay-page h1 { font-size: 1.7rem; }.pay-card { padding: 18px; } }

@@ -474,6 +474,15 @@ export class AuthService {
     }
   }
 
+  /**
+   * Vérifie un code envoyé par e-mail **sans ouvrir de session** : la page de
+   * paiement du site (paiement_web.service.ts) identifie le compte à payer,
+   * elle ne connecte personne.
+   */
+  async consommerCode(destinataire: string, code: string): Promise<boolean> {
+    return this._consommerOtp(destinataire, code);
+  }
+
   // ─── Privé ────────────────────────────────────────────────────────────────
 
   /**

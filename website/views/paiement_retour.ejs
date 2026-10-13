@@ -24,11 +24,11 @@
   <main class="container simple-page">
     <% if (echec) { %>
     <h1>Le paiement n’a pas abouti</h1>
-    <p>Aucun montant n’a été validé pour ton abonnement. Ferme cette page et retourne dans l’application PronoWin pour réessayer.</p>
+    <p>Aucun montant n’a été validé pour votre abonnement. Fermez cette page et retournez dans l’application PronoWin pour réessayer.</p>
     <% } else { %>
-    <h1>Merci, ton paiement est en cours de confirmation</h1>
-    <p>Ferme cette page et retourne dans l’application PronoWin : ton Premium s’active dès que l’opérateur confirme le paiement, en général en quelques secondes.</p>
-    <p>Si rien ne change d’ici quelques minutes, écris-nous à <a href="mailto:<%= site.contactEmail %>"><%= site.contactEmail %></a> en indiquant l’heure du paiement.</p>
+    <h1>Merci, votre paiement est en cours de confirmation</h1>
+    <p>Fermez cette page et retournez dans l’application PronoWin : votre Premium s’active dès que l’opérateur confirme le paiement, en général en quelques secondes.</p>
+    <p>Si rien ne change d’ici quelques minutes, écrivez-nous à <a href="mailto:<%= site.contactEmail %>"><%= site.contactEmail %></a> en indiquant l’heure du paiement.</p>
     <% } %>
   </main>
 </body>

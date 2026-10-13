@@ -131,7 +131,14 @@ function entetes(cfg: ConfigGeniusPay) {
 /** Au-delà, un compte qui ouvre des paiements en boucle est arrêté. */
 const OUVERTURES_MAX_PAR_HEURE = 10;
 
-export async function creerPaiement(userId: string, plan: string) {
+/**
+ * `retour` : où GeniusPay renvoie l'abonné après le paiement — la page de
+ * retour qui le renvoie dans l'application, ou la page Premium du site qui
+ * suit elle-même le paiement.
+ */
+export async function creerPaiement(
+  userId: string, plan: string, opts: { retour?: 'app' | 'site' } = {},
+) {
   const cfg = configGeniusPay();
   const formule = PLANS_GENIUSPAY[plan];
   if (!formule) throw new ErreurMetier('Formule inconnue.', 400);
@@ -154,7 +161,9 @@ export async function creerPaiement(userId: string, plan: string) {
   const ligne = await prisma.paiementGeniusPay.create({ data: {
     userId, plan, montant, environnement: cfg.environnement,
   } });
-  const retour = `${URL_SITE}/paiement/retour?p=${ligne.id}`;
+  const retour = opts.retour === 'site'
+    ? `${URL_SITE}/premium?p=${ligne.id}`
+    : `${URL_SITE}/paiement/retour?p=${ligne.id}`;
   const nom = [compte.firstName, compte.lastName].filter(Boolean).join(' ') || compte.pseudo;
 
   let d: any;
@@ -189,6 +198,41 @@ export async function creerPaiement(userId: string, plan: string) {
     reference: String(d.reference), checkoutUrl: String(lien), statut: statutDe(d.status),
   } });
   return { id: ligne.id, reference: String(d.reference), checkout_url: String(lien), montant, plan };
+}
+
+// ── Suivre ───────────────────────────────────────────────────────────────────
+
+/**
+ * Dernière relecture de chaque paiement chez GeniusPay. L'application et la
+ * page du site interrogent l'état toutes les quelques secondes : sans ce
+ * frein, chacune de leurs questions deviendrait un appel à GeniusPay.
+ */
+const derniereRelecture = new Map<string, number>();
+const INTERVALLE_RELECTURE_MS = 5_000;
+
+/** L'état d'un paiement du compte, relu chez GeniusPay s'il est en cours. */
+export async function etatPaiement(userId: string, id: string) {
+  let ligne = await prisma.paiementGeniusPay.findFirst({ where: { id, userId } });
+  if (!ligne) throw new ErreurMetier('Paiement introuvable.', 404);
+  const enCours = !ligne.premiumAccordeLe && ['pending', 'processing'].includes(ligne.statut);
+  if (enCours && Date.now() - (derniereRelecture.get(ligne.id) ?? 0) > INTERVALLE_RELECTURE_MS) {
+    derniereRelecture.set(ligne.id, Date.now());
+    if (derniereRelecture.size > 10_000) derniereRelecture.clear();
+    const id = ligne.id;
+    ligne = (await rapprocherPaiement(id).catch((e: Error) => {
+      journal.error('[GeniusPay] Relecture', { id, message: e.message });
+      return ligne;
+    })) ?? ligne;
+  }
+  // La fin du Premium, pour la confirmation affichée à l'abonné.
+  const expireLe = ligne.premiumAccordeLe
+    ? (await prisma.user.findUnique({ where: { id: userId },
+        select: { subscriptionExpiresAt: true } }))?.subscriptionExpiresAt ?? null
+    : null;
+  return {
+    id: ligne.id, statut: ligne.statut, plan: ligne.plan, montant: ligne.montant,
+    premium_active: !!ligne.premiumAccordeLe, expire_le: expireLe,
+  };
 }
 
 // ── Confirmer ────────────────────────────────────────────────────────────────

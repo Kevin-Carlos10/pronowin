@@ -30,6 +30,7 @@ import tutorialAdminRoutes   from './routes/tutorial_admin.routes';
 import newsRoutes            from './routes/news.routes';
 import configRoutes          from './routes/config.routes';
 import favoritesRoutes       from './routes/favorites.routes';
+import paiementWebRoutes     from './routes/paiement_web.routes';
 import bankrollRoutes        from './routes/bankroll.routes';
 import commentsRoutes        from './routes/comments.routes';
 import moderationRoutes      from './routes/moderation.routes';
@@ -228,6 +229,10 @@ app.use(`${v1}/auth/send-otp`,       otpLim);
 // n'était branché que sur `/send-otp`, le chemin par téléphone. Une phrase
 // qui décrit une protection absente la rend introuvable.
 app.use(`${v1}/auth/send-email-otp`, otpLim);
+// Page Premium du site : mêmes limites que la connexion par code.
+app.use(`${v1}/paiement-web/code`,     otpLim);
+app.use(`${v1}/paiement-web/verifier`, authLim);
+app.use(`${v1}/paiement-web/payer`,    payLim);
 app.use(`${v1}/auth/verify-email-otp`, authLim);
 // La connexion d'administration n'avait aucune limite dédiée : seule la
 // limite globale, à mille requêtes par quart d'heure, s'y appliquait.
@@ -252,6 +257,7 @@ app.use(`${v1}/admin/moderation`,    moderationAdminRoutes);
 app.use(`${v1}/actualites`,          publicLim, newsRoutes);
 app.use(`${v1}/config`,              publicLim, configRoutes);
 app.use(`${v1}/favorites`,           favoritesRoutes);
+app.use(`${v1}/paiement-web`,        paiementWebRoutes);
 app.use(`${v1}/bankroll`,            bankrollRoutes);
 app.use(`${v1}/leaderboard`,         leaderboardRoutes);
 
