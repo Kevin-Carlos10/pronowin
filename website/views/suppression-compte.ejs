@@ -17,12 +17,15 @@
 
   <header class="navbar">
     <div class="container">
-      <a href="/" class="brand">
+      <%# Ouverte depuis l'application (?app=1) : le logo ne mene pas a
+          l'accueil, qui propose le paiement Mobile Money. %>
+      <% const baliseMarque = locals.depuisApp ? 'span' : 'a'; %>
+      <<%= baliseMarque %> <%- locals.depuisApp ? '' : 'href="/" ' %>class="brand">
         <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
         <span class="brand-name">Prono<span class="brand-win">Win</span></span>
-      </a>
+      </<%= baliseMarque %>>
       <div class="nav-actions">
-        <a href="/confidentialite" class="nav-cta">Confidentialité</a>
+        <a href="<%= lien('/confidentialite') %>" class="nav-cta">Confidentialité</a>
       </div>
     </div>
   </header>
@@ -102,9 +105,9 @@
         <% } %>
       </p>
       <p class="legal-links">
-        <a href="/confidentialite">Lire la politique de confidentialité</a>
-        <span aria-hidden="true"> · </span>
-        <a href="/">Retour au site</a>
+        <a href="<%= lien('/confidentialite') %>">Lire la politique de confidentialité</a>
+        <% if (!locals.depuisApp) { %><span aria-hidden="true"> · </span>
+        <a href="/">Retour au site</a><% } %>
       </p>
     </section>
   </main>

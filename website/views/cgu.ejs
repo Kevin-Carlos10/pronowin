@@ -58,11 +58,11 @@
     <section class="legal-links">
       <h2>Liens utiles</h2>
       <p>
-        <a href="/confidentialite">Politique de confidentialité</a>
+        <a href="<%= lien('/confidentialite') %>">Politique de confidentialité</a>
         <span aria-hidden="true"> · </span>
-        <a href="/suppression-compte">Supprimer mon compte</a>
+        <a href="<%= lien('/suppression-compte') %>">Supprimer mon compte</a>
         <span aria-hidden="true"> · </span>
-        <a href="/mentions-legales">Mentions légales</a>
+        <a href="<%= lien('/mentions-legales') %>">Mentions légales</a>
         <% if (!locals.depuisApp) { %><span aria-hidden="true"> · </span>
         <a href="/">Retour au site</a><% } %>
       </p>

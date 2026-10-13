@@ -44,7 +44,7 @@
         l'application et sans vous reconnecter.
       </p>
       <div class="legal-actions">
-        <a class="legal-button" href="/suppression-compte">Demander la suppression de mon compte</a>
+        <a class="legal-button" href="<%= lien('/suppression-compte') %>">Demander la suppression de mon compte</a>
       </div>
     </section>
 
@@ -200,7 +200,7 @@
         Les données de compte sont conservées tant que votre compte est actif
         ou aussi longtemps que nécessaire pour fournir le service. Vous pouvez
         demander leur suppression depuis l'application, rubrique Compte, ou
-        depuis notre <a href="/suppression-compte">page publique de suppression de compte</a>.
+        depuis notre <a href="<%= lien('/suppression-compte') %>">page publique de suppression de compte</a>.
       </p>
       <p>
         La suppression n'est pas une simple suspension. Après vérification de
@@ -265,9 +265,9 @@
     <section class="legal-links">
       <h2>Liens utiles</h2>
       <p>
-        <a href="/suppression-compte">Supprimer mon compte</a>
+        <a href="<%= lien('/suppression-compte') %>">Supprimer mon compte</a>
         <span aria-hidden="true"> · </span>
-        <a href="/mentions-legales">Mentions légales</a>
+        <a href="<%= lien('/mentions-legales') %>">Mentions légales</a>
         <% if (!locals.depuisApp) { %><span aria-hidden="true"> · </span>
         <a href="/">Retour au site</a><% } %>
       </p>

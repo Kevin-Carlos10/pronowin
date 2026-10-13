@@ -29,8 +29,10 @@ actif sur iOS :
 - **politique de confidentialité** (dans l'app et sur le site) : les données
   de bankroll y sont marquées « application Android uniquement ».
 
-Seul un build compilé depuis le commit qui ajoute ce dernier point (ou plus
-récent) peut être soumis : ni celui de 7bb1bc4, ni celui de ce0bab0.
+Seul un build compilé depuis 2c0a1dd ou plus récent peut être soumis : ni
+celui de 7bb1bc4, ni celui de ce0bab0. Le paiement GeniusPay ajouté ensuite
+(4cbe5e5 et suivants) n'apparaît pas sur iPhone : la version store garde
+l'achat intégré seul.
 
 Android (Google Play et APK direct) ne change pas.
 
@@ -59,6 +61,11 @@ Android (Google Play et APK direct) ne change pas.
    descriptions des abonnements : ni « cotes » ni « bankroll ». Si un contrat
    de licence (CLUF) personnalisé est renseigné dans les informations de
    l'app, son lien doit pointer vers `https://pronowin.space/cgu?canal=ios`.
+   **URL marketing et URL d'assistance** : plus l'accueil du site, qui mène
+   depuis le 13 octobre 2026 à la page de paiement Mobile Money
+   (`/premium`) — Apple interdit qu'une app ou ses métadonnées renvoient
+   vers un achat hors boutique. URL d'assistance :
+   `https://pronowin.space/mentions-legales` ; URL marketing : vide.
 5. **Notes pour l'examen** : remplacer par le texte ci-dessous.
 6. **Répondre** au message d'Apple (texte ci-dessous), puis **Soumettre à
    nouveau**.

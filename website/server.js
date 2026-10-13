@@ -18,6 +18,12 @@ app.use(express.static(path.join(__dirname, 'public')));
 // le bouton du navigateur intégré.
 app.use((req, res, next) => {
   res.locals.depuisApp = req.query.app === '1';
+  // Les liens d'une page legale a l'autre gardent ce mode : sans lui, la page
+  // suivante remontrait le logo-lien vers l'accueil, qui mene au paiement
+  // Mobile Money (13 octobre 2026).
+  res.locals.lien = (chemin) => res.locals.depuisApp
+    ? chemin + (chemin.includes('?') ? '&' : '?') + 'app=1'
+    : chemin;
   next();
 });
 
