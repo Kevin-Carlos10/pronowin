@@ -111,8 +111,8 @@ PronoWin Premium est un abonnement à renouvellement automatique, mensuel ou ann
 
 PronoWin est un service d'information sportive. L'application ne propose aucun pari, ne contient aucun lien vers des opérateurs de paris et ne manipule aucun argent en dehors de l'abonnement.
 
-Conditions d'utilisation : https://pronowin.space/cgu?canal=ios
-Confidentialité : https://pronowin.space/confidentialite
+Conditions d'utilisation : https://pronowin.space/cgu?canal=ios&app=1
+Confidentialité : https://pronowin.space/confidentialite?app=1
 ```
 
 ### Description — EN
@@ -141,8 +141,8 @@ PronoWin Premium is an auto-renewable subscription, monthly or annual. Payment i
 
 PronoWin is a sports information service. The app offers no betting, contains no links to betting operators and handles no money other than the subscription.
 
-Terms of use: https://pronowin.space/cgu?canal=ios
-Privacy: https://pronowin.space/confidentialite
+Terms of use: https://pronowin.space/cgu?canal=ios&app=1
+Privacy: https://pronowin.space/confidentialite?app=1
 ```
 
 ### Mots-clés (100 caractères)
@@ -153,23 +153,44 @@ Privacy: https://pronowin.space/confidentialite
 ### Notes pour l'examen (EN)
 
 ```
-PronoWin is a football (soccer) predictions and statistics app. Following your message of October 11, build 1.0.23 removes every feature that could be considered simulated gambling: there is no bankroll or stake tracking, no button to record a bet, no betting odds anywhere, and no betting-strategy tutorials.
+PronoWin – information for App Review (version 1.0.23)
 
-The app shows our analysts' match predictions with a confidence index, team form, standings, head-to-head records, lineups, injuries and live match statistics. No bets can be placed, there are no links to betting operators, and no money is handled other than the In-App Purchase subscription, which unlocks analysis content only.
+1. What changed since the rejection of October 11
+Build 1.0.23 removes every feature that could be considered simulated gambling: there is no bankroll or stake tracking, no button to record a bet, no betting odds anywhere in the app, and no betting-strategy tutorials. The screen recording attached to the previous submission showed those features; it has been removed.
 
-Sign-in: use the demo account provided. Tap "Continue with email", enter the email, then enter the 6-digit code given as the password. No inbox access is needed. Sign in with Apple and Google are also available.
+2. Purpose and audience
+PronoWin is a football (soccer) analysis app for adult fans (18+), mainly French-speaking (interface in French and English). It gathers match information in one place: the analyst's daily predictions with a confidence index (an opinion, not a probability of winning), lineups, injuries, head-to-head records, standings, team form and live scores.
+PronoWin is an information service only: no real-money gaming, no wagering, no odds, no deposits or withdrawals, no prizes, and no links to or promotions for betting operators.
 
-Premium: auto-renewable subscriptions purchased with In-App Purchase (com.pronowin.premium.monthly and com.pronowin.premium.annual). To reach the purchase screen, tap any locked Premium prediction, or open the Account tab and tap "Upgrade to Premium" ("Passer à Premium" in French). Restore Purchases is on the same screen.
+3. How to use the app
+- Sign in: tap "Continue with email", enter the demo email, then the 6-digit code given as the password (no inbox access needed). Sign in with Apple and Google are also available.
+- Home: today's featured prediction. Pronos tab: all predictions; tap one for the full match analysis.
+- Comments (Premium members): members can comment on a prediction; the "⋯" menu on a comment lets users report it or block its author, and blocked members are listed in Settings > Blocked members. Comments are filtered when posted and reports are reviewed within 24 hours.
+- Premium: auto-renewable subscriptions via In-App Purchase (com.pronowin.premium.monthly, com.pronowin.premium.annual). Tap any locked Premium prediction, or Account > "Upgrade to Premium" ("Passer à Premium" in French). Restore Purchases is on the same screen. Premium unlocks analysis content only.
+- Account deletion: Account > Settings (gear icon) > Delete account.
 
-Comments are filtered when posted; members can report a comment or block a member from the "⋯" menu, and reports are reviewed within 24 hours.
+4. External services
+- API-Football (api-sports.io): fixtures, live scores, lineups, statistics and standings.
+- Authentication: our own email one-time code, Sign in with Apple, Google Sign-In.
+- Payments in this app: Apple In-App Purchase only.
+- Google Firebase: push notifications (via APNs), crash reports, performance, usage analytics, remote configuration.
+- OVHcloud (Canada): server hosting.
+- No AI services: statistical estimates are computed from football data.
 
-Account deletion: Account tab > Settings (gear icon) > Delete account.
+5. Regions
+The app works the same in all regions. Only the interface language (French or English, following the device) and the local subscription price set by the App Store differ.
+
+6. Regulated industry
+PronoWin does not operate in a regulated industry: it does not offer, facilitate or advertise gambling, and no money is staked, held or transferred in the app. It publishes editorial sports analysis. The app is rated 18+ and asks for the date of birth at sign-up. Football data, team names and crests are provided through our API-Football account, under its terms.
 
 Contact: pronowin2026@gmail.com
 ```
 
 Les champs « Nom d'utilisateur » et « Mot de passe » du compte de
 démonstration ne changent pas.
+
+**Pièce jointe** : retirer la vidéo `PronoWin_video_Apple.mp4` de la 1.0.16 —
+elle montre la Bankroll et les cotes, que la 1.0.23 n'a plus.
 
 ### Réponse à Apple (EN)
 
