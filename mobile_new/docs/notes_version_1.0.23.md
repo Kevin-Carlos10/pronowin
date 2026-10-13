@@ -184,7 +184,15 @@ The app works the same in all regions. Only the interface language (French or En
 PronoWin does not operate in a regulated industry: it does not offer, facilitate or advertise gambling, and no money is staked, held or transferred in the app. It publishes editorial sports analysis. The app is rated 18+ and asks for the date of birth at sign-up. Football data, team names and crests are provided through our API-Football account, under its terms.
 
 Contact: pronowin2026@gmail.com
+
+Note on the In-App Purchases: the review screenshot and review notes attached to com.pronowin.premium.monthly and com.pronowin.premium.annual were written for an earlier version and still mention bankroll tracking; they could not be updated in their current state. That feature no longer exists in 1.0.23: Premium unlocks VIP predictions, detailed analysis and the community space.
 ```
+
+Les informations de vérification des deux abonnements (capture « PronoWin
+PRO » avec « suivi bankroll », note citant la bankroll) ne sont pas
+modifiables dans leur état actuel (13 octobre 2026) : la dernière note
+ci-dessus le signale à l'examinateur. À corriger dès qu'App Store Connect le
+permet.
 
 Les champs « Nom d'utilisateur » et « Mot de passe » du compte de
 démonstration ne changent pas.
