@@ -29,8 +29,12 @@ actif sur iOS :
 - **politique de confidentialité** (dans l'app et sur le site) : les données
   de bankroll y sont marquées « application Android uniquement ».
 
-Seul un build compilé depuis 2c0a1dd ou plus récent peut être soumis : ni
-celui de 7bb1bc4, ni celui de ce0bab0. Le paiement GeniusPay ajouté ensuite
+Seul un build compilé depuis b154f44 ou plus récent peut être soumis (build
+50, attaché le 14 octobre 2026) : le build 49 (2c0a1dd) affichait encore, dans
+l'analyse statistique, « fondé sur les cotes » et « La cote de 1.34
+correspond à une probabilité implicite de 75 % (marge du bookmaker incluse) ».
+Le correctif passe aussi par le serveur (`?sans_cotes=1`), déployé en b154f44
+le 13 octobre. Ni celui de 7bb1bc4, ni celui de ce0bab0 non plus. Le paiement GeniusPay ajouté ensuite
 (4cbe5e5 et suivants) n'apparaît pas sur iPhone : la version store garde
 l'achat intégré seul.
 
