@@ -38,7 +38,15 @@ le 13 octobre. Ni celui de 7bb1bc4, ni celui de ce0bab0 non plus. Le paiement Ge
 (4cbe5e5 et suivants) n'apparaît pas sur iPhone : la version store garde
 l'achat intégré seul.
 
-Android (Google Play et APK direct) ne change pas.
+Android 1.0.23 (39) : les retraits ci-dessus ne concernent que l'iPhone.
+L'APK direct apporte le paiement Mobile Money automatique par GeniusPay
+(4cbe5e5, e681288 : Premium activé sans preuve à envoyer) et la
+confidentialité du 13 octobre 2026. Compilé depuis 2ec93d6 avec
+`tool/build.ps1` ; APK direct publiés dans `/downloads` le 14 octobre 2026
+(anciens fichiers gardés en `*-1.0.22-sauvegarde-20261014-130842*`),
+`APK_LATEST_VERSION=1.0.23` (mise à jour non obligatoire). AAB Google Play
+`build/app/outputs/bundle/playRelease/app-play-release.aab` compilé, à envoyer
+dans la Play Console (sans GeniusPay : achat intégré seul).
 
 ## À faire dans App Store Connect (par toi)
 
