@@ -16,6 +16,7 @@ import { traduireAbsence, estSuspension } from './traduction_absences';
 import { noterQuota } from './etat_taches';
 import { compterAppel } from './consommation_football.service';
 import { journal } from '../utils/logger';
+import { observerRencontres } from './estimation_chrono';
 
 // Mapping Football-Data.org codes → API-Football league IDs + saison de repli.
 //
@@ -374,6 +375,8 @@ export class ApiFootballService {
 
     const r = await this.client.get('/fixtures', { params: { date } });
     const all: AFFixture[] = r.data?.response ?? [];
+    // Chaque relevé frais situe le début des mi-temps (chrono à la seconde).
+    observerRencontres(all);
 
     friendliesCache.set(cacheKey, { data: all, ts: Date.now() });
     return all;
@@ -438,6 +441,7 @@ export class ApiFootballService {
     if (!this._hasKey()) return null;
     try {
       const r = await this.client.get('/fixtures', { params: { id: fixtureId } });
+      observerRencontres(r.data?.response);
       return (r.data?.response ?? [])[0] ?? null;
     } catch (err) {
       const e = err as AxiosError;

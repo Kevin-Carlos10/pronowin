@@ -1,6 +1,7 @@
 import type { AxiosInstance } from 'axios';
 import { enrichissementsFootball } from './enrichissements_football';
 import { CacheFootball, responseFootball, exigerQuotaEnrichissement } from './cache_football';
+import { observerRencontres } from './estimation_chrono';
 
 export interface MatchEvent {
   minute: number; extra: number | null; team: string; player: string;
@@ -26,6 +27,7 @@ export class MatchLiveService {
       exigerQuotaEnrichissement();
       const r = await this.client.get('/fixtures', { params: { id } });
       const fixture = responseFootball(r.data).find(f => f.fixture?.id === id);
+      observerRencontres(fixture ? [fixture] : []);
       if (!fixture?.teams?.home?.id || !fixture?.teams?.away?.id) throw new Error('Fixture unavailable');
       return fixture;
     });

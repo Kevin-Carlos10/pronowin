@@ -1,5 +1,6 @@
 import type { AxiosInstance } from 'axios';
 import { CacheFootball, exigerQuotaEnrichissement, responseFootball } from './cache_football';
+import { debutEstime, observerRencontres } from './estimation_chrono';
 
 interface MatchInfoData {
   fixture_id: number;
@@ -9,6 +10,8 @@ interface MatchInfoData {
   /** Début de chaque mi-temps (secondes Unix) : le chrono à la seconde de la
    *  fiche de match se calcule à partir d'elles, sur le téléphone. */
   periods: { first: number | null; second: number | null };
+  /** Vrai si l'un des débuts vient de `estimation_chrono.ts` et non de la source. */
+  periods_estimes: boolean;
   home_team: string | null; away_team: string | null;
   scores: { halftime: Score; fulltime: Score; extratime: Score; penalty: Score };
 }
@@ -16,6 +19,18 @@ type Score = { home: number | null; away: number | null };
 const entier = (v: unknown): number | null => typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : null;
 const texte = (v: unknown): string | null => typeof v === 'string' && v.trim() ? v.trim() : null;
 const score = (v: any): Score => ({ home: entier(v?.home), away: entier(v?.away) });
+/**
+ * Début des mi-temps : celui de la source, sinon l'estimation tirée des
+ * relevés (`estimation_chrono.ts`) — API-Football ne le date pas partout.
+ */
+function periodes(id: number, source: any) {
+  const first  = horodatage(source?.first)  ?? debutEstime(id, 1);
+  const second = horodatage(source?.second) ?? debutEstime(id, 2);
+  const estimes = (first !== null && horodatage(source?.first) === null) ||
+                  (second !== null && horodatage(source?.second) === null);
+  return { periods: { first, second }, periods_estimes: estimes };
+}
+
 /** Un horodatage Unix en secondes plausible (2001–2286), sinon null. */
 const horodatage = (v: unknown): number | null =>
   typeof v === 'number' && Number.isInteger(v) && v > 1e9 && v < 1e10 ? v : null;
@@ -40,6 +55,7 @@ export class MatchInfoService {
         exigerQuotaEnrichissement();
         const response = await this.client.get('/fixtures', { params: { id } });
         fixture = responseFootball(response.data).find(f => f.fixture?.id === id);
+        observerRencontres(fixture ? [fixture] : []);
       }
       if (fixture?.fixture?.id !== id || !fixture?.teams?.home?.id || !fixture?.teams?.away?.id ||
           !texte(fixture?.fixture?.status?.short)) throw new Error('Invalid fixture information');
@@ -49,7 +65,7 @@ export class MatchInfoService {
         venue: { name: texte(f.venue?.name), city: texte(f.venue?.city) },
         referee: texte(f.referee), round: texte(fixture.league?.round), season: entier(fixture.league?.season),
         phase: texte(f.status.short), elapsed: entier(f.status.elapsed), extra: entier(f.status.extra),
-        periods: { first: horodatage(f.periods?.first), second: horodatage(f.periods?.second) },
+        ...periodes(id, f.periods),
         home_team: texte(fixture.teams.home.name), away_team: texte(fixture.teams.away.name),
         scores: { halftime: score(fixture.score?.halftime), fulltime: score(fixture.score?.fulltime),
           extratime: score(fixture.score?.extratime), penalty: score(fixture.score?.penalty) },
