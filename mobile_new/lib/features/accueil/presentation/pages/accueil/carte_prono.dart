@@ -50,7 +50,6 @@ class _PronosticCard extends ConsumerWidget {
     final isLocked  = estVerrouille(
       contenuMasque: prono['locked'] == true,
       estPremium:         prono['is_premium'] as bool? ?? false,
-      matchTermine:       isFinished,
       utilisateurPremium: isPremium,
     );
     final isLive     = status == 'live';

@@ -37,8 +37,7 @@ export const getFavorites = async (req: AuthRequest, res: Response) => {
       const status = rawStatus === 'live' ? 'live'
                    : rawStatus === 'finished' ? 'finished'
                    : 'upcoming';
-      const locked = estVerrouille(
-        p?.isPremium ?? false, f.match.status, userIsPremium);
+      const locked = estVerrouille(p?.isPremium ?? false, userIsPremium);
 
       return {
         // Identifiants — `id` sert à la navigation vers le détail (le

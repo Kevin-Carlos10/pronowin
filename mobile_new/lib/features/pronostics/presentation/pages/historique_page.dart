@@ -13,6 +13,7 @@ import '../../domain/entities/match_entity.dart' show MatchEntity;
 import '../../../../core/services/prono_share_service.dart';
 import 'package:pronowin/core/utils/noms_equipes.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
+import 'package:pronowin/shared/utils/premium_nav.dart';
 
 // ─── Filtres ──────────────────────────────────────────────────────────────────
 enum _ResultFilter { all, win, loss, pending }
@@ -133,8 +134,10 @@ class HistoriquePage extends ConsumerWidget {
       final home   = nomEquipe(match['homeTeam']  as String? ?? '');
       final away   = nomEquipe(match['awayTeam']  as String? ?? '');
       final league = match['league']    as String? ?? '';
-      final pred   = MatchEntity.applyTeamNames(
-          e['predictionLabel'] as String? ?? '', homeTeam: home, awayTeam: away);
+      final pred   = e['locked'] == true
+          ? tr(context, "Pronostic Premium")
+          : MatchEntity.applyTeamNames(
+              e['predictionLabel'] as String? ?? '', homeTeam: home, awayTeam: away);
       final odds   = (e['oddsRecommended'] as num?)?.toStringAsFixed(2) ?? '';
       final result = switch (e['result'] as String?) {
         'WIN'  => tr(context, "Gagné"),
@@ -603,12 +606,20 @@ class _WeekHeader extends StatelessWidget {
 }
 
 // ─── Carte d'entrée ───────────────────────────────────────────────────────────
-class _EntryCard extends StatelessWidget {
+/// Une ligne de l'historique.
+///
+/// Pronostic Premium et utilisateur non abonné (`locked`, décidé par le
+/// serveur) : le match, le score et le résultat restent visibles, gagné comme
+/// perdu ; le choix est remplacé par « Pronostic Premium » et un cadenas, et
+/// la ligne mène vers l'offre Premium (décision de l'utilisateur du
+/// 17 octobre 2026).
+class _EntryCard extends ConsumerWidget {
   final Map<String, dynamic> entry;
   const _EntryCard({required this.entry});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final verrouille = entry['locked'] == true;
     final match      = entry['match'] as Map<String, dynamic>? ?? {};
     final result     = entry['result'] as String?;
     final isPending  = result == null;
@@ -623,9 +634,11 @@ class _EntryCard extends StatelessWidget {
     final league     = match['league']    as String? ?? '';
     final date       = DateTime.tryParse(match['matchDate'] as String? ?? '');
     final dateStr    = date != null ? DateFormat('dd/MM').format(date) : '';
-    final pred       = MatchEntity.applyTeamNames(
-        entry['predictionLabel'] as String? ?? '', homeTeam: homeTeam, awayTeam: awayTeam);
-    final odds       = (entry['oddsRecommended'] as num?)?.toDouble() ?? 0.0;
+    final pred       = verrouille
+        ? tr(context, "Pronostic Premium")
+        : MatchEntity.applyTeamNames(
+            entry['predictionLabel'] as String? ?? '', homeTeam: homeTeam, awayTeam: awayTeam);
+    final odds       = verrouille ? 0.0 : (entry['oddsRecommended'] as num?)?.toDouble() ?? 0.0;
 
     final resultColor = isPending ? context.cl.warning
                       : isWin    ? context.cl.success
@@ -636,7 +649,7 @@ class _EntryCard extends StatelessWidget {
       ? '$homeScore – $awayScore'
       : 'vs';
 
-    return Container(
+    final carte = Container(
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -680,12 +693,20 @@ class _EntryCard extends StatelessWidget {
           // le faut.
           Wrap(spacing: 6, runSpacing: 4, crossAxisAlignment: WrapCrossAlignment.center, children: [
             Container(
+              key: verrouille ? const Key('historique-premium-verrouille') : null,
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
+                color: (verrouille ? context.cl.warning : AppColors.primary).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(6)),
-              child: Text(pred, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(
-                color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w700))),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (verrouille) ...[
+                  Icon(Icons.lock_rounded, size: 11, color: context.cl.warning),
+                  const SizedBox(width: 4),
+                ],
+                Flexible(child: Text(pred, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(
+                  color: verrouille ? context.cl.warning : context.cl.accent,
+                  fontSize: 11, fontWeight: FontWeight.w700))),
+              ])),
             if (odds > 0)
               Text('@ ${odds.toStringAsFixed(2)}',
                 style: TextStyle(color: context.cl.textS, fontSize: 11)),
@@ -702,6 +723,16 @@ class _EntryCard extends StatelessWidget {
           style: TextStyle(color: resultColor,
             fontSize: 11, fontWeight: FontWeight.w700)),
       ]),
+    );
+    if (!verrouille) return carte;
+    return Semantics(
+      button: true,
+      hint: tr(context, "Débloquer avec Premium"),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(14),
+        onTap: () => goToPremium(context, ref),
+        child: carte,
+      ),
     );
   }
 }

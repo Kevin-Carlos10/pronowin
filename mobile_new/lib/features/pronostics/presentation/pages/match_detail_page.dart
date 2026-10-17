@@ -300,11 +300,11 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     // (« plus rien à protéger après le coup de sifflet ») ne pouvait donc pas
     // atteindre cet ecran.
     //
-    // La règle partagée tranche : payant, oui ; mais pas après le match.
+    // La règle partagée tranche : payant, avant comme après le match
+    // (décision de l'utilisateur du 17 octobre 2026).
     final isLocked = estVerrouille(
       contenuMasque: match.isLocked,
       estPremium:         match.isPremium || match.isLocked,
-      matchTermine:       match.status == MatchStatus.finished,
       utilisateurPremium: isPremium,
     );
     final isFav = ref.watch(favorisProvider).valueOrNull

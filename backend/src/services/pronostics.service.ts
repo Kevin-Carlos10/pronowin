@@ -986,8 +986,8 @@ export class PronosticsService {
       : null;
     const data = pronostics.map(p => {
       // Règle unique, partagée avec le détail d'un match : un pronostic
-      // premium se masque tant que le match n'est pas joué, plus après.
-      const locked = estVerrouille(p.isPremium, p.match.status, isPremium);
+      // premium se masque aux non-abonnés, avant comme après le match.
+      const locked = estVerrouille(p.isPremium, isPremium);
       return {
       id:               p.id,
       // Le mobile (Accueil) s'appuie sur match_id pour le bouton favori —
@@ -1324,7 +1324,7 @@ export class PronosticsService {
       // liste « tous les matchs », c'est-à-dire l'écran principal. Il avait
       // échappé aux deux premiers changements ; seul un contrôle l'a trouvé.
       const mLocked      = hasPronostic
-          && estVerrouille(p!.isPremium, m.status, isPremium);
+          && estVerrouille(p!.isPremium, isPremium);
 
       return {
         id:               m.id,

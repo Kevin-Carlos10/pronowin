@@ -380,11 +380,10 @@ export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
     // gratuit voyait un mur au lieu d'une raison de s'abonner, et l'invité
     // n'entrait même pas. On sert désormais toute la donnée du match, et on
     // retire les seuls champs qui constituent l'offre payante.
-    // Règle unique, partagée avec la liste (`verrou_pronostic.ts`). Un match
-    // terminé n'a plus rien à cacher : le score est public, le pronostic est
-    // vérifiable, et l'historique ouvert est ce qui rend crédible le taux de
-    // réussite affiché sur l'accueil.
-    const locked = estVerrouille(prono.isPremium, prono.match.status, userIsPremium);
+    // Règle unique, partagée avec la liste (`verrou_pronostic.ts`) : un
+    // pronostic premium reste masqué aux non-abonnés après le match ; son
+    // résultat, lui, reste visible.
+    const locked = estVerrouille(prono.isPremium, userIsPremium);
 
     res.json({
       // `locked` dit au client d'afficher la carte pronostic verrouillée
@@ -427,6 +426,9 @@ export const getPronosticDetail = async (req: AuthRequest, res: Response) => {
     });
   } catch (e: any) { repondreErreur(res, e); }
 };
+
+/** Ce qu'affiche l'historique à la place du choix d'un pronostic verrouillé. */
+export const LIBELLE_PREMIUM_VERROUILLE = 'Pronostic Premium';
 
 /** GET /pronostics/:id/score — score + statut uniquement (polling live léger) */
 export const getPronosticScore = async (req: AuthRequest, res: Response) => {
@@ -659,11 +661,29 @@ export const syncScores = async (_req: AdminRequest, res: Response) => {
   } catch (e: any) { repondreErreur(res, e); }
 };
 
-/** GET /pronostics/history?days=30 — résultats des 30 derniers jours */
+/**
+ * GET /pronostics/history?days=30 — résultats des 30 derniers jours.
+ *
+ * Un pronostic Premium y figure pour tout le monde, avec son match et son
+ * résultat — gagné comme perdu, pour que l'historique reste complet. Mais un
+ * non-abonné n'en reçoit ni le choix, ni la cote, ni la confiance
+ * (`locked: true`, décision de l'utilisateur du 17 octobre 2026). Le libellé
+ * « Pronostic Premium » remplace le choix : les versions de l'app sorties
+ * avant ce changement l'affichent tel quel au lieu d'une pastille vide.
+ */
 export const getHistory = async (req: AuthRequest, res: Response) => {
   try {
     const days  = Math.min(parseInt((req.query.days as string) ?? '30') || 30, 90);
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    const user = req.userId
+      ? await prisma.user.findUnique({
+          where:  { id: req.userId },
+          select: { subscriptionPlan: true, subscriptionExpiresAt: true },
+        })
+      : null;
+    const userIsPremium = user?.subscriptionPlan === 'premium' &&
+      (!user.subscriptionExpiresAt || user.subscriptionExpiresAt > new Date());
 
     const pronostics = await prisma.pronostic.findMany({
       where: {
@@ -684,19 +704,23 @@ export const getHistory = async (req: AuthRequest, res: Response) => {
       orderBy: { match: { matchDate: 'desc' } },
     });
 
-    res.json(pronostics.map(p => ({
-      id:              p.id,
-      withdrawn:       !p.isPublished,
-      publication_recorded_at: p.publicationRecordedAt,
-      predictionLabel: p.predictionLabel,
-      predictionType:  p.predictionType,
-      oddsRecommended: p.oddsRecommended,
-      confidenceScore: p.confidenceScore,
-      confidencePct:   pourcentageConfiance(p),
-      isPremium:       p.isPremium,
-      result:          p.result,   // 'WIN' | 'LOSS'
-      match:           p.match,
-    })));
+    res.json(pronostics.map(p => {
+      const locked = estVerrouille(p.isPremium, userIsPremium);
+      return {
+        id:              p.id,
+        withdrawn:       !p.isPublished,
+        publication_recorded_at: p.publicationRecordedAt,
+        locked,
+        predictionLabel: locked ? LIBELLE_PREMIUM_VERROUILLE : p.predictionLabel,
+        predictionType:  locked ? null : p.predictionType,
+        oddsRecommended: locked ? null : p.oddsRecommended,
+        confidenceScore: locked ? null : p.confidenceScore,
+        confidencePct:   locked ? null : pourcentageConfiance(p),
+        isPremium:       p.isPremium,
+        result:          p.result,   // 'WIN' | 'LOSS' | 'PUSH' — toujours visible
+        match:           p.match,
+      };
+    }));
   } catch (e: any) { repondreErreur(res, e); }
 };
 

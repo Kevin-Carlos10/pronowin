@@ -26,16 +26,19 @@
 /// Il n'y a plus rien à protéger après le coup de sifflet — le pronostic est
 /// devenu un résultat, et le cacher ne vend plus rien, cela empêche seulement
 /// de juger sa fiabilité avant de s'abonner.
+///
+/// ── Depuis le 17 octobre 2026 ─────────────────────────────────────────────
+///
+/// Décision de l'utilisateur : un pronostic Premium reste verrouillé pour un
+/// non-abonné après le match aussi (« visible mais verrouillé » : le match et
+/// le résultat restent visibles, pas le choix). Le paramètre `matchTermine`
+/// a disparu avec la règle qui rouvrait un match joué.
 bool estVerrouille({
   bool contenuMasque = false,
   required bool estPremium,
-  required bool matchTermine,
   required bool utilisateurPremium,
 }) {
   // Une réponse expurgée ne devient pas lisible grâce à un état local.
   if (contenuMasque) return true;
-  if (!estPremium)         return false;
-  if (utilisateurPremium)  return false;
-  if (matchTermine)        return false;
-  return true;
+  return estPremium && !utilisateurPremium;
 }

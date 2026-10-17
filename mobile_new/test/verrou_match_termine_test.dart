@@ -3,10 +3,12 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pronowin/shared/utils/verrou_pronostic.dart';
 
-/// Après le coup de sifflet, plus rien n'est masqué.
+/// Un pronostic Premium se verrouille par une seule règle partagée.
 ///
-/// Un pronostic payant cesse de l'être une fois le match joué : il n'a plus
-/// rien à vendre. Le serveur applique cette règle depuis `verrou_pronostic.ts`
+/// Jusqu'au 17 octobre 2026, un pronostic payant cessait de l'être une fois
+/// le match joué ; depuis, il reste verrouillé pour un non-abonné (décision de
+/// l'utilisateur, « visible mais verrouillé »). Ce qui suit raconte pourquoi
+/// la règle est partagée. Le serveur l'applique depuis `verrou_pronostic.ts`
 /// — mais elle s'arrêtait à la frontière du réseau. Cinq écrans calculaient
 /// leur propre cadenas avec `isPremium && !utilisateurPremium`, sans jamais
 /// regarder le statut du match. Sur une fiche de match terminé, l'application
@@ -23,29 +25,15 @@ import 'package:pronowin/shared/utils/verrou_pronostic.dart';
 /// verrouille — la correction serveur ne pouvait pas atteindre l'écran.
 void main() {
   group('la règle', () {
-    test('verrouille un premium à venir pour un non-abonné', () {
-      expect(estVerrouille(
-        estPremium: true, matchTermine: false, utilisateurPremium: false),
-        isTrue);
-    });
-
-    test('ouvre tout après le match', () {
-      expect(estVerrouille(
-        estPremium: true, matchTermine: true, utilisateurPremium: false),
-        isFalse,
-        reason: 'c\'est le cas signalé : le débriefing restait cadenassé sur '
-                'un match joué');
+    test('verrouille un premium pour un non-abonné, avant comme après le match', () {
+      expect(estVerrouille(estPremium: true, utilisateurPremium: false), isTrue);
     });
 
     test('les deux autres portes restent ouvertes', () {
       // Sans elles, une règle qui verrouillerait tout passerait le premier
       // test sans rien servir.
-      expect(estVerrouille(
-        estPremium: false, matchTermine: false, utilisateurPremium: false),
-        isFalse);
-      expect(estVerrouille(
-        estPremium: true, matchTermine: false, utilisateurPremium: true),
-        isFalse);
+      expect(estVerrouille(estPremium: false, utilisateurPremium: false), isFalse);
+      expect(estVerrouille(estPremium: true, utilisateurPremium: true), isFalse);
     });
   });
 
@@ -86,7 +74,7 @@ void main() {
     }
 
     expect(fautes, isEmpty,
-      reason: 'cet écran ignore le statut du match : il gardera un cadenas '
-              'sur un contenu que le serveur a déjà livré');
+      reason: 'cet écran recalcule son propre cadenas au lieu de la règle '
+              'partagée : les deux finiront par diverger');
   });
 }

@@ -62,12 +62,10 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
 
   @override
   Widget build(BuildContext context) {
-    // Le statut manquait : une carte de match joué restait cadenassée, alors
-    // que le serveur en livre le contenu.
+    // Premium et non abonné : verrouillé, avant comme après le match.
     final locked  = estVerrouille(
       contenuMasque: _match.isLocked,
       estPremium:         _match.isPremium,
-      matchTermine:       _match.status == MatchStatus.finished,
       utilisateurPremium: widget.isPremiumUser,
     );
     final noProno = !_match.hasPronostic;

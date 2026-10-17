@@ -106,16 +106,15 @@ function fichiersSources(depuis: string, acc: string[] = []): string[] {
 }
 
 describe('verrou du contenu payant', () => {
-  it('la règle refuse un premium à venir pour un non-abonné', () => {
-    expect(estVerrouille(true, 'SCHEDULED', false)).toBe(true);
+  it('la règle refuse un premium à un non-abonné, avant comme après le match', () => {
+    expect(estVerrouille(true, false)).toBe(true);
   });
 
-  it('la règle laisse passer dans les trois cas prévus', () => {
-    // Sans ces trois-là, une règle qui verrouillerait tout passerait le test
+  it('la règle laisse passer dans les deux cas prévus', () => {
+    // Sans ces deux-là, une règle qui verrouillerait tout passerait le test
     // précédent sans rien servir.
-    expect(estVerrouille(false, 'SCHEDULED', false)).toBe(false); // gratuit
-    expect(estVerrouille(true,  'SCHEDULED', true)).toBe(false);  // abonné
-    expect(estVerrouille(true,  'FINISHED',  false)).toBe(false); // match joué
+    expect(estVerrouille(false, false)).toBe(false); // pronostic gratuit
+    expect(estVerrouille(true,  true)).toBe(false);  // abonné
   });
 
   it('toute exposition de prediction_label est conditionnée', () => {
@@ -143,13 +142,10 @@ describe('verrou du contenu payant', () => {
     expect(fautes).toEqual([]);
   });
 
-  it('les routes rattachées à un match s\'ouvrent après le coup de sifflet', () => {
-    // `estVerrouille` déverrouille un match joué, mais deux routes
-    // protégeaient leur contenu par `premiumMiddleware`, où la notion de match
-    // terminé n'existe pas. Sur une fiche de match joué, l'application
-    // affichait le score, les cotes et le pronostic, puis « Débriefing du
-    // modèle » sous un cadenas : elle ouvrait tout sauf ce qui expliquait le
-    // reste.
+  it('les routes rattachées à un match passent par premiumSaufMatchTermine', () => {
+    // Analyse et commentaires d'un match joué : ouverts à tous pour un
+    // pronostic gratuit, réservés aux abonnés pour un pronostic Premium
+    // (historique_premium_verrouille.test.ts pour le comportement).
     //
     // `/for-you` garde `premiumMiddleware` : elle n'est rattachée à aucun
     // match, donc « terminé » n'y veut rien dire. Publier et voter aussi —

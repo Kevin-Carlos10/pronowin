@@ -3,10 +3,8 @@ import 'package:pronowin/shared/utils/verrou_pronostic.dart';
 import 'package:pronowin/features/pronostics/data/models/match_model.dart';
 void main() {
   test('une réponse masquée reste verrouillée même avec Premium local', () {
-    for (final termine in [false, true]) {
-      expect(estVerrouille(contenuMasque: true, estPremium: true,
-        matchTermine: termine, utilisateurPremium: true), isTrue);
-    }
+    expect(estVerrouille(contenuMasque: true, estPremium: true,
+      utilisateurPremium: true), isTrue);
   });
   test('une confiance absente ne devient pas une estimation à 10%', () {
     final json = <String, dynamic>{'id':'m', 'league':'Premier League',

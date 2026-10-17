@@ -140,15 +140,16 @@ export async function premiumMiddleware(
   next();
 }
 /**
- * Premium — sauf si le match est terminé.
+ * Premium — sauf pour un pronostic gratuit dont le match est terminé.
  *
- * `estVerrouille` porte déjà la règle : un pronostic payant cesse de l'être
- * une fois le match joué, parce qu'il n'a plus rien à vendre. Elle est
- * appliquée sur les charges utiles, mais deux routes protégeaient leur
- * contenu au niveau du middleware, où la notion de match terminé n'existe
- * pas. Résultat : sur un match joué, la fiche affichait le score, les cotes
- * et le pronostic, puis « Débriefing du modèle » sous un cadenas — l'écran
- * ouvrait tout sauf la seule chose qui expliquait le reste.
+ * L'analyse et les commentaires d'un match sont réservés aux abonnés tant que
+ * le match n'est pas joué. Après le coup de sifflet, ceux d'un pronostic
+ * **gratuit** s'ouvrent à tous : son choix est déjà public, son débriefing
+ * aussi doit l'être.
+ *
+ * Ceux d'un pronostic **Premium** restent fermés après le match (décision de
+ * l'utilisateur du 17 octobre 2026, `verrou_pronostic.ts`) : l'analyse et les
+ * commentaires nomment le choix de l'analyste, que le gratuit ne voit pas.
  *
  * L'identifiant peut désigner un pronostic ou un match : `analyzePronostic`
  * accepte les deux, ce garde-fou doit donc les accepter aussi, sans quoi il
@@ -164,20 +165,17 @@ export async function premiumSaufMatchTermine(
 
   if (id) {
     try {
+      const choix = { isPremium: true, match: { select: { status: true } } };
       const prono =
-        await prisma.pronostic.findUnique({
-          where: { id }, select: { match: { select: { status: true } } },
-        }) ??
-        await prisma.pronostic.findUnique({
-          where: { matchId: id }, select: { match: { select: { status: true } } },
-        });
+        await prisma.pronostic.findUnique({ where: { id }, select: choix }) ??
+        await prisma.pronostic.findUnique({ where: { matchId: id }, select: choix });
 
       const statut = prono?.match?.status
         ?? (await prisma.match.findUnique({
               where: { id }, select: { status: true },
             }))?.status;
 
-      if (matchTermine(statut)) { next(); return; }
+      if (matchTermine(statut) && !prono?.isPremium) { next(); return; }
     } catch {
       // On ne sait pas : le contrôle payant s'applique.
     }

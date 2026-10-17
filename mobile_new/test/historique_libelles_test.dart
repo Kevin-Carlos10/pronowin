@@ -26,21 +26,25 @@ void main() {
         },
       };
 
-  Future<void> monter(WidgetTester t, {double largeur = 360, double hauteur = 800, double echelle = 1}) async {
+  Future<void> monter(WidgetTester t, {double largeur = 360, double hauteur = 800, double echelle = 1,
+      List<Map<String, dynamic>>? entrees}) async {
     t.view.physicalSize = Size(largeur * 2, hauteur * 2);
     t.view.devicePixelRatio = 2;
     addTearDown(t.view.reset);
     await t.pumpWidget(ProviderScope(
       overrides: [
         ...donneesCommunes(),
-        historiqueProvider.overrideWith((ref, jours) async => [
+        historiqueProvider.overrideWith((ref, jours) async => entrees ?? [
               entree('3', 'PUSH', 'Handicap asiatique : Spain -1'),
               entree('1', 'WIN', 'Joueur va marquer un but à tout moment : Mikel Oyarzabal'),
               entree('2', 'LOSS', 'Spain gagne'),
             ]),
       ],
       child: MaterialApp.router(
-        routerConfig: GoRouter(routes: [GoRoute(path: '/', builder: (_, _) => const HistoriquePage())]),
+        routerConfig: GoRouter(routes: [
+          GoRoute(path: '/', builder: (_, _) => const HistoriquePage()),
+          GoRoute(path: '/compte/activer-premium', builder: (_, _) => const Scaffold(body: Text('OFFRE PREMIUM'))),
+        ]),
         theme: AppTheme.light,
         locale: const Locale('fr'),
         supportedLocales: AppStrings.supportedLocales,
@@ -69,6 +73,34 @@ void main() {
     expect(find.text('Perdu'), findsOneWidget);
     expect(find.text('Remboursé'), findsOneWidget);
     expect(find.textContaining('Gagnés'), findsWidgets);   // le filtre
+    await t.pumpWidget(const SizedBox.shrink());
+  });
+
+  // Décision de l'utilisateur du 17 octobre 2026 : un pronostic Premium reste
+  // verrouillé pour un non-abonné après le match. Le serveur envoie
+  // `locked: true` et « Pronostic Premium » à la place du choix ; la ligne
+  // garde son résultat, gagné comme perdu, et mène vers l'offre.
+  testWidgets('Premium verrouillé : résultat visible, choix masqué, mène à l’offre', (t) async {
+    Map<String, dynamic> verrouillee(String id, String resultat) => {
+          ...entree(id, resultat, 'Pronostic Premium'),
+          'locked': true, 'isPremium': true, 'oddsRecommended': null,
+        };
+    await monter(t, largeur: 390, hauteur: 1600, entrees: [
+      verrouillee('1', 'WIN'),
+      verrouillee('2', 'LOSS'),
+      entree('3', 'WIN', 'Spain gagne'),
+    ]);
+    expect(find.byKey(const Key('historique-premium-verrouille')), findsNWidgets(2));
+    expect(find.text('Pronostic Premium'), findsNWidgets(2));
+    expect(find.text('Gagné'), findsNWidgets(2));
+    expect(find.text('Perdu'), findsOneWidget, reason: 'le Premium perdu reste affiché');
+    expect(find.textContaining('@ '), findsOneWidget, reason: 'aucune cote sur une ligne verrouillée');
+    // Le pronostic gratuit garde son choix (nom d'équipe traduit).
+    expect(find.textContaining(' gagne'), findsOneWidget);
+
+    await t.tap(find.byKey(const Key('historique-premium-verrouille')).first);
+    await t.pumpAndSettle();
+    expect(find.text('OFFRE PREMIUM'), findsOneWidget);
     await t.pumpWidget(const SizedBox.shrink());
   });
 
