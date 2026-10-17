@@ -86,6 +86,10 @@ void main() {
 
   test('aucune revendication de rang ni promesse de gain', () {
     final fautifs = <String>[];
+    // Valeurs reçues d'API-Football, comparées puis traduites, jamais
+    // affichées : « Handball » y désigne une faute de main (motif de carton,
+    // décision VAR), affichée « Main » (fil_evenements.dart).
+    const valeursSource = {'handball', 'goal disallowed - handball'};
 
     final dartFiles = Directory('lib')
         .listSync(recursive: true)
@@ -104,6 +108,7 @@ void main() {
           for (final chaine in RegExp("'((?:[^'\\\\]|\\\\.)*)'")
               .allMatches(lignes[i])
               .map((m) => m.group(1) ?? '')) {
+            if (valeursSource.contains(chaine)) continue;
             if (entree.key.hasMatch(chaine)) {
               fautifs.add('${f.path.replaceAll('\\', '/')}:${i + 1} — '
                   '${entree.value} : « $chaine »');

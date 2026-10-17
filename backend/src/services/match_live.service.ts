@@ -74,6 +74,9 @@ export class MatchLiveService {
         minute: e.time?.elapsed ?? 0, extra: e.time?.extra ?? null,
         team: e.team?.name ?? '', player: e.player?.name ?? '',
         assist: e.assist?.name ?? null, type: e.type ?? '', detail: e.detail ?? '',
+        // Motif d'un carton (« Argument », « Foul »…) ou « Penalty Shootout »
+        // pour une séance de tirs au but : affiché dans le fil des événements.
+        comments: typeof e.comments === 'string' && e.comments.trim() ? e.comments.trim() : null,
       })).sort((a, b) => a.minute - b.minute || (a.extra ?? 0) - (b.extra ?? 0)),
       // Ni l'ordre des équipes, ni celui des statistiques n'est garanti.
       stats: labels.map(label => ({ label, home: h.get(label) ?? null, away: a.get(label) ?? null })),

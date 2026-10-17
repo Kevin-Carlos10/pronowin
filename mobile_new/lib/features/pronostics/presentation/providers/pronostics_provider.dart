@@ -656,10 +656,12 @@ class MatchEvent {
   final String? assist;
   final String type;
   final String detail;
+  /// Motif d'un carton (« Argument »…) ou « Penalty Shootout ».
+  final String? comments;
   const MatchEvent({
     required this.minute, this.extra, required this.team,
     required this.player, this.assist,
-    required this.type, required this.detail,
+    required this.type, required this.detail, this.comments,
   });
 }
 
@@ -701,6 +703,7 @@ final matchStatsProvider = FutureProvider.autoDispose.family<MatchStatsData?, St
         assist: m['assist'] as String?,
         type:   m['type']   as String? ?? '',
         detail: m['detail'] as String? ?? '',
+        comments: m['comments'] as String?,
       );
     }).toList();
     final stats = (d['stats'] as List).map((s) {

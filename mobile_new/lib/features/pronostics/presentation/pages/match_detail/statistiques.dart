@@ -70,9 +70,9 @@ class _MatchStatsCard extends ConsumerWidget {
   }
 }
 
-/// Faits marquants du match (buts, cartons) — affichés dans l'onglet Détails,
-/// séparément des statistiques chiffrées qui ont leur propre onglet.
-/// Masquée quand il n'y a aucun événement notable à montrer.
+/// Faits marquants du match — buts, cartons, remplacements, VAR — en fil au
+/// style Sofascore (`fil_evenements.dart`), dans l'onglet Détails, séparément
+/// des statistiques chiffrées qui ont leur propre onglet.
 class _MatchEventsCard extends ConsumerWidget {
   final String matchId;
   final MatchEntity match;
@@ -82,6 +82,12 @@ class _MatchEventsCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(matchStatsProvider(matchId));
     final data = statsAsync.valueOrNull;
+    final enDirect = match.status == MatchStatus.live;
+    final info = ref.watch(matchInfoProvider(matchId)).valueOrNull;
+    final live = enDirect ? ref.watch(liveScoreProvider(matchId)).valueOrNull : null;
+    // Score actuel (direct) ou final, hors tirs au but : les scores au fil des
+    // buts doivent y aboutir pour être affichés.
+    final score = (dom: live?.homeScore ?? match.homeScore, ext: live?.awayScore ?? match.awayScore);
     if (data == null) {
       return Padding(padding: const EdgeInsets.all(16),
         child: Text(tr(context, statsAsync.hasError
@@ -107,41 +113,33 @@ class _MatchEventsCard extends ConsumerWidget {
         _FraicheurDonnees(updatedAt: data.updatedAt,
           stale: statsAsync.hasError || data.stale),
         const SizedBox(height: 12),
-        // En-tête et filet reprennent exactement la structure d'une ligne
-        // d'événement (colonne minute + 2 colonnes + colonne icône) : leur
-        // alignement est ainsi garanti par construction plutôt que par un
-        // calcul de marges qui dériverait au moindre changement.
-        Row(children: [
-          const SizedBox(width: _EventsList.minuteWidth),
-          Expanded(
-            child: Center(child: _TeamLogo(url: match.homeTeamLogo ?? '', size: 20))),
-          const SizedBox(width: _EventsList.iconWidth),
-          Expanded(
-            child: Center(child: _TeamLogo(url: match.awayTeamLogo ?? '', size: 20))),
-        ]),
-        const SizedBox(height: 12),
-        Stack(children: [
-          Positioned.fill(
-            child: Row(children: [
-              const SizedBox(width: _EventsList.minuteWidth),
-              const Expanded(child: SizedBox()),
-              SizedBox(
-                width: _EventsList.iconWidth,
-                child: Center(
-                  child: Container(width: 1, color: context.cl.borderSoft))),
-              const Expanded(child: SizedBox()),
-            ]),
-          ),
-          if (data.events.isEmpty && (data.eventsStatus == 'unsupported' || data.eventsStatus == 'unavailable'))
-            Text(tr(context, data.eventsStatus == 'unsupported'
-              ? "Les événements ne sont pas couverts pour cette compétition."
-              : "Événements momentanément indisponibles."), style: TextStyle(color: context.cl.textS))
-          else _EventsList(events: data.events,
-            homeTeam: data.homeTeam, awayTeam: data.awayTeam),
-        ]),
+        if (data.events.isEmpty && (data.eventsStatus == 'unsupported' || data.eventsStatus == 'unavailable'))
+          Text(tr(context, data.eventsStatus == 'unsupported'
+            ? "Les événements ne sont pas couverts pour cette compétition."
+            : "Événements momentanément indisponibles."), style: TextStyle(color: context.cl.textS))
+        else if (!data.events.any((e) => const {'Goal', 'Card', 'subst', 'Var'}.contains(e.type)))
+          Text(tr(context, "Aucun événement reçu pour le moment."),
+            style: TextStyle(color: context.cl.textM, fontSize: 12))
+        else
+          FilEvenements(lignes: construireFil(
+            data.events,
+            domicile: data.homeTeam,
+            termine: match.status == MatchStatus.finished,
+            periodeAtteinte: _periodeAtteinte(info?.phase),
+            scoreFinal: score.dom != null && score.ext != null
+                ? (dom: score.dom!, ext: score.ext!) : null,
+          )),
       ]),
     );
   }
+
+  /// Période la plus avancée d'après la phase publiée (1 à 4).
+  static int _periodeAtteinte(String? phase) => switch (phase?.toUpperCase()) {
+    '2H' || 'FT' => 2,
+    'BT' || 'ET' || 'AET' => 3,
+    'P' || 'PEN' => 4,
+    _ => 1,
+  };
 }
 
 /// En-tête commun à toutes les cartes d'information : même taille d'icône,
@@ -172,137 +170,6 @@ class _CardHeader extends StatelessWidget {
           fontWeight: FontWeight.w700)),
     ),
   ]);
-}
-
-class _EventsList extends StatelessWidget {
-  final List<MatchEvent> events;
-  final String homeTeam, awayTeam;
-  const _EventsList({required this.events, required this.homeTeam, required this.awayTeam});
-
-  /// Géométrie de la ligne, partagée avec l'en-tête et le filet central de
-  /// [_MatchEventsCard] : l'axe des deux camps est décalé par la colonne des
-  /// minutes, le centrer « au milieu de la carte » le désaligne.
-  static const double minuteWidth = 38;
-  static const double iconWidth   = 24;
-
-  /// Inclut les remplacements et la VAR pour suivre les changements du match.
-  static bool _isNotable(MatchEvent e) => const {'Goal', 'Card', 'subst', 'Var'}.contains(e.type);
-
-
-  static Widget _eventIcon(BuildContext context, MatchEvent e) {
-    if (e.type == 'Goal') {
-      if (e.detail == 'Own Goal') {
-        return Stack(clipBehavior: Clip.none, children: [
-          Icon(Icons.sports_soccer_rounded, color: context.cl.error, size: 16),
-          Positioned(right: -4, bottom: -2,
-            child: Icon(Icons.arrow_back_rounded, color: context.cl.error, size: 8)),
-        ]);
-      }
-      if (e.detail == 'Penalty') {
-        return Stack(clipBehavior: Clip.none, children: [
-          Icon(Icons.sports_soccer_rounded, color: context.cl.success, size: 16),
-          Positioned(right: -4, bottom: -2,
-            child: Icon(Icons.gps_fixed_rounded, color: context.cl.warning, size: 8)),
-        ]);
-      }
-      if (e.detail == 'Missed Penalty') {
-        return Icon(Icons.sports_soccer_rounded,
-          color: context.cl.error.withValues(alpha: 0.5), size: 16);
-      }
-      return Icon(Icons.sports_soccer_rounded, color: context.cl.success, size: 16);
-    }
-    if (e.type == 'Card') {
-      final isRed = e.detail.toLowerCase().contains('red');
-      return Container(
-        width: 11, height: 15,
-        decoration: BoxDecoration(
-          color: isRed ? context.cl.error : context.cl.warning,
-          borderRadius: BorderRadius.circular(2),
-        ),
-      );
-    }
-    if (e.type == 'Var') return Icon(Icons.tv_rounded, color: context.cl.info, size: 16);
-    if (e.type == 'subst') {
-      return Icon(Icons.swap_horiz_rounded, color: context.cl.info, size: 16);
-    }
-    return Icon(Icons.sports_soccer_rounded, color: Colors.grey, size: 16);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final notable = events.where(_isNotable).toList();
-
-    if (notable.isEmpty) {
-      return Text(tr(context, "Aucun événement reçu pour le moment."),
-        style: TextStyle(color: context.cl.textM, fontSize: 12));
-    }
-
-    return Column(
-      children: notable.map((e) {
-        final isHome = e.team == homeTeam;
-        final minStr = e.extra != null ? "${e.minute}+${e.extra}'" : "${e.minute}'";
-
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Row(children: [
-            // Minute
-            SizedBox(width: minuteWidth,
-              child: Text(minStr,
-                style: TextStyle(
-                  color: context.cl.info, fontSize: 11,
-                  fontWeight: FontWeight.w700))),
-            // Gauche (domicile)
-            Expanded(child: isHome
-              ? _EventItem(event: e, align: TextAlign.right)
-              : const SizedBox()),
-            // Icône centrale — largeur fixe : les icônes n'ont pas toutes la
-            // même taille (16px pour un but, 11px pour un carton) et sans
-            // colonne fixe l'axe central se déplaçait d'une ligne à l'autre.
-            SizedBox(
-              width: iconWidth,
-              child: Center(child: _eventIcon(context, e)),
-            ),
-            // Droite (extérieur)
-            Expanded(child: !isHome
-              ? _EventItem(event: e, align: TextAlign.left)
-              : const SizedBox()),
-          ]),
-        );
-      }).toList(),
-    );
-  }
-}
-
-class _EventItem extends StatelessWidget {
-  final MatchEvent event;
-  final TextAlign align;
-  const _EventItem({required this.event, required this.align});
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: align == TextAlign.right
-      ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-    children: [
-      Text(event.player.isEmpty ? tr(context, "Événement") : event.player,
-        textAlign: align,
-        style: TextStyle(color: context.cl.textP, fontSize: 12,
-          fontWeight: FontWeight.w600),
-        maxLines: 1, overflow: TextOverflow.ellipsis),
-      Text(tr(context, switch (event.detail) {
-        'Normal Goal' => 'But', 'Own Goal' => 'But contre son camp',
-        'Penalty' => 'Penalty marqué', 'Missed Penalty' => 'Penalty manqué',
-        'Yellow Card' => 'Carton jaune', 'Red Card' => 'Carton rouge',
-        'Second Yellow card' || 'Second Yellow Card' => 'Deuxième carton jaune',
-        'Goal cancelled' => 'But annulé', 'Penalty confirmed' => 'Penalty confirmé',
-        _ => event.type == 'subst' ? 'Remplacement' : event.type == 'Var' ? 'VAR' : event.detail,
-      }), textAlign: align, style: TextStyle(color: context.cl.textS, fontSize: 10)),
-      if (event.assist != null && event.assist!.isNotEmpty)
-        Text('↳ ${event.assist}',
-          textAlign: align,
-          style: TextStyle(color: context.cl.textM, fontSize: 10),
-          maxLines: 1, overflow: TextOverflow.ellipsis),
-    ],
-  );
 }
 
 class _StatsList extends StatelessWidget {

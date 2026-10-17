@@ -111,3 +111,12 @@ it('les enrichissements préservent la réserve du quota et reprennent le lendem
   jest.advanceTimersByTime(24 * 60 * 60_000);
   expect(exigerQuotaEnrichissement).not.toThrow();
 });
+it('transmet le motif d’un carton, et rien pour un commentaire vide', async () => {
+  const carton = { time: { elapsed: 38 }, team: { name: 'Away' }, player: { name: 'G. Villar' }, type: 'Card', detail: 'Yellow Card', comments: ' Argument ' };
+  const client = { get: jest.fn(async (url: string) => reply(url === '/fixtures' ? [fixture] : url.endsWith('/events') ? [event, carton] : [])) };
+  const r = await new MatchLiveService(client as any, () => true).stats(42, 'LIVE');
+  expect(r!.events).toEqual([
+    expect.objectContaining({ minute: 21, comments: null }),
+    expect.objectContaining({ minute: 38, comments: 'Argument' }),
+  ]);
+});

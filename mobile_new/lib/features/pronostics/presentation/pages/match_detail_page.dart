@@ -33,6 +33,7 @@ import '../providers/pronostics_provider.dart';
 import '../providers/match_info_provider.dart';
 import '../providers/fiche_match_provider.dart';
 import '../widgets/comments_section.dart';
+import '../widgets/fil_evenements.dart';
 import '../widgets/prono_share_card.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
 import 'match_detail/bookmaker_cotes.dart';
