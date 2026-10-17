@@ -74,6 +74,10 @@ export class MatchLiveService {
         minute: e.time?.elapsed ?? 0, extra: e.time?.extra ?? null,
         team: e.team?.name ?? '', player: e.player?.name ?? '',
         assist: e.assist?.name ?? null, type: e.type ?? '', detail: e.detail ?? '',
+        // Identifiants : relient un événement au joueur des compositions sans
+        // dépendre de la graphie du nom.
+        player_id: Number.isSafeInteger(e.player?.id) ? e.player.id : null,
+        assist_id: Number.isSafeInteger(e.assist?.id) ? e.assist.id : null,
         // Motif d'un carton (« Argument », « Foul »…) ou « Penalty Shootout »
         // pour une séance de tirs au but : affiché dans le fil des événements.
         comments: typeof e.comments === 'string' && e.comments.trim() ? e.comments.trim() : null,

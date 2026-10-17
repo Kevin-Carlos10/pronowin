@@ -792,16 +792,6 @@ class _NotesJoueurs extends ConsumerWidget {
   final String matchId;
   const _NotesJoueurs({required this.matchId});
 
-  // La note est un texte posé sur sa propre teinte : en clair, il lui faut
-  // les variantes foncées (citron #84CC16 sur blanc : 1,9:1).
-  static Color _couleurNote(AppCl cl, double n) => n >= 8
-      ? cl.success
-      : n >= 7
-          ? (cl.isDark ? const Color(0xFF84CC16) : const Color(0xFF4D7C0F))
-          : n >= 6
-              ? cl.warning
-              : cl.error;
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final joueurs = ref.watch(playerRatingsProvider(matchId)).valueOrNull;
@@ -925,24 +915,13 @@ class _PhotoJoueur extends StatelessWidget {
   );
 }
 
+/// Même pastille que sur le terrain des compositions (échelle Sofascore,
+/// `infos_joueurs.dart`) : une note se lit de la même façon partout.
 class _Note extends StatelessWidget {
   final double valeur;
   final bool grande;
   const _Note({required this.valeur, this.grande = false});
 
   @override
-  Widget build(BuildContext context) {
-    final c = _NotesJoueurs._couleurNote(context.cl, valeur);
-    return Container(
-      padding: EdgeInsets.symmetric(
-        horizontal: grande ? 10 : 7, vertical: grande ? 6 : 3),
-      decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: c.withValues(alpha: 0.35), width: 0.8)),
-      child: Text(valeur.toStringAsFixed(1),
-        style: TextStyle(
-          color: c, fontSize: grande ? 16 : 12, fontWeight: FontWeight.w700)),
-    );
-  }
+  Widget build(BuildContext context) => PastilleNote(valeur, taille: grande ? 16 : 12);
 }

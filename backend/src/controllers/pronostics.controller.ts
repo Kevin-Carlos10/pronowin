@@ -943,20 +943,23 @@ export const getLiveOdds = async (req: AuthRequest, res: Response) => {
   } catch (e: any) { repondreErreur(res, e); }
 };
 
-/** GET /pronostics/:id/ratings — notes des joueurs d'un match terminé. */
+/**
+ * GET /pronostics/:id/ratings — notes des joueurs, en direct et après le
+ * match (compositions au style Sofascore, 17 octobre 2026).
+ */
 export const getPlayerRatings = async (req: AuthRequest, res: Response) => {
   try {
     const match = await findMatchByIdOrPronoId(req.params.id);
     if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
-    if (match.status !== 'FINISHED') {
-      res.status(400).json({ message: 'Notes disponibles après le coup de sifflet final.' });
+    if (match.status !== 'FINISHED' && match.status !== 'LIVE') {
+      res.status(400).json({ message: 'Notes disponibles une fois le match commencé.' });
       return;
     }
 
     const fixtureId = fixtureIdDe(match);
     if (!fixtureId) { res.status(404).json({ message: 'Données détaillées indisponibles pour ce match.' }); return; }
 
-    const ratings = await apiFootballInsights.getPlayerRatings(fixtureId);
+    const ratings = await apiFootballInsights.getPlayerRatings(fixtureId, undefined, match.status === 'LIVE');
     if (!ratings?.length) { res.status(503).json({ message: 'Notes indisponibles.' }); return; }
 
     res.json({

@@ -34,6 +34,7 @@ import '../providers/match_info_provider.dart';
 import '../providers/fiche_match_provider.dart';
 import '../widgets/comments_section.dart';
 import '../widgets/fil_evenements.dart';
+import '../widgets/infos_joueurs.dart';
 import '../widgets/prono_share_card.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
 import 'match_detail/bookmaker_cotes.dart';
@@ -171,6 +172,9 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
       if (_dernieresCompositions == null || now.difference(_dernieresCompositions!).inSeconds >= 120) {
         _dernieresCompositions = now;
         ref.invalidate(lineupsProvider(match.id));
+        // Notes des joueurs en direct (compositions) : même rythme que le
+        // cache du serveur.
+        if (score.status == 'LIVE') ref.invalidate(playerRatingsProvider(match.id));
       }
       if (transition && score.status == 'FINISHED') {
         ref.invalidate(playerRatingsProvider(match.id));

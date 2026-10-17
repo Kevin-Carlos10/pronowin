@@ -16,6 +16,16 @@ class _LineupsCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final lineupsAsync = ref.watch(lineupsProvider(match.id));
     final status = _statusOf(lineupsAsync.error);
+    // Notes et événements par joueur, une fois le match commencé (style
+    // Sofascore, 17 octobre 2026). Une absence de notes n'empêche rien.
+    final commence = match.status != MatchStatus.upcoming;
+    final notes = commence
+        ? ref.watch(playerRatingsProvider(match.id)).valueOrNull ?? const <PlayerRating>[]
+        : const <PlayerRating>[];
+    final evenements = commence
+        ? ref.watch(matchStatsProvider(match.id)).valueOrNull?.events ?? const <MatchEvent>[]
+        : const <MatchEvent>[];
+    final infos = infosJoueurs(notes: notes, evenements: evenements);
 
     // Vraie erreur réseau/serveur (pas juste un invité non connecté) → pas de
     // carte plutôt qu'un message alarmant.
@@ -54,7 +64,9 @@ class _LineupsCard extends ConsumerWidget {
               error: (_, _) => const SizedBox.shrink(),
               data: (lineups) => !lineups.available
                 ? _LineupsPending()
-                : _LineupsContent(lineups: lineups, match: match),
+                : _LineupsContent(lineups: lineups, match: match, infos: infos,
+                    noteDomicile: noteEquipe(notes, 'home'),
+                    noteExterieur: noteEquipe(notes, 'away')),
             ),
       ]),
     );
@@ -75,7 +87,10 @@ class _LineupsPending extends StatelessWidget {
 class _LineupsContent extends StatelessWidget {
   final LineupsData lineups;
   final MatchEntity match;
-  const _LineupsContent({required this.lineups, required this.match});
+  final Map<int, InfosJoueur> infos;
+  final double? noteDomicile, noteExterieur;
+  const _LineupsContent({required this.lineups, required this.match,
+    this.infos = const {}, this.noteDomicile, this.noteExterieur});
 
   /// Le terrain n'a de sens que si l'API a placé les joueurs (champ `grid`).
   /// Certaines compétitions mineures ne le renseignent pas — on retombe alors
@@ -89,8 +104,17 @@ class _LineupsContent extends StatelessWidget {
 
     if (_placeable(home) || _placeable(away)) {
       return Column(children: [
-        _PitchView(home: home, away: away, match: match),
+        _PitchView(home: home, away: away, match: match, infos: infos,
+          noteDomicile: noteDomicile, noteExterieur: noteExterieur),
         const SizedBox(height: 14),
+        if (home != null && home.substitutes.isNotEmpty) ...[
+          _Remplacants(equipe: home, nom: match.homeTeam, logo: match.homeTeamLogo, infos: infos),
+          const SizedBox(height: 12),
+        ],
+        if (away != null && away.substitutes.isNotEmpty) ...[
+          _Remplacants(equipe: away, nom: match.awayTeam, logo: match.awayTeamLogo, infos: infos),
+          const SizedBox(height: 14),
+        ],
         // La formation figure desormais dans l'en-tete de chaque terrain ; ne
         // reste ici que l'entraineur, avec sa photo — fournie par l'API a cote
         // de son nom, et jamais lue jusqu'ici.
@@ -112,7 +136,10 @@ class _PitchView extends StatelessWidget {
   final TeamLineup? home;
   final TeamLineup? away;
   final MatchEntity match;
-  const _PitchView({this.home, this.away, required this.match});
+  final Map<int, InfosJoueur> infos;
+  final double? noteDomicile, noteExterieur;
+  const _PitchView({this.home, this.away, required this.match,
+    this.infos = const {}, this.noteDomicile, this.noteExterieur});
 
   /// Regroupe les titulaires par ligne (1 = gardien) en respectant l'ordre de
   /// colonne renvoye par l'API.
@@ -134,7 +161,7 @@ class _PitchView extends StatelessWidget {
     if (home != null)
       _TerrainEquipe(
         equipe: home!, nom: match.homeTeam, logo: match.homeTeamLogo,
-        couleur: _domicileSurTerrain),
+        couleur: _domicileSurTerrain, infos: infos, note: noteDomicile),
     if (home != null && away != null) const SizedBox(height: 14),
     // L'equipe exterieure est en miroir : gardien en bas, attaquants en haut,
     // et son en-tete sous le terrain plutot qu'au-dessus.
@@ -147,7 +174,7 @@ class _PitchView extends StatelessWidget {
     if (away != null)
       _TerrainEquipe(
         equipe: away!, nom: match.awayTeam, logo: match.awayTeamLogo,
-        couleur: _exterieurSurTerrain, miroir: true),
+        couleur: _exterieurSurTerrain, miroir: true, infos: infos, note: noteExterieur),
   ]);
 }
 
@@ -168,9 +195,12 @@ class _TerrainEquipe extends StatelessWidget {
   final Color couleur;
   /// Renverse lignes et colonnes, et fait passer l'en-tete sous le terrain.
   final bool miroir;
+  final Map<int, InfosJoueur> infos;
+  /// Note moyenne de l'équipe, à côté de son nom (Sofascore).
+  final double? note;
   const _TerrainEquipe({
     required this.equipe, required this.nom, this.logo, required this.couleur,
-    this.miroir = false});
+    this.miroir = false, this.infos = const {}, this.note});
 
   static const _grass     = Color(0xFF14532D);
   static const _grassAlt  = Color(0xFF166534);
@@ -200,6 +230,10 @@ class _TerrainEquipe extends StatelessWidget {
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700))),
+          if (note != null) ...[
+            const SizedBox(width: 8),
+            PastilleNote(note!, taille: 11),
+          ],
           if (equipe.formation != null) ...[
             const SizedBox(width: 10),
             Text(equipe.formation!,
@@ -228,7 +262,7 @@ class _TerrainEquipe extends StatelessWidget {
             Positioned.fill(child: CustomPaint(painter: _PitchLinesPainter())),
             // Gardien en haut, attaquants en bas : le sens de lecture naturel
             // quand une equipe occupe tout le terrain.
-            _HalfPitch(rows: rows, color: couleur),
+            _HalfPitch(rows: rows, color: couleur, infos: infos),
           ]),
         ),
       );
@@ -241,7 +275,8 @@ class _TerrainEquipe extends StatelessWidget {
 class _HalfPitch extends StatelessWidget {
   final List<List<LineupPlayer>> rows;
   final Color color;
-  const _HalfPitch({required this.rows, required this.color});
+  final Map<int, InfosJoueur> infos;
+  const _HalfPitch({required this.rows, required this.color, this.infos = const {}});
 
   @override
   Widget build(BuildContext context) {
@@ -270,7 +305,8 @@ class _HalfPitch extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   for (final p in row)
-                    _PitchPlayer(player: p, color: color, size: avatar),
+                    _PitchPlayer(player: p, color: color, size: avatar,
+                      infos: p.id == null ? null : infos[p.id]),
                 ],
               ),
             ),
@@ -292,7 +328,9 @@ class _PitchPlayer extends StatelessWidget {
   final LineupPlayer player;
   final Color color;
   final double size;
-  const _PitchPlayer({required this.player, required this.color, required this.size});
+  /// Note, buts, cartons, sortie (style Sofascore).
+  final InfosJoueur? infos;
+  const _PitchPlayer({required this.player, required this.color, required this.size, this.infos});
 
   /// Couleur du texte du numéro, choisie d'après la luminance de la pastille.
   /// L'équipe à domicile portait `AppColors.success` — du vert, sur un terrain
@@ -332,6 +370,20 @@ class _PitchPlayer extends StatelessWidget {
                   ),
             ),
           ),
+          // Note en bas à gauche, événements en haut à droite, capitaine en
+          // haut à gauche : la disposition de Sofascore.
+          if (infos?.note != null)
+            Positioned(left: -6, bottom: -4,
+              child: PastilleNote(infos!.note!, taille: 8)),
+          if (infos != null && infos!.aDesEvenements)
+            Positioned(right: -7, top: -5, child: _BadgesJoueur(infos: infos!)),
+          if (infos?.capitaine == true)
+            Positioned(left: -4, top: -4, child: Container(
+              width: 13, height: 13,
+              decoration: const BoxDecoration(color: Color(0xFFF5C518), shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: const Text('C', style: TextStyle(color: Color(0xFF0D1220),
+                fontSize: 8, fontWeight: FontWeight.w900)))),
           if (player.number != null)
             Positioned(
               bottom: -3, right: -3,
@@ -356,6 +408,141 @@ class _PitchPlayer extends StatelessWidget {
       ]),
     )),
   );
+}
+
+/// Événements d'un joueur sur sa photo : buts, but contre son camp, cartons,
+/// sortie — comme Sofascore.
+class _BadgesJoueur extends StatelessWidget {
+  final InfosJoueur infos;
+  const _BadgesJoueur({required this.infos});
+
+  static const _jaune = Color(0xFFF5C518);
+  static const _rouge = Color(0xFFE53935);
+
+  Widget _rond(Widget enfant, {Color fond = Colors.white}) => Container(
+    width: 13, height: 13,
+    decoration: BoxDecoration(color: fond, shape: BoxShape.circle,
+      boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 2)]),
+    alignment: Alignment.center,
+    child: enfant);
+
+  Widget _carton(Color c) => Container(width: 7, height: 10,
+    decoration: BoxDecoration(color: c, borderRadius: BorderRadius.circular(1.5),
+      boxShadow: const [BoxShadow(color: Colors.black38, blurRadius: 2)]));
+
+  @override
+  Widget build(BuildContext context) => Row(mainAxisSize: MainAxisSize.min, children: [
+    for (var i = 0; i < infos.buts.clamp(0, 3); i++)
+      _rond(const Icon(Icons.sports_soccer_rounded, size: 11, color: Color(0xFF0D1220))),
+    for (var i = 0; i < infos.butsContreSonCamp.clamp(0, 2); i++)
+      _rond(const Icon(Icons.sports_soccer_rounded, size: 11, color: _rouge)),
+    if (infos.rouges > 0) _carton(_rouge)
+    else if (infos.jaunes > 0) _carton(_jaune),
+    if (infos.sortie != null)
+      _rond(const Icon(Icons.arrow_downward_rounded, size: 10, color: Colors.white), fond: _rouge),
+  ]);
+}
+
+/// Remplaçants d'une équipe : ceux entrés en jeu d'abord, avec leur minute,
+/// le joueur remplacé et leur note ; puis ceux restés sur le banc.
+class _Remplacants extends StatelessWidget {
+  final TeamLineup equipe;
+  final String nom;
+  final String? logo;
+  final Map<int, InfosJoueur> infos;
+  const _Remplacants({required this.equipe, required this.nom, this.logo, this.infos = const {}});
+
+  @override
+  Widget build(BuildContext context) {
+    InfosJoueur? de(LineupPlayer p) => p.id == null ? null : infos[p.id];
+    final entres = [for (final p in equipe.substitutes) if (de(p)?.entree != null) p]
+      ..sort((a, b) => de(a)!.entree!.compareTo(de(b)!.entree!));
+    final banc = [for (final p in equipe.substitutes) if (de(p)?.entree == null) p];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 6),
+      decoration: BoxDecoration(
+        color: context.cl.surfaceDeep,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: context.cl.borderSoft, width: 0.6)),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          if (logo != null && logo!.isNotEmpty) ...[
+            SizedBox(width: 16, height: 16, child: ImageDistante(url: logo, largeur: 16, hauteur: 16,
+              fit: BoxFit.contain, repli: const SizedBox.shrink())),
+            const SizedBox(width: 8),
+          ],
+          Expanded(child: Text(tr(context, "Remplaçants · {arg0}", [nom]),
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: context.cl.textP, fontSize: 12.5, fontWeight: FontWeight.w700))),
+        ]),
+        const SizedBox(height: 6),
+        for (final p in [...entres, ...banc]) _LigneRemplacant(joueur: p, infos: de(p)),
+      ]),
+    );
+  }
+}
+
+class _LigneRemplacant extends StatelessWidget {
+  final LineupPlayer joueur;
+  final InfosJoueur? infos;
+  const _LigneRemplacant({required this.joueur, this.infos});
+
+  @override
+  Widget build(BuildContext context) {
+    final entre = infos?.entree != null;
+    final sousTitre = !entre
+        ? tr(context, "Sur le banc")
+        : infos!.remplace != null
+            ? tr(context, "Entré à la {arg0}e · remplace {arg1}", [infos!.entree, infos!.remplace])
+            : tr(context, "Entré à la {arg0}e", [infos!.entree]);
+    return LienJoueur(id: joueur.id, nom: joueur.name, photo: joueur.photoUrl,
+      rayon: BorderRadius.circular(8),
+      child: Opacity(
+        // Un joueur resté sur le banc reste lisible, mais en retrait.
+        opacity: entre ? 1 : 0.6,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Row(children: [
+            Container(
+              width: 30, height: 30,
+              decoration: BoxDecoration(color: context.cl.surface, shape: BoxShape.circle),
+              clipBehavior: Clip.antiAlias,
+              child: joueur.photoUrl == null
+                ? Icon(Icons.person_rounded, color: context.cl.textM, size: 16)
+                : ImageDistante(url: joueur.photoUrl, largeur: 30, hauteur: 30,
+                    repli: Icon(Icons.person_rounded, color: context.cl.textM, size: 16)),
+            ),
+            const SizedBox(width: 10),
+            if (joueur.number != null)
+              SizedBox(width: 22, child: Text('${joueur.number}',
+                style: TextStyle(color: context.cl.textM, fontSize: 11.5, fontWeight: FontWeight.w700))),
+            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(joueur.name, maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: context.cl.textP, fontSize: 12.5, fontWeight: FontWeight.w600)),
+              Row(children: [
+                if (entre) ...[
+                  Icon(Icons.arrow_upward_rounded, size: 11, color: context.cl.success),
+                  const SizedBox(width: 3),
+                ],
+                Flexible(child: Text(sousTitre, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: context.cl.textM, fontSize: 10.5))),
+              ]),
+            ])),
+            if (infos != null && infos!.aDesEvenements) ...[
+              const SizedBox(width: 6),
+              _BadgesJoueur(infos: infos!),
+            ],
+            if (infos?.note != null) ...[
+              const SizedBox(width: 8),
+              PastilleNote(infos!.note!, taille: 10.5),
+            ],
+          ]),
+        ),
+      ),
+    );
+  }
 }
 
 /// Lignes du terrain (touches, rond central, surfaces) tracées par-dessus la

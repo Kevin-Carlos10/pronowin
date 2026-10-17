@@ -158,10 +158,20 @@ export interface PlayerRating {
   assists: number;
   shots:   number;
   passes:  number;
+  /** Cartons reçus et entrée en jeu : affichés sur le joueur (compositions). */
+  yellow:  number;
+  red:     number;
+  substitute: boolean;
+  captain: boolean;
 }
 
 /** Un match terminé ne change plus : cache très long. */
 const RATINGS_TTL = 5 * 60 * 1000;
+/**
+ * Pendant le direct, les notes évoluent : 2 minutes, comme un compromis
+ * entre fraîcheur et quota (un appel par match regardé, partagé par tous).
+ */
+const RATINGS_TTL_DIRECT = 2 * 60 * 1000;
 
 // ─── Buteurs ──────────────────────────────────────────────────────────────────
 
@@ -404,14 +414,18 @@ export class ApiFootballInsights {
     }
   }
 
-  /** Notes des joueurs d'un match terminé, triées de la meilleure à la moins bonne. */
+  /**
+   * Notes des joueurs, triées de la meilleure à la moins bonne — match
+   * terminé, ou en direct ([enDirect], cache plus court).
+   */
   async getPlayerRatings(
-    fixtureId: number, homeTeamId?: number,
+    fixtureId: number, homeTeamId?: number, enDirect = false,
   ): Promise<PlayerRating[] | null> {
     if (!this.hasKey()) return null;
 
     try {
-      const raw = await enrichissementsFootball(this.client).get('/fixtures/players', { fixture: fixtureId }, RATINGS_TTL);
+      const raw = await enrichissementsFootball(this.client).get('/fixtures/players', { fixture: fixtureId },
+        enDirect ? RATINGS_TTL_DIRECT : RATINGS_TTL);
 
       const out: PlayerRating[] = [];
       for (const eq of raw) {
@@ -438,6 +452,10 @@ export class ApiFootballInsights {
             assists: st?.goals?.assists ?? 0,
             shots:   st?.shots?.total ?? 0,
             passes:  st?.passes?.total ?? 0,
+            yellow:  st?.cards?.yellow ?? 0,
+            red:     st?.cards?.red ?? 0,
+            substitute: st?.games?.substitute === true,
+            captain: st?.games?.captain === true,
           });
         }
       }

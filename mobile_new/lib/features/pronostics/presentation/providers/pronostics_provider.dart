@@ -658,10 +658,14 @@ class MatchEvent {
   final String detail;
   /// Motif d'un carton (« Argument »…) ou « Penalty Shootout ».
   final String? comments;
+  /// Identifiants API-Football du joueur et de l'« assist » (passeur, ou
+  /// entrant d'un remplacement) : relient l'événement aux compositions.
+  final int? playerId, assistId;
   const MatchEvent({
     required this.minute, this.extra, required this.team,
     required this.player, this.assist,
     required this.type, required this.detail, this.comments,
+    this.playerId, this.assistId,
   });
 }
 
@@ -704,6 +708,8 @@ final matchStatsProvider = FutureProvider.autoDispose.family<MatchStatsData?, St
         type:   m['type']   as String? ?? '',
         detail: m['detail'] as String? ?? '',
         comments: m['comments'] as String?,
+        playerId: (m['player_id'] as num?)?.toInt(),
+        assistId: (m['assist_id'] as num?)?.toInt(),
       );
     }).toList();
     final stats = (d['stats'] as List).map((s) {
@@ -1144,11 +1150,14 @@ class PlayerRating {
   final String team; // 'home' | 'away'
   final double rating;
   final int minutes, goals, assists, shots, passes;
+  final int yellow, red;
+  final bool substitute, captain;
 
   const PlayerRating({
     this.id, required this.name, this.photo, required this.team, required this.rating,
     required this.minutes, required this.goals, required this.assists,
     required this.shots, required this.passes,
+    this.yellow = 0, this.red = 0, this.substitute = false, this.captain = false,
   });
 
   factory PlayerRating.fromJson(Map<String, dynamic> j) => PlayerRating(
@@ -1162,6 +1171,10 @@ class PlayerRating {
     assists: (j['assists'] as num?)?.toInt() ?? 0,
     shots:   (j['shots'] as num?)?.toInt() ?? 0,
     passes:  (j['passes'] as num?)?.toInt() ?? 0,
+    yellow:  (j['yellow'] as num?)?.toInt() ?? 0,
+    red:     (j['red'] as num?)?.toInt() ?? 0,
+    substitute: j['substitute'] == true,
+    captain: j['captain'] == true,
   );
 }
 
