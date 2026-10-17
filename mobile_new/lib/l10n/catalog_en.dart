@@ -1598,4 +1598,9 @@ const englishMessages = <String, String>{
   "Score non actualisé": "Score not updated",
   "Score non actualisé depuis {arg0} min": "Score not updated for {arg0} min",
   "Pronostic Premium": "Premium prediction",
+  "MI-TEMPS": "HALF-TIME",
+  "PAUSE": "BREAK",
+  "TIRS AU BUT": "PENALTIES",
+  "INTERROMPU": "INTERRUPTED",
+  "Match en direct, {arg0}": "Live match, {arg0}",
 };

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import 'package:pronowin/core/utils/noms_equipes.dart';
+import '../../domain/chrono_match.dart';
 
 class PeriodScore {
   final int? home, away;
@@ -15,6 +16,8 @@ class PeriodScore {
 class MatchInfo {
   final String? venue, city, referee, round, phase, homeTeam, awayTeam;
   final int? season, elapsed, extra;
+  /// Début de chaque mi-temps, pour le chrono à la seconde (`chrono_match.dart`).
+  final DateTime? debutPremiereMiTemps, debutSecondeMiTemps;
   final DateTime? updatedAt;
   final bool stale;
   final Map<String, PeriodScore> scores;
@@ -29,6 +32,8 @@ class MatchInfo {
     this.season,
     this.elapsed,
     this.extra,
+    this.debutPremiereMiTemps,
+    this.debutSecondeMiTemps,
     this.updatedAt,
     this.stale = false,
     this.scores = const {},
@@ -36,6 +41,7 @@ class MatchInfo {
   factory MatchInfo.fromJson(Map<String, dynamic> j) {
     final venue = j['venue'] as Map<String, dynamic>? ?? {};
     final scores = j['scores'] as Map<String, dynamic>? ?? {};
+    final periodes = j['periods'] as Map<String, dynamic>? ?? {};
     return MatchInfo(
       venue: venue['name'] as String?,
       city: venue['city'] as String?,
@@ -47,6 +53,8 @@ class MatchInfo {
       season: j['season'] as int?,
       elapsed: j['elapsed'] as int?,
       extra: j['extra'] as int?,
+      debutPremiereMiTemps: depuisSecondesUnix(periodes['first']),
+      debutSecondeMiTemps: depuisSecondesUnix(periodes['second']),
       updatedAt: DateTime.tryParse(j['updated_at'] as String? ?? ''),
       stale: j['stale'] == true,
       scores: {

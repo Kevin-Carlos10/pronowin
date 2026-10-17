@@ -70,3 +70,13 @@ it('aucun appel sans clé ou pour un identifiant invalide', async () => {
   expect(await new MatchInfoService({ get } as any, () => true).get(-1, 'LIVE', date)).toBeNull();
   expect(get).not.toHaveBeenCalled();
 });
+it('transmet le début de chaque mi-temps pour le chrono à la seconde, et rien d’invraisemblable', async () => {
+  const f: any = fixture('2H'); f.fixture.periods = { first: 1791896400, second: 1791899700 };
+  expect(await new MatchInfoService({ get: async () => reply(f) } as any, () => true).get(42, 'LIVE', date))
+    .toMatchObject({ phase: '2H', periods: { first: 1791896400, second: 1791899700 } });
+  for (const periods of [undefined, { first: null, second: null }, { first: '1791896400', second: 12 }]) {
+    const g: any = fixture('1H'); g.fixture.periods = periods;
+    expect(await new MatchInfoService({ get: async () => reply(g) } as any, () => true).get(42, 'LIVE', date))
+      .toMatchObject({ periods: { first: null, second: null } });
+  }
+});

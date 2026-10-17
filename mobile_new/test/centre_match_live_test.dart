@@ -114,7 +114,60 @@ void main() {
     await t.pumpWidget(const SizedBox()); await t.pump();
     expect(t.takeException(),isNull);
   });
+
+  // Demande de l'utilisateur du 17 octobre 2026 : le chrono du direct à la
+  // seconde, comme Sofascore, avec le temps additionnel annoncé.
+  group('chrono du direct', () {
+    testWidgets('à la seconde, à partir du début de la seconde mi-temps', (t) async {
+      await _ficheEnDirect(t, MatchInfo(phase:'2H', elapsed:67,
+        debutSecondeMiTemps: DateTime.now().subtract(const Duration(minutes:22, seconds:23))));
+      expect(_chrono(t), matches(RegExp(r'^67:2\d$')));
+      expect(find.byKey(const Key('chrono-additionnel')), findsNothing);
+      await t.pumpWidget(const SizedBox()); await t.pump();
+    });
+
+    testWidgets('temps additionnel : « +7 min » à côté du chrono', (t) async {
+      await _ficheEnDirect(t, MatchInfo(phase:'2H', elapsed:92, extra:7,
+        debutSecondeMiTemps: DateTime.now().subtract(const Duration(minutes:47, seconds:9))));
+      expect(_chrono(t), matches(RegExp(r'^92:\d\d$')));
+      expect((t.widget<Text>(find.byKey(const Key('chrono-additionnel')))).data, "+7'");
+      await t.pumpWidget(const SizedBox()); await t.pump();
+    });
+
+    testWidgets('mi-temps : un libellé, et la minute faute de début daté', (t) async {
+      await _ficheEnDirect(t, const MatchInfo(phase:'HT', elapsed:45));
+      expect(_chrono(t), 'MI-TEMPS');
+      await t.pumpWidget(const SizedBox()); await t.pump();
+
+      await _ficheEnDirect(t, const MatchInfo(phase:'2H', elapsed:58));
+      expect(_chrono(t), "58'");
+      await t.pumpWidget(const SizedBox()); await t.pump();
+    });
+  });
 }
+
+/// Fiche d'un match en direct avec les informations de match données.
+Future<void> _ficheEnDirect(WidgetTester t, MatchInfo info) async {
+  SharedPreferences.setMockInitialValues({});
+  await t.pumpWidget(ProviderScope(overrides:[
+    ...donneesCommunes(),
+    matchInfoProvider('m').overrideWith((ref) async => info),
+    matchDetailProvider('m').overrideWith((ref) async => _match()),
+    liveScoreProvider('m').overrideWith((ref) async => LiveScore(status:'LIVE',homeScore:1,awayScore:0,elapsed:info.elapsed)),
+    matchStatsProvider('m').overrideWith((ref) async => _stats()),
+    lineupsProvider('m').overrideWith((ref) async => const LineupsData(available:false)),
+    injuriesProvider('m').overrideWith((ref) async => []),
+    standingsProvider('m').overrideWith((ref) async => []),
+    h2hProvider('m').overrideWith((ref) async => throw Exception('unavailable')),
+    liveOddsProvider('m').overrideWith((ref) async => const LiveOddsData(openingOdd:0,markets:[])),
+    playerRatingsProvider('m').overrideWith((ref) async => []),
+  ],child: MaterialApp(theme:AppTheme.dark,
+    builder:(c,w)=>MediaQuery(data:MediaQuery.of(c).copyWith(disableAnimations:true),child:w!),
+    home:const MatchDetailPage(matchId:'m'))));
+  await t.pump(); await t.pump(const Duration(milliseconds:500));
+}
+
+String _chrono(WidgetTester t) => (t.widget<Text>(find.byKey(const Key('chrono-direct')))).data!;
 
 MatchModel _match({String status='live'}) => MatchModel.fromJson({
   'id':'m','league':'Premier League','league_country':'PL',

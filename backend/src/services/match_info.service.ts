@@ -6,6 +6,9 @@ interface MatchInfoData {
   venue: { name: string | null; city: string | null };
   referee: string | null; round: string | null; season: number | null;
   phase: string | null; elapsed: number | null; extra: number | null;
+  /** Début de chaque mi-temps (secondes Unix) : le chrono à la seconde de la
+   *  fiche de match se calcule à partir d'elles, sur le téléphone. */
+  periods: { first: number | null; second: number | null };
   home_team: string | null; away_team: string | null;
   scores: { halftime: Score; fulltime: Score; extratime: Score; penalty: Score };
 }
@@ -13,6 +16,9 @@ type Score = { home: number | null; away: number | null };
 const entier = (v: unknown): number | null => typeof v === 'number' && Number.isInteger(v) && v >= 0 ? v : null;
 const texte = (v: unknown): string | null => typeof v === 'string' && v.trim() ? v.trim() : null;
 const score = (v: any): Score => ({ home: entier(v?.home), away: entier(v?.away) });
+/** Un horodatage Unix en secondes plausible (2001–2286), sinon null. */
+const horodatage = (v: unknown): number | null =>
+  typeof v === 'number' && Number.isInteger(v) && v > 1e9 && v < 1e10 ? v : null;
 
 /** Public sporting data only. Never includes predictions, odds or editorial content.
  * Phase scores are passed through separately; penalties are never added to goals.
@@ -43,6 +49,7 @@ export class MatchInfoService {
         venue: { name: texte(f.venue?.name), city: texte(f.venue?.city) },
         referee: texte(f.referee), round: texte(fixture.league?.round), season: entier(fixture.league?.season),
         phase: texte(f.status.short), elapsed: entier(f.status.elapsed), extra: entier(f.status.extra),
+        periods: { first: horodatage(f.periods?.first), second: horodatage(f.periods?.second) },
         home_team: texte(fixture.teams.home.name), away_team: texte(fixture.teams.away.name),
         scores: { halftime: score(fixture.score?.halftime), fulltime: score(fixture.score?.fulltime),
           extratime: score(fixture.score?.extratime), penalty: score(fixture.score?.penalty) },

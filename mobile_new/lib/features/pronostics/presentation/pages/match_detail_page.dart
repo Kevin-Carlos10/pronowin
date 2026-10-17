@@ -28,6 +28,7 @@ import '../../../../shared/providers/favoris_provider.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../domain/entities/match_entity.dart';
+import '../../domain/chrono_match.dart';
 import '../providers/pronostics_provider.dart';
 import '../providers/match_info_provider.dart';
 import '../providers/fiche_match_provider.dart';
@@ -736,6 +737,9 @@ class _EnTeteCompacte extends ConsumerWidget {
     final live = match.status == MatchStatus.live
         ? ref.watch(liveScoreProvider(match.id)).valueOrNull
         : null;
+    final info = match.status == MatchStatus.live
+        ? ref.watch(matchInfoProvider(match.id)).valueOrNull
+        : null;
     final home   = live?.homeScore ?? match.homeScore;
     final away   = live?.awayScore ?? match.awayScore;
     final aScore = match.status != MatchStatus.upcoming;
@@ -755,13 +759,26 @@ class _EnTeteCompacte extends ConsumerWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Text(
-              aScore ? '${home ?? 0} - ${away ?? 0}' : 'VS',
-              style: TextStyle(
-                color: match.status == MatchStatus.live
-                    ? context.cl.success
-                    : context.cl.textP,
-                fontSize: 14, fontWeight: FontWeight.w700)),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Text(
+                aScore ? '${home ?? 0} - ${away ?? 0}' : 'VS',
+                style: TextStyle(
+                  color: match.status == MatchStatus.live
+                      ? context.cl.success
+                      : context.cl.textP,
+                  fontSize: 14, fontWeight: FontWeight.w700)),
+              // Comme Sofascore : le chrono reste lisible, en-tête replié.
+              if (match.status == MatchStatus.live)
+                _ChronoEnDirect(
+                  info: info,
+                  minuteSecours: live?.elapsed,
+                  builder: (context, chrono) => Text(
+                    _texteChrono(context, chrono, avecAdditionnel: true),
+                    style: TextStyle(
+                      color: context.cl.error, fontSize: 9.5, fontWeight: FontWeight.w600,
+                      fontFeatures: const [FontFeature.tabularFigures()])),
+                ),
+            ]),
           ),
           Flexible(
             child: Text(match.awayTeam,
@@ -793,6 +810,10 @@ class _MatchHeader extends ConsumerWidget {
     final homeScore = liveAsync?.valueOrNull?.homeScore ?? match.homeScore;
     final awayScore = liveAsync?.valueOrNull?.awayScore ?? match.awayScore;
     final minute = liveAsync?.valueOrNull?.elapsed;
+    // Phase, temps additionnel et début des mi-temps : le chrono à la seconde.
+    final info = match.status == MatchStatus.live
+        ? ref.watch(matchInfoProvider(match.id)).valueOrNull
+        : null;
 
     final d = match.matchDate;
     final dateStr = '${d.day.toString().padLeft(2, '0')}/'
@@ -890,7 +911,7 @@ class _MatchHeader extends ConsumerWidget {
               ),
               const SizedBox(height: 8),
             ] else if (match.status == MatchStatus.live) ...[
-              _LiveBadge(minute: minute),
+              _LiveBadge(minute: minute, info: info),
               const SizedBox(height: 8),
             ],
             Container(
@@ -1691,11 +1712,85 @@ class _ScoreNonActualiseState extends State<_ScoreNonActualise> {
   }
 }
 
+/// Texte du chrono : « 67:23 », « 67' », « MI-TEMPS »…, suivi du temps
+/// additionnel (« +7' ») si [avecAdditionnel].
+String _texteChrono(BuildContext context, ChronoMatch c, {bool avecAdditionnel = false}) {
+  final base = switch (c.etat) {
+    EtatChrono.aLaSeconde => c.texteSecondes,
+    EtatChrono.aLaMinute  => "${c.minute}'",
+    EtatChrono.miTemps    => tr(context, "MI-TEMPS"),
+    EtatChrono.pause      => tr(context, "PAUSE"),
+    EtatChrono.tirsAuBut  => tr(context, "TIRS AU BUT"),
+    EtatChrono.interrompu => tr(context, "INTERROMPU"),
+    EtatChrono.inconnu    => tr(context, "EN DIRECT"),
+  };
+  return avecAdditionnel && c.additionnel != null ? "$base +${c.additionnel}'" : base;
+}
+
+/// Fait avancer le chrono du direct chaque seconde, entre deux relevés.
+///
+/// Les relevés (score toutes les 30 s, informations de match) disent où en
+/// est le match ; ce widget recalcule le temps de jeu à la seconde à partir
+/// du début de la mi-temps (`chrono_match.dart`). Il ne se reconstruit que
+/// quand le texte affiché change.
+class _ChronoEnDirect extends StatefulWidget {
+  final MatchInfo? info;
+  /// Minute du relevé de score, si les informations de match manquent.
+  final int? minuteSecours;
+  final Widget Function(BuildContext context, ChronoMatch chrono) builder;
+  const _ChronoEnDirect({required this.info, this.minuteSecours, required this.builder});
+
+  @override
+  State<_ChronoEnDirect> createState() => _ChronoEnDirectState();
+}
+
+class _ChronoEnDirectState extends State<_ChronoEnDirect> {
+  Timer? _tic;
+  late ChronoMatch _chrono = _calculer();
+
+  ChronoMatch _calculer() {
+    final i = widget.info;
+    return chronoMatch(
+      phase:   i?.phase,
+      elapsed: i?.elapsed ?? widget.minuteSecours,
+      extra:   i?.extra,
+      debut1:  i?.debutPremiereMiTemps,
+      debut2:  i?.debutSecondeMiTemps,
+      maintenant: DateTime.now(),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _tic = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      final c = _calculer();
+      if (c != _chrono) setState(() => _chrono = c);
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _ChronoEnDirect ancien) {
+    super.didUpdateWidget(ancien);
+    _chrono = _calculer();
+  }
+
+  @override
+  void dispose() { _tic?.cancel(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) => widget.builder(context, _chrono);
+}
+
 class _LiveBadge extends StatefulWidget {
-  /// Minute de jeu. Null tant que la source ne l'a pas fournie : on retombe
-  /// alors sur le libellé seul plutôt que d'inventer un chiffre.
+  /// Minute de jeu du relevé de score. Null tant que la source ne l'a pas
+  /// fournie : on retombe alors sur le libellé seul plutôt que d'inventer un
+  /// chiffre.
   final int? minute;
-  const _LiveBadge({this.minute});
+  /// Informations de match : de quoi afficher le chrono à la seconde.
+  final MatchInfo? info;
+  const _LiveBadge({this.minute, this.info});
 
   @override
   State<_LiveBadge> createState() => _LiveBadgeState();
@@ -1738,10 +1833,17 @@ class _LiveBadgeState extends State<_LiveBadge>
   }
 
   @override
-  Widget build(BuildContext context) => Semantics(
-    label: widget.minute == null
-        ? tr(context, "Match en direct")
-        : tr(context, "Match en direct, {arg0}e minute", [widget.minute]),
+  Widget build(BuildContext context) => _ChronoEnDirect(
+    info: widget.info,
+    minuteSecours: widget.minute,
+    builder: (context, chrono) => Semantics(
+    // À la minute pour les lecteurs d'écran, pas à la seconde.
+    label: switch (chrono.etat) {
+      EtatChrono.aLaSeconde || EtatChrono.aLaMinute =>
+        tr(context, "Match en direct, {arg0}e minute", [chrono.minute]),
+      EtatChrono.inconnu => tr(context, "Match en direct"),
+      _ => tr(context, "Match en direct, {arg0}", [_texteChrono(context, chrono).toLowerCase()]),
+    },
     excludeSemantics: true,
     child: Container(
     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -1766,11 +1868,23 @@ class _LiveBadgeState extends State<_LiveBadge>
         ),
       ),
       const SizedBox(width: 6),
-      Text(widget.minute == null ? tr(context, "EN DIRECT") : "${widget.minute}'",
+      Text(_texteChrono(context, chrono),
+        key: const Key('chrono-direct'),
         style: TextStyle(
           color: context.cl.error, fontSize: 11,
-          fontWeight: FontWeight.w700, letterSpacing: 0.5)),
-    ])));
+          fontWeight: FontWeight.w700, letterSpacing: 0.5,
+          // Chiffres à chasse fixe : le badge ne change pas de largeur à
+          // chaque seconde.
+          fontFeatures: const [FontFeature.tabularFigures()])),
+      if (chrono.additionnel != null) ...[
+        const SizedBox(width: 5),
+        Text("+${chrono.additionnel}'",
+          key: const Key('chrono-additionnel'),
+          style: TextStyle(
+            color: context.cl.error.withValues(alpha: 0.75), fontSize: 10,
+            fontWeight: FontWeight.w600)),
+      ],
+    ]))));
 }
 
 class _DetailConfidenceBar extends StatelessWidget {
