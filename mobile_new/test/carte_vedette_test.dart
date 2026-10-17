@@ -1,6 +1,6 @@
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pronowin/core/theme/app_theme.dart';
+import 'package:pronowin/core/widgets/chiffres_ios.dart';
 import 'package:pronowin/features/abonnement/presentation/providers/subscription_provider.dart';
 import 'package:pronowin/features/accueil/presentation/pages/accueil_page.dart';
 import 'package:pronowin/features/accueil/presentation/providers/accueil_provider.dart';
@@ -114,17 +114,16 @@ void main() {
       expect(r.autres, isEmpty);
     });
 
-    // Retour de l'utilisateur du 17 octobre 2026 : le compte à rebours
-    // n'avait « pas le style d'un compte à rebours sur iOS ». Une ligne de
-    // chiffres, sans libellé sous chaque unité, qui tient à 180 %.
+    // Retour de l'utilisateur du 17 octobre 2026 : l'affichage du compte à
+    // rebours reste celui-ci ; seul l'effet au changement de seconde devient
+    // celui d'iOS (test/chiffres_ios_test.dart). Il tient à 180 %.
     for (final echelle in [1.0, 1.8]) {
-      testWidgets('compte à rebours au style iOS, texte à ${echelle * 100} %', (t) async {
+      testWidgets('compte à rebours en blocs, texte à ${echelle * 100} %', (t) async {
         final dans = DateTime.now().add(const Duration(days: 2, hours: 3, minutes: 30));
         final top = {
           ...pronoApi('1'), 'home_team': 'Real Betis', 'away_team': 'Barcelona',
           'confidence_pct': 84, 'match_date': dans.toUtc().toIso8601String(),
         };
-        final semantique = t.ensureSemantics();
         final r = await mesurerEcran(t,
             ecran: const AccueilPage(), theme: AppTheme.light, echelle: echelle, defilements: 0,
             surcharges: [
@@ -141,16 +140,11 @@ void main() {
               bankrollProvider.overrideWith((ref) async => null),
             ],
             verifier: () {
-              expect(find.byKey(const Key('compte-a-rebours')), findsOneWidget);
-              expect(find.text("COUP D'ENVOI DANS"), findsOneWidget);
-              expect(find.text('2 j'), findsOneWidget);
-              for (final ancien in ['HEURES', 'MIN', 'SEC', 'JOURS']) {
-                expect(find.text(ancien), findsNothing, reason: ancien);
+              for (final libelle in ['JOURS', 'HEURES', 'MIN', 'SEC']) {
+                expect(find.text(libelle), findsOneWidget, reason: libelle);
               }
-              // Fusionné dans le nœud de la carte, qui est tactile.
-              expect(find.bySemanticsLabel(RegExp(r"Coup d'envoi dans 2 j 3 h 2\d min")), findsOneWidget);
+              expect(find.byType(ChiffresIos), findsNWidgets(4));
             });
-        semantique.dispose();
         expect(r.debordements, isEmpty);
         expect(r.autres, isEmpty);
       });
