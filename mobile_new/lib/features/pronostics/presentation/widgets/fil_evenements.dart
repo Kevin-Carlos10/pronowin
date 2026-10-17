@@ -168,7 +168,8 @@ List<({int dom, int ext})>? _scoresAuFil(
 /// d'anglais au milieu du fil).
 String? motifCarton(String? comments) => switch (comments?.toLowerCase().trim()) {
   'foul' => 'Faute',
-  'argument' => 'Contestation',
+  // « Dissent » et « Argument » : les deux formes vues en production.
+  'argument' || 'dissent' => 'Contestation',
   'time wasting' => 'Perte de temps',
   'unsportsmanlike conduct' => 'Comportement antisportif',
   'simulation' || 'diving' => 'Simulation',

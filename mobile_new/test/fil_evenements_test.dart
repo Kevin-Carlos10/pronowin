@@ -100,6 +100,9 @@ void main() {
 
   test('motifs de carton et décisions VAR en français, rien d\'anglais en repli', () {
     expect(motifCarton('Argument'), 'Contestation');
+    // Valeurs relevées en production le 17 octobre 2026.
+    expect(motifCarton('Dissent'), 'Contestation');
+    expect(motifCarton('Violent Conduct'), 'Comportement violent');
     expect(motifCarton('Foul'), 'Faute');
     expect(motifCarton('Time wasting'), 'Perte de temps');
     expect(motifCarton('Something new'), isNull);
