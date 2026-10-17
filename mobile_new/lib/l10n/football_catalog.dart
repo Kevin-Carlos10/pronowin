@@ -1817,7 +1817,8 @@ const footballCatalogJson = r'''{
       "en": "Achilles Injury",
       "fr": "Blessure au tendon d'Achille",
       "aliases": [
-        "achilles"
+        "achilles",
+        "Achilles Tendon Injury"
       ]
     },
     {
@@ -1833,6 +1834,87 @@ const footballCatalogJson = r'''{
       "aliases": [
         "fitness"
       ]
+    },
+    {
+      "en": "Surgery",
+      "fr": "Opération",
+      "aliases": [
+        "Operation"
+      ]
+    },
+    {
+      "en": "Knee Surgery",
+      "fr": "Opération du genou",
+      "aliases": []
+    },
+    {
+      "en": "Knock",
+      "fr": "Choc",
+      "aliases": [
+        "Minor knock"
+      ]
+    },
+    {
+      "en": "Concussion",
+      "fr": "Commotion cérébrale",
+      "aliases": []
+    },
+    {
+      "en": "Muscle Strain",
+      "fr": "Élongation",
+      "aliases": [
+        "Strain"
+      ]
+    },
+    {
+      "en": "Cruciate Ligament Injury",
+      "fr": "Blessure aux ligaments croisés",
+      "aliases": [
+        "Cruciate Ligament Rupture",
+        "ACL Injury"
+      ]
+    },
+    {
+      "en": "Meniscus Injury",
+      "fr": "Blessure au ménisque",
+      "aliases": []
+    },
+    {
+      "en": "Leg Injury",
+      "fr": "Blessure à la jambe",
+      "aliases": []
+    },
+    {
+      "en": "Heel Injury",
+      "fr": "Blessure au talon",
+      "aliases": []
+    },
+    {
+      "en": "Finger Injury",
+      "fr": "Blessure au doigt",
+      "aliases": []
+    },
+    {
+      "en": "Face Injury",
+      "fr": "Blessure au visage",
+      "aliases": []
+    },
+    {
+      "en": "Broken ankle",
+      "fr": "Fracture de la cheville",
+      "aliases": []
+    },
+    {
+      "en": "Bruise",
+      "fr": "Contusion",
+      "aliases": [
+        "Contusion"
+      ]
+    },
+    {
+      "en": "Lack of fitness",
+      "fr": "Manque de condition physique",
+      "aliases": []
     },
     {
       "en": "Yellow cards",
@@ -1872,7 +1954,10 @@ const footballCatalogJson = r'''{
     {
       "en": "Illness",
       "fr": "Maladie",
-      "aliases": []
+      "aliases": [
+        "Ill",
+        "Virus"
+      ]
     },
     {
       "en": "Personal reasons",
@@ -1882,12 +1967,16 @@ const footballCatalogJson = r'''{
     {
       "en": "National team",
       "fr": "Sélection nationale",
-      "aliases": []
+      "aliases": [
+        "International duty"
+      ]
     },
     {
       "en": "Coach decision",
       "fr": "Choix de l'entraîneur",
-      "aliases": []
+      "aliases": [
+        "Coach's decision"
+      ]
     },
     {
       "en": "Rest",

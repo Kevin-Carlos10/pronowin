@@ -280,6 +280,27 @@
     "known": false
   },
   {
+    "method": "absence",
+    "input": "Surgery",
+    "fr": "Opération",
+    "en": "Surgery",
+    "known": true
+  },
+  {
+    "method": "absence",
+    "input": "Knock",
+    "fr": "Choc",
+    "en": "Knock",
+    "known": true
+  },
+  {
+    "method": "absence",
+    "input": "Achilles Tendon Injury",
+    "fr": "Blessure au tendon d'Achille",
+    "en": "Achilles Injury",
+    "known": true
+  },
+  {
     "method": "transfer",
     "input": "Prêt",
     "fr": "Prêt",
