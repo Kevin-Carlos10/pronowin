@@ -35,6 +35,10 @@ void main() {
     expect(infos[3]!.aDesEvenements, isFalse, reason: 'une entrée en jeu n\'est pas un badge sur le terrain');
   });
 
+  test('note 0 (banc pendant le direct) : aucune pastille', () {
+    expect(infosJoueurs(notes: [note(7, 0)])[7]!.note, isNull);
+  });
+
   test('sans événement de carton : cartons tirés des statistiques des notes', () {
     final infos = infosJoueurs(notes: [note(9, 6.8, jaunes: 1)]);
     expect(infos[9]!.jaunes, 1);

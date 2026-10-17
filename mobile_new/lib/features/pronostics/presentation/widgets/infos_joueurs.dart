@@ -38,7 +38,8 @@ Map<int, InfosJoueur> infosJoueurs({
     final id = n.id;
     if (id == null) continue;
     de(id)
-      ..note = n.rating
+      // Une note de 0 veut dire « pas joué » (le banc, pendant le direct).
+      ..note = n.rating > 0 ? n.rating : null
       ..capitaine = n.captain;
   }
 

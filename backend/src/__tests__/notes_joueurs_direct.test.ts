@@ -18,6 +18,8 @@ it('notes : cartons, remplaçant et capitaine transmis ; joueur sans note écart
       { player: { id: 11, name: 'N. Saliba', photo: null },
         statistics: [{ games: { rating: '7.0', minutes: 24, substitute: true }, cards: { yellow: 0, red: 0 }, goals: {}, shots: {}, passes: {} }] },
       { player: { id: 12, name: 'Banc', photo: null }, statistics: [{ games: { rating: null } }] },
+      // Pendant le direct, le banc arrive noté « 0 ».
+      { player: { id: 13, name: 'Banc direct', photo: null }, statistics: [{ games: { rating: '0', minutes: 0 } }] },
     ] },
     { team: { id: 2 }, players: [
       { player: { id: 20, name: 'G. Villar', photo: null },

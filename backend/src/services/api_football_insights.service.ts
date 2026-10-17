@@ -438,8 +438,9 @@ export class ApiFootballInsights {
           const st = j.statistics?.[0];
           const note = parseFloat(st?.games?.rating);
           // Sans note, le joueur n'a pas joué (ou l'API ne l'a pas évalué) :
-          // l'afficher à 0 le ferait passer pour le pire du match.
-          if (!Number.isFinite(note)) continue;
+          // l'afficher à 0 le ferait passer pour le pire du match. Pendant le
+          // direct, l'API note même le banc… à « 0 » (vu le 17 octobre 2026).
+          if (!Number.isFinite(note) || note <= 0) continue;
 
           out.push({
             id:      j.player?.id ?? null,
