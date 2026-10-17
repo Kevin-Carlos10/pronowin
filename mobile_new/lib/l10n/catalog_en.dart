@@ -1597,4 +1597,6 @@ const englishMessages = <String, String>{
   "Estimations statistiques — forme, attaque, défense, face-à-face et simulation des buts.": "Statistical estimates — form, attack, defence, head-to-head and goal simulation.",
   "Score non actualisé": "Score not updated",
   "Score non actualisé depuis {arg0} min": "Score not updated for {arg0} min",
+  "COUP D'ENVOI DANS": "KICK-OFF IN",
+  "{arg0} j": "{arg0}d",
 };

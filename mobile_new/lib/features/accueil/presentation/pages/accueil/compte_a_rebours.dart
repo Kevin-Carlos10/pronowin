@@ -28,8 +28,6 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
     super.dispose();
   }
 
-  String _pad(int v) => v.toString().padLeft(2, '0');
-
   @override
   Widget build(BuildContext context) {
     final jourAsync     = ref.watch(pronosticsJourProvider);
@@ -60,11 +58,6 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
           if (matchDate == null) return const SizedBox.shrink();
           final diff = matchDate.difference(DateTime.now());
           if (diff.isNegative) return const SizedBox.shrink();
-
-          final days    = diff.inDays;
-          final hours   = diff.inHours.remainder(24);
-          final minutes = diff.inMinutes.remainder(60);
-          final seconds = diff.inSeconds.remainder(60);
 
           final matchId        = prono['id'] as String?;
           final rawPredLabel   = prono['prediction_label'] as String?;
@@ -202,25 +195,8 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                 ]),
                 const SizedBox(height: 16),
 
-                // ── Countdown ────────────────────────────────────────────────────
-                Container(
-                  padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-                  decoration: BoxDecoration(
-                    color: Colors.black.withValues(alpha: 0.30),
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.15), width: 0.5)),
-                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
-                    if (days > 0) ...[
-                      _CountUnit(value: _pad(days), label: days == 1 ? tr(context, "JOUR") : tr(context, "JOURS")),
-                      _CountDivider(),
-                    ],
-                    _CountUnit(value: _pad(hours), label: tr(context, "HEURES")),
-                    _CountDivider(),
-                    _CountUnit(value: _pad(minutes), label: 'MIN'),
-                    _CountDivider(),
-                    _CountUnit(value: _pad(seconds), label: 'SEC'),
-                  ]),
-                ),
+                // ── Compte à rebours ─────────────────────────────────────────────
+                _CompteARebours(restant: diff),
                 const SizedBox(height: 14),
 
                 // ── Pronostic + confiance + cote ──────────────────────────────────
@@ -400,52 +376,109 @@ class _NextMatchSkeleton extends StatelessWidget {
     .shimmer(duration: 1500.ms, color: context.cl.borderSoft.withValues(alpha: 0.5));
 }
 
-class _CountUnit extends StatelessWidget {
-  final String value, label;
-  const _CountUnit({required this.value, required this.label});
+/// Compte à rebours au style du minuteur d'iOS (app Horloge) : une seule
+/// ligne « 01:49:38 » en chiffres fins à chasse fixe, sans libellé sous chaque
+/// unité, et seuls les chiffres qui changent défilent.
+///
+/// Il remplace quatre blocs « 01 HEURES : 49 MIN : 38 SEC » aux deux-points
+/// orange, dont chaque bloc entier glissait à chaque seconde (retour de
+/// l'utilisateur, 17 octobre 2026 : « pas du style d'un compte à rebours sur
+/// iOS »).
+class _CompteARebours extends StatelessWidget {
+  final Duration restant;
+  const _CompteARebours({required this.restant});
+
+  static String _deux(int v) => v.toString().padLeft(2, '0');
+
   @override
-  Widget build(BuildContext context) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          AnimatedSwitcher(
-            duration: const Duration(milliseconds: 300),
-            transitionBuilder: (child, anim) => SlideTransition(
-              position: Tween<Offset>(
-                begin: const Offset(0, -0.5),
-                end: Offset.zero,
-              ).animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-              child: FadeTransition(opacity: anim, child: child),
-            ),
-            child: Text(
-              value,
-              key: ValueKey(value),
-              style: TextStyle(
-                  color: context.cl.textP,
-                  fontSize: 22,
-                  fontWeight: FontWeight.w700,
-                  fontFeatures: [FontFeature.tabularFigures()]),
-            ),
-          ),
+  Widget build(BuildContext context) {
+    final jours   = restant.inDays;
+    final heures  = restant.inHours.remainder(24);
+    final minutes = restant.inMinutes.remainder(60);
+    final temps   = '${_deux(heures)}:${_deux(minutes)}:${_deux(restant.inSeconds.remainder(60))}';
+    final style = TextStyle(
+      color: context.cl.textP,
+      fontSize: 34,
+      fontWeight: FontWeight.w300,
+      height: 1.15,
+      letterSpacing: 0.5,
+      fontFeatures: const [FontFeature.tabularFigures()],
+    );
+    // Les lecteurs d'écran entendent la minute, pas un nombre qui change
+    // chaque seconde.
+    final lisible = [
+      if (jours > 0) tr(context, "{arg0} j", [jours]),
+      '$heures h', '$minutes min',
+    ].join(' ');
+
+    return Semantics(
+      label: tr(context, "Coup d'envoi dans {arg0}", [lisible]),
+      excludeSemantics: true,
+      child: Container(
+        key: const Key('compte-a-rebours'),
+        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.30),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06), width: 0.5)),
+        child: Column(children: [
+          Text(tr(context, "COUP D'ENVOI DANS"),
+            style: TextStyle(color: context.cl.textM, fontSize: 9,
+              fontWeight: FontWeight.w600, letterSpacing: 0.8)),
           const SizedBox(height: 2),
-          Text(label,
-              style: TextStyle(
-                  color: context.cl.textM,
-                  fontSize: 8,
-                  letterSpacing: 0.6)),
-        ],
-      );
+          // À 180 % sur 360 px, « 2 j 01:49:38 » dépasserait la carte : la
+          // ligne rétrécit plutôt que de passer à la ligne.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              if (jours > 0) ...[
+                Text(tr(context, "{arg0} j", [jours]), style: style),
+                const SizedBox(width: 12),
+              ],
+              for (var i = 0; i < temps.length; i++)
+                _ChiffreDefilant(key: ValueKey('chiffre-$i'), caractere: temps[i], style: style),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
 }
 
-class _CountDivider extends StatelessWidget {
+/// Un caractère du compte à rebours : quand il change, le nouveau descend du
+/// haut et l'ancien sort par le bas, dans sa propre case.
+class _ChiffreDefilant extends StatelessWidget {
+  final String caractere;
+  final TextStyle style;
+  const _ChiffreDefilant({super.key, required this.caractere, required this.style});
+
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: EdgeInsets.only(bottom: 12),
-        child: Text(':',
-            style: TextStyle(
-                color: context.cl.accent,
-                fontSize: 20,
-                fontWeight: FontWeight.w700)),
-      );
+  Widget build(BuildContext context) {
+    final texte = Text(caractere, key: ValueKey(caractere), style: style);
+    if (context.animationsReduites) return texte;
+    return ClipRect(
+      child: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 280),
+        switchInCurve: Curves.easeOutCubic,
+        switchOutCurve: Curves.easeInCubic,
+        layoutBuilder: (actuel, anciens) => Stack(
+          alignment: Alignment.center,
+          children: [...anciens, ?actuel],
+        ),
+        transitionBuilder: (enfant, animation) {
+          final entrant = enfant.key == ValueKey(caractere);
+          return SlideTransition(
+            position: Tween<Offset>(
+              begin: Offset(0, entrant ? -0.6 : 0.6),
+              end: Offset.zero,
+            ).animate(animation),
+            child: FadeTransition(opacity: animation, child: enfant),
+          );
+        },
+        child: texte,
+      ),
+    );
+  }
 }
 
 // ══════════════════════════════════════════════════════════════════════════════

@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pronowin/core/theme/app_theme.dart';
 import 'package:pronowin/features/abonnement/presentation/providers/subscription_provider.dart';
@@ -112,5 +113,47 @@ void main() {
           });
       expect(r.autres, isEmpty);
     });
+
+    // Retour de l'utilisateur du 17 octobre 2026 : le compte à rebours
+    // n'avait « pas le style d'un compte à rebours sur iOS ». Une ligne de
+    // chiffres, sans libellé sous chaque unité, qui tient à 180 %.
+    for (final echelle in [1.0, 1.8]) {
+      testWidgets('compte à rebours au style iOS, texte à ${echelle * 100} %', (t) async {
+        final dans = DateTime.now().add(const Duration(days: 2, hours: 3, minutes: 30));
+        final top = {
+          ...pronoApi('1'), 'home_team': 'Real Betis', 'away_team': 'Barcelona',
+          'confidence_pct': 84, 'match_date': dans.toUtc().toIso8601String(),
+        };
+        final semantique = t.ensureSemantics();
+        final r = await mesurerEcran(t,
+            ecran: const AccueilPage(), theme: AppTheme.light, echelle: echelle, defilements: 0,
+            surcharges: [
+              lastPronosSyncProvider.overrideWithValue(null),
+              isServingFromCacheProvider.overrideWithValue(false),
+              currentSubscriptionProvider.overrideWith((ref) async => {'plan': 'free'}),
+              pronosticsJourProvider.overrideWith((ref) async => [top]),
+              nextPronosticProvider.overrideWith((ref) async => top),
+              statsJourProvider.overrideWith((ref) async => {'winRate': 64, 'streak': 3, 'upcoming': 3}),
+              performance30Provider.overrideWith((ref) async => null),
+              hierProvider.overrideWith((ref) async => const []),
+              actualitesProvider.overrideWith((ref) async => const []),
+              favoritesListProvider.overrideWith((ref) async => const []),
+              bankrollProvider.overrideWith((ref) async => null),
+            ],
+            verifier: () {
+              expect(find.byKey(const Key('compte-a-rebours')), findsOneWidget);
+              expect(find.text("COUP D'ENVOI DANS"), findsOneWidget);
+              expect(find.text('2 j'), findsOneWidget);
+              for (final ancien in ['HEURES', 'MIN', 'SEC', 'JOURS']) {
+                expect(find.text(ancien), findsNothing, reason: ancien);
+              }
+              // Fusionné dans le nœud de la carte, qui est tactile.
+              expect(find.bySemanticsLabel(RegExp(r"Coup d'envoi dans 2 j 3 h 2\d min")), findsOneWidget);
+            });
+        semantique.dispose();
+        expect(r.debordements, isEmpty);
+        expect(r.autres, isEmpty);
+      });
+    }
   });
 }
