@@ -307,7 +307,6 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
       matchTermine:       match.status == MatchStatus.finished,
       utilisateurPremium: isPremium,
     );
-    final isRefreshing = ref.watch(liveScoreProvider(match.id)).isLoading;
     final isFav = ref.watch(favorisProvider).valueOrNull
             ?.matchIds.contains(match.id) ??
         false;
@@ -551,13 +550,12 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
               ref.read(favorisProvider.notifier).basculerMatch(match.id);
             },
           ),
-          // Fraîcheur de la donnée : l'écran se rafraîchit toutes les 30 s,
-          // mais rien ne le disait. Un score figé et un score à jour avaient
-          // exactement la même apparence.
+          // Le score se relève toutes les 30 s sans rien afficher, comme sur
+          // les applis de résultats : le compteur « il y a 12 s » qui tournait
+          // ici faisait brouillon (retour de l'utilisateur, 17 octobre 2026).
+          // On ne dit quelque chose que si le score n'arrive plus.
           if (match.status == MatchStatus.live)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: _Fraicheur(enCours: isRefreshing, dernier: _dernierRefresh)),
+            _ScoreNonActualise(dernier: _dernierRefresh),
           IconButton(
               icon: const Icon(Icons.share_rounded, size: 20),
               tooltip: tr(context, "Partager"),
@@ -794,7 +792,6 @@ class _MatchHeader extends ConsumerWidget {
         : null;
     final homeScore = liveAsync?.valueOrNull?.homeScore ?? match.homeScore;
     final awayScore = liveAsync?.valueOrNull?.awayScore ?? match.awayScore;
-    final isRefreshingScore = liveAsync?.isLoading ?? false;
     final minute = liveAsync?.valueOrNull?.elapsed;
 
     final d = match.matchDate;
@@ -918,11 +915,9 @@ class _MatchHeader extends ConsumerWidget {
                     : context.cl.textP,
                   fontSize: 24, fontWeight: FontWeight.w700,
                   letterSpacing: 2))),
-            if (isRefreshingScore) ...[
-              const SizedBox(height: 6),
-              SizedBox(width: 12, height: 12,
-                child: CircularProgressIndicator(strokeWidth: 1.5, color: context.cl.success)),
-            ] else if (match.status == MatchStatus.upcoming) ...[
+            // Pas de roue pendant le relevé du score : elle clignotait sous le
+            // score toutes les 30 s.
+            if (match.status == MatchStatus.upcoming) ...[
               const SizedBox(height: 6),
               Text(heureStr,
                 style: TextStyle(
@@ -1640,28 +1635,34 @@ class _TeamLogo extends StatelessWidget {
       TeamLogoWidget(url: url.isEmpty ? null : url, size: size);
 }
 
-/// Âge de la donnée en direct, dans la barre de titre.
+/// Délai sans relevé réussi au-delà duquel le score est signalé comme ancien :
+/// trois relevés de 30 s manqués.
+const delaiScoreNonActualise = Duration(seconds: 90);
+
+/// Mention « Score non actualisé », dans la barre de titre, seulement quand le
+/// score en direct n'arrive plus depuis [delaiScoreNonActualise].
 ///
-/// Un rond qui tourne pendant l'appel, puis « il y a 12 s » qui vieillit en
-/// continu. Sans lui, un score gelé par une panne réseau était indiscernable
-/// d'un score à jour.
-class _Fraicheur extends StatefulWidget {
-  final bool     enCours;
+/// Elle remplace le compteur « il y a 12 s » affiché en permanence. Le
+/// compteur avait une raison d'être, qu'on garde : un score gelé par une panne
+/// réseau ne doit pas passer pour un score à jour. Mais tant que tout va bien,
+/// rien ne s'affiche.
+class _ScoreNonActualise extends StatefulWidget {
   final DateTime dernier;
-  const _Fraicheur({required this.enCours, required this.dernier});
+  const _ScoreNonActualise({required this.dernier});
 
   @override
-  State<_Fraicheur> createState() => _FraicheurState();
+  State<_ScoreNonActualise> createState() => _ScoreNonActualiseState();
 }
 
-class _FraicheurState extends State<_Fraicheur> {
+class _ScoreNonActualiseState extends State<_ScoreNonActualise> {
   Timer? _tic;
 
   @override
   void initState() {
     super.initState();
-    // Une seconde suffit : le libellé ne change qu'à la seconde près.
-    _tic = Timer.periodic(const Duration(seconds: 1), (_) {
+    // Le relevé réussi reconstruit déjà la page ; ce tic ne sert qu'à faire
+    // apparaître la mention quand plus rien n'arrive.
+    _tic = Timer.periodic(const Duration(seconds: 15), (_) {
       if (mounted) setState(() {});
     });
   }
@@ -1671,30 +1672,18 @@ class _FraicheurState extends State<_Fraicheur> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.enCours) {
-      return Padding(
-        padding: EdgeInsets.only(right: 8),
-        child: SizedBox(width: 16, height: 16,
-          child: CircularProgressIndicator(strokeWidth: 2, color: context.cl.error)),
-      );
-    }
-
-    final secondes = DateTime.now().difference(widget.dernier).inSeconds;
-    final libelle  = secondes < 5
-        ? tr(context, "à jour")
-        : secondes < 60
-          ? tr(context, "il y a {arg0}s", [secondes])
-          : tr(context, "il y a {arg0} min", [(secondes / 60).floor()]);
-
+    final ecart = DateTime.now().difference(widget.dernier);
+    if (ecart < delaiScoreNonActualise) return const SizedBox.shrink();
     return Semantics(
-      label: tr(context, "Score mis à jour {arg0}", [libelle]),
+      label: tr(context, "Score non actualisé depuis {arg0} min", [ecart.inMinutes]),
       excludeSemantics: true,
       child: Padding(
+        key: const Key('score-non-actualise'),
         padding: const EdgeInsets.only(right: 8),
         child: Row(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.sync_rounded, size: 12, color: context.cl.textM),
+          Icon(Icons.cloud_off_rounded, size: 13, color: context.cl.textM),
           const SizedBox(width: 4),
-          Text(libelle,
+          Text(tr(context, "Score non actualisé"),
             style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
         ]),
       ),

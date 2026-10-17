@@ -79,6 +79,41 @@ void main() {
     await t.pumpWidget(const SizedBox()); await t.pump();
     expect(t.takeException(),isNull);
   });
+
+  // Retour de l'utilisateur du 17 octobre 2026 : le compteur « il y a 12 s »
+  // et la roue de la barre de titre faisaient brouillon à côté d'une appli de
+  // résultats. Le score se relève sans rien afficher tant qu'il arrive.
+  testWidgets('direct : aucun compteur ni roue d’actualisation dans la barre de titre', (t) async {
+    SharedPreferences.setMockInitialValues({});
+    await t.pumpWidget(ProviderScope(overrides:[
+      ...donneesCommunes(),
+      matchInfoProvider('m').overrideWith((ref) async => const MatchInfo(phase:'1H')),
+      matchDetailProvider('m').overrideWith((ref) async => _match()),
+      liveScoreProvider('m').overrideWith((ref) async => const LiveScore(status:'LIVE',homeScore:1,awayScore:0,elapsed:39)),
+      matchStatsProvider('m').overrideWith((ref) async => _stats()),
+      lineupsProvider('m').overrideWith((ref) async => const LineupsData(available:false)),
+      injuriesProvider('m').overrideWith((ref) async => []),
+      standingsProvider('m').overrideWith((ref) async => []),
+      h2hProvider('m').overrideWith((ref) async => throw Exception('unavailable')),
+      liveOddsProvider('m').overrideWith((ref) async => const LiveOddsData(openingOdd:0,markets:[])),
+      playerRatingsProvider('m').overrideWith((ref) async => []),
+    ],child: MaterialApp(theme:AppTheme.dark,
+      builder:(c,w)=>MediaQuery(data:MediaQuery.of(c).copyWith(disableAnimations:true),child:w!),
+      home:const MatchDetailPage(matchId:'m'))));
+    await t.pump(); await t.pump(const Duration(milliseconds:500));
+    for (var i = 0; i < 3; i++) {
+      final barre = find.byType(AppBar);
+      expect(find.descendant(of: barre, matching: find.textContaining('il y a')), findsNothing);
+      expect(find.descendant(of: barre, matching: find.text('à jour')), findsNothing);
+      expect(find.descendant(of: barre, matching: find.byType(CircularProgressIndicator)), findsNothing);
+      expect(find.byKey(const Key('score-non-actualise')), findsNothing,
+          reason: 'le score arrive : rien à signaler');
+      // Un relevé de 30 s, pris pendant l'appel puis après.
+      await t.pump(const Duration(seconds:30)); await t.pump();
+    }
+    await t.pumpWidget(const SizedBox()); await t.pump();
+    expect(t.takeException(),isNull);
+  });
 }
 
 MatchModel _match({String status='live'}) => MatchModel.fromJson({

@@ -1595,4 +1595,6 @@ const englishMessages = <String, String>{
   "Le calcul statistique est plus confiant que notre analyste : {arg0} % contre {arg1} %.": "The statistical calculation is more confident than our analyst: {arg0}% vs {arg1}%.",
   "Probabilité de succès estimée par notre modèle statistique": "Success probability estimated by our statistical model",
   "Estimations statistiques — forme, attaque, défense, face-à-face et simulation des buts.": "Statistical estimates — form, attack, defence, head-to-head and goal simulation.",
+  "Score non actualisé": "Score not updated",
+  "Score non actualisé depuis {arg0} min": "Score not updated for {arg0} min",
 };
