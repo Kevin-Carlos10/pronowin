@@ -12,7 +12,7 @@ class VerifyOtpUseCase {
     required String otp,
   }) {
     if (otp.length != 6) {
-      return Future.value(const Left(ValidationFailure('Le code OTP doit contenir 6 chiffres.')));
+      return Future.value( Left(ValidationFailure("Le code OTP doit contenir 6 chiffres.")));
     }
     return _repository.verifyOtp(phoneNumber: phoneNumber, otp: otp);
   }

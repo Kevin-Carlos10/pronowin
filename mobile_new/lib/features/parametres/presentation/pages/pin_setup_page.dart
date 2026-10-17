@@ -1,10 +1,17 @@
-﻿import 'package:flutter/material.dart';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/pin_store.dart';
 import '../providers/settings_provider.dart';
+import '../../../../shared/utils/retour.dart';
+import '../../../../shared/utils/messages.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/parametres';
+
 
 class PinSetupPage extends ConsumerStatefulWidget {
   const PinSetupPage({super.key});
@@ -51,21 +58,16 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
   Future<void> _validate() async {
     if (_pin == _confirm) {
       HapticFeedback.mediumImpact();
-      final p = await SharedPreferences.getInstance();
-      await p.setString('pin_code', _pin);
+      await ref.read(pinStoreProvider).save(_pin);
       await ref.read(settingsProvider.notifier).setPinEnabled(true);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Code PIN activé avec succès ✅'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ));
-        context.pop();
+        afficherMessage(context, tr(context, "Code PIN activé avec succès ✅"), type: TypeMessage.succes);
+        retourOuAller(context, repli: _repli);
       }
     } else {
       HapticFeedback.heavyImpact();
       setState(() {
-        _error   = 'Les codes ne correspondent pas. Recommencez.';
+        _error   = tr(context, "Les codes ne correspondent pas. Recommencez.");
         _pin     = '';
         _confirm = '';
         _step2   = false;
@@ -81,22 +83,22 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.pop(),
+          onPressed: () => retourOuAller(context, repli: _repli),
         ),
-        title: Text(_step2 ? 'Confirmer le PIN' : 'Créer un code PIN'),
+        title: Text(_step2 ? tr(context, "Confirmer le PIN") : tr(context, "Créer un code PIN")),
       ),
       body: Column(children: [
         const SizedBox(height: 40),
 
         // Titre
         Text(
-          _step2 ? 'Confirmez ton code PIN' : 'Choisis un code PIN à 4 chiffres',
+          _step2 ? tr(context, "Confirmez ton code PIN") : tr(context, "Choisis un code PIN à 4 chiffres"),
           style: TextStyle(color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w600),
           textAlign: TextAlign.center,
         ),
         SizedBox(height: 8),
         Text(
-          _step2 ? 'Entrez à nouveau le même code' : 'Ce code protégera l\'accès à l\'application',
+          _step2 ? tr(context, "Entrez à nouveau le même code") : tr(context, "Ce code protégera l'accès à l'application"),
           style: TextStyle(color: context.cl.textS, fontSize: 13),
           textAlign: TextAlign.center,
         ),
@@ -125,7 +127,7 @@ class _PinSetupPageState extends ConsumerState<PinSetupPage> {
         if (_error.isNotEmpty)
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 40),
-            child: Text(_error, style: const TextStyle(color: AppColors.error, fontSize: 13),
+            child: Text(_error, style: TextStyle(color: context.cl.error, fontSize: 13),
               textAlign: TextAlign.center),
           ),
         const SizedBox(height: 32),

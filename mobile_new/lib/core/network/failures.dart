@@ -1,10 +1,20 @@
+import 'package:pronowin/l10n/app_strings.dart';
 abstract class Failure {
-  final String message;
-  const Failure(this.message);
+  final String _sourceMessage;
+  final List<Object?> _arguments;
+  String get message => trCurrent(_sourceMessage, _arguments);
+  const Failure(String message, [List<Object?> arguments = const []])
+      : _sourceMessage = message, _arguments = arguments;
 }
 
 class ServerFailure extends Failure {
-  const ServerFailure(super.message);
+  const ServerFailure(super.message, [super.arguments]);
+}
+
+/// 404 : la ressource n'existe pas. Seul cas où « introuvable » est vrai —
+/// une panne réseau n'en dit rien.
+class NotFoundFailure extends ServerFailure {
+  const NotFoundFailure() : super('Ressource introuvable.');
 }
 
 class NetworkFailure extends Failure {

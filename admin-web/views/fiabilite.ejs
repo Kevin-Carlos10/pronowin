@@ -1,0 +1,315 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
+<%- include('layout_top', {page:'fiabilite'}) %>
+
+<style>
+.fb-periodes   { display: flex; gap: .4rem; flex-wrap: wrap; }
+.fb-resume     { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; margin-bottom: 1.2rem; }
+.fb-tuile      { background: var(--surface-d); border: 1px solid var(--border); border-radius: 12px; padding: .85rem 1rem; }
+.fb-tuile .v   { font-size: 1.5rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.fb-tuile .l   { font-size: .72rem; color: var(--text-m); margin-top: .2rem; line-height: 1.45; }
+.fb-tab        { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.fb-tab th     { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+                 color: var(--text-m); padding: .55rem .7rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.fb-tab td     { padding: .6rem .7rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.fb-tab tr:last-child td { border-bottom: 0; }
+.fb-num        { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fb-sous       { display: block; font-size: .72rem; color: var(--text-dim); margin-top: .15rem; }
+.fb-pos        { color: var(--on-success); }
+.fb-neg        { color: var(--on-danger); }
+/* La jauge : la barre pleine est le taux réel, la zone claire l'intervalle
+   où le hasard le laisse varier, le trait vertical le pourcentage annoncé.
+   Trait dans la zone claire : l'annonce tient. */
+.fb-jauge      { display: block; width: 100%; min-width: 140px; height: 14px; }
+.fb-jauge .fond { fill: color-mix(in srgb, var(--text-m) 10%, transparent); }
+.fb-jauge .int  { fill: color-mix(in srgb, var(--on-info) 45%, transparent); }
+.fb-jauge .reel { fill: var(--on-info); }
+.fb-jauge .ann  { fill: var(--primary-texte); }
+.fb-legende    { display: flex; flex-wrap: wrap; gap: .4rem 1.2rem; font-size: .74rem; color: var(--text-m); margin: .2rem 0 .8rem; }
+.fb-sw         { display: inline-block; vertical-align: middle; margin-right: .35rem; border-radius: 3px; }
+.fb-sw.reel    { width: 18px; height: 6px;  background: var(--on-info); }
+.fb-sw.int     { width: 18px; height: 10px; background: color-mix(in srgb, var(--on-info) 45%, transparent); }
+.fb-sw.ann     { width: 3px;  height: 12px; background: var(--primary-texte); }
+.fb-dim        { color: var(--text-dim); }
+.fb-carte      { padding: 0; overflow: hidden; }
+.fb-titre      { margin: 1.6rem 0 .8rem; font-size: 1rem; }
+.fb-titre.serre { margin-bottom: .4rem; }
+.fb-aide       { padding: .85rem 1.1rem; margin-top: 1.2rem; }
+.fb-aide p     { margin: 0; font-size: .8rem; color: var(--text-m); line-height: 1.65; }
+@media (max-width: 760px) {
+  .fb-resume   { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
+
+<%
+  const _d     = (typeof donnees !== 'undefined' && donnees) ? donnees : null;
+  const _err   = typeof erreur !== 'undefined' ? erreur : null;
+  const _jours = typeof jours !== 'undefined' ? jours : null;
+  const _pers  = (typeof periodes !== 'undefined' && periodes) ? periodes : [30, 90, 365];
+  const _lib   = (typeof libelleMarche === 'function') ? libelleMarche : (c => c);
+  const _min   = _d ? _d.echantillonMinimal : 10;
+
+  const _nomPeriode = j => j === 365 ? '1 an' : j + ' j';
+  const _pct   = v => v === null || v === undefined ? '—' : v + ' %';
+  const _ecart = v => v === null || v === undefined ? '—' : (v > 0 ? '+' : v < 0 ? '−' : '') + Math.abs(v) + ' pts';
+  const _cote  = v => v === null || v === undefined ? '—' : v.toLocaleString('fr-FR', { minimumFractionDigits: 2 });
+  const _roi   = r => !r || r.roi_pct === null ? '—'
+    : (r.roi_pct > 0 ? '+' : '') + r.roi_pct.toLocaleString('fr-FR') + ' %';
+  const _clsSigne = v => v === null || v === undefined || v === 0 ? '' : v > 0 ? 'fb-pos' : 'fb-neg';
+
+  const _TRANCHES = {
+    '1-49': 'Moins de 50 %', '50-59': '50 à 59 %', '60-69': '60 à 69 %',
+    '70-79': '70 à 79 %', '80-89': '80 à 89 %', '90-99': '90 % et plus',
+  };
+  const _VERDICTS = {
+    fiable:         { label: 'Fiable',         cls: 'badge-ok',   aide: "l'annonce tient" },
+    trop_optimiste: { label: 'Trop optimiste', cls: 'badge-err',  aide: 'on annonce plus que ce qu’on gagne' },
+    trop_prudent:   { label: 'Trop prudent',   cls: 'badge-info', aide: 'on gagne plus que ce qu’on annonce' },
+  };
+  // Un verdict n'est posé qu'au-delà du seuil ; en dessous, on dit combien il manque.
+  const _verdict = g => _VERDICTS[g.verdict] ?? null;
+%>
+
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Pronostics · qualité</p>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Fiabilité de l'indice de confiance</h1>
+    <p class="workspace-description">
+      Ce qui a été annoncé, comparé à ce qui s'est passé. Un pronostic annoncé à 75 % devrait gagner
+      environ trois fois sur quatre.
+    </p>
+  </div>
+  <div class="workspace-actions">
+    <nav class="fb-periodes" aria-label="Période">
+      <% _pers.forEach(j => { %>
+        <a href="/admin/fiabilite?jours=<%= j %>" class="btn btn-sm <%= _jours === j ? 'btn-primary' : 'btn-outline' %>"
+           <%= _jours === j ? 'aria-current=page' : '' %>><%= _nomPeriode(j) %></a>
+      <% }) %>
+      <a href="/admin/fiabilite" class="btn btn-sm <%= _jours === null ? 'btn-primary' : 'btn-outline' %>"
+         <%= _jours === null ? 'aria-current=page' : '' %>>Tout</a>
+    </nav>
+  </div>
+</header>
+
+<% if (!_d) { %>
+  <div class="alert alert-error">
+    <strong><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> API injoignable</strong>
+    — impossible de lire les résultats<%= _err ? ' : ' + _err : '.' %>
+  </div>
+<% } else if (_d.global.tranches === 0) { %>
+  <div class="card">
+    <div class="empty-state">
+      <div class="empty-state-title">Aucun pronostic réglé sur cette période</div>
+      <div class="empty-state-desc">
+        Seuls les pronostics publiés, gagnés ou perdus, comptent. Choisissez une période plus longue, ou « Tout ».
+      </div>
+    </div>
+  </div>
+<% } else { const g = _d.global; const vg = _verdict(g); %>
+
+<div class="fb-resume metric-grid">
+  <div class="fb-tuile metric-card">
+    <div class="v"><%= _pct(g.annonceMoyen) %></div>
+    <div class="l">annoncé en moyenne</div>
+  </div>
+  <div class="fb-tuile metric-card">
+    <div class="v"><%= _pct(g.tauxReel) %></div>
+    <div class="l">réellement gagnés<br><span class="fb-dim"><%= g.gagnes %> sur <%= g.tranches %></span></div>
+  </div>
+  <div class="fb-tuile metric-card">
+    <div class="v <%= _clsSigne(g.ecart) %>"><%= _ecart(g.ecart) %></div>
+    <div class="l">
+      écart réel − annoncé<br>
+      <% if (vg) { %><span class="badge <%= vg.cls %>"><%= vg.label %></span><% } %>
+    </div>
+  </div>
+  <div class="fb-tuile metric-card">
+    <div class="v <%= _clsSigne(g.rendement.roi_pct) %>"><%= _roi(g.rendement) %></div>
+    <div class="l">rendement<br><span class="fb-dim">1 unité misée sur chaque pronostic</span></div>
+  </div>
+</div>
+
+<% if (vg && g.verdict !== 'fiable') { %>
+  <div class="alert <%= g.verdict === 'trop_optimiste' ? 'alert-error' : 'alert-warning' %>" data-toast="skip"><div>
+    <% if (g.verdict === 'trop_optimiste') { %>
+      <strong>Les pronostics gagnent moins souvent que ce qui est annoncé.</strong>
+      Annoncé <%= g.annonceMoyen %> %, gagné <%= g.tauxReel %> % : l'écart dépasse ce que le hasard explique
+      sur <%= g.tranches %> pronostics. Les abonnés misent sur une confiance qui ne se vérifie pas.
+    <% } else { %>
+      <strong>Les pronostics gagnent plus souvent que ce qui est annoncé.</strong>
+      Annoncé <%= g.annonceMoyen %> %, gagné <%= g.tauxReel %> % : la confiance affichée pourrait être relevée.
+    <% } %>
+  </div></div>
+<% } %>
+
+<h3 class="fb-titre serre">Par niveau de confiance annoncé</h3>
+<div class="fb-legende" aria-hidden="true">
+  <span><i class="fb-sw reel"></i>taux réel</span>
+  <span><i class="fb-sw int"></i>marge du hasard (95 %)</span>
+  <span><i class="fb-sw ann"></i>annoncé</span>
+</div>
+
+<div class="card cr-panel fb-carte">
+  <div class="table-wrap">
+  <table class="fb-tab">
+    <thead>
+      <tr>
+        <th scope="col">Confiance annoncée</th>
+        <th scope="col"><%= uiText("Pronostics") %></th>
+        <th scope="col">Annoncé</th>
+        <th scope="col">Réel</th>
+        <th scope="col">Comparaison</th>
+        <th scope="col">Verdict</th>
+        <th scope="col">Cote moyenne</th>
+        <th scope="col">Rendement</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% _d.tranches.filter(t => t.tranches > 0 || t.rembourses > 0).forEach(t => { const v = _verdict(t); %>
+      <tr>
+        <td><div><strong><%= _TRANCHES[t.cle] ?? t.cle %></strong></div></td>
+        <td class="fb-num"><div>
+          <%= t.tranches %>
+          <% if (t.rembourses) { %><span class="fb-sous">+ <%= t.rembourses %> remboursé<%= t.rembourses > 1 ? 's' : '' %></span><% } %>
+        </div></td>
+        <td class="fb-num"><div><%= _pct(t.annonceMoyen) %></div></td>
+        <td class="fb-num"><div>
+          <%= _pct(t.tauxReel) %>
+          <% if (t.intervalle) { %><span class="fb-sous">entre <%= t.intervalle[0] %> et <%= t.intervalle[1] %> %</span><% } %>
+        </div></td>
+        <td><div>
+          <% if (t.tauxReel !== null) { %>
+          <%# Échelle de 0 à 100 : les positions sont des attributs SVG, pas des styles. %>
+          <svg class="fb-jauge" viewBox="0 0 100 14" preserveAspectRatio="none" role="img"
+               aria-label="Annoncé <%= t.annonceMoyen %> %, réel <%= t.tauxReel %> %, marge de <%= t.intervalle[0] %> à <%= t.intervalle[1] %> %">
+            <rect class="fond" x="0" y="2" width="100" height="10"/>
+            <rect class="int"  x="<%= t.intervalle[0] %>" y="2" width="<%= t.intervalle[1] - t.intervalle[0] %>" height="10"/>
+            <rect class="reel" x="0" y="5" width="<%= t.tauxReel %>" height="4"/>
+            <rect class="ann"  x="<%= Math.max(0, Math.min(98.5, t.annonceMoyen - 0.75)) %>" y="0" width="1.5" height="14"/>
+          </svg>
+          <% } %>
+        </div></td>
+        <td><div>
+          <% if (v) { %>
+            <span class="badge <%= v.cls %>"><%= v.label %></span>
+            <span class="fb-sous <%= _clsSigne(t.ecart) %>"><%= _ecart(t.ecart) %></span>
+          <% } else { %>
+            <span class="fb-dim">Trop peu : <%= t.tranches %> sur <%= _min %> requis</span>
+          <% } %>
+        </div></td>
+        <td class="fb-num"><div>
+          <%= _cote(t.coteMoyenne) %>
+          <% if (t.chanceCote !== null) { %><span class="fb-sous">le bookmaker donne <%= t.chanceCote %> %</span><% } %>
+        </div></td>
+        <td class="fb-num <%= _clsSigne(t.rendement.roi_pct) %>"><div><%= _roi(t.rendement) %></div></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<h3 class="fb-titre">Par type de pari</h3>
+
+<div class="card cr-panel fb-carte">
+  <div class="table-wrap">
+  <table class="fb-tab">
+    <thead>
+      <tr>
+        <th scope="col">Pari</th>
+        <th scope="col"><%= uiText("Pronostics") %></th>
+        <th scope="col">Annoncé</th>
+        <th scope="col">Réel</th>
+        <th scope="col">Verdict</th>
+        <th scope="col">Cote moyenne</th>
+        <th scope="col">Rendement</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% _d.marches.forEach(m => { const v = _verdict(m); %>
+      <tr>
+        <td><div><strong><%= _lib(m.cle) %></strong></div></td>
+        <td class="fb-num"><div>
+          <%= m.tranches %>
+          <% if (m.rembourses) { %><span class="fb-sous">+ <%= m.rembourses %> remboursé<%= m.rembourses > 1 ? 's' : '' %></span><% } %>
+        </div></td>
+        <td class="fb-num"><div><%= _pct(m.annonceMoyen) %></div></td>
+        <td class="fb-num"><div><%= _pct(m.tauxReel) %></div></td>
+        <td><div>
+          <% if (v) { %>
+            <span class="badge <%= v.cls %>"><%= v.label %></span>
+            <span class="fb-sous <%= _clsSigne(m.ecart) %>"><%= _ecart(m.ecart) %></span>
+          <% } else { %>
+            <span class="fb-dim">Trop peu : <%= m.tranches %> sur <%= _min %> requis</span>
+          <% } %>
+        </div></td>
+        <td class="fb-num"><div><%= _cote(m.coteMoyenne) %></div></td>
+        <td class="fb-num <%= _clsSigne(m.rendement.roi_pct) %>"><div><%= _roi(m.rendement) %></div></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<h3 class="fb-titre">Premium et gratuits</h3>
+
+<div class="card cr-panel fb-carte">
+  <div class="table-wrap">
+  <table class="fb-tab">
+    <thead>
+      <tr>
+        <th scope="col"><%= uiText("Pronostics") %></th>
+        <th scope="col">Nombre</th>
+        <th scope="col">Annoncé</th>
+        <th scope="col">Réel</th>
+        <th scope="col">Verdict</th>
+        <th scope="col">Rendement</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% _d.formules.forEach(f => { const v = _verdict(f); %>
+      <tr>
+        <td><div><strong><%= f.cle === 'premium' ? 'Premium' : 'Gratuits' %></strong></div></td>
+        <td class="fb-num"><div><%= f.tranches %></div></td>
+        <td class="fb-num"><div><%= _pct(f.annonceMoyen) %></div></td>
+        <td class="fb-num"><div><%= _pct(f.tauxReel) %></div></td>
+        <td><div>
+          <% if (v) { %>
+            <span class="badge <%= v.cls %>"><%= v.label %></span>
+          <% } else { %>
+            <span class="fb-dim">Trop peu : <%= f.tranches %> sur <%= _min %> requis</span>
+          <% } %>
+        </div></td>
+        <td class="fb-num <%= _clsSigne(f.rendement.roi_pct) %>"><div><%= _roi(f.rendement) %></div></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<div class="card cr-panel cr-callout fb-aide">
+  <p>
+    <strong>Comment lire cette page.</strong>
+    Sur quelques pronostics, gagner un peu plus ou un peu moins que prévu est normal : c'est le hasard.
+    Chaque taux réel est donc donné avec sa marge — l'intervalle où il pourrait tomber par simple hasard.
+    Le verdict ne tombe que si le pourcentage annoncé sort de cette marge, et jamais sous
+    <%= _min %> pronostics gagnés ou perdus.
+    <br>
+    « Trop optimiste » : on annonce plus que ce qu'on gagne. C'est le cas à corriger en premier — l'abonné
+    mise davantage sur un pronostic qu'on lui présente comme sûr.
+    <br>
+    Le rendement suppose une unité misée sur chaque pronostic, à la cote recommandée. Les remboursements
+    ne comptent ni comme gagnés ni comme perdus. Seuls les pronostics publiés sont comptés ; la période porte
+    sur la date du match.
+    <% if (_d.reconstitues) { %>
+      <br>
+      <%= _d.reconstitues %> pronostic<%= _d.reconstitues > 1 ? 's ont été publiés' : ' a été publié' %> avant la saisie en
+      pourcentage : leur annonce est le milieu de leur nombre d'étoiles (3 étoiles = 50 %, 4 = 70 %, 5 = 90 %).
+    <% } %>
+  </p>
+</div>
+
+<% } %>
+
+<%- include('layout_bottom') %>

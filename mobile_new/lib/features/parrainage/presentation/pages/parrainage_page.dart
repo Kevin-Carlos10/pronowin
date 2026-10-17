@@ -1,10 +1,22 @@
-﻿import 'package:flutter/material.dart';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../providers/referral_provider.dart';
+import '../../domain/recompense_premium.dart';
+import '../../../../core/config/distribution_channel.dart';
+import '../../../../shared/utils/retour.dart';
+import '../../../../shared/utils/partage_parrainage.dart';
+import '../../../../shared/utils/rafraichir.dart';
+import '../../../../shared/utils/messages.dart';
+
+/// Ou revenir quand la page a ete ouverte sans historique —
+/// par un lien profond de notification, qui remplace la pile.
+const _repli = '/compte';
+
 
 class ParrainagePage extends ConsumerWidget {
   const ParrainagePage({super.key});
@@ -15,7 +27,17 @@ class ParrainagePage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
+        // Page atteinte par `push` depuis le Compte : sans flèche de retour
+        // (et avec `automaticallyImplyLeading: false`), elle était un
+        // cul-de-sac dès qu'on y arrivait.
         automaticallyImplyLeading: false,
+        leading: context.canPop()
+          ? IconButton(
+              icon: Icon(Icons.arrow_back_ios_new_rounded,
+                size: 20, color: context.cl.textS),
+              onPressed: () => retourOuAller(context, repli: _repli),
+            )
+          : null,
         title: Row(children: [
           Container(width: 32, height: 32,
             decoration: BoxDecoration(
@@ -29,16 +51,13 @@ class ParrainagePage extends ConsumerWidget {
           const SizedBox(width: 10),
           RichText(text: TextSpan(
             style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.cl.textP),
-            children: const [
-              TextSpan(text: 'Parrain'),
-              TextSpan(text: 'age', style: TextStyle(color: Color(0xFFA78BFA))),
-            ],
+            children: [TextSpan(text: tr(context, "Parrainage"), style: const TextStyle(color: Color(0xFFA78BFA)))],
           )),
         ]),
       ),
       body: statsAsync.when(
         loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFA78BFA))),
-        error:   (e, _) => Center(child: Text('$e', style: const TextStyle(color: AppColors.error))),
+        error:   (e, _) => Center(child: Text('$e', style: TextStyle(color: context.cl.error))),
         data: (stats) {
           final code       = stats['referral_code'] as String? ?? '------';
           final earnings   = (stats['total_earnings'] as num?)?.toInt() ?? 0;
@@ -46,6 +65,9 @@ class ParrainagePage extends ConsumerWidget {
           final minWithdraw = (stats['min_withdrawal'] as num?)?.toInt() ?? 2000;
           final commL1     = (stats['commission_l1'] as num?)?.toInt() ?? 500;
           final commL2     = (stats['commission_l2'] as num?)?.toInt() ?? 200;
+          // Le canal ne se lit qu'une fois : cet écran affiche le barème à
+          // quatre endroits, et trois d'entre eux l'écrivaient en francs.
+          final estStore   = ref.watch(isStoreBuildProvider);
           final s          = stats['stats'] as Map<String, dynamic>? ?? {};
           final totalL1    = (s['total_l1'] as num?)?.toInt() ?? 0;
           final premL1     = (s['premium_l1'] as num?)?.toInt() ?? 0;
@@ -57,15 +79,39 @@ class ParrainagePage extends ConsumerWidget {
 
           return RefreshIndicator(
             color: const Color(0xFFA78BFA),
-            onRefresh: () async => ref.invalidate(referralStatsProvider),
+            onRefresh: () {
+              ref.invalidate(referralStatsProvider);
+              return attendreChargements([ref.read(referralStatsProvider.future)]);
+            },
             child: ListView(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
               children: [
 
                 // ─── Solde + Code ──────────────────────────────────────────
+                // Le retrait en argent ne suit pas l'application sur Play.
+                //
+                // Le parrainage reste entier — seule la sortie en espèces
+                // disparaît, et la récompense se convertit en jours Premium.
+                //
+                // Ce n'est pas la générosité du programme qui pose problème,
+                // c'est la combinaison : pronostics sportifs, « gains »
+                // accumulés, retrait en argent réel. Séparément anodins,
+                // ensemble ils dessinent ce qu'un examinateur cherche quand il
+                // évalue la catégorie « jeux d'argent réel ».
+                //
+                // Le serveur décide déjà si le solde permet un retrait
+                // (`can_withdraw`) ; le canal décide s'il est proposé.
+                //
+                // Le canal était appliqué ici, en forçant `canWithdraw` à
+                // faux. Cela masquait bien le bouton — et faisait afficher le
+                // texte de repli, qui est précisément « Encore 2 000 FCFA pour
+                // retirer ». Éteindre la permission n'efface pas la promesse ;
+                // le drapeau descend donc entier dans l'encart, qui choisit
+                // son vocabulaire au lieu de subir un booléen mutilé.
                 _EarningsBanner(
                   earnings:   earnings,
                   canWithdraw: canWithdraw,
+                  estStore:   estStore,
                   minWithdraw: minWithdraw,
                   onWithdraw: () => context.push('/parrainage/retrait', extra: {
                     'earnings': earnings, 'min': minWithdraw,
@@ -87,7 +133,7 @@ class ParrainagePage extends ConsumerWidget {
                 ],
 
                 // ─── Comment ça marche ─────────────────────────────────────
-                _HowItWorksCard(commL1: commL1, commL2: commL2)
+                _HowItWorksCard(commL1: commL1, commL2: commL2, estStore: estStore)
                   .animate().fadeIn(duration: 300.ms, delay: 160.ms),
                 const SizedBox(height: 16),
 
@@ -98,7 +144,7 @@ class ParrainagePage extends ConsumerWidget {
 
                 // ─── Liste filleuls L1 ─────────────────────────────────────
                 if (l1List.isNotEmpty) ...[
-                  _SectionLabel('FILLEULS DIRECTS (${l1List.length})'),
+                  _SectionLabel(tr(context, "FILLEULS DIRECTS ({arg0})", [l1List.length])),
                   ...l1List.asMap().entries.map((e) => _FilleulTile(
                     pseudo:     e.value['pseudo']    as String? ?? '—',
                     plan:       e.value['plan']      as String? ?? 'free',
@@ -106,6 +152,7 @@ class ParrainagePage extends ConsumerWidget {
                     isPaid:     e.value['is_paid']   as bool? ?? false,
                     joinedAt:   e.value['joined_at'] as String?,
                     level:      1,
+                    estStore:   estStore,
                   ).animate(delay: Duration(milliseconds: e.key * 50))
                     .fadeIn(duration: 300.ms)
                     .slideX(begin: -0.05, end: 0, duration: 280.ms, curve: Curves.easeOutCubic)),
@@ -114,7 +161,7 @@ class ParrainagePage extends ConsumerWidget {
 
                 // ─── Liste filleuls L2 ─────────────────────────────────────
                 if (l2List.isNotEmpty) ...[
-                  _SectionLabel('FILLEULS DE FILLEULS (${l2List.length})'),
+                  _SectionLabel(tr(context, "FILLEULS DE FILLEULS ({arg0})", [l2List.length])),
                   ...l2List.asMap().entries.map((e) => _FilleulTile(
                     pseudo:     e.value['pseudo']    as String? ?? '—',
                     plan:       e.value['plan']      as String? ?? 'free',
@@ -122,6 +169,7 @@ class ParrainagePage extends ConsumerWidget {
                     isPaid:     e.value['is_paid']   as bool? ?? false,
                     joinedAt:   e.value['joined_at'] as String?,
                     level:      2,
+                    estStore:   estStore,
                   ).animate(delay: Duration(milliseconds: e.key * 50))
                     .fadeIn(duration: 300.ms)
                     .slideX(begin: -0.05, end: 0, duration: 280.ms, curve: Curves.easeOutCubic)),
@@ -151,15 +199,25 @@ class ParrainagePage extends ConsumerWidget {
 class _EarningsBanner extends StatelessWidget {
   final int earnings, minWithdraw;
   final bool canWithdraw;
+  final bool estStore;
   final VoidCallback onWithdraw;
 
   const _EarningsBanner({
     required this.earnings, required this.minWithdraw,
-    required this.canWithdraw, required this.onWithdraw,
+    required this.canWithdraw, required this.estStore,
+    required this.onWithdraw,
   });
 
+  /// Jours d'abonnement que le solde ouvre — seule unité du canal store.
+  int get _jours => joursPremiumPour(earnings);
+
+  /// Y a-t-il quelque chose à proposer ? Le canal store demande un jour
+  /// entier à créditer ; le canal direct demande le seuil de versement.
+  bool get _peutAgir => estStore ? _jours >= 1 : canWithdraw;
+
+  // Carte toujours sombre (violet nuit) : son contenu lit le thème sombre.
   @override
-  Widget build(BuildContext context) => Container(
+  Widget build(BuildContext context) => SurfaceSombre(builder: (context) => Container(
     padding: const EdgeInsets.all(20),
     decoration: BoxDecoration(
       gradient: const LinearGradient(
@@ -168,37 +226,63 @@ class _EarningsBanner extends StatelessWidget {
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: const Color(0xFFA78BFA).withValues(alpha: 0.3), width: 1)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('MES GAINS PARRAINAGE', style: TextStyle(
-        color: Color(0xFFA78BFA), fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1)),
-      const SizedBox(height: 8),
-      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        TweenAnimationBuilder<int>(
-          tween: IntTween(begin: 0, end: earnings),
-          duration: const Duration(milliseconds: 900),
-          curve: Curves.easeOutCubic,
-          builder: (_, v, _) => Text(
-            v.toLocaleString(),
-            style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.w800),
-          ),
-        ),
-        const Padding(
-          padding: EdgeInsets.only(left: 6, bottom: 6),
-          child: Text('FCFA', style: TextStyle(color: Color(0xFFA78BFA), fontSize: 14, fontWeight: FontWeight.w600)),
-        ),
-      ]),
+      // Le compteur monte de 0 jusqu'au montant : lu tel quel, il annonçait
+      // une suite de nombres. Et le seuil de retrait n'était rattaché à rien.
+      // L'exclusion s'arrête ici — le bouton « Retirer » plus bas doit rester
+      // atteignable au lecteur d'écran.
+      Semantics(
+        label: estStore
+            ? tr(context, "Mes récompenses de parrainage : {arg0} d'abonnement Premium.", [libelleJours(_jours)])
+            : tr(context, "Mes récompenses de parrainage : {arg0} FCFA. {arg1}", [earnings, canWithdraw
+                  ? tr(context, "Montant retirable.")
+                  : tr(context, "Retrait possible à partir de {arg0} FCFA.", [minWithdraw])]),
+        excludeSemantics: true,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(estStore ? tr(context, "MES RÉCOMPENSES PARRAINAGE")
+                        : tr(context, "MES GAINS PARRAINAGE"),
+            style: const TextStyle(
+              color: Color(0xFFA78BFA), fontSize: 11,
+              fontWeight: FontWeight.w600, letterSpacing: 1)),
+          const SizedBox(height: 8),
+          Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            TweenAnimationBuilder<int>(
+              tween: IntTween(begin: 0, end: estStore ? _jours : earnings),
+              duration: const Duration(milliseconds: 900),
+              curve: Curves.easeOutCubic,
+              builder: (_, v, _) => Text(
+                v.toLocaleString(),
+                style: const TextStyle(
+                  color: Colors.white, fontSize: 36, fontWeight: FontWeight.w700),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.only(left: 6, bottom: 6),
+              child: Text(estStore ? tr(context, "jours Premium") : 'FCFA',
+                style: const TextStyle(
+                  color: Color(0xFFA78BFA), fontSize: 14, fontWeight: FontWeight.w600)),
+            ),
+          ]),
+        ]),
+      ),
       const SizedBox(height: 12),
       Row(children: [
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(
-            canWithdraw
-              ? '✅ Retrait disponible !'
-              : 'Encore ${(minWithdraw - earnings).toLocaleString()} FCFA pour retirer',
+            estStore
+              ? (_peutAgir
+                  ? tr(context, "✅ Convertibles en jours Premium")
+                  : tr(context, "Parraine un ami pour gagner tes premiers jours Premium"))
+              : (canWithdraw
+                  ? tr(context, "✅ Retrait disponible !")
+                  : tr(context, "Encore {arg0} FCFA pour retirer", [(minWithdraw - earnings).toLocaleString()])),
             style: TextStyle(
-              color: canWithdraw ? AppColors.success : const Color(0xFFCBD5E1),
+              color: _peutAgir ? context.cl.success : const Color(0xFFCBD5E1),
               fontSize: 12,
             ),
           ),
-          if (!canWithdraw) ...[
+          // La barre mesure une progression vers un seuil de versement : elle
+          // n'a rien à mesurer dans un canal qui ne verse pas.
+          if (!estStore && !canWithdraw) ...[
             const SizedBox(height: 6),
             TweenAnimationBuilder<double>(
               tween: Tween(begin: 0, end: (earnings / minWithdraw).clamp(0.0, 1.0)),
@@ -216,19 +300,20 @@ class _EarningsBanner extends StatelessWidget {
             ),
           ],
         ])),
-        if (canWithdraw) ...[
+        if (_peutAgir) ...[
           const SizedBox(width: 12),
           ElevatedButton(
             onPressed: onWithdraw,
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFA78BFA),
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
-            child: const Text('Retirer', style: TextStyle(fontWeight: FontWeight.w700)),
+            child: Text(estStore ? tr(context, "Convertir") : tr(context, "Retirer"),
+              style: const TextStyle(fontWeight: FontWeight.w700)),
           ),
         ],
       ]),
     ]),
-  );
+  ));
 }
 
 // ─── CODE PARRAINAGE ─────────────────────────────────────────────────────────
@@ -243,19 +328,14 @@ class _ReferralCodeCard extends StatelessWidget {
       color: context.cl.surface, borderRadius: BorderRadius.circular(16),
       border: Border.all(color: context.cl.border, width: 0.5)),
     child: Column(children: [
-      Text('VOTRE CODE DE PARRAINAGE', style: TextStyle(
+      Text(tr(context, "VOTRE CODE DE PARRAINAGE"), style: TextStyle(
         color: context.cl.textS, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1)),
       const SizedBox(height: 12),
       GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact();
           Clipboard.setData(ClipboardData(text: code));
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('Code copié ! 📋'),
-            behavior: SnackBarBehavior.floating,
-            backgroundColor: AppColors.success,
-            duration: Duration(seconds: 2),
-          ));
+          afficherMessage(context, tr(context, "Code copié ! 📋"), type: TypeMessage.succes, duree: Duration(seconds: 2));
         },
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
@@ -266,14 +346,14 @@ class _ReferralCodeCard extends StatelessWidget {
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Text(code, style: const TextStyle(
               color: Color(0xFFA78BFA), fontSize: 28,
-              fontWeight: FontWeight.w800, letterSpacing: 6)),
+              fontWeight: FontWeight.w700, letterSpacing: 6)),
             const SizedBox(width: 12),
             const Icon(Icons.copy_rounded, color: Color(0xFFA78BFA), size: 20),
           ]),
         ),
       ),
       const SizedBox(height: 10),
-      Text('Appuyez pour copier · Partagez avec tes amis',
+      Text(tr(context, "Appuyez pour copier · Partagez avec tes amis"),
         style: TextStyle(color: context.cl.textM, fontSize: 11)),
       const SizedBox(height: 12),
       SizedBox(
@@ -281,7 +361,7 @@ class _ReferralCodeCard extends StatelessWidget {
         child: ElevatedButton.icon(
           onPressed: () => _showShareSheet(context, code),
           icon: const Icon(Icons.share_rounded, size: 18),
-          label: const Text('Partager mon code'),
+          label:  Text(tr(context, "Partager mon code")),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFA78BFA),
             foregroundColor: Colors.white,
@@ -293,10 +373,7 @@ class _ReferralCodeCard extends StatelessWidget {
 
   void _showShareSheet(BuildContext context, String code) {
     const purple = Color(0xFFA78BFA);
-    final message = '🏆 Rejoins PronoWin et gagne avec les meilleurs pronostics !\n'
-                    'Utilise mon code de parrainage : *$code*\n'
-                    '👉 Télécharge l\'app : pronowin.com/download\n'
-                    '💰 Tu m\'aides aussi à gagner des commissions !';
+    final message = messageParrainage(code);
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -310,7 +387,7 @@ class _ReferralCodeCard extends StatelessWidget {
           Container(width: 40, height: 4,
             decoration: BoxDecoration(color: ctx.cl.border, borderRadius: BorderRadius.circular(2))),
           const SizedBox(height: 20),
-          Text('Partager mon code', style: TextStyle(
+          Text(tr(context, "Partager mon code"), style: TextStyle(
             color: ctx.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
           const SizedBox(height: 16),
           // Aperçu du message
@@ -329,47 +406,32 @@ class _ReferralCodeCard extends StatelessWidget {
           // Options de partage
           Row(children: [
             _ShareOption(
-              icon: Icons.content_copy_rounded, label: 'Copier\nle message',
-              color: AppColors.info,
+              icon: Icons.content_copy_rounded, label: tr(context, "Copier\nle message"),
+              color: context.cl.info,
               onTap: () {
                 Clipboard.setData(ClipboardData(text: message));
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Message copié ! Collez-le sur WhatsApp, SMS… 📤'),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.success,
-                  duration: Duration(seconds: 3),
-                ));
+                afficherMessage(context, tr(context, "Message copié ! Collez-le sur WhatsApp, SMS… 📤"), type: TypeMessage.succes, duree: Duration(seconds: 3));
               },
             ),
             const SizedBox(width: 12),
             _ShareOption(
-              icon: Icons.tag_rounded, label: 'Copier\nle code seul',
+              icon: Icons.tag_rounded, label: tr(context, "Copier\nle code seul"),
               color: purple,
               onTap: () {
                 Clipboard.setData(ClipboardData(text: code));
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                  content: Text('Code $code copié ! 📋'),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.success,
-                  duration: const Duration(seconds: 2),
-                ));
+                afficherMessage(context, tr(context, "Code {arg0} copié ! 📋", [code]), type: TypeMessage.succes, duree: Duration(seconds: 2));
               },
             ),
             const SizedBox(width: 12),
             _ShareOption(
-              icon: Icons.sms_rounded, label: 'Message\nprêt à envoyer',
-              color: AppColors.success,
+              icon: Icons.sms_rounded, label: tr(context, "Message\nprêt à envoyer"),
+              color: context.cl.success,
               onTap: () {
                 Clipboard.setData(ClipboardData(text: message));
                 Navigator.pop(ctx);
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Message copié ! Ouvrez WhatsApp et collez. ✅'),
-                  behavior: SnackBarBehavior.floating,
-                  backgroundColor: AppColors.success,
-                  duration: Duration(seconds: 3),
-                ));
+                afficherMessage(context, tr(context, "Message copié ! Ouvrez WhatsApp et collez. ✅"), type: TypeMessage.succes, duree: Duration(seconds: 3));
               },
             ),
           ]),
@@ -398,21 +460,13 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
 
     ref.listen<ApplyCodeState>(applyCodeProvider, (_, s) {
       if (s is ApplyCodeSuccess) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('✅ ${s.referrerPseudo} est ton parrain !'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ));
+        afficherMessage(context, tr(context, "✅ {arg0} est ton parrain !", [s.referrerPseudo]), type: TypeMessage.succes);
         ref.invalidate(referralStatsProvider);
         ref.read(applyCodeProvider.notifier).reset();
         setState(() => _expanded = false);
       }
       if (s is ApplyCodeError) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(s.message),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ));
+        afficherMessage(context, s.message, type: TypeMessage.erreur);
         ref.read(applyCodeProvider.notifier).reset();
       }
     });
@@ -440,9 +494,9 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
                 child: Icon(Icons.card_giftcard_rounded, color: AppColors.primary, size: 20)),
               const SizedBox(width: 12),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text('Vous avez un code parrain ?', style: TextStyle(
+                Text(tr(context, "Vous avez un code parrain ?"), style: TextStyle(
                   color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w500)),
-                Text('Entrez-le pour lier ton parrain', style: TextStyle(
+                Text(tr(context, "Entrez-le pour lier ton parrain"), style: TextStyle(
                   color: context.cl.textM, fontSize: 11)),
               ])),
               Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
@@ -461,7 +515,7 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
               textCapitalization: TextCapitalization.characters,
               style: TextStyle(letterSpacing: 4, fontSize: 18, fontWeight: FontWeight.w700),
               decoration: InputDecoration(
-                hintText: 'EX: A1B2C3',
+                hintText: tr(context, "EX: A1B2C3"),
                 prefixIcon: Icon(Icons.tag_rounded, color: context.cl.textM),
               ),
               onChanged: (v) => _ctrl.value = _ctrl.value.copyWith(
@@ -482,7 +536,7 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
                 child: state is ApplyCodeLoading
                     ? const SizedBox(width: 18, height: 18,
                         child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Valider le code'),
+                    :  Text(tr(context, "Valider le code")),
               ),
             ),
           ]),
@@ -496,7 +550,9 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
 // ─── COMMENT ÇA MARCHE ───────────────────────────────────────────────────────
 class _HowItWorksCard extends StatelessWidget {
   final int commL1, commL2;
-  const _HowItWorksCard({required this.commL1, required this.commL2});
+  final bool estStore;
+  const _HowItWorksCard({
+    required this.commL1, required this.commL2, required this.estStore});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -505,18 +561,22 @@ class _HowItWorksCard extends StatelessWidget {
       color: context.cl.surface, borderRadius: BorderRadius.circular(16),
       border: Border.all(color: context.cl.border, width: 0.5)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text('COMMENT ÇA MARCHE ?', style: TextStyle(
+      Text(tr(context, "COMMENT ÇA MARCHE ?"), style: TextStyle(
         color: context.cl.textS, fontSize: 11,
         fontWeight: FontWeight.w600, letterSpacing: 1)),
       const SizedBox(height: 14),
       _Step(num: '1', color: AppColors.primary,
-        text: 'Partagez ton code avec tes amis'),
+        text: tr(context, "Partagez ton code avec tes amis")),
       _Step(num: '2', color: const Color(0xFFA78BFA),
-        text: 'Ils s\'inscrivent sur PronoWin'),
-      _Step(num: '3', color: AppColors.success,
-        text: 'Quand ils s\'abonnent Premium → +$commL1 FCFA pour toi'),
-      _Step(num: '4', color: AppColors.info,
-        text: 'Leurs filleuls Premium → +$commL2 FCFA supplémentaires'),
+        text: tr(context, "Ils s'inscrivent sur PronoWin")),
+      _Step(num: '3', color: context.cl.success,
+        text: estStore
+          ? tr(context, "Quand ils s'abonnent Premium → +{arg0} pour toi", [libelleJours(joursPremiumPour(commL1))])
+          : tr(context, "Quand ils s'abonnent Premium → +{arg0} FCFA pour toi", [commL1])),
+      _Step(num: '4', color: context.cl.info,
+        text: estStore
+          ? tr(context, "Leurs filleuls Premium → +{arg0} en plus", [libelleJours(joursPremiumPour(commL2))])
+          : tr(context, "Leurs filleuls Premium → +{arg0} FCFA supplémentaires", [commL2])),
     ]),
   );
 }
@@ -548,9 +608,9 @@ class _StatsRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(children: [
     _StatChip(label: 'Filleuls\ndirects', value: totalL1, sub: '$premL1 Premium', color: const Color(0xFFA78BFA)),
     const SizedBox(width: 10),
-    _StatChip(label: 'Filleuls\nindirects', value: totalL2, sub: '$premL2 Premium', color: AppColors.info),
+    _StatChip(label: 'Filleuls\nindirects', value: totalL2, sub: '$premL2 Premium', color: context.cl.info),
     const SizedBox(width: 10),
-    _StatChip(label: 'Total\nfilleuls', value: totalL1 + totalL2, sub: '${premL1 + premL2} Premium', color: AppColors.success),
+    _StatChip(label: 'Total\nfilleuls', value: totalL1 + totalL2, sub: '${premL1 + premL2} Premium', color: context.cl.success),
   ]);
 }
 
@@ -559,7 +619,10 @@ class _StatChip extends StatelessWidget {
   const _StatChip({required this.label, required this.value, required this.sub, required this.color});
   @override
   Widget build(BuildContext context) => Expanded(
-    child: Container(
+    child: Semantics(
+      label: '$label : $value $sub',
+      excludeSemantics: true,
+      child: Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(14),
@@ -571,11 +634,11 @@ class _StatChip extends StatelessWidget {
           duration: const Duration(milliseconds: 700),
           curve: Curves.easeOutCubic,
           builder: (_, v, _) => Text('$v', style: TextStyle(
-              color: color, fontSize: 24, fontWeight: FontWeight.w800)),
+              color: color, fontSize: 24, fontWeight: FontWeight.w700)),
         ),
         Text(sub, style: TextStyle(color: context.cl.textM, fontSize: 10)),
       ]),
-    ),
+    )),
   );
 }
 
@@ -583,8 +646,9 @@ class _StatChip extends StatelessWidget {
 class _FilleulTile extends StatelessWidget {
   final String pseudo, plan;
   final int commission; final bool isPaid; final int level;
+  final bool estStore;
   final String? joinedAt;
-  const _FilleulTile({required this.pseudo, required this.plan, required this.commission, required this.isPaid, required this.level, this.joinedAt});
+  const _FilleulTile({required this.pseudo, required this.plan, required this.commission, required this.isPaid, required this.level, required this.estStore, this.joinedAt});
 
   bool get _isNew {
     if (joinedAt == null) return false;
@@ -599,8 +663,8 @@ class _FilleulTile extends StatelessWidget {
       final now = DateTime.now();
       final diff = now.difference(d);
       if (diff.inDays == 0) return 'Aujourd\'hui';
-      if (diff.inDays == 1) return 'Hier';
-      if (diff.inDays < 7)  return 'Il y a ${diff.inDays}j';
+      if (diff.inDays == 1) return trCurrent("Hier");
+      if (diff.inDays < 7)  return trCurrent("Il y a {arg0}j", [diff.inDays]);
       return '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
     } catch (_) { return ''; }
   }
@@ -617,11 +681,11 @@ class _FilleulTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: level == 1
             ? const Color(0xFFA78BFA).withValues(alpha: 0.12)
-            : AppColors.info.withValues(alpha: 0.12),
+            : context.cl.info.withValues(alpha: 0.12),
           shape: BoxShape.circle),
         child: Center(child: Text(pseudo[0].toUpperCase(),
           style: TextStyle(
-            color: level == 1 ? const Color(0xFFA78BFA) : AppColors.info,
+            color: level == 1 ? const Color(0xFFA78BFA) : context.cl.info,
             fontWeight: FontWeight.w700, fontSize: 15)))),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -630,27 +694,29 @@ class _FilleulTile extends StatelessWidget {
           if (_isNew) ...[
             const SizedBox(width: 6),
             Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(color: AppColors.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-              child: const Text('Nouveau', style: TextStyle(color: AppColors.success, fontSize: 9, fontWeight: FontWeight.w700))),
+              decoration: BoxDecoration(color: context.cl.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
+              child:  Text(tr(context, "Nouveau"), style: TextStyle(color: context.cl.success, fontSize: 9, fontWeight: FontWeight.w700))),
           ],
         ]),
         Text(
-          joinedAt != null ? 'Niv. $level · ${_fmtDate(joinedAt!)}' : 'Niveau $level',
-          style: TextStyle(color: level == 1 ? const Color(0xFFA78BFA) : AppColors.info,
+          joinedAt != null ? tr(context, "Niv. {arg0} · {arg1}", [level, _fmtDate(joinedAt!)]) : tr(context, "Niveau {arg0}", [level]),
+          style: TextStyle(color: level == 1 ? const Color(0xFFA78BFA) : context.cl.info,
             fontSize: 11, fontWeight: FontWeight.w500)),
       ])),
       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Text(plan == 'premium' ? '👑 Premium' : '• Gratuit',
+        Text(plan == 'premium' ? '👑 Premium' : tr(context, "• Gratuit"),
           style: TextStyle(
-            color: plan == 'premium' ? AppColors.warning : context.cl.textM,
+            color: plan == 'premium' ? context.cl.warning : context.cl.textM,
             fontSize: 12, fontWeight: FontWeight.w500)),
         if (commission > 0)
-          Text('+${commission.toLocaleString()} FCFA',
+          Text(estStore
+              ? '+${libelleJours(joursPremiumPour(commission))}'
+              : '+${commission.toLocaleString()} FCFA',
             style: TextStyle(
-              color: isPaid ? AppColors.success : context.cl.textM,
+              color: isPaid ? context.cl.success : context.cl.textM,
               fontSize: 12, fontWeight: FontWeight.w700)),
         if (!isPaid && plan == 'premium')
-          Text('En attente', style: TextStyle(color: context.cl.textM, fontSize: 10)),
+          Text(tr(context, "En attente"), style: TextStyle(color: context.cl.textM, fontSize: 10)),
       ]),
     ]),
   );
@@ -669,10 +735,10 @@ class _EmptyState extends StatelessWidget {
     child: Column(children: [
       Icon(Icons.people_outline_rounded, color: context.cl.textM, size: 48),
       const SizedBox(height: 12),
-      Text('Aucun filleul pour l\'instant', style: TextStyle(
+      Text(tr(context, "Aucun filleul pour l'instant"), style: TextStyle(
         color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
-      Text('Partagez ton code pour commencer\nà gagner des commissions',
+      Text(tr(context, "Partagez ton code pour commencer\nà gagner des commissions"),
         style: TextStyle(color: context.cl.textS, fontSize: 13),
         textAlign: TextAlign.center),
     ]),
@@ -720,12 +786,13 @@ class _HistorySection extends ConsumerWidget {
         if (list.isEmpty) return const SizedBox.shrink();
         return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const SizedBox(height: 8),
-          _SectionLabel('HISTORIQUE DES GAINS (${list.length})'),
+          _SectionLabel(tr(context, "HISTORIQUE DES GAINS ({arg0})", [list.length])),
           ...list.take(10).map((h) => _HistoryTile(
             pseudo:  h['pseudo'] as String? ?? '—',
             level:   (h['level'] as num?)?.toInt() ?? 1,
             amount:  (h['amount'] as num?)?.toInt() ?? 0,
             date:    h['date'] as String?,
+            estStore: ref.watch(isStoreBuildProvider),
           )),
         ]);
       },
@@ -735,7 +802,8 @@ class _HistorySection extends ConsumerWidget {
 
 class _HistoryTile extends StatelessWidget {
   final String pseudo; final int level, amount; final String? date;
-  const _HistoryTile({required this.pseudo, required this.level, required this.amount, this.date});
+  final bool estStore;
+  const _HistoryTile({required this.pseudo, required this.level, required this.amount, required this.estStore, this.date});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -747,26 +815,28 @@ class _HistoryTile extends StatelessWidget {
     child: Row(children: [
       Container(width: 36, height: 36,
         decoration: BoxDecoration(
-          color: AppColors.success.withValues(alpha: 0.12), shape: BoxShape.circle),
-        child: const Icon(Icons.payments_rounded, color: AppColors.success, size: 18)),
+          color: context.cl.success.withValues(alpha: 0.12), shape: BoxShape.circle),
+        child: Icon(Icons.payments_rounded, color: context.cl.success, size: 18)),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text('$pseudo → abonnement Premium', style: TextStyle(
+        Text(tr(context, "{arg0} → abonnement Premium", [pseudo]), style: TextStyle(
           color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w500)),
         if (date != null) Text(
           _fmtDate(date!),
           style: TextStyle(color: context.cl.textM, fontSize: 11)),
       ])),
       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-        Text('+${amount.toLocaleString()} FCFA', style: const TextStyle(
-          color: AppColors.success, fontSize: 13, fontWeight: FontWeight.w700)),
+        Text(estStore
+            ? '+${libelleJours(joursPremiumPour(amount))}'
+            : '+${amount.toLocaleString()} FCFA', style: TextStyle(
+          color: context.cl.success, fontSize: 13, fontWeight: FontWeight.w700)),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: (level == 1 ? const Color(0xFFA78BFA) : AppColors.info).withValues(alpha: 0.12),
+            color: (level == 1 ? const Color(0xFFA78BFA) : context.cl.info).withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8)),
-          child: Text('Niv. $level', style: TextStyle(
-            color: level == 1 ? const Color(0xFFA78BFA) : AppColors.info,
+          child: Text(tr(context, "Niv. {arg0}", [level]), style: TextStyle(
+            color: level == 1 ? const Color(0xFFA78BFA) : context.cl.info,
             fontSize: 9, fontWeight: FontWeight.w700)),
         ),
       ]),
@@ -778,7 +848,7 @@ class _HistoryTile extends StatelessWidget {
       final d   = DateTime.parse(iso).toLocal();
       final now = DateTime.now();
       final diff = now.difference(d);
-      if (diff.inDays < 7)  return 'Il y a ${diff.inDays}j';
+      if (diff.inDays < 7)  return trCurrent("Il y a {arg0}j", [diff.inDays]);
       return '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
     } catch (_) { return ''; }
   }

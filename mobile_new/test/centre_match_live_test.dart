@@ -1,0 +1,181 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pronowin/core/theme/app_theme.dart';
+import 'package:pronowin/features/pronostics/data/models/match_model.dart';
+import 'package:pronowin/features/pronostics/presentation/providers/pronostics_provider.dart';
+import 'package:pronowin/features/pronostics/presentation/pages/match_detail_page.dart';
+import 'aides/banc_ecran.dart';
+import 'package:pronowin/features/pronostics/presentation/providers/match_info_provider.dart';
+
+void main() {
+  setUpAll(preparerBanc);
+  test('cotes: clé stable indépendante de la traduction, repli FR et EN', () {
+    for (final data in [
+      {'name':'Vainqueur du match'}, {'name':'Match Winner'},
+      {'name':'Traduit autrement','key':'match winner'},
+    ]) {
+      final odds=LiveOddsData.fromJson({'markets':[ {...data,'values':[]} ]});
+      expect(odds.markets.single.principal, isTrue);
+    }
+    expect(const LiveOddMarket(name:'Correct Score',values:[]).principal,isFalse);
+  });
+
+  for (final theme in [AppTheme.light, AppTheme.dark]) {
+    testWidgets('match sans pronostic: événements et stats accessibles, thème ${theme.brightness}', (t) async {
+      final r = await mesurerEcran(t, ecran: const MatchDetailPage(matchId:'m'), theme:theme,
+        echelle:1.8, defilements:2, surcharges: [
+          matchDetailProvider('m').overrideWith((ref) async => _match()),
+          liveScoreProvider('m').overrideWith((ref) async => const LiveScore(status:'LIVE',homeScore:1,awayScore:0,elapsed:30)),
+          matchStatsProvider('m').overrideWith((ref) async => _stats()),
+          lineupsProvider('m').overrideWith((ref) async => const LineupsData(available:false)),
+          injuriesProvider('m').overrideWith((ref) async => []),
+          standingsProvider('m').overrideWith((ref) async => []),
+          h2hProvider('m').overrideWith((ref) async => throw Exception('unavailable')),
+          liveOddsProvider('m').overrideWith((ref) async => const LiveOddsData(openingOdd:0,markets:[])),
+        ], verifier: () {
+          expect(find.text('Faits marquants'),findsOneWidget);
+          expect(find.text('Statistiques'),findsOneWidget);
+          expect(find.text('Aucun pronostic publié pour ce match.'),findsOneWidget);
+        });
+      expect(r.autres,isEmpty); expect(r.debordements,isEmpty);
+    });
+  }
+
+  testWidgets('actualise le direct, suspend en arrière-plan et finit le match', (t) async {
+    SharedPreferences.setMockInitialValues({});
+    var status='LIVE'; var scores=0; var stats=0; var infos=0;
+    await t.pumpWidget(ProviderScope(overrides:[
+      ...donneesCommunes(),
+      matchInfoProvider('m').overrideWith((ref) async { infos++; return const MatchInfo(phase:'ET'); }),
+      matchDetailProvider('m').overrideWith((ref) async => _match(status:status.toLowerCase())),
+      liveScoreProvider('m').overrideWith((ref) async { scores++; return LiveScore(status:status,homeScore:1,awayScore:0); }),
+      matchStatsProvider('m').overrideWith((ref) async { stats++; return _stats(); }),
+      lineupsProvider('m').overrideWith((ref) async => const LineupsData(available:false)),
+      injuriesProvider('m').overrideWith((ref) async => []),
+      standingsProvider('m').overrideWith((ref) async => []),
+      h2hProvider('m').overrideWith((ref) async => throw Exception('unavailable')),
+      liveOddsProvider('m').overrideWith((ref) async => const LiveOddsData(openingOdd:0,markets:[])),
+      playerRatingsProvider('m').overrideWith((ref) async => []),
+    ],child: MaterialApp(theme:AppTheme.dark,
+      builder:(c,w)=>MediaQuery(data:MediaQuery.of(c).copyWith(disableAnimations:true),child:w!),
+      home:const MatchDetailPage(matchId:'m'))));
+    await t.pump(); await t.pump(const Duration(milliseconds:500));
+    final initial=scores;
+    await t.pump(const Duration(seconds:30)); await t.pump();
+    expect(scores,greaterThan(initial)); expect(stats,greaterThan(1)); expect(infos,greaterThan(1));
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.paused);
+    final paused=scores; final pausedInfo=infos;
+    await t.pump(const Duration(seconds:90)); await t.pump();
+    expect(scores,paused); expect(infos,pausedInfo);
+    t.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+    await t.pump(); expect(scores,greaterThan(paused));
+    status='FINISHED';
+    await t.pump(const Duration(seconds:30)); await t.pump(); await t.pump();
+    final finished=scores; final finishedInfo=infos;
+    await t.pump(const Duration(seconds:60)); await t.pump();
+    expect(scores,finished,reason:'le polling doit s’arrêter après la fin'); expect(infos,finishedInfo);
+    await t.pumpWidget(const SizedBox()); await t.pump();
+    expect(t.takeException(),isNull);
+  });
+
+  // Retour de l'utilisateur du 17 octobre 2026 : le compteur « il y a 12 s »
+  // et la roue de la barre de titre faisaient brouillon à côté d'une appli de
+  // résultats. Le score se relève sans rien afficher tant qu'il arrive.
+  testWidgets('direct : aucun compteur ni roue d’actualisation dans la barre de titre', (t) async {
+    SharedPreferences.setMockInitialValues({});
+    await t.pumpWidget(ProviderScope(overrides:[
+      ...donneesCommunes(),
+      matchInfoProvider('m').overrideWith((ref) async => const MatchInfo(phase:'1H')),
+      matchDetailProvider('m').overrideWith((ref) async => _match()),
+      liveScoreProvider('m').overrideWith((ref) async => const LiveScore(status:'LIVE',homeScore:1,awayScore:0,elapsed:39)),
+      matchStatsProvider('m').overrideWith((ref) async => _stats()),
+      lineupsProvider('m').overrideWith((ref) async => const LineupsData(available:false)),
+      injuriesProvider('m').overrideWith((ref) async => []),
+      standingsProvider('m').overrideWith((ref) async => []),
+      h2hProvider('m').overrideWith((ref) async => throw Exception('unavailable')),
+      liveOddsProvider('m').overrideWith((ref) async => const LiveOddsData(openingOdd:0,markets:[])),
+      playerRatingsProvider('m').overrideWith((ref) async => []),
+    ],child: MaterialApp(theme:AppTheme.dark,
+      builder:(c,w)=>MediaQuery(data:MediaQuery.of(c).copyWith(disableAnimations:true),child:w!),
+      home:const MatchDetailPage(matchId:'m'))));
+    await t.pump(); await t.pump(const Duration(milliseconds:500));
+    for (var i = 0; i < 3; i++) {
+      final barre = find.byType(AppBar);
+      expect(find.descendant(of: barre, matching: find.textContaining('il y a')), findsNothing);
+      expect(find.descendant(of: barre, matching: find.text('à jour')), findsNothing);
+      expect(find.descendant(of: barre, matching: find.byType(CircularProgressIndicator)), findsNothing);
+      expect(find.byKey(const Key('score-non-actualise')), findsNothing,
+          reason: 'le score arrive : rien à signaler');
+      // Un relevé de 30 s, pris pendant l'appel puis après.
+      await t.pump(const Duration(seconds:30)); await t.pump();
+    }
+    await t.pumpWidget(const SizedBox()); await t.pump();
+    expect(t.takeException(),isNull);
+  });
+
+  // Demande de l'utilisateur du 17 octobre 2026 : le chrono du direct à la
+  // seconde, comme Sofascore, avec le temps additionnel annoncé.
+  group('chrono du direct', () {
+    testWidgets('à la seconde, à partir du début de la seconde mi-temps', (t) async {
+      await _ficheEnDirect(t, MatchInfo(phase:'2H', elapsed:67,
+        debutSecondeMiTemps: DateTime.now().subtract(const Duration(minutes:22, seconds:23))));
+      expect(_chrono(t), matches(RegExp(r'^67:2\d$')));
+      expect(find.byKey(const Key('chrono-additionnel')), findsNothing);
+      await t.pumpWidget(const SizedBox()); await t.pump();
+    });
+
+    testWidgets('temps additionnel : « +7 min » à côté du chrono', (t) async {
+      await _ficheEnDirect(t, MatchInfo(phase:'2H', elapsed:92, extra:7,
+        debutSecondeMiTemps: DateTime.now().subtract(const Duration(minutes:47, seconds:9))));
+      expect(_chrono(t), matches(RegExp(r'^92:\d\d$')));
+      expect((t.widget<Text>(find.byKey(const Key('chrono-additionnel')))).data, "+7'");
+      await t.pumpWidget(const SizedBox()); await t.pump();
+    });
+
+    testWidgets('mi-temps : un libellé, et la minute faute de début daté', (t) async {
+      await _ficheEnDirect(t, const MatchInfo(phase:'HT', elapsed:45));
+      expect(_chrono(t), 'MI-TEMPS');
+      await t.pumpWidget(const SizedBox()); await t.pump();
+
+      await _ficheEnDirect(t, const MatchInfo(phase:'2H', elapsed:58));
+      expect(_chrono(t), "58'");
+      await t.pumpWidget(const SizedBox()); await t.pump();
+    });
+  });
+}
+
+/// Fiche d'un match en direct avec les informations de match données.
+Future<void> _ficheEnDirect(WidgetTester t, MatchInfo info) async {
+  SharedPreferences.setMockInitialValues({});
+  await t.pumpWidget(ProviderScope(overrides:[
+    ...donneesCommunes(),
+    matchInfoProvider('m').overrideWith((ref) async => info),
+    matchDetailProvider('m').overrideWith((ref) async => _match()),
+    liveScoreProvider('m').overrideWith((ref) async => LiveScore(status:'LIVE',homeScore:1,awayScore:0,elapsed:info.elapsed)),
+    matchStatsProvider('m').overrideWith((ref) async => _stats()),
+    lineupsProvider('m').overrideWith((ref) async => const LineupsData(available:false)),
+    injuriesProvider('m').overrideWith((ref) async => []),
+    standingsProvider('m').overrideWith((ref) async => []),
+    h2hProvider('m').overrideWith((ref) async => throw Exception('unavailable')),
+    liveOddsProvider('m').overrideWith((ref) async => const LiveOddsData(openingOdd:0,markets:[])),
+    playerRatingsProvider('m').overrideWith((ref) async => []),
+  ],child: MaterialApp(theme:AppTheme.dark,
+    builder:(c,w)=>MediaQuery(data:MediaQuery.of(c).copyWith(disableAnimations:true),child:w!),
+    home:const MatchDetailPage(matchId:'m'))));
+  await t.pump(); await t.pump(const Duration(milliseconds:500));
+}
+
+String _chrono(WidgetTester t) => (t.widget<Text>(find.byKey(const Key('chrono-direct')))).data!;
+
+MatchModel _match({String status='live'}) => MatchModel.fromJson({
+  'id':'m','league':'Premier League','league_country':'PL',
+  'home_team':'Home','away_team':'Away','status':status,
+  'match_date':DateTime.now().subtract(const Duration(minutes:30)).toIso8601String(),
+  'has_pronostic':false,'home_score':1,'away_score':0,
+});
+MatchStatsData _stats() => MatchStatsData(fixtureId:42,
+  updatedAt:DateTime.utc(2026,10,5,12),homeTeam:'Home',awayTeam:'Away',
+  events:const [MatchEvent(minute:21,team:'Home',player:'Player',type:'Goal',detail:'Normal Goal')],
+  stats:const [MatchStat(label:'Ball Possession',home:'60%',away:'40%')]);

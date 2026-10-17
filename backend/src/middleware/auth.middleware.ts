@@ -1,10 +1,43 @@
-﻿import { Request, Response, NextFunction } from 'express';
+﻿import { noterSession } from '../services/sessions.service';
+import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 
 import { prisma } from '../lib/prisma';
+import { matchTermine } from '../services/verrou_pronostic';
+import { repondreErreur } from '../utils/erreurs';
+import { noterVersionApp } from '../services/version_app.service';
+
+/**
+ * Au plus une écriture de `lastSeenAt` par fenêtre.
+ *
+ * Chaque requête authentifiée écrivait l'horodatage — une écriture en base
+ * pour chaque lecture d'écran (constat P6). « Vu il y a moins de deux
+ * minutes » suffit à tous les usages : compteur d'utilisateurs en ligne,
+ * segments « actifs ce mois ».
+ */
+const FENETRE_ACTIVITE_MS = 2 * 60 * 1000;
+function noterActivite(userId: string, dejaVu: Date | null | undefined) {
+  if (dejaVu && Date.now() - dejaVu.getTime() < FENETRE_ACTIVITE_MS) return;
+  prisma.user.update({ where: { id: userId }, data: { lastSeenAt: new Date() } }).catch(() => {});
+}
+
+/**
+ * L'erreur vient-elle du jeton, ou d'ailleurs ?
+ *
+ * Tout ce qui échouait dans ce middleware répondait 401 « Token invalide » —
+ * y compris une base injoignable. Or l'application traite un 401 comme une
+ * session morte : elle tente un rafraîchissement, qui échoue aussi, et
+ * déconnecte l'utilisateur. Une coupure de PostgreSQL de quelques secondes
+ * vidait ainsi les sessions de tous ceux qui ouvraient l'application à ce
+ * moment-là (constat P5). Seul un jeton refusé mérite un 401.
+ */
+function estErreurDeJeton(e: unknown): boolean {
+  return e instanceof jwt.JsonWebTokenError || e instanceof jwt.NotBeforeError;
+}
 
 export interface AuthRequest extends Request {
   userId?: string;
+  sessionId?: string;
 }
 
 export async function authMiddleware(
@@ -20,7 +53,7 @@ export async function authMiddleware(
   const token = authHeader.split(' ')[1];
 
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string };
+    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; sessionId?: string };
     
     const user = await prisma.user.findUnique({
       where: { id: payload.userId },
@@ -36,25 +69,117 @@ export async function authMiddleware(
     }
 
     req.userId = payload.userId;
+    req.sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : undefined;
+    void noterSession(payload.userId, req.sessionId, req.headers).catch(() => {});
+    // Sans attendre : l'horodatage ne doit pas retarder la réponse.
+    noterActivite(payload.userId, (user as any).lastSeenAt);
+    // La version de l'application, quand elle la déclare (1.0.18 et après).
+    noterVersionApp(payload.userId, req.headers as Record<string, unknown>);
     next();
   } catch (error) {
     if (error instanceof jwt.TokenExpiredError) {
       res.status(401).json({ message: 'Session expirée. Veuillez vous reconnecter.', code: 'TOKEN_EXPIRED' });
-    } else {
+    } else if (estErreurDeJeton(error)) {
       res.status(401).json({ message: 'Token invalide.' });
+    } else {
+      // Base injoignable ou panne : 503, pas 401 — la session est intacte.
+      repondreErreur(res, error);
     }
   }
+}
+
+/**
+ * Auth optionnelle : attache req.userId si un Bearer token valide est fourni,
+ * mais laisse passer les requêtes anonymes (pas de 401).
+ * Utilisé sur les endpoints de navigation ouverts aux invités (liste des
+ * pronostics, tutoriels, classement) qui personnalisent juste leur réponse
+ * quand un utilisateur est connecté.
+ */
+export async function optionalAuthMiddleware(
+  req: AuthRequest, _res: Response, next: NextFunction,
+): Promise<void> {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) { next(); return; }
+
+  const token = authHeader.split(' ')[1];
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET!) as { userId: string; sessionId?: string };
+    const user = await prisma.user.findUnique({ where: { id: payload.userId } });
+    if (user && !(user as any).deletedAt && user.isActive) {
+      req.userId = payload.userId;
+      req.sessionId = typeof payload.sessionId === 'string' ? payload.sessionId : undefined;
+      void noterSession(payload.userId, req.sessionId, req.headers).catch(() => {});
+      noterActivite(payload.userId, (user as any).lastSeenAt);
+      noterVersionApp(payload.userId, req.headers as Record<string, unknown>);
+    }
+  } catch {
+    // Token invalide/expiré → on continue en anonyme plutôt que de bloquer.
+  }
+  next();
 }
 
 /** Middleware de validation Premium */
 export async function premiumMiddleware(
   req: AuthRequest, res: Response, next: NextFunction,
 ): Promise<void> {
-  const user = await prisma.user.findUnique({ where: { id: req.userId } });
+  // Une erreur de base levée ici n'était attrapée par personne : Express 4
+  // n'attend pas les promesses d'un middleware, et la requête restait sans
+  // réponse jusqu'au délai du client.
+  let user;
+  try {
+    user = await prisma.user.findUnique({ where: { id: req.userId } });
+  } catch (e) {
+    repondreErreur(res, e);
+    return;
+  }
   if (user?.subscriptionPlan !== 'premium' || 
       (user.subscriptionExpiresAt && user.subscriptionExpiresAt < new Date())) {
     res.status(403).json({ message: 'Accès réservé aux membres Premium.', code: 'PREMIUM_REQUIRED' });
     return;
   }
   next();
+}
+/**
+ * Premium — sauf pour un pronostic gratuit dont le match est terminé.
+ *
+ * L'analyse et les commentaires d'un match sont réservés aux abonnés tant que
+ * le match n'est pas joué. Après le coup de sifflet, ceux d'un pronostic
+ * **gratuit** s'ouvrent à tous : son choix est déjà public, son débriefing
+ * aussi doit l'être.
+ *
+ * Ceux d'un pronostic **Premium** restent fermés après le match (décision de
+ * l'utilisateur du 17 octobre 2026, `verrou_pronostic.ts`) : l'analyse et les
+ * commentaires nomment le choix de l'analyste, que le gratuit ne voit pas.
+ *
+ * L'identifiant peut désigner un pronostic ou un match : `analyzePronostic`
+ * accepte les deux, ce garde-fou doit donc les accepter aussi, sans quoi il
+ * laisserait passer par simple ignorance.
+ *
+ * En cas de doute — identifiant introuvable, erreur de base — on retombe sur
+ * `premiumMiddleware`. Un garde-fou qui échoue doit fermer, pas ouvrir.
+ */
+export async function premiumSaufMatchTermine(
+  req: AuthRequest, res: Response, next: NextFunction,
+): Promise<void> {
+  const id = (req.params.id ?? req.params.pronosticId ?? '').trim();
+
+  if (id) {
+    try {
+      const choix = { isPremium: true, match: { select: { status: true } } };
+      const prono =
+        await prisma.pronostic.findUnique({ where: { id }, select: choix }) ??
+        await prisma.pronostic.findUnique({ where: { matchId: id }, select: choix });
+
+      const statut = prono?.match?.status
+        ?? (await prisma.match.findUnique({
+              where: { id }, select: { status: true },
+            }))?.status;
+
+      if (matchTermine(statut) && !prono?.isPremium) { next(); return; }
+    } catch {
+      // On ne sait pas : le contrôle payant s'applique.
+    }
+  }
+
+  return premiumMiddleware(req, res, next);
 }

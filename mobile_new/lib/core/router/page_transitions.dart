@@ -80,7 +80,7 @@ CustomTransitionPage<T> fadePage<T>({
       key:                state.pageKey,
       child:              child,
       transitionDuration: _kFastDuration,
-      transitionsBuilder: (_, animation, __, child) => FadeTransition(
+      transitionsBuilder: (_, animation, _, child) => FadeTransition(
         opacity: CurvedAnimation(parent: animation, curve: Curves.easeIn),
         child:   child,
       ),
@@ -98,7 +98,7 @@ CustomTransitionPage<T> scaleUpPage<T>({
       child:              child,
       transitionDuration: _kModalDuration,
       reverseTransitionDuration: _kFastDuration,
-      transitionsBuilder: (_, animation, __, child) {
+      transitionsBuilder: (_, animation, _, child) {
         final curve = CurvedAnimation(
           parent: animation, curve: Curves.easeOutBack);
         return ScaleTransition(

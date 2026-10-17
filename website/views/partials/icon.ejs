@@ -1,0 +1,53 @@
+<%
+  const _size = typeof size !== 'undefined' ? size : 24;
+  const _cls = typeof cls !== 'undefined' ? cls : '';
+  const icons = {
+    chart: '<path d="M4 19V10M11 19V5M18 19v-7"/><path d="M2 19h20"/>',
+    crown: '<path d="M3 8l4 3 5-6 5 6 4-3-2 10H5L3 8z"/><path d="M5 21h14"/>',
+    wallet: '<path d="M3 7a2 2 0 0 1 2-2h11a2 2 0 0 1 2 2v1h1a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z"/><circle cx="16.5" cy="13.5" r="1.2" fill="currentColor" stroke="none"/>',
+    users: '<circle cx="8.5" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 2.9-6 6-6s6 2.4 6 6"/><circle cx="17" cy="9" r="2.4"/><path d="M15.3 14.2c2.4.3 4.2 2.4 4.2 5.8"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18 14 14 0 0 1 0-18z"/>',
+    coins: '<ellipse cx="9" cy="7" rx="6" ry="3"/><path d="M3 7v5c0 1.7 2.7 3 6 3s6-1.3 6-3V7"/><path d="M3 12v5c0 1.7 2.7 3 6 3 2.4 0 4.5-.7 5.4-1.8"/><ellipse cx="17" cy="14" rx="4" ry="2" opacity=".0"/>',
+    check: '<path d="M20 6L9 17l-5-5"/>',
+    'check-circle': '<circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9"/>',
+    chevron: '<path d="M6 9l6 6 6-6"/>',
+    star: '<path d="M12 2.5l2.9 6 6.6.6-5 4.5 1.5 6.5-6-3.5-6 3.5 1.5-6.5-5-4.5 6.6-.6z"/>',
+    arrow: '<path d="M5 12h14M13 6l6 6-6 6"/>',
+    facebook: '<path d="M14 9h3V5h-3c-2.2 0-4 1.8-4 4v2H8v4h2v6h4v-6h3l1-4h-4V9c0-.6.4-1 1-1z"/>',
+    x: '<path d="M4 4l16 16M20 4L4 20"/>',
+    instagram: '<rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none"/>',
+    whatsapp: '<path d="M4 20l1.4-4.1A8 8 0 1 1 9 18.6L4 20z"/><path d="M9 10c0 3 2 5 5 5"/>',
+    linkedin: '<rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8" cy="8.5" r="1" fill="currentColor" stroke="none"/><path d="M8 11v6M12 17v-4c0-1.4 1-2.3 2.2-2.3S16 11.6 16 13v4"/>',
+    // Marque Apple : elle doit etre pleine. Tracee en contour comme le reste
+    // des icones, elle donnait une forme meconnaissable.
+    apple: '<path d="M17.05 12.53c-.02-2.2 1.8-3.26 1.88-3.31-1.03-1.5-2.62-1.71-3.19-1.73-1.36-.14-2.65.8-3.34.8-.69 0-1.75-.78-2.88-.76-1.48.02-2.85.86-3.61 2.18-1.54 2.67-.39 6.62 1.11 8.79.73 1.06 1.6 2.25 2.74 2.21 1.1-.04 1.52-.71 2.85-.71 1.33 0 1.71.71 2.88.69 1.19-.02 1.94-1.08 2.67-2.14.84-1.23 1.19-2.42 1.21-2.48-.03-.01-2.32-.89-2.34-3.54z"/><path d="M14.86 5.72c.61-.74 1.02-1.77.91-2.8-.88.04-1.94.59-2.57 1.32-.56.65-1.05 1.7-.92 2.7.98.08 1.98-.5 2.58-1.22z"/>',
+    // Google Play : le triangle en quatre volets. Le badge affichait le robot
+    // Android — deux marques differentes, de deux entreprises differentes.
+    // Silhouette pleine, en un seul trace. Le vrai logo Google Play est fait de
+    // quatre volets, et ces coutures n'ont de sens qu'en couleur : rendues en
+    // monochrome a 20 px, elles font un pixel plein de fond sombre chacune, et
+    // le triangle se lit creux — un fil de fer, pas une marque.
+    'google-play': '<path d="M5.5 3.2v17.6L20.5 12z"/>',
+    android: '<path d="M6 10v6M18 10v6M8 9h8v8a1 1 0 0 1-1 1H9a1 1 0 0 1-1-1V9z"/><path d="M9 6l-1-2M15 6l1-2M9 6h6"/>',
+    // Avion en papier de Telegram, en trait comme les autres icones du pied
+    // de page : le bord superieur, le flanc droit, le pli central, puis la
+    // petite queue relevee.
+    telegram: '<path d="M21.5 3.5 2.9 10.8l5.6 2.1M21.5 3.5l-3 15.4-5.4-4.2M21.5 3.5 8.5 12.9v5l3.2-3.8"/>',
+    menu: '<path d="M4 7h16M4 12h16M4 17h16"/>',
+    close: '<path d="M6 6l12 12M18 6L6 18"/>',
+    plus: '<path d="M12 5v14M5 12h14"/>',
+    bell: '<path d="M6 9a6 6 0 0 1 12 0c0 3.2 1 5 2 6H4c1-1 2-2.8 2-6z"/><path d="M10 19a2 2 0 0 0 4 0"/>',
+    ball: '<circle cx="12" cy="12" r="9"/><path d="M12 8l3 2.2-1.1 3.6H10.1L9 10.2z"/><path d="M12 3v5M4.5 9l4.6 1.2M19.5 9l-4.6 1.2M6.5 18l2.6-4.2M17.5 18l-2.6-4.2"/>',
+    shield: '<path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/><path d="M9 12l2 2 4-4"/>',
+    trophy: '<path d="M7 4h10v4a5 5 0 0 1-5 5 5 5 0 0 1-5-5V4z"/><path d="M7 5H4v2a3 3 0 0 0 3 3M17 5h3v2a3 3 0 0 1-3 3"/><path d="M12 13v3M9 20h6M10 17h4v3h-4z"/>',
+  };
+  const path = icons[name] || icons.check;
+
+  // Deux marques deposees se dessinent pleines, pas en trait : Apple et
+  // Google Play. Tracees comme les autres icones, elles donnaient des formes
+  // meconnaissables — c'est la seule raison de cette distinction.
+  const _plein = name === 'apple' || name === 'google-play';
+  const _peinture = _plein
+    ? 'fill="currentColor" stroke="none"'
+    : 'fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"';
+%><svg class="icon <%= _cls %>" width="<%= _size %>" height="<%= _size %>" viewBox="0 0 24 24" <%- _peinture %> aria-hidden="true"><%- path %></svg>
