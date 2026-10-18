@@ -28,8 +28,29 @@ const notifSvc  = new NotificationService();
 // jamais résolus, de quoi épuiser le quota Pro (7 500/j) en 3-4h.
 // 45 min (et non 30) pour garder de la marge maintenant que le scan
 // principal tourne 24h/24 au lieu de 18h/24 avec blackout.
+/** Matchs vus dans le direct du fournisseur au cycle de synchronisation précédent. */
+let directPrecedent = new Set<number>();
+/** Pour les tests. */
+export function _oublierDirectPrecedent(): void { directPrecedent = new Set(); }
+
 const staleRetryBackoff = new Map<number, number>(); // externalId → dernier essai (ms)
 const STALE_RETRY_INTERVAL = 45 * 60 * 1000; // 45 min entre deux tentatives sur le même match
+
+/**
+ * Intervalle entre deux relectures d'un match bloqué, selon son ancienneté.
+ *
+ * Un match resté « à venir » un mois après sa date (report sans nouvelle
+ * date, donnée jamais mise à jour par la source) était relu toutes les 45
+ * minutes, sans fin : 25 matchs de plus d'un mois le 18 octobre. Plus il est
+ * ancien, moins la source a de chances d'avoir changé d'avis.
+ */
+export function intervalleNouvelEssai(dateMatch: Date, maintenant = Date.now()): number {
+  const age = maintenant - dateMatch.getTime();
+  const jour = 24 * 60 * 60 * 1000;
+  if (age > 7 * jour) return 24 * 60 * 60 * 1000;
+  if (age > 3 * jour) return 6 * 60 * 60 * 1000;
+  return STALE_RETRY_INTERVAL;
+}
 
 /**
  * La cote en dessous de laquelle un pronostic ne peut pas être publié.
@@ -499,15 +520,20 @@ export class PronosticsService {
     // 1. Récupérer depuis l'API les matchs en cours / terminés (source unique).
     //
     // Le direct en un appel ; le relevé complet (hier + aujourd'hui) toutes
-    // les 5 minutes, ou tout de suite quand un match encore « en direct » en
-    // base n'y figure plus — il vient de finir, ou d'être reporté.
+    // les 5 minutes, ou tout de suite quand un match qui était dans le direct
+    // au cycle précédent n'y figure plus — il vient de finir, ou d'être
+    // reporté.
+    //
+    // « Au cycle précédent », et non « en direct en base » : des matchs
+    // restent « en direct » en base sans jamais paraître dans le direct du
+    // fournisseur (vu le 18 octobre, sans minute de jeu). Ils déclenchaient
+    // un relevé complet chaque minute ; le relevé de 5 minutes et le filet
+    // de sécurité ci-dessous s'en chargent.
     const enDirect = await apiFootballService.getLiveFixtures();
     const vusEnDirect = new Set((enDirect ?? []).map(f => f.fixture.id));
-    const directEnBase = await prisma.match.findMany({
-      where:  { status: 'LIVE', source: MatchSource.API_FOOTBALL },
-      select: { externalId: true },
-    });
-    const quitteLeDirect = directEnBase.some(m => !vusEnDirect.has(m.externalId));
+    const quitteLeDirect = enDirect !== null &&
+      [...directPrecedent].some(id => !vusEnDirect.has(id));
+    if (enDirect !== null) directPrecedent = vusEnDirect;
     const afAll = await apiFootballService.getAllLiveAndRecentFixtures({ anticiper: quitteLeDirect });
 
     const unified = afAll.map(f => ({
@@ -543,18 +569,25 @@ export class PronosticsService {
       // plafond à chaque cycle, ce qui empêchait à vie certains matchs bloqués
       // depuis longtemps (ex. un match CL replanifié) d'être jamais retentés.
       orderBy: { matchDate: 'asc' },
-      take: 40,
+      // Un match en attente de son prochain essai ne coûte rien : la limite
+      // peut couvrir toute la file sans dépenser d'appel.
+      take: 120,
     });
-    // Purge les entrées de plus de 24h — la liste de matchs bloqués change en
-    // continu, pas besoin de les garder plus longtemps que le throttle lui-même.
+    // Purge les entrées plus vieilles que le plus long intervalle d'essai.
     for (const [extId, ts] of staleRetryBackoff) {
-      if (Date.now() - ts > 24 * 60 * 60 * 1000) staleRetryBackoff.delete(extId);
+      if (Date.now() - ts > 25 * 60 * 60 * 1000) staleRetryBackoff.delete(extId);
     }
+    // Hier et aujourd'hui (UTC) : déjà dans le relevé par date, toutes les
+    // 5 minutes. Les relire un par un doublait l'appel pour rien — 110 des
+    // 156 matchs « bloqués » du 18 octobre, relus toutes les 45 minutes.
+    const debutReleveParDate = new Date(new Date().toISOString().slice(0, 10) + 'T00:00:00Z');
+    debutReleveParDate.setUTCDate(debutReleveParDate.getUTCDate() - 1);
 
     for (const m of stuckMatches) {
       if (coveredIds.has(m.externalId)) continue;
+      if (m.matchDate >= debutReleveParDate) continue;
       const lastAttempt = staleRetryBackoff.get(m.externalId);
-      if (lastAttempt && Date.now() - lastAttempt < STALE_RETRY_INTERVAL) continue;
+      if (lastAttempt && Date.now() - lastAttempt < intervalleNouvelEssai(m.matchDate)) continue;
       staleRetryBackoff.set(m.externalId, Date.now());
 
       const fixture = await apiFootballService.getFixtureById(m.externalId);

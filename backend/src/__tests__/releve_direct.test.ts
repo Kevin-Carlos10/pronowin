@@ -93,27 +93,75 @@ describe('synchroniseur des scores', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { apiFootballService } = require('../services/api_football.service');
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { PronosticsService } = require('../services/pronostics.service');
+  const { PronosticsService, _oublierDirectPrecedent } = require('../services/pronostics.service');
 
+  beforeEach(() => _oublierDirectPrecedent());
   afterEach(() => jest.restoreAllMocks());
 
-  async function synchroniser(enDirectChezLeFournisseur: number[], enDirectEnBase: number[]) {
-    jest.spyOn(prisma.match, 'findMany').mockImplementation(async (args: any) =>
-      args?.where?.status === 'LIVE' && args?.where?.matchDate === undefined
-        ? enDirectEnBase.map(externalId => ({ externalId }))
-        : []);
+  /** Un cycle : `direct` = matchs dans le direct du fournisseur (null = échec). */
+  async function cycle(direct: number[] | null) {
+    jest.spyOn(prisma.match, 'findMany').mockResolvedValue([]);
     jest.spyOn(apiFootballService, 'getLiveFixtures')
-      .mockResolvedValue(enDirectChezLeFournisseur.map(id => rencontre(id, '2H')));
+      .mockResolvedValue(direct === null ? null : direct.map(id => rencontre(id, '2H')));
     const releve = jest.spyOn(apiFootballService, 'getAllLiveAndRecentFixtures').mockResolvedValue([]);
     await new PronosticsService().syncMatchScores();
-    return releve.mock.calls[0][0];
+    const options = releve.mock.calls[0][0];
+    jest.restoreAllMocks();
+    return options;
   }
 
-  it('un match en direct en base a quitté le direct : relevé complet anticipé', async () => {
-    expect(await synchroniser([7], [7, 8])).toEqual({ anticiper: true });
+  it('un match présent au cycle précédent quitte le direct : relevé complet anticipé', async () => {
+    expect(await cycle([7, 8])).toEqual({ anticiper: false });
+    expect(await cycle([7])).toEqual({ anticiper: true });
+    expect(await cycle([7])).toEqual({ anticiper: false });
   });
 
-  it('tous les matchs en direct en base y sont encore : le direct suffit', async () => {
-    expect(await synchroniser([7, 8, 9], [7, 8])).toEqual({ anticiper: false });
+  it('un nouveau match entre dans le direct : rien à anticiper', async () => {
+    expect(await cycle([7])).toEqual({ anticiper: false });
+    expect(await cycle([7, 9])).toEqual({ anticiper: false });
+  });
+
+  it('le direct échoue : pas d’anticipation, et le cycle suivant compare au dernier direct connu', async () => {
+    expect(await cycle([7, 8])).toEqual({ anticiper: false });
+    expect(await cycle(null)).toEqual({ anticiper: false });
+    expect(await cycle([7])).toEqual({ anticiper: true });
+  });
+});
+
+describe('matchs bloqués relus un par un', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { prisma } = require('../lib/prisma');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { apiFootballService } = require('../services/api_football.service');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { PronosticsService, intervalleNouvelEssai, _oublierDirectPrecedent } = require('../services/pronostics.service');
+
+  const jour = 24 * 3600_000;
+  beforeEach(() => _oublierDirectPrecedent());
+  afterEach(() => jest.restoreAllMocks());
+
+  it('intervalle selon l’ancienneté : 45 min, puis 6 h au-delà de 3 jours, 24 h au-delà de 7', () => {
+    expect(intervalleNouvelEssai(new Date(T0 - 2 * jour), T0)).toBe(45 * 60_000);
+    expect(intervalleNouvelEssai(new Date(T0 - 5 * jour), T0)).toBe(6 * 3600_000);
+    expect(intervalleNouvelEssai(new Date(T0 - 40 * jour), T0)).toBe(24 * 3600_000);
+  });
+
+  it('hier et aujourd’hui : jamais relus un par un (déjà dans le relevé par date)', async () => {
+    const bloques = [
+      { externalId: 101, matchDate: new Date(T0 - 5 * 3600_000) },   // aujourd'hui
+      { externalId: 102, matchDate: new Date(T0 - 20 * 3600_000) },  // hier
+      { externalId: 103, matchDate: new Date(T0 - 10 * jour) },      // ancien
+    ];
+    jest.spyOn(prisma.match, 'findMany').mockResolvedValue(bloques);
+    jest.spyOn(apiFootballService, 'getLiveFixtures').mockResolvedValue([]);
+    jest.spyOn(apiFootballService, 'getAllLiveAndRecentFixtures').mockResolvedValue([]);
+    const parId = jest.spyOn(apiFootballService, 'getFixtureById').mockResolvedValue(null);
+    const svc = new PronosticsService();
+    await svc.syncMatchScores();
+    expect(parId.mock.calls.map(c => c[0])).toEqual([103]);
+    // Cycle suivant, 30 s plus tard : l'ancien attend 24 h.
+    jest.setSystemTime(T0 + 30_000);
+    await svc.syncMatchScores();
+    expect(parId).toHaveBeenCalledTimes(1);
   });
 });
