@@ -5,6 +5,7 @@ import '../../../../core/utils/motion.dart';
 import 'dart:io';
 import 'package:country_picker/country_picker.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -2312,7 +2313,9 @@ class _PaywallPage extends StatelessWidget {
                     style: const TextStyle(color: Colors.white38, fontSize: 11),
                     textAlign: TextAlign.center),
                   const SizedBox(height: 26),
-                  _PaywallFaq(promoCode: promoCode, tarifs: tarifs, iapMode: iapMode),
+                  // La FAQ de paiement n'a pas d'objet là où rien n'est en vente.
+                  if (!(iapMode && defaultTargetPlatform == TargetPlatform.android && iapProduct == null))
+                    _PaywallFaq(promoCode: promoCode, tarifs: tarifs, iapMode: iapMode),
                   const SizedBox(height: 18),
                   // Trois mentions qui ressemblaient à des liens sans en être :
                   // de simples `Text`, sans aucune zone tactile. Toucher
@@ -2545,6 +2548,27 @@ class _IapSection extends StatelessWidget {
       return const Padding(
         padding: EdgeInsets.symmetric(vertical: 40),
         child: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+      );
+    }
+
+    // Google Play : aucun abonnement en vente (pas de compte marchand possible
+    // depuis le Burkina Faso). Ni « vérifie ta connexion », qui ne changerait
+    // rien, ni autre moyen de paiement, que Google interdit d'indiquer.
+    if (defaultTargetPlatform == TargetPlatform.android && product == null) {
+      return Container(
+        key: const Key('iap-indisponible-play'),
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withValues(alpha: 0.06),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.12))),
+        child: Row(children: [
+          Icon(Icons.info_outline_rounded, color: context.cl.textS, size: 20),
+          const SizedBox(width: 12),
+          Expanded(child: Text(
+            tr(context, "L'abonnement Premium n'est pas encore proposé dans la version Google Play."),
+            style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.5))),
+        ]),
       );
     }
 

@@ -1647,4 +1647,6 @@ const englishMessages = <String, String>{
   "Tout": "All",
   "1re MT": "1st half",
   "2e MT": "2nd half",
+  "L'abonnement Premium n'est pas encore proposé dans la version Google Play.": "The Premium subscription is not yet available in the Google Play version.",
+  "Activer Premium": "Activate Premium",
 };

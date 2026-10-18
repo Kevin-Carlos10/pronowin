@@ -1056,7 +1056,10 @@ class _PremiumLock extends ConsumerWidget {
                                           ),
                                           const SizedBox(width: 8),
                                           Text(
-                                            tr(
+                                            // Google Play sans abonnement en vente : pas de prix.
+                                            premiumIndisponibleSurPlay(ref)
+                                                ? tr(context, "Activer Premium")
+                                                : tr(
                                               context,
                                               "Activer Premium — {arg0}",
                                               [priceLabel],

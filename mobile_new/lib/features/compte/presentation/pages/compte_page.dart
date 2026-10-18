@@ -594,7 +594,8 @@ class _FreeState extends ConsumerWidget {
                 Text(tr(context, "Débloquez tout PronoWin"), style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.6), fontSize: 12)),
               ])),
-              Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
+              // Pas de prix sur Google Play tant que rien n'y est en vente.
+              if (!premiumIndisponibleSurPlay(ref)) Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
                 Text(premiumMonthlyPriceLabel(ref, sub), style: TextStyle(
                   color: context.cl.dore, fontSize: 22, fontWeight: FontWeight.w700)),
                 Text(tr(context, "/mois"), style: const TextStyle(

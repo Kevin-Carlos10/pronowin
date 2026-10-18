@@ -258,7 +258,8 @@ class _PremiumGateSheet extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Wrap(
+                  // Google Play sans abonnement en vente : pas de prix.
+                  if (!premiumIndisponibleSurPlay(ref)) Wrap(
                     alignment: WrapAlignment.center,
                     crossAxisAlignment: WrapCrossAlignment.center,
                     spacing: 6,

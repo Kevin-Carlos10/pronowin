@@ -1601,7 +1601,10 @@ class _PremiumBannerState extends ConsumerState<_PremiumBanner>
     final sub = ref.watch(currentSubscriptionProvider).valueOrNull ?? const {};
     // Sur un build store le tarif est majoré (commission Apple/Google) :
     // annoncer le prix Mobile Money afficherait moins que le montant débité.
-    final priceLabel = tr(context, "{arg0}/mois", [premiumMonthlyPriceLabel(ref, sub)]);
+    // Google Play sans abonnement en vente : pas de prix (`premiumIndisponibleSurPlay`).
+    final priceLabel = premiumIndisponibleSurPlay(ref)
+        ? tr(context, "Débloquer")
+        : tr(context, "{arg0}/mois", [premiumMonthlyPriceLabel(ref, sub)]);
     // Carte toujours sombre : son contenu lit le thème sombre, sinon les
     // couleurs d'état et les gris passent à leurs variantes pour fond blanc.
     return SurfaceSombre(builder: (context) => GestureDetector(
