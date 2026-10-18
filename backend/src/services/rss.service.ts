@@ -1,16 +1,7 @@
 import Parser from 'rss-parser';
 import { extraitTexte } from '../utils/extrait';
 
-const parser = new Parser({
-  timeout: 8000,
-  customFields: {
-    item: [
-      ['media:thumbnail', 'media:thumbnail', { keepArray: false }],
-      ['media:content',   'media:content',   { keepArray: false }],
-      ['enclosure',       'enclosure'],
-    ],
-  },
-});
+const parser = new Parser({ timeout: 8000 });
 
 // ─── Sources RSS football ─────────────────────────────────────────────────────
 const RSS_FEEDS: { url: string; label: string; emoji: string; lang: string }[] = [
@@ -54,41 +45,7 @@ function relTimeShort(d: Date): string {
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
-function extractImage(item: any): string | null {
-  // RMC / BFMTV → enclosure.url
-  if (item.enclosure?.url && item.enclosure.type?.startsWith('image')) {
-    return item.enclosure.url;
-  }
-  // BBC Sport → media:thumbnail.$.url
-  if (item['media:thumbnail']?.$?.url) {
-    return item['media:thumbnail'].$.url;
-  }
-  // Générique media:content
-  if (item['media:content']?.$?.url) {
-    return item['media:content'].$.url;
-  }
-  // itunes
-  if (item['itunes:image']?.$?.href) {
-    return item['itunes:image'].$.href;
-  }
-  return null;
-}
-
-/**
- * Construit l'URL du proxy à partir de la requête entrante (protocole + host
- * réellement utilisés par le client) — jamais d'adresse en dur : un même
- * backend est joint différemment selon le contexte (10.0.2.2 en émulateur
- * Android, IP locale sur un vrai téléphone en dev, domaine en prod).
- */
-export function proxyImage(url: string | null, baseUrl: string): string | null {
-  if (!url) return null;
-  return `${baseUrl}/api/v1/actualites/image-proxy?url=${encodeURIComponent(url)}`;
-}
-
 export async function fetchRssNews(): Promise<RssArticle[]> {
-  // Le cache garde les URLs d'image BRUTES (pas encore proxées) — sinon les
-  // liens de proxy resteraient figés sur le host du tout premier appelant
-  // pendant 15 min, cassant les images pour tous les autres clients.
   if (_cache && Date.now() - _cacheAt < CACHE_TTL) return _cache;
 
   const results = await Promise.allSettled(
@@ -103,7 +60,9 @@ export async function fetchRssNews(): Promise<RssArticle[]> {
           resume:     extraitTexte(item.contentSnippet ?? item.content),
           categorie:  feed.label,
           emoji:      feed.emoji,
-          image_url:  extractImage(item), // brut — proxé à la demande dans news.routes.ts
+          // Pas d'image : la reprendre supposait de contourner la protection
+          // du média (voir news.routes.ts). Titre, résumé du flux et lien.
+          image_url:  null,
           source_url: item.link ?? null,
           source:     feed.label,
           date:       relTimeShort(pubDate),

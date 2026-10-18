@@ -1,9 +1,8 @@
 import { Router, Request, Response } from 'express';
 import fs   from 'fs';
 import path from 'path';
-import https from 'https';
-import http  from 'http';
-import { fetchRssNews, proxyImage } from '../services/rss.service';
+import { fetchRssNews } from '../services/rss.service';
+import { resumesPourActualites } from '../services/resumes_match.service';
 import { extraitTexte } from '../utils/extrait';
 
 const router = Router();
@@ -31,72 +30,19 @@ function relTimeShort(d: Date): string {
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
-// ─── Proxy image (contourne les restrictions CDN côté client mobile) ──────────
-// Suffixes de domaine autorisés (pas de correspondance exacte) : BFMTV sert ses
-// images RSS via des sous-domaines CDN qui changent (ex. observé en prod :
-// io-fsly-bfmtv.cdn.nextradiotv.com), jamais "images.bfmtv.com" directement.
-const ALLOWED_HOST_SUFFIXES = ['bfmtv.com', 'nextradiotv.com'];
+// ─── Plus de relais d'images ─────────────────────────────────────────────────
+// Le serveur relayait les images de RMC Sport en se faisant passer pour leur
+// site (en-tête Referer), pour contourner leur protection contre la reprise
+// d'images. Dans une application commerciale, c'est un risque juridique : les
+// articles des médias s'affichent désormais sans image (titre, source, lien
+// vers l'article d'origine), comme Google Actualités (18 octobre 2026).
+// L'adresse répond 410 aux versions de l'app qui l'ont encore en cache : elles
+// affichent leur visuel de repli.
+router.get('/image-proxy', (_req: Request, res: Response) => { res.status(410).end(); });
 
-function isAllowedImageHost(hostname: string): boolean {
-  return ALLOWED_HOST_SUFFIXES.some(
-    (suffix) => hostname === suffix || hostname.endsWith(`.${suffix}`)
-  );
-}
-
-router.get('/image-proxy', (req: Request, res: Response) => {
-  const raw = req.query.url as string | undefined;
-  if (!raw) return res.status(400).end();
-
-  let target: URL;
-  try { target = new URL(raw); } catch { return res.status(400).end(); }
-
-  if (!isAllowedImageHost(target.hostname)) {
-    return res.status(403).end();
-  }
-
-  const referer = target.hostname.includes('bfmtv')
-    ? 'https://rmcsport.bfmtv.com/'
-    : 'https://www.bbc.com/';
-
-  const lib = target.protocol === 'https:' ? https : http;
-  const reqOpts = {
-    hostname: target.hostname,
-    path:     target.pathname + target.search,
-    headers:  {
-      'Referer':    referer,
-      'User-Agent': 'Mozilla/5.0 (compatible; PronoWinApp/1.0)',
-    },
-  };
-
-  const MAX_SIZE = 5 * 1024 * 1024; // 5 Mo max
-
-  const proxyReq = lib.get(reqOpts, (upstream) => {
-    const ct = upstream.headers['content-type'] ?? 'image/jpeg';
-    if (!ct.startsWith('image/')) { upstream.destroy(); return res.status(400).end(); }
-
-    const contentLength = parseInt(upstream.headers['content-length'] ?? '0', 10);
-    if (contentLength > MAX_SIZE) { upstream.destroy(); return res.status(413).end(); }
-
-    res.setHeader('Content-Type', ct);
-    res.setHeader('Cache-Control', 'public, max-age=3600');
-
-    let received = 0;
-    upstream.on('data', (chunk: Buffer) => {
-      received += chunk.length;
-      if (received > MAX_SIZE) { upstream.destroy(); res.destroy(); }
-    });
-    upstream.pipe(res);
-  });
-  proxyReq.setTimeout(8000, () => { proxyReq.destroy(); res.status(504).end(); });
-  proxyReq.on('error', () => { if (!res.headersSent) res.status(502).end(); });
-});
-
-// GET /api/v1/actualites — articles admin épinglés + flux RSS fusionnés
-router.get('/', async (req: Request, res: Response) => {
-  // Base recalculée depuis la requête entrante — fonctionne quel que soit le
-  // moyen utilisé par le client pour joindre le backend (IP locale, domaine...).
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
-
+// GET /api/v1/actualites — articles admin épinglés, résumés de match et flux
+// RSS, fusionnés
+router.get('/', async (_req: Request, res: Response) => {
   // 1. Articles admin publiés
   const adminArticles = loadNews()
     .filter((a: any) => a.isPublished)
@@ -118,13 +64,14 @@ router.get('/', async (req: Request, res: Response) => {
   // 2. Articles RSS (fire-and-forget si erreur réseau)
   let rssArticles: any[] = [];
   try {
-    rssArticles = (await fetchRssNews()).map((a) => ({
-      ...a,
-      image_url: proxyImage(a.image_url, baseUrl),
-    }));
+    rssArticles = await fetchRssNews();
   } catch {
     // Réseau indisponible → on continue avec les articles admin seuls
   }
+
+  // 2 bis. Résumés automatiques des matchs pronostiqués (resumes_match.service.ts)
+  const resumes = (await resumesPourActualites().catch(() => []))
+    .map((r) => ({ ...r, date: relTimeShort(new Date(r.created_at)) }));
 
   // 3. Fusion : admin d'abord (épinglés en tête), puis RSS
   //    On retire du RSS les articles dont le titre est proche d'un article admin
@@ -139,7 +86,7 @@ router.get('/', async (req: Request, res: Response) => {
   const unpinned  = adminArticles.filter((a) => !a.is_pinned);
 
   // Mélange unpinned admin + RSS, trié par date
-  const mixed = [...unpinned, ...filteredRss].sort(
+  const mixed = [...unpinned, ...resumes, ...filteredRss].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
