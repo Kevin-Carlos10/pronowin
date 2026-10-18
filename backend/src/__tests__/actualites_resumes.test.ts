@@ -41,3 +41,10 @@ it('aucune image de média reprise ; le relais d\'images ne répond plus', async
   const relais = await request(app).get('/actualites/image-proxy?url=https%3A%2F%2Fimages.bfmtv.com%2Fx.jpg');
   expect(relais.status).toBe(410);
 });
+
+it('la page Actualités demande jusqu\'à 50 articles ; au-delà, 50 ; l\'accueil reste à 20', async () => {
+  // Deux articles au total ici : la limite borne, elle n'invente rien.
+  expect((await request(app).get('/actualites?limite=50')).body).toHaveLength(2);
+  expect((await request(app).get('/actualites?limite=abc')).status).toBe(200);
+  expect((await request(app).get('/actualites?limite=1')).body).toHaveLength(1);
+});

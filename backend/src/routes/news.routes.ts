@@ -42,7 +42,9 @@ router.get('/image-proxy', (_req: Request, res: Response) => { res.status(410).e
 
 // GET /api/v1/actualites — articles admin épinglés, résumés de match et flux
 // RSS, fusionnés
-router.get('/', async (_req: Request, res: Response) => {
+router.get('/', async (req: Request, res: Response) => {
+  // 20 pour l'accueil ; la page Actualités de l'app en demande jusqu'à 50.
+  const limite = Math.min(Math.max(parseInt(String(req.query.limite ?? '20')) || 20, 1), 50);
   // 1. Articles admin publiés
   const adminArticles = loadNews()
     .filter((a: any) => a.isPublished)
@@ -70,7 +72,7 @@ router.get('/', async (_req: Request, res: Response) => {
   }
 
   // 2 bis. Résumés automatiques des matchs pronostiqués (resumes_match.service.ts)
-  const resumes = (await resumesPourActualites().catch(() => []))
+  const resumes = (await resumesPourActualites(limite > 20 ? 20 : 8).catch(() => []))
     .map((r) => ({ ...r, date: relTimeShort(new Date(r.created_at)) }));
 
   // 3. Fusion : admin d'abord (épinglés en tête), puis RSS
@@ -90,7 +92,7 @@ router.get('/', async (_req: Request, res: Response) => {
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
-  const result = [...pinned, ...mixed].slice(0, 20);
+  const result = [...pinned, ...mixed].slice(0, limite);
   res.json(result);
 });
 
