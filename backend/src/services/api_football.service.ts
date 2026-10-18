@@ -185,8 +185,34 @@ export function matchStatusPriority(
 // des scores en direct. TTL calé juste sous l'intervalle de sync live (30s,
 // cf. index.ts) : un TTL plus long annulerait le bénéfice de l'intervalle
 // resserré en resservant la même donnée déjà vue à chaque tick.
-const friendliesCache = new Map<string, { data: AFFixture[]; ts: number }>();
+const friendliesCache = new Map<string, { data: AFFixture[]; ts: number; ttl: number }>();
 const FRIENDLIES_CACHE_TTL = 25 * 1000; // 25 secondes
+/** Un jour où rien ne se joue avant 3 heures (`dureeReleveParDate`). */
+const RELEVE_CALME_TTL = 30 * 60 * 1000;
+/** En deçà, un match « à venir » peut commencer pendant la vie du relevé. */
+const COUP_ENVOI_PROCHE_MS = 3 * 60 * 60 * 1000;
+
+/**
+ * Durée de vie du relevé d'un jour, selon ce qu'il contient.
+ *
+ * La liste des matchs relit les 7 prochains jours à chaque ouverture, avec la
+ * fraîcheur d'un direct (25 s) : environ la moitié des 500 appels « par
+ * date » de la matinée du 18 octobre 2026 — les autres venaient de la
+ * synchronisation. Or un jour dont aucun match n'est en cours ni ne commence
+ * avant 3 heures ne change guère : un horaire corrigé, un match ajouté. Il
+ * est gardé 30 minutes.
+ *
+ * Un match « à venir » dont l'heure est passée (coup d'envoi retardé, statut
+ * pas encore mis à jour) compte comme proche : son jour reste à 25 s.
+ */
+export function dureeReleveParDate(rencontres: AFFixture[], maintenant = Date.now()): number {
+  const bientot = rencontres.some(f => {
+    const statut = mapAFStatus(f.fixture.status.short);
+    if (statut === 'LIVE') return true;
+    return statut === 'SCHEDULED' && Date.parse(f.fixture.date) - maintenant < COUP_ENVOI_PROCHE_MS;
+  });
+  return bientot ? FRIENDLIES_CACHE_TTL : RELEVE_CALME_TTL;
+}
 
 /**
  * Relevé du direct (`/fixtures?live=all`) : tous les matchs en cours du monde
@@ -418,14 +444,14 @@ export class ApiFootballService {
   private async _fetchFixturesByDate(date: string): Promise<AFFixture[]> {
     const cacheKey = `date_${date}`;
     const cached = friendliesCache.get(cacheKey);
-    if (cached && Date.now() - cached.ts < FRIENDLIES_CACHE_TTL) return cached.data;
+    if (cached && Date.now() - cached.ts < cached.ttl) return cached.data;
 
     const r = await this.client.get('/fixtures', { params: { date } });
     const all: AFFixture[] = r.data?.response ?? [];
     // Chaque relevé frais situe le début des mi-temps (chrono à la seconde).
     observerRencontres(all);
 
-    friendliesCache.set(cacheKey, { data: all, ts: Date.now() });
+    friendliesCache.set(cacheKey, { data: all, ts: Date.now(), ttl: dureeReleveParDate(all) });
     return all;
   }
 
