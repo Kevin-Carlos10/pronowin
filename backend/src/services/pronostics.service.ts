@@ -1,7 +1,7 @@
 import { optionalText } from '../i18n/editorial';
 ﻿import { Prisma, MatchSource, Match } from '@prisma/client';
 import { prisma } from '../lib/prisma';
-import { ApiFootballService, apiFootballService, mapAFStatus, matchStatusPriority } from './api_football.service';
+import { ApiFootballService, apiFootballService, mapAFStatus, matchStatusPriority, type AFFixture } from './api_football.service';
 import { NotificationService } from './notification.service';
 import {
   annulerParisSelectionModifiee, notifierSelectionModifiee, settleBets, type PariAnnule,
@@ -15,6 +15,7 @@ import { estVerrouille } from './verrou_pronostic';
 import { construireRecherche } from './recherche_matchs';
 import { ErreurMetier } from '../utils/erreurs';
 import { journal } from '../utils/logger';
+import { messageDeBut, releverScores, _oublierScoresDuDirect, type Score } from './alertes_direct';
 import { nomEquipe, rencontre, traduireEquipes } from '../utils/noms_equipes';
 import { pourcentageConfiance, pourcentageDepuisNiveau } from '../utils/confiance';
 
@@ -30,8 +31,38 @@ const notifSvc  = new NotificationService();
 // principal tourne 24h/24 au lieu de 18h/24 avec blackout.
 /** Matchs vus dans le direct du fournisseur au cycle de synchronisation précédent. */
 let directPrecedent = new Set<number>();
+/** Le direct a été relevé au moins une fois depuis le démarrage du serveur. */
+let directReleve = false;
+/**
+ * Coups d'envoi déjà annoncés (id du match en base → instant). Deux chemins
+ * peuvent annoncer le même : le passage « en direct » en base, et l'entrée
+ * dans le direct du fournisseur.
+ */
+const coupsEnvoiAnnonces = new Map<string, number>();
 /** Pour les tests. */
-export function _oublierDirectPrecedent(): void { directPrecedent = new Set(); }
+export function _oublierDirectPrecedent(): void {
+  directPrecedent = new Set();
+  directReleve = false;
+  coupsEnvoiAnnonces.clear();
+  _oublierScoresDuDirect();
+}
+
+/**
+ * Ceux qui suivent un match : favori, ou pari en cours sur son pronostic dans
+ * la bankroll. Un utilisateur dans les deux cas ne reçoit qu'une alerte.
+ */
+async function suiveursDuMatch(matchId: string, pronosticId: string | null): Promise<string[]> {
+  const [favoris, paris] = await Promise.all([
+    prisma.userFavoriteMatch.findMany({ where: { matchId }, select: { userId: true } }),
+    pronosticId
+      ? prisma.bankrollBet.findMany({
+          where:  { pronosticId, result: null },
+          select: { bankroll: { select: { userId: true } } },
+        })
+      : Promise.resolve([] as { bankroll: { userId: string } }[]),
+  ]);
+  return [...new Set([...favoris.map(f => f.userId), ...paris.map(p => p.bankroll.userId)])];
+}
 
 const staleRetryBackoff = new Map<number, number>(); // externalId → dernier essai (ms)
 const STALE_RETRY_INTERVAL = 45 * 60 * 1000; // 45 min entre deux tentatives sur le même match
@@ -326,13 +357,19 @@ export class PronosticsService {
       await prisma.match.createMany({ data: aCreer, skipDuplicates: true });
     }
 
+    // Un match commencé appartient à la synchronisation des scores. Ce
+    // relevé, vieux de 25 s au plus, réécrivait par-dessus le sien un score
+    // plus ancien, ou « à venir » sur un match en cours : le coup d'envoi
+    // était alors annoncé deux fois (18 octobre 2026).
+    const commence = (statut: string) => statut === 'LIVE' || statut === 'FINISHED';
     const aMettreAJour = validMatches.filter(d => {
       const actuel = parId.get(d.external_id);
       if (!actuel) return false;
       const st = mapAFStatus(d.status);
-      return actuel.status    !== st
-          || actuel.homeScore !== d.home_score
-          || actuel.awayScore !== d.away_score
+      return (!commence(actuel.status) && (
+                actuel.status    !== st
+             || actuel.homeScore !== d.home_score
+             || actuel.awayScore !== d.away_score))
           || (actuel.leagueCountry == null && d.league_country != null);
     });
 
@@ -341,10 +378,12 @@ export class PronosticsService {
       return prisma.match.update({
         where: { externalId_source: { externalId: d.external_id, source: d.source } },
         data: {
-          status:         st,
-          statusPriority: matchStatusPriority(st),
-          homeScore:      d.home_score,
-          awayScore:      d.away_score,
+          ...(commence(parId.get(d.external_id)!.status) ? {} : {
+            status:         st,
+            statusPriority: matchStatusPriority(st),
+            homeScore:      d.home_score,
+            awayScore:      d.away_score,
+          }),
           ...(d.league_country ? { leagueCountry: d.league_country } : {}),
         },
       });
@@ -513,6 +552,44 @@ export class PronosticsService {
    * met à jour les scores en base et calcule le résultat (WIN/LOSS) des pronostics.
    * Appelé toutes les 5 minutes par le setInterval dans index.ts.
    */
+  /**
+   * Coup d'envoi et buts, à ceux qui suivent le match (`suiveursDuMatch`).
+   * Un coup d'envoi n'est annoncé qu'une fois, quel que soit le chemin qui le
+   * détecte.
+   */
+  private async _alertesDuDirect(
+    match: { id: string; homeTeam: string; awayTeam: string },
+    coupEnvoi: boolean,
+    but: { avant: Score; fixture: AFFixture } | undefined,
+  ): Promise<void> {
+    const annoncerCoupEnvoi = coupEnvoi && !coupsEnvoiAnnonces.has(match.id);
+    if (annoncerCoupEnvoi) coupsEnvoiAnnonces.set(match.id, Date.now());
+    const equipes = { dom: match.homeTeam, ext: match.awayTeam };
+    const fr = but ? messageDeBut(but.fixture, but.avant, equipes, 'fr') : null;
+    const en = but ? messageDeBut(but.fixture, but.avant, equipes, 'en') : null;
+    if (!annoncerCoupEnvoi && !fr) return;
+
+    const prono = await prisma.pronostic.findUnique({ where: { matchId: match.id }, select: { id: true } });
+    const destinataires = await suiveursDuMatch(match.id, prono?.id ?? null);
+    // Un match sans pronostic s'ouvre aussi : l'écran accepte son id.
+    const data = { deep_link: `/pronostics/${prono?.id ?? match.id}`, match_id: match.id };
+    for (const userId of destinataires) {
+      if (annoncerCoupEnvoi) {
+        notifSvc.sendToUser(userId, {
+          title: 'Match en direct !',
+          body:  `${rencontre(match.homeTeam, match.awayTeam)} vient de commencer.`,
+          data:  { type: 'match_live', ...data },
+        }, 'match').catch((err: any) => journal.error('[PronoSvc]', err.message));
+      }
+      if (fr && en) {
+        notifSvc.sendToUser(userId, {
+          title: fr.title, body: fr.body, titleEn: en.title, bodyEn: en.body,
+          data:  { type: 'match', ...data },
+        }, 'match').catch((err: any) => journal.error('[PronoSvc]', err.message));
+      }
+    }
+  }
+
   async syncMatchScores(): Promise<{ updated: number; resolved: number }> {
     let updated  = 0;
     let resolved = 0;
@@ -533,7 +610,21 @@ export class PronosticsService {
     const vusEnDirect = new Set((enDirect ?? []).map(f => f.fixture.id));
     const quitteLeDirect = enDirect !== null &&
       [...directPrecedent].some(id => !vusEnDirect.has(id));
-    if (enDirect !== null) directPrecedent = vusEnDirect;
+    // Coup d'envoi : un match qui entre dans le direct dans ses premières
+    // minutes. La liste des matchs peut l'avoir déjà passé « en direct » en
+    // base : le passage de statut, plus bas, ne le verrait alors pas. Pas au
+    // premier relevé après un démarrage : tout le direct y « entrerait ».
+    const entresDansLeDirect = new Set(directReleve && enDirect
+      ? enDirect
+          .filter(f => !directPrecedent.has(f.fixture.id) && (f.fixture.status.elapsed ?? 0) <= 10)
+          .map(f => f.fixture.id)
+      : []);
+    // Buts : le score du direct comparé au relevé précédent (alertes_direct.ts).
+    const butsDuDirect = enDirect ? releverScores(enDirect) : new Map<number, { avant: Score; fixture: AFFixture }>();
+    if (enDirect !== null) { directPrecedent = vusEnDirect; directReleve = true; }
+    for (const [id, ts] of coupsEnvoiAnnonces) {
+      if (Date.now() - ts > 24 * 3600_000) coupsEnvoiAnnonces.delete(id);
+    }
     const afAll = await apiFootballService.getAllLiveAndRecentFixtures({ anticiper: quitteLeDirect });
 
     const unified = afAll.map(f => ({
@@ -643,9 +734,19 @@ export class PronosticsService {
         // chronomètre tant que le score restait identique.
         match.elapsedMinutes === elapsed &&
         !dateChanged;
-      if (unchanged) continue;
 
       const previousStatus = match.status;
+      // Avant le raccourci « rien n'a changé » : la liste des matchs a pu
+      // écrire en base le statut ou le score que le direct annonce.
+      const coupEnvoi = mappedStatus === 'LIVE' &&
+        (previousStatus !== 'LIVE' || entresDansLeDirect.has(m.externalId));
+      const but = butsDuDirect.get(m.externalId);
+      if (coupEnvoi || but) {
+        await this._alertesDuDirect(match, coupEnvoi, but)
+          .catch((err: any) => journal.error('[PronoSvc]', err.message));
+      }
+
+      if (unchanged) continue;
 
       await prisma.match.update({
         where: { externalId_source: externalKey },
@@ -666,24 +767,6 @@ export class PronosticsService {
         select: { userId: true },
       });
 
-      // Notifier si le match passe en LIVE
-      if (mappedStatus === 'LIVE' && previousStatus !== 'LIVE') {
-        const liveProno = await prisma.pronostic.findUnique({
-          where: { matchId: match.id }, select: { id: true },
-        });
-        for (const fav of favorites) {
-          notifSvc.sendToUser(fav.userId, {
-            title: 'Match en direct !',
-            body:  `${rencontre(match.homeTeam, match.awayTeam)} vient de commencer.`,
-            data:  {
-              type:      'match_live',
-              deep_link: liveProno ? `/pronostics/${liveProno.id}` : '',
-              match_id:  match.id,
-            },
-          }, 'match').catch((err: any) => journal.error("[PronoSvc]", err.message));
-        }
-      }
-
       // 3. Si le match est TERMINÉ → calculer le résultat du pronostic
       if (mappedStatus === 'FINISHED' && homeScore !== null && awayScore !== null) {
         const prono = await prisma.pronostic.findUnique({
@@ -699,7 +782,8 @@ export class PronosticsService {
               body:  'Le match est terminé. Consultez le résultat de votre pronostic.',
               data:  {
                 type:      'match_finished',
-                deep_link: prono ? `/pronostics/${prono.id}` : '',
+                // Un match sans pronostic s'ouvre aussi : l'écran accepte son id.
+                deep_link: `/pronostics/${prono?.id ?? match.id}`,
                 match_id:  match.id,
               },
             }, 'match').catch((err: any) => journal.error("[PronoSvc]", err.message));

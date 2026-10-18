@@ -78,7 +78,7 @@ class ParametresPage extends ConsumerWidget {
           _SettingsCard(children: [
             _SwitchTile(
               icon: Icons.sports_soccer_rounded, iconColor: context.cl.info,
-              title: tr(context, "Alertes matchs"), subtitle: tr(context, "1h avant chaque pronostic"),
+              title: tr(context, "Alertes matchs"), subtitle: tr(context, "Pronostics, buts et résultats"),
               value: settings.notifMatch,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('match'),
             ),

@@ -124,7 +124,8 @@ export interface AFFixture {
   // `elapsed` : minute de jeu, renvoyée uniquement pendant un match en cours.
   // C'est l'information n°1 d'un direct — un 0-0 à la 10e et un 0-0 à la 85e
   // ne valent pas la même chose pour un parieur.
-  fixture: { id: number; date: string; status: { short: string; elapsed?: number | null } };
+  // `extra` : temps additionnel en cours (« 90+3 »).
+  fixture: { id: number; date: string; status: { short: string; elapsed?: number | null; extra?: number | null } };
   league:  { id: number; name: string; logo: string | null; country?: string | null };
   teams: {
     home: { id: number; name: string; logo: string | null };
@@ -135,6 +136,15 @@ export interface AFFixture {
   // (Vainqueur 1ère MT, HT/FT, Handicap/Total par mi-temps...). Absent tant
   // que la mi-temps n'a pas été atteinte.
   score?: { halftime: { home: number | null; away: number | null } };
+  // Buts, cartons, remplacements : présents dans le direct (`live=all`) et
+  // dans la fiche d'un match, absents du relevé par date.
+  events?: Array<{
+    time?: { elapsed?: number | null; extra?: number | null };
+    team?: { id?: number };
+    player?: { name?: string | null };
+    type?: string;
+    detail?: string;
+  }>;
 }
 
 /** Statuts courts API-Football → statut interne unifié avec mapFDStatus(). */
