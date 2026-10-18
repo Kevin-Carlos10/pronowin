@@ -1644,4 +1644,7 @@ const englishMessages = <String, String>{
   "Sur le banc": "On the bench",
   "Entré à la {arg0}e · remplace {arg1}": "On at {arg0}' · for {arg1}",
   "Entré à la {arg0}e": "On at {arg0}'",
+  "Tout": "All",
+  "1re MT": "1st half",
+  "2e MT": "2nd half",
 };

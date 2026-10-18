@@ -1,5 +1,5 @@
 import { noterQuota, _reinitialiser } from '../services/etat_taches';
-import { MatchLiveService } from '../services/match_live.service';
+import { MatchLiveService, statsParMiTemps } from '../services/match_live.service';
 import { CacheFootball, exigerQuotaEnrichissement } from '../services/cache_football';
 import { ApiFootballInsights } from '../services/api_football_insights.service';
 
@@ -119,4 +119,45 @@ it('transmet le motif d’un carton, et rien pour un commentaire vide', async ()
     expect.objectContaining({ minute: 21, comments: null }),
     expect.objectContaining({ minute: 38, comments: 'Argument' }),
   ]);
+});
+
+describe('statistiques par mi-temps', () => {
+  const m = (o: Record<string, any>) => new Map(Object.entries(o));
+  const total = m({ 'Total Shots': 6, 'Corner Kicks': 3, Fouls: 12, 'Ball Possession': '31%' });
+  const premiere = m({ 'Total Shots': 2, 'Corner Kicks': 1, Fouls: 5, 'Ball Possession': '27%' });
+  const seconde = m({ 'Total Shots': 4, 'Corner Kicks': 2, Fouls: 7, 'Ball Possession': '35%' });
+
+  it('cohérentes (Betis–Barcelona, 17 octobre 2026) : servies', () => {
+    expect(statsParMiTemps(total, total, [premiere, premiere], [seconde, seconde])).not.toBeNull();
+  });
+
+  it('seconde mi-temps vide (match d\'Eredivisie du même jour) : rien', () => {
+    expect(statsParMiTemps(total, total, [total, total], [m({}), m({})])).toBeNull();
+  });
+
+  it('somme fausse : rien ; une action d\'écart en direct : toléré', () => {
+    const fausse = m({ 'Total Shots': 6, 'Corner Kicks': 1, Fouls: 5 });
+    expect(statsParMiTemps(total, total, [fausse, premiere], [seconde, seconde])).toBeNull();
+    const enRetard = m({ 'Total Shots': 3, 'Corner Kicks': 2, Fouls: 7 });
+    expect(statsParMiTemps(total, total, [premiere, premiere], [enRetard, seconde])).not.toBeNull();
+  });
+
+  it('aucun compteur vérifiable : rien', () => {
+    const p = m({ 'Ball Possession': '50%' });
+    expect(statsParMiTemps(p, p, [p, p], [p, p])).toBeNull();
+  });
+
+  it('le service les transmet par mi-temps, avec `half=true` dans le même appel', async () => {
+    const equipe = (id: number, t: any[], h1: any[], h2: any[]) => ({ team: { id }, statistics: t, statistics_1h: h1, statistics_2h: h2 });
+    const s = (tirs: number, corners: number) => [{ type: 'Total Shots', value: tirs }, { type: 'Corner Kicks', value: corners }];
+    const client = { get: jest.fn(async (url: string) => reply(url === '/fixtures' ? [fixture] : url.endsWith('/events') ? [] : [
+      equipe(1, s(6, 3), s(2, 1), s(4, 2)), equipe(2, s(10, 5), s(7, 2), s(3, 3)),
+    ])) };
+    const r = await new MatchLiveService(client as any, () => true).stats(42, 'FINISHED');
+    expect(client.get).toHaveBeenCalledWith('/fixtures/statistics', { params: { fixture: 42, half: 'true' } });
+    expect(r!.stats_mi_temps!.first).toEqual([
+      { label: 'Total Shots', home: 2, away: 7 }, { label: 'Corner Kicks', home: 1, away: 2 }]);
+    expect(r!.stats_mi_temps!.second).toEqual([
+      { label: 'Total Shots', home: 4, away: 3 }, { label: 'Corner Kicks', home: 2, away: 3 }]);
+  });
 });

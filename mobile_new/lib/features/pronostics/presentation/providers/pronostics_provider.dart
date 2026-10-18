@@ -683,12 +683,16 @@ class MatchStatsData {
   final bool stale;
   final List<MatchEvent> events;
   final List<MatchStat>  stats;
+  /// Chaque mi-temps, quand le serveur a pu vérifier qu'elles retombent sur
+  /// le total (sinon null : seul le total s'affiche).
+  final List<MatchStat>? statsPremiereMiTemps, statsSecondeMiTemps;
   final String          homeTeam;
   final String          awayTeam;
   const MatchStatsData({this.eventsStatus, this.statsStatus,
     this.updatedAt, this.stale = false,
     required this.fixtureId, required this.events,
     required this.stats, required this.homeTeam, required this.awayTeam,
+    this.statsPremiereMiTemps, this.statsSecondeMiTemps,
   });
 }
 
@@ -712,10 +716,12 @@ final matchStatsProvider = FutureProvider.autoDispose.family<MatchStatsData?, St
         assistId: (m['assist_id'] as num?)?.toInt(),
       );
     }).toList();
-    final stats = (d['stats'] as List).map((s) {
+    List<MatchStat> lignes(List l) => l.map((s) {
       final m = s as Map<String, dynamic>;
       return MatchStat(label: m['label'] as String, home: m['home'], away: m['away']);
     }).toList();
+    final stats = lignes(d['stats'] as List);
+    final miTemps = d['stats_mi_temps'] as Map<String, dynamic>?;
     return MatchStatsData(
       fixtureId: (d['fixture_id'] as num).toInt(),
       eventsStatus: d['events_status'] as String?, statsStatus: d['stats_status'] as String?,
@@ -723,6 +729,8 @@ final matchStatsProvider = FutureProvider.autoDispose.family<MatchStatsData?, St
       stale: d['stale'] == true,
       events:    events,
       stats:     stats,
+      statsPremiereMiTemps: miTemps?['first'] is List ? lignes(miTemps!['first'] as List) : null,
+      statsSecondeMiTemps:  miTemps?['second'] is List ? lignes(miTemps!['second'] as List) : null,
       homeTeam:  nomEquipe(d['home_team'] as String),
       awayTeam:  nomEquipe(d['away_team'] as String),
     );

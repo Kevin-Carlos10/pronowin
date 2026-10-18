@@ -144,17 +144,49 @@ void main() {
       await t.pumpWidget(const SizedBox()); await t.pump();
     });
   });
+
+  // Statistiques par mi-temps, comme Sofascore (18 octobre 2026), quand le
+  // serveur a vérifié qu'elles retombent sur le total.
+  group('statistiques par mi-temps', () {
+    MatchStatsData donnees({bool miTemps = true}) => MatchStatsData(fixtureId:42, updatedAt:DateTime.utc(2026,10,18,12),
+      homeTeam:'Home', awayTeam:'Away', events: const [],
+      stats: const [MatchStat(label:'Total Shots', home:6, away:10)],
+      statsPremiereMiTemps: miTemps ? const [MatchStat(label:'Total Shots', home:2, away:7)] : null,
+      statsSecondeMiTemps:  miTemps ? const [MatchStat(label:'Total Shots', home:4, away:3)] : null);
+
+    testWidgets('Tout / 1re MT / 2e MT : chaque période affiche ses chiffres', (t) async {
+      await _ficheEnDirect(t, const MatchInfo(phase:'2H', elapsed:70), stats: donnees());
+      await t.tap(find.text('Statistiques').first); await t.pumpAndSettle();
+      expect(find.byKey(const Key('stats-periodes')), findsOneWidget);
+      expect(find.text('6'), findsOneWidget);
+      await t.tap(find.text('1re MT')); await t.pump();
+      expect(find.text('2'), findsOneWidget);
+      expect(find.text('7'), findsOneWidget);
+      await t.tap(find.text('2e MT')); await t.pump();
+      expect(find.text('4'), findsOneWidget);
+      expect(find.text('3'), findsOneWidget);
+      await t.pumpWidget(const SizedBox()); await t.pump();
+    });
+
+    testWidgets('sans mi-temps vérifiées : le total seul, sans sélecteur', (t) async {
+      await _ficheEnDirect(t, const MatchInfo(phase:'2H', elapsed:70), stats: donnees(miTemps: false));
+      await t.tap(find.text('Statistiques').first); await t.pumpAndSettle();
+      expect(find.byKey(const Key('stats-periodes')), findsNothing);
+      expect(find.text('6'), findsOneWidget);
+      await t.pumpWidget(const SizedBox()); await t.pump();
+    });
+  });
 }
 
 /// Fiche d'un match en direct avec les informations de match données.
-Future<void> _ficheEnDirect(WidgetTester t, MatchInfo info) async {
+Future<void> _ficheEnDirect(WidgetTester t, MatchInfo info, {MatchStatsData? stats}) async {
   SharedPreferences.setMockInitialValues({});
   await t.pumpWidget(ProviderScope(overrides:[
     ...donneesCommunes(),
     matchInfoProvider('m').overrideWith((ref) async => info),
     matchDetailProvider('m').overrideWith((ref) async => _match()),
     liveScoreProvider('m').overrideWith((ref) async => LiveScore(status:'LIVE',homeScore:1,awayScore:0,elapsed:info.elapsed)),
-    matchStatsProvider('m').overrideWith((ref) async => _stats()),
+    matchStatsProvider('m').overrideWith((ref) async => stats ?? _stats()),
     lineupsProvider('m').overrideWith((ref) async => const LineupsData(available:false)),
     injuriesProvider('m').overrideWith((ref) async => []),
     standingsProvider('m').overrideWith((ref) async => []),

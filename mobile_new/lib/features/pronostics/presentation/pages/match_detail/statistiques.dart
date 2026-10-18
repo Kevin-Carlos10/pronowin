@@ -50,9 +50,7 @@ class _MatchStatsCard extends ConsumerWidget {
                 ? "Statistiques momentanément indisponibles."
                 : "Les statistiques ne sont pas encore publiées pour ce match."),
               style: TextStyle(color: context.cl.textS))
-          else _StatsList(stats: statsAsync.valueOrNull!.stats,
-            homeTeam: statsAsync.valueOrNull!.homeTeam,
-            awayTeam: statsAsync.valueOrNull!.awayTeam),
+          else _StatsParPeriode(data: statsAsync.valueOrNull!),
         ] else statsAsync.when(
           loading: () => _StatsLoading(),
           error: (_, _) => Column(children: [
@@ -170,6 +168,67 @@ class _CardHeader extends StatelessWidget {
           fontWeight: FontWeight.w700)),
     ),
   ]);
+}
+
+/// Statistiques du match, avec « Tout / 1re MT / 2e MT » comme Sofascore
+/// quand le serveur fournit des mi-temps cohérentes avec le total.
+class _StatsParPeriode extends StatefulWidget {
+  final MatchStatsData data;
+  const _StatsParPeriode({required this.data});
+
+  @override
+  State<_StatsParPeriode> createState() => _StatsParPeriodeState();
+}
+
+class _StatsParPeriodeState extends State<_StatsParPeriode> {
+  int _periode = 0; // 0 = tout, 1 = 1re mi-temps, 2 = 2e mi-temps
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.data;
+    final m1 = d.statsPremiereMiTemps, m2 = d.statsSecondeMiTemps;
+    final parMiTemps = m1 != null && m2 != null && m1.isNotEmpty && m2.isNotEmpty;
+    final periode = parMiTemps ? _periode : 0;
+    final stats = switch (periode) { 1 => m1!, 2 => m2!, _ => d.stats };
+    return Column(children: [
+      if (parMiTemps) ...[
+        Container(
+          key: const Key('stats-periodes'),
+          padding: const EdgeInsets.all(3),
+          decoration: BoxDecoration(
+            color: context.cl.surfaceDeep,
+            borderRadius: BorderRadius.circular(22)),
+          child: Row(children: [
+            for (final (i, libelle) in [(0, tr(context, "Tout")), (1, tr(context, "1re MT")), (2, tr(context, "2e MT"))])
+              Expanded(child: Semantics(
+                selected: periode == i, button: true,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () {
+                    HapticFeedback.selectionClick();
+                    setState(() => _periode = i);
+                  },
+                  child: AnimatedContainer(
+                    duration: context.duree(const Duration(milliseconds: 180)),
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    decoration: BoxDecoration(
+                      color: periode == i ? context.cl.textP : Colors.transparent,
+                      borderRadius: BorderRadius.circular(19)),
+                    alignment: Alignment.center,
+                    child: Text(libelle, maxLines: 1, overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: periode == i ? context.cl.bg : context.cl.textS,
+                        fontSize: 12, fontWeight: FontWeight.w700)),
+                  ),
+                ),
+              )),
+          ]),
+        ),
+        const SizedBox(height: 14),
+      ],
+      _StatsList(stats: stats, homeTeam: d.homeTeam, awayTeam: d.awayTeam),
+    ]);
+  }
 }
 
 class _StatsList extends StatelessWidget {

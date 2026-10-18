@@ -79,15 +79,16 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                 ? tr(context, "{arg0} contre {arg1}, {arg2}. Pronostic : {arg3}. Indice de confiance {arg4}. Cote recommandée {arg5}.", [m.homeTeam, m.awayTeam, m.league, m.displayPredictionLabel, MatchEntity.affichageConfiance(m.pourcentageConfiance), m.oddsRecommended.toStringAsFixed(2)])
                 : tr(context, "{arg0} contre {arg1}, {arg2}. Pronostic : {arg3}. Indice de confiance {arg4}.", [m.homeTeam, m.awayTeam, m.league, m.displayPredictionLabel, MatchEntity.affichageConfiance(m.pourcentageConfiance)]);
 
-    // Matchs terminés sans pronostic → navigable pour voir les stats
-    final canNavigate = !noProno || _match.status == MatchStatus.finished;
-
+    // Toute fiche de match est consultable, pronostic ou non : compositions,
+    // statistiques, classements, événements et face-à-face ne dépendent pas
+    // d'un pronostic (demande de l'utilisateur du 18 octobre 2026). Seuls les
+    // matchs terminés sans pronostic s'ouvraient jusque-là.
     return Semantics(
       label:  semanticLabel,
-      button: canNavigate,
+      button: true,
       child: GestureDetector(
-      onTapDown: canNavigate ? (_) => _pressCtrl.forward() : null,
-      onTapUp: canNavigate ? (_) {
+      onTapDown: (_) => _pressCtrl.forward(),
+      onTapUp: (_) {
         _pressCtrl.reverse();
         HapticFeedback.lightImpact();
         if (locked) {
@@ -96,7 +97,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
         } else {
           context.push('/pronostics/${_match.id}', extra: _match);
         }
-      } : null,
+      },
       onTapCancel: () => _pressCtrl.reverse(),
       child: ScaleTransition(
         scale: _scale,
