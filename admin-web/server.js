@@ -1447,13 +1447,15 @@ app.get('/admin/dashboard', requireAuth, async (req, res) => {
   const voitTx  = res.locals.hasPerm('transactions');
   const voitAbo = res.locals.hasPerm('abonnements');
   const vide    = Promise.resolve({ data: { data: [], total: 0 } });
-  const [statsRes, pendingRes, proofsRes, onlineRes, santeRes] = await Promise.allSettled([
+  const [statsRes, pendingRes, proofsRes, onlineRes, santeRes, mobileMoneyRes] = await Promise.allSettled([
     a.get('/pronostics/admin/stats'),
     voitTx  ? a.get('/payments/admin/pending?page=1')     : vide,
     voitAbo ? a.get('/subscriptions/admin/proofs?page=1') : vide,
     a.get('/admin/stats/online'),  // non caché — toujours frais
     // Santé du système : réservée à l'administrateur principal (constat A7).
     res.locals.isMain ? a.get('/admin/sante') : Promise.resolve(null),
+    // Paiements Mobile Money bloqués : même section que les preuves.
+    voitAbo ? a.get('/admin/paiements-mobile-money', { params: { etat: 'bloque' } }) : Promise.resolve(null),
   ]);
   if ([statsRes, pendingRes, proofsRes].some(r => r.status === 'rejected' && r.reason?.response?.status === 401)) {
     jetonRefuse(req, res); return res.redirect('/admin/login?expired=1');
@@ -1499,6 +1501,18 @@ app.get('/admin/dashboard', requireAuth, async (req, res) => {
       titre: `${pending.total} versement${pending.total > 1 ? 's' : ''} de parrainage à effectuer`,
       detail: `Le plus ancien attend ${age(h)}. L'argent n'a pas encore été envoyé au parrain.`,
       action:'Traiter', lien:'/admin/transactions' });
+  }
+  // Un paiement validé chez l'opérateur sans que GeniusPay conclue : le client
+  // a peut-être été prélevé sans recevoir son Premium. Deux sont restés ainsi
+  // du 13 au 18 octobre 2026 sans que rien ne le signale.
+  const mm = mobileMoneyRes.status === 'fulfilled' ? mobileMoneyRes.value?.data : null;
+  if (mm?.stats?.bloques > 0) {
+    const n = mm.stats.bloques;
+    const h = (mm.paiements ?? []).reduce((v, p) => Math.max(v, p.ageHeures ?? 0), 0);
+    file.push({ cle:'mobile_money', urgence:'haute', icone:'card',
+      titre: `${n} paiement${n > 1 ? 's' : ''} Mobile Money bloqué${n > 1 ? 's' : ''} (${Number(mm.stats.montantBloque).toLocaleString('fr-FR')} FCFA)`,
+      detail: `Le plus ancien attend ${age(h)}. Le client a validé chez son opérateur, mais le Premium n'a pas suivi.`,
+      action:'Revérifier', lien:'/admin/paiements-mobile-money?etat=bloque' });
   }
   const aRestaurer = bansARestaurer();
   if (aRestaurer.length) {

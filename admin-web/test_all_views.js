@@ -1107,6 +1107,59 @@ const views = [
     lienStore: () => '/admin/achats-store',
   }],
 
+  // ── Paiements Mobile Money (GeniusPay) ──
+  //
+  // Le cas nominal porte deux paiements bloqués « en cours » depuis cinq jours
+  // (vu en production le 18 octobre 2026), un paiement accordé, un abandonné
+  // et un paiement de test : les lignes que l'écran existe pour montrer.
+  ['paiements mobile money (bloqués)', 'paiements_mobile_money', {
+    ...base, page: 'paiements_mobile_money', erreur: null,
+    filtres: { etat: '', sandbox: true, q: '', jours: 30, page: 1 },
+    lienMM: (f) => '/admin/paiements-mobile-money?page=' + f.page,
+    donnees: {
+      stats: { jours: 30, encaisses: 1, brut: 6000, frais: 160, net: 5840, bloques: 2, montantBloque: 12000,
+        enAttente: 1, abandonnes: 1, echoues: 0, tauxReussite: 50, sandbox: 1 },
+      total: 5, page: 1, parPage: 50,
+      paiements: [
+        { id: 'g1', etat: 'en_cours', statut: 'processing', bloque: true, sandbox: false, formule: 'Mensuel',
+          montant: 6000, frais: 760, net: null, moyen: null, reference: 'GP-2026-10-13-0001',
+          creeLe: '2026-10-13T11:41:00Z', majLe: '2026-10-13T11:45:00Z', accordeLe: null, ageHeures: 125,
+          compte: { id: 'u1', pseudo: 'Awa', email: 'awa@example.com', premium: false, supprime: false } },
+        { id: 'g2', etat: 'accorde', statut: 'completed', bloque: false, sandbox: false, formule: 'Mensuel',
+          montant: 6000, frais: 160, net: 5840, moyen: 'orange_money', reference: 'GP-2026-10-17-0002',
+          creeLe: '2026-10-17T09:00:00Z', majLe: '2026-10-17T09:01:00Z', accordeLe: '2026-10-17T09:01:00Z', ageHeures: 33,
+          compte: { id: 'u2', pseudo: 'Issa', email: null, premium: true, supprime: false } },
+        { id: 'g3', etat: 'abandonne', statut: 'pending', bloque: false, sandbox: false, formule: 'Annuel',
+          montant: 60000, frais: null, net: null, moyen: null, reference: 'GP-2026-10-15-0003',
+          creeLe: '2026-10-15T09:00:00Z', majLe: '2026-10-15T09:00:00Z', accordeLe: null, ageHeures: 81,
+          compte: { id: 'u3', pseudo: 'compte-supprime', email: null, premium: false, supprime: true } },
+        { id: 'g4', etat: 'anomalie', statut: 'anomalie', bloque: true, sandbox: false, formule: 'Mensuel',
+          montant: 6000, frais: null, net: null, moyen: 'moov_money', reference: 'GP-2026-10-18-0004',
+          creeLe: '2026-10-18T08:00:00Z', majLe: '2026-10-18T08:05:00Z', accordeLe: null, ageHeures: 2,
+          compte: { id: 'u4', pseudo: 'Moussa', email: 'moussa@example.com', premium: false, supprime: false } },
+        { id: 'g5', etat: 'accorde', statut: 'completed', bloque: false, sandbox: true, formule: 'Mensuel',
+          montant: 6000, frais: 0, net: 6000, moyen: 'orange_money', reference: null,
+          creeLe: '2026-10-13T08:00:00Z', majLe: '2026-10-13T08:01:00Z', accordeLe: '2026-10-13T08:01:00Z', ageHeures: 130,
+          compte: { id: 'u5', pseudo: 'Testeur', email: 'test@example.com', premium: true, supprime: false } },
+      ],
+    },
+  }],
+  ['paiements mobile money (aucun paiement)', 'paiements_mobile_money', {
+    ...base, page: 'paiements_mobile_money', erreur: null,
+    filtres: { etat: '', sandbox: false, q: '', jours: 30, page: 1 },
+    lienMM: () => '/admin/paiements-mobile-money',
+    donnees: {
+      stats: { jours: 30, encaisses: 0, brut: 0, frais: 0, net: 0, bloques: 0, montantBloque: 0,
+        enAttente: 0, abandonnes: 0, echoues: 0, tauxReussite: null, sandbox: 0 },
+      total: 0, page: 1, parPage: 50, paiements: [],
+    },
+  }],
+  ['paiements mobile money (API muette)', 'paiements_mobile_money', {
+    ...base, page: 'paiements_mobile_money', donnees: null, erreur: 'connect ECONNREFUSED',
+    filtres: { etat: '', sandbox: false, q: '', jours: 30, page: 1 },
+    lienMM: () => '/admin/paiements-mobile-money',
+  }],
+
   // ── Méthodes de paiement ──
   ['paiements (liste)', 'paiements', {
     ...base, page: 'paiements',

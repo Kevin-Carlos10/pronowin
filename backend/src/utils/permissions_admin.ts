@@ -94,6 +94,10 @@ const REGLES: Regle[] = [
   // stores. Revérifier peut accorder le Premium, comme valider une preuve.
   [LIRE,   /^\/admin\/achats-store$/,                          section('abonnements', 'read')],
   [ECRIRE, /^\/admin\/achats-store\/[^/]+\/reverifier$/,        section('abonnements', 'write')],
+  // Paiements Mobile Money automatiques (GeniusPay) : même section. Revérifier
+  // peut accorder le Premium, comme valider une preuve.
+  [LIRE,   /^\/admin\/paiements-mobile-money$/,                  section('abonnements', 'read')],
+  [ECRIRE, /^\/admin\/paiements-mobile-money\/[^/]+\/reverifier$/, section('abonnements', 'write')],
 
   // ── Programmations : chaque type relève de sa section ──
   [LIRE,   /^\/admin\/programmations\/pronostics$/,                section('pronostics', 'read')],

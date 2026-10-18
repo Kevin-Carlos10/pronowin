@@ -64,6 +64,7 @@ const ACTION_LABELS = {
   notification_programmee:   { label: 'Notification programmée', icon: 'clock', cat: 'notification' },
   programmation_annulee:     { label: 'Programmation annulée',   icon: 'x', cat: 'admin' },
   achat_store_reverifie:     { label: 'Achat store revérifié',   icon: 'refresh', cat: 'finance' },
+  paiement_mm_reverifie:     { label: 'Paiement Mobile Money revérifié', icon: 'refresh', cat: 'finance' },
   league_visibility_toggle:  { label: 'Ligue affichée/masquée',   icon: 'trophy', cat: 'pronostic' },
   league_visibility_bulk:    { label: 'Ligues modifiées en lot',  icon: 'trophy', cat: 'pronostic' },
 };

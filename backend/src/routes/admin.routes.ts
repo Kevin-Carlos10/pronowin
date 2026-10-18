@@ -8,6 +8,7 @@ import { repondreErreur } from '../utils/erreurs';
 import { lireSante } from '../services/sante.service';
 import { ajouterAuJournal, verifierChaine } from '../services/journal_admin.service';
 import { resumeAchatsStore, reverifierAchatStore } from '../services/achats_store_admin.service';
+import { ETATS_PAIEMENT_MM, resumePaiementsMobileMoney, reverifierPaiementMobileMoney } from '../services/paiements_mobile_money_admin.service';
 import {
   programmerPublication, programmerNotification, annulerProgrammation, listerProgrammations,
 } from '../services/programmations.service';
@@ -136,6 +137,38 @@ r.post('/achats-store/:id/reverifier', adminMiddleware, async (req: AdminRequest
   try {
     const resultat = await reverifierAchatStore(req.params.id);
     if (!resultat) { res.status(404).json({ message: 'Achat introuvable.' }); return; }
+    res.json(resultat);
+  } catch (e: any) { repondreErreur(res, e, 502); }
+});
+
+// ─── Paiements Mobile Money (GeniusPay) ──────────────────────────────────────
+//
+// Les paiements automatiques du canal direct, avec ceux qui sont bloqués
+// (paiements_mobile_money_admin.service.ts). Aucun écran ne les montrait.
+
+r.get('/paiements-mobile-money', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    const etat = typeof req.query.etat === 'string'
+      && ([...ETATS_PAIEMENT_MM, 'bloque'] as string[]).includes(req.query.etat) ? req.query.etat : undefined;
+    res.json(await resumePaiementsMobileMoney({
+      etat,
+      sandbox:   req.query.sandbox === '1',
+      recherche: typeof req.query.q === 'string' ? req.query.q.slice(0, 100) : undefined,
+      jours:     parseInt(String(req.query.jours ?? '30')) || 30,
+      page:      parseInt(String(req.query.page ?? '1')) || 1,
+    }));
+  } catch (e: any) { repondreErreur(res, e); }
+});
+
+/**
+ * POST /admin/paiements-mobile-money/:id/reverifier — relit le paiement chez
+ * GeniusPay, quel que soit son âge, et accorde le Premium s'il est payé et
+ * conforme. Le rapprochement automatique s'arrête à 26 h.
+ */
+r.post('/paiements-mobile-money/:id/reverifier', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    const resultat = await reverifierPaiementMobileMoney(req.params.id);
+    if (!resultat) { res.status(404).json({ message: 'Paiement introuvable.' }); return; }
     res.json(resultat);
   } catch (e: any) { repondreErreur(res, e, 502); }
 });

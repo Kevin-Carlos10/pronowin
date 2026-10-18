@@ -45,6 +45,9 @@ jest.mock('../services/journal_admin.service', () => ({ ajouterAuJournal: async 
 jest.mock('../services/achats_store_admin.service', () => ({
   resumeAchatsStore: async () => ({}), reverifierAchatStore: async () => null,
 }));
+jest.mock('../services/paiements_mobile_money_admin.service', () => ({
+  ETATS_PAIEMENT_MM: [], resumePaiementsMobileMoney: async () => ({}), reverifierPaiementMobileMoney: async () => null,
+}));
 jest.mock('../services/programmations.service', () => ({
   programmerPublication: async () => ({}), programmerNotification: async () => ({}),
   annulerProgrammation: async () => ({}), listerProgrammations: async () => ({}),

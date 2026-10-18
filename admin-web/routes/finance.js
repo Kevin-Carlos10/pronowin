@@ -325,6 +325,85 @@ module.exports = (app, ctx) => {
     }
   });
 
+  // ─── PAIEMENTS MOBILE MONEY (GENIUSPAY) ───────────────────────────────────────
+  //
+  // Les paiements automatiques du canal direct. Aucun écran ne les montrait :
+  // deux paiements restaient « en cours » depuis le 13 octobre 2026 sans que
+  // rien ne le signale.
+
+  const ETATS_MM = ['bloque', 'accorde', 'en_cours', 'en_attente', 'abandonne', 'echoue', 'anomalie'];
+
+  const filtresMM = (q) => ({
+    etat:    ETATS_MM.includes(q.etat) ? q.etat : '',
+    sandbox: q.sandbox === '1',
+    q:       String(q.q ?? '').trim().slice(0, 100),
+    jours:   [7, 30, 90, 365].includes(parseInt(q.jours)) ? parseInt(q.jours) : 30,
+    page:    Math.max(1, parseInt(q.page) || 1),
+  });
+
+  /** L'adresse de l'écran avec ces filtres — jamais une adresse reçue telle quelle. */
+  const lienMM = (f, message) => {
+    const p = new URLSearchParams();
+    if (f.etat)    p.set('etat', f.etat);
+    if (f.sandbox) p.set('sandbox', '1');
+    if (f.q)       p.set('q', f.q);
+    if (f.jours !== 30) p.set('jours', String(f.jours));
+    if (f.page > 1) p.set('page', String(f.page));
+    if (message) p.set(...message);
+    const qs = p.toString();
+    return '/admin/paiements-mobile-money' + (qs ? '?' + qs : '');
+  };
+
+  app.get('/admin/paiements-mobile-money', requireAuth, requirePerm('abonnements'), async (req, res) => {
+    const filtres = filtresMM(req.query);
+    let donnees = null, erreur = null;
+    try {
+      const r = await api(req.admin.jeton).get('/admin/paiements-mobile-money', { params: {
+        ...(filtres.etat    ? { etat: filtres.etat } : {}),
+        ...(filtres.sandbox ? { sandbox: '1' } : {}),
+        ...(filtres.q       ? { q: filtres.q } : {}),
+        jours: filtres.jours,
+        page:  filtres.page,
+      } });
+      donnees = r.data;
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      erreur = e.response?.data?.message ?? e.message;
+    }
+    res.render('paiements_mobile_money', {
+      donnees, erreur, filtres, lienMM,
+      success: req.query.success ?? null,
+      error:   req.query.error   ?? null,
+    });
+  });
+
+  // Relit le paiement chez GeniusPay, quel que soit son âge : le rapprochement
+  // automatique s'arrête à 26 h. Accorde le Premium s'il est payé et conforme.
+  app.post('/admin/paiements-mobile-money/:id/reverifier', requireAuth, requirePerm('abonnements', 'write'), async (req, res) => {
+    const filtres = filtresMM(req.body);
+    const pseudo  = sanitize(req.body.pseudo ?? '', 60);
+    try {
+      const r = await api(req.admin.jeton).post('/admin/paiements-mobile-money/' + encodeURIComponent(req.params.id) + '/reverifier');
+      logAction(req, 'paiement_mm_reverifie', `Paiement Mobile Money de ${pseudo || req.params.id}`, {
+        paiement: req.params.id, statut: r.data?.statut, etat: r.data?.etat, premiumAccorde: r.data?.premiumAccorde,
+      });
+      const ETATS = {
+        accorde: 'payé, Premium accordé', en_cours: "toujours en cours chez l'opérateur",
+        en_attente: 'toujours en attente du client', abandonne: 'jamais payé (lien expiré)',
+        echoue: 'échoué ou annulé chez GeniusPay', anomalie: 'en anomalie, à trancher',
+      };
+      const message = !r.data?.relu
+        ? `Rien à relire : ce paiement est déjà conclu (${ETATS[r.data?.etat] ?? r.data?.statut}).`
+        : r.data?.premiumAccorde
+          ? `Relu chez GeniusPay : payé, Premium accordé à ${pseudo || 'ce compte'}.`
+          : `Relu chez GeniusPay : ${ETATS[r.data?.etat] ?? r.data?.statut}${r.data?.change ? '' : ' (inchangé)'}.`;
+      res.redirect(lienMM(filtres, ['success', message]));
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      res.redirect(lienMM(filtres, ['error', 'Revérification impossible : ' + (e.response?.data?.message ?? e.message)]));
+    }
+  });
+
   app.get('/admin/paiements', requireAuth, requireMain, async (req, res) => {
     let methodes = null, erreur = null;
     try {
