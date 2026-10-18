@@ -190,8 +190,11 @@ const FRIENDLIES_CACHE_TTL = 25 * 1000; // 25 secondes
  * résultats finaux et aux changements d'horaire.
  */
 const liveCache: { data: AFFixture[]; ts: number } = { data: [], ts: 0 };
-/** Un cycle de synchronisation (30 s), moins une marge. */
-const LIVE_CACHE_TTL = 25 * 1000;
+/**
+ * Plus court que le cycle le plus rapide (15 s, `delaiSynchronisation`) :
+ * sinon un cycle sur deux relirait le cache au lieu du fournisseur.
+ */
+const LIVE_CACHE_TTL = 10 * 1000;
 /** Relevé complet (hier + aujourd'hui) en temps normal. */
 const RELEVE_COMPLET_MS = 5 * 60 * 1000;
 /** Relevé complet anticipé (un match a quitté le direct) : une fois par minute au plus. */
@@ -320,7 +323,10 @@ export class ApiFootballService {
       // Reuse the score synchronizer's recent raw fixtures without another API call.
       // Le direct d'abord : relevé toutes les 30 s, il évite de relire un
       // match en cours un par un (1 514 appels `/fixtures?id` le 17 octobre).
-      if (Date.now() - liveCache.ts < LIVE_CACHE_TTL + 10_000) {
+      // 70 s : un match en direct non suivi n'est relevé que toutes les 60 s
+      // (`delaiSynchronisation`) ; au-delà, chaque fiche ouverte relirait son
+      // match un par un.
+      if (Date.now() - liveCache.ts < 70_000) {
         const enDirect = liveCache.data.find(f => f.fixture.id === id);
         if (enDirect) return enDirect;
       }

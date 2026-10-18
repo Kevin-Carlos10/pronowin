@@ -38,7 +38,9 @@ export function demarrerTaches(): () => void {
   if (process.env.API_FOOTBALL_KEY) {
     const pronoSvc = new PronosticsService();
 
-    // Sync intelligente : 30s si matchs LIVE, 2min sinon — 24h/24. Des matchs
+    // Sync intelligente (rythme adaptatif, 18 octobre 2026) : 15 s quand un
+    // match suivi est en direct, 60 s pour le reste du direct mondial, 2 min
+    // sans direct — voir `delaiSynchronisation`. Des matchs
     // (Amériques, Asie...) sont live en dehors de la plage 5h-23h UTC qu'on
     // excluait avant ; avec la marge de quota dégagée par le throttle du
     // filet de sécurité, plus besoin de ce blackout.
@@ -47,10 +49,7 @@ export function demarrerTaches(): () => void {
         logger.error('[ScoreSync] Erreur', { message: err.message }));
     };
 
-    const scheduleLiveSync = async () => {
-      const liveCount = await prisma.match.count({ where: { status: 'LIVE' } }).catch(() => 0);
-      return liveCount > 0 ? 30_000 : 2 * 60 * 1000;
-    };
+    const scheduleLiveSync = () => delaiSynchronisation();
 
     // Boucle adaptative : re-planifie selon présence de matchs LIVE. Un seul
     // minuteur à la fois : le garder dans la liste l'allongerait sans fin.
@@ -61,7 +60,7 @@ export function demarrerTaches(): () => void {
     };
 
     prochaineSync = setTimeout(adaptiveSync, 30_000);
-    logger.info('Score sync actif — 30s si LIVE, 2min sinon (24h/24)');
+    logger.info('Score sync actif — 15 s si un match suivi est en direct, 60 s sinon, 2 min sans direct (24h/24)');
 
     const runMatchSoon = () => {
       const hour = new Date().getUTCHours();
@@ -154,4 +153,33 @@ export function demarrerTaches(): () => void {
     if (prochaineSync) clearTimeout(prochaineSync);
     minuteurs.forEach(clearTimeout);
   };
+}
+
+/**
+ * Délai avant la prochaine synchronisation des scores.
+ *
+ * - 15 s : un match en direct que nos utilisateurs regardent — pronostic
+ *   publié, ou mis en favori. API-Football rafraîchit son direct toutes les
+ *   15 s environ : plus vite ne servirait à rien.
+ * - 60 s : du direct ailleurs dans le monde, que personne ne suit ici.
+ * - 2 min : aucun match en direct.
+ *
+ * Jusqu'au 18 octobre, tout direct imposait 30 s, 24 h sur 24 (il y a
+ * toujours un match en cours quelque part) : 2 880 appels par jour pour le
+ * seul direct, et le même retard pour un match suivi que pour un match de
+ * division régionale.
+ */
+export async function delaiSynchronisation(): Promise<number> {
+  try {
+    const suivi = await prisma.match.count({ where: {
+      status: 'LIVE',
+      OR: [{ hasPublishedPronostic: true }, { favoritedBy: { some: {} } }],
+    } });
+    if (suivi > 0) return 15_000;
+    const enDirect = await prisma.match.count({ where: { status: 'LIVE' } });
+    return enDirect > 0 ? 60_000 : 2 * 60_000;
+  } catch {
+    // Base injoignable : rythme intermédiaire, sans emballer le quota.
+    return 60_000;
+  }
 }

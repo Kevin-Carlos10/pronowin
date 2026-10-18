@@ -244,7 +244,10 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
 
   void _startLivePolling() {
     _liveTimer?.cancel();
-    _liveTimer = Timer.periodic(const Duration(seconds: 30), (_) => _releverScore());
+    // 10 s : la lecture du score interroge notre serveur, pas API-Football
+    // — elle ne coûte rien au quota (rythme adaptatif, 18 octobre 2026). Le
+    // serveur relève lui-même un match suivi toutes les 15 s.
+    _liveTimer = Timer.periodic(const Duration(seconds: 10), (_) => _releverScore());
   }
 
   void _stopLivePolling() {
