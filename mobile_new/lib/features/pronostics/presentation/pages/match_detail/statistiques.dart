@@ -483,18 +483,20 @@ class _StatsUnavailable extends StatelessWidget {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Date du relevé fournisseur, jamais l'heure d'un simple rafraîchissement local.
+/// Avertit quand le relevé du fournisseur est interrompu — et seulement alors.
+///
+/// La fiche affichait aussi « Actualisé à 21:04 » sous chaque bloc : l'heure
+/// d'un relevé n'est pas une information sur le match, et Sofascore n'en
+/// montre aucune (demande du 18 octobre 2026). Une donnée périmée, elle, doit
+/// se signaler.
 class _FraicheurDonnees extends StatelessWidget {
   final DateTime? updatedAt;
   final bool stale;
   const _FraicheurDonnees({this.updatedAt, required this.stale});
   @override
   Widget build(BuildContext context) {
-    if (updatedAt == null && !stale) return const SizedBox.shrink();
-    final heure = updatedAt == null ? null : DateFormat.Hm().format(updatedAt!.toLocal());
-    return Text(stale
-      ? tr(context, "Actualisation interrompue · dernières données reçues")
-      : tr(context, "Actualisé à {arg0}", [heure]),
-      style: TextStyle(color: stale ? context.cl.warning : context.cl.textS, fontSize: 11));
+    if (!stale) return const SizedBox.shrink();
+    return Text(tr(context, "Actualisation interrompue · dernières données reçues"),
+      style: TextStyle(color: context.cl.warning, fontSize: 11));
   }
 }

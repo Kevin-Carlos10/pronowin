@@ -35,15 +35,17 @@ void main() {
             matchInfoProvider('m').overrideWith((ref) async => last),
           ],
           verifier: () {
-            expect(
-              find.text('Estadio Florencio Sola · Buenos Aires'),
-              findsOneWidget,
-            );
+            expect(find.text('Estadio Florencio Sola'), findsOneWidget);
+            expect(find.text('Buenos Aires'), findsOneWidget);
             expect(find.text('Leandro Rey Hilfer'), findsOneWidget);
-            expect(find.text('Première mi-temps (en cours)'), findsOneWidget);
+            // Au modèle de Sofascore : ni état du match, ni temps de jeu, ni
+            // heure du relevé — l'en-tête et son chrono les disent déjà.
+            expect(find.text('État du match'), findsNothing);
+            expect(find.text('Première mi-temps'), findsNothing);
+            expect(find.text('Temps de jeu'), findsNothing);
+            expect(find.textContaining('Actualisé'), findsNothing);
             expect(find.text('Mi-temps'), findsNothing);
             expect(find.text('Tirs au but'), findsNothing);
-            expect(find.text('5 min'), findsOneWidget);
           },
         );
         expect(r.debordements, isEmpty);
@@ -52,7 +54,7 @@ void main() {
     );
   }
   testWidgets(
-    'avant match: aucun score prématuré même si le fournisseur renvoie zéro',
+    'avant match sans autre information : ni score prématuré, ni carte vide',
     (t) async {
       await t.pumpWidget(
         ProviderScope(
@@ -71,8 +73,8 @@ void main() {
       );
       await t.pump();
       await t.pump();
-      expect(find.text('À venir'), findsOneWidget);
       expect(find.text('0 – 0'), findsNothing);
+      expect(find.text('Informations du match'), findsNothing);
       await t.pumpWidget(const SizedBox());
       await t.pump();
     },
@@ -106,9 +108,14 @@ void main() {
             matchInfoProvider('m').overrideWith((ref) async => sample),
           ],
           verifier: () {
-            expect(find.text('Terminé aux tirs au but'), findsOneWidget);
+            // Les tirs au but restent : l'en-tête ne les affiche pas. Les
+            // autres scores par période sont dans le fil des événements.
+            expect(find.text('Tirs au but'), findsOneWidget);
             expect(find.text('5 – 4'), findsOneWidget);
-            expect(find.text('Temps réglementaire'), findsOneWidget);
+            expect(find.text('Temps réglementaire'), findsNothing);
+            expect(find.text('Terminé aux tirs au but'), findsNothing);
+            expect(find.text('Ouagadougou'), findsOneWidget);
+            expect(find.text('2026'), findsOneWidget);
           },
         );
         expect(r.debordements, isEmpty);
@@ -124,7 +131,7 @@ void main() {
           matchInfoProvider('m').overrideWith((ref) async {
             calls++;
             if (calls == 1) throw Exception('offline');
-            return const MatchInfo(phase: 'NS');
+            return const MatchInfo(phase: 'NS', referee: 'Jean Ouédraogo');
           }),
         ],
         child: MaterialApp(
@@ -142,14 +149,14 @@ void main() {
     await t.tap(find.text('Réessayer'));
     await t.pump();
     await t.pump();
-    expect(find.text('À venir'), findsOneWidget);
+    expect(find.text('Jean Ouédraogo'), findsOneWidget);
     expect(find.text('Stade'), findsNothing);
     expect(find.text('0 – 0'), findsNothing);
     expect(calls, 2);
     await t.pumpWidget(const SizedBox());
     await t.pump();
   });
-  testWidgets('relevé périmé visible et libellés anglais', (t) async {
+  testWidgets('relevé périmé : affiché sans alerte ni bouton, libellés anglais', (t) async {
     await t.pumpWidget(
       ProviderScope(
         overrides: [
@@ -174,9 +181,12 @@ void main() {
     );
     await t.pump();
     await t.pump();
-    expect(find.text('Penalty shootout in progress'), findsOneWidget);
-    expect(find.text('Try again'), findsOneWidget);
-    expect(find.textContaining('interrupted'), findsOneWidget);
+    // La carte n'a pas d'heure de relevé : un retard du direct se signale
+    // sous le score de l'en-tête (« score non actualisé »).
+    expect(find.text('Penalty shootout'), findsOneWidget);
+    expect(find.text('1 – 0'), findsOneWidget);
+    expect(find.text('Try again'), findsNothing);
+    expect(find.textContaining('interrupted'), findsNothing);
     await t.pumpWidget(const SizedBox());
     await t.pump();
   });

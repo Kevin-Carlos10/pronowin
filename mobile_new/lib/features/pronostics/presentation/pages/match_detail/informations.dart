@@ -3,28 +3,17 @@ part of '../match_detail_page.dart';
 @visibleForTesting
 Widget informationsMatchSeules(String id) => _MatchInformationCard(matchId: id);
 
-const _phasesMatch = {
-  'TBD': 'Horaire à confirmer',
-  'NS': 'À venir',
-  '1H': 'Première mi-temps',
-  'HT': 'Mi-temps',
-  '2H': 'Deuxième mi-temps',
-  'ET': 'Prolongations',
-  'BT': 'Pause avant reprise',
-  'P': 'Tirs au but en cours',
-  'FT': 'Terminé',
-  'AET': 'Terminé après prolongations',
-  'PEN': 'Terminé aux tirs au but',
-  'SUSP': 'Match suspendu',
-  'INT': 'Match interrompu',
-  'PST': 'Match reporté',
-  'CANC': 'Match annulé',
-  'ABD': 'Match abandonné',
-  'AWD': 'Résultat attribué',
-  'WO': 'Forfait',
-  'LIVE': 'En direct',
-};
-
+/// Informations du match, au modèle de Sofascore : une ligne par fait —
+/// libellé à gauche, valeur à droite —, rien d'autre.
+///
+/// La carte affichait aussi l'état du match (« Première mi-temps »), le temps
+/// de jeu et l'heure du dernier relevé (« Actualisé à 21:04 ») : l'en-tête et
+/// son chrono disent déjà où en est le match, et l'heure d'un relevé n'est
+/// pas une information sur le match (demande du 18 octobre 2026). Les scores
+/// par période sont dans le fil des événements (« À la mi-temps 1-0 ») ; seuls
+/// les tirs au but restent ici, que l'en-tête n'affiche pas.
+///
+/// Sans rien à montrer, la carte disparaît, avec sa marge.
 class _MatchInformationCard extends ConsumerWidget {
   final String matchId;
   const _MatchInformationCard({required this.matchId});
@@ -34,122 +23,85 @@ class _MatchInformationCard extends ConsumerWidget {
     final state = ref.watch(matchInfoProvider(matchId));
     final info = state.valueOrNull;
     final cl = context.cl;
-    Widget row(String label, String value) => Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            tr(context, label),
-            style: TextStyle(color: cl.textS, fontSize: 12),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(
-              color: cl.textP,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
+
+    final lignes = <(IconData, String, String)>[
+      if (info?.round != null) (Icons.emoji_events_outlined, 'Tour de compétition',
+          FootballLabels.round(info!.round!, language: AppStrings.of(context).locale.languageCode)),
+      if (info?.season != null) (Icons.calendar_today_outlined, 'Saison', info!.season.toString()),
+      if (info?.venue != null) (Icons.stadium_outlined, 'Stade', info!.venue!),
+      if (info?.city != null) (Icons.place_outlined, 'Ville', info!.city!),
+      if (info?.referee != null) (Icons.sports_outlined, 'Arbitre', info!.referee!),
+      if (['P', 'PEN'].contains(info?.phase) && info!.scores['penalty']?.available == true)
+        (Icons.sports_soccer_outlined, 'Tirs au but', info.scores['penalty']!.label),
+    ];
+
+    final Widget contenu;
+    if (info == null && state.isLoading) {
+      contenu = LinearProgressIndicator(color: cl.info);
+    } else if (info == null && state.hasError) {
+      contenu = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Text(tr(context, 'Informations du match momentanément indisponibles.'),
+            style: TextStyle(color: cl.textS)),
+        TextButton(
+          onPressed: () => ref.invalidate(matchInfoProvider(matchId)),
+          child: Text(tr(context, 'Réessayer')),
+        ),
+      ]);
+    } else if (lignes.isEmpty) {
+      return const SizedBox.shrink();
+    } else {
+      contenu = Column(children: [
+        for (final (i, (icone, libelle, valeur)) in lignes.indexed) ...[
+          if (i > 0) Divider(color: cl.borderSoft, height: 1),
+          _LigneInformation(icone: icone, libelle: tr(context, libelle), valeur: valeur),
         ],
+      ]);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 6),
+        decoration: BoxDecoration(
+          color: cl.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: cl.borderSoft),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              tr(context, 'Informations du match'),
+              style: TextStyle(color: cl.textP, fontSize: 16, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 6),
+            contenu,
+          ],
+        ),
       ),
     );
-    final periodLabels = {
-      'halftime': info?.phase == '1H'
-          ? 'Première mi-temps (en cours)'
-          : 'Mi-temps',
-      'fulltime': ['1H', 'HT', '2H', 'LIVE'].contains(info?.phase)
-          ? 'Temps réglementaire (en cours)'
-          : 'Temps réglementaire',
-      'extratime': ['ET', 'BT'].contains(info?.phase)
-          ? 'Prolongations (en cours)'
-          : 'Prolongations',
-      'penalty': info?.phase == 'P' ? 'Tirs au but (en cours)' : 'Tirs au but',
-    };
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: cl.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: cl.borderSoft),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            tr(context, 'Informations du match'),
-            style: TextStyle(
-              color: cl.textP,
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-          const SizedBox(height: 10),
-          if (info == null) ...[
-            if (state.isLoading)
-              LinearProgressIndicator(color: cl.info)
-            else
-              Text(
-                tr(
-                  context,
-                  state.hasError
-                      ? 'Informations du match momentanément indisponibles.'
-                      : 'Informations non fournies pour ce match.',
-                ),
-                style: TextStyle(color: cl.textS),
-              ),
-            if (state.hasError)
-              TextButton(
-                onPressed: () => ref.invalidate(matchInfoProvider(matchId)),
-                child: Text(tr(context, 'Réessayer')),
-              ),
-          ] else ...[
-            _FraicheurDonnees(
-              updatedAt: info.updatedAt,
-              stale: info.stale || state.hasError,
-            ),
-            if (info.phase != null)
-              row(
-                'État du match',
-                tr(context, _phasesMatch[info.phase] ?? 'État non précisé'),
-              ),
-            if (info.elapsed != null &&
-                ['1H', '2H', 'ET', 'LIVE'].contains(info.phase))
-              row(
-                'Temps de jeu',
-                info.extra != null && info.extra! > 0
-                    ? '${info.elapsed} + ${info.extra} min'
-                    : '${info.elapsed} min',
-              ),
-            if (info.venue != null || info.city != null)
-              row(
-                info.venue != null ? 'Stade' : 'Ville',
-                [info.venue, info.city].whereType<String>().join(' · '),
-              ),
-            if (info.referee != null) row('Arbitre', info.referee!),
-            if (info.round != null) row('Tour de compétition', FootballLabels.round(info.round!, language: AppStrings.of(context).locale.languageCode)),
-            if (info.season != null) row('Saison', info.season.toString()),
-            if (!['NS', 'TBD', 'PST', 'CANC'].contains(info.phase) &&
-                info.scores.values.any((s) => s.available)) ...[
-              Divider(color: cl.borderSoft),
-              Text(
-                [info.homeTeam, info.awayTeam].whereType<String>().join(' — '),
-                style: TextStyle(color: cl.textS, fontSize: 12),
-              ),
-              for (final entry in periodLabels.entries)
-                if (info.scores[entry.key]?.available == true)
-                  row(entry.value, info.scores[entry.key]!.label),
-            ],
-            if (info.stale || state.hasError)
-              TextButton(
-                onPressed: () => ref.invalidate(matchInfoProvider(matchId)),
-                child: Text(tr(context, 'Réessayer')),
-              ),
-          ],
-        ],
-      ),
+  }
+}
+
+class _LigneInformation extends StatelessWidget {
+  final IconData icone;
+  final String libelle, valeur;
+  const _LigneInformation({required this.icone, required this.libelle, required this.valeur});
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.cl;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Icon(icone, size: 18, color: cl.textS),
+        const SizedBox(width: 10),
+        Flexible(flex: 2, child: Text(libelle, style: TextStyle(color: cl.textS, fontSize: 13))),
+        const SizedBox(width: 12),
+        Expanded(flex: 3, child: Text(valeur, textAlign: TextAlign.end,
+            style: TextStyle(color: cl.textP, fontSize: 13.5, fontWeight: FontWeight.w600))),
+      ]),
     );
   }
 }

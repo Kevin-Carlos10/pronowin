@@ -433,13 +433,14 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           entree(_PronosticCard(match: match, isLocked: isLocked)),
           const SizedBox(height: 16),
         ],
-        _MatchInformationCard(matchId: match.id),
-        const SizedBox(height: 16),
         if (showEvents) ...[
           entree(_MatchEventsCard(matchId: match.id, match: match),
               delaiMs: 90),
           const SizedBox(height: 16),
         ],
+        // Sous le fil des événements, comme sur Sofascore. Porte sa propre
+        // marge : sans information à montrer, elle ne laisse pas de trou.
+        _MatchInformationCard(matchId: match.id),
         // Porte sa propre marge : absente, elle ne laisse pas de trou.
         entree(_FormeRecente(match: match), delaiMs: 140),
         if (match.hasPronostic) ...[
