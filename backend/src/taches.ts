@@ -7,6 +7,7 @@ import { FileNotificationsIap } from './services/iap_notifications.service';
 import { suivre } from './services/etat_taches';
 import { executerProgrammationsEchues } from './services/programmations.service';
 import { rapprocherPaiementsEnAttente } from './services/geniuspay.service';
+import { envoyerBilanHebdo } from './services/bilan_hebdo.service';
 
 /**
  * Les tâches planifiées, hors du serveur HTTP (constat P1 de l'audit du
@@ -147,6 +148,17 @@ export function demarrerTaches(): () => void {
       ({ examines }) => `${examines} examiné(s)`).catch((err: Error) =>
       logger.error('[GeniusPay] Rapprochement', { message: err.message }));
   }, 5 * 60_000));
+
+  // ─── BILAN DE LA SEMAINE ──────────────────────────────────────────────────
+  // Le lundi, aux comptes gratuits (bilan_hebdo.service.ts). Vérifié toutes
+  // les heures : l'historique des notifications dit s'il est déjà parti.
+  const runBilanHebdo = () => {
+    suivre('bilan_hebdo', () => envoyerBilanHebdo(),
+      (r) => r.envoye ? `${r.destinataires} destinataire(s)` : (r.raison ?? '')).catch((err: Error) =>
+      logger.error('[BilanHebdo] Erreur', { message: err.message }));
+  };
+  programmer(setTimeout(runBilanHebdo, 5 * 60_000));
+  programmer(setInterval(runBilanHebdo, 60 * 60_000));
 
   return () => {
     arrete = true;
