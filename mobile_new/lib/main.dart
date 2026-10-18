@@ -199,6 +199,11 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Sans verrou, l'écran de masquage part tout de suite : il attendait
+      // l'initialisation des notifications, qui peut prendre plusieurs
+      // secondes — l'app semblait verrouillée au lancement (signalé par
+      // l'utilisateur le 18 octobre 2026).
+      await _decouvrirSansVerrou();
       await _initFCM();
       await _checkLockOnStart();
       await _checkVersion();
@@ -215,13 +220,27 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
     super.dispose();
   }
 
+  /// Code PIN ou biométrie activés : seuls cas où l'app doit masquer son
+  /// contenu (sélecteur d'applications, centre de contrôle, lancement).
+  bool get _verrouActif {
+    final s = ref.read(settingsProvider);
+    return s.pinEnabled || s.bioEnabled;
+  }
+
+  Future<void> _decouvrirSansVerrou() async {
+    await ref.read(settingsProvider.notifier).ready;
+    if (mounted && !_verrouActif) setState(() => _privacyVisible = false);
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _resumeProtected();
     } else {
-      // Masquer aussi pendant l'ouverture du sélecteur d'applications.
-      if (mounted) setState(() => _privacyVisible = true);
+      // Masquer pendant l'ouverture du sélecteur d'applications — seulement
+      // si l'utilisateur a protégé l'app. Sans verrou, ouvrir le centre de
+      // contrôle affichait un cadenas sur une app qui n'en a pas.
+      if (mounted && _verrouActif) setState(() => _privacyVisible = true);
       if (state == AppLifecycleState.paused) _pausedAt = DateTime.now();
     }
   }
@@ -358,11 +377,10 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
             child: Stack(fit: StackFit.expand, children: [
               ExcludeSemantics(excluding: _privacyVisible, child: child!),
               if (_privacyVisible) Positioned.fill(
-                child: AbsorbPointer(child: ColoredBox(
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  child: Center(child: Icon(Icons.lock_outline_rounded,
-                    size: 48, color: Theme.of(context).colorScheme.primary)),
-                )),
+                // Le logotype de l'écran de démarrage, pas un cadenas : au
+                // lancement, ce masque prolonge le démarrage ; il ne doit pas
+                // faire croire que l'app est verrouillée.
+                child: const AbsorbPointer(child: VueDemarrage()),
               ),
             ]),
           ),
