@@ -11,7 +11,7 @@ import { ApiFootballInsights } from './api_football_insights.service';
 import { ClassementsFootball } from './classements_football.service';
 export type { StandingRow } from './classements_football.service';
 import { enrichissementsFootball } from './enrichissements_football';
-import { exigerQuotaEnrichissement } from './cache_football';
+import { exigerQuotaEnrichissement, responseFootball } from './cache_football';
 import { traduireAbsence, estSuspension } from './traduction_absences';
 import { noterQuota } from './etat_taches';
 import { compterAppel } from './consommation_football.service';
@@ -178,6 +178,31 @@ export function matchStatusPriority(
 const friendliesCache = new Map<string, { data: AFFixture[]; ts: number }>();
 const FRIENDLIES_CACHE_TTL = 25 * 1000; // 25 secondes
 
+/**
+ * Relevé du direct (`/fixtures?live=all`) : tous les matchs en cours du monde
+ * en un seul appel.
+ *
+ * Jusqu'au 18 octobre 2026, la synchronisation re-téléchargeait toutes les
+ * 30 s l'intégralité des matchs d'hier et d'aujourd'hui (2 appels) : 5 449
+ * appels le 17 octobre, 72 % du quota, épuisé ce jour-là — le soir, les
+ * fiches (compositions, statistiques, notes) se voyaient refuser leurs
+ * appels. Le direct suffit toutes les 30 s ; le relevé complet ne sert qu'aux
+ * résultats finaux et aux changements d'horaire.
+ */
+const liveCache: { data: AFFixture[]; ts: number } = { data: [], ts: 0 };
+/** Un cycle de synchronisation (30 s), moins une marge. */
+const LIVE_CACHE_TTL = 25 * 1000;
+/** Relevé complet (hier + aujourd'hui) en temps normal. */
+const RELEVE_COMPLET_MS = 5 * 60 * 1000;
+/** Relevé complet anticipé (un match a quitté le direct) : une fois par minute au plus. */
+const RELEVE_ANTICIPE_MIN_MS = 60 * 1000;
+
+/** Pour les tests. */
+export function _oublierReleves(): void {
+  liveCache.data = []; liveCache.ts = 0;
+  friendliesCache.clear();
+}
+
 // ─── Compositions d'équipe ──────────────────────────────────────────────────
 
 export interface LineupPlayer {
@@ -293,6 +318,12 @@ export class ApiFootballService {
     this.matchLive = new MatchLiveService(this.client, () => this._hasKey());
     this.matchInfo = new MatchInfoService(this.client, () => this._hasKey(), id => {
       // Reuse the score synchronizer's recent raw fixtures without another API call.
+      // Le direct d'abord : relevé toutes les 30 s, il évite de relire un
+      // match en cours un par un (1 514 appels `/fixtures?id` le 17 octobre).
+      if (Date.now() - liveCache.ts < LIVE_CACHE_TTL + 10_000) {
+        const enDirect = liveCache.data.find(f => f.fixture.id === id);
+        if (enDirect) return enDirect;
+      }
       for (const entry of friendliesCache.values()) {
         if (Date.now() - entry.ts >= FRIENDLIES_CACHE_TTL) continue;
         const fixture = entry.data.find(f => f.fixture.id === id);
@@ -450,11 +481,52 @@ export class ApiFootballService {
     }
   }
 
-  /** Équivalent live/récent de getAllUpcomingFixtures(), pour la sync des scores. */
-  async getAllLiveAndRecentFixtures(): Promise<AFFixture[]> {
+  /**
+   * Tous les matchs en cours, en un appel (`live=all`). null si l'appel a
+   * échoué : l'appelant doit alors se rabattre sur le relevé complet.
+   */
+  async getLiveFixtures(): Promise<AFFixture[] | null> {
     if (!this._hasKey()) return [];
-    const fixtures = await this._fetchFixturesOverDays(ApiFootballService._recentDays());
-    return fixtures.filter(f => mapAFStatus(f.fixture.status.short) !== 'SCHEDULED');
+    if (Date.now() - liveCache.ts < LIVE_CACHE_TTL) return liveCache.data;
+    try {
+      const r = await this.client.get('/fixtures', { params: { live: 'all' } });
+      const all = responseFootball(r.data) as AFFixture[];
+      observerRencontres(all);
+      liveCache.data = all;
+      liveCache.ts = Date.now();
+      return all;
+    } catch (err) {
+      const e = err as AxiosError;
+      journal.error('[ApiFootball] Erreur live=all:', (e.response?.data as any) ?? e.message);
+      return null;
+    }
+  }
+
+  private dernierReleveComplet = 0;
+
+  /**
+   * Pour la synchronisation des scores : le direct, complété du relevé
+   * d'hier et d'aujourd'hui (matchs terminés, reportés…) toutes les 5
+   * minutes, si le direct a échoué, ou — au plus une fois par minute — quand
+   * [anticiper] signale qu'un match en direct en base a quitté le direct
+   * (coup de sifflet final, report) : son résultat est réglé sans attendre.
+   */
+  async getAllLiveAndRecentFixtures(opts: { anticiper?: boolean } = {}): Promise<AFFixture[]> {
+    if (!this._hasKey()) return [];
+    const live = await this.getLiveFixtures();
+    const ecoule = Date.now() - this.dernierReleveComplet;
+    const complet = live === null
+      || ecoule >= RELEVE_COMPLET_MS
+      || (opts.anticiper === true && ecoule >= RELEVE_ANTICIPE_MIN_MS);
+    if (!complet) return live!;
+
+    this.dernierReleveComplet = Date.now();
+    const recents = (await this._fetchFixturesOverDays(ApiFootballService._recentDays()))
+      .filter(f => mapAFStatus(f.fixture.status.short) !== 'SCHEDULED');
+    // Le direct, plus frais, l'emporte sur le relevé par date.
+    const parId = new Map<number, AFFixture>(recents.map(f => [f.fixture.id, f]));
+    for (const f of live ?? []) parId.set(f.fixture.id, f);
+    return [...parId.values()];
   }
 
   /** Codes courts (WC, PL, ...) des grandes ligues suivies + amicaux — pour le filtre "vue par défaut". */

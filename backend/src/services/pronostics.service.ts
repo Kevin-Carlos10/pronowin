@@ -496,8 +496,19 @@ export class PronosticsService {
     let updated  = 0;
     let resolved = 0;
 
-    // 1. Récupérer depuis l'API les matchs en cours / terminés (source unique)
-    const afAll = await apiFootballService.getAllLiveAndRecentFixtures();
+    // 1. Récupérer depuis l'API les matchs en cours / terminés (source unique).
+    //
+    // Le direct en un appel ; le relevé complet (hier + aujourd'hui) toutes
+    // les 5 minutes, ou tout de suite quand un match encore « en direct » en
+    // base n'y figure plus — il vient de finir, ou d'être reporté.
+    const enDirect = await apiFootballService.getLiveFixtures();
+    const vusEnDirect = new Set((enDirect ?? []).map(f => f.fixture.id));
+    const directEnBase = await prisma.match.findMany({
+      where:  { status: 'LIVE', source: MatchSource.API_FOOTBALL },
+      select: { externalId: true },
+    });
+    const quitteLeDirect = directEnBase.some(m => !vusEnDirect.has(m.externalId));
+    const afAll = await apiFootballService.getAllLiveAndRecentFixtures({ anticiper: quitteLeDirect });
 
     const unified = afAll.map(f => ({
       externalId:  f.fixture.id,
