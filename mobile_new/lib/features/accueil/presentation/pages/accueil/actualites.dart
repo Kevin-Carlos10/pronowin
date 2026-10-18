@@ -14,7 +14,6 @@ class _NewsSection extends StatefulWidget {
 
 class _NewsSectionState extends State<_NewsSection> {
   Set<String> _readIds = {};
-  bool _showAll = false;
 
   @override
   void initState() {
@@ -60,7 +59,7 @@ class _NewsSectionState extends State<_NewsSection> {
     });
 
     final unreadCount = sorted.where((n) => !_readIds.contains(n['id'] as String? ?? '')).length;
-    final visible = _showAll ? sorted : sorted.take(4).toList();
+    final visible = sorted.take(4).toList();
 
     // La carte en vedette occupe un tiers d'écran : un titre d'un seul mot
     // (« Paul Pogba ») y fait négligé. On promeut le premier titre qui a de
@@ -81,10 +80,9 @@ class _NewsSectionState extends State<_NewsSection> {
               color: context.cl.textM, size: 15),
           showBadge: unreadCount > 0 ? unreadCount : null,
           badgeColor: AppColors.primary,
-          moreLabel: _showAll ? tr(context, "Réduire") : tr(context, "Voir tout"),
-          onMore: sorted.length > 4
-              ? () => setState(() => _showAll = !_showAll)
-              : null,
+          // La page Actualités, plutôt que déplier toute la liste sur l'accueil.
+          moreLabel: tr(context, "Voir tout"),
+          onMore: sorted.length > 4 ? () => context.push('/actualites') : null,
         ),
         const SizedBox(height: 12),
 
@@ -129,16 +127,10 @@ Color _newsAccent(String? cat) {
   return AppColors.primary;
 }
 
-// ──────────────────────────────────────────────────────────────────────────────
-Map<String, String> _imgHeaders(String url) {
-  if (url.contains('bfmtv.com') || url.contains('images.bfmtv')) {
-    return {'Referer': 'https://rmcsport.bfmtv.com/'};
-  }
-  if (url.contains('bbci.co.uk') || url.contains('ichef.bbc')) {
-    return {'Referer': 'https://www.bbc.com/'};
-  }
-  return {};
-}
+// L'application chargeait les images de RMC Sport et de la BBC en se faisant
+// passer pour leur site (en-tête Referer), pour contourner leur protection :
+// plus maintenant (18 octobre 2026). Le serveur ne sert d'ailleurs plus
+// d'image de média — titre, résumé du flux et lien vers l'original.
 
 // FEATURED CARD — grande carte avec image pleine largeur
 // ──────────────────────────────────────────────────────────────────────────────
@@ -176,7 +168,6 @@ class _FeaturedNewsCard extends StatelessWidget {
               Positioned.fill(
                 child: ImageDistante(
                   url:     imgUrl,
-                  entetes: _imgHeaders(imgUrl),
                   repli:   Container(color: context.cl.surfaceD)),
               )
             else
@@ -310,8 +301,7 @@ class _CompactNewsCard extends StatelessWidget {
                 ? ImageDistante(
                     url:     imgUrl,
                     largeur: 60, hauteur: 60,
-                    entetes: _imgHeaders(imgUrl),
-                    repli:   _NewsEmojiFallback(
+                      repli:   _NewsEmojiFallback(
                       emoji: news['emoji'] as String? ?? '📰', accent: accent))
                 : _NewsEmojiFallback(emoji: news['emoji'] as String? ?? '📰', accent: accent),
           ),
@@ -389,6 +379,10 @@ class _NewsDetailSheet extends StatelessWidget {
     final resume    = editorialField(news, 'resume');
     final sourceUrl = news['source_url'] as String?;
     final hasSource = sourceUrl != null && sourceUrl.isNotEmpty;
+    // Résumé automatique d'un match (resumes_match.service.ts côté serveur) :
+    // il mène à la fiche du match, pas à un site.
+    final matchId   = news['match_id'] as String?;
+    final versMatch = matchId != null && matchId.isNotEmpty;
 
     return DraggableScrollableSheet(
       initialChildSize: 0.65,
@@ -418,8 +412,7 @@ class _NewsDetailSheet extends StatelessWidget {
                   height: 200, width: double.infinity,
                   child: ImageDistante(
                     url:     imgUrl,
-                    entetes: _imgHeaders(imgUrl),
-                    repli:   const SizedBox.shrink())),
+                      repli:   const SizedBox.shrink())),
                 Positioned.fill(child: Container(
                   decoration: BoxDecoration(
                     gradient: LinearGradient(
@@ -477,6 +470,29 @@ class _NewsDetailSheet extends StatelessWidget {
                   ],
 
                   const SizedBox(height: 24),
+
+                  if (versMatch) ...[
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton.icon(
+                        key: const Key('actu-voir-match'),
+                        onPressed: () {
+                          // Le routeur d'abord : la feuille se ferme.
+                          final routeur = GoRouter.of(context);
+                          Navigator.of(context).pop();
+                          routeur.push('/pronostics/$matchId');
+                        },
+                        style: FilledButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
+                        icon: const Icon(Icons.sports_soccer_rounded, size: 18),
+                        label: Text(tr(context, "Voir la fiche du match"),
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
 
                   // Bouton "Lire l'article complet" si source_url
                   if (hasSource) ...[

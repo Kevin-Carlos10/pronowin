@@ -25,6 +25,7 @@ import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../../core/widgets/image_distante.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../../../shared/providers/favoris_provider.dart';
+import '../../../../shared/widgets/suivre_match.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../domain/entities/match_entity.dart';
@@ -535,18 +536,20 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           style: TextStyle(fontSize: 13.5, height: 1.15, color: context.cl.textS)),
         centerTitle: true,
         actions: [
-          // Bouton favori
+          // Suivre le match : coup d'envoi, buts et résultat en notification
+          // (suivre_match.dart). Un marque-page ne le disait pas.
           IconButton(
+            key: const Key('suivre-match'),
             icon: AnimatedSwitcher(
               duration: const Duration(milliseconds: 200),
               child: Icon(
-                isFav ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                iconeSuivi(isFav),
                 key: ValueKey(isFav),
                 size: 22,
                 color: isFav ? AppColors.primary : context.cl.textS,
               ),
             ),
-            tooltip: isFav ? tr(context, "Retirer des favoris") : tr(context, "Ajouter aux favoris"),
+            tooltip: libelleSuivi(context, isFav),
             onPressed: () {
               HapticFeedback.selectionClick();
               // Le détail est ouvert aux invités, mais mettre en favori exige un
@@ -557,7 +560,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
                   '/auth/email?from=${Uri.encodeComponent('/pronostics/${match.id}')}');
                 return;
               }
-              ref.read(favorisProvider.notifier).basculerMatch(match.id);
+              basculerSuivi(context, match.id, termine: match.status == MatchStatus.finished);
             },
           ),
           // Le score se relève toutes les 30 s sans rien afficher, comme sur

@@ -78,8 +78,8 @@ class _FavoritesSection extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _SectionHeader(
-                title: tr(context, "Mes favoris"),
-                leading: Icon(Icons.bookmark_rounded,
+                title: tr(context, "Matchs suivis"),
+                leading: Icon(iconeMatchSuivi,
                     color: AppColors.primary, size: 15),
                 onMore: null),
             const SizedBox(height: 10),
@@ -167,10 +167,11 @@ class _FavoriteTile extends ConsumerWidget {
                 GestureDetector(
                   onTap: () {
                     HapticFeedback.lightImpact();
-                    ref.read(favorisProvider.notifier).basculerMatch(matchId);
-                    ref.invalidate(favoritesListProvider);
+                    basculerSuivi(context, matchId)
+                        .then((_) => ref.invalidate(favoritesListProvider));
                   },
-                  child: const Icon(Icons.bookmark_rounded,
+                  child: Icon(iconeMatchSuivi,
+                      semanticLabel: tr(context, "Ne plus suivre ce match"),
                       color: AppColors.primary, size: 14),
                 ),
               ],

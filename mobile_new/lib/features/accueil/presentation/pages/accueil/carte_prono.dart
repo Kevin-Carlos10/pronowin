@@ -246,16 +246,16 @@ class _PronosticCard extends ConsumerWidget {
                   GestureDetector(
                     onTap: () {
                       HapticFeedback.lightImpact();
-                      ref.read(favorisProvider.notifier).basculerMatch(matchId);
+                      basculerSuivi(context, matchId,
+                          termine: prono['status'] == 'finished');
                     },
                     child: AnimatedSwitcher(
                       duration: const Duration(milliseconds: 250),
                       transitionBuilder: (child, anim) =>
                           ScaleTransition(scale: anim, child: child),
                       child: Icon(
-                        isFav
-                            ? Icons.bookmark_rounded
-                            : Icons.bookmark_border_rounded,
+                        iconeSuivi(isFav),
+                        semanticLabel: libelleSuivi(context, isFav),
                         key: ValueKey(isFav),
                         color: isFav ? AppColors.primary : context.cl.textM,
                         size: 18,

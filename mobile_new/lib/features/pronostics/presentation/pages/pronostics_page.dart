@@ -18,6 +18,7 @@ import '../widgets/match_card_widget.dart';
 import '../../../../shared/widgets/skeletons.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/providers/favoris_provider.dart';
+import '../../../../shared/widgets/suivre_match.dart';
 import '../../../../shared/widgets/logotype_pronowin.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
@@ -237,8 +238,8 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
               if (status == 401) {
                 return _AuthGateView(
                   icon:        Icons.login_rounded,
-                  title:       tr(context, "Connecte-toi pour retrouver tes favoris"),
-                  message:     tr(context, "Épingle tes matchs et tes ligues préférées pour les retrouver rapidement ici."),
+                  title:       tr(context, "Connecte-toi pour suivre tes matchs"),
+                  message:     tr(context, "Suis tes matchs pour recevoir les buts en direct, et épingle tes ligues préférées pour les retrouver ici."),
                   buttonLabel: tr(context, "Se connecter"),
                   onAction:    () => context.push('/auth/email?from=${Uri.encodeComponent('/pronostics')}'));
               }
@@ -1496,8 +1497,8 @@ class _TabToggle extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           _Tab(
-            label:  tr(context, "Favoris"),
-            icon:   Icons.bookmark_rounded,
+            label:  tr(context, "Suivis"),
+            icon:   iconeMatchSuivi,
             active: tab == _PronosticsTab.favorites,
             badge:  favCount > 0 ? '$favCount' : null,
             onTap:  () => onTab(_PronosticsTab.favorites),
@@ -1986,7 +1987,7 @@ class _FavoritesEmpty extends StatelessWidget {
               border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 1.5),
             ),
             child: const Center(
-              child: Icon(Icons.bookmark_border_rounded,
+              child: Icon(iconeMatchNonSuivi,
                 size: 40, color: AppColors.primaryLight)),
           ),
         ]).animate().scale(
@@ -1995,7 +1996,7 @@ class _FavoritesEmpty extends StatelessWidget {
 
         const SizedBox(height: 24),
 
-        Text(tr(context, "Aucun favori pour l'instant"),
+        Text(tr(context, "Aucun match suivi pour l'instant"),
           style: TextStyle(
             color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w700),
           textAlign: TextAlign.center)
@@ -2004,7 +2005,7 @@ class _FavoritesEmpty extends StatelessWidget {
         const SizedBox(height: 10),
 
         Text(
-          tr(context, "Épinglez tes matchs avec 🔖 ou tes ligues préférées avec 📌 pour les retrouver ici."),
+          tr(context, "Suis un match avec la cloche pour recevoir le coup d'envoi, les buts et le résultat, ou épingle tes ligues préférées avec 📌 pour les retrouver ici."),
           style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
           textAlign: TextAlign.center)
           .animate(delay: 230.ms).fadeIn(duration: 300.ms),

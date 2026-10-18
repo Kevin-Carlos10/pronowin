@@ -14,6 +14,7 @@ import '../../domain/entities/match_entity.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../../shared/widgets/premium_gate_sheet.dart';
 import '../../../../shared/providers/favoris_provider.dart';
+import '../../../../shared/widgets/suivre_match.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
 
 class MatchCardWidget extends ConsumerStatefulWidget {
@@ -213,20 +214,20 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
             _BetBadge(),
           ],
           const Spacer(),
-          // Bouton favoris
+          // Suivre le match (suivre_match.dart)
           Semantics(
-            label:  isFav ? tr(context, "Retirer des favoris") : tr(context, "Ajouter aux favoris"),
+            label:  libelleSuivi(context, isFav),
             button: true,
             child: GestureDetector(
               onTap: () {
                 HapticFeedback.selectionClick();
-                ref.read(favorisProvider.notifier).basculerMatch(_match.id);
+                basculerSuivi(context, _match.id, termine: _match.status == MatchStatus.finished);
               },
               child: ExcludeSemantics(
                 child: AnimatedSwitcher(
                   duration: const Duration(milliseconds: 200),
                   child: Icon(
-                    isFav ? Icons.bookmark_rounded : Icons.bookmark_border_rounded,
+                    iconeSuivi(isFav),
                     key: ValueKey(isFav),
                     size: 18,
                     color: isFav ? AppColors.primary : context.cl.textM,

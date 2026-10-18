@@ -36,6 +36,7 @@ import '../widgets/in_app_browser_page.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import 'navigation_keys.dart';
 import 'page_transitions.dart';
+import '../../features/accueil/presentation/pages/accueil_page.dart' show PageActualites;
 // Provider synchrone — initialisé dans main.dart avant runApp
 final onboardingDoneProvider = StateProvider<bool>((ref) => false);
 
@@ -194,6 +195,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/compte/stats',
         pageBuilder: (_, s) => slideRightPage(
           state: s, child: const StatsPage()),
+      ),
+      // Toutes les actualités, depuis « Voir tout » de l'accueil.
+      GoRoute(
+        path: '/actualites',
+        pageBuilder: (_, s) => slideRightPage(state: s, child: const PageActualites()),
       ),
       GoRoute(
         path: '/navigateur',
