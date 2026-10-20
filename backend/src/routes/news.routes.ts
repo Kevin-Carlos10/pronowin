@@ -32,12 +32,10 @@ function relTimeShort(d: Date): string {
 
 // ─── Plus de relais d'images ─────────────────────────────────────────────────
 // Le serveur relayait les images de RMC Sport en se faisant passer pour leur
-// site (en-tête Referer), pour contourner leur protection contre la reprise
-// d'images. Dans une application commerciale, c'est un risque juridique : les
-// articles des médias s'affichent désormais sans image (titre, source, lien
-// vers l'article d'origine), comme Google Actualités (18 octobre 2026).
-// L'adresse répond 410 aux versions de l'app qui l'ont encore en cache : elles
-// affichent leur visuel de repli.
+// site (en-tête Referer). Inutile : leur CDN sert l'image jointe au flux à
+// toute requête. Elle est désormais donnée à son adresse d'origine
+// (`imageDuFlux`, 20 octobre 2026). L'ancienne adresse du relais répond 410 aux
+// versions de l'app qui l'ont encore en cache : elles affichent leur repli.
 router.get('/image-proxy', (_req: Request, res: Response) => { res.status(410).end(); });
 
 // GET /api/v1/actualites — articles admin épinglés, résumés de match et flux

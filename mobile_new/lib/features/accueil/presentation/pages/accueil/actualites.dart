@@ -177,6 +177,10 @@ class _FeaturedNewsCard extends StatelessWidget {
                     colors: [accent.withValues(alpha: 0.15), context.cl.surfaceD],
                     begin: Alignment.topLeft, end: Alignment.bottomRight)),
               )),
+            // Un résumé de match n'a pas de photo : les deux logos et le score.
+            if ((imgUrl == null || imgUrl.isEmpty) && _estResume(news))
+              Positioned(left: 0, right: 0, top: 36,
+                child: _VisuelResume(news: news, tailleLogo: 52)),
 
             // Dégradé bas
             Positioned.fill(child: Container(
@@ -294,10 +298,13 @@ class _CompactNewsCard extends StatelessWidget {
           ),
         ),
         child: Row(children: [
-          // Miniature image ou emoji
+          // Miniature image, logos d'un résumé de match, ou emoji
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
-            child: hasImg
+            child: !hasImg && _estResume(news)
+                ? Container(width: 60, height: 60, color: accent.withValues(alpha: 0.10),
+                    child: _VisuelResume(news: news, tailleLogo: 22, compact: true))
+                : hasImg
                 ? ImageDistante(
                     url:     imgUrl,
                     largeur: 60, hauteur: 60,
@@ -349,6 +356,48 @@ class _CompactNewsCard extends StatelessWidget {
         ]),
       ),
     );
+  }
+}
+
+/// Un résumé de match rédigé par le serveur, avec ses logos (résumés du
+/// 18 octobre 2026 ; logos servis à partir du 20).
+bool _estResume(Map<String, dynamic> n) =>
+    n['type'] == 'resume_match' && (n['logo_domicile'] != null || n['logo_exterieur'] != null);
+
+/// Le visuel d'un résumé de match : logo, score, logo — faute de photo.
+class _VisuelResume extends StatelessWidget {
+  final Map<String, dynamic> news;
+  final double tailleLogo;
+  final bool compact;
+  const _VisuelResume({required this.news, required this.tailleLogo, this.compact = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final score = news['score'] as String?;
+    final logos = [news['logo_domicile'] as String?, news['logo_exterieur'] as String?];
+    return ExcludeSemantics(child: compact
+      ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            TeamLogoWidget(url: logos[0], size: tailleLogo),
+            const SizedBox(width: 4),
+            TeamLogoWidget(url: logos[1], size: tailleLogo),
+          ]),
+          if (score != null) ...[
+            const SizedBox(height: 2),
+            Text(score, style: TextStyle(color: context.cl.textP, fontSize: 11, fontWeight: FontWeight.w800)),
+          ],
+        ])
+      : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          TeamLogoWidget(url: logos[0], size: tailleLogo),
+          const SizedBox(width: 18),
+          if (score != null)
+            // Le haut de la carte garde la teinte du thème : pas de blanc
+            // sur le fond clair.
+            Text(score, style: TextStyle(color: context.cl.textP, fontSize: 30,
+              fontWeight: FontWeight.w800, fontFeatures: const [FontFeature.tabularFigures()])),
+          const SizedBox(width: 18),
+          TeamLogoWidget(url: logos[1], size: tailleLogo),
+        ]));
   }
 }
 

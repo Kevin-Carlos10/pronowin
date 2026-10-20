@@ -198,3 +198,24 @@ describe('la publication', () => {
     expect(await publier([match('m1', 3, prono())])).toEqual({ publies: 0 });
   });
 });
+
+describe('au format des actualités', () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { prisma } = require('../lib/prisma');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { resumesPourActualites } = require('../services/resumes_match.service');
+  afterEach(() => jest.restoreAllMocks());
+
+  it('les logos et le score du match, pour le visuel de la carte', async () => {
+    jest.spyOn(prisma.resumeMatch, 'findMany').mockResolvedValue([{
+      id: 'r1', matchId: 'm1', titre: 'T', titreEn: 'T', resume: 'R', resumeEn: 'R', ligue: 'Ligue 1',
+      creeLe: new Date('2026-10-18T16:44:00Z'),
+      match: { homeTeamLogo: 'https://media.api-sports.io/football/teams/77.png',
+        awayTeamLogo: 'https://media.api-sports.io/football/teams/81.png', homeScore: 2, awayScore: 5 },
+    }]);
+    const [a] = await resumesPourActualites();
+    expect(a).toMatchObject({ id: 'resume_r1', type: 'resume_match', match_id: 'm1', image_url: null, score: '2-5',
+      logo_domicile: 'https://media.api-sports.io/football/teams/77.png',
+      logo_exterieur: 'https://media.api-sports.io/football/teams/81.png' });
+  });
+});

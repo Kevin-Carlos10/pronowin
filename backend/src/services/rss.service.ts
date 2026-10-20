@@ -1,7 +1,31 @@
 import Parser from 'rss-parser';
 import { extraitTexte } from '../utils/extrait';
 
-const parser = new Parser({ timeout: 8000 });
+const parser = new Parser({
+  timeout: 8000,
+  customFields: {
+    item: [
+      ['media:thumbnail', 'media:thumbnail', { keepArray: false }],
+      ['media:content',   'media:content',   { keepArray: false }],
+      ['enclosure',       'enclosure'],
+    ],
+  },
+});
+
+/**
+ * L'image que le média joint lui-même à l'article dans son flux.
+ *
+ * Servie telle quelle, à son adresse d'origine : leur CDN la donne à toute
+ * requête (vérifié le 20 octobre 2026, sans Referer comme avec un autre).
+ * L'en-tête usurpé qu'ajoutaient le relais du serveur et l'application
+ * n'était donc pas nécessaire ; il a disparu, les images reviennent.
+ */
+export function imageDuFlux(item: any): string | null {
+  const url = (item?.enclosure?.url && String(item.enclosure.type ?? '').startsWith('image'))
+    ? item.enclosure.url
+    : item?.['media:thumbnail']?.$?.url ?? item?.['media:content']?.$?.url ?? null;
+  return typeof url === 'string' && url.startsWith('https://') ? url : null;
+}
 
 // ─── Sources RSS football ─────────────────────────────────────────────────────
 const RSS_FEEDS: { url: string; label: string; emoji: string; lang: string }[] = [
@@ -60,9 +84,7 @@ export async function fetchRssNews(): Promise<RssArticle[]> {
           resume:     extraitTexte(item.contentSnippet ?? item.content),
           categorie:  feed.label,
           emoji:      feed.emoji,
-          // Pas d'image : la reprendre supposait de contourner la protection
-          // du média (voir news.routes.ts). Titre, résumé du flux et lien.
-          image_url:  null,
+          image_url:  imageDuFlux(item),
           source_url: item.link ?? null,
           source:     feed.label,
           date:       relTimeShort(pubDate),

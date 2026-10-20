@@ -308,6 +308,8 @@ export async function resumesPourActualites(limite = 8): Promise<any[]> {
     where:   { creeLe: { gte: new Date(Date.now() - 3 * 24 * 3600_000) } },
     orderBy: { creeLe: 'desc' },
     take:    limite,
+    // Les logos et le score : le visuel d'un résumé, faute de photo.
+    include: { match: { select: { homeTeamLogo: true, awayTeamLogo: true, homeScore: true, awayScore: true } } },
   });
   return resumes.map(r => ({
     id:         `resume_${r.id}`,
@@ -325,5 +327,10 @@ export async function resumesPourActualites(limite = 8): Promise<any[]> {
     // Pour une prochaine version de l'app : ouvrir la fiche du match.
     type:       'resume_match',
     match_id:   r.matchId,
+    // Le visuel d'un résumé dans l'app (1.0.26) : les deux logos et le score.
+    logo_domicile:  r.match?.homeTeamLogo ?? null,
+    logo_exterieur: r.match?.awayTeamLogo ?? null,
+    score: r.match && r.match.homeScore !== null && r.match.awayScore !== null
+      ? `${r.match.homeScore}-${r.match.awayScore}` : null,
   }));
 }

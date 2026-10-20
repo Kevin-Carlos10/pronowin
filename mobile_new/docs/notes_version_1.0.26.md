@@ -15,6 +15,9 @@ Préparée le 20 octobre 2026, à la suite de la 1.0.25 (voir
   faisaient que copier le texte. Le partage est ancré sur le bouton, ce
   qu'iOS exige sur iPad (page Compte aussi). Si la feuille ne s'ouvre pas, le
   message est copié et l'app le dit.
+- **Actualités** : un résumé de match, sans photo, montre les deux logos et
+  le score. Les photos des articles de médias reviennent (côté serveur, pour
+  toutes les versions).
 - **Fiche du match** : plus aucune mention d'actualisation (« toutes les
   2 minutes », « toutes les cinq minutes ») ; restent les seuls avertissements
   d'une donnée qui n'arrive plus.
@@ -26,6 +29,9 @@ Préparée le 20 octobre 2026, à la suite de la 1.0.25 (voir
   n'affiche simplement pas de badge.
 - Alertes des matchs suivis : mi-temps, cartons rouges, compositions
   officielles (5881c49).
+- Actualités : la photo jointe au flux du média, à son adresse d'origine —
+  leur CDN la sert à tous ; le relais qui usurpait le Referer était inutile.
+  Résumés de match : `logo_domicile`, `logo_exterieur`, `score`.
 
 ## Construction
 
