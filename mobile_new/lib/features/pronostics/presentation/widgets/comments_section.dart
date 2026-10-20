@@ -17,6 +17,7 @@ import 'package:go_router/go_router.dart';
 import 'moderation_commentaire.dart';
 import '../../../../shared/utils/messages.dart';
 import '../../../../shared/widgets/logo_marque.dart';
+import '../../../../shared/widgets/badge_premium.dart';
 
 // ── Modèles ───────────────────────────────────────────────────────────────────
 class PronosticComment {
@@ -28,6 +29,8 @@ class PronosticComment {
   final DateTime createdAt;
   final String  userPseudo;
   final String? userAvatar;
+  /// Membre Premium : badge bleu à côté du nom (`BadgePremium`).
+  final bool    userPremium;
   final List<PronosticComment> replies;
 
   const PronosticComment({
@@ -39,6 +42,7 @@ class PronosticComment {
     required this.createdAt,
     required this.userPseudo,
     this.userAvatar,
+    this.userPremium = false,
     this.replies = const [],
   });
 
@@ -51,6 +55,7 @@ class PronosticComment {
     createdAt:  DateTime.parse(j['createdAt'] as String).toLocal(),
     userPseudo: (j['user'] as Map<String, dynamic>)['pseudo'] as String,
     userAvatar: (j['user'] as Map<String, dynamic>)['avatarUrl'] as String?,
+    userPremium: (j['user'] as Map<String, dynamic>)['isPremium'] as bool? ?? false,
     replies:    (j['replies'] as List? ?? [])
         .map((r) => PronosticComment.fromJson(r as Map<String, dynamic>))
         .toList(),
@@ -551,6 +556,10 @@ class _SingleComment extends StatelessWidget {
               style: TextStyle(
                 color: comment.isExpert ? context.cl.warning : context.cl.textP,
                 fontSize: 12, fontWeight: FontWeight.w700))),
+            if (comment.userPremium) ...[
+              const SizedBox(width: 4),
+              const BadgePremium(taille: 13),
+            ],
             if (comment.isExpert) ...[
               const SizedBox(width: 5),
               Container(

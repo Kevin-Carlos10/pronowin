@@ -1670,4 +1670,5 @@ const englishMessages = <String, String>{
   "Actualités": "News",
   "Actualités momentanément indisponibles.": "News temporarily unavailable.",
   "Aucune actualité pour l'instant.": "No news yet.",
+  "Membre Premium": "Premium member",
 };

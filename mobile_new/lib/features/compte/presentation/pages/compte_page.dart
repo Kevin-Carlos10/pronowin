@@ -22,6 +22,7 @@ import '../../../abonnement/presentation/providers/iap_provider.dart';
 import '../../../abonnement/data/iap_service.dart' show pageGestionAbonnement;
 import 'package:url_launcher/url_launcher.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
+import '../../../../shared/widgets/badge_premium.dart';
 import '../../../../shared/utils/partage_parrainage.dart';
 import '../../../../shared/utils/messages.dart';
 import 'package:pronowin/shared/utils/initiale.dart';
@@ -219,9 +220,19 @@ class _ComptePageState extends ConsumerState<ComptePage>
                                 duration: 500.ms, curve: Curves.easeOutBack)
                               .fadeIn(duration: 400.ms),
                             const SizedBox(height: 10),
-                            Text(displayName, style: TextStyle(
-                              color: context.cl.textP,
-                              fontSize: 22, fontWeight: FontWeight.w700))
+                            Row(mainAxisSize: MainAxisSize.min, children: [
+                              Flexible(child: Text(displayName,
+                                maxLines: 1, overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: context.cl.textP,
+                                  fontSize: 22, fontWeight: FontWeight.w700))),
+                              // Le badge bleu des membres Premium, comme les
+                              // autres le voient dans les commentaires.
+                              if (isPremium) ...[
+                                const SizedBox(width: 6),
+                                const BadgePremium(taille: 20),
+                              ],
+                            ])
                               .animate(delay: 120.ms)
                               .fadeIn(duration: 300.ms)
                               .slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic),

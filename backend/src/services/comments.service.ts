@@ -7,6 +7,18 @@ import { ModerationService } from './moderation.service';
 
 const moderation = new ModerationService();
 
+/**
+ * L'auteur d'un commentaire, tel que le fil l'affiche. L'abonnement en fait
+ * partie : un membre Premium porte un badge bleu à côté de son nom, comme le
+ * badge de vérification d'Instagram (demande du 20 octobre 2026).
+ */
+const AUTEUR = { pseudo: true, avatarUrl: true, subscriptionPlan: true, subscriptionExpiresAt: true } as const;
+
+/** Premium en cours — l'échéance fait foi, pas le seul drapeau. */
+function premiumActif(u: { subscriptionPlan?: string | null; subscriptionExpiresAt?: Date | null }): boolean {
+  return u.subscriptionPlan === 'premium' && (!u.subscriptionExpiresAt || u.subscriptionExpiresAt > new Date());
+}
+
 export class CommentsService {
 
   /**
@@ -52,10 +64,10 @@ export class CommentsService {
       prisma.comment.findMany({
         where:   { pronosticId, parentId: null, ...visibles },
         include: {
-          user:    { select: { pseudo: true, avatarUrl: true } },
+          user:    { select: AUTEUR },
           replies: {
             where:   visibles,
-            include: { user: { select: { pseudo: true, avatarUrl: true } } },
+            include: { user: { select: AUTEUR } },
             orderBy: { createdAt: 'asc' },
           },
         },
@@ -108,8 +120,8 @@ export class CommentsService {
         parentId: parentId ?? null,
       },
       include: {
-        user:    { select: { pseudo: true, avatarUrl: true } },
-        replies: { include: { user: { select: { pseudo: true, avatarUrl: true } } } },
+        user:    { select: AUTEUR },
+        replies: { include: { user: { select: AUTEUR } } },
       },
     });
 
@@ -134,8 +146,8 @@ export class CommentsService {
         isExpert: true,
       },
       include: {
-        user:    { select: { pseudo: true, avatarUrl: true } },
-        replies: { include: { user: { select: { pseudo: true, avatarUrl: true } } } },
+        user:    { select: AUTEUR },
+        replies: { include: { user: { select: AUTEUR } } },
       },
     });
 
@@ -203,6 +215,7 @@ export class CommentsService {
       user: {
         pseudo:    c.user.pseudo,
         avatarUrl: c.user.avatarUrl ?? null,
+        isPremium: !c.isExpert && premiumActif(c.user),
       },
       replies: (c.replies ?? []).map((r: any) => ({
         id:        r.id,
@@ -214,6 +227,7 @@ export class CommentsService {
         user: {
           pseudo:    r.user.pseudo,
           avatarUrl: r.user.avatarUrl ?? null,
+          isPremium: !r.isExpert && premiumActif(r.user),
         },
       })),
     };

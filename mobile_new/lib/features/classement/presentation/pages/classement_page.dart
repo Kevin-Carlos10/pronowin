@@ -2,6 +2,7 @@ import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/widgets/image_distante.dart';
 import '../../../../shared/widgets/erreur_chargement.dart';
+import '../../../../shared/widgets/badge_premium.dart';
 import '../../../../core/utils/motion.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
@@ -311,15 +312,21 @@ class _PodiumCol extends StatelessWidget {
         ]),
         const SizedBox(height: 6),
 
-        // Pseudo
-        Text(
-          e.pseudo.length > 9 ? '${e.pseudo.substring(0, 9)}…' : e.pseudo,
-          style: TextStyle(
-            color: isFirst ? color : context.cl.textP,
-            fontSize: isFirst ? 13 : 11,
-            fontWeight: FontWeight.w700),
-          textAlign: TextAlign.center,
-        ),
+        // Pseudo, et le badge bleu d'un membre Premium.
+        Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(
+            e.pseudo.length > 9 ? '${e.pseudo.substring(0, 9)}…' : e.pseudo,
+            style: TextStyle(
+              color: isFirst ? color : context.cl.textP,
+              fontSize: isFirst ? 13 : 11,
+              fontWeight: FontWeight.w700),
+            textAlign: TextAlign.center,
+          ),
+          if (e.isPremium) ...[
+            const SizedBox(width: 3),
+            BadgePremium(taille: isFirst ? 14 : 12),
+          ],
+        ]),
 
         // Win rate
         Text(e.winRateLabel, style: TextStyle(
@@ -484,13 +491,14 @@ class _EntryTile extends StatelessWidget {
         // ── Infos ────────────────────────────────────────────────────
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Row(children: [
-            Text(e.pseudo, style: TextStyle(
-              color: context.cl.textP,
-              fontSize: 13, fontWeight: FontWeight.w600)),
+            Flexible(child: Text(e.pseudo,
+              maxLines: 1, overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                color: context.cl.textP,
+                fontSize: 13, fontWeight: FontWeight.w600))),
             if (e.isPremium) ...[
-              const SizedBox(width: 5),
-              const Icon(Icons.workspace_premium_rounded,
-                  color: _gold, size: 13),
+              const SizedBox(width: 4),
+              const BadgePremium(taille: 13),
             ],
           ]),
           const SizedBox(height: 2),
