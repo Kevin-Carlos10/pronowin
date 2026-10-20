@@ -74,7 +74,9 @@ void main() {
       ];
       for (final chemin in ecrans) {
         final source = File(chemin).readAsStringSync();
-        expect(source, contains('messageParrainage('),
+        // Le partage passe par `partagerParrainage`, qui lit le message
+        // unique (20 octobre 2026).
+        expect(source.contains('partagerParrainage(') || source.contains('messageParrainage('), isTrue,
             reason: '$chemin doit passer par la source unique');
         expect(source.contains('Rejoins PronoWin et gagne avec'), isFalse,
             reason: '$chemin porte de nouveau sa propre copie du message');

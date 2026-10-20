@@ -10,6 +10,14 @@ Préparée le 20 octobre 2026, à la suite de la 1.0.25 (voir
   commentaires, le classement (podium et liste ; il remplace la petite
   couronne dorée) et sur sa propre page Compte. Lecteurs d'écran : « Membre
   Premium ».
+- **Partager mon code (Parrainage)** : le bouton ouvre enfin la feuille de
+  partage du téléphone (WhatsApp, SMS, Telegram…). Ses trois options ne
+  faisaient que copier le texte. Le partage est ancré sur le bouton, ce
+  qu'iOS exige sur iPad (page Compte aussi). Si la feuille ne s'ouvre pas, le
+  message est copié et l'app le dit.
+- **Fiche du match** : plus aucune mention d'actualisation (« toutes les
+  2 minutes », « toutes les cinq minutes ») ; restent les seuls avertissements
+  d'une donnée qui n'arrive plus.
 
 ## Côté serveur
 

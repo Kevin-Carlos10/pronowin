@@ -1672,4 +1672,5 @@ const englishMessages = <String, String>{
   "Aucune actualité pour l'instant.": "No news yet.",
   "Membre Premium": "Premium member",
   "Cotes indicatives, susceptibles d'évoluer jusqu'au coup d'envoi.": "Indicative odds, subject to change until kick-off.",
+  "Message copié : colle-le dans WhatsApp, un SMS…": "Message copied: paste it into WhatsApp, a text message…",
 };

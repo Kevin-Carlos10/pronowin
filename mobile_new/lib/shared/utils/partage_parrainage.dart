@@ -1,5 +1,9 @@
+import 'package:flutter/services.dart';
+import 'package:flutter/material.dart';
 import 'package:pronowin/l10n/app_strings.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../core/constants/app_constants.dart';
+import 'messages.dart';
 
 /// Le message qu'un parrain envoie à ses filleuls.
 ///
@@ -26,3 +30,32 @@ import '../../core/constants/app_constants.dart';
 /// installation hors App Store. Le site propose à chacun le bon téléchargement.
 String messageParrainage(String code) =>
     trCurrent("🏆 Rejoins PronoWin et gagne avec les meilleurs pronostics !\nUtilise mon code de parrainage : *{arg0}*\n👉 Télécharge l'app : {arg1}\n💰 Tu m'aides aussi à gagner des commissions !", [code, AppConstants.siteUrl]);
+
+/// Ouvre la feuille de partage du téléphone avec le message de parrainage —
+/// WhatsApp, SMS, Telegram, e-mail, « Copier »…
+///
+/// La page Parrainage ne l'ouvrait jamais : son bouton « Partager mon code »
+/// menait à trois options qui, toutes, copiaient le texte — même « Message
+/// prêt à envoyer » (signalé le 20 octobre 2026 : « partager mon code ne
+/// marche pas »). La page Compte l'ouvrait, mais sans point d'ancrage : sur
+/// iPad, où Apple examine l'application, iOS refuse d'afficher la feuille.
+///
+/// [contexte] : celui du bouton, qui sert d'ancrage. Si la feuille ne peut
+/// pas s'ouvrir, le message est copié, et on le dit.
+Future<void> partagerParrainage(BuildContext contexte, String code) async {
+  final message = messageParrainage(code);
+  final messager = ScaffoldMessenger.maybeOf(contexte);
+  final copie = tr(contexte, "Message copié : colle-le dans WhatsApp, un SMS…");
+  Rect? origine;
+  final boite = contexte.findRenderObject();
+  if (boite is RenderBox && boite.hasSize && boite.attached) {
+    final zone = boite.localToGlobal(Offset.zero) & boite.size;
+    if (!zone.isEmpty) origine = zone;
+  }
+  try {
+    await Share.share(message, subject: 'PronoWin', sharePositionOrigin: origine);
+  } catch (_) {
+    await Clipboard.setData(ClipboardData(text: message));
+    afficherMessageVia(messager, copie, type: TypeMessage.succes);
+  }
+}

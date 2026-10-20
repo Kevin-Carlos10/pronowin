@@ -356,89 +356,26 @@ class _ReferralCodeCard extends StatelessWidget {
       Text(tr(context, "Appuyez pour copier · Partagez avec tes amis"),
         style: TextStyle(color: context.cl.textM, fontSize: 11)),
       const SizedBox(height: 12),
+      // La feuille de partage du téléphone, directement : celle qu'on ouvrait
+      // ici ne faisait que copier le texte (partage_parrainage.dart).
       SizedBox(
         width: double.infinity,
-        child: ElevatedButton.icon(
-          onPressed: () => _showShareSheet(context, code),
+        child: Builder(builder: (bouton) => ElevatedButton.icon(
+          key: const Key('partager-code-parrainage'),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            partagerParrainage(bouton, code);
+          },
           icon: const Icon(Icons.share_rounded, size: 18),
           label:  Text(tr(context, "Partager mon code")),
           style: ElevatedButton.styleFrom(
             backgroundColor: const Color(0xFFA78BFA),
             foregroundColor: Colors.white,
           ),
-        ),
+        )),
       ),
     ]),
   );
-
-  void _showShareSheet(BuildContext context, String code) {
-    const purple = Color(0xFFA78BFA);
-    final message = messageParrainage(code);
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: ctx.cl.bg,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 32),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 40, height: 4,
-            decoration: BoxDecoration(color: ctx.cl.border, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          Text(tr(context, "Partager mon code"), style: TextStyle(
-            color: ctx.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 16),
-          // Aperçu du message
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: purple.withValues(alpha: 0.06),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: purple.withValues(alpha: 0.2)),
-            ),
-            child: Text(message, style: TextStyle(
-              color: ctx.cl.textS, fontSize: 13, height: 1.5)),
-          ),
-          const SizedBox(height: 16),
-          // Options de partage
-          Row(children: [
-            _ShareOption(
-              icon: Icons.content_copy_rounded, label: tr(context, "Copier\nle message"),
-              color: context.cl.info,
-              onTap: () {
-                Clipboard.setData(ClipboardData(text: message));
-                Navigator.pop(ctx);
-                afficherMessage(context, tr(context, "Message copié ! Collez-le sur WhatsApp, SMS… 📤"), type: TypeMessage.succes, duree: Duration(seconds: 3));
-              },
-            ),
-            const SizedBox(width: 12),
-            _ShareOption(
-              icon: Icons.tag_rounded, label: tr(context, "Copier\nle code seul"),
-              color: purple,
-              onTap: () {
-                Clipboard.setData(ClipboardData(text: code));
-                Navigator.pop(ctx);
-                afficherMessage(context, tr(context, "Code {arg0} copié ! 📋", [code]), type: TypeMessage.succes, duree: Duration(seconds: 2));
-              },
-            ),
-            const SizedBox(width: 12),
-            _ShareOption(
-              icon: Icons.sms_rounded, label: tr(context, "Message\nprêt à envoyer"),
-              color: context.cl.success,
-              onTap: () {
-                Clipboard.setData(ClipboardData(text: message));
-                Navigator.pop(ctx);
-                afficherMessage(context, tr(context, "Message copié ! Ouvrez WhatsApp et collez. ✅"), type: TypeMessage.succes, duree: Duration(seconds: 3));
-              },
-            ),
-          ]),
-        ]),
-      ),
-    );
-  }
 }
 
 // ─── ENTRER CODE PARRAIN ─────────────────────────────────────────────────────
@@ -746,31 +683,6 @@ class _EmptyState extends StatelessWidget {
 }
 
 // ─── OPTION DE PARTAGE ────────────────────────────────────────────────────────
-class _ShareOption extends StatelessWidget {
-  final IconData icon; final String label; final Color color; final VoidCallback onTap;
-  const _ShareOption({required this.icon, required this.label, required this.color, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) => Expanded(
-    child: GestureDetector(
-      onTap: () { HapticFeedback.lightImpact(); onTap(); },
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: color.withValues(alpha: 0.25)),
-        ),
-        child: Column(children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 6),
-          Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.w600),
-            textAlign: TextAlign.center),
-        ]),
-      ),
-    ),
-  );
-}
 
 // ─── HISTORIQUE DES GAINS ─────────────────────────────────────────────────────
 class _HistorySection extends ConsumerWidget {

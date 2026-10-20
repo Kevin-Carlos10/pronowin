@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:share_plus/share_plus.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/utils/premium_nav.dart';
@@ -956,12 +955,6 @@ class _ParrainageTab extends ConsumerWidget {
 
   static const _purple = Color(0xFFA78BFA);
 
-  /// Message pré-rédigé — une seule source, partagée avec ParrainagePage.
-  ///
-  /// Les deux écrans en portaient chacun une copie recopiée à la main, avec la
-  /// même adresse de téléchargement fausse. Voir `partage_parrainage.dart`.
-  static String _shareMessage(String code) => messageParrainage(code);
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final refAsync = ref.watch(referralStatsProvider);
@@ -1186,10 +1179,12 @@ class _ParrainageTab extends ConsumerWidget {
         // l'utilisateur à rédiger lui-même son message.
         SizedBox(
           width: double.infinity, height: 50,
-          child: ElevatedButton.icon(
+          // Ancrée sur le bouton : sans ancrage, iOS refuse la feuille de
+          // partage sur iPad (partage_parrainage.dart).
+          child: Builder(builder: (bouton) => ElevatedButton.icon(
             onPressed: () {
               HapticFeedback.lightImpact();
-              Share.share(_shareMessage(refCode));
+              partagerParrainage(bouton, refCode);
             },
             icon: const Icon(Icons.share_rounded, size: 19),
             label:  Text(tr(context, "Partager mon code"),
@@ -1197,7 +1192,7 @@ class _ParrainageTab extends ConsumerWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: _purple, foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(13))))),
+                borderRadius: BorderRadius.circular(13)))))),
         const SizedBox(height: 20),
 
         // ── Filleuls ────────────────────────────────────────────────────────
