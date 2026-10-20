@@ -23,6 +23,8 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/widgets/badge_premium.dart';
 import '../../../../shared/utils/partage_parrainage.dart';
+import '../../../actualites/actualites.dart' show actualitesNonLuesProvider;
+import '../../../accueil/presentation/providers/accueil_provider.dart' show actualitesProvider;
 import '../../../../shared/utils/messages.dart';
 import 'package:pronowin/shared/utils/initiale.dart';
 import '../../../../shared/widgets/skeletons.dart';
@@ -58,6 +60,10 @@ Future<void> rafraichirDonneesCompte(WidgetRef ref) async {
   ref.invalidate(userStatsProvider);
   ref.invalidate(bankrollProvider);
   ref.invalidate(bankrollStatsProvider);
+  // Le badge du raccourci Actualités : les actualités de l'accueil, relues,
+  // et le compte des non-lues qui en découle.
+  ref.invalidate(actualitesProvider);
+  ref.invalidate(actualitesNonLuesProvider);
 
   await Future.wait([
     ref.read(profileProvider.future),
@@ -449,15 +455,25 @@ class _ApercuTab extends ConsumerWidget {
         // `/historique` était atteignable trois fois sur ce seul écran.
          _SectionLabel(tr(context, "MON ACTIVITÉ")),
         _InfoCard(children: [
+          // Raccourci vers la page Actus (20 octobre 2026), avec le nombre
+          // d'articles pas encore ouverts.
+          Consumer(builder: (context, ref, _) => _LinkRow(
+            key: const Key('compte-actualites'),
+            icon: Icons.newspaper_rounded, label: tr(context, "Actualités"),
+            sousTitre: tr(context, "Résumés de match et infos foot"),
+            color: const Color(0xFF16A34A),
+            badge: ref.watch(actualitesNonLuesProvider),
+            onTap: () => context.push('/actualites')))
+            .animate(delay: 0.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
           _LinkRow(icon: Icons.insights_rounded, label: 'Performance',
             color: const Color(0xFF6C63FF), onTap: () => context.push('/performance'))
-            .animate(delay: 0.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+            .animate(delay: 50.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
           _LinkRow(icon: Icons.emoji_events_rounded, label: tr(context, "Classement"),
             color: const Color(0xFFFFD700), onTap: () => context.push('/classement'))
-            .animate(delay: 50.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+            .animate(delay: 100.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
           _LinkRow(icon: Icons.notifications_outlined, label: tr(context, "Notifications"),
             color: AppColors.primary, onTap: () => context.push('/notifications'))
-            .animate(delay: 100.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+            .animate(delay: 150.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
         ]),
       ],
     );
@@ -1288,8 +1304,11 @@ class _LinkRow extends StatelessWidget {
   /// Ce que la destination contient, quand le libellé ne suffit pas.
   final String? sousTitre;
 
-  const _LinkRow({required this.icon, required this.color,
-    required this.label, required this.onTap, this.sousTitre});
+  /// Pastille de nombre (articles non lus) ; rien à zéro.
+  final int? badge;
+
+  const _LinkRow({super.key, required this.icon, required this.color,
+    required this.label, required this.onTap, this.sousTitre, this.badge});
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap, borderRadius: BorderRadius.circular(14),
@@ -1318,6 +1337,16 @@ class _LinkRow extends StatelessWidget {
                 color: context.cl.textM, fontSize: 12)),
             ],
           ])),
+        if ((badge ?? 0) > 0) ...[
+          const SizedBox(width: 8),
+          Semantics(
+            label: tr(context, "{arg0} non lus", [badge]),
+            child: ExcludeSemantics(child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
+              child: Text(badge! > 99 ? '99+' : '$badge',
+                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700))))),
+        ],
         const SizedBox(width: 8),
         Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 18),
       ])));

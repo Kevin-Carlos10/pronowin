@@ -36,7 +36,8 @@ import '../widgets/in_app_browser_page.dart';
 import '../../shared/widgets/main_scaffold.dart';
 import 'navigation_keys.dart';
 import 'page_transitions.dart';
-import '../../features/accueil/presentation/pages/accueil_page.dart' show PageActualites;
+import '../../features/actualites/page_actus.dart';
+import '../../features/actualites/page_article.dart';
 // Provider synchrone — initialisé dans main.dart avant runApp
 final onboardingDoneProvider = StateProvider<bool>((ref) => false);
 
@@ -199,7 +200,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Toutes les actualités, depuis « Voir tout » de l'accueil.
       GoRoute(
         path: '/actualites',
-        pageBuilder: (_, s) => slideRightPage(state: s, child: const PageActualites()),
+        pageBuilder: (_, s) => slideRightPage(state: s, child: const PageActus()),
+      ),
+      // Un article : glisse depuis la droite, comme sur FotMob. Sans
+      // l'article en paramètre (lien ouvert de l'extérieur), la page Actus.
+      GoRoute(
+        path: '/actualites/article',
+        pageBuilder: (_, s) => slideRightPage(state: s,
+          child: s.extra is Map
+              ? PageArticle(news: Map<String, dynamic>.from(s.extra as Map))
+              : const PageActus()),
       ),
       GoRoute(
         path: '/navigateur',

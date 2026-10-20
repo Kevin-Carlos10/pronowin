@@ -5,51 +5,20 @@
 // aurait imposé de les rendre publiques, donc visibles de partout.
 part of '../accueil_page.dart';
 
-class _NewsSection extends StatefulWidget {
+/// La section Actualités de l'accueil : quatre articles, puis « Voir tout »
+/// vers la page Actus. Un article s'ouvre dans sa page (`PageArticle`), comme
+/// sur FotMob, et non plus dans une feuille en bas d'écran (20 octobre 2026).
+/// Les articles lus sont ceux de `actualitesLuesProvider`, partagés avec la
+/// page Actus et le badge de Compte.
+class _NewsSection extends ConsumerWidget {
   final List<Map<String, dynamic>> items;
   const _NewsSection({required this.items});
-  @override
-  State<_NewsSection> createState() => _NewsSectionState();
-}
-
-class _NewsSectionState extends State<_NewsSection> {
-  Set<String> _readIds = {};
 
   @override
-  void initState() {
-    super.initState();
-    _loadRead();
-  }
-
-  Future<void> _loadRead() async {
-    final prefs = await SharedPreferences.getInstance();
-    final list  = prefs.getStringList('news_read_ids') ?? [];
-    if (mounted) setState(() => _readIds = list.toSet());
-  }
-
-  Future<void> _markRead(String id) async {
-    if (_readIds.contains(id)) return;
-    final prefs = await SharedPreferences.getInstance();
-    _readIds.add(id);
-    await prefs.setStringList('news_read_ids', _readIds.toList());
-    if (mounted) setState(() {});
-  }
-
-  void _openArticle(BuildContext context, Map<String, dynamic> news) {
-    HapticFeedback.mediumImpact();
-    _markRead(news['id'] as String? ?? '');
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) => _NewsDetailSheet(news: news),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lues = ref.watch(actualitesLuesProvider);
     // Pinned en premier, puis tri par date
-    final sorted = [...widget.items]..sort((a, b) {
+    final sorted = [...items]..sort((a, b) {
       final aPin = (a['is_pinned'] as bool? ?? false) ? 0 : 1;
       final bPin = (b['is_pinned'] as bool? ?? false) ? 0 : 1;
       if (aPin != bPin) return aPin.compareTo(bPin);
@@ -58,7 +27,7 @@ class _NewsSectionState extends State<_NewsSection> {
       return db.compareTo(da);
     });
 
-    final unreadCount = sorted.where((n) => !_readIds.contains(n['id'] as String? ?? '')).length;
+    final unreadCount = sorted.where((n) => !lues.contains(n['id'] as String? ?? '')).length;
     final visible = sorted.take(4).toList();
 
     // La carte en vedette occupe un tiers d'écran : un titre d'un seul mot
@@ -90,8 +59,8 @@ class _NewsSectionState extends State<_NewsSection> {
         if (visible.isNotEmpty)
           _FeaturedNewsCard(
             news: visible.first,
-            isRead: _readIds.contains(visible.first['id'] as String? ?? ''),
-            onTap: () => _openArticle(context, visible.first),
+            isRead: lues.contains(visible.first['id'] as String? ?? ''),
+            onTap: () => ouvrirActu(context, ref, visible.first),
           ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.06, end: 0,
               curve: Curves.easeOutCubic),
 
@@ -101,8 +70,8 @@ class _NewsSectionState extends State<_NewsSection> {
           final news = e.value;
           return _CompactNewsCard(
             news: news,
-            isRead: _readIds.contains(news['id'] as String? ?? ''),
-            onTap: () => _openArticle(context, news),
+            isRead: lues.contains(news['id'] as String? ?? ''),
+            onTap: () => ouvrirActu(context, ref, news),
           )
           .animate(delay: Duration(milliseconds: 80 + i * 60))
           .fadeIn(duration: 300.ms)
@@ -411,197 +380,6 @@ class _NewsEmojiFallback extends StatelessWidget {
     color: accent.withValues(alpha: 0.10),
     child: Center(child: Text(emoji, style: const TextStyle(fontSize: 26))),
   );
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// NEWS DETAIL BOTTOM SHEET
-// ──────────────────────────────────────────────────────────────────────────────
-class _NewsDetailSheet extends StatelessWidget {
-  final Map<String, dynamic> news;
-  const _NewsDetailSheet({required this.news});
-
-  @override
-  Widget build(BuildContext context) {
-    final cat       = news['categorie'] as String?;
-    final accent    = context.cl.lisible(_newsAccent(cat));
-    final imgUrl    = news['image_url'] as String?;
-    final resume    = editorialField(news, 'resume');
-    final sourceUrl = news['source_url'] as String?;
-    final hasSource = sourceUrl != null && sourceUrl.isNotEmpty;
-    // Résumé automatique d'un match (resumes_match.service.ts côté serveur) :
-    // il mène à la fiche du match, pas à un site.
-    final matchId   = news['match_id'] as String?;
-    final versMatch = matchId != null && matchId.isNotEmpty;
-
-    return DraggableScrollableSheet(
-      initialChildSize: 0.65,
-      minChildSize: 0.4,
-      maxChildSize: 0.92,
-      builder: (_, scrollCtrl) => Container(
-        decoration: BoxDecoration(
-          color: context.cl.surface,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: ListView(
-          controller: scrollCtrl,
-          padding: EdgeInsets.zero,
-          children: [
-            // Drag handle
-            Center(child: Container(
-              margin: const EdgeInsets.only(top: 12, bottom: 8),
-              width: 36, height: 4,
-              decoration: BoxDecoration(
-                color: context.cl.border, borderRadius: BorderRadius.circular(2)),
-            )),
-
-            // Image header
-            if (imgUrl != null && imgUrl.isNotEmpty)
-              Stack(children: [
-                SizedBox(
-                  height: 200, width: double.infinity,
-                  child: ImageDistante(
-                    url:     imgUrl,
-                      repli:   const SizedBox.shrink())),
-                Positioned.fill(child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [Colors.black.withValues(alpha: 0.65), Colors.transparent],
-                      begin: Alignment.bottomCenter, end: Alignment.topCenter)),
-                )),
-                // Barre accent bas de l'image
-                Positioned(left: 0, right: 0, bottom: 0,
-                  child: Container(height: 3, color: accent)),
-              ]),
-
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 18, 20, 32),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Catégorie + date
-                  Row(children: [
-                    Text(news['emoji'] as String? ?? '', style: const TextStyle(fontSize: 22)),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: accent.withValues(alpha: 0.3))),
-                      child: Text(cat ?? '',
-                        style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w700))),
-                    const Spacer(),
-                    Row(children: [
-                      Icon(Icons.schedule_rounded, size: 11, color: context.cl.textM),
-                      const SizedBox(width: 3),
-                      Text(news['date'] as String? ?? '',
-                        style: TextStyle(color: context.cl.textM, fontSize: 11)),
-                    ]),
-                  ]),
-                  const SizedBox(height: 14),
-
-                  // Titre
-                  Text(editorialField(news, 'titre'),
-                    style: TextStyle(
-                      color: context.cl.textP, fontSize: 20,
-                      fontWeight: FontWeight.w700, height: 1.3)),
-
-                  if (resume.isNotEmpty) ...[
-                    const SizedBox(height: 14),
-                    Container(width: double.infinity, height: 2,
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [accent, accent.withValues(alpha: 0)]))),
-                    const SizedBox(height: 14),
-                    Text(resume,
-                      style: TextStyle(
-                        color: context.cl.textM, fontSize: 14, height: 1.65)),
-                  ],
-
-                  const SizedBox(height: 24),
-
-                  if (versMatch) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: FilledButton.icon(
-                        key: const Key('actu-voir-match'),
-                        onPressed: () {
-                          // Le routeur d'abord : la feuille se ferme.
-                          final routeur = GoRouter.of(context);
-                          Navigator.of(context).pop();
-                          routeur.push('/pronostics/$matchId');
-                        },
-                        style: FilledButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
-                        icon: const Icon(Icons.sports_soccer_rounded, size: 18),
-                        label: Text(tr(context, "Voir la fiche du match"),
-                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-
-                  // Bouton "Lire l'article complet" si source_url
-                  if (hasSource) ...[
-                    SizedBox(
-                      width: double.infinity,
-                      child: GestureDetector(
-                        onTap: () {
-                          context.push('/navigateur', extra: {
-                            'url':   sourceUrl,
-                            'title': editorialField(news, 'titre'),
-                          });
-                        },
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          decoration: BoxDecoration(
-                            gradient: const LinearGradient(
-                              colors: AppColors.degradeBouton),
-                            borderRadius: BorderRadius.circular(14),
-                            boxShadow: [BoxShadow(
-                              color: AppColors.primary.withValues(alpha: 0.35),
-                              blurRadius: 12, offset: const Offset(0, 4))]),
-                          child:  Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Icon(Icons.open_in_new_rounded, color: Colors.white, size: 16),
-                              SizedBox(width: 8),
-                              Text(tr(context, "Lire l'article complet"),
-                                style: TextStyle(
-                                  color: Colors.white, fontSize: 14,
-                                  fontWeight: FontWeight.w700)),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 10),
-                  ],
-
-                  // Bouton fermer
-                  SizedBox(
-                    width: double.infinity,
-                    child: TextButton(
-                      onPressed: () => Navigator.of(context).pop(),
-                      style: TextButton.styleFrom(
-                        backgroundColor: context.cl.surfaceD,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14))),
-                      child: Text(tr(context, "Fermer"),
-                        style: TextStyle(
-                          color: context.cl.textM, fontWeight: FontWeight.w600)),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }
 
 

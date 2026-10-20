@@ -39,6 +39,11 @@ class ImageDistante extends StatelessWidget {
   /// information.
   final Widget repli;
 
+  /// Fondu à l'arrivée de l'image. Nul par défaut (vignettes en liste) ; les
+  /// photos des actualités l'utilisent, comme FotMob : un bloc gris, puis la
+  /// photo qui apparaît.
+  final Duration fondu;
+
   const ImageDistante({
     super.key,
     required this.url,
@@ -47,6 +52,7 @@ class ImageDistante extends StatelessWidget {
     this.hauteur,
     this.fit = BoxFit.cover,
     this.entetes,
+    this.fondu = Duration.zero,
   });
 
   /// Nombre de pixels physiques à décoder pour [logique] pixels logiques.
@@ -86,10 +92,10 @@ class ImageDistante extends StatelessWidget {
           memCacheHeight: _pixels(h, densite),
           placeholder:    (_, _) => repli,
           errorWidget:    (_, _, _) => repli,
-          // Pas de fondu : ces images sont des vignettes dans des listes, et
-          // une animation par vignette transforme le défilement en
-          // scintillement.
-          fadeInDuration:  Duration.zero,
+          // Pas de fondu par défaut : ces images sont des vignettes dans des
+          // listes, et une animation par vignette transforme le défilement en
+          // scintillement. Les actualités le demandent (`fondu`).
+          fadeInDuration:  fondu,
           fadeOutDuration: Duration.zero,
         );
       },

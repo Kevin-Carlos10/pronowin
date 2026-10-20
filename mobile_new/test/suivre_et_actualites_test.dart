@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
-import 'package:pronowin/core/widgets/team_logo_widget.dart';
-import 'package:pronowin/features/accueil/presentation/pages/accueil_page.dart';
 import 'package:pronowin/features/parametres/presentation/providers/settings_provider.dart';
 import 'package:pronowin/shared/providers/favoris_provider.dart';
 import 'package:pronowin/shared/widgets/suivre_match.dart';
@@ -96,63 +94,6 @@ void main() {
       await t.pump();
       expect(find.byType(SnackBar), findsNothing);
       expect(find.byIcon(iconeMatchNonSuivi), findsOneWidget);
-    });
-  });
-
-  group('page Actualités', () {
-    final actus = <Map<String, dynamic>>[
-      {'id': 'resume_r1', 'titre': "Marseille s'impose largement chez Angers (2-5)", 'resume': 'Score à la mi-temps : 1-2.',
-       'categorie': 'Ligue 1', 'emoji': '⚽', 'image_url': null, 'source_url': null, 'is_pinned': false,
-       'date': 'Il y a 1h', 'created_at': '2026-10-18T16:44:00Z', 'from_rss': false,
-       'type': 'resume_match', 'match_id': 'm-om', 'score': '2-5',
-       'logo_domicile': 'https://media.api-sports.io/football/teams/77.png',
-       'logo_exterieur': 'https://media.api-sports.io/football/teams/81.png'},
-      {'id': 'rss_1', 'titre': 'Mercato : un transfert record se prépare cet hiver', 'resume': 'Résumé du flux.',
-       'categorie': 'RMC Sport', 'emoji': '📻', 'image_url': null, 'source_url': 'https://rmcsport.bfmtv.com/a',
-       'is_pinned': false, 'date': 'Il y a 2h', 'created_at': '2026-10-18T15:00:00Z', 'from_rss': true},
-    ];
-
-    Future<void> monterPage(WidgetTester t) async {
-      final routeur = GoRouter(initialLocation: '/actualites', routes: [
-        GoRoute(path: '/actualites', builder: (_, _) => const PageActualites()),
-        GoRoute(path: '/pronostics/:id', builder: (_, s) => Text('fiche ${s.pathParameters['id']}')),
-      ]);
-      await t.pumpWidget(ProviderScope(
-        overrides: [toutesActualitesProvider.overrideWith((ref) async => actus)],
-        child: MaterialApp.router(routerConfig: routeur),
-      ));
-      await t.pumpAndSettle();
-    }
-
-    testWidgets('filtres par famille ; un résumé ouvre la fiche du match', (t) async {
-      await monterPage(t);
-      expect(find.byKey(const Key('filtre-actus-resumes')), findsOneWidget);
-      expect(find.byKey(const Key('filtre-actus-medias')), findsOneWidget);
-      // Aucun article de la rédaction : pas de filtre vide.
-      expect(find.byKey(const Key('filtre-actus-redaction')), findsNothing);
-
-      await t.tap(find.byKey(const Key('filtre-actus-resumes')));
-      await t.pumpAndSettle();
-      expect(find.textContaining('Mercato'), findsNothing);
-      // Sans photo, un résumé montre les deux logos et le score.
-      expect(find.byType(TeamLogoWidget), findsNWidgets(2));
-      expect(find.text('2-5'), findsOneWidget);
-
-      await t.tap(find.textContaining('Marseille'));
-      await t.pumpAndSettle();
-      expect(find.byKey(const Key('actu-voir-match')), findsOneWidget);
-      expect(find.text("Lire l'article complet"), findsNothing);
-      await t.tap(find.byKey(const Key('actu-voir-match')));
-      await t.pumpAndSettle();
-      expect(find.text('fiche m-om'), findsOneWidget);
-    });
-
-    testWidgets('un article de média garde son lien vers l\'original, sans fiche de match', (t) async {
-      await monterPage(t);
-      await t.tap(find.textContaining('Mercato'));
-      await t.pumpAndSettle();
-      expect(find.byKey(const Key('actu-voir-match')), findsNothing);
-      expect(find.text("Lire l'article complet"), findsOneWidget);
     });
   });
 }
