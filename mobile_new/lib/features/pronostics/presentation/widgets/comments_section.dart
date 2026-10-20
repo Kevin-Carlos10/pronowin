@@ -115,15 +115,12 @@ class CommentsSection extends ConsumerStatefulWidget {
 
 class _CommentsSectionState extends ConsumerState<CommentsSection> {
   final _ctrl   = TextEditingController();
-  final _focus  = FocusNode();
   String? _replyingTo;       // commentId en cours de réponse
   String? _replyingToPseudo;
-  bool    _sending = false;
 
   @override
   void dispose() {
     _ctrl.dispose();
-    _focus.dispose();
     super.dispose();
   }
 
@@ -136,10 +133,11 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
     } catch (_) {}
   }
 
-  Future<void> _send() async {
+  /// Envoie le commentaire. Rend le message à afficher dans la feuille de
+  /// saisie si l'envoi échoue, null s'il est parti (le texte est alors vidé).
+  Future<String?> _envoyer() async {
     final text = _ctrl.text.trim();
-    if (text.isEmpty || _sending) return;
-    setState(() => _sending = true);
+    if (text.isEmpty) return null;
     try {
       final dio = ref.read(dioProvider);
       await dio.post('/comments/${widget.pronosticId}', data: {
@@ -147,16 +145,38 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
         if (_replyingTo != null) 'parent_id': _replyingTo,
       });
       _ctrl.clear();
-      _focus.unfocus();
-      setState(() { _replyingTo = null; _replyingToPseudo = null; });
+      if (mounted) setState(() { _replyingTo = null; _replyingToPseudo = null; });
       ref.invalidate(commentsProvider(widget.pronosticId));
+      return null;
     } catch (e) {
-      if (mounted) {
-        afficherMessage(context, messageRefus(context, e));
-      }
-    } finally {
-      if (mounted) setState(() => _sending = false);
+      return mounted ? messageRefus(context, e) : '';
     }
+  }
+
+  /// La saisie, dans une feuille posée au-dessus du clavier (20 octobre 2026).
+  ///
+  /// Le champ vivait en bas de l'onglet Détails, dans la fiche à en-tête
+  /// repliable. Pendant que le clavier montait, la page rétrécissait à chaque
+  /// image ; le champ la faisait défiler pour rester visible, l'en-tête se
+  /// repliait, et ces mouvements se contrariaient : « l'écran tremble deux ou
+  /// trois fois avant de se stabiliser » (signalé le 20 octobre). Comme sur
+  /// Instagram ou Sofascore, la feuille monte avec le clavier et la page
+  /// derrière ne bouge plus. Le brouillon survit à sa fermeture.
+  Future<void> _ouvrirSaisie() async {
+    HapticFeedback.selectionClick();
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _FeuilleCommentaire(
+        controller:       _ctrl,
+        replyingToPseudo: _replyingToPseudo,
+        onCancelReply:    () => setState(() { _replyingTo = null; _replyingToPseudo = null; }),
+        envoyer:          _envoyer,
+      ),
+    );
+    if (mounted) setState(() {}); // le champ montre le brouillon
   }
 
   Future<void> _delete(String commentId) async {
@@ -209,7 +229,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
 
   void _startReply(String commentId, String pseudo) {
     setState(() { _replyingTo = commentId; _replyingToPseudo = pseudo; });
-    _focus.requestFocus();
+    _ouvrirSaisie();
   }
 
   @override
@@ -312,16 +332,10 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
         // ── Input — réservé aux membres Premium ──────────────────────────
         if (!isGated) ...[
           const Divider(height: 1),
-          _CommentInput(
-            controller:        _ctrl,
-            focusNode:         _focus,
-            replyingToPseudo:  _replyingToPseudo,
-            sending:           _sending,
-            onCancelReply:     () => setState(() {
-              _replyingTo = null;
-              _replyingToPseudo = null;
-            }),
-            onSend: _send,
+          _ChampCommentaire(
+            brouillon:        _ctrl.text,
+            replyingToPseudo: _replyingToPseudo,
+            onTap:            _ouvrirSaisie,
           ),
         ],
       ]),
@@ -631,95 +645,170 @@ class _SingleComment extends StatelessWidget {
   }
 }
 
-// ── Input commentaire ─────────────────────────────────────────────────────────
-class _CommentInput extends StatelessWidget {
-  final TextEditingController controller;
-  final FocusNode            focusNode;
-  final String?              replyingToPseudo;
-  final bool                 sending;
-  final VoidCallback         onCancelReply;
-  final VoidCallback         onSend;
-
-  const _CommentInput({
-    required this.controller,
-    required this.focusNode,
-    this.replyingToPseudo,
-    required this.sending,
-    required this.onCancelReply,
-    required this.onSend,
-  });
+// ── Saisie ───────────────────────────────────────────────────────────────────
+/// Le champ du bas de la section : il ressemble à un champ de saisie, mais
+/// ouvre la feuille de saisie (`_FeuilleCommentaire`) — c'est elle qui
+/// accueille le clavier.
+class _ChampCommentaire extends StatelessWidget {
+  final String brouillon;
+  final String? replyingToPseudo;
+  final VoidCallback onTap;
+  const _ChampCommentaire({required this.brouillon, this.replyingToPseudo, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      // Bandeau de réponse
-      if (replyingToPseudo != null)
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-          color: context.cl.info.withValues(alpha: 0.06),
-          child: Row(children: [
-            Icon(Icons.reply_rounded, size: 14, color: context.cl.info),
-            const SizedBox(width: 6),
-            Text(tr(context, "Répondre à {arg0}", [replyingToPseudo]),
-              style: TextStyle(color: context.cl.info, fontSize: 12)),
-            const Spacer(),
-            GestureDetector(
-              onTap: onCancelReply,
-              child: Icon(Icons.close_rounded, size: 16, color: context.cl.textM)),
-          ])),
-
-      // Champ de texte
-      Padding(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-        child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
-          Expanded(child: TextField(
-            controller: controller,
-            focusNode:  focusNode,
-            maxLines:   3,
-            minLines:   1,
-            maxLength:  500,
-            style: TextStyle(color: context.cl.textP, fontSize: 13),
-            decoration: InputDecoration(
-              hintText:       tr(context, "Partage ton avis sur ce pronostic…"),
-              hintStyle:      TextStyle(color: context.cl.textM, fontSize: 13),
-              counterText:    '',
-              filled:         true,
-              fillColor:      context.cl.bg,
-              contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              border:         OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide:   BorderSide(color: context.cl.border, width: 0.5)),
-              focusedBorder:  OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide:   BorderSide(color: context.cl.info, width: 1.2)),
-              enabledBorder:  OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide:   BorderSide(color: context.cl.border, width: 0.5)),
-            ),
-          )),
-          const SizedBox(width: 8),
-          GestureDetector(
-            onTap: onSend,
-            child: AnimatedContainer(
-              duration: 180.ms,
-              width: 42, height: 42,
-              decoration: BoxDecoration(
-                color: context.cl.info,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [BoxShadow(
-                  color: context.cl.info.withValues(alpha: 0.3),
-                  blurRadius: 8, offset: const Offset(0, 3))]),
-              child: sending
-                  ? const Center(child: SizedBox(width: 16, height: 16,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Colors.white)))
-                  : const Icon(Icons.send_rounded, color: Colors.white, size: 18)),
+  Widget build(BuildContext context) {
+    final indice = replyingToPseudo != null
+        ? tr(context, "Répondre à {arg0}", [replyingToPseudo])
+        : tr(context, "Partage ton avis sur ce pronostic…");
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+      child: Semantics(
+        button: true,
+        label: tr(context, "Écrire un commentaire"),
+        child: InkWell(
+          key: const Key('champ-commentaire'),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Ink(
+            padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+            decoration: BoxDecoration(
+              color: context.cl.bg,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: context.cl.border, width: 0.5)),
+            child: Row(children: [
+              Expanded(child: ExcludeSemantics(child: Text(
+                brouillon.isNotEmpty ? brouillon : indice,
+                maxLines: 1, overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: brouillon.isNotEmpty ? context.cl.textP : context.cl.textM, fontSize: 13)))),
+              const SizedBox(width: 8),
+              Icon(Icons.send_rounded, color: context.cl.info, size: 18),
+            ]),
           ),
-        ]),
+        ),
       ),
-    ],
+    );
+  }
+}
+
+/// La feuille de saisie : au-dessus du clavier, le champ, et l'envoi. Une
+/// erreur s'y affiche sans perdre le texte.
+class _FeuilleCommentaire extends StatefulWidget {
+  final TextEditingController controller;
+  final String? replyingToPseudo;
+  final VoidCallback onCancelReply;
+  final Future<String?> Function() envoyer;
+  const _FeuilleCommentaire({
+    required this.controller, this.replyingToPseudo,
+    required this.onCancelReply, required this.envoyer});
+
+  @override
+  State<_FeuilleCommentaire> createState() => _FeuilleCommentaireState();
+}
+
+class _FeuilleCommentaireState extends State<_FeuilleCommentaire> {
+  late String? _reponseA = widget.replyingToPseudo;
+  bool _envoi = false;
+  String? _erreur;
+
+  Future<void> _envoyer() async {
+    if (_envoi || widget.controller.text.trim().isEmpty) return;
+    HapticFeedback.lightImpact();
+    setState(() { _envoi = true; _erreur = null; });
+    final erreur = await widget.envoyer();
+    if (!mounted) return;
+    if (erreur == null) {
+      Navigator.of(context).pop();
+    } else {
+      setState(() { _envoi = false; _erreur = erreur; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    // Monte avec le clavier, image par image : la page derrière ne bouge pas.
+    padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+    child: Container(
+      decoration: BoxDecoration(
+        color: context.cl.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20))),
+      child: SafeArea(top: false, child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Center(child: Container(
+          margin: const EdgeInsets.only(top: 10, bottom: 6),
+          width: 36, height: 4,
+          decoration: BoxDecoration(color: context.cl.border, borderRadius: BorderRadius.circular(2)))),
+        if (_reponseA != null)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 4, 8, 0),
+            child: Row(children: [
+              Icon(Icons.reply_rounded, size: 14, color: context.cl.info),
+              const SizedBox(width: 6),
+              Expanded(child: Text(tr(context, "Répondre à {arg0}", [_reponseA]),
+                style: TextStyle(color: context.cl.info, fontSize: 12))),
+              IconButton(
+                tooltip: tr(context, "Annuler la réponse"),
+                icon: Icon(Icons.close_rounded, size: 16, color: context.cl.textM),
+                onPressed: () { widget.onCancelReply(); setState(() => _reponseA = null); }),
+            ]),
+          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(12, 6, 12, 12),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Expanded(child: TextField(
+              key: const Key('saisie-commentaire'),
+              controller: widget.controller,
+              autofocus:  true,
+              maxLines:   5,
+              minLines:   1,
+              maxLength:  500,
+              textCapitalization: TextCapitalization.sentences,
+              onChanged: (_) { if (_erreur != null) setState(() => _erreur = null); },
+              style: TextStyle(color: context.cl.textP, fontSize: 14),
+              decoration: InputDecoration(
+                hintText:       tr(context, "Partage ton avis sur ce pronostic…"),
+                hintStyle:      TextStyle(color: context.cl.textM, fontSize: 14),
+                counterText:    '',
+                filled:         true,
+                fillColor:      context.cl.bg,
+                contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                border:         OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:   BorderSide(color: context.cl.border, width: 0.5)),
+                focusedBorder:  OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:   BorderSide(color: context.cl.info, width: 1.2)),
+                enabledBorder:  OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide:   BorderSide(color: context.cl.border, width: 0.5)),
+              ),
+            )),
+            const SizedBox(width: 8),
+            Semantics(
+              button: true,
+              label: tr(context, "Envoyer"),
+              child: GestureDetector(
+                key: const Key('envoyer-commentaire'),
+                onTap: _envoyer,
+                child: Container(
+                  width: 44, height: 44,
+                  decoration: BoxDecoration(
+                    color: context.cl.info,
+                    borderRadius: BorderRadius.circular(12)),
+                  child: _envoi
+                      ? const Center(child: SizedBox(width: 16, height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white)))
+                      : const Icon(Icons.send_rounded, color: Colors.white, size: 18)),
+              ),
+            ),
+          ]),
+        ),
+        if (_erreur != null && _erreur!.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+            child: Text(_erreur!, key: const Key('erreur-commentaire'),
+              style: TextStyle(color: context.cl.error, fontSize: 12.5))),
+      ])),
+    ),
   );
 }
 

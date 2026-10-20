@@ -532,6 +532,10 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
 
     return Scaffold(
       backgroundColor: context.cl.bg,
+      // La saisie d'un commentaire se fait dans une feuille au-dessus du
+      // clavier : la page n'a pas à rétrécir pendant qu'il monte — c'est ce
+      // qui la faisait trembler (20 octobre 2026).
+      resizeToAvoidBottomInset: false,
       body: NestedScrollView(
         headerSliverBuilder: (ctx, _) => [
           SliverOverlapAbsorber(

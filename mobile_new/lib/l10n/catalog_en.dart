@@ -1685,4 +1685,7 @@ const englishMessages = <String, String>{
   "Lire l'article sur {arg0}": "Read the article on {arg0}",
   "Résumés de match et infos foot": "Match reports and football news",
   "{arg0} non lus": "{arg0} unread",
+  "Écrire un commentaire": "Write a comment",
+  "Annuler la réponse": "Cancel reply",
+  "Envoyer": "Send",
 };

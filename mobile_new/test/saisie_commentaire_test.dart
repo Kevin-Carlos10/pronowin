@@ -11,16 +11,21 @@ import 'package:pronowin/features/pronostics/presentation/pages/match_detail_pag
 import 'package:pronowin/features/pronostics/presentation/widgets/comments_section.dart';
 import 'aides/banc_ecran.dart';
 
-/// « Lorsqu'on clique pour saisir un commentaire dans un match, ça fait un
-/// bug » (19 octobre 2026). Le champ est tout en bas de l'onglet Détails, dans
-/// la fiche à en-tête repliable : toucher le champ, puis le clavier qui monte.
+/// « Quand tu cliques sur le champ de texte pour ouvrir le clavier, l'écran
+/// tremble deux ou trois fois avant de se stabiliser » (20 octobre 2026).
+///
+/// Mesuré : le champ vivait au bas de l'onglet Détails, sous l'en-tête
+/// repliable. Pendant que le clavier montait, la page défilait à chaque image
+/// (309, 308, 305, 311, 339… 533 px) pour garder le champ visible. La saisie
+/// se fait désormais dans une feuille posée au-dessus du clavier ; la page
+/// derrière ne bouge plus.
 void main() {
   setUpAll(() async {
     await initializeDateFormatting('fr_FR');
     await preparerBanc();
   });
 
-  Future<Finder> ouvrirLeChamp(WidgetTester t) async {
+  Future<void> ouvrirLaFiche(WidgetTester t) async {
     SharedPreferences.setMockInitialValues({});
     // iPhone 12-15 : 390 × 844 points.
     t.view.physicalSize = const Size(1170, 2532); t.view.devicePixelRatio = 3;
@@ -43,47 +48,73 @@ void main() {
           isExpert: false, createdAt: DateTime(2026, 10, 18), userPseudo: 'Awa')])),
     ], child: MaterialApp(theme: AppTheme.dark, home: const MatchDetailPage(matchId: 'm'))));
     for (var i = 0; i < 20; i++) { await t.pump(const Duration(milliseconds: 100)); }
-
-    final champ = find.byWidgetPredicate((w) => w is TextField
-        && w.decoration?.hintText == 'Partage ton avis sur ce pronostic…');
-    await t.scrollUntilVisible(champ, 300, scrollable: find.byType(Scrollable).at(1));
-    await t.pump(const Duration(milliseconds: 300));
-    return champ;
+    await t.scrollUntilVisible(find.byKey(const Key('champ-commentaire')), 300,
+        scrollable: find.byType(Scrollable).at(1));
+    // Laisser l'élan du défilement retomber : la mesure porte sur le clavier.
+    for (var i = 0; i < 20; i++) { await t.pump(const Duration(milliseconds: 100)); }
   }
 
-  testWidgets('toucher le champ puis le clavier : focus gardé, champ visible au-dessus du clavier', (t) async {
-    final champ = await ouvrirLeChamp(t);
-    await t.tap(champ);
+  /// Les positions de défilement de la page (hors feuille de saisie).
+  List<double> positionsPage(WidgetTester t) => find.byType(Scrollable).evaluate()
+      .where((e) => find.ancestor(of: find.byWidget(e.widget), matching: find.byType(BottomSheet)).evaluate().isEmpty)
+      .map((e) => ((e as StatefulElement).state as ScrollableState).position.pixels)
+      .toList();
+
+  Finder saisie() => find.byKey(const Key('saisie-commentaire'));
+
+  testWidgets('toucher le champ : la saisie monte avec le clavier, la page ne bouge pas d\'un pixel', (t) async {
+    await ouvrirLaFiche(t);
+    final avant = positionsPage(t);
+    await t.tap(find.byKey(const Key('champ-commentaire')));
     await t.pump();
-    // Le clavier monte en plusieurs images, comme sur un téléphone.
-    for (final h in [300.0, 600.0, 900.0, 1000.0]) {
-      t.view.viewInsets = FakeViewPadding(bottom: h);
-      await t.pump(const Duration(milliseconds: 50));
+    // Le clavier monte en douze images, comme sur un téléphone.
+    for (var i = 1; i <= 12; i++) {
+      t.view.viewInsets = FakeViewPadding(bottom: 1000.0 * i / 12);
+      await t.pump(const Duration(milliseconds: 16));
+      expect(positionsPage(t), avant, reason: 'la page a bougé à l\'image $i');
     }
-    for (var i = 0; i < 10; i++) { await t.pump(const Duration(milliseconds: 100)); }
-
+    await t.pumpAndSettle();
     expect(t.takeException(), isNull);
-    final editable = t.widget<EditableText>(find.descendant(of: champ, matching: find.byType(EditableText)));
-    expect(editable.focusNode.hasFocus, isTrue, reason: 'le champ a perdu le focus : le clavier se referme');
-    final bas = t.getRect(champ).bottom;
-    expect(bas, lessThanOrEqualTo(844 - 1000 / 3 + 1), reason: 'le champ est caché sous le clavier ($bas)');
-
-    await t.enterText(champ, 'Je suis d\'accord');
-    await t.pump();
-    expect(find.text('Je suis d\'accord'), findsOneWidget);
+    final editable = t.widget<EditableText>(find.descendant(of: saisie(), matching: find.byType(EditableText)));
+    expect(editable.focusNode.hasFocus, isTrue);
+    // Au-dessus du clavier : 844 − 1000 / 3 points.
+    expect(t.getRect(saisie()).bottom, lessThanOrEqualTo(844 - 1000 / 3 + 1));
+    expect(positionsPage(t), avant);
   });
 
-  testWidgets('clavier ouvert pendant deux relevés du score (10 s) : le texte et le focus restent', (t) async {
-    final champ = await ouvrirLeChamp(t);
-    await t.tap(champ);
-    await t.pump();
-    t.view.viewInsets = const FakeViewPadding(bottom: 1000);
-    await t.pump(const Duration(milliseconds: 300));
-    await t.enterText(champ, 'Bon prono');
-    for (var i = 0; i < 25; i++) { await t.pump(const Duration(seconds: 1)); }
-    expect(t.takeException(), isNull);
-    final editable = t.widget<EditableText>(find.descendant(of: champ, matching: find.byType(EditableText)));
-    expect(editable.focusNode.hasFocus, isTrue);
-    expect(editable.controller.text, 'Bon prono');
+  testWidgets('le brouillon survit à la fermeture de la saisie', (t) async {
+    await ouvrirLaFiche(t);
+    await t.tap(find.byKey(const Key('champ-commentaire')));
+    await t.pumpAndSettle();
+    await t.enterText(saisie(), 'Arsenal va gagner');
+    // Fermer la feuille en touchant au-dessus.
+    await t.tapAt(const Offset(195, 60));
+    await t.pumpAndSettle();
+    expect(saisie(), findsNothing);
+    expect(find.text('Arsenal va gagner'), findsOneWidget);   // dans le champ de la section
+    await t.tap(find.byKey(const Key('champ-commentaire')));
+    await t.pumpAndSettle();
+    expect(t.widget<TextField>(saisie()).controller!.text, 'Arsenal va gagner');
+  });
+
+  testWidgets('« Répondre » ouvre la saisie, avec le nom de la personne', (t) async {
+    await ouvrirLaFiche(t);
+    await t.ensureVisible(find.text('Répondre').first);
+    await t.tap(find.text('Répondre').first);
+    await t.pumpAndSettle();
+    expect(saisie(), findsOneWidget);
+    expect(find.text('Répondre à Awa'), findsWidgets);
+  });
+
+  testWidgets('envoi refusé : le message dans la saisie, le texte gardé', (t) async {
+    await ouvrirLaFiche(t);
+    await t.tap(find.byKey(const Key('champ-commentaire')));
+    await t.pumpAndSettle();
+    await t.enterText(saisie(), 'Mon avis');
+    await t.tap(find.byKey(const Key('envoyer-commentaire')));
+    await t.pumpAndSettle();
+    // Le faux serveur des bancs répond 404 à l'envoi.
+    expect(find.byKey(const Key('erreur-commentaire')), findsOneWidget);
+    expect(t.widget<TextField>(saisie()).controller!.text, 'Mon avis');
   });
 }
