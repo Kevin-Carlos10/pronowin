@@ -172,7 +172,7 @@ class _ToutesLesCotesState extends ConsumerState<_ToutesLesCotes> {
           Icon(Icons.info_outline_rounded, size: 13, color: context.cl.textM),
           const SizedBox(width: 6),
           Expanded(child: Text(
-            tr(context, "Cotes indicatives, actualisées toutes les cinq minutes jusqu'au coup d'envoi."),
+            tr(context, "Cotes indicatives, susceptibles d'évoluer jusqu'au coup d'envoi."),
             style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.3))),
         ]),
       ]),

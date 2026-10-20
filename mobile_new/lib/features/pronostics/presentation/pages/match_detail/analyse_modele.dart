@@ -713,10 +713,10 @@ class _CotesEnDirect extends ConsumerWidget {
                 color: context.cl.error, fontSize: 12, fontWeight: FontWeight.w700)),
         ]),
         const SizedBox(height: 4),
+        // Ni heure de relevé ni rythme d'actualisation : la fiche n'en montre
+        // nulle part (demande du 20 octobre 2026). Seul un relevé interrompu
+        // se signale.
         _FraicheurDonnees(updatedAt: data.updatedAt, stale: data.stale || async.hasError),
-        const SizedBox(height: 4),
-        Text(tr(context, "Actualisation automatique toutes les 2 minutes."),
-          style: TextStyle(color: context.cl.textM, fontSize: 10.5, height: 1.35)),
         const SizedBox(height: 14),
 
         for (final m in marches) ...[

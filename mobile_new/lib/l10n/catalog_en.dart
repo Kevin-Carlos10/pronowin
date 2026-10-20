@@ -1671,4 +1671,5 @@ const englishMessages = <String, String>{
   "Actualités momentanément indisponibles.": "News temporarily unavailable.",
   "Aucune actualité pour l'instant.": "No news yet.",
   "Membre Premium": "Premium member",
+  "Cotes indicatives, susceptibles d'évoluer jusqu'au coup d'envoi.": "Indicative odds, subject to change until kick-off.",
 };
