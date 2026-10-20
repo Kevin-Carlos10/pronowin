@@ -422,8 +422,6 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
       ),
     );
 
-    Widget ongletSeul(Widget child) =>
-        SingleChildScrollView(padding: rembourrage, child: child);
 
     final tabs = <(String, Widget)>[
       (tr(context, "Détails"), Column(children: [
@@ -523,141 +521,109 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
       ])),
     ];
 
+    // Avec plusieurs onglets, la barre d'onglets se range sous l'en-tête et
+    // reste épinglée ; avec un seul, il n'y en a pas.
+    final avecOnglets = tabs.length > 1 || ongletsEnCours;
+    // Ce qu'occupent les actions à droite : l'en-tête replié se centre dans
+    // l'espace qui reste, comme chez Sofascore.
+    final retard = match.status == MatchStatus.live
+        && DateTime.now().difference(_dernierRefresh) > delaiScoreNonActualise;
+    final reserveActions = 48.0 + 48 + (match.isPremium ? 24 : 0) + (retard ? 110 : 0) + 8;
+
     return Scaffold(
       backgroundColor: context.cl.bg,
-      appBar: AppBar(
-        leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => retourOuAller(context, repli: _repli)),
-        // Deux lignes plutôt que des points de suspension : entre le retour et
-        // les trois actions, « UEFA Nations League » devenait « UEFA Nation… ».
-        title: Text(match.league,
-          maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 13.5, height: 1.15, color: context.cl.textS)),
-        centerTitle: true,
-        actions: [
-          // Suivre le match : coup d'envoi, buts et résultat en notification
-          // (suivre_match.dart). Un marque-page ne le disait pas.
-          IconButton(
-            key: const Key('suivre-match'),
-            icon: AnimatedSwitcher(
-              duration: const Duration(milliseconds: 200),
-              child: Icon(
-                iconeSuivi(isFav),
-                key: ValueKey(isFav),
-                size: 22,
-                color: isFav ? AppColors.primary : context.cl.textS,
-              ),
-            ),
-            tooltip: libelleSuivi(context, isFav),
-            onPressed: () {
-              HapticFeedback.selectionClick();
-              // Le détail est ouvert aux invités, mais mettre en favori exige un
-              // compte : on les emmène s'inscrire au moment du geste plutôt que
-              // de laisser l'appel échouer en 401 sans rien dire.
-              if (!ref.read(effectiveLoggedInProvider)) {
-                context.push(
-                  '/auth/email?from=${Uri.encodeComponent('/pronostics/${match.id}')}');
-                return;
-              }
-              basculerSuivi(context, match.id, termine: match.status == MatchStatus.finished);
-            },
-          ),
-          // Le score se relève toutes les 30 s sans rien afficher, comme sur
-          // les applis de résultats : le compteur « il y a 12 s » qui tournait
-          // ici faisait brouillon (retour de l'utilisateur, 17 octobre 2026).
-          // On ne dit quelque chose que si le score n'arrive plus.
-          if (match.status == MatchStatus.live)
-            _ScoreNonActualise(dernier: _dernierRefresh),
-          IconButton(
-              icon: const Icon(Icons.share_rounded, size: 20),
-              tooltip: tr(context, "Partager"),
-              onPressed: () {
-                HapticFeedback.selectionClick();
-                _showShareSheet(context, match);
-              },
-            ),
-          if (match.isPremium)
-            Padding(
-              padding: const EdgeInsets.only(right: 4),
-              child: Icon(
-                isPremium
-                  ? Icons.workspace_premium_rounded
-                  : Icons.lock_rounded,
-                color: isPremium ? context.cl.warning : context.cl.textM,
-                size: 20)),
-        ],
-      ),
-      body: Column(children: [
-        // Page sans barre d'onglets : l'en-tête reste fixe, il n'y a pas
-        // d'espace à récupérer.
-        if (tabs.length <= 1 && !ongletsEnCours)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: context.animationsReduites
-              ? _MatchHeader(match: match)
-              : _MatchHeader(match: match)
-                  .animate().fadeIn(duration: 350.ms)
-                  .slideY(begin: -0.04, end: 0, curve: Curves.easeOutCubic),
-          ),
-        if (tabs.length <= 1 && !ongletsEnCours) ...[
-          Expanded(child: ongletSeul(tabs.first.$2)),
-        ] else ...[
-          // L'en-tête occupait ~23 % de la hauteur d'écran sur *chaque* onglet
-          // sans jamais se replier : sur le classement, cela coûtait huit
-          // lignes de tableau. NestedScrollView le fait fondre au défilement
-          // vers un résumé d'une ligne, la barre d'onglets restant épinglée.
-          Expanded(
-            child: NestedScrollView(
-              headerSliverBuilder: (ctx, _) => [
-                SliverOverlapAbsorber(
-                  handle: NestedScrollView.sliverOverlapAbsorberHandleFor(ctx),
-                  sliver: SliverAppBar(
-                    // Le Scaffold porte déjà une AppBar : celle-ci ne doit ni
-                    // reprendre un bouton retour, ni réserver la barre d'état.
-                    automaticallyImplyLeading: false,
-                    primary: false,
-                    pinned: true,
-                    backgroundColor: context.cl.bg,
-                    surfaceTintColor: Colors.transparent,
-                    elevation: 0,
-                    toolbarHeight: 44,
-                    // `expandedHeight` inclut la hauteur de `bottom` : il faut
-                    // donc 48 px de plus que la carte elle-même (~225 px) pour
-                    // que la barre d'onglets ne la recouvre pas.
-                    expandedHeight: 288,
-                    titleSpacing: 16,
-                    title: _EnTeteCompacte(match: match),
-                    flexibleSpace: FlexibleSpaceBar(
-                      background: SingleChildScrollView(
-                        // Garde-fou : la hauteur de la carte dépend du nom des
-                        // équipes (une ou deux lignes) et de la taille de police
-                        // système. Un viewport non défilable la laisse prendre sa
-                        // hauteur naturelle et la rogne, plutôt que de lever un
-                        // débordement RenderFlex sur certains appareils.
-                        physics: const NeverScrollableScrollPhysics(),
-                        child: Padding(
-                          padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
-                          child: _MatchHeader(match: match),
-                        ),
-                      ),
+      body: NestedScrollView(
+        headerSliverBuilder: (ctx, _) => [
+          SliverOverlapAbsorber(
+            handle: NestedScrollView.sliverOverlapAbsorberHandleFor(ctx),
+            // L'en-tête est sombre dans les deux thèmes, comme chez Sofascore :
+            // ses icônes et ses textes lisent le thème sombre.
+            sliver: Theme(data: AppTheme.dark, child: Builder(builder: (sombre) => SliverAppBar(
+              pinned: true,
+              automaticallyImplyLeading: false,
+              backgroundColor: _fondEnTete.last,
+              surfaceTintColor: Colors.transparent,
+              elevation: 0,
+              systemOverlayStyle: const SystemUiOverlayStyle(
+                statusBarColor: Colors.transparent,
+                statusBarIconBrightness: Brightness.light,
+                statusBarBrightness: Brightness.dark),
+              toolbarHeight: _hauteurBarre,
+              expandedHeight: _hauteurBarre + _hauteurEnTete + (avecOnglets ? 48 : 0),
+              leading: IconButton(
+                tooltip: tr(sombre, "Retour"),
+                icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+                onPressed: () => retourOuAller(context, repli: _repli)),
+              title: _TitreLigue(ligue: match.league),
+              centerTitle: true,
+              actions: [
+                // Suivre le match : coup d'envoi, buts et résultat en
+                // notification (suivre_match.dart).
+                IconButton(
+                  key: const Key('suivre-match'),
+                  icon: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 200),
+                    child: Icon(
+                      iconeSuivi(isFav),
+                      key: ValueKey(isFav),
+                      size: 22,
+                      color: isFav ? AppColors.primary : sombre.cl.textP,
                     ),
-                    bottom: _BarreOnglets(
+                  ),
+                  tooltip: libelleSuivi(sombre, isFav),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    // Le détail est ouvert aux invités, mais suivre exige un
+                    // compte : on les emmène s'inscrire au moment du geste.
+                    if (!ref.read(effectiveLoggedInProvider)) {
+                      context.push(
+                        '/auth/email?from=${Uri.encodeComponent('/pronostics/${match.id}')}');
+                      return;
+                    }
+                    basculerSuivi(context, match.id, termine: match.status == MatchStatus.finished);
+                  },
+                ),
+                // Rien sur la fraîcheur du score, sauf s'il n'arrive plus.
+                if (match.status == MatchStatus.live)
+                  _ScoreNonActualise(dernier: _dernierRefresh),
+                IconButton(
+                  icon: const Icon(Icons.share_rounded, size: 20),
+                  tooltip: tr(sombre, "Partager"),
+                  onPressed: () {
+                    HapticFeedback.selectionClick();
+                    _showShareSheet(context, match);
+                  },
+                ),
+                if (match.isPremium)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 4),
+                    child: Icon(
+                      isPremium ? Icons.workspace_premium_rounded : Icons.lock_rounded,
+                      color: isPremium ? sombre.cl.warning : sombre.cl.textM,
+                      size: 20)),
+              ],
+              flexibleSpace: _EnTeteRepliable(
+                match: match,
+                hauteurOnglets: avecOnglets ? 48 : 0,
+                reserveActions: reserveActions,
+              ),
+              bottom: avecOnglets
+                  ? _BarreOnglets(
                       controller: _controleurPour([for (final t in tabs) t.$1]),
                       libelles: [for (final t in tabs) t.$1],
                       enCours: ongletsEnCours,
-                    ),
-                  ),
-                ),
-              ],
-              body: TabBarView(
-                controller: _controleurPour([for (final t in tabs) t.$1]),
-                children: [for (final t in tabs) ongletImbrique(t.$2)],
-              ),
-            ),
+                    )
+                  : null,
+            ))),
           ),
         ],
-      ]),
+        body: avecOnglets
+            ? TabBarView(
+                controller: _controleurPour([for (final t in tabs) t.$1]),
+                children: [for (final t in tabs) ongletImbrique(t.$2)],
+              )
+            : ongletImbrique(tabs.first.$2),
+      ),
     );
   }
 }
@@ -724,260 +690,210 @@ class _BarreOnglets extends StatelessWidget implements PreferredSizeWidget {
   );
 }
 
-/// Resume du match sur une ligne, revele a mesure que l'en-tete se replie.
-///
-/// `FlexibleSpaceBar` ne sait pas masquer un titre a l'etat deplie : on calcule
-/// l'opacite depuis la hauteur restante de la barre.
-class _EnTeteCompacte extends ConsumerWidget {
-  final MatchEntity match;
-  const _EnTeteCompacte({required this.match});
+// ─── En-tête du match, au modèle de Sofascore ───────────────────────────────
+//
+// Demande du 20 octobre 2026, d'après la vidéo du 17 (Sofascore, 0:00-0:06).
+// La carte d'en-tête faisait environ 225 pt de haut — trois fois celle de
+// Sofascore, qui tient en ~85 pt sous la barre : logo et nom de chaque équipe
+// sur les côtés, le score au centre, le chrono dessous, sur un fond sombre.
+// Au défilement, l'en-tête se replie au rythme du doigt : les logos
+// rétrécissent et remontent dans la barre, de part et d'autre du score, et les
+// noms s'effacent ; la barre d'onglets reste épinglée dessous.
+//
+// Chaque position est une interpolation entre l'état déplié et l'état replié,
+// calculée depuis la hauteur restante de la barre (FlexibleSpaceBarSettings) :
+// pas d'animation minutée, le mouvement suit le défilement.
+
+const double _hauteurBarre = 56;
+const double _hauteurEnTete = 96;
+const List<Color> _fondEnTete = [Color(0xFF151B2E), Color(0xFF0D1220)];
+
+/// 1 = en-tête déplié, 0 = replié.
+double _deplie(BuildContext context) {
+  final r = context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
+  if (r == null || r.maxExtent <= r.minExtent) return 1;
+  return ((r.currentExtent - r.minExtent) / (r.maxExtent - r.minExtent)).clamp(0.0, 1.0);
+}
+
+/// La compétition dans la barre, tant que l'en-tête est déplié : les logos et
+/// le score prennent sa place au repli.
+class _TitreLigue extends StatelessWidget {
+  final String ligue;
+  const _TitreLigue({required this.ligue});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final reglages =
-        context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
-    final double t = reglages == null
-        ? 1
-        : ((reglages.maxExtent - reglages.currentExtent) /
-                (reglages.maxExtent - reglages.minExtent))
-            .clamp(0.0, 1.0);
-    // Ne devient visible que sur le dernier tiers du repli, pour ne pas se
-    // superposer a l'en-tete complete encore lisible.
-    final opacite = ((t - 0.7) / 0.3).clamp(0.0, 1.0);
+  Widget build(BuildContext context) {
+    final opacite = ((_deplie(context) - 0.45) / 0.55).clamp(0.0, 1.0);
     if (opacite == 0) return const SizedBox.shrink();
-
-    final live = match.status == MatchStatus.live
-        ? ref.watch(liveScoreProvider(match.id)).valueOrNull
-        : null;
-    final info = match.status == MatchStatus.live
-        ? ref.watch(matchInfoProvider(match.id)).valueOrNull
-        : null;
-    final home   = live?.homeScore ?? match.homeScore;
-    final away   = live?.awayScore ?? match.awayScore;
-    final aScore = match.status != MatchStatus.upcoming;
-
-    return IgnorePointer(
-      child: Opacity(
-        opacity: opacite,
-        child: Row(children: [
-          _TeamLogo(url: match.homeTeamLogo ?? '', size: 22),
-          const SizedBox(width: 7),
-          Flexible(
-            child: Text(match.homeTeam,
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                color: context.cl.textP,
-                fontSize: 13, fontWeight: FontWeight.w600)),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            child: Column(mainAxisSize: MainAxisSize.min, children: [
-              Text(
-                aScore ? '${home ?? 0} - ${away ?? 0}' : 'VS',
-                style: TextStyle(
-                  color: match.status == MatchStatus.live
-                      ? context.cl.success
-                      : context.cl.textP,
-                  fontSize: 14, fontWeight: FontWeight.w700)),
-              // Comme Sofascore : le chrono reste lisible, en-tête replié.
-              if (match.status == MatchStatus.live)
-                _ChronoEnDirect(
-                  info: info,
-                  minuteSecours: live?.elapsed,
-                  builder: (context, chrono) => Text(
-                    _texteChrono(context, chrono, avecAdditionnel: true),
-                    style: TextStyle(
-                      color: context.cl.error, fontSize: 9.5, fontWeight: FontWeight.w600,
-                      fontFeatures: const [FontFeature.tabularFigures()])),
-                ),
-            ]),
-          ),
-          Flexible(
-            child: Text(match.awayTeam,
-              maxLines: 1, overflow: TextOverflow.ellipsis,
-              textAlign: TextAlign.right,
-              style: TextStyle(
-                color: context.cl.textP,
-                fontSize: 13, fontWeight: FontWeight.w600)),
-          ),
-          const SizedBox(width: 7),
-          _TeamLogo(url: match.awayTeamLogo ?? '', size: 22),
-        ]),
-      ),
+    return Opacity(
+      opacity: opacite,
+      child: Text(ligue,
+        maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+        style: TextStyle(fontSize: 13.5, height: 1.15, color: context.cl.textS)),
     );
   }
 }
 
-// HEADER
-class _MatchHeader extends ConsumerWidget {
+class _EnTeteRepliable extends ConsumerWidget {
   final MatchEntity match;
-  const _MatchHeader({required this.match});
+  final double hauteurOnglets;
+  /// Largeur des actions à droite de la barre : l'en-tête replié se centre
+  /// dans ce qui reste.
+  final double reserveActions;
+  const _EnTeteRepliable({
+    required this.match, required this.hauteurOnglets, required this.reserveActions});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // Écouter le score live si match en cours
-    final liveAsync = match.status == MatchStatus.live
-        ? ref.watch(liveScoreProvider(match.id))
-        : null;
-    final homeScore = liveAsync?.valueOrNull?.homeScore ?? match.homeScore;
-    final awayScore = liveAsync?.valueOrNull?.awayScore ?? match.awayScore;
-    final minute = liveAsync?.valueOrNull?.elapsed;
-    // Phase, temps additionnel et début des mi-temps : le chrono à la seconde.
+    final reglages = context.dependOnInheritedWidgetOfExactType<FlexibleSpaceBarSettings>();
+    final r = Curves.easeInOut.transform(1 - _deplie(context));
+    // La barre d'état : ce que la barre compte en plus de ses hauteurs fixes.
+    final haut = reglages == null
+        ? MediaQuery.paddingOf(context).top
+        : (reglages.maxExtent - (_hauteurBarre + _hauteurEnTete + hauteurOnglets)).clamp(0.0, 200.0);
+
+    final live = match.status == MatchStatus.live
+        ? ref.watch(liveScoreProvider(match.id)).valueOrNull : null;
     final info = match.status == MatchStatus.live
-        ? ref.watch(matchInfoProvider(match.id)).valueOrNull
-        : null;
+        ? ref.watch(matchInfoProvider(match.id)).valueOrNull : null;
+    final dom = live?.homeScore ?? match.homeScore;
+    final ext = live?.awayScore ?? match.awayScore;
 
     final d = match.matchDate;
-    final dateStr = '${d.day.toString().padLeft(2, '0')}/'
-        '${d.month.toString().padLeft(2, '0')}/${d.year}';
-    final heureStr = '${d.hour.toString().padLeft(2, '0')}:'
-        '${d.minute.toString().padLeft(2, '0')}';
-
-    // Sur un match à venir, l'heure est déjà affichée en grand sous le « VS » :
-    // la répéter dans la pastille donnait deux fois la même information à dix
-    // pixels d'écart. Sur un match joué, il n'y a plus de bloc heure — la
-    // pastille la porte donc seule.
-    final dateTimeStr = match.status == MatchStatus.upcoming
-        ? dateStr
-        : '$dateStr · $heureStr';
-
+    final dateStr = '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
+    final heureStr = '${d.hour.toString().padLeft(2, '0')}:${d.minute.toString().padLeft(2, '0')}';
     final etat = switch (match.status) {
-      MatchStatus.live     => minute == null
+      MatchStatus.live     => live?.elapsed == null
                                 ? tr(context, "en direct")
-                                : tr(context, "en direct, {arg0}e minute", [minute]),
+                                : tr(context, "en direct, {arg0}e minute", [live!.elapsed]),
       MatchStatus.finished => tr(context, "terminé"),
       _                    => tr(context, "à venir"),
     };
     final scoreParle = match.status == MatchStatus.upcoming
         ? tr(context, "contre")
-        : tr(context, "{arg0} à {arg1} contre", [homeScore ?? 0, awayScore ?? 0]);
+        : tr(context, "{arg0} à {arg1} contre", [dom ?? 0, ext ?? 0]);
 
-    // Surface toujours sombre : son contenu lit le thème sombre, sinon les
-    // textes et icônes suivent le thème clair et disparaissent sur le bleu nuit.
-    return SurfaceSombre(builder: (context) => Semantics(
-    label: tr(context, "{arg0}. {arg1} {arg2} {arg3}. Match {arg4}, le {arg5} à {arg6}.", [match.league, match.homeTeam, scoreParle, match.awayTeam, etat, dateStr, heureStr]),
-    excludeSemantics: true,
-    child: Container(
-    padding: const EdgeInsets.symmetric(vertical: 22, horizontal: 16),
-    decoration: BoxDecoration(
-      gradient: const LinearGradient(
-        colors: [Color(0xFF151B2E), Color(0xFF0D1220)],
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-      ),
-      borderRadius: BorderRadius.circular(22),
-      border: Border.all(
-        color: match.status == MatchStatus.live
-            ? context.cl.error.withValues(alpha: 0.5)
-            : context.cl.border,
-        width: match.status == MatchStatus.live ? 1.5 : 0.5,
-      ),
-      boxShadow: match.status == MatchStatus.live
-          ? [BoxShadow(color: context.cl.error.withValues(alpha: 0.1), blurRadius: 20)]
-          : [],
-    ),
-    child: Column(children: [
-      // Pill date/heure centrée — la ligue est déjà dans l'AppBar, pas besoin de la répéter ici
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-        decoration: BoxDecoration(
-          color: context.cl.surfaceDeep,
-          borderRadius: BorderRadius.circular(20)),
-        child: Text(dateTimeStr,
-          style: TextStyle(
-            color: context.cl.textS, fontSize: 12.5, fontWeight: FontWeight.w600)),
-      ),
-      const SizedBox(height: 22),
+    return Semantics(
+      label: tr(context, "{arg0}. {arg1} {arg2} {arg3}. Match {arg4}, le {arg5} à {arg6}.",
+          [match.league, match.homeTeam, scoreParle, match.awayTeam, etat, dateStr, heureStr]),
+      container: true,
+      child: MediaQuery.withClampedTextScaling(
+        // L'en-tête a une hauteur fixe, comme chez Sofascore : le texte y
+        // grandit, mais pas au point de chevaucher les logos.
+        maxScaleFactor: 1.25,
+        child: DecoratedBox(
+          decoration: const BoxDecoration(gradient: LinearGradient(
+            colors: _fondEnTete, begin: Alignment.topLeft, end: Alignment.bottomRight)),
+          child: LayoutBuilder(builder: (context, c) {
+            final w = c.maxWidth;
+            double l(double a, double b) => a + (b - a) * r;
+            final yBarre = haut + _hauteurBarre / 2;
+            final yLogo = l(haut + _hauteurBarre + 28, yBarre);
+            final taille = l(52, 26);
+            final centreReplie = (56 + w - reserveActions) / 2;
+            final xDom = l(w * 0.18, centreReplie - 54);
+            final xExt = l(w * 0.82, centreReplie + 54);
+            final xScore = l(w / 2, centreReplie);
+            final yScore = l(haut + _hauteurBarre + 26, yBarre);
+            // Les noms s'effacent dans le premier quart du repli, en remontant :
+            // la barre d'onglets qui monte ne doit jamais les rogner.
+            final opaciteNoms = (1 - r * 4).clamp(0.0, 1.0);
+            final largeurNom = w * 0.28;
 
-      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // Domicile — l'écusson et le nom ouvrent la fiche de l'équipe.
-        Expanded(child: LienEquipe(
-          nom: match.homeTeam, logo: match.homeTeamLogo, competition: match.leagueCountry,
-          child: Column(children: [
-          Hero(
-            tag: 'team_home_${match.homeTeam}',
-            child: _TeamLogo(url: match.homeTeamLogo ?? '', size: 64),
-          ),
-          SizedBox(height: 10),
-          Text(match.homeTeam,
-            style: TextStyle(color: context.cl.textP,
-              fontSize: 14, fontWeight: FontWeight.w700),
-            textAlign: TextAlign.center,
-            maxLines: 2, overflow: TextOverflow.ellipsis),
-        ]))),
-
-        // Score / statut central
-        Padding(
-          padding: const EdgeInsets.only(top: 6),
-          child: Column(children: [
-            if (match.status == MatchStatus.finished) ...[
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                decoration: BoxDecoration(
-                  color: context.cl.surfaceDeep,
-                  borderRadius: BorderRadius.circular(6)),
-                child: Text(tr(context, "TERMINÉ"),
-                  style: TextStyle(
-                    color: context.cl.textM, fontSize: 9,
-                    fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+            Widget logo(String nom, String? url, String tag, double x) => Positioned(
+              left: x - taille / 2, top: yLogo - taille / 2, width: taille, height: taille,
+              child: IgnorePointer(
+                // Replié, le logo n'est plus une cible : il est trop petit.
+                ignoring: r > 0.5,
+                child: LienEquipe(nom: nom, logo: url, competition: match.leagueCountry,
+                  child: Hero(tag: tag, child: _TeamLogo(url: url ?? '', size: taille))),
               ),
-              const SizedBox(height: 8),
-            ] else if (match.status == MatchStatus.live) ...[
-              _LiveBadge(minute: minute, info: info),
-              const SizedBox(height: 8),
-            ],
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              decoration: BoxDecoration(
-                color: match.status == MatchStatus.live
-                  ? context.cl.success.withValues(alpha: 0.08)
-                  : context.cl.surfaceDeep,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: match.status == MatchStatus.live
-                    ? context.cl.success.withValues(alpha: 0.3)
-                    : context.cl.borderSoft,
-                  width: match.status == MatchStatus.live ? 1.5 : 0.5)),
-              child: Text(
-                match.status == MatchStatus.live || match.status == MatchStatus.finished
-                  ? '${homeScore ?? 0} - ${awayScore ?? 0}'
-                  : 'VS',
-                style: TextStyle(
-                  color: match.status == MatchStatus.live
-                    ? context.cl.success
-                    : context.cl.textP,
-                  fontSize: 24, fontWeight: FontWeight.w700,
-                  letterSpacing: 2))),
-            // Pas de roue pendant le relevé du score : elle clignotait sous le
-            // score toutes les 30 s.
-            if (match.status == MatchStatus.upcoming) ...[
-              const SizedBox(height: 6),
-              Text(heureStr,
-                style: TextStyle(
-                  color: context.cl.textS,
-                  fontSize: 14, fontWeight: FontWeight.w600)),
-            ],
-          ]),
-        ),
+            );
+            Widget nom(String texte, double x) => Positioned(
+              left: x - largeurNom / 2, width: largeurNom,
+              top: haut + _hauteurBarre + 60 - r * 48,
+              child: IgnorePointer(child: Opacity(opacity: opaciteNoms, child: Text(texte,
+                maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)))),
+            );
 
-        // Extérieur
-        Expanded(child: LienEquipe(
-          nom: match.awayTeam, logo: match.awayTeamLogo, competition: match.leagueCountry,
-          child: Column(children: [
-          Hero(
-            tag: 'team_away_${match.awayTeam}',
-            child: _TeamLogo(url: match.awayTeamLogo ?? '', size: 64),
-          ),
-          SizedBox(height: 10),
-          Text(match.awayTeam,
-            style: TextStyle(color: context.cl.textP,
-              fontSize: 14, fontWeight: FontWeight.w700),
-            textAlign: TextAlign.center,
-            maxLines: 2, overflow: TextOverflow.ellipsis),
-        ]))),
-      ]),
-    ]),
-  )));
+            return ExcludeSemantics(child: Stack(clipBehavior: Clip.hardEdge, children: [
+              if (opaciteNoms > 0) ...[
+                nom(match.homeTeam, xDom),
+                nom(match.awayTeam, xExt),
+              ],
+              logo(match.homeTeam, match.homeTeamLogo, 'team_home_${match.homeTeam}', xDom),
+              logo(match.awayTeam, match.awayTeamLogo, 'team_away_${match.awayTeam}', xExt),
+              Positioned(
+                left: xScore - 80, width: 160,
+                top: yScore - l(25, 15),
+                child: IgnorePointer(child: _BlocScore(
+                  match: match, dom: dom, ext: ext, minute: live?.elapsed, info: info,
+                  repli: r, heure: heureStr, date: dateStr)),
+              ),
+            ]));
+          }),
+        ),
+      ),
+    );
+  }
+}
+
+/// Le centre de l'en-tête : le score (ou l'heure du coup d'envoi) et, dessous,
+/// le chrono du direct, « Terminé » ou la date.
+class _BlocScore extends StatelessWidget {
+  final MatchEntity match;
+  final int? dom, ext, minute;
+  final MatchInfo? info;
+  final double repli;
+  final String heure, date;
+  const _BlocScore({required this.match, required this.dom, required this.ext,
+    required this.minute, required this.info, required this.repli,
+    required this.heure, required this.date});
+
+  @override
+  Widget build(BuildContext context) {
+    double l(double a, double b) => a + (b - a) * repli;
+    final enDirect = match.status == MatchStatus.live;
+    final principal = match.status == MatchStatus.upcoming ? heure : '${dom ?? 0} - ${ext ?? 0}';
+    final taillePrincipal = l(match.status == MatchStatus.upcoming ? 26 : 30, 17);
+    final tailleSecond = l(12, 9.5);
+
+    final Widget second = switch (match.status) {
+      MatchStatus.live => _ChronoEnDirect(
+        info: info,
+        minuteSecours: minute,
+        builder: (context, chrono) => Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(_texteChrono(context, chrono),
+            key: const Key('chrono-direct'),
+            style: TextStyle(color: context.cl.error, fontSize: tailleSecond, fontWeight: FontWeight.w700,
+              fontFeatures: const [FontFeature.tabularFigures()])),
+          if (chrono.additionnel != null) ...[
+            const SizedBox(width: 4),
+            Text("+${chrono.additionnel}'",
+              key: const Key('chrono-additionnel'),
+              style: TextStyle(color: context.cl.error.withValues(alpha: 0.75),
+                fontSize: tailleSecond - 1, fontWeight: FontWeight.w600)),
+          ],
+        ]),
+      ),
+      MatchStatus.finished => Text(tr(context, "Terminé"),
+        style: TextStyle(color: context.cl.textS, fontSize: tailleSecond, fontWeight: FontWeight.w600)),
+      _ => Opacity(
+        opacity: (1 - repli * 1.6).clamp(0.0, 1.0),
+        child: Text(date, style: TextStyle(color: context.cl.textS, fontSize: tailleSecond, fontWeight: FontWeight.w600))),
+    };
+
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      Text(principal,
+        maxLines: 1,
+        style: TextStyle(
+          color: enDirect ? context.cl.success : context.cl.textP,
+          fontSize: taillePrincipal, fontWeight: FontWeight.w800, height: 1.1,
+          fontFeatures: const [FontFeature.tabularFigures()])),
+      SizedBox(height: l(3, 1)),
+      second,
+    ]);
   }
 }
 
@@ -1796,110 +1712,6 @@ class _ChronoEnDirectState extends State<_ChronoEnDirect> {
 
   @override
   Widget build(BuildContext context) => widget.builder(context, _chrono);
-}
-
-class _LiveBadge extends StatefulWidget {
-  /// Minute de jeu du relevé de score. Null tant que la source ne l'a pas
-  /// fournie : on retombe alors sur le libellé seul plutôt que d'inventer un
-  /// chiffre.
-  final int? minute;
-  /// Informations de match : de quoi afficher le chrono à la seconde.
-  final MatchInfo? info;
-  const _LiveBadge({this.minute, this.info});
-
-  @override
-  State<_LiveBadge> createState() => _LiveBadgeState();
-}
-
-class _LiveBadgeState extends State<_LiveBadge>
-    with SingleTickerProviderStateMixin {
-  late AnimationController _ctrl;
-  late Animation<double> _pulse;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 900),
-    );
-    _pulse = Tween<double>(begin: 0.4, end: 1.0)
-        .animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    // Une pastille qui clignote sans fin est exactement le mouvement que le
-    // réglage « réduire les animations » vise. Sans pulsation, le point reste
-    // rouge plein : l'information « en direct » est intacte.
-    if (context.animationsReduites) {
-      _ctrl.stop();
-      _ctrl.value = 1;
-    } else if (!_ctrl.isAnimating) {
-      _ctrl.repeat(reverse: true);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => _ChronoEnDirect(
-    info: widget.info,
-    minuteSecours: widget.minute,
-    builder: (context, chrono) => Semantics(
-    // À la minute pour les lecteurs d'écran, pas à la seconde.
-    label: switch (chrono.etat) {
-      EtatChrono.aLaSeconde || EtatChrono.aLaMinute =>
-        tr(context, "Match en direct, {arg0}e minute", [chrono.minute]),
-      EtatChrono.inconnu => tr(context, "Match en direct"),
-      _ => tr(context, "Match en direct, {arg0}", [_texteChrono(context, chrono).toLowerCase()]),
-    },
-    excludeSemantics: true,
-    child: Container(
-    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-    decoration: BoxDecoration(
-      color: context.cl.error.withValues(alpha: 0.12),
-      borderRadius: BorderRadius.circular(20),
-      border: Border.all(color: context.cl.error.withValues(alpha: 0.4), width: 0.5),
-    ),
-    child: Row(mainAxisSize: MainAxisSize.min, children: [
-      AnimatedBuilder(
-        animation: _pulse,
-        builder: (_, _) => Container(
-          width: 7, height: 7,
-          decoration: BoxDecoration(
-            color: context.cl.error.withValues(alpha: _pulse.value),
-            shape: BoxShape.circle,
-            boxShadow: [BoxShadow(
-              color: context.cl.error.withValues(alpha: _pulse.value * 0.6),
-              blurRadius: 4,
-            )],
-          ),
-        ),
-      ),
-      const SizedBox(width: 6),
-      Text(_texteChrono(context, chrono),
-        key: const Key('chrono-direct'),
-        style: TextStyle(
-          color: context.cl.error, fontSize: 11,
-          fontWeight: FontWeight.w700, letterSpacing: 0.5,
-          // Chiffres à chasse fixe : le badge ne change pas de largeur à
-          // chaque seconde.
-          fontFeatures: const [FontFeature.tabularFigures()])),
-      if (chrono.additionnel != null) ...[
-        const SizedBox(width: 5),
-        Text("+${chrono.additionnel}'",
-          key: const Key('chrono-additionnel'),
-          style: TextStyle(
-            color: context.cl.error.withValues(alpha: 0.75), fontSize: 10,
-            fontWeight: FontWeight.w600)),
-      ],
-    ]))));
 }
 
 class _DetailConfidenceBar extends StatelessWidget {

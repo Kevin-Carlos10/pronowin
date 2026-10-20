@@ -1,4 +1,4 @@
-# Version 1.0.27 (43) — Actus au style FotMob
+# Version 1.0.27 (43) — Actus au style FotMob, en-tête au style Sofascore
 
 Préparée le 20 octobre 2026, à la suite de la 1.0.26 (voir
 `notes_version_1.0.26.md`). Rien à déployer côté serveur : elle lit ce que le
@@ -25,6 +25,15 @@ serveur sert déjà (`/actualites?limite=50`, logos et score des résumés).
 - **Compte** : raccourci « Actualités » (section Mon activité), avec le nombre
   d'articles pas encore ouverts.
 - Les dates des articles (« Il y a 2 h ») suivent la langue de l'application.
+- **Fiche du match : en-tête au modèle de Sofascore** (vidéo du 17 octobre,
+  0:00-0:06). La carte d'en-tête faisait ~225 pt de haut ; il tient désormais
+  en ~96 pt sous la barre, sur un fond sombre dans les deux thèmes : logo et
+  nom de chaque équipe sur les côtés, le score au centre, le chrono (ou
+  « Terminé », ou l'heure et la date du coup d'envoi) dessous. Au défilement,
+  il se replie au rythme du doigt : les logos rétrécissent et remontent dans
+  la barre, de part et d'autre du score, les noms s'effacent, la compétition
+  laisse sa place ; la barre d'onglets reste épinglée dessous. La barre du
+  haut et l'en-tête ne font plus qu'un.
 
 ## Construction
 
