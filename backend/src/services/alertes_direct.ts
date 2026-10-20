@@ -133,3 +133,68 @@ export function messageDeBut(
   }
   return { title: t.corrige, body: corps(minuteDuJeu) };
 }
+
+// ─── Mi-temps et cartons rouges (20 octobre 2026) ──────────────────────────
+//
+// Comme sur Sofascore, un match suivi annonce aussi la mi-temps et chaque
+// carton rouge. Même principe que les buts : le direct comparé à lui-même,
+// et le premier relevé après un démarrage sert de référence.
+
+const DETAILS_ROUGE = new Set(['Red Card', 'Second Yellow card', 'Second Yellow Card']);
+type Evenement = NonNullable<AFFixture['events']>[number];
+
+/** Dernier état lu dans le direct : statut et nombre de cartons rouges. */
+let etatsDuDirect = new Map<number, { statut: string; rouges: number; vuLe: number }>();
+
+/** Pour les tests. */
+export function _oublierEtatsDuDirect(): void { etatsDuDirect = new Map(); }
+
+export interface EvenementsDirect { fixture: AFFixture; miTemps: boolean; rouges: Evenement[] }
+
+const rougesDe = (f: AFFixture) =>
+  (f.events ?? []).filter(e => e?.type === 'Card' && DETAILS_ROUGE.has(e.detail ?? ''));
+
+/**
+ * La mi-temps qui vient de sonner (première période → pause) et les cartons
+ * rouges apparus depuis le relevé précédent, par match.
+ */
+export function releverEvenements(direct: AFFixture[], maintenant = Date.now()): Map<number, EvenementsDirect> {
+  const changes = new Map<number, EvenementsDirect>();
+  for (const f of direct) {
+    const statut = f.fixture.status.short;
+    const rouges = rougesDe(f);
+    const avant = etatsDuDirect.get(f.fixture.id);
+    if (avant) {
+      const miTemps = avant.statut === '1H' && statut === 'HT';
+      const nouveaux = rouges.length > avant.rouges ? rouges.slice(avant.rouges) : [];
+      if (miTemps || nouveaux.length) changes.set(f.fixture.id, { fixture: f, miTemps, rouges: nouveaux });
+    }
+    etatsDuDirect.set(f.fixture.id, { statut, rouges: Math.max(rouges.length, avant?.rouges ?? 0), vuLe: maintenant });
+  }
+  for (const [id, s] of etatsDuDirect) {
+    if (maintenant - s.vuLe > OUBLI_MS) etatsDuDirect.delete(id);
+  }
+  return changes;
+}
+
+const ligneDeScore = (f: AFFixture, equipes: { dom: string; ext: string }, langue: 'fr' | 'en') =>
+  `${country(equipes.dom, langue)} ${f.goals.home ?? 0}-${f.goals.away ?? 0} ${country(equipes.ext, langue)}`;
+
+export function messageMiTemps(f: AFFixture, equipes: { dom: string; ext: string }, langue: 'fr' | 'en') {
+  return { title: langue === 'fr' ? 'Mi-temps' : 'Half-time', body: ligneDeScore(f, equipes, langue) };
+}
+
+export function messageCartonRouge(
+  f: AFFixture, e: Evenement, equipes: { dom: string; ext: string }, langue: 'fr' | 'en',
+) {
+  const auDomicile = e.team?.id === f.teams.home.id;
+  const equipe = country(auDomicile ? equipes.dom : equipes.ext, langue);
+  const deuxiemeJaune = (e.detail ?? '').startsWith('Second Yellow');
+  const precision = deuxiemeJaune ? (langue === 'fr' ? ' (2e jaune)' : ' (second yellow)') : '';
+  const qui = [`${e.player?.name?.trim() || ''}${precision}`.trim(), minute(e.time?.elapsed, e.time?.extra)]
+    .filter(Boolean).join(' ');
+  return {
+    title: langue === 'fr' ? `Carton rouge pour ${equipe}` : `Red card for ${equipe}`,
+    body:  [qui, ligneDeScore(f, equipes, langue)].filter(Boolean).join(' · '),
+  };
+}

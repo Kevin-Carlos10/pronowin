@@ -9,6 +9,7 @@ import { executerProgrammationsEchues } from './services/programmations.service'
 import { rapprocherPaiementsEnAttente } from './services/geniuspay.service';
 import { envoyerBilanHebdo } from './services/bilan_hebdo.service';
 import { publierResumes } from './services/resumes_match.service';
+import { annoncerCompositions } from './services/alertes_compositions.service';
 
 /**
  * Les tâches planifiées, hors du serveur HTTP (constat P1 de l'audit du
@@ -83,6 +84,15 @@ export function demarrerTaches(): () => void {
     };
     programmer(setTimeout(runResumes, 3 * 60_000));
     programmer(setInterval(runResumes, 10 * 60_000));
+
+    // Compositions officielles des matchs suivis, environ une heure avant le
+    // coup d'envoi (alertes_compositions.service.ts).
+    const runCompositions = () => {
+      suivre('compositions_officielles', () => annoncerCompositions(), ({ annonces }) => `${annonces} annoncée(s)`)
+        .catch((err: Error) => logger.error('[Compositions] Erreur', { message: err.message }));
+    };
+    programmer(setTimeout(runCompositions, 4 * 60_000));
+    programmer(setInterval(runCompositions, 5 * 60_000));
   } else {
     // Le message nommait FOOTBALL_DATA_API_KEY, alors que la variable lue est
     // API_FOOTBALL_KEY : il envoyait chercher la mauvaise (constat I7).

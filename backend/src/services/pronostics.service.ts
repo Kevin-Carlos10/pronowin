@@ -15,7 +15,11 @@ import { estVerrouille } from './verrou_pronostic';
 import { construireRecherche } from './recherche_matchs';
 import { ErreurMetier } from '../utils/erreurs';
 import { journal } from '../utils/logger';
-import { messageDeBut, releverScores, _oublierScoresDuDirect, type Score } from './alertes_direct';
+import {
+  messageCartonRouge, messageDeBut, messageMiTemps, releverEvenements, releverScores,
+  _oublierEtatsDuDirect, _oublierScoresDuDirect, type EvenementsDirect, type Score,
+} from './alertes_direct';
+import { suiveursDuMatch } from './suiveurs_match';
 import { nomEquipe, rencontre, traduireEquipes } from '../utils/noms_equipes';
 import { pourcentageConfiance, pourcentageDepuisNiveau } from '../utils/confiance';
 
@@ -45,24 +49,9 @@ export function _oublierDirectPrecedent(): void {
   directReleve = false;
   coupsEnvoiAnnonces.clear();
   _oublierScoresDuDirect();
+  _oublierEtatsDuDirect();
 }
 
-/**
- * Ceux qui suivent un match : favori, ou pari en cours sur son pronostic dans
- * la bankroll. Un utilisateur dans les deux cas ne reçoit qu'une alerte.
- */
-async function suiveursDuMatch(matchId: string, pronosticId: string | null): Promise<string[]> {
-  const [favoris, paris] = await Promise.all([
-    prisma.userFavoriteMatch.findMany({ where: { matchId }, select: { userId: true } }),
-    pronosticId
-      ? prisma.bankrollBet.findMany({
-          where:  { pronosticId, result: null },
-          select: { bankroll: { select: { userId: true } } },
-        })
-      : Promise.resolve([] as { bankroll: { userId: string } }[]),
-  ]);
-  return [...new Set([...favoris.map(f => f.userId), ...paris.map(p => p.bankroll.userId)])];
-}
 
 const staleRetryBackoff = new Map<number, number>(); // externalId → dernier essai (ms)
 const STALE_RETRY_INTERVAL = 45 * 60 * 1000; // 45 min entre deux tentatives sur le même match
@@ -553,21 +542,38 @@ export class PronosticsService {
    * Appelé toutes les 5 minutes par le setInterval dans index.ts.
    */
   /**
-   * Coup d'envoi et buts, à ceux qui suivent le match (`suiveursDuMatch`).
-   * Un coup d'envoi n'est annoncé qu'une fois, quel que soit le chemin qui le
-   * détecte.
+   * Coup d'envoi, buts, mi-temps et cartons rouges, à ceux qui suivent le
+   * match (`suiveursDuMatch`). Un coup d'envoi n'est annoncé qu'une fois,
+   * quel que soit le chemin qui le détecte.
    */
   private async _alertesDuDirect(
     match: { id: string; homeTeam: string; awayTeam: string },
     coupEnvoi: boolean,
     but: { avant: Score; fixture: AFFixture } | undefined,
+    evenements?: EvenementsDirect,
   ): Promise<void> {
     const annoncerCoupEnvoi = coupEnvoi && !coupsEnvoiAnnonces.has(match.id);
     if (annoncerCoupEnvoi) coupsEnvoiAnnonces.set(match.id, Date.now());
     const equipes = { dom: match.homeTeam, ext: match.awayTeam };
-    const fr = but ? messageDeBut(but.fixture, but.avant, equipes, 'fr') : null;
-    const en = but ? messageDeBut(but.fixture, but.avant, equipes, 'en') : null;
-    if (!annoncerCoupEnvoi && !fr) return;
+    // Dans l'ordre où ils se sont produits au cours du relevé : un but, puis
+    // la pause, ou l'inverse ne change rien à l'utilisateur.
+    const messages: Array<{ fr: { title: string; body: string }; en: { title: string; body: string } }> = [];
+    const frBut = but ? messageDeBut(but.fixture, but.avant, equipes, 'fr') : null;
+    const enBut = but ? messageDeBut(but.fixture, but.avant, equipes, 'en') : null;
+    if (frBut && enBut) messages.push({ fr: frBut, en: enBut });
+    for (const e of evenements?.rouges ?? []) {
+      messages.push({
+        fr: messageCartonRouge(evenements!.fixture, e, equipes, 'fr'),
+        en: messageCartonRouge(evenements!.fixture, e, equipes, 'en'),
+      });
+    }
+    if (evenements?.miTemps) {
+      messages.push({
+        fr: messageMiTemps(evenements.fixture, equipes, 'fr'),
+        en: messageMiTemps(evenements.fixture, equipes, 'en'),
+      });
+    }
+    if (!annoncerCoupEnvoi && !messages.length) return;
 
     const prono = await prisma.pronostic.findUnique({ where: { matchId: match.id }, select: { id: true } });
     const destinataires = await suiveursDuMatch(match.id, prono?.id ?? null);
@@ -581,7 +587,7 @@ export class PronosticsService {
           data:  { type: 'match_live', ...data },
         }, 'match').catch((err: any) => journal.error('[PronoSvc]', err.message));
       }
-      if (fr && en) {
+      for (const { fr, en } of messages) {
         notifSvc.sendToUser(userId, {
           title: fr.title, body: fr.body, titleEn: en.title, bodyEn: en.body,
           data:  { type: 'match', ...data },
@@ -621,6 +627,8 @@ export class PronosticsService {
       : []);
     // Buts : le score du direct comparé au relevé précédent (alertes_direct.ts).
     const butsDuDirect = enDirect ? releverScores(enDirect) : new Map<number, { avant: Score; fixture: AFFixture }>();
+    // Mi-temps et cartons rouges, sur le même principe (alertes_direct.ts).
+    const evenementsDuDirect = enDirect ? releverEvenements(enDirect) : new Map<number, EvenementsDirect>();
     if (enDirect !== null) { directPrecedent = vusEnDirect; directReleve = true; }
     for (const [id, ts] of coupsEnvoiAnnonces) {
       if (Date.now() - ts > 24 * 3600_000) coupsEnvoiAnnonces.delete(id);
@@ -741,8 +749,9 @@ export class PronosticsService {
       const coupEnvoi = mappedStatus === 'LIVE' &&
         (previousStatus !== 'LIVE' || entresDansLeDirect.has(m.externalId));
       const but = butsDuDirect.get(m.externalId);
-      if (coupEnvoi || but) {
-        await this._alertesDuDirect(match, coupEnvoi, but)
+      const evenements = evenementsDuDirect.get(m.externalId);
+      if (coupEnvoi || but || evenements) {
+        await this._alertesDuDirect(match, coupEnvoi, but, evenements)
           .catch((err: any) => journal.error('[PronoSvc]', err.message));
       }
 
