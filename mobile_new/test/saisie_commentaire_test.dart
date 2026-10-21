@@ -6,7 +6,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pronowin/core/theme/app_theme.dart';
 import 'package:pronowin/features/pronostics/data/models/match_model.dart';
 import 'package:pronowin/features/pronostics/presentation/providers/pronostics_provider.dart';
-import 'package:pronowin/features/pronostics/presentation/providers/fiche_match_provider.dart';
 import 'package:pronowin/features/pronostics/presentation/pages/match_detail_page.dart';
 import 'package:pronowin/features/pronostics/presentation/widgets/comments_section.dart';
 import 'aides/banc_ecran.dart';
