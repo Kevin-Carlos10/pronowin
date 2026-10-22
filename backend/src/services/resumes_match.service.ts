@@ -12,9 +12,11 @@
  *   Buts — Bayer Leverkusen : Ibrahim Maza (19'), Patrik Schick (76') ·
  *   SC Freiburg : Derry Lionel Scherhant (14'). …
  *
- * Seuls les matchs dont nous avons publié le pronostic ont un résumé : ce sont
- * ceux que nos utilisateurs suivent, et une dizaine par jour au plus — un
- * appel au fournisseur chacun.
+ * Les matchs dont nous avons publié le pronostic ont un résumé : ce sont ceux
+ * que nos utilisateurs suivent. Depuis le 22 octobre 2026, ceux des grandes
+ * compétitions aussi, pronostic ou pas (`GRANDES_COMPETITIONS`) : une
+ * quarantaine de plus par semaine (relevé du 15 au 22 octobre), un appel au
+ * fournisseur chacun.
  *
  * ── Ce qui n'est écrit que s'il est sûr ────────────────────────────────────
  *
@@ -252,10 +254,30 @@ const FENETRE_MS = 48 * 3600_000;
 /** Un pronostic pas encore réglé : on attend jusqu'à 6 h après le coup d'envoi. */
 const ATTENTE_REGLEMENT_MS = 6 * 3600_000;
 const PAR_PASSAGE = 5;
+/** Les candidats lus à chaque passage : de quoi trouver cinq matchs prêts. */
+const CANDIDATS = 40;
+/** Fiche indisponible ou pas encore à jour : on réessaie 30 minutes plus tard. */
+const REESSAI_MS = 30 * 60_000;
+
+/**
+ * Les grandes compétitions (codes de `LEAGUE_MAP`, api_football.service.ts) :
+ * leurs matchs ont un résumé même sans pronostic publié (22 octobre 2026).
+ * Premier League, Liga, Serie A, Bundesliga, Ligue 1, Ligue des champions,
+ * Coupe du monde.
+ */
+export const GRANDES_COMPETITIONS = ['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL', 'WC'];
+
+/** Dernier essai manqué par match : sans lui, une fiche en retard coûtait un appel toutes les 10 minutes. */
+const essaisManques = new Map<string, number>();
+
+/** Pour les tests. */
+export function _oublierEssais(): void { essaisManques.clear(); }
 
 /**
  * Rédige les résumés manquants. Appelée toutes les 10 minutes ; cinq matchs
- * au plus par passage, un appel au fournisseur chacun.
+ * au plus par passage, un appel au fournisseur chacun. Les matchs
+ * pronostiqués passent d'abord : une soirée de Ligue des champions en ajoute
+ * une vingtaine d'un coup.
  */
 export async function publierResumes(maintenant = new Date()): Promise<{ publies: number }> {
   const t = maintenant.getTime();
@@ -265,23 +287,35 @@ export async function publierResumes(maintenant = new Date()): Promise<{ publies
       source:    'API_FOOTBALL',
       matchDate: { gte: new Date(t - FENETRE_MS), lte: new Date(t - APRES_COUP_ENVOI_MS) },
       resume:    null,
-      pronostic: { publicationRecordedAt: { not: null } },
+      OR: [
+        { pronostic: { publicationRecordedAt: { not: null } } },
+        { leagueCode: { in: GRANDES_COMPETITIONS } },
+      ],
     },
     include: { pronostic: true },
     orderBy: { matchDate: 'desc' },
-    take: PAR_PASSAGE,
+    take: CANDIDATS,
   });
+  // Un pronostic jamais publié (brouillon) n'est pas dit : le match est
+  // résumé comme s'il n'en avait pas.
+  const publie = (m: (typeof candidats)[number]) => m.pronostic?.publicationRecordedAt != null;
+  const file = [...candidats.filter(publie), ...candidats.filter(m => !publie(m))];
 
-  let publies = 0;
-  for (const m of candidats) {
-    const p = m.pronostic;
+  let publies = 0, essais = 0;
+  for (const m of file) {
+    if (essais >= PAR_PASSAGE) break;
+    const p = publie(m) ? m.pronostic : null;
     if (p && !p.result && m.matchDate.getTime() > t - ATTENTE_REGLEMENT_MS) continue;
+    const manque = essaisManques.get(m.id);
+    if (manque !== undefined && t - manque < REESSAI_MS) continue;
+    essais++;
     let fiche: any = null;
     try {
       const r = await apiFootballService.httpClient.get('/fixtures', { params: { id: m.externalId } });
       fiche = (r.data?.response ?? [])[0] ?? null;
     } catch (e: any) {
       journal.warn(`[Résumés] fiche ${m.externalId} indisponible : ${e.message}`);
+      essaisManques.set(m.id, t);
       continue;
     }
     const resume = fiche && redigerResume(fiche, {
@@ -292,9 +326,9 @@ export async function publierResumes(maintenant = new Date()): Promise<{ publies
         vip: p.isPremium, resultat: p.result,
       } : null,
     }, { dom: m.homeScore, ext: m.awayScore });
-    if (!resume) continue;
+    if (!resume) { essaisManques.set(m.id, t); continue; }
     await prisma.resumeMatch.create({ data: { matchId: m.id, ligue: m.league, ...resume } })
-      .then(() => { publies++; })
+      .then(() => { publies++; essaisManques.delete(m.id); })
       // Deux passages simultanés : le second bute sur l'unicité, sans dommage.
       .catch((e: any) => journal.warn(`[Résumés] ${m.id} : ${e.message}`));
   }
@@ -302,15 +336,23 @@ export async function publierResumes(maintenant = new Date()): Promise<{ publies
   return { publies };
 }
 
-/** Les derniers résumés, au format des actualités de l'accueil. */
+/**
+ * Les derniers résumés, au format des actualités de l'accueil. S'il faut
+ * choisir, ceux des matchs pronostiqués d'abord ; puis l'ordre des dates.
+ */
 export async function resumesPourActualites(limite = 8): Promise<any[]> {
-  const resumes = await prisma.resumeMatch.findMany({
+  const lus = await prisma.resumeMatch.findMany({
     where:   { creeLe: { gte: new Date(Date.now() - 3 * 24 * 3600_000) } },
     orderBy: { creeLe: 'desc' },
-    take:    limite,
+    take:    limite * 3,
     // Les logos et le score : le visuel d'un résumé, faute de photo.
-    include: { match: { select: { homeTeamLogo: true, awayTeamLogo: true, homeScore: true, awayScore: true } } },
+    include: { match: { select: {
+      homeTeamLogo: true, awayTeamLogo: true, homeScore: true, awayScore: true, hasPublishedPronostic: true } } },
   });
+  const pronostique = (r: (typeof lus)[number]) => r.match?.hasPublishedPronostic === true;
+  const resumes = [...lus.filter(pronostique), ...lus.filter(r => !pronostique(r))]
+    .slice(0, limite)
+    .sort((a, b) => b.creeLe.getTime() - a.creeLe.getTime());
   return resumes.map(r => ({
     id:         `resume_${r.id}`,
     titre:      r.titre,

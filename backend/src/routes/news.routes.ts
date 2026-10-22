@@ -69,7 +69,8 @@ router.get('/', async (req: Request, res: Response) => {
     // Réseau indisponible → on continue avec les articles admin seuls
   }
 
-  // 2 bis. Résumés automatiques des matchs pronostiqués (resumes_match.service.ts)
+  // 2 bis. Résumés automatiques des matchs pronostiqués et des grandes
+  //       compétitions (resumes_match.service.ts)
   const resumes = (await resumesPourActualites(limite > 20 ? 20 : 8).catch(() => []))
     .map((r) => ({ ...r, date: relTimeShort(new Date(r.created_at)) }));
 

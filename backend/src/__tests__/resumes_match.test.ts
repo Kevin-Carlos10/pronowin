@@ -153,35 +153,40 @@ describe('la publication', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { apiFootballService } = require('../services/api_football.service');
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { publierResumes } = require('../services/resumes_match.service');
+  const { publierResumes, _oublierEssais } = require('../services/resumes_match.service');
 
   const MAINTENANT = new Date(Date.UTC(2026, 9, 18, 20, 0, 0));
   const match = (id: string, heuresAvant: number, prono: any) => ({
     id, externalId: 1, homeTeam: 'Bayer Leverkusen', awayTeam: 'SC Freiburg', league: 'Bundesliga',
     homeScore: 2, awayScore: 1, matchDate: new Date(MAINTENANT.getTime() - heuresAvant * 3600_000), pronostic: prono,
   });
-  const prono = (o: any = {}) => ({ predictionLabel: 'Les deux équipes marquent', predictionLabelEn: null, isPremium: false, result: 'WIN', ...o });
+  const prono = (o: any = {}) => ({ predictionLabel: 'Les deux équipes marquent', predictionLabelEn: null,
+    isPremium: false, result: 'WIN', publicationRecordedAt: new Date('2026-10-18T09:00:00Z'), ...o });
   let crees: any[];
   let lecture: any;
 
   beforeEach(() => {
     crees = [];
+    _oublierEssais();
     jest.spyOn(prisma.resumeMatch, 'create').mockImplementation(async ({ data }: any) => { crees.push(data); return data; });
     jest.spyOn(apiFootballService.httpClient, 'get').mockResolvedValue({ data: { response: [fiche({ score: [2, 1], mt: [1, 1] })] } });
   });
   afterEach(() => jest.restoreAllMocks());
 
-  async function publier(matchs: any[]) {
+  async function publier(matchs: any[], quand = MAINTENANT) {
     jest.spyOn(prisma.match, 'findMany').mockImplementation(async (args: any) => { lecture = args; return matchs; });
-    return publierResumes(MAINTENANT);
+    return publierResumes(quand);
   }
 
-  it('matchs pronostiqués terminés depuis 2 h à 48 h, sans résumé ; libellé traduit en anglais', async () => {
+  it('matchs pronostiqués ou des grandes compétitions, terminés depuis 2 h à 48 h, sans résumé ; libellé traduit en anglais', async () => {
     expect(await publier([match('m1', 3, prono())])).toEqual({ publies: 1 });
     expect(lecture.where).toEqual({
       status: 'FINISHED', source: 'API_FOOTBALL', resume: null,
       matchDate: { gte: new Date(MAINTENANT.getTime() - 48 * 3600_000), lte: new Date(MAINTENANT.getTime() - 2 * 3600_000) },
-      pronostic: { publicationRecordedAt: { not: null } },
+      OR: [
+        { pronostic: { publicationRecordedAt: { not: null } } },
+        { leagueCode: { in: ['PL', 'PD', 'SA', 'BL1', 'FL1', 'CL', 'WC'] } },
+      ],
     });
     expect(crees[0]).toMatchObject({ matchId: 'm1', ligue: 'Bundesliga', titre: 'Bayer Leverkusen s\'impose face à SC Freiburg (2-1)' });
     expect(crees[0].resumeEn).toContain('PronoWin prediction: "Both Teams Score" — won.');
@@ -193,9 +198,52 @@ describe('la publication', () => {
     expect(crees[0].resume).not.toContain('Pronostic');
   });
 
-  it('fiche du fournisseur pas encore à jour (score différent) : rien, on réessaiera', async () => {
-    jest.spyOn(apiFootballService.httpClient, 'get').mockResolvedValue({ data: { response: [fiche({ statut: 'FT', score: [1, 1] })] } });
+  it('fiche du fournisseur pas encore à jour (score différent) : rien, on réessaiera 30 minutes plus tard', async () => {
+    const get = jest.spyOn(apiFootballService.httpClient, 'get')
+      .mockResolvedValue({ data: { response: [fiche({ statut: 'FT', score: [1, 1] })] } });
     expect(await publier([match('m1', 3, prono())])).toEqual({ publies: 0 });
+    const plusTard = (min: number) => new Date(MAINTENANT.getTime() + min * 60_000);
+    await publier([match('m1', 3, prono())], plusTard(10));
+    await publier([match('m1', 3, prono())], plusTard(20));
+    expect(get).toHaveBeenCalledTimes(1);
+    get.mockResolvedValue({ data: { response: [fiche({ score: [2, 1], mt: [1, 1] })] } });
+    expect(await publier([match('m1', 3, prono())], plusTard(30))).toEqual({ publies: 1 });
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it('fournisseur injoignable : même délai avant de réessayer', async () => {
+    const get = jest.spyOn(apiFootballService.httpClient, 'get').mockRejectedValue(new Error('ECONNRESET'));
+    await publier([match('m1', 3, prono())]);
+    await publier([match('m1', 3, prono())], new Date(MAINTENANT.getTime() + 10 * 60_000));
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('grand match sans pronostic : résumé, sans paragraphe de pronostic', async () => {
+    expect(await publier([match('m1', 3, null)])).toEqual({ publies: 1 });
+    expect(crees[0].titre).toBe('Bayer Leverkusen s\'impose face à SC Freiburg (2-1)');
+    expect(crees[0].resume).not.toContain('Pronostic');
+    expect(crees[0].resumeEn).not.toContain('prediction');
+  });
+
+  it('pronostic resté en brouillon : jamais dit, ni attendu', async () => {
+    const brouillon = prono({ publicationRecordedAt: null, result: null, predictionLabel: 'Victoire SC Freiburg' });
+    expect(await publier([match('m1', 3, brouillon)])).toEqual({ publies: 1 });
+    expect(crees[0].resume).not.toContain('Pronostic');
+    expect(crees[0].resume).not.toContain('Victoire SC Freiburg');
+  });
+
+  it('les matchs pronostiqués d\'abord, cinq essais par passage', async () => {
+    const sans = [1, 2, 3, 4, 5, 6].map(i => match(`g${i}`, 3, null));
+    const avec = [match('p1', 4, prono()), match('p2', 5, prono())];
+    // La base les rend par date : les grands matchs sans pronostic, plus récents, en tête.
+    expect(await publier([...sans, ...avec])).toEqual({ publies: 5 });
+    expect(crees.map(c => c.matchId)).toEqual(['p1', 'p2', 'g1', 'g2', 'g3']);
+  });
+
+  it('un pronostic en attente de règlement ne prend pas la place des autres', async () => {
+    const attente = [1, 2, 3, 4, 5].map(i => match(`p${i}`, 3, prono({ result: null })));
+    expect(await publier([...attente, match('g1', 3, null)])).toEqual({ publies: 1 });
+    expect(crees.map(c => c.matchId)).toEqual(['g1']);
   });
 });
 
@@ -217,5 +265,18 @@ describe('au format des actualités', () => {
     expect(a).toMatchObject({ id: 'resume_r1', type: 'resume_match', match_id: 'm1', image_url: null, score: '2-5',
       logo_domicile: 'https://media.api-sports.io/football/teams/77.png',
       logo_exterieur: 'https://media.api-sports.io/football/teams/81.png' });
+  });
+
+  it('s\'il faut choisir, les résumés des matchs pronostiqués ; puis l\'ordre des dates', async () => {
+    const r = (id: string, heure: number, prono: boolean) => ({
+      id, matchId: id, titre: id, titreEn: id, resume: 'R', resumeEn: 'R', ligue: 'Ligue 1',
+      creeLe: new Date(Date.UTC(2026, 9, 21, heure)),
+      match: { homeTeamLogo: null, awayTeamLogo: null, homeScore: 1, awayScore: 0, hasPublishedPronostic: prono },
+    });
+    const lecture = jest.spyOn(prisma.resumeMatch, 'findMany').mockResolvedValue([
+      r('g1', 23, false), r('g2', 22, false), r('p1', 21, true), r('g3', 20, false), r('p2', 19, true)]);
+    const choisis = await resumesPourActualites(3);
+    expect((lecture.mock.calls[0][0] as any).take).toBe(9);
+    expect(choisis.map((a: any) => a.match_id)).toEqual(['g1', 'p1', 'p2']);
   });
 });
