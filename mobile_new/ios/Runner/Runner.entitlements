@@ -2,10 +2,23 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- Capabilities retirées pour les tests locaux : un compte Apple gratuit (Personal Team)
-	     ne supporte ni Associated Domains ni Push Notifications.
-	     À restaurer avant un build App Store (voir l'historique git) :
-	     - com.apple.developer.associated-domains : applinks:pronowin.app, webcredentials:pronowin.app
-	     - aps-environment : development -->
+	<!-- Notifications push (Firebase Messaging). « development » ici : l'export
+	     App Store le remplace par « production ». La capacité doit être cochée
+	     sur l'identifiant com.pronowin.app (developer.apple.com → Identifiers),
+	     sinon le profil de distribution ne la contient pas et la signature
+	     échoue.
+
+	     Associated Domains n'est pas restauré : l'ancienne valeur visait
+	     pronowin.app, un domaine qui n'est pas le nôtre (l'API est sur
+	     pronowin.space), et aucun fichier apple-app-site-association n'y
+	     est servi. -->
+	<key>aps-environment</key>
+	<string>development</string>
+	<!-- « Se connecter avec Apple » (règle 4.8). La capacité doit être cochée
+	     sur l'identifiant com.pronowin.app, comme les notifications push. -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
 </dict>
 </plist>

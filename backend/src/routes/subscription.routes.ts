@@ -3,11 +3,30 @@ import { authMiddleware }       from '../middleware/auth.middleware';
 import { adminMiddleware }      from '../middleware/admin.middleware';
 import { requireProfileComplete } from '../middleware/profile.middleware';
 import * as C from '../controllers/subscription.controller';
+import * as IAP from '../controllers/iap.controller';
+import * as GP from '../controllers/geniuspay.controller';
 
 const r = Router();
 
 // Publique
 r.get('/plans', C.getPlans);
+
+// ── Achat intégré (App Store / Google Play) ───────────────────────────────────
+r.get ('/iap/products', IAP.getProducts);
+r.post('/iap/purchase-context', authMiddleware, IAP.purchaseContext);
+r.post('/iap/verify',   authMiddleware, IAP.verify);
+
+// Webhooks des stores : pas d'authMiddleware, l'authenticité vient de la
+// signature du payload (Apple) et de l'URL secrète Pub/Sub (Google).
+r.post('/iap/apple-notifications',  IAP.appleNotifications);
+r.post('/iap/google-notifications', IAP.googleNotifications);
+
+// ── Mobile Money par GeniusPay (canal direct) ────────────────────────────────
+// Le webhook n'a pas d'authMiddleware : sa signature HMAC fait foi, et il ne
+// fait que déclencher une relecture du paiement chez GeniusPay.
+r.post('/geniuspay/webhook', GP.webhook);
+r.post('/geniuspay',      authMiddleware, requireProfileComplete, GP.creer);
+r.get ('/geniuspay/:id',  authMiddleware, GP.etat);
 
 // Utilisateur
 r.get ('/current',       authMiddleware, C.getCurrent);

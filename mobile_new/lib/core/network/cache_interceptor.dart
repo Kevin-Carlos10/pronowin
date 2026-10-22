@@ -26,6 +26,10 @@ class CacheInterceptor extends Interceptor {
   ) async {
     if (!_isCacheable(options)) return handler.next(options);
 
+    // La génération de session au départ de la requête : voir
+    // [CacheService.generation].
+    options.extra['_generationCache'] = CacheService.generation;
+
     // Si l'appelant a mis extra['forceRefresh'] = true, bypass le cache
     final forceRefresh = options.extra['forceRefresh'] == true;
     if (forceRefresh) return handler.next(options);
@@ -50,7 +54,11 @@ class CacheInterceptor extends Interceptor {
   // ── Réponse reçue ─────────────────────────────────────────────────────────────
   @override
   void onResponse(Response response, ResponseInterceptorHandler handler) async {
-    if (_isCacheable(response.requestOptions) && response.statusCode == 200) {
+    // Une réponse d'une session précédente ne repeuple pas le cache du compte
+    // suivant (constat M11).
+    final memeSession =
+        response.requestOptions.extra['_generationCache'] == CacheService.generation;
+    if (_isCacheable(response.requestOptions) && response.statusCode == 200 && memeSession) {
       final key = _cacheKey(response.requestOptions);
       try {
         await CacheService.save(key, response.data);

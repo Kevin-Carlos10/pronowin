@@ -1,0 +1,15 @@
+<script>
+/* Un champ datetime-local n'a pas de fuseau : « 09:00 » tout court. Le
+   navigateur, qui connaît le sien, convertit l'heure choisie en instant à
+   l'envoi (champ caché quand_iso). Sans ce script, le serveur lit l'heure de
+   Ouagadougou — voir lib/programmation.js. */
+document.querySelectorAll('form').forEach(function (formulaire) {
+  var champ = formulaire.querySelector('input[data-programmation]');
+  var cache = formulaire.querySelector('input[name="quand_iso"]');
+  if (!champ || !cache) return;
+  formulaire.addEventListener('submit', function () {
+    var d = champ.value ? new Date(champ.value) : null;
+    cache.value = d && isFinite(d.getTime()) ? d.toISOString() : '';
+  });
+});
+</script>

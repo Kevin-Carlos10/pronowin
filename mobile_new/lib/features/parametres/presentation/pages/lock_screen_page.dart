@@ -1,11 +1,15 @@
-﻿import 'package:flutter/material.dart';
+import 'package:pronowin/l10n/app_strings.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../data/pin_store.dart';
+import '../providers/security_provider.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../providers/settings_provider.dart';
+import '../../../../shared/widgets/logotype_pronowin.dart';
 
 class LockScreenPage extends ConsumerStatefulWidget {
   final String redirectTo;
@@ -16,29 +20,38 @@ class LockScreenPage extends ConsumerStatefulWidget {
 }
 
 class _LockScreenPageState extends ConsumerState<LockScreenPage> {
-  final _auth    = LocalAuthentication();
+  late final LocalAuthentication _auth;
   String _pin    = '';
   String _error  = '';
   int    _attempts = 0;
+  bool _authenticating = false;
+  bool _validating = false;
+  bool _unlocked = false;
   static const _maxAttempts = 5;
 
   @override
   void initState() {
     super.initState();
+    _auth = ref.read(localAuthenticationProvider);
     WidgetsBinding.instance.addPostFrameCallback((_) => _tryBio());
   }
 
   Future<void> _tryBio() async {
     final settings = ref.read(settingsProvider);
-    if (!settings.bioEnabled) return;
+    if (!settings.bioEnabled || _authenticating || _unlocked) return;
+    setState(() { _authenticating = true; _error = ''; });
 
     try {
       final canCheck = await _auth.canCheckBiometrics;
       final isAvailable = await _auth.isDeviceSupported();
-      if (!canCheck || !isAvailable) return;
+      if (!mounted) return;
+      if (!canCheck || !isAvailable) {
+        setState(() => _error = tr(context, "La biométrie n'est pas disponible sur cet appareil."));
+        return;
+      }
 
       final authenticated = await _auth.authenticate(
-        localizedReason: 'Déverrouillez PronoWin avec ton empreinte',
+        localizedReason: trCurrent("Déverrouille PronoWin"),
         options: const AuthenticationOptions(
           biometricOnly: false,
           stickyAuth:    true,
@@ -46,14 +59,19 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
         ),
       );
 
-      if (authenticated && mounted) _unlock();
+      if (mounted) {
+        if (authenticated) { _unlock(); }
+        else { setState(() => _error = tr(context, "Authentification annulée. Réessaie pour déverrouiller.")); }
+      }
     } catch (e) {
-      debugPrint('[Bio] Erreur: $e');
+      if (mounted) setState(() => _error = tr(context, "Impossible de déverrouiller. Réessaie ou reconnecte-toi."));
+    } finally {
+      if (mounted) setState(() => _authenticating = false);
     }
   }
 
   void _onKey(String digit) {
-    if (_pin.length >= 4 || _attempts >= _maxAttempts) return;
+    if (!ref.read(settingsProvider).pinEnabled || _validating || _unlocked || _pin.length >= 4 || _attempts >= _maxAttempts) return;
     setState(() {
       _error = '';
       _pin  += digit;
@@ -67,29 +85,43 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
   }
 
   Future<void> _validatePin() async {
-    final p    = await SharedPreferences.getInstance();
-    final saved = p.getString('pin_code') ?? '';
-
-    if (_pin == saved) {
-      _unlock();
+    if (_validating || !ref.read(settingsProvider).pinEnabled) return;
+    _validating = true;
+    final correct = await ref.read(pinStoreProvider).verify(_pin);
+    _validating = false;
+    if (!mounted) return;
+    if (correct) {
+      if (mounted) _unlock();
     } else {
       setState(() {
         _attempts++;
         _error = _attempts >= _maxAttempts
-          ? 'Trop de tentatives. Reconnecte-toi.'
-          : 'Code incorrect. ${_maxAttempts - _attempts} essai(s) restant(s).';
+          ? tr(context, "Trop de tentatives. Reconnecte-toi.")
+          : tr(context, "Code incorrect. {arg0} essai(s) restant(s).", [_maxAttempts - _attempts]);
         _pin = '';
       });
       HapticFeedback.heavyImpact();
     }
   }
 
-  void _unlock() => context.go(widget.redirectTo);
+  void _unlock() {
+    if (_unlocked) return;
+    _unlocked = true;
+    context.go(widget.redirectTo);
+  }
+
+  @override
+  void dispose() {
+    _auth.stopAuthentication();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final settings    = ref.watch(settingsProvider);
     final bioEnabled  = settings.bioEnabled;
+    final pinEnabled = settings.pinEnabled;
+    final face = ref.watch(securityProvider).biometrics.contains(BiometricType.face);
     final blocked     = _attempts >= _maxAttempts;
 
     return PopScope(
@@ -97,34 +129,30 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
       child: Scaffold(
         backgroundColor: context.cl.bg,
         body: SafeArea(
-          child: Column(children: [
+          child: LayoutBuilder(builder: (context, constraints) => SingleChildScrollView(
+            child: ConstrainedBox(constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: IntrinsicHeight(child: Column(children: [
             const SizedBox(height: 60),
 
             Container(
               width: 72, height: 72,
               decoration: BoxDecoration(
                 gradient: const LinearGradient(
-                  colors: [AppColors.primary, AppColors.primaryLight],
+                  colors: AppColors.degradeMarque,
                   begin: Alignment.topLeft, end: Alignment.bottomRight),
                 borderRadius: BorderRadius.circular(20)),
               child: const Icon(Icons.lock_rounded, color: Colors.white, size: 36),
             ),
             const SizedBox(height: 20),
 
-            RichText(text: TextSpan(
-              style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800),
-              children: [
-                TextSpan(text: 'Prono', style: TextStyle(color: context.cl.textP)),
-                const TextSpan(text: 'Win',   style: TextStyle(color: AppColors.primary)),
-              ],
-            )),
+            const LogotypePronoWin(taille: 24),
             SizedBox(height: 8),
-            Text('Entrez ton code PIN', style: TextStyle(
+            Text(pinEnabled ? tr(context, "Entre ton code PIN") : tr(context, "Déverrouille PronoWin"), style: TextStyle(
               color: context.cl.textS, fontSize: 14)),
             const SizedBox(height: 40),
 
             // Points PIN
-            Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(4, (i) {
+            if (pinEnabled) Row(mainAxisAlignment: MainAxisAlignment.center, children: List.generate(4, (i) {
               final filled = i < _pin.length;
               return AnimatedContainer(
                 duration: const Duration(milliseconds: 150),
@@ -132,11 +160,11 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
                 width: filled ? 18 : 14,
                 height: filled ? 18 : 14,
                 decoration: BoxDecoration(
-                  color: _error.isNotEmpty ? AppColors.error
+                  color: _error.isNotEmpty ? context.cl.error
                     : (filled ? AppColors.primary : Colors.transparent),
                   shape: BoxShape.circle,
                   border: Border.all(
-                    color: _error.isNotEmpty ? AppColors.error
+                    color: _error.isNotEmpty ? context.cl.error
                       : (filled ? AppColors.primary : context.cl.borderS),
                     width: 2),
                 ),
@@ -150,7 +178,7 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
               child: Text(
                 _error,
                 style: TextStyle(
-                  color: blocked ? AppColors.error : AppColors.warning,
+                  color: blocked ? context.cl.error : context.cl.warning,
                   fontSize: 13,
                 ),
                 textAlign: TextAlign.center,
@@ -163,13 +191,73 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 40),
                 child: blocked
                   ? _buildBlockedView()
-                  : _buildKeypad(bioEnabled),
+                  : pinEnabled ? _buildKeypad(bioEnabled) : Center(
+                    child: FilledButton.icon(
+                      onPressed: _authenticating ? null : _tryBio,
+                      icon: Icon(face ? Icons.face_rounded : Icons.lock_open_rounded),
+                      label: Text(_authenticating ? tr(context, "Vérification…") : face ? 'Face ID' : tr(context, "Déverrouiller")),
+                    ),
+                  ),
               ),
             ),
-          ]),
+
+            // Sortie de secours : sans elle, oublier son code enfermait
+            // définitivement l'utilisateur hors de l'app — bankroll comprise.
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: TextButton(
+                onPressed: _codeOublie,
+                child: Text(pinEnabled ? tr(context, "Code oublié ?") : tr(context, "Se reconnecter"),
+                    style: TextStyle(
+                        color: context.cl.textM,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ])),
+            ),
+          )),
         ),
       ),
     );
+  }
+
+  /// Déverrouillage impossible : la seule issue sûre est de fermer la session.
+  /// On ne propose surtout pas de « réinitialiser le code » sur place, ce qui
+  /// annulerait la protection pour quiconque tient l'appareil en main.
+  Future<void> _codeOublie() async {
+    final confirme = await showDialog<bool>(
+      context: context,
+      builder: (dctx) => AlertDialog(
+        backgroundColor: dctx.cl.surface,
+        title: Text(tr(context, "Se reconnecter")),
+        content:  Text(
+            tr(context, "Pour retrouver l'accès, il faut te déconnecter puis te reconnecter avec ton compte. Tes données ne sont pas perdues.")),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(dctx).pop(false),
+              child:  Text(tr(context, "Annuler"))),
+          TextButton(
+              onPressed: () => Navigator.of(dctx).pop(true),
+              child:  Text(tr(context, "Se déconnecter"))),
+        ],
+      ),
+    );
+    if (confirme != true || !mounted) return;
+
+    // Le code est effacé avec la session : le prochain démarrage repart d'un
+    // écran de connexion normal, sans verrou orphelin.
+    await _auth.stopAuthentication();
+    if (!mounted) return;
+    await ref.read(pinStoreProvider).clear();
+    await ref.read(settingsProvider.notifier).setPinEnabled(false);
+    await ref.read(settingsProvider.notifier).setBioEnabled(false);
+    await ref.read(authProvider.notifier).logout();
+    // `/auth` n'est pas une route : seuls `/auth/email` et `/auth/email/otp`
+    // existent. Se déconnecter depuis le verrou menait donc à la page d'erreur
+    // du routeur — au moment précis où l'utilisateur n'a plus que ce chemin,
+    // puisqu'il vient d'oublier son code.
+    if (mounted) context.go('/auth/email');
   }
 
   Widget _buildKeypad(bool bioEnabled) => Column(
@@ -186,8 +274,9 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
       Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly, children: [
         SizedBox(width: 80, child: bioEnabled
           ? IconButton(
-              onPressed: _tryBio,
-              icon: const Icon(Icons.fingerprint_rounded,
+              onPressed: _authenticating ? null : _tryBio,
+              tooltip: tr(context, "Déverrouiller"),
+              icon: Icon(ref.watch(securityProvider).biometrics.contains(BiometricType.face) ? Icons.face_rounded : Icons.fingerprint_rounded,
                 color: AppColors.primary, size: 32))
           : const SizedBox()),
         _KeyButton(digit: '0', onTap: () => _onKey('0')),
@@ -202,19 +291,19 @@ class _LockScreenPageState extends ConsumerState<LockScreenPage> {
   Widget _buildBlockedView() => Column(
     mainAxisAlignment: MainAxisAlignment.center,
     children: [
-      const Icon(Icons.lock_outlined, color: AppColors.error, size: 56),
+      Icon(Icons.lock_outlined, color: context.cl.error, size: 56),
       const SizedBox(height: 16),
-      Text('Compte verrouillé', style: TextStyle(
-        color: AppColors.error, fontSize: 18, fontWeight: FontWeight.w700)),
+      Text(tr(context, "Compte verrouillé"), style: TextStyle(
+        color: context.cl.error, fontSize: 18, fontWeight: FontWeight.w700)),
       SizedBox(height: 8),
-      Text('Trop de tentatives incorrectes.\nReconnecte-toi pour continuer.',
+      Text(tr(context, "Trop de tentatives incorrectes.\nReconnecte-toi pour continuer."),
         style: TextStyle(color: context.cl.textS, fontSize: 13),
         textAlign: TextAlign.center),
       const SizedBox(height: 24),
       ElevatedButton(
-        onPressed: () => context.go('/auth/phone'),
-        style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
-        child: const Text('Se reconnecter'),
+        onPressed: _codeOublie,
+        style: ElevatedButton.styleFrom(backgroundColor: AppColors.fondErreur),
+        child:  Text(tr(context, "Se reconnecter")),
       ),
     ],
   );

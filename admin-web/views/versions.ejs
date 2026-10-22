@@ -1,0 +1,208 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
+<%- include('layout_top', {page:'versions'}) %>
+
+<style>
+.vs-tuiles   { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; margin-bottom: 1.2rem; }
+.vs-tuile    { background: var(--surface-d); border: 1px solid var(--border); border-radius: 12px; padding: .85rem 1rem; }
+.vs-tuile .v { font-size: 1.5rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.vs-tuile .l { font-size: .72rem; color: var(--text-m); margin-top: .2rem; line-height: 1.45; }
+.vs-dim      { color: var(--text-dim); }
+.vs-ok       { color: var(--on-success); }
+.vs-warn     { color: var(--on-warning); }
+.vs-err      { color: var(--on-danger); }
+.vs-titre    { margin: 1.6rem 0 .8rem; font-size: 1rem; }
+.vs-titre small { font-weight: 400; color: var(--text-dim); font-size: .78rem; }
+.vs-carte    { padding: 0; overflow: hidden; }
+.vs-tab      { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.vs-tab th   { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+               color: var(--text-m); padding: .55rem .7rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.vs-tab td   { padding: .6rem .7rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+.vs-tab tr:last-child td { border-bottom: 0; }
+.vs-tab tr.vs-inconnue td { background: var(--surface-d); }
+.vs-num      { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vs-sous     { display: block; font-size: .72rem; color: var(--text-dim); margin-top: .15rem; }
+.vs-ver      { font-family: monospace; font-size: .9rem; font-weight: 700; }
+.vs-periodes { display: flex; gap: .4rem; flex-wrap: wrap; }
+.vs-refs     { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: .8rem; }
+.vs-ref      { padding: .8rem 1rem; }
+.vs-ref .t   { font-size: .72rem; color: var(--text-m); text-transform: uppercase; letter-spacing: .05em; font-weight: 700; }
+.vs-ref .v   { font-family: monospace; font-size: 1.1rem; font-weight: 800; margin-top: .25rem; }
+.vs-aide     { padding: .85rem 1.1rem; margin-top: 1.2rem; }
+.vs-aide p   { margin: 0; font-size: .8rem; color: var(--text-m); line-height: 1.65; }
+.empty-state.vs-vide { padding: 2rem; }
+@media (max-width: 760px) {
+  .vs-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .vs-refs   { grid-template-columns: 1fr; }
+}
+</style>
+
+<%
+  const _d   = (typeof donnees !== 'undefined' && donnees) ? donnees : null;
+  const _err = typeof erreur !== 'undefined' ? erreur : null;
+  const _j   = typeof jours !== 'undefined' ? jours : 30;
+  const _fen = (typeof fenetres !== 'undefined' && fenetres) ? fenetres : [7, 30, 90];
+  const _n   = v => Number(v ?? 0).toLocaleString('fr-FR');
+  const _pc  = (a, b) => b ? Math.round((a / b) * 100) : 0;
+  const _date = iso => iso ? new Date(iso).toLocaleDateString('fr-FR', { day: '2-digit', month: 'short' }) : '—';
+  const _FAMILLES = { ios: 'iPhone — App Store', play: 'Android — Google Play', apk: 'Android — APK du site', autre: 'Autre' };
+  const _fam = f => _FAMILLES[f] ?? f;
+%>
+
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Application · mises à jour</p>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg> Versions de l'application</h1>
+    <p class="workspace-description">
+      Quelle version utilisent les membres actifs, qui n'a pas fait la mise à jour, et combien seraient bloqués
+      si la version minimale était relevée.
+    </p>
+  </div>
+  <div class="workspace-actions">
+    <nav class="vs-periodes" aria-label="Membres actifs depuis">
+      <% _fen.forEach(j => { %>
+        <a href="/admin/versions?jours=<%= j %>" class="btn btn-sm <%= _j === j ? 'btn-primary' : 'btn-outline' %>"
+           <%= _j === j ? 'aria-current=page' : '' %>><%= j %> jours</a>
+      <% }) %>
+    </nav>
+  </div>
+</header>
+
+<% if (!_d) { %>
+  <div class="alert alert-error">
+    <strong><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> API injoignable</strong>
+    — impossible de lire les versions<%= _err ? ' : ' + _err : '.' %>
+  </div>
+<% } else if (!_d.actifs) { %>
+  <div class="card"><div class="empty-state vs-vide">
+    <div class="empty-state-title">Aucun membre actif sur les <%= _j %> derniers jours</div>
+  </div></div>
+<% } else {
+  const bloques = _d.enRetard + _d.inconnus;
+  const bloquesPremium = (_d.enRetardPremium ?? 0) + _d.inconnusPremium;
+%>
+
+<div class="vs-tuiles metric-grid">
+  <div class="vs-tuile metric-card">
+    <div class="v"><%= _n(_d.actifs) %></div>
+    <div class="l">membres actifs<br><span class="vs-dim">connectés ces <%= _j %> derniers jours</span></div>
+  </div>
+  <div class="vs-tuile metric-card">
+    <div class="v vs-ok"><%= _n(_d.aJour) %></div>
+    <div class="l">sur la dernière version<br><span class="vs-dim"><%= _pc(_d.aJour, _d.actifs) %> % des actifs</span></div>
+  </div>
+  <div class="vs-tuile metric-card">
+    <div class="v vs-warn"><%= _n(_d.enRetard) %></div>
+    <div class="l">sur une version plus ancienne<br><span class="vs-dim">depuis la <%= _d.premiereVersionDeclaree %></span></div>
+  </div>
+  <div class="vs-tuile metric-card">
+    <div class="v vs-err"><%= _n(_d.inconnus) %></div>
+    <div class="l">encore en <%= _d.versionMuette %> ou avant<br><span class="vs-dim">ne déclarent pas leur version</span></div>
+  </div>
+</div>
+
+<% if (_d.inconnus === _d.actifs) { %>
+  <div class="alert alert-warning" data-toast="skip"><div>
+    <strong>Aucun membre actif n'utilise encore la <%= _d.premiereVersionDeclaree %>.</strong>
+    Les applications déclarent leur version à partir de celle-ci : la répartition se remplira au fil des mises à jour.
+  </div></div>
+<% } else if (bloques) { %>
+  <div class="alert alert-warning" data-toast="skip"><div>
+    <strong>Relever la version minimale à la dernière bloquerait <%= _n(bloques) %> membre<%= bloques > 1 ? 's' : '' %> actif<%= bloques > 1 ? 's' : '' %><%= bloquesPremium ? ', dont ' + _n(bloquesPremium) + ' Premium' : '' %>.</strong>
+    Ils verraient un écran de mise à jour obligatoire au prochain lancement. Mieux vaut d'abord les prévenir — une notification
+    suffit souvent.
+  </div></div>
+<% } %>
+
+<h3 class="vs-titre">Version de référence <small>— la plus haute entre la configuration et ce que les membres utilisent</small></h3>
+<div class="vs-refs">
+  <% [['ios', 'store'], ['play', 'store'], ['apk', 'apk']].forEach(([f, cfg]) => { const c = _d.configuration[cfg]; %>
+  <div class="card cr-panel vs-ref">
+    <div class="t"><%= _fam(f) %></div>
+    <div class="v"><%= _d.references[f] %></div>
+    <span class="vs-sous">configuré : dernière <%= c.derniere %> · minimale <%= c.min %></span>
+  </div>
+  <% }) %>
+</div>
+
+<h3 class="vs-titre">Versions utilisées <small>— membres actifs, par version et par canal</small></h3>
+<div class="card cr-panel vs-carte">
+  <div class="table-wrap">
+  <table class="vs-tab">
+    <thead>
+      <tr><th scope="col">Version</th><th scope="col">Canal</th><th scope="col">Membres</th><th scope="col">Dont Premium</th><th scope="col">Part</th><th scope="col">État</th></tr>
+    </thead>
+    <tbody>
+      <% _d.versions.forEach(v => { %>
+      <tr>
+        <td><div><span class="vs-ver"><%= v.version %></span></div></td>
+        <td><div><%= _fam(v.famille) %></div></td>
+        <td class="vs-num"><div><%= _n(v.membres) %></div></td>
+        <td class="vs-num"><div><%= _n(v.premium) %></div></td>
+        <td class="vs-num"><div><%= v.part.toLocaleString('fr-FR') %> %</div></td>
+        <td><div><span class="badge <%= v.aJour ? 'badge-ok' : 'badge-warn' %>"><%= v.aJour ? 'à jour' : 'en retard' %></span></div></td>
+      </tr>
+      <% }) %>
+      <% if (_d.inconnus) { %>
+      <tr class="vs-inconnue">
+        <td><div><span class="vs-ver"><%= _d.versionMuette %> ou avant</span>
+          <span class="vs-sous">version non déclarée</span></div></td>
+        <td><div class="vs-dim">inconnu</div></td>
+        <td class="vs-num"><div><%= _n(_d.inconnus) %></div></td>
+        <td class="vs-num"><div><%= _n(_d.inconnusPremium) %></div></td>
+        <td class="vs-num"><div><%= (Math.round((_d.inconnus / _d.actifs) * 1000) / 10).toLocaleString('fr-FR') %> %</div></td>
+        <td><div><span class="badge badge-err">en retard</span></div></td>
+      </tr>
+      <% } %>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<h3 class="vs-titre">Membres en retard <small>— Premium d'abord : une version minimale relevée les couperait de ce qu'ils ont payé</small></h3>
+<% if (!_d.listeEnRetard.length) { %>
+  <div class="card"><div class="empty-state vs-vide">
+    <div class="empty-state-title">Aucun membre en retard parmi ceux qui déclarent leur version</div>
+  </div></div>
+<% } else { %>
+<div class="card cr-panel vs-carte">
+  <div class="table-wrap">
+  <table class="vs-tab">
+    <thead>
+      <tr><th scope="col"><%= uiText("Compte") %></th><th scope="col">Version</th><th scope="col">Canal</th><th scope="col">Dernière visite</th></tr>
+    </thead>
+    <tbody>
+      <% _d.listeEnRetard.forEach(m => { %>
+      <tr>
+        <td><div>
+          <% if (hasPerm('users')) { %><a href="/admin/users/<%= encodeURIComponent(m.userId) %>"><strong><%= m.pseudo %></strong></a>
+          <% } else { %><strong><%= m.pseudo %></strong><% } %>
+          <% if (m.premium) { %> <span class="badge badge-ok">Premium</span><% } %>
+        </div></td>
+        <td><div><span class="vs-ver"><%= m.version %></span><span class="vs-sous">dernière : <%= _d.references[m.famille] ?? '—' %></span></div></td>
+        <td><div><%= _fam(m.famille) %></div></td>
+        <td class="vs-num"><div><%= _date(m.vuLe) %></div></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+</div>
+<% } %>
+
+<div class="card cr-panel cr-callout vs-aide">
+  <p>
+    <strong>Comment lire cette page.</strong>
+    Depuis la <%= _d.premiereVersionDeclaree %>, l'application indique sa version au serveur à chaque connexion.
+    Un membre actif qui ne l'indique pas utilise donc une version plus ancienne.
+    <br>
+    La version de référence est la plus haute entre celle configurée dans Paramètres et celle que des membres
+    utilisent déjà : sur iPhone et Google Play, les seuils de mise à jour viennent de Firebase, et la valeur
+    configurée ici peut être en retard.
+    <br>
+    Avant de relever la version minimale, attendre que la part « en retard » soit faible, ou prévenir ces membres.
+  </p>
+</div>
+
+<% } %>
+
+<%- include('layout_bottom') %>

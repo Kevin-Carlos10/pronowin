@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:ui' as ui;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:path_provider/path_provider.dart';
@@ -27,9 +28,46 @@ class PronoShareService {
     final file = File('${dir.path}/pronowin_share_${DateTime.now().millisecondsSinceEpoch}.png');
     await file.writeAsBytes(bytes);
 
-    await Share.shareXFiles(
+    await partagerFichiers(
       [XFile(file.path, mimeType: 'image/png')],
-      text: shareText,
+      texte: shareText,
+      origine: _origine(boundary),
     );
+  }
+
+  /// Partage des fichiers, avec leur texte là où il ne les fait pas perdre.
+  ///
+  /// ── L'image n'arrivait pas sur iPhone ─────────────────────────────────
+  ///
+  /// Le PNG et le message partaient ensemble. Android remet les deux à
+  /// l'application choisie ; sur iOS, la feuille de partage les présente comme
+  /// deux éléments, et WhatsApp — comme d'autres — n'en garde qu'un : le
+  /// texte. Le destinataire recevait le lien, sans la carte du pronostic.
+  ///
+  /// Sur iOS, le fichier part donc seul. L'image porte déjà le domaine en pied
+  /// de carte ; le texte, lui, reste disponible par le bouton « Copier ».
+  static Future<void> partagerFichiers(
+    List<XFile> fichiers, {
+    String? texte,
+    Rect? origine,
+  }) =>
+      Share.shareXFiles(
+        fichiers,
+        text: texteAvecFichiers(texte, defaultTargetPlatform),
+        sharePositionOrigin: origine,
+      );
+
+  /// Le texte à joindre aux fichiers sur [plateforme] — aucun sur iOS.
+  @visibleForTesting
+  static String? texteAvecFichiers(String? texte, TargetPlatform plateforme) =>
+      plateforme == TargetPlatform.iOS ? null : texte;
+
+  /// Où ancrer la feuille de partage : Apple l'exige sur iPad, et la
+  /// recommande partout. Le rectangle de la carte capturée, à l'écran.
+  static Rect? _origine(RenderBox boite) {
+    if (!boite.hasSize || !boite.attached) return null;
+    final coin = boite.localToGlobal(Offset.zero);
+    final zone = coin & boite.size;
+    return zone.isEmpty ? null : zone;
   }
 }

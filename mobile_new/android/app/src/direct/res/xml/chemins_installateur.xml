@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Ce que le fournisseur accepte d'exposer, et rien de plus.
+
+  `cache-path` correspond à `getCacheDir()` côté Android, c'est-à-dire au
+  dossier que `path_provider` rend pour `getTemporaryDirectory()` : celui où
+  l'APK téléchargé est écrit. Le système peut le vider seul, ce qui convient à
+  un fichier de soixante-dix mégaoctets dont on n'a plus besoin après
+  l'installation.
+
+  Un `root-path` ouvrirait tout le stockage interne à l'installateur. Le chemin
+  est donc réduit au seul sous-dossier utilisé.
+-->
+<paths>
+    <cache-path name="mises_a_jour" path="maj/"/>
+</paths>

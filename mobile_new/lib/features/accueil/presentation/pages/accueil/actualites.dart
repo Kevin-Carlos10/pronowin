@@ -1,0 +1,389 @@
+// Section actualités — extrait de accueil_page.dart.
+//
+// `part` et non un fichier autonome : ces classes sont privées à la
+// bibliothèque (préfixe `_`) et doivent le rester. Un import classique
+// aurait imposé de les rendre publiques, donc visibles de partout.
+part of '../accueil_page.dart';
+
+/// La section Actualités de l'accueil : quatre articles, puis « Voir tout »
+/// vers la page Actus. Un article s'ouvre dans sa page (`PageArticle`), comme
+/// sur FotMob, et non plus dans une feuille en bas d'écran (20 octobre 2026).
+/// Les articles lus sont ceux de `actualitesLuesProvider`, partagés avec la
+/// page Actus et le badge de Compte.
+class _NewsSection extends ConsumerWidget {
+  final List<Map<String, dynamic>> items;
+  const _NewsSection({required this.items});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final lues = ref.watch(actualitesLuesProvider);
+    // Pinned en premier, puis tri par date
+    final sorted = [...items]..sort((a, b) {
+      final aPin = (a['is_pinned'] as bool? ?? false) ? 0 : 1;
+      final bPin = (b['is_pinned'] as bool? ?? false) ? 0 : 1;
+      if (aPin != bPin) return aPin.compareTo(bPin);
+      final da = DateTime.tryParse(a['created_at'] as String? ?? '') ?? DateTime(2000);
+      final db = DateTime.tryParse(b['created_at'] as String? ?? '') ?? DateTime(2000);
+      return db.compareTo(da);
+    });
+
+    final unreadCount = sorted.where((n) => !lues.contains(n['id'] as String? ?? '')).length;
+    final visible = sorted.take(4).toList();
+
+    // La carte en vedette occupe un tiers d'écran : un titre d'un seul mot
+    // (« Paul Pogba ») y fait négligé. On promeut le premier titre qui a de
+    // la matière, sans changer l'ordre du reste.
+    if (visible.length > 1) {
+      final i = visible.indexWhere(
+          (n) => ((n['title'] as String?) ?? '').trim().length >= 25);
+      if (i > 0) visible.insert(0, visible.removeAt(i));
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Header — même composant que les autres sections de l'écran.
+        _SectionHeader(
+          title: tr(context, "Actualités football"),
+          leading: Icon(Icons.newspaper_rounded,
+              color: context.cl.textM, size: 15),
+          showBadge: unreadCount > 0 ? unreadCount : null,
+          badgeColor: AppColors.primary,
+          // La page Actualités, plutôt que déplier toute la liste sur l'accueil.
+          moreLabel: tr(context, "Voir tout"),
+          onMore: sorted.length > 4 ? () => context.push('/actualites') : null,
+        ),
+        const SizedBox(height: 12),
+
+        // Featured card (premier article)
+        if (visible.isNotEmpty)
+          _FeaturedNewsCard(
+            news: visible.first,
+            isRead: lues.contains(visible.first['id'] as String? ?? ''),
+            onTap: () => ouvrirActu(context, ref, visible.first),
+          ).animate().fadeIn(duration: 350.ms).slideY(begin: 0.06, end: 0,
+              curve: Curves.easeOutCubic),
+
+        // Cards compactes (articles suivants)
+        ...visible.skip(1).toList().asMap().entries.map((e) {
+          final i    = e.key;
+          final news = e.value;
+          return _CompactNewsCard(
+            news: news,
+            isRead: lues.contains(news['id'] as String? ?? ''),
+            onTap: () => ouvrirActu(context, ref, news),
+          )
+          .animate(delay: Duration(milliseconds: 80 + i * 60))
+          .fadeIn(duration: 300.ms)
+          .slideY(begin: 0.05, end: 0, curve: Curves.easeOutCubic);
+        }),
+      ],
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// HELPERS COMMUNS NEWS
+// ──────────────────────────────────────────────────────────────────────────────
+Color _newsAccent(String? cat) {
+  if (cat == null) return AppColors.primary;
+  if (cat.contains('Monde'))      return const Color(0xFF10B981);
+  if (cat.contains('Champions'))  return const Color(0xFFFFD700);
+  if (cat.contains('Premier'))    return const Color(0xFF6366F1);
+  if (cat.contains('Serie'))      return const Color(0xFF3B82F6);
+  if (cat.contains('Liga'))       return AppColors.error;
+  if (cat.contains('Ligue 1'))    return const Color(0xFF8B5CF6);
+  return AppColors.primary;
+}
+
+// L'application chargeait les images de RMC Sport et de la BBC en se faisant
+// passer pour leur site (en-tête Referer), pour contourner leur protection :
+// plus maintenant (18 octobre 2026). Le serveur ne sert d'ailleurs plus
+// d'image de média — titre, résumé du flux et lien vers l'original.
+
+// FEATURED CARD — grande carte avec image pleine largeur
+// ──────────────────────────────────────────────────────────────────────────────
+class _FeaturedNewsCard extends StatelessWidget {
+  final Map<String, dynamic> news;
+  final bool isRead;
+  final VoidCallback onTap;
+  const _FeaturedNewsCard({required this.news, required this.isRead, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cat    = news['categorie'] as String?;
+    final accent = context.cl.lisible(_newsAccent(cat));
+    final imgUrl = news['image_url'] as String?;
+    final isPinned = news['is_pinned'] as bool? ?? false;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        height: 200,
+        decoration: BoxDecoration(
+          color: context.cl.surface,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: isRead ? context.cl.border : accent.withValues(alpha: 0.4),
+            width: isRead ? 0.5 : 1.2,
+          ),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(children: [
+            // Image fond
+            if (imgUrl != null && imgUrl.isNotEmpty)
+              Positioned.fill(
+                child: ImageDistante(
+                  url:     imgUrl,
+                  repli:   Container(color: context.cl.surfaceD)),
+              )
+            else
+              Positioned.fill(child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [accent.withValues(alpha: 0.15), context.cl.surfaceD],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight)),
+              )),
+            // Un résumé de match n'a pas de photo : les deux logos et le score.
+            if ((imgUrl == null || imgUrl.isEmpty) && _estResume(news))
+              Positioned(left: 0, right: 0, top: 36,
+                child: _VisuelResume(news: news, tailleLogo: 52)),
+
+            // Dégradé bas
+            Positioned.fill(child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    Colors.black.withValues(alpha: 0.75),
+                    Colors.black.withValues(alpha: 0.1),
+                  ],
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                )),
+            )),
+
+            // Barre accent gauche
+            Positioned(left: 0, top: 0, bottom: 0,
+              child: Container(width: 3, color: accent)),
+
+            // Contenu
+            Padding(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Top : catégorie + badges
+                  Row(children: [
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: accent.withValues(alpha: 0.85),
+                        borderRadius: BorderRadius.circular(6)),
+                      child: Text(cat ?? '',
+                        style: const TextStyle(
+                          color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
+                    ),
+                    if (isPinned) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(6)),
+                        child:  Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.push_pin_rounded, color: Colors.white, size: 9),
+                          SizedBox(width: 3),
+                          Text(tr(context, "À la une"),
+                            style: TextStyle(color: Colors.white, fontSize: 9,
+                              fontWeight: FontWeight.w700)),
+                        ]),
+                      ),
+                    ],
+                    const Spacer(),
+                    if (!isRead)
+                      Container(
+                        width: 8, height: 8,
+                        decoration: const BoxDecoration(
+                          color: AppColors.primary, shape: BoxShape.circle),
+                      ),
+                  ]),
+                  const Spacer(),
+                  // Titre
+                  Text(editorialField(news, 'titre'),
+                    style: const TextStyle(
+                      color: Colors.white, fontSize: 15,
+                      fontWeight: FontWeight.w700, height: 1.3),
+                    maxLines: 3, overflow: TextOverflow.ellipsis),
+                  const SizedBox(height: 8),
+                  // Date + emoji
+                  Row(children: [
+                    Text(news['emoji'] as String? ?? '',
+                      style: const TextStyle(fontSize: 13)),
+                    const SizedBox(width: 6),
+                    Icon(Icons.schedule_rounded, size: 11, color: Colors.white70),
+                    const SizedBox(width: 3),
+                    Text(news['date'] as String? ?? '',
+                      style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                  ]),
+                ],
+              ),
+            ),
+          ]),
+        ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// COMPACT CARD — ligne horizontale
+// ──────────────────────────────────────────────────────────────────────────────
+class _CompactNewsCard extends StatelessWidget {
+  final Map<String, dynamic> news;
+  final bool isRead;
+  final VoidCallback onTap;
+  const _CompactNewsCard({required this.news, required this.isRead, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final cat    = news['categorie'] as String?;
+    final accent = context.cl.lisible(_newsAccent(cat));
+    final imgUrl = news['image_url'] as String?;
+    final hasImg = imgUrl != null && imgUrl.isNotEmpty;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 8),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: context.cl.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(
+            color: isRead ? context.cl.border : accent.withValues(alpha: 0.35),
+            width: isRead ? 0.5 : 1,
+          ),
+        ),
+        child: Row(children: [
+          // Miniature image, logos d'un résumé de match, ou emoji
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: !hasImg && _estResume(news)
+                ? Container(width: 60, height: 60, color: accent.withValues(alpha: 0.10),
+                    child: _VisuelResume(news: news, tailleLogo: 22, compact: true))
+                : hasImg
+                ? ImageDistante(
+                    url:     imgUrl,
+                    largeur: 60, hauteur: 60,
+                      repli:   _NewsEmojiFallback(
+                      emoji: news['emoji'] as String? ?? '📰', accent: accent))
+                : _NewsEmojiFallback(emoji: news['emoji'] as String? ?? '📰', accent: accent),
+          ),
+          const SizedBox(width: 12),
+          // Texte
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Catégorie
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: accent.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(4)),
+                child: Text(cat ?? '',
+                  style: TextStyle(color: accent, fontSize: 9, fontWeight: FontWeight.w700)),
+              ),
+              const SizedBox(height: 5),
+              // Titre
+              Text(editorialField(news, 'titre'),
+                style: TextStyle(
+                  color: isRead ? context.cl.textS : context.cl.textP,
+                  fontSize: 12,
+                  fontWeight: isRead ? FontWeight.w500 : FontWeight.w700,
+                  height: 1.3),
+                maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 5),
+              // Date
+              Row(children: [
+                Icon(Icons.schedule_rounded, size: 10, color: context.cl.textM),
+                const SizedBox(width: 3),
+                Text(news['date'] as String? ?? '',
+                  style: TextStyle(color: context.cl.textM, fontSize: 10)),
+              ]),
+            ],
+          )),
+          const SizedBox(width: 8),
+          // Point non-lu
+          if (!isRead)
+            Container(
+              width: 8, height: 8,
+              decoration: const BoxDecoration(
+                color: AppColors.primary, shape: BoxShape.circle),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Un résumé de match rédigé par le serveur, avec ses logos (résumés du
+/// 18 octobre 2026 ; logos servis à partir du 20).
+bool _estResume(Map<String, dynamic> n) =>
+    n['type'] == 'resume_match' && (n['logo_domicile'] != null || n['logo_exterieur'] != null);
+
+/// Le visuel d'un résumé de match : logo, score, logo — faute de photo.
+class _VisuelResume extends StatelessWidget {
+  final Map<String, dynamic> news;
+  final double tailleLogo;
+  final bool compact;
+  const _VisuelResume({required this.news, required this.tailleLogo, this.compact = false});
+
+  @override
+  Widget build(BuildContext context) {
+    // Le score d'un résumé, « VS » pour un avant-match.
+    final score = centreVisuelMatch(news);
+    final logos = [news['logo_domicile'] as String?, news['logo_exterieur'] as String?];
+    return ExcludeSemantics(child: compact
+      ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            TeamLogoWidget(url: logos[0], size: tailleLogo),
+            const SizedBox(width: 4),
+            TeamLogoWidget(url: logos[1], size: tailleLogo),
+          ]),
+          if (score != null) ...[
+            const SizedBox(height: 2),
+            Text(score, style: TextStyle(color: context.cl.textP, fontSize: 11, fontWeight: FontWeight.w800)),
+          ],
+        ])
+      : Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          TeamLogoWidget(url: logos[0], size: tailleLogo),
+          const SizedBox(width: 18),
+          if (score != null)
+            // Le haut de la carte garde la teinte du thème : pas de blanc
+            // sur le fond clair.
+            Text(score, style: TextStyle(color: context.cl.textP, fontSize: 30,
+              fontWeight: FontWeight.w800, fontFeatures: const [FontFeature.tabularFigures()])),
+          const SizedBox(width: 18),
+          TeamLogoWidget(url: logos[1], size: tailleLogo),
+        ]));
+  }
+}
+
+class _NewsEmojiFallback extends StatelessWidget {
+  final String emoji;
+  final Color accent;
+  const _NewsEmojiFallback({required this.emoji, required this.accent});
+  @override
+  Widget build(BuildContext context) => Container(
+    width: 60, height: 60,
+    color: accent.withValues(alpha: 0.10),
+    child: Center(child: Text(emoji, style: const TextStyle(fontSize: 26))),
+  );
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════'
+// COMPOSANTS UTILITAIRES
+// ══════════════════════════════════════════════════════════════════════════════'
