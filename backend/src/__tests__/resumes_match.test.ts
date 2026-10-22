@@ -198,7 +198,7 @@ describe('la publication', () => {
   it('matchs pronostiqués ou des grandes compétitions, terminés depuis 2 h à 48 h, sans résumé ; libellé traduit en anglais', async () => {
     expect(await publier([match('m1', 3, prono())])).toEqual({ publies: 1 });
     expect(lecture.where).toEqual({
-      status: 'FINISHED', source: 'API_FOOTBALL', resume: null,
+      status: 'FINISHED', source: 'API_FOOTBALL', articles: { none: { genre: 'resume' } },
       matchDate: { gte: new Date(MAINTENANT.getTime() - 48 * 3600_000), lte: new Date(MAINTENANT.getTime() - 2 * 3600_000) },
       OR: [
         { pronostic: { publicationRecordedAt: { not: null } } },

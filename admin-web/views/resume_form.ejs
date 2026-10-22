@@ -24,6 +24,8 @@
 <%
   const r = resume;
   const m = r.match;
+  const _avant = r.genre === 'avant_match';
+  const _retour = _avant ? '/admin/resumes?genre=avant_match' : '/admin/resumes';
   // Après un refus, le texte tapé revient tel quel ; sinon, celui du résumé.
   const s = (typeof saisie !== 'undefined' && saisie) ? saisie : null;
   const val = (champ, defaut) => s && typeof s[champ] === 'string' ? s[champ] : defaut;
@@ -34,13 +36,13 @@
 
 <header class="workspace-header">
   <div class="workspace-heading">
-    <p class="workspace-eyebrow">Contenu & publication · résumé de match</p>
-    <h1><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> <%= uiText("Corriger le résumé") %></h1>
+    <p class="workspace-eyebrow">Contenu & publication · <%= _avant ? 'avant-match' : 'résumé de match' %></p>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> <%= _avant ? uiText("Corriger l'avant-match") : uiText("Corriger le résumé") %></h1>
     <p class="workspace-description"><%= r.titre %></p>
   </div>
   <div class="workspace-actions">
-    <a href="/admin/resumes" class="btn btn-outline btn-sm">
-      <svg class="ic" aria-hidden="true"><use href="#ic-arrow-left"/></svg> <%= uiText("Retour aux résumés") %>
+    <a href="<%= _retour %>" class="btn btn-outline btn-sm">
+      <svg class="ic" aria-hidden="true"><use href="#ic-arrow-left"/></svg> <%= _avant ? uiText("Retour aux avant-matchs") : uiText("Retour aux résumés") %>
     </a>
   </div>
 </header>
@@ -82,11 +84,11 @@
       <button type="submit" class="btn btn-primary">
         <svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> <%= uiText("Enregistrer") %>
       </button>
-      <a href="/admin/resumes" class="btn btn-outline"><%= uiText("Annuler") %></a>
+      <a href="<%= _retour %>" class="btn btn-outline"><%= uiText("Annuler") %></a>
     </div>
     <p class="rf-aide">
-      Le pronostic d'un match VIP ne doit jamais être dévoilé, et aucun mot de pari ne doit figurer : le texte
-      s'affiche aussi sur iPhone.
+      <%= _avant ? "Un avant-match ne dévoile jamais le pronostic, VIP ou non" : "Le pronostic d'un match VIP ne doit jamais être dévoilé" %>,
+      et aucun mot de pari ne doit figurer : le texte s'affiche aussi sur iPhone.
     </p>
   </form>
 
@@ -116,7 +118,7 @@
           <span class="badge badge-info">sorti du fil</span>
         <% } %>
       </span></div>
-      <div class="rf-ligne"><span class="k">Quitte le fil</span><span class="v"><%= _date(r.quitteLeFil) %></span></div>
+      <div class="rf-ligne"><span class="k">Quitte le fil</span><span class="v"><%= _avant ? "au coup d'envoi" : _date(r.quitteLeFil) %></span></div>
       <form method="POST" action="/admin/resumes/<%= encodeURIComponent(r.id) %>/masquer">
         <input type="hidden" name="masque" value="<%= r.masque ? '0' : '1' %>">
         <input type="hidden" name="retour" value="fiche">
@@ -125,7 +127,7 @@
           <%= r.masque ? 'Remettre dans le fil' : 'Retirer du fil' %>
         </button>
       </form>
-      <p class="rf-aide">Retiré, le résumé n'est ni effacé ni réécrit : on peut le remettre à tout moment.</p>
+      <p class="rf-aide">Retiré, l'article n'est ni effacé ni réécrit : on peut le remettre à tout moment.</p>
     </div>
   </aside>
 

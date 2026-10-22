@@ -271,7 +271,8 @@ model Match {
   // chaque écriture de `status` (découverte admin + syncMatchScores).
   statusPriority        Int                 @default(1) @map("status_priority")
   pronostic             Pronostic?
-  resume                ResumeMatch?
+  /// Les articles écrits seuls sur ce match : son avant-match, son résumé.
+  articles              ResumeMatch[]
   favoritedBy           UserFavoriteMatch[]
 
   @@unique([externalId, source])
@@ -912,9 +913,13 @@ model PronosticVote {
 
 /// Résumé automatique d'un match terminé, publié dans les actualités de
 /// l'accueil (services/resumes_match.service.ts). Un par match.
+/// Un article écrit seul sur un match : son résumé après le coup de sifflet
+/// (18 octobre 2026), son avant-match la veille (22 octobre 2026).
 model ResumeMatch {
   id       String   @id @default(uuid())
-  matchId  String   @unique @map("match_id")
+  matchId  String   @map("match_id")
+  /// « resume » ou « avant_match ». Un de chaque au plus par match.
+  genre    String   @default("resume")
   titre    String
   titreEn  String   @map("titre_en")
   resume   String
@@ -929,6 +934,7 @@ model ResumeMatch {
   modifiePar String?   @map("modifie_par")
   match    Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
 
+  @@unique([matchId, genre])
   @@index([creeLe])
   @@map("resumes_match")
 }

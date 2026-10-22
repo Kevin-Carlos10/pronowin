@@ -3,6 +3,7 @@ import fs   from 'fs';
 import path from 'path';
 import { fetchRssNews } from '../services/rss.service';
 import { resumesPourActualites } from '../services/resumes_match.service';
+import { avantMatchsPourActualites } from '../services/avant_matchs.service';
 import { extraitTexte } from '../utils/extrait';
 
 const router = Router();
@@ -74,6 +75,10 @@ router.get('/', async (req: Request, res: Response) => {
   const resumes = (await resumesPourActualites(limite > 20 ? 20 : 8).catch(() => []))
     .map((r) => ({ ...r, date: relTimeShort(new Date(r.created_at)) }));
 
+  // 2 ter. Avant-matchs des matchs pas encore commencés (avant_matchs.service.ts)
+  const avantMatchs = (await avantMatchsPourActualites(limite > 20 ? 15 : 6).catch(() => []))
+    .map((r) => ({ ...r, date: relTimeShort(new Date(r.created_at)) }));
+
   // 3. Fusion : admin d'abord (épinglés en tête), puis RSS
   //    On retire du RSS les articles dont le titre est proche d'un article admin
   const adminTitles = new Set(
@@ -87,7 +92,7 @@ router.get('/', async (req: Request, res: Response) => {
   const unpinned  = adminArticles.filter((a) => !a.is_pinned);
 
   // Mélange unpinned admin + RSS, trié par date
-  const mixed = [...unpinned, ...resumes, ...filteredRss].sort(
+  const mixed = [...unpinned, ...resumes, ...avantMatchs, ...filteredRss].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 

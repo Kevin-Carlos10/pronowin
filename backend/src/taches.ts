@@ -9,6 +9,7 @@ import { executerProgrammationsEchues } from './services/programmations.service'
 import { rapprocherPaiementsEnAttente } from './services/geniuspay.service';
 import { envoyerBilanHebdo } from './services/bilan_hebdo.service';
 import { publierResumes } from './services/resumes_match.service';
+import { publierAvantMatchs } from './services/avant_matchs.service';
 import { annoncerCompositions } from './services/alertes_compositions.service';
 
 /**
@@ -84,6 +85,15 @@ export function demarrerTaches(): () => void {
     };
     programmer(setTimeout(runResumes, 3 * 60_000));
     programmer(setInterval(runResumes, 10 * 60_000));
+
+    // Avant-matchs, de 30 h à 1 h avant le coup d'envoi (avant_matchs.service.ts) :
+    // six appels au fournisseur par match environ, la plupart déjà en cache.
+    const runAvantMatchs = () => {
+      suivre('avant_matchs', () => publierAvantMatchs(), ({ publies }) => `${publies} publié(s)`)
+        .catch((err: Error) => logger.error('[Avant-matchs] Erreur', { message: err.message }));
+    };
+    programmer(setTimeout(runAvantMatchs, 6 * 60_000));
+    programmer(setInterval(runAvantMatchs, 15 * 60_000));
 
     // Compositions officielles des matchs suivis, environ une heure avant le
     // coup d'envoi (alertes_compositions.service.ts).

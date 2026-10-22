@@ -24,6 +24,12 @@ jest.mock('../services/resumes_match.service', () => ({
     from_rss: false, type: 'resume_match', match_id: 'm1',
   }],
 }));
+// Les avant-matchs (22 octobre 2026) : aucun, sauf dans le cas qui les éprouve.
+let mockAvantMatchs: any[] = [];
+const mockLimiteAvantMatchs: number[] = [];
+jest.mock('../services/avant_matchs.service', () => ({
+  avantMatchsPourActualites: async (limite: number) => { mockLimiteAvantMatchs.push(limite); return mockAvantMatchs; },
+}));
 
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const newsRoutes = require('../routes/news.routes').default;
@@ -51,6 +57,25 @@ it('la page Actualités demande jusqu\'à 50 articles ; au-delà, 50 ; l\'accuei
   expect((await request(app).get('/actualites?limite=50')).body).toHaveLength(2);
   expect((await request(app).get('/actualites?limite=abc')).status).toBe(200);
   expect((await request(app).get('/actualites?limite=1')).body).toHaveLength(1);
+});
+
+it('l\'avant-match d\'un match à venir rejoint aussi le flux, sans score ; six à l\'accueil, quinze sur la page Actus', async () => {
+  mockAvantMatchs = [{
+    id: 'avant_match_a1', titre: 'Avant-match : Arsenal (2e) reçoit Chelsea (5e)', titre_en: 'Preview: Arsenal (2nd) host Chelsea (5th)',
+    resume: 'Premier League.', resume_en: 'Premier League.', categorie: 'Premier League', emoji: '⚽',
+    image_url: null, source_url: null, is_pinned: false, created_at: new Date(Date.now() - 10 * 60_000).toISOString(),
+    from_rss: false, type: 'resume_match', genre: 'avant_match', match_id: 'm2', score: null,
+  }];
+  mockLimiteAvantMatchs.length = 0;
+  try {
+    const r = await request(app).get('/actualites');
+    expect(r.body.map((a: any) => a.id)).toEqual(['avant_match_a1', 'resume_r1', 'rss_1']);
+    expect(r.body[0]).toMatchObject({ genre: 'avant_match', type: 'resume_match', score: null, date: 'Il y a 10 min' });
+    await request(app).get('/actualites?limite=50');
+    expect(mockLimiteAvantMatchs).toEqual([6, 15]);
+  } finally {
+    mockAvantMatchs = [];
+  }
 });
 
 describe('l\'image jointe au flux du média', () => {

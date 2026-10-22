@@ -29,7 +29,9 @@
 <%
   const _d     = (typeof donnees !== 'undefined' && donnees) ? donnees : null;
   const _err   = typeof erreur !== 'undefined' ? erreur : null;
-  const _f     = (typeof filtres !== 'undefined' && filtres) ? filtres : { filtre: 'tous', q: '', page: 1 };
+  const _f     = (typeof filtres !== 'undefined' && filtres) ? filtres : { genre: 'resume', filtre: 'tous', q: '', page: 1 };
+  const _avant = _f.genre === 'avant_match';
+  const _mot   = _avant ? 'avant-match' : 'résumé';
   const _lien  = (typeof lienResumes === 'function') ? lienResumes : (() => '/admin/resumes');
   const _st    = _d ? _d.stats : null;
   const _rows  = _d ? (_d.resumes ?? []) : [];
@@ -50,10 +52,16 @@
 <header class="workspace-header">
   <div class="workspace-heading">
     <p class="workspace-eyebrow">Contenu & publication</p>
-    <h1><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg> <%= uiText("Résumés de match") %></h1>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg> <%= uiText("Résumés et avant-matchs") %></h1>
     <p class="workspace-description">
+      <% if (_avant) { %>
+      Écrits automatiquement la veille des matchs pronostiqués et des grandes compétitions — classement, forme,
+      face-à-face, absents —, ils restent dans le fil des actualités jusqu'au coup d'envoi.
+      <% } else { %>
       Écrits automatiquement après chaque match pronostiqué ou des grandes compétitions, ils restent trois jours
-      dans le fil des actualités. Corrigez un titre, ou retirez un résumé du fil.
+      dans le fil des actualités.
+      <% } %>
+      Corrigez un titre, ou retirez un article du fil.
     </p>
   </div>
   <div class="workspace-actions">
@@ -64,24 +72,33 @@
   </div>
 </header>
 
+<nav class="sous-onglets" aria-label="Genre d'article">
+  <a class="sous-onglet <%= _avant ? '' : 'on' %>" href="/admin/resumes" aria-current="<%= _avant ? 'false' : 'page' %>">
+    <svg class="ic" aria-hidden="true"><use href="#ic-check-circle"/></svg> Résumés
+  </a>
+  <a class="sous-onglet <%= _avant ? 'on' : '' %>" href="/admin/resumes?genre=avant_match" aria-current="<%= _avant ? 'page' : 'false' %>">
+    <svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg> Avant-matchs
+  </a>
+</nav>
+
 <% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
 <% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"><%= error %></div><% } %>
 
 <% if (!_d) { %>
   <div class="alert alert-error">
     <strong><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> API injoignable</strong>
-    — impossible de lire les résumés<%= _err ? ' : ' + _err : '.' %>
+    — impossible de lire les <%= _mot %>s<%= _err ? ' : ' + _err : '.' %>
   </div>
 <% } else { %>
 
 <div class="rs-tuiles metric-grid">
   <div class="rs-tuile metric-card">
     <div class="v"><%= _st.dansLeFil %></div>
-    <div class="l">dans le fil<br><span class="rs-dim">moins de trois jours</span></div>
+    <div class="l">dans le fil<br><span class="rs-dim"><%= _avant ? "jusqu'au coup d'envoi" : 'moins de trois jours' %></span></div>
   </div>
   <div class="rs-tuile metric-card">
     <div class="v"><%= _st.total %></div>
-    <div class="l">résumés écrits<br><span class="rs-dim">depuis le 18 octobre 2026</span></div>
+    <div class="l"><%= _mot %>s écrits<br><span class="rs-dim">depuis le <%= _avant ? '22' : '18' %> octobre 2026</span></div>
   </div>
   <div class="rs-tuile metric-card">
     <div class="v"><%= _st.modifies %></div>
@@ -95,23 +112,24 @@
 
 <section class="command-surface">
 <form method="GET" action="/admin/resumes" class="filterbar">
+  <% if (_avant) { %><input type="hidden" name="genre" value="avant_match"><% } %>
   <svg class="ic rs-m" aria-hidden="true"><use href="#ic-search"/></svg>
   <input type="search" name="q" value="<%= _f.q %>" autocomplete="off" maxlength="100"
-         aria-label="Rechercher un résumé"
+         aria-label="Rechercher un <%= _mot %>"
          placeholder="Équipe, compétition, mot du titre…">
-  <select name="filtre" aria-label="Filtrer les résumés">
+  <select name="filtre" aria-label="Filtrer les <%= _mot %>s">
     <% Object.keys(_FILTRES).forEach(k => { %>
     <option value="<%= k %>" <%= _f.filtre === k ? 'selected' : '' %>><%= _FILTRES[k] %></option>
     <% }) %>
   </select>
   <button type="submit" class="btn btn-primary btn-sm"><%= uiText("Filtrer") %></button>
   <% if (_f.q || _f.filtre !== 'tous') { %>
-  <a href="/admin/resumes" class="btn btn-outline btn-sm">
+  <a href="<%= _avant ? '/admin/resumes?genre=avant_match' : '/admin/resumes' %>" class="btn btn-outline btn-sm">
     <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= uiText("Effacer") %>
   </a>
   <% } %>
   <span class="spacer"></span>
-  <span class="rs-compte"><%= _d.total %> résumé<%= _d.total !== 1 ? 's' : '' %></span>
+  <span class="rs-compte"><%= _d.total %> <%= _mot %><%= _d.total !== 1 ? 's' : '' %></span>
 </form>
 </section>
 
@@ -119,8 +137,14 @@
   <div class="card">
     <div class="empty-state">
       <% if (_f.q || _f.filtre !== 'tous') { %>
-        <div class="empty-state-title">Aucun résumé ne correspond</div>
+        <div class="empty-state-title">Aucun <%= _mot %> ne correspond</div>
         <div class="empty-state-desc">Changez la recherche ou le filtre.</div>
+      <% } else if (_avant) { %>
+        <div class="empty-state-title">Aucun avant-match pour l'instant</div>
+        <div class="empty-state-desc">
+          Un avant-match s'écrit entre 30 heures et une heure avant le coup d'envoi d'un match pronostiqué, ou d'un
+          match des grandes compétitions, dès que le classement, la forme ou le face-à-face sont connus.
+        </div>
       <% } else { %>
         <div class="empty-state-title">Aucun résumé pour l'instant</div>
         <div class="empty-state-desc">
@@ -164,7 +188,7 @@
             <span class="badge badge-warn">retiré du fil</span>
           <% } else if (r.dansLeFil) { %>
             <span class="badge badge-ok">dans le fil</span>
-            <span class="rs-sous">jusqu'au <%= _date(r.quitteLeFil) %></span>
+            <span class="rs-sous"><%= _avant ? "jusqu'au coup d'envoi" : "jusqu'au " + _date(r.quitteLeFil) %></span>
           <% } else { %>
             <span class="badge badge-info">sorti du fil</span>
           <% } %>
@@ -181,6 +205,7 @@
           </a>
           <form method="POST" action="/admin/resumes/<%= encodeURIComponent(r.id) %>/masquer">
             <input type="hidden" name="masque" value="<%= r.masque ? '0' : '1' %>">
+            <input type="hidden" name="genre"  value="<%= _f.genre %>">
             <input type="hidden" name="filtre" value="<%= _f.filtre %>">
             <input type="hidden" name="q"      value="<%= _f.q %>">
             <input type="hidden" name="page"   value="<%= _f.page %>">
@@ -212,10 +237,10 @@
 <% } %>
 
 <p class="rs-note">
-  Retirer un résumé ne l'efface pas : il disparaît du fil des actualités de l'application, et il n'est pas
-  réécrit. Un texte corrigé ne l'est pas non plus — un résumé n'est rédigé qu'une fois. Le pronostic d'un match
-  VIP n'y est jamais dévoilé, et aucun mot de pari n'y figure : il s'affiche aussi sur iPhone. Gardez ces deux
-  règles en corrigeant.
+  Retirer un article ne l'efface pas : il disparaît du fil des actualités de l'application, et il n'est pas
+  réécrit. Un texte corrigé ne l'est pas non plus — chaque article n'est rédigé qu'une fois. Un avant-match ne
+  dévoile jamais le pronostic, un résumé jamais celui d'un match VIP, et aucun mot de pari n'y figure : ils
+  s'affichent aussi sur iPhone. Gardez ces règles en corrigeant.
 </p>
 
 <% } %>

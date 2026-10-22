@@ -48,6 +48,9 @@ const TERMINES = new Set(['FT', 'AET', 'PEN']);
 const minute = (t: any) =>
   typeof t?.elapsed === 'number' ? `${t.elapsed}${t.extra ? `+${t.extra}` : ''}'` : '';
 
+/** « de Schick », « d'Erling Haaland » : l'élision devant une voyelle. */
+export const de = (nom: string) => /^[aeiouyàâäéèêëîïôöùûüøœæ]/i.test(nom) ? `d'${nom}` : `de ${nom}`;
+
 /** « 8,7 » en français, « 8.7 » en anglais. */
 const decimal = (n: number, langue: Langue) => {
   const s = n.toFixed(1);
@@ -174,11 +177,11 @@ function titre(f: any, ctx: ContexteResume, buts: But[] | null, langue: Langue):
     // Linz (22 octobre 2026).
     if (vainqueur !== null && camp !== vainqueur) {
       const mot = MULTIPLE_PERDANT[langue][Math.min(n, 4)];
-      t += fr ? `, malgré le ${mot} de ${vedette}`
+      t += fr ? `, malgré le ${mot} ${de(vedette)}`
         : n === 3 ? `, despite ${mot} ${vedette}` : `, despite ${vedette} ${mot}`;
     } else {
       const mot = MULTIPLE[langue][Math.min(n, 4)];
-      t += fr ? `, ${mot} de ${vedette}`
+      t += fr ? `, ${mot} ${de(vedette)}`
         : n === 3 ? `, ${mot} ${vedette}` : `, ${vedette} ${mot}`;
     }
   }
@@ -311,7 +314,7 @@ export async function publierResumes(maintenant = new Date()): Promise<{ publies
       status:    'FINISHED',
       source:    'API_FOOTBALL',
       matchDate: { gte: new Date(t - FENETRE_MS), lte: new Date(t - APRES_COUP_ENVOI_MS) },
-      resume:    null,
+      articles:  { none: { genre: 'resume' } },
       OR: [
         { pronostic: { publicationRecordedAt: { not: null } } },
         { leagueCode: { in: GRANDES_COMPETITIONS } },
@@ -352,7 +355,7 @@ export async function publierResumes(maintenant = new Date()): Promise<{ publies
       } : null,
     }, { dom: m.homeScore, ext: m.awayScore });
     if (!resume) { essaisManques.set(m.id, t); continue; }
-    await prisma.resumeMatch.create({ data: { matchId: m.id, ligue: m.league, ...resume } })
+    await prisma.resumeMatch.create({ data: { matchId: m.id, genre: 'resume', ligue: m.league, ...resume } })
       .then(() => { publies++; essaisManques.delete(m.id); })
       // Deux passages simultanés : le second bute sur l'unicité, sans dommage.
       .catch((e: any) => journal.warn(`[Résumés] ${m.id} : ${e.message}`));
@@ -371,7 +374,7 @@ export const DUREE_DANS_LE_FIL_MS = 3 * 24 * 3600_000;
  */
 export async function resumesPourActualites(limite = 8): Promise<any[]> {
   const lus = await prisma.resumeMatch.findMany({
-    where:   { creeLe: { gte: new Date(Date.now() - DUREE_DANS_LE_FIL_MS) }, masque: false },
+    where:   { genre: 'resume', creeLe: { gte: new Date(Date.now() - DUREE_DANS_LE_FIL_MS) }, masque: false },
     orderBy: { creeLe: 'desc' },
     take:    limite * 3,
     // Les logos et le score : le visuel d'un résumé, faute de photo.
@@ -397,6 +400,7 @@ export async function resumesPourActualites(limite = 8): Promise<any[]> {
     from_rss:   false,
     // Pour une prochaine version de l'app : ouvrir la fiche du match.
     type:       'resume_match',
+    genre:      'resume',
     match_id:   r.matchId,
     // Le visuel d'un résumé dans l'app (1.0.26) : les deux logos et le score.
     logo_domicile:  r.match?.homeTeamLogo ?? null,

@@ -49,7 +49,7 @@ jest.mock('../services/paiements_mobile_money_admin.service', () => ({
   ETATS_PAIEMENT_MM: [], resumePaiementsMobileMoney: async () => ({}), reverifierPaiementMobileMoney: async () => null,
 }));
 jest.mock('../services/resumes_match_admin.service', () => ({
-  FILTRES_RESUMES: [], listerResumesAdmin: async () => ({}), lireResumeAdmin: async () => null,
+  FILTRES_RESUMES: [], GENRES_ARTICLE: [], listerResumesAdmin: async () => ({}), lireResumeAdmin: async () => null,
   modifierResume: async () => null, masquerResume: async () => null,
 }));
 jest.mock('../services/programmations.service', () => ({

@@ -10,7 +10,8 @@ import { ajouterAuJournal, verifierChaine } from '../services/journal_admin.serv
 import { resumeAchatsStore, reverifierAchatStore } from '../services/achats_store_admin.service';
 import { ETATS_PAIEMENT_MM, resumePaiementsMobileMoney, reverifierPaiementMobileMoney } from '../services/paiements_mobile_money_admin.service';
 import {
-  FILTRES_RESUMES, FiltreResumes, listerResumesAdmin, lireResumeAdmin, modifierResume, masquerResume,
+  FILTRES_RESUMES, FiltreResumes, GENRES_ARTICLE, GenreArticle,
+  listerResumesAdmin, lireResumeAdmin, modifierResume, masquerResume,
 } from '../services/resumes_match_admin.service';
 import {
   programmerPublication, programmerNotification, annulerProgrammation, listerProgrammations,
@@ -234,15 +235,19 @@ r.delete('/programmations/notifications/:id', adminMiddleware, async (req: Admin
 
 // ─── Résumés de match ────────────────────────────────────────────────────────
 //
-// Les résumés écrits seuls après chaque match (resumes_match.service.ts) :
-// les relire, en corriger le texte, les retirer du fil
-// (resumes_match_admin.service.ts).
+// Les résumés écrits seuls après chaque match (resumes_match.service.ts) et
+// les avant-matchs écrits la veille (avant_matchs.service.ts) : les relire,
+// en corriger le texte, les retirer du fil (resumes_match_admin.service.ts).
+// `?genre=avant_match` pour les seconds.
 
 r.get('/resumes', adminMiddleware, async (req: AdminRequest, res) => {
   try {
     const filtre = typeof req.query.filtre === 'string'
       && (FILTRES_RESUMES as string[]).includes(req.query.filtre) ? req.query.filtre as FiltreResumes : 'tous';
+    const genre = typeof req.query.genre === 'string'
+      && (GENRES_ARTICLE as string[]).includes(req.query.genre) ? req.query.genre as GenreArticle : 'resume';
     res.json(await listerResumesAdmin({
+      genre,
       filtre,
       recherche: typeof req.query.q === 'string' ? req.query.q.slice(0, 100) : undefined,
       page:      parseInt(String(req.query.page ?? '1')) || 1,

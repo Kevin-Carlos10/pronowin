@@ -312,16 +312,17 @@ module.exports = (app, ctx) => {
     res.redirect('/admin/actualites?success=' + encodeURIComponent('Article supprimé.'));
   });
 
-  // ─── RÉSUMÉS DE MATCH ─────────────────────────────────────────────────────────
+  // ─── RÉSUMÉS ET AVANT-MATCHS ───────────────────────────────────────────────────
   //
-  // Les résumés écrits seuls après chaque match, une soixantaine par semaine.
-  // Le 22 octobre 2026, trois titres faux n'ont pu être corrigés que par un
-  // script sur le serveur : ici, on les relit, on les corrige, on les retire
-  // du fil.
+  // Les résumés écrits seuls après chaque match, une soixantaine par semaine,
+  // et les avant-matchs écrits la veille. Le 22 octobre 2026, trois titres
+  // faux n'ont pu être corrigés que par un script sur le serveur : ici, on les
+  // relit, on les corrige, on les retire du fil.
 
   const FILTRES_RESUMES = ['tous', 'dans_le_fil', 'masques', 'modifies'];
 
   const filtresResumes = (q) => ({
+    genre:  q.genre === 'avant_match' ? 'avant_match' : 'resume',
     filtre: FILTRES_RESUMES.includes(q.filtre) ? q.filtre : 'tous',
     q:      String(q.q ?? '').trim().slice(0, 100),
     page:   Math.max(1, parseInt(q.page) || 1),
@@ -330,6 +331,7 @@ module.exports = (app, ctx) => {
   /** L'adresse de la liste avec ces filtres — jamais une adresse reçue telle quelle. */
   const lienResumes = (f, message) => {
     const p = new URLSearchParams();
+    if (f.genre === 'avant_match') p.set('genre', 'avant_match');
     if (f.filtre !== 'tous') p.set('filtre', f.filtre);
     if (f.q)        p.set('q', f.q);
     if (f.page > 1) p.set('page', String(f.page));
@@ -345,6 +347,7 @@ module.exports = (app, ctx) => {
     let donnees = null, erreur = null;
     try {
       const r = await api(req.admin.jeton).get('/admin/resumes', { params: {
+        genre:  filtres.genre,
         filtre: filtres.filtre,
         ...(filtres.q ? { q: filtres.q } : {}),
         page:   filtres.page,
@@ -382,8 +385,9 @@ module.exports = (app, ctx) => {
     };
     try {
       const r = await api(req.admin.jeton).post('/admin/resumes/' + encodeURIComponent(req.params.id), saisie);
-      logAction(req, 'resume_modifie', r.data.titre, { id: req.params.id, match: r.data.matchId });
-      res.redirect(ficheResume(req.params.id, ['success', 'Résumé corrigé : le fil des actualités affiche le nouveau texte.']));
+      logAction(req, 'resume_modifie', r.data.titre, { id: req.params.id, match: r.data.matchId, genre: r.data.genre });
+      res.redirect(ficheResume(req.params.id, ['success', (r.data.genre === 'avant_match' ? 'Avant-match' : 'Résumé')
+        + ' corrigé : le fil des actualités affiche le nouveau texte.']));
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
       if (e.response?.status === 404) return res.redirect(lienResumes(filtresResumes({}), ['error', 'Résumé introuvable.']));
@@ -405,11 +409,12 @@ module.exports = (app, ctx) => {
     const retour = (message) => depuisFiche ? ficheResume(req.params.id, message) : lienResumes(filtres, message);
     try {
       const r = await api(req.admin.jeton).post('/admin/resumes/' + encodeURIComponent(req.params.id) + '/masquer', { masque });
-      logAction(req, masque ? 'resume_masque' : 'resume_affiche', r.data.titre, { id: req.params.id, match: r.data.matchId });
+      logAction(req, masque ? 'resume_masque' : 'resume_affiche', r.data.titre, { id: req.params.id, match: r.data.matchId, genre: r.data.genre });
       res.redirect(retour(['success', masque
         ? `« ${r.data.titre} » retiré du fil des actualités.`
         : r.data.dansLeFil ? `« ${r.data.titre} » remis dans le fil des actualités.`
-          : `« ${r.data.titre} » n'est plus masqué (il a plus de trois jours : il ne revient pas dans le fil).`]));
+          : `« ${r.data.titre} » n'est plus masqué, mais ne revient pas dans le fil : ${r.data.genre === 'avant_match'
+            ? 'le match a commencé' : 'il a plus de trois jours'}.`]));
     } catch (e) {
       if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
       res.redirect(retour(['error', 'Action impossible : ' + (e.response?.data?.message ?? e.message)]));

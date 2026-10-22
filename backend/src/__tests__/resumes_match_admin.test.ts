@@ -9,6 +9,7 @@
 import { prisma } from '../lib/prisma';
 import { listerResumesAdmin, lireResumeAdmin, modifierResume, masquerResume } from '../services/resumes_match_admin.service';
 import { resumesPourActualites } from '../services/resumes_match.service';
+import { avantMatchsPourActualites } from '../services/avant_matchs.service';
 import { decrireSurBaseLocale } from './aides/base_locale';
 
 const marque = `banc-resumes-${Date.now()}`;
@@ -95,6 +96,34 @@ decrireSurBaseLocale('les résumés dans le panneau', () => {
     expect(await ids({ filtre: 'dans_le_fil' })).toEqual([]);
     expect(await masquerResume(recent.id, false)).toMatchObject({ masque: false, dansLeFil: true });
     expect(await dansLeFil()).toBe(true);
+  });
+
+  it('les avant-matchs à part : dans le fil jusqu\'au coup d\'envoi, puis sortis', async () => {
+    const aVenir = await prisma.match.create({ data: {
+      externalId: Math.floor(Math.random() * 1e9) + 1e9, source: 'API_FOOTBALL', league: 'Premier League', leagueCode: 'PL',
+      homeTeam: `Arsenal ${marque}`, awayTeam: 'Chelsea', matchDate: new Date(Date.now() + 20 * HEURE), status: 'SCHEDULED',
+    } });
+    matchs.push(aVenir.id);
+    // Un avant-match et un résumé pour le même match : un de chaque genre.
+    const avant = await prisma.resumeMatch.create({ data: { matchId: aVenir.id, genre: 'avant_match',
+      ligue: 'Premier League', titre: 'Avant-match : Arsenal (2e) reçoit Chelsea (5e)', titreEn: 'Preview', resume: 'R', resumeEn: 'R' } });
+    await expect(prisma.resumeMatch.create({ data: { matchId: aVenir.id, genre: 'avant_match',
+      ligue: 'Premier League', titre: 'doublon', titreEn: 'x', resume: 'x', resumeEn: 'x' } })).rejects.toThrow();
+
+    expect(await ids({ genre: 'avant_match' })).toEqual([avant.id]);
+    expect(await ids({ genre: 'avant_match', filtre: 'dans_le_fil' })).toEqual([avant.id]);
+    expect(await ids({})).not.toContain(avant.id);   // les résumés, par défaut
+    const l = await listerResumesAdmin({ genre: 'avant_match', recherche: marque });
+    expect(l.resumes[0]).toMatchObject({ genre: 'avant_match', dansLeFil: true, quitteLeFil: aVenir.matchDate.toISOString() });
+    const dansLeFil = async () => (await avantMatchsPourActualites(50)).some(a => a.match_id === aVenir.id);
+    expect(await dansLeFil()).toBe(true);
+    expect((await resumesPourActualites(50)).some(a => a.match_id === aVenir.id)).toBe(false);
+
+    // Coup d'envoi passé : sorti du fil.
+    await prisma.match.update({ where: { id: aVenir.id }, data: { matchDate: new Date(Date.now() - HEURE), status: 'LIVE' } });
+    expect(await ids({ genre: 'avant_match', filtre: 'dans_le_fil' })).toEqual([]);
+    expect((await lireResumeAdmin(avant.id))!.dansLeFil).toBe(false);
+    expect(await dansLeFil()).toBe(false);
   });
 
   it('un résumé qui n\'existe pas : null', async () => {
