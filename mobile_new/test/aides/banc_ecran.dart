@@ -214,10 +214,11 @@ class _ServeurBanc implements HttpClientAdapter {
   void close({bool force = false}) {}
 }
 
-List<Override> donneesCommunes() => [
+/// [favoris] : un autre carnet de matchs suivis que le carnet vide.
+List<Override> donneesCommunes({FavorisNotifier Function()? favoris}) => [
       dioProvider.overrideWithValue(Dio()..httpClientAdapter = _ServeurBanc()),
       authProvider.overrideWith(_Connecte.new),
-      favorisProvider.overrideWith(_AucunFavori.new),
+      favorisProvider.overrideWith(favoris ?? _AucunFavori.new),
       isOnlineProvider.overrideWithValue(true),
       unreadCountProvider.overrideWithValue(3),
     ];

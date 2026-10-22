@@ -9,7 +9,6 @@ import '../../core/utils/motion.dart';
 import '../../core/widgets/image_distante.dart';
 import '../../core/widgets/team_logo_widget.dart';
 import '../../l10n/app_strings.dart';
-import '../../l10n/editorial_text.dart';
 import '../../shared/providers/favoris_provider.dart';
 import '../../shared/utils/retour.dart';
 import 'actualites.dart';
@@ -36,7 +35,11 @@ class PageActus extends ConsumerWidget {
     final onglets = <(String, String, List<Map<String, dynamic>> Function(List<Map<String, dynamic>>), bool)>[
       ('pour-toi', tr(context, "Pour toi"), (l) => _pourToi(l, suivis), true),
       ('recent', tr(context, "Plus récent"), _parDate, false),
-      ('resumes', tr(context, "Résumés"), (l) => _parDate(l).where((n) => familleActu(n) == FamilleActu.resume).toList(), false),
+      // Les avant-matchs à part des résumés (1.0.29) : ce qui se joue, puis ce
+      // qui s'est joué.
+      ('avant-matchs', tr(context, "Avant-matchs"), (l) => _parDate(l).where(estAvantMatch).toList(), false),
+      ('resumes', tr(context, "Résumés"),
+        (l) => _parDate(l).where((n) => familleActu(n) == FamilleActu.resume && !estAvantMatch(n)).toList(), false),
       ('medias', tr(context, "Médias"), (l) => _parDate(l).where((n) => familleActu(n) == FamilleActu.media).toList(), false),
       if (aRedaction)
         ('redaction', tr(context, "PronoWin"), (l) => _parDate(l).where((n) => familleActu(n) == FamilleActu.redaction).toList(), false),
@@ -222,7 +225,7 @@ class VisuelActu extends StatelessWidget {
         repli: _BlocGris(largeur: largeur, hauteur: hauteur, rayon: 0));
     }
     if (familleActu(news) == FamilleActu.resume) {
-      final score = news['score'] as String?;
+      final score = centreVisuelMatch(news);
       final logo = compact ? hauteur * 0.36 : hauteur * 0.30;
       return ExcludeSemantics(child: Container(
         width: largeur, height: hauteur,
@@ -254,9 +257,14 @@ class LigneSource extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final date = dateActu(news);
+    final famille = familleActu(news);
+    final avantMatch = estAvantMatch(news);
     final morceaux = [
-      sourceActu(news),
-      if (familleActu(news) == FamilleActu.resume && (news['categorie'] as String?)?.isNotEmpty == true)
+      // Un article de match dit ce qu'il est : « Avant-match », « Résumé ».
+      famille == FamilleActu.resume
+          ? (avantMatch ? tr(context, "Avant-match") : tr(context, "Résumé"))
+          : sourceActu(news),
+      if (famille == FamilleActu.resume && (news['categorie'] as String?)?.isNotEmpty == true)
         news['categorie'] as String,
       dateLongue ? dateArticle(context, date) : ilYa(context, date),
     ].where((m) => m.isNotEmpty);
@@ -264,9 +272,11 @@ class LigneSource extends StatelessWidget {
       Container(
         width: 16, height: 16,
         decoration: BoxDecoration(
-          color: familleActu(news) == FamilleActu.media ? context.cl.textM : context.cl.success,
+          color: famille == FamilleActu.media ? context.cl.textM
+              : avantMatch ? context.cl.info : context.cl.success,
           shape: BoxShape.circle),
-        child: Icon(familleActu(news) == FamilleActu.media ? Icons.rss_feed_rounded : Icons.sports_soccer_rounded,
+        child: Icon(famille == FamilleActu.media ? Icons.rss_feed_rounded
+            : avantMatch ? Icons.event_rounded : Icons.sports_soccer_rounded,
           size: 10, color: Colors.white)),
       const SizedBox(width: 6),
       Expanded(child: Text(morceaux.join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis,
@@ -297,7 +307,7 @@ class _CarteActu extends ConsumerWidget {
               VisuelActu(news: news, largeur: c.maxWidth, hauteur: c.maxHeight))),
           ),
           const SizedBox(height: 10),
-          Text(editorialField(news, 'titre'), maxLines: 3, overflow: TextOverflow.ellipsis,
+          Text(titreActu(news), maxLines: 3, overflow: TextOverflow.ellipsis,
             style: TextStyle(color: lue ? context.cl.textS : context.cl.textP,
               fontSize: 16, fontWeight: FontWeight.w600, height: 1.3)),
           const SizedBox(height: 6),
@@ -328,7 +338,7 @@ class _LigneActu extends ConsumerWidget {
             child: VisuelActu(news: news, largeur: 124, hauteur: 78, compact: true)),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(editorialField(news, 'titre'), maxLines: 3, overflow: TextOverflow.ellipsis,
+            Text(titreActu(news), maxLines: 3, overflow: TextOverflow.ellipsis,
               style: TextStyle(color: lue ? context.cl.textS : context.cl.textP,
                 fontSize: 15, fontWeight: FontWeight.w600, height: 1.3)),
             const SizedBox(height: 6),

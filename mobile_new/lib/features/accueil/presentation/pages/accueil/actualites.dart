@@ -342,7 +342,8 @@ class _VisuelResume extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final score = news['score'] as String?;
+    // Le score d'un résumé, « VS » pour un avant-match.
+    final score = centreVisuelMatch(news);
     final logos = [news['logo_domicile'] as String?, news['logo_exterieur'] as String?];
     return ExcludeSemantics(child: compact
       ? Column(mainAxisAlignment: MainAxisAlignment.center, children: [

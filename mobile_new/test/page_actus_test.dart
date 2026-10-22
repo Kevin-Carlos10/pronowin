@@ -35,25 +35,39 @@ final _actus = <Map<String, dynamic>>[
    'logo_exterieur': 'https://media.api-sports.io/football/teams/81.png'},
 ];
 
+/// Un avant-match (22 octobre 2026) : servi avec le type des résumés, et son genre.
+final _avantMatch = <String, dynamic>{
+  'id': 'avant_match_a1', 'titre': 'Avant-match : Arsenal (2e) reçoit Chelsea (5e)',
+  'titre_en': 'Preview: Arsenal (2nd) host Chelsea (5th)',
+  'resume': 'Premier League. Arsenal, 2e avec 17 points, reçoit Chelsea, 5e avec 14 points.',
+  'categorie': 'Premier League', 'image_url': null, 'source_url': null,
+  'created_at': DateTime.now().subtract(const Duration(minutes: 10)).toUtc().toIso8601String(), 'from_rss': false,
+  'type': 'resume_match', 'genre': 'avant_match', 'match_id': 'm-ars', 'score': null,
+  'logo_domicile': 'https://media.api-sports.io/football/teams/42.png',
+  'logo_exterieur': 'https://media.api-sports.io/football/teams/49.png',
+};
+
 void main() {
   setUpAll(() => initializeDateFormatting('fr_FR'));
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   Future<ProviderContainer> monter(WidgetTester t,
-      {Set<String> suivis = const {}, Future<List<Map<String, dynamic>>>? chargement}) async {
+      {Set<String> suivis = const {}, Future<List<Map<String, dynamic>>>? chargement,
+       List<Map<String, dynamic>>? actus, String depart = '/actualites'}) async {
     // Un téléphone (390 × 844) : à 800 px de large, la grande carte repousse
     // la suite hors de l'écran, et la liste ne la construit pas.
     t.view.physicalSize = const Size(1170, 2532);
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
-    final routeur = GoRouter(initialLocation: '/actualites', routes: [
+    final routeur = GoRouter(initialLocation: depart, routes: [
       GoRoute(path: '/actualites', builder: (_, _) => const PageActus()),
-      GoRoute(path: '/actualites/article', builder: (_, s) => PageArticle(news: s.extra as Map<String, dynamic>)),
+      // Comme l'application : l'article en paramètre, sinon celui de `?id=`.
+      GoRoute(path: '/actualites/article', builder: (_, s) => pageDeLArticle(s.extra, s.uri.queryParameters)),
       GoRoute(path: '/pronostics/:id', builder: (_, s) => Text('fiche ${s.pathParameters['id']}')),
       GoRoute(path: '/navigateur', builder: (_, s) => Text('nav ${(s.extra as Map)['url']}')),
     ]);
     final conteneur = ProviderContainer(overrides: [
-      toutesActualitesProvider.overrideWith((ref) => chargement ?? Future.value(_actus)),
+      toutesActualitesProvider.overrideWith((ref) => chargement ?? Future.value(actus ?? _actus)),
       favorisProvider.overrideWith(() => _Suivis(suivis)),
     ]);
     addTearDown(conteneur.dispose);
@@ -71,7 +85,7 @@ void main() {
 
   testWidgets('onglets comme FotMob ; « Pour toi » ouvre sur Tendance, le match suivi en tête', (t) async {
     await monter(t, suivis: {'m-om'});
-    for (final o in ['pour-toi', 'recent', 'resumes', 'medias']) {
+    for (final o in ['pour-toi', 'recent', 'avant-matchs', 'resumes', 'medias']) {
       expect(find.byKey(Key('onglet-actus-$o')), findsOneWidget, reason: o);
     }
     // Aucun article de la rédaction : pas d'onglet vide.
@@ -85,6 +99,57 @@ void main() {
     expect(find.byType(TeamLogoWidget), findsNWidgets(2));
     expect(find.text('2-5'), findsOneWidget);
     expect(find.textContaining('Il y a 3 h'), findsOneWidget);
+  });
+
+  testWidgets('onglet Avant-matchs : les avant-matchs seuls, étiquetés, logos et « VS », sans le préfixe du titre', (t) async {
+    await monter(t, actus: [..._actus, _avantMatch]);
+    await t.ensureVisible(find.byKey(const Key('onglet-actus-avant-matchs')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('onglet-actus-avant-matchs')));
+    await t.pumpAndSettle();
+    expect(find.text('Arsenal (2e) reçoit Chelsea (5e)'), findsOneWidget);
+    expect(find.textContaining('Avant-match :'), findsNothing);
+    expect(find.textContaining('Avant-match · Premier League ·'), findsOneWidget);
+    expect(find.text('VS'), findsOneWidget);
+    expect(find.textContaining('Marseille'), findsNothing);
+    expect(find.textContaining('Mercato'), findsNothing);
+  });
+
+  testWidgets('onglet Résumés : sans les avant-matchs', (t) async {
+    await monter(t, actus: [..._actus, _avantMatch]);
+    await t.ensureVisible(find.byKey(const Key('onglet-actus-resumes')));
+    await t.pumpAndSettle();
+    await t.tap(find.byKey(const Key('onglet-actus-resumes')));
+    await t.pumpAndSettle();
+    // L'onglet affiché seulement : ses voisins restent construits.
+    expect(find.textContaining('Marseille').hitTestable(), findsOneWidget);
+    expect(find.textContaining('Arsenal').hitTestable(), findsNothing);
+  });
+
+  testWidgets('un avant-match mène à la fiche du match', (t) async {
+    await monter(t, actus: [..._actus, _avantMatch]);
+    await t.tap(find.byKey(const Key('actu-avant_match_a1')));
+    await t.pumpAndSettle();
+    expect(find.text('Arsenal (2e) reçoit Chelsea (5e)'), findsOneWidget);
+    expect(find.textContaining('Avant-match · Premier League ·'), findsOneWidget);
+    await t.tap(find.byKey(const Key('actu-voir-match')));
+    await t.pumpAndSettle();
+    expect(find.text('fiche m-ars'), findsOneWidget);
+  });
+
+  testWidgets('« Le résumé est prêt » : le lien de la notification ouvre le résumé, et le marque lu', (t) async {
+    final c = await monter(t, depart: '/actualites/article?id=resume_r1');
+    await t.pumpAndSettle();
+    expect(find.byType(PageArticle), findsOneWidget);
+    expect(find.text('Score à la mi-temps : 1-2.'), findsOneWidget);
+    expect(c.read(actualitesLuesProvider), contains('resume_r1'));
+  });
+
+  testWidgets('un lien vers un article qui a quitté le fil : la page Actus', (t) async {
+    await monter(t, depart: '/actualites/article?id=resume_parti');
+    await t.pumpAndSettle();
+    expect(find.byType(PageArticle), findsNothing);
+    expect(find.byType(PageActus), findsOneWidget);
   });
 
   testWidgets('onglet Médias : les seuls titres des médias', (t) async {
@@ -105,7 +170,8 @@ void main() {
     expect(find.byType(PageArticle), findsOneWidget);
     expect(find.text('Score à la mi-temps : 1-2.'), findsOneWidget);
     expect(find.text("Buts — Angers : Rao-Lisoa (14')."), findsOneWidget);
-    expect(find.textContaining('PronoWin · Ligue 1 ·'), findsOneWidget);
+    // L'étiquette dit ce qu'est l'article (1.0.29).
+    expect(find.textContaining('Résumé · Ligue 1 ·'), findsOneWidget);
     expect(find.byKey(const Key('article-partager')), findsOneWidget);
     expect(c.read(actualitesLuesProvider), contains('resume_r1'));
     await t.tap(find.byKey(const Key('actu-voir-match')));

@@ -54,7 +54,7 @@ class PageArticle extends ConsumerWidget {
             SliverPadding(
               padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
               sliver: SliverList.list(children: [
-                Semantics(header: true, child: Text(editorialField(news, 'titre'),
+                Semantics(header: true, child: Text(titreActu(news),
                   style: TextStyle(color: context.cl.textP, fontSize: 25, fontWeight: FontWeight.w800, height: 1.25))),
                 const SizedBox(height: 12),
                 LigneSource(news: news, dateLongue: true),
@@ -135,6 +135,40 @@ class PageArticle extends ConsumerWidget {
       .replaceAll('&#39;', "'").replaceAll('&lt;', '<').replaceAll('&gt;', '>')
       .replaceAll(RegExp(r'\n{3,}'), '\n\n')
       .trim();
+}
+
+/// La page de `/actualites/article` : l'article passé en paramètre, sinon
+/// celui de `?id=`, sinon la page Actus — lien ouvert de l'extérieur, ou
+/// version précédente du serveur.
+Widget pageDeLArticle(Object? extra, Map<String, String> requete) =>
+    extra is Map ? PageArticle(news: Map<String, dynamic>.from(extra))
+    : (requete['id']?.isNotEmpty ?? false) ? PageArticleDepuisLien(id: requete['id']!)
+    : const PageActus();
+
+/// Un article ouvert par un lien, sans l'article lui-même : la notification
+/// « Le résumé est prêt » (22 octobre 2026) mène à
+/// `/actualites/article?id=resume_…`. On le cherche parmi les actualités ;
+/// introuvable — il a quitté le fil —, c'est la page Actus.
+class PageArticleDepuisLien extends ConsumerWidget {
+  final String id;
+  const PageArticleDepuisLien({super.key, required this.id});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final etat = ref.watch(toutesActualitesProvider);
+    final trouve = etat.valueOrNull?.where((n) => n['id'] == id).firstOrNull;
+    if (trouve != null) {
+      // Lu, mais après la construction : un fournisseur ne change pas pendant.
+      Future.microtask(() => ref.read(actualitesLuesProvider.notifier).marquer(id));
+      return PageArticle(news: trouve);
+    }
+    if (etat.isLoading) {
+      return Scaffold(
+        backgroundColor: context.cl.surface,
+        body: const Center(child: CircularProgressIndicator(key: Key('article-chargement'))));
+    }
+    return const PageActus();
+  }
 }
 
 /// Bouton rond translucide, flouté, comme ceux de FotMob sur la photo.

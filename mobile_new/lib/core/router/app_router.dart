@@ -203,13 +203,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (_, s) => slideRightPage(state: s, child: const PageActus()),
       ),
       // Un article : glisse depuis la droite, comme sur FotMob. Sans
-      // l'article en paramètre (lien ouvert de l'extérieur), la page Actus.
+      // l'article en paramètre (lien ouvert de l'extérieur), on le cherche
+      // par `?id=` (notification « Le résumé est prêt »), sinon la page Actus.
       GoRoute(
         path: '/actualites/article',
         pageBuilder: (_, s) => slideRightPage(state: s,
-          child: s.extra is Map
-              ? PageArticle(news: Map<String, dynamic>.from(s.extra as Map))
-              : const PageActus()),
+          child: pageDeLArticle(s.extra, s.uri.queryParameters)),
       ),
       GoRoute(
         path: '/navigateur',

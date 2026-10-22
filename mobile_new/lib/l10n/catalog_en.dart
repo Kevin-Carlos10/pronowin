@@ -1688,4 +1688,9 @@ const englishMessages = <String, String>{
   "Écrire un commentaire": "Write a comment",
   "Annuler la réponse": "Cancel reply",
   "Envoyer": "Send",
+  "Avant-matchs": "Previews",
+  "Avant-match": "Preview",
+  "Résumé": "Match report",
+  "Sois alerté des buts, de la mi-temps et du résumé.": "Get alerts for goals, half-time and the match report.",
+  "Suivre": "Follow",
 };

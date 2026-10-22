@@ -112,11 +112,61 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
   /// L'application est-elle au premier plan ?
   bool _premierPlan = true;
 
+  /// La bulle qui présente la cloche, une fois par appareil (22 octobre
+  /// 2026) : les alertes des matchs suivis — buts, mi-temps, cartons rouges,
+  /// compositions, résumé — ne touchaient que quatre personnes. La cloche
+  /// passait inaperçue.
+  static const cleAstuceSuivi = 'astuce_suivre_match_vue';
+  final _cleCloche = GlobalKey();
+  bool _bulleSuivi = false;
+  bool _bulleNotee = false;
+  /// Abscisse du centre de la cloche : la pointe de la bulle la vise.
+  double? _centreCloche;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     AnalyseUsage.pronosticOuvert(premium: widget.preloaded?.isPremium ?? false);
+    _preparerBulleSuivi();
+  }
+
+  Future<void> _preparerBulleSuivi() async {
+    final prefs = await SharedPreferences.getInstance();
+    if (!mounted || (prefs.getBool(cleAstuceSuivi) ?? false)) return;
+    setState(() => _bulleSuivi = true);
+  }
+
+  /// La bulle est à l'écran : notée comme vue, et la cloche mesurée pour que
+  /// la pointe la vise.
+  void _bulleMontree() {
+    if (!_bulleNotee) {
+      _bulleNotee = true;
+      SharedPreferences.getInstance().then((p) => p.setBool(cleAstuceSuivi, true));
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final boite = _cleCloche.currentContext?.findRenderObject() as RenderBox?;
+      if (boite == null || !boite.hasSize) return;
+      final centre = boite.localToGlobal(boite.size.center(Offset.zero)).dx;
+      if (centre != _centreCloche) setState(() => _centreCloche = centre);
+    });
+  }
+
+  void _fermerBulle() {
+    if (_bulleSuivi) setState(() => _bulleSuivi = false);
+  }
+
+  /// Suivre le match, ou ne plus le suivre — depuis la cloche ou la bulle.
+  void _basculerSuivi(MatchEntity match) {
+    HapticFeedback.selectionClick();
+    // Le détail est ouvert aux invités, mais suivre exige un compte : on les
+    // emmène s'inscrire au moment du geste.
+    if (!ref.read(effectiveLoggedInProvider)) {
+      context.push('/auth/email?from=${Uri.encodeComponent('/pronostics/${match.id}')}');
+      return;
+    }
+    basculerSuivi(context, match.id, termine: match.status == MatchStatus.finished);
   }
 
   /// Le suivi du score s'arrête quand l'application passe en arrière-plan.
@@ -529,6 +579,10 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     final retard = match.status == MatchStatus.live
         && DateTime.now().difference(_dernierRefresh) > delaiScoreNonActualise;
     final reserveActions = 48.0 + 48 + (match.isPremium ? 24 : 0) + (retard ? 110 : 0) + 8;
+    // La bulle de la cloche : ni pour un match terminé, ni pour un match déjà
+    // suivi. Le premier toucher, n'importe où, la ferme.
+    final bulle = _bulleSuivi && match.status != MatchStatus.finished && !isFav;
+    if (bulle) _bulleMontree();
 
     return Scaffold(
       backgroundColor: context.cl.bg,
@@ -536,7 +590,11 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
       // clavier : la page n'a pas à rétrécir pendant qu'il monte — c'est ce
       // qui la faisait trembler (20 octobre 2026).
       resizeToAvoidBottomInset: false,
-      body: NestedScrollView(
+      body: Stack(children: [
+        Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: bulle ? (_) => _fermerBulle() : null,
+        child: NestedScrollView(
         headerSliverBuilder: (ctx, _) => [
           SliverOverlapAbsorber(
             handle: NestedScrollView.sliverOverlapAbsorberHandleFor(ctx),
@@ -563,7 +621,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
               actions: [
                 // Suivre le match : coup d'envoi, buts et résultat en
                 // notification (suivre_match.dart).
-                IconButton(
+                KeyedSubtree(key: _cleCloche, child: IconButton(
                   key: const Key('suivre-match'),
                   icon: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 200),
@@ -575,18 +633,8 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
                     ),
                   ),
                   tooltip: libelleSuivi(sombre, isFav),
-                  onPressed: () {
-                    HapticFeedback.selectionClick();
-                    // Le détail est ouvert aux invités, mais suivre exige un
-                    // compte : on les emmène s'inscrire au moment du geste.
-                    if (!ref.read(effectiveLoggedInProvider)) {
-                      context.push(
-                        '/auth/email?from=${Uri.encodeComponent('/pronostics/${match.id}')}');
-                      return;
-                    }
-                    basculerSuivi(context, match.id, termine: match.status == MatchStatus.finished);
-                  },
-                ),
+                  onPressed: () => _basculerSuivi(match),
+                )),
                 // Rien sur la fraîcheur du score, sauf s'il n'arrive plus.
                 if (match.status == MatchStatus.live)
                   _ScoreNonActualise(dernier: _dernierRefresh),
@@ -627,9 +675,95 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
                 children: [for (final t in tabs) ongletImbrique(t.$2)],
               )
             : ongletImbrique(tabs.first.$2),
+      )),
+        if (bulle && _centreCloche != null)
+          Positioned(
+            top: MediaQuery.paddingOf(context).top + _hauteurBarre - 6,
+            right: 8,
+            child: _BulleSuivi(
+              pointe: MediaQuery.sizeOf(context).width - 8 - _centreCloche!,
+              onSuivre: () { _fermerBulle(); _basculerSuivi(match); },
+              onFermer: _fermerBulle,
+            ),
+          ),
+      ]),
+    );
+  }
+}
+
+// ─── Bulle de la cloche ──────────────────────────────────────────────────────
+
+/// La bulle posée sous la cloche, la première fois qu'on ouvre une fiche
+/// (22 octobre 2026). Compacte : elle tient dans l'en-tête, au-dessus de la
+/// barre d'onglets, quelle que soit la taille du texte. La toucher la ferme.
+class _BulleSuivi extends StatelessWidget {
+  /// Distance entre le bord droit de la bulle et le centre de la cloche.
+  final double pointe;
+  final VoidCallback onSuivre, onFermer;
+  const _BulleSuivi({required this.pointe, required this.onSuivre, required this.onFermer});
+
+  @override
+  Widget build(BuildContext context) {
+    final largeur = (MediaQuery.sizeOf(context).width - 16).clamp(0.0, 300.0);
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.15,
+      child: SizedBox(
+        key: const Key('bulle-suivi'),
+        width: largeur,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.end, mainAxisSize: MainAxisSize.min, children: [
+          Padding(
+            padding: EdgeInsets.only(right: (pointe - 8).clamp(8.0, largeur - 24)),
+            child: CustomPaint(size: const Size(16, 8), painter: _PointeBulle(AppColors.primary)),
+          ),
+          Material(
+            color: AppColors.primary,
+            elevation: 6,
+            shadowColor: Colors.black54,
+            borderRadius: BorderRadius.circular(14),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(14),
+              onTap: onFermer,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(12, 6, 4, 6),
+                child: Row(children: [
+                  const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 20),
+                  const SizedBox(width: 8),
+                  Expanded(child: Text(
+                    tr(context, "Sois alerté des buts, de la mi-temps et du résumé."),
+                    maxLines: 2, overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: Colors.white, fontSize: 12.5, height: 1.3, fontWeight: FontWeight.w600))),
+                  TextButton(
+                    key: const Key('bulle-suivi-suivre'),
+                    style: TextButton.styleFrom(foregroundColor: Colors.white,
+                      visualDensity: VisualDensity.compact,
+                      textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w800)),
+                    onPressed: onSuivre,
+                    child: Text(tr(context, "Suivre")),
+                  ),
+                ]),
+              ),
+            ),
+          ),
+        ]),
       ),
     );
   }
+}
+
+/// La pointe de la bulle, vers le haut.
+class _PointeBulle extends CustomPainter {
+  final Color couleur;
+  const _PointeBulle(this.couleur);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    canvas.drawPath(
+      Path()..moveTo(0, size.height)..lineTo(size.width / 2, 0)..lineTo(size.width, size.height)..close(),
+      Paint()..color = couleur);
+  }
+
+  @override
+  bool shouldRepaint(_PointeBulle ancienne) => ancienne.couleur != couleur;
 }
 
 // ─── Barre d'onglets ─────────────────────────────────────────────────────────

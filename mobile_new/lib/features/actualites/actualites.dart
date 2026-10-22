@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/network/dio_client.dart';
 import '../../l10n/app_strings.dart';
+import '../../l10n/editorial_text.dart';
 import '../accueil/presentation/providers/accueil_provider.dart';
 
 /// Les actualités, hors de l'accueil (20 octobre 2026) : la page Actus au
@@ -20,6 +21,24 @@ FamilleActu familleActu(Map<String, dynamic> n) =>
     n['type'] == 'resume_match' ? FamilleActu.resume
     : n['from_rss'] == true      ? FamilleActu.media
     : FamilleActu.redaction;
+
+/// Un avant-match (22 octobre 2026) : article de match lui aussi, écrit la
+/// veille. Le serveur le sert avec le type des résumés — les versions 1.0.25
+/// à 1.0.28 lui donnent ainsi logos et « Voir le match » — et `genre`.
+bool estAvantMatch(Map<String, dynamic> n) => n['genre'] == 'avant_match';
+
+/// Le titre affiché, sans « Avant-match : » : l'étiquette de la carte le dit
+/// déjà (`LigneSource`).
+String titreActu(Map<String, dynamic> n) {
+  final titre = editorialField(n, 'titre');
+  if (!estAvantMatch(n)) return titre;
+  return titre.replaceFirst(RegExp(r'^(Avant-match|Preview)\s*:\s*'), '');
+}
+
+/// Le centre du visuel d'un article de match : le score d'un résumé, « VS »
+/// pour un avant-match.
+String? centreVisuelMatch(Map<String, dynamic> n) =>
+    (n['score'] as String?) ?? (estAvantMatch(n) ? 'VS' : null);
 
 /// Toutes les actualités, pour la page Actus : jusqu'à 50 (l'accueil en lit
 /// 20). Un serveur qui ne connaît pas `limite` en rend 20.
