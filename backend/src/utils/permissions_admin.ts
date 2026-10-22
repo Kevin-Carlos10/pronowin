@@ -99,6 +99,10 @@ const REGLES: Regle[] = [
   [LIRE,   /^\/admin\/paiements-mobile-money$/,                  section('abonnements', 'read')],
   [ECRIRE, /^\/admin\/paiements-mobile-money\/[^/]+\/reverifier$/, section('abonnements', 'write')],
 
+  // ── Résumés de match automatiques : la section des actualités ──
+  [LIRE,   /^\/admin\/resumes(\/[^/]+)?$/,                        section('actualites', 'read')],
+  [ECRIRE, /^\/admin\/resumes\/[^/]+(\/masquer)?$/,               section('actualites', 'write')],
+
   // ── Programmations : chaque type relève de sa section ──
   [LIRE,   /^\/admin\/programmations\/pronostics$/,                section('pronostics', 'read')],
   [ECRIRE, /^\/admin\/programmations\/pronostics$/,                section('pronostics', 'write')],

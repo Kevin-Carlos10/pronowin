@@ -176,6 +176,7 @@
 
     <% if (hasPerm('actualites')) { %>
     <a href="/admin/actualites" class="nav-item <%= page==='actualites' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg></span> <%= uiText("Actualités") %></a>
+    <a href="/admin/resumes" class="nav-item <%= page==='resumes' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-ball"/></svg></span> <%= uiText("Résumés de match") %></a>
     <% } %>
 
     <% if (hasPerm('tutoriels')) { %>

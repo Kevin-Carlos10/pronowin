@@ -1160,6 +1160,68 @@ const views = [
     lienMM: () => '/admin/paiements-mobile-money',
   }],
 
+  // ── Résumés de match ──
+  //
+  // Les trois états d'un résumé : dans le fil (le titre faux du 22 octobre
+  // 2026, corrigé), sorti du fil après trois jours, retiré à la main.
+  ['résumés (liste)', 'resumes', {
+    ...base, page: 'resumes', erreur: null,
+    filtres: { filtre: 'tous', q: '', page: 1 },
+    lienResumes: (f) => '/admin/resumes?page=' + f.page,
+    donnees: {
+      stats: { total: 61, dansLeFil: 23, masques: 1, modifies: 1 },
+      total: 3, page: 1, parPage: 30,
+      resumes: [
+        { id: 'r1', matchId: 'm1', ligue: 'UEFA Champions League',
+          titre: 'Lask Linz s\'impose chez Sporting CP (2-3), malgré le doublé de Luis Suárez',
+          titreEn: 'Lask Linz win 3-2 at Sporting CP, despite Luis Suárez scoring twice',
+          resume: 'Buts — …', resumeEn: 'Goals — …', creeLe: '2026-10-22T12:22:00Z',
+          masque: false, modifieLe: '2026-10-22T12:45:00Z', modifiePar: 'Carlos',
+          dansLeFil: true, quitteLeFil: '2026-10-25T12:22:00Z',
+          match: { domicile: 'Sporting CP', exterieur: 'Lask Linz', score: '2-3', date: '2026-10-21T19:00:00Z', pronostique: false } },
+        { id: 'r2', matchId: 'm2', ligue: 'Bundesliga',
+          titre: 'Bayer Leverkusen renverse SC Freiburg (2-1)', titreEn: 'Bayer Leverkusen come from behind to beat SC Freiburg 2-1',
+          resume: 'Buts — …', resumeEn: 'Goals — …', creeLe: '2026-10-18T16:44:00Z',
+          masque: false, modifieLe: null, modifiePar: null, dansLeFil: false, quitteLeFil: '2026-10-21T16:44:00Z',
+          match: { domicile: 'Bayer Leverkusen', exterieur: 'SC Freiburg', score: '2-1', date: '2026-10-18T13:30:00Z', pronostique: true } },
+        { id: 'r3', matchId: 'm3', ligue: 'Ligue 1',
+          titre: 'Lens s\'impose face à Lille (1-0)', titreEn: 'Lens beat Lille 1-0',
+          resume: 'Buts — …', resumeEn: 'Goals — …', creeLe: '2026-10-21T22:10:00Z',
+          masque: true, modifieLe: null, modifiePar: null, dansLeFil: false, quitteLeFil: '2026-10-24T22:10:00Z',
+          match: null },
+      ],
+    },
+  }],
+  ['résumés (aucun)', 'resumes', {
+    ...base, page: 'resumes', erreur: null,
+    filtres: { filtre: 'masques', q: 'Arsenal', page: 1 },
+    lienResumes: () => '/admin/resumes',
+    donnees: { stats: { total: 0, dansLeFil: 0, masques: 0, modifies: 0 }, total: 0, page: 1, parPage: 30, resumes: [] },
+  }],
+  ['résumés (API muette)', 'resumes', {
+    ...base, page: 'resumes', donnees: null, erreur: 'connect ECONNREFUSED',
+    filtres: { filtre: 'tous', q: '', page: 1 },
+    lienResumes: () => '/admin/resumes',
+  }],
+  ['résumé (correction)', 'resume_form', {
+    ...base, page: 'resumes', saisie: null,
+    resume: { id: 'r1', matchId: 'm1', ligue: 'UEFA Champions League',
+      titre: 'Lask Linz s\'impose chez Sporting CP (2-3), doublé de Luis Suárez',
+      titreEn: 'Lask Linz win 3-2 at Sporting CP, Luis Suárez scores twice',
+      resume: 'Buts — Sporting CP : Luis Suárez (30\', 70\') · Lask Linz : …\n\nPossession : 61 % – 39 %.',
+      resumeEn: 'Goals — Sporting CP: Luis Suárez (30\', 70\') · Lask Linz: …', creeLe: '2026-10-22T12:22:00Z',
+      masque: false, modifieLe: null, modifiePar: null, dansLeFil: true, quitteLeFil: '2026-10-25T12:22:00Z',
+      match: { domicile: 'Sporting CP', exterieur: 'Lask Linz', score: '2-3', date: '2026-10-21T19:00:00Z', pronostique: false } },
+  }],
+  ['résumé (saisie refusée, retiré du fil)', 'resume_form', {
+    ...base, page: 'resumes', error: 'Titre : ne peut pas être vide.',
+    saisie: { titre: '', titre_en: 'Lens beat Lille 1-0', resume: 'Texte tapé', resume_en: 'Typed text' },
+    resume: { id: 'r3', matchId: 'm3', ligue: 'Ligue 1', titre: 'Lens s\'impose face à Lille (1-0)', titreEn: 'Lens beat Lille 1-0',
+      resume: 'Buts — …', resumeEn: 'Goals — …', creeLe: '2026-10-21T22:10:00Z',
+      masque: true, modifieLe: '2026-10-22T09:00:00Z', modifiePar: 'Awa', dansLeFil: false, quitteLeFil: '2026-10-24T22:10:00Z',
+      match: null },
+  }],
+
   // ── Méthodes de paiement ──
   ['paiements (liste)', 'paiements', {
     ...base, page: 'paiements',

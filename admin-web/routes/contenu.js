@@ -312,6 +312,110 @@ module.exports = (app, ctx) => {
     res.redirect('/admin/actualites?success=' + encodeURIComponent('Article supprimé.'));
   });
 
+  // ─── RÉSUMÉS DE MATCH ─────────────────────────────────────────────────────────
+  //
+  // Les résumés écrits seuls après chaque match, une soixantaine par semaine.
+  // Le 22 octobre 2026, trois titres faux n'ont pu être corrigés que par un
+  // script sur le serveur : ici, on les relit, on les corrige, on les retire
+  // du fil.
+
+  const FILTRES_RESUMES = ['tous', 'dans_le_fil', 'masques', 'modifies'];
+
+  const filtresResumes = (q) => ({
+    filtre: FILTRES_RESUMES.includes(q.filtre) ? q.filtre : 'tous',
+    q:      String(q.q ?? '').trim().slice(0, 100),
+    page:   Math.max(1, parseInt(q.page) || 1),
+  });
+
+  /** L'adresse de la liste avec ces filtres — jamais une adresse reçue telle quelle. */
+  const lienResumes = (f, message) => {
+    const p = new URLSearchParams();
+    if (f.filtre !== 'tous') p.set('filtre', f.filtre);
+    if (f.q)        p.set('q', f.q);
+    if (f.page > 1) p.set('page', String(f.page));
+    if (message)    p.set(...message);
+    const qs = p.toString();
+    return '/admin/resumes' + (qs ? '?' + qs : '');
+  };
+  const ficheResume = (id, message) =>
+    '/admin/resumes/' + encodeURIComponent(id) + '/edit' + (message ? '?' + new URLSearchParams([message]) : '');
+
+  app.get('/admin/resumes', requireAuth, requirePerm('actualites'), async (req, res) => {
+    const filtres = filtresResumes(req.query);
+    let donnees = null, erreur = null;
+    try {
+      const r = await api(req.admin.jeton).get('/admin/resumes', { params: {
+        filtre: filtres.filtre,
+        ...(filtres.q ? { q: filtres.q } : {}),
+        page:   filtres.page,
+      } });
+      donnees = r.data;
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      erreur = e.response?.data?.message ?? e.message;
+    }
+    res.render('resumes', {
+      donnees, erreur, filtres, lienResumes,
+      success: req.query.success ?? null,
+      error:   req.query.error   ?? null,
+    });
+  });
+
+  app.get('/admin/resumes/:id/edit', requireAuth, requirePerm('actualites', 'write'), async (req, res) => {
+    try {
+      const r = await api(req.admin.jeton).get('/admin/resumes/' + encodeURIComponent(req.params.id));
+      res.render('resume_form', {
+        resume: r.data, saisie: null,
+        success: req.query.success ?? null,
+        error:   req.query.error   ?? null,
+      });
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      res.redirect(lienResumes(filtresResumes({}), ['error', e.response?.status === 404
+        ? 'Résumé introuvable.' : 'Lecture impossible : ' + (e.response?.data?.message ?? e.message)]));
+    }
+  });
+
+  app.post('/admin/resumes/:id/edit', requireAuth, requirePerm('actualites', 'write'), async (req, res) => {
+    const saisie = {
+      titre: req.body.titre, titre_en: req.body.titre_en, resume: req.body.resume, resume_en: req.body.resume_en,
+    };
+    try {
+      const r = await api(req.admin.jeton).post('/admin/resumes/' + encodeURIComponent(req.params.id), saisie);
+      logAction(req, 'resume_modifie', r.data.titre, { id: req.params.id, match: r.data.matchId });
+      res.redirect(ficheResume(req.params.id, ['success', 'Résumé corrigé : le fil des actualités affiche le nouveau texte.']));
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      if (e.response?.status === 404) return res.redirect(lienResumes(filtresResumes({}), ['error', 'Résumé introuvable.']));
+      // Saisie refusée : le formulaire revient avec le texte tapé, pas l'ancien.
+      let resume = null;
+      try { resume = (await api(req.admin.jeton).get('/admin/resumes/' + encodeURIComponent(req.params.id))).data; }
+      catch { /* l'API ne répond plus : retour à la liste */ }
+      const message = e.response?.data?.message ?? e.message;
+      if (!resume) return res.redirect(lienResumes(filtresResumes({}), ['error', 'Correction impossible : ' + message]));
+      res.status(422).render('resume_form', { resume, saisie, success: null, error: message });
+    }
+  });
+
+  // Retirer du fil, ou y remettre : la ligne reste, le résumé n'est pas réécrit.
+  app.post('/admin/resumes/:id/masquer', requireAuth, requirePerm('actualites', 'write'), async (req, res) => {
+    const filtres = filtresResumes(req.body);
+    const masque  = req.body.masque === '1';
+    const depuisFiche = req.body.retour === 'fiche';
+    const retour = (message) => depuisFiche ? ficheResume(req.params.id, message) : lienResumes(filtres, message);
+    try {
+      const r = await api(req.admin.jeton).post('/admin/resumes/' + encodeURIComponent(req.params.id) + '/masquer', { masque });
+      logAction(req, masque ? 'resume_masque' : 'resume_affiche', r.data.titre, { id: req.params.id, match: r.data.matchId });
+      res.redirect(retour(['success', masque
+        ? `« ${r.data.titre} » retiré du fil des actualités.`
+        : r.data.dansLeFil ? `« ${r.data.titre} » remis dans le fil des actualités.`
+          : `« ${r.data.titre} » n'est plus masqué (il a plus de trois jours : il ne revient pas dans le fil).`]));
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      res.redirect(retour(['error', 'Action impossible : ' + (e.response?.data?.message ?? e.message)]));
+    }
+  });
+
   // ─── SOUS-ADMINS (réservé à l'admin principal) ────────────────────────────────
 
   app.get('/api/v1/actualites', (req, res) => {

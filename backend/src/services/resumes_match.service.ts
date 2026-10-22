@@ -361,13 +361,17 @@ export async function publierResumes(maintenant = new Date()): Promise<{ publies
   return { publies };
 }
 
+/** Un résumé reste trois jours dans le fil des actualités. */
+export const DUREE_DANS_LE_FIL_MS = 3 * 24 * 3600_000;
+
 /**
  * Les derniers résumés, au format des actualités de l'accueil. S'il faut
  * choisir, ceux des matchs pronostiqués d'abord ; puis l'ordre des dates.
+ * Ceux qu'on a retirés depuis le panneau n'y sont pas.
  */
 export async function resumesPourActualites(limite = 8): Promise<any[]> {
   const lus = await prisma.resumeMatch.findMany({
-    where:   { creeLe: { gte: new Date(Date.now() - 3 * 24 * 3600_000) } },
+    where:   { creeLe: { gte: new Date(Date.now() - DUREE_DANS_LE_FIL_MS) }, masque: false },
     orderBy: { creeLe: 'desc' },
     take:    limite * 3,
     // Les logos et le score : le visuel d'un résumé, faute de photo.

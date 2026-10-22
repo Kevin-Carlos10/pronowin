@@ -10,6 +10,9 @@ import { ajouterAuJournal, verifierChaine } from '../services/journal_admin.serv
 import { resumeAchatsStore, reverifierAchatStore } from '../services/achats_store_admin.service';
 import { ETATS_PAIEMENT_MM, resumePaiementsMobileMoney, reverifierPaiementMobileMoney } from '../services/paiements_mobile_money_admin.service';
 import {
+  FILTRES_RESUMES, FiltreResumes, listerResumesAdmin, lireResumeAdmin, modifierResume, masquerResume,
+} from '../services/resumes_match_admin.service';
+import {
   programmerPublication, programmerNotification, annulerProgrammation, listerProgrammations,
 } from '../services/programmations.service';
 const r   = Router();
@@ -227,6 +230,53 @@ r.post('/programmations/notifications', adminMiddleware, async (req: AdminReques
 r.delete('/programmations/notifications/:id', adminMiddleware, async (req: AdminRequest, res) => {
   try { res.json(await annulerProgrammation(req.params.id, 'notification', auteurDe(req))); }
   catch (e: any) { repondreErreur(res, e, 409); }
+});
+
+// ─── Résumés de match ────────────────────────────────────────────────────────
+//
+// Les résumés écrits seuls après chaque match (resumes_match.service.ts) :
+// les relire, en corriger le texte, les retirer du fil
+// (resumes_match_admin.service.ts).
+
+r.get('/resumes', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    const filtre = typeof req.query.filtre === 'string'
+      && (FILTRES_RESUMES as string[]).includes(req.query.filtre) ? req.query.filtre as FiltreResumes : 'tous';
+    res.json(await listerResumesAdmin({
+      filtre,
+      recherche: typeof req.query.q === 'string' ? req.query.q.slice(0, 100) : undefined,
+      page:      parseInt(String(req.query.page ?? '1')) || 1,
+    }));
+  } catch (e: any) { repondreErreur(res, e); }
+});
+
+r.get('/resumes/:id', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    const resume = await lireResumeAdmin(req.params.id);
+    if (!resume) { res.status(404).json({ message: 'Résumé introuvable.' }); return; }
+    res.json(resume);
+  } catch (e: any) { repondreErreur(res, e); }
+});
+
+/** POST /admin/resumes/:id — corrige le titre et le texte, dans les deux langues. */
+r.post('/resumes/:id', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    const resume = await modifierResume(req.params.id, {
+      titre: req.body?.titre, titreEn: req.body?.titre_en, resume: req.body?.resume, resumeEn: req.body?.resume_en,
+    }, auteurDe(req));
+    if (!resume) { res.status(404).json({ message: 'Résumé introuvable.' }); return; }
+    res.json(resume);
+  } catch (e: any) { repondreErreur(res, e, 422); }
+});
+
+/** POST /admin/resumes/:id/masquer — { masque: true } le retire du fil, false l'y remet. */
+r.post('/resumes/:id/masquer', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    if (typeof req.body?.masque !== 'boolean') { res.status(422).json({ message: 'masque : vrai ou faux.' }); return; }
+    const resume = await masquerResume(req.params.id, req.body.masque);
+    if (!resume) { res.status(404).json({ message: 'Résumé introuvable.' }); return; }
+    res.json(resume);
+  } catch (e: any) { repondreErreur(res, e); }
 });
 
 // ─── Méthodes de paiement Mobile Money ───────────────────────────────────────

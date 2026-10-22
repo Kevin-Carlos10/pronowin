@@ -921,6 +921,12 @@ model ResumeMatch {
   resumeEn String   @map("resume_en")
   ligue    String
   creeLe   DateTime @default(now()) @map("cree_le")
+  /// Retiré du fil depuis le panneau (22 octobre 2026). La ligne reste : sans
+  /// elle, le résumé serait réécrit au passage suivant.
+  masque     Boolean   @default(false)
+  /// Dernière correction du texte depuis le panneau, et par qui.
+  modifieLe  DateTime? @map("modifie_le")
+  modifiePar String?   @map("modifie_par")
   match    Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
 
   @@index([creeLe])
