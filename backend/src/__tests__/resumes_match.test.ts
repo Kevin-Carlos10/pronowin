@@ -113,6 +113,23 @@ describe('le résumé', () => {
     expect(redigerResume(triple, ctx)!.resume).toContain('(90+2\')');
   });
 
+  it('doublé dans l\'équipe battue : « malgré », pour ne pas le donner au vainqueur', () => {
+    // Sporting CP 2-3 Lask Linz, 21 octobre 2026 : le titre disait « Lask Linz
+    // s'impose chez Sporting CP (2-3), doublé de Luis Suárez ».
+    const perdant = fiche({ score: [2, 3], buts: [[12, 'ext', 'A'], [30, 'dom', 'Luis Suárez'],
+      [55, 'ext', 'B'], [70, 'dom', 'Luis Suárez'], [88, 'ext', 'C']] });
+    const r = redigerResume(perdant, ctx)!;
+    expect(r.titre).toBe('SC Freiburg s\'impose chez Bayer Leverkusen (2-3), malgré le doublé de Luis Suárez');
+    expect(r.titreEn).toBe('SC Freiburg win 3-2 at Bayer Leverkusen, despite Luis Suárez scoring twice');
+    // Deux doublés : celui du vainqueur.
+    const deux = fiche({ score: [2, 3], buts: [[12, 'ext', 'Grifo'], [30, 'dom', 'Luis Suárez'],
+      [55, 'ext', 'Grifo'], [70, 'dom', 'Luis Suárez'], [88, 'ext', 'C']] });
+    expect(redigerResume(deux, ctx)!.titre).toBe('SC Freiburg s\'impose chez Bayer Leverkusen (2-3), doublé de Grifo');
+    // Match nul : pas de vainqueur, pas de « malgré ».
+    const nul = fiche({ score: [2, 2], buts: [[30, 'dom', 'Luis Suárez'], [40, 'ext', 'A'], [50, 'ext', 'B'], [70, 'dom', 'Luis Suárez']] });
+    expect(redigerResume(nul, ctx)!.titre).toBe('Bayer Leverkusen et SC Freiburg dos à dos (2-2), doublé de Luis Suárez');
+  });
+
   it('but contre son camp : rangé du côté de l\'équipe qui en profite, quelle que soit la lecture du fournisseur', () => {
     // Rattaché à l'équipe du joueur (Freiburg), il profite à Leverkusen.
     const a = redigerResume(fiche({ score: [1, 0], buts: [[11, 'ext', 'L. Kübler', 'Own Goal']] }), ctx)!;

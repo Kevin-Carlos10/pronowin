@@ -106,6 +106,11 @@ const MULTIPLE = {
   fr: ['', '', 'doublé', 'triplé', 'quadruplé'],
   en: ['', '', 'scores twice', 'hat-trick for', 'scores four'],
 };
+/** Le même, pour un joueur de l'équipe battue. */
+const MULTIPLE_PERDANT = {
+  fr: MULTIPLE.fr,
+  en: ['', '', 'scoring twice', 'a hat-trick from', 'scoring four'],
+};
 
 function titre(f: any, ctx: ContexteResume, buts: But[] | null, langue: Langue): string {
   const dom = country(ctx.domicile, langue), ext = country(ctx.exterieur, langue);
@@ -148,14 +153,34 @@ function titre(f: any, ctx: ContexteResume, buts: But[] | null, langue: Langue):
     }
   }
 
-  // Le joueur qui a marqué plusieurs fois (hors contre son camp).
-  const parJoueur = new Map<string, number>();
-  for (const b of buts ?? []) if (!b.csc) parJoueur.set(b.joueur, (parJoueur.get(b.joueur) ?? 0) + 1);
-  const [vedette, n] = [...parJoueur.entries()].sort((x, y) => y[1] - x[1])[0] ?? ['', 0];
+  // Le joueur qui a marqué plusieurs fois (hors contre son camp) ; à égalité,
+  // celui du vainqueur.
+  const vainqueur: Camp | null = statut === 'PEN'
+    ? ((f.score?.penalty?.home ?? 0) > (f.score?.penalty?.away ?? 0) ? 'dom' : 'ext')
+    : h > a ? 'dom' : h < a ? 'ext' : null;
+  const parJoueur = new Map<string, { camp: Camp; n: number }>();
+  for (const b of buts ?? []) {
+    if (b.csc) continue;
+    const cle = `${b.camp}|${b.joueur}`;
+    parJoueur.set(cle, { camp: b.camp, n: (parJoueur.get(cle)?.n ?? 0) + 1 });
+  }
+  const [cle, { camp, n }] = [...parJoueur.entries()]
+    .sort(([, x], [, y]) => y.n - x.n || Number(y.camp === vainqueur) - Number(x.camp === vainqueur))[0]
+    ?? ['', { camp: 'dom' as Camp, n: 0 }];
   if (n >= 2) {
-    const mot = MULTIPLE[langue][Math.min(n, 4)];
-    t += fr ? `, ${mot} de ${vedette}`
-      : n === 3 ? `, ${mot} ${vedette}` : `, ${vedette} ${mot}`;
+    const vedette = cle.slice(cle.indexOf('|') + 1);
+    // Un doublé dans l'équipe battue : « Lask Linz s'impose chez Sporting CP
+    // (2-3), doublé de Luis Suárez » laissait croire qu'il avait marqué pour
+    // Linz (22 octobre 2026).
+    if (vainqueur !== null && camp !== vainqueur) {
+      const mot = MULTIPLE_PERDANT[langue][Math.min(n, 4)];
+      t += fr ? `, malgré le ${mot} de ${vedette}`
+        : n === 3 ? `, despite ${mot} ${vedette}` : `, despite ${vedette} ${mot}`;
+    } else {
+      const mot = MULTIPLE[langue][Math.min(n, 4)];
+      t += fr ? `, ${mot} de ${vedette}`
+        : n === 3 ? `, ${mot} ${vedette}` : `, ${vedette} ${mot}`;
+    }
   }
   return t;
 }
