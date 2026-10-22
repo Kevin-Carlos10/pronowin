@@ -4,6 +4,9 @@
  */
 import { redigerResume, type ContexteResume } from '../services/resumes_match.service';
 
+// Ceux qui suivent le match : deux comptes (suiveurs_match.ts lit la base).
+jest.mock('../services/suiveurs_match', () => ({ suiveursDuMatch: async () => ['u1', 'u2'] }));
+
 const DOM = 168, EXT = 160;
 type But = [minute: number, camp: 'dom' | 'ext', joueur: string, detail?: string, extra?: number];
 
@@ -181,18 +184,21 @@ describe('la publication', () => {
     isPremium: false, result: 'WIN', publicationRecordedAt: new Date('2026-10-18T09:00:00Z'), ...o });
   let crees: any[];
   let lecture: any;
+  let envois: Array<{ userId: string; payload: any; categorie: string }>;
+  const notifSvc = { sendToUser: async (userId: string, payload: any, categorie: string) => { envois.push({ userId, payload, categorie }); } };
 
   beforeEach(() => {
     crees = [];
+    envois = [];
     _oublierEssais();
-    jest.spyOn(prisma.resumeMatch, 'create').mockImplementation(async ({ data }: any) => { crees.push(data); return data; });
+    jest.spyOn(prisma.resumeMatch, 'create').mockImplementation(async ({ data }: any) => { crees.push(data); return { ...data, id: `r-${data.matchId}` }; });
     jest.spyOn(apiFootballService.httpClient, 'get').mockResolvedValue({ data: { response: [fiche({ score: [2, 1], mt: [1, 1] })] } });
   });
   afterEach(() => jest.restoreAllMocks());
 
   async function publier(matchs: any[], quand = MAINTENANT) {
     jest.spyOn(prisma.match, 'findMany').mockImplementation(async (args: any) => { lecture = args; return matchs; });
-    return publierResumes(quand);
+    return publierResumes(quand, notifSvc);
   }
 
   it('matchs pronostiqués ou des grandes compétitions, terminés depuis 2 h à 48 h, sans résumé ; libellé traduit en anglais', async () => {
@@ -233,6 +239,29 @@ describe('la publication', () => {
     await publier([match('m1', 3, prono())]);
     await publier([match('m1', 3, prono())], new Date(MAINTENANT.getTime() + 10 * 60_000));
     expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it('« Le résumé est prêt » : ceux qui suivent le match, le titre du résumé, un lien vers lui', async () => {
+    expect(await publier([match('m1', 3, prono())])).toEqual({ publies: 1 });
+    expect(envois.map(e => e.userId)).toEqual(['u1', 'u2']);
+    expect(envois[0]).toEqual({ userId: 'u1', categorie: 'match', payload: {
+      title: 'Le résumé est prêt', titleEn: 'Match report ready',
+      body: 'Bayer Leverkusen s\'impose face à SC Freiburg (2-1)', bodyEn: 'Bayer Leverkusen beat SC Freiburg 2-1',
+      data: { type: 'match', deep_link: '/actualites/article?id=resume_r-m1', match_id: 'm1' },
+    } });
+  });
+
+  it('pas de notification la nuit, ni pour un résumé écrit plus de 12 h après le coup d\'envoi', async () => {
+    const nuit = new Date(Date.UTC(2026, 9, 18, 23, 30, 0));
+    expect(await publier([match('m1', -0.5, prono())], nuit)).toEqual({ publies: 1 });
+    expect(await publier([match('m2', 13, prono())])).toEqual({ publies: 1 });
+    expect(envois).toEqual([]);
+  });
+
+  it('un résumé déjà écrit par un autre passage : personne n\'est prévenu deux fois', async () => {
+    jest.spyOn(prisma.resumeMatch, 'create').mockRejectedValue(new Error('Unique constraint failed'));
+    expect(await publier([match('m1', 3, prono())])).toEqual({ publies: 0 });
+    expect(envois).toEqual([]);
   });
 
   it('grand match sans pronostic : résumé, sans paragraphe de pronostic', async () => {

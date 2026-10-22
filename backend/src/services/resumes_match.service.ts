@@ -30,6 +30,8 @@ import { prisma } from '../lib/prisma';
 import { country, prediction } from '../i18n/football';
 import { traduireEquipes } from '../utils/noms_equipes';
 import { apiFootballService } from './api_football.service';
+import { NotificationService } from './notification.service';
+import { suiveursDuMatch } from './suiveurs_match';
 import { journal } from '../utils/logger';
 
 type Langue = 'fr' | 'en';
@@ -301,13 +303,51 @@ const essaisManques = new Map<string, number>();
 /** Pour les tests. */
 export function _oublierEssais(): void { essaisManques.clear(); }
 
+// ─── « Le résumé est prêt » ──────────────────────────────────────────────────
+//
+// Une notification à ceux qui suivent le match, quand son résumé paraît
+// (22 octobre 2026) : les alertes de but ne touchaient que quatre personnes,
+// et rien ne les ramenait dans l'application après le coup de sifflet.
+
+export const TITRE_RESUME_PRET = 'Le résumé est prêt';
+/** Au-delà, le résumé arrive trop tard pour une notification : il reste dans le fil. */
+const NOTIFIER_JUSQU_A_MS = 12 * 3600_000;
+/** Pas de notification la nuit (heure de Côte d'Ivoire, UTC). */
+const heureCalme = (d: Date) => d.getUTCHours() >= 23 || d.getUTCHours() < 7;
+
+/**
+ * Le lien d'un résumé : la 1.0.29 de l'application l'ouvre directement ; les
+ * versions précédentes ouvrent la page Actus, où le résumé d'un match suivi
+ * passe en tête.
+ */
+export const lienResume = (resumeId: string) => `/actualites/article?id=resume_${resumeId}`;
+
+async function annoncerResume(
+  m: { id: string; matchDate: Date; pronostic: { id: string } | null },
+  resumeId: string, resume: Resume, maintenant: Date, notifSvc: NotificationService,
+): Promise<number> {
+  if (maintenant.getTime() - m.matchDate.getTime() > NOTIFIER_JUSQU_A_MS || heureCalme(maintenant)) return 0;
+  const destinataires = await suiveursDuMatch(m.id, m.pronostic?.id ?? null);
+  for (const userId of destinataires) {
+    notifSvc.sendToUser(userId, {
+      title: TITRE_RESUME_PRET, titleEn: 'Match report ready',
+      body:  resume.titre, bodyEn: resume.titreEn,
+      data:  { type: 'match', deep_link: lienResume(resumeId), match_id: m.id },
+    }, 'match').catch((err: any) => journal.error('[Résumés] notification', err.message));
+  }
+  return destinataires.length;
+}
+
 /**
  * Rédige les résumés manquants. Appelée toutes les 10 minutes ; cinq matchs
  * au plus par passage, un appel au fournisseur chacun. Les matchs
  * pronostiqués passent d'abord : une soirée de Ligue des champions en ajoute
- * une vingtaine d'un coup.
+ * une vingtaine d'un coup. Ceux qui suivent le match sont prévenus.
  */
-export async function publierResumes(maintenant = new Date()): Promise<{ publies: number }> {
+export async function publierResumes(
+  maintenant = new Date(),
+  notifSvc = new NotificationService(),
+): Promise<{ publies: number }> {
   const t = maintenant.getTime();
   const candidats = await prisma.match.findMany({
     where: {
@@ -355,10 +395,14 @@ export async function publierResumes(maintenant = new Date()): Promise<{ publies
       } : null,
     }, { dom: m.homeScore, ext: m.awayScore });
     if (!resume) { essaisManques.set(m.id, t); continue; }
-    await prisma.resumeMatch.create({ data: { matchId: m.id, genre: 'resume', ligue: m.league, ...resume } })
-      .then(() => { publies++; essaisManques.delete(m.id); })
+    const cree = await prisma.resumeMatch.create({ data: { matchId: m.id, genre: 'resume', ligue: m.league, ...resume } })
       // Deux passages simultanés : le second bute sur l'unicité, sans dommage.
-      .catch((e: any) => journal.warn(`[Résumés] ${m.id} : ${e.message}`));
+      .catch((e: any) => { journal.warn(`[Résumés] ${m.id} : ${e.message}`); return null; });
+    if (!cree) continue;
+    publies++;
+    essaisManques.delete(m.id);
+    await annoncerResume(m, cree.id, resume, maintenant, notifSvc)
+      .catch((e: any) => journal.warn(`[Résumés] suiveurs de ${m.id} : ${e.message}`));
   }
   if (publies) journal.info(`[Résumés] ${publies} résumé(s) publié(s)`);
   return { publies };
