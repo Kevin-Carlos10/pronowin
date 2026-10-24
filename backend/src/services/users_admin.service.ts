@@ -220,7 +220,8 @@ export class UsersAdminService {
     await notifSvc.sendToUser(userId, {
       title: 'Premium activé !',
       body:  `Votre accès Premium a été activé pour ${durationDays} jour${durationDays > 1 ? 's' : ''} par l'équipe PronoWin.`,
-      data:  { deep_link: '/pronostics', type: 'system' },
+      // « premium » : à la réception, l'app relit le compte (1.0.30).
+      data:  { deep_link: '/pronostics', type: 'premium' },
     }).catch(() => {});
 
     return { success: true, expires_at: endDate };

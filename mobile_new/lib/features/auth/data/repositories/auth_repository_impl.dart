@@ -167,4 +167,29 @@ class AuthRepositoryImpl implements AuthRepository {
     } catch (_) { /* token malformé → laisser le backend décider */ }
     return true;
   }
+
+  // ─── Dernier profil connu ─────────────────────────────────────────────────
+  //
+  // Dans le stockage sécurisé, avec les jetons : la déconnexion et la
+  // suppression du compte l'effacent avec eux (`deleteAll`).
+
+  static const _cleProfil = 'profil_compte';
+
+  @override
+  Future<void> memoriserProfil(UserEntity user) =>
+      _storage.write(_cleProfil, jsonEncode(profilVersJson(user)));
+
+  @override
+  Future<UserEntity?> profilMemorise() async {
+    try {
+      final brut = await _storage.read(_cleProfil);
+      if (brut == null || brut.isEmpty) return null;
+      return UserModel.fromJson(Map<String, dynamic>.from(jsonDecode(brut) as Map));
+    } catch (_) {
+      return null;   // illisible : on attend le serveur, comme avant
+    }
+  }
+
+  @override
+  Future<void> oublierProfil() => _storage.delete(_cleProfil);
 }

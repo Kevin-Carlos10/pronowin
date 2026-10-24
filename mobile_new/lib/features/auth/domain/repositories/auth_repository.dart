@@ -37,4 +37,11 @@ abstract class AuthRepository {
 
   /// Vérifie si l'utilisateur est déjà connecté (token valide).
   Future<bool> isLoggedIn();
+
+  /// Le dernier profil connu, gardé sur l'appareil avec les jetons (24 octobre
+  /// 2026) : au démarrage, le compte s'affiche tel qu'il était — Premium
+  /// compris — avant même la réponse du serveur, et même sans réseau.
+  Future<void> memoriserProfil(UserEntity user);
+  Future<UserEntity?> profilMemorise();
+  Future<void> oublierProfil();
 }

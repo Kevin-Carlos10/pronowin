@@ -1,5 +1,27 @@
 import '../../domain/entities/user_entity.dart';
 
+/// Tout le profil, au format de l'API : [UserModel.fromJson] le relit tel
+/// quel. Sert au profil gardé sur l'appareil (`AuthRepository.memoriserProfil`).
+Map<String, dynamic> profilVersJson(UserEntity u) => {
+  'id':                      u.id,
+  'phone_number':            u.phoneNumber,
+  'email':                   u.email,
+  'pseudo':                  u.pseudo,
+  'first_name':              u.firstName,
+  'last_name':               u.lastName,
+  'birth_date':              u.birthDate?.toIso8601String(),
+  'avatar_url':              u.avatarUrl,
+  'country_code':            u.countryCode,
+  'subscription_plan':       u.subscriptionPlan.name,
+  'subscription_expires_at': u.subscriptionExpiresAt?.toUtc().toIso8601String(),
+  'referral_code':           u.referralCode,
+  'referral_earnings':       u.referralEarnings,
+  'created_at':              u.createdAt.toUtc().toIso8601String(),
+  'accepted_terms_at':       u.acceptedTermsAt?.toUtc().toIso8601String(),
+  'phone_verified':          u.phoneVerified,
+  'email_verified':          u.emailVerified,
+};
+
 class UserModel extends UserEntity {
   const UserModel({
     required super.id,

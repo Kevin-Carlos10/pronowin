@@ -81,27 +81,85 @@ class AuthNotifier extends StateNotifier<AuthState> {
     } else if (value is AuthInitial) {
       _sessionOuverte = false;
     }
+    // Chaque profil reçu est gardé : c'est lui qu'on montrera au prochain
+    // démarrage, avant la réponse du serveur.
+    if (value is AuthAuthenticated) {
+      final user = value.user;
+      _sansEchec(() => _repository.memoriserProfil(user));
+    }
     super.state = value;
+  }
+
+  /// Le profil gardé ne fait jamais échouer la session : stockage
+  /// indisponible, il manque, voilà tout.
+  Future<T?> _sansEchec<T>(Future<T> Function() travail) async {
+    try {
+      return await travail();
+    } catch (_) {
+      return null;
+    }
   }
 
   /// Restaure la session à partir du token stocké — appelé une seule fois,
   /// avant le premier frame (voir main.dart), pour éviter qu'un démarrage
   /// à froid (app tuée puis rouverte) soit pris pour une déconnexion.
+  ///
+  /// « L'application oublie souvent qu'un compte connecté est Premium et
+  /// affiche la carte Premium » (signalé le 24 octobre 2026). Le profil
+  /// n'était lu qu'ici, une fois : réseau lent ou coupé au démarrage, le
+  /// compte restait inconnu jusqu'au prochain lancement — l'app le croyait
+  /// gratuit. Désormais le dernier profil connu s'affiche tout de suite, et
+  /// le serveur est relu au retour dans l'application, au retour du réseau
+  /// et à l'activation du Premium ([resynchroniser]).
   Future<void> restoreSession() async {
     final hasValidToken = await _repository.isLoggedIn();
     if (!hasValidToken) { state = AuthInitial(); return; }
 
-    final result = await _repository.getProfile();
-    result.fold(
-      (failure) {
-        // Session confirmée invalide côté serveur → repli invité.
-        // Toute autre erreur (réseau, serveur indisponible…) : le token
-        // reste valide localement, on ne déconnecte pas — l'UI se
-        // resynchronisera dès qu'une requête aboutira.
-        if (failure is UnauthorizedFailure) state = AuthInitial();
-      },
-      (user) => state = AuthAuthenticated(user),
-    );
+    final memorise = await _sansEchec(_repository.profilMemorise);
+    if (memorise != null && state is AuthUnknown) state = AuthAuthenticated(memorise);
+
+    await _relireProfil();
+  }
+
+  bool _relectureEnCours = false;
+  DateTime? _derniereRelecture;
+
+  /// Relit le profil sur le serveur. Une erreur de réseau ne change rien : le
+  /// dernier profil connu reste affiché, et on réessaiera.
+  Future<void> _relireProfil() async {
+    if (_relectureEnCours) return;
+    _relectureEnCours = true;
+    try {
+      final result = await _repository.getProfile();
+      _derniereRelecture = DateTime.now();
+      result.fold(
+        (failure) {
+          // Session confirmée invalide côté serveur → repli invité.
+          if (failure is UnauthorizedFailure) {
+            state = AuthInitial();
+            _sansEchec(_repository.oublierProfil);
+          }
+        },
+        (user) {
+          // Une connexion ou une déconnexion a pu passer pendant l'attente :
+          // on ne remplace qu'un compte connecté ou encore inconnu.
+          if (state is AuthAuthenticated || state is AuthUnknown) state = AuthAuthenticated(user);
+        },
+      );
+    } finally {
+      _relectureEnCours = false;
+    }
+  }
+
+  /// Relit le profil — Premium compris — si une session est ouverte : au
+  /// retour dans l'application, au retour du réseau, à une notification
+  /// Premium. Une fois par minute au plus, sauf [force].
+  Future<void> resynchroniser({bool force = false}) async {
+    if (state is! AuthAuthenticated && state is! AuthUnknown) return;
+    if (state is AuthUnknown && !await _repository.isLoggedIn()) return;
+    final derniere = _derniereRelecture;
+    if (!force && derniere != null && DateTime.now().difference(derniere) < const Duration(minutes: 1)) return;
+    await _relireProfil();
   }
 
   Future<void> sendOtp(String phoneNumber) async {
@@ -271,6 +329,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     state = AuthInitial();
     CacheService.clearAll();      // sans attendre : l'état invité est immédiat
     effacerFavorisLocaux();
+    _sansEchec(_repository.oublierProfil);
   }
 }
 

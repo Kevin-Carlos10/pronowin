@@ -28,6 +28,7 @@ import 'core/services/version_service.dart';
 import 'core/services/background_sync_service.dart';
 import 'core/storage/secure_storage.dart';
 import 'features/auth/presentation/providers/auth_provider.dart';
+import 'core/network/connectivity_provider.dart';
 import 'features/auth/presentation/providers/compte_crashlytics.dart';
 import 'features/notifications/presentation/providers/fcm_service.dart';
 import 'features/parametres/data/pin_store.dart';
@@ -198,6 +199,11 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // Le réseau revient : le profil est relu — un démarrage hors ligne
+    // laissait le compte tel qu'il était à la dernière connexion.
+    ref.listenManual(isOnlineProvider, (avant, apres) {
+      if (avant == false && apres) ref.read(authProvider.notifier).resynchroniser(force: true);
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // Sans verrou, l'écran de masquage part tout de suite : il attendait
       // l'initialisation des notifications, qui peut prendre plusieurs
@@ -236,6 +242,9 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
       _resumeProtected();
+      // Un Premium accordé pendant qu'on était ailleurs (preuve validée,
+      // paiement Mobile Money) : le profil est relu.
+      ref.read(authProvider.notifier).resynchroniser();
     } else {
       // Masquer pendant l'ouverture du sélecteur d'applications — seulement
       // si l'utilisateur a protégé l'app. Sans verrou, ouvrir le centre de

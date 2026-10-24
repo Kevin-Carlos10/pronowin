@@ -126,6 +126,14 @@ void main() {
 class _Depot implements AuthRepository {
   _Depot(this.membre);
   final UserEntity membre;
+  UserEntity? _garde;
+
+  @override
+  Future<void> memoriserProfil(UserEntity user) async => _garde = user;
+  @override
+  Future<UserEntity?> profilMemorise() async => _garde;
+  @override
+  Future<void> oublierProfil() async => _garde = null;
 
   @override
   Future<bool> isLoggedIn() async => true;

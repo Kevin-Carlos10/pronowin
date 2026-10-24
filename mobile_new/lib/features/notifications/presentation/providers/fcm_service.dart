@@ -92,6 +92,7 @@ class FCMService {
     // 4. Notifications en foreground → afficher localement + injecter dans le state
     FirebaseMessaging.onMessage.listen((message) {
       debugPrint('[FCM Foreground] ${message.notification?.title}');
+      _relireSiPremium(ref, message);
       if (copieLocale()) _showLocal(message);
       // ✅ Mise à jour temps réel du badge et de la liste
       notifier.pushIncoming(remoteMessageToNotification(message));
@@ -99,6 +100,7 @@ class FCMService {
 
     // 5. Tap notification (app en background → foreground)
     FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      _relireSiPremium(ref, message);
       final link = message.data['deep_link'] as String?;
       AnalyseUsage.notificationOuverte((message.data['type'] as String?) ?? '');
       debugPrint('[FCM Tap background→foreground] deep_link: $link');
@@ -145,6 +147,14 @@ class FCMService {
   // ── Navigation ─────────────────────────────────────────────────────────────
 
   /// Naviguer vers un deep link via le context du navigator racine.
+  /// « Bienvenue Premium ! », « Ton Premium expire… » : le profil est relu
+  /// sans attendre, pour que l'app ne propose plus Premium à un abonné
+  /// (24 octobre 2026).
+  static void _relireSiPremium(WidgetRef ref, RemoteMessage message) {
+    if (message.data['type'] != 'premium') return;
+    ref.read(authProvider.notifier).resynchroniser(force: true);
+  }
+
   static void _navigate(String? deepLink) {
     if (deepLink == null || deepLink.isEmpty) return;
     debugPrint('[FCM] Navigating to: $deepLink');
