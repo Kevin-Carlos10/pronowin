@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import { TITRE_COMPOSITIONS } from './alertes_compositions.service';
 import { TITRE_RESUME_PRET } from './resumes_match.service';
+import { TITRE_BILAN } from './bilan_hebdo.service';
 
 /**
  * L'engagement, sur le tableau de bord du panneau (25 octobre 2026).
@@ -34,6 +35,9 @@ const FAMILLES: Famille[] = [
   { cle: 'resultats',    libelle: 'Résultats des pronostics',
     reconnait: t => /^(Pronostic (gagnant|perdant|remboursé)|Résultat corrigé|Sélection modifiée)/.test(t) },
   { cle: 'premium',      libelle: 'Premium',                  reconnait: t => /Premium|Preuve/.test(t) },
+  // Le lundi, aux comptes gratuits : 90 des 413 notifications de la semaine
+  // du 18 octobre 2026, rangées jusque-là dans « Autres ».
+  { cle: 'bilan_hebdo',  libelle: 'Bilan de la semaine',      reconnait: t => t === TITRE_BILAN },
 ];
 
 /** La famille d'une notification, d'après son titre ; « autres » sinon. */

@@ -23,6 +23,7 @@ describe('la famille d\'une notification, d\'après son titre', () => {
     ['Bienvenue Premium !', 'premium'],
     ['⏳ Ton Premium expire demain', 'premium'],
     ['Preuve refusée', 'premium'],
+    ['Bilan de la semaine', 'bilan_hebdo'],
     ['Nouveau filleul !', 'autres'],
   ])('%s → %s', (titre, cle) => expect(familleNotification(titre).cle).toBe(cle));
 });
