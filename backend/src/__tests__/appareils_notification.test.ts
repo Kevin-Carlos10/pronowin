@@ -14,6 +14,7 @@ process.env.FIREBASE_PROJECT_ID = 'banc';
 process.env.FIREBASE_PRIVATE_KEY = 'banc';
 
 const mockLots: string[][] = [];
+const mockDonnees: Array<Record<string, string>> = [];
 const mockMorts = new Set<string>();
 const mockRefuses = new Set<string>();
 
@@ -22,8 +23,9 @@ jest.mock('firebase-admin', () => ({
   default: {
     apps: [{}], // déjà initialisé : initializeApp n'est pas appelé
     messaging: () => ({
-      sendEachForMulticast: (m: { tokens: string[] }) => {
+      sendEachForMulticast: (m: { tokens: string[]; data?: Record<string, string> }) => {
         mockLots.push([...m.tokens]);
+        mockDonnees.push({ ...(m.data ?? {}) });
         const responses = m.tokens.map(t => mockMorts.has(t)
           ? { success: false, error: { code: 'messaging/registration-token-not-registered', message: 'mort' } }
           : mockRefuses.has(t)
@@ -62,7 +64,7 @@ beforeAll(async () => {
   }
 });
 
-beforeEach(() => { mockLots.length = 0; mockMorts.clear(); mockRefuses.clear(); });
+beforeEach(() => { mockLots.length = 0; mockDonnees.length = 0; mockMorts.clear(); mockRefuses.clear(); });
 
 afterAll(async () => {
   if (!BASE_LOCALE) return;
@@ -84,6 +86,21 @@ decrireSurBaseLocale('appareils de notification (I12)', () => {
 
     await svc.sendToUser(comptes.b, message);
     expect(mockLots).toEqual([[jeton('partage')]]);
+  });
+
+  it('la push porte l\'identifiant de la notification enregistrée : la toucher la marque lue', async () => {
+    await svc.registerToken(comptes.c, jeton('push-lue'), 'android');
+    await svc.sendToUser(comptes.c, { ...message, data: { type: 'match', deep_link: '/pronostics/x' } });
+    await prisma.appareilNotification.deleteMany({ where: { jeton: jeton('push-lue') } });
+    const id = mockDonnees[0]?.notification_id;
+    const enregistree = await prisma.notification.findFirst({ where: { userId: comptes.c }, orderBy: { createdAt: 'desc' } });
+    expect(id).toBe(enregistree!.id);
+    expect(mockDonnees[0]).toMatchObject({ type: 'match', deep_link: '/pronostics/x' });
+    // Un autre compte ne peut pas la marquer ; son destinataire, si.
+    await svc.markRead(comptes.a, id);
+    expect((await prisma.notification.findUnique({ where: { id } }))!.isRead).toBe(false);
+    await svc.markRead(comptes.c, id);
+    expect((await prisma.notification.findUnique({ where: { id } }))!.isRead).toBe(true);
   });
 
   it('un compte reçoit sur chacun de ses appareils', async () => {

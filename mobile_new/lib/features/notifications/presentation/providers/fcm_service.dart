@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:pronowin/l10n/app_strings.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
@@ -77,7 +79,10 @@ class FCMService {
       onDidReceiveNotificationResponse: (details) {
         // Tap sur une notification locale (app en foreground)
         debugPrint('[FCM Local tap] payload: ${details.payload}');
-        _navigate(details.payload);
+        final charge = lireCharge(details.payload);
+        marquerLueDepuisPush(ref.read(notificationNotifierProvider.notifier),
+            {'notification_id': charge.id});
+        _navigate(charge.lien);
       },
     );
 
@@ -104,8 +109,10 @@ class FCMService {
       final link = message.data['deep_link'] as String?;
       AnalyseUsage.notificationOuverte((message.data['type'] as String?) ?? '');
       debugPrint('[FCM Tap background→foreground] deep_link: $link');
-      // Rafraîchir la liste depuis l'API (la notif est déjà en base)
-      notifier.fetch();
+      // Ouverte depuis l'écran du téléphone : lue. Puis la liste est relue
+      // depuis l'API (la notification y est déjà) — après le marquage, sans
+      // retarder l'ouverture du lien.
+      marquerLueDepuisPush(notifier, message.data).whenComplete(notifier.fetch);
       _navigate(link);
     });
 
@@ -113,6 +120,7 @@ class FCMService {
     //    → stocker le lien et naviguer après init du router
     final initial = await _fcm.getInitialMessage();
     if (initial != null) {
+      marquerLueDepuisPush(notifier, initial.data).whenComplete(notifier.fetch);
       final link = initial.data['deep_link'] as String?;
       debugPrint('[FCM App killed → opened] deep_link: $link');
       if (link != null && link.isNotEmpty) {
@@ -192,11 +200,30 @@ class FCMService {
   @visibleForTesting
   static bool copieLocale() => defaultTargetPlatform != TargetPlatform.iOS;
 
+  /// Le contenu d'une notification locale : son lien, et l'identifiant de la
+  /// notification enregistrée sur le serveur, pour la marquer lue quand on
+  /// la touche (25 octobre 2026).
+  @visibleForTesting
+  static String chargeDe(Map<String, dynamic> data) =>
+      jsonEncode({'deep_link': data['deep_link'], 'notification_id': data['notification_id']});
+
+  /// Relit [chargeDe]. Une notification affichée par une version précédente
+  /// ne porte que son lien.
+  @visibleForTesting
+  static ({String? lien, String? id}) lireCharge(String? charge) {
+    if (charge == null || charge.isEmpty) return (lien: null, id: null);
+    if (!charge.startsWith('{')) return (lien: charge, id: null);
+    try {
+      final m = jsonDecode(charge) as Map<String, dynamic>;
+      return (lien: m['deep_link'] as String?, id: m['notification_id'] as String?);
+    } catch (_) {
+      return (lien: null, id: null);
+    }
+  }
+
   static Future<void> _showLocal(RemoteMessage message) async {
     final notif = message.notification;
     if (notif == null) return;
-
-    final deepLink = message.data['deep_link'] as String?;
 
     await _local.show(
       message.hashCode,
@@ -218,7 +245,7 @@ class FCMService {
           presentSound: true,
         ),
       ),
-      payload: deepLink,
+      payload: chargeDe(message.data),
     );
   }
 

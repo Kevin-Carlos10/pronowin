@@ -190,12 +190,12 @@ export class NotificationService {
     });
   }
 
-  /** Sauvegarder une notification en base (pour l'historique) */
+  /** Sauvegarder une notification en base (pour l'historique) ; son identifiant, ou null. */
   private async _saveNotification(userId: string, payload: {
     title: string; body: string; titleEn?: string | null; bodyEn?: string | null; type?: string; deepLink?: string;
-  }) {
+  }): Promise<string | null> {
     try {
-      await prisma.notification.create({
+      const n = await prisma.notification.create({
         data: {
           userId,
           titleEn: payload.titleEn, bodyEn: payload.bodyEn,
@@ -204,8 +204,10 @@ export class NotificationService {
           type:     payload.type ?? 'system',
           deepLink: payload.deepLink ?? null,
         },
+        select: { id: true },
       });
-    } catch (_) { /* non bloquant */ }
+      return n.id;
+    } catch (_) { return null; /* non bloquant */ }
   }
 
   /**
@@ -228,13 +230,18 @@ export class NotificationService {
     });
     payload = bilingual(payload);
     // Toujours sauvegarder en base pour l'historique
-    await this._saveNotification(userId, {
+    const notificationId = await this._saveNotification(userId, {
       title:    payload.title,
       body:     payload.body,
       titleEn: payload.titleEn, bodyEn: payload.bodyEn,
       type:     payload.data?.['type'],
       deepLink: payload.data?.['deep_link'],
     });
+    // L'identifiant voyage avec la push : l'application marque la
+    // notification lue quand on la touche sur l'écran du téléphone. Seul le
+    // toucher dans la liste de l'application le faisait : le compteur restait
+    // allumé pour des notifications déjà ouvertes (25 octobre 2026).
+    if (notificationId) payload = { ...payload, data: { ...payload.data, notification_id: notificationId } };
     if (category && !isNotifEnabled(user?.notificationPrefs, category)) {
       journal.info(`[FCM] user ${userId} a coupé « ${category} » — push non envoyée`);
       return { success: false, reason: 'muted' };

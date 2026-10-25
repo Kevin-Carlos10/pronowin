@@ -145,7 +145,10 @@ class NotificationNotifier
 AppNotification remoteMessageToNotification(RemoteMessage message) {
   final data = message.data;
   return AppNotification(
-    id:        message.messageId
+    // L'identifiant du serveur (25 octobre 2026) : la marquer lue, depuis la
+    // liste ou l'écran du téléphone, atteint la bonne notification.
+    id:        data['notification_id'] as String?
+               ?? message.messageId
                ?? DateTime.now().millisecondsSinceEpoch.toString(),
     title:     data['title_fr'] as String? ?? message.notification?.title ?? 'PronoWin',
     titleEn: data['title_en'] as String?, bodyEn: data['body_en'] as String?,
@@ -156,6 +159,15 @@ AppNotification remoteMessageToNotification(RemoteMessage message) {
     createdAt: DateTime.now(),
     deepLink:  data['deep_link'] as String?,
   );
+}
+
+/// Une notification touchée sur l'écran du téléphone est lue : le serveur
+/// l'apprend par son identifiant, que porte la push. Sans lui (campagne,
+/// serveur plus ancien), rien à marquer.
+Future<void> marquerLueDepuisPush(NotificationNotifier notifier, Map<String, dynamic> data) async {
+  final id = data['notification_id'] as String?;
+  if (id == null || id.isEmpty) return;
+  await notifier.markRead(id);
 }
 
 // ─── Providers ────────────────────────────────────────────────────────────────
