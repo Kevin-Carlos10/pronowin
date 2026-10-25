@@ -161,6 +161,27 @@ const views = [
   // declenchaient qu'a partir de 5 preuves et ignoraient les versements.
   ['dashboard (file chargée)', 'dashboard', {
     ...base, page: 'dashboard',
+    // L'engagement (25 octobre 2026) : chiffres relevés en production.
+    periodeEngagement: 7,
+    engagement: {
+      jours: 7,
+      suivis: { matchs: 6, personnes: 4, nouveaux: 9, nouveauxPersonnes: 3 },
+      notifications: { creees: 491, lues: 64, familles: [
+        { cle: 'buts', libelle: 'Buts', creees: 147, lues: 21 },
+        { cle: 'resultats', libelle: 'Résultats des pronostics', creees: 91, lues: 14 },
+        { cle: 'mi_temps', libelle: 'Mi-temps', creees: 31, lues: 3 },
+        { cle: 'compositions', libelle: 'Compositions officielles', creees: 29, lues: 2 },
+        { cle: 'resume_pret', libelle: 'Résumé prêt', creees: 7, lues: 1 },
+      ] },
+      contenus: { resumes: 41, avantMatchs: 12 },
+      versions: { cible: '1.0.30', comptes: 86, aJour: 2, parCanal: [
+        { plateforme: 'android', canal: 'store', comptes: 81, aJour: 0,
+          versions: [{ version: '1.0.23', comptes: 48 }, { version: '1.0.18', comptes: 33 }] },
+        { plateforme: 'ios', canal: 'store', comptes: 3, aJour: 0, versions: [{ version: '1.0.23', comptes: 3 }] },
+        { plateforme: 'android', canal: 'direct', comptes: 2, aJour: 2, versions: [{ version: '1.0.30', comptes: 2 }] },
+      ] },
+      mobileMoney: { payes: 2, brut: 12000 },
+    },
     stats: { totalUsers: 412, premiumUsers: 38, pendingTx: 2, publishedToday: 5, activeUsers: 7 },
     pending: { data: [], total: 2 }, proofs: { data: [], total: 3 },
     activeBansCount: 1, recentBans: [], recentLogs: [],

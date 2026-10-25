@@ -192,6 +192,21 @@
 /* ══════════════════════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════════════════════ */
+/* ══════════════════════════════════════════════════════════
+   ENGAGEMENT
+══════════════════════════════════════════════════════════ */
+.eng-periodes { display: flex; gap: .4rem; }
+.eng-tab      { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.eng-tab th   { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+                color: var(--text-m); padding: .5rem .6rem; border-bottom: 1px solid var(--border); }
+.eng-tab td   { padding: .5rem .6rem; border-bottom: 1px solid var(--border); font-variant-numeric: tabular-nums; }
+.eng-tab tr:last-child td { border-bottom: 0; }
+.eng-tab .n   { text-align: right; }
+.eng-canal    { padding: .55rem 0; border-bottom: 1px solid var(--border); font-size: .84rem; }
+.eng-canal:last-child { border-bottom: 0; }
+.eng-canal strong { display: block; }
+.eng-sous     { display: block; font-size: .72rem; color: var(--text-dim); margin-top: .15rem; line-height: 1.45; }
+
 @media (max-width: 1100px) { .kpi-grid { grid-template-columns: repeat(2,1fr); } }
 @media (max-width: 900px)  { .charts-main, .charts-row, .bottom-grid { grid-template-columns: 1fr; } }
 @media (max-width: 600px)  { .kpi-grid { grid-template-columns: 1fr 1fr; } }
@@ -292,6 +307,93 @@
     <div class="kpi-delta neu">ces 2 dernières minutes</div>
   </button>
 </div>
+
+<!-- ── Engagement ──────────────────────────────────────────────────────────── -->
+<%
+  const _eng = (typeof engagement !== 'undefined' && engagement) ? engagement : null;
+  const _per = (typeof periodeEngagement !== 'undefined' && periodeEngagement === 30) ? 30 : 7;
+  const _pct = (n, d) => d ? Math.round(n / d * 100) + ' %' : '—';
+  const _CANAUX = { 'android|store': 'Android · Google Play', 'android|direct': 'Android · APK du site',
+    'ios|store': 'iPhone · App Store' };
+%>
+<% if (_eng) { %>
+<div class="control-section-head">
+  <div>
+    <h2><%= uiText("Engagement") %></h2>
+    <p>Les matchs suivis, les notifications lues, les articles écrits seuls, les versions installées — <%= _eng.jours %> derniers jours.</p>
+  </div>
+  <nav class="eng-periodes" aria-label="Période de l'engagement">
+    <a href="/admin/dashboard" class="btn btn-sm <%= _per === 7 ? 'btn-primary' : 'btn-outline' %>" aria-current="<%= _per === 7 ? 'page' : 'false' %>">7 jours</a>
+    <a href="/admin/dashboard?engagement=30" class="btn btn-sm <%= _per === 30 ? 'btn-primary' : 'btn-outline' %>" aria-current="<%= _per === 30 ? 'page' : 'false' %>">30 jours</a>
+  </nav>
+</div>
+<div class="kpi-grid metric-grid">
+  <div class="kpi-card metric-card blue">
+    <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-bell"/></svg></span>
+    <div class="kpi-lbl">Matchs suivis à venir</div>
+    <div class="kpi-val"><%= _eng.suivis.matchs %></div>
+    <div class="kpi-delta neu">par <%= _eng.suivis.personnes %> personne<%= _eng.suivis.personnes > 1 ? 's' : '' %> · <%= _eng.suivis.nouveaux %> suivi<%= _eng.suivis.nouveaux > 1 ? 's' : '' %> ajouté<%= _eng.suivis.nouveaux > 1 ? 's' : '' %> en <%= _eng.jours %> j</div>
+  </div>
+  <div class="kpi-card metric-card teal">
+    <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-inbox"/></svg></span>
+    <div class="kpi-lbl">Notifications lues</div>
+    <div class="kpi-val"><%= _pct(_eng.notifications.lues, _eng.notifications.creees) %></div>
+    <div class="kpi-delta neu"><%= _eng.notifications.lues %> sur <%= _eng.notifications.creees %> envoyées</div>
+  </div>
+  <div class="kpi-card metric-card green">
+    <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg></span>
+    <div class="kpi-lbl">Articles écrits seuls</div>
+    <div class="kpi-val"><%= _eng.contenus.resumes + _eng.contenus.avantMatchs %></div>
+    <div class="kpi-delta neu"><%= _eng.contenus.resumes %> résumé<%= _eng.contenus.resumes > 1 ? 's' : '' %> · <%= _eng.contenus.avantMatchs %> avant-match<%= _eng.contenus.avantMatchs > 1 ? 's' : '' %></div>
+  </div>
+  <div class="kpi-card metric-card orange">
+    <span class="kpi-icon-badge"><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg></span>
+    <div class="kpi-lbl">Paiements Mobile Money</div>
+    <div class="kpi-val"><%= _eng.mobileMoney.payes %></div>
+    <div class="kpi-delta neu"><%= Number(_eng.mobileMoney.brut).toLocaleString('fr-FR') %> FCFA encaissés en <%= _eng.jours %> j</div>
+  </div>
+</div>
+<div class="charts-row">
+  <div class="chart-card cr-panel">
+    <div class="chart-card-header">
+      <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-bell"/></svg> Notifications par famille</div>
+      <span class="chart-stat-badge"><%= _eng.jours %> derniers jours</span>
+    </div>
+    <% if (_eng.notifications.familles.length === 0) { %>
+      <p class="premium-note">Aucune notification sur la période.</p>
+    <% } else { %>
+    <table class="eng-tab">
+      <thead><tr><th scope="col">Famille</th><th scope="col" class="n">Envoyées</th><th scope="col" class="n">Lues</th><th scope="col" class="n">Part lue</th></tr></thead>
+      <tbody>
+        <% _eng.notifications.familles.forEach(f => { %>
+        <tr><td><%= f.libelle %></td><td class="n"><%= f.creees %></td><td class="n"><%= f.lues %></td><td class="n"><%= _pct(f.lues, f.creees) %></td></tr>
+        <% }) %>
+      </tbody>
+    </table>
+    <% } %>
+    <p class="premium-note">« Lue » : touchée dans la liste des notifications de l'application. Toucher la notification
+      elle-même ne le dit pas au serveur : la part lue est un minimum.</p>
+  </div>
+  <div class="chart-card cr-panel">
+    <div class="chart-card-header">
+      <div class="chart-card-title"><svg class="ic" aria-hidden="true"><use href="#ic-phone"/></svg> Versions installées</div>
+      <span class="chart-stat-badge">vues en 30 jours</span>
+    </div>
+    <% if (!_eng.versions.cible) { %>
+      <p class="premium-note">Aucun appareil vu depuis 30 jours.</p>
+    <% } else { %>
+      <p class="premium-note"><strong><%= _eng.versions.aJour %></strong> appareil<%= _eng.versions.aJour > 1 ? 's' : '' %> sur <%= _eng.versions.comptes %>
+        (<%= _pct(_eng.versions.aJour, _eng.versions.comptes) %>) ont la plus récente, <%= _eng.versions.cible %>.</p>
+      <% _eng.versions.parCanal.forEach(c => { %>
+      <div class="eng-canal">
+        <strong><%= _CANAUX[c.plateforme + '|' + (c.canal ?? '')] ?? c.plateforme %> — <%= c.comptes %> appareil<%= c.comptes > 1 ? 's' : '' %></strong>
+        <span class="eng-sous"><%= c.versions.map(v => v.version + ' × ' + v.comptes).join(' · ') %></span>
+      </div>
+      <% }) %>
+    <% } %>
+  </div>
+</div>
+<% } %>
 
 <!-- ── Graphiques ─────────────────────────────────────────────────────────── -->
 <div class="charts-main">

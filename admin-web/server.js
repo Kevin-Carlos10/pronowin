@@ -1438,6 +1438,10 @@ app.get('/admin/logout', (req, res) => {
 });
 
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
+
+/** L'engagement rendu par l'API, s'il a tout ce que la carte affiche ; sinon null. */
+const engagementComplet = (e) => (e && e.suivis && e.notifications && Array.isArray(e.notifications.familles)
+  && e.contenus && e.versions && Array.isArray(e.versions.parCanal) && e.mobileMoney) ? e : null;
 app.get('/admin/dashboard', requireAuth, async (req, res) => {
   const a = api(req.admin.jeton);
   // La file de travail montrait à tout sous-admin les versements et les
@@ -1447,7 +1451,9 @@ app.get('/admin/dashboard', requireAuth, async (req, res) => {
   const voitTx  = res.locals.hasPerm('transactions');
   const voitAbo = res.locals.hasPerm('abonnements');
   const vide    = Promise.resolve({ data: { data: [], total: 0 } });
-  const [statsRes, pendingRes, proofsRes, onlineRes, santeRes, mobileMoneyRes] = await Promise.allSettled([
+  // L'engagement (suivis, notifications lues, versions…) : 7 jours, ou 30.
+  const periodeEngagement = req.query.engagement === '30' ? 30 : 7;
+  const [statsRes, pendingRes, proofsRes, onlineRes, santeRes, mobileMoneyRes, engagementRes] = await Promise.allSettled([
     a.get('/pronostics/admin/stats'),
     voitTx  ? a.get('/payments/admin/pending?page=1')     : vide,
     voitAbo ? a.get('/subscriptions/admin/proofs?page=1') : vide,
@@ -1456,6 +1462,7 @@ app.get('/admin/dashboard', requireAuth, async (req, res) => {
     res.locals.isMain ? a.get('/admin/sante') : Promise.resolve(null),
     // Paiements Mobile Money bloqués : même section que les preuves.
     voitAbo ? a.get('/admin/paiements-mobile-money', { params: { etat: 'bloque' } }) : Promise.resolve(null),
+    res.locals.hasPerm('statistiques') ? a.get('/admin/engagement', { params: { jours: periodeEngagement } }) : Promise.resolve(null),
   ]);
   if ([statsRes, pendingRes, proofsRes].some(r => r.status === 'rejected' && r.reason?.response?.status === 401)) {
     jetonRefuse(req, res); return res.redirect('/admin/login?expired=1');
@@ -1556,6 +1563,10 @@ app.get('/admin/dashboard', requireAuth, async (req, res) => {
     recentBans:      activeBans.slice(0, 3),
     recentLogs,
     file,
+    // Une réponse incomplète (API plus ancienne, simulée…) masque la carte
+    // au lieu de faire tomber le tableau de bord.
+    engagement: engagementComplet(engagementRes.status === 'fulfilled' ? engagementRes.value?.data : null),
+    periodeEngagement,
   });
 });
 

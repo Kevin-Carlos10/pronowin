@@ -68,6 +68,7 @@ const REGLES: Regle[] = [
 
   // ── Statistiques ──
   [LIRE,   /^\/admin\/stats\/[a-z-]+$/,                         section('statistiques', 'read')],
+  [LIRE,   /^\/admin\/engagement$/,                              section('statistiques', 'read')],
 
   // ── Utilisateurs ──
   [LIRE,   /^\/admin\/users(\/online|\/stats|\/export\/csv|\/[^/]+)?$/, section('users', 'read')],

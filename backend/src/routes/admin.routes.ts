@@ -9,6 +9,7 @@ import { lireSante } from '../services/sante.service';
 import { ajouterAuJournal, verifierChaine } from '../services/journal_admin.service';
 import { resumeAchatsStore, reverifierAchatStore } from '../services/achats_store_admin.service';
 import { ETATS_PAIEMENT_MM, resumePaiementsMobileMoney, reverifierPaiementMobileMoney } from '../services/paiements_mobile_money_admin.service';
+import { resumeEngagement } from '../services/engagement_admin.service';
 import {
   FILTRES_RESUMES, FiltreResumes, GENRES_ARTICLE, GenreArticle,
   listerResumesAdmin, lireResumeAdmin, modifierResume, masquerResume,
@@ -281,6 +282,18 @@ r.post('/resumes/:id/masquer', adminMiddleware, async (req: AdminRequest, res) =
     const resume = await masquerResume(req.params.id, req.body.masque);
     if (!resume) { res.status(404).json({ message: 'Résumé introuvable.' }); return; }
     res.json(resume);
+  } catch (e: any) { repondreErreur(res, e); }
+});
+
+// ─── Engagement ──────────────────────────────────────────────────────────────
+//
+// Suivis, notifications par famille et part lue, articles écrits seuls,
+// adoption des versions, paiements Mobile Money (engagement_admin.service.ts).
+// `?jours=7` (défaut) ou `30`.
+
+r.get('/engagement', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    res.json(await resumeEngagement({ jours: parseInt(String(req.query.jours ?? '7')) || 7 }));
   } catch (e: any) { repondreErreur(res, e); }
 });
 
