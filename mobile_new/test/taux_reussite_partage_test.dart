@@ -65,9 +65,11 @@ void main() {
       // tendance, pas un chiffre mis en avant — et la masquer reviendrait à
       // amputer le début du graphe.
       'spots.add(FlSpot(i.toDouble(), wins / (i + 1) * 100));',
-      // Palmarès du modèle : conditionné juste au-dessus par
-      // `total >= echantillonCommercial`, la ligne du calcul reste locale.
-      '? (won / total * 100).round()',
+      // Palmarès du modèle (`BilanHistorique`, page refaite le 25 octobre
+      // 2026) : conditionné sur la même ligne par `tranches >= echantillon`
+      // — le seuil commercial de dix, comme le backend —, sur les seuls
+      // pronostics gagnés ou perdus.
+      '? (gagnes / tranches * 100).round()',
       // Exercice « value bet » des tutoriels : l'espérance d'un pari fictif,
       // probabilité × cote − 1, à partir de valeurs que l'élève saisit. Ce
       // n'est pas un taux de réussite, et rien n'y est affirmé sur PronoWin.
