@@ -41,6 +41,19 @@ les versions déjà installées, qui l'ignorent.
   ou « Ton vote : raté. ». L'issue se lit au score final : un nul gagné aux
   tirs au but reste un nul.
 
+## Google Play : le paiement Mobile Money sur le site
+
+- Dans l'app **Google Play seulement**, sous « L'abonnement Premium n'est
+  pas encore proposé dans la version Google Play », un bouton « Payer par
+  Mobile Money sur le site » ouvre pronowin.space/premium dans le
+  navigateur. Décision expresse de l'utilisateur du 26 octobre 2026,
+  **risque accepté** : Google interdit d'indiquer un autre moyen de
+  paiement hors de ses programmes (Europe, États-Unis…) ; la mise à jour
+  peut être refusée, l'application retirée, le compte développeur
+  suspendu. Le bouton est visible de tous, rien n'est caché aux contrôles.
+- **Jamais sur iPhone** (règle 3.1.1 d'Apple ; la 1.0.23 est en examen) :
+  le test `play_sans_premium_test.dart` le vérifie.
+
 ## Construction
 
 ```

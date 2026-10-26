@@ -14,6 +14,7 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../core/config/bookmaker_affiliation.dart';
 import '../../../../core/config/contact_support.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -2553,7 +2554,15 @@ class _IapSection extends StatelessWidget {
 
     // Google Play : aucun abonnement en vente (pas de compte marchand possible
     // depuis le Burkina Faso). Ni « vérifie ta connexion », qui ne changerait
-    // rien, ni autre moyen de paiement, que Google interdit d'indiquer.
+    // rien.
+    //
+    // Le paiement Mobile Money sur le site (pronowin.space/premium) y est
+    // proposé depuis le 26 octobre 2026, sur décision expresse de
+    // l'utilisateur, risque accepté : Google interdit d'indiquer un autre
+    // moyen de paiement hors de ses programmes (Europe, États-Unis…), et peut
+    // refuser la mise à jour ou retirer l'application. Le bouton est visible,
+    // pour tout le monde — rien n'est caché aux contrôles. Jamais sur iPhone :
+    // ce bloc ne s'affiche que sur Android.
     if (defaultTargetPlatform == TargetPlatform.android && product == null) {
       return Container(
         key: const Key('iap-indisponible-play'),
@@ -2562,12 +2571,31 @@ class _IapSection extends StatelessWidget {
           color: Colors.white.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(14),
           border: Border.all(color: Colors.white.withValues(alpha: 0.12))),
-        child: Row(children: [
-          Icon(Icons.info_outline_rounded, color: context.cl.textS, size: 20),
-          const SizedBox(width: 12),
-          Expanded(child: Text(
-            tr(context, "L'abonnement Premium n'est pas encore proposé dans la version Google Play."),
-            style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.5))),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            Icon(Icons.info_outline_rounded, color: context.cl.textS, size: 20),
+            const SizedBox(width: 12),
+            Expanded(child: Text(
+              tr(context, "L'abonnement Premium n'est pas encore proposé dans la version Google Play."),
+              style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.5))),
+          ]),
+          const SizedBox(height: 14),
+          FilledButton.icon(
+            key: const Key('play-payer-site'),
+            onPressed: () => launchUrl(Uri.parse('${AppConstants.siteUrl}/premium'),
+                mode: LaunchMode.externalApplication),
+            style: FilledButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            icon: const Icon(Icons.open_in_new_rounded, size: 18),
+            label: Text(tr(context, "Payer par Mobile Money sur le site"),
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
+          ),
+          const SizedBox(height: 8),
+          Text(tr(context, "Paiement sécurisé GeniusPay. Utilise l'adresse e-mail de ce compte : ton Premium s'y active dès le paiement confirmé."),
+            textAlign: TextAlign.center,
+            style: const TextStyle(color: Colors.white54, fontSize: 11.5, height: 1.45)),
         ]),
       );
     }

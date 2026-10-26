@@ -1723,4 +1723,6 @@ const englishMessages = <String, String>{
   "Ton vote : raté.": "Your vote: missed.",
   "Résultat du match": "Match result",
   "Le vote des fans": "The fans' vote",
+  "Payer par Mobile Money sur le site": "Pay with Mobile Money on the website",
+  "Paiement sécurisé GeniusPay. Utilise l'adresse e-mail de ce compte : ton Premium s'y active dès le paiement confirmé.": "Secure GeniusPay payment. Use this account's email address: your Premium is activated on it as soon as the payment is confirmed.",
 };
