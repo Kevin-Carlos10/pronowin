@@ -155,6 +155,10 @@ model UserFavoriteMatch {
   userId    String   @map("user_id")
   matchId   String   @map("match_id")
   createdAt DateTime @default(now()) @map("created_at")
+  /// Les alertes choisies pour ce match (27 octobre 2026) — coup_envoi,
+  /// compositions, buts, cartons, mi_temps, fin_de_match, resume. Toutes par
+  /// défaut ; une liste vide garde le match suivi, sans notification.
+  alertes   String[] @default(["coup_envoi", "compositions", "buts", "cartons", "mi_temps", "fin_de_match", "resume"])
   match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 

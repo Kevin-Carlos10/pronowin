@@ -327,7 +327,7 @@ async function annoncerResume(
   resumeId: string, resume: Resume, maintenant: Date, notifSvc: NotificationService,
 ): Promise<number> {
   if (maintenant.getTime() - m.matchDate.getTime() > NOTIFIER_JUSQU_A_MS || heureCalme(maintenant)) return 0;
-  const destinataires = await suiveursDuMatch(m.id, m.pronostic?.id ?? null);
+  const destinataires = await suiveursDuMatch(m.id, m.pronostic?.id ?? null, 'resume');
   for (const userId of destinataires) {
     notifSvc.sendToUser(userId, {
       title: TITRE_RESUME_PRET, titleEn: 'Match report ready',

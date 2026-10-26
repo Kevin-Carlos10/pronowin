@@ -71,7 +71,7 @@ export async function annoncerCompositions(
 
     const fr = `${country(m.homeTeam, 'fr')}${formation(compo.home?.formation)} – ${country(m.awayTeam, 'fr')}${formation(compo.away?.formation)}`;
     const en = `${country(m.homeTeam, 'en')}${formation(compo.home?.formation)} – ${country(m.awayTeam, 'en')}${formation(compo.away?.formation)}`;
-    const destinataires = await suiveursDuMatch(m.id, m.pronostic?.id ?? null);
+    const destinataires = await suiveursDuMatch(m.id, m.pronostic?.id ?? null, 'compositions');
     for (const userId of destinataires) {
       notifSvc.sendToUser(userId, {
         title: TITRE_COMPOSITIONS, titleEn: 'Official line-ups',

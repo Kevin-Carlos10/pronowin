@@ -26,6 +26,7 @@ import '../../../../core/widgets/image_distante.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../../../shared/providers/favoris_provider.dart';
 import '../../../../shared/widgets/suivre_match.dart';
+import '../../../../shared/widgets/alertes_match.dart';
 import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../domain/entities/match_entity.dart';
@@ -162,7 +163,9 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     if (_bulleSuivi) setState(() => _bulleSuivi = false);
   }
 
-  /// Suivre le match, ou ne plus le suivre — depuis la cloche ou la bulle.
+  /// Suivre le match — depuis la cloche ou la bulle. Déjà suivi, la cloche
+  /// ouvre le choix des alertes (27 octobre 2026) ; « Ne plus suivre » est
+  /// dans la feuille.
   void _basculerSuivi(MatchEntity match) {
     HapticFeedback.selectionClick();
     // Le détail est ouvert aux invités, mais suivre exige un compte : on les
@@ -171,7 +174,16 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
       context.push('/auth/email?from=${Uri.encodeComponent('/pronostics/${match.id}')}');
       return;
     }
-    basculerSuivi(context, match.id, termine: match.status == MatchStatus.finished);
+    final termine = match.status == MatchStatus.finished;
+    final suivi = ref.read(favorisProvider).valueOrNull?.matchIds.contains(match.id) ?? false;
+    if (suivi) {
+      ouvrirAlertesMatch(context,
+        matchId: match.id,
+        titre: '${match.homeTeam} – ${match.awayTeam}',
+        onNePlusSuivre: () => basculerSuivi(context, match.id, termine: termine));
+      return;
+    }
+    basculerSuivi(context, match.id, termine: termine);
   }
 
   /// Le suivi du score s'arrête quand l'application passe en arrière-plan.
@@ -642,7 +654,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
                       color: isFav ? AppColors.primary : sombre.cl.textP,
                     ),
                   ),
-                  tooltip: libelleSuivi(sombre, isFav),
+                  tooltip: isFav ? tr(sombre, "Choisir les alertes") : libelleSuivi(sombre, false),
                   onPressed: () => _basculerSuivi(match),
                 )),
                 // Rien sur la fraîcheur du score, sauf s'il n'arrive plus.

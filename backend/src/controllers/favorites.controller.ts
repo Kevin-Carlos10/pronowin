@@ -5,6 +5,7 @@ import { prisma } from '../lib/prisma';
 import { estVerrouille } from '../services/verrou_pronostic';
 import { repondreErreur } from '../utils/erreurs';
 import { pourcentageConfiance } from '../utils/confiance';
+import { choisirAlertes, lireAlertes } from '../services/suiveurs_match';
 
 export const getFavorites = async (req: AuthRequest, res: Response) => {
   try {
@@ -131,4 +132,21 @@ export const removeFavorite = async (req: AuthRequest, res: Response) => {
   } catch (e: any) {
     repondreErreur(res, e);
   }
+};
+
+/**
+ * GET /favorites/:id/alertes — le match est-il suivi, et quelles alertes
+ * sont gardées (27 octobre 2026). Toutes, pour un match pas encore suivi.
+ */
+export const getAlertes = async (req: AuthRequest, res: Response) => {
+  try {
+    res.json(await lireAlertes(req.userId!, req.params.id));
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/** PUT /favorites/:id/alertes { alertes: [...] } — suit le match s'il ne l'était pas. */
+export const putAlertes = async (req: AuthRequest, res: Response) => {
+  try {
+    res.json(await choisirAlertes(req.userId!, req.params.id, req.body?.alertes));
+  } catch (e: any) { repondreErreur(res, e, 422); }
 };

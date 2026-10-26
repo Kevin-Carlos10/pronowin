@@ -19,7 +19,7 @@ import {
   messageCartonRouge, messageDeBut, messageMiTemps, releverEvenements, releverScores,
   _oublierEtatsDuDirect, _oublierScoresDuDirect, type EvenementsDirect, type Score,
 } from './alertes_direct';
-import { suiveursDuMatch } from './suiveurs_match';
+import { suiveursDuMatch, type CategorieAlerte } from './suiveurs_match';
 import { nomEquipe, rencontre, traduireEquipes } from '../utils/noms_equipes';
 import { pourcentageConfiance, pourcentageDepuisNiveau } from '../utils/confiance';
 
@@ -557,18 +557,22 @@ export class PronosticsService {
     const equipes = { dom: match.homeTeam, ext: match.awayTeam };
     // Dans l'ordre où ils se sont produits au cours du relevé : un but, puis
     // la pause, ou l'inverse ne change rien à l'utilisateur.
-    const messages: Array<{ fr: { title: string; body: string }; en: { title: string; body: string } }> = [];
+    // Chaque message porte sa catégorie : ne le reçoivent que ceux qui l'ont
+    // gardée pour ce match (alertes au choix, 27 octobre 2026).
+    const messages: Array<{ categorie: CategorieAlerte; fr: { title: string; body: string }; en: { title: string; body: string } }> = [];
     const frBut = but ? messageDeBut(but.fixture, but.avant, equipes, 'fr') : null;
     const enBut = but ? messageDeBut(but.fixture, but.avant, equipes, 'en') : null;
-    if (frBut && enBut) messages.push({ fr: frBut, en: enBut });
+    if (frBut && enBut) messages.push({ categorie: 'buts', fr: frBut, en: enBut });
     for (const e of evenements?.rouges ?? []) {
       messages.push({
+        categorie: 'cartons',
         fr: messageCartonRouge(evenements!.fixture, e, equipes, 'fr'),
         en: messageCartonRouge(evenements!.fixture, e, equipes, 'en'),
       });
     }
     if (evenements?.miTemps) {
       messages.push({
+        categorie: 'mi_temps',
         fr: messageMiTemps(evenements.fixture, equipes, 'fr'),
         en: messageMiTemps(evenements.fixture, equipes, 'en'),
       });
@@ -576,18 +580,25 @@ export class PronosticsService {
     if (!annoncerCoupEnvoi && !messages.length) return;
 
     const prono = await prisma.pronostic.findUnique({ where: { matchId: match.id }, select: { id: true } });
-    const destinataires = await suiveursDuMatch(match.id, prono?.id ?? null);
+    const categories = [...new Set<CategorieAlerte>([
+      ...(annoncerCoupEnvoi ? ['coup_envoi' as const] : []), ...messages.map(m => m.categorie)])];
+    const parCategorie = new Map<CategorieAlerte, Set<string>>();
+    for (const c of categories) parCategorie.set(c, new Set(await suiveursDuMatch(match.id, prono?.id ?? null, c)));
+    // Chacun reçoit ses alertes dans l'ordre où elles se sont produites.
+    const destinataires = [...new Set([...parCategorie.values()].flatMap(s => [...s]))];
+    const veut = (userId: string, c: CategorieAlerte) => parCategorie.get(c)?.has(userId) ?? false;
     // Un match sans pronostic s'ouvre aussi : l'écran accepte son id.
     const data = { deep_link: `/pronostics/${prono?.id ?? match.id}`, match_id: match.id };
     for (const userId of destinataires) {
-      if (annoncerCoupEnvoi) {
+      if (annoncerCoupEnvoi && veut(userId, 'coup_envoi')) {
         notifSvc.sendToUser(userId, {
           title: 'Match en direct !',
           body:  `${rencontre(match.homeTeam, match.awayTeam)} vient de commencer.`,
           data:  { type: 'match_live', ...data },
         }, 'match').catch((err: any) => journal.error('[PronoSvc]', err.message));
       }
-      for (const { fr, en } of messages) {
+      for (const { fr, en, categorie } of messages) {
+        if (!veut(userId, categorie)) continue;
         notifSvc.sendToUser(userId, {
           title: fr.title, body: fr.body, titleEn: en.title, bodyEn: en.body,
           data:  { type: 'match', ...data },
@@ -770,9 +781,10 @@ export class PronosticsService {
       });
       updated++;
 
-      // Récupérer les utilisateurs qui ont mis ce match en favori
+      // Ceux qui suivent ce match et ont gardé l'alerte de fin de match
+      // (score final, résultat du pronostic).
       const favorites = await prisma.userFavoriteMatch.findMany({
-        where:  { matchId: match.id },
+        where:  { matchId: match.id, alertes: { has: 'fin_de_match' } },
         select: { userId: true },
       });
 

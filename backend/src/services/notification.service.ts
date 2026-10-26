@@ -560,7 +560,7 @@ export class NotificationService {
     return this.sendToUser(userId, {
       title: 'Premium activé !',
       body:  `Accès Premium actif pour ${durationDays} jours. Profitez des pronostics VIP !`,
-      data:  { deep_link: '/pronostics', type: 'system' },
+      data:  { deep_link: '/pronostics', type: 'premium' },
     }, 'premium');
   }
 

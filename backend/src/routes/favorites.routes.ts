@@ -7,5 +7,7 @@ const r = Router();
 r.get   ('/',       authMiddleware, C.getFavorites);
 r.post  ('/:id',    authMiddleware, C.addFavorite);
 r.delete('/:id',    authMiddleware, C.removeFavorite);
+r.get   ('/:id/alertes', authMiddleware, C.getAlertes);
+r.put   ('/:id/alertes', authMiddleware, C.putAlertes);
 
 export default r;
