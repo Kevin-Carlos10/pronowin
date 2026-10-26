@@ -16,6 +16,7 @@ import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
 import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
 import { repondreErreur, ErreurMetier } from '../utils/erreurs';
 import { articlesDuMatch } from '../services/resumes_match.service';
+import { resumeVotes, voter } from '../services/votes_match.service';
 import {
   niveauDepuisPourcentage, pourcentageConfiance, pourcentageDepuisNiveau, POURCENTAGE_MAX, POURCENTAGE_MIN,
 } from '../utils/confiance';
@@ -1177,6 +1178,25 @@ export const getArticlesDuMatch = async (req: AuthRequest, res: Response) => {
   try {
     res.json(await articlesDuMatch(req.params.id));
   } catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
+ * GET /pronostics/:id/votes — « Qui va gagner ? » : la répartition des votes
+ * des fans, et celui du compte s'il est connecté (votes_match.service.ts).
+ */
+export const getVotes = async (req: AuthRequest, res: Response) => {
+  try {
+    const r = await resumeVotes(req.params.id, req.userId);
+    if (!r) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+    res.json(r);
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/** POST /pronostics/:id/vote { choix: '1' | 'N' | '2' } — jusqu'au coup d'envoi. */
+export const postVote = async (req: AuthRequest, res: Response) => {
+  try {
+    res.json(await voter(req.params.id, req.userId!, req.body?.choix));
+  } catch (e: any) { repondreErreur(res, e, 422); }
 };
 
 export const getFormeRecente = async (req: AuthRequest, res: Response) => {

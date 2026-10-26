@@ -1710,4 +1710,11 @@ const englishMessages = <String, String>{
   "Aujourd'hui": "Today",
   "Aucun pronostic réglé sur cette période": "No settled predictions in this period",
   "Les résultats apparaissent ici dès la fin des matchs. Essaie une période plus longue.": "Results appear here as soon as matches end. Try a longer period.",
+  "Qui va gagner ?": "Who will win?",
+  "Tu peux changer d'avis jusqu'au coup d'envoi.": "You can change your mind until kick-off.",
+  "Votes clos.": "Voting closed.",
+  "Les votes sont clos : le match a commencé.": "Voting is closed: the match has started.",
+  "Vote impossible pour l'instant.": "Voting is unavailable right now.",
+  "{arg0} : {arg1} %": "{arg0}: {arg1}%",
+  "Ton vote": "Your vote",
 };

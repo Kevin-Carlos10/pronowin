@@ -73,6 +73,7 @@ part 'match_detail/informations.dart';
 part 'match_detail/analyse_modele.dart';
 part 'match_detail/toutes_cotes.dart';
 part 'match_detail/article_match.dart';
+part 'match_detail/vote_fans.dart';
 
 /// La carte des palmarès d'une compétition, seule, pour les bancs d'essai.
 @visibleForTesting
@@ -489,6 +490,8 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         // L'avant-match, puis le résumé. Porte sa propre marge : sans
         // article, elle ne laisse pas de trou.
         entree(_ArticleDuMatch(matchId: match.id), delaiMs: 60),
+        // « Qui va gagner ? » Porte sa propre marge, comme la carte d'article.
+        entree(_VoteFans(match: match), delaiMs: 75),
         if (showEvents) ...[
           entree(_MatchEventsCard(matchId: match.id, match: match),
               delaiMs: 90),

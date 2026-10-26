@@ -128,3 +128,42 @@ final articlesDuMatchProvider = FutureProvider.autoDispose
     return null;
   }
 });
+
+/// « Qui va gagner ? » : la répartition des votes des fans (26 octobre 2026).
+class VotesMatch {
+  /// Ouvert jusqu'au coup d'envoi.
+  final bool ouvert;
+  final int total, dom, nul, ext;
+  /// Pourcentages entiers ; leur somme fait 100 dès qu'il y a un vote.
+  final int pDom, pNul, pExt;
+  /// « 1 », « N », « 2 », ou null : pas de vote, ou invité.
+  final String? monVote;
+  const VotesMatch({required this.ouvert, required this.total, required this.dom, required this.nul,
+    required this.ext, required this.pDom, required this.pNul, required this.pExt, this.monVote});
+
+  factory VotesMatch.fromJson(Map<String, dynamic> j) {
+    final p = j['pourcentages'] as Map<String, dynamic>? ?? const {};
+    int n(Object? v) => (v as num?)?.toInt() ?? 0;
+    return VotesMatch(
+      ouvert: j['ouvert'] == true, total: n(j['total']), dom: n(j['dom']), nul: n(j['nul']), ext: n(j['ext']),
+      pDom: n(p['dom']), pNul: n(p['nul']), pExt: n(p['ext']), monVote: j['mon_vote'] as String?);
+  }
+}
+
+final votesMatchProvider = FutureProvider.autoDispose
+    .family<VotesMatch?, String>((ref, id) async {
+  try {
+    final r = await ref.read(dioProvider).get('/pronostics/$id/votes');
+    return VotesMatch.fromJson(Map<String, dynamic>.from(r.data as Map));
+  } on DioException {
+    return null;
+  }
+});
+
+/// Voter « 1 », « N » ou « 2 » : rend la nouvelle répartition. Lève
+/// [DioException] — 409 si le match a commencé.
+final voterMatchProvider = Provider<Future<VotesMatch> Function(String id, String choix)>((ref) =>
+  (id, choix) async {
+    final r = await ref.read(dioProvider).post('/pronostics/$id/vote', data: {'choix': choix});
+    return VotesMatch.fromJson(Map<String, dynamic>.from(r.data as Map));
+  });

@@ -48,6 +48,8 @@ r.get ('/:id/injuries',    optionalAuthMiddleware, C.getInjuries);
 r.get ('/:id/standings',   optionalAuthMiddleware, C.getStandings);
 r.get ('/:id/forme-recente', optionalAuthMiddleware, C.getFormeRecente);
 r.get ('/:id/articles',    optionalAuthMiddleware, C.getArticlesDuMatch);
+r.get ('/:id/votes',       optionalAuthMiddleware, C.getVotes);
+r.post('/:id/vote',        authMiddleware,         C.postVote);
 r.get ('/:id/cotes',       optionalAuthMiddleware, C.getCotes);
 r.get ('/:id/match-info', optionalAuthMiddleware, C.getMatchInfo);
 r.get ('/:id/match-stats', optionalAuthMiddleware, C.getMatchStats);
