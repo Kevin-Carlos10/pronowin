@@ -545,6 +545,9 @@ export class NotificationService {
     };
   }
 
+  /** Les destinataires d'une campagne : joignables, « Offres & Promotions » gardé. */
+  destinatairesJoignables(segment: string) { return this._reachableUsers(segment); }
+
   private async _reachableUsers(segment: string) {
     const users = await prisma.user.findMany({
       where:  { ...segmentWhere(segment), appareils: { some: {} } },
