@@ -28,7 +28,7 @@ import { prisma } from '../lib/prisma';
 import { country } from '../i18n/football';
 import { apiFootballService } from './api_football.service';
 import type { MatchRecent } from './forme_recente.service';
-import { GRANDES_COMPETITIONS, de, type Resume } from './resumes_match.service';
+import { GRANDES_COMPETITIONS, articleDeMatch, de, type Resume } from './resumes_match.service';
 import { journal } from '../utils/logger';
 
 type Langue = 'fr' | 'en';
@@ -354,28 +354,5 @@ export async function avantMatchsPourActualites(limite = 6, maintenant = new Dat
   return [...lus.filter(pronostique), ...lus.filter(r => !pronostique(r))]
     .slice(0, limite)
     .sort((a, b) => b.creeLe.getTime() - a.creeLe.getTime())
-    .map(r => ({
-      id:         `avant_match_${r.id}`,
-      titre:      r.titre,
-      titre_en:   r.titreEn,
-      resume:     r.resume,
-      resume_en:  r.resumeEn,
-      categorie:  r.ligue,
-      emoji:      '⚽',
-      image_url:  null,
-      source_url: null,
-      is_pinned:  false,
-      created_at: r.creeLe.toISOString(),
-      from_rss:   false,
-      // « resume_match » : les versions 1.0.25 à 1.0.28 de l'app montrent
-      // alors les deux logos et le bouton « Voir le match ». `genre` distingue
-      // l'avant-match du résumé pour une prochaine version.
-      type:       'resume_match',
-      genre:      'avant_match',
-      match_id:   r.matchId,
-      logo_domicile:  r.match?.homeTeamLogo ?? null,
-      logo_exterieur: r.match?.awayTeamLogo ?? null,
-      // Pas de score : le match n'a pas commencé.
-      score:      null,
-    }));
+    .map(articleDeMatch);
 }

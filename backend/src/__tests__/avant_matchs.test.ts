@@ -234,7 +234,7 @@ describe('au format des actualités', () => {
   it('jusqu\'au coup d\'envoi, sans ceux qu\'on a retirés ; type « resume_match » pour les versions installées, sans score', async () => {
     const maintenant = new Date('2026-10-24T12:00:00Z');
     const lecture = jest.spyOn(prisma.resumeMatch, 'findMany').mockResolvedValue([{
-      id: 'a1', matchId: 'm1', titre: 'Avant-match : Arsenal (2e) reçoit Chelsea (5e)', titreEn: 'Preview', resume: 'R', resumeEn: 'R',
+      id: 'a1', matchId: 'm1', genre: 'avant_match', titre: 'Avant-match : Arsenal (2e) reçoit Chelsea (5e)', titreEn: 'Preview', resume: 'R', resumeEn: 'R',
       ligue: 'Premier League', creeLe: new Date('2026-10-24T09:00:00Z'),
       match: { homeTeamLogo: 'https://media.api-sports.io/football/teams/42.png', awayTeamLogo: null, hasPublishedPronostic: false },
     }]);

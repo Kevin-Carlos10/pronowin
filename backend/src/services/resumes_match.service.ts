@@ -429,8 +429,21 @@ export async function resumesPourActualites(limite = 8): Promise<any[]> {
   const resumes = [...lus.filter(pronostique), ...lus.filter(r => !pronostique(r))]
     .slice(0, limite)
     .sort((a, b) => b.creeLe.getTime() - a.creeLe.getTime());
-  return resumes.map(r => ({
-    id:         `resume_${r.id}`,
+  return resumes.map(articleDeMatch);
+}
+
+/**
+ * Un article écrit seul sur un match — résumé ou avant-match —, au format des
+ * actualités de l'application.
+ */
+export function articleDeMatch(r: {
+  id: string; matchId: string; genre?: string; titre: string; titreEn: string; resume: string; resumeEn: string;
+  ligue: string; creeLe: Date;
+  match?: { homeTeamLogo?: string | null; awayTeamLogo?: string | null; homeScore?: number | null; awayScore?: number | null } | null;
+}) {
+  const avantMatch = r.genre === 'avant_match';
+  return {
+    id:         `${avantMatch ? 'avant_match' : 'resume'}_${r.id}`,
     titre:      r.titre,
     titre_en:   r.titreEn,
     resume:     r.resume,
@@ -442,14 +455,36 @@ export async function resumesPourActualites(limite = 8): Promise<any[]> {
     is_pinned:  false,
     created_at: r.creeLe.toISOString(),
     from_rss:   false,
-    // Pour une prochaine version de l'app : ouvrir la fiche du match.
+    // « resume_match » pour les deux genres : les versions 1.0.25 à 1.0.28
+    // de l'app montrent alors les deux logos et « Voir le match ». `genre`
+    // distingue l'avant-match du résumé (1.0.29).
     type:       'resume_match',
-    genre:      'resume',
+    genre:      avantMatch ? 'avant_match' : 'resume',
     match_id:   r.matchId,
-    // Le visuel d'un résumé dans l'app (1.0.26) : les deux logos et le score.
+    // Le visuel d'un article de match dans l'app : les deux logos et le score.
     logo_domicile:  r.match?.homeTeamLogo ?? null,
     logo_exterieur: r.match?.awayTeamLogo ?? null,
-    score: r.match && r.match.homeScore !== null && r.match.awayScore !== null
+    // Pas de score avant le match.
+    score: !avantMatch && r.match && r.match.homeScore != null && r.match.awayScore != null
       ? `${r.match.homeScore}-${r.match.awayScore}` : null,
-  }));
+  };
+}
+
+/**
+ * L'avant-match et le résumé d'un match, pour sa fiche (26 octobre 2026) :
+ * plus de cent articles par semaine, qu'on ne trouvait que dans la page
+ * Actus. Ceux qu'on a retirés depuis le panneau n'y sont pas. [id] : celui
+ * du match, ou de son pronostic.
+ */
+export async function articlesDuMatch(id: string) {
+  const lus = await prisma.resumeMatch.findMany({
+    where:   { masque: false, OR: [{ matchId: id }, { match: { pronostic: { id } } }] },
+    include: { match: { select: { homeTeamLogo: true, awayTeamLogo: true, homeScore: true, awayScore: true } } },
+  });
+  const genre = (g: string) => lus.find(r => r.genre === g);
+  const avant = genre('avant_match'), resume = genre('resume');
+  return {
+    avant_match: avant ? articleDeMatch(avant) : null,
+    resume:      resume ? articleDeMatch(resume) : null,
+  };
 }

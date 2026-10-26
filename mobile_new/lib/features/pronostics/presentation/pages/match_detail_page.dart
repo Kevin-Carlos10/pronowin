@@ -33,6 +33,9 @@ import '../../domain/chrono_match.dart';
 import '../providers/pronostics_provider.dart';
 import '../providers/match_info_provider.dart';
 import '../providers/fiche_match_provider.dart';
+import '../../../actualites/actualites.dart';
+import '../../../actualites/page_actus.dart' show ouvrirActu;
+import '../../../../l10n/editorial_text.dart';
 import '../widgets/comments_section.dart';
 import '../widgets/fil_evenements.dart';
 import '../widgets/infos_joueurs.dart';
@@ -69,6 +72,7 @@ part 'match_detail/statistiques.dart';
 part 'match_detail/informations.dart';
 part 'match_detail/analyse_modele.dart';
 part 'match_detail/toutes_cotes.dart';
+part 'match_detail/article_match.dart';
 
 /// La carte des palmarès d'une compétition, seule, pour les bancs d'essai.
 @visibleForTesting
@@ -482,6 +486,9 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           entree(_PronosticCard(match: match, isLocked: isLocked)),
           const SizedBox(height: 16),
         ],
+        // L'avant-match, puis le résumé. Porte sa propre marge : sans
+        // article, elle ne laisse pas de trou.
+        entree(_ArticleDuMatch(matchId: match.id), delaiMs: 60),
         if (showEvents) ...[
           entree(_MatchEventsCard(matchId: match.id, match: match),
               delaiMs: 90),

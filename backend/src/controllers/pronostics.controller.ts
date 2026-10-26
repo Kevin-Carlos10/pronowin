@@ -15,6 +15,7 @@ import { CLASSEMENTS_JOUEURS, type ClassementJoueurs } from '../services/api_foo
 import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
 import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
 import { repondreErreur, ErreurMetier } from '../utils/erreurs';
+import { articlesDuMatch } from '../services/resumes_match.service';
 import {
   niveauDepuisPourcentage, pourcentageConfiance, pourcentageDepuisNiveau, POURCENTAGE_MAX, POURCENTAGE_MIN,
 } from '../utils/confiance';
@@ -1168,6 +1169,16 @@ export const getStandings = async (req: AuthRequest, res: Response) => {
  * chaque équipe. Ouvert aux invités : c'est de la donnée football, pas le
  * produit vendu.
  */
+/**
+ * GET /pronostics/:id/articles — l'avant-match et le résumé du match
+ * (26 octobre 2026), au format des actualités : la fiche les montre.
+ */
+export const getArticlesDuMatch = async (req: AuthRequest, res: Response) => {
+  try {
+    res.json(await articlesDuMatch(req.params.id));
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
 export const getFormeRecente = async (req: AuthRequest, res: Response) => {
   try {
     const match = await findMatchByIdOrPronoId(req.params.id);

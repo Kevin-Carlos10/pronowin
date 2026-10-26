@@ -8,7 +8,7 @@
  */
 import { prisma } from '../lib/prisma';
 import { listerResumesAdmin, lireResumeAdmin, modifierResume, masquerResume } from '../services/resumes_match_admin.service';
-import { resumesPourActualites } from '../services/resumes_match.service';
+import { resumesPourActualites, articlesDuMatch } from '../services/resumes_match.service';
 import { avantMatchsPourActualites } from '../services/avant_matchs.service';
 import { decrireSurBaseLocale } from './aides/base_locale';
 
@@ -124,6 +124,28 @@ decrireSurBaseLocale('les résumés dans le panneau', () => {
     expect(await ids({ genre: 'avant_match', filtre: 'dans_le_fil' })).toEqual([]);
     expect((await lireResumeAdmin(avant.id))!.dansLeFil).toBe(false);
     expect(await dansLeFil()).toBe(false);
+  });
+
+  it('la fiche d\'un match : son avant-match et son résumé ; un article retiré n\'y est pas', async () => {
+    const m = await prisma.match.create({ data: {
+      externalId: Math.floor(Math.random() * 1e9) + 1e9, source: 'API_FOOTBALL', league: 'Ligue 1', leagueCode: 'FL1',
+      homeTeam: `Lens ${marque}`, awayTeam: 'Lille', matchDate: new Date(Date.now() - 5 * HEURE), status: 'FINISHED',
+      homeScore: 1, awayScore: 0, homeTeamLogo: 'https://media.api-sports.io/football/teams/116.png',
+    } });
+    matchs.push(m.id);
+    const avant = await prisma.resumeMatch.create({ data: { matchId: m.id, genre: 'avant_match', ligue: 'Ligue 1',
+      titre: 'Avant-match : Lens (4e) reçoit Lille (6e)', titreEn: 'Preview', resume: 'A', resumeEn: 'A' } });
+    const resume = await prisma.resumeMatch.create({ data: { matchId: m.id, genre: 'resume', ligue: 'Ligue 1',
+      titre: 'Lens s\'impose face à Lille (1-0)', titreEn: 'Lens beat Lille 1-0', resume: 'R', resumeEn: 'R' } });
+
+    const a = await articlesDuMatch(m.id);
+    expect(a.avant_match).toMatchObject({ id: `avant_match_${avant.id}`, genre: 'avant_match', score: null, match_id: m.id });
+    expect(a.resume).toMatchObject({ id: `resume_${resume.id}`, genre: 'resume', score: '1-0',
+      logo_domicile: 'https://media.api-sports.io/football/teams/116.png' });
+
+    await masquerResume(resume.id, true);
+    expect((await articlesDuMatch(m.id)).resume).toBeNull();
+    expect(await articlesDuMatch('inconnu')).toEqual({ avant_match: null, resume: null });
   });
 
   it('un résumé qui n\'existe pas : null', async () => {

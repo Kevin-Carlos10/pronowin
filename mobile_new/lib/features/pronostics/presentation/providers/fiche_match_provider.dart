@@ -115,3 +115,16 @@ final formeRecenteProvider = FutureProvider.autoDispose
     return null;
   }
 });
+
+/// L'avant-match et le résumé du match (26 octobre 2026), au format des
+/// actualités : `{avant_match, resume}`, chacun ou null. Null si le serveur
+/// ne répond pas — la fiche n'en montre alors aucun.
+final articlesDuMatchProvider = FutureProvider.autoDispose
+    .family<Map<String, dynamic>?, String>((ref, id) async {
+  try {
+    final r = await ref.read(dioProvider).get('/pronostics/$id/articles');
+    return Map<String, dynamic>.from(r.data as Map);
+  } on DioException {
+    return null;
+  }
+});

@@ -64,7 +64,9 @@ class PageArticle extends ConsumerWidget {
                   const SizedBox(height: 14),
                 ],
                 const SizedBox(height: 10),
-                if (famille == FamilleActu.resume && matchId != null && matchId.isNotEmpty)
+                // Ouvert depuis la fiche du match : il n'y renvoie pas.
+                if (famille == FamilleActu.resume && matchId != null && matchId.isNotEmpty
+                    && news['depuis_fiche'] != true)
                   FilledButton.icon(
                     key: const Key('actu-voir-match'),
                     onPressed: () => context.push('/pronostics/$matchId'),
