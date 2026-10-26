@@ -1717,4 +1717,10 @@ const englishMessages = <String, String>{
   "Vote impossible pour l'instant.": "Voting is unavailable right now.",
   "{arg0} : {arg1} %": "{arg0}: {arg1}%",
   "Ton vote": "Your vote",
+  "{arg0} % des fans l'avaient vu venir.": "{arg0}% of fans saw it coming.",
+  "Seuls {arg0} % des fans l'avaient vu venir.": "Only {arg0}% of fans saw it coming.",
+  "Ton vote : bien vu !": "Your vote: spot on!",
+  "Ton vote : raté.": "Your vote: missed.",
+  "Résultat du match": "Match result",
+  "Le vote des fans": "The fans' vote",
 };

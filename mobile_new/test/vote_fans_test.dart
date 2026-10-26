@@ -30,7 +30,7 @@ void main() {
   late List<String> votes;
 
   Future<void> ouvrir(WidgetTester t, {required VotesMatch? initial, String statut = 'upcoming',
-      Future<VotesMatch> Function(String choix)? serveur, bool invite = false}) async {
+      Future<VotesMatch> Function(String choix)? serveur, bool invite = false, List<int>? score}) async {
     SharedPreferences.setMockInitialValues({'astuce_suivre_match_vue': true});
     t.view.physicalSize = const Size(1170, 2532); t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
@@ -38,6 +38,7 @@ void main() {
     final match = MatchModel.fromJson({'id': 'm', 'league': 'Premier League', 'league_country': 'GB',
       'home_team': 'Arsenal', 'away_team': 'Chelsea', 'status': statut,
       'match_date': DateTime.now().add(Duration(hours: statut == 'upcoming' ? 20 : -1)).toUtc().toIso8601String(),
+      if (score != null) ...{'home_score': score[0], 'away_score': score[1]},
       'has_pronostic': true, 'prediction_type': 'HOME_WIN', 'prediction_label': 'Victoire Arsenal',
       'odds_recommended': 1.8, 'confidence_score': 4, 'is_premium': false});
     final routeur = GoRouter(routes: [
@@ -127,5 +128,39 @@ void main() {
       response: Response(requestOptions: RequestOptions(path: '/pronostics/m/vote'), statusCode: 409)));
     await toucher(t, 'vote-2');
     expect(find.text('Les votes sont clos : le match a commencé.'), findsOneWidget);
+  });
+
+  // « Les fans avaient-ils raison ? » (26 octobre 2026) : le match terminé, la
+  // carte dit qui avait vu juste.
+  testWidgets('après le match : l\'issue marquée, les fans avaient vu juste, ton vote aussi', (t) async {
+    await ouvrir(t, statut: 'finished', score: [2, 0],
+      initial: _votes(ouvert: false, dom: 61, nul: 18, ext: 21, mien: '1'));
+    expect(find.descendant(of: find.byKey(const Key('vote-part-1')), matching: find.byKey(const Key('vote-issue'))),
+      findsOneWidget);
+    expect(find.byKey(const Key('vote-issue')), findsOneWidget);
+    expect(find.text("61 % des fans l'avaient vu venir."), findsOneWidget);
+    expect(find.text('Ton vote : bien vu !'), findsOneWidget);
+    expect(find.text('Votes clos.'), findsNothing);
+    expect(t.takeException(), isNull);
+  });
+
+  testWidgets('un nul que peu de fans voyaient venir ; ton vote raté', (t) async {
+    await ouvrir(t, statut: 'finished', score: [1, 1],
+      initial: _votes(ouvert: false, dom: 61, nul: 18, ext: 21, mien: '2'));
+    expect(find.descendant(of: find.byKey(const Key('vote-part-N')), matching: find.byKey(const Key('vote-issue'))),
+      findsOneWidget);
+    expect(find.text("Seuls 18 % des fans l'avaient vu venir."), findsOneWidget);
+    expect(find.text('Ton vote : raté.'), findsOneWidget);
+  });
+
+  testWidgets('sans vote à soi : le verdict des fans seulement ; en direct, pas encore de verdict', (t) async {
+    await ouvrir(t, statut: 'finished', score: [0, 3], initial: _votes(ouvert: false, dom: 5, nul: 2, ext: 3));
+    expect(find.text("Seuls 30 % des fans l'avaient vu venir."), findsOneWidget);
+    expect(find.textContaining('Ton vote'), findsNothing);
+    await t.pumpWidget(const SizedBox());
+    await ouvrir(t, statut: 'live', score: [1, 0], initial: _votes(ouvert: false, dom: 5, nul: 2, ext: 3, mien: '1'));
+    expect(find.byKey(const Key('vote-verdict')), findsNothing);
+    expect(find.byKey(const Key('vote-issue')), findsNothing);
+    expect(find.text('Votes clos.'), findsOneWidget);
   });
 }

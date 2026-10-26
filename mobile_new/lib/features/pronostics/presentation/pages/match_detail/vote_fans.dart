@@ -6,8 +6,10 @@ part of '../match_detail_page.dart';
 /// Avant de voter : trois boutons, l'équipe à domicile, le nul, l'équipe à
 /// l'extérieur. Ensuite, la répartition, son propre vote en évidence ; on
 /// peut changer d'avis jusqu'au coup d'envoi. Une fois le match commencé,
-/// les votes sont clos et la répartition reste visible. Ce n'est pas un pari :
-/// rien n'est misé, aucune cote — la carte s'affiche aussi sur iPhone.
+/// les votes sont clos et la répartition reste visible. Le match terminé, la
+/// carte dit si les fans avaient vu juste (« Les fans avaient-ils raison ? »,
+/// 26 octobre 2026). Ce n'est pas un pari : rien n'est misé, aucune cote — la
+/// carte s'affiche aussi sur iPhone.
 class _VoteFans extends ConsumerStatefulWidget {
   final MatchEntity match;
   const _VoteFans({required this.match});
@@ -57,6 +59,11 @@ class _VoteFansState extends ConsumerState<_VoteFans> {
     if (v == null || (!v.ouvert && v.total == 0)) return const SizedBox.shrink();
     final resultats = v.monVote != null || !v.ouvert;
     final compte = AppStrings.of(context);
+    // Le match terminé : l'issue, au score final. Un match nul gagné aux tirs
+    // au but compte comme un nul — la question portait sur le match.
+    final issue = match.status == MatchStatus.finished && match.homeScore != null && match.awayScore != null
+        ? (match.homeScore! > match.awayScore! ? '1' : match.homeScore! < match.awayScore! ? '2' : 'N')
+        : null;
 
     final options = [
       ('1', match.homeTeam, match.homeTeamLogo, v.pDom),
@@ -77,7 +84,8 @@ class _VoteFansState extends ConsumerState<_VoteFans> {
           Row(children: [
             Icon(Icons.how_to_vote_rounded, size: 18, color: AppColors.primary),
             const SizedBox(width: 8),
-            Expanded(child: Text(tr(context, "Qui va gagner ?"), style: TextStyle(
+            // Le match joué, la question est passée.
+            Expanded(child: Text(issue != null ? tr(context, "Le vote des fans") : tr(context, "Qui va gagner ?"), style: TextStyle(
               color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w800))),
             if (resultats)
               Text(compte.count(v.total, one: '{arg0} vote', other: '{arg0} votes'),
@@ -100,12 +108,16 @@ class _VoteFansState extends ConsumerState<_VoteFans> {
                 cle: Key('vote-part-$choix'),
                 libelle: libelle, logo: logo, pourcentage: pct,
                 choisi: v.monVote == choix,
+                issue: issue == choix,
                 // Ouvert : un autre choix change le vote.
                 onTap: v.ouvert && v.monVote != choix ? () => _voter(choix) : null),
           if (_erreur != null) ...[
             const SizedBox(height: 8),
             Text(_erreur!, key: const Key('vote-erreur'),
               style: TextStyle(color: context.cl.error, fontSize: 12.5)),
+          ] else if (issue != null) ...[
+            const SizedBox(height: 8),
+            _Verdict(votes: v, issue: issue),
           ] else if (resultats) ...[
             const SizedBox(height: 6),
             Text(v.ouvert ? tr(context, "Tu peux changer d'avis jusqu'au coup d'envoi.") : tr(context, "Votes clos."),
@@ -114,6 +126,38 @@ class _VoteFansState extends ConsumerState<_VoteFans> {
         ]),
       ),
     );
+  }
+}
+
+/// Les fans avaient-ils raison ? Et soi ?
+class _Verdict extends StatelessWidget {
+  final VotesMatch votes;
+  final String issue;
+  const _Verdict({required this.votes, required this.issue});
+
+  @override
+  Widget build(BuildContext context) {
+    final part = switch (issue) { '1' => votes.pDom, '2' => votes.pExt, _ => votes.pNul };
+    // L'issue la plus votée : « l'avaient vu venir » ; sinon « seuls ».
+    final majorite = part >= votes.pDom && part >= votes.pNul && part >= votes.pExt;
+    final mien = votes.monVote;
+    return Column(key: const Key('vote-verdict'), crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(majorite
+          ? tr(context, "{arg0} % des fans l'avaient vu venir.", [part])
+          : tr(context, "Seuls {arg0} % des fans l'avaient vu venir.", [part]),
+        style: TextStyle(color: context.cl.textS, fontSize: 12.5, fontWeight: FontWeight.w600)),
+      if (mien != null) ...[
+        const SizedBox(height: 4),
+        Row(children: [
+          Icon(mien == issue ? Icons.check_circle_rounded : Icons.cancel_rounded, size: 15,
+            color: mien == issue ? context.cl.success : context.cl.error),
+          const SizedBox(width: 6),
+          Text(mien == issue ? tr(context, "Ton vote : bien vu !") : tr(context, "Ton vote : raté."),
+            style: TextStyle(color: mien == issue ? context.cl.success : context.cl.error,
+              fontSize: 12.5, fontWeight: FontWeight.w700)),
+        ]),
+      ],
+    ]);
   }
 }
 
@@ -166,9 +210,11 @@ class _BarreVote extends StatelessWidget {
   final String? logo;
   final int pourcentage;
   final bool choisi;
+  /// L'issue du match terminé.
+  final bool issue;
   final VoidCallback? onTap;
   const _BarreVote({required this.cle, required this.libelle, required this.logo,
-    required this.pourcentage, required this.choisi, this.onTap});
+    required this.pourcentage, required this.choisi, this.issue = false, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -177,7 +223,9 @@ class _BarreVote extends StatelessWidget {
       button: onTap != null,
       selected: choisi,
       label: tr(context, "{arg0} : {arg1} %", [libelle, pourcentage]),
-      hint: choisi ? tr(context, "Ton vote") : null,
+      hint: issue || choisi
+          ? [if (issue) tr(context, "Résultat du match"), if (choisi) tr(context, "Ton vote")].join(', ')
+          : null,
       child: InkWell(
         key: cle,
         borderRadius: BorderRadius.circular(10),
@@ -203,8 +251,15 @@ class _BarreVote extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
               child: Row(children: [
                 if (logo != null) ...[TeamLogoWidget(url: logo, size: 18), const SizedBox(width: 8)],
-                Expanded(child: Text(libelle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
-                  color: context.cl.textP, fontSize: 13, fontWeight: choisi ? FontWeight.w800 : FontWeight.w600))),
+                Expanded(child: Row(children: [
+                  Flexible(child: Text(libelle, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
+                    color: context.cl.textP, fontSize: 13, fontWeight: choisi || issue ? FontWeight.w800 : FontWeight.w600))),
+                  // L'issue du match, marquée d'un drapeau à damier.
+                  if (issue) ...[
+                    const SizedBox(width: 6),
+                    Icon(Icons.sports_score_rounded, key: const Key('vote-issue'), size: 16, color: context.cl.success),
+                  ],
+                ])),
                 if (choisi) ...[
                   const Icon(Icons.check_circle_rounded, size: 16, color: AppColors.primary),
                   const SizedBox(width: 6),

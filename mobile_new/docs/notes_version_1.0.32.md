@@ -34,6 +34,12 @@ les versions déjà installées, qui l'ignorent.
   s'affiche aussi sur iPhone. Côté serveur : table `votes_match`,
   `GET /pronostics/:id/votes`, `POST /pronostics/:id/vote`, et
   `GET /pronostics/:id/articles` — à déployer.
+- **« Les fans avaient-ils raison ? »** Le match terminé, la carte devient
+  « Le vote des fans » : l'issue est marquée d'un drapeau à damier, et une
+  phrase dit qui avait vu juste — « 61 % des fans l'avaient vu venir. » ou
+  « Seuls 18 % des fans l'avaient vu venir. », puis « Ton vote : bien vu ! »
+  ou « Ton vote : raté. ». L'issue se lit au score final : un nul gagné aux
+  tirs au but reste un nul.
 
 ## Construction
 
