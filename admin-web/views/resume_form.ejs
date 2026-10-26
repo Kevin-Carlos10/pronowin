@@ -1,0 +1,136 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
+<%- include('layout_top', {page:'resumes'}) %>
+
+<style>
+.rf-grid   { display: grid; grid-template-columns: 1fr 320px; gap: 1rem; align-items: start; }
+@media (max-width: 900px) { .rf-grid { grid-template-columns: 1fr; } }
+.rf-carte  { padding: 1.25rem; margin-bottom: 1rem; }
+.rf-champ  { margin-bottom: 1rem; }
+.rf-champ:last-child { margin-bottom: 0; }
+.rf-champ label { display: block; font-size: .78rem; font-weight: 700; color: var(--text-m); margin-bottom: .35rem;
+                  text-transform: uppercase; letter-spacing: .04em; }
+.rf-aide   { font-size: .72rem; color: var(--text-dim); margin-top: .3rem; line-height: 1.5; }
+.rf-legende { font-size: .84rem; font-weight: 800; margin-bottom: .8rem; }
+.rf-ligne  { display: flex; justify-content: space-between; gap: .8rem; padding: .5rem 0;
+             border-bottom: 1px solid var(--border); font-size: .82rem; }
+.rf-ligne:last-child { border-bottom: 0; }
+.rf-ligne .k { color: var(--text-dim); font-size: .73rem; }
+.rf-ligne .v { font-weight: 700; text-align: right; }
+.rf-score  { font-variant-numeric: tabular-nums; }
+.rf-actions { display: flex; gap: .5rem; flex-wrap: wrap; }
+.rf-requis { color: var(--on-danger); }
+</style>
+
+<%
+  const r = resume;
+  const m = r.match;
+  const _avant = r.genre === 'avant_match';
+  const _retour = _avant ? '/admin/resumes?genre=avant_match' : '/admin/resumes';
+  // Après un refus, le texte tapé revient tel quel ; sinon, celui du résumé.
+  const s = (typeof saisie !== 'undefined' && saisie) ? saisie : null;
+  const val = (champ, defaut) => s && typeof s[champ] === 'string' ? s[champ] : defaut;
+  const _date = (iso) => iso
+    ? new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : '—';
+%>
+
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Contenu & publication · <%= _avant ? 'avant-match' : 'résumé de match' %></p>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> <%= _avant ? uiText("Corriger l'avant-match") : uiText("Corriger le résumé") %></h1>
+    <p class="workspace-description"><%= r.titre %></p>
+  </div>
+  <div class="workspace-actions">
+    <a href="<%= _retour %>" class="btn btn-outline btn-sm">
+      <svg class="ic" aria-hidden="true"><use href="#ic-arrow-left"/></svg> <%= _avant ? uiText("Retour aux avant-matchs") : uiText("Retour aux résumés") %>
+    </a>
+  </div>
+</header>
+
+<% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+<% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+<div class="rf-grid">
+
+  <form method="POST" action="/admin/resumes/<%= encodeURIComponent(r.id) %>/edit" id="rs-form">
+    <div class="card cr-panel rf-carte">
+      <div class="rf-legende">En français</div>
+      <div class="rf-champ">
+        <label for="rs-titre"><%= uiText("Titre") %> <span class="rf-requis" aria-hidden="true">*</span></label>
+        <input class="input" type="text" id="rs-titre" name="titre" maxlength="200" required
+               value="<%= val('titre', r.titre) %>">
+      </div>
+      <div class="rf-champ">
+        <label for="rs-resume">Texte <span class="rf-requis" aria-hidden="true">*</span></label>
+        <textarea class="input" id="rs-resume" name="resume" rows="10" maxlength="5000" required><%= val('resume', r.resume) %></textarea>
+        <div class="rf-aide">Une ligne vide sépare deux paragraphes, comme dans l'application.</div>
+      </div>
+    </div>
+
+    <div class="card cr-panel rf-carte" lang="en">
+      <div class="rf-legende">In English</div>
+      <div class="rf-champ">
+        <label for="rs-titre-en">Title <span class="rf-requis" aria-hidden="true">*</span></label>
+        <input class="input" type="text" id="rs-titre-en" name="titre_en" maxlength="200" required
+               value="<%= val('titre_en', r.titreEn) %>">
+      </div>
+      <div class="rf-champ">
+        <label for="rs-resume-en">Text <span class="rf-requis" aria-hidden="true">*</span></label>
+        <textarea class="input" id="rs-resume-en" name="resume_en" rows="10" maxlength="5000" required><%= val('resume_en', r.resumeEn) %></textarea>
+      </div>
+    </div>
+
+    <div class="rf-actions">
+      <button type="submit" class="btn btn-primary">
+        <svg class="ic" aria-hidden="true"><use href="#ic-save"/></svg> <%= uiText("Enregistrer") %>
+      </button>
+      <a href="<%= _retour %>" class="btn btn-outline"><%= uiText("Annuler") %></a>
+    </div>
+    <p class="rf-aide">
+      <%= _avant ? "Un avant-match ne dévoile jamais le pronostic, VIP ou non" : "Le pronostic d'un match VIP ne doit jamais être dévoilé" %>,
+      et aucun mot de pari ne doit figurer : le texte s'affiche aussi sur iPhone.
+    </p>
+  </form>
+
+  <aside>
+    <div class="card cr-panel rf-carte">
+      <div class="rf-legende">Le match</div>
+      <% if (m) { %>
+      <div class="rf-ligne"><span class="k">Affiche</span><span class="v"><%= m.domicile %> <span class="rf-score"><%= m.score ?? '–' %></span> <%= m.exterieur %></span></div>
+      <div class="rf-ligne"><span class="k">Coup d'envoi</span><span class="v"><%= _date(m.date) %></span></div>
+      <div class="rf-ligne"><span class="k">Pronostic publié</span><span class="v"><%= m.pronostique ? 'oui' : 'non' %></span></div>
+      <% } %>
+      <div class="rf-ligne"><span class="k">Compétition</span><span class="v"><%= r.ligue %></span></div>
+      <div class="rf-ligne"><span class="k">Écrit le</span><span class="v"><%= _date(r.creeLe) %></span></div>
+      <% if (r.modifieLe) { %>
+      <div class="rf-ligne"><span class="k">Corrigé</span><span class="v"><%= r.modifiePar ?? '—' %>, le <%= _date(r.modifieLe) %></span></div>
+      <% } %>
+    </div>
+
+    <div class="card cr-panel rf-carte">
+      <div class="rf-legende">Dans l'application</div>
+      <div class="rf-ligne"><span class="k">État</span><span class="v">
+        <% if (r.masque) { %>
+          <span class="badge badge-warn">retiré du fil</span>
+        <% } else if (r.dansLeFil) { %>
+          <span class="badge badge-ok">dans le fil</span>
+        <% } else { %>
+          <span class="badge badge-info">sorti du fil</span>
+        <% } %>
+      </span></div>
+      <div class="rf-ligne"><span class="k">Quitte le fil</span><span class="v"><%= _avant ? "au coup d'envoi" : _date(r.quitteLeFil) %></span></div>
+      <form method="POST" action="/admin/resumes/<%= encodeURIComponent(r.id) %>/masquer">
+        <input type="hidden" name="masque" value="<%= r.masque ? '0' : '1' %>">
+        <input type="hidden" name="retour" value="fiche">
+        <button type="submit" class="btn btn-outline btn-sm">
+          <svg class="ic" aria-hidden="true"><use href="<%= r.masque ? '#ic-eye' : '#ic-eye-off' %>"/></svg>
+          <%= r.masque ? 'Remettre dans le fil' : 'Retirer du fil' %>
+        </button>
+      </form>
+      <p class="rf-aide">Retiré, l'article n'est ni effacé ni réécrit : on peut le remettre à tout moment.</p>
+    </div>
+  </aside>
+
+</div>
+
+<%- include('layout_bottom') %>

@@ -5,9 +5,20 @@ import * as C from '../controllers/stats.controller';
 const r = Router();
 r.use(adminMiddleware);
 
-r.get('/dashboard',    C.getDashboard);     // GET /admin/stats/dashboard?days=30
-r.get('/revenue',      C.getRevenueSeries); // GET /admin/stats/revenue?days=30
-r.get('/users',        C.getUsersSeries);   // GET /admin/stats/users?days=30
-r.get('/top-users',    C.getTopUsers);      // GET /admin/stats/top-users
+r.get('/dashboard',    C.getDashboard);        // GET /admin/stats/dashboard?days=30
+r.get('/revenue',      C.getRevenueSeries);   // GET /admin/stats/revenue?days=30
+r.get('/users',        C.getUsersSeries);      // GET /admin/stats/users?days=30
+r.get('/top-users',    C.getTopUsers);         // GET /admin/stats/top-users
+r.get('/signups',      C.getSignups);          // GET /admin/stats/signups?days=14  (dashboard)
+r.get('/pronostics',   C.getPronosticsStats);  // GET /admin/stats/pronostics?days=30
+r.get('/monthly',      C.getMonthly);          // GET /admin/stats/monthly          (12 mois)
+r.get('/leagues',      C.getLeaguePerformance);// GET /admin/stats/leagues?days=30
+r.get('/fiabilite',    C.getFiabilite);        // GET /admin/stats/fiabilite?days=90 (sans days : tout)
+r.get('/canaux',       C.getCanaux);           // GET /admin/stats/canaux?days=30
+r.get('/fidelite',     C.getFidelite);         // GET /admin/stats/fidelite?days=90
+r.get('/export-comptable', C.getExportComptable); // GET /admin/stats/export-comptable?mois=2026-09
+r.get('/football',     C.getFootball);         // GET /admin/stats/football          (principal seulement)
+r.get('/versions',     C.getVersions);         // GET /admin/stats/versions?days=30
+r.get('/online',       C.getOnlineCount);      // GET /admin/stats/online           (non caché)
 
 export default r;

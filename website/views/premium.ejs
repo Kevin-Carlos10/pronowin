@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <%# Paiement Mobile Money depuis le site (13 octobre 2026). Google Play et
+      l'App Store imposent leur achat integre dans leurs applications ; un
+      abonne peut payer ici et profiter du Premium dans toutes les
+      applications, car il est porte par le compte. Les applications des
+      boutiques ne renvoient jamais vers cette page. %>
+  <title>Premium par Mobile Money — <%= site.name %></title>
+  <meta name="description" content="Payez votre abonnement PronoWin Premium par Mobile Money. Le Premium s'active sur votre compte, dans l'application.">
+  <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
+  <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/premium.js?v=20261013" defer></script>
+</head>
+<body>
+  <header class="navbar">
+    <div class="container">
+      <a href="/" class="brand">
+        <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
+        <span class="brand-name">Prono<span class="brand-win">Win</span></span>
+      </a>
+    </div>
+  </header>
+
+  <main class="container pay-page">
+    <p class="eyebrow">PronoWin Premium</p>
+    <h1>Payer par Mobile Money</h1>
+    <p class="pay-intro">
+      Le Premium s'active sur votre compte PronoWin, dans l'application que
+      vous utilisez, dès que l'opérateur confirme le paiement.
+    </p>
+
+    <p class="pay-msg pay-msg--erreur" id="indisponible" role="status" hidden>
+      Le paiement Mobile Money est momentanément indisponible. Réessayez plus tard.
+    </p>
+
+    <section class="pay-card" id="etape-identification" aria-labelledby="titre-identification">
+      <h2 id="titre-identification">1. Votre compte</h2>
+      <p>Indiquez l'adresse e-mail de votre compte PronoWin : nous vous envoyons un code de confirmation, le même qu'à la connexion.</p>
+      <form id="form-email" novalidate>
+        <label for="email">Adresse e-mail du compte</label>
+        <input id="email" name="email" type="email" autocomplete="email" inputmode="email" required>
+        <button class="btn btn-primary" type="submit">Recevoir un code</button>
+      </form>
+      <p class="pay-msg" id="msg-email" role="status"></p>
+    </section>
+
+    <section class="pay-card" id="etape-code" aria-labelledby="titre-code" hidden>
+      <h2 id="titre-code">2. Code de confirmation</h2>
+      <p id="texte-code">Saisissez le code à 6 chiffres reçu par e-mail.</p>
+      <form id="form-code" novalidate>
+        <label for="code">Code reçu</label>
+        <input id="code" name="code" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" required>
+        <button class="btn btn-primary" type="submit">Valider</button>
+      </form>
+      <p class="pay-msg" id="msg-code" role="status"></p>
+      <%# La page ne dit pas si l'adresse est inscrite (paiement_web.service.ts) :
+          cette aide evite d'attendre un code qui ne viendra pas. %>
+      <p class="pay-note">Rien reçu après 2 minutes ? Vérifiez vos courriers indésirables, et l'adresse de votre compte dans l'application (Compte → Mes informations).</p>
+      <button class="pay-lien" type="button" id="changer-adresse">Changer d'adresse</button>
+    </section>
+
+    <section class="pay-card" id="etape-formule" aria-labelledby="titre-formule" hidden>
+      <h2 id="titre-formule">3. Votre formule</h2>
+      <p id="texte-compte"></p>
+      <form id="form-formule" novalidate>
+        <fieldset class="pay-formules">
+          <legend class="sr-only">Formule</legend>
+          <label class="pay-formule">
+            <input type="radio" name="plan" value="premium_monthly" checked>
+            <span class="pay-formule__nom">Mensuel</span>
+            <span class="pay-formule__prix" data-prix="premium_monthly"></span>
+            <span class="pay-formule__detail">30 jours de Premium</span>
+          </label>
+          <label class="pay-formule">
+            <input type="radio" name="plan" value="premium_annual">
+            <span class="pay-formule__nom">Annuel</span>
+            <span class="pay-formule__prix" data-prix="premium_annual"></span>
+            <span class="pay-formule__detail">365 jours de Premium</span>
+          </label>
+        </fieldset>
+        <button class="btn btn-primary" type="submit" id="bouton-payer">Payer par Mobile Money</button>
+      </form>
+      <p class="pay-note">Vous êtes redirigé vers la page de paiement sécurisée de notre prestataire GeniusPay. Pas de renouvellement automatique : vous serez prévenu avant la fin.</p>
+      <p class="pay-msg" id="msg-formule" role="status"></p>
+    </section>
+
+    <section class="pay-card" id="etape-suivi" aria-labelledby="titre-suivi" aria-live="polite" hidden>
+      <h2 id="titre-suivi">Votre paiement</h2>
+      <p id="texte-suivi">Confirmation du paiement en cours…</p>
+      <button class="btn btn-outline" type="button" id="reessayer" hidden>Réessayer</button>
+    </section>
+
+    <p class="pay-legal">
+      En payant, vous acceptez les <a href="/cgu">conditions d'utilisation</a>.
+      Vos données sont traitées comme décrit dans la
+      <a href="/confidentialite">politique de confidentialité</a>.
+      Une question : <a href="mailto:<%= site.contactEmail %>"><%= site.contactEmail %></a>.
+    </p>
+  </main>
+</body>
+</html>

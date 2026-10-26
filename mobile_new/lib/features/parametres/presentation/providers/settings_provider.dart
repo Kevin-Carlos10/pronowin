@@ -1,7 +1,12 @@
+import 'dart:async';
+import 'package:flutter/foundation.dart';
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../core/network/dio_client.dart';
 
 // ─── Clés SharedPreferences ───────────────────────────────────────────────────
 const _kTheme         = 'settings_theme';
@@ -9,7 +14,6 @@ const _kLang          = 'settings_lang';
 const _kNotifMatch    = 'notif_match';
 const _kNotifPromo    = 'notif_promo';
 const _kNotifReferral = 'notif_referral';
-const _kNotifPayment  = 'notif_payment';
 const _kNotifPremium  = 'notif_premium';
 const _kPinEnabled    = 'security_pin_enabled';
 const _kBioEnabled    = 'security_bio_enabled';
@@ -18,23 +22,21 @@ const _kBioEnabled    = 'security_bio_enabled';
 const _topicMatch    = 'match_alerts';
 const _topicPromo    = 'promo_alerts';
 const _topicReferral = 'referral_alerts';
-const _topicPayment  = 'payment_alerts';
 const _topicPremium  = 'premium_alerts';
 
 // ─── Modèle ───────────────────────────────────────────────────────────────────
 class AppSettings {
   final ThemeMode themeMode;
   final String    lang;
-  final bool      notifMatch, notifPromo, notifReferral, notifPayment, notifPremium;
+  final bool      notifMatch, notifPromo, notifReferral, notifPremium;
   final bool      pinEnabled, bioEnabled;
 
   const AppSettings({
     this.themeMode     = ThemeMode.dark,
     this.lang          = 'fr',
     this.notifMatch    = true,
-    this.notifPromo    = true,
+    this.notifPromo    = false,   // marketing : opt-in
     this.notifReferral = true,
-    this.notifPayment  = true,
     this.notifPremium  = true,
     this.pinEnabled    = false,
     this.bioEnabled    = false,
@@ -43,7 +45,7 @@ class AppSettings {
   AppSettings copyWith({
     ThemeMode? themeMode, String? lang,
     bool? notifMatch, bool? notifPromo, bool? notifReferral,
-    bool? notifPayment, bool? notifPremium,
+    bool? notifPremium,
     bool? pinEnabled, bool? bioEnabled,
   }) => AppSettings(
     themeMode:     themeMode     ?? this.themeMode,
@@ -51,7 +53,6 @@ class AppSettings {
     notifMatch:    notifMatch    ?? this.notifMatch,
     notifPromo:    notifPromo    ?? this.notifPromo,
     notifReferral: notifReferral ?? this.notifReferral,
-    notifPayment:  notifPayment  ?? this.notifPayment,
     notifPremium:  notifPremium  ?? this.notifPremium,
     pinEnabled:    pinEnabled    ?? this.pinEnabled,
     bioEnabled:    bioEnabled    ?? this.bioEnabled,
@@ -59,43 +60,51 @@ class AppSettings {
 
   String get themeName {
     switch (themeMode) {
-      case ThemeMode.dark:   return 'Sombre';
-      case ThemeMode.light:  return 'Clair';
-      case ThemeMode.system: return 'Système';
+      case ThemeMode.dark:   return trCurrent("Sombre");
+      case ThemeMode.light:  return trCurrent("Clair");
+      case ThemeMode.system: return trCurrent("Système");
     }
   }
-  String get langName  => 'Français'; // Seul le français est disponible pour l'instant
+  String get langName => lang == 'en' ? 'English' : 'Français';
 }
 
 // ─── Notifier ─────────────────────────────────────────────────────────────────
 class SettingsNotifier extends StateNotifier<AppSettings> {
-  SettingsNotifier() : super(const AppSettings()) {
-    _load();
+  final Ref _ref;
+  SettingsNotifier(this._ref) : super(AppSettings(
+        lang:      _ref.read(initialLanguageProvider),
+        themeMode: _ref.read(initialThemeModeProvider),
+      )) {
+    ready = _load();
   }
 
-  final _fcm = FirebaseMessaging.instance;
+  late final Future<void> ready;
+
+  FirebaseMessaging get _fcm => FirebaseMessaging.instance;
 
   // ─── Chargement initial ───────────────────────────────────────────────────
   Future<void> _load() async {
     final p = await SharedPreferences.getInstance();
+    if (!mounted) return;
     state = AppSettings(
-      themeMode:     p.getString(_kTheme) == 'light'
-                      ? ThemeMode.light
-                      : p.getString(_kTheme) == 'system'
-                          ? ThemeMode.system
-                          : ThemeMode.dark,
-      lang:          p.getString(_kLang)  ?? 'fr',
+      themeMode:     _themeChanged ? state.themeMode : themeDepuisPreference(p.getString(_kTheme)),
+      lang:          _languageChanged ? state.lang : AppStrings.languePreferee(p.getString(_kLang)),
       notifMatch:    p.getBool(_kNotifMatch)    ?? true,
-      notifPromo:    p.getBool(_kNotifPromo)    ?? true,
+      // Marketing : consentement explicite. Les alertes de match, le
+      // parrainage et l'abonnement sont du service attendu et restent
+      // actifs ; les offres commerciales se choisissent.
+      notifPromo:    p.getBool(_kNotifPromo)    ?? false,
       notifReferral: p.getBool(_kNotifReferral) ?? true,
-      notifPayment:  p.getBool(_kNotifPayment)  ?? true,
       notifPremium:  p.getBool(_kNotifPremium)  ?? true,
       pinEnabled:    p.getBool(_kPinEnabled)    ?? false,
       bioEnabled:    p.getBool(_kBioEnabled)    ?? false,
     );
 
+    AppStrings.setCurrentLanguage(state.lang);
+
     // Synchroniser les topics FCM avec les préférences sauvegardées
-    await _syncAllTopics(state);
+    unawaited(_syncAllTopics(state));
+    unawaited(_syncLanguage());
   }
 
   // ─── Synchroniser tous les topics au démarrage ────────────────────────────
@@ -103,18 +112,20 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     await _setTopic(_topicMatch,    s.notifMatch);
     await _setTopic(_topicPromo,    s.notifPromo);
     await _setTopic(_topicReferral, s.notifReferral);
-    await _setTopic(_topicPayment,  s.notifPayment);
     await _setTopic(_topicPremium,  s.notifPremium);
   }
 
   // ─── S'abonner ou se désabonner d'un topic FCM ───────────────────────────
   Future<void> _setTopic(String topic, bool subscribe) async {
     try {
+      final selected = state.lang == 'en' ? '${topic}_en' : topic;
+      final other = state.lang == 'en' ? topic : '${topic}_en';
+      await _fcm.unsubscribeFromTopic(other);
       if (subscribe) {
-        await _fcm.subscribeToTopic(topic);
+        await _fcm.subscribeToTopic(selected);
         debugPrint('[FCM Topics] ✅ Abonné à : $topic');
       } else {
-        await _fcm.unsubscribeFromTopic(topic);
+        await _fcm.unsubscribeFromTopic(selected);
         debugPrint('[FCM Topics] 🔕 Désabonné de : $topic');
       }
     } catch (e) {
@@ -123,7 +134,10 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   // ─── Thème ────────────────────────────────────────────────────────────────
+  bool _themeChanged = false;
+
   Future<void> setTheme(ThemeMode mode) async {
+    _themeChanged = true;
     state = state.copyWith(themeMode: mode);
     final p = await SharedPreferences.getInstance();
     await p.setString(_kTheme, mode == ThemeMode.dark
@@ -132,47 +146,81 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   }
 
   // ─── Langue ───────────────────────────────────────────────────────────────
-  Future<void> setLang(String lang) async {
-    state = state.copyWith(lang: lang);
-    final p = await SharedPreferences.getInstance();
-    await p.setString(_kLang, lang);
+  bool _languageChanged = false;
+  Future<void> _languageWrite = Future.value();
+  Future<void> setLang(String lang) {
+    final language = AppStrings.normaliseLanguage(lang);
+    _languageChanged = true;
+    AppStrings.setCurrentLanguage(language);
+    state = state.copyWith(lang: language);
+    // Preserve the order of rapid selections; an old write must not win.
+    _languageWrite = _languageWrite.catchError((Object _) {}).then((_) async {
+      final p = await SharedPreferences.getInstance();
+      await p.setString(_kLang, language);
+      await _syncAllTopics(state);
+      await _syncLanguage();
+    });
+    return _languageWrite;
   }
 
-  // ─── Toggle notification (local + FCM topic) ──────────────────────────────
+  Future<void> _syncLanguage() async {
+    try {
+      final token = await _fcm.getToken();
+      if (token != null) {
+        await _ref.read(dioProvider).post('/notifications/register-token', data: {
+          'fcm_token': token, 'language': state.lang,
+          'platform': defaultTargetPlatform == TargetPlatform.iOS ? 'ios' : 'android',
+        });
+      }
+    } catch (_) { /* Local preference is retained; token registration retries at startup. */ }
+  }
+
+  // ─── Toggle notification (local + FCM topic + serveur) ────────────────────
   Future<void> toggleNotif(String key) async {
     final p = await SharedPreferences.getInstance();
+    bool? newVal;
 
     switch (key) {
       case 'match':
-        final newVal = !state.notifMatch;
+        newVal = !state.notifMatch;
         state = state.copyWith(notifMatch: newVal);
         await p.setBool(_kNotifMatch, newVal);
         await _setTopic(_topicMatch, newVal);
 
       case 'promo':
-        final newVal = !state.notifPromo;
+        newVal = !state.notifPromo;
         state = state.copyWith(notifPromo: newVal);
         await p.setBool(_kNotifPromo, newVal);
         await _setTopic(_topicPromo, newVal);
 
       case 'referral':
-        final newVal = !state.notifReferral;
+        newVal = !state.notifReferral;
         state = state.copyWith(notifReferral: newVal);
         await p.setBool(_kNotifReferral, newVal);
         await _setTopic(_topicReferral, newVal);
 
-      case 'payment':
-        final newVal = !state.notifPayment;
-        state = state.copyWith(notifPayment: newVal);
-        await p.setBool(_kNotifPayment, newVal);
-        await _setTopic(_topicPayment, newVal);
-
       case 'premium':
-        final newVal = !state.notifPremium;
+        newVal = !state.notifPremium;
         state = state.copyWith(notifPremium: newVal);
         await p.setBool(_kNotifPremium, newVal);
         await _setTopic(_topicPremium, newVal);
     }
+
+    if (newVal != null) await _syncPrefToServer(key, newVal);
+  }
+
+  /// Les topics FCM ne filtrent que les envois de masse. Les notifications
+  /// personnelles (parrainage, premium, résultat d'un match favori) partent par
+  /// token : se désabonner d'un topic ne les coupait pas. Le serveur doit donc
+  /// connaître la préférence pour la respecter dans `sendToUser`.
+  ///
+  /// Volontairement silencieux : l'écran Paramètres est accessible en invité,
+  /// où l'appel renvoie 401. Le réglage local reste appliqué dans tous les cas.
+  Future<void> _syncPrefToServer(String key, bool value) async {
+    try {
+      await _ref.read(dioProvider).patch(
+        '/profile/notification-prefs', data: {key: value});
+    } catch (_) { /* hors ligne ou invité — la préférence locale suffit */ }
   }
 
   // ─── PIN / Bio ────────────────────────────────────────────────────────────
@@ -199,7 +247,6 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       _kNotifMatch:    p.getBool(_kNotifMatch),
       _kNotifPromo:    p.getBool(_kNotifPromo),
       _kNotifReferral: p.getBool(_kNotifReferral),
-      _kNotifPayment:  p.getBool(_kNotifPayment),
       _kNotifPremium:  p.getBool(_kNotifPremium),
       _kPinEnabled:    p.getBool(_kPinEnabled),
       _kBioEnabled:    p.getBool(_kBioEnabled),
@@ -216,11 +263,38 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
 }
 
 // ─── Providers ────────────────────────────────────────────────────────────────
+final initialLanguageProvider = Provider<String>((ref) => 'fr');
+
+/// Le thème enregistré, lu avant le premier écran — comme la langue.
+///
+/// Il était lu après coup, par `_load` : l'application démarrait donc en
+/// sombre, puis basculait en clair une fraction de seconde plus tard chez
+/// ceux qui avaient choisi le clair.
+final initialThemeModeProvider = Provider<ThemeMode>((ref) => ThemeMode.dark);
+
+/// `settings_theme` → [ThemeMode]. Sombre par défaut, comme à l'installation.
+ThemeMode themeDepuisPreference(String? valeur) => switch (valeur) {
+      'light'  => ThemeMode.light,
+      'system' => ThemeMode.system,
+      _        => ThemeMode.dark,
+    };
+
 final settingsProvider = StateNotifierProvider<SettingsNotifier, AppSettings>(
-  (_) => SettingsNotifier());
+  (ref) => SettingsNotifier(ref));
 
 final themeModeProvider = Provider<ThemeMode>(
   (ref) => ref.watch(settingsProvider).themeMode);
 
 final localeProvider = Provider<Locale>(
   (ref) => Locale(ref.watch(settingsProvider).lang));
+
+/// Version de l'app lue depuis le bundle natif.
+///
+/// Elle était écrite en dur (« v1.0.0 ») à trois endroits de l'écran
+/// Paramètres : la ligne « À propos », le pied de page et la feuille « À
+/// propos ». Trois valeurs à mettre à jour à chaque release, donc trois
+/// occasions de diverger du numéro réellement publié.
+final appVersionProvider = FutureProvider<String>((ref) async {
+  final info = await PackageInfo.fromPlatform();
+  return 'v${info.version}';
+});

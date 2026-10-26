@@ -1,12 +1,13 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { ReferralService } from '../services/referral.service';
+import { repondreErreur } from '../utils/erreurs';
 
 const svc = new ReferralService();
 
 export const getStats = async (req: AuthRequest, res: Response) => {
   try { res.json(await svc.getStats(req.userId!)); }
-  catch (e: any) { res.status(500).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e); }
 };
 
 export const applyCode = async (req: AuthRequest, res: Response) => {
@@ -16,7 +17,7 @@ export const applyCode = async (req: AuthRequest, res: Response) => {
   }
   try {
     res.json(await svc.applyReferralCode(req.userId!, referral_code.trim().toUpperCase()));
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
@@ -32,10 +33,10 @@ export const requestWithdrawal = async (req: AuthRequest, res: Response) => {
       phone:       phone  ?? '',
       useAsCredit: use_as_credit === true || use_as_credit === 'true',
     }));
-  } catch (e: any) { res.status(400).json({ message: e.message }); }
+  } catch (e: any) { repondreErreur(res, e, 400); }
 };
 
 export const getHistory = async (req: AuthRequest, res: Response) => {
   try { res.json(await svc.getEarningsHistory(req.userId!)); }
-  catch (e: any) { res.status(500).json({ message: e.message }); }
+  catch (e: any) { repondreErreur(res, e); }
 };
