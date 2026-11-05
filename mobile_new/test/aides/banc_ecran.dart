@@ -175,10 +175,10 @@ final utilisateurGratuit = UserEntity(
 );
 
 class _Connecte extends AuthNotifier {
-  _Connecte(Ref ref)
+  _Connecte(Ref ref, UserEntity utilisateur)
       : super(ref.watch(sendOtpUseCaseProvider), ref.watch(verifyOtpUseCaseProvider),
             ref.watch(authRepositoryProvider)) {
-    state = AuthAuthenticated(utilisateurGratuit);
+    state = AuthAuthenticated(utilisateur);
   }
 }
 
@@ -215,9 +215,10 @@ class _ServeurBanc implements HttpClientAdapter {
 }
 
 /// [favoris] : un autre carnet de matchs suivis que le carnet vide.
-List<Override> donneesCommunes({FavorisNotifier Function()? favoris}) => [
+/// [utilisateur] : un autre compte connecté que [utilisateurGratuit].
+List<Override> donneesCommunes({FavorisNotifier Function()? favoris, UserEntity? utilisateur}) => [
       dioProvider.overrideWithValue(Dio()..httpClientAdapter = _ServeurBanc()),
-      authProvider.overrideWith(_Connecte.new),
+      authProvider.overrideWith((ref) => _Connecte(ref, utilisateur ?? utilisateurGratuit)),
       favorisProvider.overrideWith(favoris ?? _AucunFavori.new),
       isOnlineProvider.overrideWithValue(true),
       unreadCountProvider.overrideWithValue(3),

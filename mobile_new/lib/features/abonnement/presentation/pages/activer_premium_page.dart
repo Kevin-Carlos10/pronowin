@@ -27,6 +27,7 @@ import '../providers/iap_provider.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../data/iap_service.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../../shared/utils/premium_nav.dart';
 import '../../../compte/presentation/pages/compte_page.dart' show rafraichirDonneesCompte;
 import '../../../../shared/utils/retour.dart';
 import '../widgets/confirmation_premium_active.dart';
@@ -213,10 +214,9 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     if (ref.read(isStoreBuildProvider)) {
       _iapSub = ref.read(iapServiceProvider).results.listen(_onIapResult);
     }
-    // Rediriger si le profil est incomplet (filet de sécurité)
+    // Rediriger si le profil est incomplet (filet de sécurité, APK direct)
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final authState = ref.read(authProvider);
-      if (authState is AuthAuthenticated && !authState.user.isProfileComplete) {
+      if (profilACompleterAvantPremium(ref)) {
         context.replace('/compte/completer-profil', extra: '/compte/activer-premium');
       }
     });

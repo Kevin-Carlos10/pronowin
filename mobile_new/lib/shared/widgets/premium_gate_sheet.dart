@@ -9,6 +9,7 @@ import '../../core/theme/app_theme.dart';
 import '../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../features/abonnement/presentation/providers/iap_provider.dart';
 import '../../features/auth/presentation/providers/auth_provider.dart';
+import '../utils/premium_nav.dart';
 import '../../features/pronostics/presentation/providers/bilan_premium_provider.dart';
 
 // Appeler depuis n'importe où pour afficher la modale d'upgrade Premium.
@@ -49,9 +50,8 @@ class _PremiumGateSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final authState = ref.watch(authProvider);
-    final profileComplete =
-        authState is! AuthAuthenticated || authState.user.isProfileComplete;
+    ref.watch(authProvider);
+    final profileComplete = !profilACompleterAvantPremium(ref);
     final sub = ref.watch(currentSubscriptionProvider).valueOrNull ?? const {};
     final price = premiumMonthlyPriceLabel(ref, sub);
     final contenu = Column(

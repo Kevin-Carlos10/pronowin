@@ -25,6 +25,12 @@ toutes les alertes par défaut, suivis existants compris), les routes
   pendant la lecture d'une fiche de match (30 secondes), après cinq
   ouvertures sur sept jours au moins et trois fiches lues, puis pas avant
   trente jours. « Noter l'application » dans les Paramètres ne change pas.
+- **App Store et Google Play : l'écran Premium s'ouvre directement**, sans
+  « Compléter le profil » (prénom, nom, date de naissance, téléphone). Le
+  relecteur d'Apple, venu tester l'abonnement, était bloqué sur ce
+  formulaire, et un achat intégré n'a besoin d'aucune de ces informations
+  (règle 5.1.1). L'APK direct le garde avant le paiement Mobile Money.
+- « (facultatif) » traduit sur l'écran de profil en anglais.
 
 ## Refus Apple du 2 novembre 2026 (1.0.23 (50), examinée sur iPad Air)
 
