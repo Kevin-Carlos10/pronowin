@@ -8,7 +8,7 @@ import { sendWhatsAppOtp } from './whatsapp.service';
 import { sendEmailOtp } from './email.service';
 import {
   compareReviewOtp,
-  getGooglePlayReviewConfig,
+  getStoreReviewConfig,
   normaliseEmail,
 } from '../config/google_play_review';
 import logger, { journal } from '../utils/logger';
@@ -174,9 +174,9 @@ export class AuthService {
    *  compte déjà existant, pour adapter le message côté app (connexion
    *  vs inscription) sans dupliquer l'écran. */
   async sendEmailOtp(email: string): Promise<{ isNewUser: boolean }> {
-    const review = getGooglePlayReviewConfig();
+    const review = getStoreReviewConfig();
     if (review && normaliseEmail(email) === review.email) {
-      // The reviewer enters the stable code provided in Play Console. No email
+      // The reviewer enters the stable code provided in the review notes. No email
       // is sent and no temporary OTP record is created for this account.
       return { isNewUser: false };
     }
@@ -206,7 +206,7 @@ export class AuthService {
 
   /** Verifie l'OTP email et connecte ou cree l'utilisateur */
   async verifyEmailOtp(email: string, code: string) {
-    const review = getGooglePlayReviewConfig();
+    const review = getStoreReviewConfig();
     if (review && normaliseEmail(email) === review.email) {
       if (!compareReviewOtp(code, review.otp)) {
         throw new Error('Code OTP invalide ou expire.');
@@ -222,7 +222,7 @@ export class AuthService {
         data:  { lastLoginAt: new Date() },
       });
       const tokens = await this._generateTokens(activeUser.id);
-      logger.info('[Auth] Connexion du compte de revue Google Play');
+      logger.info('[Auth] Connexion du compte de revue store');
       return { user: activeUser, ...tokens };
     }
 

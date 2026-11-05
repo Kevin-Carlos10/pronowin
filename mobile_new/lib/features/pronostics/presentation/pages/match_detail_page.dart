@@ -51,6 +51,7 @@ import '../../domain/entities/verdict_comparaison.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../core/config/bookmaker_affiliation.dart';
 import '../../../../core/services/analyse_usage.dart';
+import '../../../../core/services/review_service.dart';
 import '../../../../core/network/failures.dart';
 import '../../../../shared/widgets/erreur_chargement.dart';
 import '../../../../shared/utils/messages.dart';
@@ -109,6 +110,7 @@ class MatchDetailPage extends ConsumerStatefulWidget {
 class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     with TickerProviderStateMixin, WidgetsBindingObserver {
   Timer? _liveTimer;
+  Timer? _minuteurAvis;
   bool _releveEnCours = false;
   String? _statutDuFlux;
   DateTime? _dernieresStats;
@@ -134,6 +136,11 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     AnalyseUsage.pronosticOuvert(premium: widget.preloaded?.isPremium ?? false);
+    // Une fiche lue 30 secondes compte comme une vraie consultation : seule
+    // occasion de demander une note (ReviewService), jamais au lancement.
+    _minuteurAvis = Timer(const Duration(seconds: 30), () {
+      if (mounted) ReviewService.consultationReelle();
+    });
     _preparerBulleSuivi();
   }
 
@@ -301,6 +308,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _liveTimer?.cancel();
+    _minuteurAvis?.cancel();
     _tabCtrl?.dispose();
     super.dispose();
   }
