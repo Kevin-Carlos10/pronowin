@@ -42,6 +42,36 @@ Best regards,
 PronoWin
 ```
 
+## Variante retenue le 5 novembre 2026 : « Non » maintenu, société en création
+
+Choix du titulaire du compte : soumettre la 1.0.33 sans changer « Jeux de
+hasard », et créer la société dans les jours qui viennent pour passer en
+compte Organisation. Un nouveau refus sur la règle 2.3.6 est probable ; la
+réponse le dit franchement, pour que les deux autres corrections soient
+examinées.
+
+```
+Hello,
+
+Thank you for your review. Build 1.0.33 (49) addresses guidelines 5.6.3 and 2.1.
+
+Guideline 5.6.3
+The previous build asked for a rating at app launch, from the third launch. Build 1.0.33 never asks at launch or during onboarding. The system rating prompt can only appear while the user is reading a match analysis, after at least five launches over seven days and three analyses read, and at most once every 30 days. The "Rate the app" item in Settings opens the App Store page only when the user taps it.
+
+Guideline 2.1
+The demo account in App Review Information is now fully set up. In addition, build 1.0.33 no longer asks for a name, date of birth or phone number before the subscription screen: "Get Premium" opens it directly for every account. No SMS or inbox is needed.
+1. Open the app and tap "Continue with email".
+2. Enter the email given in the User Name field.
+3. Enter the 6-digit code given in the Password field.
+The account is on the free plan so that you can test the subscriptions (com.pronowin.premium.monthly, com.pronowin.premium.annual) with your sandbox account: tap "Get Premium" on the home screen, or any locked Premium prediction. Once purchased, every Premium prediction and analysis is unlocked.
+
+Guideline 2.3.6
+We understand that predictions related to real-money betting require "Gambling" to be set to "Yes". On October 11, App Review told us that an app with this setting must be distributed by an organization, not an individual developer account. We are registering a company and will move the app to an Organization account; we will then set "Gambling" to "Yes". In the meantime, we would appreciate your review of the two changes above, and your confirmation of the steps required for this content.
+
+Best regards,
+PronoWin
+```
+
 ## Variante B : compte Organisation d'abord
 
 Ne pas resoumettre. Créer la structure juridique, obtenir le numéro D-U-N-S,
