@@ -118,9 +118,13 @@ void main() {
   });
 
   testWidgets('gratuits et Premium : la réussite de chacun, et le filtre', (t) async {
+    // Les gratuits aujourd'hui, les Premium hier : en tête de liste, quelle que
+    // soit la finesse de l'horloge. Tous datés « hier » à quelques
+    // microsecondes d'écart, les Premium, créés après, passaient devant sur
+    // macOS et les gratuits sortaient de l'écran (Codemagic, 5 novembre 2026).
     await monter(t, [
-      for (var i = 0; i < 8; i++) _entree('g$i', 'WIN'),
-      for (var i = 0; i < 2; i++) _entree('h$i', 'LOSS'),
+      for (var i = 0; i < 8; i++) _entree('g$i', 'WIN', joursAvant: 0),
+      for (var i = 0; i < 2; i++) _entree('h$i', 'LOSS', joursAvant: 0),
       for (var i = 0; i < 9; i++) _entree('v$i', 'WIN', premium: true, libelle: 'Plus de 2,5 buts'),
       _entree('x1', 'LOSS', premium: true, libelle: 'Plus de 2,5 buts'),
     ]);
