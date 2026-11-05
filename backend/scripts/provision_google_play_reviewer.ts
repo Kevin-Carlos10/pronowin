@@ -23,6 +23,13 @@ async function main() {
   // account has no payment history and its access can be removed after review.
   const expiresAt = new Date();
   expiresAt.setFullYear(expiresAt.getFullYear() + 2);
+  // `--gratuit` : compte sans Premium, pour l'examen Apple. Le relecteur du
+  // 2 novembre 2026 a touché « Get Premium » : il teste l'achat intégré avec
+  // son compte sandbox, ce qu'un compte déjà Premium l'empêcherait de faire.
+  const gratuit = process.argv.includes('--gratuit');
+  const formule = gratuit
+    ? { subscriptionPlan: 'free' as const, subscriptionExpiresAt: null }
+    : { subscriptionPlan: 'premium' as const, subscriptionExpiresAt: expiresAt };
   const now = new Date();
   // Un profil complet (prénom, nom, date de naissance, téléphone) : sans lui,
   // l'app ouvre « Compléter le profil » avant l'écran Premium. Apple a refusé
@@ -45,8 +52,7 @@ async function main() {
       acceptedTermsAt:       now,
       isActive:              true,
       deletedAt:             null,
-      subscriptionPlan:      'premium',
-      subscriptionExpiresAt: expiresAt,
+      ...formule,
     },
     create: {
       email:                 review.email,
@@ -56,8 +62,7 @@ async function main() {
       emailVerified:         true,
       acceptedTermsAt:       now,
       isActive:              true,
-      subscriptionPlan:      'premium',
-      subscriptionExpiresAt: expiresAt,
+      ...formule,
     },
     select: {
       id: true,

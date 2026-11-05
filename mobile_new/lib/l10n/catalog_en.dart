@@ -282,6 +282,7 @@ const englishMessages = <String, String>{
   "Numéro de téléphone": "Phone number",
   "Numéro invalide": "Invalid number",
   "Code de parrainage": "Referral code",
+  "(facultatif)": "(optional)",
   "Ex. D52FA1": "E.g. D52FA1",
   "Un ami t'a parrainé ? Saisis son code, tu ne pourras plus le faire après.": "Referred by a friend? Enter their code now; you won't be able to add it later.",
   "En continuant, tu acceptes nos ": "By continuing, you accept our ",

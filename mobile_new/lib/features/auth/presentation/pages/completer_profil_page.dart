@@ -271,7 +271,7 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
               Row(children: [
                 _Label(tr(context, "Code de parrainage")),
                 const SizedBox(width: 6),
-                Text('(facultatif)',
+                Text(tr(context, "(facultatif)"),
                   style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
               ]),
               const SizedBox(height: 8),

@@ -32,10 +32,11 @@ We have updated the Age Rating: Gambling is now set to "Yes" (18+).
 On October 11, App Review told us that an app with this setting cannot be distributed from an individual developer account. PronoWin publishes football analysis and predictions only: no wagering, no odds, no stakes, no deposits or withdrawals, no prizes and no links to betting operators. If an Organization account is required for this content, please tell us explicitly so that we can take the right steps.
 
 Guideline 2.1
-The demo account in App Review Information is now fully set up: complete profile and active Premium access, so every prediction and analysis is unlocked. No SMS or inbox is needed.
+The demo account in App Review Information is now fully set up: its profile is complete, so "Get Premium" opens the subscription screen directly. No SMS or inbox is needed.
 1. Open the app and tap "Continue with email".
 2. Enter the email given in the User Name field.
 3. Enter the 6-digit code given in the Password field.
+The account is on the free plan so that you can test the subscriptions (com.pronowin.premium.monthly, com.pronowin.premium.annual) with your sandbox account: tap "Get Premium" on the home screen, or any locked Premium prediction. Once purchased, every Premium prediction and analysis is unlocked.
 
 Best regards,
 PronoWin
