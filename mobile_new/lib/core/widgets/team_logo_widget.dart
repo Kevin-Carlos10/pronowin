@@ -18,7 +18,7 @@ class _SvgWithFallback extends StatelessWidget {
       placeholderBuilder: (_) =>
           Icon(Icons.sports_soccer_rounded, size: size * 0.85),
       // Intercepte les SVG invalides silencieusement
-      errorBuilder: (_, __, ___) =>
+      errorBuilder: (_, _, _) =>
           Icon(Icons.sports_soccer_rounded, size: size * 0.85),
     );
   }
@@ -50,11 +50,19 @@ class TeamLogoWidget extends StatelessWidget {
     if (proxied.toLowerCase().contains('.svg') || raw.toLowerCase().endsWith('.svg')) {
       img = _SvgWithFallback(url: proxied, size: size);
     } else {
+      // Décodage à la taille d'affichage. Sans `memCacheWidth`, un écusson de
+      // 512 px occupait un mégaoctet de bitmap pour être peint dans un rond de
+      // vingt-quatre — et une liste de matchs en affiche des dizaines.
+      final densite = MediaQuery.devicePixelRatioOf(context);
+      final pixels  = (size * densite).round();
+
       img = CachedNetworkImage(
         imageUrl: proxied,
         width: size,
         height: size,
         fit: BoxFit.cover,
+        memCacheWidth:  pixels,
+        memCacheHeight: pixels,
         placeholder: (_, _) =>
             Icon(Icons.sports_soccer_rounded, size: size * 0.85),
         errorWidget: (_, _, _) =>

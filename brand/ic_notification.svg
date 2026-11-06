@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512"
+     width="512" height="512">
+  <!--
+    Icône de notification. Blanc sur transparent, « P » percé.
+    Générée par brand/notification.js — ne pas retoucher, régénérer.
+  -->
+  <defs>
+    <mask id="trou">
+      <rect width="512" height="512" fill="black"/>
+      <g transform="translate(-131.06, -150.71) scale(1.5119)">
+        <g fill="none" stroke="white" stroke-width="22"
+           stroke-linecap="round" stroke-linejoin="round">
+          <path d="M176 180 C 126 180, 112 216, 132 244 C 142 258, 156 264, 176 266"/>
+          <path d="M336 180 C 386 180, 400 216, 380 244 C 370 258, 356 264, 336 266"/>
+        </g>
+        <path fill="white" d="M176 150 H336 V232 A80 80 0 0 1 176 232 Z M240 306 H272 V350 H240 Z M192 350 H320 A10 10 0 0 1 330 360 V378 A10 10 0 0 1 320 388 H192 A10 10 0 0 1 182 378 V360 A10 10 0 0 1 192 350 Z"/>
+        <path fill="black" fill-rule="evenodd" transform="translate(256,225) scale(1.14) translate(-263,-232)"
+              d="M228 184 H266 A32 32 0 0 1 266 248 H250 V280 H228 Z M250 202 H266 A14 14 0 0 1 266 230 H250 Z"/>
+      </g>
+    </mask>
+  </defs>
+  <rect width="512" height="512" fill="white" mask="url(#trou)"/>
+</svg>

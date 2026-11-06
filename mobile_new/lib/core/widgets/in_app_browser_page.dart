@@ -1,6 +1,8 @@
+import 'package:pronowin/l10n/app_strings.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:webview_flutter/webview_flutter.dart';
+import '../theme/app_theme.dart';
 
 class InAppBrowserPage extends StatefulWidget {
   final String url;
@@ -60,7 +62,7 @@ class _InAppBrowserPageState extends State<InAppBrowserPage> {
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Text(
-          widget.title,
+          tr(context, widget.title),
           style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
           overflow: TextOverflow.ellipsis,
         ),
@@ -97,17 +99,19 @@ class _InAppBrowserPageState extends State<InAppBrowserPage> {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.wifi_off_rounded, size: 56, color: Colors.white38),
+                    // Gris du thème : le blanc translucide disparaissait sur la
+                    // surface claire.
+                    Icon(Icons.wifi_off_rounded, size: 56, color: theme.colorScheme.onSurfaceVariant),
                     const SizedBox(height: 16),
-                    const Text(
-                      'Impossible de charger la page',
+                     Text(
+                      tr(context, "Impossible de charger la page"),
                       style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'Vérifie ta connexion ou ouvrez dans le navigateur.',
-                      style: TextStyle(fontSize: 13, color: Colors.white54),
+                      tr(context, "Vérifie ta connexion ou ouvrez dans le navigateur."),
+                      style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 28),
@@ -115,14 +119,15 @@ class _InAppBrowserPageState extends State<InAppBrowserPage> {
                       width: double.infinity,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: accent,
+                          // Blanc sur #FF6B35 : 2,9:1.
+                          backgroundColor: AppColors.primaryBouton,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12)),
                         ),
                         icon: const Icon(Icons.open_in_browser),
-                        label: const Text('Ouvrir dans le navigateur',
+                        label:  Text(tr(context, "Ouvrir dans le navigateur"),
                             style: TextStyle(fontWeight: FontWeight.w600)),
                         onPressed: _openExternal,
                       ),
@@ -133,8 +138,8 @@ class _InAppBrowserPageState extends State<InAppBrowserPage> {
                         setState(() => _hasError = false);
                         _controller.reload();
                       },
-                      child: const Text('Réessayer',
-                          style: TextStyle(color: Colors.white54)),
+                      child:  Text(tr(context, "Réessayer"),
+                          style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
                     ),
                   ],
                 ),

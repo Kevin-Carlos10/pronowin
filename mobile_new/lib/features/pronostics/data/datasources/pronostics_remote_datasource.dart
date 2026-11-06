@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import '../../../../core/network/dio_client.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/network/failures.dart';
 import '../../../../core/network/dio_exception_handler.dart';
@@ -13,7 +14,7 @@ class MatchesPage {
 }
 
 abstract class PronosticsRemoteDataSource {
-  Future<MatchesPage>       getMatches({String? leagueId, String? dateFilter, String? sport, String? cursor, int limit});
+  Future<MatchesPage>       getMatches({String? leagueId, String? dateFilter, String? sport, String? status, bool? hasPronostic, String? recherche, String? cursor, int limit});
   Future<MatchModel>        getMatchDetail(String matchId);
   Future<List<LeagueModel>> getLeagues();
 }
@@ -27,6 +28,9 @@ class PronosticsRemoteDataSourceImpl implements PronosticsRemoteDataSource {
     String? leagueId,
     String? dateFilter,
     String? sport,
+    String? status,
+    bool?   hasPronostic,
+    String? recherche,
     String? cursor,
     int     limit = 20,
   }) async {
@@ -34,12 +38,19 @@ class PronosticsRemoteDataSourceImpl implements PronosticsRemoteDataSource {
       final response = await _dio.get(
         ApiEndpoints.pronostics,
         queryParameters: {
-          if (leagueId   != null) 'league_id':   leagueId,
-          if (dateFilter != null) 'date_filter': dateFilter,
-          if (sport      != null) 'sport':       sport,
-          if (cursor     != null) 'cursor':      cursor,
+          'league_id':   ?leagueId,
+          'date_filter': ?dateFilter,
+          'sport':       ?sport,
+          'status':      ?status,
+          if (hasPronostic == true) 'has_pronostic': 'true',
+          // La recherche est faite par la base, pas par le téléphone : filtrer
+          // la page chargée annonçait absentes des équipes qui existent.
+          'q':           ?recherche,
+          'cursor':      ?cursor,
           'limit':       limit,
           'include_all': 'true',
+          // Le serveur borne la journée sur ce décalage, pas sur le sien.
+          'tz_offset':   decalageUtcMinutes(),
         },
       );
       final body = response.data as Map<String, dynamic>;

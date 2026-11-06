@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Sauvegarde automatique Android — Android 11 et antérieur.
+
+  Ce que l'on exclut : le stock de `flutter_secure_storage`, qui contient les
+  jetons de session et le code PIN. Sa clé de chiffrement vit dans le Keystore
+  de l'appareil et n'est, elle, jamais sauvegardée. Restaurés sur un nouveau
+  téléphone, ces octets sont donc illisibles : les copier sur Google Drive
+  exporte des identifiants de compte sans que personne puisse jamais s'en
+  servir — ni l'utilisateur, ni nous.
+
+  Le reste (préférences d'affichage, onboarding vu) continue d'être sauvegardé :
+  c'est ce qui rend un changement de téléphone agréable, et rien là-dedans
+  n'identifie personne.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="FlutterSecureStorage.xml"/>
+</full-backup-content>

@@ -1,0 +1,274 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
+<%- include('layout_top', {page:'paiements_mobile_money'}) %>
+
+<style>
+.mm-tuiles   { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; margin-bottom: 1.2rem; }
+.mm-tuile    { background: var(--surface-d); border: 1px solid var(--border); border-radius: 12px; padding: .85rem 1rem; }
+.mm-tuile .v { font-size: 1.5rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.mm-tuile .l { font-size: .72rem; color: var(--text-m); margin-top: .2rem; line-height: 1.45; }
+.mm-tab      { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.mm-tab th   { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+               color: var(--text-m); padding: .55rem .7rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.mm-tab td   { padding: .6rem .7rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.mm-tab tr:last-child td { border-bottom: 0; }
+.mm-tab tr.mm-bloque td { background: color-mix(in srgb, var(--on-danger) 7%, transparent); }
+.mm-sous     { display: block; font-size: .72rem; color: var(--text-dim); margin-top: .15rem; }
+.mm-num      { font-variant-numeric: tabular-nums; }
+.mm-mono     { font-family: monospace; font-size: .74rem; color: var(--text-dim); word-break: break-all; }
+.mm-ok       { color: var(--on-success); }
+.mm-warn     { color: var(--on-warning); }
+.mm-err      { color: var(--on-danger); }
+.mm-dim      { color: var(--text-dim); }
+.mm-m        { color: var(--text-m); }
+.mm-compte   { font-size: .8rem; color: var(--text-m); }
+.mm-carte    { padding: 0; overflow: hidden; }
+.mm-note     { font-size: .75rem; color: var(--text-dim); margin-top: .7rem; line-height: 1.6; }
+@media (max-width: 760px) {
+  .mm-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
+
+<%
+  const _d    = (typeof donnees !== 'undefined' && donnees) ? donnees : null;
+  const _err  = typeof erreur !== 'undefined' ? erreur : null;
+  const _f    = (typeof filtres !== 'undefined' && filtres) ? filtres : { etat: '', sandbox: false, q: '', jours: 30, page: 1 };
+  const _lien = (typeof lienMM === 'function') ? lienMM : (() => '/admin/paiements-mobile-money');
+  const _st   = _d ? _d.stats : null;
+  const _rows = _d ? (_d.paiements ?? []) : [];
+  const _pages = _d ? Math.max(1, Math.ceil(_d.total / _d.parPage)) : 1;
+
+  const _fcfa  = (n) => (n === null || n === undefined) ? '—' : Number(n).toLocaleString('fr-FR') + ' FCFA';
+  const _heure = (iso) => iso
+    ? new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : '—';
+  const _age = (h) => h < 1 ? "moins d'une heure" : h < 48 ? h + ' h' : Math.floor(h / 24) + ' jours';
+
+  const _ETATS = {
+    accorde:    { label: 'Premium accordé',        cls: 'badge-ok' },
+    en_cours:   { label: "En cours chez l'opérateur", cls: 'badge-warn', aide: 'validé par le client, GeniusPay n\'a pas conclu' },
+    en_attente: { label: 'En attente du client',   cls: 'badge-info', aide: 'page de paiement ouverte, rien de validé' },
+    abandonne:  { label: 'Abandonné',              cls: 'badge-info', aide: 'jamais payé, lien expiré' },
+    echoue:     { label: 'Échoué ou annulé',       cls: 'badge-info' },
+    anomalie:   { label: 'Anomalie',               cls: 'badge-err',  aide: 'encaissé, mais pas ce qui était demandé' },
+  };
+  const _MOYENS = { orange_money: 'Orange Money', moov_money: 'Moov Money', wave: 'Wave', mtn_money: 'MTN Money' };
+%>
+
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Finances · application Android (téléchargement direct)</p>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-card"/></svg> Paiements Mobile Money</h1>
+    <p class="workspace-description">
+      Les abonnements payés par Mobile Money via GeniusPay, activés sans preuve à envoyer. Une ligne par paiement ouvert.
+    </p>
+  </div>
+  <div class="workspace-actions">
+    <% if (_st) { %>
+      <span class="context-chip"><%= _st.encaisses %> payé<%= _st.encaisses > 1 ? 's' : '' %> · <%= _st.jours %> j</span>
+      <% if (_st.bloques) { %>
+        <span class="live-state" data-state="waiting"><%= _st.bloques %> bloqué<%= _st.bloques > 1 ? 's' : '' %></span>
+      <% } else { %>
+        <span class="live-state">Aucun paiement bloqué</span>
+      <% } %>
+    <% } %>
+  </div>
+</header>
+
+<% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+<% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+<% if (!_d) { %>
+  <div class="alert alert-error">
+    <strong><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> API injoignable</strong>
+    — impossible de lire les paiements<%= _err ? ' : ' + _err : '.' %>
+  </div>
+<% } else { %>
+
+<div class="mm-tuiles metric-grid">
+  <div class="mm-tuile metric-card">
+    <div class="v mm-ok"><%= _fcfa(_st.brut) %></div>
+    <div class="l"><%= _st.encaisses %> paiement<%= _st.encaisses > 1 ? 's' : '' %> encaissé<%= _st.encaisses > 1 ? 's' : '' %><br><span class="mm-dim"><%= _st.jours %> derniers jours</span></div>
+  </div>
+  <div class="mm-tuile metric-card">
+    <div class="v"><%= _fcfa(_st.frais) %></div>
+    <div class="l">frais GeniusPay<br><span class="mm-dim"><%= _st.brut ? Math.round(_st.frais / _st.brut * 1000) / 10 + ' % du brut' : '—' %></span></div>
+  </div>
+  <div class="mm-tuile metric-card">
+    <div class="v"><%= _fcfa(_st.net) %></div>
+    <div class="l">net encaissé<br><span class="mm-dim"><%= _st.jours %> derniers jours</span></div>
+  </div>
+  <div class="mm-tuile metric-card">
+    <div class="v <%= _st.bloques ? 'mm-err' : '' %>"><%= _st.bloques %></div>
+    <div class="l">bloqué<%= _st.bloques > 1 ? 's' : '' %><br><span class="mm-dim"><%= _st.bloques ? _fcfa(_st.montantBloque) + ' en jeu' : 'rien à vérifier' %></span></div>
+  </div>
+  <div class="mm-tuile metric-card">
+    <div class="v"><%= _st.tauxReussite === null ? '—' : _st.tauxReussite + ' %' %></div>
+    <div class="l">des paiements ouverts aboutissent<br><span class="mm-dim"><%= _st.jours %> derniers jours</span></div>
+  </div>
+  <div class="mm-tuile metric-card">
+    <div class="v"><%= _st.enAttente %></div>
+    <div class="l">en attente du client<br><span class="mm-dim">page ouverte, moins de 26 h</span></div>
+  </div>
+  <div class="mm-tuile metric-card">
+    <div class="v"><%= _st.abandonnes %></div>
+    <div class="l">abandonnés<br><span class="mm-dim">jamais payés</span></div>
+  </div>
+  <div class="mm-tuile metric-card">
+    <div class="v"><%= _st.echoues %></div>
+    <div class="l">échoués ou annulés<br><span class="mm-dim"><%= _st.jours %> derniers jours</span></div>
+  </div>
+</div>
+
+<%# Bandeau d'état, pas un message d'action : il reste dans la page au lieu de
+    devenir aussi un toast à chaque chargement. %>
+<% if (_st.bloques) { %>
+  <div class="alert alert-error" data-toast="skip"><div>
+    <strong><%= _st.bloques %> paiement<%= _st.bloques > 1 ? 's' : '' %> bloqué<%= _st.bloques > 1 ? 's' : '' %> (<%= _fcfa(_st.montantBloque) %>).</strong>
+    Le client a validé chez son opérateur, mais GeniusPay n'a pas conclu depuis plus d'une heure — ou le paiement
+    est en anomalie. La vérification automatique s'arrête après 26 h : « Revérifier » relit le paiement chez
+    GeniusPay et accorde le Premium s'il est payé. S'il reste bloqué, contactez le support GeniusPay avec la référence.
+    <% if (_f.etat !== 'bloque') { %>
+      <a href="<%= _lien({ ..._f, etat: 'bloque', page: 1 }) %>">Voir uniquement les paiements bloqués</a>
+    <% } %>
+  </div></div>
+<% } %>
+
+<section class="command-surface">
+<form method="GET" action="/admin/paiements-mobile-money" class="filterbar">
+  <svg class="ic mm-m" aria-hidden="true"><use href="#ic-search"/></svg>
+  <input type="search" name="q" value="<%= _f.q %>" autocomplete="off" maxlength="100"
+         aria-label="Rechercher un paiement"
+         placeholder="Pseudo, e-mail, référence…">
+  <select name="etat" aria-label="Filtrer par état">
+    <option value="">Tous les états</option>
+    <option value="bloque" <%= _f.etat === 'bloque' ? 'selected' : '' %>>Bloqués</option>
+    <% Object.keys(_ETATS).forEach(k => { %>
+    <option value="<%= k %>" <%= _f.etat === k ? 'selected' : '' %>><%= _ETATS[k].label %></option>
+    <% }) %>
+  </select>
+  <select name="jours" aria-label="Période des chiffres">
+    <% [7, 30, 90, 365].forEach(j => { %>
+    <option value="<%= j %>" <%= _f.jours === j ? 'selected' : '' %>><%= j === 365 ? '12 mois' : j + ' jours' %></option>
+    <% }) %>
+  </select>
+  <label><input type="checkbox" name="sandbox" value="1" <%= _f.sandbox ? 'checked' : '' %>> Paiements de test (<%= _st.sandbox %>)</label>
+  <button type="submit" class="btn btn-primary btn-sm"><%= uiText("Filtrer") %></button>
+  <% if (_f.q || _f.etat || _f.sandbox || _f.jours !== 30) { %>
+  <a href="/admin/paiements-mobile-money" class="btn btn-outline btn-sm">
+    <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= uiText("Effacer") %>
+  </a>
+  <% } %>
+  <span class="spacer"></span>
+  <span class="mm-compte"><%= _d.total %> paiement<%= _d.total !== 1 ? 's' : '' %></span>
+</form>
+</section>
+
+<% if (_rows.length === 0) { %>
+  <div class="card">
+    <div class="empty-state">
+      <% if (_f.q || _f.etat) { %>
+        <div class="empty-state-title">Aucun paiement ne correspond</div>
+        <div class="empty-state-desc">Changez la recherche ou les filtres.</div>
+      <% } else { %>
+        <div class="empty-state-title">Aucun paiement Mobile Money pour l'instant</div>
+        <div class="empty-state-desc">
+          Les paiements ouverts depuis l'application Android (téléchargement direct) ou la page Premium du site
+          apparaîtront ici. Les preuves envoyées à la main restent dans « Preuves Premium ».
+        </div>
+      <% } %>
+    </div>
+  </div>
+<% } else { %>
+
+<div class="card cr-panel mm-carte">
+  <div class="table-wrap">
+  <table class="mm-tab">
+    <thead>
+      <tr>
+        <th scope="col"><%= uiText("Compte") %></th>
+        <th scope="col">Formule · montant</th>
+        <th scope="col">État</th>
+        <th scope="col">Ouvert le</th>
+        <th scope="col">Frais · net</th>
+        <th scope="col">Référence</th>
+        <th scope="col">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% _rows.forEach(p => { const e = _ETATS[p.etat] ?? { label: p.statut, cls: 'badge-info' }; %>
+      <tr class="<%= p.bloque ? 'mm-bloque' : '' %>">
+        <td><div>
+          <% if (hasPerm('users') && !p.compte.supprime) { %>
+            <a href="/admin/users/<%= encodeURIComponent(p.compte.id) %>"><strong><%= p.compte.pseudo %></strong></a>
+          <% } else { %>
+            <strong><%= p.compte.pseudo %></strong>
+          <% } %>
+          <span class="mm-sous"><%= p.compte.email ?? 'pas d\'e-mail' %></span>
+          <% if (p.compte.supprime) { %>
+            <span class="badge badge-info">compte supprimé</span>
+          <% } else if (p.compte.premium) { %>
+            <span class="badge badge-ok">Premium</span>
+          <% } else { %>
+            <span class="badge badge-warn">gratuit</span>
+          <% } %>
+          <% if (p.sandbox) { %><span class="badge badge-purple">test</span><% } %>
+        </div></td>
+        <td><div>
+          <%= p.formule %>
+          <span class="mm-sous mm-num"><%= _fcfa(p.montant) %><%= p.moyen ? ' · ' + (_MOYENS[p.moyen] ?? p.moyen) : '' %></span>
+        </div></td>
+        <td><div>
+          <span class="badge <%= e.cls %>"><%= e.label %></span>
+          <% if (p.bloque) { %><span class="badge badge-err">bloqué depuis <%= _age(p.ageHeures) %></span><% } %>
+          <span class="mm-sous"><%= e.aide ?? (p.accordeLe ? 'accordé le ' + _heure(p.accordeLe) : '') %></span>
+        </div></td>
+        <td class="mm-num"><div><%= _heure(p.creeLe) %></div></td>
+        <td class="mm-num"><div>
+          <%= _fcfa(p.frais) %>
+          <span class="mm-sous"><%= p.net !== null ? 'net ' + _fcfa(p.net) : '' %></span>
+        </div></td>
+        <td><div><span class="mm-mono"><%= p.reference ?? '—' %></span></div></td>
+        <td><div>
+          <% if (hasPerm('abonnements', 'write') && ['en_cours', 'en_attente', 'abandonne'].includes(p.etat)) { %>
+          <form method="POST" action="/admin/paiements-mobile-money/<%= encodeURIComponent(p.id) %>/reverifier">
+            <input type="hidden" name="pseudo"  value="<%= p.compte.pseudo %>">
+            <input type="hidden" name="etat"    value="<%= _f.etat %>">
+            <input type="hidden" name="q"       value="<%= _f.q %>">
+            <input type="hidden" name="jours"   value="<%= _f.jours %>">
+            <input type="hidden" name="page"    value="<%= _f.page %>">
+            <% if (_f.sandbox) { %><input type="hidden" name="sandbox" value="1"><% } %>
+            <button type="submit" class="btn <%= p.bloque ? 'btn-primary' : 'btn-outline' %> btn-sm"
+                    title="Relire ce paiement chez GeniusPay et accorder le Premium s'il est payé">
+              <svg class="ic" aria-hidden="true"><use href="#ic-refresh"/></svg> Revérifier
+            </button>
+          </form>
+          <% } else { %>
+            <span class="mm-dim">—</span>
+          <% } %>
+        </div></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<% if (_pages > 1) { %>
+<div class="pagination">
+  <a href="<%= _lien({ ..._f, page: _f.page - 1 }) %>" class="btn btn-outline btn-sm <%= _f.page <= 1 ? 'disabled' : '' %>" aria-label="Page précédente">‹</a>
+  <span>Page <strong><%= _f.page %></strong> / <%= _pages %></span>
+  <a href="<%= _lien({ ..._f, page: _f.page + 1 }) %>" class="btn btn-outline btn-sm <%= _f.page >= _pages ? 'disabled' : '' %>" aria-label="Page suivante">›</a>
+</div>
+<% } %>
+
+<% } %>
+
+<p class="mm-note">
+  Les chiffres du haut excluent les paiements de test (bac à sable GeniusPay). « Revérifier » ne facture rien :
+  le serveur relit le paiement chez GeniusPay et accorde le Premium s'il est payé et conforme (montant, référence,
+  environnement). Une anomalie se tranche à la main, depuis la fiche du compte. Les frais sont ceux annoncés par GeniusPay.
+</p>
+
+<% } %>
+
+<%- include('layout_bottom') %>

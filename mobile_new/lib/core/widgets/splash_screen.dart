@@ -44,14 +44,17 @@ class _SplashScreenState extends State<SplashScreen>
       textDirection: TextDirection.ltr,
       child: Stack(children: [
         widget.child,
-        FadeTransition(opacity: _fade, child: const _SplashView()),
+        FadeTransition(opacity: _fade, child: const VueDemarrage()),
       ]),
     );
   }
 }
 
-class _SplashView extends StatelessWidget {
-  const _SplashView();
+/// Le logotype « PronoWin » sur fond nuit : l'écran de démarrage, repris par
+/// l'écran de masquage (`main.dart`) pour qu'aucun des deux ne ressemble à un
+/// verrou.
+class VueDemarrage extends StatelessWidget {
+  const VueDemarrage({super.key});
 
   @override
   Widget build(BuildContext context) {
