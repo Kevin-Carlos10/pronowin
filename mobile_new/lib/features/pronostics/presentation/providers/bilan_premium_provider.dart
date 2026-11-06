@@ -14,14 +14,18 @@ class BilanPremium {
   final int gagnes;
   final int perdus;
 
-  /// `null` tant qu'aucun pronostic n'est tranché — un taux sans dénominateur
-  /// n'existe pas, et « 0 % » se lirait comme un échec.
+  /// `null` dès que le serveur ne publie pas le taux : aucun pronostic
+  /// tranché, échantillon trop mince, ou réussite sous 80 %.
   final int? tauxReussite;
 
   /// Faux quand l'échantillon est trop mince pour qu'un taux veuille dire
   /// quelque chose. Trois pronostics gagnés font « 100 % », ce qui serait la
   /// même promesse creuse que la constante qu'on remplace.
   final bool echantillonSuffisant;
+
+  /// Décision du serveur : échantillon suffisant **et** au moins 80 % de
+  /// réussite. Un bilan Premium sous 80 % ne s'affiche pas.
+  final bool annoncable;
 
   const BilanPremium({
     required this.periodeJours,
@@ -30,10 +34,13 @@ class BilanPremium {
     required this.perdus,
     required this.tauxReussite,
     required this.echantillonSuffisant,
+    required this.annoncable,
   });
 
-  /// Le chiffre est-il annonçable tel quel ?
-  bool get affichable => echantillonSuffisant && tauxReussite != null;
+  /// Le chiffre est-il annonçable tel quel ? Le seuil de 80 % se décide sur
+  /// le serveur, qui ne publie pas le taux en dessous ; l'écran ne le
+  /// recalcule pas.
+  bool get affichable => annoncable && echantillonSuffisant && tauxReussite != null;
 
   factory BilanPremium.depuisApi(Map<String, dynamic> j) => BilanPremium(
         periodeJours:       (j['periode_jours']        as num?)?.toInt() ?? 30,
@@ -42,6 +49,7 @@ class BilanPremium {
         perdus:             (j['perdus']               as num?)?.toInt() ?? 0,
         tauxReussite:       (j['taux_reussite']        as num?)?.toInt(),
         echantillonSuffisant: j['echantillon_suffisant'] == true,
+        annoncable:         j['affichable'] == true,
       );
 }
 

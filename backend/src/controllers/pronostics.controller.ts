@@ -16,6 +16,7 @@ import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
 import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
 import { repondreErreur, ErreurMetier } from '../utils/erreurs';
 import { articlesDuMatch } from '../services/resumes_match.service';
+import { calculerBilanPremium } from '../services/bilan_premium';
 import { resumeVotes, voter } from '../services/votes_match.service';
 import {
   niveauDepuisPourcentage, pourcentageConfiance, pourcentageDepuisNiveau, POURCENTAGE_MAX, POURCENTAGE_MIN,
@@ -146,12 +147,10 @@ export const getDaySummary = async (req: AuthRequest, res: Response) => {
  * publiés, sans distinguer `isPremium`. Afficher son chiffre sous le mot
  * « Premium » aurait remplacé une affirmation fausse par une autre.
  *
- * `echantillon_suffisant` est le garde-fou : sous ce seuil, un taux calculé
- * sur trois paris tranchés est un artefact, pas une performance. L'appelant
- * doit alors se taire plutôt que d'annoncer 100 % ou 0 %.
+ * Ce qui est annonçable (échantillon suffisant, taux d'au moins 80 %) est
+ * décidé par `calculerBilanPremium` : hors de ces cas, `taux_reussite` est
+ * nul et l'appelant se tait.
  */
-const ECHANTILLON_MINIMAL = 10;
-
 export const getBilanPremium = async (req: AuthRequest, res: Response) => {
   try {
     const jours = Math.min(parseInt((req.query.days as string) ?? '30') || 30, 90);
@@ -177,20 +176,7 @@ export const getBilanPremium = async (req: AuthRequest, res: Response) => {
       }),
     ]);
 
-    // Les remboursés (PUSH) sont exclus des deux côtés : ni gagnés ni perdus,
-    // ils ne disent rien de la justesse d'un pronostic. Même convention que
-    // `getPerformance` et que la carte bankroll.
-    const tranches = gagnes + perdus;
-
-    const reponse = {
-      periode_jours:          jours,
-      pronostics_tranches:    tranches,
-      gagnes,
-      perdus,
-      taux_reussite:          tranches > 0 ? Math.round((gagnes / tranches) * 100) : null,
-      echantillon_minimal:    ECHANTILLON_MINIMAL,
-      echantillon_suffisant:  tranches >= ECHANTILLON_MINIMAL,
-    };
+    const reponse = calculerBilanPremium(gagnes, perdus, jours);
 
     cache.set(cacheKey, reponse, CACHE_TTL.stats);
     res.json(reponse);

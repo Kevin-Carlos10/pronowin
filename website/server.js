@@ -171,13 +171,15 @@ function lireJson(chemin) {
  * accident. Le même défaut avait été corrigé dans l'application ; il vivait
  * encore ici, à deux endroits : la tuile du haut et la maquette Premium.
  *
- * En cas d'échec, ou sous le seuil d'échantillon du serveur, on ne remplace
- * pas par une estimation : la section disparaît. Une page qui annonce un
- * chiffre faux vaut moins qu'une page qui n'en annonce aucun.
+ * En cas d'échec, sous le seuil d'échantillon du serveur, ou sous 80 % de
+ * réussite, on ne remplace pas par une estimation : la section disparaît. Une
+ * page qui annonce un chiffre faux vaut moins qu'une page qui n'en annonce
+ * aucun. C'est le serveur qui décide (`affichable`) ; la page ne refait pas
+ * le calcul.
  */
 async function bilanPremium() {
   const d = await lireJson('/pronostics/bilan-premium?days=30');
-  return d && d.echantillon_suffisant && d.taux_reussite !== null ? d : null;
+  return d && d.affichable === true && d.taux_reussite !== null ? d : null;
 }
 
 /**

@@ -85,7 +85,8 @@ async function rendre(reponsesApi) {
 
 const API_COMPLETE = {
   '/pronostics/bilan-premium': {
-    taux_reussite: 73, periode_jours: 30, echantillon_suffisant: true,
+    taux_reussite: 85, periode_jours: 30, echantillon_suffisant: true,
+    affichable: true,
   },
   '/subscriptions/plans': [
     { id: 'free',            price_usd: 0,  price_fcfa: null },
@@ -99,6 +100,18 @@ const API_COMPLETE = {
 const API_SANS_TAUX = {
   '/pronostics/bilan-premium': {
     taux_reussite: 86, periode_jours: 30, echantillon_suffisant: false,
+    affichable: false,
+  },
+  '/subscriptions/plans': API_COMPLETE['/subscriptions/plans'],
+};
+
+// Échantillon suffisant, mais taux sous 80 % : le bilan ne s'affiche pas.
+// Le serveur ne publie alors plus le taux ; la fixture le garde quand même,
+// pour vérifier que la page obéit à `affichable` et pas au seul taux.
+const API_SOUS_SEUIL = {
+  '/pronostics/bilan-premium': {
+    taux_reussite: 73, periode_jours: 30, echantillon_suffisant: true,
+    affichable: false,
   },
   '/subscriptions/plans': API_COMPLETE['/subscriptions/plans'],
 };
@@ -490,8 +503,8 @@ test('le grand chiffre est le taux du serveur, ou rien', async () => {
   const avec = await rendre(API_COMPLETE);
   assert.ok(avec.accueil.html.includes('mega-number'),
     'la section devrait exister quand le serveur publie un taux');
-  assert.ok(/mega-number">73%/.test(avec.accueil.html),
-    'le grand chiffre devrait être le taux publié (73)');
+  assert.ok(/mega-number">85%/.test(avec.accueil.html),
+    'le grand chiffre devrait être le taux publié (85)');
 
   // Le défaut historique : la vue lisait `stats[1]` par position, si bien
   // qu'elle affichait « 12 » (des ligues) sous la légende « taux de réussite ».
@@ -508,6 +521,14 @@ test('le grand chiffre est le taux du serveur, ou rien', async () => {
   const texteSans = sans.accueil.html.replace(/<[^>]*>/g, ' ');
   assert.ok(!/\b86\b/.test(texteSans),
     "le taux sous-échantillonné (86) ne doit pas fuiter dans la page");
+
+  // Décision du 6 novembre 2026 : sous 80 %, le bilan Premium ne s'affiche pas.
+  const sousSeuil = await rendre(API_SOUS_SEUIL);
+  assert.ok(!sousSeuil.accueil.html.includes('mega-number'),
+    'la section devrait disparaître quand le taux est sous 80 %');
+  const texteSousSeuil = sousSeuil.accueil.html.replace(/<[^>]*>/g, ' ');
+  assert.ok(!/\b73\b/.test(texteSousSeuil),
+    'un taux sous 80 % (73) ne doit pas apparaître dans la page');
 });
 
 test('aucun lien ne mène nulle part', async () => {
