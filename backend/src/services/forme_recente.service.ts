@@ -22,7 +22,58 @@ export interface MatchRecent {
   issue: 'V' | 'N' | 'D';
 }
 
-export interface FormeRecente { home: MatchRecent[]; away: MatchRecent[] }
+/**
+ * Les « Séries » d'une équipe, sur ses derniers matchs terminés (dix au plus),
+ * toutes compétitions confondues — ce que Sofascore affiche sous ce nom
+ * (7 novembre 2026). Les séries « en cours » partent du match le plus récent ;
+ * les autres sont des comptes sur [sur] matchs.
+ */
+export interface Series {
+  /** Nombre de matchs lus (dix au plus). */
+  sur: number;
+  /** Séries en cours, du plus récent au plus ancien. */
+  victoires: number;
+  sansDefaite: number;
+  sansVictoire: number;
+  defaites: number;
+  /** A marqué à chaque match, à la suite. */
+  marque: number;
+  /** N'a pas encaissé, à la suite. */
+  sansEncaisser: number;
+  /** Comptes sur les [sur] matchs. */
+  plusDe25Buts: number;
+  lesDeuxMarquent: number;
+  cleanSheets: number;
+  nAPasMarque: number;
+}
+
+export interface FormeRecente {
+  home: MatchRecent[]; away: MatchRecent[];
+  series?: { home: Series; away: Series };
+}
+
+/** [matchs] du plus récent au plus ancien. */
+export function seriesDe(matchs: MatchRecent[]): Series {
+  const enCours = (ok: (m: MatchRecent) => boolean) => {
+    let n = 0;
+    for (const m of matchs) { if (!ok(m)) break; n++; }
+    return n;
+  };
+  const compte = (ok: (m: MatchRecent) => boolean) => matchs.filter(ok).length;
+  return {
+    sur: matchs.length,
+    victoires: enCours(m => m.issue === 'V'),
+    sansDefaite: enCours(m => m.issue !== 'D'),
+    sansVictoire: enCours(m => m.issue !== 'V'),
+    defaites: enCours(m => m.issue === 'D'),
+    marque: enCours(m => m.butsPour > 0),
+    sansEncaisser: enCours(m => m.butsContre === 0),
+    plusDe25Buts: compte(m => m.butsPour + m.butsContre >= 3),
+    lesDeuxMarquent: compte(m => m.butsPour > 0 && m.butsContre > 0),
+    cleanSheets: compte(m => m.butsContre === 0),
+    nAPasMarque: compte(m => m.butsPour === 0),
+  };
+}
 
 const TERMINES = ['FT', 'AET', 'PEN'];
 const TTL = 3 * 60 * 60_000;
@@ -68,11 +119,11 @@ export class FormeRecenteFootball {
           .filter(r => TERMINES.includes(r.fixture?.status?.short) && r.fixture?.id !== fixtureId)
           .sort((a, b) => (b.fixture?.timestamp ?? 0) - (a.fixture?.timestamp ?? 0))
           .map(r => matchRecent(r, equipe))
-          .filter((m): m is MatchRecent => m !== null)
-          .slice(0, 5);
+          .filter((m): m is MatchRecent => m !== null);
       };
+      // Les séries se lisent sur les dix ; la forme n'en montre que cinq.
       const [h, a] = await Promise.all([lire(home), lire(away)]);
-      return { home: h, away: a };
+      return { home: h.slice(0, 5), away: a.slice(0, 5), series: { home: seriesDe(h), away: seriesDe(a) } };
     } catch {
       return null;
     }

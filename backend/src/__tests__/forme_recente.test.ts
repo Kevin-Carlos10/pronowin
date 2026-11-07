@@ -1,4 +1,4 @@
-import { FormeRecenteFootball, matchRecent } from '../services/forme_recente.service';
+import { FormeRecenteFootball, matchRecent, seriesDe, type MatchRecent } from '../services/forme_recente.service';
 import { ClassementsFootball } from '../services/classements_football.service';
 import { _reinitialiser } from '../services/etat_taches';
 
@@ -68,5 +68,33 @@ it('classement : bilans à domicile et à l’extérieur, points recomptés', as
     goalsFor: 11, goalsAgainst: 6,
     home: { played: 3, win: 3, draw: 0, lose: 0, goalsFor: 7, goalsAgainst: 1, points: 9 },
     away: { played: 3, win: 1, draw: 1, lose: 1, goalsFor: 4, goalsAgainst: 5, points: 4 },
+  });
+});
+
+describe('séries (7 novembre 2026)', () => {
+  const m = (issue: 'V' | 'N' | 'D', pour: number, contre: number): MatchRecent =>
+    ({ date: '', competition: null, adversaire: 'X', adversaireLogo: null, domicile: true, butsPour: pour, butsContre: contre, issue });
+
+  it('séries en cours depuis le plus récent, comptes sur tous les matchs', () => {
+    // Du plus récent au plus ancien.
+    const s = seriesDe([m('V', 2, 0), m('V', 3, 1), m('N', 1, 1), m('D', 0, 2), m('V', 4, 2)]);
+    expect(s).toEqual({
+      sur: 5, victoires: 2, sansDefaite: 3, sansVictoire: 0, defaites: 0,
+      marque: 3, sansEncaisser: 1,
+      plusDe25Buts: 2, lesDeuxMarquent: 3, cleanSheets: 1, nAPasMarque: 1,
+    });
+  });
+
+  it('aucun match : tout à zéro', () => {
+    expect(seriesDe([])).toMatchObject({ sur: 0, victoires: 0, plusDe25Buts: 0 });
+  });
+
+  it('la fiche reçoit les séries sur dix matchs, la forme sur cinq', async () => {
+    const dix = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(i => joue(100 + i, 2000 - i * 100, 'FT', 3, 20 + i, 2, i <= 7 ? 1 : 0));
+    const c = { get: jest.fn(async (_p: string, { params }: any) => ok(params.team === 3 ? dix : [])) };
+    const forme = await new FormeRecenteFootball(c as any, async () => fixture).get(42);
+    expect(forme?.home).toHaveLength(5);
+    expect(forme?.series?.home).toMatchObject({ sur: 10, victoires: 10, plusDe25Buts: 7, lesDeuxMarquent: 7, cleanSheets: 3 });
+    expect(forme?.series?.away.sur).toBe(0);
   });
 });

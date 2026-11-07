@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/network/dio_client.dart';
 import 'package:pronowin/core/utils/noms_equipes.dart';
+import '../../domain/series_match.dart';
 
 // ─── Toutes les cotes du match ───────────────────────────────────────────────
 //
@@ -96,7 +97,10 @@ class MatchRecent {
 /// ancien.
 class FormeRecente {
   final List<MatchRecent> domicile, exterieur;
-  const FormeRecente(this.domicile, this.exterieur);
+  /// Les séries de chaque équipe, sur ses dix derniers matchs (null : serveur
+  /// antérieur au 7 novembre 2026).
+  final SeriesEquipe? seriesDomicile, seriesExterieur;
+  const FormeRecente(this.domicile, this.exterieur, {this.seriesDomicile, this.seriesExterieur});
   bool get vide => domicile.isEmpty && exterieur.isEmpty;
 }
 
@@ -110,7 +114,10 @@ final formeRecenteProvider = FutureProvider.autoDispose
       for (final m in (d[cle] as List? ?? const []))
         MatchRecent.fromJson(m as Map<String, dynamic>),
     ];
-    return FormeRecente(lire('home'), lire('away'));
+    final series = d['series'] is Map ? d['series'] as Map : const {};
+    return FormeRecente(lire('home'), lire('away'),
+        seriesDomicile: SeriesEquipe.fromJson(series['home']),
+        seriesExterieur: SeriesEquipe.fromJson(series['away']));
   } on DioException {
     return null;
   }

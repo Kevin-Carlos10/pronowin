@@ -31,6 +31,7 @@ import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../features/abonnement/presentation/providers/subscription_provider.dart';
 import '../../domain/entities/match_entity.dart';
 import '../../domain/chrono_match.dart';
+import '../../domain/series_match.dart';
 import '../providers/pronostics_provider.dart';
 import '../providers/match_info_provider.dart';
 import '../providers/fiche_match_provider.dart';
@@ -76,6 +77,7 @@ part 'match_detail/analyse_modele.dart';
 part 'match_detail/toutes_cotes.dart';
 part 'match_detail/article_match.dart';
 part 'match_detail/vote_fans.dart';
+part 'match_detail/series.dart';
 
 /// La carte des palmarès d'une compétition, seule, pour les bancs d'essai.
 @visibleForTesting
@@ -512,16 +514,17 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         entree(_ArticleDuMatch(matchId: match.id), delaiMs: 60),
         // « Qui va gagner ? » Porte sa propre marge, comme la carte d'article.
         entree(_VoteFans(match: match), delaiMs: 75),
-        if (showEvents) ...[
+        // Porte sa propre marge : sans fait de jeu, elle ne laisse pas de trou.
+        if (showEvents)
           entree(_MatchEventsCard(matchId: match.id, match: match),
               delaiMs: 90),
-          const SizedBox(height: 16),
-        ],
         // Sous le fil des événements, comme sur Sofascore. Porte sa propre
         // marge : sans information à montrer, elle ne laisse pas de trou.
         _MatchInformationCard(matchId: match.id),
         // Porte sa propre marge : absente, elle ne laisse pas de trou.
         entree(_FormeRecente(match: match), delaiMs: 140),
+        // Sous la forme récente, qu'elles prolongent. Portent leur marge.
+        entree(_Series(match: match), delaiMs: 160),
         if (match.hasPronostic) ...[
         entree(_AIAnalysisCard(matchId: match.id, status: match.status,
                 confianceAnalyste: match.pourcentageConfiance,
@@ -926,6 +929,12 @@ class _EnTeteRepliable extends ConsumerWidget {
         ? ref.watch(matchInfoProvider(match.id)).valueOrNull : null;
     final dom = live?.homeScore ?? match.homeScore;
     final ext = live?.awayScore ?? match.awayScore;
+    // Les buteurs sous le nom de chaque équipe, comme Sofascore.
+    final faits = match.status == MatchStatus.upcoming
+        ? null : ref.watch(matchStatsProvider(match.id)).valueOrNull;
+    final buteurs = faits == null ? null : buteursDuMatch(faits.events,
+        domicile: faits.homeTeam,
+        scoreFinal: dom != null && ext != null ? (dom: dom, ext: ext) : null);
 
     final d = match.matchDate;
     final dateStr = '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
@@ -941,9 +950,11 @@ class _EnTeteRepliable extends ConsumerWidget {
         ? tr(context, "contre")
         : tr(context, "{arg0} à {arg1} contre", [dom ?? 0, ext ?? 0]);
 
+    final butsParles = [...?buteurs?.dom, ...?buteurs?.ext];
     return Semantics(
       label: tr(context, "{arg0}. {arg1} {arg2} {arg3}. Match {arg4}, le {arg5} à {arg6}.",
-          [match.league, match.homeTeam, scoreParle, match.awayTeam, etat, dateStr, heureStr]),
+          [match.league, match.homeTeam, scoreParle, match.awayTeam, etat, dateStr, heureStr])
+          + (butsParles.isEmpty ? '' : ' ${tr(context, "Buts : {arg0}.", [butsParles.join(' ; ')])}'),
       container: true,
       child: MediaQuery.withClampedTextScaling(
         // L'en-tête a une hauteur fixe, comme chez Sofascore : le texte y
@@ -985,10 +996,20 @@ class _EnTeteRepliable extends ConsumerWidget {
                 style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)))),
             );
 
+            Widget buts(List<String> liste, double x) => Positioned(
+              left: x - largeurNom / 2 - 6, width: largeurNom + 12,
+              top: haut + _hauteurBarre + 78 - r * 48,
+              child: IgnorePointer(child: Opacity(opacity: opaciteNoms, child: Text(liste.join(', '),
+                maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+                style: TextStyle(color: context.cl.textS, fontSize: 10.5, fontWeight: FontWeight.w500)))),
+            );
+
             return ExcludeSemantics(child: Stack(clipBehavior: Clip.hardEdge, children: [
               if (opaciteNoms > 0) ...[
                 nom(match.homeTeam, xDom),
                 nom(match.awayTeam, xExt),
+                if (buteurs != null && buteurs.dom.isNotEmpty) buts(buteurs.dom, xDom),
+                if (buteurs != null && buteurs.ext.isNotEmpty) buts(buteurs.ext, xExt),
               ],
               logo(match.homeTeam, match.homeTeamLogo, 'team_home_${match.homeTeam}', xDom),
               logo(match.awayTeam, match.awayTeamLogo, 'team_away_${match.awayTeam}', xExt),
