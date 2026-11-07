@@ -189,7 +189,11 @@ final _slidesSansPari = [
 ];
 
 class OnboardingPage extends ConsumerStatefulWidget {
-  const OnboardingPage({super.key});
+  /// Rouverte depuis les paramètres (« Présentation de l'application », 7
+  /// novembre 2026) : la fin ramène en arrière, sans toucher au premier
+  /// lancement.
+  final bool revoir;
+  const OnboardingPage({super.key, this.revoir = false});
 
   @override
   ConsumerState<OnboardingPage> createState() => _OnboardingPageState();
@@ -219,6 +223,10 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage> {
   }
 
   Future<void> _finish() async {
+    if (widget.revoir) {
+      context.canPop() ? context.pop() : context.go('/parametres');
+      return;
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('onboarding_done', true);
     if (!mounted) return;

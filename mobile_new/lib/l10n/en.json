@@ -1777,5 +1777,20 @@
   "Aucun joueur trouvé.": "No player found.",
   "Comparaison": "Comparison",
   "la comparaison": "the comparison",
-  "Saison {arg0}-{arg1}, compétition principale de chaque joueur.": "{arg0}-{arg1} season, each player's main competition."
+  "Saison {arg0}-{arg1}, compétition principale de chaque joueur.": "{arg0}-{arg1} season, each player's main competition.",
+  "Aide": "Help",
+  "Présentation de l'application": "App tour",
+  "Revoir les écrans d'accueil": "See the welcome screens again",
+  "Aperçu technique": "Technical details",
+  "Version, système, compte — à copier pour le support": "Version, system, account — to copy for support",
+  "Version": "Version",
+  "Canal": "Channel",
+  "Installée le": "Installed on",
+  "Colle ces informations dans ton message au support.": "Paste this information into your message to support.",
+  "Informations copiées": "Information copied",
+  "Afficher mon code QR": "Show my QR code",
+  "Fais scanner ce code": "Have this code scanned",
+  "Ton ami ouvre l'appareil photo de son téléphone et vise le code.": "Your friend opens their phone camera and points it at the code.",
+  "Code QR de parrainage, code {arg0}": "Referral QR code, code {arg0}",
+  "Code à saisir dans l'application": "Code to enter in the app"
 }

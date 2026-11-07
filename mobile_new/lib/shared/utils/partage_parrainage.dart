@@ -31,6 +31,12 @@ import 'messages.dart';
 String messageParrainage(String code) =>
     trCurrent("🏆 Rejoins PronoWin et gagne avec les meilleurs pronostics !\nUtilise mon code de parrainage : *{arg0}*\n👉 Télécharge l'app : {arg1}\n💰 Tu m'aides aussi à gagner des commissions !", [code, AppConstants.siteUrl]);
 
+/// L'adresse du code QR de parrainage (7 novembre 2026, repris de 1xBet :
+/// « Partager l'application via code QR ») : le site, qui propose à chacun le
+/// bon téléchargement, avec le code en paramètre.
+String lienQrParrainage(String code) =>
+    '${AppConstants.siteUrl}/?parrain=${Uri.encodeQueryComponent(code)}';
+
 /// Ouvre la feuille de partage du téléphone avec le message de parrainage —
 /// WhatsApp, SMS, Telegram, e-mail, « Copier »…
 ///

@@ -12,6 +12,7 @@ import '../../../../shared/utils/retour.dart';
 import '../../../../shared/utils/partage_parrainage.dart';
 import '../../../../shared/utils/rafraichir.dart';
 import '../../../../shared/utils/messages.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -374,9 +375,72 @@ class _ReferralCodeCard extends StatelessWidget {
           ),
         )),
       ),
+      const SizedBox(height: 8),
+      // Face à face, sans messagerie : l'ami scanne (7 novembre 2026).
+      SizedBox(
+        width: double.infinity,
+        child: OutlinedButton.icon(
+          key: const Key('qr-parrainage'),
+          onPressed: () {
+            HapticFeedback.lightImpact();
+            afficherQrParrainage(context, code);
+          },
+          icon: const Icon(Icons.qr_code_2_rounded, size: 18),
+          label: Text(tr(context, "Afficher mon code QR")),
+          style: OutlinedButton.styleFrom(
+            foregroundColor: const Color(0xFFA78BFA),
+            side: BorderSide(color: const Color(0xFFA78BFA).withValues(alpha: 0.5)),
+          ),
+        ),
+      ),
     ]),
   );
 }
+
+/// Le code QR de parrainage, à faire scanner par un ami à côté de soi : il
+/// ouvre le site (le bon téléchargement pour son téléphone), et le code est
+/// écrit dessous pour qu'il le saisisse dans l'application.
+Future<void> afficherQrParrainage(BuildContext context, String code) => showModalBottomSheet<void>(
+  context: context,
+  showDragHandle: true,
+  isScrollControlled: true,
+  useSafeArea: true,
+  backgroundColor: context.cl.surface,
+  builder: (feuille) => SingleChildScrollView(child: Padding(
+    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Text(tr(feuille, "Fais scanner ce code"),
+        style: TextStyle(color: feuille.cl.textP, fontSize: 18, fontWeight: FontWeight.w800)),
+      const SizedBox(height: 6),
+      Text(tr(feuille, "Ton ami ouvre l'appareil photo de son téléphone et vise le code."),
+        textAlign: TextAlign.center, style: TextStyle(color: feuille.cl.textS, fontSize: 13)),
+      const SizedBox(height: 18),
+      // Toujours noir sur blanc, même en thème sombre : certains lecteurs
+      // ne lisent pas un code QR inversé.
+      Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
+        child: Semantics(
+          label: tr(feuille, "Code QR de parrainage, code {arg0}", [code]),
+          child: QrImageView(
+            key: const Key('qr-image'),
+            data: lienQrParrainage(code),
+            size: 220,
+            backgroundColor: Colors.white,
+            eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Colors.black),
+            dataModuleStyle: const QrDataModuleStyle(dataModuleShape: QrDataModuleShape.square, color: Colors.black),
+          ),
+        ),
+      ),
+      const SizedBox(height: 16),
+      Text(tr(feuille, "Code à saisir dans l'application"),
+        style: TextStyle(color: feuille.cl.textM, fontSize: 12)),
+      const SizedBox(height: 4),
+      SelectableText(code, style: const TextStyle(
+        color: Color(0xFFA78BFA), fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: 5)),
+    ]),
+  )),
+);
 
 // ─── ENTRER CODE PARRAIN ─────────────────────────────────────────────────────
 class _EnterCodeCard extends ConsumerStatefulWidget {

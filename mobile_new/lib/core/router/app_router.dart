@@ -123,6 +123,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/onboarding',
         pageBuilder: (_, s) => fadePage(state: s, child: const OnboardingPage()),
       ),
+      // La même présentation, rouverte depuis les paramètres.
+      GoRoute(
+        path: '/presentation',
+        pageBuilder: (_, s) => fadePage(state: s, child: const OnboardingPage(revoir: true)),
+      ),
 
       // ── Auth (fade — pas de contexte précédent) — accès à la demande ──────
       GoRoute(

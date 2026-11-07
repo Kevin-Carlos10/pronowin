@@ -21,6 +21,8 @@ import '../../../../core/config/pages_legales.dart';
 import '../../../../shared/widgets/logotype_pronowin.dart';
 import '../../../../shared/utils/messages.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
+import '../../../../core/services/cache_fichiers.dart';
+import '../widgets/apercu_technique.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -29,6 +31,9 @@ const _repli = '/compte';
 
 /// L'année du copyright était figée à 2026 dans deux textes distincts.
 final _copyrightYear = DateTime.now().year;
+
+/// La place occupée par les fichiers temporaires (`cache_fichiers.dart`).
+final _tailleCacheProvider = FutureProvider.autoDispose<int>((ref) => CacheFichiers.taille());
 
 class ParametresPage extends ConsumerWidget {
   const ParametresPage({super.key});
@@ -40,6 +45,8 @@ class ParametresPage extends ConsumerWidget {
     // La version était écrite en dur à trois endroits (ligne « À propos »,
     // pied de page, feuille À propos) : trois vérités à maintenir en phase.
     final appVersion   = ref.watch(appVersionProvider).value ?? '';
+    // La place occupée par le cache, comme 1xBet (7 novembre 2026).
+    final tailleCache  = ref.watch(_tailleCacheProvider).valueOrNull;
 
     return Scaffold(
       appBar: AppBar(
@@ -221,9 +228,34 @@ class ParametresPage extends ConsumerWidget {
             _NavTile(
               icon: Icons.storage_rounded, iconColor: context.cl.textS,
               title: tr(context, "Vider le cache"), subtitle: tr(context, "Libérer l'espace de stockage"),
+              trailing: tailleCache == null ? null
+                  : CacheFichiers.lisible(tailleCache, langue: AppStrings.of(context).locale.languageCode),
               onTap: () => _showClearCacheSheet(context, ref),
             ),
           ]).animate(delay: 230.ms).fadeIn(duration: 300.ms)
+            .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
+          const SizedBox(height: 20),
+
+          // ─── AIDE ─────────────────────────────────────────────────────
+          // Repris de 1xBet (7 novembre 2026) : revoir la présentation, et
+          // copier les informations techniques à joindre au support.
+          _SectionHeader(tr(context, "Aide"))
+            .animate().fadeIn(duration: 300.ms, delay: 240.ms),
+          _SettingsCard(children: [
+            _NavTile(
+              icon: Icons.slideshow_rounded, iconColor: context.cl.info,
+              title: tr(context, "Présentation de l'application"),
+              subtitle: tr(context, "Revoir les écrans d'accueil"),
+              onTap: () => context.push('/presentation'),
+            ),
+            const _Divider(),
+            _NavTile(
+              icon: Icons.developer_mode_rounded, iconColor: context.cl.textS,
+              title: tr(context, "Aperçu technique"),
+              subtitle: tr(context, "Version, système, compte — à copier pour le support"),
+              onTap: () => afficherApercuTechnique(context, ref),
+            ),
+          ]).animate(delay: 250.ms).fadeIn(duration: 300.ms)
             .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
           const SizedBox(height: 20),
 
@@ -436,6 +468,9 @@ class ParametresPage extends ConsumerWidget {
         confirmColor: AppColors.primary,
         onConfirm: () async {
           await ref.read(settingsProvider.notifier).clearCache();
+          // Les images téléchargées : l'essentiel de la place occupée.
+          await CacheFichiers.vider();
+          ref.invalidate(_tailleCacheProvider);
           if (context.mounted) {
             Navigator.pop(context);
             afficherMessage(context, tr(context, "Cache vidé"), type: TypeMessage.succes);
