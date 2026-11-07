@@ -63,4 +63,18 @@ void main() {
       expect(contraste(couleurNote(note), texteSurNote(note)), greaterThanOrEqualTo(4.5), reason: '$note');
     });
   });
+
+  test('le mieux noté du match, un seul, toutes équipes confondues (7 novembre 2026)', () {
+    final infos = infosJoueurs(notes: [note(1, 7.4), note(2, 8.1, equipe: 'away'), note(3, 8.1), note(4, 0)]);
+    expect([for (final id in [1, 2, 3, 4]) infos[id]?.meilleur], [false, true, false, false]);
+    expect(infosJoueurs(notes: [note(5, 0)]).values.any((i) => i.meilleur), isFalse,
+        reason: 'sans note, personne');
+  });
+
+  testWidgets('sa pastille porte une étoile', (t) async {
+    await t.pumpWidget(const MaterialApp(home: Row(children: [
+      PastilleNote(8.1, meilleur: true), PastilleNote(6.4)])));
+    expect(find.byIcon(Icons.star_rounded), findsOneWidget);
+    expect(find.text('8.1'), findsOneWidget);
+  });
 }

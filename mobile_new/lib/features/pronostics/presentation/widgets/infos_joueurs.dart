@@ -22,6 +22,9 @@ class InfosJoueur {
   int? entree;
   /// Nom du joueur qu'il a remplacé.
   String? remplace;
+  /// Le mieux noté du match, des deux équipes (7 novembre 2026, comme
+  /// Sofascore) : sa note se distingue sur le terrain.
+  bool meilleur = false;
 
   bool get aDesEvenements => buts > 0 || butsContreSonCamp > 0 || jaunes > 0 || rouges > 0 || sortie != null;
 }
@@ -42,6 +45,13 @@ Map<int, InfosJoueur> infosJoueurs({
       ..note = n.rating > 0 ? n.rating : null
       ..capitaine = n.captain;
   }
+
+  // Le mieux noté : un seul, le premier en cas d'égalité.
+  InfosJoueur? meilleur;
+  for (final i in infos.values) {
+    if (i.note != null && (meilleur == null || i.note! > meilleur.note!)) meilleur = i;
+  }
+  meilleur?.meilleur = true;
 
   // Les cartons viennent des événements ; à défaut (événements non couverts),
   // des statistiques individuelles qui accompagnent les notes.
@@ -119,16 +129,26 @@ Color texteSurNote(double note) =>
 class PastilleNote extends StatelessWidget {
   final double note;
   final double taille;
-  const PastilleNote(this.note, {super.key, this.taille = 9});
+  /// Le mieux noté du match : pastille bleue et étoile, comme Sofascore.
+  final bool meilleur;
+  const PastilleNote(this.note, {super.key, this.taille = 9, this.meilleur = false});
+
+  static const bleuMeilleur = Color(0xFF2F7CF6);
 
   @override
   Widget build(BuildContext context) => Container(
     padding: EdgeInsets.symmetric(horizontal: taille * 0.4, vertical: taille * 0.12),
     decoration: BoxDecoration(
-      color: couleurNote(note),
+      color: meilleur ? bleuMeilleur : couleurNote(note),
       borderRadius: BorderRadius.circular(taille * 0.35)),
-    child: Text(note.toStringAsFixed(1),
-      style: TextStyle(color: texteSurNote(note), fontSize: taille, fontWeight: FontWeight.w800,
-        height: 1.15, fontFeatures: const [FontFeature.tabularFigures()])),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      if (meilleur) ...[
+        Icon(Icons.star_rounded, size: taille * 1.05, color: Colors.white),
+        SizedBox(width: taille * 0.15),
+      ],
+      Text(note.toStringAsFixed(1),
+        style: TextStyle(color: meilleur ? Colors.white : texteSurNote(note), fontSize: taille, fontWeight: FontWeight.w800,
+          height: 1.15, fontFeatures: const [FontFeature.tabularFigures()])),
+    ]),
   );
 }

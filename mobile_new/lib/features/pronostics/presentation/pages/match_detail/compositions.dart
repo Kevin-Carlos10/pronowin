@@ -374,7 +374,7 @@ class _PitchPlayer extends StatelessWidget {
           // haut à gauche : la disposition de Sofascore.
           if (infos?.note != null)
             Positioned(left: -6, bottom: -4,
-              child: PastilleNote(infos!.note!, taille: 8)),
+              child: PastilleNote(infos!.note!, taille: 8, meilleur: infos!.meilleur)),
           if (infos != null && infos!.aDesEvenements)
             Positioned(right: -7, top: -5, child: _BadgesJoueur(infos: infos!)),
           if (infos?.capitaine == true)
@@ -536,7 +536,7 @@ class _LigneRemplacant extends StatelessWidget {
             ],
             if (infos?.note != null) ...[
               const SizedBox(width: 8),
-              PastilleNote(infos!.note!, taille: 10.5),
+              PastilleNote(infos!.note!, taille: 10.5, meilleur: infos!.meilleur),
             ],
           ]),
         ),
