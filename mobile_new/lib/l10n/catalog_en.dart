@@ -1771,4 +1771,13 @@ const englishMessages = <String, String>{
   "Évolution au classement": "Standings over time",
   "Position après chaque journée": "Position after each matchday",
   "Après la journée {arg0} : {arg1} {arg2}, {arg3} {arg4}.": "After matchday {arg0}: {arg1} {arg2}, {arg3} {arg4}.",
+  "Note moyenne de la saison : {arg0}": "Season average rating: {arg0}",
+  "Note": "Rating",
+  "Comparer avec un autre joueur": "Compare with another player",
+  "Comparer avec…": "Compare with…",
+  "Nom du joueur (3 lettres au moins)": "Player name (at least 3 letters)",
+  "Aucun joueur trouvé.": "No player found.",
+  "Comparaison": "Comparison",
+  "la comparaison": "the comparison",
+  "Saison {arg0}-{arg1}, compétition principale de chaque joueur.": "{arg0}-{arg1} season, each player's main competition.",
 };

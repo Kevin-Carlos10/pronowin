@@ -10,6 +10,8 @@ import '../../../../core/widgets/image_distante.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../../../shared/widgets/erreur_chargement.dart';
 import '../providers/fiche_joueur_provider.dart';
+import '../../../pronostics/presentation/widgets/infos_joueurs.dart' show PastilleNote;
+import 'comparaison_joueurs_page.dart';
 
 /// Ouvre la fiche d'un joueur. Sans identifiant (joueur que le fournisseur ne
 /// numérote pas), il n'y a rien à ouvrir : la ligne reste inerte.
@@ -75,7 +77,8 @@ class _FicheJoueurPageState extends ConsumerState<FicheJoueurPage> {
         data: (f) {
           final indice = _competition.clamp(0, f.stats.isEmpty ? 0 : f.stats.length - 1);
           return ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 32), children: [
-            _EnTete(nom: f.name, photo: f.photo, fiche: f),
+            _EnTete(nom: f.name, photo: f.photo, fiche: f,
+              onComparer: () => comparerAvecUnAutre(context, f)),
           if (f.partial) Padding(padding: const EdgeInsets.symmetric(vertical: 12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(tr(context, "Certaines informations sont momentanément indisponibles."),
@@ -124,90 +127,152 @@ Widget _titreSection(BuildContext context, String texte) => Padding(
   child: Text(texte, style: TextStyle(
     color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w700)));
 
+/// L'en-tête (7 novembre 2026, comme Sofascore et FotMob) : la photo et
+/// l'écusson du club, le nom, le club et le poste, la note de la saison en
+/// pastille de couleur, et la comparaison avec un autre joueur.
 class _EnTete extends StatelessWidget {
   final String nom;
   final String? photo;
   final FicheJoueur? fiche;
-  const _EnTete({required this.nom, this.photo, this.fiche});
+  final VoidCallback? onComparer;
+  const _EnTete({required this.nom, this.photo, this.fiche, this.onComparer});
 
   @override
   Widget build(BuildContext context) {
     final cl = context.cl;
     final principale = fiche?.principale;
     final poste = libellePoste(context, principale?.position);
+    final note = principale?.rating;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: _carte(context),
-      child: Row(children: [
-        Container(
-          width: 72, height: 72,
-          decoration: BoxDecoration(
-            color: cl.surfaceDeep, shape: BoxShape.circle,
-            border: Border.all(color: cl.borderSoft)),
-          child: ClipOval(child: photo == null
-            ? Icon(Icons.person_rounded, color: cl.textM, size: 40)
-            : ImageDistante(url: photo, largeur: 72, hauteur: 72,
-                repli: Icon(Icons.person_rounded, color: cl.textM, size: 40))),
-        ),
-        const SizedBox(width: 14),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(nom, style: TextStyle(color: cl.textP, fontSize: 19, fontWeight: FontWeight.w700)),
-          if (principale != null) ...[
-            const SizedBox(height: 6),
-            Row(children: [
-              TeamLogoWidget(url: principale.teamLogo, size: 18),
-              const SizedBox(width: 6),
-              Flexible(child: Text(
-                [principale.team, if (poste.isNotEmpty) poste].join(' · '),
-                style: TextStyle(color: cl.textS, fontSize: 13))),
-            ]),
-          ],
-          if (fiche?.injured == true) ...[
-            const SizedBox(height: 8),
+      child: Column(children: [
+        Row(children: [
+          Stack(clipBehavior: Clip.none, children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              width: 76, height: 76,
               decoration: BoxDecoration(
-                color: cl.error.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(7)),
-              child: Text(tr(context, "Blessé actuellement"),
-                style: TextStyle(color: cl.error, fontSize: 11.5, fontWeight: FontWeight.w700))),
+                color: cl.surfaceDeep, shape: BoxShape.circle,
+                border: Border.all(color: cl.borderSoft)),
+              child: ClipOval(child: photo == null
+                ? Icon(Icons.person_rounded, color: cl.textM, size: 42)
+                : ImageDistante(url: photo, largeur: 76, hauteur: 76,
+                    repli: Icon(Icons.person_rounded, color: cl.textM, size: 42))),
+            ),
+            if (principale?.teamLogo != null)
+              Positioned(right: -4, bottom: -2, child: Container(
+                padding: const EdgeInsets.all(2),
+                decoration: BoxDecoration(color: cl.surface, shape: BoxShape.circle),
+                child: TeamLogoWidget(url: principale!.teamLogo, size: 22))),
+          ]),
+          const SizedBox(width: 14),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(nom, style: TextStyle(color: cl.textP, fontSize: 20, fontWeight: FontWeight.w800)),
+            if (principale != null) ...[
+              const SizedBox(height: 5),
+              Text(
+                [principale.team, if (poste.isNotEmpty) poste].join(' · '),
+                style: TextStyle(color: cl.textS, fontSize: 13)),
+            ],
+            if (fiche?.injured == true) ...[
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: cl.error.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(7)),
+                child: Text(tr(context, "Blessé actuellement"),
+                  style: TextStyle(color: cl.error, fontSize: 11.5, fontWeight: FontWeight.w700))),
+            ],
+          ])),
+          if (note != null) ...[
+            const SizedBox(width: 8),
+            Semantics(
+              label: tr(context, "Note moyenne de la saison : {arg0}", [note.toStringAsFixed(2)]),
+              child: ExcludeSemantics(child: Column(children: [
+                PastilleNote(note, taille: 16),
+                const SizedBox(height: 4),
+                Text(tr(context, "Note"), style: TextStyle(color: cl.textM, fontSize: 10.5)),
+              ])),
+            ),
           ],
-        ])),
+        ]),
+        if (onComparer != null) ...[
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              key: const Key('comparer-joueur'),
+              onPressed: onComparer,
+              icon: const Icon(Icons.compare_arrows_rounded, size: 18),
+              label: Text(tr(context, "Comparer avec un autre joueur")),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: cl.textP,
+                side: BorderSide(color: cl.borderSoft),
+                padding: const EdgeInsets.symmetric(vertical: 11),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+            ),
+          ),
+        ],
       ]),
     );
   }
 }
 
+/// Qui il est, en cases (7 novembre 2026) : âge, taille, poids, pays ; la
+/// naissance, plus longue, sur toute la largeur.
 class _Identite extends StatelessWidget {
   final FicheJoueur fiche;
   const _Identite({required this.fiche});
 
+  /// « 194 » → « 194 cm » ; « 194 cm » reste tel quel.
+  static String _unite(String valeur, String unite) =>
+      RegExp(r'^\d+$').hasMatch(valeur.trim()) ? '${valeur.trim()} $unite' : valeur;
+
   @override
   Widget build(BuildContext context) {
     final f = fiche;
-    final lignes = <(String, String)>[
-      if (f.nationality != null) (tr(context, "Nationalité"), FootballLabels.country(f.nationality!, language: AppStrings.of(context).locale.languageCode)),
+    final cl = context.cl;
+    final cases = <(String, String)>[
       if (f.age != null) (tr(context, "Âge"), tr(context, "{arg0} ans", [f.age])),
-      if (f.birthDate != null) (tr(context, "Naissance"),
-          [DateFormat('d MMMM y').format(f.birthDate!), if (f.birthPlace != null) f.birthPlace!].join(' · ')),
-      if (f.height != null) (tr(context, "Taille"), f.height!),
-      if (f.weight != null) (tr(context, "Poids"), f.weight!),
+      if (f.height != null) (tr(context, "Taille"), _unite(f.height!, 'cm')),
+      if (f.weight != null) (tr(context, "Poids"), _unite(f.weight!, 'kg')),
+      if (f.nationality != null) (tr(context, "Nationalité"),
+          FootballLabels.country(f.nationality!, language: AppStrings.of(context).locale.languageCode)),
     ];
-    if (lignes.isEmpty) return const SizedBox.shrink();
+    final naissance = f.birthDate == null ? null
+        : [DateFormat('d MMMM y').format(f.birthDate!), if (f.birthPlace != null) f.birthPlace!].join(' · ');
+    if (cases.isEmpty && naissance == null) return const SizedBox.shrink();
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       decoration: _carte(context),
-      child: Column(children: [
-        for (final (libelle, valeur) in lignes)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 5),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              SizedBox(width: 110, child: Text(libelle,
-                style: TextStyle(color: context.cl.textM, fontSize: 12.5))),
-              Expanded(child: Text(valeur, textAlign: TextAlign.end,
-                style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600))),
-            ]),
-          ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        if (cases.isNotEmpty) LayoutBuilder(builder: (context, c) {
+          final parLigne = cases.length >= 4 ? 2 : cases.length;
+          final largeur = (c.maxWidth - 8 * (parLigne - 1)) / parLigne;
+          return Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final (libelle, valeur) in cases)
+              Container(
+                width: largeur,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                decoration: BoxDecoration(color: cl.surfaceDeep, borderRadius: BorderRadius.circular(12)),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text(valeur, style: TextStyle(color: cl.textP, fontSize: 15, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 2),
+                  Text(libelle, style: TextStyle(color: cl.textM, fontSize: 11.5)),
+                ]),
+              ),
+          ]);
+        }),
+        if (naissance != null) Padding(
+          padding: EdgeInsets.fromLTRB(4, cases.isEmpty ? 4 : 12, 4, 4),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(tr(context, "Naissance"), style: TextStyle(color: cl.textM, fontSize: 12.5)),
+            const SizedBox(width: 12),
+            Expanded(child: Text(naissance, textAlign: TextAlign.end,
+              style: TextStyle(color: cl.textP, fontSize: 13, fontWeight: FontWeight.w600))),
+          ]),
+        ),
       ]),
     );
   }
