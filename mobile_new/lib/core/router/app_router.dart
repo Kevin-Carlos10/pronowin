@@ -38,6 +38,7 @@ import 'navigation_keys.dart';
 import 'page_transitions.dart';
 import '../../features/actualites/page_actus.dart';
 import '../../features/actualites/page_article.dart';
+import '../../shared/widgets/code_promo.dart';
 // Provider synchrone — initialisé dans main.dart avant runApp
 final onboardingDoneProvider = StateProvider<bool>((ref) => false);
 
@@ -122,6 +123,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/onboarding',
         pageBuilder: (_, s) => fadePage(state: s, child: const OnboardingPage()),
+      ),
+      // Le code promo du partenaire (7 novembre 2026), sur toutes les versions.
+      GoRoute(
+        path: '/code-promo',
+        pageBuilder: (_, s) => slideRightPage(state: s, child: const PageCodePromo()),
       ),
       // La même présentation, rouverte depuis les paramètres.
       GoRoute(

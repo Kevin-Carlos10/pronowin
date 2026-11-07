@@ -59,6 +59,7 @@ import '../../../../shared/widgets/erreur_chargement.dart';
 import '../../../../shared/utils/messages.dart';
 import '../../../../shared/widgets/logo_marque.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
+import '../../../../shared/widgets/code_promo.dart';
 
 
 // Découpé en fichiers `part` : le fichier faisait 3 604 lignes pour une
@@ -560,6 +561,8 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           entree(_AnalystCard(match: match), delaiMs: 270),
           const SizedBox(height: 16),
         ],
+        // Le code promo du partenaire (7 novembre 2026). Porte sa marge.
+        const BandeauCodePromo(marge: EdgeInsets.only(bottom: 16)),
         if (match.hasPronostic)
           entree(CommentsSection(pronosticId: match.id), delaiMs: 310),
       ])),

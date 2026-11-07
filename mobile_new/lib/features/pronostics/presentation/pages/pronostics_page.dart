@@ -24,6 +24,7 @@ import '../../../../shared/widgets/suivre_match.dart';
 import '../../../../shared/widgets/logotype_pronowin.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
+import '../../../../shared/widgets/code_promo.dart';
 
 class PronosticsPage extends ConsumerStatefulWidget {
   const PronosticsPage({super.key});
@@ -460,6 +461,8 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                         onToggleShowOnlyPronos: () => ref
                             .read(hasPronosticFilterProvider.notifier).state = !hasPronosticFilter,
                       ),
+                      // Le code promo du partenaire (7 novembre 2026).
+                      const BandeauCodePromo(),
                       if (hasAnyFilter)
                         _ActiveFiltersBar(
                           statusFilter:  statusFilter,

@@ -28,6 +28,14 @@ class BookmakerAffiliation {
   static String nom  = '';
   static String lien = '';
 
+  /// Le code promo du partenaire (7 novembre 2026), servi par `/config` comme
+  /// le lien : affiché sur toutes les versions de l'application, sur décision
+  /// du titulaire du compte. Vide, rien ne s'affiche.
+  static String codePromo = '';
+
+  /// Y a-t-il un code promo à montrer ?
+  static bool get codePromoDisponible => codePromo.trim().isNotEmpty;
+
   /// Y a-t-il un partenariat a proposer ?
   static bool get disponible => lien.trim().isNotEmpty;
 
@@ -36,6 +44,7 @@ class BookmakerAffiliation {
   /// Silencieux et idempotent : appele au demarrage, il ne doit jamais
   /// empecher l'application de se lancer parce qu'un champ manque.
   static void configurer(Map<String, dynamic>? config) {
+    codePromo = (config?['promoCode'] as String?)?.trim() ?? '';
     final url = (config?['affiliateUrl'] as String?)?.trim() ?? '';
     if (!url.startsWith('http')) { lien = ''; nom = ''; return; }
     lien = url;

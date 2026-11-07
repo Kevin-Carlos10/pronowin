@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { lireConfig } from '../services/app_config.service';
+import { lireConfig, codePromoPour } from '../services/app_config.service';
 
 const router = Router();
 
@@ -50,6 +50,9 @@ router.get('/', async (_req, res) => {
     // l'application. Vide, le mobile n'affiche aucune invitation a parier.
     affiliateName: valeurs.AFFILIATE_NAME || null,
     affiliateUrl:  valeurs.AFFILIATE_URL  || null,
+    // Le code promo du partenaire (7 novembre 2026) : affiché sur toutes les
+    // versions de l'application, invités compris. Vide, rien ne s'affiche.
+    promoCode:     codePromoPour(valeurs, (valeurs.AFFILIATE_NAME || '').toLowerCase()) || null,
 
     // ── Commun ───────────────────────────────────────────────────────────
     updateMessage: valeurs.APP_UPDATE_MESSAGE,

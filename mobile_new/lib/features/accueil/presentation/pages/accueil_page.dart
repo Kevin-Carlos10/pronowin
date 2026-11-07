@@ -42,6 +42,7 @@ import '../providers/carte_vedette.dart';
 import 'package:pronowin/core/utils/noms_equipes.dart';
 import 'package:pronowin/shared/utils/initiale.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
+import '../../../../shared/widgets/code_promo.dart';
 
 // Découpé en fichiers `part` : le fichier faisait 4 406 lignes pour une
 // cinquantaine de classes privées — plus gros que match_detail_page avant
@@ -242,6 +243,9 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                     .fadeIn(duration: 500.ms)
                     .slideY(begin: 0.08, end: 0, duration: 400.ms,
                         curve: Curves.easeOutCubic),
+
+                  // ─── CODE PROMO DU PARTENAIRE (7 novembre 2026) ───────────
+                  const CarteCodePromo(),
 
                   // ─── MATCHS EN LIVE ───────────────────────────────────────
                   pronostics.when(
