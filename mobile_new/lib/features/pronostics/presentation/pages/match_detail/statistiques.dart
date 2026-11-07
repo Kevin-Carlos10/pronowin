@@ -87,14 +87,21 @@ class _MatchEventsCard extends ConsumerWidget {
     // buts doivent y aboutir pour être affichés.
     final score = (dom: live?.homeScore ?? match.homeScore, ext: live?.awayScore ?? match.awayScore);
     if (data == null) {
-      return Padding(padding: const EdgeInsets.all(16),
+      if (statsAsync.isLoading) return const _SqueletteCarte(lignes: 3);
+      return Padding(padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         child: Text(tr(context, statsAsync.hasError
           ? "Événements momentanément indisponibles."
-          : statsAsync.isLoading ? "Chargement des événements…" : "Événements non fournis pour ce match."),
+          : "Événements non fournis pour ce match."),
           style: TextStyle(color: context.cl.textS)));
     }
+    // Rien encore (un 0-0 à la 9e minute) : pas de carte vide « Aucun
+    // événement reçu ». Elle apparaît au premier but, carton ou changement.
+    final aDesFaits = data.events.any((e) => const {'Goal', 'Card', 'subst', 'Var'}.contains(e.type));
+    final nonCouverts = data.events.isEmpty
+        && (data.eventsStatus == 'unsupported' || data.eventsStatus == 'unavailable');
+    if (!aDesFaits && !nonCouverts) return const SizedBox.shrink();
 
-    return Container(
+    return Padding(padding: const EdgeInsets.only(bottom: 16), child: Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -111,13 +118,10 @@ class _MatchEventsCard extends ConsumerWidget {
         _FraicheurDonnees(updatedAt: data.updatedAt,
           stale: statsAsync.hasError || data.stale),
         const SizedBox(height: 12),
-        if (data.events.isEmpty && (data.eventsStatus == 'unsupported' || data.eventsStatus == 'unavailable'))
+        if (nonCouverts)
           Text(tr(context, data.eventsStatus == 'unsupported'
             ? "Les événements ne sont pas couverts pour cette compétition."
             : "Événements momentanément indisponibles."), style: TextStyle(color: context.cl.textS))
-        else if (!data.events.any((e) => const {'Goal', 'Card', 'subst', 'Var'}.contains(e.type)))
-          Text(tr(context, "Aucun événement reçu pour le moment."),
-            style: TextStyle(color: context.cl.textM, fontSize: 12))
         else
           FilEvenements(lignes: construireFil(
             data.events,
@@ -128,7 +132,7 @@ class _MatchEventsCard extends ConsumerWidget {
                 ? (dom: score.dom!, ext: score.ext!) : null,
           )),
       ]),
-    );
+    ));
   }
 
   /// Période la plus avancée d'après la phase publiée (1 à 4).

@@ -15,6 +15,7 @@ import '../../../../shared/utils/premium_nav.dart';
 import '../../domain/entities/match_entity.dart';
 import '../providers/pronostics_provider.dart';
 import '../widgets/match_card_widget.dart';
+import '../widgets/ligne_match_compacte.dart';
 import '../../../../shared/widgets/skeletons.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/providers/favoris_provider.dart';
@@ -559,8 +560,13 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
               ref.read(favorisProvider.notifier).basculerLigue(league),
         ),
       );
-      widgets.addAll(byLeague[league]!.map((m) =>
+      // La grande carte pour les matchs qui ont un pronostic ; une ligne
+      // pour les autres, toutes dans un même bloc (ligne_match_compacte.dart).
+      final duLot = byLeague[league]!;
+      widgets.addAll(duLot.where((m) => m.hasPronostic).map((m) =>
         MatchCardWidget(match: m, isPremiumUser: isPremium)));
+      final sansProno = duLot.where((m) => !m.hasPronostic).toList();
+      if (sansProno.isNotEmpty) widgets.add(BlocLignesMatch(matchs: sansProno));
       widgets.add(const SizedBox(height: 4));
     }
 

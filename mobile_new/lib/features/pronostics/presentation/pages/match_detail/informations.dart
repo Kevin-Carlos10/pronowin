@@ -37,7 +37,9 @@ class _MatchInformationCard extends ConsumerWidget {
 
     final Widget contenu;
     if (info == null && state.isLoading) {
-      contenu = LinearProgressIndicator(color: cl.info);
+      // La forme de la carte plutôt qu'une barre de progression : la fiche ne
+      // saute pas quand les informations arrivent (7 novembre 2026).
+      return const _SqueletteCarte(lignes: 4);
     } else if (info == null && state.hasError) {
       contenu = Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(tr(context, 'Informations du match momentanément indisponibles.'),
@@ -102,6 +104,53 @@ class _LigneInformation extends StatelessWidget {
         Expanded(flex: 3, child: Text(valeur, textAlign: TextAlign.end,
             style: TextStyle(color: cl.textP, fontSize: 13.5, fontWeight: FontWeight.w600))),
       ]),
+    );
+  }
+}
+
+/// Une carte en cours de chargement : sa forme, sans texte.
+///
+/// La fiche affichait « Chargement des événements… », « Analyse en cours… » et
+/// une barre de progression à la fois (vidéo du 7 novembre 2026) ; Sofascore et
+/// FotMob montrent la forme des cartes, à leur taille, et rien ne bouge quand
+/// le contenu arrive.
+class _SqueletteCarte extends StatelessWidget {
+  final int lignes;
+  const _SqueletteCarte({this.lignes = 3});
+
+  @override
+  Widget build(BuildContext context) {
+    final cl = context.cl;
+    Widget barre(double largeur, double hauteur) => Container(
+      width: largeur, height: hauteur,
+      decoration: BoxDecoration(color: cl.surfaceDeep, borderRadius: BorderRadius.circular(6)));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Semantics(
+        label: tr(context, "Chargement"),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: cl.surface,
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: cl.borderSoft),
+          ),
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            barre(140, 14),
+            for (var i = 0; i < lignes; i++) ...[
+              const SizedBox(height: 16),
+              Row(children: [
+                barre(18, 18),
+                const SizedBox(width: 10),
+                Expanded(child: Align(alignment: Alignment.centerLeft,
+                  child: FractionallySizedBox(widthFactor: i.isEven ? 0.55 : 0.4, child: barre(double.infinity, 12)))),
+                barre(56, 12),
+              ]),
+            ],
+          ]),
+        ),
+      ),
     );
   }
 }

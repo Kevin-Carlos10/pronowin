@@ -1736,5 +1736,20 @@
   "Alertes indisponibles pour l'instant.": "Alerts unavailable right now.",
   "Aucune alerte : le match reste dans tes matchs suivis, sans notification.": "No alerts: the match stays in your followed matches, without notifications.",
   "Choisir les alertes": "Choose alerts",
-  "La mi-temps": "Half-time"
+  "La mi-temps": "Half-time",
+  "{arg0} {arg1}, {arg2} {arg3}. {arg4}.": "{arg0} {arg1}, {arg2} {arg3}. {arg4}.",
+  "{arg0} contre {arg1}, à {arg2}.": "{arg0} against {arg1}, at {arg2}.",
+  "Chargement": "Loading",
+  "Buts : {arg0}.": "Goals: {arg0}.",
+  "Séries": "Streaks",
+  "Derniers matchs": "Last matches",
+  "Face-à-face": "Head-to-head",
+  "Victoires de suite": "Wins in a row",
+  "Sans défaite": "Unbeaten",
+  "Défaites de suite": "Losses in a row",
+  "Sans victoire": "Without a win",
+  "Sans encaisser": "Without conceding",
+  "A marqué à chaque match": "Scored in every match",
+  "Plus de 2,5 buts": "Over 2.5 goals",
+  "Moins de 2,5 buts": "Under 2.5 goals"
 }

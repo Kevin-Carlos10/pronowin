@@ -84,7 +84,9 @@ class _FavoritesSection extends ConsumerWidget {
                 onMore: null),
             const SizedBox(height: 10),
             SizedBox(
-              height: 90,
+              // La vignette grandit avec le texte de l'appareil : ses noms
+              // d'équipes passent de 10 à 12,5 points (7 novembre 2026).
+              height: 104 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.5),
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: list.length,
@@ -125,13 +127,40 @@ class _FavoriteTile extends ConsumerWidget {
     if (isLive) borderColor = context.cl.error.withValues(alpha: 0.6);
     if (isFinished) borderColor = context.cl.border;
 
+    // Une ligne par équipe, son score au bout, comme la liste des matchs : la
+    // vignette de 140 points, en 10 points, coupait « Bayern Münch… » et
+    // posait le score seul en bas (vidéo du 7 novembre 2026).
+    Widget equipe(String cleNom, String cleLogo, Object? score, Object? autre) {
+      final perd = isFinished && score is num && autre is num && score < autre;
+      return Row(children: [
+        TeamLogoWidget(url: fav[cleLogo] as String?, size: 20),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(nomEquipe(fav[cleNom] as String? ?? ''),
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: perd ? context.cl.textS : context.cl.textP,
+              fontSize: 12.5, fontWeight: FontWeight.w600)),
+        ),
+        if (hasScore && (isLive || isFinished))
+          Text('$score',
+            style: TextStyle(
+              color: isLive ? context.cl.error : perd ? context.cl.textS : context.cl.textP,
+              fontSize: 14, fontWeight: FontWeight.w800,
+              fontFeatures: const [FontFeature.tabularFigures()])),
+      ]);
+    }
+
+    final heure = fav['match_date'] == null ? null
+        : DateTime.tryParse(fav['match_date'] as String)?.toLocal();
+
     return GestureDetector(
       onTap: () {
         if (pronoId != null) context.push('/pronostics/$pronoId', extra: null);
       },
       child: Container(
-        width: 140,
-        padding: const EdgeInsets.all(10),
+        width: 200,
+        padding: const EdgeInsets.fromLTRB(12, 9, 8, 10),
         decoration: BoxDecoration(
           color: context.cl.surface,
           borderRadius: BorderRadius.circular(14),
@@ -140,19 +169,20 @@ class _FavoriteTile extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Ligue + statut
+            // Ligue, état, cloche.
             Row(
               children: [
                 Expanded(
                   child: Text(
                     fav['league'] as String? ?? '',
-                    style: TextStyle(color: context.cl.textM, fontSize: 9),
+                    style: TextStyle(color: context.cl.textM, fontSize: 10.5),
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (isLive)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                     decoration: BoxDecoration(
                       color: context.cl.error.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(4),
@@ -160,9 +190,16 @@ class _FavoriteTile extends ConsumerWidget {
                     child: Text('LIVE',
                         style: TextStyle(
                             color: context.cl.error,
-                            fontSize: 8,
-                            fontWeight: FontWeight.w700)),
-                  ),
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800)),
+                  )
+                else if (isFinished)
+                  Text(tr(context, "Terminé"),
+                    style: TextStyle(color: context.cl.textM, fontSize: 10.5))
+                else if (heure != null)
+                  Text(DateFormat('HH:mm').format(heure),
+                    style: TextStyle(color: context.cl.dore, fontSize: 11, fontWeight: FontWeight.w700)),
+                const SizedBox(width: 6),
                 // Bouton retirer
                 GestureDetector(
                   onTap: () {
@@ -172,62 +209,14 @@ class _FavoriteTile extends ConsumerWidget {
                   },
                   child: Icon(iconeMatchSuivi,
                       semanticLabel: tr(context, "Ne plus suivre ce match"),
-                      color: AppColors.primary, size: 14),
-                ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            // Équipes
-            Row(
-              children: [
-                TeamLogoWidget(url: fav['home_team_logo'] as String?, size: 18),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    nomEquipe(fav['home_team'] as String? ?? ''),
-                    style: TextStyle(
-                        color: context.cl.textP,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 3),
-            Row(
-              children: [
-                TeamLogoWidget(url: fav['away_team_logo'] as String?, size: 18),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    nomEquipe(fav['away_team'] as String? ?? ''),
-                    style: TextStyle(
-                        color: context.cl.textP,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                      color: AppColors.primary, size: 16),
                 ),
               ],
             ),
             const Spacer(),
-            // Score ou heure
-            if (hasScore && (isLive || isFinished))
-              Text(
-                '$homeScore - $awayScore',
-                style: TextStyle(
-                    color: isLive ? context.cl.error : context.cl.textP,
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700),
-              )
-            else if (fav['match_date'] != null)
-              Text(
-                DateFormat('HH:mm').format(
-                    DateTime.tryParse(fav['match_date'] as String) ??
-                        DateTime.now()),
-                style: TextStyle(color: context.cl.textM, fontSize: 11),
-              ),
+            equipe('home_team', 'home_team_logo', homeScore, awayScore),
+            const SizedBox(height: 7),
+            equipe('away_team', 'away_team_logo', awayScore, homeScore),
           ],
         ),
       ),

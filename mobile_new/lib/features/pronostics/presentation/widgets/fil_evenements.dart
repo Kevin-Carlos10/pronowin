@@ -164,6 +164,58 @@ List<({int dom, int ext})>? _scoresAuFil(
   return null;
 }
 
+/// Les buteurs de chaque équipe, pour l'en-tête du match : « Okafor 79' »,
+/// « Kane 12', 85' (pen.) », « Tah 40' (csc) » (7 novembre 2026, comme
+/// Sofascore sous le score).
+///
+/// Un but contre son camp est rangé du côté de l'équipe qui en profite, selon
+/// la lecture qui retombe sur [scoreFinal] (API-Football n'est pas constant,
+/// voir [_scoresAuFil]). Un but annulé par la VAR retire le dernier but de
+/// son équipe.
+({List<String> dom, List<String> ext}) buteursDuMatch(
+  List<MatchEvent> events, {
+  required String domicile,
+  ({int dom, int ext})? scoreFinal,
+}) {
+  final ordre = [...events]..sort((a, b) {
+    final m = a.minute.compareTo(b.minute);
+    return m != 0 ? m : (a.extra ?? 0).compareTo(b.extra ?? 0);
+  });
+  List<({String joueur, String minute})> lire(bool cscPourAdversaire, bool cote) {
+    final buts = <({String joueur, String minute, bool dom})>[];
+    for (final e in ordre) {
+      final pourDomicile = e.team == domicile;
+      if (_compte(e)) {
+        final beneficiaire = e.detail == 'Own Goal' && cscPourAdversaire ? !pourDomicile : pourDomicile;
+        final minute = "${e.minute}${e.extra != null && e.extra! > 0 ? '+${e.extra}' : ''}'";
+        final suffixe = e.detail == 'Own Goal' ? ' (csc)' : e.detail == 'Penalty' ? ' (pen.)' : '';
+        buts.add((joueur: e.player, minute: '$minute$suffixe', dom: beneficiaire));
+      } else if (e.type == 'Var' && e.detail.toLowerCase().contains('goal cancelled')) {
+        final i = buts.lastIndexWhere((b) => b.dom == pourDomicile);
+        if (i >= 0) buts.removeAt(i);
+      }
+    }
+    return [for (final b in buts) if (b.dom == cote) (joueur: b.joueur, minute: b.minute)];
+  }
+  var csc = false;
+  if (scoreFinal != null) {
+    for (final essai in [false, true]) {
+      if (lire(essai, true).length == scoreFinal.dom && lire(essai, false).length == scoreFinal.ext) {
+        csc = essai;
+        break;
+      }
+    }
+  }
+  List<String> regrouper(List<({String joueur, String minute})> buts) {
+    final parJoueur = <String, List<String>>{};
+    for (final b in buts) {
+      parJoueur.putIfAbsent(b.joueur.trim().isEmpty ? '?' : b.joueur.trim(), () => []).add(b.minute);
+    }
+    return [for (final e in parJoueur.entries) '${e.key} ${e.value.join(', ')}'];
+  }
+  return (dom: regrouper(lire(csc, true)), ext: regrouper(lire(csc, false)));
+}
+
 /// Motif d'un carton, en français ; null si inconnu (on n'affiche pas
 /// d'anglais au milieu du fil).
 String? motifCarton(String? comments) => switch (comments?.toLowerCase().trim()) {
