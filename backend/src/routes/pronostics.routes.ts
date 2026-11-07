@@ -49,6 +49,7 @@ r.get ('/:id/lineups',     optionalAuthMiddleware, C.getLineups);
 r.get ('/:id/injuries',    optionalAuthMiddleware, C.getInjuries);
 r.get ('/:id/standings',   optionalAuthMiddleware, C.getStandings);
 r.get ('/:id/forme-recente', optionalAuthMiddleware, C.getFormeRecente);
+r.get ('/:id/evolution-classement', optionalAuthMiddleware, C.getEvolutionClassement);
 r.get ('/:id/articles',    optionalAuthMiddleware, C.getArticlesDuMatch);
 r.get ('/:id/votes',       optionalAuthMiddleware, C.getVotes);
 r.post('/:id/vote',        authMiddleware,         C.postVote);

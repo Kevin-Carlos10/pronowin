@@ -123,6 +123,36 @@ final formeRecenteProvider = FutureProvider.autoDispose
   }
 });
 
+/// Positions des deux équipes après chaque journée (7 novembre 2026, le
+/// « Tracker de classement » de Sofascore).
+class EvolutionClassement {
+  final int saison, equipes;
+  final List<({int journee, int? domicile, int? exterieur})> journees;
+  const EvolutionClassement({required this.saison, required this.equipes, required this.journees});
+}
+
+/// `null` : coupe, match hors championnat ou serveur injoignable — la carte
+/// n'apparaît pas.
+final evolutionClassementProvider = FutureProvider.autoDispose
+    .family<EvolutionClassement?, String>((ref, id) async {
+  try {
+    final r = await ref.read(dioProvider).get('/pronostics/$id/evolution-classement');
+    final d = r.data as Map<String, dynamic>;
+    final journees = [
+      for (final j in (d['journees'] as List? ?? const []))
+        if (j is Map && j['journee'] is num)
+          (journee: (j['journee'] as num).toInt(),
+           domicile: (j['domicile'] as num?)?.toInt(),
+           exterieur: (j['exterieur'] as num?)?.toInt()),
+    ];
+    final equipes = (d['equipes'] as num?)?.toInt() ?? 0;
+    if (journees.isEmpty || equipes < 2) return null;
+    return EvolutionClassement(saison: (d['saison'] as num?)?.toInt() ?? 0, equipes: equipes, journees: journees);
+  } on DioException {
+    return null;
+  }
+});
+
 /// L'avant-match et le résumé du match (26 octobre 2026), au format des
 /// actualités : `{avant_match, resume}`, chacun ou null. Null si le serveur
 /// ne répond pas — la fiche n'en montre alors aucun.

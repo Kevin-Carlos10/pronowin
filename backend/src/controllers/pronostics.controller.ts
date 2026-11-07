@@ -1215,6 +1215,22 @@ export const getFormeRecente = async (req: AuthRequest, res: Response) => {
 };
 
 /**
+ * GET /pronostics/:id/evolution-classement — les positions des deux équipes
+ * après chaque journée de la saison (7 novembre 2026). 404 pour une coupe ou
+ * un match hors championnat : la fiche n'affiche alors rien.
+ */
+export const getEvolutionClassement = async (req: AuthRequest, res: Response) => {
+  try {
+    const match = await findMatchByIdOrPronoId(req.params.id);
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+    const fixtureId = fixtureIdDe(match);
+    const evolution = fixtureId ? await apiFootballService.getEvolutionClassement(fixtureId) : null;
+    if (!evolution) { res.status(404).json({ code: 'EVOLUTION_INDISPONIBLE', message: 'Évolution du classement indisponible pour ce match.' }); return; }
+    res.json(evolution);
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
  * GET /pronostics/:id/cotes — tous les marchés cotés du match, avant le coup
  * d'envoi : ce que Sofascore et 1xBet montrent, et que la fiche réduisait au
  * 1X2. Sans le nom du bookmaker : l'application des boutiques n'en cite

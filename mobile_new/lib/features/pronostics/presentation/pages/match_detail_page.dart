@@ -9,6 +9,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -78,6 +79,7 @@ part 'match_detail/toutes_cotes.dart';
 part 'match_detail/article_match.dart';
 part 'match_detail/vote_fans.dart';
 part 'match_detail/series.dart';
+part 'match_detail/evolution_classement.dart';
 
 /// La carte des palmarès d'une compétition, seule, pour les bancs d'essai.
 @visibleForTesting
@@ -581,6 +583,8 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
           matchId: match.id,
           homeTeam: match.homeTeam,
           awayTeam: match.awayTeam),
+        // Sous le classement, la route qui y a mené. Porte sa marge.
+        _EvolutionClassement(match: match),
         _MeilleursButeurs(leagueCode: match.leagueCountry),
       ])),
       if (showCompositions) (tr(context, "Compositions"), _LineupsCard(match: match)),

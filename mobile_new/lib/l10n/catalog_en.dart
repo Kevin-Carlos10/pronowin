@@ -1768,4 +1768,7 @@ const englishMessages = <String, String>{
   "Leurs prochains matchs s'afficheront ici.": "Their next matches will show up here.",
   "Suivre {arg0}": "Follow {arg0}",
   "{arg0}, ouvrir la fiche de l'équipe": "{arg0}, open the team page",
+  "Évolution au classement": "Standings over time",
+  "Position après chaque journée": "Position after each matchday",
+  "Après la journée {arg0} : {arg1} {arg2}, {arg3} {arg4}.": "After matchday {arg0}: {arg1} {arg2}, {arg3} {arg4}.",
 };

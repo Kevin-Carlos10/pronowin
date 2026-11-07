@@ -1,6 +1,7 @@
 import { MatchInfoService } from './match_info.service';
 import { MatchLiveService } from './match_live.service';
 import { FormeRecenteFootball } from './forme_recente.service';
+import { EvolutionClassementFootball } from './evolution_classement.service';
 import type { MatchStatsResult } from './match_live.service';
 export type { MatchEvent, MatchStat, MatchStatsResult } from './match_live.service';
 import axios, { AxiosError, AxiosInstance } from 'axios';
@@ -339,6 +340,7 @@ export class ApiFootballService {
   private client: AxiosInstance;
   private matchLive: MatchLiveService;
   private formeRecente!: FormeRecenteFootball;
+  private evolutionClassement!: EvolutionClassementFootball;
   private matchInfo: MatchInfoService;
   private classements: ClassementsFootball;
 
@@ -375,6 +377,7 @@ export class ApiFootballService {
     });
     this.classements = new ClassementsFootball(this.client, id => this.matchLive.fixture(id));
     this.formeRecente = new FormeRecenteFootball(this.client, id => this.matchLive.fixture(id));
+    this.evolutionClassement = new EvolutionClassementFootball(this.client, id => this.matchLive.fixture(id));
     this.client.interceptors.request.use(config => {
       // Keep the main fixture/score sync and settlement odds available.
       if (config.url !== '/fixtures' && config.url !== '/odds') exigerQuotaEnrichissement();
@@ -919,6 +922,12 @@ export class ApiFootballService {
   async getFormeRecente(fixtureId: number) {
     if (!this._hasKey()) return null;
     return this.formeRecente.get(fixtureId);
+  }
+
+  /** Positions des deux équipes après chaque journée (evolution_classement.service.ts). */
+  async getEvolutionClassement(fixtureId: number) {
+    if (!this._hasKey()) return null;
+    return this.evolutionClassement.get(fixtureId);
   }
 
   /** Classement de la compétition et de la saison du match, tous groupes. */
