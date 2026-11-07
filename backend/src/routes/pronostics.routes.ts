@@ -32,6 +32,8 @@ r.get ('/bilan-premium', optionalAuthMiddleware, C.getBilanPremium);
 r.get ('/top-scorers', optionalAuthMiddleware, C.getTopScorers);
 r.get ('/joueurs/:playerId', optionalAuthMiddleware, C.getFicheJoueur);
 r.get ('/equipes/:teamId',  optionalAuthMiddleware, C.getFicheEquipe);
+// Équipes et joueurs, pour la recherche de l'application (7 novembre 2026).
+r.get ('/recherche',  optionalAuthMiddleware, C.getRechercheEquipesJoueurs);
 r.get ('/for-you',     authMiddleware, premiumMiddleware, C.getForYou);
 r.get ('/history',   authMiddleware, C.getHistory);
 // ── Détail d'un match : ouvert aux invités ────────────────────────────────────

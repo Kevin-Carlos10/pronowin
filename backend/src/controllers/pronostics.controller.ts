@@ -11,6 +11,7 @@ import { analyzePronostic, explicationSansCotes } from '../services/ai_predictio
 import { buildUserProfile, getPersonalizedPronostics } from '../services/personalized_ai.service';
 import { settleBets }      from '../services/bankroll.service';
 import { apiFootballService, apiFootballInsights, fichesJoueurs, fichesEquipes } from '../services/api_football.service';
+import { rechercherEquipes, rechercherJoueurs } from '../services/recherche_equipes_joueurs.service';
 import { CLASSEMENTS_JOUEURS, type ClassementJoueurs } from '../services/api_football_insights.service';
 import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
 import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
@@ -1027,6 +1028,22 @@ export const getFicheEquipe = async (req: AuthRequest, res: Response) => {
       stats = await apiFootballInsights.getTeamSeasonStats(info.id, saison, id);
     }
     res.json({ ...fiche, league: info ? code : null, season: saison, seasonStats: stats });
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
+ * GET /pronostics/recherche?q=… — les équipes (notre base) et les joueurs
+ * (API-Football, dès trois lettres) dont le nom contient le terme. Ouverte aux
+ * invités, comme les fiches qu'elle ouvre.
+ */
+export const getRechercheEquipesJoueurs = async (req: AuthRequest, res: Response) => {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const [equipes, joueurs] = await Promise.all([
+      rechercherEquipes(q),
+      rechercherJoueurs(apiFootballService.httpClient, q),
+    ]);
+    res.json({ equipes, joueurs });
   } catch (e: any) { repondreErreur(res, e); }
 };
 
