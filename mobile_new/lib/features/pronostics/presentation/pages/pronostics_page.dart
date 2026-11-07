@@ -16,6 +16,7 @@ import '../../domain/entities/match_entity.dart';
 import '../providers/pronostics_provider.dart';
 import '../widgets/match_card_widget.dart';
 import '../widgets/ligne_match_compacte.dart';
+import '../widgets/equipes_suivies.dart';
 import '../../../../shared/widgets/skeletons.dart';
 import '../../../../shared/widgets/bottom_nav_metrics.dart';
 import '../../../../shared/providers/favoris_provider.dart';
@@ -1882,13 +1883,21 @@ class _FavoritesView extends StatelessWidget {
     final hasPinnedMatches = pinnedMatches.isNotEmpty;
     final hasPinnedLeagues = byPinnedLeague.isNotEmpty || pinnedLeagues.isNotEmpty;
 
+    // Les équipes suivies d'abord (7 novembre 2026), ou des suggestions.
     if (!hasPinnedMatches && !hasPinnedLeagues && pinnedLeagues.isEmpty) {
-      return _FavoritesEmpty();
+      return ListView(
+        padding: const EdgeInsets.fromLTRB(14, 8, 14, 100),
+        children: [
+          const EquipesSuiviesSection(),
+          if (favState.equipes.isEmpty) _FavoritesEmpty(),
+        ],
+      );
     }
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 100),
       children: [
+        const EquipesSuiviesSection(),
         // Section matchs épinglés
         if (hasPinnedMatches) ...[
           _FavSection(

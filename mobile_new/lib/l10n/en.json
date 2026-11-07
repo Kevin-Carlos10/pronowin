@@ -1754,5 +1754,16 @@
   "MATCHS": "MATCHES",
   "Rechercher une équipe, un joueur ou un match": "Search for a team, a player or a match",
   "Ex : PSG, Mbappé, Ligue 1…": "E.g. PSG, Mbappé, Ligue 1…",
-  "Essayez un autre nom d'équipe, de joueur ou de ligue": "Try another team, player or league name"
+  "Essayez un autre nom d'équipe, de joueur ou de ligue": "Try another team, player or league name",
+  "Suivre l'équipe": "Follow team",
+  "Ne plus suivre l'équipe": "Unfollow team",
+  "Tu ne suis plus {arg0}.": "You no longer follow {arg0}.",
+  "{arg0} est suivie : ses matchs sont dans « Suivis ».": "You follow {arg0}: its matches are in “Following”.",
+  "Mes équipes": "My teams",
+  "Prochains matchs de mes équipes": "My teams' next matches",
+  "Aucun match de tes équipes dans les deux semaines à venir.": "None of your teams play in the next two weeks.",
+  "Suis tes équipes": "Follow your teams",
+  "Leurs prochains matchs s'afficheront ici.": "Their next matches will show up here.",
+  "Suivre {arg0}": "Follow {arg0}",
+  "{arg0}, ouvrir la fiche de l'équipe": "{arg0}, open the team page"
 }

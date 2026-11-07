@@ -23,7 +23,10 @@ import '../../domain/entities/match_entity.dart';
 /// Les lignes d'une même ligue se posent dans un seul bloc ([BlocLignesMatch]).
 class LigneMatchCompacte extends ConsumerWidget {
   final MatchEntity match;
-  const LigneMatchCompacte({super.key, required this.match});
+  /// Le jour au-dessus de l'heure, pour une liste qui couvre plusieurs jours
+  /// (les prochains matchs des équipes suivies).
+  final bool avecDate;
+  const LigneMatchCompacte({super.key, required this.match, this.avecDate = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -41,7 +44,8 @@ class LigneMatchCompacte extends ConsumerWidget {
             : DateFormat('HH:mm').format(m.matchDate);
     final libelle = avecScore
         ? tr(context, "{arg0} {arg1}, {arg2} {arg3}. {arg4}.", [m.homeTeam, dom, m.awayTeam, ext, etat])
-        : tr(context, "{arg0} contre {arg1}, à {arg2}.", [m.homeTeam, m.awayTeam, etat]);
+        : tr(context, "{arg0} contre {arg1}, à {arg2}.", [m.homeTeam, m.awayTeam,
+            avecDate ? '${DateFormat('dd/MM').format(m.matchDate)} $etat' : etat]);
 
     Widget equipe(String nom, String? logo, int buts, int adverse) {
       final gagne = termine && buts > adverse;
@@ -89,12 +93,17 @@ class LigneMatchCompacte extends ConsumerWidget {
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
                   alignment: Alignment.centerLeft,
-                  child: Text(etat,
+                  child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                    if (avecDate && !enDirect)
+                      Text(DateFormat('dd/MM').format(m.matchDate),
+                        style: TextStyle(color: context.cl.textM, fontSize: 11, fontWeight: FontWeight.w600)),
+                    Text(etat,
                     style: TextStyle(
                       color: enDirect ? context.cl.error : termine ? context.cl.textM : context.cl.textS,
                       fontSize: 12,
                       fontWeight: enDirect ? FontWeight.w700 : FontWeight.w600,
                       fontFeatures: const [FontFeature.tabularFigures()])),
+                  ]),
                 ),
               ),
               Container(width: 0.8, height: 34, color: context.cl.borderSoft),
@@ -132,7 +141,8 @@ class LigneMatchCompacte extends ConsumerWidget {
 /// Les lignes d'une ligue dans un seul bloc, séparées d'un filet.
 class BlocLignesMatch extends StatelessWidget {
   final List<MatchEntity> matchs;
-  const BlocLignesMatch({super.key, required this.matchs});
+  final bool avecDate;
+  const BlocLignesMatch({super.key, required this.matchs, this.avecDate = false});
 
   @override
   Widget build(BuildContext context) {
@@ -150,7 +160,7 @@ class BlocLignesMatch extends StatelessWidget {
           child: Column(children: [
             for (final (i, m) in matchs.indexed) ...[
               if (i > 0) Divider(height: 0.5, thickness: 0.5, indent: 72, color: context.cl.borderSoft),
-              LigneMatchCompacte(match: m),
+              LigneMatchCompacte(match: m, avecDate: avecDate),
             ],
           ]),
         ),

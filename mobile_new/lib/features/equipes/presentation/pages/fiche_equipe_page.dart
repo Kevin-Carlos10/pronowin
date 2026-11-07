@@ -12,6 +12,9 @@ import '../../../../shared/widgets/erreur_chargement.dart';
 import '../../../../shared/widgets/skeletons.dart';
 import '../../../joueurs/presentation/pages/fiche_joueur_page.dart';
 import '../providers/fiche_equipe_provider.dart';
+import '../../../../shared/providers/favoris_provider.dart';
+import '../../../../shared/utils/messages.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 /// Ouvre la fiche d'une équipe, d'après son identifiant ou, à défaut, son
 /// logo. Sans l'un ni l'autre, il n'y a rien à ouvrir.
@@ -76,6 +79,14 @@ class FicheEquipePage extends ConsumerWidget {
         title: Text(tr(context, "Fiche équipe"),
           style: TextStyle(color: cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
         centerTitle: true,
+        actions: [
+          _BoutonSuivreEquipe(equipe: EquipeSuivie(
+            id: id,
+            nom: fiche.valueOrNull?.name ?? apercu?.nom ?? '',
+            logo: fiche.valueOrNull?.logo ?? apercu?.logo,
+            competition: apercu?.competition)),
+          const SizedBox(width: 4),
+        ],
       ),
       body: fiche.when(
         loading: () => ListView(padding: const EdgeInsets.fromLTRB(16, 4, 16, 32), children: [
@@ -359,6 +370,39 @@ class _Effectif extends StatelessWidget {
           for (final j in autres) ligne(j),
         ],
       ]),
+    );
+  }
+}
+
+/// Suivre l'équipe (7 novembre 2026, comme FotMob) : ses matchs apparaissent
+/// dans « Suivis ». Un invité est invité à se connecter.
+class _BoutonSuivreEquipe extends ConsumerWidget {
+  final EquipeSuivie equipe;
+  const _BoutonSuivreEquipe({required this.equipe});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final suivie = ref.watch(favorisProvider).valueOrNull?.suitEquipe(equipe.id) ?? false;
+    final libelle = suivie ? tr(context, "Ne plus suivre l'équipe") : tr(context, "Suivre l'équipe");
+    return IconButton(
+      key: const Key('suivre-equipe'),
+      tooltip: libelle,
+      icon: Icon(suivie ? Icons.star_rounded : Icons.star_outline_rounded,
+        color: suivie ? AppColors.primary : context.cl.textP),
+      onPressed: () async {
+        if (!ref.read(effectiveLoggedInProvider)) {
+          context.push('/auth/email?from=${Uri.encodeComponent('/equipes/${equipe.id}')}');
+          return;
+        }
+        if (equipe.nom.isEmpty) return;
+        final message = suivie
+            ? tr(context, "Tu ne suis plus {arg0}.", [equipe.nom])
+            : tr(context, "{arg0} est suivie : ses matchs sont dans « Suivis ».", [equipe.nom]);
+        await ref.read(favorisProvider.notifier).basculerEquipe(equipe);
+        if (context.mounted) {
+          afficherMessage(context, message, type: suivie ? TypeMessage.info : TypeMessage.succes);
+        }
+      },
     );
   }
 }

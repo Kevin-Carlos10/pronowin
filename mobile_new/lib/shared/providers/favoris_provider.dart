@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'package:pronowin/features/parametres/presentation/providers/settings_provider.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -54,18 +55,42 @@ class EtatFavoris {
   /// Ligues suivies, par leur nom tel que l'API l'écrit.
   final Set<String> ligues;
 
-  const EtatFavoris({this.matchIds = const {}, this.ligues = const {}});
+  /// Équipes suivies (7 novembre 2026), par identifiant API-Football, dans
+  /// l'ordre où elles ont été suivies.
+  final List<EquipeSuivie> equipes;
 
-  EtatFavoris copyWith({Set<String>? matchIds, Set<String>? ligues}) =>
+  const EtatFavoris({this.matchIds = const {}, this.ligues = const {}, this.equipes = const []});
+
+  bool suitEquipe(int id) => equipes.any((e) => e.id == id);
+
+  EtatFavoris copyWith({Set<String>? matchIds, Set<String>? ligues, List<EquipeSuivie>? equipes}) =>
       EtatFavoris(
         matchIds: matchIds ?? this.matchIds,
         ligues:   ligues   ?? this.ligues,
+        equipes:  equipes  ?? this.equipes,
       );
+}
+
+/// Une équipe suivie : de quoi l'afficher et ouvrir sa fiche sans réseau.
+class EquipeSuivie {
+  final int id;
+  final String nom;
+  final String? logo, competition;
+  const EquipeSuivie({required this.id, required this.nom, this.logo, this.competition});
+
+  Map<String, dynamic> toJson() => {'id': id, 'nom': nom, 'logo': logo, 'competition': competition};
+
+  static EquipeSuivie? fromJson(Object? j) {
+    if (j is! Map || j['id'] is! num || j['nom'] is! String) return null;
+    return EquipeSuivie(id: (j['id'] as num).toInt(), nom: j['nom'] as String,
+      logo: j['logo'] as String?, competition: j['competition'] as String?);
+  }
 }
 
 /// Préfixe des clés locales, sans le compte.
 const _prefixeMatchs = 'favoris_matchs';
 const _prefixeLigues = 'favoris_ligues';
+const _prefixeEquipes = 'favoris_equipes';
 
 /// Les clés d'un compte donné.
 ///
@@ -73,6 +98,7 @@ const _prefixeLigues = 'favoris_ligues';
 /// réécrire à la main ailleurs.
 String cleFavorisMatchs(String compteId) => '${_prefixeMatchs}_$compteId';
 String cleFavorisLigues(String compteId) => '${_prefixeLigues}_$compteId';
+String cleFavorisEquipes(String compteId) => '${_prefixeEquipes}_$compteId';
 
 /// Efface les favoris de tous les comptes présents sur l'appareil.
 ///
@@ -97,7 +123,8 @@ Future<void> effacerFavorisLocaux({bool resilierSujets = true}) async {
 
   for (final cle in p
       .getKeys()
-      .where((k) => k.startsWith(_prefixeMatchs) || k.startsWith(_prefixeLigues))
+      .where((k) => k.startsWith(_prefixeMatchs) || k.startsWith(_prefixeLigues)
+          || k.startsWith(_prefixeEquipes))
       .toList()) {
     await p.remove(cle);
   }
@@ -129,6 +156,7 @@ class FavorisNotifier extends AsyncNotifier<EtatFavoris> {
     final local = EtatFavoris(
       matchIds: Set.from(p.getStringList(cleFavorisMatchs(compte)) ?? const []),
       ligues:   Set.from(p.getStringList(cleFavorisLigues(compte)) ?? const []),
+      equipes:  _lireEquipes(p, compte),
     );
 
     try {
@@ -194,6 +222,33 @@ class FavorisNotifier extends AsyncNotifier<EtatFavoris> {
         await FirebaseMessaging.instance.unsubscribeFromTopic(selected);
       }
     } catch (_) { /* Retried on next settings/session refresh. */ }
+  }
+
+  static List<EquipeSuivie> _lireEquipes(SharedPreferences p, String compte) {
+    try {
+      return [
+        for (final e in p.getStringList(cleFavorisEquipes(compte)) ?? const <String>[])
+          ?EquipeSuivie.fromJson(jsonDecode(e)),
+      ];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  /// Suit ou ne suit plus une équipe. Purement local, comme les ligues : ses
+  /// matchs s'affichent dans « Suivis », chacun avec sa cloche.
+  Future<void> basculerEquipe(EquipeSuivie equipe) async {
+    final compte = _compteId;
+    if (compte == null) return;
+
+    final avant = state.valueOrNull ?? const EtatFavoris();
+    final apres = avant.suitEquipe(equipe.id)
+        ? [for (final e in avant.equipes) if (e.id != equipe.id) e]
+        : [...avant.equipes, equipe];
+
+    state = AsyncData(avant.copyWith(equipes: apres));
+    final p = await SharedPreferences.getInstance();
+    await p.setStringList(cleFavorisEquipes(compte), [for (final e in apres) jsonEncode(e.toJson())]);
   }
 
   /// Met ou retire une ligue des favoris. Purement local.
