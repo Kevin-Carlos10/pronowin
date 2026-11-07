@@ -1,7 +1,7 @@
 # Réponse au refus Apple du 2 novembre 2026 (1.0.23 (50))
 
 À envoyer depuis App Store Connect (« Répondre à l'équipe de vérification des
-apps ») **avec le build iOS 1.0.33 (49)**, une fois le compte de
+apps ») **avec le build iOS 1.0.33 (58)**, une fois le compte de
 démonstration préparé (`backend/docs/APP_STORE_REVIEW.md`) et la
 classification d'âge réglée. Rien n'est envoyé sans l'accord du titulaire du
 compte.
@@ -22,7 +22,7 @@ Choisir la variante A ou B avant d'envoyer.
 ```
 Hello,
 
-Thank you for your review. Build 1.0.33 (49) addresses each point.
+Thank you for your review. Build 1.0.33 (58) addresses each point.
 
 Guideline 5.6.3
 The previous build asked for a rating at app launch, from the third launch. Build 1.0.33 never asks at launch or during onboarding. The system rating prompt can only appear while the user is reading a match analysis, after at least five launches over seven days and three analyses read, and at most once every 30 days. The "Rate the app" item in Settings opens the App Store page only when the user taps it.
@@ -53,7 +53,7 @@ examinées.
 ```
 Hello,
 
-Thank you for your review. Build 1.0.33 (49) addresses guidelines 5.6.3 and 2.1.
+Thank you for your review. Build 1.0.33 (58) addresses guidelines 5.6.3 and 2.1.
 
 Guideline 5.6.3
 The previous build asked for a rating at app launch, from the third launch. Build 1.0.33 never asks at launch or during onboarding. The system rating prompt can only appear while the user is reading a match analysis, after at least five launches over seven days and three analyses read, and at most once every 30 days. The "Rate the app" item in Settings opens the App Store page only when the user taps it.
