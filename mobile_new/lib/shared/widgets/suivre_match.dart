@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/services/reglages_systeme.dart';
 import '../../features/parametres/presentation/providers/settings_provider.dart';
 import '../../l10n/app_strings.dart';
 import '../providers/favoris_provider.dart';
@@ -43,6 +44,8 @@ Future<void> basculerSuivi(BuildContext context, String matchId,
   final alertesCoupees = tr(context, "Match suivi, mais les alertes de match sont coupées dans les Paramètres.");
   final activer = tr(context, "Activer");
   final suiviOk = tr(context, "Match suivi : tu recevras le coup d'envoi, les buts et le résultat.");
+  final telephoneMuet = tr(context, "Match suivi, mais les notifications sont coupées sur ce téléphone. Active-les pour recevoir les alertes.");
+  final reglages = tr(context, "Réglages");
   // Le conteneur, pas `ref` : `ref` ne sert plus une fois l'écran fermé.
   final conteneur = ProviderScope.containerOf(context, listen: false);
   bool suivi() => conteneur.read(favorisProvider).valueOrNull?.matchIds.contains(matchId) ?? false;
@@ -64,6 +67,13 @@ Future<void> basculerSuivi(BuildContext context, String matchId,
       duree: const Duration(seconds: 6),
       action: routeur == null ? null
           : SnackBarAction(label: activer, onPressed: () => routeur.push('/parametres')));
+  } else if (await ReglagesSysteme.lireAutorisation() == false) {
+    // Coupées au niveau du téléphone : rien n'arrivera, comme le dit
+    // Sofascore dans le même cas (vidéo du 8 novembre 2026).
+    afficherMessageVia(messager, telephoneMuet,
+      type: TypeMessage.alerte,
+      duree: const Duration(seconds: 6),
+      action: SnackBarAction(label: reglages, onPressed: () => ReglagesSysteme.ouvrirNotifications()));
   } else {
     afficherMessageVia(messager, suiviOk, type: TypeMessage.succes);
   }

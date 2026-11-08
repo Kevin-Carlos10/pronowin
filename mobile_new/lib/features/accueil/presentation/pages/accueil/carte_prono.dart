@@ -180,12 +180,13 @@ class _PronosticCard extends ConsumerWidget {
                       children: [
                         _LivePulseDot(),
                         SizedBox(width: 5),
-                        Text('LIVE',
+                        Text(libelleMinuteDirect(context, minuteDirect(prono), repli: 'LIVE'),
                             style: TextStyle(
                                 color: context.cl.error,
                                 fontSize: 9,
                                 fontWeight: FontWeight.w700,
-                                letterSpacing: 0.8)),
+                                letterSpacing: 0.8,
+                                fontFeatures: const [FontFeature.tabularFigures()])),
                       ],
                     ),
                   )

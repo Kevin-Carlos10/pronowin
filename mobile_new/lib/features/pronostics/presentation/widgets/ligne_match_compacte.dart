@@ -10,6 +10,7 @@ import '../../../../core/widgets/team_logo_widget.dart';
 import '../../../../shared/providers/favoris_provider.dart';
 import '../../../../shared/widgets/suivre_match.dart';
 import '../../domain/entities/match_entity.dart';
+import 'minute_direct.dart';
 
 /// Un match sans pronostic, sur une ligne (7 novembre 2026).
 ///
@@ -38,7 +39,7 @@ class LigneMatchCompacte extends ConsumerWidget {
     final dom = m.homeScore ?? 0, ext = m.awayScore ?? 0;
 
     final etat = enDirect
-        ? tr(context, "En direct")
+        ? libelleMinuteDirect(context, m.elapsed)
         : termine
             ? tr(context, "Terminé")
             : DateFormat('HH:mm').format(m.matchDate);

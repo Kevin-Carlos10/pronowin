@@ -16,6 +16,7 @@ import '../../../../shared/widgets/premium_gate_sheet.dart';
 import '../../../../shared/providers/favoris_provider.dart';
 import '../../../../shared/widgets/suivre_match.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
+import 'minute_direct.dart';
 
 class MatchCardWidget extends ConsumerStatefulWidget {
   final MatchEntity match;
@@ -365,22 +366,27 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
             ),
           ]),
 
-          const SizedBox(height: 8),
-
           // Ligne 2 : cotes du marché « vainqueur ». Explicitement nommées :
           // sans titre, elles se lisaient comme les cotes du pronostic.
-          Row(children: [
-            Text(tr(context, "VAINQUEUR DU MATCH"),
-                style: TextStyle(
-                    color: context.cl.textM,
-                    fontSize: 8,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.6)),
-            const SizedBox(width: 6),
-            Expanded(child: Divider(color: context.cl.border, height: 1)),
-          ]),
-          const SizedBox(height: 6),
-          _OddsRow(match: _match),
+          //
+          // Sans cote (version iPhone, cotes pas encore publiées), le titre
+          // restait seul en bas de la carte, au-dessus de rien (vidéo du
+          // 8 novembre 2026, Real Sociedad - Rayo Vallecano).
+          if (_match.oddsHome > 0 || _match.oddsDraw > 0 || _match.oddsAway > 0) ...[
+            const SizedBox(height: 8),
+            Row(children: [
+              Text(tr(context, "VAINQUEUR DU MATCH"),
+                  style: TextStyle(
+                      color: context.cl.textM,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6)),
+              const SizedBox(width: 6),
+              Expanded(child: Divider(color: context.cl.border, height: 1)),
+            ]),
+            const SizedBox(height: 6),
+            _OddsRow(match: _match),
+          ],
         ],
       ),
     );
@@ -1035,11 +1041,15 @@ class _ScoreCenter extends StatelessWidget {
             ),
             if (isLive) ...[
               const SizedBox(height: 4),
-               Text(tr(context, "En direct"),
+              // La minute (« 67' ») plutôt que « En direct » : la carte le
+              // disait déjà avec la pastille LIVE.
+              Text(libelleMinuteDirect(context, match.elapsed),
+                  key: const Key('minute-direct'),
                   style: TextStyle(
                       color: context.cl.error,
-                      fontSize: 9,
-                      fontWeight: FontWeight.w600)),
+                      fontSize: match.elapsed != null ? 11 : 9,
+                      fontWeight: FontWeight.w700,
+                      fontFeatures: const [FontFeature.tabularFigures()])),
             ],
           ],
         ),

@@ -58,6 +58,8 @@ export const getFavorites = async (req: AuthRequest, res: Response) => {
         status,
         home_score:       f.match.homeScore ?? null,
         away_score:       f.match.awayScore ?? null,
+        // Minute de jeu, null hors direct (vignette « Matchs suivis »).
+        elapsed:          status === 'live' ? f.match.elapsedMinutes ?? null : null,
         has_pronostic:    p !== null,
         // Pronostic (valeurs par défaut si pas de prono)
         prediction_type:  locked ? null : (p?.predictionType  ?? 'win1'),

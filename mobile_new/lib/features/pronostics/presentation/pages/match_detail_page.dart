@@ -619,6 +619,12 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     final retard = match.status == MatchStatus.live
         && DateTime.now().difference(_dernierRefresh) > delaiScoreNonActualise;
     final reserveActions = 48.0 + 48 + (match.isPremium ? 24 : 0) + (retard ? 110 : 0) + 8;
+    // Un buteur par ligne sous chaque équipe, comme Sofascore : l'en-tête
+    // grandit d'une ligne par buteur au-delà du premier (trois au plus).
+    final butsEnTete = _buteursEnTete(ref, match);
+    final lignesButs = butsEnTete == null ? 0
+        : [butsEnTete.dom.length, butsEnTete.ext.length].reduce((a, b) => a > b ? a : b).clamp(0, _lignesButsMax);
+    final supplementButs = lignesButs > 1 ? (lignesButs - 1) * _hauteurLigneBut : 0.0;
     // La bulle de la cloche : ni pour un match terminé, ni pour un match déjà
     // suivi. Le premier toucher, n'importe où, la ferme.
     final bulle = _bulleSuivi && match.status != MatchStatus.finished && !isFav;
@@ -651,7 +657,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
                 statusBarIconBrightness: Brightness.light,
                 statusBarBrightness: Brightness.dark),
               toolbarHeight: _hauteurBarre,
-              expandedHeight: _hauteurBarre + _hauteurEnTete + (avecOnglets ? 48 : 0),
+              expandedHeight: _hauteurBarre + _hauteurEnTete + supplementButs + (avecOnglets ? 48 : 0),
               leading: IconButton(
                 tooltip: tr(sombre, "Retour"),
                 icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
@@ -697,6 +703,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
               flexibleSpace: _EnTeteRepliable(
                 match: match,
                 hauteurOnglets: avecOnglets ? 48 : 0,
+                supplement: supplementButs,
                 reserveActions: reserveActions,
               ),
               bottom: avecOnglets
@@ -884,6 +891,50 @@ class _BarreOnglets extends StatelessWidget implements PreferredSizeWidget {
 
 const double _hauteurBarre = 56;
 const double _hauteurEnTete = 96;
+/// Une ligne de buteur sous le nom d'une équipe.
+const double _hauteurLigneBut = 14;
+const int _lignesButsMax = 3;
+
+/// Les buteurs de chaque équipe pour l'en-tête ; null avant le coup d'envoi
+/// ou tant que les faits du match ne sont pas arrivés.
+({List<Buteur> dom, List<Buteur> ext})? _buteursEnTete(WidgetRef ref, MatchEntity match) {
+  if (match.status == MatchStatus.upcoming) return null;
+  final faits = ref.watch(matchStatsProvider(match.id)).valueOrNull;
+  if (faits == null) return null;
+  final live = match.status == MatchStatus.live
+      ? ref.watch(liveScoreProvider(match.id)).valueOrNull : null;
+  final dom = live?.homeScore ?? match.homeScore;
+  final ext = live?.awayScore ?? match.awayScore;
+  return buteursDetailles(faits.events, domicile: faits.homeTeam,
+      scoreFinal: dom != null && ext != null ? (dom: dom, ext: ext) : null);
+}
+
+/// Un nom d'équipe sur une ligne, en entier si possible : la taille descend
+/// de 13 à 10,5 avant de couper (« Manchester … » sur la vidéo du 8 novembre
+/// 2026, quand Sofascore écrit « Man Utd »).
+class _NomEquipeAjuste extends StatelessWidget {
+  final String texte;
+  const _NomEquipeAjuste(this.texte);
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
+    final echelle = MediaQuery.textScalerOf(context);
+    double taille = 13;
+    for (final t in const [13.0, 12.0, 11.0, 10.5]) {
+      taille = t;
+      final mesure = TextPainter(
+        text: TextSpan(text: texte, style: TextStyle(fontSize: t, fontWeight: FontWeight.w600)),
+        textDirection: Directionality.of(context), maxLines: 1, textScaler: echelle,
+      )..layout();
+      final tient = mesure.width <= c.maxWidth;
+      mesure.dispose();
+      if (tient) break;
+    }
+    return Text(texte,
+      maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
+      style: TextStyle(color: context.cl.textP, fontSize: taille, fontWeight: FontWeight.w600));
+  });
+}
 const List<Color> _fondEnTete = [Color(0xFF151B2E), Color(0xFF0D1220)];
 
 /// 1 = en-tête déplié, 0 = replié.
@@ -918,8 +969,11 @@ class _EnTeteRepliable extends ConsumerWidget {
   /// Largeur des actions à droite de la barre : l'en-tête replié se centre
   /// dans ce qui reste.
   final double reserveActions;
+  /// La hauteur ajoutée pour les buteurs au-delà d'une ligne.
+  final double supplement;
   const _EnTeteRepliable({
-    required this.match, required this.hauteurOnglets, required this.reserveActions});
+    required this.match, required this.hauteurOnglets, required this.reserveActions,
+    this.supplement = 0});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -928,7 +982,7 @@ class _EnTeteRepliable extends ConsumerWidget {
     // La barre d'état : ce que la barre compte en plus de ses hauteurs fixes.
     final haut = reglages == null
         ? MediaQuery.paddingOf(context).top
-        : (reglages.maxExtent - (_hauteurBarre + _hauteurEnTete + hauteurOnglets)).clamp(0.0, 200.0);
+        : (reglages.maxExtent - (_hauteurBarre + _hauteurEnTete + supplement + hauteurOnglets)).clamp(0.0, 200.0);
 
     final live = match.status == MatchStatus.live
         ? ref.watch(liveScoreProvider(match.id)).valueOrNull : null;
@@ -937,11 +991,7 @@ class _EnTeteRepliable extends ConsumerWidget {
     final dom = live?.homeScore ?? match.homeScore;
     final ext = live?.awayScore ?? match.awayScore;
     // Les buteurs sous le nom de chaque équipe, comme Sofascore.
-    final faits = match.status == MatchStatus.upcoming
-        ? null : ref.watch(matchStatsProvider(match.id)).valueOrNull;
-    final buteurs = faits == null ? null : buteursDuMatch(faits.events,
-        domicile: faits.homeTeam,
-        scoreFinal: dom != null && ext != null ? (dom: dom, ext: ext) : null);
+    final buteurs = _buteursEnTete(ref, match);
 
     final d = match.matchDate;
     final dateStr = '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
@@ -957,7 +1007,7 @@ class _EnTeteRepliable extends ConsumerWidget {
         ? tr(context, "contre")
         : tr(context, "{arg0} à {arg1} contre", [dom ?? 0, ext ?? 0]);
 
-    final butsParles = [...?buteurs?.dom, ...?buteurs?.ext];
+    final butsParles = [for (final b in [...?buteurs?.dom, ...?buteurs?.ext]) '${b.joueur} ${b.minutes}'];
     return Semantics(
       label: tr(context, "{arg0}. {arg1} {arg2} {arg3}. Match {arg4}, le {arg5} à {arg6}.",
           [match.league, match.homeTeam, scoreParle, match.awayTeam, etat, dateStr, heureStr])
@@ -998,17 +1048,36 @@ class _EnTeteRepliable extends ConsumerWidget {
             Widget nom(String texte, double x) => Positioned(
               left: x - largeurNom / 2, width: largeurNom,
               top: haut + _hauteurBarre + 60 - r * 48,
-              child: IgnorePointer(child: Opacity(opacity: opaciteNoms, child: Text(texte,
-                maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)))),
+              child: IgnorePointer(child: Opacity(opacity: opaciteNoms, child: _NomEquipeAjuste(texte))),
             );
 
-            Widget buts(List<String> liste, double x) => Positioned(
+            // Un buteur par ligne, le nom abrégé et les minutes entières :
+            // « N. Jackson 4' ». Tout sur une ligne, la minute disparaissait
+            // derrière les points de suspension (vidéo du 8 novembre 2026).
+            final styleBut = TextStyle(color: context.cl.textS, fontSize: 10.5, fontWeight: FontWeight.w500, height: 1.25);
+            Widget buts(List<Buteur> liste, double x) => Positioned(
               left: x - largeurNom / 2 - 6, width: largeurNom + 12,
               top: haut + _hauteurBarre + 78 - r * 48,
-              child: IgnorePointer(child: Opacity(opacity: opaciteNoms, child: Text(liste.join(', '),
-                maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-                style: TextStyle(color: context.cl.textS, fontSize: 10.5, fontWeight: FontWeight.w500)))),
+              child: IgnorePointer(child: Opacity(opacity: opaciteNoms, child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (final (i, b) in liste.take(_lignesButsMax).indexed)
+                    SizedBox(height: _hauteurLigneBut, child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // La dernière ligne dit combien il en reste.
+                        if (i == _lignesButsMax - 1 && liste.length > _lignesButsMax)
+                          Text(tr(context, "+{arg0} autres", [liste.length - _lignesButsMax + 1]),
+                            maxLines: 1, style: styleBut)
+                        else ...[
+                          Flexible(child: Text(abregerJoueur(b.joueur),
+                            maxLines: 1, overflow: TextOverflow.ellipsis, style: styleBut)),
+                          Text(' ${b.minutes}', key: const Key('minutes-buteur'), maxLines: 1, style: styleBut),
+                        ],
+                      ],
+                    )),
+                ],
+              ))),
             );
 
             return ExcludeSemantics(child: Stack(clipBehavior: Clip.hardEdge, children: [

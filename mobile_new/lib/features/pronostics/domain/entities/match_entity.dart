@@ -28,6 +28,12 @@ class MatchEntity extends Equatable {
   final MatchStatus status;
   final int? homeScore;
   final int? awayScore;
+  /// Minute de jeu publiée par la source, pendant le direct seulement.
+  ///
+  /// Les listes n'affichaient que « En direct » là où Sofascore donne « 67' »
+  /// (vidéos du 8 novembre 2026) : sans la minute, impossible de savoir si un
+  /// 0-0 en direct est à la 5e ou à la 85e.
+  final int? elapsed;
   final PredictionType predictionType;
   final String _predictionLabel;
   final String? predictionLabelEn;
@@ -76,6 +82,7 @@ class MatchEntity extends Equatable {
     required this.status,
     this.homeScore,
     this.awayScore,
+    this.elapsed,
     required this.predictionType,
     required String predictionLabel,
     this.predictionLabelEn,
@@ -105,6 +112,7 @@ class MatchEntity extends Equatable {
     homeTeam: _homeTeam, awayTeam: _awayTeam,
     homeTeamLogo: homeTeamLogo, awayTeamLogo: awayTeamLogo,
     matchDate: matchDate, status: status, homeScore: homeScore, awayScore: awayScore,
+    elapsed: elapsed,
     predictionType: predictionType, predictionLabel: _predictionLabel,
     predictionLabelEn: predictionLabelEn,
     oddsRecommended: 0, oddsHome: 0, oddsDraw: 0, oddsAway: 0,

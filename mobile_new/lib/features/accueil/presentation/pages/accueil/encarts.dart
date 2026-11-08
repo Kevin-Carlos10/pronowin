@@ -68,25 +68,54 @@ class _FavoritesSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final favsAsync = ref.watch(favoritesListProvider);
+    // La vignette grandit avec le texte de l'appareil : ses noms d'équipes
+    // passent de 10 à 12,5 points (7 novembre 2026).
+    final hauteur = 104 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.5);
+    final enTete = _SectionHeader(
+        title: tr(context, "Matchs suivis"),
+        leading: Icon(iconeMatchSuivi, color: AppColors.primary, size: 15),
+        onMore: null);
 
-    return favsAsync.when(
-      loading: () => const SizedBox.shrink(),
-      error:   (_, _) => const SizedBox.shrink(),
+    // La section arrivait après le reste et poussait tout l'accueil vers le
+    // bas, sous le doigt (vidéo du 8 novembre 2026, au démarrage). Quand on
+    // sait déjà que des matchs sont suivis, sa place est tenue pendant le
+    // chargement ; sinon elle s'ouvre en glissant au lieu de sauter.
+    final dejaSuivis = ref.watch(favorisProvider).valueOrNull?.matchIds.isNotEmpty ?? false;
+    final Widget contenu = favsAsync.when(
+      loading: () => !dejaSuivis ? const SizedBox(width: double.infinity) : Column(
+        key: const Key('matchs-suivis-chargement'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          enTete,
+          const SizedBox(height: 10),
+          SizedBox(
+            height: hauteur,
+            child: Row(children: [
+              for (var i = 0; i < 2; i++) ...[
+                if (i > 0) const SizedBox(width: 10),
+                Container(
+                  width: 200,
+                  decoration: BoxDecoration(
+                    color: context.cl.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(color: context.cl.border, width: 0.5)),
+                ),
+              ],
+            ]),
+          ),
+          const SizedBox(height: 20),
+        ],
+      ),
+      error:   (_, _) => const SizedBox(width: double.infinity),
       data: (list) {
-        if (list.isEmpty) return const SizedBox.shrink();
+        if (list.isEmpty) return const SizedBox(width: double.infinity);
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _SectionHeader(
-                title: tr(context, "Matchs suivis"),
-                leading: Icon(iconeMatchSuivi,
-                    color: AppColors.primary, size: 15),
-                onMore: null),
+            enTete,
             const SizedBox(height: 10),
             SizedBox(
-              // La vignette grandit avec le texte de l'appareil : ses noms
-              // d'équipes passent de 10 à 12,5 points (7 novembre 2026).
-              height: 104 * MediaQuery.textScalerOf(context).scale(1).clamp(1.0, 1.5),
+              height: hauteur,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: list.length,
@@ -101,6 +130,12 @@ class _FavoritesSection extends ConsumerWidget {
           ],
         );
       },
+    );
+    return AnimatedSize(
+      duration: const Duration(milliseconds: 220),
+      curve: Curves.easeOutCubic,
+      alignment: Alignment.topCenter,
+      child: contenu,
     );
   }
 }
@@ -187,11 +222,13 @@ class _FavoriteTile extends ConsumerWidget {
                       color: context.cl.error.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text('LIVE',
+                    // La minute quand on la connaît, comme Sofascore.
+                    child: Text(libelleMinuteDirect(context, minuteDirect(fav), repli: 'LIVE'),
                         style: TextStyle(
                             color: context.cl.error,
                             fontSize: 9,
-                            fontWeight: FontWeight.w800)),
+                            fontWeight: FontWeight.w800,
+                            fontFeatures: const [FontFeature.tabularFigures()])),
                   )
                 else if (isFinished)
                   Text(tr(context, "Terminé"),

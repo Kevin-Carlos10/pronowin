@@ -1,5 +1,9 @@
 package com.pronowin.app
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Build
+import android.provider.Settings
 import io.flutter.embedding.android.FlutterFragmentActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -31,7 +35,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterFragmentActivity() {
 
     /**
-     * Le canal d'installation, seul ajout natif de cette application.
+     * Le canal d'installation, et celui des réglages de notifications.
      *
      * Il est enregistré dans les deux variantes ; c'est [InstallateurApk] qui
      * refuse d'agir quand la permission n'est pas déclarée, c'est-à-dire sur le
@@ -51,6 +55,30 @@ class MainActivity : FlutterFragmentActivity() {
                             reponse.error("chemin_manquant", "Aucun chemin fourni", null)
                         } else {
                             InstallateurApk.installer(this, chemin, reponse)
+                        }
+                    }
+                    else -> reponse.notImplemented()
+                }
+            }
+
+        // Les réglages de notifications de l'application, quand elles sont
+        // coupées au niveau du téléphone (reglages_systeme.dart).
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "com.pronowin.app/reglages")
+            .setMethodCallHandler { appel, reponse ->
+                when (appel.method) {
+                    "ouvrirNotifications" -> {
+                        val intention = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+                        } else {
+                            Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                .setData(Uri.parse("package:$packageName"))
+                        }
+                        try {
+                            startActivity(intention.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                            reponse.success(null)
+                        } catch (e: Exception) {
+                            reponse.error("reglages_indisponibles", e.message, null)
                         }
                     }
                     else -> reponse.notImplemented()

@@ -18,6 +18,7 @@ import '../../../../core/constants/app_constants.dart';
 import '../../../../core/config/bookmaker_affiliation.dart';
 import '../../../../core/config/contact_support.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/utils/date_formatter.dart';
 import '../../../../shared/utils/code_ussd.dart';
 import '../../../../shared/utils/montant.dart';
 import '../../../../shared/widgets/country_pill_selector.dart';
@@ -384,6 +385,11 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
 
     final isStore = ref.watch(isStoreBuildProvider);
     final iapReady = isStore ? (ref.watch(iapReadyProvider).value ?? false) : false;
+    // L'abonnement tel que le serveur le connaît (`/subscriptions/current`) :
+    // relu après chaque achat, il dit si l'utilisateur est déjà abonné.
+    final finPremium = _donnees?['plan'] == 'premium'
+        ? DateTime.tryParse(_donnees?['expires_at'] as String? ?? '')?.toLocal() : null;
+    final dejaPremium = finPremium != null && finPremium.isAfter(DateTime.now());
 
     // Le paywall est toujours sombre (fond de stade) : son contenu lit le thème
     // sombre, sinon les couleurs d'état passent à leurs variantes pour fond blanc.
@@ -417,6 +423,8 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       onIapBuy:         _startIapPurchase,
       onIapRestore:     _restoreIap,
       onIapRetry:       _retryIap,
+      dejaPremium:      dejaPremium,
+      premiumJusquau:   finPremium,
     ));
   }
 
@@ -527,22 +535,35 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     }
   }
 
-  /// Même confirmation qu'un achat intégré : le Premium est déjà actif.
-  void _premiumActifApresPaiement(DateTime? expire) {
-    ref.read(authProvider.notifier).refreshUser();
-    rafraichirDonneesCompte(ref);
+  /// La confirmation « Premium activé ! », puis la sortie de la page.
+  ///
+  /// Seul le bouton « Découvrir le Premium » quittait la page. Refermée d'un
+  /// glissé, la feuille laissait l'abonné devant « S'abonner — USD 14.99 »
+  /// et la FAQ de paiement, comme s'il n'avait rien acheté (vidéo du
+  /// 8 novembre 2026, achat de test sur TestFlight). On sort maintenant à la
+  /// fermeture de la feuille, quelle qu'en soit la manière.
+  void _afficherPremiumActive({required DateTime expireLe, bool parStore = true}) {
     showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (feuille) => ConfirmationPremiumActive(
-        expireLe: expire ?? DateTime.now().add(Duration(days: _duration == 'annuel' ? 365 : 30)),
-        parStore: false,
-        onContinuer: () {
-          Navigator.pop(feuille);
-          retourOuAller(context, repli: _repli);
-        },
+        expireLe: expireLe,
+        parStore: parStore,
+        onContinuer: () => Navigator.pop(feuille),
       ),
+    ).whenComplete(() {
+      if (mounted) retourOuAller(context, repli: _repli);
+    });
+  }
+
+  /// Même confirmation qu'un achat intégré : le Premium est déjà actif.
+  void _premiumActifApresPaiement(DateTime? expire) {
+    ref.read(authProvider.notifier).refreshUser();
+    rafraichirDonneesCompte(ref);
+    _afficherPremiumActive(
+      expireLe: expire ?? DateTime.now().add(Duration(days: _duration == 'annuel' ? 365 : 30)),
+      parStore: false,
     );
   }
 
@@ -620,18 +641,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
         rafraichirDonneesCompte(ref);
         // Pas la confirmation du Mobile Money (« Preuve soumise… en attente ») :
         // le store a confirmé l'achat, le Premium est déjà actif.
-        showModalBottomSheet<void>(
-          context: context,
-          isScrollControlled: true,
-          backgroundColor: Colors.transparent,
-          builder: (feuille) => ConfirmationPremiumActive(
-            expireLe: expiresAt,
-            onContinuer: () {
-              Navigator.pop(feuille);
-              retourOuAller(context, repli: _repli);
-            },
-          ),
-        );
+        _afficherPremiumActive(expireLe: expiresAt);
       case IapCancelled():
         break; // L'utilisateur a annulé : pas de message d'erreur.
       case IapFailure(:final message):
@@ -2148,6 +2158,34 @@ class _XbetSubmitButton extends StatelessWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 // PAYWALL PAGE
 // ══════════════════════════════════════════════════════════════════════════════
+/// « Tu es déjà Premium jusqu'au … » en tête de la page d'abonnement.
+class _BandeauDejaPremium extends StatelessWidget {
+  final DateTime? jusquau;
+  const _BandeauDejaPremium({required this.jusquau});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('deja-premium'),
+    width: double.infinity,
+    padding: const EdgeInsets.all(14),
+    decoration: BoxDecoration(
+      color: context.cl.success.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(14),
+      border: Border.all(color: context.cl.success.withValues(alpha: 0.4)),
+    ),
+    child: Row(children: [
+      Icon(Icons.verified_rounded, color: context.cl.success, size: 22),
+      const SizedBox(width: 12),
+      Expanded(child: Text(
+        jusquau == null
+            ? tr(context, "Ton Premium est actif.")
+            : tr(context, "Ton Premium est actif jusqu'au {arg0}.",
+                [AppDateFormatter.transactionDate(jusquau!.toLocal())]),
+        style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w600, height: 1.35))),
+    ]),
+  );
+}
+
 class _PaywallPage extends StatelessWidget {
   final num monthlyPrice;
   final num annualPrice;
@@ -2179,7 +2217,14 @@ class _PaywallPage extends StatelessWidget {
   final VoidCallback onIapRestore;
   final VoidCallback onIapRetry;
 
+  /// L'utilisateur est déjà abonné : la page le dit en tête, au lieu de
+  /// présenter l'offre comme à un nouveau venu.
+  final bool dejaPremium;
+  final DateTime? premiumJusquau;
+
   const _PaywallPage({
+    this.dejaPremium = false,
+    this.premiumJusquau,
     required this.monthlyPrice,
     required this.annualPrice,
     required this.moisOfferts,
@@ -2230,6 +2275,10 @@ class _PaywallPage extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
                 child: Column(children: [
+                  if (dejaPremium) ...[
+                    _BandeauDejaPremium(jusquau: premiumJusquau),
+                    const SizedBox(height: 20),
+                  ],
                   _buildFeatures(context),
                   const SizedBox(height: 24),
                   _buildPlanLabel(),

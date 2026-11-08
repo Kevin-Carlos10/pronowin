@@ -34,8 +34,15 @@ void main() {
         .readAsStringSync();
     final branche = RegExp(r'case IapSuccess\(.*?case IapCancelled', dotAll: true)
         .firstMatch(source)!.group(0)!;
-    expect(branche, contains('ConfirmationPremiumActive('));
+    expect(branche, contains('_afficherPremiumActive('));
     expect(branche, isNot(contains('_showSuccessDialog(')));
+    final confirmation = RegExp(r'void _afficherPremiumActive\(.*?\n  \}', dotAll: true)
+        .firstMatch(source)!.group(0)!;
+    expect(confirmation, contains('ConfirmationPremiumActive('));
+    // Vidéo du 8 novembre 2026 : refermée d'un glissé, la feuille laissait
+    // l'abonné devant « S'abonner ». La page se quitte à toute fermeture.
+    expect(confirmation, contains('.whenComplete('));
+    expect(confirmation, contains('retourOuAller(context, repli: _repli)'));
   });
 
   test("après l'achat, l'onglet Compte relit le plan qu'il affiche", () {

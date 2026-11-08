@@ -1489,6 +1489,9 @@ export class PronosticsService {
                         : 'upcoming',
         home_score:       m.homeScore,
         away_score:       m.awayScore,
+        // Minute de jeu, null hors direct. La liste n'affichait que « En
+        // direct » là où Sofascore donne « 67' » (vidéos du 8 novembre 2026).
+        elapsed:          m.status === 'LIVE' ? m.elapsedMinutes : null,
         has_pronostic:    hasPronostic,
         // Idem : le pick payant ne doit jamais quitter le serveur pour qui n'y
         // a pas droit.

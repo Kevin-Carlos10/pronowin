@@ -43,6 +43,7 @@ import 'package:pronowin/core/utils/noms_equipes.dart';
 import 'package:pronowin/shared/utils/initiale.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
 import '../../../../shared/widgets/code_promo.dart';
+import '../../../pronostics/presentation/widgets/minute_direct.dart';
 
 // Découpé en fichiers `part` : le fichier faisait 4 406 lignes pour une
 // cinquantaine de classes privées — plus gros que match_detail_page avant

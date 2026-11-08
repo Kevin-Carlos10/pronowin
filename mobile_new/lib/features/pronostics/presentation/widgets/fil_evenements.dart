@@ -177,6 +177,22 @@ List<({int dom, int ext})>? _scoresAuFil(
   required String domicile,
   ({int dom, int ext})? scoreFinal,
 }) {
+  List<String> texte(List<Buteur> l) => [for (final b in l) '${b.joueur} ${b.minutes}'];
+  final d = buteursDetailles(events, domicile: domicile, scoreFinal: scoreFinal);
+  return (dom: texte(d.dom), ext: texte(d.ext));
+}
+
+/// Un buteur et ses minutes : `(joueur: 'Harry Kane', minutes: "12', 85' (pen.)")`.
+typedef Buteur = ({String joueur, String minutes});
+
+/// [buteursDuMatch], le nom et les minutes séparés : l'en-tête abrège le nom
+/// mais garde les minutes entières (vidéo du 8 novembre 2026, « Alysson
+/// Edward Fr… » où la minute avait disparu).
+({List<Buteur> dom, List<Buteur> ext}) buteursDetailles(
+  List<MatchEvent> events, {
+  required String domicile,
+  ({int dom, int ext})? scoreFinal,
+}) {
   final ordre = [...events]..sort((a, b) {
     final m = a.minute.compareTo(b.minute);
     return m != 0 ? m : (a.extra ?? 0).compareTo(b.extra ?? 0);
@@ -206,12 +222,12 @@ List<({int dom, int ext})>? _scoresAuFil(
       }
     }
   }
-  List<String> regrouper(List<({String joueur, String minute})> buts) {
+  List<Buteur> regrouper(List<({String joueur, String minute})> buts) {
     final parJoueur = <String, List<String>>{};
     for (final b in buts) {
       parJoueur.putIfAbsent(b.joueur.trim().isEmpty ? '?' : b.joueur.trim(), () => []).add(b.minute);
     }
-    return [for (final e in parJoueur.entries) '${e.key} ${e.value.join(', ')}'];
+    return [for (final e in parJoueur.entries) (joueur: e.key, minutes: e.value.join(', '))];
   }
   return (dom: regrouper(lire(csc, true)), ext: regrouper(lire(csc, false)));
 }
@@ -452,4 +468,17 @@ class _LigneEvenement extends StatelessWidget {
     }
     return Icon(Icons.circle, color: context.cl.textM, size: 8);
   }
+}
+
+/// Le nom d'un buteur sous le score, comme Sofascore : « N. Jackson ».
+///
+/// Le prénom devient une initiale ; au-delà de deux mots, on garde les deux
+/// derniers (« K. De Bruyne », « A. Mac Allister », « A. Dos Santos »). Un
+/// nom déjà abrégé (« N. Jackson ») ou d'un seul mot reste tel quel.
+String abregerJoueur(String nom) {
+  final mots = nom.trim().split(RegExp(r'\s+')).where((m) => m.isNotEmpty).toList();
+  if (mots.length < 2 || mots.first.endsWith('.')) return nom.trim();
+  final initiale = '${mots.first.characters.first.toUpperCase()}.';
+  final reste = mots.length == 2 ? mots.last : mots.sublist(mots.length - 2).join(' ');
+  return '$initiale $reste';
 }

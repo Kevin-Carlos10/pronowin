@@ -23,6 +23,8 @@ import '../../../../shared/utils/messages.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
 import '../../../../core/services/cache_fichiers.dart';
 import '../widgets/apercu_technique.dart';
+import '../widgets/notifications_telephone.dart';
+import '../../../../core/services/reglages_systeme.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -82,6 +84,9 @@ class ParametresPage extends ConsumerWidget {
           // ─── NOTIFICATIONS ────────────────────────────────────────────
           _SectionHeader(tr(context, "Notifications"))
             .animate().fadeIn(duration: 300.ms, delay: 100.ms),
+          // Coupées au niveau du téléphone : les interrupteurs ci-dessous
+          // n'y peuvent rien, il faut le dire (comme Sofascore).
+          const AlerteNotificationsTelephone(),
           _SettingsCard(children: [
             _SwitchTile(
               icon: Icons.sports_soccer_rounded, iconColor: context.cl.info,
@@ -109,6 +114,15 @@ class ParametresPage extends ConsumerWidget {
               title: tr(context, "Abonnement Premium"), subtitle: tr(context, "Expiration et renouvellement"),
               value: settings.notifPremium,
               onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('premium'),
+            ),
+            const _Divider(),
+            // « Paramètres du système » chez Sofascore : sons, bannières,
+            // écran verrouillé se règlent dans le téléphone.
+            _NavTile(
+              icon: Icons.phone_iphone_rounded, iconColor: context.cl.textS,
+              title: tr(context, "Réglages du téléphone"),
+              subtitle: tr(context, "Sons, bannières, écran verrouillé"),
+              onTap: () => ReglagesSysteme.ouvrirNotifications(),
             ),
           ]).animate(delay: 130.ms).fadeIn(duration: 300.ms)
             .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
@@ -255,6 +269,14 @@ class ParametresPage extends ConsumerWidget {
               subtitle: tr(context, "Version, système, compte — à copier pour le support"),
               onTap: () => afficherApercuTechnique(context, ref),
             ),
+            const _Divider(),
+            // Comme Sofascore (8 novembre 2026).
+            Builder(builder: (ligne) => _NavTile(
+              icon: Icons.ios_share_rounded, iconColor: AppColors.primary,
+              title: tr(context, "Partager l'application"),
+              subtitle: tr(context, "Envoyer PronoWin à un ami"),
+              onTap: () => partagerApplication(ligne),
+            )),
           ]).animate(delay: 250.ms).fadeIn(duration: 300.ms)
             .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
           const SizedBox(height: 20),
