@@ -40,13 +40,15 @@ class FCMService {
   /// Appeler une seule fois au démarrage de l'app
   static Future<void> init({required WidgetRef ref}) async {
 
-    // 1. Demander la permission
-    final settings = await _fcm.requestPermission(
-      alert:       true,
-      badge:       true,
-      sound:       true,
-      provisional: false,
-    );
+    // 1. L'autorisation : lue, plus demandée au démarrage (8 novembre 2026).
+    //
+    // La fenêtre du téléphone s'ouvrait au premier lancement, avant que la
+    // personne sache à quoi serviraient ces notifications. Un refus à ce
+    // moment-là est définitif : plus jamais d'alerte de but. Comme Sofascore
+    // (« Être notifié »), la question vient maintenant avec son explication,
+    // au moment où elle a un sens — suivre un match, activer une alerte
+    // (demande_notifications.dart).
+    final settings = await _fcm.getNotificationSettings();
 
     if (settings.authorizationStatus == AuthorizationStatus.denied) {
       debugPrint('[FCM] Permission refusée');
@@ -68,9 +70,10 @@ class FCMService {
       // notification doit etre monochrome — Android n'en garde que l'alpha.
       android: AndroidInitializationSettings('@drawable/ic_notification'),
       iOS:     DarwinInitializationSettings(
-        requestAlertPermission: true,
-        requestBadgePermission: true,
-        requestSoundPermission: true,
+        // Pas de question ici non plus : voir l'étape 1.
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
       ),
     );
 

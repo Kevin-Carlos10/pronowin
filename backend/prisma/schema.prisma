@@ -77,6 +77,7 @@ model User {
   pronosticVotes        PronosticVote[]
   votesMatch            VoteMatch[]
   avis                  AvisUtilisateur[]
+  votesJoueurDuMatch    VoteJoueurDuMatch[]
   signalementsEmis      SignalementCommentaire[]
   blocagesEmis          BlocageUtilisateur[]   @relation("BlocagesEmis")
   blocagesRecus         BlocageUtilisateur[]   @relation("BlocagesRecus")
@@ -281,6 +282,7 @@ model Match {
   articles              ResumeMatch[]
   /// « Qui va gagner ? » : les votes des fans avant le coup d'envoi.
   votes                 VoteMatch[]
+  votesJoueurDuMatch    VoteJoueurDuMatch[]
   favoritedBy           UserFavoriteMatch[]
 
   @@unique([externalId, source])
@@ -987,4 +989,27 @@ model AvisUtilisateur {
 
   @@index([traite, creeLe])
   @@map("avis_utilisateurs")
+}
+
+/// « Joueur du match » : le vote des fans, comme la « Course au Joueur du
+/// Match » de Sofascore (8 novembre 2026). Ouvert à la 80e minute et jusqu'à
+/// trente heures après le coup d'envoi ; un vote par compte et par match. Le
+/// nom vient des notes du fournisseur, jamais du téléphone.
+model VoteJoueurDuMatch {
+  id        String   @id @default(uuid())
+  matchId   String   @map("match_id")
+  userId    String   @map("user_id")
+  /// Identifiant API-Football du joueur.
+  joueurId  Int      @map("joueur_id")
+  joueurNom String   @map("joueur_nom")
+  /// « home » ou « away ».
+  equipe    String
+  creeLe    DateTime @default(now()) @map("cree_le")
+  modifieLe DateTime @updatedAt @map("modifie_le")
+  match     Match    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([matchId, userId])
+  @@index([matchId])
+  @@map("votes_joueur_du_match")
 }

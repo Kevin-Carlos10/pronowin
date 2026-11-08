@@ -42,6 +42,8 @@ import '../../../../l10n/editorial_text.dart';
 import '../widgets/comments_section.dart';
 import '../widgets/fil_evenements.dart';
 import '../widgets/fond_equipes.dart';
+import '../widgets/decompte_coup_envoi.dart';
+import '../widgets/carte_match_partage.dart';
 import '../widgets/infos_joueurs.dart';
 import '../widgets/prono_share_card.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
@@ -80,6 +82,7 @@ part 'match_detail/analyse_modele.dart';
 part 'match_detail/toutes_cotes.dart';
 part 'match_detail/article_match.dart';
 part 'match_detail/vote_fans.dart';
+part 'match_detail/joueur_du_match.dart';
 part 'match_detail/series.dart';
 part 'match_detail/evolution_classement.dart';
 
@@ -518,6 +521,9 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         entree(_ArticleDuMatch(matchId: match.id), delaiMs: 60),
         // « Qui va gagner ? » Porte sa propre marge, comme la carte d'article.
         entree(_VoteFans(match: match), delaiMs: 75),
+        // « Joueur du match », le vote des fans à partir de la 80e minute.
+        // Porte sa propre marge.
+        entree(_JoueurDuMatch(match: match), delaiMs: 80),
         // Porte sa propre marge : sans fait de jeu, elle ne laisse pas de trou.
         if (showEvents)
           entree(_MatchEventsCard(matchId: match.id, match: match),
@@ -898,6 +904,13 @@ const double _hauteurEnTete = 96;
 const double _hauteurLigneBut = 14;
 const int _lignesButsMax = 3;
 
+/// Le score et la minute à afficher, le direct compris.
+({int? dom, int? ext, int? minute}) _scoreAffiche(WidgetRef ref, MatchEntity match) {
+  final live = match.status == MatchStatus.live ? ref.watch(liveScoreProvider(match.id)).valueOrNull : null;
+  return (dom: live?.homeScore ?? match.homeScore, ext: live?.awayScore ?? match.awayScore,
+      minute: live?.elapsed ?? match.elapsed);
+}
+
 /// Les buteurs de chaque équipe pour l'en-tête ; null avant le coup d'envoi
 /// ou tant que les faits du match ne sont pas arrivés.
 ({List<Buteur> dom, List<Buteur> ext})? _buteursEnTete(WidgetRef ref, MatchEntity match) {
@@ -1157,9 +1170,24 @@ class _BlocScore extends StatelessWidget {
       ),
       MatchStatus.finished => Text(tr(context, "Terminé"),
         style: TextStyle(color: context.cl.textS, fontSize: tailleSecond, fontWeight: FontWeight.w600)),
+      // À moins de 24 heures, le temps qui reste, à la seconde, comme 1xBet
+      // (« Démarre dans 03:19:13 ») ; plus loin, la date.
       _ => Opacity(
         opacity: (1 - repli * 1.6).clamp(0.0, 1.0),
-        child: Text(date, style: TextStyle(color: context.cl.textS, fontSize: tailleSecond, fontWeight: FontWeight.w600))),
+        child: DecompteCoupEnvoi(
+          coupEnvoi: match.matchDate,
+          builder: (context, reste) => Text(
+            reste == null
+                ? date
+                : reste <= Duration.zero
+                    ? tr(context, "Coup d'envoi imminent")
+                    : tr(context, "dans {arg0}", [texteDecompte(reste)]),
+            key: const Key('decompte-coup-envoi'),
+            style: TextStyle(
+              color: reste == null ? context.cl.textS : context.cl.accent,
+              fontSize: tailleSecond, fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()])),
+        )),
     };
 
     return Column(mainAxisSize: MainAxisSize.min, children: [

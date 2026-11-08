@@ -13,6 +13,7 @@ import '../../../../features/auth/presentation/providers/auth_provider.dart';
 import '../../../../features/notifications/presentation/providers/notification_service.dart';
 import '../../../../shared/utils/premium_nav.dart';
 import '../../domain/entities/match_entity.dart';
+import '../../domain/matchs_recommandes.dart';
 import '../providers/pronostics_provider.dart';
 import '../widgets/match_card_widget.dart';
 import '../widgets/ligne_match_compacte.dart';
@@ -254,6 +255,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
               favMatches: favMatches,
               favState:   favState,
               isPremium:  isPremium,
+              recommandes: matchsRecommandes(pagedState.matches),
               onToggleLeague: (l) =>
                   ref.read(favorisProvider.notifier).basculerLigue(l),
             ),
@@ -279,6 +281,13 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
           ),
           _StatusFilterBar(
             selected: statusFilter,
+            // Le nombre de matchs en direct ce jour-là, sur la puce même,
+            // comme Sofascore (« En direct ● 535 événements »). La liste met
+            // le direct en tête de pagination : les matchs chargés le
+            // comptent tous.
+            enDirect: pagedState.matches
+                .where((m) => m.status == MatchStatus.live && _isSameDay(m.matchDate, _selectedDate))
+                .length,
             onSelect: (s) {
               HapticFeedback.selectionClick();
               ref.read(statusFilterProvider.notifier).state = s;
@@ -709,7 +718,9 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
 class _StatusFilterBar extends StatelessWidget {
   final MatchStatus? selected;
   final void Function(MatchStatus?) onSelect;
-  const _StatusFilterBar({required this.selected, required this.onSelect});
+  /// Matchs en direct le jour affiché : écrit sur la puce LIVE.
+  final int enDirect;
+  const _StatusFilterBar({required this.selected, required this.onSelect, this.enDirect = 0});
 
   @override
   Widget build(BuildContext context) {
@@ -729,8 +740,10 @@ class _StatusFilterBar extends StatelessWidget {
           children: filters.entries.map((e) {
             final active = selected == e.key;
             final meta   = e.value;
+            final compte = e.key == MatchStatus.live && enDirect > 0 ? enDirect : null;
             return Semantics(
-              label:    meta.label,
+              label:    compte == null ? meta.label
+                  : tr(context, "{arg0}, {arg1} matchs en direct", [meta.label, compte]),
               selected: active,
               button:   true,
               child: GestureDetector(
@@ -754,6 +767,19 @@ class _StatusFilterBar extends StatelessWidget {
                         color: active ? meta.color : context.cl.textS,
                         fontSize: 12,
                         fontWeight: active ? FontWeight.w700 : FontWeight.w400)),
+                      if (compte != null) ...[
+                        const SizedBox(width: 6),
+                        Container(
+                          key: const Key('compte-direct'),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+                          decoration: BoxDecoration(
+                            color: meta.color,
+                            borderRadius: BorderRadius.circular(10)),
+                          child: Text('$compte', style: const TextStyle(
+                            color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800,
+                            fontFeatures: [FontFeature.tabularFigures()])),
+                        ),
+                      ],
                     ]),
                   ),
                 ),
@@ -1857,12 +1883,15 @@ class _FavoritesView extends StatelessWidget {
   final EtatFavoris favState;
   final bool isPremium;
   final void Function(String) onToggleLeague;
+  /// Proposés quand on ne suit encore rien (`matchs_recommandes.dart`).
+  final List<MatchEntity> recommandes;
 
   const _FavoritesView({
     required this.favMatches,
     required this.favState,
     required this.isPremium,
     required this.onToggleLeague,
+    this.recommandes = const [],
   });
 
   @override
@@ -1893,6 +1922,21 @@ class _FavoritesView extends StatelessWidget {
         children: [
           const EquipesSuiviesSection(),
           if (favState.equipes.isEmpty) _FavoritesEmpty(),
+          // « Recommandés », comme l'onglet Favoris vide de 1xBet.
+          if (recommandes.isNotEmpty) ...[
+            _FavSection(
+              title: tr(context, "Recommandés"),
+              icon:  Icons.auto_awesome_rounded,
+              count: recommandes.length,
+            ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Text(
+                tr(context, "Touche la cloche d'un match pour le suivre : coup d'envoi, buts et résultat."),
+                style: TextStyle(color: context.cl.textS, fontSize: 12.5, height: 1.35)),
+            ),
+            BlocLignesMatch(key: const Key('matchs-recommandes'), matchs: recommandes),
+          ],
         ],
       );
     }

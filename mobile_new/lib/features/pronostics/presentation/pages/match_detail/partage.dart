@@ -54,6 +54,13 @@ String _buildShareText(MatchEntity match) {
   return trCurrent("{arg0}\n\n📲 Pour consulter le détail et plein d'autres pronostics, télécharge l'application :\n👉 {arg1}", [sujet, AppConstants.siteUrl]);
 }
 
+/// Le texte qui accompagne l'image d'un match (8 novembre 2026). Même règle
+/// que pour le pronostic : les équipes et le lien, rien de ce que l'image dit
+/// déjà (score, compétition, buteurs). Rien sur le pari.
+String _buildShareTextMatch(MatchEntity match) =>
+    trCurrent("⚽ *{arg0}*\n\n📲 Scores en direct, statistiques et analyses sur PronoWin :\n👉 {arg1}",
+        ['${match.homeTeam} vs ${match.awayTeam}', AppConstants.siteUrl]);
+
 Future<void> _launchShare(String url) async {
   final uri = Uri.parse(url);
   if (await canLaunchUrl(uri)) {
@@ -70,22 +77,30 @@ void _showShareSheet(BuildContext context, MatchEntity match) {
   );
 }
 
-class _ShareSheet extends StatefulWidget {
+class _ShareSheet extends ConsumerStatefulWidget {
   final MatchEntity match;
   const _ShareSheet({required this.match});
   @override
-  State<_ShareSheet> createState() => _ShareSheetState();
+  ConsumerState<_ShareSheet> createState() => _ShareSheetState();
 }
 
-class _ShareSheetState extends State<_ShareSheet> {
+class _ShareSheetState extends ConsumerState<_ShareSheet> {
   final _cardKey = GlobalKey();
   bool _capturing = false;
+
+  /// L'image du match, comme « Partager les détails » de Sofascore, ou celle
+  /// du pronostic. Le pronostic d'abord quand il y en a un, lisible.
+  late bool _imageMatch = !_pronoPartageable;
+
+  bool get _pronoPartageable => widget.match.hasPronostic && !widget.match.isLocked;
+
+  String _texte() => _imageMatch ? _buildShareTextMatch(widget.match) : _buildShareText(widget.match);
 
   Future<void> _shareImage() async {
     if (_capturing) return;
     setState(() => _capturing = true);
     try {
-      final text = _buildShareText(widget.match);
+      final text = _texte();
       await PronoShareService.captureAndShare(
         repaintKey: _cardKey,
         shareText:  text,
@@ -102,7 +117,8 @@ class _ShareSheetState extends State<_ShareSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final text = _buildShareText(widget.match);
+    final text = _texte();
+    final score = _scoreAffiche(ref, widget.match);
 
     return DraggableScrollableSheet(
       initialChildSize: 0.92,
@@ -130,7 +146,7 @@ class _ShareSheetState extends State<_ShareSheet> {
               ),
             ),
 
-            Text(tr(context, "Partager ce pronostic"),
+            Text(_imageMatch ? tr(context, "Partager ce match") : tr(context, "Partager ce pronostic"),
               style: TextStyle(
                 color: context.cl.textP, fontSize: 15,
                 fontWeight: FontWeight.w700),
@@ -139,7 +155,24 @@ class _ShareSheetState extends State<_ShareSheet> {
             Text('${widget.match.homeTeam} vs ${widget.match.awayTeam}',
               style: TextStyle(color: context.cl.textS, fontSize: 12),
               textAlign: TextAlign.center),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
+
+            // ── Le match ou le pronostic ─────────────────────────────────────
+            if (_pronoPartageable) ...[
+              Center(child: SegmentedButton<bool>(
+                key: const Key('partage-choix'),
+                showSelectedIcon: false,
+                segments: [
+                  ButtonSegment(value: true, icon: const Icon(Icons.scoreboard_outlined, size: 16),
+                    label: Text(tr(context, "Le match"))),
+                  ButtonSegment(value: false, icon: const Icon(Icons.insights_rounded, size: 16),
+                    label: Text(tr(context, "Le pronostic"))),
+                ],
+                selected: {_imageMatch},
+                onSelectionChanged: (s) => setState(() => _imageMatch = s.first),
+              )),
+              const SizedBox(height: 16),
+            ],
 
             // ── Prévisualisation de la carte ─────────────────────────────────
             Center(
@@ -147,7 +180,11 @@ class _ShareSheetState extends State<_ShareSheet> {
                 key: _cardKey,
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(20),
-                  child: PronoShareCard(match: widget.match),
+                  child: _imageMatch
+                      ? CarteMatchPartage(
+                          match: widget.match, dom: score.dom, ext: score.ext, minute: score.minute,
+                          buteurs: _buteursEnTete(ref, widget.match))
+                      : PronoShareCard(match: widget.match),
                 ),
               ),
             ),

@@ -75,6 +75,10 @@ dependencies:
   country_picker: ^2.0.28
   youtube_player_iframe: ^6.0.2
   in_app_purchase: ^3.3.0
+  # Lus directement pour l'essai gratuit (essai_gratuit.dart) ; mêmes
+  # versions que celles qu'apporte in_app_purchase.
+  in_app_purchase_storekit: ^0.4.11
+  in_app_purchase_android: ^0.5.0
   google_sign_in: ^7.2.0
   sign_in_with_apple: ^8.1.0
   qr_flutter: ^4.1.0

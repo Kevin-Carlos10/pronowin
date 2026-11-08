@@ -3,6 +3,16 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+/// Ce que le téléphone permet à l'application.
+enum EtatNotifications {
+  autorisees,
+  refusees,
+  /// La question n'a jamais été posée (iPhone, Android 13 et plus).
+  aDemander,
+  /// Impossible à savoir (web, Firebase indisponible).
+  inconnu,
+}
+
 /// Les notifications au niveau du téléphone, et ses réglages.
 ///
 /// Repris de Sofascore (vidéos du 8 novembre 2026) : quand on suit un match
@@ -13,33 +23,56 @@ import 'package:url_launcher/url_launcher.dart';
 class ReglagesSysteme {
   ReglagesSysteme._();
 
+  /// L'état détaillé. Remplaçable pour les tests.
+  static Future<EtatNotifications> Function() lireEtat = _lireEtat;
+
+  /// Pose la question du téléphone ; vrai si la réponse est oui.
+  /// Remplaçable pour les tests.
+  static Future<bool> Function() demander = _demander;
+
+  static Future<EtatNotifications> _lireEtat() async {
+    if (kIsWeb) return EtatNotifications.inconnu;
+    try {
+      final r = await FirebaseMessaging.instance.getNotificationSettings();
+      return switch (r.authorizationStatus) {
+        AuthorizationStatus.authorized || AuthorizationStatus.provisional => EtatNotifications.autorisees,
+        AuthorizationStatus.denied => EtatNotifications.refusees,
+        AuthorizationStatus.notDetermined => EtatNotifications.aDemander,
+      };
+    } catch (_) {
+      return EtatNotifications.inconnu;
+    }
+  }
+
+  static Future<bool> _demander() async {
+    try {
+      final r = await FirebaseMessaging.instance.requestPermission(alert: true, badge: true, sound: true);
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
+        await FirebaseMessaging.instance.setForegroundNotificationPresentationOptions(alert: true, badge: true, sound: true);
+      }
+      return r.authorizationStatus == AuthorizationStatus.authorized
+          || r.authorizationStatus == AuthorizationStatus.provisional;
+    } catch (_) {
+      return false;
+    }
+  }
+
   static const _canal = MethodChannel('com.pronowin.app/reglages');
 
   /// Les notifications sont-elles permises ? null : on ne sait pas (web,
   /// Firebase indisponible) — dans le doute, on ne dit rien.
   ///
   /// Remplaçable pour les tests.
-  static Future<bool?> Function() lireAutorisation = _lire;
+  static Future<bool?> Function() lireAutorisation = () async => switch (await lireEtat()) {
+    EtatNotifications.autorisees => true,
+    EtatNotifications.refusees => false,
+    // Jamais demandé (iPhone) ou inconnu : rien à signaler.
+    _ => null,
+  };
 
   /// Ouvre les réglages de notifications de l'application. Remplaçable pour
   /// les tests.
   static Future<void> Function() ouvrirNotifications = _ouvrir;
-
-  static Future<bool?> _lire() async {
-    if (kIsWeb) return null;
-    try {
-      final r = await FirebaseMessaging.instance.getNotificationSettings();
-      return switch (r.authorizationStatus) {
-        AuthorizationStatus.authorized || AuthorizationStatus.provisional => true,
-        AuthorizationStatus.denied => false,
-        // Jamais demandé (iPhone) : la question sera posée au prochain
-        // démarrage, rien à signaler.
-        AuthorizationStatus.notDetermined => null,
-      };
-    } catch (_) {
-      return null;
-    }
-  }
 
   static Future<void> _ouvrir() async {
     if (defaultTargetPlatform == TargetPlatform.android) {

@@ -19,6 +19,7 @@ import { repondreErreur, ErreurMetier } from '../utils/erreurs';
 import { articlesDuMatch } from '../services/resumes_match.service';
 import { calculerBilanPremium } from '../services/bilan_premium';
 import { resumeVotes, voter } from '../services/votes_match.service';
+import { resumeJoueurDuMatch, voterJoueur } from '../services/joueur_du_match.service';
 import {
   niveauDepuisPourcentage, pourcentageConfiance, pourcentageDepuisNiveau, POURCENTAGE_MAX, POURCENTAGE_MIN,
 } from '../utils/confiance';
@@ -1199,6 +1200,22 @@ export const getVotes = async (req: AuthRequest, res: Response) => {
 export const postVote = async (req: AuthRequest, res: Response) => {
   try {
     res.json(await voter(req.params.id, req.userId!, req.body?.choix));
+  } catch (e: any) { repondreErreur(res, e, 422); }
+};
+
+/** GET /pronostics/:id/joueur-du-match — le vote des fans pour le joueur du match. */
+export const getJoueurDuMatch = async (req: AuthRequest, res: Response) => {
+  try {
+    const r = await resumeJoueurDuMatch(req.params.id, req.userId);
+    if (!r) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+    res.json(r);
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/** POST /pronostics/:id/joueur-du-match { joueur_id } — de la 80e minute au lendemain. */
+export const postJoueurDuMatch = async (req: AuthRequest, res: Response) => {
+  try {
+    res.json(await voterJoueur(req.params.id, req.userId!, req.body?.joueur_id));
   } catch (e: any) { repondreErreur(res, e, 422); }
 };
 

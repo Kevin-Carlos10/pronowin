@@ -17,6 +17,7 @@ import '../../features/parametres/presentation/pages/parametres_page.dart';
 import '../../features/parametres/presentation/pages/pin_setup_page.dart';
 import '../../features/parametres/presentation/pages/membres_bloques_page.dart';
 import '../../features/parametres/presentation/pages/avis_page.dart';
+import '../../features/competitions/competitions.dart';
 import '../../features/parametres/presentation/pages/lock_screen_page.dart';
 import '../../features/parametres/presentation/pages/legal_page.dart';
 import '../../features/parrainage/presentation/pages/parrainage_page.dart';
@@ -254,6 +255,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/parametres/bloques',
         pageBuilder: (_, s) => slideRightPage(
           state: s, child: const MembresBloquesPage()),
+      ),
+      // Les matchs d'une grande compétition (8 novembre 2026).
+      GoRoute(
+        path: '/competitions/:code',
+        pageBuilder: (_, s) => slideRightPage(
+          state: s, child: CompetitionPage(code: s.pathParameters['code']!)),
       ),
       // « Donne-nous ton avis » (8 novembre 2026).
       GoRoute(

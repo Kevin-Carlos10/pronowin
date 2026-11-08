@@ -44,6 +44,8 @@ import 'package:pronowin/shared/utils/initiale.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
 import '../../../../shared/widgets/code_promo.dart';
 import '../../../pronostics/presentation/widgets/minute_direct.dart';
+import '../../../competitions/competitions.dart';
+import '../../../notifications/presentation/demande_notifications.dart';
 
 // Découpé en fichiers `part` : le fichier faisait 4 406 lignes pour une
 // cinquantaine de classes privées — plus gros que match_detail_page avant
@@ -130,6 +132,11 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // « Être notifié » : une fois, à partir de la deuxième ouverture, si le
+    // téléphone n'a jamais posé la question (demande_notifications.dart).
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) DemandeNotifications.proposerALAccueil(context);
+    });
     _liveTimer = Timer.periodic(const Duration(seconds: 45), (_) {
       final pronostics = ref.read(pronosticsJourProvider).valueOrNull;
       final hasLive = pronostics?.any(
@@ -400,6 +407,11 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                     },
                   ),
                   const SizedBox(height: 28),
+
+                  // ─── GRANDES COMPÉTITIONS (8 novembre 2026, 1xBet) ───────
+                  // Après les pronostics du jour : la question posée en
+                  // ouvrant l'app passe avant les raccourcis.
+                  const GrandesCompetitions(),
 
                   // ─── MON ACTIVITÉ ─────────────────────────────────────────
                   // Ces blocs parlent de l'utilisateur, pas des matchs du

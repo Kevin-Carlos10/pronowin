@@ -19,6 +19,7 @@ import '../../../../core/config/bookmaker_affiliation.dart';
 import '../../../../core/config/contact_support.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/utils/date_formatter.dart';
+import '../../domain/essai_gratuit.dart';
 import '../../../../shared/utils/code_ussd.dart';
 import '../../../../shared/utils/montant.dart';
 import '../../../../shared/widgets/country_pill_selector.dart';
@@ -425,6 +426,9 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       onIapRetry:       _retryIap,
       dejaPremium:      dejaPremium,
       premiumJusquau:   finPremium,
+      // L'essai gratuit ne s'accorde qu'une fois : pas d'annonce à un compte
+      // qui a déjà acheté sur un store (`/subscriptions/current`).
+      essaiUtilise:     _donnees?['essai_utilise'] == true,
     ));
   }
 
@@ -2221,10 +2225,12 @@ class _PaywallPage extends StatelessWidget {
   /// présenter l'offre comme à un nouveau venu.
   final bool dejaPremium;
   final DateTime? premiumJusquau;
+  final bool essaiUtilise;
 
   const _PaywallPage({
     this.dejaPremium = false,
     this.premiumJusquau,
+    this.essaiUtilise = false,
     required this.monthlyPrice,
     required this.annualPrice,
     required this.moisOfferts,
@@ -2287,6 +2293,7 @@ class _PaywallPage extends StatelessWidget {
                   const SizedBox(height: 14),
                   if (iapMode)
                     _IapSection(
+                      essaiUtilise: essaiUtilise,
                       duration:    duration,
                       moisOfferts: moisOfferts,
                       loading:     iapLoading,
@@ -2585,11 +2592,14 @@ class _IapSection extends StatelessWidget {
   final bool loading, unavailable, busy;
   final ProductDetails? product;
   final VoidCallback onBuy, onRestore, onRetry;
+  /// L'essai gratuit a déjà servi à ce compte : ne pas l'annoncer.
+  final bool essaiUtilise;
 
   const _IapSection({
     required this.duration, required this.moisOfferts, required this.loading, required this.unavailable,
     required this.product, required this.busy,
     required this.onBuy, required this.onRestore, required this.onRetry,
+    this.essaiUtilise = false,
   });
 
   @override
@@ -2700,6 +2710,9 @@ class _IapSection extends StatelessWidget {
     final p = product!;
     final isAnnual = duration == 'annuel';
     final offerts = libelleMoisOfferts(moisOfferts);
+    // L'essai gratuit, s'il est configuré sur le store (essai_gratuit.dart),
+    // comme Sofascore : « 3 jours d'essai gratuit », puis le prix.
+    final essai = essaiUtilise ? null : essaiGratuit(p);
 
     return Column(children: [
       Container(
@@ -2728,9 +2741,29 @@ class _IapSection extends StatelessWidget {
                 color: context.cl.success, fontSize: 9, fontWeight: FontWeight.w700))),
           ]),
           const SizedBox(height: 14),
+          if (essai != null) ...[
+            Container(
+              key: const Key('essai-gratuit'),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: context.cl.success.withValues(alpha: 0.16),
+                borderRadius: BorderRadius.circular(8)),
+              child: Text(libelleEssai(context, essai), style: TextStyle(
+                color: context.cl.success, fontSize: 13, fontWeight: FontWeight.w800))),
+            const SizedBox(height: 10),
+          ],
           // `p.price` est déjà formaté et localisé par le store.
           Text(p.price, style: const TextStyle(
             color: Colors.white, fontSize: 30, fontWeight: FontWeight.w700, height: 1)),
+          if (essai != null) ...[
+            const SizedBox(height: 6),
+            // Apple exige le prix qui suit l'essai, aussi lisible que l'essai.
+            Text(isAnnual
+                ? tr(context, "par an après l'essai gratuit, sauf résiliation avant sa fin")
+                : tr(context, "par mois après l'essai gratuit, sauf résiliation avant sa fin"),
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          ],
         ]),
       ),
       const SizedBox(height: 18),
@@ -2747,7 +2780,9 @@ class _IapSection extends StatelessWidget {
           child: busy
             ? const SizedBox(width: 20, height: 20,
                 child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-            : Text(tr(context, "S'abonner — {arg0}", [p.price]), style: const TextStyle(
+            : Text(essai != null
+                  ? tr(context, "Commencer l'essai gratuit")
+                  : tr(context, "S'abonner — {arg0}", [p.price]), style: const TextStyle(
                 fontSize: 15, fontWeight: FontWeight.w700)),
         ),
       ),
@@ -2767,6 +2802,17 @@ class _IapSection extends StatelessWidget {
         textAlign: TextAlign.center),
     ]);
   }
+}
+
+/// « 3 jours d'essai gratuit », « 1 mois d'essai gratuit »…
+String libelleEssai(BuildContext context, EssaiGratuit e) {
+  final c = AppStrings.of(context);
+  return switch (e.unite) {
+    UniteEssai.jour => c.count(e.nombre, one: "{arg0} jour d'essai gratuit", other: "{arg0} jours d'essai gratuit"),
+    UniteEssai.semaine => c.count(e.nombre, one: "{arg0} semaine d'essai gratuit", other: "{arg0} semaines d'essai gratuit"),
+    UniteEssai.mois => c.count(e.nombre, one: "{arg0} mois d'essai gratuit", other: "{arg0} mois d'essai gratuit"),
+    UniteEssai.an => c.count(e.nombre, one: "{arg0} an d'essai gratuit", other: "{arg0} ans d'essai gratuit"),
+  };
 }
 
 // ── FAQ du paywall ────────────────────────────────────────────────────────────

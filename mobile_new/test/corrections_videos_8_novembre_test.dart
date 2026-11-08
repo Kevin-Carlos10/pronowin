@@ -130,8 +130,13 @@ void main() {
       ouvert = false;
       ReglagesSysteme.ouvrirNotifications = () async => ouvert = true;
     });
+    late int demandes;
+    setUp(() {
+      demandes = 0;
+      ReglagesSysteme.demander = () async { demandes++; return true; };
+    });
     tearDown(() {
-      ReglagesSysteme.lireAutorisation = () async => null;
+      ReglagesSysteme.lireEtat = () async => EtatNotifications.inconnu;
     });
 
     Future<void> monterCloche(WidgetTester t) async {
@@ -152,7 +157,7 @@ void main() {
     }
 
     testWidgets('suivre un match le dit, et « Réglages » les ouvre', (t) async {
-      ReglagesSysteme.lireAutorisation = () async => false;
+      ReglagesSysteme.lireEtat = () async => EtatNotifications.refusees;
       await monterCloche(t);
       await t.tap(find.byKey(const Key('cloche')));
       await t.pump();
@@ -166,7 +171,7 @@ void main() {
     });
 
     testWidgets('autorisées : la promesse habituelle', (t) async {
-      ReglagesSysteme.lireAutorisation = () async => true;
+      ReglagesSysteme.lireEtat = () async => EtatNotifications.autorisees;
       await monterCloche(t);
       await t.tap(find.byKey(const Key('cloche')));
       await t.pump();
@@ -174,8 +179,45 @@ void main() {
       expect(find.text("Match suivi : tu recevras le coup d'envoi, les buts et le résultat."), findsOneWidget);
     });
 
+    testWidgets('jamais demandé : « Être notifié » d\'abord, puis la question du téléphone', (t) async {
+      ReglagesSysteme.lireEtat = () async => EtatNotifications.aDemander;
+      await monterCloche(t);
+      await t.tap(find.byKey(const Key('cloche')));
+      await t.pumpAndSettle();
+      expect(find.byKey(const Key('etre-notifie')), findsOneWidget);
+      expect(find.textContaining('chaque but et le résultat de ce match'), findsOneWidget);
+      expect(demandes, 0, reason: 'la question du téléphone attend la réponse à l\'explication');
+      await t.tap(find.byKey(const Key('etre-notifie-autoriser')));
+      await t.pumpAndSettle();
+      expect(demandes, 1);
+      expect(find.text("Match suivi : tu recevras le coup d'envoi, les buts et le résultat."), findsOneWidget);
+    });
+
+    testWidgets('« Plus tard » : pas de question du téléphone, et on le dit', (t) async {
+      ReglagesSysteme.lireEtat = () async => EtatNotifications.aDemander;
+      await monterCloche(t);
+      await t.tap(find.byKey(const Key('cloche')));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const Key('etre-notifie-plus-tard')));
+      await t.pumpAndSettle();
+      expect(demandes, 0);
+      expect(find.text('Match suivi. Les alertes arriveront dès que tu autoriseras les notifications.'), findsOneWidget);
+    });
+
+    testWidgets('Paramètres, jamais demandé : « Activer les notifications »', (t) async {
+      ReglagesSysteme.lireEtat = () async => EtatNotifications.aDemander;
+      await monter(t, const AlerteNotificationsTelephone());
+      await t.pump();
+      expect(find.byKey(const Key('notifications-a-activer')), findsOneWidget);
+      await t.tap(find.text('Activer les notifications'));
+      await t.pumpAndSettle();
+      await t.tap(find.byKey(const Key('etre-notifie-autoriser')));
+      await t.pumpAndSettle();
+      expect(demandes, 1);
+    });
+
     testWidgets('Paramètres : l\'encart, puis son bouton', (t) async {
-      ReglagesSysteme.lireAutorisation = () async => false;
+      ReglagesSysteme.lireEtat = () async => EtatNotifications.refusees;
       await monter(t, const AlerteNotificationsTelephone());
       await t.pump();
       expect(find.byKey(const Key('notifications-telephone-coupees')), findsOneWidget);
@@ -184,7 +226,7 @@ void main() {
     });
 
     testWidgets('Paramètres, autorisées : rien', (t) async {
-      ReglagesSysteme.lireAutorisation = () async => true;
+      ReglagesSysteme.lireEtat = () async => EtatNotifications.autorisees;
       await monter(t, const AlerteNotificationsTelephone());
       await t.pump();
       expect(find.byKey(const Key('notifications-telephone-coupees')), findsNothing);

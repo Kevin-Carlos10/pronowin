@@ -53,6 +53,9 @@ r.get ('/:id/evolution-classement', optionalAuthMiddleware, C.getEvolutionClasse
 r.get ('/:id/articles',    optionalAuthMiddleware, C.getArticlesDuMatch);
 r.get ('/:id/votes',       optionalAuthMiddleware, C.getVotes);
 r.post('/:id/vote',        authMiddleware,         C.postVote);
+// « Joueur du match » : le vote des fans, à partir de la 80e minute.
+r.get ('/:id/joueur-du-match', optionalAuthMiddleware, C.getJoueurDuMatch);
+r.post('/:id/joueur-du-match', authMiddleware,         C.postJoueurDuMatch);
 r.get ('/:id/cotes',       optionalAuthMiddleware, C.getCotes);
 r.get ('/:id/match-info', optionalAuthMiddleware, C.getMatchInfo);
 r.get ('/:id/match-stats', optionalAuthMiddleware, C.getMatchStats);

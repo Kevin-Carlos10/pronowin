@@ -204,3 +204,50 @@ final voterMatchProvider = Provider<Future<VotesMatch> Function(String id, Strin
     final r = await ref.read(dioProvider).post('/pronostics/$id/vote', data: {'choix': choix});
     return VotesMatch.fromJson(Map<String, dynamic>.from(r.data as Map));
   });
+
+/// « Joueur du match » : le vote des fans, à partir de la 80e minute
+/// (8 novembre 2026, comme la « Course au Joueur du Match » de Sofascore).
+class VotesJoueurDuMatch {
+  /// « bientot », « ouvert », « clos » ou « indisponible ».
+  final String etat;
+  final int minuteOuverture, total;
+  final List<({int joueurId, String nom, String equipe, int votes, int pourcentage})> classement;
+  final int? monVote;
+  const VotesJoueurDuMatch({required this.etat, required this.minuteOuverture, required this.total,
+    required this.classement, this.monVote});
+
+  bool get ouvert => etat == 'ouvert';
+
+  factory VotesJoueurDuMatch.fromJson(Map<String, dynamic> j) {
+    int n(Object? v) => (v as num?)?.toInt() ?? 0;
+    return VotesJoueurDuMatch(
+      etat: j['etat'] as String? ?? 'indisponible',
+      minuteOuverture: n(j['minute_ouverture']),
+      total: n(j['total']),
+      classement: [
+        for (final e in (j['classement'] as List? ?? const []))
+          (joueurId: n(e['joueur_id']), nom: e['nom'] as String? ?? '', equipe: e['equipe'] as String? ?? 'home',
+           votes: n(e['votes']), pourcentage: n(e['pourcentage'])),
+      ],
+      monVote: (j['mon_vote'] as num?)?.toInt(),
+    );
+  }
+}
+
+final joueurDuMatchProvider = FutureProvider.autoDispose
+    .family<VotesJoueurDuMatch?, String>((ref, id) async {
+  try {
+    final r = await ref.read(dioProvider).get('/pronostics/$id/joueur-du-match');
+    return VotesJoueurDuMatch.fromJson(Map<String, dynamic>.from(r.data as Map));
+  } on DioException {
+    return null;
+  }
+});
+
+/// Voter pour un joueur : rend le nouveau résumé. Lève [DioException] — 409
+/// hors de la période de vote.
+final voterJoueurDuMatchProvider = Provider<Future<VotesJoueurDuMatch> Function(String id, int joueurId)>((ref) =>
+  (id, joueurId) async {
+    final r = await ref.read(dioProvider).post('/pronostics/$id/joueur-du-match', data: {'joueur_id': joueurId});
+    return VotesJoueurDuMatch.fromJson(Map<String, dynamic>.from(r.data as Map));
+  });

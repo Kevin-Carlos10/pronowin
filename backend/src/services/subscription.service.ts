@@ -345,6 +345,14 @@ export class SubscriptionService {
         });
       } catch (_) { /* Table pas encore créée */ }
 
+      // Un achat store, même ancien, même remboursé : l'essai gratuit
+      // (offre d'introduction) ne s'accorde qu'une fois. L'application ne
+      // l'annonce donc pas à ce compte (8 novembre 2026).
+      let essaiUtilise = false;
+      try {
+        essaiUtilise = (await prisma.iapPurchase.count({ where: { userId } })) > 0;
+      } catch (_) { /* Table pas encore créée */ }
+
       const fin = Math.max(sub?.endDate.getTime() ?? 0, achat?.expiresAt.getTime() ?? 0);
       const daysLeft = fin ? Math.ceil((fin - Date.now()) / 86400000) : 0;
 
@@ -355,6 +363,7 @@ export class SubscriptionService {
         // « apple », « google », ou null hors des boutiques.
         store:         achat?.store ?? null,
         product_id:    achat?.productId ?? null,
+        essai_utilise: essaiUtilise,
         xbet_id:       user.xbetId ?? null,
         promo_code:    codePromoPour(config.valeurs),
         // Un code par plateforme quand un partenaire exige le sien ; sinon

@@ -6,6 +6,7 @@ import 'package:pronowin/l10n/app_strings.dart';
 import '../../../../core/constants/app_constants.dart';
 import '../../../../core/services/reglages_systeme.dart';
 import '../../../../core/theme/app_theme.dart';
+import '../../../notifications/presentation/demande_notifications.dart';
 import '../../../../shared/utils/messages.dart';
 
 /// En tête de la rubrique Notifications : les notifications sont coupées
@@ -22,7 +23,7 @@ class AlerteNotificationsTelephone extends StatefulWidget {
 
 class _AlerteNotificationsTelephoneState extends State<AlerteNotificationsTelephone>
     with WidgetsBindingObserver {
-  bool _coupees = false;
+  EtatNotifications _etat = EtatNotifications.inconnu;
 
   @override
   void initState() {
@@ -43,17 +44,24 @@ class _AlerteNotificationsTelephoneState extends State<AlerteNotificationsTeleph
   }
 
   Future<void> _relire() async {
-    final autorisees = await ReglagesSysteme.lireAutorisation();
-    if (mounted && (autorisees == false) != _coupees) setState(() => _coupees = autorisees == false);
+    final etat = await ReglagesSysteme.lireEtat();
+    if (mounted && etat != _etat) setState(() => _etat = etat);
+  }
+
+  Future<void> _activer() async {
+    await DemandeNotifications.expliquerEtDemander(context,
+        motif: tr(context, "Les nouveaux pronostics, les buts et les résultats des matchs que tu suis, dès qu'ils tombent."));
+    await _relire();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (!_coupees) return const SizedBox.shrink();
+    final coupees = _etat == EtatNotifications.refusees;
+    if (!coupees && _etat != EtatNotifications.aDemander) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Container(
-        key: const Key('notifications-telephone-coupees'),
+        key: Key(coupees ? 'notifications-telephone-coupees' : 'notifications-a-activer'),
         padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         decoration: BoxDecoration(
           color: context.cl.warning.withValues(alpha: 0.12),
@@ -66,7 +74,9 @@ class _AlerteNotificationsTelephoneState extends State<AlerteNotificationsTeleph
             child: Icon(Icons.notifications_off_rounded, color: context.cl.warning, size: 20)),
           const SizedBox(width: 12),
           Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(tr(context, "Les notifications sont coupées sur ce téléphone"),
+            Text(coupees
+                ? tr(context, "Les notifications sont coupées sur ce téléphone")
+                : tr(context, "Les notifications ne sont pas encore activées"),
               style: TextStyle(color: context.cl.textP, fontSize: 13.5, fontWeight: FontWeight.w700)),
             const SizedBox(height: 3),
             Text(tr(context, "Ni buts, ni coups d'envoi, ni résultats ne t'arriveront tant qu'elles le restent."),
@@ -78,9 +88,9 @@ class _AlerteNotificationsTelephoneState extends State<AlerteNotificationsTeleph
                 padding: EdgeInsets.zero,
                 minimumSize: const Size(0, 36),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-              onPressed: () => ReglagesSysteme.ouvrirNotifications(),
-              icon: const Icon(Icons.settings_rounded, size: 18),
-              label: Text(tr(context, "Ouvrir les réglages"),
+              onPressed: coupees ? () => ReglagesSysteme.ouvrirNotifications() : _activer,
+              icon: Icon(coupees ? Icons.settings_rounded : Icons.notifications_active_rounded, size: 18),
+              label: Text(coupees ? tr(context, "Ouvrir les réglages") : tr(context, "Activer les notifications"),
                 style: const TextStyle(fontWeight: FontWeight.w700)),
             ),
           ])),
