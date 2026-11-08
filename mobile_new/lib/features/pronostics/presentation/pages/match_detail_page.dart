@@ -41,6 +41,7 @@ import '../../../actualites/page_actus.dart' show ouvrirActu;
 import '../../../../l10n/editorial_text.dart';
 import '../widgets/comments_section.dart';
 import '../widgets/fil_evenements.dart';
+import '../widgets/fond_equipes.dart';
 import '../widgets/infos_joueurs.dart';
 import '../widgets/prono_share_card.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
@@ -831,7 +832,9 @@ class _BarreOnglets extends StatelessWidget implements PreferredSizeWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    color: context.cl.bg,
+    // Translucide : le fond teinté de l'en-tête passe dessous, comme chez
+    // Sofascore, au lieu de s'arrêter net au-dessus des onglets.
+    color: _fondEnTete.last.withValues(alpha: 0.35),
     height: 48,
     child: Row(children: [
       Expanded(
@@ -1081,6 +1084,16 @@ class _EnTeteRepliable extends ConsumerWidget {
             );
 
             return ExcludeSemantics(child: Stack(clipBehavior: Clip.hardEdge, children: [
+              // Le fond teinté par les deux équipes, comme Sofascore. À la
+              // hauteur de l'en-tête déplié : le repli le rogne seulement.
+              Positioned(
+                left: 0, right: 0, top: 0,
+                height: haut + _hauteurBarre + _hauteurEnTete + supplement + hauteurOnglets,
+                child: FondEquipes(
+                  fond: _fondEnTete.last,
+                  domicile: _TeamLogo(url: match.homeTeamLogo ?? '', size: 100),
+                  exterieur: _TeamLogo(url: match.awayTeamLogo ?? '', size: 100)),
+              ),
               if (opaciteNoms > 0) ...[
                 nom(match.homeTeam, xDom),
                 nom(match.awayTeam, xExt),

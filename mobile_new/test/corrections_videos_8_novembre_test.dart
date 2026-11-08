@@ -16,6 +16,7 @@ import 'package:pronowin/features/pronostics/data/models/match_model.dart';
 import 'package:pronowin/features/pronostics/domain/entities/match_entity.dart';
 import 'package:pronowin/features/pronostics/presentation/providers/pronostics_provider.dart' show MatchEvent;
 import 'package:pronowin/features/pronostics/presentation/widgets/fil_evenements.dart';
+import 'package:pronowin/features/pronostics/presentation/widgets/fond_equipes.dart';
 import 'package:pronowin/features/pronostics/presentation/widgets/ligne_match_compacte.dart';
 import 'package:pronowin/features/pronostics/presentation/widgets/match_card_widget.dart';
 import 'package:pronowin/shared/providers/favoris_provider.dart';
@@ -187,6 +188,28 @@ void main() {
       await monter(t, const AlerteNotificationsTelephone());
       await t.pump();
       expect(find.byKey(const Key('notifications-telephone-coupees')), findsNothing);
+    });
+  });
+
+  group('fond de l\'en-tête teinté par les équipes (Sofascore)', () {
+    Widget fond({bool contraste = false}) => MediaQuery(
+      data: MediaQueryData(size: const Size(393, 260), highContrast: contraste),
+      child: const Directionality(textDirection: TextDirection.ltr, child: SizedBox(width: 393, height: 260,
+        child: FondEquipes(fond: Color(0xFF0D1220),
+          domicile: ColoredBox(color: Color(0xFFDA291C)), exterieur: ColoredBox(color: Color(0xFF670E36))))));
+
+    testWidgets('les deux logos, floutés et en transparence, sous un voile', (t) async {
+      await t.pumpWidget(fond());
+      expect(find.byKey(const Key('halo-domicile')), findsOneWidget);
+      expect(find.byKey(const Key('halo-exterieur')), findsOneWidget);
+      expect(find.byType(ImageFiltered), findsNWidgets(2));
+      expect(t.widget<Opacity>(find.descendant(of: find.byKey(const Key('halo-domicile')), matching: find.byType(Opacity))).opacity,
+          FondEquipes.opacite);
+    });
+
+    testWidgets('contraste élevé : un aplat, rien derrière le texte', (t) async {
+      await t.pumpWidget(fond(contraste: true));
+      expect(find.byType(ImageFiltered), findsNothing);
     });
   });
 
