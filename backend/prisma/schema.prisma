@@ -76,6 +76,7 @@ model User {
   comments              Comment[]
   pronosticVotes        PronosticVote[]
   votesMatch            VoteMatch[]
+  avis                  AvisUtilisateur[]
   signalementsEmis      SignalementCommentaire[]
   blocagesEmis          BlocageUtilisateur[]   @relation("BlocagesEmis")
   blocagesRecus         BlocageUtilisateur[]   @relation("BlocagesRecus")
@@ -963,4 +964,27 @@ model VoteMatch {
   @@unique([matchId, userId])
   @@index([matchId])
   @@map("votes_match")
+}
+
+/// « Donne-nous ton avis » (8 novembre 2026), comme Sofascore : un message,
+/// une capture d'écran facultative, la version de l'application. L'équipe
+/// les lit dans l'administration et les marque traités.
+model AvisUtilisateur {
+  id         String    @id @default(uuid())
+  /// Null pour un invité, ou si le compte a été supprimé depuis.
+  userId     String?   @map("user_id")
+  /// L'adresse où répondre : celle du compte, ou celle saisie par l'invité.
+  email      String?
+  message    String
+  /// Clé S3 de la capture (dossier privé « avis »), lue par une adresse signée.
+  captureUrl String?   @map("capture_url")
+  plateforme String?
+  versionApp String?   @map("version_app")
+  traite     Boolean   @default(false)
+  traiteLe   DateTime? @map("traite_le")
+  creeLe     DateTime  @default(now()) @map("cree_le")
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([traite, creeLe])
+  @@map("avis_utilisateurs")
 }

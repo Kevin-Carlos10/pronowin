@@ -383,6 +383,45 @@ module.exports = (app, ctx) => {
     res.redirect('/admin/moderation?' + cle + '=' + encodeURIComponent(texte));
   });
 
+  // ─── AVIS DES UTILISATEURS ────────────────────────────────────────────────────
+  // « Donne-nous ton avis » (8 novembre 2026) : les messages envoyés depuis
+  // Paramètres > Aide de l'application.
+  app.get('/admin/avis', requireAuth, requirePerm('users'), async (req, res) => {
+    const filtre = ['traites', 'tous'].includes(req.query.filtre) ? req.query.filtre : 'nouveaux';
+    const page = clampInt(req.query.page, 1, 1000, 1);
+    const vue = {
+      filtre, page, data: [], total: 0, totalPages: 1, nouveaux: 0,
+      success: req.query.success ?? null, error: req.query.error ?? null,
+    };
+    try {
+      const r = await api(req.admin.jeton).get('/admin/avis', { params: { filtre, page } });
+      res.render('avis', {
+        ...vue,
+        data: r.data.avis, total: r.data.total, totalPages: r.data.pages, nouveaux: r.data.nouveaux,
+      });
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      res.render('avis', { ...vue, error: e.response?.data?.message ?? e.message });
+    }
+  });
+
+  app.post('/admin/avis/:id/traite', requireAuth, requirePerm('users', 'write'), async (req, res) => {
+    const traite = req.body.traite === '1';
+    const filtre = ['traites', 'tous'].includes(req.body.filtre) ? req.body.filtre : 'nouveaux';
+    let cle = 'success';
+    let texte;
+    try {
+      const r = await api(req.admin.jeton).post('/admin/avis/' + encodeURIComponent(req.params.id) + '/traite', { traite });
+      logAction(req, traite ? 'avis_traite' : 'avis_rouvert', sanitize(r.data.message ?? '', 80), { id: req.params.id });
+      texte = traite ? 'Avis classé parmi les traités.' : 'Avis remis parmi les nouveaux.';
+    } catch (e) {
+      if (e.response?.status === 401) return res.redirect('/admin/login?expired=1');
+      cle = 'error';
+      texte = e.response?.data?.message ?? "Le classement n'a pas pu être enregistré. Réessayez.";
+    }
+    res.redirect('/admin/avis?' + (filtre !== 'nouveaux' ? 'filtre=' + filtre + '&' : '') + cle + '=' + encodeURIComponent(texte));
+  });
+
   // Helper redirect avec erreur
 
   // ─── PARAMÈTRES GÉNÉRAUX ──────────────────────────────────────────────────────

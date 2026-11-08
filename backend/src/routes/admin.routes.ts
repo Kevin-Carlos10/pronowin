@@ -10,6 +10,7 @@ import { ajouterAuJournal, verifierChaine } from '../services/journal_admin.serv
 import { resumeAchatsStore, reverifierAchatStore } from '../services/achats_store_admin.service';
 import { ETATS_PAIEMENT_MM, resumePaiementsMobileMoney, reverifierPaiementMobileMoney } from '../services/paiements_mobile_money_admin.service';
 import { resumeEngagement } from '../services/engagement_admin.service';
+import { FILTRES_AVIS, FiltreAvis, listerAvisAdmin, marquerAvis } from '../services/avis_utilisateurs.service';
 import {
   FILTRES_RESUMES, FiltreResumes, GENRES_ARTICLE, GenreArticle,
   listerResumesAdmin, lireResumeAdmin, modifierResume, masquerResume,
@@ -282,6 +283,29 @@ r.post('/resumes/:id/masquer', adminMiddleware, async (req: AdminRequest, res) =
     const resume = await masquerResume(req.params.id, req.body.masque);
     if (!resume) { res.status(404).json({ message: 'Résumé introuvable.' }); return; }
     res.json(resume);
+  } catch (e: any) { repondreErreur(res, e); }
+});
+
+// ─── Avis des utilisateurs ───────────────────────────────────────────────────
+//
+// « Donne-nous ton avis » (avis_utilisateurs.service.ts) : `?filtre=nouveaux`
+// (défaut), `traites` ou `tous`, et `?page=`.
+
+r.get('/avis', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    const filtre = typeof req.query.filtre === 'string'
+      && (FILTRES_AVIS as string[]).includes(req.query.filtre) ? req.query.filtre as FiltreAvis : 'nouveaux';
+    res.json(await listerAvisAdmin({ filtre, page: parseInt(String(req.query.page ?? '1')) || 1 }));
+  } catch (e: any) { repondreErreur(res, e); }
+});
+
+/** POST /admin/avis/:id/traite — { traite: true } le classe, false le remet parmi les nouveaux. */
+r.post('/avis/:id/traite', adminMiddleware, async (req: AdminRequest, res) => {
+  try {
+    if (typeof req.body?.traite !== 'boolean') { res.status(422).json({ message: 'traite : vrai ou faux.' }); return; }
+    const avis = await marquerAvis(req.params.id, req.body.traite);
+    if (!avis) { res.status(404).json({ message: 'Avis introuvable.' }); return; }
+    res.json(avis);
   } catch (e: any) { repondreErreur(res, e); }
 });
 

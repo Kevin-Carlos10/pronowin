@@ -34,6 +34,7 @@ import paiementWebRoutes     from './routes/paiement_web.routes';
 import bankrollRoutes        from './routes/bankroll.routes';
 import commentsRoutes        from './routes/comments.routes';
 import moderationRoutes      from './routes/moderation.routes';
+import supportRoutes         from './routes/support.routes';
 import moderationAdminRoutes from './routes/moderation_admin.routes';
 import leaderboardRoutes     from './routes/leaderboard.routes';
 
@@ -243,6 +244,7 @@ app.use(`${v1}/admin`,               adminRoutes);
 app.use(`${v1}/pronostics`,          pronosticsRoutes);
 app.use(`${v1}/comments`,            commentsRoutes);
 app.use(`${v1}/moderation`,          moderationRoutes);
+app.use(`${v1}/support`,             supportRoutes);
 app.use(`${v1}/payments`,            payLim, paymentRoutes);
 app.use(`${v1}/subscriptions`,       subscriptionRoutes);
 app.use(`${v1}/referral`,            referralRoutes);

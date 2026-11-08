@@ -121,6 +121,7 @@
     <% if (hasPerm('users')) { %>
     <a href="/admin/users" class="nav-item <%= page==='users' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-users"/></svg></span> <%= uiText("Utilisateurs") %></a>
     <a href="/admin/moderation" class="nav-item <%= page==='moderation' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-flag"/></svg></span> <%= uiText("Modération") %></a>
+    <a href="/admin/avis" class="nav-item <%= page==='avis' ?'active':'' %>"><span class="icon"><svg class="ic" aria-hidden="true"><use href="#ic-inbox"/></svg></span> <%= uiText("Avis des utilisateurs") %></a>
     <% } %>
 
     <% if (hasPerm('pronostics')) { %>

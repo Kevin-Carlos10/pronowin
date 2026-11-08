@@ -1389,6 +1389,29 @@ const views = [
     error: 'API injoignable',
   }],
 
+  // ── Avis des utilisateurs ──
+  ['avis (nouveaux, capture)', 'avis', {
+    ...base, filtre: 'nouveaux', page: 1, total: 2, totalPages: 1, nouveaux: 2,
+    data: [
+      { id: 'a1', message: 'Le score <b>reste</b> à 0-0 alors que le but est marqué.', email: 'kofi@exemple.bf',
+        plateforme: 'ios', versionApp: '1.0.35 (51)', traite: false, traiteLe: null, creeLe: now,
+        utilisateur: { id: 'u1', pseudo: 'Kofi' }, aCapture: true,
+        capture: 'https://seau.s3.amazonaws.com/avis/u1/x.png?X-Amz-Signature=abc' },
+      { id: 'a2', message: 'Ajoutez la Ligue 1 burkinabè.', email: 'fan@exemple.bf',
+        plateforme: 'android', versionApp: null, traite: false, traiteLe: null, creeLe: now,
+        utilisateur: null, aCapture: true, capture: null },
+    ],
+  }],
+  ['avis (traités)', 'avis', {
+    ...base, filtre: 'traites', page: 2, total: 31, totalPages: 2, nouveaux: 0,
+    data: [{ id: 'a3', message: 'Merci pour la mise à jour.', email: null, plateforme: null, versionApp: null,
+      traite: true, traiteLe: now, creeLe: now, utilisateur: { id: 'u2', pseudo: 'Ali' }, aCapture: false, capture: null }],
+  }],
+  ['avis (vide, erreur)', 'avis', {
+    ...base, filtre: 'nouveaux', page: 1, total: 0, totalPages: 1, nouveaux: 0, data: [],
+    error: 'API injoignable',
+  }],
+
   // ── Bannissements ──
   ['bans (actifs)', 'bans', {
     ...base, page: 'bans',

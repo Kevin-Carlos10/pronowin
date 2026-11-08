@@ -16,6 +16,7 @@ import '../../features/abonnement/presentation/pages/activer_premium_page.dart';
 import '../../features/parametres/presentation/pages/parametres_page.dart';
 import '../../features/parametres/presentation/pages/pin_setup_page.dart';
 import '../../features/parametres/presentation/pages/membres_bloques_page.dart';
+import '../../features/parametres/presentation/pages/avis_page.dart';
 import '../../features/parametres/presentation/pages/lock_screen_page.dart';
 import '../../features/parametres/presentation/pages/legal_page.dart';
 import '../../features/parrainage/presentation/pages/parrainage_page.dart';
@@ -253,6 +254,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/parametres/bloques',
         pageBuilder: (_, s) => slideRightPage(
           state: s, child: const MembresBloquesPage()),
+      ),
+      // « Donne-nous ton avis » (8 novembre 2026).
+      GoRoute(
+        path: '/parametres/avis',
+        pageBuilder: (_, s) => slideRightPage(
+          state: s, child: const AvisPage()),
       ),
       GoRoute(
         path: '/parametres/pin',

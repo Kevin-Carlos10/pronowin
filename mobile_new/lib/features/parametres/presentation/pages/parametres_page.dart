@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:in_app_review/in_app_review.dart';
 import '../../../../core/config/contact_support.dart';
+import '../../../../core/constants/app_constants.dart';
 import '../../../../shared/widgets/logo_marque.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/distribution_channel.dart';
@@ -270,7 +271,15 @@ class ParametresPage extends ConsumerWidget {
               onTap: () => afficherApercuTechnique(context, ref),
             ),
             const _Divider(),
-            // Comme Sofascore (8 novembre 2026).
+            // Comme Sofascore (8 novembre 2026) : un message et une capture,
+            // lus dans l'administration.
+            _NavTile(
+              icon: Icons.rate_review_rounded, iconColor: context.cl.info,
+              title: tr(context, "Donne-nous ton avis"),
+              subtitle: tr(context, "Un bug, une idée : écris-nous, capture à l'appui"),
+              onTap: () => context.push('/parametres/avis'),
+            ),
+            const _Divider(),
             Builder(builder: (ligne) => _NavTile(
               icon: Icons.ios_share_rounded, iconColor: AppColors.primary,
               title: tr(context, "Partager l'application"),
@@ -554,7 +563,10 @@ class ParametresPage extends ConsumerWidget {
           Wrap(alignment: WrapAlignment.center, spacing: 8, runSpacing: 8, children: [
             _AboutChip(
               icon: Icons.star_rounded, label: tr(context, "Noter l'application"), color: context.cl.warning,
-              onTap: () => InAppReview.instance.openStoreListing().catchError((_) {}),
+              // Sur iPhone, la fiche App Store exige l'identifiant de l'app :
+              // sans lui, le bouton ne faisait rien.
+              onTap: () => InAppReview.instance
+                  .openStoreListing(appStoreId: AppConstants.appStoreId).catchError((_) {}),
             ),
             _AboutChip(
               icon: Icons.mail_outline_rounded, label: tr(context, "Nous contacter"), color: context.cl.info,

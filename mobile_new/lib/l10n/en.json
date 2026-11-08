@@ -1818,5 +1818,19 @@
   "Partager l'application": "Share the app",
   "Envoyer PronoWin à un ami": "Send PronoWin to a friend",
   "Ton Premium est actif.": "Your Premium is active.",
-  "Ton Premium est actif jusqu'au {arg0}.": "Your Premium is active until {arg0}."
+  "Ton Premium est actif jusqu'au {arg0}.": "Your Premium is active until {arg0}.",
+  "Merci ! Ton message est bien arrivé : on te répond par e-mail si besoin.": "Thanks! Your message arrived: we'll reply by email if needed.",
+  "L'envoi n'a pas abouti. Vérifie ta connexion et réessaie.": "Sending failed. Check your connection and try again.",
+  "Donne-nous ton avis": "Give us your feedback",
+  "Un bug, une idée, une compétition qui manque : dis-nous comment améliorer PronoWin.": "A bug, an idea, a missing competition: tell us how to improve PronoWin.",
+  "Ton e-mail (facultatif)": "Your email (optional)",
+  "Ton e-mail *": "Your email *",
+  "Laissé vide, on te répond à l'adresse de ton compte.": "Left empty, we'll reply to your account's email.",
+  "Obligatoire, pour qu'on puisse te répondre.": "Required, so we can reply.",
+  "Décris ton problème ou ta suggestion": "Describe your problem or suggestion",
+  "Encore {arg0} caractères au moins.": "At least {arg0} more characters.",
+  "Joindre une capture d'écran (facultatif)": "Attach a screenshot (optional)",
+  "Capture jointe": "Screenshot attached",
+  "Retirer la capture": "Remove the screenshot",
+  "Un bug, une idée : écris-nous, capture à l'appui": "A bug, an idea: write to us, screenshot included"
 }

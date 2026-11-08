@@ -56,6 +56,8 @@ const ACTION_LABELS = {
   resume_modifie:            { label: 'Article de match corrigé', icon: 'edit', cat: 'news' },
   resume_masque:             { label: 'Article de match retiré du fil', icon: 'eye-off', cat: 'news' },
   resume_affiche:            { label: 'Article de match remis dans le fil', icon: 'eye', cat: 'news' },
+  avis_traite:               { label: 'Avis utilisateur traité',  icon: 'check', cat: 'user' },
+  avis_rouvert:              { label: 'Avis utilisateur rouvert', icon: 'refresh', cat: 'user' },
   user_bulk_suspended:       { label: 'Comptes suspendus (lot)',  icon: 'dot', cat: 'user' },
   user_bulk_activated:       { label: 'Comptes réactivés (lot)',  icon: 'dot', cat: 'user' },
   user_bulk_notified:        { label: 'Notification groupée',      icon: 'megaphone', cat: 'user' },

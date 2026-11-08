@@ -27,7 +27,13 @@ class AppConstants {
   static const String siteUrl = 'https://$domaine';
 
   static const String playStoreUrl = 'https://play.google.com/store/apps/details?id=com.pronowin.app';
-  static const String appStoreUrl  = 'https://apps.apple.com/app/pronowin/id0000000000'; // ← remplacer l'ID réel
+  /// L'identifiant Apple de l'application (App Store Connect).
+  ///
+  /// L'adresse portait « id0000000000 » : le bouton « Mettre à jour » de la
+  /// version iPhone ouvrait une fiche inexistante, et « Noter l'application »
+  /// ne faisait rien, faute d'identifiant (8 novembre 2026).
+  static const String appStoreId   = '6817503596';
+  static const String appStoreUrl  = 'https://apps.apple.com/app/id$appStoreId';
 }
 
 class ApiEndpoints {

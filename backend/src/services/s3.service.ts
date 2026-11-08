@@ -30,7 +30,7 @@ const HOTE_BUCKET = `${BUCKET}.s3.${REGION}.amazonaws.com`;
  * adresse signée qui expire (`urlLectureSignee`). Les avatars restent publics :
  * l'application les affiche à tout le monde.
  */
-const DOSSIERS_PRIVES = new Set(['proofs']);
+const DOSSIERS_PRIVES = new Set(['proofs', 'avis']);
 
 /** Les formats acceptés, et la signature binaire qui les prouve. */
 const FORMATS: Record<string, (b: Buffer) => boolean> = {

@@ -78,6 +78,9 @@ const REGLES: Regle[] = [
   // Modération des commentaires : la même section que le panneau.
   [LIRE,   /^\/admin\/moderation\/(commentaires|a-traiter)$/,   section('users', 'read')],
   [ECRIRE, /^\/admin\/moderation\/commentaires\/[^/]+$/,        section('users', 'write')],
+  // « Donne-nous ton avis » (8 novembre 2026) : support, rangé avec les utilisateurs.
+  [LIRE,   /^\/admin\/avis$/,                                     section('users', 'read')],
+  [ECRIRE, /^\/admin\/avis\/[^/]+\/traite$/,                      section('users', 'write')],
 
   // ── Versements (parrainage) ──
   [LIRE,   /^\/payments\/admin\/(pending|methods)$/,            section('transactions', 'read')],

@@ -92,6 +92,18 @@ export const signalementCommentaire = z.object({
   detail:     texteFacultatif(500),
 });
 
+/**
+ * POST /support/avis — « Donne-nous ton avis ». Les longueurs du message sont
+ * vérifiées par le service, qui les dit en clair.
+ */
+export const avisUtilisateur = z.object({
+  message:      z.string({ required_error: 'Écris ton message.', invalid_type_error: 'Message invalide.' }).max(4000, 'Message trop long.'),
+  email:        texteFacultatif(254),
+  image_base64: z.string().max(7_000_000, 'Capture trop lourde (5 Mo au plus).').optional().nullable(),
+  plateforme:   texteFacultatif(20),
+  version_app:  texteFacultatif(40),
+});
+
 /** POST /moderation/blocages — un membre en bloque un autre. */
 export const blocageMembre = z.object({
   user_id: identifiant('le membre'),

@@ -12,7 +12,8 @@ import express, { Express } from 'express';
  * Le premier analyseur qui lit un corps le marque comme lu : les suivants le
  * laissent passer. L'ordre de montage fait donc la règle.
  */
-export const ROUTES_IMAGE = ['/api/v1/subscriptions/submit-proof', '/api/v1/profile/avatar'];
+// « Donne-nous ton avis » joint une capture d'écran (8 novembre 2026).
+export const ROUTES_IMAGE = ['/api/v1/subscriptions/submit-proof', '/api/v1/profile/avatar', '/api/v1/support/avis'];
 export const ROUTES_ADMIN = ['/api/v1/admin', '/api/v1/pronostics/admin', '/api/v1/comments'];
 /** Corps gardés bruts : leur signature porte sur les octets reçus. */
 export const ROUTES_BRUTES = ['/api/v1/subscriptions/geniuspay/webhook'];
