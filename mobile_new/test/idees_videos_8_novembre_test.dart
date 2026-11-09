@@ -7,6 +7,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:pronowin/core/network/dio_client.dart';
+import 'package:pronowin/core/router/onglet_demarrage.dart';
+import 'package:pronowin/shared/providers/favoris_provider.dart';
+import 'package:pronowin/shared/widgets/alertes_match.dart';
+import 'package:pronowin/features/pronostics/presentation/widgets/equipes_suivies.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pronowin/core/theme/app_theme.dart';
 import 'package:pronowin/features/abonnement/domain/essai_gratuit.dart';
 import 'package:pronowin/features/abonnement/presentation/pages/activer_premium_page.dart' show libelleEssai;
@@ -153,6 +158,74 @@ void main() {
       })));
       expect(trois, "3 jours d'essai gratuit");
       expect(un, "1 mois d'essai gratuit");
+    });
+  });
+
+  group('deuxième lot du 8 novembre', () {
+    testWidgets('l\'étoile de l\'en-tête suit l\'équipe (Sofascore)', (t) async {
+      SharedPreferences.setMockInitialValues({});
+      late ProviderContainer c;
+      await t.pumpWidget(ProviderScope(
+        overrides: donneesCommunes(),
+        child: MaterialApp(theme: AppTheme.dark, home: Scaffold(body: Consumer(builder: (context, ref, _) {
+          c = ProviderScope.containerOf(context);
+          ref.watch(favorisProvider);
+          return const Center(child: EtoileSuivreEquipe(nom: 'Aston Villa',
+            logo: 'https://media.api-sports.io/football/teams/66.png', competition: 'Premier League'));
+        }))),
+      ));
+      await t.pump();
+      await t.tap(find.byKey(const Key('etoile-equipe-66')));
+      await t.pump();
+      await t.pump();
+      expect(c.read(favorisProvider).value!.suitEquipe(66), isTrue);
+      expect(find.textContaining('Aston Villa est suivie'), findsOneWidget);
+    });
+
+    testWidgets('pas d\'identifiant d\'équipe : pas d\'étoile', (t) async {
+      await t.pumpWidget(ProviderScope(overrides: donneesCommunes(),
+        child: const MaterialApp(home: EtoileSuivreEquipe(nom: 'Inconnue', logo: null))));
+      expect(find.byType(IconButton), findsNothing);
+    });
+
+    test('onglet d\'ouverture (Sofascore)', () {
+      expect(ongletDepuisPreference(null), OngletDemarrage.accueil);
+      expect(ongletDepuisPreference('suivis'), OngletDemarrage.suivis);
+      expect(ongletDepuisPreference('autre chose'), OngletDemarrage.accueil);
+      expect(cheminDemarrage(OngletDemarrage.accueil), '/home');
+      expect(cheminDemarrage(OngletDemarrage.suivis), '/pronostics');
+    });
+
+    testWidgets('en direct dans les grandes compétitions, pas les autres (1xBet)', (t) async {
+      final serveur = _Serveur();
+      Map<String, dynamic> direct(String id, String code) => {
+        'id': id, 'league': code, 'league_country': code, 'home_team': 'Dom $id', 'away_team': 'Ext $id',
+        'match_date': DateTime.now().subtract(const Duration(minutes: 40)).toUtc().toIso8601String(),
+        'status': 'live', 'elapsed': 40, 'has_pronostic': false,
+      };
+      serveur.reponse = {'data': [direct('a', 'PL'), direct('b', 'AF_525'), direct('c', 'CL')], 'nextCursor': null, 'hasMore': false};
+      await t.pumpWidget(ProviderScope(
+        overrides: [dioProvider.overrideWithValue(Dio()..httpClientAdapter = serveur)],
+        child: MaterialApp(theme: AppTheme.dark, home: const Scaffold(body: SingleChildScrollView(child: DirectGrandesCompetitions())))));
+      for (var i = 0; i < 4; i++) {
+        await t.pump(const Duration(milliseconds: 50));
+      }
+      expect(serveur.parametres['status'], 'live');
+      expect(find.text('En direct dans les grandes compétitions'), findsOneWidget);
+      expect(find.text('Dom a'), findsOneWidget);
+      expect(find.text('Dom c'), findsOneWidget);
+      expect(find.text('Dom b'), findsNothing);
+      // La Ligue des champions avant la Premier League, dans l'ordre de la rangée.
+      expect(t.getTopLeft(find.text('Dom c')).dy, lessThan(t.getTopLeft(find.text('Dom a')).dy));
+    });
+
+    testWidgets('les alertes de but disent penalties et VAR', (t) async {
+      late String libelle;
+      await t.pumpWidget(MaterialApp(home: Builder(builder: (context) {
+        libelle = libelleAlerte(context, 'buts');
+        return const SizedBox();
+      })));
+      expect(libelle, 'Buts, penalties et VAR');
     });
   });
 }

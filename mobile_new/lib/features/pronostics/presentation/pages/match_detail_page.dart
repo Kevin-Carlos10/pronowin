@@ -44,6 +44,7 @@ import '../widgets/fil_evenements.dart';
 import '../widgets/fond_equipes.dart';
 import '../widgets/decompte_coup_envoi.dart';
 import '../widgets/carte_match_partage.dart';
+import '../widgets/equipes_suivies.dart' show EtoileSuivreEquipe;
 import '../widgets/infos_joueurs.dart';
 import '../widgets/prono_share_card.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
@@ -83,6 +84,7 @@ part 'match_detail/toutes_cotes.dart';
 part 'match_detail/article_match.dart';
 part 'match_detail/vote_fans.dart';
 part 'match_detail/joueur_du_match.dart';
+part 'match_detail/mini_classement.dart';
 part 'match_detail/series.dart';
 part 'match_detail/evolution_classement.dart';
 
@@ -287,6 +289,12 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
       if (_tabLabels[i] != labels[i]) return false;
     }
     return true;
+  }
+
+  /// Passe à l'onglet [libelle], s'il est là.
+  void _allerALOnglet(String libelle) {
+    final i = _tabLabels.indexOf(libelle);
+    if (i >= 0) _tabCtrl?.animateTo(i);
   }
 
   TabController _controleurPour(List<String> labels) {
@@ -531,6 +539,10 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         // Sous le fil des événements, comme sur Sofascore. Porte sa propre
         // marge : sans information à montrer, elle ne laisse pas de trou.
         _MatchInformationCard(matchId: match.id),
+        // Les deux équipes au classement, comme Sofascore ; « Graphique »
+        // ouvre l'onglet Classements. Porte sa propre marge.
+        entree(_MiniClassement(match: match,
+            onVoirTout: () => _allerALOnglet(tr(context, "Classements"))), delaiMs: 120),
         // Porte sa propre marge : absente, elle ne laisse pas de trou.
         entree(_FormeRecente(match: match), delaiMs: 140),
         // Sous la forme récente, qu'elles prolongent. Portent leur marge.
@@ -1096,7 +1108,23 @@ class _EnTeteRepliable extends ConsumerWidget {
               ))),
             );
 
-            return ExcludeSemantics(child: Stack(clipBehavior: Clip.hardEdge, children: [
+            // L'étoile « Suivre l'équipe » à l'extérieur de chaque logo, comme
+            // Sofascore : déplié seulement, elle s'efface avec les noms.
+            Widget etoile(String nom, String? logo, double x, {required bool gauche}) => Positioned(
+              left: gauche ? (x - taille / 2 - 44).clamp(2.0, double.infinity) : null,
+              right: gauche ? null : (w - x - taille / 2 - 44).clamp(2.0, double.infinity),
+              top: yLogo - 20,
+              child: IgnorePointer(
+                ignoring: opaciteNoms < 0.5,
+                child: Opacity(opacity: opaciteNoms,
+                  child: EtoileSuivreEquipe(nom: nom, logo: logo, competition: match.league)),
+              ),
+            );
+
+            return Stack(clipBehavior: Clip.hardEdge, children: [
+              // Tout l'en-tête est déjà dit par l'étiquette ci-dessus ; seules
+              // les étoiles, des boutons, restent accessibles à part.
+              Positioned.fill(child: ExcludeSemantics(child: Stack(clipBehavior: Clip.hardEdge, children: [
               // Le fond teinté par les deux équipes, comme Sofascore. À la
               // hauteur de l'en-tête déplié : le repli le rogne seulement.
               Positioned(
@@ -1115,6 +1143,7 @@ class _EnTeteRepliable extends ConsumerWidget {
               ],
               logo(match.homeTeam, match.homeTeamLogo, 'team_home_${match.homeTeam}', xDom),
               logo(match.awayTeam, match.awayTeamLogo, 'team_away_${match.awayTeam}', xExt),
+
               Positioned(
                 left: xScore - 80, width: 160,
                 top: yScore - l(25, 15),
@@ -1122,7 +1151,12 @@ class _EnTeteRepliable extends ConsumerWidget {
                   match: match, dom: dom, ext: ext, minute: live?.elapsed, info: info,
                   repli: r, heure: heureStr, date: dateStr)),
               ),
-            ]));
+            ]))),
+              if (opaciteNoms > 0) ...[
+                etoile(match.homeTeam, match.homeTeamLogo, xDom, gauche: true),
+                etoile(match.awayTeam, match.awayTeamLogo, xExt, gauche: false),
+              ],
+            ]);
           }),
         ),
       ),

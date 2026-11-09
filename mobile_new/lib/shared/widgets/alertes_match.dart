@@ -21,7 +21,9 @@ const categoriesAlerte = ['coup_envoi', 'compositions', 'buts', 'cartons', 'mi_t
 String libelleAlerte(BuildContext context, String c) => switch (c) {
   'coup_envoi'   => tr(context, "Coup d'envoi"),
   'compositions' => tr(context, "Compositions officielles"),
-  'buts'         => tr(context, "Buts"),
+  // Les penalties manqués et les décisions de la VAR partent avec les buts
+  // (8 novembre 2026).
+  'buts'         => tr(context, "Buts, penalties et VAR"),
   'cartons'      => tr(context, "Cartons rouges"),
   'mi_temps'     => tr(context, "La mi-temps"),
   'fin_de_match'     => tr(context, "Fin du match et résultat"),

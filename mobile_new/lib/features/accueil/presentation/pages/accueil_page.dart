@@ -149,6 +149,14 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
       )) {
         ref.invalidate(pronosticsJourProvider);
       }
+      // Le direct des grandes compétitions, au même rythme.
+      if (doitRafraichirEnDirect(
+        enDirect:      ref.read(directGrandesCompetitionsProvider).valueOrNull?.isNotEmpty ?? false,
+        ongletVisible: _ongletVisible,
+        cycle:         _cycle,
+      )) {
+        ref.invalidate(directGrandesCompetitionsProvider);
+      }
     });
   }
 
@@ -412,6 +420,8 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                   // Après les pronostics du jour : la question posée en
                   // ouvrant l'app passe avant les raccourcis.
                   const GrandesCompetitions(),
+                  // Leurs matchs en direct, pronostiqués ou non (1xBet).
+                  const DirectGrandesCompetitions(),
 
                   // ─── MON ACTIVITÉ ─────────────────────────────────────────
                   // Ces blocs parlent de l'utilisateur, pas des matchs du

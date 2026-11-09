@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../../../shared/providers/favoris_provider.dart';
+import '../../../../shared/utils/messages.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../equipes/presentation/pages/fiche_equipe_page.dart';
 import '../../../equipes/presentation/providers/fiche_equipe_provider.dart';
 import '../../domain/entities/match_entity.dart';
@@ -201,6 +204,48 @@ class _Ecusson extends ConsumerWidget {
           ]),
         ),
       ),
+    );
+  }
+}
+
+/// L'étoile « Suivre l'équipe » à côté d'un logo, dans l'en-tête d'un match
+/// (8 novembre 2026, comme Sofascore). Suivre une équipe demandait d'ouvrir
+/// sa fiche. Rien si l'équipe n'a pas d'identifiant connu.
+class EtoileSuivreEquipe extends ConsumerWidget {
+  final String nom;
+  final String? logo, competition;
+  final double taille;
+  const EtoileSuivreEquipe({super.key, required this.nom, this.logo, this.competition, this.taille = 22});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final id = idEquipeDepuisLogo(logo);
+    if (id == null || nom.isEmpty) return const SizedBox.shrink();
+    final suivie = ref.watch(favorisProvider).valueOrNull?.suitEquipe(id) ?? false;
+    final libelle = suivie ? tr(context, "Ne plus suivre {arg0}", [nom]) : tr(context, "Suivre {arg0}", [nom]);
+    return IconButton(
+      key: Key('etoile-equipe-$id'),
+      tooltip: libelle,
+      visualDensity: VisualDensity.compact,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(minWidth: 40, minHeight: 40),
+      icon: Icon(suivie ? Icons.star_rounded : Icons.star_outline_rounded,
+        size: taille, color: suivie ? AppColors.primary : context.cl.textS),
+      onPressed: () async {
+        HapticFeedback.selectionClick();
+        if (!ref.read(effectiveLoggedInProvider)) {
+          context.push('/auth/email?from=${Uri.encodeComponent('/equipes/$id')}');
+          return;
+        }
+        final message = suivie
+            ? tr(context, "Tu ne suis plus {arg0}.", [nom])
+            : tr(context, "{arg0} est suivie : ses matchs sont dans « Suivis ».", [nom]);
+        await ref.read(favorisProvider.notifier)
+            .basculerEquipe(EquipeSuivie(id: id, nom: nom, logo: logo, competition: competition));
+        if (context.mounted) {
+          afficherMessage(context, message, type: suivie ? TypeMessage.info : TypeMessage.succes);
+        }
+      },
     );
   }
 }

@@ -143,16 +143,31 @@ export function messageDeBut(
 const DETAILS_ROUGE = new Set(['Red Card', 'Second Yellow card', 'Second Yellow Card']);
 type Evenement = NonNullable<AFFixture['events']>[number];
 
-/** Dernier état lu dans le direct : statut et nombre de cartons rouges. */
-let etatsDuDirect = new Map<number, { statut: string; rouges: number; vuLe: number }>();
+/** Dernier état lu dans le direct : statut, cartons rouges, penalties
+ *  manqués et décisions de la VAR sur un penalty. */
+let etatsDuDirect = new Map<number, { statut: string; rouges: number; manques: number; varPenalty: number; vuLe: number }>();
 
 /** Pour les tests. */
 export function _oublierEtatsDuDirect(): void { etatsDuDirect = new Map(); }
 
-export interface EvenementsDirect { fixture: AFFixture; miTemps: boolean; rouges: Evenement[] }
+export interface EvenementsDirect {
+  fixture: AFFixture; miTemps: boolean; rouges: Evenement[];
+  /** Penalties manqués pendant le jeu (8 novembre 2026). */
+  penaltiesManques?: Evenement[];
+  /** « Penalty confirmé », « Penalty annulé » par la VAR. */
+  varPenalties?: Evenement[];
+}
 
 const rougesDe = (f: AFFixture) =>
   (f.events ?? []).filter(e => e?.type === 'Card' && DETAILS_ROUGE.has(e.detail ?? ''));
+
+// Penalties et VAR (8 novembre 2026), comme Sofascore (« Penalty accordé »).
+// Pas la séance de tirs au but : chaque tir manqué y ferait une alerte. Le
+// but refusé par la VAR est déjà dit par le score (« But annulé »).
+const manquesDe = (f: AFFixture) =>
+  (f.events ?? []).filter(e => e?.type === 'Goal' && e.detail === 'Missed Penalty' && e.comments !== 'Penalty Shootout');
+const varPenaltyDe = (f: AFFixture) =>
+  (f.events ?? []).filter(e => e?.type === 'Var' && /penalty/i.test(e.detail ?? ''));
 
 /**
  * La mi-temps qui vient de sonner (première période → pause) et les cartons
@@ -163,13 +178,25 @@ export function releverEvenements(direct: AFFixture[], maintenant = Date.now()):
   for (const f of direct) {
     const statut = f.fixture.status.short;
     const rouges = rougesDe(f);
+    const manques = manquesDe(f);
+    const varPenalty = varPenaltyDe(f);
     const avant = etatsDuDirect.get(f.fixture.id);
     if (avant) {
       const miTemps = avant.statut === '1H' && statut === 'HT';
       const nouveaux = rouges.length > avant.rouges ? rouges.slice(avant.rouges) : [];
-      if (miTemps || nouveaux.length) changes.set(f.fixture.id, { fixture: f, miTemps, rouges: nouveaux });
+      const penaltiesManques = manques.length > avant.manques ? manques.slice(avant.manques) : [];
+      const varPenalties = varPenalty.length > avant.varPenalty ? varPenalty.slice(avant.varPenalty) : [];
+      if (miTemps || nouveaux.length || penaltiesManques.length || varPenalties.length) {
+        changes.set(f.fixture.id, { fixture: f, miTemps, rouges: nouveaux, penaltiesManques, varPenalties });
+      }
     }
-    etatsDuDirect.set(f.fixture.id, { statut, rouges: Math.max(rouges.length, avant?.rouges ?? 0), vuLe: maintenant });
+    etatsDuDirect.set(f.fixture.id, {
+      statut,
+      rouges: Math.max(rouges.length, avant?.rouges ?? 0),
+      manques: Math.max(manques.length, avant?.manques ?? 0),
+      varPenalty: Math.max(varPenalty.length, avant?.varPenalty ?? 0),
+      vuLe: maintenant,
+    });
   }
   for (const [id, s] of etatsDuDirect) {
     if (maintenant - s.vuLe > OUBLI_MS) etatsDuDirect.delete(id);
@@ -197,4 +224,29 @@ export function messageCartonRouge(
     title: langue === 'fr' ? `Carton rouge pour ${equipe}` : `Red card for ${equipe}`,
     body:  [qui, ligneDeScore(f, equipes, langue)].filter(Boolean).join(' · '),
   };
+}
+
+/** « Penalty manqué par Arsenal » — B. Saka 23' · Arsenal 1-0 Chelsea. */
+export function messagePenaltyManque(
+  f: AFFixture, e: Evenement, equipes: { dom: string; ext: string }, langue: 'fr' | 'en',
+) {
+  const equipe = country(e.team?.id === f.teams.home.id ? equipes.dom : equipes.ext, langue);
+  const qui = [e.player?.name?.trim() || '', minute(e.time?.elapsed, e.time?.extra)].filter(Boolean).join(' ');
+  return {
+    title: langue === 'fr' ? `Penalty manqué par ${equipe}` : `Missed penalty for ${equipe}`,
+    body:  [qui, ligneDeScore(f, equipes, langue)].filter(Boolean).join(' · '),
+  };
+}
+
+/** La VAR et un penalty : accordé (« confirmed ») ou annulé. */
+export function messageVarPenalty(
+  f: AFFixture, e: Evenement, equipes: { dom: string; ext: string }, langue: 'fr' | 'en',
+) {
+  const equipe = country(e.team?.id === f.teams.home.id ? equipes.dom : equipes.ext, langue);
+  const annule = /cancel|overturn|no penalty/i.test(e.detail ?? '');
+  const title = langue === 'fr'
+    ? (annule ? `Penalty annulé par la VAR (${equipe})` : `Penalty accordé à ${equipe} après VAR`)
+    : (annule ? `Penalty overturned by VAR (${equipe})` : `Penalty awarded to ${equipe} after VAR`);
+  const quand = minute(e.time?.elapsed, e.time?.extra);
+  return { title, body: [quand, ligneDeScore(f, equipes, langue)].filter(Boolean).join(' · ') };
 }

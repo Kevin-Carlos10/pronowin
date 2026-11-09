@@ -16,7 +16,8 @@ import { construireRecherche } from './recherche_matchs';
 import { ErreurMetier } from '../utils/erreurs';
 import { journal } from '../utils/logger';
 import {
-  messageCartonRouge, messageDeBut, messageMiTemps, releverEvenements, releverScores,
+  messageCartonRouge, messageDeBut, messageMiTemps, messagePenaltyManque, messageVarPenalty,
+  releverEvenements, releverScores,
   _oublierEtatsDuDirect, _oublierScoresDuDirect, type EvenementsDirect, type Score,
 } from './alertes_direct';
 import { suiveursDuMatch, type CategorieAlerte } from './suiveurs_match';
@@ -563,6 +564,22 @@ export class PronosticsService {
     const frBut = but ? messageDeBut(but.fixture, but.avant, equipes, 'fr') : null;
     const enBut = but ? messageDeBut(but.fixture, but.avant, equipes, 'en') : null;
     if (frBut && enBut) messages.push({ categorie: 'buts', fr: frBut, en: enBut });
+    // Penalties manqués et décisions de la VAR sur un penalty : rangés avec
+    // les buts, ce qu'ils annoncent ou empêchent (8 novembre 2026).
+    for (const e of evenements?.varPenalties ?? []) {
+      messages.push({
+        categorie: 'buts',
+        fr: messageVarPenalty(evenements!.fixture, e, equipes, 'fr'),
+        en: messageVarPenalty(evenements!.fixture, e, equipes, 'en'),
+      });
+    }
+    for (const e of evenements?.penaltiesManques ?? []) {
+      messages.push({
+        categorie: 'buts',
+        fr: messagePenaltyManque(evenements!.fixture, e, equipes, 'fr'),
+        en: messagePenaltyManque(evenements!.fixture, e, equipes, 'en'),
+      });
+    }
     for (const e of evenements?.rouges ?? []) {
       messages.push({
         categorie: 'cartons',

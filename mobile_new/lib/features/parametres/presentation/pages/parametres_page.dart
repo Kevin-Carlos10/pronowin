@@ -25,6 +25,7 @@ import 'package:pronowin/core/config/sans_pari.dart';
 import '../../../../core/services/cache_fichiers.dart';
 import '../widgets/apercu_technique.dart';
 import '../widgets/notifications_telephone.dart';
+import '../../../../core/router/onglet_demarrage.dart';
 import '../../../../core/services/reglages_systeme.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
@@ -77,6 +78,14 @@ class ParametresPage extends ConsumerWidget {
               icon: Icons.language_rounded, iconColor: context.cl.info,
               title: tr(context, "Langue"), trailing: settings.langName,
               onTap: () => _showLangPicker(context, ref, settings.lang),
+            ),
+            const _Divider(),
+            // L'« Onglet principal » de Sofascore (8 novembre 2026).
+            _NavTile(
+              icon: Icons.start_rounded, iconColor: AppColors.primary,
+              title: tr(context, "Onglet d'ouverture"),
+              trailing: _libelleOnglet(context, ref.watch(ongletDemarrageProvider)),
+              onTap: () => _choisirOngletDemarrage(context, ref),
             ),
           ]).animate(delay: 80.ms).fadeIn(duration: 300.ms)
             .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
@@ -413,6 +422,55 @@ class ParametresPage extends ConsumerWidget {
   }
 
   // ─── Bottom sheet : Thème ─────────────────────────────────────────────────────
+  String _libelleOnglet(BuildContext context, OngletDemarrage o) => switch (o) {
+    OngletDemarrage.accueil => tr(context, "Accueil"),
+    OngletDemarrage.pronos  => tr(context, "Pronos"),
+    OngletDemarrage.suivis  => tr(context, "Suivis"),
+  };
+
+  void _choisirOngletDemarrage(BuildContext ctx, WidgetRef ref) {
+    final actuel = ref.read(ongletDemarrageProvider);
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: ctx.cl.surface,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          Container(
+            width: 40, height: 4,
+            margin: const EdgeInsets.only(bottom: 20),
+            decoration: BoxDecoration(
+                color: ctx.cl.borderS, borderRadius: BorderRadius.circular(2))),
+          Text(tr(ctx, "Onglet d'ouverture"),
+              style: TextStyle(color: ctx.cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 4),
+          Text(tr(ctx, "L'écran sur lequel PronoWin s'ouvre, dès la prochaine fois."),
+              textAlign: TextAlign.center,
+              style: TextStyle(color: ctx.cl.textS, fontSize: 12.5)),
+          const SizedBox(height: 16),
+          for (final (o, icone) in [
+            (OngletDemarrage.accueil, Icons.home_rounded),
+            (OngletDemarrage.pronos, Icons.sports_soccer_rounded),
+            (OngletDemarrage.suivis, Icons.notifications_active_rounded),
+          ]) ...[
+            _ThemeOption(
+              key: Key('onglet-${o.name}'),
+              icon: icone, label: _libelleOnglet(ctx, o),
+              selected: actuel == o,
+              onTap: () {
+                enregistrerOngletDemarrage(ref, o);
+                Navigator.pop(ctx);
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
+        ]),
+      ),
+    );
+  }
+
   void _showThemePicker(BuildContext ctx, WidgetRef ref, ThemeMode current) {
     showModalBottomSheet(
       context: ctx,
@@ -883,7 +941,7 @@ class _ThemeOption extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _ThemeOption({required this.icon, required this.label, required this.selected, required this.onTap});
+  const _ThemeOption({super.key, required this.icon, required this.label, required this.selected, required this.onTap});
   @override
   Widget build(BuildContext context) => InkWell(
     onTap: onTap,

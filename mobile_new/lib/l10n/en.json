@@ -1872,5 +1872,15 @@
   "{arg0} semaines d'essai gratuit": "{arg0}-week free trial",
   "{arg0} mois d'essai gratuit": "{arg0}-month free trial",
   "{arg0} an d'essai gratuit": "{arg0}-year free trial",
-  "{arg0} ans d'essai gratuit": "{arg0}-year free trial"
+  "{arg0} ans d'essai gratuit": "{arg0}-year free trial",
+  "Buts attendus (xG)": "Expected goals (xG)",
+  "Ne plus suivre {arg0}": "Unfollow {arg0}",
+  "Graphique": "Chart",
+  "J": "P",
+  "Diff": "GD",
+  "Pts": "Pts",
+  "Onglet d'ouverture": "Opening tab",
+  "L'écran sur lequel PronoWin s'ouvre, dès la prochaine fois.": "The screen PronoWin opens on, from next time.",
+  "En direct dans les grandes compétitions": "Live in the top competitions",
+  "Buts, penalties et VAR": "Goals, penalties and VAR"
 }

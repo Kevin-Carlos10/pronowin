@@ -26,6 +26,7 @@ import '../../../../shared/widgets/logotype_pronowin.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
 import '../../../../shared/widgets/code_promo.dart';
+import '../../../../core/router/onglet_demarrage.dart';
 
 class PronosticsPage extends ConsumerStatefulWidget {
   const PronosticsPage({super.key});
@@ -116,6 +117,14 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
     // l'onglet, et un recentrage fait une seule fois, ici, ne valait que pour
     // le premier affichage.
     _listScrollCtrl.addListener(_onListScroll);
+    // Ouverture de l'application sur « Suivis » (Paramètres > Onglet
+    // d'ouverture) : une seule fois, ensuite la page garde son choix.
+    if (ref.read(ouvrirSurSuivisProvider)) {
+      _tab = _PronosticsTab.favorites;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) ref.read(ouvrirSurSuivisProvider.notifier).state = false;
+      });
+    }
   }
 
   @override

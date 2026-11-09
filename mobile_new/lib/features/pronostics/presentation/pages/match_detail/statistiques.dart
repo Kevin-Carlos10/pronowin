@@ -240,8 +240,12 @@ class _StatsList extends StatelessWidget {
   final String homeTeam, awayTeam;
   const _StatsList({required this.stats, required this.homeTeam, required this.awayTeam});
 
+  // Les buts attendus (xG) juste après la possession, comme Sofascore
+  // (8 novembre 2026). API-Football les publie pour les grands championnats
+  // sous la clé `expected_goals` ; la liste les écartait.
   static const _wantedStats = [
     'Ball Possession',
+    'expected_goals',
     'Total Shots',
     'Shots on Goal',
     'Shots off Goal',
@@ -258,6 +262,7 @@ class _StatsList extends StatelessWidget {
 
   static const _frenchLabels = {
     'Ball Possession':   'Possession',
+    'expected_goals':    'Buts attendus (xG)',
     'Total Shots':       'Tirs (total)',
     'Shots on Goal':     'Tirs cadrés',
     'Shots off Goal':    'Tirs hors cadre',

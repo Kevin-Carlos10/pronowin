@@ -16,6 +16,7 @@ import 'firebase_options.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'core/constants/app_constants.dart' show AppConstants;
 import 'core/router/app_router.dart' show appRouterProvider, onboardingDoneProvider;
+import 'core/router/onglet_demarrage.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/typographie.dart';
 import 'core/widgets/splash_screen.dart';
@@ -116,6 +117,7 @@ void main() async {
   final savedLanguage = AppStrings.languePreferee(prefs.getString('settings_lang'));
   AppStrings.setCurrentLanguage(savedLanguage);
   final savedTheme = themeDepuisPreference(prefs.getString('settings_theme'));
+  final ongletDemarrage = ongletDepuisPreference(prefs.getString(cleOngletDemarrage));
 
   // Utilisateur existant : token présent mais onboarding jamais vu
   // → bypasser silencieusement (il connaît déjà l'app)
@@ -152,6 +154,8 @@ void main() async {
       initialLanguageProvider.overrideWithValue(savedLanguage),
       initialThemeModeProvider.overrideWithValue(savedTheme),
       onboardingDoneProvider.overrideWith((ref) => onboardingDone),
+      ongletDemarrageProvider.overrideWith((ref) => ongletDemarrage),
+      ouvrirSurSuivisProvider.overrideWith((ref) => ongletDemarrage == OngletDemarrage.suivis),
     ],
   );
   // Avant la restauration de session : un compte restauré au démarrage doit

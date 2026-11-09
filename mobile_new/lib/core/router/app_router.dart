@@ -41,6 +41,7 @@ import 'page_transitions.dart';
 import '../../features/actualites/page_actus.dart';
 import '../../features/actualites/page_article.dart';
 import '../../shared/widgets/code_promo.dart';
+import 'onglet_demarrage.dart';
 // Provider synchrone — initialisé dans main.dart avant runApp
 final onboardingDoneProvider = StateProvider<bool>((ref) => false);
 
@@ -104,7 +105,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // Onboarding affiché une seule fois au tout premier lancement,
       // indépendamment du statut de connexion.
       if (!onboardingDone && !onOnboarding) return '/onboarding';
-      if (onboardingDone && onOnboarding)   return '/home';
+      // L'onglet d'ouverture choisi dans Paramètres (onglet_demarrage.dart).
+      if (onboardingDone && onOnboarding) {
+        return cheminDemarrage(notifier._ref.read(ongletDemarrageProvider));
+      }
 
       // Un utilisateur déjà connecté n'a rien à faire sur les écrans d'auth.
       if (loggedIn && onAuth) return '/home';

@@ -145,6 +145,8 @@ export interface AFFixture {
     player?: { name?: string | null };
     type?: string;
     detail?: string;
+    /** « Penalty Shootout » pour un tir au but de la séance finale. */
+    comments?: string | null;
   }>;
 }
 

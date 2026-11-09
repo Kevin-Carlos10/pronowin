@@ -66,6 +66,59 @@ final matchsCompetitionProvider =
     ..sort((a, b) => a.matchDate.compareTo(b.matchDate));
 });
 
+/// Les matchs en direct des grandes compétitions, pronostiqués ou non
+/// (8 novembre 2026, d'après « Populaire EN DIRECT » de 1xBet). L'accueil ne
+/// montrait en direct que les matchs pronostiqués.
+final directGrandesCompetitionsProvider = FutureProvider.autoDispose<List<MatchEntity>>((ref) async {
+  final r = await ref.read(dioProvider).get(ApiEndpoints.pronostics, queryParameters: {
+    'include_all': 'true',
+    'status': 'live',
+    'limit': 50,
+    'tz_offset': decalageUtcMinutes(),
+  });
+  final codes = {for (final c in grandesCompetitions) c.code};
+  final ordre = [for (final c in grandesCompetitions) c.code];
+  final liste = ((r.data as Map<String, dynamic>)['data'] as List<dynamic>)
+      .map((e) => MatchModel.fromJson(e as Map<String, dynamic>))
+      .where((m) => m.status == MatchStatus.live && codes.contains(m.leagueCountry))
+      .toList()
+    ..sort((a, b) {
+      final c = ordre.indexOf(a.leagueCountry).compareTo(ordre.indexOf(b.leagueCountry));
+      return c != 0 ? c : a.matchDate.compareTo(b.matchDate);
+    });
+  return liste;
+});
+
+/// La section de l'accueil : rien sans match en direct.
+class DirectGrandesCompetitions extends ConsumerWidget {
+  const DirectGrandesCompetitions({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final liste = ref.watch(directGrandesCompetitionsProvider).valueOrNull ?? const <MatchEntity>[];
+    if (liste.isEmpty) return const SizedBox.shrink();
+    return Column(
+      key: const Key('direct-grandes-competitions'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Row(children: [
+            Container(width: 8, height: 8,
+              decoration: BoxDecoration(color: context.cl.error, shape: BoxShape.circle)),
+            const SizedBox(width: 8),
+            Expanded(child: Text(tr(context, "En direct dans les grandes compétitions"),
+              style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700))),
+            Text('${liste.length}', style: TextStyle(color: context.cl.error, fontSize: 13, fontWeight: FontWeight.w800)),
+          ]),
+        ),
+        BlocLignesMatch(matchs: liste.take(6).toList()),
+        const SizedBox(height: 24),
+      ],
+    );
+  }
+}
+
 /// La rangée de l'accueil : un logo et un nom par compétition.
 class GrandesCompetitions extends StatelessWidget {
   const GrandesCompetitions({super.key});
