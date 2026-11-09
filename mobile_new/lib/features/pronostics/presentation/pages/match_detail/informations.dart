@@ -102,7 +102,7 @@ class _LigneInformation extends StatelessWidget {
         Flexible(flex: 2, child: Text(libelle, style: TextStyle(color: cl.textS, fontSize: 13))),
         const SizedBox(width: 12),
         Expanded(flex: 3, child: Text(valeur, textAlign: TextAlign.end,
-            style: TextStyle(color: cl.textP, fontSize: 13.5, fontWeight: FontWeight.w600))),
+            style: TextStyle(color: cl.textP, fontSize: 14, fontWeight: FontWeight.w600))),
       ]),
     );
   }

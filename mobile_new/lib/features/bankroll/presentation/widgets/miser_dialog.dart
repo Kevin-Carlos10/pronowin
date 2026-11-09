@@ -318,20 +318,20 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                 border: Border.all(color: context.cl.border, width: 0.5)),
               child: Row(children: [
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text(tr(context, "Pronostic"), style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                  Text(tr(context, "Pronostic"), style: TextStyle(color: context.cl.textM, fontSize: 11)),
                   const SizedBox(height: 2),
                   Text(widget.predictionLabel, style: TextStyle(
                     color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
                 ])),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text(tr(context, "Cote"), style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                  Text(tr(context, "Cote"), style: TextStyle(color: context.cl.textM, fontSize: 11)),
                   Text('x${widget.oddsRecommended.toStringAsFixed(2)}',
                     style: TextStyle(color: context.cl.accent,
                       fontSize: 13, fontWeight: FontWeight.w700)),
                 ]),
                 const SizedBox(width: 16),
                 Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
-                  Text(tr(context, "Confiance"), style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                  Text(tr(context, "Confiance"), style: TextStyle(color: context.cl.textM, fontSize: 11)),
                   Row(children: [
                     Container(width: 6, height: 6,
                       decoration: BoxDecoration(color: confColor, shape: BoxShape.circle)),
@@ -376,7 +376,7 @@ class _MiserSheetState extends ConsumerState<_MiserSheet> {
                       border: Border.all(
                         color: confColor.withValues(alpha: 0.3), width: 0.7)),
                     child: Text(ruleLabel, style: TextStyle(
-                      color: confColor, fontSize: 10, fontWeight: FontWeight.w700)),
+                      color: confColor, fontSize: 11, fontWeight: FontWeight.w700)),
                   ),
                 ]),
 
@@ -490,7 +490,7 @@ class _InfoChip extends StatelessWidget {
       borderRadius: BorderRadius.circular(12),
       border: Border.all(color: context.cl.border, width: 0.5)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(label, style: TextStyle(color: context.cl.textM, fontSize: 10)),
+      Text(label, style: TextStyle(color: context.cl.textM, fontSize: 11)),
       const SizedBox(height: 3),
       Text(value, style: TextStyle(
         color: color, fontSize: 13, fontWeight: FontWeight.w700),
@@ -558,7 +558,7 @@ class _ErrorView extends StatelessWidget {
           : noBankroll
             ? tr(context, "Ta bankroll n'est pas encore paramétrée. Définis ton budget pour que l'app calcule une mise adaptée à chaque pronostic.")
             : tr(context, "Vérifie ta connexion et réessaie."),
-        style: TextStyle(color: context.cl.textM, fontSize: 12.5, height: 1.4),
+        style: TextStyle(color: context.cl.textM, fontSize: 13, height: 1.4),
         textAlign: TextAlign.center),
       const SizedBox(height: 20),
       if (noBankroll || nonConnecte)

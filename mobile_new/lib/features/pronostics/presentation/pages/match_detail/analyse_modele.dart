@@ -130,7 +130,7 @@ class _AnalyseModele extends ConsumerWidget {
                     // laissent le lecteur choisir au hasard.
                     Text(tr(context, "Marché suggéré par le modèle"),
                       style: TextStyle(
-                        color: context.cl.accent, fontSize: 9.5,
+                        color: context.cl.accent, fontSize: 11,
                         fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                     const SizedBox(height: 3),
                     Text(data.localizedAdvice!,
@@ -164,7 +164,7 @@ class _AnalyseModele extends ConsumerWidget {
             : data.probabilitesDuMarche
               ? tr(context, "Barres : modèle statistique externe — forme, attaque, défense, face-à-face et simulation des buts.")
               : tr(context, "Modèle statistique externe — forme, attaque, défense, face-à-face et simulation des buts."),
-          style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.4)),
+          style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.4)),
       ]),
     );
   }
@@ -221,7 +221,7 @@ class _BarreIssues extends StatelessWidget {
                 Text(nom,
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                  style: TextStyle(color: context.cl.textM, fontSize: 11)),
               ]),
             ),
           ),
@@ -241,7 +241,7 @@ class _BarreIssues extends StatelessWidget {
             ? tr(context, "Probabilités du marché, marge de {arg0} % retirée.", [decimalFr(data.margeBookmaker!)])
             : tr(context, "Probabilités déduites des cotes du marché."),
           textAlign: TextAlign.center,
-          style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.35)),
+          style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.35)),
       ],
     ]);
   }
@@ -300,7 +300,7 @@ class _VerdictModele extends StatelessWidget {
             Text(verdict.titre,
               style: TextStyle(
                 color: verdict.indecis ? context.cl.textP : accent,
-                fontSize: 13.5, fontWeight: FontWeight.w700, height: 1.25)),
+                fontSize: 14, fontWeight: FontWeight.w700, height: 1.25)),
             const SizedBox(height: 2),
             Text(
               verdict.indecis
@@ -573,7 +573,7 @@ class _ButsParTranche extends ConsumerWidget {
         ]),
         const SizedBox(height: 6),
         Text(tr(context, "Buts marqués cette saison, par tranche de 15 minutes"),
-          style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+          style: TextStyle(color: context.cl.textM, fontSize: 11)),
         const SizedBox(height: 16),
 
         SizedBox(
@@ -602,7 +602,7 @@ class _ButsParTranche extends ConsumerWidget {
                         ),
                         const SizedBox(height: 6),
                         Text(t.split('-')[1],
-                          style: TextStyle(color: context.cl.textM, fontSize: 9)),
+                          style: TextStyle(color: context.cl.textM, fontSize: 11)),
                       ],
                     ),
                   ),
@@ -634,7 +634,7 @@ class _Colonne extends StatelessWidget {
     builder: (_, v, _) => Column(mainAxisSize: MainAxisSize.min, children: [
       if (valeur > 0)
         Text('$valeur',
-          style: TextStyle(color: couleur, fontSize: 9, fontWeight: FontWeight.w700)),
+          style: TextStyle(color: couleur, fontSize: 11, fontWeight: FontWeight.w700)),
       const SizedBox(height: 2),
       Container(
         width: 11,
@@ -663,7 +663,7 @@ class _Legende extends StatelessWidget {
       Flexible(
         child: Text(texte,
           maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+          style: TextStyle(color: context.cl.textM, fontSize: 11)),
       ),
     ]),
   );
@@ -722,7 +722,7 @@ class _CotesEnDirect extends ConsumerWidget {
         for (final m in marches) ...[
           Text(FootballLabels.market(m.name, language: AppStrings.of(context).locale.languageCode).text.toUpperCase(),
             style: TextStyle(
-              color: context.cl.textM, fontSize: 9,
+              color: context.cl.textM, fontSize: 11,
               fontWeight: FontWeight.w700, letterSpacing: 0.6)),
           const SizedBox(height: 6),
           Wrap(spacing: 6, runSpacing: 6, children: [
@@ -739,7 +739,7 @@ class _CotesEnDirect extends ConsumerWidget {
                   // s'affichaient à l'identique, et la cote pouvait se lire
                   // comme un nombre de buts.
                   Text(v.libelle,
-                    style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                    style: TextStyle(color: context.cl.textM, fontSize: 11)),
                   const SizedBox(width: 6),
                   Text(v.odd.toStringAsFixed(2),
                     style: TextStyle(
@@ -844,7 +844,7 @@ class _NotesJoueurs extends ConsumerWidget {
                 crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(tr(context, "HOMME DU MATCH"),
                     style: TextStyle(
-                      color: context.cl.warning, fontSize: 8.5,
+                      color: context.cl.warning, fontSize: 11,
                       fontWeight: FontWeight.w700, letterSpacing: 0.7)),
                   const SizedBox(height: 3),
                   Text(homme.name,
@@ -855,7 +855,7 @@ class _NotesJoueurs extends ConsumerWidget {
                   const SizedBox(height: 2),
                   Text(
                     tr(context, "{arg0} min · {arg1}{arg2}", [homme.minutes, AppStrings.of(context).count(homme.shots, one: "{arg0} tir", other: "{arg0} tirs"), homme.goals > 0 ? " · ${AppStrings.of(context).count(homme.goals, one: "{arg0} but", other: "{arg0} buts")}" : ""]),
-                    style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+                    style: TextStyle(color: context.cl.textM, fontSize: 11)),
                 ])),
               _Note(valeur: homme.rating, grande: true),
             ]),
@@ -879,7 +879,7 @@ class _NotesJoueurs extends ConsumerWidget {
                     style: TextStyle(color: context.cl.textS, fontSize: 12)),
                 ),
                 Text('${j.minutes}′',
-                  style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                  style: TextStyle(color: context.cl.textM, fontSize: 11)),
                 const SizedBox(width: 10),
                 _Note(valeur: j.rating),
               ]),

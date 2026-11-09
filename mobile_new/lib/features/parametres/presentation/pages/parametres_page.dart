@@ -27,6 +27,10 @@ import '../widgets/apercu_technique.dart';
 import '../widgets/notifications_telephone.dart';
 import '../../../../core/router/onglet_demarrage.dart';
 import '../../../../core/services/reglages_systeme.dart';
+import '../../../../core/utils/motion.dart';
+
+/// Entrées animées à la première visite seulement (motion.dart).
+double? get _apparitionParametres => PremiereApparition.valeur('paramètres');
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -66,7 +70,7 @@ class ParametresPage extends ConsumerWidget {
 
           // ─── APPARENCE ────────────────────────────────────────────────
           _SectionHeader(tr(context, "Apparence"))
-            .animate().fadeIn(duration: 300.ms, delay: 50.ms),
+            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 50.ms),
           _SettingsCard(children: [
             _NavTile(
               icon: Icons.dark_mode_rounded, iconColor: const Color(0xFF818CF8),
@@ -87,13 +91,13 @@ class ParametresPage extends ConsumerWidget {
               trailing: _libelleOnglet(context, ref.watch(ongletDemarrageProvider)),
               onTap: () => _choisirOngletDemarrage(context, ref),
             ),
-          ]).animate(delay: 80.ms).fadeIn(duration: 300.ms)
+          ]).animate(delay: 80.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
             .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
           const SizedBox(height: 20),
 
           // ─── NOTIFICATIONS ────────────────────────────────────────────
           _SectionHeader(tr(context, "Notifications"))
-            .animate().fadeIn(duration: 300.ms, delay: 100.ms),
+            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 100.ms),
           // Coupées au niveau du téléphone : les interrupteurs ci-dessous
           // n'y peuvent rien, il faut le dire (comme Sofascore).
           const AlerteNotificationsTelephone(),
@@ -134,13 +138,13 @@ class ParametresPage extends ConsumerWidget {
               subtitle: tr(context, "Sons, bannières, écran verrouillé"),
               onTap: () => ReglagesSysteme.ouvrirNotifications(),
             ),
-          ]).animate(delay: 130.ms).fadeIn(duration: 300.ms)
+          ]).animate(delay: 130.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
             .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
           const SizedBox(height: 20),
 
           // ─── SÉCURITÉ ─────────────────────────────────────────────────
           _SectionHeader(tr(context, "Sécurité"))
-            .animate().fadeIn(duration: 300.ms, delay: 150.ms),
+            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 150.ms),
           _SettingsCard(children: [
 
             // Code PIN
@@ -229,13 +233,13 @@ class ParametresPage extends ConsumerWidget {
               subtitle: tr(context, "Consulter les sessions de ton compte"),
               onTap: () => _showSessionsSheet(context),
             ),
-          ]).animate(delay: 180.ms).fadeIn(duration: 300.ms)
+          ]).animate(delay: 180.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
             .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
           const SizedBox(height: 20),
 
           // ─── COMPTE ───────────────────────────────────────────────────
           _SectionHeader(tr(context, "Mon compte"))
-            .animate().fadeIn(duration: 300.ms, delay: 200.ms),
+            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 200.ms),
           _SettingsCard(children: [
             _NavTile(
               icon: Icons.edit_rounded, iconColor: AppColors.primary,
@@ -256,7 +260,7 @@ class ParametresPage extends ConsumerWidget {
                   : CacheFichiers.lisible(tailleCache, langue: AppStrings.of(context).locale.languageCode),
               onTap: () => _showClearCacheSheet(context, ref),
             ),
-          ]).animate(delay: 230.ms).fadeIn(duration: 300.ms)
+          ]).animate(delay: 230.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
             .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
           const SizedBox(height: 20),
 
@@ -264,7 +268,7 @@ class ParametresPage extends ConsumerWidget {
           // Repris de 1xBet (7 novembre 2026) : revoir la présentation, et
           // copier les informations techniques à joindre au support.
           _SectionHeader(tr(context, "Aide"))
-            .animate().fadeIn(duration: 300.ms, delay: 240.ms),
+            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 240.ms),
           _SettingsCard(children: [
             _NavTile(
               icon: Icons.slideshow_rounded, iconColor: context.cl.info,
@@ -295,13 +299,13 @@ class ParametresPage extends ConsumerWidget {
               subtitle: tr(context, "Envoyer PronoWin à un ami"),
               onTap: () => partagerApplication(ligne),
             )),
-          ]).animate(delay: 250.ms).fadeIn(duration: 300.ms)
+          ]).animate(delay: 250.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
             .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
           const SizedBox(height: 20),
 
           // ─── LÉGAL ────────────────────────────────────────────────────
           _SectionHeader(tr(context, "Informations légales"))
-            .animate().fadeIn(duration: 300.ms, delay: 250.ms),
+            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 250.ms),
           _SettingsCard(children: [
             // Les trois textes publics vivent sur le site, et l'application
             // y renvoie — comme les mentions légales le faisaient déjà seules.
@@ -358,7 +362,7 @@ class ParametresPage extends ConsumerWidget {
               title: tr(context, "À propos"), trailing: appVersion,
               onTap: () => _showAboutSheet(context, appVersion),
             ),
-          ]).animate(delay: 280.ms).fadeIn(duration: 300.ms)
+          ]).animate(delay: 280.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
             .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
           const SizedBox(height: 20),
 
@@ -368,7 +372,7 @@ class ParametresPage extends ConsumerWidget {
           // dans l'app. Apple (5.1.1(v)) et Google Play l'exigent dès lors
           // qu'on permet la création d'un compte.
           _SectionHeader(tr(context, "Zone de danger"))
-            .animate().fadeIn(duration: 300.ms, delay: 300.ms),
+            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 300.ms),
           _SettingsCard(children: [
             _DangerNavTile(
               icon: Icons.delete_forever_rounded,
@@ -381,7 +385,7 @@ class ParametresPage extends ConsumerWidget {
               subtitle: tr(context, "Fermer ton compte et effacer tes informations"),
               onTap: () => _showDeleteAccountSheet(context, ref),
             ),
-          ]).animate(delay: 320.ms).fadeIn(duration: 300.ms)
+          ]).animate(delay: 320.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
             .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
           const SizedBox(height: 12),
 
@@ -391,7 +395,7 @@ class ParametresPage extends ConsumerWidget {
               style: TextStyle(color: context.cl.textM, fontSize: 11),
               textAlign: TextAlign.center,
             ),
-          ).animate(delay: 360.ms).fadeIn(duration: 400.ms),
+          ).animate(delay: 360.ms, value: _apparitionParametres).fadeIn(duration: 400.ms),
         ],
       ),
     );
@@ -448,7 +452,7 @@ class ParametresPage extends ConsumerWidget {
           const SizedBox(height: 4),
           Text(tr(ctx, "L'écran sur lequel PronoWin s'ouvre, dès la prochaine fois."),
               textAlign: TextAlign.center,
-              style: TextStyle(color: ctx.cl.textS, fontSize: 12.5)),
+              style: TextStyle(color: ctx.cl.textS, fontSize: 13)),
           const SizedBox(height: 16),
           for (final (o, icone) in [
             (OngletDemarrage.accueil, Icons.home_rounded),
@@ -608,7 +612,7 @@ class ParametresPage extends ConsumerWidget {
                 color: AppColors.primary.withValues(alpha: 0.4),
                 blurRadius: 20, offset: const Offset(0, 8))]),
             child: const Icon(Icons.emoji_events_rounded, color: Colors.white, size: 38),
-          ).animate().scale(duration: 400.ms, curve: Curves.elasticOut),
+          ).animate(value: _apparitionParametres).scale(duration: 400.ms, curve: Curves.elasticOut),
           const SizedBox(height: 16),
           const LogotypePronoWin(taille: 26),
           const SizedBox(height: 6),

@@ -53,7 +53,7 @@ class _EvolutionClassement extends ConsumerWidget {
         TeamLogoWidget(url: logo, size: 18),
         const SizedBox(width: 6),
         Flexible(child: Text(nom, maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: TextStyle(color: context.cl.textP, fontSize: 12.5, fontWeight: FontWeight.w600))),
+          style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600))),
         if (rang != null) ...[
           const SizedBox(width: 6),
           Text(_rang(context, rang),
@@ -108,14 +108,14 @@ class _EvolutionClassement extends ConsumerWidget {
                     getTitlesWidget: (v, _) {
                       final rang = -v.round();
                       if (rang < 1 || rang > n) return const SizedBox.shrink();
-                      return Text('$rang', style: TextStyle(color: context.cl.textM, fontSize: 10));
+                      return Text('$rang', style: TextStyle(color: context.cl.textM, fontSize: 11));
                     })),
                   bottomTitles: AxisTitles(sideTitles: SideTitles(
                     showTitles: true, reservedSize: 22,
                     interval: evolution.journees.length > 12 ? 5 : 2,
                     getTitlesWidget: (v, _) => Padding(
                       padding: const EdgeInsets.only(top: 4),
-                      child: Text('J${v.toInt()}', style: TextStyle(color: context.cl.textM, fontSize: 10))))),
+                      child: Text('J${v.toInt()}', style: TextStyle(color: context.cl.textM, fontSize: 11))))),
                   rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                   topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 ),

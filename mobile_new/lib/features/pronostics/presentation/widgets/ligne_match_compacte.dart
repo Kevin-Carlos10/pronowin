@@ -11,6 +11,7 @@ import '../../../../shared/providers/favoris_provider.dart';
 import '../../../../shared/widgets/suivre_match.dart';
 import '../../domain/entities/match_entity.dart';
 import 'minute_direct.dart';
+import 'eclair_but.dart';
 
 /// Un match sans pronostic, sur une ligne (7 novembre 2026).
 ///
@@ -59,7 +60,7 @@ class LigneMatchCompacte extends ConsumerWidget {
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: perd ? context.cl.textS : context.cl.textP,
-              fontSize: 13.5,
+              fontSize: 14,
               fontWeight: gagne ? FontWeight.w700 : FontWeight.w500)),
         ),
         if (avecScore)
@@ -76,7 +77,10 @@ class LigneMatchCompacte extends ConsumerWidget {
       ]);
     }
 
-    return Semantics(
+    // Un but : la ligne s'illumine un instant (eclair_but.dart).
+    return EclairBut(
+      dom: m.homeScore, ext: m.awayScore, rayon: BorderRadius.zero,
+      child: Semantics(
       label: libelle,
       button: true,
       child: InkWell(
@@ -135,7 +139,7 @@ class LigneMatchCompacte extends ConsumerWidget {
           ),
         ),
       ),
-    );
+    ));
   }
 }
 

@@ -135,7 +135,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                             .fadeIn(duration: 600.ms).then().fadeOut(duration: 600.ms),
                           const SizedBox(width: 5),
                            Text(tr(context, "PROCHAIN MATCH"),
-                            style: TextStyle(color: context.cl.accent, fontSize: 9,
+                            style: TextStyle(color: context.cl.accent, fontSize: 11,
                               fontWeight: FontWeight.w700, letterSpacing: 0.6)),
                         ]),
                       ),
@@ -149,7 +149,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                           color: context.cl.warning.withValues(alpha: 0.15),
                           borderRadius: BorderRadius.circular(6)),
                         child: Text('PREMIUM',
-                          style: TextStyle(color: context.cl.warning, fontSize: 8,
+                          style: TextStyle(color: context.cl.warning, fontSize: 11,
                             fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                       ),
                     Text(
@@ -183,7 +183,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                             fontWeight: FontWeight.w700, letterSpacing: 3)),
                         const SizedBox(height: 4),
                         Text(prono['league'] as String? ?? '',
-                          style: TextStyle(color: context.cl.textM, fontSize: 9),
+                          style: TextStyle(color: context.cl.textM, fontSize: 11),
                           textAlign: TextAlign.center,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis),
@@ -293,7 +293,7 @@ class _NextMatchCountdownState extends ConsumerState<_NextMatchCountdown> {
                                     Text(tr(context, "COTE"),
                                         style: TextStyle(
                                             color: context.cl.textM,
-                                            fontSize: 9,
+                                            fontSize: 11,
                                             fontWeight: FontWeight.w700,
                                             letterSpacing: 0.6)),
                                     const SizedBox(width: 5),
@@ -421,7 +421,7 @@ class _CountUnit extends StatelessWidget {
           Text(label,
               style: TextStyle(
                   color: context.cl.textM,
-                  fontSize: 8,
+                  fontSize: 11,
                   letterSpacing: 0.6)),
         ],
       );
@@ -488,7 +488,7 @@ class _BadgeTopDuJour extends StatelessWidget {
           Icon(Icons.star_rounded, color: context.cl.dore, size: 11),
           const SizedBox(width: 4),
           Text(tr(context, "TOP DU JOUR"),
-            style: TextStyle(color: context.cl.dore, fontSize: 9,
+            style: TextStyle(color: context.cl.dore, fontSize: 11,
               fontWeight: FontWeight.w700, letterSpacing: 0.6)),
         ]),
       );

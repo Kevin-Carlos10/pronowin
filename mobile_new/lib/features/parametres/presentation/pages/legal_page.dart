@@ -298,7 +298,7 @@ class _HeaderCard extends StatelessWidget {
             color: context.cl.surfaceDeep,
             borderRadius: BorderRadius.circular(6)),
           child: Text(tr(context, "Dernière mise à jour : {arg0}", [lastUpdated]), style: TextStyle(
-            color: context.cl.textM, fontSize: 10.5, fontWeight: FontWeight.w600)),
+            color: context.cl.textM, fontSize: 11, fontWeight: FontWeight.w600)),
         ),
       ])),
     ]),
@@ -337,12 +337,12 @@ class _SectionWidget extends StatelessWidget {
           color: AppColors.primary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(9)),
         child: Text(section.badge ?? '$rang', style: TextStyle(
-          color: context.cl.accent, fontSize: 12.5, fontWeight: FontWeight.w700)),
+          color: context.cl.accent, fontSize: 13, fontWeight: FontWeight.w700)),
       ),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(section.title, style: TextStyle(
-          color: context.cl.textP, fontSize: 14.5, fontWeight: FontWeight.w700)),
+          color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w700)),
         const SizedBox(height: 6),
         Text(section.content, style: TextStyle(
           color: context.cl.textS, fontSize: 13, height: 1.6)),

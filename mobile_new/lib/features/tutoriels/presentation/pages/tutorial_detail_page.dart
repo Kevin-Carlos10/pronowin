@@ -470,7 +470,7 @@ class _SectionDivider extends StatelessWidget {
         label.toUpperCase(),
         style: TextStyle(
           color: context.cl.textM,
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.8,
         ),
@@ -642,7 +642,7 @@ class _MarkdownRenderer extends StatelessWidget {
                       num,
                       style: TextStyle(
                         color: catColor,
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                       ),
                     ),

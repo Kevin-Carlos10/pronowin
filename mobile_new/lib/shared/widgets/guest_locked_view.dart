@@ -70,7 +70,7 @@ class GuestLockedView extends StatelessWidget {
                   color: context.cl.textP, fontSize: 19, fontWeight: FontWeight.w700)),
                 const SizedBox(height: 10),
                 Text(tr(context, message), textAlign: TextAlign.center, style: TextStyle(
-                  color: context.cl.textS, fontSize: 13.5, height: 1.5)),
+                  color: context.cl.textS, fontSize: 14, height: 1.5)),
                 const SizedBox(height: 28),
                 // Hauteur minimale, pas fixe : à grande taille de texte, le
                 // libellé passe sur deux lignes au lieu d'être coupé.
@@ -83,7 +83,7 @@ class GuestLockedView extends StatelessWidget {
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14))),
                     child:  Text(tr(context, "Se connecter / Créer un compte"),
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700)),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
                   ),
                 ),
               ],

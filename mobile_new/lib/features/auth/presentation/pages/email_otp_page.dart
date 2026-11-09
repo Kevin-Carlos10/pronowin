@@ -166,7 +166,7 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
                     RichText(
                       textAlign: TextAlign.center,
                       text: TextSpan(
-                        style: TextStyle(color: context.cl.textS, fontSize: 13.5, height: 1.5),
+                        style: TextStyle(color: context.cl.textS, fontSize: 14, height: 1.5),
                         children: [
                           TextSpan(text: widget.isNewUser
                             ? tr(context, "Code de vérification envoyé à ")
@@ -212,7 +212,7 @@ class _EmailOtpPageState extends ConsumerState<EmailOtpPage> {
                       child: _resendSeconds > 0
                         ? Text(tr(context, "Renvoyer le code dans {arg0}s", [_resendSeconds]),
                             key: const ValueKey('timer'),
-                            style: TextStyle(color: context.cl.textM, fontSize: 12.5))
+                            style: TextStyle(color: context.cl.textM, fontSize: 13))
                         : TextButton(
                             key: const ValueKey('resend'),
                             onPressed: _resend,

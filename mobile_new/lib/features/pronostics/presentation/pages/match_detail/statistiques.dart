@@ -168,7 +168,7 @@ class _CardHeader extends StatelessWidget {
         maxLines: 1, overflow: TextOverflow.ellipsis,
         style: TextStyle(
           color: context.cl.textP,
-          fontSize: 13.5,
+          fontSize: 14,
           fontWeight: FontWeight.w700)),
     ),
   ]);
@@ -314,7 +314,7 @@ class _StatsList extends StatelessWidget {
       ),
       if (possession != null) ...[
         Text(tr(context, "Possession de balle"),
-          style: TextStyle(color: context.cl.textS, fontSize: 11.5)),
+          style: TextStyle(color: context.cl.textS, fontSize: 12)),
         const SizedBox(height: 8),
         _PossessionBar(home: possession.home, away: possession.away),
         const SizedBox(height: 14),
@@ -422,7 +422,7 @@ class _StatRow extends StatelessWidget {
         Expanded(
           child: Text(tr(context, label),
             textAlign: TextAlign.center,
-            style: TextStyle(color: context.cl.textS, fontSize: 11.5, height: 1.3)),
+            style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.3)),
         ),
         SizedBox(
           width: 54,
@@ -439,7 +439,7 @@ class _StatRow extends StatelessWidget {
     final text = Text('${v ?? '—'}',
       style: TextStyle(
         color: leads ? onColor : context.cl.textP,
-        fontSize: 12.5,
+        fontSize: 13,
         fontWeight: FontWeight.w700));
 
     if (!leads) return text;

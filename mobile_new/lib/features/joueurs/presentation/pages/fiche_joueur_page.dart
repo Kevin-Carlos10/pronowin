@@ -182,7 +182,7 @@ class _EnTete extends StatelessWidget {
                   color: cl.error.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(7)),
                 child: Text(tr(context, "Blessé actuellement"),
-                  style: TextStyle(color: cl.error, fontSize: 11.5, fontWeight: FontWeight.w700))),
+                  style: TextStyle(color: cl.error, fontSize: 12, fontWeight: FontWeight.w700))),
             ],
           ])),
           if (note != null) ...[
@@ -192,7 +192,7 @@ class _EnTete extends StatelessWidget {
               child: ExcludeSemantics(child: Column(children: [
                 PastilleNote(note, taille: 16),
                 const SizedBox(height: 4),
-                Text(tr(context, "Note"), style: TextStyle(color: cl.textM, fontSize: 10.5)),
+                Text(tr(context, "Note"), style: TextStyle(color: cl.textM, fontSize: 11)),
               ])),
             ),
           ],
@@ -259,7 +259,7 @@ class _Identite extends StatelessWidget {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(valeur, style: TextStyle(color: cl.textP, fontSize: 15, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
-                  Text(libelle, style: TextStyle(color: cl.textM, fontSize: 11.5)),
+                  Text(libelle, style: TextStyle(color: cl.textM, fontSize: 12)),
                 ]),
               ),
           ]);
@@ -267,7 +267,7 @@ class _Identite extends StatelessWidget {
         if (naissance != null) Padding(
           padding: EdgeInsets.fromLTRB(4, cases.isEmpty ? 4 : 12, 4, 4),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text(tr(context, "Naissance"), style: TextStyle(color: cl.textM, fontSize: 12.5)),
+            Text(tr(context, "Naissance"), style: TextStyle(color: cl.textM, fontSize: 13)),
             const SizedBox(width: 12),
             Expanded(child: Text(naissance, textAlign: TextAlign.end,
               style: TextStyle(color: cl.textP, fontSize: 13, fontWeight: FontWeight.w600))),
@@ -338,7 +338,7 @@ class _Saison extends StatelessWidget {
                 onSelected: (_) => onChoisir(i),
                 showCheckmark: false,
                 visualDensity: VisualDensity.compact,
-                labelStyle: TextStyle(fontSize: 11.5,
+                labelStyle: TextStyle(fontSize: 12,
                   fontWeight: i == indice ? FontWeight.w700 : FontWeight.w500,
                   color: i == indice ? cl.textP : cl.textS),
                 selectedColor: cl.accent.withValues(alpha: 0.16),
@@ -350,7 +350,7 @@ class _Saison extends StatelessWidget {
           Row(children: [
             TeamLogoWidget(url: s.leagueLogo, size: 16),
             const SizedBox(width: 6),
-            Flexible(child: Text(s.league, style: TextStyle(color: cl.textS, fontSize: 12.5))),
+            Flexible(child: Text(s.league, style: TextStyle(color: cl.textS, fontSize: 13))),
           ]),
           const SizedBox(height: 12),
         ],
@@ -369,7 +369,7 @@ class _Saison extends StatelessWidget {
                 child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                   Text(valeur, style: TextStyle(color: cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
                   const SizedBox(height: 2),
-                  Text(libelle, style: TextStyle(color: cl.textM, fontSize: 11.5)),
+                  Text(libelle, style: TextStyle(color: cl.textM, fontSize: 12)),
                 ]),
               ),
           ]);
@@ -406,7 +406,7 @@ class _Absences extends StatelessWidget {
                     a.fin != null
                       ? tr(context, "Du {arg0} au {arg1}", [format.format(a.debut!), format.format(a.fin!)])
                       : tr(context, "Depuis le {arg0}", [format.format(a.debut!)]),
-                    style: TextStyle(color: cl.textM, fontSize: 11.5)),
+                    style: TextStyle(color: cl.textM, fontSize: 12)),
               ])),
             ]),
           ),
@@ -437,7 +437,7 @@ class _Transferts extends StatelessWidget {
               excludeSemantics: true,
               child: Row(children: [
                 SizedBox(width: 62, child: Text(t.date == null ? '' : format.format(t.date!),
-                  style: TextStyle(color: cl.textM, fontSize: 11.5))),
+                  style: TextStyle(color: cl.textM, fontSize: 12))),
                 TeamLogoWidget(url: t.depuisLogo, size: 18),
                 const SizedBox(width: 6),
                 Flexible(child: Text(t.depuis, maxLines: 2, overflow: TextOverflow.ellipsis,

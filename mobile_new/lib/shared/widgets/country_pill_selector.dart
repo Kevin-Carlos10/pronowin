@@ -311,7 +311,7 @@ class _SectionLabel extends StatelessWidget {
     child: Text(text.toUpperCase(),
       style: TextStyle(
         color: context.cl.textM,
-        fontSize: 10.5,
+        fontSize: 11,
         fontWeight: FontWeight.w700,
         letterSpacing: 0.9)),
   );
@@ -359,7 +359,7 @@ class _CountryTile extends StatelessWidget {
               maxLines: 1, overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 color: isSelected ? context.cl.accent : context.cl.textP,
-                fontSize: 14.5,
+                fontSize: 15,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500)),
           ),
           const SizedBox(width: 10),
@@ -370,7 +370,7 @@ class _CountryTile extends StatelessWidget {
               textAlign: TextAlign.right,
               style: TextStyle(
                 color: isSelected ? context.cl.accent : context.cl.textS,
-                fontSize: 13.5,
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
                 fontFeatures: const [FontFeature.tabularFigures()])),
           ),
@@ -403,7 +403,7 @@ class _EmptyResults extends StatelessWidget {
       const SizedBox(height: 6),
       Text(tr(context, "Rien ne correspond à « {arg0} ». Essaie le nom du pays ou son indicatif.", [query]),
         textAlign: TextAlign.center,
-        style: TextStyle(color: context.cl.textM, fontSize: 12.5, height: 1.4)),
+        style: TextStyle(color: context.cl.textM, fontSize: 13, height: 1.4)),
     ]),
   );
 }

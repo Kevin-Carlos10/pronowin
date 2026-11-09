@@ -99,7 +99,7 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
                     ? tr(context, "Noté : pas de mise sur ce pari. Ta bankroll est à jour.")
                     : tr(context, "Mise corrigée : {arg0} {arg1}. Ta bankroll est à jour.", [montantExact(r.mise), devise]))
                 : tr(context, "Mise confirmée. Merci !"),
-            style: TextStyle(color: cl.textP, fontSize: 13.5, fontWeight: FontWeight.w600))),
+            style: TextStyle(color: cl.textP, fontSize: 14, fontWeight: FontWeight.w600))),
         ]),
       );
     }
@@ -108,10 +108,10 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
       couleur: AppColors.primary,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         Text(tr(context, "Tu as bien misé {arg0} ?", [mise]),
-          style: TextStyle(color: cl.textP, fontSize: 15.5, fontWeight: FontWeight.w700)),
+          style: TextStyle(color: cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
         const SizedBox(height: 4),
         Text(tr(context, "Chez ton bookmaker, sur ce pari. Ta bankroll suit ta mise réelle."),
-          style: TextStyle(color: cl.textM, fontSize: 12.5)),
+          style: TextStyle(color: cl.textM, fontSize: 13)),
         const SizedBox(height: 14),
 
         if (!_corriger) ...[
@@ -161,7 +161,7 @@ class _ConfirmationMiseState extends ConsumerState<ConfirmationMise> {
 
         if (_erreur != null) ...[
           const SizedBox(height: 8),
-          Text(_erreur!, style: TextStyle(color: context.cl.error, fontSize: 12.5)),
+          Text(_erreur!, style: TextStyle(color: context.cl.error, fontSize: 13)),
         ],
       ]),
     );

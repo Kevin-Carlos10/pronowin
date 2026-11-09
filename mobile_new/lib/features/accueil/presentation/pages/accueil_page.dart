@@ -58,6 +58,10 @@ part 'accueil/actualites.dart';
 part 'accueil/squelettes.dart';
 part 'accueil/compte_a_rebours.dart';
 part 'accueil/encarts.dart';
+part 'accueil/mon_activite.dart';
+
+/// Entrées animées à la première visite seulement (motion.dart).
+double? get _apparitionAccueil => PremiereApparition.valeur('accueil');
 
 /// Libellé de pronostic (réponse API brute) avec "Domicile"/"Extérieur"
 /// remplacés par le nom réel de l'équipe — voir [MatchEntity.applyTeamNames].
@@ -248,14 +252,14 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
 
                   // ─── MES FAVORIS ──────────────────────────────────────────
                   const _FavoritesSection()
-                    .animate()
+                    .animate(value: _apparitionAccueil)
                     .fadeIn(duration: 400.ms)
                     .slideY(begin: 0.08, end: 0, duration: 350.ms,
                         curve: Curves.easeOutCubic),
 
                   // ─── COUNTDOWN PROCHAIN MATCH ─────────────────────────────
                   const _NextMatchCountdown()
-                    .animate()
+                    .animate(value: _apparitionAccueil)
                     .fadeIn(duration: 500.ms)
                     .slideY(begin: 0.08, end: 0, duration: 400.ms,
                         curve: Curves.easeOutCubic),
@@ -302,7 +306,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                       onTap: () => goToPremium(context, ref,
                           extra: subAsync.valueOrNull),
                     )
-                      .animate()
+                      .animate(value: _apparitionAccueil)
                       .fadeIn(duration: 500.ms, delay: 200.ms)
                       .slideY(begin: 0.08, end: 0, duration: 400.ms,
                           curve: Curves.easeOutCubic),
@@ -406,7 +410,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                               },
                             ),
                           )
-                            .animate()
+                            .animate(value: _apparitionAccueil)
                             .fadeIn(duration: 300.ms)
                             .slideY(begin: 0.06, end: 0,
                                 duration: 280.ms, curve: Curves.easeOutCubic),
@@ -428,42 +432,20 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
                   // jour : ils occupaient le haut de l'écran alors que la
                   // question posée en ouvrant l'app est « sur quoi je parie
                   // aujourd'hui ? ».
-                  // ─── BANKROLL MINI-WIDGET ─────────────────────────────────
-                  if (!ref.watch(sansPariProvider))
-                  const _BankrollMiniWidget()
-                    .animate()
-                    .fadeIn(duration: 400.ms, delay: 80.ms)
-                    .slideY(begin: 0.08, end: 0, duration: 350.ms,
-                        curve: Curves.easeOutCubic),
-
-                  // Le bandeau « Streak » a été retiré. Il récompensait
-                  // l'ouverture quotidienne de l'application — un mécanisme qui
-                  // ne rendait personne meilleur en pronostics, et dont l'XP
-                  // n'était consommé nulle part. Surtout, récompenser le retour
-                  // quotidien dans une application liée aux paris est le motif
-                  // même que les stores et les régulateurs examinent.
-                  // La bankroll, juste au-dessus, occupe désormais la place.
-
                   // ─── NUDGE PSEUDO ─────────────────────────────────────────
                   // Invite à personnaliser le pseudo auto-généré (Parieur_XXX).
                   _PseudoNudge(user: user)
-                    .animate()
+                    .animate(value: _apparitionAccueil)
                     .fadeIn(duration: 400.ms, delay: 140.ms),
 
-                  // ─── STATS RAPIDES ────────────────────────────────────────
-                  _QuickStats(isPremium: isPremium)
-                    .animate()
-                    .fadeIn(duration: 400.ms, delay: 100.ms)
-                    .slideY(begin: 0.1, end: 0, duration: 400.ms,
-                        curve: Curves.easeOutCubic),
-                  const SizedBox(height: 24),
-
-                  // ─── BANNIÈRE TUTORIELS ───────────────────────────────────
-                  _TutorielsBanner()
-                    .animate(delay: 200.ms)
-                    .fadeIn(duration: 350.ms)
-                    .slideY(begin: 0.05, end: 0),
-                  const SizedBox(height: 24),
+                  // La bankroll, les chiffres des pronostics et la méthode, en
+                  // une carte repliable (9 novembre 2026, accueil/mon_activite.dart).
+                  // Le bandeau « Streak » a été retiré auparavant : il
+                  // récompensait l'ouverture quotidienne de l'application, le
+                  // motif même que les stores et les régulateurs examinent.
+                  _MonActivite(isPremium: isPremium, avecBankroll: !ref.watch(sansPariProvider))
+                    .animate(value: _apparitionAccueil)
+                    .fadeIn(duration: 400.ms, delay: 100.ms),
 
                   // ─── ACTUALITÉS ───────────────────────────────────────────
                   actualites.when(

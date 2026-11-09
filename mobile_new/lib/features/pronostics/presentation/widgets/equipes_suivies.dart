@@ -88,7 +88,7 @@ class EquipesSuiviesSection extends ConsumerWidget {
             ? Padding(
                 padding: const EdgeInsets.only(bottom: 14),
                 child: Text(tr(context, "Aucun match de tes équipes dans les deux semaines à venir."),
-                  style: TextStyle(color: context.cl.textM, fontSize: 12.5)))
+                  style: TextStyle(color: context.cl.textM, fontSize: 13)))
             : BlocLignesMatch(matchs: liste, avecDate: true),
       ),
     ]);
@@ -119,7 +119,7 @@ class SuggestionsEquipes extends ConsumerWidget {
       Padding(
         padding: const EdgeInsets.only(bottom: 10),
         child: Text(tr(context, "Leurs prochains matchs s'afficheront ici."),
-          style: TextStyle(color: context.cl.textM, fontSize: 12.5)),
+          style: TextStyle(color: context.cl.textM, fontSize: 13)),
       ),
       SizedBox(
         height: 92,
@@ -200,7 +200,7 @@ class _Ecusson extends ConsumerWidget {
             ]),
             const Spacer(),
             Text(equipe.nom, maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-              style: TextStyle(color: context.cl.textP, fontSize: 11.5, fontWeight: FontWeight.w600)),
+              style: TextStyle(color: context.cl.textP, fontSize: 12, fontWeight: FontWeight.w600)),
           ]),
         ),
       ),

@@ -582,11 +582,11 @@ class _SingleComment extends StatelessWidget {
                   color: context.cl.warning.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8)),
                 child: Text('Tipster ✓', style: TextStyle(
-                  color: context.cl.warning, fontSize: 9,
+                  color: context.cl.warning, fontSize: 11,
                   fontWeight: FontWeight.w700))),
             ],
           ])),
-          Text(timeStr, style: TextStyle(color: context.cl.textM, fontSize: 10)),
+          Text(timeStr, style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
 
         const SizedBox(height: 6),
@@ -806,7 +806,7 @@ class _FeuilleCommentaireState extends State<_FeuilleCommentaire> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
             child: Text(_erreur!, key: const Key('erreur-commentaire'),
-              style: TextStyle(color: context.cl.error, fontSize: 12.5))),
+              style: TextStyle(color: context.cl.error, fontSize: 13))),
       ])),
     ),
   );
@@ -837,7 +837,7 @@ class _EmptyComments extends StatelessWidget {
       const SizedBox(height: 4),
       Text(tr(context, "Sois le premier à donner ton avis"),
         textAlign: TextAlign.center,
-        style: TextStyle(color: context.cl.textM, fontSize: 11.5, height: 1.4)),
+        style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.4)),
     ]),
   );
 }
@@ -855,7 +855,7 @@ class _CanauxCommunaute extends StatelessWidget {
       child: Column(children: [
         Text(tr(context, "Rejoins la communauté PronoWin"),
           textAlign: TextAlign.center,
-          style: TextStyle(color: context.cl.textM, fontSize: 11.5, height: 1.4)),
+          style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.4)),
         const SizedBox(height: 12),
         // Retour à la ligne plutôt qu'une rangée figée : côte à côte, les
         // deux boutons débordaient de 19 px à 180 % sur 360 px.
@@ -908,7 +908,7 @@ class _BoutonCanal extends StatelessWidget {
           const SizedBox(width: 7),
           Text(libelle,
             style: TextStyle(
-              color: couleur, fontSize: 12.5, fontWeight: FontWeight.w700)),
+              color: couleur, fontSize: 13, fontWeight: FontWeight.w700)),
         ]),
       ),
     ),
@@ -1021,7 +1021,7 @@ class _CommentsPremiumLockedState extends State<_CommentsPremiumLocked>
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: context.cl.textP,
-                    fontSize: 13.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w700)),
                 const SizedBox(height: 4),
                 Text(tr(context, "Lisez et partagez les analyses de la communauté"),

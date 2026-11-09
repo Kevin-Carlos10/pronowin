@@ -197,7 +197,7 @@ class _GroupedStandingsState extends State<_GroupedStandings> {
               selected: v == vue,
               onSelected: (_) => setState(() => _vue = v),
               labelStyle: TextStyle(
-                fontSize: 11.5,
+                fontSize: 12,
                 fontWeight: v == vue ? FontWeight.w700 : FontWeight.w500,
                 color: v == vue ? context.cl.textP : context.cl.textS),
               selectedColor: context.cl.info.withValues(alpha: 0.16),
@@ -284,7 +284,7 @@ class _StandingsTable extends StatelessWidget {
             Expanded(child: Text(tr(context, r.zone!),
               style: TextStyle(
                 color: couleur ?? context.cl.textM,
-                fontSize: 10, fontWeight: FontWeight.w700,
+                fontSize: 11, fontWeight: FontWeight.w700,
                 letterSpacing: 0.2))),
           ]),
         ));
@@ -298,10 +298,10 @@ class _StandingsTable extends StatelessWidget {
       Row(children: [
         SizedBox(width: MediaQuery.textScalerOf(context).scale(22)),
         Expanded(child: Text(tr(context, "Équipe"),
-          style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600))),
+          style: TextStyle(color: context.cl.textM, fontSize: 11, fontWeight: FontWeight.w600))),
         if (forme)
           SizedBox(width: largeurForme, child: Text(tr(context, "Forme"), textAlign: TextAlign.center,
-            style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600)))
+            style: TextStyle(color: context.cl.textM, fontSize: 11, fontWeight: FontWeight.w600)))
         else ...[
           _StandingsHeaderCell('J'),
           _StandingsHeaderCell('+/-'),
@@ -374,7 +374,7 @@ class _LigneClassement extends StatelessWidget {
           maxLines: 1, overflow: TextOverflow.ellipsis,
           style: TextStyle(
             color: concernee ? context.cl.textP : context.cl.textS,
-            fontSize: 11.5,
+            fontSize: 12,
             fontWeight: concernee ? FontWeight.w700 : FontWeight.w400))),
         if (forme)
           SizedBox(width: _StandingsTable.largeurForme, child: Center(child: _RangeeForme(
@@ -385,7 +385,7 @@ class _LigneClassement extends StatelessWidget {
           _StandingsCell(row.goalsDiff > 0 ? '+${row.goalsDiff}' : '${row.goalsDiff}'),
         ],
         SizedBox(width: MediaQuery.textScalerOf(context).scale(28), child: Text('${row.points}', textAlign: TextAlign.center,
-          style: TextStyle(color: context.cl.textP, fontSize: 11.5, fontWeight: FontWeight.w700))),
+          style: TextStyle(color: context.cl.textP, fontSize: 12, fontWeight: FontWeight.w700))),
       ]),
     ));
   }
@@ -397,7 +397,7 @@ class _StandingsHeaderCell extends StatelessWidget {
   @override
   Widget build(BuildContext context) => SizedBox(width: MediaQuery.textScalerOf(context).scale(24),
     child: Text(label, textAlign: TextAlign.center,
-      style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600)));
+      style: TextStyle(color: context.cl.textM, fontSize: 11, fontWeight: FontWeight.w600)));
 }
 
 class _StandingsCell extends StatelessWidget {
@@ -506,7 +506,7 @@ class _MeilleursButeursState extends ConsumerState<_MeilleursButeurs> {
               selected: p == _palmares,
               onSelected: (_) => setState(() => _palmares = p),
               labelStyle: TextStyle(
-                fontSize: 11.5,
+                fontSize: 12,
                 fontWeight: p == _palmares ? FontWeight.w700 : FontWeight.w500,
                 color: p == _palmares ? context.cl.textP : context.cl.textS),
               selectedColor: _couleur(context, p).withValues(alpha: 0.16),
@@ -561,11 +561,11 @@ class _MeilleursButeursState extends ConsumerState<_MeilleursButeurs> {
                               fontWeight: FontWeight.w600)),
                           Text(j.team,
                             maxLines: 1, overflow: TextOverflow.ellipsis,
-                            style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                            style: TextStyle(color: context.cl.textM, fontSize: 11)),
                         ])),
                       const SizedBox(width: 8),
                       Text(tr(context, "{arg0} m.", [j.appearances]),
-                        style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+                        style: TextStyle(color: context.cl.textM, fontSize: 11)),
                       const SizedBox(width: 8),
                       Container(
                         constraints: const BoxConstraints(minWidth: 30),

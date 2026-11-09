@@ -91,7 +91,7 @@ class PronoShareCard extends StatelessWidget {
                       maxLines: 2, overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.7),
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
@@ -264,7 +264,7 @@ class PronoShareCard extends StatelessWidget {
                     tr(context, "PRONOSTIC"),
                     style: TextStyle(
                       color: context.cl.accent,
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 2,
                     ),
@@ -302,7 +302,7 @@ class PronoShareCard extends StatelessWidget {
                         tr(context, "COTE"),
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.75),
-                          fontSize: 9,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
                         ),
@@ -337,7 +337,7 @@ class PronoShareCard extends StatelessWidget {
                         tr(context, "CONFIANCE"),
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.75),
-                          fontSize: 9,
+                          fontSize: 11,
                           fontWeight: FontWeight.w700,
                           letterSpacing: 1.5,
                         ),

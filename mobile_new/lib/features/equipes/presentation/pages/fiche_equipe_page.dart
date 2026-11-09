@@ -219,7 +219,7 @@ class _Saison extends StatelessWidget {
             }).join(', ')]),
             excludeSemantics: true,
             child: Row(children: [
-              Text(tr(context, "Forme"), style: TextStyle(color: cl.textM, fontSize: 12.5)),
+              Text(tr(context, "Forme"), style: TextStyle(color: cl.textM, fontSize: 13)),
               const SizedBox(width: 10),
               for (final c in derniers)
                 Container(
@@ -241,7 +241,7 @@ class _Saison extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 5),
             child: Row(children: [
-              Expanded(child: Text(libelle, style: TextStyle(color: cl.textS, fontSize: 12.5))),
+              Expanded(child: Text(libelle, style: TextStyle(color: cl.textS, fontSize: 13))),
               const SizedBox(width: 10),
               Text(valeur, style: TextStyle(color: cl.textP, fontSize: 13, fontWeight: FontWeight.w700)),
             ]),
@@ -278,7 +278,7 @@ class _StadeEtEntraineur extends StatelessWidget {
           Text([
             if (v.city != null) v.city!,
             if (v.capacity != null) tr(context, "{arg0} places", [montantExact(v.capacity!)]),
-          ].join(' · '), style: TextStyle(color: cl.textS, fontSize: 12.5)),
+          ].join(' · '), style: TextStyle(color: cl.textS, fontSize: 13)),
         ],
         if (v != null && c != null) const Padding(padding: EdgeInsets.symmetric(vertical: 14), child: Divider(height: 1)),
         if (c != null) ...[
@@ -297,7 +297,7 @@ class _StadeEtEntraineur extends StatelessWidget {
               Text([
                 if (c.nationality != null) FootballLabels.country(c.nationality!),
                 if (c.age != null) tr(context, "{arg0} ans", [c.age]),
-              ].join(' · '), style: TextStyle(color: cl.textS, fontSize: 12.5)),
+              ].join(' · '), style: TextStyle(color: cl.textS, fontSize: 13)),
             ])),
           ]),
         ],
@@ -341,7 +341,7 @@ class _Effectif extends StatelessWidget {
             Expanded(child: Text(j.name, maxLines: 1, overflow: TextOverflow.ellipsis,
               style: TextStyle(color: cl.textP, fontSize: 13, fontWeight: FontWeight.w600))),
             if (j.age != null)
-              Text(tr(context, "{arg0} ans", [j.age]), style: TextStyle(color: cl.textM, fontSize: 11.5)),
+              Text(tr(context, "{arg0} ans", [j.age]), style: TextStyle(color: cl.textM, fontSize: 12)),
             const SizedBox(width: 4),
             Icon(Icons.chevron_right_rounded, size: 18, color: cl.textM),
           ]),
@@ -359,14 +359,14 @@ class _Effectif extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.only(top: 6, bottom: 8),
               child: Text(libelle.toUpperCase(),
-                style: TextStyle(color: cl.textM, fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 0.8))),
+                style: TextStyle(color: cl.textM, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8))),
             for (final j in joueurs.where((j) => j.position == poste)) ligne(j),
           ],
         if (autres.isNotEmpty) ...[
           Padding(
             padding: const EdgeInsets.only(top: 6, bottom: 8),
             child: Text(tr(context, "Autres").toUpperCase(),
-              style: TextStyle(color: cl.textM, fontSize: 10.5, fontWeight: FontWeight.w700, letterSpacing: 0.8))),
+              style: TextStyle(color: cl.textM, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8))),
           for (final j in autres) ligne(j),
         ],
       ]),

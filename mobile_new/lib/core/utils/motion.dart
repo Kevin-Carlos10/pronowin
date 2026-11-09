@@ -13,6 +13,35 @@ const int elementsAnimes = 8;
 /// sous la demi-seconde : au-delà, l'écran paraît lent au lieu de paraître vif.
 const int pasEntreeMs = 45;
 
+/// Les entrées animées ne se jouent qu'au premier affichage d'un écran
+/// (revue de l'interface, 9 novembre 2026).
+///
+/// 198 animations d'entrée : chaque section de l'accueil, de Pronos, de
+/// Compte et de Paramètres glissait à chaque retour sur l'écran, et l'app
+/// paraissait plus lente qu'elle n'est. Elles se jouent pendant la première
+/// seconde et demie de la première visite (le temps que le contenu arrive) ;
+/// ensuite, l'écran s'affiche d'emblée dans son état final.
+///
+/// Sans minuteur : l'heure du premier affichage suffit.
+class PremiereApparition {
+  PremiereApparition._();
+
+  static final _debut = <String, DateTime>{};
+  static const fenetre = Duration(milliseconds: 1500);
+
+  /// La valeur de départ à donner à `animate(value: …)` : null pendant la
+  /// première visite (l'animation se joue), 1 ensuite (état final d'emblée).
+  static double? valeur(String ecran) {
+    final debut = _debut.putIfAbsent(ecran, DateTime.now);
+    return DateTime.now().difference(debut) < fenetre ? null : 1.0;
+  }
+
+  static bool dejaVu(String ecran) => valeur(ecran) != null;
+
+  @visibleForTesting
+  static void oublier() => _debut.clear();
+}
+
 /// Respect du réglage système « Réduire les animations » (iOS) /
 /// « Supprimer les animations » (Android).
 ///
@@ -47,8 +76,12 @@ extension MotionContext on BuildContext {
   ///
   /// Au-delà de [elementsAnimes], l'élément est rendu tel quel : c'est aussi
   /// ce qu'il faut quand il arrive par défilement.
-  Widget entree(Widget enfant, int index) {
+  ///
+  /// [ecran] : l'écran, pour ne jouer l'entrée qu'à sa première visite
+  /// ([PremiereApparition]).
+  Widget entree(Widget enfant, int index, {String? ecran}) {
     if (index >= elementsAnimes || animationsReduites) return enfant;
+    if (ecran != null && PremiereApparition.dejaVu(ecran)) return enfant;
 
     return enfant
         .animate(delay: Duration(milliseconds: index * pasEntreeMs))

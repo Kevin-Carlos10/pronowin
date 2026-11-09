@@ -164,7 +164,7 @@ class _PronosticCard extends ConsumerWidget {
                     prono['league'] as String? ?? '',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: context.cl.textM, fontSize: 10),
+                    style: TextStyle(color: context.cl.textM, fontSize: 11),
                   ),
                 ),
                 if (isLive)
@@ -183,7 +183,7 @@ class _PronosticCard extends ConsumerWidget {
                         Text(libelleMinuteDirect(context, minuteDirect(prono), repli: 'LIVE'),
                             style: TextStyle(
                                 color: context.cl.error,
-                                fontSize: 9,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.8,
                                 fontFeatures: const [FontFeature.tabularFigures()])),
@@ -197,7 +197,7 @@ class _PronosticCard extends ConsumerWidget {
                             DateTime.now()),
                     style: TextStyle(
                         color: context.cl.textM,
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600),
                   ),
                 // Raccourci vers la bankroll : le pronostic et la mise
@@ -389,7 +389,7 @@ class _PronosticCard extends ConsumerWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                                 color: context.cl.textM,
-                                fontSize: 9,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.6),
                           ),
@@ -414,7 +414,7 @@ class _PronosticCard extends ConsumerWidget {
                           Text(tr(context, "COTE"),
                               style: TextStyle(
                                   color: context.cl.textM,
-                                  fontSize: 9,
+                                  fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   letterSpacing: 0.6)),
                           const SizedBox(height: 2),
@@ -434,7 +434,7 @@ class _PronosticCard extends ConsumerWidget {
                         Text(tr(context, "CONFIANCE"),
                             style: TextStyle(
                                 color: context.cl.textM,
-                                fontSize: 9,
+                                fontSize: 11,
                                 fontWeight: FontWeight.w700,
                                 letterSpacing: 0.6)),
                         const SizedBox(height: 2),
@@ -469,7 +469,7 @@ class _PronosticCard extends ConsumerWidget {
                               : result == 'LOSS'
                                   ? context.cl.error
                                   : context.cl.textM,
-                          fontSize: 10,
+                          fontSize: 11,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -574,7 +574,7 @@ class _ResultBadge extends StatelessWidget {
             label,
             style: TextStyle(
               color: color,
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
             ),
           ),
@@ -822,7 +822,7 @@ class _FormRow extends StatelessWidget {
           Row(
             children: [
               Text(homeName.split(' ').first,
-                  style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600)),
+                  style: TextStyle(color: context.cl.textM, fontSize: 11, fontWeight: FontWeight.w600)),
               const SizedBox(width: 6),
               ...homeSeries.map((r) => Container(
                 width: 14, height: 14,
@@ -832,7 +832,7 @@ class _FormRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Center(child: Text(r,
-                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700))),
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700))),
               )),
               const Spacer(),
               ...awaySeries.map((r) => Container(
@@ -843,11 +843,11 @@ class _FormRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(3),
                 ),
                 child: Center(child: Text(r,
-                    style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700))),
+                    style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700))),
               )),
               const SizedBox(width: 6),
               Text(awayName.split(' ').first,
-                  style: TextStyle(color: context.cl.textM, fontSize: 10, fontWeight: FontWeight.w600)),
+                  style: TextStyle(color: context.cl.textM, fontSize: 11, fontWeight: FontWeight.w600)),
             ],
           ),
           const SizedBox(height: 6),
@@ -872,9 +872,9 @@ class _FormRow extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(tr(context, "Avantage domicile {arg0}%", [(homeAdv * 100).round()]),
-                  style: TextStyle(color: context.cl.textM, fontSize: 9)),
+                  style: TextStyle(color: context.cl.textM, fontSize: 11)),
               Text('→ ${homeAdv >= 0.5 ? homeName.split(' ').first : awayName.split(' ').first}',
-                  style: TextStyle(color: context.cl.accent, fontSize: 9, fontWeight: FontWeight.w700)),
+                  style: TextStyle(color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w700)),
             ],
           ),
         ],

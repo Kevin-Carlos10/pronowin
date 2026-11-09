@@ -208,7 +208,7 @@ class _KpiCard extends StatelessWidget {
         Text(value, style: TextStyle(
             fontSize: 22, fontWeight: FontWeight.w700, color: color)),
         const SizedBox(height: 4),
-        Text(sub, style: TextStyle(fontSize: 10, color: context.cl.textS),
+        Text(sub, style: TextStyle(fontSize: 11, color: context.cl.textS),
             overflow: TextOverflow.ellipsis),
       ]),
     );
@@ -259,7 +259,7 @@ class _BankrollChart extends StatelessWidget {
             reservedSize: 52,
             getTitlesWidget: (v, _) => Text(
               '${_fmt(v.toInt())} F',
-              style: TextStyle(fontSize: 9, color: context.cl.textS),
+              style: TextStyle(fontSize: 11, color: context.cl.textS),
             ),
           )),
           bottomTitles: AxisTitles(sideTitles: SideTitles(
@@ -273,7 +273,7 @@ class _BankrollChart extends StatelessWidget {
               return Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text('${parts[2]}/${parts[1]}',
-                    style: TextStyle(fontSize: 9, color: context.cl.textS)),
+                    style: TextStyle(fontSize: 11, color: context.cl.textS)),
               );
             },
           )),

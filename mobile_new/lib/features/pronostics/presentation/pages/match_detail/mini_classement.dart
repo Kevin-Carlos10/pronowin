@@ -76,7 +76,7 @@ class _MiniClassement extends ConsumerWidget {
                 TeamLogoWidget(url: r.teamLogo, size: 20),
                 const SizedBox(width: 8),
                 Expanded(child: Text(r.teamName, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: context.cl.textP, fontSize: 13.5, fontWeight: FontWeight.w600))),
+                  style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w600))),
                 nombre('${r.played}'),
                 nombre(r.goalsDiff > 0 ? '+${r.goalsDiff}' : '${r.goalsDiff}'),
                 nombre('${r.points}', gras: true, couleur: context.cl.accent),

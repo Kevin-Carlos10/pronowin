@@ -114,7 +114,7 @@ class _VoteFansState extends ConsumerState<_VoteFans> {
           if (_erreur != null) ...[
             const SizedBox(height: 8),
             Text(_erreur!, key: const Key('vote-erreur'),
-              style: TextStyle(color: context.cl.error, fontSize: 12.5)),
+              style: TextStyle(color: context.cl.error, fontSize: 13)),
           ] else if (issue != null) ...[
             const SizedBox(height: 8),
             _Verdict(votes: v, issue: issue),
@@ -145,7 +145,7 @@ class _Verdict extends StatelessWidget {
       Text(majorite
           ? tr(context, "{arg0} % des fans l'avaient vu venir.", [part])
           : tr(context, "Seuls {arg0} % des fans l'avaient vu venir.", [part]),
-        style: TextStyle(color: context.cl.textS, fontSize: 12.5, fontWeight: FontWeight.w600)),
+        style: TextStyle(color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600)),
       if (mien != null) ...[
         const SizedBox(height: 4),
         Row(children: [
@@ -154,7 +154,7 @@ class _Verdict extends StatelessWidget {
           const SizedBox(width: 6),
           Text(mien == issue ? tr(context, "Ton vote : bien vu !") : tr(context, "Ton vote : raté."),
             style: TextStyle(color: mien == issue ? context.cl.success : context.cl.error,
-              fontSize: 12.5, fontWeight: FontWeight.w700)),
+              fontSize: 13, fontWeight: FontWeight.w700)),
         ]),
       ],
     ]);

@@ -91,7 +91,7 @@ class _H2HContent extends StatelessWidget {
             Text(h2h.homeTeam,
               textAlign: TextAlign.center,
               maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: context.cl.textS, fontSize: 10)),
+              style: TextStyle(color: context.cl.textS, fontSize: 11)),
           ]),
         ),
         // Draws
@@ -105,7 +105,7 @@ class _H2HContent extends StatelessWidget {
                 fontSize: 24, fontWeight: FontWeight.w700)),
           ),
           Text(tr(context, "Nuls"),
-            style: TextStyle(color: context.cl.textM, fontSize: 10)),
+            style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
         // Away wins
         Expanded(
@@ -121,7 +121,7 @@ class _H2HContent extends StatelessWidget {
             Text(h2h.awayTeam,
               textAlign: TextAlign.center,
               maxLines: 1, overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: context.cl.textS, fontSize: 10)),
+              style: TextStyle(color: context.cl.textS, fontSize: 11)),
           ]),
         ),
       ]),
@@ -237,7 +237,7 @@ class _H2HRow extends StatelessWidget {
       child: Column(children: [
         Row(children: [
           Text(DateFormat('EEE d MMM y').format(match.date),
-            style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+            style: TextStyle(color: context.cl.textM, fontSize: 11)),
           const Spacer(),
           if (match.league.isNotEmpty)
             Flexible(
@@ -250,7 +250,7 @@ class _H2HRow extends StatelessWidget {
                   maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: context.cl.textM,
-                    fontSize: 8.5,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.4)),
               ),
@@ -397,7 +397,7 @@ class _LigneSaison extends StatelessWidget {
             fontSize: 13, fontWeight: FontWeight.w700))),
       Expanded(child: Text(libelle,
         textAlign: TextAlign.center, maxLines: 1, overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: context.cl.textM, fontSize: 11.5))),
+        style: TextStyle(color: context.cl.textM, fontSize: 12))),
       SizedBox(width: 46,
         child: Text(droite ?? '—',
           textAlign: TextAlign.right,

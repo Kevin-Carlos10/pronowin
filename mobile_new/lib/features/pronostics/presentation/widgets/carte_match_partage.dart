@@ -93,7 +93,7 @@ class CarteMatchPartage extends StatelessWidget {
                   color: Colors.white.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(20)),
                 child: Text(match.league, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.right,
-                  style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 10, fontWeight: FontWeight.w600)),
+                  style: TextStyle(color: Colors.white.withValues(alpha: 0.75), fontSize: 11, fontWeight: FontWeight.w600)),
               )),
             ]),
             const SizedBox(height: 26),

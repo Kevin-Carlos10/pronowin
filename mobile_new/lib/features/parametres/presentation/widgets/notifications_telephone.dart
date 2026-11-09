@@ -77,7 +77,7 @@ class _AlerteNotificationsTelephoneState extends State<AlerteNotificationsTeleph
             Text(coupees
                 ? tr(context, "Les notifications sont coupées sur ce téléphone")
                 : tr(context, "Les notifications ne sont pas encore activées"),
-              style: TextStyle(color: context.cl.textP, fontSize: 13.5, fontWeight: FontWeight.w700)),
+              style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w700)),
             const SizedBox(height: 3),
             Text(tr(context, "Ni buts, ni coups d'envoi, ni résultats ne t'arriveront tant qu'elles le restent."),
               style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.35)),

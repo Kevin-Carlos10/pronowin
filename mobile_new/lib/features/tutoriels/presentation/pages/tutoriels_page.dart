@@ -602,7 +602,7 @@ class _FeaturedCardState extends State<_FeaturedCard>
                           decoration: BoxDecoration(color: _catColor(context), shape: BoxShape.circle)),
                         const SizedBox(width: 5),
                          Text(tr(context, "À LA UNE"), style: TextStyle(
-                          color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
+                          color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                       ]),
                     ),
                     const Spacer(),
@@ -615,7 +615,7 @@ class _FeaturedCardState extends State<_FeaturedCard>
                         child: const Row(mainAxisSize: MainAxisSize.min, children: [
                           Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 10),
                           SizedBox(width: 3),
-                          Text('PREMIUM', style: TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
+                          Text('PREMIUM', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
                         ]),
                       ),
                   ]),
@@ -808,7 +808,7 @@ class _ThumbBadge extends StatelessWidget {
         Icon(icon, color: Colors.white, size: 12),
         const SizedBox(width: 3),
         Text(tr(context, label), style: const TextStyle(
-          color: Colors.white, fontSize: 10, fontWeight: FontWeight.w700)),
+          color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
       ]),
     ),
   );
@@ -910,7 +910,7 @@ class _LevelBadge extends StatelessWidget {
           color: _color(context).withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(4)),
         child: Text(level.label, style: TextStyle(
-            color: _color(context), fontSize: 10, fontWeight: FontWeight.w600)));
+            color: _color(context), fontSize: 11, fontWeight: FontWeight.w600)));
 }
 
 // ── Shimmer ───────────────────────────────────────────────────────────────────

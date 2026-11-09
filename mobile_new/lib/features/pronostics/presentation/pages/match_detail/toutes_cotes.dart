@@ -145,7 +145,7 @@ class _ToutesLesCotesState extends ConsumerState<_ToutesLesCotes> {
                 selected: f == famille,
                 onSelected: (_) => setState(() => _famille = f),
                 labelStyle: TextStyle(
-                  fontSize: 11.5,
+                  fontSize: 12,
                   fontWeight: f == famille ? FontWeight.w700 : FontWeight.w500,
                   color: f == famille ? context.cl.textP : context.cl.textS),
                 selectedColor: context.cl.textP.withValues(alpha: 0.10),

@@ -50,7 +50,7 @@ class ConfidenceIndicator extends StatelessWidget {
           // rassure sans protéger — c'est précisément ce que ce dépôt traque.
           Text(
             MatchEntity.labelForConfidence(_niveau),
-            style: TextStyle(color: colorFor(context, _niveau), fontSize: 10, fontWeight: FontWeight.w700),
+            style: TextStyle(color: colorFor(context, _niveau), fontSize: 11, fontWeight: FontWeight.w700),
             textAlign: TextAlign.end,
           ),
           const SizedBox(height: 2),

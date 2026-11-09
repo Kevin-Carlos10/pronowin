@@ -175,7 +175,7 @@ class _FavoriteTile extends ConsumerWidget {
             maxLines: 1, overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: perd ? context.cl.textS : context.cl.textP,
-              fontSize: 12.5, fontWeight: FontWeight.w600)),
+              fontSize: 13, fontWeight: FontWeight.w600)),
         ),
         if (hasScore && (isLive || isFinished))
           Text('$score',
@@ -210,7 +210,7 @@ class _FavoriteTile extends ConsumerWidget {
                 Expanded(
                   child: Text(
                     fav['league'] as String? ?? '',
-                    style: TextStyle(color: context.cl.textM, fontSize: 10.5),
+                    style: TextStyle(color: context.cl.textM, fontSize: 11),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -226,13 +226,13 @@ class _FavoriteTile extends ConsumerWidget {
                     child: Text(libelleMinuteDirect(context, minuteDirect(fav), repli: 'LIVE'),
                         style: TextStyle(
                             color: context.cl.error,
-                            fontSize: 9,
+                            fontSize: 11,
                             fontWeight: FontWeight.w800,
                             fontFeatures: const [FontFeature.tabularFigures()])),
                   )
                 else if (isFinished)
                   Text(tr(context, "Terminé"),
-                    style: TextStyle(color: context.cl.textM, fontSize: 10.5))
+                    style: TextStyle(color: context.cl.textM, fontSize: 11))
                 else if (heure != null)
                   Text(DateFormat('HH:mm').format(heure),
                     style: TextStyle(color: context.cl.dore, fontSize: 11, fontWeight: FontWeight.w700)),

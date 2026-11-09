@@ -507,7 +507,7 @@ class _EntryTile extends StatelessWidget {
               color: context.cl.success, size: 11),
             const SizedBox(width: 3),
             Text(tr(context, "{arg0}/{arg1} gagnés", [e.wonPredictions, e.totalPredictions]),
-              style: TextStyle(color: context.cl.textM, fontSize: 10)),
+              style: TextStyle(color: context.cl.textM, fontSize: 11)),
           ]),
         ])),
 

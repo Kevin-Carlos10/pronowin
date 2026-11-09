@@ -33,7 +33,7 @@ class _FormCard extends StatelessWidget {
             child: Text(match.homeTeam,
               maxLines: 1, overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: context.cl.success, fontSize: 11.5,
+                color: context.cl.success, fontSize: 12,
                 fontWeight: FontWeight.w700))),
           const SizedBox(width: 12),
           Expanded(
@@ -41,7 +41,7 @@ class _FormCard extends StatelessWidget {
               textAlign: TextAlign.right,
               maxLines: 1, overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                color: context.cl.error, fontSize: 11.5,
+                color: context.cl.error, fontSize: 12,
                 fontWeight: FontWeight.w700))),
         ]),
         const SizedBox(height: 9),
@@ -238,7 +238,7 @@ class _FormeRecente extends ConsumerWidget {
             Text(
               tr(context, "Plus récent en haut · Scores domicile–extérieur"),
               textAlign: TextAlign.center,
-              style: TextStyle(color: context.cl.textS, fontSize: 10),
+              style: TextStyle(color: context.cl.textS, fontSize: 11),
             ),
           ],
         ),
@@ -457,10 +457,10 @@ class _LigneMatchRecent extends StatelessWidget {
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(m.adversaire,
                 maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: context.cl.textP, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
               Text(sousTitre,
                 maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+                style: TextStyle(color: context.cl.textM, fontSize: 11)),
             ])),
           ]),
         )),

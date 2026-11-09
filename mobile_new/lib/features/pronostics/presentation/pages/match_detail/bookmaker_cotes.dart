@@ -108,7 +108,7 @@ class BookmakerCotes extends StatelessWidget {
       if (marche != null) ...[
         Text(marche!,
           style: TextStyle(
-            color: context.cl.textM, fontSize: 9.5,
+            color: context.cl.textM, fontSize: 11,
             fontWeight: FontWeight.w700, letterSpacing: 0.6)),
         const SizedBox(height: 8),
       ],
@@ -146,7 +146,7 @@ class BookmakerCotes extends StatelessWidget {
           child: Text(
             BookmakerAffiliation.mention,
             style: TextStyle(
-                color: context.cl.textM, fontSize: 10.5, height: 1.3),
+                color: context.cl.textM, fontSize: 11, height: 1.3),
           ),
         ),
       ]),

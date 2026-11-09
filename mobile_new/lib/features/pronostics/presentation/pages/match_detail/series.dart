@@ -61,7 +61,7 @@ class _Series extends ConsumerWidget {
               : TeamLogoWidget(url: logo!.isEmpty ? null : logo, size: 20)),
             const SizedBox(width: 12),
             Expanded(child: Text(libelle,
-              style: TextStyle(color: context.cl.textP, fontSize: 13.5, fontWeight: FontWeight.w500))),
+              style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w500))),
             const SizedBox(width: 10),
             Text(fait.valeur,
               style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w800,

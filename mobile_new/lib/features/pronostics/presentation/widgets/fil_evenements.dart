@@ -315,7 +315,7 @@ class _LigneSeparateur extends StatelessWidget {
               if (ligne.score != null) TextSpan(
                 text: '   ${ligne.score}',
                 style: TextStyle(color: context.cl.textP, fontWeight: FontWeight.w700)),
-            ]), style: TextStyle(color: context.cl.textS, fontSize: 11.5, fontWeight: FontWeight.w600)),
+            ]), style: TextStyle(color: context.cl.textS, fontSize: 12, fontWeight: FontWeight.w600)),
           ),
           Expanded(child: Divider(color: context.cl.borderSoft, height: 1)),
         ]),
@@ -346,10 +346,10 @@ class _LigneEvenement extends StatelessWidget {
         TextSpan(children: [
           TextSpan(text: "${e.minute}'"),
           if (e.extra != null) TextSpan(text: ' +${e.extra}',
-            style: const TextStyle(fontSize: 9.5, fontWeight: FontWeight.w600)),
+            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
         ]),
         textAlign: dom ? TextAlign.left : TextAlign.right,
-        style: TextStyle(color: context.cl.textS, fontSize: 11.5, fontWeight: FontWeight.w700,
+        style: TextStyle(color: context.cl.textS, fontSize: 12, fontWeight: FontWeight.w700,
           fontFeatures: const [FontFeature.tabularFigures()]),
       ),
     );
@@ -357,14 +357,14 @@ class _LigneEvenement extends StatelessWidget {
     final score = ligne.score == null ? null : Padding(
       padding: const EdgeInsets.symmetric(horizontal: 6),
       child: Text(ligne.score!, style: TextStyle(
-        color: context.cl.textP, fontSize: 12.5, fontWeight: FontWeight.w800)),
+        color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w800)),
     );
     final textes = Expanded(child: Column(
       crossAxisAlignment: dom ? CrossAxisAlignment.start : CrossAxisAlignment.end,
       children: [
         Text(principal, maxLines: 1, overflow: TextOverflow.ellipsis,
           textAlign: dom ? TextAlign.left : TextAlign.right,
-          style: TextStyle(color: context.cl.textP, fontSize: 12.5, fontWeight: FontWeight.w600)),
+          style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
         if (secondaire != null)
           Text(secondaire, maxLines: 1, overflow: TextOverflow.ellipsis,
             textAlign: dom ? TextAlign.left : TextAlign.right,
@@ -462,7 +462,7 @@ class _LigneEvenement extends StatelessWidget {
               border: Border.all(color: context.cl.info, width: 1),
               borderRadius: BorderRadius.circular(3)),
             child: Text('VAR', softWrap: false, style: TextStyle(color: context.cl.info,
-              fontSize: 8, fontWeight: FontWeight.w800, height: 1.1)),
+              fontSize: 11, fontWeight: FontWeight.w800, height: 1.1)),
           ),
         );
     }

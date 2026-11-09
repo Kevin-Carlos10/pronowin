@@ -29,6 +29,9 @@ import '../../../../shared/utils/messages.dart';
 import 'package:pronowin/shared/utils/initiale.dart';
 import '../../../../shared/widgets/skeletons.dart';
 
+/// Entrées animées à la première visite seulement (motion.dart).
+double? get _apparitionCompte => PremiereApparition.valeur('compte');
+
 
 /// Tout ce que l'ecran du compte lit pour cet utilisateur.
 ///
@@ -220,7 +223,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                               isPremium: isPremium,
                               earnings: earnings,
                               onEdit: () => context.push('/compte/edit'),
-                            ).animate()
+                            ).animate(value: _apparitionCompte)
                               .scale(begin: const Offset(0.65, 0.65), end: const Offset(1, 1),
                                 duration: 500.ms, curve: Curves.easeOutBack)
                               .fadeIn(duration: 400.ms),
@@ -238,7 +241,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                                 const BadgePremium(taille: 20),
                               ],
                             ])
-                              .animate(delay: 120.ms)
+                              .animate(delay: 120.ms, value: _apparitionCompte)
                               .fadeIn(duration: 300.ms)
                               .slideY(begin: 0.1, end: 0, curve: Curves.easeOutCubic),
                             // Le pseudo remplace le numéro de téléphone :
@@ -251,7 +254,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                               const SizedBox(height: 3),
                               Text('@$pseudo', style: TextStyle(
                                 color: context.cl.textS, fontSize: 13))
-                                .animate(delay: 160.ms)
+                                .animate(delay: 160.ms, value: _apparitionCompte)
                                 .fadeIn(duration: 280.ms),
                             ],
                             const SizedBox(height: 10),
@@ -272,7 +275,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                                 loading: () => const SizedBox.shrink(),
                                 error: (_, _) => const SizedBox.shrink(),
                               ),
-                            ]).animate(delay: 200.ms).fadeIn(duration: 300.ms),
+                            ]).animate(delay: 200.ms, value: _apparitionCompte).fadeIn(duration: 300.ms),
                             // Rangée « Plan / Gains / Membre » retirée : le plan
                             // est déjà la pastille juste au-dessus, les gains de
                             // parrainage ont leur onglet dédié (et affichaient
@@ -464,16 +467,16 @@ class _ApercuTab extends ConsumerWidget {
             color: const Color(0xFF16A34A),
             badge: ref.watch(actualitesNonLuesProvider),
             onTap: () => context.push('/actualites')))
-            .animate(delay: 0.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+            .animate(delay: 0.ms, value: _apparitionCompte).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
           _LinkRow(icon: Icons.insights_rounded, label: 'Performance',
             color: const Color(0xFF6C63FF), onTap: () => context.push('/performance'))
-            .animate(delay: 50.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+            .animate(delay: 50.ms, value: _apparitionCompte).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
           _LinkRow(icon: Icons.emoji_events_rounded, label: tr(context, "Classement"),
             color: const Color(0xFFFFD700), onTap: () => context.push('/classement'))
-            .animate(delay: 100.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+            .animate(delay: 100.ms, value: _apparitionCompte).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
           _LinkRow(icon: Icons.notifications_outlined, label: tr(context, "Notifications"),
             color: AppColors.primary, onTap: () => context.push('/notifications'))
-            .animate(delay: 150.ms).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+            .animate(delay: 150.ms, value: _apparitionCompte).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
         ]),
       ],
     );
@@ -578,7 +581,7 @@ class _FreeState extends ConsumerWidget {
             child: Text(tr(context, "Gratuit"), style: TextStyle(
               color: context.cl.textS, fontSize: 11, fontWeight: FontWeight.w600))),
         ]),
-      ).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),
+      ).animate(value: _apparitionCompte).fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),
 
       const SizedBox(height: 20),
 
@@ -625,7 +628,7 @@ class _FreeState extends ConsumerWidget {
                 Text(premiumMonthlyPriceLabel(ref, sub), style: TextStyle(
                   color: context.cl.dore, fontSize: 22, fontWeight: FontWeight.w700)),
                 Text(tr(context, "/mois"), style: const TextStyle(
-                  color: Colors.white54, fontSize: 10)),
+                  color: Colors.white54, fontSize: 11)),
               ]),
             ]),
 
@@ -652,14 +655,14 @@ class _FreeState extends ConsumerWidget {
               .shimmer(duration: 2000.ms, color: Colors.white10, delay: 800.ms),
           ]),
         ),
-      )).animate(delay: 60.ms).fadeIn(duration: 350.ms).slideY(begin: 0.05, end: 0),
+      )).animate(delay: 60.ms, value: _apparitionCompte).fadeIn(duration: 350.ms).slideY(begin: 0.05, end: 0),
 
       const SizedBox(height: 24),
 
       // Titre section fonctionnalités
       Row(children: [
         Text(tr(context, "CE QUE VOUS DÉBLOQUEZ"), style: TextStyle(
-          color: context.cl.textM, fontSize: 10,
+          color: context.cl.textM, fontSize: 11,
           fontWeight: FontWeight.w700, letterSpacing: 1)),
         const Spacer(),
         Container(
@@ -673,8 +676,8 @@ class _FreeState extends ConsumerWidget {
           // pas à faire l'effort de compter, les deux se contredisent sous
           // ses yeux. Il suit désormais la liste.
           child: Text(tr(context, "{arg0} avantages", [features.length]), style: TextStyle(
-            color: context.cl.accent, fontSize: 10, fontWeight: FontWeight.w600))),
-      ]).animate(delay: 100.ms).fadeIn(duration: 280.ms),
+            color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w600))),
+      ]).animate(delay: 100.ms, value: _apparitionCompte).fadeIn(duration: 280.ms),
 
       const SizedBox(height: 10),
 
@@ -712,7 +715,7 @@ class _FreeState extends ConsumerWidget {
                 child: Icon(Icons.lock_rounded,
                   color: context.cl.textM, size: 12)),
             ]),
-          ).animate(delay: Duration(milliseconds: 120 + e.key * 50))
+          ).animate(delay: Duration(milliseconds: 120 + e.key * 50), value: _apparitionCompte)
             .fadeIn(duration: 280.ms).slideX(begin: 0.03, end: 0),
         );
       }),
@@ -905,13 +908,13 @@ class _PremiumState extends ConsumerWidget {
             ),
           ],
         ]),
-      )).animate().fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),
+      )).animate(value: _apparitionCompte).fadeIn(duration: 300.ms).slideY(begin: 0.05, end: 0),
 
       const SizedBox(height: 24),
 
       Row(children: [
         Text(tr(context, "VOS AVANTAGES"), style: TextStyle(
-          color: context.cl.textM, fontSize: 10,
+          color: context.cl.textM, fontSize: 11,
           fontWeight: FontWeight.w700, letterSpacing: 1)),
         const Spacer(),
         Container(
@@ -920,8 +923,8 @@ class _PremiumState extends ConsumerWidget {
             color: context.cl.success.withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(6)),
           child:  Text(tr(context, "Tout débloqué ✓"), style: TextStyle(
-            color: context.cl.success, fontSize: 10, fontWeight: FontWeight.w600))),
-      ]).animate(delay: 80.ms).fadeIn(duration: 280.ms),
+            color: context.cl.success, fontSize: 11, fontWeight: FontWeight.w600))),
+      ]).animate(delay: 80.ms, value: _apparitionCompte).fadeIn(duration: 280.ms),
 
       const SizedBox(height: 10),
 
@@ -953,7 +956,7 @@ class _PremiumState extends ConsumerWidget {
               Icon(Icons.check_circle_rounded,
                 color: context.cl.success, size: 18),
             ]),
-          ).animate(delay: Duration(milliseconds: 100 + e.key * 50))
+          ).animate(delay: Duration(milliseconds: 100 + e.key * 50), value: _apparitionCompte)
             .fadeIn(duration: 280.ms).slideX(begin: 0.03, end: 0),
         );
       }),
@@ -1119,7 +1122,7 @@ class _ParrainageTab extends ConsumerWidget {
                     : tr(context, "{arg0} / {arg1} FCFA avant de pouvoir retirer", [earnings, minW])),
               style: TextStyle(
                 color: peutAgir ? context.cl.success : context.cl.textM,
-                fontSize: 11.5,
+                fontSize: 12,
                 fontWeight: peutAgir ? FontWeight.w600 : FontWeight.w400)),
             if (peutAgir) ...[
               const SizedBox(height: 12),
@@ -1226,12 +1229,12 @@ class _ParrainageTab extends ConsumerWidget {
               const SizedBox(height: 12),
               Text(tr(context, "Aucun filleul pour le moment"),
                 style: TextStyle(
-                  color: context.cl.textP, fontSize: 14.5, fontWeight: FontWeight.w700)),
+                  color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
               Text(
                 tr(context, "Les amis inscrits avec ton code apparaîtront ici."),
                 textAlign: TextAlign.center,
-                style: TextStyle(color: context.cl.textM, fontSize: 12.5, height: 1.45)),
+                style: TextStyle(color: context.cl.textM, fontSize: 13, height: 1.45)),
             ]),
           )
         else ...[
@@ -1244,7 +1247,7 @@ class _ParrainageTab extends ConsumerWidget {
               sub: estStore ? tr(context, "{arg0} / filleul", [libelleJours(joursL2)])
                             : tr(context, "{arg0} {arg1} / filleul", [comL2, devise]),
               color: context.cl.info),
-          ]).animate().fadeIn(duration: 350.ms).slideY(begin: 0.06, end: 0),
+          ]).animate(value: _apparitionCompte).fadeIn(duration: 350.ms).slideY(begin: 0.06, end: 0),
           const SizedBox(height: 16),
           SizedBox(
             width: double.infinity, height: 48,
@@ -1440,7 +1443,7 @@ class _ProfileAvatar extends StatelessWidget {
             border: Border.all(color: lv.color.withValues(alpha: 0.6), width: 1)),
           child: Text('${lv.emoji} ${lv.name}',
             style: TextStyle(color: lv.color,
-              fontSize: 9, fontWeight: FontWeight.w700)),
+              fontSize: 11, fontWeight: FontWeight.w700)),
         ),
       ),
       Positioned(
@@ -1563,7 +1566,7 @@ class _RewardTile extends StatelessWidget {
       const SizedBox(height: 5),
       Text(tr(context, label),
         maxLines: 2, overflow: TextOverflow.ellipsis,
-        style: TextStyle(color: context.cl.textM, fontSize: 11.5, height: 1.3)),
+        style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.3)),
     ]),
   );
 }
@@ -1586,7 +1589,7 @@ class _HowToStep extends StatelessWidget {
           color: const Color(0xFFA78BFA).withValues(alpha: 0.15),
           shape: BoxShape.circle),
         child: Text('$n', style: const TextStyle(
-          color: Color(0xFFA78BFA), fontSize: 11.5, fontWeight: FontWeight.w700)),
+          color: Color(0xFFA78BFA), fontSize: 12, fontWeight: FontWeight.w700)),
       ),
       const SizedBox(width: 11),
       Expanded(
@@ -1617,7 +1620,7 @@ class _StatBox extends StatelessWidget {
           builder: (_, v, _) => Text('$v', style: TextStyle(
             color: color, fontSize: 22, fontWeight: FontWeight.w700)),
         ),
-        Text(tr(context, sub), style: TextStyle(color: context.cl.textM, fontSize: 10)),
+        Text(tr(context, sub), style: TextStyle(color: context.cl.textM, fontSize: 11)),
       ])));
   }
 }

@@ -797,7 +797,7 @@ class _BulleSuivi extends StatelessWidget {
                   Expanded(child: Text(
                     tr(context, "Sois alerté des buts, de la mi-temps et du résumé."),
                     maxLines: 2, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 12.5, height: 1.3, fontWeight: FontWeight.w600))),
+                    style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.3, fontWeight: FontWeight.w600))),
                   TextButton(
                     key: const Key('bulle-suivi-suivre'),
                     style: TextButton.styleFrom(foregroundColor: Colors.white,
@@ -986,7 +986,7 @@ class _TitreLigue extends StatelessWidget {
       opacity: opacite,
       child: Text(ligue,
         maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-        style: TextStyle(fontSize: 13.5, height: 1.15, color: context.cl.textS)),
+        style: TextStyle(fontSize: 14, height: 1.15, color: context.cl.textS)),
     );
   }
 }
@@ -1082,7 +1082,7 @@ class _EnTeteRepliable extends ConsumerWidget {
             // Un buteur par ligne, le nom abrégé et les minutes entières :
             // « N. Jackson 4' ». Tout sur une ligne, la minute disparaissait
             // derrière les points de suspension (vidéo du 8 novembre 2026).
-            final styleBut = TextStyle(color: context.cl.textS, fontSize: 10.5, fontWeight: FontWeight.w500, height: 1.25);
+            final styleBut = TextStyle(color: context.cl.textS, fontSize: 11, fontWeight: FontWeight.w500, height: 1.25);
             Widget buts(List<Buteur> liste, double x) => Positioned(
               left: x - largeurNom / 2 - 6, width: largeurNom + 12,
               top: haut + _hauteurBarre + 78 - r * 48,
@@ -1328,7 +1328,7 @@ class _PronosticCard extends StatelessWidget {
           Text(_market!.toUpperCase(),
             style: TextStyle(
               color: context.cl.accent,
-              fontSize: 10.5,
+              fontSize: 11,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.8)),
           const SizedBox(height: 7),
@@ -1348,7 +1348,7 @@ class _PronosticCard extends StatelessWidget {
               Text(tr(context, "COTE"),
                 style: TextStyle(
                   color: context.cl.textM,
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.8)),
               const SizedBox(height: 7),
@@ -1409,7 +1409,7 @@ class _ConfianceRappel extends StatelessWidget {
       Text(tr(context, "CONFIANCE ANNONCÉE"),
         style: TextStyle(
           color: context.cl.textM,
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.8)),
       const SizedBox(height: 7),
@@ -1675,7 +1675,7 @@ class _OddsCard extends ConsumerWidget {
               child: Text(marche,
                 maxLines: 2,
                 style: TextStyle(
-                  color: context.cl.textM, fontSize: 9.5,
+                  color: context.cl.textM, fontSize: 11,
                   fontWeight: FontWeight.w700, letterSpacing: 0.6)),
             ),
             const SizedBox(width: 10),
@@ -1728,7 +1728,7 @@ class _CoteRecommandee extends StatelessWidget {
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(tr(context, "COTE DU PRONOSTIC"),
             style: TextStyle(
-              color: context.cl.textM, fontSize: 9.5,
+              color: context.cl.textM, fontSize: 11,
               fontWeight: FontWeight.w700, letterSpacing: 0.6)),
           const SizedBox(height: 5),
           Text(match.displayPredictionLabel,
@@ -1782,7 +1782,7 @@ class _OddPill extends StatelessWidget {
         // se lisait comme une scorie plutôt que comme un repère.
         Text(label, style: TextStyle(
           color: isRecommended ? context.cl.success : context.cl.textM,
-          fontSize: 9, fontWeight: FontWeight.w700)),
+          fontSize: 11, fontWeight: FontWeight.w700)),
         Text(value > 0 ? value.toStringAsFixed(2) : '—',
           style: TextStyle(
             color: isRecommended ? context.cl.success : context.cl.textP,
@@ -1976,7 +1976,7 @@ class _ScoreNonActualiseState extends State<_ScoreNonActualise> {
           Icon(Icons.cloud_off_rounded, size: 13, color: context.cl.textM),
           const SizedBox(width: 4),
           Text(tr(context, "Score non actualisé"),
-            style: TextStyle(color: context.cl.textM, fontSize: 10.5)),
+            style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
       ),
     );
@@ -2083,7 +2083,7 @@ class _DetailConfidenceBar extends StatelessWidget {
           Expanded(child: Text(tr(context, "CONFIANCE DE L'ANALYSTE"),
               style: TextStyle(
                   color: context.cl.textM,
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.8))),
           const SizedBox(width: 8),
@@ -2115,7 +2115,7 @@ class _DetailConfidenceBar extends StatelessWidget {
         const SizedBox(height: 5),
         Text(_label,
             style: TextStyle(
-                color: _color(context), fontSize: 10.5, fontWeight: FontWeight.w700)),
+                color: _color(context), fontSize: 11, fontWeight: FontWeight.w700)),
       ],
     );
   }

@@ -3,6 +3,7 @@ import 'package:pronowin/l10n/app_strings.dart';
 import 'package:dio/dio.dart';
 import '../../../../core/utils/motion.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show ScrollDirection;
 import 'package:flutter/services.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -27,6 +28,9 @@ import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
 import '../../../../shared/widgets/code_promo.dart';
 import '../../../../core/router/onglet_demarrage.dart';
+
+/// Entrées animées à la première visite seulement (motion.dart).
+double? get _apparitionPronos => PremiereApparition.valeur('pronos');
 
 class PronosticsPage extends ConsumerStatefulWidget {
   const PronosticsPage({super.key});
@@ -96,11 +100,25 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
   final ScrollController _dateScrollCtrl  = ScrollController();
   final ScrollController _listScrollCtrl  = ScrollController();
 
+  /// Dates et filtres visibles (revue de l'interface, 9 novembre 2026).
+  ///
+  /// Titre, onglets, bande des dates et filtres prenaient la moitié de
+  /// l'écran avant le premier match (vidéo du 8 novembre). Ils se rangent
+  /// quand on descend la liste et reviennent dès qu'on remonte, comme la
+  /// barre d'adresse d'un navigateur.
+  bool _barresVisibles = true;
+
   void _onListScroll() {
     final pos = _listScrollCtrl.position;
     if (pos.pixels >= pos.maxScrollExtent - 300) {
       ref.read(matchesPaginatedProvider.notifier).loadMore();
     }
+    final visibles = switch (pos.userScrollDirection) {
+      ScrollDirection.reverse => pos.pixels < 80,
+      ScrollDirection.forward => true,
+      ScrollDirection.idle => _barresVisibles,
+    };
+    if (visibles != _barresVisibles) setState(() => _barresVisibles = visibles);
   }
 
   @override
@@ -273,35 +291,42 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
 
         // ── Vue normale ───────────────────────────────────────────────────────
         if (_tab == _PronosticsTab.all) ...[
-          _DateScrollBar(
-            dates:           _dates,
-            selectedDate:    _selectedDate,
-            matchCountByDay: matchCountByDay,
-            scrollController: _dateScrollCtrl,
-            onSelect: (d) {
-              setState(() => _selectedDate = d);
-              // Envoyer la date au provider (format YYYY-MM-DD)
-              final dateStr = '${d.year.toString().padLeft(4,'0')}-'
-                  '${d.month.toString().padLeft(2,'0')}-'
-                  '${d.day.toString().padLeft(2,'0')}';
-              ref.read(pronosticsFilterProvider.notifier)
-                  .update((f) => f.copyWith(dateFilter: dateStr));
-            },
-          ),
-          _StatusFilterBar(
-            selected: statusFilter,
-            // Le nombre de matchs en direct ce jour-là, sur la puce même,
-            // comme Sofascore (« En direct ● 535 événements »). La liste met
-            // le direct en tête de pagination : les matchs chargés le
-            // comptent tous.
-            enDirect: pagedState.matches
-                .where((m) => m.status == MatchStatus.live && _isSameDay(m.matchDate, _selectedDate))
-                .length,
-            onSelect: (s) {
-              HapticFeedback.selectionClick();
-              ref.read(statusFilterProvider.notifier).state = s;
-            },
-          ),
+          AnimatedSize(
+            key: const Key('barres-pronos'),
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
+            alignment: Alignment.topCenter,
+            child: !_barresVisibles ? const SizedBox(width: double.infinity) : Column(mainAxisSize: MainAxisSize.min, children: [
+              _DateScrollBar(
+                dates:           _dates,
+                selectedDate:    _selectedDate,
+                matchCountByDay: matchCountByDay,
+                scrollController: _dateScrollCtrl,
+                onSelect: (d) {
+                  setState(() => _selectedDate = d);
+                  // Envoyer la date au provider (format YYYY-MM-DD)
+                  final dateStr = '${d.year.toString().padLeft(4,'0')}-'
+                      '${d.month.toString().padLeft(2,'0')}-'
+                      '${d.day.toString().padLeft(2,'0')}';
+                  ref.read(pronosticsFilterProvider.notifier)
+                      .update((f) => f.copyWith(dateFilter: dateStr));
+                },
+              ),
+              _StatusFilterBar(
+                selected: statusFilter,
+                // Le nombre de matchs en direct ce jour-là, sur la puce même,
+                // comme Sofascore (« En direct ● 535 événements »). La liste met
+                // le direct en tête de pagination : les matchs chargés le
+                // comptent tous.
+                enDirect: pagedState.matches
+                    .where((m) => m.status == MatchStatus.live && _isSameDay(m.matchDate, _selectedDate))
+                    .length,
+                onSelect: (s) {
+                  HapticFeedback.selectionClick();
+                  ref.read(statusFilterProvider.notifier).state = s;
+                },
+              ),
+          ])),
           // Ces matchs viennent-ils d'une copie ?
           //
           // Le repli de cache existait, mais dans une branche que rien
@@ -516,7 +541,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                       padding: EdgeInsets.fromLTRB(
                         14, 0, 14, bottomNavSpace(context)),
                       itemCount:  elements.length,
-                      itemBuilder: (context, i) => context.entree(elements[i], i),
+                      itemBuilder: (context, i) => context.entree(elements[i], i, ecran: 'pronos'),
                     );
                   }),
                 );
@@ -669,7 +694,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                       border: Border.all(color: context.cl.bg, width: 1.5)),
                     child: Center(child: Text('$activeAdvancedCount',
                       style: const TextStyle(
-                        color: Colors.white, fontSize: 8,
+                        color: Colors.white, fontSize: 11,
                         fontWeight: FontWeight.w700))))),
               ]),
             ),
@@ -708,7 +733,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                       child: Center(
                         child: Text(unread > 9 ? '9+' : '$unread',
                           style: const TextStyle(
-                            color: Colors.white, fontSize: 8,
+                            color: Colors.white, fontSize: 11,
                             fontWeight: FontWeight.w700))))),
                 ]),
               ),
@@ -785,7 +810,7 @@ class _StatusFilterBar extends StatelessWidget {
                             color: meta.color,
                             borderRadius: BorderRadius.circular(10)),
                           child: Text('$compte', style: const TextStyle(
-                            color: Colors.white, fontSize: 10.5, fontWeight: FontWeight.w800,
+                            color: Colors.white, fontSize: 11, fontWeight: FontWeight.w800,
                             fontFeatures: [FontFeature.tabularFigures()])),
                         ),
                       ],
@@ -904,9 +929,11 @@ class _DateScrollBarState extends State<_DateScrollBar> {
 
     return Container(
       color: context.cl.bg,
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+      padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
       child: SizedBox(
-        height: 72 * echelle,
+        // Deux lignes, plus trois (9 novembre 2026) : le nombre de matchs
+        // passe à côté du jour.
+        height: 50 * echelle,
         child: ListView.separated(
           controller: _ctrl,
           scrollDirection: Axis.horizontal,
@@ -933,7 +960,7 @@ class _DateScrollBarState extends State<_DateScrollBar> {
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),
-                width: 52,
+                width: 56 * echelle.clamp(1.0, 1.4),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? AppColors.primary
@@ -960,31 +987,25 @@ class _DateScrollBarState extends State<_DateScrollBar> {
                       color: isSelected
                           ? Colors.white.withValues(alpha: 0.85)
                           : hasMatches ? context.cl.textS : context.cl.textM,
-                      fontSize: 10, fontWeight: FontWeight.w500)),
-                    const SizedBox(height: 2),
-                    Text('${date.day}', style: TextStyle(
-                      color: isSelected
-                          ? Colors.white
-                          : hasMatches ? context.cl.textP : context.cl.textM,
-                      fontSize: 17, fontWeight: FontWeight.w700)),
-                    const SizedBox(height: 2),
-                    // Badge nombre de matchs
-                    AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 250),
-                      child: hasMatches
-                        ? Container(
-                            key: ValueKey(count),
-                            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                            decoration: BoxDecoration(
-                              color: isSelected
-                                  ? Colors.white.withValues(alpha: 0.25)
-                                  : AppColors.primary.withValues(alpha: 0.15),
-                              borderRadius: BorderRadius.circular(6)),
-                            child: Text('$count',
-                              style: TextStyle(
-                                color: isSelected ? Colors.white : context.cl.accent,
-                                fontSize: 9, fontWeight: FontWeight.w700)))
-                        : SizedBox(key: const ValueKey(0), height: 14),
+                      fontSize: 11, fontWeight: FontWeight.w500)),
+                    FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Row(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.center, children: [
+                        Text('${date.day}', style: TextStyle(
+                          color: isSelected
+                              ? Colors.white
+                              : hasMatches ? context.cl.textP : context.cl.textM,
+                          fontSize: 16, fontWeight: FontWeight.w700)),
+                        // Le nombre de matchs, à côté du jour.
+                        if (hasMatches) ...[
+                          const SizedBox(width: 3),
+                          Text('$count',
+                            key: ValueKey('compte-$count'),
+                            style: TextStyle(
+                              color: isSelected ? Colors.white.withValues(alpha: 0.85) : context.cl.accent,
+                              fontSize: 11, fontWeight: FontWeight.w700)),
+                        ],
+                      ]),
                     ),
                   ],
                 ),
@@ -1049,7 +1070,7 @@ class _DayStatsBar extends StatelessWidget {
             pulse: true),
         ],
       ]),
-    ).animate().fadeIn(duration: 300.ms).slideY(begin: -0.05, end: 0);
+    ).animate(value: _apparitionPronos).fadeIn(duration: 300.ms).slideY(begin: -0.05, end: 0);
   }
 }
 
@@ -1193,7 +1214,7 @@ class _LeagueSectionHeader extends StatelessWidget {
           borderRadius: BorderRadius.circular(8)),
         child: Text(AppStrings.of(context).count(count, one: "{arg0} match", other: "{arg0} matchs"),
           style: TextStyle(
-            color: context.cl.accent, fontSize: 10, fontWeight: FontWeight.w600))),
+            color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w600))),
       if (onToggleFav != null) ...[
         const SizedBox(width: 8),
         Semantics(
@@ -1290,7 +1311,7 @@ class _ActiveFiltersBar extends StatelessWidget {
           ),
         ),
       ]),
-    ).animate().fadeIn(duration: 250.ms).slideY(begin: -0.1, end: 0);
+    ).animate(value: _apparitionPronos).fadeIn(duration: 250.ms).slideY(begin: -0.1, end: 0);
   }
 }
 
@@ -1604,7 +1625,7 @@ class _Tab extends StatelessWidget {
                       borderRadius: BorderRadius.circular(8)),
                     child: Text(badge!, style: TextStyle(
                       color: active ? Colors.white : c,
-                      fontSize: 10, fontWeight: FontWeight.w700)),
+                      fontSize: 11, fontWeight: FontWeight.w700)),
                   ),
                 ],
               ]),
@@ -1635,7 +1656,7 @@ class _ForYouView extends StatelessWidget {
 
         // ── Carte profil IA ──────────────────────────────────────────────
         _ForYouProfileCard(profile: profile)
-          .animate().fadeIn(duration: 300.ms).slideY(begin: -0.04, end: 0),
+          .animate(value: _apparitionPronos).fadeIn(duration: 300.ms).slideY(begin: -0.04, end: 0),
 
         const SizedBox(height: 12),
 
@@ -1646,7 +1667,7 @@ class _ForYouView extends StatelessWidget {
           Text(tr(context, "{arg0} pronos sélectionnés pour toi", [recs.length]),
             style: TextStyle(color: context.cl.textP, fontSize: 13,
                 fontWeight: FontWeight.w700)),
-        ]).animate(delay: 60.ms).fadeIn(duration: 250.ms),
+        ]).animate(delay: 60.ms, value: _apparitionPronos).fadeIn(duration: 250.ms),
 
         const SizedBox(height: 10),
 
@@ -1655,7 +1676,7 @@ class _ForYouView extends StatelessWidget {
           const _ForYouEmpty()
         else
           ...recs.asMap().entries.map((e) => context.entree(
-            _ForYouCard(rec: e.value, isPremium: isPremium), e.key)),
+            _ForYouCard(rec: e.value, isPremium: isPremium), e.key, ecran: 'pronos')),
       ],
     );
   }
@@ -1714,7 +1735,7 @@ class _ForYouProfileCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.2),
               borderRadius: BorderRadius.circular(10)),
             child: Text(tr(context, "{arg0} % de réussite", [profile.winRate]),
-              style: const TextStyle(color: Colors.white, fontSize: 10,
+              style: const TextStyle(color: Colors.white, fontSize: 11,
                   fontWeight: FontWeight.w700))),
         ]),
         const SizedBox(height: 10),
@@ -1728,7 +1749,7 @@ class _ForYouProfileCard extends StatelessWidget {
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(8)),
             child: Text(l, style: const TextStyle(
-              color: Colors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+              color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600)),
           )).toList()),
         ],
       ]),
@@ -1780,7 +1801,7 @@ class _ForYouCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(8)),
                 child: Text('${p.aiProbability}% est.',
                   style: const TextStyle(color: Color(0xFFAB7CF6),
-                      fontSize: 10, fontWeight: FontWeight.w700))),
+                      fontSize: 11, fontWeight: FontWeight.w700))),
               if (isLocked) ...[
                 const SizedBox(width: 6),
                 Icon(Icons.lock_rounded, color: context.cl.warning, size: 14)],
@@ -1803,7 +1824,7 @@ class _ForYouCard extends StatelessWidget {
                       color: AppColors.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8)),
                     child: Text(MatchEntity.applyTeamNames(p.predictionLabel, homeTeam: p.homeTeam, awayTeam: p.awayTeam), style: TextStyle(
-                      color: context.cl.accent, fontSize: 10,
+                      color: context.cl.accent, fontSize: 11,
                       fontWeight: FontWeight.w700))),
                   const SizedBox(width: 8),
                   Text('@ ${p.oddsRecommended.toStringAsFixed(2)}',
@@ -1880,7 +1901,7 @@ class _ForYouEmpty extends ConsumerWidget {
           ],
         ]),
       ),
-    ).animate().fadeIn(duration: 350.ms);
+    ).animate(value: _apparitionPronos).fadeIn(duration: 350.ms);
   }
 }
 
@@ -1942,7 +1963,7 @@ class _FavoritesView extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 10),
               child: Text(
                 tr(context, "Touche la cloche d'un match pour le suivre : coup d'envoi, buts et résultat."),
-                style: TextStyle(color: context.cl.textS, fontSize: 12.5, height: 1.35)),
+                style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.35)),
             ),
             BlocLignesMatch(key: const Key('matchs-recommandes'), matchs: recommandes),
           ],
@@ -1966,7 +1987,7 @@ class _FavoritesView extends StatelessWidget {
               match: e.value,
               isPremiumUser: isPremium,
               showDate: true,
-            ), e.key)),
+            ), e.key, ecran: 'pronos')),
         ],
 
         // Section ligues épinglées
@@ -1984,7 +2005,7 @@ class _FavoritesView extends StatelessWidget {
               count:       byPinnedLeague[league]?.length ?? 0,
               isFav:       true,
               onToggleFav: () => onToggleLeague(league),
-            ).animate().fadeIn(duration: 250.ms).slideX(begin: -0.04, end: 0, duration: 250.ms),
+            ).animate(value: _apparitionPronos).fadeIn(duration: 250.ms).slideX(begin: -0.04, end: 0, duration: 250.ms),
             if (byPinnedLeague[league] != null)
               ...byPinnedLeague[league]!.asMap().entries.map((e) =>
                 context.entree(
@@ -1992,7 +2013,7 @@ class _FavoritesView extends StatelessWidget {
                     match: e.value,
                     isPremiumUser: isPremium,
                     showDate: true,
-                  ), e.key))
+                  ), e.key, ecran: 'pronos'))
             else
               Padding(
                 padding: const EdgeInsets.only(bottom: 12),
@@ -2028,9 +2049,9 @@ class _FavSection extends StatelessWidget {
           color: AppColors.primary.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(8)),
         child: Text('$count', style: TextStyle(
-          color: context.cl.accent, fontSize: 10, fontWeight: FontWeight.w600))),
+          color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w600))),
     ]),
-  ).animate().fadeIn(duration: 250.ms);
+  ).animate(value: _apparitionPronos).fadeIn(duration: 250.ms);
 }
 
 class _FavoritesEmpty extends StatelessWidget {
@@ -2061,7 +2082,7 @@ class _FavoritesEmpty extends StatelessWidget {
               child: Icon(iconeMatchNonSuivi,
                 size: 40, color: AppColors.primaryLight)),
           ),
-        ]).animate().scale(
+        ]).animate(value: _apparitionPronos).scale(
           begin: const Offset(0.4, 0.4), end: const Offset(1, 1),
           duration: 600.ms, curve: Curves.easeOutBack).fadeIn(duration: 400.ms),
 
@@ -2071,7 +2092,7 @@ class _FavoritesEmpty extends StatelessWidget {
           style: TextStyle(
             color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w700),
           textAlign: TextAlign.center)
-          .animate(delay: 150.ms).fadeIn(duration: 300.ms).slideY(begin: 0.15, end: 0),
+          .animate(delay: 150.ms, value: _apparitionPronos).fadeIn(duration: 300.ms).slideY(begin: 0.15, end: 0),
 
         const SizedBox(height: 10),
 
@@ -2079,7 +2100,7 @@ class _FavoritesEmpty extends StatelessWidget {
           tr(context, "Suis un match avec la cloche pour recevoir le coup d'envoi, les buts et le résultat, ou épingle tes ligues préférées avec 📌 pour les retrouver ici."),
           style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
           textAlign: TextAlign.center)
-          .animate(delay: 230.ms).fadeIn(duration: 300.ms),
+          .animate(delay: 230.ms, value: _apparitionPronos).fadeIn(duration: 300.ms),
       ]),
     ),
   );
@@ -2168,7 +2189,7 @@ class _ErrorView extends StatelessWidget {
           label:  Text(tr(context, "Réessayer"))),
       ]),
     ),
-  ).animate().fadeIn(duration: 350.ms).scale(begin: const Offset(0.92, 0.92), end: const Offset(1, 1), duration: 350.ms, curve: Curves.easeOutBack);
+  ).animate(value: _apparitionPronos).fadeIn(duration: 350.ms).scale(begin: const Offset(0.92, 0.92), end: const Offset(1, 1), duration: 350.ms, curve: Curves.easeOutBack);
 }
 
 class _EmptyView extends StatelessWidget {
@@ -2217,7 +2238,7 @@ class _EmptyView extends StatelessWidget {
               ),
             ),
           ])
-          .animate()
+          .animate(value: _apparitionPronos)
           .scale(begin: const Offset(0.4, 0.4), end: const Offset(1, 1),
               duration: 600.ms, curve: Curves.easeOutBack)
           .fadeIn(duration: 400.ms),
@@ -2227,7 +2248,7 @@ class _EmptyView extends StatelessWidget {
           Text(label, style: TextStyle(
             color: context.cl.textP, fontSize: 18, fontWeight: FontWeight.w700),
             textAlign: TextAlign.center)
-            .animate(delay: 150.ms).fadeIn(duration: 300.ms).slideY(begin: 0.15, end: 0),
+            .animate(delay: 150.ms, value: _apparitionPronos).fadeIn(duration: 300.ms).slideY(begin: 0.15, end: 0),
 
           const SizedBox(height: 10),
 
@@ -2239,7 +2260,7 @@ class _EmptyView extends StatelessWidget {
                 : tr(context, "Pas de pronostics pour le {arg0}.\nConsultez une autre date.", [DateFormat("d MMMM").format(date)]),
             style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.5),
             textAlign: TextAlign.center)
-            .animate(delay: 230.ms).fadeIn(duration: 300.ms),
+            .animate(delay: 230.ms, value: _apparitionPronos).fadeIn(duration: 300.ms),
 
           const SizedBox(height: 8),
 
@@ -2258,7 +2279,7 @@ class _EmptyView extends StatelessWidget {
                 Text(tr(context, "Tirez vers le bas pour actualiser"),
                   style: TextStyle(color: context.cl.dore, fontSize: 12, fontWeight: FontWeight.w500)),
               ]),
-            ).animate(delay: 320.ms).fadeIn(duration: 300.ms),
+            ).animate(delay: 320.ms, value: _apparitionPronos).fadeIn(duration: 300.ms),
 
           if (hasFilter) ...[
             const SizedBox(height: 20),
@@ -2266,7 +2287,7 @@ class _EmptyView extends StatelessWidget {
               onPressed: onClearFilter,
               icon: const Icon(Icons.filter_alt_off_rounded, size: 16),
               label:  Text(tr(context, "Effacer le filtre")))
-              .animate(delay: 300.ms).fadeIn(duration: 300.ms),
+              .animate(delay: 300.ms, value: _apparitionPronos).fadeIn(duration: 300.ms),
           ],
         ]),
       ),

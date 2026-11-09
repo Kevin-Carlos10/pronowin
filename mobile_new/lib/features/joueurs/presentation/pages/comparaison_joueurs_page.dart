@@ -175,7 +175,7 @@ class _Comparaison extends StatelessWidget {
         repli: ColoredBox(color: cl.surfaceDeep, child: Icon(Icons.person_rounded, color: cl.textM, size: 36))))),
       const SizedBox(height: 8),
       Text(f.name, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-        style: TextStyle(color: cl.textP, fontSize: 14.5, fontWeight: FontWeight.w800)),
+        style: TextStyle(color: cl.textP, fontSize: 15, fontWeight: FontWeight.w800)),
       if (f.principale != null) ...[
         const SizedBox(height: 4),
         Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -231,7 +231,7 @@ class _Comparaison extends StatelessWidget {
                 child: Row(children: [
                   valeur(l.a, l.b, l, droite: false),
                   Expanded(child: Text(l.libelle, textAlign: TextAlign.center,
-                    style: TextStyle(color: cl.textS, fontSize: 12.5))),
+                    style: TextStyle(color: cl.textS, fontSize: 13))),
                   valeur(l.b, l.a, l, droite: true),
                 ]),
               )),
@@ -241,7 +241,7 @@ class _Comparaison extends StatelessWidget {
       ),
       const SizedBox(height: 10),
       Text(tr(context, "Saison {arg0}-{arg1}, compétition principale de chaque joueur.", [a.season, (a.season + 1) % 100]),
-        textAlign: TextAlign.center, style: TextStyle(color: cl.textM, fontSize: 11.5)),
+        textAlign: TextAlign.center, style: TextStyle(color: cl.textM, fontSize: 12)),
     ]);
   }
 }

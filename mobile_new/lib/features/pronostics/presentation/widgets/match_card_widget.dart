@@ -17,6 +17,7 @@ import '../../../../shared/providers/favoris_provider.dart';
 import '../../../../shared/widgets/suivre_match.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
 import 'minute_direct.dart';
+import 'eclair_but.dart';
 
 class MatchCardWidget extends ConsumerStatefulWidget {
   final MatchEntity match;
@@ -204,7 +205,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
             Flexible(
               child: Text(
                 DateFormat('dd/MM').format(_match.matchDate),
-                style: TextStyle(color: context.cl.textM, fontSize: 10),
+                style: TextStyle(color: context.cl.textM, fontSize: 11),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -276,7 +277,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                       (_match.homeScore ?? 0) > (_match.awayScore ?? 0),
                 ),
               ),
-              _ScoreCenter(match: _match),
+              EclairBut(dom: _match.homeScore, ext: _match.awayScore, child: _ScoreCenter(match: _match)),
               Expanded(
                 child: _TeamColumn(
                   name: _match.awayTeam,
@@ -301,9 +302,9 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                     AppColors.primary.withValues(alpha: 0.15),
                     AppColors.primaryLight.withValues(alpha: 0.08),
                   ]),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(
-                    color: AppColors.primary.withValues(alpha: 0.35), width: 0.5)),
+                  // Un fond, sans cadre : la carte en a déjà un (revue de
+                  // l'interface, 9 novembre 2026 — quatre cadres emboîtés).
+                  borderRadius: BorderRadius.circular(10)),
                 // La cote recommandée vit dans la même boîte que le
                 // pronostic auquel elle se rapporte. Elle n'était affichée
                 // nulle part : les trois cotes 1/N/2 juste en dessous portent
@@ -375,12 +376,15 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
           if (_match.oddsHome > 0 || _match.oddsDraw > 0 || _match.oddsAway > 0) ...[
             const SizedBox(height: 8),
             Row(children: [
-              Text(tr(context, "VAINQUEUR DU MATCH"),
+              // Cède devant le filet plutôt que de déborder (texte agrandi,
+              // petit écran).
+              Flexible(child: Text(tr(context, "VAINQUEUR DU MATCH"),
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                       color: context.cl.textM,
-                      fontSize: 8,
+                      fontSize: 11,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 0.6)),
+                      letterSpacing: 0.6))),
               const SizedBox(width: 6),
               Expanded(child: Divider(color: context.cl.border, height: 1)),
             ]),
@@ -482,7 +486,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                         color: Colors.white, size: 16)),
                     const SizedBox(height: 4),
                     const Text('VIP', style: TextStyle(
-                      color: Color(0xFFDAA520), fontSize: 9,
+                      color: Color(0xFFDAA520), fontSize: 11,
                       fontWeight: FontWeight.w700, letterSpacing: 0.5)),
                   ]),
                 ]),
@@ -547,7 +551,7 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
                   (_match.homeScore ?? 0) > (_match.awayScore ?? 0),
             ),
           ),
-          _ScoreCenter(match: _match),
+          EclairBut(dom: _match.homeScore, ext: _match.awayScore, child: _ScoreCenter(match: _match)),
           Expanded(
             child: _TeamColumn(
               name: _match.awayTeam,
@@ -670,7 +674,7 @@ class _LivePulseState extends State<_LivePulse>
           Text('LIVE',
               style: TextStyle(
                   color: context.cl.error,
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.5)),
         ],
@@ -748,7 +752,7 @@ class _VipBadgeState extends State<_VipBadge>
             Text('VIP',
                 style: TextStyle(
                     color: Colors.white,
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.5)),
           ],
@@ -790,7 +794,7 @@ class _LockedOddsCell extends StatelessWidget {
       child: Column(mainAxisSize: MainAxisSize.min, children: [
         Text(label, style: TextStyle(
           color: context.cl.textM.withValues(alpha: 0.5),
-          fontSize: 9, fontWeight: FontWeight.w600)),
+          fontSize: 11, fontWeight: FontWeight.w600)),
         const SizedBox(height: 2),
         Text(value > 0 ? value.toStringAsFixed(2) : '—',
           style: TextStyle(
@@ -860,16 +864,14 @@ class _OddsCell extends StatelessWidget {
             ? context.cl.success.withValues(alpha: 0.10)
             : context.cl.surfaceD,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: highlighted
-              ? context.cl.success.withValues(alpha: 0.4)
-              : context.cl.border,
-            width: highlighted ? 0.8 : 0.5),
+          border: highlighted
+            ? Border.all(color: context.cl.success.withValues(alpha: 0.4), width: 0.8)
+            : null,
         ),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
           Text(label, style: TextStyle(
             color: color.withValues(alpha: 0.7),
-            fontSize: 9, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
+            fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.3)),
           const SizedBox(height: 2),
           Text(value > 0 ? value.toStringAsFixed(2) : '—',
             style: TextStyle(
@@ -951,12 +953,9 @@ class _TeamColumn extends StatelessWidget {
               decoration: BoxDecoration(
                 color: context.cl.surfaceDeep,
                 shape: BoxShape.circle,
-                border: Border.all(
-                  color: isWinner
-                      ? context.cl.success.withValues(alpha: 0.5)
-                      : context.cl.border,
-                  width: isWinner ? 1.5 : 0.5,
-                ),
+                border: isWinner
+                    ? Border.all(color: context.cl.success.withValues(alpha: 0.5), width: 1.5)
+                    : null,
                 boxShadow: isWinner
                     ? [BoxShadow(
                         color: context.cl.success.withValues(alpha: 0.2),
@@ -1009,7 +1008,7 @@ class _ScoreCenter extends StatelessWidget {
                 child: Text(tr(context, "TERMINÉ"),
                     style: TextStyle(
                         color: context.cl.textM,
-                        fontSize: 8,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.5)),
               ),
@@ -1022,12 +1021,6 @@ class _ScoreCenter extends StatelessWidget {
                     ? context.cl.error.withValues(alpha: 0.08)
                     : context.cl.surfaceDeep,
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: isLive
-                      ? context.cl.error.withValues(alpha: 0.3)
-                      : context.cl.borderSoft,
-                  width: isLive ? 1 : 0.5,
-                ),
               ),
               child: Text(
                 '${match.homeScore ?? 0} - ${match.awayScore ?? 0}',

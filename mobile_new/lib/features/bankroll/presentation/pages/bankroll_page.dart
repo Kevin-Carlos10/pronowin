@@ -446,7 +446,7 @@ class _BalanceChart extends StatelessWidget {
         // Sans cette ligne, un utilisateur ayant réinitialisé sa bankroll
         // pouvait lire cette courbe comme l'histoire de son solde.
         Text(tr(context, "Cumul des gains et pertes des paris tranchés, hors mises en cours"),
-          style: TextStyle(color: context.cl.textM, fontSize: 10, height: 1.3)),
+          style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.3)),
         const SizedBox(height: 14),
         SizedBox(
           height: 110,
@@ -469,7 +469,7 @@ class _BalanceChart extends StatelessWidget {
                   reservedSize: 48,
                   getTitlesWidget: (v, _) => Text(
                     _shortAmount(v),
-                    style: TextStyle(color: context.cl.textM, fontSize: 9),
+                    style: TextStyle(color: context.cl.textM, fontSize: 11),
                   ),
                 )),
                 bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -544,7 +544,7 @@ class _BalanceChart extends StatelessWidget {
           Container(width: 12, height: 2, color: lineColor),
           const SizedBox(width: 4),
           Text(tr(context, "Gains et pertes cumulés"),
-              style: TextStyle(color: context.cl.textM, fontSize: 9)),
+              style: TextStyle(color: context.cl.textM, fontSize: 11)),
           ]),
           Row(mainAxisSize: MainAxisSize.min, children: [
           Container(width: 12, height: 2,
@@ -557,7 +557,7 @@ class _BalanceChart extends StatelessWidget {
             )),
           const SizedBox(width: 4),
           Text(tr(context, "Point de départ (0)"),
-              style: TextStyle(color: context.cl.textM, fontSize: 9)),
+              style: TextStyle(color: context.cl.textM, fontSize: 11)),
           ]),
         ]),
       ]),
@@ -638,7 +638,7 @@ class _WeeklySummary extends StatelessWidget {
             style: TextStyle(
               color: isGain ? context.cl.success : context.cl.error,
               fontSize: 13, fontWeight: FontWeight.w700)),
-          Text(tr(context, "cette semaine"), style: TextStyle(color: context.cl.textM, fontSize: 9)),
+          Text(tr(context, "cette semaine"), style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
       ]),
     );
@@ -739,7 +739,7 @@ class _FilterRow extends StatelessWidget {
                     borderRadius: BorderRadius.circular(10)),
                   child: Text('$count', style: TextStyle(
                     color: sel ? color : context.cl.textM,
-                    fontSize: 10, fontWeight: FontWeight.w700)),
+                    fontSize: 11, fontWeight: FontWeight.w700)),
                 ),
               ],
             ]),
@@ -937,7 +937,7 @@ class _StatChip extends StatelessWidget {
       const SizedBox(height: 6),
       Text(value, style: TextStyle(
           color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
-      Text(label, style: TextStyle(color: context.cl.textM, fontSize: 10)),
+      Text(label, style: TextStyle(color: context.cl.textM, fontSize: 11)),
     ]),
   ));
 }
@@ -1273,7 +1273,7 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
           Align(
             alignment: Alignment.centerLeft,
             child: Text(tr(context, "La devise est fixée par tes paris enregistrés."),
-              style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
+              style: TextStyle(color: context.cl.textM, fontSize: 12)),
           ),
         ],
 
@@ -1367,12 +1367,12 @@ class _BudgetSheetState extends ConsumerState<_BudgetSheet> {
                 children: [
                   Text(tr(context, "Réinitialiser le solde"),
                     style: TextStyle(
-                      color: context.cl.textS, fontSize: 13.5,
+                      color: context.cl.textS, fontSize: 14,
                       fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
                   Text(
                     tr(context, "Repart du budget, moins les mises en jeu. Une fois tous les 30 jours."),
-                    style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
+                    style: TextStyle(color: context.cl.textM, fontSize: 12)),
                 ])),
             ]),
           ),

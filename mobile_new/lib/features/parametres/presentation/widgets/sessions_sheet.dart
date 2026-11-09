@@ -165,7 +165,7 @@ class _SessionTile extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     tr(context, "Connexion le {arg0}", [date(s.debut!)]),
-                    style: TextStyle(color: context.cl.textM, fontSize: 10),
+                    style: TextStyle(color: context.cl.textM, fontSize: 11),
                   ),
                 ],
               ],

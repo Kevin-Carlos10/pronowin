@@ -129,7 +129,7 @@ class _AIData extends StatelessWidget {
             Text(tr(context, "ESTIMATION DU MODÈLE INTERNE"),
               style: TextStyle(
                 color: context.cl.textM,
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.6)),
             const SizedBox(height: 8),
@@ -180,7 +180,7 @@ class _AIData extends StatelessWidget {
                 size: 15, color: avis.concordants ? context.cl.success : context.cl.warning),
             const SizedBox(width: 6),
             Expanded(child: Text(avis.phrase,
-                style: TextStyle(color: context.cl.textS, fontSize: 11.5, height: 1.4,
+                style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.4,
                     fontWeight: FontWeight.w600))),
           ]);
         }),
@@ -360,7 +360,7 @@ class _AIPremiumLockedStateState extends State<_AIPremiumLockedState>
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   color: context.cl.textP,
-                  fontSize: 13.5,
+                  fontSize: 14,
                   fontWeight: FontWeight.w700)),
               const SizedBox(height: 4),
               Text(_subtitle,

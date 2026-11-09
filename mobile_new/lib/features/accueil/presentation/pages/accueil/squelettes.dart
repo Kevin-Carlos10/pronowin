@@ -47,7 +47,7 @@ class _SectionHeader extends StatelessWidget {
             child: Text('$showBadge',
                 style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 9,
+                    fontSize: 11,
                     fontWeight: FontWeight.w700)),
           ),
         ],

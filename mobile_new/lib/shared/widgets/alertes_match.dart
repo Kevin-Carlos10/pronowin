@@ -134,7 +134,7 @@ class _FeuilleAlertesState extends ConsumerState<FeuilleAlertes> {
             const SizedBox(height: 10),
             Text(tr(context, "Les alertes de match sont coupées dans les Paramètres : rien ne partira."),
               key: const Key('alertes-coupees'),
-              style: TextStyle(color: context.cl.warning, fontSize: 12.5, fontWeight: FontWeight.w600)),
+              style: TextStyle(color: context.cl.warning, fontSize: 13, fontWeight: FontWeight.w600)),
           ],
           const SizedBox(height: 14),
           if (alertes == null)
@@ -162,18 +162,18 @@ class _FeuilleAlertesState extends ConsumerState<FeuilleAlertes> {
                 contentPadding: EdgeInsets.zero,
                 secondary: Icon(iconeAlerte(c), color: context.cl.textS),
                 title: Text(libelleAlerte(context, c),
-                  style: TextStyle(color: context.cl.textP, fontSize: 14.5, fontWeight: FontWeight.w600)),
+                  style: TextStyle(color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w600)),
                 value: alertes.contains(c),
                 onChanged: (on) => _enregistrer(on ? [...alertes, c] : alertes.where((a) => a != c).toList()),
               ),
             if (alertes.isEmpty)
               Text(tr(context, "Aucune alerte : le match reste dans tes matchs suivis, sans notification."),
-                style: TextStyle(color: context.cl.textM, fontSize: 12.5)),
+                style: TextStyle(color: context.cl.textM, fontSize: 13)),
           ],
           if (_erreur != null) ...[
             const SizedBox(height: 8),
             Text(_erreur!, key: const Key('alertes-erreur'),
-              style: TextStyle(color: context.cl.error, fontSize: 12.5)),
+              style: TextStyle(color: context.cl.error, fontSize: 13)),
           ],
           const SizedBox(height: 8),
           Center(child: TextButton.icon(

@@ -77,7 +77,7 @@ class _JoueurDuMatchState extends ConsumerState<_JoueurDuMatch> {
           TeamLogoWidget(url: j.team == 'home' ? match.homeTeamLogo : match.awayTeamLogo, size: 18),
           const SizedBox(width: 10),
           Expanded(child: Text(j.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: context.cl.textP, fontSize: 13.5, fontWeight: FontWeight.w600))),
+            style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w600))),
           if (_envoi == j.id)
             const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
           else ...[
@@ -103,7 +103,7 @@ class _JoueurDuMatchState extends ConsumerState<_JoueurDuMatch> {
             borderRadius: BorderRadius.circular(10)),
           child: Text(tr(context, "Le vote des fans s'ouvre à la {arg0}e minute", [v.minuteOuverture]),
             textAlign: TextAlign.center,
-            style: TextStyle(color: context.cl.accent, fontSize: 12.5, fontWeight: FontWeight.w700)),
+            style: TextStyle(color: context.cl.accent, fontSize: 13, fontWeight: FontWeight.w700)),
         ),
         if (notes.isNotEmpty) ...[
           const SizedBox(height: 10),
@@ -117,11 +117,11 @@ class _JoueurDuMatchState extends ConsumerState<_JoueurDuMatch> {
       final choix = notes.where((j) => j.id != null).take(8).toList();
       corps = [
         Text(tr(context, "Touche le joueur qui t'a le plus impressionné."),
-          style: TextStyle(color: context.cl.textS, fontSize: 12.5)),
+          style: TextStyle(color: context.cl.textS, fontSize: 13)),
         const SizedBox(height: 6),
         if (choix.isEmpty)
           Text(tr(context, "Les notes des joueurs ne sont pas encore disponibles."),
-            style: TextStyle(color: context.cl.textM, fontSize: 12.5))
+            style: TextStyle(color: context.cl.textM, fontSize: 13))
         else
           for (final (i, j) in choix.indexed) ligneJoueur(j, meilleur: i == 0),
       ];
@@ -143,7 +143,7 @@ class _JoueurDuMatchState extends ConsumerState<_JoueurDuMatch> {
                   Icon(Icons.check_circle_rounded, size: 15, color: context.cl.accent),
                   const SizedBox(width: 6),
                 ],
-                Text('${c.pourcentage} %', style: TextStyle(color: context.cl.textS, fontSize: 12.5, fontWeight: FontWeight.w700)),
+                Text('${c.pourcentage} %', style: TextStyle(color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w700)),
               ]),
               const SizedBox(height: 4),
               ClipRRect(
@@ -182,7 +182,7 @@ class _JoueurDuMatchState extends ConsumerState<_JoueurDuMatch> {
           if (_erreur != null) ...[
             const SizedBox(height: 6),
             Text(_erreur!, key: const Key('joueur-du-match-erreur'),
-              style: TextStyle(color: context.cl.error, fontSize: 12.5)),
+              style: TextStyle(color: context.cl.error, fontSize: 13)),
           ],
         ]),
       ),

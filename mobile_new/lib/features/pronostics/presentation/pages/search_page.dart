@@ -116,7 +116,7 @@ class _Resultats extends StatelessWidget {
     Widget titre(String texte) => Padding(
       padding: const EdgeInsets.fromLTRB(4, 14, 4, 8),
       child: Semantics(header: true, child: Text(texte,
-        style: TextStyle(color: context.cl.textS, fontSize: 12.5, fontWeight: FontWeight.w800, letterSpacing: 0.4))),
+        style: TextStyle(color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w800, letterSpacing: 0.4))),
     );
     Widget bloc(List<Widget> lignes) => Container(
       decoration: BoxDecoration(
@@ -145,7 +145,7 @@ class _Resultats extends StatelessWidget {
                 key: Key('equipe-${e.id}'),
                 leading: TeamLogoWidget(url: e.logo, size: 30),
                 title: Text(e.nom, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: context.cl.textP, fontSize: 14.5, fontWeight: FontWeight.w600)),
+                  style: TextStyle(color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w600)),
                 trailing: Icon(Icons.chevron_right_rounded, color: context.cl.textM),
                 onTap: () => ouvrirFicheEquipe(context, nom: e.nom, logo: e.logo,
                   competition: e.competition, id: e.id),
@@ -163,7 +163,7 @@ class _Resultats extends StatelessWidget {
                   repli: ColoredBox(color: context.cl.surfaceDeep,
                     child: Icon(Icons.person_rounded, size: 20, color: context.cl.textM))))),
                 title: Text(j.nom, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: context.cl.textP, fontSize: 14.5, fontWeight: FontWeight.w600)),
+                  style: TextStyle(color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w600)),
                 subtitle: Text(
                   [libellePoste(context, j.poste), if (j.nationalite != null) j.nationalite!]
                       .where((x) => x.isNotEmpty).join(' · '),

@@ -183,7 +183,7 @@ class _FeaturedNewsCard extends StatelessWidget {
                         borderRadius: BorderRadius.circular(6)),
                       child: Text(cat ?? '',
                         style: const TextStyle(
-                          color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700)),
+                          color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)),
                     ),
                     if (isPinned) ...[
                       const SizedBox(width: 6),
@@ -196,7 +196,7 @@ class _FeaturedNewsCard extends StatelessWidget {
                           Icon(Icons.push_pin_rounded, color: Colors.white, size: 9),
                           SizedBox(width: 3),
                           Text(tr(context, "À la une"),
-                            style: TextStyle(color: Colors.white, fontSize: 9,
+                            style: TextStyle(color: Colors.white, fontSize: 11,
                               fontWeight: FontWeight.w700)),
                         ]),
                       ),
@@ -293,7 +293,7 @@ class _CompactNewsCard extends StatelessWidget {
                   color: accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(4)),
                 child: Text(cat ?? '',
-                  style: TextStyle(color: accent, fontSize: 9, fontWeight: FontWeight.w700)),
+                  style: TextStyle(color: accent, fontSize: 11, fontWeight: FontWeight.w700)),
               ),
               const SizedBox(height: 5),
               // Titre
@@ -310,7 +310,7 @@ class _CompactNewsCard extends StatelessWidget {
                 Icon(Icons.schedule_rounded, size: 10, color: context.cl.textM),
                 const SizedBox(width: 3),
                 Text(news['date'] as String? ?? '',
-                  style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                  style: TextStyle(color: context.cl.textM, fontSize: 11)),
               ]),
             ],
           )),

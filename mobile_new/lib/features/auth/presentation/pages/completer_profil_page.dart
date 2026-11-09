@@ -272,7 +272,7 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
                 _Label(tr(context, "Code de parrainage")),
                 const SizedBox(width: 6),
                 Text(tr(context, "(facultatif)"),
-                  style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
+                  style: TextStyle(color: context.cl.textM, fontSize: 12)),
               ]),
               const SizedBox(height: 8),
               TextFormField(
@@ -294,7 +294,7 @@ class _CompleterProfilPageState extends ConsumerState<CompleterProfilPage> {
               const SizedBox(height: 6),
               Text(
                 tr(context, "Un ami t'a parrainé ? Saisis son code, tu ne pourras plus le faire après."),
-                style: TextStyle(color: context.cl.textM, fontSize: 11.5, height: 1.35)),
+                style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.35)),
 
               const SizedBox(height: 30),
 

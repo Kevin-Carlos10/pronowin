@@ -1452,7 +1452,7 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
               // il doit le saisir au franc près chez son opérateur.
               Text(tr(context, "Montant à envoyer : {arg0} FCFA", [montantExact(widget.price)]),
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: 13,
                   fontWeight: FontWeight.w700,
                   color: context.cl.accent)),
             ])),
@@ -1515,7 +1515,7 @@ class _PaymentRecipientCardState extends State<_PaymentRecipientCard> {
                   // opérateur composer, et quelle somme part réellement. Les
                   // deux vivaient dans le bloc du numéro, retiré ici.
                   Text('$_operateur · ${montantExact(widget.price)} FCFA',
-                    style: TextStyle(fontSize: 11.5, color: context.cl.textS)),
+                    style: TextStyle(fontSize: 12, color: context.cl.textS)),
                 ])),
               const SizedBox(width: 10),
               Container(
@@ -1626,7 +1626,7 @@ class _AidePaiementAutomatique extends StatelessWidget {
       icon: Icon(Icons.help_outline_rounded, size: 17, color: context.cl.textS),
       label: Text(tr(context, "Un souci avec ton paiement ? Écris-nous"),
         style: TextStyle(
-          color: context.cl.textS, fontSize: 12.5, fontWeight: FontWeight.w600)),
+          color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600)),
     ),
   );
 }
@@ -1647,7 +1647,7 @@ class _SortieDeSecours extends StatelessWidget {
       icon: Icon(Icons.help_outline_rounded, size: 17, color: context.cl.textS),
       label: Text(tr(context, "J'ai payé mais je n'ai pas la capture"),
         style: TextStyle(
-          color: context.cl.textS, fontSize: 12.5, fontWeight: FontWeight.w600)),
+          color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600)),
     ),
   );
 }
@@ -1679,7 +1679,7 @@ class _AlerteEcartMontant extends StatelessWidget {
           manque > 0
             ? tr(context, "Il manque {arg0} FCFA pour activer ce plan. Complète ton envoi avant de soumettre, sinon la validation sera refusée.", [montantExact(manque)])
             : tr(context, "Tu as envoyé {arg0} FCFA de plus que le tarif. Soumets quand même : nous régularisons à la validation.", [montantExact(-manque)]),
-          style: TextStyle(color: context.cl.textP, fontSize: 11.5, height: 1.4)),
+          style: TextStyle(color: context.cl.textP, fontSize: 12, height: 1.4)),
         ),
       ]),
     );
@@ -1708,7 +1708,7 @@ class _AucunMoyenPaiement extends StatelessWidget {
             fontSize: 13, fontWeight: FontWeight.w700, color: context.cl.warning)),
         const SizedBox(height: 4),
         Text(tr(context, "Aucun numéro de réception n'est publié pour le moment. Réessaie dans quelques minutes, ou contacte le support."),
-          style: TextStyle(color: context.cl.textS, fontSize: 11.5, height: 1.4)),
+          style: TextStyle(color: context.cl.textS, fontSize: 12, height: 1.4)),
       ])),
     ]),
   );
@@ -1930,7 +1930,7 @@ class _CodePromoIndisponible extends StatelessWidget {
       Text(tr(context, "Offre momentanément indisponible"),
         textAlign: TextAlign.center,
         style: TextStyle(
-          color: context.cl.textP, fontSize: 13.5, fontWeight: FontWeight.w700)),
+          color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w700)),
       const SizedBox(height: 6),
       Text(
         tr(context, "Le code partenaire nous manque pour le moment. Tu peux passer par le paiement direct, ou réessayer plus tard."),
@@ -1993,7 +1993,7 @@ class _PromoCodeCardState extends State<_PromoCodeCard>
                 color: Colors.white.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(20)),
               child:  Text(tr(context, "CODE PROMO PARTENAIRE"), style: TextStyle(
-                color: Colors.white70, fontSize: 10,
+                color: Colors.white70, fontSize: 11,
                 letterSpacing: 1.5, fontWeight: FontWeight.w700)),
             ),
           ]),
@@ -2058,7 +2058,7 @@ class _XbetSteps extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(tr(context, "COMMENT ÇA MARCHE"), style: TextStyle(
-            color: context.cl.textM, fontSize: 10,
+            color: context.cl.textM, fontSize: 11,
             fontWeight: FontWeight.w700, letterSpacing: 1)),
           const SizedBox(height: 14),
           ...List.generate(_steps.length, (i) {
@@ -2185,7 +2185,7 @@ class _BandeauDejaPremium extends StatelessWidget {
             ? tr(context, "Ton Premium est actif.")
             : tr(context, "Ton Premium est actif jusqu'au {arg0}.",
                 [AppDateFormatter.transactionDate(jusquau!.toLocal())]),
-        style: const TextStyle(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w600, height: 1.35))),
+        style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600, height: 1.35))),
     ]),
   );
 }
@@ -2445,7 +2445,7 @@ class _PaywallPage extends StatelessWidget {
             Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 14),
             SizedBox(width: 6),
             Text(tr(context, "PRONOSTICS PREMIUM"), style: TextStyle(
-              color: Colors.white, fontSize: 10,
+              color: Colors.white, fontSize: 11,
               fontWeight: FontWeight.w700, letterSpacing: 1.2)),
           ]),
         ).animate().fadeIn(duration: 400.ms).slideY(begin: -0.1, end: 0),
@@ -2512,7 +2512,7 @@ class _PaywallPage extends StatelessWidget {
               child: const Icon(Icons.check_rounded, color: Color(0xFFF59E0B), size: 14)),
             const SizedBox(width: 8),
             Expanded(child: Text(tr(context, label), style: const TextStyle(
-              color: Colors.white, fontSize: 11.5, fontWeight: FontWeight.w600), maxLines: 2)),
+              color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600), maxLines: 2)),
           ]),
         ).animate(delay: Duration(milliseconds: 300 + e.key * 60))
           .fadeIn(duration: 300.ms).slideY(begin: 0.08, end: 0);
@@ -2526,7 +2526,7 @@ class _PaywallPage extends StatelessWidget {
        Padding(
         padding: EdgeInsets.symmetric(horizontal: 12),
         child: Text(trCurrent("CHOISISSEZ VOTRE OPTION"), style: TextStyle(
-          color: Colors.white38, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1))),
+          color: Colors.white38, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 1))),
       Expanded(child: Divider(color: Colors.white12, height: 1)),
     ]);
   }
@@ -2636,7 +2636,7 @@ class _IapSection extends StatelessWidget {
             const SizedBox(width: 12),
             Expanded(child: Text(
               tr(context, "L'abonnement Premium n'est pas encore proposé dans la version Google Play."),
-              style: const TextStyle(color: Colors.white70, fontSize: 12.5, height: 1.5))),
+              style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5))),
           ]),
           const SizedBox(height: 14),
           FilledButton.icon(
@@ -2654,7 +2654,7 @@ class _IapSection extends StatelessWidget {
           const SizedBox(height: 8),
           Text(tr(context, "Paiement sécurisé GeniusPay. Utilise l'adresse e-mail de ce compte : ton Premium s'y active dès le paiement confirmé."),
             textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white54, fontSize: 11.5, height: 1.45)),
+            style: const TextStyle(color: Colors.white54, fontSize: 12, height: 1.45)),
         ]),
       );
     }
@@ -2738,7 +2738,7 @@ class _IapSection extends StatelessWidget {
                 color: context.cl.success.withValues(alpha: 0.16),
                 borderRadius: BorderRadius.circular(6)),
               child:  Text(offerts.toUpperCase(), style: TextStyle(
-                color: context.cl.success, fontSize: 9, fontWeight: FontWeight.w700))),
+                color: context.cl.success, fontSize: 11, fontWeight: FontWeight.w700))),
           ]),
           const SizedBox(height: 14),
           if (essai != null) ...[
@@ -2881,7 +2881,7 @@ class _PaywallFaq extends StatelessWidget {
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
        Text(tr(context, "QUESTIONS FRÉQUENTES"), style: TextStyle(
-        color: Colors.white38, fontSize: 10,
+        color: Colors.white38, fontSize: 11,
         fontWeight: FontWeight.w700, letterSpacing: 1.2)),
       const SizedBox(height: 12),
       for (final (q, a) in items) _PaywallFaqItem(question: q, answer: a),
@@ -3040,7 +3040,7 @@ class _MethodCard extends StatelessWidget {
                       color: color,
                       borderRadius: BorderRadius.circular(6)),
                     child: Text(badge!, style: const TextStyle(
-                      color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700, letterSpacing: 0.8))),
+                      color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.8))),
                 ],
               ]),
               const SizedBox(height: 4),

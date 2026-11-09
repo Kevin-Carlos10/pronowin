@@ -44,6 +44,21 @@ parier n'a été repris. Serveur déjà déployé jusqu'à 181b1fc.
 - **Alertes** (côté serveur, déjà actives) : penalty manqué et VAR ; la
   catégorie s'appelle « Buts, penalties et VAR ».
 
+## Interface (revue du 9 novembre)
+
+- **Pronos** : la bande des dates passe à deux lignes ; dates et filtres se
+  rangent quand on descend la liste, reviennent quand on remonte.
+- **Textes** : 11 points au minimum partout, plus de demi-points (299 tailles
+  ajustées).
+- **Code promo** : carte sobre sur l'accueil et dans les listes, l'orange
+  plein revient à l'action principale.
+- **Cartes de pronostic** sans cadres emboîtés.
+- **Animations d'entrée** jouées à la première visite seulement (Accueil,
+  Pronos, Compte, Paramètres).
+- **But** : la zone du score s'illumine un instant quand il change.
+- **Accueil** : bankroll, chiffres et méthode réunis dans « Mon activité »,
+  repliable.
+
 ## À faire à la soumission
 
 - **App Store** : Remarques honnêtes sur le code promo (voir 1.0.34) ; ne

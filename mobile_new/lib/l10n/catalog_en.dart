@@ -1885,4 +1885,7 @@ const englishMessages = <String, String>{
   "L'écran sur lequel PronoWin s'ouvre, dès la prochaine fois.": "The screen PronoWin opens on, from next time.",
   "En direct dans les grandes compétitions": "Live in the top competitions",
   "Buts, penalties et VAR": "Goals, penalties and VAR",
+  "Mon activité": "My activity",
+  "Série {arg0}": "Streak {arg0}",
+  "Bankroll, chiffres et méthode": "Bankroll, figures and method",
 };

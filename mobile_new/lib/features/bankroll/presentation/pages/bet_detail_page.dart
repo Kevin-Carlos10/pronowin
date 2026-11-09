@@ -360,7 +360,7 @@ class _Issue extends StatelessWidget {
       border: Border.all(color: couleur.withValues(alpha: 0.30), width: 0.8),
     ),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(libelle, style: TextStyle(color: context.cl.textS, fontSize: 11.5, fontWeight: FontWeight.w600)),
+      Text(libelle, style: TextStyle(color: context.cl.textS, fontSize: 12, fontWeight: FontWeight.w600)),
       const SizedBox(height: 3),
       FittedBox(
         fit: BoxFit.scaleDown,
@@ -406,7 +406,7 @@ class _RowLabel extends StatelessWidget {
     Icon(icon, size: 14, color: AppColors.primary),
     const SizedBox(width: 6),
     Text(label.toUpperCase(),
-      style: TextStyle(color: context.cl.textS, fontSize: 10,
+      style: TextStyle(color: context.cl.textS, fontSize: 11,
           fontWeight: FontWeight.w700, letterSpacing: 0.8)),
   ]);
 }
@@ -444,7 +444,7 @@ class _LigneCalcul extends StatelessWidget {
     mainAxisAlignment: MainAxisAlignment.spaceBetween,
     children: [
       Text(libelle,
-        style: TextStyle(color: context.cl.textM, fontSize: 12.5)),
+        style: TextStyle(color: context.cl.textM, fontSize: 13)),
       const SizedBox(width: 12),
       Flexible(
         child: Text(montant,

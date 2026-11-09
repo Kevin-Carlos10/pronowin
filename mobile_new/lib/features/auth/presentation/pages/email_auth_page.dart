@@ -188,7 +188,7 @@ class _EmailAuthPageState extends ConsumerState<EmailAuthPage> {
                       RichText(
                         textAlign: TextAlign.center,
                         text: TextSpan(
-                          style: TextStyle(color: context.cl.textS, fontSize: 12.5, height: 1.45),
+                          style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.45),
                           children: [
                              TextSpan(text: tr(context, "En continuant, tu acceptes nos ")),
                             TextSpan(

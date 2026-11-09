@@ -238,7 +238,7 @@ class _TerrainEquipe extends StatelessWidget {
             const SizedBox(width: 10),
             Text(equipe.formation!,
               style: TextStyle(
-                color: couleur, fontSize: 12.5, fontWeight: FontWeight.w700,
+                color: couleur, fontSize: 13, fontWeight: FontWeight.w700,
                 letterSpacing: 0.4)),
           ],
         ]),
@@ -383,7 +383,7 @@ class _PitchPlayer extends StatelessWidget {
               decoration: const BoxDecoration(color: Color(0xFFF5C518), shape: BoxShape.circle),
               alignment: Alignment.center,
               child: const Text('C', style: TextStyle(color: Color(0xFF0D1220),
-                fontSize: 8, fontWeight: FontWeight.w900)))),
+                fontSize: 11, fontWeight: FontWeight.w900)))),
           if (player.number != null)
             Positioned(
               bottom: -3, right: -3,
@@ -395,7 +395,7 @@ class _PitchPlayer extends StatelessWidget {
                 ),
                 child: Text('${player.number}',
                   style: TextStyle(
-                    color: _surPastille, fontSize: 8.5, fontWeight: FontWeight.w700)),
+                    color: _surPastille, fontSize: 11, fontWeight: FontWeight.w700)),
               ),
             ),
         ]),
@@ -403,7 +403,7 @@ class _PitchPlayer extends StatelessWidget {
         Text(player.shortName,
           maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
           style: const TextStyle(
-            color: Colors.white, fontSize: 8.5, fontWeight: FontWeight.w600,
+            color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600,
             shadows: [Shadow(color: Colors.black87, blurRadius: 3)])),
       ]),
     )),
@@ -475,7 +475,7 @@ class _Remplacants extends StatelessWidget {
           ],
           Expanded(child: Text(tr(context, "Remplaçants · {arg0}", [nom]),
             maxLines: 1, overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: context.cl.textP, fontSize: 12.5, fontWeight: FontWeight.w700))),
+            style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700))),
         ]),
         const SizedBox(height: 6),
         for (final p in [...entres, ...banc]) _LigneRemplacant(joueur: p, infos: de(p)),
@@ -517,17 +517,17 @@ class _LigneRemplacant extends StatelessWidget {
             const SizedBox(width: 10),
             if (joueur.number != null)
               SizedBox(width: 22, child: Text('${joueur.number}',
-                style: TextStyle(color: context.cl.textM, fontSize: 11.5, fontWeight: FontWeight.w700))),
+                style: TextStyle(color: context.cl.textM, fontSize: 12, fontWeight: FontWeight.w700))),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(joueur.name, maxLines: 1, overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: context.cl.textP, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
               Row(children: [
                 if (entre) ...[
                   Icon(Icons.arrow_upward_rounded, size: 11, color: context.cl.success),
                   const SizedBox(width: 3),
                 ],
                 Flexible(child: Text(sousTitre, maxLines: 1, overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: context.cl.textM, fontSize: 10.5))),
+                  style: TextStyle(color: context.cl.textM, fontSize: 11))),
               ]),
             ])),
             if (infos != null && infos!.aDesEvenements) ...[
@@ -629,7 +629,7 @@ class _CarteEntraineurs extends StatelessWidget {
       child: Column(children: [
         Text(tr(context, "Entraîneurs"),
           style: TextStyle(
-            color: context.cl.textM, fontSize: 10,
+            color: context.cl.textM, fontSize: 11,
             fontWeight: FontWeight.w700, letterSpacing: 0.6)),
         const SizedBox(height: 12),
         Row(children: [
@@ -673,7 +673,7 @@ class _UnEntraineur extends StatelessWidget {
       Text(nom,
         maxLines: 2, textAlign: TextAlign.center, overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          color: context.cl.textS, fontSize: 11.5, height: 1.25,
+          color: context.cl.textS, fontSize: 12, height: 1.25,
           fontWeight: FontWeight.w600)),
     ]);
   }

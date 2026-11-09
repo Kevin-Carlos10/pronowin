@@ -61,7 +61,24 @@ Future<void> copierCodePromo(BuildContext context, String code) async {
   if (context.mounted) afficherMessage(context, message, type: TypeMessage.succes, duree: const Duration(seconds: 2));
 }
 
+/// L'orange plein revenait à l'action principale de l'écran (« Voir
+/// l'analyse », l'onglet actif) : le code promo, lui aussi tout orange, lui
+/// disputait le regard (revue de l'interface, 9 novembre 2026). Il garde
+/// l'accent sur un liseré et son icône, sur la surface des autres cartes.
+BoxDecoration _decorPromo(BuildContext context, double rayon) => BoxDecoration(
+  color: context.cl.surface,
+  borderRadius: BorderRadius.circular(rayon),
+  border: Border.all(color: AppColors.primary.withValues(alpha: 0.45), width: 1),
+);
+
+/// L'orange plein reste sur la page du code, dont c'est le sujet.
 const _degrade = [Color(0xFFFF7A1A), Color(0xFFE5450A)];
+
+Widget _iconePromo(BuildContext context, {double taille = 36}) => Container(
+  width: taille, height: taille,
+  decoration: BoxDecoration(color: AppColors.primary.withValues(alpha: 0.14), shape: BoxShape.circle),
+  child: Icon(Icons.card_giftcard_rounded, color: context.cl.accent, size: taille * 0.55),
+);
 
 /// Le bandeau, pour les listes : une ligne, le code, « Copier ». Un appui
 /// ailleurs ouvre la page du code.
@@ -88,27 +105,25 @@ class BandeauCodePromo extends ConsumerWidget {
             onTap: () => context.push('/code-promo'),
             child: Ink(
               padding: const EdgeInsets.fromLTRB(12, 10, 6, 10),
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(colors: _degrade),
-                borderRadius: BorderRadius.circular(14)),
+              decoration: _decorPromo(context, 14),
               child: Row(children: [
-                const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 22),
+                _iconePromo(context, taille: 34),
                 const SizedBox(width: 10),
                 Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisSize: MainAxisSize.min, children: [
                   Text(tr(context, "Bonus {arg0} avec notre code promo", [nom]),
                     maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: Colors.white, fontSize: 12.5, fontWeight: FontWeight.w600)),
+                    style: TextStyle(color: context.cl.textS, fontSize: 13, fontWeight: FontWeight.w600)),
                   const SizedBox(height: 2),
-                  Text(promo.code, style: const TextStyle(color: Colors.white, fontSize: 16,
+                  Text(promo.code, style: TextStyle(color: context.cl.textP, fontSize: 16,
                     fontWeight: FontWeight.w900, letterSpacing: 1.5)),
                   Text(BookmakerAffiliation.mention,
                     maxLines: 1, overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 9.5)),
+                    style: TextStyle(color: context.cl.textM, fontSize: 11)),
                 ])),
                 IconButton(
                   tooltip: tr(context, "Copier le code"),
                   onPressed: () => copierCodePromo(context, promo.code),
-                  icon: const Icon(Icons.copy_rounded, color: Colors.white, size: 20),
+                  icon: Icon(Icons.copy_rounded, color: context.cl.accent, size: 20),
                 ),
               ]),
             ),
@@ -138,30 +153,32 @@ class CarteCodePromo extends ConsumerWidget {
           onTap: () => context.push('/code-promo'),
           child: Ink(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(colors: _degrade, begin: Alignment.topLeft, end: Alignment.bottomRight),
-              borderRadius: BorderRadius.circular(18)),
+            decoration: _decorPromo(context, 18),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Row(children: [
-                const Icon(Icons.card_giftcard_rounded, color: Colors.white, size: 20),
-                const SizedBox(width: 8),
+                _iconePromo(context, taille: 30),
+                const SizedBox(width: 10),
                 Expanded(child: Text(tr(context, "Code promo {arg0}", [nom]).toUpperCase(),
-                  style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8))),
+                  style: TextStyle(color: context.cl.textS, fontSize: 12, fontWeight: FontWeight.w800, letterSpacing: 0.8))),
               ]),
               const SizedBox(height: 12),
               Row(children: [
                 Expanded(child: Container(
                   padding: const EdgeInsets.symmetric(vertical: 10),
                   alignment: Alignment.center,
-                  decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+                  decoration: BoxDecoration(
+                    color: context.cl.surfaceD,
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: context.cl.border)),
                   child: FittedBox(fit: BoxFit.scaleDown, child: Text(promo.code,
-                    style: const TextStyle(color: Color(0xFF1A1D26), fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 3))),
+                    style: TextStyle(color: context.cl.textP, fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: 3))),
                 )),
                 const SizedBox(width: 10),
-                FilledButton.icon(
+                OutlinedButton.icon(
                   onPressed: () => copierCodePromo(context, promo.code),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: const Color(0xFF1A1D26), foregroundColor: Colors.white,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: context.cl.accent,
+                    side: BorderSide(color: AppColors.primary.withValues(alpha: 0.6)),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
                   icon: const Icon(Icons.copy_rounded, size: 18),
@@ -170,10 +187,10 @@ class CarteCodePromo extends ConsumerWidget {
               ]),
               const SizedBox(height: 10),
               Text(tr(context, "À saisir lors de ton inscription sur {arg0}.", [nom]),
-                style: const TextStyle(color: Colors.white, fontSize: 12.5)),
+                style: TextStyle(color: context.cl.textS, fontSize: 13)),
               const SizedBox(height: 4),
               Text(BookmakerAffiliation.mention,
-                style: TextStyle(color: Colors.white.withValues(alpha: 0.8), fontSize: 10)),
+                style: TextStyle(color: context.cl.textM, fontSize: 11)),
             ]),
           ),
         ),
@@ -269,7 +286,7 @@ class PageCodePromo extends ConsumerWidget {
                 style: TextStyle(color: cl.textS, fontSize: 12, fontWeight: FontWeight.w700)),
               const SizedBox(height: 6),
               Text(tr(context, "Les paris comportent des risques : endettement, dépendance. Ne mise que ce que tu peux te permettre de perdre."),
-                textAlign: TextAlign.center, style: TextStyle(color: cl.textM, fontSize: 11.5, height: 1.4)),
+                textAlign: TextAlign.center, style: TextStyle(color: cl.textM, fontSize: 12, height: 1.4)),
               TextButton(
                 onPressed: () => context.push('/parametres/jeu-responsable'),
                 child: Text(tr(context, "Jeu responsable")),
@@ -296,7 +313,7 @@ class _Etape extends StatelessWidget {
       const SizedBox(width: 12),
       Expanded(child: Padding(
         padding: const EdgeInsets.only(top: 3),
-        child: Text(texte, style: TextStyle(color: context.cl.textP, fontSize: 13.5, height: 1.35)),
+        child: Text(texte, style: TextStyle(color: context.cl.textP, fontSize: 14, height: 1.35)),
       )),
     ]),
   );

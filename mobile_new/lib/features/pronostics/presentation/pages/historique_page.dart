@@ -468,7 +468,7 @@ class _StatsHeader extends StatelessWidget {
             Text(taux == null
                 ? tr(context, "Le taux s'affiche à partir de {arg0} pronostics gagnés ou perdus.", [BilanHistorique.echantillon])
                 : tr(context, "sur {arg0} pronostics gagnés ou perdus", [b.tranches]),
-              style: TextStyle(color: context.cl.textM, fontSize: 11.5, height: 1.35)),
+              style: TextStyle(color: context.cl.textM, fontSize: 12, height: 1.35)),
           ])),
           const SizedBox(width: 12),
           Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
@@ -483,7 +483,7 @@ class _StatsHeader extends StatelessWidget {
             ]),
             const SizedBox(height: 2),
             Text(tr(context, "Meilleure : {arg0}", [b.meilleureSerie]),
-              style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
+              style: TextStyle(color: context.cl.textM, fontSize: 12)),
           ]),
         ]),
         const SizedBox(height: 14),
@@ -554,7 +554,7 @@ class _LegendDot extends StatelessWidget {
     Container(width: 8, height: 8, decoration: BoxDecoration(
       color: color, borderRadius: BorderRadius.circular(2))),
     const SizedBox(width: 4),
-    Text(label, style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
+    Text(label, style: TextStyle(color: context.cl.textM, fontSize: 12)),
   ]);
 }
 
@@ -620,7 +620,7 @@ class _PerformanceChart extends StatelessWidget {
                     interval: 25,
                     getTitlesWidget: (v, _) => Text(
                       '${v.toInt()}%',
-                      style: TextStyle(color: context.cl.textM, fontSize: 9)),
+                      style: TextStyle(color: context.cl.textM, fontSize: 11)),
                   ),
                 ),
                 rightTitles:  const AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -694,7 +694,7 @@ class _DayHeader extends StatelessWidget {
       label: tr(context, "{arg0} : {arg1} gagnés sur {arg2}", [label, b.gagnes, b.tranches]),
       child: ExcludeSemantics(child: Row(children: [
         Expanded(child: Text(label, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
-          color: context.cl.textP, fontSize: 13.5, fontWeight: FontWeight.w800))),
+          color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w800))),
         for (final e in entries.take(8))
           Container(
             width: 7, height: 7, margin: const EdgeInsets.only(left: 3),
@@ -761,10 +761,10 @@ class _EntryCard extends ConsumerWidget {
         TeamLogoWidget(url: logo, size: 18),
         const SizedBox(width: 8),
         Expanded(child: Text(nom, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(
-          color: context.cl.textP, fontSize: 13.5, fontWeight: gagne ? FontWeight.w800 : FontWeight.w500))),
+          color: context.cl.textP, fontSize: 14, fontWeight: gagne ? FontWeight.w800 : FontWeight.w500))),
         const SizedBox(width: 8),
         Text(score?.toString() ?? '–', style: TextStyle(
-          color: context.cl.textP, fontSize: 13.5, fontWeight: gagne ? FontWeight.w800 : FontWeight.w500,
+          color: context.cl.textP, fontSize: 14, fontWeight: gagne ? FontWeight.w800 : FontWeight.w500,
           fontFeatures: const [FontFeature.tabularFigures()])),
       ]);
     }
@@ -804,11 +804,11 @@ class _EntryCard extends ConsumerWidget {
                 ],
                 Flexible(child: Text(pred, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(
                   color: verrouille ? context.cl.warning : context.cl.accent,
-                  fontSize: 11.5, fontWeight: FontWeight.w700))),
+                  fontSize: 12, fontWeight: FontWeight.w700))),
               ])),
             if (odds > 0)
               Text('@ ${odds.toStringAsFixed(2)}',
-                style: TextStyle(color: context.cl.textS, fontSize: 11.5)),
+                style: TextStyle(color: context.cl.textS, fontSize: 12)),
             // Un pronostic Premium ouvert à l'abonné : on le dit.
             if (premium && !verrouille)
               Icon(Icons.workspace_premium_rounded, size: 15, color: context.cl.warning,

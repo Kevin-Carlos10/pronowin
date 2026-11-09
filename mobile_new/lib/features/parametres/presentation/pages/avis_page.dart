@@ -158,7 +158,7 @@ class _AvisPageState extends ConsumerState<AvisPage> {
               _connecte
                   ? tr(context, "Laissé vide, on te répond à l'adresse de ton compte.")
                   : tr(context, "Obligatoire, pour qu'on puisse te répondre."),
-              style: TextStyle(color: context.cl.textM, fontSize: 11.5)),
+              style: TextStyle(color: context.cl.textM, fontSize: 12)),
           ),
           const SizedBox(height: 14),
           TextField(
@@ -174,7 +174,7 @@ class _AvisPageState extends ConsumerState<AvisPage> {
             Padding(
               padding: const EdgeInsets.only(left: 4, bottom: 6),
               child: Text(tr(context, "Encore {arg0} caractères au moins.", [_messageMin - longueur]),
-                style: TextStyle(color: context.cl.warning, fontSize: 11.5)),
+                style: TextStyle(color: context.cl.warning, fontSize: 12)),
             ),
           const SizedBox(height: 6),
           if (_apercu == null)

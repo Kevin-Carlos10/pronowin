@@ -637,7 +637,7 @@ class _StatChip extends StatelessWidget {
           builder: (_, v, _) => Text('$v', style: TextStyle(
               color: color, fontSize: 24, fontWeight: FontWeight.w700)),
         ),
-        Text(sub, style: TextStyle(color: context.cl.textM, fontSize: 10)),
+        Text(sub, style: TextStyle(color: context.cl.textM, fontSize: 11)),
       ]),
     )),
   );
@@ -696,7 +696,7 @@ class _FilleulTile extends StatelessWidget {
             const SizedBox(width: 6),
             Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               decoration: BoxDecoration(color: context.cl.success.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
-              child:  Text(tr(context, "Nouveau"), style: TextStyle(color: context.cl.success, fontSize: 9, fontWeight: FontWeight.w700))),
+              child:  Text(tr(context, "Nouveau"), style: TextStyle(color: context.cl.success, fontSize: 11, fontWeight: FontWeight.w700))),
           ],
         ]),
         Text(
@@ -717,7 +717,7 @@ class _FilleulTile extends StatelessWidget {
               color: isPaid ? context.cl.success : context.cl.textM,
               fontSize: 12, fontWeight: FontWeight.w700)),
         if (!isPaid && plan == 'premium')
-          Text(tr(context, "En attente"), style: TextStyle(color: context.cl.textM, fontSize: 10)),
+          Text(tr(context, "En attente"), style: TextStyle(color: context.cl.textM, fontSize: 11)),
       ]),
     ]),
   );
@@ -813,7 +813,7 @@ class _HistoryTile extends StatelessWidget {
             borderRadius: BorderRadius.circular(8)),
           child: Text(tr(context, "Niv. {arg0}", [level]), style: TextStyle(
             color: level == 1 ? const Color(0xFFA78BFA) : context.cl.info,
-            fontSize: 9, fontWeight: FontWeight.w700)),
+            fontSize: 11, fontWeight: FontWeight.w700)),
         ),
       ]),
     ]),

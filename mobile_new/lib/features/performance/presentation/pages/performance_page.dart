@@ -420,7 +420,7 @@ class _ROICard extends StatelessWidget {
               border: Border.all(color: color.withValues(alpha: 0.4), width: 0.8)),
             child: Column(children: [
               Text(tr(context, "RENTABILITÉ"),
-                style: TextStyle(color: context.cl.textM, fontSize: 9,
+                style: TextStyle(color: context.cl.textM, fontSize: 11,
                   fontWeight: FontWeight.w700, letterSpacing: 0.5)),
               const SizedBox(height: 2),
               // Virgule et espace à la française : « +21,7 % », pas « +21.7% ».
@@ -436,7 +436,7 @@ class _ROICard extends StatelessWidget {
         // en francs sur une mise ronde, il se comprend sans définition.
         Text(
           tr(context, "Rentabilité : {arg0}{arg1} F de gain net pour 100 F misés.", [isPositive ? '+' : '', decimalFr(perf.roi)]),
-          style: TextStyle(color: context.cl.textM, fontSize: 10.5, height: 1.35)),
+          style: TextStyle(color: context.cl.textM, fontSize: 11, height: 1.35)),
 
         const SizedBox(height: 16),
 
@@ -461,11 +461,11 @@ class _ROICard extends StatelessWidget {
             Row(children: [
               _Dot(color: context.cl.success),
               const SizedBox(width: 4),
-              Text(tr(context, "{arg0} gagnés", [perf.wins]), style: TextStyle(color: context.cl.textM, fontSize: 10)),
+              Text(tr(context, "{arg0} gagnés", [perf.wins]), style: TextStyle(color: context.cl.textM, fontSize: 11)),
               const SizedBox(width: 12),
               _Dot(color: context.cl.error),
               const SizedBox(width: 4),
-              Text(tr(context, "{arg0} perdus", [perf.losses]), style: TextStyle(color: context.cl.textM, fontSize: 10)),
+              Text(tr(context, "{arg0} perdus", [perf.losses]), style: TextStyle(color: context.cl.textM, fontSize: 11)),
             ]),
           ])),
         ]),
@@ -551,7 +551,7 @@ class _SimulationChart extends StatelessWidget {
             style: TextStyle(color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w700))),
           const SizedBox(width: 8),
           Text(tr(context, "Mise : {arg0} FCFA/prono", [_fmt(stake.toDouble())]),
-            style: TextStyle(color: context.cl.textM, fontSize: 10)),
+            style: TextStyle(color: context.cl.textM, fontSize: 11)),
         ]),
         const SizedBox(height: 14),
         SizedBox(
@@ -570,7 +570,7 @@ class _SimulationChart extends StatelessWidget {
                 showTitles: true,
                 reservedSize: 52,
                 getTitlesWidget: (v, _) => Text(_shortAmt(v),
-                  style: TextStyle(color: context.cl.textM, fontSize: 9)),
+                  style: TextStyle(color: context.cl.textM, fontSize: 11)),
               )),
               bottomTitles: AxisTitles(sideTitles: SideTitles(showTitles: false)),
               topTitles:    AxisTitles(sideTitles: SideTitles(showTitles: false)),
@@ -689,7 +689,7 @@ class _LeaguesCard extends StatelessWidget {
                 color: context.cl.textP, fontSize: 12, fontWeight: FontWeight.w600),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
               Text(tr(context, "{arg0}/{arg1} · {arg2}% réussite", [l.wins, l.total, l.winRate]),
-                style: TextStyle(color: context.cl.textM, fontSize: 10)),
+                style: TextStyle(color: context.cl.textM, fontSize: 11)),
             ])),
             if (afficherGain) Text(
               '${isPos ? '+' : ''}${_fmt(l.netGain.toDouble())} F',
@@ -764,7 +764,7 @@ class _StatChip extends StatelessWidget {
       const SizedBox(height: 5),
       Text(value, style: TextStyle(
         color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w700)),
-      Text(label, style: TextStyle(color: context.cl.textM, fontSize: 9),
+      Text(label, style: TextStyle(color: context.cl.textM, fontSize: 11),
         textAlign: TextAlign.center),
     ]),
   ));

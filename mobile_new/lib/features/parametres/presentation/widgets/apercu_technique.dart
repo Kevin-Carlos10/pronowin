@@ -86,14 +86,14 @@ Future<void> afficherApercuTechnique(BuildContext context, WidgetRef ref,
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 5),
               child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                SizedBox(width: 92, child: Text(libelle, style: TextStyle(color: cl.textM, fontSize: 12.5))),
+                SizedBox(width: 92, child: Text(libelle, style: TextStyle(color: cl.textM, fontSize: 13))),
                 Expanded(child: SelectableText(valeur,
-                  style: TextStyle(color: cl.textP, fontSize: 12.5, fontWeight: FontWeight.w600))),
+                  style: TextStyle(color: cl.textP, fontSize: 13, fontWeight: FontWeight.w600))),
               ]),
             ),
           const SizedBox(height: 8),
           Text(tr(dialogue, "Colle ces informations dans ton message au support."),
-            style: TextStyle(color: cl.textM, fontSize: 11.5)),
+            style: TextStyle(color: cl.textM, fontSize: 12)),
         ]),
         actions: [
           TextButton(onPressed: () => Navigator.pop(dialogue), child: Text(tr(dialogue, "Fermer"))),

@@ -98,7 +98,7 @@ class _SliverHeader extends ConsumerWidget {
                                 unreadCount > 9 ? '9+' : '$unreadCount',
                                 style: const TextStyle(
                                     color: Colors.white,
-                                    fontSize: 8,
+                                    fontSize: 11,
                                     fontWeight: FontWeight.w700),
                               ),
                             ),
@@ -190,7 +190,7 @@ class _SliverHeader extends ConsumerWidget {
                                 Text('PREMIUM',
                                     style: TextStyle(
                                         color: Colors.white,
-                                        fontSize: 9,
+                                        fontSize: 11,
                                         fontWeight: FontWeight.w700,
                                         letterSpacing: 0.5)),
                               ],
@@ -430,7 +430,7 @@ class _StatChip extends StatelessWidget {
           Text(label,
               style: TextStyle(
                   color: context.cl.textM,
-                  fontSize: 9,
+                  fontSize: 11,
                   fontWeight: FontWeight.w500)),
         ],
       ),
@@ -609,7 +609,7 @@ class _PremiumBanner extends ConsumerWidget {
                               child: const Text('PREMIUM',
                                 style: TextStyle(
                                   color: Color(0xFFFFD700),
-                                  fontSize: 9, fontWeight: FontWeight.w700,
+                                  fontSize: 11, fontWeight: FontWeight.w700,
                                   letterSpacing: 0.5)),
                             ),
                           ]),
@@ -797,7 +797,7 @@ class _PremiumIllustration extends StatelessWidget {
                 Text(label,
                   style: TextStyle(
                     color: color,
-                    fontSize: 9, fontWeight: FontWeight.w700),
+                    fontSize: 11, fontWeight: FontWeight.w700),
                   textAlign: TextAlign.center),
               ]),
             ),
