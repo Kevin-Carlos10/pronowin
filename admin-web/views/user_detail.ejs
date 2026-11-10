@@ -257,7 +257,7 @@
         %>
         <% row('Téléphone', user.phoneNumber) %>
         <% row('Email',     user.email) %>
-        <% row('Pays',      user.countryCode) %>
+        <% row('Pays',      typeof nomPays === 'function' ? nomPays(user.countryCode) : user.countryCode) %>
         <% row('ID 1xBet',  user.xbetId || '—', 'primary') %>
         <% row('Code parrainage', user.referralCode, 'purple') %>
         <% row('Gains parrainage', (user.referralEarnings||0).toLocaleString()+' FCFA', 'success') %>

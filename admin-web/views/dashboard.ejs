@@ -782,6 +782,12 @@ document.addEventListener('DOMContentLoaded', function() {
   const tbody = document.getElementById('online-tbody');
   const countEl = document.getElementById('online-count');
   const escapeText = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+  // Le nom du pays, pas son code (« BF » → « Burkina Faso »), dans la langue de la page.
+  const nomsPays = (() => { try { return new Intl.DisplayNames([document.documentElement.lang || 'fr'], { type: 'region' }); } catch (_) { return null; } })();
+  const nomPaysClient = code => {
+    if (!code) return '—';
+    try { return (nomsPays && /^[A-Za-z]{2}$/.test(code) && nomsPays.of(code.toUpperCase())) || code; } catch (_) { return code; }
+  };
   modal.addEventListener('keydown', e => { if (e.key === 'Tab') { e.preventDefault(); closeBtn.focus(); } });
 
   function closeModal() {
@@ -822,7 +828,7 @@ document.addEventListener('DOMContentLoaded', function() {
               </div>
             </div>
           </td>
-          <td>${escapeText(u.countryCode ?? '—')}</td>
+          <td title="${escapeText(u.countryCode ?? '')}">${escapeText(nomPaysClient(u.countryCode))}</td>
           <td>${plan}</td>
           <td style="color:var(--on-success);font-size:.8rem;font-weight:500">
             <span style="display:inline-block;width:7px;height:7px;border-radius:50%;background:var(--success);margin-right:.3rem;animation:pulse-live 2s ease-in-out infinite"></span>${ago}
