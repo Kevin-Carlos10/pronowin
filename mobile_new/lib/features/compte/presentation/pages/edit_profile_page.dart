@@ -12,6 +12,7 @@ import '../../../../core/theme/app_theme.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../shared/widgets/country_pill_selector.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
+import '../../../parametres/presentation/widgets/reglages_ui.dart';
 import '../providers/compte_provider.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../shared/utils/age.dart';
@@ -22,7 +23,17 @@ import 'package:pronowin/shared/utils/initiale.dart';
 /// par un lien profond de notification, qui remplace la pile.
 const _repli = '/compte';
 
+/// Une adresse e-mail plausible : quelque chose, une arobase, un domaine avec
+/// un point. Le serveur reste juge ; ceci évite un aller-retour pour une
+/// faute de frappe.
+final _formeEmail = RegExp(r'^[^@\s]+@[^@\s]+\.[^@\s]+$');
 
+/// « Modifier le profil », refait le 11 novembre 2026 au dessin des
+/// Paramètres : avatar rond, champs rangés dans des cartes (Identité,
+/// Compte), erreurs sous le champ concerné plutôt qu'en bas de l'écran, et un
+/// « Enregistrer » toujours visible, actif seulement s'il y a quelque chose à
+/// enregistrer. Quitter avec des changements non enregistrés demande
+/// confirmation.
 class EditProfilePage extends ConsumerStatefulWidget {
   const EditProfilePage({super.key});
   @override
@@ -40,6 +51,11 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   bool _loading       = false;
   bool _avatarLoading = false;
   String? _localAvatarPath; // chemin local après sélection
+  /// Une tentative d'enregistrement a eu lieu : toutes les erreurs s'affichent,
+  /// même celles des champs que l'on n'a pas touchés.
+  bool _tente = false;
+  /// Ce que contenait le formulaire à l'ouverture, pour savoir s'il a changé.
+  late final String _initial;
 
   @override
   void initState() {
@@ -81,7 +97,22 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
         }
       }
     }
+    _initial = _empreinte();
+    for (final c in [_pseudoCtrl, _emailCtrl, _firstNameCtrl, _lastNameCtrl, _phoneCtrl]) {
+      c.addListener(_rafraichir);
+    }
   }
+
+  void _rafraichir() { if (mounted) setState(() {}); }
+
+  /// Le formulaire résumé en une chaîne : changée, il y a à enregistrer.
+  String _empreinte() => [
+    _pseudoCtrl.text.trim(), _emailCtrl.text.trim(), _firstNameCtrl.text.trim(),
+    _lastNameCtrl.text.trim(), _phoneCtrl.text.trim(), _country.countryCode,
+    _birthDate?.toIso8601String().split('T').first ?? '',
+  ].join('|');
+
+  bool get _modifie => _empreinte() != _initial;
 
   @override
   void dispose() {
@@ -89,6 +120,36 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     _firstNameCtrl.dispose(); _lastNameCtrl.dispose();
     _phoneCtrl.dispose();
     super.dispose();
+  }
+
+  // ── Erreurs, champ par champ ──────────────────────────────────────────────
+  /// L'erreur d'un champ ne s'affiche qu'une fois le champ modifié, ou après
+  /// une tentative d'enregistrement : pas de rouge à l'ouverture.
+  String? _erreur(TextEditingController c, String initiale, String? Function(String) regle) {
+    final v = c.text.trim();
+    if (!_tente && v == initiale) return null;
+    return regle(v);
+  }
+
+  String? get _erreurPseudo => _erreur(_pseudoCtrl, _initial.split('|')[0],
+      (v) => v.length < 3 ? tr(context, "Minimum 3 caractères") : null);
+  String? get _erreurEmail => _erreur(_emailCtrl, _initial.split('|')[1],
+      (v) => v.isNotEmpty && !_formeEmail.hasMatch(v) ? tr(context, "Adresse e-mail invalide") : null);
+  String? get _erreurPrenom => _erreur(_firstNameCtrl, _initial.split('|')[2],
+      (v) => v.isNotEmpty && v.length < 2 ? tr(context, "2 caractères minimum") : null);
+  String? get _erreurNom => _erreur(_lastNameCtrl, _initial.split('|')[3],
+      (v) => v.isNotEmpty && v.length < 2 ? tr(context, "2 caractères minimum") : null);
+  String? get _erreurTelephone => _erreur(_phoneCtrl, _initial.split('|')[4],
+      (v) => v.isNotEmpty && v.replaceAll(RegExp(r'\D'), '').length < 7
+          ? tr(context, "Numéro trop court") : null);
+
+  bool get _valide {
+    final avant = _tente;
+    _tente = true;
+    final ok = [_erreurPseudo, _erreurEmail, _erreurPrenom, _erreurNom, _erreurTelephone]
+        .every((e) => e == null);
+    _tente = avant;
+    return ok;
   }
 
   // ── Avatar ────────────────────────────────────────────────────────────────
@@ -129,39 +190,41 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
-      builder: (_) => Container(
-        margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-        decoration: BoxDecoration(
-          color: context.cl.surface,
-          borderRadius: BorderRadius.circular(24),
-          border: Border.all(color: context.cl.border, width: 0.5)),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(width: 36, height: 4,
-            decoration: BoxDecoration(
-              color: context.cl.border, borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 16),
-          Text(tr(context, "Changer la photo de profil"),
-            style: TextStyle(color: context.cl.textP,
-              fontSize: 15, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 18),
-          _AvatarOption(
-            icon: Icons.camera_alt_rounded,
-            label: tr(context, "Prendre une photo"),
-            color: AppColors.primary,
-            onTap: () => _pickAvatar(ImageSource.camera)),
-          const SizedBox(height: 10),
-          _AvatarOption(
-            icon: Icons.photo_library_rounded,
-            label: tr(context, "Choisir depuis la galerie"),
-            color: context.cl.info,
-            onTap: () => _pickAvatar(ImageSource.gallery)),
-          const SizedBox(height: 8),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(tr(context, "Annuler"),
-              style: TextStyle(color: context.cl.textS, fontSize: 14))),
-        ]),
+      builder: (_) => SafeArea(
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(margeEcran, 0, margeEcran, margeEcran),
+          padding: const EdgeInsets.fromLTRB(12, 12, 12, 8),
+          decoration: BoxDecoration(
+            color: context.cl.bg,
+            borderRadius: BorderRadius.circular(22),
+            border: Border.all(color: context.cl.border, width: 0.5)),
+          child: Column(mainAxisSize: MainAxisSize.min, children: [
+            Container(width: 36, height: 4,
+              decoration: BoxDecoration(
+                color: context.cl.borderS, borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 14),
+            Text(tr(context, "Changer la photo de profil"),
+              style: TextStyle(color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 14),
+            CarteReglages([
+              LigneReglage(
+                key: const Key('photo-appareil'),
+                icone: Icons.photo_camera_outlined,
+                titre: tr(context, "Prendre une photo"),
+                onTap: () => _pickAvatar(ImageSource.camera)),
+              LigneReglage(
+                key: const Key('photo-galerie'),
+                icone: Icons.photo_library_outlined,
+                titre: tr(context, "Choisir depuis la galerie"),
+                onTap: () => _pickAvatar(ImageSource.gallery)),
+            ]),
+            const SizedBox(height: 6),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(tr(context, "Annuler"),
+                style: TextStyle(color: context.cl.textS, fontSize: 15))),
+          ]),
+        ),
       ),
     );
   }
@@ -177,15 +240,12 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       helpText:    tr(context, "Date de naissance"),
       cancelText:  tr(context, "Annuler"),
       confirmText: tr(context, "Confirmer"),
+      // Le jeu de couleurs du thème courant : il était forcé en sombre, et le
+      // calendrier s'ouvrait noir sur une page claire.
       builder: (context, child) => Theme(
         data: Theme.of(context).copyWith(
-          colorScheme: ColorScheme.dark(
-            primary:   AppColors.primary,
-            onPrimary: Colors.white,
-            surface:   context.cl.surface,
-            onSurface: context.cl.textP,
-          ),
-        ),
+          colorScheme: Theme.of(context).colorScheme.copyWith(
+            primary: AppColors.primary, onPrimary: Colors.white)),
         child: child!,
       ),
     );
@@ -193,20 +253,11 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
   }
 
   Future<void> _save() async {
-    if (_pseudoCtrl.text.trim().length < 3) {
-      _showSnack(tr(context, "Pseudo trop court (minimum 3 caractères)."), isError: true); return;
-    }
-    if (_firstNameCtrl.text.trim().isNotEmpty &&
-        _firstNameCtrl.text.trim().length < 2) {
-      _showSnack(tr(context, "Prénom trop court (minimum 2 caractères)."), isError: true); return;
-    }
-    if (_lastNameCtrl.text.trim().isNotEmpty &&
-        _lastNameCtrl.text.trim().length < 2) {
-      _showSnack(tr(context, "Nom trop court (minimum 2 caractères)."), isError: true); return;
-    }
-    if (_phoneCtrl.text.trim().isNotEmpty &&
-        _phoneCtrl.text.trim().length < 7) {
-      _showSnack(tr(context, "Numéro de téléphone trop court."), isError: true); return;
+    FocusScope.of(context).unfocus();
+    if (!_valide) {
+      setState(() => _tente = true);
+      _showSnack(tr(context, "Corrige les champs en rouge."), isError: true);
+      return;
     }
 
     setState(() => _loading = true);
@@ -231,6 +282,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
       await ref.read(authProvider.notifier).refreshUser();
       if (mounted) {
         _showSnack(tr(context, "Profil mis à jour ✅"));
+        _enregistre = true;
         retourOuAller(context, repli: _repli);
       }
     } on DioException catch (e) {
@@ -242,211 +294,223 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     }
   }
 
+  /// Vrai une fois enregistré : la sortie qui suit ne demande rien.
+  bool _enregistre = false;
+
+  /// Quitter : sans changement, tout de suite ; sinon, après confirmation.
+  Future<void> _quitter() async {
+    if (!_modifie || _enregistre) {
+      retourOuAller(context, repli: _repli);
+      return;
+    }
+    final abandonner = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(tr(ctx, "Abandonner les modifications ?")),
+        content: Text(tr(ctx, "Tes changements ne seront pas enregistrés.")),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(tr(ctx, "Continuer"))),
+          TextButton(
+            key: const Key('abandonner-modifications'),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(tr(ctx, "Abandonner"), style: TextStyle(color: ctx.cl.error))),
+        ],
+      ),
+    );
+    if (abandonner == true && mounted) {
+      _enregistre = true;
+      retourOuAller(context, repli: _repli);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final profile    = ref.watch(profileProvider).valueOrNull;
     final avatarUrl  = profile?['avatar_url'] as String?;
     final initiale   = initialeAvatar(prenom: _firstNameCtrl.text, pseudo: _pseudoCtrl.text);
+    final pseudo     = _pseudoCtrl.text.trim();
+    final pret       = _modifie && !_loading;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => retourOuAller(context, repli: _repli),
+    Widget initialeSurDegrade() => Container(
+      decoration: const BoxDecoration(gradient: LinearGradient(
+        colors: AppColors.degradeMarque, begin: Alignment.topLeft, end: Alignment.bottomRight)),
+      alignment: Alignment.center,
+      child: Text(initiale, style: const TextStyle(
+        color: Colors.white, fontSize: 36, fontWeight: FontWeight.w700)));
+
+    return PopScope(
+      canPop: !_modifie || _enregistre,
+      onPopInvokedWithResult: (aQuitte, _) { if (!aQuitte) _quitter(); },
+      child: Scaffold(
+        appBar: AppBar(
+          centerTitle: true,
+          leading: IconButton(
+            tooltip: tr(context, "Retour"),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            onPressed: _quitter,
+          ),
+          title: Text(tr(context, "Modifier le profil"),
+            style: TextStyle(color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w600)),
         ),
-        title:  Text(tr(context, "Modifier le profil")),
-        // Plus d'« Enregistrer » dans la barre : il doublait le bouton du bas,
-        // et deux boutons pour la même action font se demander s'ils font la
-        // même chose (vidéo du 5 octobre 2026).
-      ),
-      body: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(margeEcran, 12, margeEcran, 24),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          children: [
 
-          // ─── Avatar ───────────────────────────────────────────────────
-          Center(child: GestureDetector(
-            onTap: _showAvatarSheet,
-            child: Stack(clipBehavior: Clip.none, children: [
-              Container(
-                width: 88, height: 88,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: AppColors.degradeMarque),
-                  borderRadius: BorderRadius.circular(24),
-                  boxShadow: [BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
-                    blurRadius: 12, offset: const Offset(0, 4))]),
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(24),
-                  child: _avatarLoading
-                    ? const Center(child: CircularProgressIndicator(
-                        color: Colors.white, strokeWidth: 2))
-                    : _localAvatarPath != null
-                      ? Image.file(File(_localAvatarPath!), fit: BoxFit.cover)
-                      : avatarUrl != null && avatarUrl.isNotEmpty
-                        ? ImageDistante(
-                            url:   avatarUrl,
-                            repli: Center(child: Text(initiale,
-                              style: const TextStyle(color: Colors.white,
-                                fontSize: 32, fontWeight: FontWeight.w700))))
-                        : Center(child: Text(initiale,
-                            style: const TextStyle(color: Colors.white,
-                              fontSize: 32, fontWeight: FontWeight.w700))),
+            // ─── Avatar ───────────────────────────────────────────────────
+            Center(child: Semantics(
+              button: true,
+              label: tr(context, "Changer la photo de profil"),
+              child: GestureDetector(
+                key: const Key('avatar-profil'),
+                onTap: _showAvatarSheet,
+                child: Stack(clipBehavior: Clip.none, children: [
+                  Container(
+                    width: 96, height: 96,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: context.cl.border, width: 1)),
+                    child: ClipOval(
+                      child: _avatarLoading
+                        ? Container(color: context.cl.surface, alignment: Alignment.center,
+                            child: const SizedBox(width: 24, height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.primary)))
+                        : _localAvatarPath != null
+                          ? Image.file(File(_localAvatarPath!), fit: BoxFit.cover)
+                          : avatarUrl != null && avatarUrl.isNotEmpty
+                            ? ImageDistante(url: avatarUrl, fit: BoxFit.cover, repli: initialeSurDegrade())
+                            : initialeSurDegrade(),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 0, right: 0,
+                    child: Container(
+                      width: 30, height: 30,
+                      decoration: BoxDecoration(
+                        color: context.cl.surface, shape: BoxShape.circle,
+                        border: Border.all(color: context.cl.bg, width: 2)),
+                      child: Icon(Icons.photo_camera_outlined, color: context.cl.textP, size: 16)),
+                  ),
+                ]),
+              ),
+            )),
+            const SizedBox(height: 6),
+            Center(child: TextButton(
+              onPressed: _showAvatarSheet,
+              child: Text(tr(context, "Modifier la photo"),
+                style: TextStyle(color: context.cl.accent, fontSize: 14, fontWeight: FontWeight.w600)),
+            )),
+            if (pseudo.isNotEmpty)
+              Center(child: Text('@$pseudo',
+                style: TextStyle(color: context.cl.textS, fontSize: 13))),
+            const SizedBox(height: 22),
+
+            // ─── Identité ─────────────────────────────────────────────────
+            EnTeteReglages(tr(context, "Identité")),
+            CarteReglages(retrait: 14, [
+              _Champ(
+                key: const Key('champ-prenom'),
+                libelle: tr(context, "Prénom"), controleur: _firstNameCtrl,
+                indice: tr(context, "Ton prénom"), erreur: _erreurPrenom,
+                majuscules: TextCapitalization.words,
+                autofill: const [AutofillHints.givenName]),
+              _Champ(
+                key: const Key('champ-nom'),
+                libelle: tr(context, "Nom"), controleur: _lastNameCtrl,
+                indice: tr(context, "Ton nom"), erreur: _erreurNom,
+                majuscules: TextCapitalization.words,
+                autofill: const [AutofillHints.familyName]),
+              _LigneChampTouche(
+                key: const Key('champ-naissance'),
+                libelle: tr(context, "Date de naissance"),
+                onTap: _pickDate,
+                valeur: _birthDate == null
+                    ? Text(tr(context, "Sélectionner ta date de naissance"),
+                        style: TextStyle(color: context.cl.textM, fontSize: 15))
+                    : Row(children: [
+                        Text('${_birthDate!.day.toString().padLeft(2, '0')}/'
+                             '${_birthDate!.month.toString().padLeft(2, '0')}/'
+                             '${_birthDate!.year}',
+                          style: TextStyle(color: context.cl.textP, fontSize: 15)),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: context.cl.success.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20)),
+                          child: Text(tr(context, "{arg0} ans", [_getAge(_birthDate!)]),
+                            style: TextStyle(color: context.cl.success, fontSize: 12, fontWeight: FontWeight.w600))),
+                      ]),
+                fin: Icon(Icons.calendar_today_outlined, size: 18, color: context.cl.textM),
+              ),
+              _Champ(
+                key: const Key('champ-telephone'),
+                libelle: tr(context, "Numéro de téléphone"), controleur: _phoneCtrl,
+                indice: '70 00 00 00', erreur: _erreurTelephone,
+                clavier: TextInputType.phone,
+                autofill: const [AutofillHints.telephoneNumberNational],
+                avant: Padding(
+                  padding: const EdgeInsets.only(right: 10),
+                  child: CountryPillSelector(
+                    country: _country, compact: true,
+                    onSelect: (c) => setState(() => _country = c)),
                 ),
               ),
-              Positioned(
-                bottom: -4, right: -4,
-                child: Container(
-                  width: 28, height: 28,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary, shape: BoxShape.circle,
-                    border: Border.all(color: context.cl.bg, width: 2)),
-                  child: const Icon(Icons.camera_alt_rounded,
-                    color: Colors.white, size: 14)),
-              ),
             ]),
-          )),
-          const SizedBox(height: 8),
-          Center(child: Text(tr(context, "Appuyer pour changer la photo"),
-            style: TextStyle(color: context.cl.textM, fontSize: 11))),
-          const SizedBox(height: 28),
-
-          // ─── Identité ─────────────────────────────────────────────────
-          _SectionLabel(tr(context, "IDENTITÉ")),
-          Row(children: [
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _FieldLabel(tr(context, "Prénom")),
-              TextField(
-                controller: _firstNameCtrl,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  hintText: tr(context, "Ton prénom"),
-                  prefixIcon: Icon(Icons.badge_rounded,
-                    size: 20, color: context.cl.textM)),
-              ),
-            ])),
-            const SizedBox(width: 12),
-            Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              _FieldLabel(tr(context, "Nom")),
-              TextField(
-                controller: _lastNameCtrl,
-                textCapitalization: TextCapitalization.words,
-                decoration: InputDecoration(
-                  hintText: tr(context, "Ton nom"),
-                  prefixIcon: Icon(Icons.badge_outlined,
-                    size: 20, color: context.cl.textM)),
-              ),
-            ])),
-          ]),
-          const SizedBox(height: 16),
-
-          _FieldLabel(tr(context, "Date de naissance")),
-          GestureDetector(
-            onTap: _pickDate,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
-              decoration: BoxDecoration(
-                color: context.cl.surfaceDeep,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: context.cl.borderSoft, width: 0.5)),
-              child: Row(children: [
-                Icon(Icons.cake_rounded, size: 20, color: context.cl.textM),
-                const SizedBox(width: 10),
-                Text(
-                  _birthDate != null
-                    ? '${_birthDate!.day.toString().padLeft(2,'0')}/'
-                      '${_birthDate!.month.toString().padLeft(2,'0')}/'
-                      '${_birthDate!.year}'
-                    : tr(context, "Sélectionner ta date de naissance"),
-                  style: TextStyle(
-                    color: _birthDate != null
-                      ? context.cl.textP : context.cl.textM,
-                    fontSize: 14)),
-                const Spacer(),
-                Icon(Icons.calendar_today_rounded, size: 16, color: context.cl.textM),
-              ]),
+            // L'avis d'âge, à côté de la date qu'il concerne, en simple
+            // indication : encadré en couleur d'alerte, il se lisait comme une
+            // erreur adressée à un utilisateur de 20 ans.
+            Padding(
+              padding: const EdgeInsets.fromLTRB(6, 8, 6, 0),
+              child: Text(
+                tr(context, "PronoWin est réservé aux personnes de 18 ans et plus."),
+                style: TextStyle(color: context.cl.textM, fontSize: 12)),
             ),
-          ),
-          if (_birthDate != null) Padding(
-            padding: const EdgeInsets.only(top: 6),
-            child: Row(children: [
-              Icon(Icons.check_circle_outline_rounded,
-                size: 13, color: context.cl.success),
-              const SizedBox(width: 4),
-              Text(tr(context, "{arg0} ans", [_getAge(_birthDate!)]),
-                style: TextStyle(color: context.cl.success, fontSize: 11)),
+            const SizedBox(height: 22),
+
+            // ─── Compte ───────────────────────────────────────────────────
+            EnTeteReglages(tr(context, "Compte")),
+            CarteReglages(retrait: 14, [
+              _Champ(
+                key: const Key('champ-pseudo'),
+                libelle: tr(context, "Pseudo"), controleur: _pseudoCtrl,
+                indice: tr(context, "Ton pseudo"), erreur: _erreurPseudo,
+                aide: tr(context, "Visible dans les commentaires et le classement."),
+                prefixe: '@',
+                autofill: const [AutofillHints.username]),
+              _Champ(
+                key: const Key('champ-email'),
+                libelle: tr(context, "Email (optionnel)"), controleur: _emailCtrl,
+                indice: 'exemple@email.com', erreur: _erreurEmail,
+                clavier: TextInputType.emailAddress,
+                autofill: const [AutofillHints.email]),
             ]),
-          ),
-          // L'avis d'âge, à côté de la date qu'il concerne, en simple
-          // indication. Il était encadré en couleur d'alerte sous l'e-mail, et
-          // se lisait comme une erreur adressée à un utilisateur de 20 ans.
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              tr(context, "PronoWin est réservé aux personnes de 18 ans et plus."),
-              style: TextStyle(color: context.cl.textM, fontSize: 11)),
-          ),
-          const SizedBox(height: 16),
-
-          _FieldLabel(tr(context, "Numéro de téléphone")),
-          Row(children: [
-            CountryPillSelector(
-              country: _country,
-              onSelect: (c) => setState(() => _country = c),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: TextField(
-                controller: _phoneCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: InputDecoration(
-                  hintText: '70 00 00 00',
-                  prefixIcon: Icon(Icons.phone_rounded,
-                    size: 20, color: context.cl.textM)),
+          ],
+        ),
+        // Toujours visible, même clavier ouvert ; actif s'il y a quelque
+        // chose à enregistrer.
+        bottomNavigationBar: SafeArea(
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(margeEcran, 8, margeEcran, 8),
+            decoration: BoxDecoration(
+              color: context.cl.bg,
+              border: Border(top: BorderSide(color: context.cl.border, width: 0.5))),
+            child: SizedBox(
+              height: 50,
+              child: ElevatedButton(
+                key: const Key('enregistrer-profil'),
+                onPressed: pret ? _save : null,
+                child: _loading
+                  ? const SizedBox(width: 20, height: 20,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : Text(_modifie ? tr(context, "Enregistrer") : tr(context, "Aucune modification")),
               ),
             ),
-          ]),
-          const SizedBox(height: 20),
-
-          // ─── Compte ───────────────────────────────────────────────────
-          _SectionLabel(tr(context, "COMPTE")),
-          _FieldLabel(tr(context, "Pseudo")),
-          TextField(
-            controller: _pseudoCtrl,
-            onChanged: (_) => setState(() {}),
-            textCapitalization: TextCapitalization.words,
-            decoration: InputDecoration(
-              hintText: tr(context, "Ton pseudo"),
-              prefixIcon: Icon(Icons.person_rounded,
-                size: 20, color: context.cl.textM),
-              helperText: tr(context, "Minimum 3 caractères"),
-              helperStyle: TextStyle(color: context.cl.textM, fontSize: 11)),
           ),
-          const SizedBox(height: 16),
-
-          _FieldLabel(tr(context, "Email (optionnel)")),
-          TextField(
-            controller: _emailCtrl,
-            keyboardType: TextInputType.emailAddress,
-            decoration: InputDecoration(
-              hintText: 'exemple@email.com',
-              prefixIcon: Icon(Icons.email_rounded,
-                size: 20, color: context.cl.textM)),
-          ),
-          const SizedBox(height: 28),
-
-          SizedBox(
-            width: double.infinity, height: 52,
-            child: ElevatedButton(
-              onPressed: _loading ? null : _save,
-              child: _loading
-                ? const SizedBox(width: 20, height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2, color: Colors.white))
-                :  Text(tr(context, "Enregistrer les modifications")),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -464,58 +528,84 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
     afficherMessage(context, msg, type: isError ? TypeMessage.erreur : TypeMessage.succes);
 }
 
-// ─── Option avatar dans le bottom sheet ──────────────────────────────────────
-class _AvatarOption extends StatelessWidget {
-  final IconData    icon;
-  final String      label;
-  final Color       color;
-  final VoidCallback onTap;
-  const _AvatarOption({required this.icon, required this.label,
-    required this.color, required this.onTap});
+/// Un champ de formulaire dans une carte : le libellé au-dessus, la saisie
+/// sans cadre (la carte en tient lieu), l'erreur ou l'aide en dessous.
+class _Champ extends StatelessWidget {
+  final String libelle;
+  final TextEditingController controleur;
+  final String? indice, erreur, aide, prefixe;
+  final TextInputType? clavier;
+  final TextCapitalization majuscules;
+  final Iterable<String>? autofill;
+  final Widget? avant;
+  const _Champ({super.key, required this.libelle, required this.controleur,
+    this.indice, this.erreur, this.aide, this.prefixe, this.clavier,
+    this.majuscules = TextCapitalization.none, this.autofill, this.avant});
 
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(14),
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.2))),
-      child: Row(children: [
-        Container(width: 38, height: 38,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, color: color, size: 20)),
-        const SizedBox(width: 14),
-        Text(label, style: TextStyle(
-          color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w600)),
-        const Spacer(),
-        Icon(Icons.arrow_forward_ios_rounded, color: context.cl.textM, size: 14),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Text(libelle, style: TextStyle(
+        color: erreur != null ? context.cl.error : context.cl.textS,
+        fontSize: 12, fontWeight: FontWeight.w500)),
+      const SizedBox(height: 4),
+      Row(children: [
+        ?avant,
+        Expanded(child: TextField(
+          controller: controleur,
+          keyboardType: clavier,
+          textCapitalization: majuscules,
+          autofillHints: autofill,
+          style: TextStyle(color: context.cl.textP, fontSize: 15),
+          decoration: InputDecoration(
+            isDense: true,
+            filled: false,
+            border: InputBorder.none,
+            enabledBorder: InputBorder.none,
+            focusedBorder: InputBorder.none,
+            errorBorder: InputBorder.none,
+            focusedErrorBorder: InputBorder.none,
+            contentPadding: const EdgeInsets.symmetric(vertical: 6),
+            hintText: indice,
+            hintStyle: TextStyle(color: context.cl.textM, fontSize: 15),
+            prefixText: prefixe,
+            prefixStyle: TextStyle(color: context.cl.textM, fontSize: 15),
+          ),
+        )),
       ]),
-    ),
+      if (erreur != null || aide != null) Padding(
+        padding: const EdgeInsets.only(top: 2),
+        child: Text(erreur ?? aide!, style: TextStyle(
+          color: erreur != null ? context.cl.error : context.cl.textM, fontSize: 12)),
+      ),
+    ]),
   );
 }
 
-class _SectionLabel extends StatelessWidget {
-  final String label;
-  const _SectionLabel(this.label);
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 12),
-    child: Text(label, style: TextStyle(
-      color: context.cl.textS, fontSize: 11,
-      fontWeight: FontWeight.w600, letterSpacing: 1)));
-}
+/// Une ligne de la carte qui s'ouvre au toucher (la date de naissance) :
+/// même dessin qu'un champ, avec une icône à droite.
+class _LigneChampTouche extends StatelessWidget {
+  final String libelle;
+  final Widget valeur;
+  final Widget? fin;
+  final VoidCallback onTap;
+  const _LigneChampTouche({super.key, required this.libelle, required this.valeur,
+    required this.onTap, this.fin});
 
-class _FieldLabel extends StatelessWidget {
-  final String label;
-  const _FieldLabel(this.label);
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(label, style: TextStyle(
-      color: context.cl.textS, fontSize: 12, fontWeight: FontWeight.w600)));
+  Widget build(BuildContext context) => InkWell(
+    onTap: () { HapticFeedback.selectionClick(); onTap(); },
+    child: Padding(
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+      child: Row(children: [
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(libelle, style: TextStyle(color: context.cl.textS, fontSize: 12, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          valeur,
+        ])),
+        ?fin,
+      ]),
+    ),
+  );
 }

@@ -1931,5 +1931,17 @@
   "Renforcée": "Strong",
   "Faible : active le code PIN ou la biométrie": "Weak: turn on the PIN code or biometrics",
   "Partager et suivre": "Share and follow",
-  "Déconnexion": "Sign out"
+  "Déconnexion": "Sign out",
+  "Adresse e-mail invalide": "Invalid email address",
+  "2 caractères minimum": "At least 2 characters",
+  "Numéro trop court": "Number too short",
+  "Corrige les champs en rouge.": "Fix the fields in red.",
+  "Abandonner les modifications ?": "Discard changes?",
+  "Tes changements ne seront pas enregistrés.": "Your changes won't be saved.",
+  "Continuer": "Keep editing",
+  "Abandonner": "Discard",
+  "Modifier la photo": "Change photo",
+  "Identité": "Identity",
+  "Visible dans les commentaires et le classement.": "Shown in comments and the leaderboard.",
+  "Aucune modification": "No changes"
 }

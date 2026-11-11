@@ -76,7 +76,10 @@ Country? paysDuNumero(String? numeroReception) {
 class CountryPillSelector extends StatelessWidget {
   final Country country;
   final ValueChanged<Country> onSelect;
-  const CountryPillSelector({super.key, required this.country, required this.onSelect});
+  /// Plus bas, sans bordure : pour une ligne de formulaire déjà dans une
+  /// carte (Modifier le profil, 11 novembre 2026).
+  final bool compact;
+  const CountryPillSelector({super.key, required this.country, required this.onSelect, this.compact = false});
 
   @override
   Widget build(BuildContext context) => GestureDetector(
@@ -92,11 +95,11 @@ class CountryPillSelector extends StatelessWidget {
       if (picked != null) onSelect(picked);
     },
     child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 15),
+      padding: EdgeInsets.symmetric(horizontal: compact ? 10 : 12, vertical: compact ? 8 : 15),
       decoration: BoxDecoration(
         color: context.cl.surfaceD,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: context.cl.borderSoft, width: 0.5)),
+        borderRadius: BorderRadius.circular(compact ? 10 : 12),
+        border: compact ? null : Border.all(color: context.cl.borderSoft, width: 0.5)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
         Text(country.flagEmoji, style: const TextStyle(fontSize: 20)),
         const SizedBox(width: 6),

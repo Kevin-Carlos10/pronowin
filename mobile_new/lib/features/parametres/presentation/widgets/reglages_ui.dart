@@ -25,7 +25,10 @@ class EnTeteReglages extends StatelessWidget {
 /// Une carte de lignes, séparées d'un trait qui part du texte.
 class CarteReglages extends StatelessWidget {
   final List<Widget> lignes;
-  const CarteReglages(this.lignes, {super.key});
+  /// D'où part le trait entre deux lignes : le début du texte (54 après une
+  /// icône, 14 dans un formulaire sans icônes).
+  final double retrait;
+  const CarteReglages(this.lignes, {super.key, this.retrait = 54});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -36,7 +39,7 @@ class CarteReglages extends StatelessWidget {
       border: Border.all(color: context.cl.border, width: 0.5)),
     child: Column(children: [
       for (var i = 0; i < lignes.length; i++) ...[
-        if (i > 0) Divider(color: context.cl.border, height: 1, indent: 54),
+        if (i > 0) Divider(color: context.cl.border, height: 1, indent: retrait),
         lignes[i],
       ],
     ]),
@@ -249,7 +252,7 @@ class PageReglages extends StatelessWidget {
       title: Text(titre, style: TextStyle(color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w600)),
     ),
     body: ListView(
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 60),
+      padding: const EdgeInsets.fromLTRB(margeEcran, 14, margeEcran, 60),
       children: enfants,
     ),
   );
