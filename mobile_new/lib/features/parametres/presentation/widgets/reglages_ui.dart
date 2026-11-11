@@ -117,8 +117,10 @@ class LigneReglage extends StatelessWidget {
   final StatutReglage? statut;
   final VoidCallback? onTap;
   final bool danger;
+  /// Ce qui s'affiche à droite, avant le chevron : un nombre, une coche…
+  final Widget? fin;
   const LigneReglage({super.key, required this.icone, required this.titre,
-    this.sousTitre, this.statut, required this.onTap, this.danger = false});
+    this.sousTitre, this.statut, required this.onTap, this.danger = false, this.fin});
 
   @override
   Widget build(BuildContext context) {
@@ -130,6 +132,7 @@ class LigneReglage extends StatelessWidget {
           IconeReglage(icone, danger: danger),
           const SizedBox(width: 14),
           Expanded(child: _TexteLigne(titre: titre, sousTitre: sousTitre, statut: statut, danger: danger)),
+          if (fin != null) ...[const SizedBox(width: 8), fin!],
           if (onTap != null) ...[
             const SizedBox(width: 6),
             Icon(Icons.chevron_right_rounded, size: 20,

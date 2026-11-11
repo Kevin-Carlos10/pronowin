@@ -143,7 +143,8 @@ void main() {
     final source = File(
       'lib/features/compte/presentation/pages/compte_page.dart',
     ).readAsStringSync().split('\n').where((l) => !l.trimLeft().startsWith('//')).join('\n');
-    expect(source, contains('label: tr(context, "Mes informations")'));
+    // `titre:` depuis le passage aux lignes des Paramètres (11 novembre 2026).
+    expect(source, contains('titre: tr(context, "Mes informations")'));
     expect(source, contains("push('/compte/edit')"));
     expect(source, isNot(contains("_InfoRow(label: 'Téléphone'")),
         reason: 'la fiche en lecture seule est revenue');

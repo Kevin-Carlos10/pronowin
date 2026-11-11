@@ -15,6 +15,7 @@ import '../../../../features/parrainage/presentation/providers/referral_provider
 import '../../../../features/parrainage/domain/recompense_premium.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../providers/compte_provider.dart';
+import '../../../parametres/presentation/widgets/reglages_ui.dart';
 import '../../../../shared/utils/devise.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
 import '../../../abonnement/presentation/providers/iap_provider.dart';
@@ -183,19 +184,18 @@ class _ComptePageState extends ConsumerState<ComptePage>
                 pinned: true,
                 backgroundColor: context.cl.bg,
                 automaticallyImplyLeading: false,
+                // La déconnexion a quitté cet en-tête (11 novembre 2026) : un
+                // bouton rouge à côté des réglages se touchait par erreur, et
+                // elle se trouve désormais en bas des Paramètres, comme chez
+                // 1xBet, Threads ou Apple.
                 actions: [
                   ActionEntete(child: IconButton(
+                    key: const Key('compte-parametres'),
                     tooltip: tr(context, "Paramètres"),
-                    icon: Icon(Icons.settings_rounded, color: context.cl.textS),
+                    icon: Icon(Icons.settings_outlined, color: context.cl.textP),
                     onPressed: () => context.push('/parametres'),
                   )),
-                  const SizedBox(width: 8),
-                  ActionEntete(child: IconButton(
-                    tooltip: tr(context, "Déconnexion"),
-                    icon: Icon(Icons.logout_rounded, color: context.cl.error),
-                    onPressed: () => _showLogoutSheet(context, ref),
-                  )),
-                  const SizedBox(width: 16),
+                  const SizedBox(width: 12),
                 ],
                 flexibleSpace: FlexibleSpaceBar(
                   background: Container(
@@ -333,7 +333,6 @@ class _ComptePageState extends ConsumerState<ComptePage>
     );
   }
 
-  void _showLogoutSheet(BuildContext context, WidgetRef ref) => confirmerDeconnexion(context, ref);
 }
 
 /// La feuille « Déconnexion ? », partagée par la page Compte et, depuis le
@@ -438,15 +437,15 @@ class _ApercuTab extends ConsumerWidget {
         // Le sous-titre nomme ce que contient l'écran sans l'exposer. Afficher
         // le numéro ici aurait refait le défaut corrigé dans l'en-tête : « son
         // numéro sous son nom l'expose dès qu'on montre son écran ».
-         _SectionLabel(tr(context, "MON COMPTE")),
-        _InfoCard(children: [
-          _LinkRow(
-            icon: Icons.badge_outlined, label: tr(context, "Mes informations"),
+        EnTeteReglages(tr(context, "Mon compte")),
+        CarteReglages([
+          LigneReglage(
+            key: const Key('compte-mes-informations'),
+            icone: Icons.person_outline_rounded, titre: tr(context, "Mes informations"),
             sousTitre: tr(context, "Nom, pseudo, contact, pays"),
-            color: AppColors.primary,
             onTap: () => context.push('/compte/edit')),
         ]),
-        const SizedBox(height: 20),
+        const SizedBox(height: 22),
 
         // ── Trois liens au lieu de sept ───────────────────────────────────
         //
@@ -460,27 +459,25 @@ class _ApercuTab extends ConsumerWidget {
         //   « Historique des résultats » → déjà dans la carte ci-dessus
         //
         // `/historique` était atteignable trois fois sur ce seul écran.
-         _SectionLabel(tr(context, "MON ACTIVITÉ")),
-        _InfoCard(children: [
+        EnTeteReglages(tr(context, "Mon activité")),
+        CarteReglages([
           // Raccourci vers la page Actus (20 octobre 2026), avec le nombre
           // d'articles pas encore ouverts.
-          Consumer(builder: (context, ref, _) => _LinkRow(
-            key: const Key('compte-actualites'),
-            icon: Icons.newspaper_rounded, label: tr(context, "Actualités"),
-            sousTitre: tr(context, "Résumés de match et infos foot"),
-            color: const Color(0xFF16A34A),
-            badge: ref.watch(actualitesNonLuesProvider),
-            onTap: () => context.push('/actualites')))
-            .animate(delay: 0.ms, value: _apparitionCompte).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-          _LinkRow(icon: Icons.insights_rounded, label: 'Performance',
-            color: const Color(0xFF6C63FF), onTap: () => context.push('/performance'))
-            .animate(delay: 50.ms, value: _apparitionCompte).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-          _LinkRow(icon: Icons.emoji_events_rounded, label: tr(context, "Classement"),
-            color: const Color(0xFFFFD700), onTap: () => context.push('/classement'))
-            .animate(delay: 100.ms, value: _apparitionCompte).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
-          _LinkRow(icon: Icons.notifications_outlined, label: tr(context, "Notifications"),
-            color: AppColors.primary, onTap: () => context.push('/notifications'))
-            .animate(delay: 150.ms, value: _apparitionCompte).fadeIn(duration: 260.ms).slideX(begin: 0.06, end: 0, curve: Curves.easeOutCubic),
+          Consumer(builder: (context, ref, _) {
+            final nonLues = ref.watch(actualitesNonLuesProvider);
+            return LigneReglage(
+              key: const Key('compte-actualites'),
+              icone: Icons.newspaper_outlined, titre: tr(context, "Actualités"),
+              sousTitre: tr(context, "Résumés de match et infos foot"),
+              fin: nonLues > 0 ? _PastilleNombre(nonLues) : null,
+              onTap: () => context.push('/actualites'));
+          }),
+          LigneReglage(icone: Icons.insights_outlined, titre: 'Performance',
+            onTap: () => context.push('/performance')),
+          LigneReglage(icone: Icons.emoji_events_outlined, titre: tr(context, "Classement"),
+            onTap: () => context.push('/classement')),
+          LigneReglage(icone: Icons.notifications_none_rounded, titre: tr(context, "Notifications"),
+            onTap: () => context.push('/notifications')),
         ]),
       ],
     );
@@ -495,9 +492,9 @@ class _AbonnementTab extends ConsumerWidget {
   const _AbonnementTab({required this.isPremium});
 
   static const _features = [
-    (Icons.star_rounded,          'Pronostics VIP illimités',  'Accès à tous les matchs Premium'),
+    (Icons.star_outline_rounded,  'Pronostics VIP illimités',  'Accès à tous les matchs Premium'),
     (Icons.query_stats_rounded,    'Analyse statistique par match', 'Probabilités et explications détaillées'),
-    (Icons.leaderboard_rounded,   'Statistiques avancées',     'Classement et historique complet'),
+    (Icons.leaderboard_outlined,   'Statistiques avancées',     'Classement et historique complet'),
     // « Tous les tutoriels — Bibliothèque complète débloquée » figurait ici,
     // cadenas compris, sur la page qui demande 15 $ par mois. Les tutoriels
     // sont tous en accès libre : l'abonné payait pour ce qu'il avait déjà.
@@ -517,7 +514,7 @@ class _AbonnementTab extends ConsumerWidget {
     //
     // La priorité, elle, est vraie et ne se chiffre pas : les demandes des
     // abonnés passent devant. C'est ce qui est promis désormais.
-    (Icons.headset_mic_rounded,   'Support prioritaire',       'Vos demandes traitées en priorité'),
+    (Icons.headset_mic_outlined,   'Support prioritaire',       'Vos demandes traitées en priorité'),
   ];
 
   @override
@@ -665,10 +662,7 @@ class _FreeState extends ConsumerWidget {
 
       // Titre section fonctionnalités
       Row(children: [
-        Text(tr(context, "CE QUE VOUS DÉBLOQUEZ"), style: TextStyle(
-          color: context.cl.textM, fontSize: 11,
-          fontWeight: FontWeight.w700, letterSpacing: 1)),
-        const Spacer(),
+        Expanded(child: EnTeteReglages(tr(context, "Ce que tu débloques"))),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
@@ -685,44 +679,15 @@ class _FreeState extends ConsumerWidget {
 
       const SizedBox(height: 10),
 
-      // Features lockées
-      ...features.asMap().entries.map((e) {
-        final (icon, label, sub) = e.value;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: context.cl.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: context.cl.border, width: 0.5)),
-            child: Row(children: [
-              Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10)),
-                child: Icon(icon, color: AppColors.primary.withValues(alpha: 0.5), size: 18)),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(tr(context, label), style: TextStyle(
-                  color: context.cl.textS, fontSize: 13,
-                  fontWeight: FontWeight.w600)),
-                Text(tr(context, sub), style: TextStyle(
-                  color: context.cl.textM, fontSize: 11)),
-              ])),
-              Container(
-                width: 24, height: 24,
-                decoration: BoxDecoration(
-                  color: context.cl.surfaceDeep,
-                  shape: BoxShape.circle),
-                child: Icon(Icons.lock_rounded,
-                  color: context.cl.textM, size: 12)),
-            ]),
-          ).animate(delay: Duration(milliseconds: 120 + e.key * 50), value: _apparitionCompte)
-            .fadeIn(duration: 280.ms).slideX(begin: 0.03, end: 0),
-        );
-      }),
+      // Les avantages, dans une seule carte (11 novembre 2026) : quatre
+      // cartes à pastille de couleur se lisaient comme quatre offres.
+      CarteReglages([
+        for (final (icon, label, sub) in features)
+          LigneReglage(
+            icone: icon, titre: tr(context, label), sousTitre: tr(context, sub),
+            fin: Icon(Icons.lock_outline_rounded, color: context.cl.textM, size: 18),
+            onTap: null),
+      ]).animate(delay: 120.ms, value: _apparitionCompte).fadeIn(duration: 280.ms),
     ]);
   }
 }
@@ -917,10 +882,7 @@ class _PremiumState extends ConsumerWidget {
       const SizedBox(height: 24),
 
       Row(children: [
-        Text(tr(context, "VOS AVANTAGES"), style: TextStyle(
-          color: context.cl.textM, fontSize: 11,
-          fontWeight: FontWeight.w700, letterSpacing: 1)),
-        const Spacer(),
+        Expanded(child: EnTeteReglages(tr(context, "Tes avantages"))),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
@@ -932,38 +894,13 @@ class _PremiumState extends ConsumerWidget {
 
       const SizedBox(height: 10),
 
-      ...features.asMap().entries.map((e) {
-        final (icon, label, sub) = e.value;
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: context.cl.surface,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(
-                color: context.cl.success.withValues(alpha: 0.15), width: 0.5)),
-            child: Row(children: [
-              Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(
-                  color: context.cl.success.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(10)),
-                child: Icon(icon, color: context.cl.success, size: 18)),
-              const SizedBox(width: 12),
-              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(tr(context, label), style: TextStyle(
-                  color: context.cl.textP, fontSize: 13, fontWeight: FontWeight.w600)),
-                Text(tr(context, sub), style: TextStyle(
-                  color: context.cl.textS, fontSize: 11)),
-              ])),
-              Icon(Icons.check_circle_rounded,
-                color: context.cl.success, size: 18),
-            ]),
-          ).animate(delay: Duration(milliseconds: 100 + e.key * 50), value: _apparitionCompte)
-            .fadeIn(duration: 280.ms).slideX(begin: 0.03, end: 0),
-        );
-      }),
+      CarteReglages([
+        for (final (icon, label, sub) in features)
+          LigneReglage(
+            icone: icon, titre: tr(context, label), sousTitre: tr(context, sub),
+            fin: Icon(Icons.check_circle_rounded, color: context.cl.success, size: 18),
+            onTap: null),
+      ]).animate(delay: 100.ms, value: _apparitionCompte).fadeIn(duration: 280.ms),
     ]);
   }
 }
@@ -1149,7 +1086,7 @@ class _ParrainageTab extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // ── Barème : l'information la plus importante, absente jusqu'ici ────
-         _SectionLabel(tr(context, "CE QUE ÇA TE RAPPORTE")),
+        EnTeteReglages(tr(context, "Ce que ça te rapporte")),
         Row(children: [
           Expanded(child: _RewardTile(
             amount: estStore ? libelleJours(joursL1) : '$comL1 $devise',
@@ -1166,8 +1103,9 @@ class _ParrainageTab extends ConsumerWidget {
         // étapes le répétaient, puis l'encart « Aucun filleul » une troisième
         // fois (vidéo du 5 octobre 2026) : elles disent désormais le
         // déroulé, pas les montants.
-         _SectionLabel(tr(context, "COMMENT ÇA MARCHE")),
-        _InfoCard(children: [
+        EnTeteReglages(tr(context, "Comment ça marche")),
+        // Le trait part du texte : 14 de marge, 22 de numéro, 11 d'écart.
+        CarteReglages(retrait: 47, [
           _HowToStep(n: 1, text: tr(context, "Partage ton code avec tes amis")),
           _HowToStep(n: 2, text: tr(context, "Ils créent leur compte avec ce code")),
           _HowToStep(n: 3,
@@ -1177,7 +1115,7 @@ class _ParrainageTab extends ConsumerWidget {
         const SizedBox(height: 16),
 
         // ── Code + partage ──────────────────────────────────────────────────
-         _SectionLabel(tr(context, "MON CODE")),
+        EnTeteReglages(tr(context, "Mon code")),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
           decoration: BoxDecoration(
@@ -1281,82 +1219,19 @@ class _Badge extends StatelessWidget {
       color: color, fontSize: 11, fontWeight: FontWeight.w600)));
 }
 
-class _SectionLabel extends StatelessWidget {
-  final String label;
-  const _SectionLabel(this.label);
+/// Le nombre d'articles pas encore ouverts, à droite d'une ligne.
+class _PastilleNombre extends StatelessWidget {
+  final int nombre;
+  const _PastilleNombre(this.nombre);
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(tr(context, label), style: TextStyle(
-      color: context.cl.textS, fontSize: 11,
-      fontWeight: FontWeight.w600, letterSpacing: 1)));
-}
-
-class _InfoCard extends StatelessWidget {
-  final List<Widget> children;
-  const _InfoCard({required this.children});
-  @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    decoration: BoxDecoration(
-      color: context.cl.surface, borderRadius: BorderRadius.circular(14),
-      border: Border.all(color: context.cl.border, width: 0.5)),
-    child: Column(children: children));
-}
-
-class _LinkRow extends StatelessWidget {
-  final IconData icon; final Color color;
-  final String label; final VoidCallback onTap;
-
-  /// Ce que la destination contient, quand le libellé ne suffit pas.
-  final String? sousTitre;
-
-  /// Pastille de nombre (articles non lus) ; rien à zéro.
-  final int? badge;
-
-  const _LinkRow({super.key, required this.icon, required this.color,
-    required this.label, required this.onTap, this.sousTitre, this.badge});
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap, borderRadius: BorderRadius.circular(14),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      child: Row(children: [
-        Container(width: 34, height: 34,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(8)),
-          child: Icon(icon, color: color, size: 18)),
-        const SizedBox(width: 12),
-        // Un `Text` nu suivi d'un `Spacer` ne cede rien : sur un ecran
-        // etroit ou a grande taille de texte, le libelle deborde.
-        Expanded(child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 14 et 12 : agrandis d'un cran par l'échelle de l'application,
-            // ils rejoignent les lignes de réglages de Threads (17 et 15).
-            Text(tr(context, label), style: TextStyle(
-              color: context.cl.textP, fontSize: 14,
-              fontWeight: FontWeight.w500)),
-            if (sousTitre != null) ...[
-              const SizedBox(height: 2),
-              Text(sousTitre!, style: TextStyle(
-                color: context.cl.textM, fontSize: 12)),
-            ],
-          ])),
-        if ((badge ?? 0) > 0) ...[
-          const SizedBox(width: 8),
-          Semantics(
-            label: tr(context, "{arg0} non lus", [badge]),
-            child: ExcludeSemantics(child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-              decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
-              child: Text(badge! > 99 ? '99+' : '$badge',
-                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700))))),
-        ],
-        const SizedBox(width: 8),
-        Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 18),
-      ])));
+  Widget build(BuildContext context) => Semantics(
+    label: tr(context, "{arg0} non lus", [nombre]),
+    child: ExcludeSemantics(child: Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(color: AppColors.primary, borderRadius: BorderRadius.circular(10)),
+      child: Text(nombre > 99 ? '99+' : '$nombre',
+        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w700)))),
+  );
 }
 
 class _PendingBanner extends StatelessWidget {
@@ -1460,9 +1335,9 @@ class _ProfileAvatar extends StatelessWidget {
             child: Container(
               width: 32, height: 32,
               decoration: BoxDecoration(
-                color: AppColors.primary, shape: BoxShape.circle,
+                color: context.cl.surface, shape: BoxShape.circle,
                 border: Border.all(color: context.cl.bg, width: 2)),
-              child: const Icon(Icons.edit_rounded, color: Colors.white, size: 14)),
+              child: Icon(Icons.edit_outlined, color: context.cl.textP, size: 15)),
           ),
         ),
       ),
@@ -1584,7 +1459,9 @@ class _HowToStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Padding(
-    padding: EdgeInsets.fromLTRB(14, 12, 14, last ? 12 : 0),
+    // Un trait sépare désormais les étapes (CarteReglages) : chacune a sa
+    // marge du bas.
+    padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
     child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Container(
         width: 22, height: 22,

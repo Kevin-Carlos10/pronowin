@@ -1946,4 +1946,8 @@ const englishMessages = <String, String>{
   "Identité": "Identity",
   "Visible dans les commentaires et le classement.": "Shown in comments and the leaderboard.",
   "Aucune modification": "No changes",
+  "Tes avantages": "Your benefits",
+  "Ce que ça te rapporte": "What you earn",
+  "Comment ça marche": "How it works",
+  "Mon code": "My code",
 };
