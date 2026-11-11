@@ -1895,5 +1895,19 @@
   "Les meilleurs joueurs sont momentanément indisponibles.": "Top players are temporarily unavailable.",
   "Aucun buteur publié pour cette saison.": "No scorers published for this season.",
   "Aller au jour": "Go to day",
-  "Choisir un jour": "Pick a day"
+  "Choisir un jour": "Pick a day",
+  "Activé": "On",
+  "Pas activé": "Off",
+  "Déverrouillage biométrique": "Biometric unlock",
+  "Paramètres de l'application": "App settings",
+  "Notifications push": "Push notifications",
+  "{arg0} sur 4 activées": "{arg0} of 4 on",
+  "Une nouvelle version est disponible": "A new version is available",
+  "Vous utilisez la dernière version de l'appli": "You're using the latest version of the app",
+  "Version de l'application": "App version",
+  "{arg0} → {arg1} · Touche pour mettre à jour": "{arg0} → {arg1} · Tap to update",
+  "Téléphone": "Phone",
+  "Thème de l'application": "App theme",
+  "Langue de l'application": "App language",
+  "Écran d'ouverture": "Opening screen"
 }

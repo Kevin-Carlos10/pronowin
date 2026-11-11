@@ -26,8 +26,11 @@ import '../../../../core/services/cache_fichiers.dart';
 import '../widgets/apercu_technique.dart';
 import '../widgets/notifications_telephone.dart';
 import '../../../../core/router/onglet_demarrage.dart';
-import '../../../../core/services/reglages_systeme.dart';
 import '../../../../core/utils/motion.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/services/version_service.dart';
+import '../widgets/reglages_ui.dart';
+import 'reglages_sous_pages.dart';
 
 /// Entrées animées à la première visite seulement (motion.dart).
 double? get _apparitionParametres => PremiereApparition.valeur('paramètres');
@@ -43,6 +46,15 @@ final _copyrightYear = DateTime.now().year;
 /// La place occupée par les fichiers temporaires (`cache_fichiers.dart`).
 final _tailleCacheProvider = FutureProvider.autoDispose<int>((ref) => CacheFichiers.taille());
 
+/// L'état de la version installée, pour la carte du bas.
+final _etatVersionProvider = FutureProvider.autoDispose<EtatVersion?>((ref) =>
+    VersionService.etat(estStore: ref.read(isStoreBuildProvider), dio: ref.read(dioProvider)));
+
+/// Les Paramètres, au dessin de l'application 1xPartners (demande du
+/// 11 novembre 2026) : la sécurité d'abord, puis les réglages de
+/// l'application, chacun sur une ligne — les notifications et les listes de
+/// choix ont leur sous-page (`reglages_sous_pages.dart`) —, et la version
+/// installée dans une carte en bas.
 class ParametresPage extends ConsumerWidget {
   const ParametresPage({super.key});
 
@@ -50,111 +62,51 @@ class ParametresPage extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final settings     = ref.watch(settingsProvider);
     final bioAvailable = ref.watch(bioAvailableProvider);
-    // La version était écrite en dur à trois endroits (ligne « À propos »,
-    // pied de page, feuille À propos) : trois vérités à maintenir en phase.
     final appVersion   = ref.watch(appVersionProvider).value ?? '';
     // La place occupée par le cache, comme 1xBet (7 novembre 2026).
     final tailleCache  = ref.watch(_tailleCacheProvider).valueOrNull;
+    final notifsActives = [settings.notifMatch, settings.notifPromo,
+        settings.notifReferral, settings.notifPremium].where((v) => v).length;
+
+    StatutReglage statut(bool actif) => StatutReglage(
+      actif: actif, texte: actif ? tr(context, "Activé") : tr(context, "Pas activé"));
+
+    // Les sections entrent l'une après l'autre, à la première visite.
+    var rang = 0;
+    Widget section(String titre, List<Widget> lignes) {
+      final i = rang++;
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 22),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          EnTeteReglages(titre),
+          CarteReglages(lignes),
+        ]),
+      ).animate(delay: (40 + 40 * i).ms, value: _apparitionParametres)
+        .fadeIn(duration: 280.ms).slideY(begin: 0.03, end: 0, curve: Curves.easeOutCubic);
+    }
 
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
           onPressed: () => retourOuAller(context, repli: _repli),
         ),
-        title:  Text(tr(context, "Paramètres")),
+        title: Text(tr(context, "Paramètres"),
+          style: TextStyle(color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w600)),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+        padding: const EdgeInsets.fromLTRB(16, 14, 16, 60),
         children: [
 
-          // ─── APPARENCE ────────────────────────────────────────────────
-          _SectionHeader(tr(context, "Apparence"))
-            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 50.ms),
-          _SettingsCard(children: [
-            _NavTile(
-              icon: Icons.dark_mode_rounded, iconColor: const Color(0xFF818CF8),
-              title: tr(context, "Thème"), trailing: settings.themeName,
-              onTap: () => _showThemePicker(context, ref, settings.themeMode),
-            ),
-            const _Divider(),
-            _NavTile(
-              icon: Icons.language_rounded, iconColor: context.cl.info,
-              title: tr(context, "Langue"), trailing: settings.langName,
-              onTap: () => _showLangPicker(context, ref, settings.lang),
-            ),
-            const _Divider(),
-            // L'« Onglet principal » de Sofascore (8 novembre 2026).
-            _NavTile(
-              icon: Icons.start_rounded, iconColor: AppColors.primary,
-              title: tr(context, "Onglet d'ouverture"),
-              trailing: _libelleOnglet(context, ref.watch(ongletDemarrageProvider)),
-              onTap: () => _choisirOngletDemarrage(context, ref),
-            ),
-          ]).animate(delay: 80.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
-            .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
-          const SizedBox(height: 20),
-
-          // ─── NOTIFICATIONS ────────────────────────────────────────────
-          _SectionHeader(tr(context, "Notifications"))
-            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 100.ms),
-          // Coupées au niveau du téléphone : les interrupteurs ci-dessous
-          // n'y peuvent rien, il faut le dire (comme Sofascore).
-          const AlerteNotificationsTelephone(),
-          _SettingsCard(children: [
-            _SwitchTile(
-              icon: Icons.sports_soccer_rounded, iconColor: context.cl.info,
-              title: tr(context, "Alertes matchs"), subtitle: tr(context, "Pronostics, buts et résultats"),
-              value: settings.notifMatch,
-              onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('match'),
-            ),
-            const _Divider(),
-            _SwitchTile(
-              icon: Icons.local_offer_rounded, iconColor: AppColors.primary,
-              title: tr(context, "Offres & Promotions"), subtitle: tr(context, "Codes promo et offres spéciales"),
-              value: settings.notifPromo,
-              onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('promo'),
-            ),
-            const _Divider(),
-            _SwitchTile(
-              icon: Icons.people_rounded, iconColor: AppColors.primary,
-              title: tr(context, "Parrainage"), subtitle: tr(context, "Quand un filleul s'abonne"),
-              value: settings.notifReferral,
-              onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('referral'),
-            ),
-            const _Divider(),
-            _SwitchTile(
-              icon: Icons.workspace_premium_rounded, iconColor: AppColors.primary,
-              title: tr(context, "Abonnement Premium"), subtitle: tr(context, "Expiration et renouvellement"),
-              value: settings.notifPremium,
-              onChanged: (_) => ref.read(settingsProvider.notifier).toggleNotif('premium'),
-            ),
-            const _Divider(),
-            // « Paramètres du système » chez Sofascore : sons, bannières,
-            // écran verrouillé se règlent dans le téléphone.
-            _NavTile(
-              icon: Icons.phone_iphone_rounded, iconColor: context.cl.textS,
-              title: tr(context, "Réglages du téléphone"),
-              subtitle: tr(context, "Sons, bannières, écran verrouillé"),
-              onTap: () => ReglagesSysteme.ouvrirNotifications(),
-            ),
-          ]).animate(delay: 130.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
-            .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
-          const SizedBox(height: 20),
-
           // ─── SÉCURITÉ ─────────────────────────────────────────────────
-          _SectionHeader(tr(context, "Sécurité"))
-            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 150.ms),
-          _SettingsCard(children: [
-
-            // Code PIN
-            _SwitchTile(
-              icon: Icons.pin_rounded, iconColor: context.cl.success,
-              title: tr(context, "Code PIN"),
-              subtitle: settings.pinEnabled
-                ? tr(context, "Actif — au démarrage et après 30 s en arrière-plan")
-                : tr(context, "Protéger l'app avec un code à 4 chiffres"),
-              value: settings.pinEnabled,
+          section(tr(context, "Sécurité"), [
+            LigneInterrupteur(
+              key: const Key('reglage-pin'),
+              icone: Icons.pin_rounded,
+              titre: tr(context, "Code PIN"),
+              statut: statut(settings.pinEnabled),
+              valeur: settings.pinEnabled,
               onChanged: (v) async {
                 if (v) {
                   await context.push('/parametres/pin');
@@ -163,20 +115,16 @@ class ParametresPage extends ConsumerWidget {
                 }
               },
             ),
-            const _Divider(),
-
-            // Biométrie
             bioAvailable.when(
-              data: (available) => _SwitchTile(
-                icon: Icons.fingerprint_rounded, iconColor: context.cl.success,
-                title: tr(context, "Biométrie"),
-                subtitle: available
-                  ? (settings.bioEnabled
-                      ? tr(context, "Actif — biométrie de cet appareil")
-                      : tr(context, "Déverrouiller avec empreinte / Face ID"))
-                  : tr(context, "Non disponible sur cet appareil"),
-                value: settings.bioEnabled && available,
-                unavailable: !available,
+              data: (available) => LigneInterrupteur(
+                key: const Key('reglage-biometrie'),
+                icone: Icons.fingerprint_rounded,
+                titre: tr(context, "Déverrouillage biométrique"),
+                statut: available
+                    ? statut(settings.bioEnabled)
+                    : StatutReglage(actif: false, texte: tr(context, "Non disponible sur cet appareil")),
+                valeur: settings.bioEnabled && available,
+                indisponible: !available,
                 onChanged: available ? (v) async {
                   if (v) {
                     final auth = LocalAuthentication();
@@ -203,191 +151,188 @@ class ParametresPage extends ConsumerWidget {
                   }
                 } : null,
               ),
-              loading: () => _SwitchTile(
-                icon: Icons.fingerprint_rounded, iconColor: context.cl.textM,
-                title: tr(context, "Biométrie"), subtitle: tr(context, "Vérification en cours..."),
-                value: false, onChanged: null,
+              loading: () => LigneInterrupteur(
+                icone: Icons.fingerprint_rounded,
+                titre: tr(context, "Déverrouillage biométrique"),
+                sousTitre: tr(context, "Vérification en cours..."),
+                valeur: false, onChanged: null,
               ),
-              error: (_, _) => _SwitchTile(
-                icon: Icons.fingerprint_rounded, iconColor: context.cl.textM,
-                title: tr(context, "Biométrie"), subtitle: tr(context, "Non disponible sur cet appareil"),
-                value: false, onChanged: null, unavailable: true,
+              error: (_, _) => LigneInterrupteur(
+                icone: Icons.fingerprint_rounded,
+                titre: tr(context, "Déverrouillage biométrique"),
+                statut: StatutReglage(actif: false, texte: tr(context, "Non disponible sur cet appareil")),
+                valeur: false, onChanged: null, indisponible: true,
               ),
             ),
-            const _Divider(),
-
-            // Changer le PIN (si activé)
-            if (settings.pinEnabled) ...[
-              _NavTile(
-                icon: Icons.edit_rounded, iconColor: context.cl.info,
-                title: tr(context, "Changer le code PIN"),
-                subtitle: tr(context, "Modifier ton code de sécurité"),
+            if (settings.pinEnabled)
+              LigneReglage(
+                icone: Icons.password_rounded,
+                titre: tr(context, "Changer le code PIN"),
                 onTap: () => context.push('/parametres/pin'),
               ),
-              const _Divider(),
-            ],
-
-            _NavTile(
-              icon: Icons.devices_rounded, iconColor: context.cl.info,
-              title: tr(context, "Appareils connectés"),
-              subtitle: tr(context, "Consulter les sessions de ton compte"),
+            LigneReglage(
+              icone: Icons.devices_rounded,
+              titre: tr(context, "Appareils connectés"),
               onTap: () => _showSessionsSheet(context),
             ),
-          ]).animate(delay: 180.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
-            .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
-          const SizedBox(height: 20),
+          ]),
 
-          // ─── COMPTE ───────────────────────────────────────────────────
-          _SectionHeader(tr(context, "Mon compte"))
-            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 200.ms),
-          _SettingsCard(children: [
-            _NavTile(
-              icon: Icons.edit_rounded, iconColor: AppColors.primary,
-              title: tr(context, "Modifier le profil"), subtitle: tr(context, "Pseudo, email, avatar"),
-              onTap: () => context.push('/compte/edit'),
+          // ─── PARAMÈTRES DE L'APPLICATION ──────────────────────────────
+          section(tr(context, "Paramètres de l'application"), [
+            LigneReglage(
+              key: const Key('reglage-notifications'),
+              icone: Icons.notifications_rounded,
+              titre: tr(context, "Notifications push"),
+              statut: StatutReglage(
+                actif: notifsActives > 0,
+                texte: notifsActives == 4 ? tr(context, "Activé")
+                    : notifsActives == 0 ? tr(context, "Pas activé")
+                    : tr(context, "{arg0} sur 4 activées", [notifsActives])),
+              onTap: () => ouvrirSousPage(context, const NotificationsReglagesPage()),
             ),
-            const _Divider(),
-            _NavTile(
-              icon: Icons.block_rounded, iconColor: context.cl.error,
-              title: tr(context, "Membres bloqués"), subtitle: tr(context, "Ceux dont tu ne vois plus les commentaires"),
-              onTap: () => context.push('/parametres/bloques'),
+            LigneReglage(
+              key: const Key('reglage-theme'),
+              icone: Icons.dark_mode_rounded,
+              titre: tr(context, "Thème"), sousTitre: settings.themeName,
+              onTap: () => ouvrirChoixTheme(context, ref),
             ),
-            const _Divider(),
-            _NavTile(
-              icon: Icons.storage_rounded, iconColor: context.cl.textS,
-              title: tr(context, "Vider le cache"), subtitle: tr(context, "Libérer l'espace de stockage"),
-              trailing: tailleCache == null ? null
+            LigneReglage(
+              key: const Key('reglage-langue'),
+              icone: Icons.language_rounded,
+              titre: tr(context, "Langue"), sousTitre: settings.langName,
+              onTap: () => ouvrirChoixLangue(context, ref),
+            ),
+            // L'« Onglet principal » de Sofascore (8 novembre 2026).
+            LigneReglage(
+              key: const Key('reglage-onglet'),
+              icone: Icons.space_dashboard_rounded,
+              titre: tr(context, "Onglet d'ouverture"),
+              sousTitre: libelleOnglet(context, ref.watch(ongletDemarrageProvider)),
+              onTap: () => ouvrirChoixOnglet(context, ref),
+            ),
+            LigneReglage(
+              icone: Icons.cleaning_services_rounded,
+              titre: tr(context, "Vider le cache"),
+              sousTitre: tailleCache == null ? null
                   : CacheFichiers.lisible(tailleCache, langue: AppStrings.of(context).locale.languageCode),
               onTap: () => _showClearCacheSheet(context, ref),
             ),
-          ]).animate(delay: 230.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
-            .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
-          const SizedBox(height: 20),
+          ]),
+
+          // ─── MON COMPTE ───────────────────────────────────────────────
+          section(tr(context, "Mon compte"), [
+            LigneReglage(
+              icone: Icons.edit_rounded,
+              titre: tr(context, "Modifier le profil"),
+              onTap: () => context.push('/compte/edit'),
+            ),
+            LigneReglage(
+              icone: Icons.block_rounded,
+              titre: tr(context, "Membres bloqués"),
+              onTap: () => context.push('/parametres/bloques'),
+            ),
+          ]),
 
           // ─── AIDE ─────────────────────────────────────────────────────
           // Repris de 1xBet (7 novembre 2026) : revoir la présentation, et
           // copier les informations techniques à joindre au support.
-          _SectionHeader(tr(context, "Aide"))
-            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 240.ms),
-          _SettingsCard(children: [
-            _NavTile(
-              icon: Icons.slideshow_rounded, iconColor: context.cl.info,
-              title: tr(context, "Présentation de l'application"),
-              subtitle: tr(context, "Revoir les écrans d'accueil"),
+          section(tr(context, "Aide"), [
+            LigneReglage(
+              icone: Icons.slideshow_rounded,
+              titre: tr(context, "Présentation de l'application"),
               onTap: () => context.push('/presentation'),
             ),
-            const _Divider(),
-            _NavTile(
-              icon: Icons.developer_mode_rounded, iconColor: context.cl.textS,
-              title: tr(context, "Aperçu technique"),
-              subtitle: tr(context, "Version, système, compte — à copier pour le support"),
+            LigneReglage(
+              icone: Icons.developer_mode_rounded,
+              titre: tr(context, "Aperçu technique"),
               onTap: () => afficherApercuTechnique(context, ref),
             ),
-            const _Divider(),
             // Comme Sofascore (8 novembre 2026) : un message et une capture,
             // lus dans l'administration.
-            _NavTile(
-              icon: Icons.rate_review_rounded, iconColor: context.cl.info,
-              title: tr(context, "Donne-nous ton avis"),
-              subtitle: tr(context, "Un bug, une idée : écris-nous, capture à l'appui"),
+            LigneReglage(
+              icone: Icons.rate_review_rounded,
+              titre: tr(context, "Donne-nous ton avis"),
               onTap: () => context.push('/parametres/avis'),
             ),
-            const _Divider(),
-            Builder(builder: (ligne) => _NavTile(
-              icon: Icons.ios_share_rounded, iconColor: AppColors.primary,
-              title: tr(context, "Partager l'application"),
-              subtitle: tr(context, "Envoyer PronoWin à un ami"),
+            Builder(builder: (ligne) => LigneReglage(
+              icone: Icons.ios_share_rounded,
+              titre: tr(context, "Partager l'application"),
               onTap: () => partagerApplication(ligne),
             )),
-          ]).animate(delay: 250.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
-            .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
-          const SizedBox(height: 20),
+          ]),
 
           // ─── LÉGAL ────────────────────────────────────────────────────
-          _SectionHeader(tr(context, "Informations légales"))
-            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 250.ms),
-          _SettingsCard(children: [
-            // Les trois textes publics vivent sur le site, et l'application
-            // y renvoie — comme les mentions légales le faisaient déjà seules.
-            // Ce sont les documents qu'on cite, qu'un examinateur ouvre, et
-            // qu'un utilisateur doit pouvoir lire sans avoir l'application
-            // sous la main. Les recopier ici créerait un second original.
-            //
-            // « Jeu responsable » reste embarqué : le site n'en a pas de page,
-            // et ces ressources doivent rester atteignables même hors ligne.
-            _NavTile(
-              icon: Icons.description_rounded, iconColor: context.cl.textM,
-              title: tr(context, "Conditions d'utilisation"),
+          // Les textes publics vivent sur le site, et l'application y
+          // renvoie : ce sont les documents qu'on cite, qu'un examinateur
+          // ouvre, et qu'un utilisateur doit pouvoir lire sans l'application.
+          // « Jeu responsable » reste embarqué : le site n'en a pas de page,
+          // et ces ressources doivent rester atteignables même hors ligne.
+          section(tr(context, "Informations légales"), [
+            LigneReglage(
+              icone: Icons.description_rounded,
+              titre: tr(context, "Conditions d'utilisation"),
               onTap: () => PagesLegales.ouvrir(
                 context,
                 PagesLegales.cgu(estStore: ref.read(isStoreBuildProvider),
                     sansPari: ref.read(sansPariProvider)),
                 titre: PagesLegales.titreCgu),
             ),
-            const _Divider(),
-            _NavTile(
-              icon: Icons.privacy_tip_rounded, iconColor: context.cl.textM,
-              title: tr(context, "Politique de confidentialité"),
+            LigneReglage(
+              icone: Icons.privacy_tip_rounded,
+              titre: tr(context, "Politique de confidentialité"),
               onTap: () => PagesLegales.ouvrir(
                 context, PagesLegales.confidentialite,
                 titre: PagesLegales.titreConfidentialite),
             ),
-            const _Divider(),
             // Pas sur iPhone (`sansPariProvider`) : l'application n'y propose
             // rien qui touche au pari, et une page d'aide contre l'addiction au
-            // jeu, icône de jeton à l'appui, disait le contraire à l'examen.
-            if (!ref.watch(sansPariProvider)) ...[
-              _NavTile(
-                icon: Icons.casino_rounded, iconColor: context.cl.warning,
-                title: tr(context, "Jeu responsable"), subtitle: tr(context, "Ressources et aide"),
+            // jeu disait le contraire à l'examen.
+            if (!ref.watch(sansPariProvider))
+              LigneReglage(
+                icone: Icons.health_and_safety_rounded,
+                titre: tr(context, "Jeu responsable"),
                 onTap: () => context.push('/parametres/jeu-responsable'),
               ),
-              const _Divider(),
-            ],
-            // Les mentions légales vivent sur le site, pas ici — c'est une
-            // obligation du site, et elles portent l'identité de l'éditeur.
-            // La dupliquer dans l'application créerait un second endroit où ce
-            // nom et cette adresse devraient rester à jour, et l'un des deux
-            // finirait par mentir. On y renvoie, on ne la recopie pas.
-            _NavTile(
-              icon: Icons.gavel_rounded, iconColor: context.cl.textM,
-              title: tr(context, "Mentions légales"), subtitle: tr(context, "Éditeur et hébergeur"),
+            // Les mentions légales portent l'identité de l'éditeur : elles
+            // vivent sur le site, on y renvoie sans les recopier.
+            LigneReglage(
+              icone: Icons.gavel_rounded,
+              titre: tr(context, "Mentions légales"),
               onTap: () => PagesLegales.ouvrir(
                 context, PagesLegales.mentionsLegales,
                 titre: tr(context, "Mentions légales")),
             ),
-            const _Divider(),
-            _NavTile(
-              icon: Icons.info_outline_rounded, iconColor: context.cl.textM,
-              title: tr(context, "À propos"), trailing: appVersion,
+            LigneReglage(
+              icone: Icons.info_rounded,
+              titre: tr(context, "À propos"),
               onTap: () => _showAboutSheet(context, appVersion),
             ),
-          ]).animate(delay: 280.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
-            .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
-          const SizedBox(height: 20),
+          ]),
+
+          // ─── VERSION ──────────────────────────────────────────────────
+          // « Vous utilisez la dernière version de l'appli », comme
+          // 1xPartners ; une mise à jour à installer sinon.
+          Padding(
+            padding: const EdgeInsets.only(bottom: 22),
+            child: _CarteVersion(versionInstallee: appVersion),
+          ),
 
           // ─── ZONE DE DANGER ───────────────────────────────────────────
-          // La suppression de compte était entièrement codée (feuille de
-          // confirmation, provider, endpoint) mais n'apparaissait nulle part
-          // dans l'app. Apple (5.1.1(v)) et Google Play l'exigent dès lors
-          // qu'on permet la création d'un compte.
-          _SectionHeader(tr(context, "Zone de danger"))
-            .animate(value: _apparitionParametres).fadeIn(duration: 300.ms, delay: 300.ms),
-          _SettingsCard(children: [
-            _DangerNavTile(
-              icon: Icons.delete_forever_rounded,
-              // Disait « Effacer définitivement tes données ». Le serveur
-              // anonymise : il vide les champs personnels et garde la ligne,
-              // l'historique et la bankroll. Promettre un effacement définitif
-              // sur le bouton qui ne l'exécute pas est la pire place pour
-              // cette inexactitude — c'est celle que l'on cite pour exercer un
-              // droit à l'effacement.
-              subtitle: tr(context, "Fermer ton compte et effacer tes informations"),
+          // Apple (5.1.1(v)) et Google Play exigent la suppression du compte
+          // dès lors qu'on permet d'en créer un.
+          section(tr(context, "Zone de danger"), [
+            LigneReglage(
+              key: const Key('reglage-supprimer-compte'),
+              icone: Icons.delete_forever_rounded,
+              titre: tr(context, "Supprimer le compte"),
+              // Le serveur anonymise : il vide les champs personnels et garde
+              // la ligne, l'historique et la bankroll. Le libellé ne promet
+              // donc pas davantage.
+              sousTitre: tr(context, "Fermer ton compte et effacer tes informations"),
+              danger: true,
               onTap: () => _showDeleteAccountSheet(context, ref),
             ),
-          ]).animate(delay: 320.ms, value: _apparitionParametres).fadeIn(duration: 300.ms)
-            .slideX(begin: 0.04, end: 0, curve: Curves.easeOutCubic),
-          const SizedBox(height: 12),
+          ]),
 
           Center(
             child: Text(
@@ -395,7 +340,7 @@ class ParametresPage extends ConsumerWidget {
               style: TextStyle(color: context.cl.textM, fontSize: 11),
               textAlign: TextAlign.center,
             ),
-          ).animate(delay: 360.ms, value: _apparitionParametres).fadeIn(duration: 400.ms),
+          ),
         ],
       ),
     );
@@ -422,127 +367,6 @@ class ParametresPage extends ConsumerWidget {
           }
         },
       ),
-    );
-  }
-
-  // ─── Bottom sheet : Thème ─────────────────────────────────────────────────────
-  String _libelleOnglet(BuildContext context, OngletDemarrage o) => switch (o) {
-    OngletDemarrage.accueil => tr(context, "Accueil"),
-    OngletDemarrage.pronos  => tr(context, "Pronos"),
-    OngletDemarrage.suivis  => tr(context, "Suivis"),
-  };
-
-  void _choisirOngletDemarrage(BuildContext ctx, WidgetRef ref) {
-    final actuel = ref.read(ongletDemarrageProvider);
-    showModalBottomSheet(
-      context: ctx,
-      backgroundColor: ctx.cl.surface,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 40, height: 4,
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-                color: ctx.cl.borderS, borderRadius: BorderRadius.circular(2))),
-          Text(tr(ctx, "Onglet d'ouverture"),
-              style: TextStyle(color: ctx.cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
-          Text(tr(ctx, "L'écran sur lequel PronoWin s'ouvre, dès la prochaine fois."),
-              textAlign: TextAlign.center,
-              style: TextStyle(color: ctx.cl.textS, fontSize: 13)),
-          const SizedBox(height: 16),
-          for (final (o, icone) in [
-            (OngletDemarrage.accueil, Icons.home_rounded),
-            (OngletDemarrage.pronos, Icons.sports_soccer_rounded),
-            (OngletDemarrage.suivis, Icons.notifications_active_rounded),
-          ]) ...[
-            _ThemeOption(
-              key: Key('onglet-${o.name}'),
-              icon: icone, label: _libelleOnglet(ctx, o),
-              selected: actuel == o,
-              onTap: () {
-                enregistrerOngletDemarrage(ref, o);
-                Navigator.pop(ctx);
-              },
-            ),
-            const SizedBox(height: 8),
-          ],
-        ]),
-      ),
-    );
-  }
-
-  void _showThemePicker(BuildContext ctx, WidgetRef ref, ThemeMode current) {
-    showModalBottomSheet(
-      context: ctx,
-      backgroundColor: ctx.cl.surface,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 36),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Container(
-            width: 40, height: 4,
-            margin: const EdgeInsets.only(bottom: 20),
-            decoration: BoxDecoration(
-                color: ctx.cl.borderS, borderRadius: BorderRadius.circular(2))),
-          Text(tr(ctx, "Choisir le thème"),
-              style: TextStyle(
-                  color: ctx.cl.textP,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w700)),
-          const SizedBox(height: 16),
-          _ThemeOption(
-            icon: Icons.dark_mode_rounded, label: tr(ctx, "Sombre"),
-            selected: current == ThemeMode.dark,
-            onTap: () {
-              ref.read(settingsProvider.notifier).setTheme(ThemeMode.dark);
-              Navigator.pop(ctx);
-            },
-          ),
-          const SizedBox(height: 8),
-          _ThemeOption(
-            icon: Icons.light_mode_rounded, label: tr(ctx, "Clair"),
-            selected: current == ThemeMode.light,
-            onTap: () {
-              ref.read(settingsProvider.notifier).setTheme(ThemeMode.light);
-              Navigator.pop(ctx);
-            },
-          ),
-          const SizedBox(height: 8),
-          _ThemeOption(
-            icon: Icons.brightness_auto_rounded, label: tr(ctx, "Système"),
-            selected: current == ThemeMode.system,
-            onTap: () {
-              ref.read(settingsProvider.notifier).setTheme(ThemeMode.system);
-              Navigator.pop(ctx);
-            },
-          ),
-        ]),
-      ),
-    );
-  }
-
-  // ─── Bottom sheet : Langue ────────────────────────────────────────────────────
-  void _showLangPicker(BuildContext ctx, WidgetRef ref, String current) {
-    showModalBottomSheet(
-      context: ctx, backgroundColor: ctx.cl.surface,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
-      builder: (_) => Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(width: 40, height: 4, margin: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(color: ctx.cl.borderS, borderRadius: BorderRadius.circular(2))),
-        Padding(padding: const EdgeInsets.only(bottom: 8),
-          child: Text(tr(ctx, "Choisir la langue"), style: TextStyle(
-            color: ctx.cl.textP, fontSize: 16, fontWeight: FontWeight.w600))),
-        _LangOption(flag: '🇫🇷', label: tr(ctx, "Français"), code: 'fr', selected: current == 'fr',
-          onTap: () { ref.read(settingsProvider.notifier).setLang('fr'); Navigator.pop(ctx); }),
-        _LangOption(flag: '🇬🇧', label: 'English', code: 'en', selected: current == 'en',
-          onTap: () { ref.read(settingsProvider.notifier).setLang('en'); Navigator.pop(ctx); }),
-        const SizedBox(height: 16),
-      ]),
     );
   }
 
@@ -700,7 +524,9 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
       color: context.cl.bg,
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28))),
     padding: EdgeInsets.fromLTRB(24, 12, 24, MediaQuery.of(context).viewInsets.bottom + 36),
-    child: Column(mainAxisSize: MainAxisSize.min, children: [
+    // Défilante : avec le texte agrandi sur un petit écran, la feuille
+    // dépassait de 130 px et cachait le bouton de confirmation.
+    child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
       Container(width: 40, height: 4,
         margin: const EdgeInsets.only(bottom: 24),
         decoration: BoxDecoration(color: context.cl.border, borderRadius: BorderRadius.circular(2))),
@@ -821,7 +647,7 @@ class _DeleteAccountSheetState extends State<_DeleteAccountSheet> {
             :  Text(tr(context, "Supprimer"), style: TextStyle(fontWeight: FontWeight.w700)),
         )),
       ]),
-    ]),
+    ])),
   );
 
   Future<void> _deleteAccount() async {
@@ -939,37 +765,6 @@ class _ConfirmSheetState extends State<_ConfirmSheet> {
   );
 }
 
-// ─── _ThemeOption ─────────────────────────────────────────────────────────────
-class _ThemeOption extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-  const _ThemeOption({super.key, required this.icon, required this.label, required this.selected, required this.onTap});
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap,
-    borderRadius: BorderRadius.circular(12),
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: selected ? AppColors.primary.withValues(alpha: 0.1) : context.cl.surfaceD,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: selected ? AppColors.primary.withValues(alpha: 0.4) : context.cl.border,
-            width: selected ? 1 : 0.5)),
-      child: Row(children: [
-        Icon(icon, color: selected ? AppColors.primary : context.cl.textS, size: 22),
-        const SizedBox(width: 14),
-        Expanded(child: Text(label, style: TextStyle(
-            color: selected ? context.cl.accent : context.cl.textP,
-            fontSize: 15, fontWeight: selected ? FontWeight.w600 : FontWeight.w400))),
-        if (selected) const Icon(Icons.check_rounded, color: AppColors.primary, size: 20),
-      ]),
-    ),
-  );
-}
-
 // ─── _AboutChip ───────────────────────────────────────────────────────────────
 class _AboutChip extends StatelessWidget {
   final IconData? icon;
@@ -1000,190 +795,51 @@ class _AboutChip extends StatelessWidget {
   }
 }
 
-// ─── Widgets ─────────────────────────────────────────────────────────────────
-class _SectionHeader extends StatelessWidget {
-  final String title;
-  const _SectionHeader(this.title);
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Row(children: [
-      Container(width: 3, height: 14,
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(2))),
-      const SizedBox(width: 8),
-      Text(title.toUpperCase(), style: TextStyle(
-        color: context.cl.textS, fontSize: 11,
-        fontWeight: FontWeight.w600, letterSpacing: 1)),
-    ]),
-  );
-}
-
-class _SettingsCard extends StatelessWidget {
-  final List<Widget> children;
-  const _SettingsCard({required this.children});
-  @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    decoration: BoxDecoration(
-      color: context.cl.surface, borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: context.cl.border, width: 0.5)),
-    child: Column(children: children),
-  );
-}
-
-class _SwitchTile extends StatelessWidget {
-  final IconData icon; final Color iconColor;
-  final String title; final String? subtitle;
-  final bool value; final ValueChanged<bool>? onChanged;
-  /// Rend l'interrupteur non pertinent (fonction indisponible sur l'appareil) :
-  /// on affiche un tiret plutôt qu'un switch mort, qu'on confondait avec un
-  /// simple « éteint ».
-  final bool unavailable;
-  const _SwitchTile({required this.icon, required this.iconColor,
-    required this.title, this.subtitle, required this.value,
-    required this.onChanged, this.unavailable = false});
+/// La carte de la version installée : à jour, ou une mise à jour à installer.
+class _CarteVersion extends ConsumerWidget {
+  final String versionInstallee;
+  const _CarteVersion({required this.versionInstallee});
 
   @override
-  Widget build(BuildContext context) {
-    // Toute la ligne est cliquable, comme sur _NavTile : les deux se
-    // ressemblent trait pour trait, mais seul l'interrupteur répondait ici —
-    // une cible de ~50×30 px sur une ligne large de 350.
-    final row = _buildRow(context);
-    if (onChanged == null) return row;
-    return InkWell(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        onChanged!(!value);
-      },
-      borderRadius: BorderRadius.circular(16),
-      child: row,
+  Widget build(BuildContext context, WidgetRef ref) {
+    final etat = ref.watch(_etatVersionProvider).valueOrNull;
+    final version = etat?.courante ?? versionInstallee.replaceFirst('v', '');
+    final aMettreAJour = etat?.disponible ?? false;
+    final titre = aMettreAJour
+        ? tr(context, "Une nouvelle version est disponible")
+        : etat != null
+            ? tr(context, "Vous utilisez la dernière version de l'appli")
+            : tr(context, "Version de l'application");
+    final contenu = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      child: Row(children: [
+        const IconeReglage(Icons.phone_android_rounded),
+        const SizedBox(width: 12),
+        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(titre, style: TextStyle(color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w500)),
+          const SizedBox(height: 2),
+          Text(aMettreAJour
+              ? tr(context, "{arg0} → {arg1} · Touche pour mettre à jour", [version, etat!.derniere ?? ''])
+              : version,
+            style: TextStyle(color: aMettreAJour ? context.cl.accent : context.cl.textS, fontSize: 12)),
+        ])),
+        if (aMettreAJour) Icon(Icons.chevron_right_rounded, size: 20, color: context.cl.textM),
+      ]),
+    );
+    return Container(
+      key: const Key('carte-version'),
+      clipBehavior: Clip.antiAlias,
+      decoration: BoxDecoration(
+        color: context.cl.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: aMettreAJour ? AppColors.primary.withValues(alpha: 0.5) : context.cl.border,
+          width: aMettreAJour ? 1 : 0.5)),
+      child: aMettreAJour
+          ? InkWell(
+              onTap: () => VersionService.proposer(etat!, estStore: ref.read(isStoreBuildProvider)),
+              child: contenu)
+          : contenu,
     );
   }
-
-  Widget _buildRow(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    child: Row(children: [
-      Container(width: 38, height: 38,
-        decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-        child: Icon(icon, color: iconColor, size: 20)),
-      const SizedBox(width: 12),
-      Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(title, style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w500)),
-        if (subtitle != null) AnimatedSwitcher(
-          duration: const Duration(milliseconds: 250),
-          transitionBuilder: (child, anim) => FadeTransition(
-            opacity: anim,
-            child: SlideTransition(
-              position: Tween<Offset>(begin: const Offset(0, 0.3), end: Offset.zero)
-                .animate(CurvedAnimation(parent: anim, curve: Curves.easeOutCubic)),
-              child: child)),
-          child: Text(subtitle!, key: ValueKey(subtitle),
-            style: TextStyle(color: context.cl.textM, fontSize: 12)),
-        ),
-      ])),
-      if (unavailable)
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14),
-          child: Icon(Icons.do_not_disturb_on_outlined,
-            color: context.cl.textM.withValues(alpha: 0.5), size: 20))
-      else
-        Switch(
-          value: value,
-          onChanged: onChanged == null ? null : (v) {
-            HapticFeedback.selectionClick();
-            onChanged!(v);
-          },
-          thumbColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.selected)) return Colors.white;
-            return context.cl.textM;
-          }),
-          trackColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.disabled)) return context.cl.borderS.withValues(alpha: 0.4);
-            if (states.contains(WidgetState.selected)) return AppColors.primary;
-            return context.cl.borderS;
-          }),
-          trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
-        ),
-    ]),
-  );
-}
-
-class _NavTile extends StatelessWidget {
-  final IconData icon; final Color iconColor;
-  final String title; final String? subtitle, trailing;
-  final VoidCallback onTap;
-  const _NavTile({required this.icon, required this.iconColor,
-    required this.title, this.subtitle, this.trailing, required this.onTap});
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: () { HapticFeedback.lightImpact(); onTap(); },
-    borderRadius: BorderRadius.circular(16),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      child: Row(children: [
-        Container(width: 38, height: 38,
-          decoration: BoxDecoration(color: iconColor.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, color: iconColor, size: 20)),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(title, style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w500)),
-          if (subtitle != null) Text(subtitle!, style: TextStyle(color: context.cl.textM, fontSize: 12)),
-        ])),
-        if (trailing != null) Text(trailing!, style: TextStyle(color: context.cl.textS, fontSize: 13)),
-        const SizedBox(width: 4),
-        Icon(Icons.chevron_right_rounded, color: context.cl.textM, size: 18),
-      ]),
-    ),
-  );
-}
-
-class _DangerNavTile extends StatelessWidget {
-  final IconData icon;
-  final String? subtitle;
-  final VoidCallback onTap;
-  // Le paramètre `title` a été retiré : il était requis mais jamais lu, le
-  // libellé étant écrit en dur plus bas.
-  const _DangerNavTile({required this.icon, this.subtitle, required this.onTap});
-  @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: onTap, borderRadius: BorderRadius.circular(16),
-    child: Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-      child: Row(children: [
-        Container(width: 38, height: 38,
-          decoration: BoxDecoration(
-            color: context.cl.error.withValues(alpha: 0.10),
-            borderRadius: BorderRadius.circular(10)),
-          child: Icon(icon, color: context.cl.error, size: 20)),
-        const SizedBox(width: 12),
-        Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-           Text(tr(context, "Supprimer le compte"), style: TextStyle(
-            color: context.cl.error, fontSize: 14, fontWeight: FontWeight.w500)),
-          if (subtitle != null) Text(subtitle!, style: TextStyle(
-            color: context.cl.error.withValues(alpha: 0.6), fontSize: 12)),
-        ])),
-        Icon(Icons.chevron_right_rounded, color: context.cl.error.withValues(alpha: 0.5), size: 18),
-      ]),
-    ),
-  );
-}
-
-class _Divider extends StatelessWidget {
-  const _Divider();
-  @override
-  Widget build(BuildContext context) => Divider(color: context.cl.border, height: 1, indent: 64, endIndent: 16);
-}
-
-class _LangOption extends StatelessWidget {
-  final String flag, label, code; final bool selected; final VoidCallback onTap;
-  const _LangOption({required this.flag, required this.label, required this.code, required this.selected, required this.onTap});
-  @override
-  Widget build(BuildContext context) => ListTile(
-    leading: Text(flag, style: const TextStyle(fontSize: 24)),
-    title: Text(label, style: TextStyle(color: selected ? context.cl.accent : context.cl.textP)),
-    trailing: selected ? const Icon(Icons.check_rounded, color: AppColors.primary, size: 20) : null,
-    onTap: onTap,
-  );
 }

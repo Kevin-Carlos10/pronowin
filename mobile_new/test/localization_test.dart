@@ -296,7 +296,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Settings'), findsOneWidget);
       expect(find.text('Language'), findsOneWidget);
-      expect(find.text('Match alerts'), findsOneWidget);
+      // Les alertes ont leur sous-page (11 novembre 2026) : la ligne qui y
+      // mène suffit à prouver la traduction de la page.
+      expect(find.text('Push notifications'), findsOneWidget);
       expect(
         (await SharedPreferences.getInstance()).getString('settings_lang'),
         'en',

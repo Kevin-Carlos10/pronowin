@@ -105,6 +105,46 @@ class VersionService {
     }
   }
 
+  /// L'état de la version installée, pour la carte du bas des Paramètres
+  /// (10 novembre 2026, comme 1xPartners) : « Vous utilisez la dernière
+  /// version », ou une mise à jour à installer. Nul si les seuils sont
+  /// illisibles : la carte n'affiche alors que la version installée.
+  static Future<EtatVersion?> etat({required bool estStore, required Dio dio}) async {
+    try {
+      final pkg = await PackageInfo.fromPlatform();
+      final seuils = estStore
+          ? _Seuils(
+              min:     RemoteConfigService.minVersion,
+              latest:  RemoteConfigService.latestVersion,
+              force:   RemoteConfigService.forceUpdate,
+              message: RemoteConfigService.updateMessage,
+              lien:    Platform.isIOS ? AppConstants.appStoreUrl : AppConstants.playStoreUrl,
+            )
+          : await _seuilsDirects(dio);
+      if (seuils == null) return null;
+      final verdict = decider(courante: pkg.version, min: seuils.min, latest: seuils.latest, force: seuils.force);
+      final lien = seuils.lien;
+      return EtatVersion(
+        courante:   pkg.version,
+        derniere:   seuils.latest,
+        disponible: verdict.disponible && lien != null && lien.isNotEmpty,
+        message:    seuils.message,
+        lien:       lien,
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Ouvre l'écran de mise à jour depuis la carte des Paramètres, même si
+  /// l'invitation du démarrage a été refusée : ici, c'est l'utilisateur qui
+  /// la demande.
+  static Future<void> proposer(EtatVersion etat, {required bool estStore}) => _afficher(
+        message:  etat.message,
+        bloquant: false,
+        lien:     etat.lien,
+        installationDirecte: !estStore);
+
   /// Faut-il bloquer, proposer, ou se taire.
   ///
   /// `force` ne bloque que s'il existe une version vers laquelle aller.
@@ -300,4 +340,15 @@ class _Seuils {
     required this.message,
     required this.lien,
   });
+}
+
+/// Ce que la carte des Paramètres dit de la version installée.
+class EtatVersion {
+  final String courante;
+  final String? derniere;
+  final bool disponible;
+  final String message;
+  final String? lien;
+  const EtatVersion({required this.courante, this.derniere, required this.disponible,
+    this.message = '', this.lien});
 }
