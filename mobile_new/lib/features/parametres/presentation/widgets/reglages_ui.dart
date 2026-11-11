@@ -27,8 +27,8 @@ class CarteReglages extends StatelessWidget {
   final List<Widget> lignes;
   /// D'où part le trait entre deux lignes : le début du texte (54 après une
   /// icône, 14 dans un formulaire sans icônes).
-  final double retrait;
-  const CarteReglages(this.lignes, {super.key, this.retrait = 54});
+  final double debutTrait;
+  const CarteReglages(this.lignes, {super.key, this.debutTrait = 54});
 
   @override
   Widget build(BuildContext context) => Container(
@@ -39,7 +39,7 @@ class CarteReglages extends StatelessWidget {
       border: Border.all(color: context.cl.border, width: 0.5)),
     child: Column(children: [
       for (var i = 0; i < lignes.length; i++) ...[
-        if (i > 0) Divider(color: context.cl.border, height: 1, indent: retrait),
+        if (i > 0) Divider(color: context.cl.border, height: 1, indent: debutTrait),
         lignes[i],
       ],
     ]),

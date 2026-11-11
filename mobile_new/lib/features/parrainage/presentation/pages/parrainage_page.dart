@@ -13,10 +13,14 @@ import '../../../../shared/utils/partage_parrainage.dart';
 import '../../../../shared/utils/rafraichir.dart';
 import '../../../../shared/utils/messages.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import '../../../parametres/presentation/widgets/reglages_ui.dart';
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
 const _repli = '/compte';
+
+/// Le violet du parrainage, sa couleur sur toute la page.
+const _violet = Color(0xFFA78BFA);
 
 
 class ParrainagePage extends ConsumerWidget {
@@ -28,37 +32,39 @@ class ParrainagePage extends ConsumerWidget {
 
     return Scaffold(
       appBar: AppBar(
-        // Page atteinte par `push` depuis le Compte : sans flèche de retour
-        // (et avec `automaticallyImplyLeading: false`), elle était un
-        // cul-de-sac dès qu'on y arrivait.
+        // Page atteinte par `push` depuis le Compte, ou par une notification
+        // qui remplace la pile : la flèche revient au Compte dans les deux cas.
         automaticallyImplyLeading: false,
-        leading: context.canPop()
-          ? IconButton(
-              icon: Icon(Icons.arrow_back_ios_new_rounded,
-                size: 20, color: context.cl.textS),
-              onPressed: () => retourOuAller(context, repli: _repli),
-            )
-          : null,
-        title: Row(children: [
-          Container(width: 32, height: 32,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [Color(0xFFA78BFA), Color(0xFF7C3AED)],
-                begin: Alignment.topLeft, end: Alignment.bottomRight),
-              borderRadius: BorderRadius.circular(9),
-              boxShadow: [BoxShadow(color: const Color(0xFFA78BFA).withValues(alpha: 0.35),
-                blurRadius: 8, offset: const Offset(0, 3))]),
-            child: const Icon(Icons.people_rounded, color: Colors.white, size: 17)),
-          const SizedBox(width: 10),
-          RichText(text: TextSpan(
-            style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: context.cl.textP),
-            children: [TextSpan(text: tr(context, "Parrainage"), style: const TextStyle(color: Color(0xFFA78BFA)))],
-          )),
-        ]),
+        centerTitle: true,
+        leading: IconButton(
+          tooltip: tr(context, "Retour"),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+          onPressed: () => retourOuAller(context, repli: _repli),
+        ),
+        title: Text(tr(context, "Parrainage"),
+          style: TextStyle(color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w600)),
       ),
       body: statsAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator(color: Color(0xFFA78BFA))),
-        error:   (e, _) => Center(child: Text('$e', style: TextStyle(color: context.cl.error))),
+        loading: () => const Center(child: CircularProgressIndicator(color: _violet)),
+        // Le texte de l'exception s'affichait tel quel, en rouge.
+        error: (_, _) => Center(
+          key: const Key('parrainage-page-erreur'),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 32),
+            child: Column(mainAxisSize: MainAxisSize.min, children: [
+              Icon(Icons.cloud_off_rounded, size: 40, color: context.cl.textM),
+              const SizedBox(height: 12),
+              Text(tr(context, "Tes données de parrainage n'ont pas pu être chargées."),
+                textAlign: TextAlign.center,
+                style: TextStyle(color: context.cl.textS, fontSize: 14)),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: () => ref.invalidate(referralStatsProvider),
+                icon: const Icon(Icons.refresh_rounded, size: 18),
+                label: Text(tr(context, "Réessayer"))),
+            ]),
+          ),
+        ),
         data: (stats) {
           final code       = stats['referral_code'] as String? ?? '------';
           final earnings   = (stats['total_earnings'] as num?)?.toInt() ?? 0;
@@ -79,13 +85,13 @@ class ParrainagePage extends ConsumerWidget {
           final hasParrain = (stats['has_referrer'] as bool?) ?? false;
 
           return RefreshIndicator(
-            color: const Color(0xFFA78BFA),
+            color: _violet,
             onRefresh: () {
               ref.invalidate(referralStatsProvider);
               return attendreChargements([ref.read(referralStatsProvider.future)]);
             },
             child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+              padding: const EdgeInsets.fromLTRB(margeEcran, 12, margeEcran, 100),
               children: [
 
                 // ─── Solde + Code ──────────────────────────────────────────
@@ -121,10 +127,11 @@ class ParrainagePage extends ConsumerWidget {
                 const SizedBox(height: 16),
 
                 // ─── Mon code parrainage ───────────────────────────────────
+                EnTeteReglages(tr(context, "Ton code de parrainage")),
                 _ReferralCodeCard(code: code)
                   .animate().fadeIn(duration: 350.ms, delay: 80.ms)
                   .slideY(begin: 0.08, end: 0),
-                const SizedBox(height: 16),
+                const SizedBox(height: 22),
 
                 // ─── Entrer code parrain (si pas encore de parrain) ────────
                 if (!hasParrain) ...[
@@ -134,19 +141,20 @@ class ParrainagePage extends ConsumerWidget {
                 ],
 
                 // ─── Comment ça marche ─────────────────────────────────────
+                EnTeteReglages(tr(context, "Comment ça marche")),
                 _HowItWorksCard(commL1: commL1, commL2: commL2, estStore: estStore)
                   .animate().fadeIn(duration: 300.ms, delay: 160.ms),
-                const SizedBox(height: 16),
+                const SizedBox(height: 22),
 
                 // ─── Stats filleuls ────────────────────────────────────────
                 _StatsRow(totalL1: totalL1, premL1: premL1, totalL2: totalL2, premL2: premL2)
                   .animate().fadeIn(duration: 300.ms, delay: 200.ms),
-                const SizedBox(height: 16),
+                const SizedBox(height: 22),
 
                 // ─── Liste filleuls L1 ─────────────────────────────────────
                 if (l1List.isNotEmpty) ...[
-                  _SectionLabel(tr(context, "FILLEULS DIRECTS ({arg0})", [l1List.length])),
-                  ...l1List.asMap().entries.map((e) => _FilleulTile(
+                  EnTeteReglages(tr(context, "Filleuls directs ({arg0})", [l1List.length])),
+                  CarteReglages(debutTrait: 62, [for (final e in l1List.asMap().entries) _FilleulTile(
                     pseudo:     e.value['pseudo']    as String? ?? '—',
                     plan:       e.value['plan']      as String? ?? 'free',
                     commission: (e.value['commission'] as num?)?.toInt() ?? 0,
@@ -154,16 +162,14 @@ class ParrainagePage extends ConsumerWidget {
                     joinedAt:   e.value['joined_at'] as String?,
                     level:      1,
                     estStore:   estStore,
-                  ).animate(delay: Duration(milliseconds: e.key * 50))
-                    .fadeIn(duration: 300.ms)
-                    .slideX(begin: -0.05, end: 0, duration: 280.ms, curve: Curves.easeOutCubic)),
-                  const SizedBox(height: 8),
+                  )]).animate().fadeIn(duration: 300.ms),
+                  const SizedBox(height: 22),
                 ],
 
                 // ─── Liste filleuls L2 ─────────────────────────────────────
                 if (l2List.isNotEmpty) ...[
-                  _SectionLabel(tr(context, "FILLEULS DE FILLEULS ({arg0})", [l2List.length])),
-                  ...l2List.asMap().entries.map((e) => _FilleulTile(
+                  EnTeteReglages(tr(context, "Filleuls de tes filleuls ({arg0})", [l2List.length])),
+                  CarteReglages(debutTrait: 62, [for (final e in l2List.asMap().entries) _FilleulTile(
                     pseudo:     e.value['pseudo']    as String? ?? '—',
                     plan:       e.value['plan']      as String? ?? 'free',
                     commission: (e.value['commission'] as num?)?.toInt() ?? 0,
@@ -171,14 +177,12 @@ class ParrainagePage extends ConsumerWidget {
                     joinedAt:   e.value['joined_at'] as String?,
                     level:      2,
                     estStore:   estStore,
-                  ).animate(delay: Duration(milliseconds: e.key * 50))
-                    .fadeIn(duration: 300.ms)
-                    .slideX(begin: -0.05, end: 0, duration: 280.ms, curve: Curves.easeOutCubic)),
-                  const SizedBox(height: 8),
+                  )]).animate().fadeIn(duration: 300.ms),
+                  const SizedBox(height: 22),
                 ],
 
                 if (l1List.isEmpty && l2List.isEmpty)
-                  _EmptyState(code: code)
+                  _EmptyState(code: code, estStore: estStore)
                     .animate()
                     .scale(begin: const Offset(0.88, 0.88), end: const Offset(1, 1),
                         duration: 450.ms, curve: Curves.easeOutBack)
@@ -225,7 +229,7 @@ class _EarningsBanner extends StatelessWidget {
         colors: [Color(0xFF1A1040), Color(0xFF0D0820)],
         begin: Alignment.topLeft, end: Alignment.bottomRight),
       borderRadius: BorderRadius.circular(18),
-      border: Border.all(color: const Color(0xFFA78BFA).withValues(alpha: 0.3), width: 1)),
+      border: Border.all(color: _violet.withValues(alpha: 0.3), width: 1)),
     child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       // Le compteur monte de 0 jusqu'au montant : lu tel quel, il annonçait
       // une suite de nombres. Et le seuil de retrait n'était rattaché à rien.
@@ -239,11 +243,9 @@ class _EarningsBanner extends StatelessWidget {
                   : tr(context, "Retrait possible à partir de {arg0} FCFA.", [minWithdraw])]),
         excludeSemantics: true,
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(estStore ? tr(context, "MES RÉCOMPENSES PARRAINAGE")
-                        : tr(context, "MES GAINS PARRAINAGE"),
-            style: const TextStyle(
-              color: Color(0xFFA78BFA), fontSize: 11,
-              fontWeight: FontWeight.w600, letterSpacing: 1)),
+          Text(estStore ? tr(context, "Mes récompenses de parrainage")
+                        : tr(context, "Mes gains de parrainage"),
+            style: const TextStyle(color: _violet, fontSize: 13, fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
           Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
             TweenAnimationBuilder<int>(
@@ -260,7 +262,7 @@ class _EarningsBanner extends StatelessWidget {
               padding: const EdgeInsets.only(left: 6, bottom: 6),
               child: Text(estStore ? tr(context, "jours Premium") : 'FCFA',
                 style: const TextStyle(
-                  color: Color(0xFFA78BFA), fontSize: 14, fontWeight: FontWeight.w600)),
+                  color: _violet, fontSize: 14, fontWeight: FontWeight.w600)),
             ),
           ]),
         ]),
@@ -294,7 +296,7 @@ class _EarningsBanner extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: value,
                   backgroundColor: const Color(0xFF2A1A60),
-                  valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFA78BFA)),
+                  valueColor: const AlwaysStoppedAnimation<Color>(_violet),
                   minHeight: 6,
                 ),
               ),
@@ -306,7 +308,7 @@ class _EarningsBanner extends StatelessWidget {
           ElevatedButton(
             onPressed: onWithdraw,
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFA78BFA),
+              backgroundColor: _violet,
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10)),
             child: Text(estStore ? tr(context, "Convertir") : tr(context, "Retirer"),
               style: const TextStyle(fontWeight: FontWeight.w700)),
@@ -324,14 +326,11 @@ class _ReferralCodeCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
+    padding: const EdgeInsets.all(14),
     decoration: BoxDecoration(
-      color: context.cl.surface, borderRadius: BorderRadius.circular(16),
+      color: context.cl.surface, borderRadius: BorderRadius.circular(14),
       border: Border.all(color: context.cl.border, width: 0.5)),
     child: Column(children: [
-      Text(tr(context, "VOTRE CODE DE PARRAINAGE"), style: TextStyle(
-        color: context.cl.textS, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 1)),
-      const SizedBox(height: 12),
       GestureDetector(
         onTap: () {
           HapticFeedback.lightImpact();
@@ -341,21 +340,21 @@ class _ReferralCodeCard extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
           decoration: BoxDecoration(
-            color: const Color(0xFFA78BFA).withValues(alpha: 0.08),
+            color: _violet.withValues(alpha: 0.08),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFA78BFA).withValues(alpha: 0.3), width: 1.5)),
+            border: Border.all(color: _violet.withValues(alpha: 0.3), width: 1.5)),
           child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
             Text(code, style: const TextStyle(
-              color: Color(0xFFA78BFA), fontSize: 28,
+              color: _violet, fontSize: 28,
               fontWeight: FontWeight.w700, letterSpacing: 6)),
             const SizedBox(width: 12),
-            const Icon(Icons.copy_rounded, color: Color(0xFFA78BFA), size: 20),
+            const Icon(Icons.copy_rounded, color: _violet, size: 20),
           ]),
         ),
       ),
       const SizedBox(height: 10),
-      Text(tr(context, "Appuyez pour copier · Partagez avec tes amis"),
-        style: TextStyle(color: context.cl.textM, fontSize: 11)),
+      Text(tr(context, "Touche le code pour le copier"),
+        style: TextStyle(color: context.cl.textM, fontSize: 12)),
       const SizedBox(height: 12),
       // La feuille de partage du téléphone, directement : celle qu'on ouvrait
       // ici ne faisait que copier le texte (partage_parrainage.dart).
@@ -370,7 +369,7 @@ class _ReferralCodeCard extends StatelessWidget {
           icon: const Icon(Icons.share_rounded, size: 18),
           label:  Text(tr(context, "Partager mon code")),
           style: ElevatedButton.styleFrom(
-            backgroundColor: const Color(0xFFA78BFA),
+            backgroundColor: _violet,
             foregroundColor: Colors.white,
           ),
         )),
@@ -388,8 +387,8 @@ class _ReferralCodeCard extends StatelessWidget {
           icon: const Icon(Icons.qr_code_2_rounded, size: 18),
           label: Text(tr(context, "Afficher mon code QR")),
           style: OutlinedButton.styleFrom(
-            foregroundColor: const Color(0xFFA78BFA),
-            side: BorderSide(color: const Color(0xFFA78BFA).withValues(alpha: 0.5)),
+            foregroundColor: _violet,
+            side: BorderSide(color: _violet.withValues(alpha: 0.5)),
           ),
         ),
       ),
@@ -437,7 +436,7 @@ Future<void> afficherQrParrainage(BuildContext context, String code) => showModa
         style: TextStyle(color: feuille.cl.textM, fontSize: 12)),
       const SizedBox(height: 4),
       SelectableText(code, style: const TextStyle(
-        color: Color(0xFFA78BFA), fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: 5)),
+        color: _violet, fontSize: 26, fontWeight: FontWeight.w800, letterSpacing: 5)),
     ]),
   )),
 );
@@ -473,8 +472,9 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
     });
 
     return Container(
+      clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        color: context.cl.surface, borderRadius: BorderRadius.circular(16),
+        color: context.cl.surface, borderRadius: BorderRadius.circular(14),
         border: Border.all(color: context.cl.border, width: 0.5)),
       child: AnimatedSize(
         duration: const Duration(milliseconds: 250),
@@ -485,20 +485,16 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
             HapticFeedback.lightImpact();
             setState(() => _expanded = !_expanded);
           },
-          borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(children: [
-              Container(width: 38, height: 38,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(10)),
-                child: Icon(Icons.card_giftcard_rounded, color: AppColors.primary, size: 20)),
-              const SizedBox(width: 12),
+              const IconeReglage(Icons.card_giftcard_outlined),
+              const SizedBox(width: 14),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Text(tr(context, "Vous avez un code parrain ?"), style: TextStyle(
-                  color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w500)),
-                Text(tr(context, "Entrez-le pour lier ton parrain"), style: TextStyle(
-                  color: context.cl.textM, fontSize: 11)),
+                Text(tr(context, "Tu as un code parrain ?"), style: TextStyle(
+                  color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w500)),
+                Text(tr(context, "Saisis-le pour lier ton parrain"), style: TextStyle(
+                  color: context.cl.textS, fontSize: 12)),
               ])),
               Icon(_expanded ? Icons.expand_less_rounded : Icons.expand_more_rounded,
                 color: context.cl.textM, size: 20),
@@ -516,7 +512,7 @@ class _EnterCodeCardState extends ConsumerState<_EnterCodeCard> {
               textCapitalization: TextCapitalization.characters,
               style: TextStyle(letterSpacing: 4, fontSize: 18, fontWeight: FontWeight.w700),
               decoration: InputDecoration(
-                hintText: tr(context, "EX: A1B2C3"),
+                hintText: tr(context, "Ex. : A1B2C3"),
                 prefixIcon: Icon(Icons.tag_rounded, color: context.cl.textM),
               ),
               onChanged: (v) => _ctrl.value = _ctrl.value.copyWith(
@@ -556,46 +552,38 @@ class _HowItWorksCard extends StatelessWidget {
     required this.commL1, required this.commL2, required this.estStore});
 
   @override
-  Widget build(BuildContext context) => Container(
-    padding: const EdgeInsets.all(16),
-    decoration: BoxDecoration(
-      color: context.cl.surface, borderRadius: BorderRadius.circular(16),
-      border: Border.all(color: context.cl.border, width: 0.5)),
-    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Text(tr(context, "COMMENT ÇA MARCHE ?"), style: TextStyle(
-        color: context.cl.textS, fontSize: 11,
-        fontWeight: FontWeight.w600, letterSpacing: 1)),
-      const SizedBox(height: 14),
-      _Step(num: '1', color: AppColors.primary,
-        text: tr(context, "Partagez ton code avec tes amis")),
-      _Step(num: '2', color: const Color(0xFFA78BFA),
+  // Une carte, des étapes séparées d'un trait ; un seul violet pour les
+  // numéros (ils étaient orange, violet, vert et bleu).
+  Widget build(BuildContext context) => CarteReglages(debutTrait: 50, [
+      _Step(num: '1',
+        text: tr(context, "Partage ton code avec tes amis")),
+      _Step(num: '2',
         text: tr(context, "Ils s'inscrivent sur PronoWin")),
-      _Step(num: '3', color: context.cl.success,
+      _Step(num: '3',
         text: estStore
           ? tr(context, "Quand ils s'abonnent Premium → +{arg0} pour toi", [libelleJours(joursPremiumPour(commL1))])
           : tr(context, "Quand ils s'abonnent Premium → +{arg0} FCFA pour toi", [commL1])),
-      _Step(num: '4', color: context.cl.info,
+      _Step(num: '4',
         text: estStore
           ? tr(context, "Leurs filleuls Premium → +{arg0} en plus", [libelleJours(joursPremiumPour(commL2))])
           : tr(context, "Leurs filleuls Premium → +{arg0} FCFA supplémentaires", [commL2])),
-    ]),
-  );
+  ]);
 }
 
 class _Step extends StatelessWidget {
-  final String num, text; final Color color;
-  const _Step({required this.num, required this.text, required this.color});
+  final String num, text;
+  const _Step({required this.num, required this.text});
   @override
   Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 10),
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
     child: Row(children: [
-      Container(width: 26, height: 26,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-        child: Center(child: Text(num, style: TextStyle(
-          color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700)))),
-      const SizedBox(width: 10),
+      Container(width: 24, height: 24,
+        decoration: BoxDecoration(color: _violet.withValues(alpha: 0.15), shape: BoxShape.circle),
+        child: Center(child: Text(num, style: const TextStyle(
+          color: _violet, fontSize: 12, fontWeight: FontWeight.w700)))),
+      const SizedBox(width: 12),
       Expanded(child: Text(text, style: TextStyle(
-        color: context.cl.textS, fontSize: 13))),
+        color: context.cl.textP, fontSize: 14, height: 1.35))),
     ]),
   );
 }
@@ -607,11 +595,12 @@ class _StatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(children: [
-    _StatChip(label: 'Filleuls\ndirects', value: totalL1, sub: '$premL1 Premium', color: const Color(0xFFA78BFA)),
-    const SizedBox(width: 10),
-    _StatChip(label: 'Filleuls\nindirects', value: totalL2, sub: '$premL2 Premium', color: context.cl.info),
-    const SizedBox(width: 10),
-    _StatChip(label: 'Total\nfilleuls', value: totalL1 + totalL2, sub: '${premL1 + premL2} Premium', color: context.cl.success),
+    // Les libellés n'étaient pas traduits (« Filleuls\ndirects » en dur).
+    _StatChip(label: tr(context, "Directs"), value: totalL1, sub: '$premL1 Premium', color: _violet),
+    const SizedBox(width: 8),
+    _StatChip(label: tr(context, "Indirects"), value: totalL2, sub: '$premL2 Premium', color: context.cl.info),
+    const SizedBox(width: 8),
+    _StatChip(label: tr(context, "Total"), value: totalL1 + totalL2, sub: '${premL1 + premL2} Premium', color: context.cl.success),
   ]);
 }
 
@@ -624,12 +613,13 @@ class _StatChip extends StatelessWidget {
       label: '$label : $value $sub',
       excludeSemantics: true,
       child: Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.06), borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: color.withValues(alpha: 0.2), width: 0.5)),
+        color: context.cl.surface, borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: context.cl.border, width: 0.5)),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label, style: TextStyle(color: context.cl.textM, fontSize: 11)),
+        Text(label, maxLines: 1, overflow: TextOverflow.ellipsis,
+          style: TextStyle(color: context.cl.textS, fontSize: 12)),
         TweenAnimationBuilder<int>(
           tween: IntTween(begin: 0, end: value),
           duration: const Duration(milliseconds: 700),
@@ -663,7 +653,7 @@ class _FilleulTile extends StatelessWidget {
       final d   = DateTime.parse(iso).toLocal();
       final now = DateTime.now();
       final diff = now.difference(d);
-      if (diff.inDays == 0) return 'Aujourd\'hui';
+      if (diff.inDays == 0) return trCurrent("Aujourd'hui");
       if (diff.inDays == 1) return trCurrent("Hier");
       if (diff.inDays < 7)  return trCurrent("Il y a {arg0}j", [diff.inDays]);
       return '${d.day.toString().padLeft(2,'0')}/${d.month.toString().padLeft(2,'0')}/${d.year}';
@@ -671,27 +661,24 @@ class _FilleulTile extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
-    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-    decoration: BoxDecoration(
-      color: context.cl.surface, borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: context.cl.border, width: 0.5)),
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
     child: Row(children: [
       Container(width: 36, height: 36,
         decoration: BoxDecoration(
           color: level == 1
-            ? const Color(0xFFA78BFA).withValues(alpha: 0.12)
+            ? _violet.withValues(alpha: 0.12)
             : context.cl.info.withValues(alpha: 0.12),
           shape: BoxShape.circle),
-        child: Center(child: Text(pseudo[0].toUpperCase(),
+        child: Center(child: Text(pseudo.isEmpty ? '?' : pseudo[0].toUpperCase(),
           style: TextStyle(
-            color: level == 1 ? const Color(0xFFA78BFA) : context.cl.info,
+            color: level == 1 ? _violet : context.cl.info,
             fontWeight: FontWeight.w700, fontSize: 15)))),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Row(children: [
-          Text(pseudo, style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w500)),
+          Flexible(child: Text(pseudo, maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w500))),
           if (_isNew) ...[
             const SizedBox(width: 6),
             Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
@@ -701,8 +688,7 @@ class _FilleulTile extends StatelessWidget {
         ]),
         Text(
           joinedAt != null ? tr(context, "Niv. {arg0} · {arg1}", [level, _fmtDate(joinedAt!)]) : tr(context, "Niveau {arg0}", [level]),
-          style: TextStyle(color: level == 1 ? const Color(0xFFA78BFA) : context.cl.info,
-            fontSize: 11, fontWeight: FontWeight.w500)),
+          style: TextStyle(color: context.cl.textS, fontSize: 12)),
       ])),
       Column(crossAxisAlignment: CrossAxisAlignment.end, children: [
         Text(plan == 'premium' ? '👑 Premium' : tr(context, "• Gratuit"),
@@ -726,20 +712,23 @@ class _FilleulTile extends StatelessWidget {
 // ─── ÉTAT VIDE ────────────────────────────────────────────────────────────────
 class _EmptyState extends StatelessWidget {
   final String code;
-  const _EmptyState({required this.code});
+  final bool estStore;
+  const _EmptyState({required this.code, required this.estStore});
   @override
   Widget build(BuildContext context) => Container(
     padding: const EdgeInsets.all(28),
     decoration: BoxDecoration(
-      color: context.cl.surface, borderRadius: BorderRadius.circular(16),
+      color: context.cl.surface, borderRadius: BorderRadius.circular(14),
       border: Border.all(color: context.cl.border, width: 0.5)),
     child: Column(children: [
-      Icon(Icons.people_outline_rounded, color: context.cl.textM, size: 48),
+      Icon(Icons.group_add_outlined, color: _violet, size: 44),
       const SizedBox(height: 12),
       Text(tr(context, "Aucun filleul pour l'instant"), style: TextStyle(
         color: context.cl.textP, fontSize: 16, fontWeight: FontWeight.w600)),
       const SizedBox(height: 6),
-      Text(tr(context, "Partagez ton code pour commencer\nà gagner des commissions"),
+      Text(estStore
+          ? tr(context, "Partage ton code : chaque ami qui passe Premium t'offre des jours Premium.")
+          : tr(context, "Partage ton code pour commencer à gagner des commissions."),
         style: TextStyle(color: context.cl.textS, fontSize: 13),
         textAlign: TextAlign.center),
     ]),
@@ -760,16 +749,21 @@ class _HistorySection extends ConsumerWidget {
       error:   (_, _) => const SizedBox.shrink(),
       data: (list) {
         if (list.isEmpty) return const SizedBox.shrink();
-        return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const SizedBox(height: 8),
-          _SectionLabel(tr(context, "HISTORIQUE DES GAINS ({arg0})", [list.length])),
-          ...list.take(10).map((h) => _HistoryTile(
-            pseudo:  h['pseudo'] as String? ?? '—',
-            level:   (h['level'] as num?)?.toInt() ?? 1,
-            amount:  (h['amount'] as num?)?.toInt() ?? 0,
-            date:    h['date'] as String?,
-            estStore: ref.watch(isStoreBuildProvider),
-          )),
+        final estStore = ref.watch(isStoreBuildProvider);
+        return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const SizedBox(height: 14),
+          EnTeteReglages(estStore
+              ? tr(context, "Historique des récompenses ({arg0})", [list.length])
+              : tr(context, "Historique des gains ({arg0})", [list.length])),
+          CarteReglages(debutTrait: 62, [
+            for (final h in list.take(10)) _HistoryTile(
+              pseudo:  h['pseudo'] as String? ?? '—',
+              level:   (h['level'] as num?)?.toInt() ?? 1,
+              amount:  (h['amount'] as num?)?.toInt() ?? 0,
+              date:    h['date'] as String?,
+              estStore: estStore,
+            ),
+          ]),
         ]);
       },
     );
@@ -782,17 +776,14 @@ class _HistoryTile extends StatelessWidget {
   const _HistoryTile({required this.pseudo, required this.level, required this.amount, required this.estStore, this.date});
 
   @override
-  Widget build(BuildContext context) => Container(
-    margin: const EdgeInsets.only(bottom: 8),
+  Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-    decoration: BoxDecoration(
-      color: context.cl.surface, borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: context.cl.border, width: 0.5)),
     child: Row(children: [
       Container(width: 36, height: 36,
         decoration: BoxDecoration(
           color: context.cl.success.withValues(alpha: 0.12), shape: BoxShape.circle),
-        child: Icon(Icons.payments_rounded, color: context.cl.success, size: 18)),
+        child: Icon(estStore ? Icons.workspace_premium_outlined : Icons.payments_outlined,
+          color: context.cl.success, size: 18)),
       const SizedBox(width: 12),
       Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(tr(context, "{arg0} → abonnement Premium", [pseudo]), style: TextStyle(
@@ -809,10 +800,10 @@ class _HistoryTile extends StatelessWidget {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
-            color: (level == 1 ? const Color(0xFFA78BFA) : context.cl.info).withValues(alpha: 0.12),
+            color: (level == 1 ? _violet : context.cl.info).withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(8)),
           child: Text(tr(context, "Niv. {arg0}", [level]), style: TextStyle(
-            color: level == 1 ? const Color(0xFFA78BFA) : context.cl.info,
+            color: level == 1 ? _violet : context.cl.info,
             fontSize: 11, fontWeight: FontWeight.w700)),
         ),
       ]),
@@ -831,18 +822,6 @@ class _HistoryTile extends StatelessWidget {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-
-class _SectionLabel extends StatelessWidget {
-  final String label;
-  const _SectionLabel(this.label);
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.only(bottom: 8),
-    child: Text(label, style: TextStyle(
-      color: context.cl.textS, fontSize: 11,
-      fontWeight: FontWeight.w600, letterSpacing: 1)),
-  );
-}
 
 extension _IntFormat on int {
   String toLocaleString() {

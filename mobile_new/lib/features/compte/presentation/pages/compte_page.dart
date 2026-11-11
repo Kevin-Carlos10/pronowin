@@ -1105,7 +1105,7 @@ class _ParrainageTab extends ConsumerWidget {
         // déroulé, pas les montants.
         EnTeteReglages(tr(context, "Comment ça marche")),
         // Le trait part du texte : 14 de marge, 22 de numéro, 11 d'écart.
-        CarteReglages(retrait: 47, [
+        CarteReglages(debutTrait: 47, [
           _HowToStep(n: 1, text: tr(context, "Partage ton code avec tes amis")),
           _HowToStep(n: 2, text: tr(context, "Ils créent leur compte avec ce code")),
           _HowToStep(n: 3,

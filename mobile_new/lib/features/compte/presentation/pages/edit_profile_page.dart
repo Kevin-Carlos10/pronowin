@@ -409,7 +409,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
             // ─── Identité ─────────────────────────────────────────────────
             EnTeteReglages(tr(context, "Identité")),
-            CarteReglages(retrait: 14, [
+            CarteReglages(debutTrait: 14, [
               _Champ(
                 key: const Key('champ-prenom'),
                 libelle: tr(context, "Prénom"), controleur: _firstNameCtrl,
@@ -472,7 +472,7 @@ class _EditProfilePageState extends ConsumerState<EditProfilePage> {
 
             // ─── Compte ───────────────────────────────────────────────────
             EnTeteReglages(tr(context, "Compte")),
-            CarteReglages(retrait: 14, [
+            CarteReglages(debutTrait: 14, [
               _Champ(
                 key: const Key('champ-pseudo'),
                 libelle: tr(context, "Pseudo"), controleur: _pseudoCtrl,
