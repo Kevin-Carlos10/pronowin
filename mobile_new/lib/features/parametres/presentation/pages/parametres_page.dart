@@ -14,7 +14,7 @@ import '../../../../shared/widgets/logo_marque.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../core/config/distribution_channel.dart';
 import '../../../auth/presentation/providers/auth_provider.dart';
-import '../../../compte/presentation/pages/compte_page.dart' show rafraichirDonneesCompte;
+import '../../../compte/presentation/pages/compte_page.dart' show rafraichirDonneesCompte, confirmerDeconnexion;
 import '../providers/settings_provider.dart';
 import '../providers/security_provider.dart';
 import '../../../../shared/utils/retour.dart';
@@ -46,6 +46,16 @@ final _copyrightYear = DateTime.now().year;
 /// La place occupée par les fichiers temporaires (`cache_fichiers.dart`).
 final _tailleCacheProvider = FutureProvider.autoDispose<int>((ref) => CacheFichiers.taille());
 
+/// Un compte est-il connecté ? Pour « Se déconnecter ». Si l'authentification
+/// ne peut pas démarrer, la page s'affiche quand même, sans cette ligne.
+final _connecteProvider = Provider.autoDispose<bool>((ref) {
+  try {
+    return ref.watch(authProvider) is AuthAuthenticated;
+  } catch (_) {
+    return false;
+  }
+});
+
 /// L'état de la version installée, pour la carte du bas.
 final _etatVersionProvider = FutureProvider.autoDispose<EtatVersion?>((ref) =>
     VersionService.etat(estStore: ref.read(isStoreBuildProvider), dio: ref.read(dioProvider)));
@@ -67,6 +77,10 @@ class ParametresPage extends ConsumerWidget {
     final tailleCache  = ref.watch(_tailleCacheProvider).valueOrNull;
     final notifsActives = [settings.notifMatch, settings.notifPromo,
         settings.notifReferral, settings.notifPremium].where((v) => v).length;
+    // Protégée : un code PIN, ou la biométrie là où l'appareil l'offre.
+    final protege = settings.pinEnabled
+        || (settings.bioEnabled && (bioAvailable.valueOrNull ?? false));
+    final connecte = ref.watch(_connecteProvider);
 
     StatutReglage statut(bool actif) => StatutReglage(
       actif: actif, texte: actif ? tr(context, "Activé") : tr(context, "Pas activé"));
@@ -101,9 +115,18 @@ class ParametresPage extends ConsumerWidget {
 
           // ─── SÉCURITÉ ─────────────────────────────────────────────────
           section(tr(context, "Sécurité"), [
+            LigneReglage(
+              key: const Key('reglage-protection'),
+              icone: Icons.shield_outlined,
+              titre: tr(context, "Protection de l'application"),
+              statut: protege
+                  ? StatutReglage(actif: true, texte: tr(context, "Renforcée"))
+                  : StatutReglage.avertissement(tr(context, "Faible : active le code PIN ou la biométrie")),
+              onTap: null,
+            ),
             LigneInterrupteur(
               key: const Key('reglage-pin'),
-              icone: Icons.pin_rounded,
+              icone: Icons.lock_outline_rounded,
               titre: tr(context, "Code PIN"),
               statut: statut(settings.pinEnabled),
               valeur: settings.pinEnabled,
@@ -171,7 +194,7 @@ class ParametresPage extends ConsumerWidget {
                 onTap: () => context.push('/parametres/pin'),
               ),
             LigneReglage(
-              icone: Icons.devices_rounded,
+              icone: Icons.devices_outlined,
               titre: tr(context, "Appareils connectés"),
               onTap: () => _showSessionsSheet(context),
             ),
@@ -181,37 +204,39 @@ class ParametresPage extends ConsumerWidget {
           section(tr(context, "Paramètres de l'application"), [
             LigneReglage(
               key: const Key('reglage-notifications'),
-              icone: Icons.notifications_rounded,
+              icone: Icons.notifications_none_rounded,
               titre: tr(context, "Notifications push"),
-              statut: StatutReglage(
-                actif: notifsActives > 0,
-                texte: notifsActives == 4 ? tr(context, "Activé")
-                    : notifsActives == 0 ? tr(context, "Pas activé")
-                    : tr(context, "{arg0} sur 4 activées", [notifsActives])),
+              statut: settings.notifPause
+                  ? StatutReglage(actif: false, texte: tr(context, "En pause"))
+                  : StatutReglage(
+                      actif: notifsActives > 0,
+                      texte: notifsActives == 4 ? tr(context, "Activé")
+                          : notifsActives == 0 ? tr(context, "Pas activé")
+                          : tr(context, "{arg0} sur 4 activées", [notifsActives])),
               onTap: () => ouvrirSousPage(context, const NotificationsReglagesPage()),
             ),
             LigneReglage(
               key: const Key('reglage-theme'),
-              icone: Icons.dark_mode_rounded,
+              icone: Icons.dark_mode_outlined,
               titre: tr(context, "Thème"), sousTitre: settings.themeName,
               onTap: () => ouvrirChoixTheme(context, ref),
             ),
             LigneReglage(
               key: const Key('reglage-langue'),
-              icone: Icons.language_rounded,
+              icone: Icons.language_outlined,
               titre: tr(context, "Langue"), sousTitre: settings.langName,
               onTap: () => ouvrirChoixLangue(context, ref),
             ),
             // L'« Onglet principal » de Sofascore (8 novembre 2026).
             LigneReglage(
               key: const Key('reglage-onglet'),
-              icone: Icons.space_dashboard_rounded,
+              icone: Icons.space_dashboard_outlined,
               titre: tr(context, "Onglet d'ouverture"),
               sousTitre: libelleOnglet(context, ref.watch(ongletDemarrageProvider)),
               onTap: () => ouvrirChoixOnglet(context, ref),
             ),
             LigneReglage(
-              icone: Icons.cleaning_services_rounded,
+              icone: Icons.cleaning_services_outlined,
               titre: tr(context, "Vider le cache"),
               sousTitre: tailleCache == null ? null
                   : CacheFichiers.lisible(tailleCache, langue: AppStrings.of(context).locale.languageCode),
@@ -222,15 +247,23 @@ class ParametresPage extends ConsumerWidget {
           // ─── MON COMPTE ───────────────────────────────────────────────
           section(tr(context, "Mon compte"), [
             LigneReglage(
-              icone: Icons.edit_rounded,
+              icone: Icons.person_outline_rounded,
               titre: tr(context, "Modifier le profil"),
               onTap: () => context.push('/compte/edit'),
             ),
             LigneReglage(
-              icone: Icons.block_rounded,
+              icone: Icons.block_outlined,
               titre: tr(context, "Membres bloqués"),
               onTap: () => context.push('/parametres/bloques'),
             ),
+            if (connecte)
+              LigneReglage(
+                key: const Key('reglage-deconnexion'),
+                icone: Icons.logout_rounded,
+                titre: tr(context, "Se déconnecter"),
+                danger: true,
+                onTap: () => confirmerDeconnexion(context, ref),
+              ),
           ]),
 
           // ─── AIDE ─────────────────────────────────────────────────────
@@ -238,27 +271,55 @@ class ParametresPage extends ConsumerWidget {
           // copier les informations techniques à joindre au support.
           section(tr(context, "Aide"), [
             LigneReglage(
-              icone: Icons.slideshow_rounded,
+              icone: Icons.slideshow_outlined,
               titre: tr(context, "Présentation de l'application"),
               onTap: () => context.push('/presentation'),
             ),
             LigneReglage(
-              icone: Icons.developer_mode_rounded,
+              icone: Icons.developer_mode_outlined,
               titre: tr(context, "Aperçu technique"),
               onTap: () => afficherApercuTechnique(context, ref),
             ),
             // Comme Sofascore (8 novembre 2026) : un message et une capture,
             // lus dans l'administration.
             LigneReglage(
-              icone: Icons.rate_review_rounded,
+              icone: Icons.rate_review_outlined,
               titre: tr(context, "Donne-nous ton avis"),
               onTap: () => context.push('/parametres/avis'),
             ),
+          ]),
+
+          // ─── PARTAGER ET SUIVRE ───────────────────────────────────────
+          // Noter, partager par lien ou par QR code, suivre les chaînes : ce
+          // que 1xBet, Sofascore et FotMob rangent ensemble (11 novembre
+          // 2026). La note n'a de sens que pour une version des boutiques.
+          section(tr(context, "Partager et suivre"), [
+            if (ref.watch(isStoreBuildProvider))
+              LigneReglage(
+                key: const Key('reglage-noter'),
+                icone: Icons.star_outline_rounded,
+                titre: tr(context, "Noter l'application"),
+                onTap: () => InAppReview.instance
+                    .openStoreListing(appStoreId: AppConstants.appStoreId).catchError((_) {}),
+              ),
             Builder(builder: (ligne) => LigneReglage(
-              icone: Icons.ios_share_rounded,
+              icone: Icons.ios_share_outlined,
               titre: tr(context, "Partager l'application"),
               onTap: () => partagerApplication(ligne),
             )),
+            LigneReglage(
+              key: const Key('reglage-qr'),
+              icone: Icons.qr_code_2_rounded,
+              titre: tr(context, "Partager via QR code"),
+              onTap: () => ouvrirSousPage(context, const PartageQrPage()),
+            ),
+            LigneReglage(
+              key: const Key('reglage-reseaux'),
+              icone: Icons.groups_outlined,
+              titre: tr(context, "Réseaux sociaux"),
+              sousTitre: 'Telegram, WhatsApp, Facebook',
+              onTap: () => ouvrirSousPage(context, const ReseauxSociauxPage()),
+            ),
           ]),
 
           // ─── LÉGAL ────────────────────────────────────────────────────
@@ -269,7 +330,7 @@ class ParametresPage extends ConsumerWidget {
           // et ces ressources doivent rester atteignables même hors ligne.
           section(tr(context, "Informations légales"), [
             LigneReglage(
-              icone: Icons.description_rounded,
+              icone: Icons.description_outlined,
               titre: tr(context, "Conditions d'utilisation"),
               onTap: () => PagesLegales.ouvrir(
                 context,
@@ -278,7 +339,7 @@ class ParametresPage extends ConsumerWidget {
                 titre: PagesLegales.titreCgu),
             ),
             LigneReglage(
-              icone: Icons.privacy_tip_rounded,
+              icone: Icons.privacy_tip_outlined,
               titre: tr(context, "Politique de confidentialité"),
               onTap: () => PagesLegales.ouvrir(
                 context, PagesLegales.confidentialite,
@@ -289,21 +350,21 @@ class ParametresPage extends ConsumerWidget {
             // jeu disait le contraire à l'examen.
             if (!ref.watch(sansPariProvider))
               LigneReglage(
-                icone: Icons.health_and_safety_rounded,
+                icone: Icons.health_and_safety_outlined,
                 titre: tr(context, "Jeu responsable"),
                 onTap: () => context.push('/parametres/jeu-responsable'),
               ),
             // Les mentions légales portent l'identité de l'éditeur : elles
             // vivent sur le site, on y renvoie sans les recopier.
             LigneReglage(
-              icone: Icons.gavel_rounded,
+              icone: Icons.gavel_outlined,
               titre: tr(context, "Mentions légales"),
               onTap: () => PagesLegales.ouvrir(
                 context, PagesLegales.mentionsLegales,
                 titre: tr(context, "Mentions légales")),
             ),
             LigneReglage(
-              icone: Icons.info_rounded,
+              icone: Icons.info_outline_rounded,
               titre: tr(context, "À propos"),
               onTap: () => _showAboutSheet(context, appVersion),
             ),
@@ -323,7 +384,7 @@ class ParametresPage extends ConsumerWidget {
           section(tr(context, "Zone de danger"), [
             LigneReglage(
               key: const Key('reglage-supprimer-compte'),
-              icone: Icons.delete_forever_rounded,
+              icone: Icons.delete_outline_rounded,
               titre: tr(context, "Supprimer le compte"),
               // Le serveur anonymise : il vide les champs personnels et garde
               // la ligne, l'historique et la bankroll. Le libellé ne promet
@@ -813,8 +874,8 @@ class _CarteVersion extends ConsumerWidget {
     final contenu = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       child: Row(children: [
-        const IconeReglage(Icons.phone_android_rounded),
-        const SizedBox(width: 12),
+        const IconeReglage(Icons.smartphone_outlined),
+        const SizedBox(width: 14),
         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Text(titre, style: TextStyle(color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w500)),
           const SizedBox(height: 2),

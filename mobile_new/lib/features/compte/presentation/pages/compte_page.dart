@@ -333,7 +333,12 @@ class _ComptePageState extends ConsumerState<ComptePage>
     );
   }
 
-  void _showLogoutSheet(BuildContext context, WidgetRef ref) {
+  void _showLogoutSheet(BuildContext context, WidgetRef ref) => confirmerDeconnexion(context, ref);
+}
+
+/// La feuille « Déconnexion ? », partagée par la page Compte et, depuis le
+/// 11 novembre 2026, par le bas des Paramètres (comme 1xBet ou Threads).
+void confirmerDeconnexion(BuildContext context, WidgetRef ref) {
     HapticFeedback.mediumImpact();
     showModalBottomSheet(
       context: context,
@@ -396,7 +401,6 @@ class _ComptePageState extends ConsumerState<ComptePage>
         ]),
       ),
     );
-  }
 }
 
 // ══════════════════════════════════════════════════════

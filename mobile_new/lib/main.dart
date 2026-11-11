@@ -117,6 +117,7 @@ void main() async {
   final savedLanguage = AppStrings.languePreferee(prefs.getString('settings_lang'));
   AppStrings.setCurrentLanguage(savedLanguage);
   final savedTheme = themeDepuisPreference(prefs.getString('settings_theme'));
+  final savedNocturne = prefs.getString('settings_theme') == 'nocturne';
   final ongletDemarrage = ongletDepuisPreference(prefs.getString(cleOngletDemarrage));
 
   // Utilisateur existant : token présent mais onboarding jamais vu
@@ -153,6 +154,7 @@ void main() async {
     overrides: [
       initialLanguageProvider.overrideWithValue(savedLanguage),
       initialThemeModeProvider.overrideWithValue(savedTheme),
+      initialNocturneProvider.overrideWithValue(savedNocturne),
       onboardingDoneProvider.overrideWith((ref) => onboardingDone),
       ongletDemarrageProvider.overrideWith((ref) => ongletDemarrage),
       ouvrirSurSuivisProvider.overrideWith((ref) => ongletDemarrage == OngletDemarrage.suivis),
@@ -337,7 +339,8 @@ class _PronoWinAppState extends ConsumerState<PronoWinApp>
     return MaterialApp.router(
       title:       'PronoWin',
       theme:       AppTheme.light,
-      darkTheme:   AppTheme.dark,
+      // Le sombre, ou le Nocturne (noir pur) s'il a été choisi.
+      darkTheme:   ref.watch(nocturneProvider) ? AppTheme.nocturne : AppTheme.dark,
       themeMode:   themeMode,
       routerConfig: router,
       debugShowCheckedModeBanner: false,

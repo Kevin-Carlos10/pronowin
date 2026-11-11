@@ -28,6 +28,18 @@ déployé jusqu'à 75583d8.
   l'appli », ou la mise à jour à installer.
 - « Supprimer le compte » : la feuille défile (elle cachait le bouton de
   confirmation à 1,8× sur petit écran).
+- Icônes au trait, couleur du texte, sans pastille orange (retour du
+  11 novembre).
+- **Thème Nocturne** (noir pur) ; le thème se choisit sur quatre aperçus
+  (Clair, Sombre, Nocturne, Système) et s'applique sans quitter la page.
+- **Tout mettre en pause** les notifications ; la reprise rend les réglages
+  d'avant.
+- **Protection de l'application** : « Faible » tant que ni code PIN ni
+  biométrie.
+- « Partager et suivre » : Noter l'application (versions des boutiques),
+  Partager, **Partager via QR code**, **Réseaux sociaux** (Telegram,
+  WhatsApp, Facebook).
+- **Se déconnecter** en bas de « Mon compte ».
 
 ## APK
 

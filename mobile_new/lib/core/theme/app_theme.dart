@@ -138,8 +138,46 @@ class AppCl {
   Color get surfaceDeep => surfaceD;
 }
 
+/// Le thème Nocturne (11 novembre 2026, comme 1xBet et 1xPartners) : le
+/// sombre, sur du noir pur — plus reposant la nuit, et plus économe en
+/// batterie sur les écrans OLED, où un pixel noir est éteint.
+///
+/// Une classe à part plutôt qu'une troisième branche dans [AppCl] : les
+/// accesseurs de celle-ci gardent leur forme `isDark ? sombre : clair`, que
+/// relit `app_contraste_test.dart`. Seuls les fonds et les bordures changent ;
+/// les textes et les accents restent ceux du sombre.
+class AppClNocturne extends AppCl {
+  const AppClNocturne() : super(true);
+
+  static const fond    = Color(0xFF000000);
+  static const carte   = Color(0xFF141414);
+  static const creux   = Color(0xFF0A0A0A);
+  static const trait   = Color(0xFF262626);
+  static const traitS  = Color(0xFF303030);
+  static const dessus  = Color(0xFF1C1C1C);
+
+  @override Color get bg       => fond;
+  @override Color get surface  => carte;
+  @override Color get surfaceD => creux;
+  @override Color get border   => trait;
+  @override Color get borderS  => traitS;
+}
+
+/// Marque le thème Nocturne dans un [ThemeData] : `context.cl` le lit.
+class ThemeNocturne extends ThemeExtension<ThemeNocturne> {
+  const ThemeNocturne();
+  @override
+  ThemeNocturne copyWith() => this;
+  @override
+  ThemeNocturne lerp(ThemeExtension<ThemeNocturne>? other, double t) => this;
+}
+
 extension AppThemeContext on BuildContext {
-  AppCl get cl => AppCl(Theme.of(this).brightness == Brightness.dark);
+  AppCl get cl {
+    final theme = Theme.of(this);
+    if (theme.extension<ThemeNocturne>() != null) return const AppClNocturne();
+    return AppCl(theme.brightness == Brightness.dark);
+  }
   bool get isDark => Theme.of(this).brightness == Brightness.dark;
 }
 
@@ -313,6 +351,44 @@ class AppTheme {
       bodyMedium:  TextStyle(color: AppColors.textSecondary, fontSize: 13),
       labelSmall:  TextStyle(color: AppColors.textMuted,     fontSize: 11),
     ),
+  );
+
+  // ─── THÈME NOCTURNE ───────────────────────────────────────────────────────
+  // Le sombre sur du noir pur : fonds, cartes, menus et bordures passent aux
+  // gris neutres d'[AppClNocturne] ; le reste est celui du sombre.
+  static final ThemeData nocturne = dark.copyWith(
+    scaffoldBackgroundColor: AppClNocturne.fond,
+    colorScheme: _schemaSombre.copyWith(
+      surface:                 AppClNocturne.carte,
+      surfaceContainerLowest:  AppClNocturne.fond,
+      surfaceContainerLow:     AppClNocturne.creux,
+      surfaceContainer:        AppClNocturne.carte,
+      surfaceContainerHigh:    AppClNocturne.dessus,
+      surfaceContainerHighest: const Color(0xFF262626),
+      outlineVariant:          AppClNocturne.traitS,
+      onInverseSurface:        AppClNocturne.carte,
+    ),
+    appBarTheme: dark.appBarTheme.copyWith(backgroundColor: AppClNocturne.fond),
+    cardTheme: CardThemeData(
+      color: AppClNocturne.carte,
+      elevation: 0,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+        side: const BorderSide(color: AppClNocturne.trait, width: 0.5),
+      ),
+    ),
+    inputDecorationTheme: _champs(
+      remplissage: AppClNocturne.creux,
+      indice:      AppColors.textMuted,
+      contour:     _schemaSombre.outline,
+      erreur:      AppColors.error,
+    ),
+    tabBarTheme: dark.tabBarTheme.copyWith(dividerColor: AppClNocturne.trait),
+    dividerTheme: const DividerThemeData(color: AppClNocturne.trait, thickness: 0.5),
+    popupMenuTheme:   const PopupMenuThemeData(color: AppClNocturne.dessus),
+    bottomSheetTheme: const BottomSheetThemeData(backgroundColor: AppClNocturne.dessus),
+    dialogTheme:      const DialogThemeData(backgroundColor: AppClNocturne.dessus),
+    extensions: const [ThemeNocturne()],
   );
 
   // ─── THÈME CLAIR ──────────────────────────────────────────────────────────

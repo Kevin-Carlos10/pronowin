@@ -17,6 +17,10 @@ const _kNotifReferral = 'notif_referral';
 const _kNotifPremium  = 'notif_premium';
 const _kPinEnabled    = 'security_pin_enabled';
 const _kBioEnabled    = 'security_bio_enabled';
+/// « Tout mettre en pause » (11 novembre 2026) : en pause, et les quatre
+/// réglages d'avant, à rendre à la reprise (« 1011 »).
+const _kNotifPause      = 'notif_pause';
+const _kNotifAvantPause = 'notif_avant_pause';
 
 // ─── Topics FCM correspondants ────────────────────────────────────────────────
 const _topicMatch    = 'match_alerts';
@@ -30,6 +34,11 @@ class AppSettings {
   final String    lang;
   final bool      notifMatch, notifPromo, notifReferral, notifPremium;
   final bool      pinEnabled, bioEnabled;
+  /// Thème Nocturne : le sombre sur du noir pur (avec [themeMode] sombre).
+  final bool      nocturne;
+  /// Toutes les notifications en pause : les quatre catégories sont coupées
+  /// jusqu'à la reprise, qui rend les réglages d'avant.
+  final bool      notifPause;
 
   const AppSettings({
     this.themeMode     = ThemeMode.dark,
@@ -40,13 +49,15 @@ class AppSettings {
     this.notifPremium  = true,
     this.pinEnabled    = false,
     this.bioEnabled    = false,
+    this.nocturne      = false,
+    this.notifPause    = false,
   });
 
   AppSettings copyWith({
     ThemeMode? themeMode, String? lang,
     bool? notifMatch, bool? notifPromo, bool? notifReferral,
     bool? notifPremium,
-    bool? pinEnabled, bool? bioEnabled,
+    bool? pinEnabled, bool? bioEnabled, bool? nocturne, bool? notifPause,
   }) => AppSettings(
     themeMode:     themeMode     ?? this.themeMode,
     lang:          lang          ?? this.lang,
@@ -56,11 +67,13 @@ class AppSettings {
     notifPremium:  notifPremium  ?? this.notifPremium,
     pinEnabled:    pinEnabled    ?? this.pinEnabled,
     bioEnabled:    bioEnabled    ?? this.bioEnabled,
+    nocturne:      nocturne      ?? this.nocturne,
+    notifPause:    notifPause    ?? this.notifPause,
   );
 
   String get themeName {
     switch (themeMode) {
-      case ThemeMode.dark:   return trCurrent("Sombre");
+      case ThemeMode.dark:   return nocturne ? trCurrent("Nocturne") : trCurrent("Sombre");
       case ThemeMode.light:  return trCurrent("Clair");
       case ThemeMode.system: return trCurrent("Système");
     }
@@ -74,6 +87,7 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   SettingsNotifier(this._ref) : super(AppSettings(
         lang:      _ref.read(initialLanguageProvider),
         themeMode: _ref.read(initialThemeModeProvider),
+        nocturne:  _ref.read(initialNocturneProvider),
       )) {
     ready = _load();
   }
@@ -98,6 +112,8 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       notifPremium:  p.getBool(_kNotifPremium)  ?? true,
       pinEnabled:    p.getBool(_kPinEnabled)    ?? false,
       bioEnabled:    p.getBool(_kBioEnabled)    ?? false,
+      nocturne:      _themeChanged ? state.nocturne : p.getString(_kTheme) == 'nocturne',
+      notifPause:    p.getBool(_kNotifPause)    ?? false,
     );
 
     AppStrings.setCurrentLanguage(state.lang);
@@ -136,12 +152,15 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
   // ─── Thème ────────────────────────────────────────────────────────────────
   bool _themeChanged = false;
 
-  Future<void> setTheme(ThemeMode mode) async {
+  /// [nocturne] : le sombre sur du noir pur ; sans effet hors du sombre.
+  Future<void> setTheme(ThemeMode mode, {bool nocturne = false}) async {
     _themeChanged = true;
-    state = state.copyWith(themeMode: mode);
+    final noir = mode == ThemeMode.dark && nocturne;
+    state = state.copyWith(themeMode: mode, nocturne: noir);
     final p = await SharedPreferences.getInstance();
-    await p.setString(_kTheme, mode == ThemeMode.dark
-        ? 'dark'
+    await p.setString(_kTheme, noir
+        ? 'nocturne'
+        : mode == ThemeMode.dark ? 'dark'
         : mode == ThemeMode.light ? 'light' : 'system');
   }
 
@@ -209,6 +228,39 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
     if (newVal != null) await _syncPrefToServer(key, newVal);
   }
 
+  // ─── Tout mettre en pause ─────────────────────────────────────────────────
+  /// Coupe les quatre catégories d'un geste, comme « Tout mettre en pause »
+  /// de Threads ou le « Mode silencieux » de Sofascore (11 novembre 2026) ;
+  /// la reprise rend les réglages d'avant la pause. Chaque catégorie passe
+  /// par [toggleNotif] : topics FCM et serveur suivent, comme à la main.
+  Future<void> mettreNotifsEnPause(bool pause) async {
+    if (pause == state.notifPause) return;
+    final p = await SharedPreferences.getInstance();
+    const cles = ['match', 'promo', 'referral', 'premium'];
+    bool valeur(String k) => switch (k) {
+      'match' => state.notifMatch,
+      'promo' => state.notifPromo,
+      'referral' => state.notifReferral,
+      _ => state.notifPremium,
+    };
+    if (pause) {
+      await p.setString(_kNotifAvantPause, cles.map((k) => valeur(k) ? '1' : '0').join());
+      state = state.copyWith(notifPause: true);
+      await p.setBool(_kNotifPause, true);
+      for (final k in cles) {
+        if (valeur(k)) await toggleNotif(k);
+      }
+    } else {
+      final avant = p.getString(_kNotifAvantPause) ?? '1011';
+      state = state.copyWith(notifPause: false);
+      await p.setBool(_kNotifPause, false);
+      for (var i = 0; i < cles.length; i++) {
+        final voulu = i < avant.length && avant[i] == '1';
+        if (voulu != valeur(cles[i])) await toggleNotif(cles[i]);
+      }
+    }
+  }
+
   /// Les topics FCM ne filtrent que les envois de masse. Les notifications
   /// personnelles (parrainage, premium, résultat d'un match favori) partent par
   /// token : se désabonner d'un topic ne les coupait pas. Le serveur doit donc
@@ -250,6 +302,8 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       _kNotifPremium:  p.getBool(_kNotifPremium),
       _kPinEnabled:    p.getBool(_kPinEnabled),
       _kBioEnabled:    p.getBool(_kBioEnabled),
+      _kNotifPause:    p.getBool(_kNotifPause),
+      _kNotifAvantPause: p.getString(_kNotifAvantPause),
     };
 
     await p.clear();
@@ -271,6 +325,12 @@ final initialLanguageProvider = Provider<String>((ref) => 'fr');
 /// sombre, puis basculait en clair une fraction de seconde plus tard chez
 /// ceux qui avaient choisi le clair.
 final initialThemeModeProvider = Provider<ThemeMode>((ref) => ThemeMode.dark);
+
+/// Le thème Nocturne enregistré, lu lui aussi avant le premier écran.
+final initialNocturneProvider = Provider<bool>((ref) => false);
+
+/// Le sombre de l'application : le bleu nuit, ou le noir pur (Nocturne).
+final nocturneProvider = Provider<bool>((ref) => ref.watch(settingsProvider).nocturne);
 
 /// `settings_theme` → [ThemeMode]. Sombre par défaut, comme à l'installation.
 ThemeMode themeDepuisPreference(String? valeur) => switch (valeur) {

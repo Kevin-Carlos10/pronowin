@@ -36,14 +36,16 @@ class CarteReglages extends StatelessWidget {
       border: Border.all(color: context.cl.border, width: 0.5)),
     child: Column(children: [
       for (var i = 0; i < lignes.length; i++) ...[
-        if (i > 0) Divider(color: context.cl.border, height: 1, indent: 62),
+        if (i > 0) Divider(color: context.cl.border, height: 1, indent: 54),
         lignes[i],
       ],
     ]),
   );
 }
 
-/// L'icône d'une ligne : ronde, d'une seule couleur — rouge pour ce qui
+/// L'icône d'une ligne : un trait fin, de la couleur du texte, sans pastille
+/// (11 novembre 2026, comme Sofascore, Threads ou les Réglages d'Apple) —
+/// les icônes orange sur rond sombre faisaient trop. Rouge pour ce qui
 /// détruit.
 class IconeReglage extends StatelessWidget {
   final IconData icone;
@@ -51,27 +53,27 @@ class IconeReglage extends StatelessWidget {
   const IconeReglage(this.icone, {super.key, this.danger = false});
 
   @override
-  Widget build(BuildContext context) => Container(
-    width: 36, height: 36,
-    decoration: BoxDecoration(
-      color: danger ? context.cl.error.withValues(alpha: 0.12) : context.cl.surfaceD,
-      shape: BoxShape.circle),
-    child: Icon(icone, size: 20, color: danger ? context.cl.error : AppColors.primary),
+  Widget build(BuildContext context) => SizedBox(
+    width: 26, height: 26,
+    child: Icon(icone, size: 23, color: danger ? context.cl.error : context.cl.textP),
   );
 }
 
-/// « ✓ Activé » en vert, « ✗ Pas activé » en rouge.
+/// « ✓ Activé » en vert, « ✗ Pas activé » en rouge, « ! Faible » en
+/// orange (avertissement, comme le « Profil faiblement protégé » de 1xBet).
 class StatutReglage extends StatelessWidget {
   final bool actif;
   final String texte;
-  const StatutReglage({super.key, required this.actif, required this.texte});
+  final bool avertissement;
+  const StatutReglage({super.key, required this.actif, required this.texte}) : avertissement = false;
+  const StatutReglage.avertissement(this.texte, {super.key}) : actif = false, avertissement = true;
 
   @override
   Widget build(BuildContext context) => Padding(
     padding: const EdgeInsets.only(top: 2),
     child: Row(mainAxisSize: MainAxisSize.min, children: [
-      Icon(actif ? Icons.check_circle_rounded : Icons.cancel_rounded,
-        size: 13, color: actif ? context.cl.success : context.cl.error),
+      Icon(avertissement ? Icons.error_rounded : actif ? Icons.check_circle_rounded : Icons.cancel_rounded,
+        size: 13, color: avertissement ? context.cl.warning : actif ? context.cl.success : context.cl.error),
       const SizedBox(width: 4),
       Flexible(child: Text(texte, style: TextStyle(color: context.cl.textS, fontSize: 12))),
     ]),
@@ -103,35 +105,39 @@ class _TexteLigne extends StatelessWidget {
   );
 }
 
-/// Une ligne qui mène ailleurs : chevron à droite.
+/// Une ligne qui mène ailleurs : chevron à droite. Sans [onTap], une ligne
+/// d'information, sans chevron.
 class LigneReglage extends StatelessWidget {
   final IconData icone;
   final String titre;
   final String? sousTitre;
   final StatutReglage? statut;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool danger;
   const LigneReglage({super.key, required this.icone, required this.titre,
     this.sousTitre, this.statut, required this.onTap, this.danger = false});
 
   @override
-  Widget build(BuildContext context) => InkWell(
-    onTap: () { HapticFeedback.lightImpact(); onTap(); },
-    child: ConstrainedBox(
+  Widget build(BuildContext context) {
+    final ligne = ConstrainedBox(
       constraints: const BoxConstraints(minHeight: 58),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
         child: Row(children: [
           IconeReglage(icone, danger: danger),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(child: _TexteLigne(titre: titre, sousTitre: sousTitre, statut: statut, danger: danger)),
-          const SizedBox(width: 6),
-          Icon(Icons.chevron_right_rounded, size: 20,
-            color: danger ? context.cl.error.withValues(alpha: 0.6) : context.cl.textM),
+          if (onTap != null) ...[
+            const SizedBox(width: 6),
+            Icon(Icons.chevron_right_rounded, size: 20,
+              color: danger ? context.cl.error.withValues(alpha: 0.6) : context.cl.textM),
+          ],
         ]),
       ),
-    ),
-  );
+    );
+    if (onTap == null) return ligne;
+    return InkWell(onTap: () { HapticFeedback.lightImpact(); onTap!(); }, child: ligne);
+  }
 }
 
 /// Une ligne à interrupteur. Toute la ligne répond, pas seulement
@@ -158,7 +164,7 @@ class LigneInterrupteur extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(14, 8, 8, 8),
         child: Row(children: [
           IconeReglage(icone),
-          const SizedBox(width: 12),
+          const SizedBox(width: 14),
           Expanded(child: _TexteLigne(titre: titre, sousTitre: sousTitre, statut: statut)),
           if (indisponible)
             Padding(
