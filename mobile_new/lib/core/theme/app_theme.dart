@@ -51,6 +51,16 @@ class AppColors {
   static const textMuted     = Color(0xFF7D8592);
 }
 
+// ─── Marge des écrans ─────────────────────────────────────────────────────────
+/// L'écart entre le bord de l'écran et les cartes (11 novembre 2026).
+///
+/// Mesuré sur une vidéo de Sofascore : 8 points. PronoWin en laissait 14 à
+/// 16, presque le double — des cartes plus étroites, et moins de place pour
+/// les noms d'équipe et les cotes. Une seule valeur pour tous les écrans de
+/// cartes ; les formulaires, la page Premium et la lecture d'un article
+/// gardent leurs marges larges, faites pour du texte.
+const double margeEcran = 8;
+
 // ─── Couleurs dynamiques selon le thème ───────────────────────────────────────
 // Usage : context.cl.surface  /  context.cl.textPrimary  etc.
 class AppCl {

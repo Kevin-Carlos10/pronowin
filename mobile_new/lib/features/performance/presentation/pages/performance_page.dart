@@ -258,7 +258,7 @@ class _PerformanceView extends StatelessWidget {
       color: AppColors.primary,
       onRefresh: onRefresh,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 100),
+        padding: const EdgeInsets.fromLTRB(margeEcran, 8, margeEcran, 100),
         children: [
 
           // ── Carte ROI principale ──────────────────────────────────────

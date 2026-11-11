@@ -164,7 +164,7 @@ class _Onglet extends ConsumerWidget {
       onRefresh: onRefresh,
       child: ListView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        padding: const EdgeInsets.fromLTRB(margeEcran, 8, margeEcran, 32),
         itemCount: enfants.length,
         itemBuilder: (context, i) => (context.animationsReduites || i > 8)
             ? enfants[i]
@@ -371,7 +371,7 @@ class _Squelette extends StatelessWidget {
     final contenu = ListView(
       key: const Key('actus-squelette'),
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+      padding: const EdgeInsets.fromLTRB(margeEcran, 24, margeEcran, 0),
       children: [
         const AspectRatio(aspectRatio: 16 / 9, child: _BlocGris()),
         const SizedBox(height: 12),

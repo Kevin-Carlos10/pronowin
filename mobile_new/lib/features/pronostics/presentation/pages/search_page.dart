@@ -165,7 +165,7 @@ class _Resultats extends StatelessWidget {
     );
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 100),
+      padding: const EdgeInsets.fromLTRB(margeEcran, 0, margeEcran, 100),
       children: [
         if (autres.equipes.isNotEmpty) ...[
           titre(tr(context, "ÉQUIPES")),
@@ -319,7 +319,7 @@ class _Suggestions extends ConsumerWidget {
     final equipes = ref.watch(favorisProvider).valueOrNull?.equipes ?? const <EquipeSuivie>[];
     return ListView(
       key: const Key('suggestions-recherche'),
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 40),
+      padding: const EdgeInsets.fromLTRB(margeEcran, 0, margeEcran, 40),
       children: [
         if (recentes.isNotEmpty) ...[
           _titre(context, tr(context, "Recherches récentes"), action: TextButton(

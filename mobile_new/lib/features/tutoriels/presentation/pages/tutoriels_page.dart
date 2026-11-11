@@ -193,7 +193,7 @@ class TutorielsPage extends ConsumerWidget {
                     height: 44,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: margeEcran),
                       children: [
                         (null, tr(context, "Tous"), ''),
                         for (final c in categoryOptions)
@@ -237,7 +237,7 @@ class TutorielsPage extends ConsumerWidget {
                     height: 44,
                     child: ListView(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      padding: const EdgeInsets.symmetric(horizontal: margeEcran),
                       children: _levels.map((entry) {
                         final (lvl, label) = entry;
                         final sel = selectedLvl == lvl;
@@ -338,7 +338,7 @@ class TutorielsPage extends ConsumerWidget {
                         .fadeIn(duration: 350.ms)),
                     )
                   : SliverPadding(
-                      padding: EdgeInsets.fromLTRB(14, 0, 14, bottomNavSpace(context)),
+                      padding: EdgeInsets.fromLTRB(margeEcran, 0, margeEcran, bottomNavSpace(context)),
                       sliver: SliverList.separated(
                         separatorBuilder: (_, _) => const SizedBox(height: 10),
                         itemCount: filtered.length,

@@ -507,7 +507,7 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
     // * sans NestedScrollView (un seul onglet, pas d'en-tête repliable), le
     //   même injecteur lèverait une assertion faute d'ancêtre à qui demander
     //   le handle. Un SingleChildScrollView suffit.
-    const rembourrage = EdgeInsets.fromLTRB(16, 16, 16, 24);
+    const rembourrage = EdgeInsets.fromLTRB(margeEcran, 16, margeEcran, 24);
 
     Widget ongletImbrique(Widget child) => Builder(
       builder: (ctx) => CustomScrollView(

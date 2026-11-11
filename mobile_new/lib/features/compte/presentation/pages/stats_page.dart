@@ -79,7 +79,7 @@ class _StatsBody extends StatelessWidget {
       color: AppColors.primary,
       onRefresh: onRefresh,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
+        padding: const EdgeInsets.fromLTRB(margeEcran, 8, margeEcran, 32),
         children: [
           // ── KPIs top ─────────────────────────────────────────────────────
           _SectionTitle(tr(context, "PERFORMANCE GLOBALE")),

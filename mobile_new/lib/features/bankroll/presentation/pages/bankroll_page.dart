@@ -227,7 +227,7 @@ class _BankrollView extends StatelessWidget {
       ),
 
       SliverToBoxAdapter(child: Padding(
-        padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+        padding: const EdgeInsets.fromLTRB(margeEcran, 4, margeEcran, 0),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
 
           // ── Carte solde principal ────────────────────────────────────────

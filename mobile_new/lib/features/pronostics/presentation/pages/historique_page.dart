@@ -202,7 +202,7 @@ class HistoriquePage extends ConsumerWidget {
             onRefresh: actualiser,
             child: ListView(
               physics: const AlwaysScrollableScrollPhysics(),
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 80),
+              padding: const EdgeInsets.fromLTRB(margeEcran, 12, margeEcran, 80),
               children: [
                 _PeriodBar(selected: period,
                   onTap: (p) => ref.read(_periodProvider.notifier).state = p),

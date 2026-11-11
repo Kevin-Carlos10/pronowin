@@ -412,7 +412,7 @@ class _ApercuTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, bottomNavSpace(context)),
+      padding: EdgeInsets.fromLTRB(margeEcran, 16, margeEcran, bottomNavSpace(context)),
       children: [
         // Le solde et le bilan ont quitté cet onglet.
         //
@@ -524,7 +524,7 @@ class _AbonnementTab extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final subAsync = ref.watch(currentSubscriptionProvider);
     return ListView(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, bottomNavSpace(context)),
+      padding: EdgeInsets.fromLTRB(margeEcran, 16, margeEcran, bottomNavSpace(context)),
       children: [
         subAsync.when(
           loading: () => const Center(child: CircularProgressIndicator(color: AppColors.primary)),
@@ -1065,7 +1065,7 @@ class _ParrainageTab extends ConsumerWidget {
     final aucunFilleul = l1 == 0 && l2 == 0;
 
     return ListView(
-      padding: EdgeInsets.fromLTRB(16, 16, 16, bottomNavSpace(context)),
+      padding: EdgeInsets.fromLTRB(margeEcran, 16, margeEcran, bottomNavSpace(context)),
       children: [
         // ── Gains + progression vers le seuil de retrait ────────────────────
         // Carte toujours sombre : son contenu lit le thème sombre, sinon les

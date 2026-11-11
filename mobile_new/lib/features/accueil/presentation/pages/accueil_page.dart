@@ -240,7 +240,7 @@ class _AccueilPageState extends ConsumerState<AccueilPage>
             const _SliverOfflineBanner(),
 
             SliverPadding(
-              padding: EdgeInsets.fromLTRB(16, 0, 16, bottomNavSpace(context)),
+              padding: EdgeInsets.fromLTRB(margeEcran, 0, margeEcran, bottomNavSpace(context)),
               sliver: SliverList(
                 delegate: SliverChildListDelegate([
 

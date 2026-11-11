@@ -323,7 +323,7 @@ class _MatchsCompetition extends ConsumerWidget {
           }
           return ListView(
             key: const Key('matchs-competition'),
-            padding: const EdgeInsets.fromLTRB(14, 10, 14, 40),
+            padding: const EdgeInsets.fromLTRB(margeEcran, 10, margeEcran, 40),
             children: [
               for (final e in parJour.entries) ...[
                 Padding(
@@ -371,7 +371,7 @@ class _ClassementCompetition extends ConsumerWidget {
                 texte: tr(context, "Le classement n'est pas encore publié pour cette saison."))
             : ListView(
                 key: const Key('classement-competition'),
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),
+                padding: const EdgeInsets.fromLTRB(margeEcran, 14, margeEcran, 40),
                 children: [
                   Container(
                     padding: const EdgeInsets.all(14),
@@ -409,7 +409,7 @@ class _PalmaresCompetition extends ConsumerWidget {
               texte: tr(context, "Aucun buteur publié pour cette saison."))
           : ListView(
               key: const Key('palmares-competition'),
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 40),
+              padding: const EdgeInsets.fromLTRB(margeEcran, 0, margeEcran, 40),
               children: [palmaresDeCompetition(code)],
             ),
     );

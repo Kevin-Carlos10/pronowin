@@ -87,7 +87,7 @@ class ClassementPage extends ConsumerWidget {
 
                         // ── Reste de la liste ─────────────────────────
                         SliverPadding(
-                          padding: const EdgeInsets.fromLTRB(16, 4, 16, 100),
+                          padding: const EdgeInsets.fromLTRB(margeEcran, 4, margeEcran, 100),
                           sliver: SliverList(
                             delegate: SliverChildBuilderDelegate(
                               (_, i) => _EntryTile(entry: rest[i])
@@ -566,7 +566,7 @@ class _Shimmer extends StatelessWidget {
   const _Shimmer();
   @override
   Widget build(BuildContext context) => ListView.builder(
-    padding: const EdgeInsets.fromLTRB(16, 12, 16, 100),
+    padding: const EdgeInsets.fromLTRB(margeEcran, 12, margeEcran, 100),
     itemCount: 10,
     itemBuilder: (_, i) => Container(
       margin: const EdgeInsets.only(bottom: 8),

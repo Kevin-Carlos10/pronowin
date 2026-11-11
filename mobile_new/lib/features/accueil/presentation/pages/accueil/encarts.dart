@@ -304,7 +304,7 @@ class _SliverOfflineBanner extends ConsumerWidget {
         duration: const Duration(milliseconds: 350),
         child: Container(
           key: ValueKey(isOnline),
-          margin: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+          margin: const EdgeInsets.fromLTRB(margeEcran, 0, margeEcran, 8),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
           decoration: BoxDecoration(
             color:        color.withValues(alpha: 0.12),

@@ -110,7 +110,7 @@ class ParametresPage extends ConsumerWidget {
           style: TextStyle(color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w600)),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 14, 16, 60),
+        padding: const EdgeInsets.fromLTRB(margeEcran, 14, margeEcran, 60),
         children: [
 
           // ─── SÉCURITÉ ─────────────────────────────────────────────────

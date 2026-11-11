@@ -539,7 +539,7 @@ class _PronosticsPageState extends ConsumerState<PronosticsPage> {
                     return ListView.builder(
                       controller: _listScrollCtrl,
                       padding: EdgeInsets.fromLTRB(
-                        14, 0, 14, bottomNavSpace(context)),
+                        margeEcran, 0, margeEcran, bottomNavSpace(context)),
                       itemCount:  elements.length,
                       itemBuilder: (context, i) => context.entree(elements[i], i, ecran: 'pronos'),
                     );
@@ -767,7 +767,7 @@ class _StatusFilterBar extends StatelessWidget {
 
     return Container(
       color: context.cl.bg,
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      padding: const EdgeInsets.fromLTRB(margeEcran, 0, margeEcran, 10),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
@@ -959,7 +959,7 @@ class _DateScrollBarState extends State<_DateScrollBar> {
 
     return Container(
       color: context.cl.bg,
-      padding: const EdgeInsets.fromLTRB(8, 6, 14, 6),
+      padding: const EdgeInsets.fromLTRB(4, 6, margeEcran, 6),
       child: Row(children: [
         IconButton(
           key: const Key('calendrier-pronos'),
@@ -1603,7 +1603,7 @@ class _TabToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       color: context.cl.bg,
-      padding: const EdgeInsets.fromLTRB(14, 10, 14, 0),
+      padding: const EdgeInsets.fromLTRB(margeEcran, 10, margeEcran, 0),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(children: [
@@ -1711,7 +1711,7 @@ class _ForYouView extends StatelessWidget {
     final recs    = data.recommendations;
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 100),
+      padding: const EdgeInsets.fromLTRB(margeEcran, 8, margeEcran, 100),
       children: [
 
         // ── Carte profil IA ──────────────────────────────────────────────
@@ -2111,7 +2111,7 @@ class _FavoritesViewState extends State<_FavoritesView> {
     };
 
     return ListView(
-      padding: const EdgeInsets.fromLTRB(14, 8, 14, 100),
+      padding: const EdgeInsets.fromLTRB(margeEcran, 8, margeEcran, 100),
       children: [
         SingleChildScrollView(
           key: const Key('vues-suivis'),
@@ -2213,7 +2213,7 @@ class _FavoritesEmpty extends StatelessWidget {
 class _ShimmerList extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListView.builder(
-    padding: const EdgeInsets.fromLTRB(14, 12, 14, 20),
+    padding: const EdgeInsets.fromLTRB(margeEcran, 12, margeEcran, 20),
     itemCount: 3,
     itemBuilder: (_, _) => const MatchCardSkeleton(),
   );
