@@ -24,12 +24,16 @@ describe('APK par architecture (M3)', () => {
     process.env.APK_URL = 'https://pronowin.space/downloads/app-release.apk';
     process.env.APK_URL_ARM64 = 'https://pronowin.space/downloads/pronowin-arm64-v8a.apk';
     process.env.APK_URL_ARMV7 = 'https://pronowin.space/downloads/pronowin-armeabi-v7a.apk';
+    // Les téléphones Intel ont le leur : l'universel ne porte plus x86_64
+    // (10 novembre 2026).
+    process.env.APK_URL_X86_64 = 'https://pronowin.space/downloads/app-release-x86_64.apk';
 
     const r = await request(app).get('/config');
     expect(r.body.apkUrl).toBe(process.env.APK_URL);
     expect(r.body.apkUrls).toEqual({
       'arm64-v8a':   process.env.APK_URL_ARM64,
       'armeabi-v7a': process.env.APK_URL_ARMV7,
+      'x86_64':      process.env.APK_URL_X86_64,
     });
   });
 
@@ -39,6 +43,7 @@ describe('APK par architecture (M3)', () => {
     process.env.APK_URL = 'https://pronowin.space/downloads/app-release.apk';
     delete process.env.APK_URL_ARM64;
     delete process.env.APK_URL_ARMV7;
+    delete process.env.APK_URL_X86_64;
 
     const r = await request(app).get('/config');
     expect(r.body.apkUrls).toEqual({});
@@ -48,5 +53,6 @@ describe('APK par architecture (M3)', () => {
   it('le panneau refuse un lien qui n\'est pas une adresse web', async () => {
     await expect(ecrireConfig({ APK_URL_ARM64: 'ftp://exemple/app.apk' })).rejects.toThrow(/http/);
     await expect(ecrireConfig({ APK_URL_ARMV7: 'app.apk' })).rejects.toThrow(/http/);
+    await expect(ecrireConfig({ APK_URL_X86_64: 'x86.apk' })).rejects.toThrow(/http/);
   });
 });

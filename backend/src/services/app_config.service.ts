@@ -27,6 +27,9 @@ export const CLES_CONFIG = [
   // 25. Vides, l'application retombe sur APK_URL.
   'APK_URL_ARM64',
   'APK_URL_ARMV7',
+  // Les rares téléphones Intel (10 novembre 2026) : l'universel ne porte
+  // plus leur bibliothèque, 26 Mo que payaient tous les autres.
+  'APK_URL_X86_64',
   'APP_UPDATE_MESSAGE',
 
   // ── Code d'affiliation partenaire ─────────────────────────────────────────
@@ -102,6 +105,7 @@ export async function lireConfig(): Promise<{
     APK_URL:            '',
     APK_URL_ARM64:      '',
     APK_URL_ARMV7:      '',
+    APK_URL_X86_64:     '',
     APP_UPDATE_MESSAGE: 'Une nouvelle version de PronoWin est disponible avec des améliorations et corrections.',
 
     // Aucun code par defaut. Un code d'affiliation invente ne credite personne :
@@ -254,7 +258,8 @@ export async function ecrireConfig(
 
     // Une URL doit être une adresse http(s) ou vide. Enregistrer autre chose
     // produirait un bouton qui n'ouvre rien.
-    if ((cle === 'APK_URL' || cle === 'APK_URL_ARM64' || cle === 'APK_URL_ARMV7' || cle === 'AFFILIATE_URL')
+    if ((cle === 'APK_URL' || cle === 'APK_URL_ARM64' || cle === 'APK_URL_ARMV7' || cle === 'APK_URL_X86_64'
+         || cle === 'AFFILIATE_URL')
         && valeur !== '' && !/^https?:\/\//i.test(valeur)) {
       throw new Error(`${cle} doit commencer par http:// ou https://, ou rester vide.`);
     }

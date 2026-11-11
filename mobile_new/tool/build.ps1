@@ -82,7 +82,14 @@ if ([string]::IsNullOrEmpty($googleId)) {
   Write-Host ''
 }
 
-flutter build $cible --release --flavor $Canal `
+# L'APK universel du site ne porte plus x86_64 (10 novembre 2026) : 26 Mo
+# sur 77, pour des téléphones Intel devenus introuvables, que payaient tous
+# ceux qui le téléchargent en données mobiles. Ces téléphones ont leur APK
+# (ci-dessous) ; l'AAB de Google Play, lui, garde toutes les architectures.
+$plateformes = @()
+if ($Canal -eq 'direct') { $plateformes = @('--target-platform', 'android-arm,android-arm64') }
+
+flutter build $cible --release --flavor $Canal @plateformes `
   --dart-define=STORE_BUILD=$storeBuild `
   --dart-define=API_BASE_URL=$ApiUrl `
   --dart-define=GOOGLE_SERVER_CLIENT_ID=$googleId
@@ -135,7 +142,7 @@ if ($Canal -eq 'direct') {
   Write-Host ''
   Write-Host '  APK par architecture...' -ForegroundColor Cyan
   flutter build apk --release --flavor $Canal --split-per-abi `
-    --target-platform android-arm,android-arm64 `
+    --target-platform android-arm,android-arm64,android-x64 `
     --dart-define=STORE_BUILD=$storeBuild `
     --dart-define=API_BASE_URL=$ApiUrl `
     --dart-define=GOOGLE_SERVER_CLIENT_ID=$googleId
@@ -143,7 +150,7 @@ if ($Canal -eq 'direct') {
     Write-Host "  Echec de la compilation par architecture (code $LASTEXITCODE)." -ForegroundColor Red
     exit $LASTEXITCODE
   }
-  foreach ($abi in @('arm64-v8a', 'armeabi-v7a')) {
+  foreach ($abi in @('arm64-v8a', 'armeabi-v7a', 'x86_64')) {
     $apk = "build\app\outputs\flutter-apk\app-$abi-direct-release.apk"
     if (-not (Test-Path $apk)) {
       Write-Host "  $apk introuvable." -ForegroundColor Red
@@ -160,8 +167,8 @@ if ($Canal -eq 'direct') {
 
   Write-Host ''
   Write-Host '  Rappel : ces APK ne se mettent pas a jour tout seuls.' -ForegroundColor Yellow
-  Write-Host '  Publiez les trois dans /downloads, puis renseignez dans le panneau'
-  Write-Host '  (Parametres > Mise a jour) APK_URL, les deux URL par architecture,'
+  Write-Host '  Publiez les quatre dans /downloads, puis renseignez dans le panneau'
+  Write-Host '  (Parametres > Mise a jour) APK_URL, les trois URL par architecture,'
   Write-Host '  et APK_LATEST_VERSION — sinon personne ne saura qu''ils existent.'
 }
 Write-Host ''

@@ -1313,3 +1313,8 @@ html.light[data-accent="pink"] { --primary: #BE185D; }
 .translation-preview-title { font-weight: 600; }
 .translation-preview small { color: var(--text-m); }
 #translation-unknown { color: var(--on-warning); overflow-wrap: anywhere; }
+
+/* Les URL des APK par architecture (réglages > mise à jour). */
+.champ-apk{margin-bottom:.7rem}
+.champ-apk > label{font-size:.75rem;font-weight:700;color:var(--text-m)}
+.champ-apk > .input{margin-top:.3rem}

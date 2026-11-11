@@ -41,6 +41,7 @@ router.get('/', async (_req, res) => {
     apkUrls: {
       ...(valeurs.APK_URL_ARM64 ? { 'arm64-v8a':   valeurs.APK_URL_ARM64 } : {}),
       ...(valeurs.APK_URL_ARMV7 ? { 'armeabi-v7a': valeurs.APK_URL_ARMV7 } : {}),
+      ...(valeurs.APK_URL_X86_64 ? { 'x86_64':    valeurs.APK_URL_X86_64 } : {}),
     },
 
     // ── Partenariat bookmaker ────────────────────────────────────────────

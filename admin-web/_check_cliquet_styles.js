@@ -20,7 +20,7 @@ const fs = require('fs');
 const path = require('path');
 
 const PLAFONDS = {
-  stylesEnLigne:     1009,
+  stylesEnLigne:     1003,
   taillesDistinctes: 61,
   couleursEnDur:     154,   // 232 avant le passage des teintes d'état aux jetons
 };
