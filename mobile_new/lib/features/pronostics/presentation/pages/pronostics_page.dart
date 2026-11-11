@@ -905,6 +905,34 @@ class _DateScrollBarState extends State<_DateScrollBar> {
   bool _isSameDay(DateTime a, DateTime b) =>
       a.year == b.year && a.month == b.month && a.day == b.day;
 
+  /// Le calendrier (10 novembre 2026, comme celui de Sofascore) : aller à un
+  /// jour sans faire défiler trente pastilles. Il couvre les jours de la
+  /// bande, ceux pour lesquels le serveur publie des matchs.
+  Future<void> _ouvrirCalendrier() async {
+    final choisi = await showDatePicker(
+      context: context,
+      initialDate: widget.selectedDate,
+      firstDate: widget.dates.first,
+      lastDate: widget.dates.last,
+      currentDate: DateTime.now(),
+      helpText: tr(context, "Aller au jour"),
+      cancelText: tr(context, "Annuler"),
+      confirmText: tr(context, "Confirmer"),
+      builder: (ctx, child) => Theme(
+        data: Theme.of(ctx).copyWith(
+          colorScheme: Theme.of(ctx).colorScheme.copyWith(
+            primary: AppColors.primary, onPrimary: Colors.white)),
+        child: child!,
+      ),
+    );
+    if (choisi == null || !mounted) return;
+    // La pastille de ce jour, pas la date nue du calendrier : la page compare
+    // aux siennes.
+    final jour = widget.dates.firstWhere((d) => _isSameDay(d, choisi), orElse: () => choisi);
+    HapticFeedback.selectionClick();
+    widget.onSelect(jour);
+  }
+
   int _countForDate(DateTime d) {
     // Format YYYY-MM-DD zero-paddé — doit matcher les clés renvoyées par
     // GET /pronostics/counts-by-day (dayCountsProvider).
@@ -926,11 +954,21 @@ class _DateScrollBarState extends State<_DateScrollBar> {
     // constante. À 1,4× le contenu dépassait, et c'est ce widget qui plafonnait
     // le réglage d'accessibilité de toute l'application.
     final echelle = MediaQuery.textScalerOf(context).scale(1);
+    final aujourdhuiChoisi = _isSameDay(widget.selectedDate, now);
+    final aujourdhui = widget.dates.firstWhere((d) => _isSameDay(d, now), orElse: () => now);
 
     return Container(
       color: context.cl.bg,
-      padding: const EdgeInsets.fromLTRB(14, 6, 14, 6),
-      child: SizedBox(
+      padding: const EdgeInsets.fromLTRB(8, 6, 14, 6),
+      child: Row(children: [
+        IconButton(
+          key: const Key('calendrier-pronos'),
+          tooltip: tr(context, "Choisir un jour"),
+          visualDensity: VisualDensity.compact,
+          icon: Icon(Icons.calendar_month_rounded, color: context.cl.textS, size: 22),
+          onPressed: _ouvrirCalendrier,
+        ),
+        Expanded(child: SizedBox(
         // Deux lignes, plus trois (9 novembre 2026) : le nombre de matchs
         // passe à côté du jour.
         height: 50 * echelle,
@@ -1013,7 +1051,29 @@ class _DateScrollBarState extends State<_DateScrollBar> {
             );
           },
         ),
-      ),
+        )),
+        // Revenir à aujourd'hui d'un geste, une fois parti dans le calendrier
+        // ou trente jours en arrière.
+        if (!aujourdhuiChoisi) Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 104),
+            child: ActionChip(
+              key: const Key('retour-aujourdhui'),
+              label: FittedBox(fit: BoxFit.scaleDown, child: Text(tr(context, "Aujourd'hui"))),
+              labelStyle: TextStyle(color: context.cl.accent, fontSize: 12, fontWeight: FontWeight.w700),
+              backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+              side: BorderSide(color: AppColors.primary.withValues(alpha: 0.4)),
+              visualDensity: VisualDensity.compact,
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              onPressed: () {
+                HapticFeedback.selectionClick();
+                widget.onSelect(aujourdhui);
+              },
+            ),
+          ),
+        ),
+      ]),
     );
   }
 }
@@ -1908,7 +1968,12 @@ class _ForYouEmpty extends ConsumerWidget {
 // ══════════════════════════════════════════════════════════════════════════════
 // VUE FAVORIS
 // ══════════════════════════════════════════════════════════════════════════════
-class _FavoritesView extends StatelessWidget {
+/// Les trois rangements de « Suivis » (10 novembre 2026), comme Sofascore et
+/// 1xBet (« Événements / Équipes / Championnats ») : matchs, équipes et ligues
+/// suivis s'empilaient dans une seule liste.
+enum _VueSuivis { matchs, equipes, ligues }
+
+class _FavoritesView extends StatefulWidget {
   final List<MatchEntity> favMatches;
   final EtatFavoris favState;
   final bool isPremium;
@@ -1925,104 +1990,140 @@ class _FavoritesView extends StatelessWidget {
   });
 
   @override
+  State<_FavoritesView> createState() => _FavoritesViewState();
+}
+
+class _FavoritesViewState extends State<_FavoritesView> {
+  _VueSuivis? _vue;
+
+  @override
   Widget build(BuildContext context) {
-    // Matchs épinglés individuellement (déjà filtrés par le backend)
-    final pinnedMatches = List<MatchEntity>.from(favMatches)
+    final favState = widget.favState;
+    // Matchs suivis (déjà filtrés par le serveur). Pas de tri par
+    // identifiant : le serveur renvoie l'id du pronostic quand il y en a un.
+    final pinnedMatches = List<MatchEntity>.from(widget.favMatches)
       ..sort((a, b) => a.matchDate.compareTo(b.matchDate));
 
-    // Ligues épinglées — matchs de ces ligues qui ne sont pas déjà épinglés individuellement
+    // Ligues épinglées — leurs matchs, hors ceux déjà épinglés un par un.
     final pinnedLeagues = favState.ligues;
-    final pinnedIds     = favState.matchIds;
     final Map<String, List<MatchEntity>> byPinnedLeague = {};
     for (final league in pinnedLeagues) {
-      final lm = favMatches
-          .where((m) => m.league == league && !pinnedIds.contains(m.id))
+      final lm = widget.favMatches
+          .where((m) => m.league == league && !favState.matchIds.contains(m.id))
           .toList()
         ..sort((a, b) => a.matchDate.compareTo(b.matchDate));
       if (lm.isNotEmpty) byPinnedLeague[league] = lm;
     }
 
-    final hasPinnedMatches = pinnedMatches.isNotEmpty;
-    final hasPinnedLeagues = byPinnedLeague.isNotEmpty || pinnedLeagues.isNotEmpty;
+    // Par défaut : ce qu'on suit en premier lieu.
+    final vue = _vue ?? (pinnedMatches.isNotEmpty || favState.equipes.isEmpty
+        ? _VueSuivis.matchs : _VueSuivis.equipes);
 
-    // Les équipes suivies d'abord (7 novembre 2026), ou des suggestions.
-    if (!hasPinnedMatches && !hasPinnedLeagues && pinnedLeagues.isEmpty) {
-      return ListView(
-        padding: const EdgeInsets.fromLTRB(14, 8, 14, 100),
-        children: [
-          const EquipesSuiviesSection(),
-          if (favState.equipes.isEmpty) _FavoritesEmpty(),
-          // « Recommandés », comme l'onglet Favoris vide de 1xBet.
-          if (recommandes.isNotEmpty) ...[
-            _FavSection(
-              title: tr(context, "Recommandés"),
-              icon:  Icons.auto_awesome_rounded,
-              count: recommandes.length,
-            ),
-            Padding(
-              padding: const EdgeInsets.only(bottom: 10),
-              child: Text(
-                tr(context, "Touche la cloche d'un match pour le suivre : coup d'envoi, buts et résultat."),
-                style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.35)),
-            ),
-            BlocLignesMatch(key: const Key('matchs-recommandes'), matchs: recommandes),
-          ],
-        ],
-      );
-    }
+    Widget puce(_VueSuivis v, String libelle, int compte) => Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: ChoiceChip(
+        key: Key('vue-suivis-${v.name}'),
+        label: Text(compte > 0 ? '$libelle · $compte' : libelle),
+        selected: vue == v,
+        showCheckmark: false,
+        labelStyle: TextStyle(
+          color: vue == v ? context.cl.accent : context.cl.textS,
+          fontSize: 13, fontWeight: vue == v ? FontWeight.w700 : FontWeight.w500),
+        selectedColor: AppColors.primary.withValues(alpha: 0.15),
+        backgroundColor: context.cl.surface,
+        side: BorderSide(color: vue == v ? AppColors.primary.withValues(alpha: 0.5) : context.cl.border),
+        onSelected: (_) => setState(() => _vue = v),
+      ),
+    );
+
+    final List<Widget> contenu = switch (vue) {
+      _VueSuivis.matchs => pinnedMatches.isNotEmpty
+          ? [
+              ...pinnedMatches.asMap().entries.map((e) => context.entree(
+                MatchCardWidget(
+                  match: e.value,
+                  isPremiumUser: widget.isPremium,
+                  showDate: true,
+                ), e.key, ecran: 'pronos')),
+            ]
+          : [
+              _FavoritesEmpty(),
+              // « Recommandés », comme l'onglet Favoris vide de 1xBet.
+              if (widget.recommandes.isNotEmpty) ...[
+                _FavSection(
+                  title: tr(context, "Recommandés"),
+                  icon:  Icons.auto_awesome_rounded,
+                  count: widget.recommandes.length,
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  child: Text(
+                    tr(context, "Touche la cloche d'un match pour le suivre : coup d'envoi, buts et résultat."),
+                    style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.35)),
+                ),
+                BlocLignesMatch(key: const Key('matchs-recommandes'), matchs: widget.recommandes),
+              ],
+            ],
+      _VueSuivis.equipes => const [EquipesSuiviesSection()],
+      _VueSuivis.ligues => pinnedLeagues.isEmpty
+          ? [
+              Padding(
+                key: const Key('aucune-ligue-suivie'),
+                padding: const EdgeInsets.fromLTRB(16, 40, 16, 0),
+                child: Column(children: [
+                  Icon(Icons.push_pin_outlined, size: 40, color: context.cl.textM),
+                  const SizedBox(height: 12),
+                  Text(tr(context, "Aucune ligue suivie"),
+                    style: TextStyle(color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  Text(tr(context, "Touche la punaise d'une ligue dans Pronos pour retrouver ses matchs ici."),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.4)),
+                ]),
+              ),
+            ]
+          : [
+              for (final league in pinnedLeagues) ...[
+                _LeagueSectionHeader(
+                  league:      league,
+                  leagueCode:  byPinnedLeague[league]?.first.leagueCountry ?? '',
+                  count:       byPinnedLeague[league]?.length ?? 0,
+                  isFav:       true,
+                  onToggleFav: () => widget.onToggleLeague(league),
+                ),
+                if (byPinnedLeague[league] != null)
+                  ...byPinnedLeague[league]!.asMap().entries.map((e) =>
+                    context.entree(
+                      MatchCardWidget(
+                        match: e.value,
+                        isPremiumUser: widget.isPremium,
+                        showDate: true,
+                      ), e.key, ecran: 'pronos'))
+                else
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Center(child: Text(
+                      tr(context, "Aucun match disponible cette semaine"),
+                      style: TextStyle(color: context.cl.textM, fontSize: 12))),
+                  ),
+              ],
+            ],
+    };
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 100),
       children: [
-        const EquipesSuiviesSection(),
-        // Section matchs épinglés
-        if (hasPinnedMatches) ...[
-          _FavSection(
-            title: tr(context, "Matchs épinglés"),
-            icon:  Icons.bookmark_rounded,
-            count: pinnedMatches.length,
-          ),
-          ...pinnedMatches.asMap().entries.map((e) => context.entree(
-            MatchCardWidget(
-              match: e.value,
-              isPremiumUser: isPremium,
-              showDate: true,
-            ), e.key, ecran: 'pronos')),
-        ],
-
-        // Section ligues épinglées
-        if (pinnedLeagues.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          _FavSection(
-            title: tr(context, "Ligues suivies"),
-            icon:  Icons.push_pin_rounded,
-            count: pinnedLeagues.length,
-          ),
-          for (final league in pinnedLeagues) ...[
-            _LeagueSectionHeader(
-              league:      league,
-              leagueCode:  byPinnedLeague[league]?.first.leagueCountry ?? '',
-              count:       byPinnedLeague[league]?.length ?? 0,
-              isFav:       true,
-              onToggleFav: () => onToggleLeague(league),
-            ).animate(value: _apparitionPronos).fadeIn(duration: 250.ms).slideX(begin: -0.04, end: 0, duration: 250.ms),
-            if (byPinnedLeague[league] != null)
-              ...byPinnedLeague[league]!.asMap().entries.map((e) =>
-                context.entree(
-                  MatchCardWidget(
-                    match: e.value,
-                    isPremiumUser: isPremium,
-                    showDate: true,
-                  ), e.key, ecran: 'pronos'))
-            else
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Center(child: Text(
-                  tr(context, "Aucun match disponible cette semaine"),
-                  style: TextStyle(color: context.cl.textM, fontSize: 12))),
-              ),
-          ],
-        ],
+        SingleChildScrollView(
+          key: const Key('vues-suivis'),
+          scrollDirection: Axis.horizontal,
+          child: Row(children: [
+            puce(_VueSuivis.matchs, tr(context, "Matchs"), pinnedMatches.length),
+            puce(_VueSuivis.equipes, tr(context, "Équipes"), favState.equipes.length),
+            puce(_VueSuivis.ligues, tr(context, "Ligues"), pinnedLeagues.length),
+          ]),
+        ),
+        const SizedBox(height: 12),
+        ...contenu,
       ],
     );
   }

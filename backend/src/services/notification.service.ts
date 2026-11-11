@@ -223,7 +223,10 @@ export class NotificationService {
    */
   async sendToUser(userId: string, payload: {
     title: string; body: string; titleEn?: string | null; bodyEn?: string | null; data?: Record<string, string>;
+    /** Une image, comme le logo de l'équipe qui marque (10 novembre 2026). */
+    imageUrl?: string | null;
   }, category?: NotifCategory) {
+    const image = payload.imageUrl ?? null;
     const user = await prisma.user.findUnique({
       where:  { id: userId },
       select: { notificationPrefs: true, appareils: { select: { jeton: true, language: true } } },
@@ -253,7 +256,7 @@ export class NotificationService {
     const results = [];
     for (const language of ['fr','en']) {
       const tokens = user.appareils.filter(a => (a.language || 'fr') === language).map(a => a.jeton);
-      if(tokens.length) results.push(await this._envoyerAuxAppareils(tokens, forLanguage(payload, language)));
+      if(tokens.length) results.push(await this._envoyerAuxAppareils(tokens, forLanguage(payload, language), image));
     }
     return {success: results.some(r => r.success),
       error: (results.find(r => !r.success) as any)?.error,
@@ -317,7 +320,7 @@ export class NotificationService {
    */
   private async _envoyerAuxAppareils(jetons: string[], payload: {
     title: string; body: string; titleEn?: string | null; bodyEn?: string | null; data?: Record<string, string>;
-  }) {
+  }, image: string | null = null) {
     const fa = await getAdmin();
     if (!fa) {
       const refus = sansFirebase();
@@ -328,7 +331,9 @@ export class NotificationService {
     try {
       const r = await fa.messaging().sendEachForMulticast({
         tokens:       jetons,
-        notification: { title: payload.title, body: payload.body },
+        // L'image (logo de l'équipe) : affichée par Android ; sur iPhone, il
+        // faudrait une extension de notification, que l'app n'a pas encore.
+        notification: { title: payload.title, body: payload.body, ...(image ? { imageUrl: image } : {}) },
         data:         payload.data ?? {},
         android: {
           priority: 'high',

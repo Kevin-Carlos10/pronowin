@@ -105,8 +105,11 @@ class _GroupedStandings extends StatefulWidget {
   final List<StandingRow> rows;
   final String homeTeam, awayTeam;
   final bool failed;
+  /// Affiché sur la page d'une compétition, sans match : aucune équipe à
+  /// surligner, ni à signaler absente.
+  final bool horsMatch;
   const _GroupedStandings({required this.rows, required this.homeTeam,
-    required this.awayTeam, this.failed = false});
+    required this.awayTeam, this.failed = false, this.horsMatch = false});
   @override
   State<_GroupedStandings> createState() => _GroupedStandingsState();
 }
@@ -178,7 +181,7 @@ class _GroupedStandingsState extends State<_GroupedStandings> {
       ] else if (rows.first.groupName != null) Padding(
         padding: const EdgeInsets.only(bottom: 8),
         child: Text(label(chosen), style: TextStyle(color: context.cl.textS))),
-      if (!widget.rows.any(concerned)) Padding(
+      if (!widget.horsMatch && !widget.rows.any(concerned)) Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Text(tr(context, "Classement de la compétition : les équipes de ce match n'y figurent pas."),
           style: TextStyle(color: context.cl.textS, fontSize: 12))),

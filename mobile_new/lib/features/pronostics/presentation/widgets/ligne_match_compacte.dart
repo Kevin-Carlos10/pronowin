@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:pronowin/l10n/app_strings.dart';
 
 import '../../../../core/theme/app_theme.dart';
+import '../../../../core/widgets/nom_equipe_adapte.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../../../shared/providers/favoris_provider.dart';
 import '../../../../shared/widgets/suivre_match.dart';
@@ -55,9 +56,9 @@ class LigneMatchCompacte extends ConsumerWidget {
       return Row(children: [
         TeamLogoWidget(url: logo, size: 18),
         const SizedBox(width: 8),
+        // « Man Utd » plutôt que « Manchester Uni… » quand la place manque.
         Expanded(
-          child: Text(nom,
-            maxLines: 1, overflow: TextOverflow.ellipsis,
+          child: NomEquipeAdapte(nom,
             style: TextStyle(
               color: perd ? context.cl.textS : context.cl.textP,
               fontSize: 14,

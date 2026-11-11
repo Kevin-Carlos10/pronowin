@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:pronowin/core/widgets/nom_equipe_adapte.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -237,7 +238,11 @@ void main() {
         );
         await tester.pump();
         expect(tester.takeException(), isNull);
-        expect(find.text('Borussia Mönchengladbach'), findsOneWidget);
+        // Trop long en deux lignes à 1,8× : le nom court prend le relais
+        // (10 novembre 2026), le nom complet reste celui du widget.
+        expect(find.text("M'gladbach"), findsOneWidget);
+        expect(find.byWidgetPredicate((w) => w is NomEquipeAdapte && w.nom == 'Borussia Mönchengladbach'),
+            findsOneWidget);
       },
     );
   }

@@ -12,6 +12,10 @@ import '../../../equipes/presentation/pages/fiche_equipe_page.dart';
 import '../../../joueurs/presentation/pages/fiche_joueur_page.dart';
 import '../providers/recherche_provider.dart';
 import '../../domain/entities/match_entity.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../../../shared/providers/favoris_provider.dart';
+import '../../../competitions/competitions.dart';
 
 class SearchPage extends ConsumerStatefulWidget {
   const SearchPage({super.key});
@@ -23,11 +27,28 @@ class SearchPage extends ConsumerStatefulWidget {
 class _SearchPageState extends ConsumerState<SearchPage> {
   final _ctrl   = TextEditingController();
   String _query = '';
+  /// Recherches récentes, comme l'écran de recherche de Sofascore
+  /// (10 novembre 2026) : les dernières, en tête quand le champ est vide.
+  List<String> _recentes = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    RecherchesRecentes.lire().then((l) { if (mounted) setState(() => _recentes = l); });
+  }
 
   @override
   void dispose() {
+    // Ce qu'on cherchait en quittant l'écran devient une recherche récente.
+    RecherchesRecentes.ajouter(_query);
     _ctrl.dispose();
     super.dispose();
+  }
+
+  void _chercher(String terme) {
+    _ctrl.text = terme;
+    _ctrl.selection = TextSelection.collapsed(offset: terme.length);
+    setState(() => _query = terme);
   }
 
   // Le filtre local a été retiré.
@@ -78,10 +99,19 @@ class _SearchPageState extends ConsumerState<SearchPage> {
               : null,
           ),
           onChanged: (v) => setState(() => _query = v),
+          textInputAction: TextInputAction.search,
+          onSubmitted: (v) => RecherchesRecentes.ajouter(v).then((_) => RecherchesRecentes.lire())
+              .then((l) { if (mounted) setState(() => _recentes = l); }),
         ),
       ),
       body: terme.length < 2
-        ? _EmptyPrompt()
+        ? _Suggestions(
+            recentes: _recentes,
+            onChercher: _chercher,
+            onEffacer: () async {
+              await RecherchesRecentes.effacer();
+              if (mounted) setState(() => _recentes = const []);
+            })
         : resultats.when(
             loading: () => autres.estVide
                 ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
@@ -189,8 +219,8 @@ class _Resultats extends StatelessWidget {
 class _EmptyPrompt extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Center(
-    child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-      Icon(Icons.search_rounded, size: 56, color: context.cl.textM),
+    child: Column(mainAxisSize: MainAxisSize.min, children: [
+      Icon(Icons.search_rounded, size: 44, color: context.cl.textM),
       const SizedBox(height: 16),
       Text(tr(context, "Rechercher une équipe, un joueur ou un match"),
         style: TextStyle(color: context.cl.textS, fontSize: 15,
@@ -221,4 +251,108 @@ class _NoResults extends StatelessWidget {
         style: TextStyle(color: context.cl.textM, fontSize: 13)),
     ]),
   );
+}
+
+/// Les recherches récentes, gardées sur le téléphone : huit au plus, la plus
+/// récente d'abord, sans doublon.
+class RecherchesRecentes {
+  RecherchesRecentes._();
+  static const cle = 'recherches_recentes';
+  static const max = 8;
+
+  static Future<List<String>> lire() async {
+    try {
+      return (await SharedPreferences.getInstance()).getStringList(cle) ?? const [];
+    } catch (_) {
+      return const [];
+    }
+  }
+
+  static Future<void> ajouter(String terme) async {
+    final t = terme.trim();
+    if (t.length < 2) return;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final liste = [t, ...(prefs.getStringList(cle) ?? const <String>[])
+          .where((x) => x.toLowerCase() != t.toLowerCase())].take(max).toList();
+      await prefs.setStringList(cle, liste);
+    } catch (_) {}
+  }
+
+  static Future<void> effacer() async {
+    try {
+      await (await SharedPreferences.getInstance()).remove(cle);
+    } catch (_) {}
+  }
+}
+
+/// Le champ vide : recherches récentes, équipes suivies, grandes
+/// compétitions — de quoi trouver sans taper, comme Sofascore.
+class _Suggestions extends ConsumerWidget {
+  final List<String> recentes;
+  final ValueChanged<String> onChercher;
+  final VoidCallback onEffacer;
+  const _Suggestions({required this.recentes, required this.onChercher, required this.onEffacer});
+
+  Widget _titre(BuildContext context, String texte, {Widget? action}) => Padding(
+    padding: const EdgeInsets.fromLTRB(4, 18, 4, 8),
+    child: Row(children: [
+      Expanded(child: Text(texte.toUpperCase(),
+        style: TextStyle(color: context.cl.textM, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 0.6))),
+      ?action,
+    ]),
+  );
+
+  Widget _puce(BuildContext context, {Key? key, required Widget avant, required String texte, required VoidCallback onTap}) =>
+      ActionChip(
+        key: key,
+        avatar: avant,
+        label: Text(texte, maxLines: 1, overflow: TextOverflow.ellipsis),
+        labelStyle: TextStyle(color: context.cl.textP, fontSize: 13),
+        backgroundColor: context.cl.surface,
+        side: BorderSide(color: context.cl.border),
+        onPressed: onTap,
+      );
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final equipes = ref.watch(favorisProvider).valueOrNull?.equipes ?? const <EquipeSuivie>[];
+    return ListView(
+      key: const Key('suggestions-recherche'),
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 40),
+      children: [
+        if (recentes.isNotEmpty) ...[
+          _titre(context, tr(context, "Recherches récentes"), action: TextButton(
+            key: const Key('effacer-recherches'),
+            onPressed: onEffacer,
+            style: TextButton.styleFrom(minimumSize: const Size(0, 32), padding: const EdgeInsets.symmetric(horizontal: 8)),
+            child: Text(tr(context, "Effacer"), style: TextStyle(color: context.cl.accent, fontSize: 13)))),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final r in recentes)
+              _puce(context, key: Key('recente-$r'), avant: Icon(Icons.history_rounded, size: 16, color: context.cl.textM),
+                texte: r, onTap: () => onChercher(r)),
+          ]),
+        ],
+        if (equipes.isNotEmpty) ...[
+          _titre(context, tr(context, "Mes équipes")),
+          Wrap(spacing: 8, runSpacing: 8, children: [
+            for (final e in equipes)
+              _puce(context, avant: TeamLogoWidget(url: e.logo, size: 18), texte: e.nom,
+                onTap: () => ouvrirFicheEquipe(context, nom: e.nom, logo: e.logo, competition: e.competition, id: e.id)),
+          ]),
+        ],
+        _titre(context, tr(context, "Grandes compétitions")),
+        Wrap(spacing: 8, runSpacing: 8, children: [
+          for (final c in grandesCompetitions)
+            _puce(context, avant: Container(
+                width: 20, height: 20, padding: const EdgeInsets.all(2),
+                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                child: TeamLogoWidget(url: c.logo, size: 16)),
+              texte: tr(context, c.nom), onTap: () => context.push('/competitions/${c.code}')),
+        ]),
+        const SizedBox(height: 28),
+        _EmptyPrompt(),
+      ],
+    );
+  }
 }

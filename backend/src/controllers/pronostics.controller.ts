@@ -1170,6 +1170,29 @@ export const getStandings = async (req: AuthRequest, res: Response) => {
 };
 
 /**
+ * GET /pronostics/classement-ligue?league=PL — le classement d'une
+ * compétition, tous groupes, pour sa page dans l'application (10 novembre
+ * 2026, comme les pages de ligue de Sofascore). Même service que le
+ * classement d'un match, à la date du jour.
+ */
+export const getClassementLigue = async (req: AuthRequest, res: Response) => {
+  try {
+    const code = typeof req.query.league === 'string' ? req.query.league.trim() : '';
+    if (!/^[A-Z0-9_]{2,12}$/.test(code)) { res.status(400).json({ message: 'Compétition inconnue.' }); return; }
+    // Une compétition que le serveur suit, ou dont il a des matchs : sans
+    // cette garde, une suite de codes `AF_<id>` inventés coûterait chacune
+    // des appels au fournisseur.
+    const connue = LEAGUE_INFO(code)
+      || await prisma.match.findFirst({ where: { leagueCode: code }, select: { id: true } });
+    if (!connue) { res.status(404).json({ code: 'STANDINGS_UNSUPPORTED', message: 'Classement non couvert pour cette compétition.' }); return; }
+    const standings = await apiFootballService.getStandings(code, new Date());
+    if (standings.status === 'unavailable') { res.status(503).json({ code: 'STANDINGS_UNAVAILABLE', message: 'Classement momentanément indisponible.' }); return; }
+    if (standings.status === 'unsupported') { res.status(404).json({ code: 'STANDINGS_UNSUPPORTED', message: 'Classement non couvert pour cette compétition.' }); return; }
+    res.json(standings.rows);
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
  * GET /pronostics/:id/forme-recente — les cinq derniers matchs terminés de
  * chaque équipe. Ouvert aux invités : c'est de la donnée football, pas le
  * produit vendu.

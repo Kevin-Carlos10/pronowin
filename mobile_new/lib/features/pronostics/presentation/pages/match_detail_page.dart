@@ -52,6 +52,7 @@ import 'match_detail/bookmaker_cotes.dart';
 import '../../../joueurs/presentation/pages/fiche_joueur_page.dart';
 import '../../../equipes/presentation/pages/fiche_equipe_page.dart';
 import '../../../../core/utils/noms_equipes.dart';
+import '../../../../core/utils/noms_courts.dart';
 import '../../domain/entities/avis_compares.dart';
 import '../../domain/entities/verdict_comparaison.dart';
 import '../../../../shared/utils/retour.dart';
@@ -99,6 +100,13 @@ Widget analyseModeleSeule(String matchId) => _AnalyseModele(matchId: matchId);
 
 @visibleForTesting
 Widget formeRecenteSeule(MatchEntity match) => _FormeRecente(match: match);
+
+/// Le classement et les palmarès du détail d'un match, repris par la page
+/// d'une compétition (10 novembre 2026, onglets « Classement » et
+/// « Buteurs » de Sofascore) : les mêmes tableaux, sans match à surligner.
+Widget classementDeCompetition(List<StandingRow> rows) =>
+    _GroupedStandings(rows: rows, homeTeam: '', awayTeam: '', horsMatch: true);
+Widget palmaresDeCompetition(String leagueCode) => _MeilleursButeurs(leagueCode: leagueCode);
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.
@@ -947,20 +955,29 @@ class _NomEquipeAjuste extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
     final echelle = MediaQuery.textScalerOf(context);
-    double taille = 13;
-    for (final t in const [13.0, 12.0, 11.0, 10.5]) {
-      taille = t;
+    // Le nom complet en 13 ou 12, puis le nom court (« Man Utd »,
+    // 10 novembre 2026) avant de réduire davantage : un nom lisible vaut
+    // mieux qu'un nom complet en tout petit.
+    final court = nomCourt(texte);
+    final essais = [
+      (texte, 13.0), (texte, 12.0),
+      if (court != texte) ...[(court, 13.0), (court, 12.0)],
+      (court, 11.0), (court, 10.5),
+    ];
+    var choix = essais.last;
+    for (final e in essais) {
       final mesure = TextPainter(
-        text: TextSpan(text: texte, style: TextStyle(fontSize: t, fontWeight: FontWeight.w600)),
+        text: TextSpan(text: e.$1, style: TextStyle(fontSize: e.$2, fontWeight: FontWeight.w600)),
         textDirection: Directionality.of(context), maxLines: 1, textScaler: echelle,
       )..layout();
       final tient = mesure.width <= c.maxWidth;
       mesure.dispose();
-      if (tient) break;
+      if (tient) { choix = e; break; }
     }
-    return Text(texte,
+    return Text(choix.$1,
       maxLines: 1, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center,
-      style: TextStyle(color: context.cl.textP, fontSize: taille, fontWeight: FontWeight.w600));
+      semanticsLabel: choix.$1 == texte ? null : texte,
+      style: TextStyle(color: context.cl.textP, fontSize: choix.$2, fontWeight: FontWeight.w600));
   });
 }
 const List<Color> _fondEnTete = [Color(0xFF151B2E), Color(0xFF0D1220)];

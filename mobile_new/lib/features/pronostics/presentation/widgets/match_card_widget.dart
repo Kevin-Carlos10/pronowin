@@ -9,6 +9,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/verrou_pronostic.dart';
+import '../../../../core/widgets/nom_equipe_adapte.dart';
 import '../../../../core/widgets/team_logo_widget.dart';
 import '../../domain/entities/match_entity.dart';
 import '../../../bankroll/presentation/providers/bankroll_provider.dart';
@@ -969,7 +970,9 @@ class _TeamColumn extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 6),
-          Text(
+          // Le nom court (« M'gladbach ») si le complet ne tient pas en deux
+          // lignes.
+          NomEquipeAdapte(
             name,
             textAlign: TextAlign.center,
             style: TextStyle(
@@ -979,7 +982,6 @@ class _TeamColumn extends StatelessWidget {
                   isWinner ? FontWeight.w700 : FontWeight.w500,
             ),
             maxLines: 2,
-            overflow: TextOverflow.ellipsis,
           ),
         ],
       );

@@ -125,7 +125,7 @@ describe('dans la synchronisation des scores', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { PronosticsService, _oublierDirectPrecedent } = require('../services/pronostics.service');
 
-  let envois: Array<{ userId: string; title: string; body: string; titleEn?: string; data: any }>;
+  let envois: Array<{ userId: string; title: string; body: string; titleEn?: string; data: any; imageUrl?: string }>;
   /** Le match tel qu'en base, modifiable entre deux cycles (la liste des matchs y écrit aussi). */
   let enBase: any;
 
@@ -170,6 +170,14 @@ describe('dans la synchronisation des scores', () => {
     // Cycle suivant, même score : rien de plus.
     await cycle([rencontre(1, 1, 0, { elapsed: 25, buts: [[23, 'dom', 'Normal Goal']] })]);
     expect(buts()).toHaveLength(3);
+  });
+
+  it("le logo de l'équipe qui marque accompagne l'alerte (10 novembre 2026)", async () => {
+    enBase = { ...enBase, homeTeamLogo: 'https://media.api-sports.io/football/teams/42.png',
+      awayTeamLogo: 'https://media.api-sports.io/football/teams/49.png' };
+    await cycle([rencontre(1, 0, 0, { elapsed: 20 })]);
+    await cycle([rencontre(1, 0, 1, { elapsed: 31, buts: [[30, 'ext', 'Normal Goal']] })]);
+    expect(buts()[0].imageUrl).toBe('https://media.api-sports.io/football/teams/49.png');
   });
 
   it('la liste des matchs a déjà écrit le nouveau score en base : le but est quand même annoncé', async () => {

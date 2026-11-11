@@ -548,7 +548,7 @@ export class PronosticsService {
    * quel que soit le chemin qui le détecte.
    */
   private async _alertesDuDirect(
-    match: { id: string; homeTeam: string; awayTeam: string },
+    match: { id: string; homeTeam: string; awayTeam: string; homeTeamLogo?: string | null; awayTeamLogo?: string | null },
     coupEnvoi: boolean,
     but: { avant: Score; fixture: AFFixture } | undefined,
     evenements?: EvenementsDirect,
@@ -560,10 +560,24 @@ export class PronosticsService {
     // la pause, ou l'inverse ne change rien à l'utilisateur.
     // Chaque message porte sa catégorie : ne le reçoivent que ceux qui l'ont
     // gardée pour ce match (alertes au choix, 27 octobre 2026).
-    const messages: Array<{ categorie: CategorieAlerte; fr: { title: string; body: string }; en: { title: string; body: string } }> = [];
+    const messages: Array<{ categorie: CategorieAlerte; fr: { title: string; body: string }; en: { title: string; body: string };
+      image?: string | null }> = [];
+    // Le logo de l'équipe concernée, comme les alertes de Sofascore
+    // (10 novembre 2026) : celle qui marque, qui prend le carton, qui tire.
+    const logoDe = (domicile: boolean | null) =>
+      domicile === null ? null : (domicile ? match.homeTeamLogo : match.awayTeamLogo) ?? null;
     const frBut = but ? messageDeBut(but.fixture, but.avant, equipes, 'fr') : null;
     const enBut = but ? messageDeBut(but.fixture, but.avant, equipes, 'en') : null;
-    if (frBut && enBut) messages.push({ categorie: 'buts', fr: frBut, en: enBut });
+    if (frBut && enBut && but) {
+      const dDom = (but.fixture.goals.home ?? 0) - but.avant.dom;
+      const dExt = (but.fixture.goals.away ?? 0) - but.avant.ext;
+      // Un seul camp qui marque : son logo ; sinon (correction des deux
+      // côtés, but annulé) aucun.
+      const cote = dDom > 0 && dExt === 0 ? true : dExt > 0 && dDom === 0 ? false : null;
+      messages.push({ categorie: 'buts', fr: frBut, en: enBut, image: logoDe(cote) });
+    }
+    const coteEvenement = (f: AFFixture, e: { team?: { id?: number } }) =>
+      e.team?.id === undefined ? null : e.team.id === f.teams.home.id;
     // Penalties manqués et décisions de la VAR sur un penalty : rangés avec
     // les buts, ce qu'ils annoncent ou empêchent (8 novembre 2026).
     for (const e of evenements?.varPenalties ?? []) {
@@ -571,6 +585,7 @@ export class PronosticsService {
         categorie: 'buts',
         fr: messageVarPenalty(evenements!.fixture, e, equipes, 'fr'),
         en: messageVarPenalty(evenements!.fixture, e, equipes, 'en'),
+        image: logoDe(coteEvenement(evenements!.fixture, e)),
       });
     }
     for (const e of evenements?.penaltiesManques ?? []) {
@@ -578,6 +593,7 @@ export class PronosticsService {
         categorie: 'buts',
         fr: messagePenaltyManque(evenements!.fixture, e, equipes, 'fr'),
         en: messagePenaltyManque(evenements!.fixture, e, equipes, 'en'),
+        image: logoDe(coteEvenement(evenements!.fixture, e)),
       });
     }
     for (const e of evenements?.rouges ?? []) {
@@ -585,6 +601,7 @@ export class PronosticsService {
         categorie: 'cartons',
         fr: messageCartonRouge(evenements!.fixture, e, equipes, 'fr'),
         en: messageCartonRouge(evenements!.fixture, e, equipes, 'en'),
+        image: logoDe(coteEvenement(evenements!.fixture, e)),
       });
     }
     if (evenements?.miTemps) {
@@ -614,11 +631,12 @@ export class PronosticsService {
           data:  { type: 'match_live', ...data },
         }, 'match').catch((err: any) => journal.error('[PronoSvc]', err.message));
       }
-      for (const { fr, en, categorie } of messages) {
+      for (const { fr, en, categorie, image } of messages) {
         if (!veut(userId, categorie)) continue;
         notifSvc.sendToUser(userId, {
           title: fr.title, body: fr.body, titleEn: en.title, bodyEn: en.body,
           data:  { type: 'match', ...data },
+          ...(image ? { imageUrl: image } : {}),
         }, 'match').catch((err: any) => journal.error('[PronoSvc]', err.message));
       }
     }

@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -12,6 +13,10 @@ import '../../shared/utils/retour.dart';
 import '../auth/presentation/providers/auth_provider.dart';
 import '../pronostics/data/models/match_model.dart';
 import '../pronostics/domain/entities/match_entity.dart';
+import '../pronostics/presentation/pages/match_detail_page.dart'
+    show classementDeCompetition, palmaresDeCompetition;
+import '../pronostics/presentation/providers/pronostics_provider.dart'
+    show StandingRow, topScorersProvider, Palmares;
 import '../pronostics/presentation/widgets/ligne_match_compacte.dart';
 import '../pronostics/presentation/widgets/match_card_widget.dart';
 
@@ -183,12 +188,103 @@ class GrandesCompetitions extends StatelessWidget {
   }
 }
 
-/// La page d'une compétition : ses matchs des sept prochains jours, jour par
-/// jour. Les matchs pronostiqués gardent leur grande carte, les autres une
-/// ligne, comme dans la liste principale.
+/// Le classement d'une compétition, sans passer par un de ses matchs
+/// (`GET /pronostics/classement-ligue`, 10 novembre 2026).
+final classementLigueProvider =
+    FutureProvider.autoDispose.family<List<StandingRow>, String>((ref, code) async {
+  final r = await ref.read(dioProvider).get('/pronostics/classement-ligue', queryParameters: {'league': code});
+  return (r.data as List)
+      .map((e) => StandingRow.fromJson(e as Map<String, dynamic>))
+      .toList();
+});
+
+/// Les palmarès individuels ne sont publiés que pour les compétitions suivies
+/// par le serveur (`LEAGUE_MAP`), pas pour les codes `AF_<id>`.
+bool palmaresDisponible(String code) => code.isNotEmpty && !code.startsWith('AF_');
+
+/// La page d'une compétition, en onglets comme chez Sofascore
+/// (10 novembre 2026) : ses matchs des sept prochains jours, son classement
+/// et ses meilleurs joueurs. Les deux derniers existaient déjà dans le détail
+/// d'un match ; il fallait ouvrir un match pour les voir.
 class CompetitionPage extends ConsumerWidget {
   final String code;
   const CompetitionPage({super.key, required this.code});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final c = competitionDe(code);
+    final avecPalmares = palmaresDisponible(code);
+    return DefaultTabController(
+      length: avecPalmares ? 3 : 2,
+      child: Scaffold(
+        appBar: AppBar(
+          leading: IconButton(
+            tooltip: tr(context, "Retour"),
+            icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
+            onPressed: () => retourOuAller(context, repli: '/home'),
+          ),
+          titleSpacing: 0,
+          title: Row(children: [
+            if (c != null) ...[
+              Container(
+                width: 30, height: 30, padding: const EdgeInsets.all(4),
+                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                child: TeamLogoWidget(url: c.logo, size: 22)),
+              const SizedBox(width: 10),
+            ],
+            Flexible(child: Text(c == null ? code : tr(context, c.nom), overflow: TextOverflow.ellipsis)),
+          ]),
+          bottom: TabBar(
+            key: const Key('onglets-competition'),
+            labelColor: context.cl.accent,
+            unselectedLabelColor: context.cl.textS,
+            indicatorColor: AppColors.primary,
+            dividerColor: context.cl.border,
+            labelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700),
+            unselectedLabelStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+            tabs: [
+              Tab(text: tr(context, "Matchs")),
+              Tab(text: tr(context, "Classement")),
+              if (avecPalmares) Tab(text: tr(context, "Buteurs")),
+            ],
+          ),
+        ),
+        body: TabBarView(children: [
+          _MatchsCompetition(code: code),
+          _ClassementCompetition(code: code),
+          if (avecPalmares) _PalmaresCompetition(code: code),
+        ]),
+      ),
+    );
+  }
+}
+
+/// Un message centré dans un onglet, avec « Réessayer » au besoin.
+class _MessageOnglet extends StatelessWidget {
+  final IconData icone;
+  final String texte;
+  final VoidCallback? reessayer;
+  const _MessageOnglet({required this.icone, required this.texte, this.reessayer});
+
+  @override
+  Widget build(BuildContext context) => ListView(children: [
+    const SizedBox(height: 100),
+    Icon(icone, size: 44, color: context.cl.textM),
+    const SizedBox(height: 12),
+    Center(child: Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 32),
+      child: Text(texte, textAlign: TextAlign.center, style: TextStyle(color: context.cl.textS)))),
+    if (reessayer != null)
+      Center(child: TextButton(onPressed: reessayer, child: Text(tr(context, "Réessayer")))),
+  ]);
+}
+
+/// Onglet « Matchs » : les sept prochains jours, jour par jour. Les matchs
+/// pronostiqués gardent leur grande carte, les autres une ligne, comme dans
+/// la liste principale.
+class _MatchsCompetition extends ConsumerWidget {
+  final String code;
+  const _MatchsCompetition({required this.code});
 
   String _jour(BuildContext context, DateTime d) {
     final aujourdhui = DateTime.now();
@@ -202,78 +298,120 @@ class CompetitionPage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final c = competitionDe(code);
     final matchs = ref.watch(matchsCompetitionProvider(code));
     final etat = ref.watch(authProvider);
     final premium = etat is AuthAuthenticated && etat.user.isPremium;
-    return Scaffold(
-      appBar: AppBar(
-        leading: IconButton(
-          tooltip: tr(context, "Retour"),
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => retourOuAller(context, repli: '/home'),
-        ),
-        titleSpacing: 0,
-        title: Row(children: [
-          if (c != null) ...[
-            Container(
-              width: 30, height: 30, padding: const EdgeInsets.all(4),
-              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-              child: TeamLogoWidget(url: c.logo, size: 22)),
-            const SizedBox(width: 10),
-          ],
-          Flexible(child: Text(c == null ? code : tr(context, c.nom), overflow: TextOverflow.ellipsis)),
-        ]),
-      ),
-      body: RefreshIndicator(
-        onRefresh: () => ref.refresh(matchsCompetitionProvider(code).future),
-        child: matchs.when(
-          loading: () => const Center(child: CircularProgressIndicator()),
-          error: (_, _) => ListView(children: [
-            const SizedBox(height: 120),
-            Center(child: Text(tr(context, "Impossible de charger les matchs."),
-              style: TextStyle(color: context.cl.textS))),
-            Center(child: TextButton(
-              onPressed: () => ref.invalidate(matchsCompetitionProvider(code)),
-              child: Text(tr(context, "Réessayer")))),
-          ]),
-          data: (liste) {
-            if (liste.isEmpty) {
-              return ListView(children: [
-                const SizedBox(height: 120),
-                Icon(Icons.event_busy_rounded, size: 44, color: context.cl.textM),
-                const SizedBox(height: 12),
-                Center(child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 32),
-                  child: Text(tr(context, "Aucun match de cette compétition dans les sept prochains jours."),
-                    textAlign: TextAlign.center, style: TextStyle(color: context.cl.textS)))),
-              ]);
-            }
-            // Jour par jour.
-            final parJour = <DateTime, List<MatchEntity>>{};
-            for (final m in liste) {
-              final d = m.matchDate;
-              parJour.putIfAbsent(DateTime(d.year, d.month, d.day), () => []).add(m);
-            }
-            return ListView(
-              key: const Key('matchs-competition'),
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 40),
-              children: [
-                for (final e in parJour.entries) ...[
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
-                    child: Text(_jour(context, e.key),
-                      style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w700)),
-                  ),
-                  for (final m in e.value.where((m) => m.hasPronostic)) MatchCardWidget(match: m, isPremiumUser: premium),
-                  if (e.value.any((m) => !m.hasPronostic))
-                    BlocLignesMatch(matchs: e.value.where((m) => !m.hasPronostic).toList()),
-                ],
+    return RefreshIndicator(
+      onRefresh: () => ref.refresh(matchsCompetitionProvider(code).future),
+      child: matchs.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => _MessageOnglet(
+          icone: Icons.cloud_off_rounded,
+          texte: tr(context, "Impossible de charger les matchs."),
+          reessayer: () => ref.invalidate(matchsCompetitionProvider(code))),
+        data: (liste) {
+          if (liste.isEmpty) {
+            return _MessageOnglet(
+              icone: Icons.event_busy_rounded,
+              texte: tr(context, "Aucun match de cette compétition dans les sept prochains jours."));
+          }
+          // Jour par jour.
+          final parJour = <DateTime, List<MatchEntity>>{};
+          for (final m in liste) {
+            final d = m.matchDate;
+            parJour.putIfAbsent(DateTime(d.year, d.month, d.day), () => []).add(m);
+          }
+          return ListView(
+            key: const Key('matchs-competition'),
+            padding: const EdgeInsets.fromLTRB(14, 10, 14, 40),
+            children: [
+              for (final e in parJour.entries) ...[
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 10, 4, 8),
+                  child: Text(_jour(context, e.key),
+                    style: TextStyle(color: context.cl.textP, fontSize: 14, fontWeight: FontWeight.w700)),
+                ),
+                for (final m in e.value.where((m) => m.hasPronostic)) MatchCardWidget(match: m, isPremiumUser: premium),
+                if (e.value.any((m) => !m.hasPronostic))
+                  BlocLignesMatch(matchs: e.value.where((m) => !m.hasPronostic).toList()),
               ],
-            );
-          },
-        ),
+            ],
+          );
+        },
       ),
+    );
+  }
+}
+
+/// Onglet « Classement ».
+class _ClassementCompetition extends ConsumerWidget {
+  final String code;
+  const _ClassementCompetition({required this.code});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final classement = ref.watch(classementLigueProvider(code));
+    final statut = classement.error is DioException
+        ? (classement.error as DioException).response?.statusCode : null;
+    return RefreshIndicator(
+      onRefresh: () => ref.refresh(classementLigueProvider(code).future),
+      child: classement.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (_, _) => statut == 404
+            ? _MessageOnglet(
+                icone: Icons.leaderboard_outlined,
+                texte: tr(context, "Le fournisseur ne propose pas de classement pour cette compétition."))
+            : _MessageOnglet(
+                icone: Icons.cloud_off_rounded,
+                texte: tr(context, "Le classement est momentanément indisponible."),
+                reessayer: () => ref.invalidate(classementLigueProvider(code))),
+        data: (lignes) => lignes.isEmpty
+            ? _MessageOnglet(
+                icone: Icons.leaderboard_outlined,
+                texte: tr(context, "Le classement n'est pas encore publié pour cette saison."))
+            : ListView(
+                key: const Key('classement-competition'),
+                padding: const EdgeInsets.fromLTRB(14, 14, 14, 40),
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: context.cl.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: context.cl.borderSoft, width: 0.8)),
+                    child: classementDeCompetition(lignes),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+/// Onglet « Buteurs » : buteurs, passeurs et cartons, comme dans le détail
+/// d'un match.
+class _PalmaresCompetition extends ConsumerWidget {
+  final String code;
+  const _PalmaresCompetition({required this.code});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final buteurs = ref.watch(topScorersProvider((code: code, palmares: Palmares.buteurs)));
+    return buteurs.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, _) => _MessageOnglet(
+        icone: Icons.cloud_off_rounded,
+        texte: tr(context, "Les meilleurs joueurs sont momentanément indisponibles."),
+        reessayer: () => ref.invalidate(topScorersProvider((code: code, palmares: Palmares.buteurs)))),
+      data: (liste) => liste.isEmpty
+          ? _MessageOnglet(
+              icone: Icons.sports_soccer_rounded,
+              texte: tr(context, "Aucun buteur publié pour cette saison."))
+          : ListView(
+              key: const Key('palmares-competition'),
+              padding: const EdgeInsets.fromLTRB(14, 0, 14, 40),
+              children: [palmaresDeCompetition(code)],
+            ),
     );
   }
 }

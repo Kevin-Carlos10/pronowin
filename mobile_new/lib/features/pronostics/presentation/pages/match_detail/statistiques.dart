@@ -71,13 +71,30 @@ class _MatchStatsCard extends ConsumerWidget {
 /// Faits marquants du match — buts, cartons, remplacements, VAR — en fil au
 /// style Sofascore (`fil_evenements.dart`), dans l'onglet Détails, séparément
 /// des statistiques chiffrées qui ont leur propre onglet.
-class _MatchEventsCard extends ConsumerWidget {
+class _MatchEventsCard extends ConsumerStatefulWidget {
   final String matchId;
   final MatchEntity match;
   const _MatchEventsCard({required this.matchId, required this.match});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_MatchEventsCard> createState() => _MatchEventsCardState();
+}
+
+class _MatchEventsCardState extends ConsumerState<_MatchEventsCard> {
+  /// « Tout / Buts / Cartons / Remplacements », comme Sofascore.
+  FiltreFil _filtre = FiltreFil.tout;
+
+  String _libelle(BuildContext context, FiltreFil f) => switch (f) {
+    FiltreFil.tout => tr(context, "Tout"),
+    FiltreFil.buts => tr(context, "Buts"),
+    FiltreFil.cartons => tr(context, "Cartons"),
+    FiltreFil.remplacements => tr(context, "Remplacements"),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final matchId = widget.matchId;
+    final match = widget.match;
     final statsAsync = ref.watch(matchStatsProvider(matchId));
     final data = statsAsync.valueOrNull;
     final enDirect = match.status == MatchStatus.live;
@@ -118,19 +135,47 @@ class _MatchEventsCard extends ConsumerWidget {
         _FraicheurDonnees(updatedAt: data.updatedAt,
           stale: statsAsync.hasError || data.stale),
         const SizedBox(height: 12),
+        if (!nonCouverts && filtresDisponibles(data.events).isNotEmpty) ...[
+          SingleChildScrollView(
+            key: const Key('filtres-fil'),
+            scrollDirection: Axis.horizontal,
+            child: Row(children: [
+              for (final f in filtresDisponibles(data.events)) Padding(
+                padding: const EdgeInsets.only(right: 8),
+                child: ChoiceChip(
+                  key: Key('filtre-fil-${f.name}'),
+                  label: Text(_libelle(context, f)),
+                  selected: _filtre == f,
+                  showCheckmark: false,
+                  visualDensity: VisualDensity.compact,
+                  labelStyle: TextStyle(
+                    color: _filtre == f ? context.cl.accent : context.cl.textS,
+                    fontSize: 12, fontWeight: _filtre == f ? FontWeight.w700 : FontWeight.w500),
+                  selectedColor: AppColors.primary.withValues(alpha: 0.15),
+                  backgroundColor: context.cl.surfaceD,
+                  side: BorderSide(color: _filtre == f ? AppColors.primary.withValues(alpha: 0.5) : context.cl.border),
+                  onSelected: (_) => setState(() => _filtre = f),
+                ),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 10),
+        ],
         if (nonCouverts)
           Text(tr(context, data.eventsStatus == 'unsupported'
             ? "Les événements ne sont pas couverts pour cette compétition."
             : "Événements momentanément indisponibles."), style: TextStyle(color: context.cl.textS))
         else
-          FilEvenements(lignes: construireFil(
+          // Le fil se construit sur tous les événements (le score au fil en
+          // dépend), puis se filtre.
+          FilEvenements(lignes: filtrerFil(construireFil(
             data.events,
             domicile: data.homeTeam,
             termine: match.status == MatchStatus.finished,
             periodeAtteinte: _periodeAtteinte(info?.phase),
             scoreFinal: score.dom != null && score.ext != null
                 ? (dom: score.dom!, ext: score.ext!) : null,
-          )),
+          ), filtresDisponibles(data.events).contains(_filtre) ? _filtre : FiltreFil.tout)),
       ]),
     ));
   }

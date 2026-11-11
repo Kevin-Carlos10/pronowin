@@ -30,6 +30,8 @@ r.get ('/performance', optionalAuthMiddleware, C.getPerformance);
 r.get ('/bilan-premium', optionalAuthMiddleware, C.getBilanPremium);
 // Avant `/:id` : sans cela Express prendrait « top-scorers » pour un identifiant.
 r.get ('/top-scorers', optionalAuthMiddleware, C.getTopScorers);
+// Le classement d'une compétition, pour sa page (10 novembre 2026).
+r.get ('/classement-ligue', optionalAuthMiddleware, C.getClassementLigue);
 r.get ('/joueurs/:playerId', optionalAuthMiddleware, C.getFicheJoueur);
 r.get ('/equipes/:teamId',  optionalAuthMiddleware, C.getFicheEquipe);
 // Équipes et joueurs, pour la recherche de l'application (7 novembre 2026).

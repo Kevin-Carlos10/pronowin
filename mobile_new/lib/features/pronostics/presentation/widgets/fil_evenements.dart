@@ -482,3 +482,29 @@ String abregerJoueur(String nom) {
   final reste = mots.length == 2 ? mots.last : mots.sublist(mots.length - 2).join(' ');
   return '$initiale $reste';
 }
+
+/// Les filtres du fil, comme « Tout / Événements clés » de Sofascore
+/// (10 novembre 2026).
+enum FiltreFil { tout, buts, cartons, remplacements }
+
+FiltreFil? _categorie(MatchEvent e) => switch (e.type) {
+  'Goal' || 'Var' => FiltreFil.buts,
+  'Card' => FiltreFil.cartons,
+  'subst' => FiltreFil.remplacements,
+  _ => null,
+};
+
+/// Les filtres utiles pour ces événements : « Tout », puis chaque catégorie
+/// présente. Moins de deux catégories : aucun filtre (il n'y aurait rien à
+/// trier).
+List<FiltreFil> filtresDisponibles(List<MatchEvent> evenements) {
+  final presentes = {for (final e in evenements) ?_categorie(e)};
+  if (presentes.length < 2) return const [];
+  return [FiltreFil.tout, ...FiltreFil.values.where(presentes.contains)];
+}
+
+/// Le fil réduit à une catégorie. Les séparateurs de période restent : ils
+/// portent le score à la pause et à la fin.
+List<LigneFil> filtrerFil(List<LigneFil> lignes, FiltreFil filtre) => filtre == FiltreFil.tout
+    ? lignes
+    : [for (final l in lignes) if (l.evenement == null || _categorie(l.evenement!) == filtre) l];

@@ -1,6 +1,6 @@
 jest.mock('../lib/prisma', () => ({ prisma: {
   pronostic: { findUnique: jest.fn(), findFirst: jest.fn() },
-  match: { findUnique: jest.fn() }, user: { findUnique: jest.fn() },
+  match: { findUnique: jest.fn(), findFirst: jest.fn() }, user: { findUnique: jest.fn() },
 } }));
 jest.mock('../services/pronostics.service');
 jest.mock('../services/notification.service');
@@ -9,10 +9,11 @@ jest.mock('../services/api_football.service', () => ({
   apiFootballService: { getMatchInfo: jest.fn(), getMatchStats: jest.fn(), getLineups: jest.fn(), getStandings: jest.fn(),
     getFormeRecente: jest.fn(), getOdds1xBet: jest.fn() },
   apiFootballInsights: { getLiveOdds: jest.fn() },
+  LEAGUE_INFO: (code: string) => (code === 'PL' ? { id: 39, season: 2026 } : null),
 }));
 import { prisma } from '../lib/prisma';
 import { apiFootballService } from '../services/api_football.service';
-import { getMatchInfo, getPronosticDetail, getPronosticScore, getMatchStats, getLineups, getStandings, getFormeRecente, getCotes } from '../controllers/pronostics.controller';
+import { getMatchInfo, getPronosticDetail, getPronosticScore, getMatchStats, getLineups, getStandings, getFormeRecente, getCotes, getClassementLigue } from '../controllers/pronostics.controller';
 const match = { id: 'm', status: 'LIVE', externalId: 42, source: 'API_FOOTBALL', homeTeam: 'A', awayTeam: 'B',
   league: 'Premier League', leagueCode: 'PL', matchDate: new Date(), homeScore: 2, awayScore: 1, elapsedMinutes: 45 };
 const response = () => { const r: any = { json: jest.fn() }; r.status = jest.fn(() => r); return r; };
@@ -114,4 +115,27 @@ it('cotes: fermées une fois le match commencé, et pour un autre fournisseur', 
     const r=response(); await getCotes({params:{id:'m'}} as any,r); expect(r.status).toHaveBeenCalledWith(404);
   }
   expect(apiFootballService.getOdds1xBet).not.toHaveBeenCalled();
+});
+
+it("classement d'une compétition sans passer par un match (page de compétition, 10 novembre 2026)", async () => {
+  (apiFootballService.getStandings as jest.Mock).mockResolvedValue({ status: 'available', rows: [{ groupId: '0', rank: 1 }] });
+  const r = response(); await getClassementLigue({ query: { league: 'PL' } } as any, r);
+  expect(apiFootballService.getStandings).toHaveBeenCalledWith('PL', expect.any(Date));
+  expect(r.json).toHaveBeenCalledWith([{ groupId: '0', rank: 1 }]);
+  for (const code of [undefined, '', 'pl; drop', 'X']) {
+    const bad = response(); await getClassementLigue({ query: { league: code } } as any, bad);
+    expect(bad.status).toHaveBeenCalledWith(400);
+  }
+  for (const [status, attendu] of [['unsupported', 404], ['unavailable', 503]] as const) {
+    (apiFootballService.getStandings as jest.Mock).mockResolvedValue({ status, rows: [] });
+    (prisma.match.findFirst as jest.Mock).mockResolvedValue({ id: 'x' });
+    const e = response(); await getClassementLigue({ query: { league: 'AF_3' } } as any, e);
+    expect(e.status).toHaveBeenCalledWith(attendu);
+  }
+  // Un code inventé, sans match en base : pas d'appel au fournisseur.
+  jest.clearAllMocks();
+  (prisma.match.findFirst as jest.Mock).mockResolvedValue(null);
+  const invente = response(); await getClassementLigue({ query: { league: 'AF_99999' } } as any, invente);
+  expect(invente.status).toHaveBeenCalledWith(404);
+  expect(apiFootballService.getStandings).not.toHaveBeenCalled();
 });
