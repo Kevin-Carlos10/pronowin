@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:pronowin/l10n/app_strings.dart';
-import '../../../../core/constants/app_constants.dart';
+import '../../../../shared/utils/partage_parrainage.dart' show lienTelechargement;
 import '../../../../core/services/reglages_systeme.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../notifications/presentation/demande_notifications.dart';
@@ -103,16 +103,22 @@ class _AlerteNotificationsTelephoneState extends State<AlerteNotificationsTeleph
 /// Le message envoyé par « Partager l'application ».
 ///
 /// Rien sur le pari : le même texte part de la version iPhone, et le site
-/// n'est cité que comme adresse.
-String messagePartageApplication(BuildContext context) => tr(context,
-    "Je suis les matchs sur PronoWin : scores en direct, statistiques et analyses de foot. {arg0}",
-    [AppConstants.siteUrl]);
+/// n'est cité que comme adresse — sa page de téléchargement, avec le code de
+/// parrainage de l'utilisateur connecté (11 novembre 2026).
+String messagePartageApplication(BuildContext context, {String? parrain}) =>
+    parrain == null || parrain.isEmpty
+        ? tr(context,
+            "Je suis les matchs sur PronoWin : scores en direct, statistiques et analyses de foot. {arg0}",
+            [lienTelechargement()])
+        : tr(context,
+            "Je suis les matchs sur PronoWin : scores en direct, statistiques et analyses de foot. Mon code de parrainage : {arg0}. {arg1}",
+            [parrain, lienTelechargement(parrain: parrain)]);
 
 /// « Partager l'application », comme Sofascore. [contexte] : celui de la
 /// ligne touchée, qui ancre la feuille sur iPad. Si la feuille ne s'ouvre
 /// pas, le message est copié.
-Future<void> partagerApplication(BuildContext contexte) async {
-  final message = messagePartageApplication(contexte);
+Future<void> partagerApplication(BuildContext contexte, {String? parrain}) async {
+  final message = messagePartageApplication(contexte, parrain: parrain);
   final messager = ScaffoldMessenger.maybeOf(contexte);
   final copie = tr(contexte, "Message copié : colle-le dans WhatsApp, un SMS…");
   Rect? origine;

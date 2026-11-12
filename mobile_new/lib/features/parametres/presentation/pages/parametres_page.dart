@@ -31,6 +31,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/services/version_service.dart';
 import '../widgets/reglages_ui.dart';
 import 'reglages_sous_pages.dart';
+import '../../../compte/presentation/providers/compte_provider.dart' show profileProvider;
 
 /// Entrées animées à la première visite seulement (motion.dart).
 double? get _apparitionParametres => PremiereApparition.valeur('paramètres');
@@ -81,6 +82,11 @@ class ParametresPage extends ConsumerWidget {
     final protege = settings.pinEnabled
         || (settings.bioEnabled && (bioAvailable.valueOrNull ?? false));
     final connecte = ref.watch(_connecteProvider);
+    // Le code de parrainage du compte connecté : partager l'application, par
+    // lien ou par QR code, partage aussi ce code (11 novembre 2026).
+    final codeParrain = connecte
+        ? (ref.watch(profileProvider).valueOrNull?['referral_code'] as String?)
+        : null;
 
     StatutReglage statut(bool actif) => StatutReglage(
       actif: actif, texte: actif ? tr(context, "Activé") : tr(context, "Pas activé"));
@@ -305,13 +311,13 @@ class ParametresPage extends ConsumerWidget {
             Builder(builder: (ligne) => LigneReglage(
               icone: Icons.ios_share_outlined,
               titre: tr(context, "Partager l'application"),
-              onTap: () => partagerApplication(ligne),
+              onTap: () => partagerApplication(ligne, parrain: codeParrain),
             )),
             LigneReglage(
               key: const Key('reglage-qr'),
               icone: Icons.qr_code_2_rounded,
               titre: tr(context, "Partager via QR code"),
-              onTap: () => ouvrirSousPage(context, const PartageQrPage()),
+              onTap: () => ouvrirSousPage(context, PartageQrPage(parrain: codeParrain)),
             ),
             LigneReglage(
               key: const Key('reglage-reseaux'),

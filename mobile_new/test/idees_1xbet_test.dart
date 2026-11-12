@@ -105,7 +105,8 @@ void main() {
   });
 
   testWidgets('code QR de parrainage : le site avec le code, et le code lisible dessous', (t) async {
-    expect(lienQrParrainage('1A639B'), endsWith('/?parrain=1A639B'));
+    // La page de téléchargement du site (11 novembre 2026), le code avec elle.
+    expect(lienQrParrainage('1A639B'), endsWith('/telecharger?parrain=1A639B'));
     await t.pumpWidget(MaterialApp(theme: AppTheme.dark, home: Scaffold(body: Builder(builder: (context) =>
       TextButton(onPressed: () => afficherQrParrainage(context, '1A639B'), child: const Text('qr'))))));
     await t.tap(find.text('qr'));

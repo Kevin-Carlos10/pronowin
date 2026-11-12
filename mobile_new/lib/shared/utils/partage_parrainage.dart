@@ -27,15 +27,26 @@ import 'messages.dart';
 ///
 /// Le site, et non le fichier APK : un filleul sur iPhone ne peut rien faire
 /// d'un APK, et Apple n'accepte pas qu'une application renvoie vers une
-/// installation hors App Store. Le site propose à chacun le bon téléchargement.
+/// installation hors App Store. La page de téléchargement du site propose à
+/// chacun le bon téléchargement, selon son téléphone.
 String messageParrainage(String code) =>
-    trCurrent("🏆 Rejoins PronoWin et gagne avec les meilleurs pronostics !\nUtilise mon code de parrainage : *{arg0}*\n👉 Télécharge l'app : {arg1}\n💰 Tu m'aides aussi à gagner des commissions !", [code, AppConstants.siteUrl]);
+    trCurrent("🏆 Rejoins PronoWin et gagne avec les meilleurs pronostics !\nUtilise mon code de parrainage : *{arg0}*\n👉 Télécharge l'app : {arg1}\n💰 Tu m'aides aussi à gagner des commissions !", [code, lienQrParrainage(code)]);
+
+/// La page de téléchargement du site (`/telecharger`, 11 novembre 2026) :
+/// l'App Store sur iPhone, l'APK ou Google Play sur Android. Avec un
+/// [parrain], elle affiche son code à saisir à l'inscription.
+///
+/// Elle n'est pas listée sur la vitrine (la fiche Google Play n'est pas encore
+/// validée) : on n'y arrive que par ces liens et les chaînes PronoWin.
+String lienTelechargement({String? parrain}) => parrain == null || parrain.isEmpty
+    ? '${AppConstants.siteUrl}/telecharger'
+    : '${AppConstants.siteUrl}/telecharger?parrain=${Uri.encodeQueryComponent(parrain)}';
 
 /// L'adresse du code QR de parrainage (7 novembre 2026, repris de 1xBet :
-/// « Partager l'application via code QR ») : le site, qui propose à chacun le
-/// bon téléchargement, avec le code en paramètre.
-String lienQrParrainage(String code) =>
-    '${AppConstants.siteUrl}/?parrain=${Uri.encodeQueryComponent(code)}';
+/// « Partager l'application via code QR »). Elle visait l'accueil
+/// (`/?parrain=`), qui n'exploitait pas le code ; le site y renvoie
+/// désormais vers la page de téléchargement, pour les codes déjà partagés.
+String lienQrParrainage(String code) => lienTelechargement(parrain: code);
 
 /// Ouvre la feuille de partage du téléphone avec le message de parrainage —
 /// WhatsApp, SMS, Telegram, e-mail, « Copier »…

@@ -5,7 +5,6 @@ import 'package:qr_flutter/qr_flutter.dart';
 
 import 'package:pronowin/l10n/app_strings.dart';
 import '../../../../core/config/contact_support.dart';
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/router/onglet_demarrage.dart';
 import '../../../../core/services/reglages_systeme.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -13,6 +12,7 @@ import '../../../../shared/utils/messages.dart';
 import '../../../../shared/widgets/logo_marque.dart';
 import '../providers/settings_provider.dart';
 import '../widgets/notifications_telephone.dart';
+import '../../../../shared/utils/partage_parrainage.dart' show lienTelechargement;
 import '../widgets/reglages_ui.dart';
 
 // Les sous-pages des Paramètres (11 novembre 2026, comme 1xPartners) : les
@@ -378,7 +378,10 @@ class ReseauxSociauxPage extends StatelessWidget {
 /// ami scanne avec l'appareil photo et arrive sur le site, sans qu'on ait à
 /// lui envoyer de lien — ni à dépenser ses données pour le faire.
 class PartageQrPage extends StatelessWidget {
-  const PartageQrPage({super.key});
+  /// Le code de parrainage de l'utilisateur connecté : la page qu'ouvre le
+  /// code QR l'affiche, à saisir à l'inscription.
+  final String? parrain;
+  const PartageQrPage({super.key, this.parrain});
 
   @override
   Widget build(BuildContext context) => PageReglages(
@@ -398,7 +401,7 @@ class PartageQrPage extends StatelessWidget {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
             child: QrImageView(
-              data: AppConstants.siteUrl,
+              data: lienTelechargement(parrain: parrain),
               size: 210,
               backgroundColor: Colors.white,
               eyeStyle: const QrEyeStyle(eyeShape: QrEyeShape.square, color: Color(0xFF0C1014)),
@@ -412,16 +415,22 @@ class PartageQrPage extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(color: context.cl.textP, fontSize: 17, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
-          Text(tr(context, "Avec l'appareil photo du téléphone : il ouvre {arg0}, d'où télécharger PronoWin.",
-              [AppConstants.siteUrl.replaceFirst('https://', '')]),
+          Text(parrain == null || parrain!.isEmpty
+              ? tr(context, "Avec l'appareil photo du téléphone : il ouvre la page de téléchargement de PronoWin.")
+              : tr(context, "Avec l'appareil photo du téléphone : il ouvre la page de téléchargement de PronoWin, avec ton code de parrainage."),
             textAlign: TextAlign.center,
             style: TextStyle(color: context.cl.textS, fontSize: 13, height: 1.45)),
+          if (parrain != null && parrain!.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            SelectableText(parrain!, key: const Key('qr-code-parrain'), style: const TextStyle(
+              color: Color(0xFFA78BFA), fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: 4)),
+          ],
         ]),
       ),
       const SizedBox(height: 16),
       Builder(builder: (bouton) => OutlinedButton.icon(
         key: const Key('qr-partager-lien'),
-        onPressed: () => partagerApplication(bouton),
+        onPressed: () => partagerApplication(bouton, parrain: parrain),
         icon: const Icon(Icons.ios_share_outlined, size: 20),
         label: Text(tr(context, "Envoyer le lien à la place")),
         style: OutlinedButton.styleFrom(

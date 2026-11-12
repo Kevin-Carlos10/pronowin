@@ -1963,5 +1963,8 @@
   "Partage ton code : chaque ami qui passe Premium t'offre des jours Premium.": "Share your code: every friend who goes Premium gives you Premium days.",
   "Partage ton code pour commencer à gagner des commissions.": "Share your code to start earning commissions.",
   "Historique des récompenses ({arg0})": "Reward history ({arg0})",
-  "Historique des gains ({arg0})": "Earnings history ({arg0})"
+  "Historique des gains ({arg0})": "Earnings history ({arg0})",
+  "Je suis les matchs sur PronoWin : scores en direct, statistiques et analyses de foot. Mon code de parrainage : {arg0}. {arg1}": "I follow matches on PronoWin: live scores, stats and football analysis. My referral code: {arg0}. {arg1}",
+  "Avec l'appareil photo du téléphone : il ouvre la page de téléchargement de PronoWin.": "With the phone's camera: it opens the PronoWin download page.",
+  "Avec l'appareil photo du téléphone : il ouvre la page de téléchargement de PronoWin, avec ton code de parrainage.": "With the phone's camera: it opens the PronoWin download page, with your referral code."
 }
