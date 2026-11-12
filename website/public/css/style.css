@@ -414,3 +414,20 @@ a.store-badge:hover { border-color: var(--orange); }
 .pay-legal { color: var(--muted); font-size: .8rem; margin-top: 22px; }
 .pay-legal a { color: var(--accent-strong); text-decoration: underline; }
 @media (max-width: 680px) { .pay-page { padding-block: 92px 56px; }.pay-page h1 { font-size: 1.7rem; }.pay-card { padding: 18px; } }
+
+/* ─── Page « Télécharger » (11 novembre 2026, non listée) ─────────────── */
+.download-page .legal-intro { margin-bottom: 8px; }
+.download-invite { margin: 24px 0 0; }
+.download-code { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; margin-top: 14px; }
+.download-code strong { font-size: 1.8rem; letter-spacing: .18em; color: var(--accent-strong); }
+.download-copy { min-height: 40px; padding: 8px 14px; border: 1px solid var(--accent-strong); border-radius: 8px; background: var(--white); color: var(--accent-strong); font-weight: 650; }
+.download-block { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
+.download-block h2 { display: flex; align-items: center; gap: 10px; margin-top: 0; }
+.download-block h3 { margin: 26px 0 10px; font-size: 1.1rem; }
+.download-block--courant h2::after { content: "Ton téléphone"; margin-left: 6px; padding: 2px 8px; border-radius: 20px; background: #fff1ea; color: var(--accent-strong); font-size: .72rem; font-weight: 700; letter-spacing: 0; }
+.download-main { min-height: 50px; font-size: 1.02rem; }
+.download-variants { margin-top: 18px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); }
+.download-variants summary { font-weight: 650; cursor: pointer; }
+.download-variants ul { margin-top: 12px; display: grid; gap: 12px; }
+.download-variants li { display: grid; gap: 2px; }
+.download-variants li span { color: var(--muted); font-size: .92rem; }

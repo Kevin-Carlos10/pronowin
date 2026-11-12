@@ -1,6 +1,7 @@
 const CGU = require('./content/cgu.json');
 const express = require('express');
 const path = require('path');
+const fs = require('fs');
 const https = require('https');
 const http  = require('http');
 
@@ -537,6 +538,12 @@ const faqs = [
 ];
 
 app.get('/', async (req, res) => {
+  // Les codes QR et liens de parrainage des versions de l'application
+  // antérieures au 11 novembre 2026 visaient l'accueil (`/?parrain=CODE`) :
+  // ils mènent à la page de téléchargement, avec le code.
+  const parrain = codeParrain(req.query.parrain);
+  if (parrain) return res.redirect(302, `/telecharger?parrain=${encodeURIComponent(parrain)}`);
+
   const [bilan, tarifs, versionApp] = await Promise.all([
     bilanPremium(), tarifsReels(), versionApk(),
   ]);
@@ -611,6 +618,8 @@ app.get('/robots.txt', (req, res) => {
     // L'APK n'est pas proposé sur la vitrine : il n'a pas à remonter dans
     // les résultats de recherche non plus.
     + 'Disallow: /downloads/\n'
+    // La page de téléchargement n'est pas listée non plus (11 novembre 2026).
+    + 'Disallow: /telecharger\n'
     + `\nSitemap: ${site.siteUrl}/sitemap.xml\n`,
   );
 });
@@ -705,6 +714,69 @@ app.get('/paiement/retour', (req, res) => {
 
 app.get('/suppression-compte', (req, res) => {
   res.render('suppression-compte', { site });
+});
+
+/**
+ * Un code de parrainage plausible, en majuscules, ou null. Il s'affiche sur
+ * la page : rien d'autre que des lettres et des chiffres n'y entre.
+ */
+function codeParrain(brut) {
+  const code = typeof brut === 'string' ? brut.trim().toUpperCase() : '';
+  return /^[A-Z0-9]{4,12}$/.test(code) ? code : null;
+}
+
+/** Dossier des APK sur le serveur, pour en lire la taille. */
+const DOSSIER_APK = process.env.DOWNLOADS_DIR || '/var/www/pronowin/downloads';
+
+/** « 49 Mo » d'après le fichier publié, ou null s'il est introuvable. */
+function tailleApk(url) {
+  try {
+    const nom = path.basename(new URL(url, site.siteUrl).pathname);
+    const octets = fs.statSync(path.join(DOSSIER_APK, nom)).size;
+    return `${Math.round(octets / 1e6)} Mo`;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Télécharger PronoWin (11 novembre 2026) : page NON LISTÉE.
+ *
+ * Ni l'accueil, ni le menu, ni le plan du site n'y renvoient, et elle n'est
+ * pas indexée : la vitrine publique ne propose pas l'APK tant que la fiche
+ * Google Play n'est pas validée (voir `playStoreUrl`). On y arrive par les
+ * liens et les codes QR partagés depuis l'application, et par les chaînes
+ * Telegram et WhatsApp — la diffusion contrôlée de l'APK.
+ *
+ * Fiche Play en ligne : la page n'envoie plus les Android que vers Play.
+ *
+ * Les adresses et la version viennent de `/config`, comme pour la mise à
+ * jour intégrée : la page ne peut pas proposer un autre fichier que celui que
+ * l'application installe elle-même.
+ */
+app.get('/telecharger', async (req, res) => {
+  const config = await lireJson('/config');
+  const universel = config && typeof config.apkUrl === 'string' && config.apkUrl ? config.apkUrl : site.apkUrl;
+  const parAbi = (config && config.apkUrls && typeof config.apkUrls === 'object') ? config.apkUrls : {};
+  const variante = (abi, titre, pour) => {
+    const url = typeof parAbi[abi] === 'string' && parAbi[abi] ? parAbi[abi] : null;
+    return url ? { abi, titre, pour, url, taille: tailleApk(url) } : null;
+  };
+  const version = config && typeof config.apkLatestVersion === 'string'
+    && /^\d+\.\d+/.test(config.apkLatestVersion.trim()) ? config.apkLatestVersion.trim() : null;
+
+  res.set('X-Robots-Tag', 'noindex, nofollow');
+  res.render('telecharger', {
+    site,
+    parrain: codeParrain(req.query.parrain),
+    version,
+    apk: { url: universel, taille: tailleApk(universel) },
+    variantes: [
+      variante('arm64-v8a', 'Téléphones récents (64 bits)', 'la grande majorité des téléphones Android depuis 2017'),
+      variante('armeabi-v7a', 'Téléphones plus anciens (32 bits)', 'les modèles d\'entrée de gamme ou anciens'),
+      variante('x86_64', 'Téléphones à processeur Intel', 'quelques rares modèles'),
+    ].filter(Boolean),
+  });
 });
 
 app.use((req, res) => {
