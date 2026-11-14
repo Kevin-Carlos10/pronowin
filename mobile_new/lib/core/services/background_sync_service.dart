@@ -1,97 +1,55 @@
-import 'dart:convert';
-import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:workmanager/workmanager.dart';
-import '../constants/app_constants.dart';
 
-const _kSyncTask      = 'pronowin.sync_matches';
-const _kSyncTaskUniq  = 'sync_matches_periodic';
+/// Nom de la tâche périodique qu'enregistraient les versions précédentes.
+const _kSyncTask     = 'pronowin.sync_matches';
+const _kSyncTaskUniq = 'sync_matches_periodic';
 
 /// Point d'entrée Dart pour les tâches WorkManager (top-level obligatoire).
+///
+/// Il reste déclaré pour une raison : une tâche enregistrée par une version
+/// précédente peut se déclencher avant que [BackgroundSyncService.retirer]
+/// ne l'ait annulée. Elle se termine alors sans rien faire.
 @pragma('vm:entry-point')
 void backgroundCallbackDispatcher() {
-  Workmanager().executeTask((taskName, _) async {
-    if (taskName == _kSyncTask) {
-      await _syncMatches();
-    }
-    return Future.value(true);
-  });
+  Workmanager().executeTask((taskName, _) async => true);
 }
 
-/// Rafraîchit silencieusement le cache des matchs de la semaine.
-Future<void> _syncMatches() async {
-  try {
-    final dio = Dio(BaseOptions(
-      baseUrl:        AppConstants.baseUrl,
-      connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 15),
-      headers: {'Content-Type': 'application/json', 'Accept': 'application/json'},
-    ));
-
-    // Lire le token d'accès depuis shared_preferences
-    // (flutter_secure_storage n'est pas accessible en background sur Android)
-    final prefs     = await SharedPreferences.getInstance();
-    final token     = prefs.getString('access_token_bg');
-    if (token != null) {
-      dio.options.headers['Authorization'] = 'Bearer $token';
-    }
-
-    final resp = await dio.get(
-      ApiEndpoints.pronostics,
-      queryParameters: {'date_filter': 'week', 'include_all': 'true', 'per_page': 100},
-    );
-
-    final list = resp.data['data'] as List<dynamic>?;
-    if (list == null) return;
-
-    // Écrire dans le cache partagé (même format que CacheService)
-    final payload = jsonEncode({
-      'ts':   DateTime.now().millisecondsSinceEpoch,
-      'data': list,
-    });
-    await prefs.setString('cache_matches_all_week_all', payload);
-    debugPrint('[BgSync] ✅ ${list.length} matchs mis en cache');
-  } catch (e) {
-    debugPrint('[BgSync] ❌ $e');
-  }
-}
-
+/// La synchronisation de fond, retirée.
+///
+/// Elle réveillait le téléphone toutes les 15 minutes, indéfiniment, même chez
+/// qui n'ouvrait plus l'application (constat M4 de l'audit du 24 septembre
+/// 2026) — pour écrire les matchs sous une clé que plus aucun écran ne lisait
+/// (`cache_matches_all_week_all`, quand la liste lit
+/// `matches_<sport>_<période>_…`). Et pour s'authentifier, elle recopiait le
+/// jeton d'accès en clair dans les préférences, que la sauvegarde Android
+/// emporte (constat M8) — un jeton de 15 minutes, périmé la plupart du temps
+/// quand la tâche s'exécutait.
+///
+/// L'accueil se rafraîchit déjà à l'ouverture et quand il redevient visible :
+/// cette tâche n'ajoutait que de la consommation. Elle est annulée sur les
+/// téléphones qui l'avaient, et ses traces effacées.
 class BackgroundSyncService {
   static Future<void> init() async {
     if (kIsWeb) return;
-    await Workmanager().initialize(
-      backgroundCallbackDispatcher,
-      isInDebugMode: kDebugMode,
-    );
+    await Workmanager().initialize(backgroundCallbackDispatcher);
   }
 
-  static Future<void> registerPeriodicSync() async {
+  /// Annule la tâche des versions précédentes et efface ce qu'elle laissait.
+  static Future<void> retirer() async {
     if (kIsWeb) return;
-    await Workmanager().registerPeriodicTask(
-      _kSyncTaskUniq,
-      _kSyncTask,
-      // Minimum possible : 15 min sur Android (contrainte OS)
-      frequency:        const Duration(minutes: 15),
-      initialDelay:     const Duration(minutes: 5),
-      constraints: Constraints(
-        networkType:       NetworkType.connected,
-        requiresBatteryNotLow: true,
-      ),
-      existingWorkPolicy: ExistingPeriodicWorkPolicy.keep,
-    );
-    debugPrint('[BgSync] Tâche périodique enregistrée');
-  }
-
-  /// Enregistre le token dans SharedPreferences pour que la tâche background
-  /// puisse l'utiliser (flutter_secure_storage non disponible en isolate).
-  static Future<void> saveTokenForBackground(String accessToken) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('access_token_bg', accessToken);
-  }
-
-  static Future<void> clearTokenForBackground() async {
+    try {
+      await Workmanager().cancelByUniqueName(_kSyncTaskUniq);
+    } catch (e) {
+      debugPrint('[BgSync] annulation impossible : $e');
+    }
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('access_token_bg');
+    await prefs.remove('cache_matches_all_week_all');
   }
+
+  /// Nom conservé pour les tests qui vérifient qu'aucune tâche n'est plus
+  /// enregistrée.
+  static String get nomTacheRetiree => _kSyncTask;
 }

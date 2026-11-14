@@ -1,0 +1,378 @@
+# Intégration continue PronoWin — Codemagic
+#
+# Raison d'être : le projet est développé sous Windows, où Flutter ne peut pas
+# compiler pour iOS. Aucune vérification iOS n'est possible localement — ni
+# build, ni inspection du bundle. Ces machines macOS sont le seul endroit où
+# l'on peut savoir si la configuration Google iOS fonctionne.
+#
+# Deux fichiers ne sont PAS dans le dépôt (voir .gitignore) :
+#   android/app/google-services.json
+#   ios/Runner/GoogleService-Info.plist
+# Ils contiennent des clés d'API, et arrivent donc par variables sécurisées,
+# encodées en base64. Sans elles, le build échoue tôt et clairement plutôt que
+# de produire une app qui plante au démarrage.
+
+definitions:
+  env_flutter: &env_flutter
+    flutter: 3.41.9
+    xcode: latest
+    cocoapods: default
+    groups:
+      # Groupe à créer dans Codemagic, avec ces deux variables marquées
+      # « secure » :
+      #   GOOGLE_SERVICES_JSON       — base64 de google-services.json
+      #   GOOGLE_SERVICE_INFO_PLIST  — base64 de GoogleService-Info.plist
+      - google_firebase
+    vars: &vars_app
+      # Identifiant OAuth **Web** du projet Firebase. Public par nature : il
+      # est embarqué dans l'app. Il doit rester identique à GOOGLE_CLIENT_IDS
+      # côté serveur, sinon le backend rejette tous les jetons.
+      GOOGLE_SERVER_CLIENT_ID: "207728984029-h51a5iepgrltfgohah8j6c3dfq8ris15.apps.googleusercontent.com"
+      API_BASE_URL: "https://pronowin.space/api/v1"
+      STORE_BUILD: "true"
+
+  script_config: &script_config
+    name: Restaurer les fichiers de configuration Firebase
+    script: |
+      set -e
+      cd mobile_new
+
+      if [ -z "$GOOGLE_SERVICES_JSON" ] || [ -z "$GOOGLE_SERVICE_INFO_PLIST" ]; then
+        echo "Variables Firebase absentes."
+        echo "Créer le groupe « google_firebase » dans Codemagic avec :"
+        echo "  GOOGLE_SERVICES_JSON       (base64, secure)"
+        echo "  GOOGLE_SERVICE_INFO_PLIST  (base64, secure)"
+        exit 1
+      fi
+
+      echo "$GOOGLE_SERVICES_JSON"      | base64 --decode > android/app/google-services.json
+      echo "$GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
+
+      # On vérifie le contenu, pas seulement l'existence : une variable mal
+      # copiée produit un fichier présent mais inexploitable, et l'erreur
+      # n'apparaîtrait qu'au lancement de l'app.
+      grep -q '"project_id": "pronowin-f7653"' android/app/google-services.json \
+        || { echo "google-services.json ne décrit pas le projet attendu."; exit 1; }
+      grep -q '<string>com.pronowin.app</string>' ios/Runner/GoogleService-Info.plist \
+        || { echo "GoogleService-Info.plist ne porte pas le bon bundle."; exit 1; }
+
+      echo "  fichiers restaurés et vérifiés"
+
+  script_plist_xcode: &script_plist_xcode
+    name: Ajouter GoogleService-Info.plist au projet Xcode
+    script: |
+      set -e
+      cd mobile_new
+      # Le fichier n'était référencé nulle part dans project.pbxproj : il
+      # ne serait donc pas copié dans le bundle, et Firebase échouerait au
+      # démarrage. Ce geste se fait normalement à la souris dans Xcode —
+      # impossible depuis Windows, d'où ce script.
+      gem install xcodeproj --no-document
+      ruby tool/ajouter_plist_xcode.rb
+
+  script_verifs: &script_verifs
+    name: Contrôles de cohérence (avant toute compilation)
+    script: |
+      set -e
+      cd mobile_new
+      flutter pub get
+      # Ces tests lisent les fichiers de configuration et échouent si les deux
+      # plateformes divergent. Les passer avant le build évite d'attendre une
+      # compilation iOS de plusieurs minutes pour découvrir une clé manquante.
+      flutter test test/ios_google_config_test.dart
+      flutter analyze --no-fatal-infos
+      # Puis toute la suite : le seul test de configuration ne protégeait pas
+      # le reste de l'application (constat M10).
+      flutter test
+
+workflows:
+
+  # ── Vérification iOS ────────────────────────────────────────────────────────
+  # Sans signature : l'objectif est de prouver que le projet compile et que la
+  # configuration Google est correcte. La signature demande un compte Apple
+  # Developer et n'ajoute rien à cette vérification-là.
+  ios-verification:
+    name: iOS — vérification de configuration
+    max_build_duration: 45
+    instance_type: mac_mini_m2
+    environment: *env_flutter
+    triggering:
+      # Sur main seulement : lancés à chaque push de chaque branche, ces
+      # builds consommaient le quota de minutes Mac en vérifiant du travail
+      # en cours. Les autres branches se vérifient à la main, au besoin.
+      events:
+        - push
+        - pull_request
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true    # push sur main
+        - pattern: main
+          include: true
+          source: false   # pull request vers main
+    scripts:
+      - *script_config
+      - *script_verifs
+
+      - *script_plist_xcode
+
+      - name: Installer les pods
+        script: |
+          set -e
+          cd mobile_new/ios
+          pod install --repo-update
+
+      - name: Compiler iOS
+        script: |
+          set -e
+          cd mobile_new
+          flutter build ios --release --no-codesign \
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --dart-define=STORE_BUILD="$STORE_BUILD" \
+            --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
+
+      - name: Vérifier ce qui est réellement dans le bundle
+        script: |
+          set -e
+          cd mobile_new
+          APP=$(find build/ios/iphoneos -maxdepth 1 -name "*.app" | head -1)
+          [ -n "$APP" ] || { echo "Aucun .app produit."; exit 1; }
+
+          # La vérification qui compte : le fichier de configuration est-il
+          # embarqué ? C'est exactement ce qui manquait, et rien dans les logs
+          # de compilation ne l'aurait signalé.
+          [ -f "$APP/GoogleService-Info.plist" ] \
+            || { echo "GoogleService-Info.plist ABSENT du bundle."; exit 1; }
+          echo "  GoogleService-Info.plist présent dans $APP"
+
+          # Et l'identifiant client a-t-il traversé les --dart-define ?
+          if grep -rq "h51a5iepgrltfgohah8j6c3dfq8ris15" "$APP" 2>/dev/null; then
+            echo "  identifiant client Web embarqué"
+          else
+            echo "  identifiant client Web INTROUVABLE dans le bundle"
+            exit 1
+          fi
+    artifacts:
+      - mobile_new/build/ios/iphoneos/*.app
+      - mobile_new/flutter_drive.log
+    publishing:
+      email:
+        recipients:
+          - devspace99@gmail.com
+        notify:
+          success: false   # on ne veut être prévenu que des échecs
+          failure: true
+
+  # ── iOS : envoi vers App Store Connect ───────────────────────────────────────
+  # Construit le paquet signé de l'App Store et l'envoie à TestFlight. La
+  # soumission à l'examen d'Apple reste un geste manuel, dans App Store
+  # Connect : on choisit quel build part, et quand.
+  #
+  # Lancé à la main uniquement (pas de « triggering ») : chaque envoi consomme
+  # un numéro de build et arrive chez les testeurs.
+  #
+  # Prérequis, une fois pour toutes (voir mobile_new/docs/ios_envoi.md) :
+  #   - une clé API App Store Connect enregistrée dans Codemagic sous le nom
+  #     « Codemagic CI – Gestionnaire » (Team settings → Integrations, clé 39JNXTMJ2S,
+  #     accès « Gestionnaire d'apps ») ;
+  #   - la capacité « Push Notifications » cochée sur l'identifiant
+  #     com.pronowin.app (developer.apple.com → Identifiers) ;
+  #   - APP_STORE_APPLE_ID ci-dessous : l'« Identifiant Apple » numérique de
+  #     l'app (App Store Connect → l'app → Informations sur l'app).
+  ios-app-store:
+    name: iOS — envoi vers TestFlight
+    max_build_duration: 60
+    instance_type: mac_mini_m2
+    integrations:
+      # Le nom exact de la clé dans Codemagic, tiret long compris.
+      app_store_connect: "Codemagic CI – Gestionnaire"
+    environment:
+      flutter: 3.41.9
+      xcode: latest
+      cocoapods: default
+      groups:
+        - google_firebase
+      # Écrites ici, pas héritées par la fusion YAML « << » : rien ne prouvait
+      # que Codemagic l'applique, et une variable perdue ne se voyait qu'une
+      # fois le paquet construit (build n° 2). « Prérequis de l'envoi » les
+      # affiche et les exige. Les mêmes valeurs que &vars_app ci-dessus.
+      vars:
+        GOOGLE_SERVER_CLIENT_ID: "207728984029-h51a5iepgrltfgohah8j6c3dfq8ris15.apps.googleusercontent.com"
+        API_BASE_URL: "https://pronowin.space/api/v1"
+        STORE_BUILD: "true"
+        # « Identifiant Apple » de l'app dans App Store Connect (public, non secret).
+        APP_STORE_APPLE_ID: "6817503596"
+      # Codemagic récupère (ou crée) le certificat de distribution et le
+      # profil App Store de com.pronowin.app par la clé API : aucun fichier
+      # de signature ne transite par le dépôt ni par ce poste.
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.pronowin.app
+    scripts:
+      - name: Prérequis de l'envoi
+        script: |
+          set -e
+          case "$APP_STORE_APPLE_ID" in
+            ''|*[!0-9]*)
+              echo "APP_STORE_APPLE_ID n'est pas renseigné dans codemagic.yaml."
+              echo "C'est l'« Identifiant Apple » numérique de l'app, dans App Store"
+              echo "Connect → PronoWin → Informations sur l'app."
+              exit 1 ;;
+          esac
+          # Ce que le paquet embarquera : visible dès la première minute,
+          # plutôt que découvert après la compilation.
+          echo "  API_BASE_URL=$API_BASE_URL"
+          echo "  STORE_BUILD=$STORE_BUILD"
+          [ "$API_BASE_URL" = "https://pronowin.space/api/v1" ] \
+            || { echo "API_BASE_URL absent ou inattendu : le paquet viserait l'émulateur."; exit 1; }
+          # Sans STORE_BUILD=true, l'app proposerait Mobile Money et les
+          # bookmakers : refus d'Apple (règle 3.1.1).
+          [ "$STORE_BUILD" = "true" ] \
+            || { echo "STORE_BUILD doit valoir true pour l'App Store."; exit 1; }
+          [ -n "$GOOGLE_SERVER_CLIENT_ID" ] \
+            || { echo "GOOGLE_SERVER_CLIENT_ID absent : la connexion Google échouerait."; exit 1; }
+      - *script_config
+      - *script_verifs
+      - *script_plist_xcode
+
+      - name: Appliquer les profils de signature
+        script: |
+          set -e
+          xcode-project use-profiles
+
+      - name: Installer les pods
+        script: |
+          set -e
+          cd mobile_new/ios
+          pod install --repo-update
+
+      - name: Construire le paquet App Store
+        script: |
+          set -e
+          cd mobile_new
+          # Numéro de build : un de plus que le dernier reçu par TestFlight,
+          # et jamais en dessous de celui du pubspec. Apple refuse un numéro
+          # déjà envoyé pour une même version.
+          DERNIER=$(app-store-connect get-latest-testflight-build-number "$APP_STORE_APPLE_ID" 2>/dev/null || echo 0)
+          PUBSPEC=$(grep -E '^version:' pubspec.yaml | sed -E 's/.*\+([0-9]+).*/\1/')
+          NUMERO=$(( DERNIER + 1 ))
+          [ "$PUBSPEC" -gt "$NUMERO" ] && NUMERO=$PUBSPEC
+          echo "  build n° $NUMERO (dernier reçu par TestFlight : $DERNIER)"
+
+          # STORE_BUILD=true : achat intégré seulement, ni Mobile Money ni
+          # bookmakers — la règle 3.1.1 d'Apple l'exige pour un abonnement.
+          flutter build ipa --release \
+            --build-number="$NUMERO" \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --dart-define=API_BASE_URL="$API_BASE_URL" \
+            --dart-define=STORE_BUILD="$STORE_BUILD" \
+            --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
+
+      - name: Vérifier le paquet avant l'envoi
+        script: |
+          set -e
+          cd mobile_new
+          IPA=$(find build/ios/ipa -maxdepth 1 -name "*.ipa" | head -1)
+          [ -n "$IPA" ] || { echo "Aucun .ipa produit."; exit 1; }
+          CONTENU=$(unzip -l "$IPA")
+          echo "$CONTENU" | grep -q "GoogleService-Info.plist" \
+            || { echo "GoogleService-Info.plist ABSENT du paquet."; exit 1; }
+          # L'adresse de l'API, lue dans le code Dart compilé — comme le fait
+          # tool/verifier_bundle.py pour Android. Le premier contrôle cherchait
+          # le fragment « 10.0.2.2 » dans tout App.framework, ressources
+          # comprises ; il se lit désormais dans le seul binaire, et exige
+          # l'adresse de production.
+          rm -rf /tmp/ipa && mkdir -p /tmp/ipa && unzip -q "$IPA" -d /tmp/ipa
+          BIN=$(find /tmp/ipa/Payload -path "*App.framework/App" -type f | head -1)
+          [ -n "$BIN" ] || { echo "Code Dart compilé introuvable dans le paquet."; exit 1; }
+          # Même règle que tool/verifier_bundle.py : une adresse s'arrête au
+          # premier octet nul — sans quoi deux chaînes voisines du binaire
+          # se liraient comme une seule.
+          python3 - "$BIN" "$API_BASE_URL" <<'PY'
+          import re, sys
+          octets = open(sys.argv[1], 'rb').read()
+          attendu = sys.argv[2].encode()
+          if attendu not in octets:
+              sys.exit(f"{sys.argv[2]} absent du code compilé : --dart-define non reçu.")
+          locale = re.search(rb'https?://[^\x00\s"]*(10\.0\.2\.2|127\.0\.0\.1|localhost|192\.168\.)', octets)
+          if locale:
+              sys.exit("Adresse locale dans le code compilé : " + locale.group().decode('utf-8', 'replace')[:80])
+          print("  API de production embarquée, aucune adresse locale")
+          PY
+          echo "  $(basename "$IPA") : $(du -h "$IPA" | cut -f1), configuration Firebase embarquée"
+    artifacts:
+      - mobile_new/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+    publishing:
+      app_store_connect:
+        auth: integration
+        # Vers TestFlight : testeurs internes d'abord. La soumission à
+        # l'examen se décide dans App Store Connect.
+        submit_to_testflight: true
+        submit_to_app_store: false
+      email:
+        recipients:
+          - devspace99@gmail.com
+        notify:
+          success: true
+          failure: true
+
+  # ── Android ─────────────────────────────────────────────────────────────────
+  # Reprend ce que fait tool/build.ps1, pour que les deux plateformes se
+  # construisent de la même façon.
+  android-release:
+    name: Android — compilation des deux variantes
+    max_build_duration: 30
+    instance_type: linux_x2
+    environment: *env_flutter
+    triggering:
+      # Sur main seulement : lancés à chaque push de chaque branche, ces
+      # builds consommaient le quota de minutes Mac en vérifiant du travail
+      # en cours. Les autres branches se vérifient à la main, au besoin.
+      events:
+        - push
+      branch_patterns:
+        - pattern: main
+          include: true
+          source: true
+    scripts:
+      - *script_config
+      - *script_verifs
+
+      # ── Les deux variantes, pas une troisième qui n'existe pas ──
+      #
+      # Gradle définit deux variantes, `direct` et `play`. Sans `--flavor`,
+      # la compilation ne produisait pas `app-release.apk` et l'étape de
+      # vérification cherchait un fichier absent (constat O8). Et une version
+      # release exige la clé de signature, que ce workflow ne restaure pas —
+      # Gradle refuse à juste titre de signer en débogage. Ce workflow prouve
+      # donc que les deux variantes compilent, en mode debug ; les paquets
+      # signés restent produits par tool/build.ps1, là où la clé existe.
+      - name: Compiler les deux variantes
+        script: |
+          set -e
+          cd mobile_new
+          for VARIANTE in direct play; do
+            flutter build apk --debug --flavor "$VARIANTE" \
+              --dart-define=API_BASE_URL="$API_BASE_URL" \
+              --dart-define=STORE_BUILD="$STORE_BUILD" \
+              --dart-define=GOOGLE_SERVER_CLIENT_ID="$GOOGLE_SERVER_CLIENT_ID"
+          done
+
+      - name: Vérifier l'APK
+        script: |
+          set -e
+          cd mobile_new
+          APK=build/app/outputs/flutter-apk/app-direct-debug.apk
+          unzip -l "$APK" | grep -q "assets/flutter_assets/assets/images/bookmakers/" \
+            || echo "  (avertissement) le logo partenaire n'est pas dans l'APK"
+          echo "  APK produit : $(du -h "$APK" | cut -f1)"
+    artifacts:
+      - mobile_new/build/app/outputs/flutter-apk/*.apk
+    publishing:
+      email:
+        recipients:
+          - devspace99@gmail.com
+        notify:
+          success: false
+          failure: true

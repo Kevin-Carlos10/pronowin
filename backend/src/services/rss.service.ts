@@ -1,4 +1,5 @@
 import Parser from 'rss-parser';
+import { extraitTexte } from '../utils/extrait';
 
 const parser = new Parser({
   timeout: 8000,
@@ -10,6 +11,21 @@ const parser = new Parser({
     ],
   },
 });
+
+/**
+ * L'image que le média joint lui-même à l'article dans son flux.
+ *
+ * Servie telle quelle, à son adresse d'origine : leur CDN la donne à toute
+ * requête (vérifié le 20 octobre 2026, sans Referer comme avec un autre).
+ * L'en-tête usurpé qu'ajoutaient le relais du serveur et l'application
+ * n'était donc pas nécessaire ; il a disparu, les images reviennent.
+ */
+export function imageDuFlux(item: any): string | null {
+  const url = (item?.enclosure?.url && String(item.enclosure.type ?? '').startsWith('image'))
+    ? item.enclosure.url
+    : item?.['media:thumbnail']?.$?.url ?? item?.['media:content']?.$?.url ?? null;
+  return typeof url === 'string' && url.startsWith('https://') ? url : null;
+}
 
 // ─── Sources RSS football ─────────────────────────────────────────────────────
 const RSS_FEEDS: { url: string; label: string; emoji: string; lang: string }[] = [
@@ -53,33 +69,6 @@ function relTimeShort(d: Date): string {
   return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 }
 
-function extractImage(item: any): string | null {
-  // RMC / BFMTV → enclosure.url
-  if (item.enclosure?.url && item.enclosure.type?.startsWith('image')) {
-    return item.enclosure.url;
-  }
-  // BBC Sport → media:thumbnail.$.url
-  if (item['media:thumbnail']?.$?.url) {
-    return item['media:thumbnail'].$.url;
-  }
-  // Générique media:content
-  if (item['media:content']?.$?.url) {
-    return item['media:content'].$.url;
-  }
-  // itunes
-  if (item['itunes:image']?.$?.href) {
-    return item['itunes:image'].$.href;
-  }
-  return null;
-}
-
-const PROXY_BASE = process.env.API_BASE_URL ?? 'http://10.0.2.2:3000';
-
-function proxyImage(url: string | null): string | null {
-  if (!url) return null;
-  return `${PROXY_BASE}/api/v1/actualites/image-proxy?url=${encodeURIComponent(url)}`;
-}
-
 export async function fetchRssNews(): Promise<RssArticle[]> {
   if (_cache && Date.now() - _cacheAt < CACHE_TTL) return _cache;
 
@@ -92,10 +81,10 @@ export async function fetchRssNews(): Promise<RssArticle[]> {
         return {
           id,
           titre:      item.title ?? '',
-          resume:     item.contentSnippet?.slice(0, 300) ?? item.content?.slice(0, 300) ?? '',
+          resume:     extraitTexte(item.contentSnippet ?? item.content),
           categorie:  feed.label,
           emoji:      feed.emoji,
-          image_url:  proxyImage(extractImage(item)),
+          image_url:  imageDuFlux(item),
           source_url: item.link ?? null,
           source:     feed.label,
           date:       relTimeShort(pubDate),
@@ -126,9 +115,14 @@ export async function fetchRssNews(): Promise<RssArticle[]> {
     new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
   );
 
-  _cache   = deduped;
-  _cacheAt = Date.now();
-  return deduped;
+  // Un résultat vide (raté transitoire de toutes les sources) ne doit pas
+  // écraser un cache valide précédent — sinon un seul blip réseau prive les
+  // utilisateurs d'actualités pendant 15 minutes alors que le flux fonctionne.
+  if (deduped.length > 0 || !_cache) {
+    _cache   = deduped;
+    _cacheAt = Date.now();
+  }
+  return deduped.length > 0 ? deduped : (_cache ?? []);
 }
 
 /** Invalide le cache (appelé si un admin publie un article) */

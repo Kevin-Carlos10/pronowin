@@ -1,0 +1,230 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
+<%- include('layout_top', {page:'bankroll'}) %>
+
+<%
+  function qParam(obj) {
+    return Object.entries(obj).filter(([,v])=>v).map(([k,v])=>`${k}=${encodeURIComponent(v)}`).join('&');
+  }
+  const _filterQs = qParam({ search, sort_by: sortBy, sort_dir: sortDir });
+  const _st       = locals.stats ?? null;
+  const fmtN      = n => Math.round(n ?? 0).toLocaleString('fr-FR');
+%>
+
+<style>
+.bankroll-cr-metrics { margin-bottom:var(--cr-space-3); }
+.bankroll-cr-table { overflow:hidden; }
+.bankroll-cr-table .dt-scroll { margin:0; }
+.bankroll-cr-user { min-width:0; }
+.bankroll-cr-name { display:block; overflow:hidden; color:var(--text); font-weight:700; text-overflow:ellipsis; white-space:nowrap; }
+.bankroll-cr-subline { display:block; margin-top:2px; color:var(--text-m); font-size:11px; }
+.bankroll-cr-positive { color:var(--on-success); }
+.bankroll-cr-negative { color:var(--on-danger); }
+.bankroll-cr-neutral { color:var(--text-m); }
+.bankroll-cr-pagination { display:flex; justify-content:space-between; align-items:center; gap:.75rem; padding:14px 16px; border-top:1px solid var(--border); }
+.bankroll-cr-pagination-copy { margin:0; color:var(--text-m); font-size:12px; }
+.bankroll-cr-pagination-actions { display:flex; align-items:center; gap:6px; }
+.bankroll-cr-page { padding:5px 12px; border-radius:6px; background:var(--surface-d); color:var(--text); font-size:12px; }
+@media (max-width:600px) { .bankroll-cr-pagination { align-items:flex-start; flex-direction:column; } .bankroll-cr-pagination-actions { width:100%; } .bankroll-cr-pagination-actions .btn { flex:1; } }
+</style>
+
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow"><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Suivi de performance</p>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-target"/></svg> Bankroll</h1>
+    <p class="workspace-description">
+      <strong><%= total %></strong> utilisateur<%= total>1?'s':'' %> ont configuré un budget. Consultez l’encours, les résultats et les paris à régler avant d’ouvrir une fiche individuelle.
+    </p>
+  </div>
+  <div class="workspace-actions">
+    <span class="context-chip"><svg class="ic" aria-hidden="true"><use href="#ic-clipboard"/></svg> Données déclarées par les utilisateurs</span>
+    <a href="/admin/bankroll/export?<%= _filterQs %>" class="btn btn-outline btn-sm"
+       title="Exporter les lignes correspondant aux filtres">
+      <svg class="ic" aria-hidden="true"><use href="#ic-download"/></svg> Export CSV
+    </a>
+  </div>
+</header>
+
+<% if(error){ %>
+  <div class="alert alert-error" style="margin-bottom:12px">
+    <svg class="ic" aria-hidden="true"><use href="#ic-x-circle"/></svg> <%= error %>
+  </div>
+<% } %>
+
+<%# ── Agrégats ──
+    La page listait les comptes sans jamais dire si la fonctionnalité marche :
+    budget confié, encours, résultat global et paris en attente de règlement. %>
+<% if(_st){ %>
+<div class="control-section-head"><div><h2>Exposition et performance</h2><p>Un instantané consolidé des budgets, de l’encours et des résultats.</p></div></div>
+<div class="stats-grid metric-grid bankroll-cr-metrics">
+  <div class="stat-card metric-card s-blue">
+    <div class="lbl">Budget confié</div>
+    <div class="val"><%= fmtN(_st.total_budget) %></div>
+  </div>
+  <div class="stat-card metric-card s-teal">
+    <div class="lbl">Encours actuel</div>
+    <div class="val"><%= fmtN(_st.total_balance) %></div>
+  </div>
+  <div class="stat-card metric-card <%= (_st.total_profit ?? 0) >= 0 ? 's-green' : 's-red' %>">
+    <div class="lbl">Résultat global</div>
+    <div class="val" style="color:var(--<%= (_st.total_profit ?? 0) >= 0 ? 'on-success' : 'on-danger' %>)">
+      <%= (_st.total_profit ?? 0) >= 0 ? '+' : '' %><%= fmtN(_st.total_profit) %>
+    </div>
+  </div>
+  <div class="stat-card metric-card s-purple">
+    <div class="lbl">ROI moyen</div>
+    <div class="val"><%= _st.roi === null ? '—' : (_st.roi >= 0 ? '+' : '') + _st.roi + '%' %></div>
+  </div>
+  <div class="stat-card metric-card s-orange">
+    <div class="lbl"><%= uiText("Taux de réussite") %></div>
+    <div class="val"><%= _st.win_rate === null ? '—' : _st.win_rate + '%' %></div>
+  </div>
+  <div class="stat-card metric-card <%= _st.pending_bets > 0 ? 's-orange' : 's-blue' %>">
+    <div class="lbl">Paris en attente</div>
+    <div class="val"><%= fmtN(_st.pending_bets) %></div>
+  </div>
+</div>
+<aside class="cr-callout" aria-label="État des paris en attente">
+  <svg class="ic cr-callout-icon" aria-hidden="true"><use href="#ic-<%= _st.pending_bets > 0 ? 'alert' : 'check-circle' %>"/></svg>
+  <div><div class="cr-callout-title"><%= _st.pending_bets > 0 ? fmtN(_st.pending_bets) + ' pari' + (_st.pending_bets > 1 ? 's' : '') + ' en attente de règlement' : 'Aucun pari en attente de règlement' %></div>
+  <div class="cr-callout-copy"><%= _st.pending_bets > 0 ? 'Les résultats individuels restent à confirmer dans les fiches concernées. Le total et le ROI peuvent évoluer après règlement.' : 'Les indicateurs consolidés ne comportent actuellement aucun résultat en attente.' %></div></div>
+</aside>
+<% } %>
+
+<%# Le tri se fait par en-têtes cliquables (gestionnaire global th[data-sort]),
+    comme sur Utilisateurs — les deux `<select>` faisaient double emploi. %>
+<section class="command-surface" aria-label="Rechercher une bankroll">
+  <div class="command-surface-head"><div><div class="command-surface-title"><svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg> Retrouver un portefeuille</div><p class="command-surface-copy">Recherchez un utilisateur, puis ouvrez son historique complet pour comprendre l’écart ou la performance.</p></div></div>
+<div class="filterbar">
+  <form method="GET" action="/admin/bankroll" style="display:contents">
+    <input type="hidden" name="sort_by"  value="<%= sortBy %>">
+    <input type="hidden" name="sort_dir" value="<%= sortDir %>">
+    <input type="search" name="search" value="<%= search %>"
+           aria-label="Rechercher un utilisateur"
+           placeholder="Rechercher pseudo, téléphone, email…">
+    <button type="submit" class="btn btn-sm btn-primary">
+      <svg class="ic" aria-hidden="true"><use href="#ic-search"/></svg> <%= uiText("Filtrer") %>
+    </button>
+    <% if(search){ %>
+      <a href="/admin/bankroll" class="btn btn-sm btn-outline">
+        <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= uiText("Effacer") %>
+      </a>
+    <% } %>
+  </form>
+</div>
+</section>
+
+<div class="control-section-head"><div><h2>Portefeuilles suivis</h2><p>Tri, comparaison et accès à l’historique de chaque utilisateur.</p></div><span class="context-chip"><%= total %> portefeuille<%= total>1?'s':'' %></span></div>
+<div class="dt-wrap cr-panel bankroll-cr-table">
+  <% if(!data || data.length === 0){ %>
+    <div class="empty-state" style="padding:40px">
+      <div class="empty-state-icon">
+        <svg class="ic ic-xl" aria-hidden="true"><use href="#ic-target"/></svg>
+      </div>
+      <div class="empty-state-title">
+        <%= search ? 'Aucun résultat pour cette recherche' : 'Aucune bankroll configurée' %>
+      </div>
+      <div class="empty-state-desc">
+        <%= search
+              ? 'Essaie un autre pseudo, numéro ou email.'
+              : 'Les bankrolls apparaissent ici dès qu\'un utilisateur définit son budget dans l\'application.' %>
+      </div>
+      <% if(search){ %>
+        <a href="/admin/bankroll" class="btn btn-outline" style="margin-top:12px">Effacer la recherche</a>
+      <% } %>
+    </div>
+  <% } else { %>
+  <div class="dt-scroll">
+    <div class="table-wrap">
+      <table class="dt">
+        <thead>
+          <tr>
+            <th scope="col" data-sort="pseudo"><%= uiText("Utilisateur") %></th>
+            <th scope="col" class="num" data-sort="currentBalance">Solde</th>
+            <th scope="col" class="num" data-sort="totalBudget">Budget</th>
+            <th scope="col" class="num"><%= uiText("Paris") %></th>
+            <th scope="col" class="num"><%= uiText("Réussite") %></th>
+            <th scope="col" class="num">Profit</th>
+            <th scope="col" class="num" title="Profit rapporté au total misé sur les paris tranchés">ROI</th>
+            <th scope="col" class="col-act">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+        <% data.forEach(b => { %>
+        <tr>
+          <td>
+            <div class="team">
+              <span class="team-logo"><%= (b.pseudo||'?')[0].toUpperCase() %></span>
+              <span class="bankroll-cr-user">
+                <span class="bankroll-cr-name"><%= b.pseudo %></span>
+                <span class="bankroll-cr-subline"><%= b.phone_number || b.email || '—' %></span>
+              </span>
+            </div>
+          </td>
+          <td class="num <%= b.current_balance >= b.total_budget ? 'bankroll-cr-positive' : '' %>" style="font-weight:700">
+            <%= fmtN(b.current_balance) %>
+            <div style="font-size:10px;color:var(--text-m);font-weight:400"><%= b.currency %></div>
+          </td>
+          <td class="num" style="color:var(--text-m)"><%= fmtN(b.total_budget) %></td>
+          <td class="num">
+            <%= b.total_bets %>
+            <% if(b.pending_bets > 0){ %>
+              <div style="font-size:10px;color:var(--on-warning)"><%= b.pending_bets %> en attente</div>
+            <% } %>
+          </td>
+          <td class="num">
+            <% if(b.win_rate === null){ %>
+              <span style="color:var(--text-m)">—</span>
+            <% } else { %>
+              <span class="badge <%= b.win_rate >= 50 ? 'badge-ok' : 'badge-err' %>"><%= b.win_rate %>%</span>
+              <%# « 0V / 2D » était cryptique. %>
+              <div style="font-size:10px;color:var(--text-m)"><%= b.wins %> gagné<%= b.wins>1?'s':'' %> · <%= b.losses %> perdu<%= b.losses>1?'s':'' %></div>
+            <% } %>
+          </td>
+          <td class="num" style="font-weight:600;color:var(--<%= b.total_profit >= 0 ? 'on-success' : 'on-danger' %>)">
+            <%= b.total_profit >= 0 ? '+' : '' %><%= fmtN(b.total_profit) %>
+          </td>
+          <td class="num">
+            <% if(b.roi === null){ %>
+              <span style="color:var(--text-m)">—</span>
+            <% } else { %>
+              <span style="font-weight:600;color:var(--<%= b.roi >= 0 ? 'on-success' : 'on-danger' %>)"><%= b.roi >= 0 ? '+' : '' %><%= b.roi %>%</span>
+            <% } %>
+          </td>
+          <td class="col-act">
+            <a href="/admin/bankroll/<%= b.user_id %>" class="btn btn-sm btn-outline">
+              <%= uiText("Voir") %> <svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"/></svg>
+            </a>
+          </td>
+        </tr>
+        <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <% if(total_pages > 1){ %>
+  <div class="bankroll-cr-pagination">
+    <p class="bankroll-cr-pagination-copy">
+      <%= ((page-1)*per_page)+1 %>–<%= Math.min(page*per_page, total) %> sur <%= total %>
+    </p>
+    <div class="bankroll-cr-pagination-actions">
+      <% if(page > 1){ %>
+        <a href="/admin/bankroll?page=<%= page-1 %>&<%= _filterQs %>" class="btn btn-sm btn-outline">
+          <svg class="ic" aria-hidden="true"><use href="#ic-arrow-left"/></svg> Préc.
+        </a>
+      <% } %>
+      <span class="bankroll-cr-page">
+        Page <%= page %> / <%= total_pages %>
+      </span>
+      <% if(page < total_pages){ %>
+        <a href="/admin/bankroll?page=<%= page+1 %>&<%= _filterQs %>" class="btn btn-sm btn-outline">
+          Suiv. <svg class="ic" aria-hidden="true"><use href="#ic-arrow-right"/></svg>
+        </a>
+      <% } %>
+    </div>
+  </div>
+  <% } %>
+  <% } %>
+</div>
+
+<%- include('layout_bottom') %>

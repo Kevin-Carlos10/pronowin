@@ -1,0 +1,10 @@
+# Dependances de generation : reinstallables par `npm install`.
+node_modules/
+package-lock.json
+
+# Police intermediaire, produite par woff2ttf.js depuis @fontsource/inter.
+# Elle n'est pas versionnee : la SIL OFL autorise sa redistribution, mais elle
+# devrait alors etre accompagnee de son texte de licence, et un binaire de
+# police dans un depot d'application finit toujours par diverger de sa source.
+# `npm run logotype` la reconstruit.
+inter-700.ttf

@@ -1,3 +1,5 @@
+import { parseLesson } from '../utils/tutorial_lesson';
+import { optionalText } from '../i18n/editorial';
 ﻿
 import { prisma } from '../lib/prisma';
 
@@ -5,7 +7,7 @@ import { prisma } from '../lib/prisma';
 const DEFAULT_TUTORIALS = [
   {
     id: 'tut_001', title: 'Comprendre le Value Bet : identifier les cotes sous-évaluées',
-    description: 'Le Value Bet est la stratégie la plus rentable sur le long terme. Apprenez à calculer la valeur réelle d\'une cote et à détecter quand le bookmaker sous-estime une équipe.',
+    description: 'Le Value Bet consiste à comparer une probabilité estimée à une cote. Cette estimation peut être erronée et ne garantit aucun gain. Apprenez à calculer la valeur réelle d\'une cote et à détecter quand le bookmaker sous-estime une équipe.',
     level: 'beginner', category: 'valuebet', durationSeconds: 720,
     isPremium: false, viewCount: 4823, rating: 4.7, authorName: 'Expert PronoWin',
   },
@@ -81,6 +83,7 @@ export class TutorialAdminService {
 
   /** Créer un tutoriel */
   async create(data: {
+    lessonContent?: unknown; titleEn?: string; descriptionEn?: string; articleContentEn?: string; articleContent?: string;
     title:           string;
     description:     string;
     level:           string;
@@ -102,6 +105,9 @@ export class TutorialAdminService {
     return prisma.tutorial.create({
       data: {
         id,
+        titleEn: optionalText(data.titleEn, 300), descriptionEn: optionalText(data.descriptionEn, 5000),
+        lessonContent: parseLesson(data.lessonContent),
+        articleContentEn: optionalText(data.articleContentEn), articleContent: optionalText(data.articleContent),
         title:           data.title.trim(),
         description:     data.description.trim(),
         level:           data.level,
@@ -121,6 +127,7 @@ export class TutorialAdminService {
 
   /** Modifier un tutoriel */
   async update(id: string, data: {
+    lessonContent?: unknown; titleEn?: string; descriptionEn?: string; articleContentEn?: string; articleContent?: string;
     title?:          string;
     description?:    string;
     level?:          string;
@@ -137,6 +144,9 @@ export class TutorialAdminService {
     return prisma.tutorial.update({
       where: { id },
       data: {
+        titleEn: optionalText(data.titleEn, 300), descriptionEn: optionalText(data.descriptionEn, 5000),
+        lessonContent: parseLesson(data.lessonContent),
+        articleContentEn: optionalText(data.articleContentEn), articleContent: optionalText(data.articleContent),
         ...(data.title           ? { title:           data.title.trim()           } : {}),
         ...(data.description     ? { description:     data.description.trim()     } : {}),
         ...(data.level           ? { level:           data.level                  } : {}),
@@ -163,6 +173,40 @@ export class TutorialAdminService {
     const t = await prisma.tutorial.findUnique({ where: { id } });
     if (!t) throw new Error('Tutoriel introuvable.');
     return prisma.tutorial.update({ where: { id }, data: { isPremium: !t.isPremium } });
+  }
+
+  /** Catégories déjà utilisées — alimente les suggestions admin (form + filtre),
+   * pour que l'admin puisse réutiliser ou créer librement une catégorie sans
+   * dépendre d'une liste figée dans le code. */
+  async getDistinctCategories(): Promise<string[]> {
+    try {
+      const rows = await prisma.tutorial.findMany({
+        distinct: ['category'],
+        select:   { category: true },
+        orderBy:  { category: 'asc' },
+      });
+      const set = new Set(rows.map(r => r.category));
+      for (const t of DEFAULT_TUTORIALS) set.add(t.category);
+      return [...set].sort();
+    } catch (_) {
+      return [...new Set(DEFAULT_TUTORIALS.map(t => t.category))].sort();
+    }
+  }
+
+  /** Niveaux déjà utilisés — même logique que getDistinctCategories(). */
+  async getDistinctLevels(): Promise<string[]> {
+    try {
+      const rows = await prisma.tutorial.findMany({
+        distinct: ['level'],
+        select:   { level: true },
+        orderBy:  { level: 'asc' },
+      });
+      const set = new Set(rows.map(r => r.level));
+      for (const t of DEFAULT_TUTORIALS) set.add(t.level);
+      return [...set].sort();
+    } catch (_) {
+      return [...new Set(DEFAULT_TUTORIALS.map(t => t.level))].sort();
+    }
   }
 
   /** Stats */

@@ -1,0 +1,248 @@
+<% const uiText = typeof tAdmin === 'function' ? tAdmin : text => text; %>
+<%- include('layout_top', {page:'resumes'}) %>
+
+<style>
+.rs-tuiles   { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .8rem; margin-bottom: 1.2rem; }
+.rs-tuile    { background: var(--surface-d); border: 1px solid var(--border); border-radius: 12px; padding: .85rem 1rem; }
+.rs-tuile .v { font-size: 1.5rem; font-weight: 800; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.rs-tuile .l { font-size: .72rem; color: var(--text-m); margin-top: .2rem; line-height: 1.45; }
+.rs-tab      { width: 100%; border-collapse: collapse; font-size: .84rem; }
+.rs-tab th   { text-align: left; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em;
+               color: var(--text-m); padding: .55rem .7rem; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.rs-tab td   { padding: .6rem .7rem; border-bottom: 1px solid var(--border); vertical-align: top; }
+.rs-tab tr:last-child td { border-bottom: 0; }
+.rs-tab tr.rs-masque td { opacity: .62; }
+.rs-titre    { font-weight: 700; line-height: 1.4; }
+.rs-sous     { display: block; font-size: .72rem; color: var(--text-dim); margin-top: .15rem; line-height: 1.45; }
+.rs-score    { font-variant-numeric: tabular-nums; font-weight: 700; }
+.rs-actions  { display: flex; gap: .4rem; flex-wrap: wrap; }
+.rs-compte   { font-size: .8rem; color: var(--text-m); }
+.rs-carte    { padding: 0; overflow: hidden; }
+.rs-note     { font-size: .75rem; color: var(--text-dim); margin-top: .7rem; line-height: 1.6; }
+.rs-m        { color: var(--text-m); }
+.rs-dim      { color: var(--text-dim); }
+@media (max-width: 760px) {
+  .rs-tuiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+</style>
+
+<%
+  const _d     = (typeof donnees !== 'undefined' && donnees) ? donnees : null;
+  const _err   = typeof erreur !== 'undefined' ? erreur : null;
+  const _f     = (typeof filtres !== 'undefined' && filtres) ? filtres : { genre: 'resume', filtre: 'tous', q: '', page: 1 };
+  const _avant = _f.genre === 'avant_match';
+  const _mot   = _avant ? 'avant-match' : 'résumé';
+  const _lien  = (typeof lienResumes === 'function') ? lienResumes : (() => '/admin/resumes');
+  const _st    = _d ? _d.stats : null;
+  const _rows  = _d ? (_d.resumes ?? []) : [];
+  const _pages = _d ? Math.max(1, Math.ceil(_d.total / _d.parPage)) : 1;
+  const _ecrit = hasPerm('actualites', 'write');
+
+  const _date = (iso) => iso
+    ? new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : '—';
+  const _FILTRES = {
+    tous:        'Tous les résumés',
+    dans_le_fil: 'Dans le fil',
+    masques:     'Retirés du fil',
+    modifies:    'Corrigés à la main',
+  };
+%>
+
+<header class="workspace-header">
+  <div class="workspace-heading">
+    <p class="workspace-eyebrow">Contenu & publication</p>
+    <h1><svg class="ic" aria-hidden="true"><use href="#ic-news"/></svg> <%= uiText("Résumés et avant-matchs") %></h1>
+    <p class="workspace-description">
+      <% if (_avant) { %>
+      Écrits automatiquement la veille des matchs pronostiqués et des grandes compétitions — classement, forme,
+      face-à-face, absents —, ils restent dans le fil des actualités jusqu'au coup d'envoi.
+      <% } else { %>
+      Écrits automatiquement après chaque match pronostiqué ou des grandes compétitions, ils restent trois jours
+      dans le fil des actualités.
+      <% } %>
+      Corrigez un titre, ou retirez un article du fil.
+    </p>
+  </div>
+  <div class="workspace-actions">
+    <% if (_st) { %>
+      <span class="context-chip"><%= _st.dansLeFil %> dans le fil</span>
+      <% if (_st.masques) { %><span class="context-chip"><%= _st.masques %> retiré<%= _st.masques > 1 ? 's' : '' %></span><% } %>
+    <% } %>
+  </div>
+</header>
+
+<nav class="sous-onglets" aria-label="Genre d'article">
+  <a class="sous-onglet <%= _avant ? '' : 'on' %>" href="/admin/resumes" aria-current="<%= _avant ? 'false' : 'page' %>">
+    <svg class="ic" aria-hidden="true"><use href="#ic-check-circle"/></svg> Résumés
+  </a>
+  <a class="sous-onglet <%= _avant ? 'on' : '' %>" href="/admin/resumes?genre=avant_match" aria-current="<%= _avant ? 'page' : 'false' %>">
+    <svg class="ic" aria-hidden="true"><use href="#ic-calendar"/></svg> Avant-matchs
+  </a>
+</nav>
+
+<% if (typeof success !== 'undefined' && success) { %><div class="alert alert-success"><%= success %></div><% } %>
+<% if (typeof error   !== 'undefined' && error  ) { %><div class="alert alert-error"><%= error %></div><% } %>
+
+<% if (!_d) { %>
+  <div class="alert alert-error">
+    <strong><svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> API injoignable</strong>
+    — impossible de lire les <%= _mot %>s<%= _err ? ' : ' + _err : '.' %>
+  </div>
+<% } else { %>
+
+<div class="rs-tuiles metric-grid">
+  <div class="rs-tuile metric-card">
+    <div class="v"><%= _st.dansLeFil %></div>
+    <div class="l">dans le fil<br><span class="rs-dim"><%= _avant ? "jusqu'au coup d'envoi" : 'moins de trois jours' %></span></div>
+  </div>
+  <div class="rs-tuile metric-card">
+    <div class="v"><%= _st.total %></div>
+    <div class="l"><%= _mot %>s écrits<br><span class="rs-dim">depuis le <%= _avant ? '22' : '18' %> octobre 2026</span></div>
+  </div>
+  <div class="rs-tuile metric-card">
+    <div class="v"><%= _st.modifies %></div>
+    <div class="l">corrigé<%= _st.modifies > 1 ? 's' : '' %> à la main</div>
+  </div>
+  <div class="rs-tuile metric-card">
+    <div class="v"><%= _st.masques %></div>
+    <div class="l">retiré<%= _st.masques > 1 ? 's' : '' %> du fil</div>
+  </div>
+</div>
+
+<section class="command-surface">
+<form method="GET" action="/admin/resumes" class="filterbar">
+  <% if (_avant) { %><input type="hidden" name="genre" value="avant_match"><% } %>
+  <svg class="ic rs-m" aria-hidden="true"><use href="#ic-search"/></svg>
+  <input type="search" name="q" value="<%= _f.q %>" autocomplete="off" maxlength="100"
+         aria-label="Rechercher un <%= _mot %>"
+         placeholder="Équipe, compétition, mot du titre…">
+  <select name="filtre" aria-label="Filtrer les <%= _mot %>s">
+    <% Object.keys(_FILTRES).forEach(k => { %>
+    <option value="<%= k %>" <%= _f.filtre === k ? 'selected' : '' %>><%= _FILTRES[k] %></option>
+    <% }) %>
+  </select>
+  <button type="submit" class="btn btn-primary btn-sm"><%= uiText("Filtrer") %></button>
+  <% if (_f.q || _f.filtre !== 'tous') { %>
+  <a href="<%= _avant ? '/admin/resumes?genre=avant_match' : '/admin/resumes' %>" class="btn btn-outline btn-sm">
+    <svg class="ic" aria-hidden="true"><use href="#ic-x"/></svg> <%= uiText("Effacer") %>
+  </a>
+  <% } %>
+  <span class="spacer"></span>
+  <span class="rs-compte"><%= _d.total %> <%= _mot %><%= _d.total !== 1 ? 's' : '' %></span>
+</form>
+</section>
+
+<% if (_rows.length === 0) { %>
+  <div class="card">
+    <div class="empty-state">
+      <% if (_f.q || _f.filtre !== 'tous') { %>
+        <div class="empty-state-title">Aucun <%= _mot %> ne correspond</div>
+        <div class="empty-state-desc">Changez la recherche ou le filtre.</div>
+      <% } else if (_avant) { %>
+        <div class="empty-state-title">Aucun avant-match pour l'instant</div>
+        <div class="empty-state-desc">
+          Un avant-match s'écrit entre 30 heures et une heure avant le coup d'envoi d'un match pronostiqué, ou d'un
+          match des grandes compétitions, dès que le classement, la forme ou le face-à-face sont connus.
+        </div>
+      <% } else { %>
+        <div class="empty-state-title">Aucun résumé pour l'instant</div>
+        <div class="empty-state-desc">
+          Un résumé s'écrit deux heures environ après la fin d'un match pronostiqué, ou d'un match des grandes
+          compétitions (Premier League, Liga, Serie A, Bundesliga, Ligue 1, Ligue des champions, Coupe du monde).
+        </div>
+      <% } %>
+    </div>
+  </div>
+<% } else { %>
+
+<div class="card cr-panel rs-carte">
+  <div class="table-wrap">
+  <table class="rs-tab">
+    <thead>
+      <tr>
+        <th scope="col">Match</th>
+        <th scope="col"><%= uiText("Titre") %></th>
+        <th scope="col">État</th>
+        <th scope="col">Action</th>
+      </tr>
+    </thead>
+    <tbody>
+      <% _rows.forEach(r => { const m = r.match; %>
+      <tr class="<%= r.masque ? 'rs-masque' : '' %>">
+        <td><div>
+          <% if (m) { %>
+            <strong><%= m.domicile %></strong> <span class="rs-score"><%= m.score ?? '–' %></span> <strong><%= m.exterieur %></strong>
+          <% } else { %>
+            <span class="rs-dim">Match supprimé</span>
+          <% } %>
+          <span class="rs-sous"><%= r.ligue %><%= m ? ' · ' + _date(m.date) : '' %></span>
+          <% if (m && m.pronostique) { %><span class="badge badge-purple">pronostiqué</span><% } %>
+        </div></td>
+        <td><div>
+          <span class="rs-titre"><%= r.titre %></span>
+          <span class="rs-sous" lang="en"><%= r.titreEn %></span>
+        </div></td>
+        <td><div>
+          <% if (r.masque) { %>
+            <span class="badge badge-warn">retiré du fil</span>
+          <% } else if (r.dansLeFil) { %>
+            <span class="badge badge-ok">dans le fil</span>
+            <span class="rs-sous"><%= _avant ? "jusqu'au coup d'envoi" : "jusqu'au " + _date(r.quitteLeFil) %></span>
+          <% } else { %>
+            <span class="badge badge-info">sorti du fil</span>
+          <% } %>
+          <span class="rs-sous">écrit le <%= _date(r.creeLe) %></span>
+          <% if (r.modifieLe) { %>
+            <span class="rs-sous">corrigé par <%= r.modifiePar ?? '—' %> le <%= _date(r.modifieLe) %></span>
+          <% } %>
+        </div></td>
+        <td><div class="rs-actions">
+          <% if (_ecrit) { %>
+          <a href="/admin/resumes/<%= encodeURIComponent(r.id) %>/edit" class="btn btn-outline btn-sm"
+             aria-label="Corriger « <%= r.titre %> »">
+            <svg class="ic" aria-hidden="true"><use href="#ic-edit"/></svg> Corriger
+          </a>
+          <form method="POST" action="/admin/resumes/<%= encodeURIComponent(r.id) %>/masquer">
+            <input type="hidden" name="masque" value="<%= r.masque ? '0' : '1' %>">
+            <input type="hidden" name="genre"  value="<%= _f.genre %>">
+            <input type="hidden" name="filtre" value="<%= _f.filtre %>">
+            <input type="hidden" name="q"      value="<%= _f.q %>">
+            <input type="hidden" name="page"   value="<%= _f.page %>">
+            <button type="submit" class="btn btn-outline btn-sm"
+                    aria-label="<%= r.masque ? 'Remettre dans le fil' : 'Retirer du fil' %> « <%= r.titre %> »">
+              <svg class="ic" aria-hidden="true"><use href="<%= r.masque ? '#ic-eye' : '#ic-eye-off' %>"/></svg>
+              <%= r.masque ? 'Remettre' : 'Retirer' %>
+            </button>
+          </form>
+          <% } else { %>
+            <span class="rs-dim">—</span>
+          <% } %>
+        </div></td>
+      </tr>
+      <% }) %>
+    </tbody>
+  </table>
+  </div>
+</div>
+
+<% if (_pages > 1) { %>
+<div class="pagination">
+  <a href="<%= _lien({ ..._f, page: _f.page - 1 }) %>" class="btn btn-outline btn-sm <%= _f.page <= 1 ? 'disabled' : '' %>" aria-label="Page précédente">‹</a>
+  <span>Page <strong><%= _f.page %></strong> / <%= _pages %></span>
+  <a href="<%= _lien({ ..._f, page: _f.page + 1 }) %>" class="btn btn-outline btn-sm <%= _f.page >= _pages ? 'disabled' : '' %>" aria-label="Page suivante">›</a>
+</div>
+<% } %>
+
+<% } %>
+
+<p class="rs-note">
+  Retirer un article ne l'efface pas : il disparaît du fil des actualités de l'application, et il n'est pas
+  réécrit. Un texte corrigé ne l'est pas non plus — chaque article n'est rédigé qu'une fois. Un avant-match ne
+  dévoile jamais le pronostic, un résumé jamais celui d'un match VIP, et aucun mot de pari n'y figure : ils
+  s'affichent aussi sur iPhone. Gardez ces règles en corrigeant.
+</p>
+
+<% } %>
+
+<%- include('layout_bottom') %>

@@ -8,5 +8,7 @@ r.use(authMiddleware);
 r.get   ('/',      getProfile);    // GET  /profile
 r.patch ('/',      updateProfile); // PATCH /profile
 r.get   ('/stats', getStats);      // GET  /profile/stats
+r.patch ('/notification-prefs', C.updateNotificationPrefs); // PATCH /profile/notification-prefs
+r.patch ('/avatar', C.updateAvatar);                        // PATCH /profile/avatar
 r.delete('/',      C.deleteAccount); // DELETE /profile  (droit à l'oubli RGPD)
 export default r;

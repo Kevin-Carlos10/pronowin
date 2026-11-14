@@ -15,10 +15,9 @@ class _SvgWithFallback extends StatelessWidget {
       width: size,
       height: size,
       fit: BoxFit.cover,
-      placeholderBuilder: (_) =>
-          Icon(Icons.sports_soccer_rounded, size: size * 0.85),
+      placeholderBuilder: (_) => _Attente(size: size),
       // Intercepte les SVG invalides silencieusement
-      errorBuilder: (_, __, ___) =>
+      errorBuilder: (_, _, _) =>
           Icon(Icons.sports_soccer_rounded, size: size * 0.85),
     );
   }
@@ -50,13 +49,23 @@ class TeamLogoWidget extends StatelessWidget {
     if (proxied.toLowerCase().contains('.svg') || raw.toLowerCase().endsWith('.svg')) {
       img = _SvgWithFallback(url: proxied, size: size);
     } else {
+      // Décodage à la taille d'affichage. Sans `memCacheWidth`, un écusson de
+      // 512 px occupait un mégaoctet de bitmap pour être peint dans un rond de
+      // vingt-quatre — et une liste de matchs en affiche des dizaines.
+      final densite = MediaQuery.devicePixelRatioOf(context);
+      final pixels  = (size * densite).round();
+
       img = CachedNetworkImage(
         imageUrl: proxied,
         width: size,
         height: size,
         fit: BoxFit.cover,
-        placeholder: (_, _) =>
-            Icon(Icons.sports_soccer_rounded, size: size * 0.85),
+        memCacheWidth:  pixels,
+        memCacheHeight: pixels,
+        // Pendant le chargement, un disque neutre : le ballon générique se
+        // lisait comme « logo absent » (vidéo du 7 novembre 2026, PSG–Troyes).
+        // Il ne reste qu'aux équipes qui n'en ont vraiment pas.
+        placeholder: (context, _) => _Attente(size: size),
         errorWidget: (_, _, _) =>
             Icon(Icons.sports_soccer_rounded, size: size * 0.85),
       );
@@ -67,4 +76,20 @@ class TeamLogoWidget extends StatelessWidget {
       child: ClipOval(child: img),
     );
   }
+}
+
+/// Un logo en cours de chargement : un disque gris, sans motif.
+class _Attente extends StatelessWidget {
+  final double size;
+  const _Attente({required this.size});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    width: size,
+    height: size,
+    decoration: BoxDecoration(
+      shape: BoxShape.circle,
+      color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08),
+    ),
+  );
 }

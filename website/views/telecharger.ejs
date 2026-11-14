@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Télécharger <%= site.name %></title>
+  <%# Page non listée (11 novembre 2026) : on y arrive par un lien partagé
+      depuis l'application, un code QR ou les chaînes PronoWin. %>
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="description" content="Installer l'application PronoWin sur Android ou sur iPhone.">
+  <link rel="icon" type="image/svg+xml" href="/images/logo-pronowin.svg">
+  <link rel="apple-touch-icon" href="/images/logo-pronowin-512.png">
+  <link rel="stylesheet" href="/css/style.css">
+  <script src="/js/telecharger.js?v=20261111" defer></script>
+</head>
+<body>
+  <header class="navbar">
+    <div class="container">
+      <a href="/" class="brand">
+        <img class="brand-mark" src="/images/logo-pronowin.svg" alt="" width="22" height="22">
+        <span class="brand-name">Prono<span class="brand-win">Win</span></span>
+      </a>
+    </div>
+  </header>
+
+  <main class="container legal-page download-page">
+    <h1>Télécharger PronoWin</h1>
+    <p class="legal-intro">Scores en direct, statistiques et analyses de football, sur ton téléphone.</p>
+
+    <% if (parrain) { %>
+      <section class="legal-callout download-invite" aria-labelledby="invite-title">
+        <p class="legal-callout__eyebrow">Invitation</p>
+        <h2 id="invite-title">Un ami t'invite sur PronoWin</h2>
+        <p>À l'inscription dans l'application, saisis son code de parrainage :</p>
+        <div class="download-code">
+          <strong data-code-parrain><%= parrain %></strong>
+          <button type="button" class="download-copy" data-copier="<%= parrain %>" hidden>Copier le code</button>
+        </div>
+      </section>
+    <% } %>
+
+    <section class="download-block" id="android" data-plateforme="android" aria-labelledby="android-title">
+      <h2 id="android-title">Sur Android</h2>
+      <% if (site.playStoreUrl) { %>
+        <div class="legal-actions">
+          <a class="legal-button" href="<%= site.playStoreUrl %>" target="_blank" rel="noopener noreferrer">Télécharger sur Google Play</a>
+        </div>
+      <% } else { %>
+        <div class="legal-actions">
+          <a class="legal-button download-main" href="<%= apk.url %>" data-apk-principal
+             data-defaut-url="<%= apk.url %>" data-defaut-libelle="Télécharger l'application<%= apk.taille ? ' (' + apk.taille + ')' : '' %>">
+            Télécharger l'application<%= apk.taille ? ' (' + apk.taille + ')' : '' %>
+          </a>
+        </div>
+        <p class="legal-note">
+          Fichier APK<% if (version) { %>, version <%= version %><% } %>. Il fonctionne sur tous les téléphones Android.
+        </p>
+
+        <% if (variantes.length) { %>
+          <details class="download-variants">
+            <summary>Versions plus légères</summary>
+            <ul>
+              <% variantes.forEach(function (v) { %>
+                <li>
+                  <a href="<%= v.url %>" data-abi="<%= v.abi %>" data-libelle="Télécharger l'application<%= v.taille ? ' (' + v.taille + ')' : '' %>">
+                    <strong><%= v.titre %></strong><% if (v.taille) { %> · <%= v.taille %><% } %>
+                  </a>
+                  <span>Pour <%= v.pour %>.</span>
+                </li>
+              <% }) %>
+            </ul>
+            <p class="legal-note">En cas de doute, prends la version complète, plus haut.</p>
+          </details>
+        <% } %>
+
+        <h3>Installer le fichier</h3>
+        <ol class="legal-steps">
+          <li>Télécharge le fichier, puis ouvre-le depuis la notification ou le dossier Téléchargements.</li>
+          <li>Si Android le demande, autorise l'installation depuis cette source (« Installer des applis inconnues »), puis reviens en arrière.</li>
+          <li>Touche « Installer », puis ouvre PronoWin.</li>
+          <% if (parrain) { %><li>À l'inscription, saisis le code de parrainage <strong><%= parrain %></strong>.</li><% } %>
+        </ol>
+      <% } %>
+    </section>
+
+    <section class="download-block" id="iphone" data-plateforme="ios" aria-labelledby="iphone-title">
+      <h2 id="iphone-title">Sur iPhone</h2>
+      <% if (site.appStoreUrl) { %>
+        <div class="legal-actions">
+          <a class="legal-button" href="<%= site.appStoreUrl %>" target="_blank" rel="noopener noreferrer">Télécharger sur l'App Store</a>
+        </div>
+      <% } else { %>
+        <p>PronoWin arrive bientôt sur l'App Store.</p>
+      <% } %>
+    </section>
+
+    <% if (site.telegramUrl || site.whatsappUrl) { %>
+      <section class="download-block" aria-labelledby="aide-title">
+        <h2 id="aide-title">Besoin d'aide ?</h2>
+        <p>Pose ta question sur nos chaînes :
+          <% if (site.telegramUrl) { %><a href="<%= site.telegramUrl %>" target="_blank" rel="noopener noreferrer">Telegram</a><% } %>
+          <% if (site.telegramUrl && site.whatsappUrl) { %> · <% } %>
+          <% if (site.whatsappUrl) { %><a href="<%= site.whatsappUrl %>" target="_blank" rel="noopener noreferrer">WhatsApp</a><% } %>
+        </p>
+      </section>
+    <% } %>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-bottom">
+      <span>© <%= site.year %> <%= site.name %>. Tous droits réservés.</span>
+    </div>
+  </footer>
+</body>
+</html>
