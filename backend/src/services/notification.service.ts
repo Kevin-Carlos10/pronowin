@@ -1,4 +1,5 @@
 import { country, prediction } from '../i18n/football';
+import { filtrePremiumEnCours } from '../utils/premium';
 import { bilingual, forLanguage, BilingualPayload } from '../i18n/notifications';
 ﻿
 import { prisma } from '../lib/prisma';
@@ -61,10 +62,8 @@ const days = (n: number) => new Date(Date.now() - n * 86400000);
  */
 export function segmentWhere(segment: string): Record<string, any> {
   const base = { isActive: true, deletedAt: null };
-  const isPremium = {
-    subscriptionPlan: 'premium' as const,
-    subscriptionExpiresAt: { gt: new Date() },
-  };
+  // La règle d'accès (utils/premium.ts) : un Premium sans échéance en est un.
+  const isPremium = filtrePremiumEnCours();
   const seenSince = (d: Date) => ({
     OR: [{ lastSeenAt: { gte: d } }, { lastLoginAt: { gte: d } }],
   });

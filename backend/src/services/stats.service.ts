@@ -1,6 +1,7 @@
 ﻿
 import { prisma } from '../lib/prisma';
 import { journal } from '../utils/logger';
+import { filtrePremiumEnCours, filtreSansPremium } from '../utils/premium';
 
 export class StatsService {
 
@@ -24,9 +25,10 @@ export class StatsService {
       prisma.user.count(),
       prisma.user.count({ where: { createdAt: { gte: start } } }),
       prisma.user.count({ where: { createdAt: { gte: prev, lt: start } } }),
-      prisma.user.count({ where: { subscriptionPlan: 'premium',
-        subscriptionExpiresAt: { gt: now } } }),
-      prisma.user.count({ where: { subscriptionPlan: 'free' } }),
+      // Premium en cours et sans Premium : la règle d'accès (utils/premium.ts),
+      // échéance comprise. « Gratuits » ne comptait pas les Premium échus.
+      prisma.user.count({ where: filtrePremiumEnCours(now) }),
+      prisma.user.count({ where: filtreSansPremium(now) }),
 
       // Versements de gains de parrainage (sortie de trésorerie)
       prisma.transaction.aggregate({

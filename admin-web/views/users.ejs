@@ -132,6 +132,8 @@
         <option value="">Tous les plans</option>
         <option value="free"    <%= plan==='free'    ?'selected':'' %>><%= uiText("Gratuit") %></option>
         <option value="premium" <%= plan==='premium' ?'selected':'' %>>Premium</option>
+        <%# Le plan est resté « premium », l'échéance est passée (14 novembre 2026). %>
+        <option value="expire"  <%= plan==='expire'  ?'selected':'' %>><%= uiText("Premium expiré") %></option>
       </select>
 
       <select name="status" id="f-status" aria-label="<%= uiText("Statut") %>">

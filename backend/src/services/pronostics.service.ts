@@ -1,4 +1,5 @@
 import { optionalText } from '../i18n/editorial';
+import { filtrePremiumEnCours } from '../utils/premium';
 ﻿import { Prisma, MatchSource, Match } from '@prisma/client';
 import { prisma } from '../lib/prisma';
 import { ApiFootballService, apiFootballService, mapAFStatus, matchStatusPriority, type AFFixture } from './api_football.service';
@@ -1654,9 +1655,7 @@ export class PronosticsService {
     const [totalUsers, premiumUsers, pendingTx, totalPronostics, publishedToday] =
       await Promise.all([
         prisma.user.count({ where: { isActive: true } }),
-        prisma.user.count({
-          where: { subscriptionPlan: 'premium', subscriptionExpiresAt: { gt: new Date() } },
-        }),
+        prisma.user.count({ where: filtrePremiumEnCours() }),
         prisma.transaction.count({ where: { status: 'pending' } }),
         prisma.pronostic.count(),
         prisma.pronostic.count({

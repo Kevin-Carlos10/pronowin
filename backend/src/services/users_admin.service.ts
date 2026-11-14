@@ -1,13 +1,14 @@
 ﻿import { NotificationService } from './notification.service';
 import { prisma } from '../lib/prisma';
 import { ligneCsv } from '../utils/csv';
+import { premiumEnCours, filtrePremiumEnCours, filtreSansPremium, filtrePremiumEchu } from '../utils/premium';
 
 const notifSvc = new NotificationService();
 
 /** Les filtres de la liste des utilisateurs, partagés par l'écran et l'export. */
 export interface FiltresUtilisateurs {
   search?:   string;   // pseudo, téléphone, courriel, nom, identifiant partenaire
-  plan?:     string;   // 'free' | 'premium'
+  plan?:     string;   // 'free' | 'premium' | 'expire' — selon l'échéance, pas le seul drapeau
   status?:   string;   // 'active' | 'suspended'
   dateFrom?: string;   // inscrit à partir de (AAAA-MM-JJ)
   dateTo?:   string;   // inscrit jusqu'à (AAAA-MM-JJ, borne incluse)
@@ -49,7 +50,15 @@ export class UsersAdminService {
         { xbetId:      { contains: search } },
       ];
     }
-    if (plan)   where.subscriptionPlan = plan;
+    // Le plan se lit avec l'échéance (utils/premium.ts) : « premium » ne
+    // gardait que le drapeau, et listait des abonnements expirés depuis
+    // longtemps. `AND`, pour ne pas écraser le `OR` de la recherche.
+    const maintenant = new Date();
+    const filtrePlan = plan === 'premium' ? filtrePremiumEnCours(maintenant)
+      : plan === 'free' ? filtreSansPremium(maintenant)
+      : plan === 'expire' ? filtrePremiumEchu(maintenant)
+      : null;
+    if (filtrePlan) where.AND = [filtrePlan];
     if (status === 'active')    where.isActive = true;
     if (status === 'suspended') where.isActive = false;
 
@@ -113,8 +122,7 @@ export class UsersAdminService {
       data: users.map(u => ({
         ...u,
         full_name: u.firstName && u.lastName ? `${u.firstName} ${u.lastName}` : null,
-        is_premium: u.subscriptionPlan === 'premium' &&
-          (u.subscriptionExpiresAt ? u.subscriptionExpiresAt > new Date() : false),
+        is_premium: premiumEnCours(u),
         days_left: u.subscriptionExpiresAt
           ? Math.max(0, Math.ceil((u.subscriptionExpiresAt.getTime() - Date.now()) / 86400000)) : 0,
         transaction_count: u._count.transactions,
@@ -173,8 +181,7 @@ export class UsersAdminService {
       user: {
         ...user,
         full_name: user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : null,
-        is_premium: user.subscriptionPlan === 'premium' &&
-          (user.subscriptionExpiresAt ? user.subscriptionExpiresAt > new Date() : false),
+        is_premium: premiumEnCours(user),
         days_left: user.subscriptionExpiresAt
           ? Math.max(0, Math.ceil((user.subscriptionExpiresAt.getTime() - Date.now()) / 86400000)) : 0,
       },
@@ -365,7 +372,7 @@ export class UsersAdminService {
 
     const [total, premium, active, newToday, newWeek, newMonth, suspended] = await Promise.all([
       prisma.user.count(),
-      prisma.user.count({ where: { subscriptionPlan: 'premium', subscriptionExpiresAt: { gt: now } } }),
+      prisma.user.count({ where: filtrePremiumEnCours(now) }),
       prisma.user.count({ where: { isActive: true } }),
       prisma.user.count({ where: { createdAt: { gte: today } } }),
       prisma.user.count({ where: { createdAt: { gte: week } } }),

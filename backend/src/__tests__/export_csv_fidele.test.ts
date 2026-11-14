@@ -66,6 +66,10 @@ describe('cellule CSV', () => {
 
 describe('export des utilisateurs : les filtres de l\'écran', () => {
   const svc = new UsersAdminService();
+  // Le filtre du plan dépend de l'heure (l'échéance de l'abonnement, 14
+  // novembre 2026) : l'horloge est figée pour comparer la liste et l'export.
+  beforeAll(() => { jest.useFakeTimers({ now: new Date('2026-11-14T10:00:00Z') }); });
+  afterAll(() => { jest.useRealTimers(); });
   const filtres = {
     search: 'kone', plan: 'premium', status: 'suspended',
     dateFrom: '2026-09-01', dateTo: '2026-09-15',
@@ -83,6 +87,7 @@ describe('export des utilisateurs : les filtres de l\'écran', () => {
     expect(exporte).toEqual(liste);
     // Et ce filtre porte bien la recherche et le statut, pas seulement le plan.
     expect(exporte.OR).toBeDefined();
+    expect(exporte.AND).toBeDefined();
     expect(exporte.isActive).toBe(false);
     expect(exporte.createdAt).toBeDefined();
   });
