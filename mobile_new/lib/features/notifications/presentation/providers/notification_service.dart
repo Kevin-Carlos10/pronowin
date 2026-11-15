@@ -78,7 +78,8 @@ class AppNotification {
                             => NotificationType.match,
     'promo'                 => NotificationType.promo,
     'payment' || 'referral' => NotificationType.referral,
-    'premium' || 'system'   => NotificationType.system,
+    // « Ton Premium te manque ? » (15 novembre 2026) : un rappel de compte.
+    'premium' || 'relance_premium' || 'system' => NotificationType.system,
     _ => _replide(s),
   };
 

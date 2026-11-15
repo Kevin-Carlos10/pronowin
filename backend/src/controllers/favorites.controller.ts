@@ -5,7 +5,7 @@ import { prisma } from '../lib/prisma';
 import { estVerrouille } from '../services/verrou_pronostic';
 import { repondreErreur } from '../utils/erreurs';
 import { pourcentageConfiance } from '../utils/confiance';
-import { choisirAlertes, lireAlertes } from '../services/suiveurs_match';
+import { choisirAlertes, enregistrerSuivis, lireAlertes, lireSuivis } from '../services/suiveurs_match';
 
 export const getFavorites = async (req: AuthRequest, res: Response) => {
   try {
@@ -151,4 +151,26 @@ export const putAlertes = async (req: AuthRequest, res: Response) => {
   try {
     res.json(await choisirAlertes(req.userId!, req.params.id, req.body?.alertes));
   } catch (e: any) { repondreErreur(res, e, 422); }
+};
+
+/**
+ * GET /favorites/suivis — les équipes et ligues suivies (15 novembre 2026).
+ * Elles ne vivaient que sur le téléphone ; le serveur les connaît pour
+ * annoncer leurs matchs.
+ */
+export const getSuivis = async (req: AuthRequest, res: Response) => {
+  try {
+    res.json(await lireSuivis(req.userId!));
+  } catch (e: any) {
+    repondreErreur(res, e);
+  }
+};
+
+/** PUT /favorites/suivis — `{ ligues?: string[], equipes?: [{ id, nom, logo?, competition? }] }`. */
+export const putSuivis = async (req: AuthRequest, res: Response) => {
+  try {
+    res.json(await enregistrerSuivis(req.userId!, req.body));
+  } catch (e: any) {
+    repondreErreur(res, e);
+  }
 };

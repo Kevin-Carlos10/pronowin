@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -171,6 +172,27 @@ void main() {
     expect(r.notifPause, isFalse);
     // Les promotions étaient coupées avant la pause : elles le restent.
     expect([r.notifMatch, r.notifPromo, r.notifReferral, r.notifPremium], [true, false, true, true]);
+  });
+
+  testParametres('équipes et ligues suivies : leurs alertes se coupent, et suivent les alertes matchs', (t) async {
+    final c = await monter(t);
+    await t.tap(find.byKey(const Key('reglage-notifications')));
+    await t.pumpAndSettle();
+    final equipes = find.byKey(const Key('notif-equipes-suivies'));
+    await t.scrollUntilVisible(equipes, 200, scrollable: find.byType(Scrollable).last);
+    expect(find.text("Coup d'envoi, buts et résultat de leurs matchs"), findsOneWidget);
+    expect(find.text("Coup d'envoi et résultat de leurs matchs"), findsOneWidget);
+    await t.tap(equipes);
+    await t.pumpAndSettle();
+    expect(c.read(settingsProvider).notifEquipesSuivies, isFalse);
+    expect(c.read(settingsProvider).notifLiguesSuivies, isTrue);
+    // Sans les alertes matchs, rien ne part : les deux sont figés, et le disent.
+    unawaited(c.read(settingsProvider.notifier).toggleNotif('match'));
+    await t.pumpAndSettle();
+    final ligues = t.widget<Switch>(find.descendant(of: find.byKey(const Key('notif-ligues-suivies')), matching: find.byType(Switch)));
+    expect(ligues.onChanged, isNull);
+    expect(ligues.value, isFalse);
+    expect(find.text("Active d'abord les alertes matchs"), findsNWidgets(2));
   });
 
   testParametres('la protection : faible sans code ni biométrie, renforcée avec', (t) async {

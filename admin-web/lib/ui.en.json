@@ -183,5 +183,18 @@
   "Avis des utilisateurs": "User feedback",
   "Nouveaux": "New",
   "Traités": "Handled",
-  "Premium expiré": "Expired Premium"
+  "Premium expiré": "Expired Premium",
+  "Relancer les abonnés expirés": "Win back expired subscribers",
+  "Une notification « Abonnement Premium » aux comptes dont le Premium a expiré et qui ont l'application. Un compte relancé dans les 7 derniers jours ne l'est pas deux fois ; une relance part aussi d'elle-même 3 jours après l'échéance.": "A “Premium subscription” notification to accounts whose Premium has expired and who have the app. An account reminded in the last 7 days is not reminded twice; a reminder is also sent automatically 3 days after expiry.",
+  "Relancer": "Send reminder",
+  "Calcul des comptes visés…": "Counting targeted accounts…",
+  "Message": "Message",
+  "Ajouter le code promo": "Add the promo code",
+  "Envoyer": "Send",
+  "{n} compte(s) recevront la notification · {r} déjà relancé(s) cette semaine · {e} expiré(s) au total": "{n} account(s) will receive the notification · {r} already reminded this week · {e} expired in total",
+  "Aucun compte à relancer : tous ont déjà été relancés cette semaine, ou n'ont pas l'application.": "No account to remind: all were already reminded this week, or don't have the app.",
+  "Ajouter le code promo {code}": "Add the promo code {code}",
+  "Aucun code promo configuré": "No promo code configured",
+  "{n} relance(s) envoyée(s)": "{n} reminder(s) sent",
+  "Erreur": "Error"
 }

@@ -17,8 +17,12 @@ export const FCM_TOPICS = {
   all:      'all_users',
 };
 
-/** Catégories exposées comme interrupteurs dans l'écran Paramètres du mobile. */
-export const NOTIF_CATEGORIES = ['match', 'promo', 'referral', 'premium'] as const;
+/**
+ * Catégories exposées comme interrupteurs dans l'écran Paramètres du mobile.
+ * `equipes_suivies` et `ligues_suivies` (15 novembre 2026) : les alertes des
+ * matchs d'une équipe ou d'une ligue suivie, en plus de « match ».
+ */
+export const NOTIF_CATEGORIES = ['match', 'promo', 'referral', 'premium', 'equipes_suivies', 'ligues_suivies'] as const;
 export type NotifCategory = (typeof NOTIF_CATEGORIES)[number];
 
 /**

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import '../../../auth/presentation/providers/auth_provider.dart';
 import 'package:pronowin/l10n/editorial_text.dart';
 import 'package:pronowin/l10n/app_strings.dart';
@@ -642,6 +644,30 @@ List<StandingRow>? classementSurTerrain(List<StandingRow> rows, {required bool d
   });
   return [for (var i = 0; i < bilans.length; i++) bilans[i].$1.surTerrain(bilans[i].$2!, i + 1)];
 }
+
+/// Les matchs en cours d'une compétition, pour le classement en direct
+/// (15 novembre 2026). Notre serveur, pas le fournisseur : il tient déjà le
+/// score du direct. Relu chaque minute tant qu'un match est en cours et
+/// qu'un écran l'écoute.
+final directDeLaLigueProvider =
+    FutureProvider.autoDispose.family<List<MatchEntity>, String>((ref, code) async {
+  final r = await ref.read(dioProvider).get('/pronostics', queryParameters: {
+    'include_all': 'true',
+    'status': 'live',
+    'league_code': code,
+    'limit': 50,
+    'tz_offset': decalageUtcMinutes(),
+  });
+  final liste = (((r.data as Map<String, dynamic>)['data'] as List<dynamic>?) ?? const [])
+      .map((e) => MatchModel.fromJson(e as Map<String, dynamic>))
+      .where((m) => m.status == MatchStatus.live && m.leagueCountry == code)
+      .toList();
+  if (liste.isNotEmpty) {
+    final relire = Timer(const Duration(seconds: 60), ref.invalidateSelf);
+    ref.onDispose(relire.cancel);
+  }
+  return liste;
+});
 
 final standingsProvider = FutureProvider.autoDispose.family<List<StandingRow>, String>((ref, id) async {
   final dio = ref.read(dioProvider);

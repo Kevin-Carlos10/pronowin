@@ -15,6 +15,8 @@ const _kNotifMatch    = 'notif_match';
 const _kNotifPromo    = 'notif_promo';
 const _kNotifReferral = 'notif_referral';
 const _kNotifPremium  = 'notif_premium';
+const _kNotifEquipesSuivies = 'notif_equipes_suivies';
+const _kNotifLiguesSuivies  = 'notif_ligues_suivies';
 const _kPinEnabled    = 'security_pin_enabled';
 const _kBioEnabled    = 'security_bio_enabled';
 /// « Tout mettre en pause » (11 novembre 2026) : en pause, et les quatre
@@ -33,6 +35,9 @@ class AppSettings {
   final ThemeMode themeMode;
   final String    lang;
   final bool      notifMatch, notifPromo, notifReferral, notifPremium;
+  /// Les alertes des matchs d'une équipe ou d'une ligue suivie
+  /// (15 novembre 2026). Elles passent aussi par [notifMatch].
+  final bool      notifEquipesSuivies, notifLiguesSuivies;
   final bool      pinEnabled, bioEnabled;
   /// Thème Nocturne : le sombre sur du noir pur (avec [themeMode] sombre).
   final bool      nocturne;
@@ -47,6 +52,8 @@ class AppSettings {
     this.notifPromo    = false,   // marketing : opt-in
     this.notifReferral = true,
     this.notifPremium  = true,
+    this.notifEquipesSuivies = true,
+    this.notifLiguesSuivies  = true,
     this.pinEnabled    = false,
     this.bioEnabled    = false,
     this.nocturne      = false,
@@ -56,7 +63,7 @@ class AppSettings {
   AppSettings copyWith({
     ThemeMode? themeMode, String? lang,
     bool? notifMatch, bool? notifPromo, bool? notifReferral,
-    bool? notifPremium,
+    bool? notifPremium, bool? notifEquipesSuivies, bool? notifLiguesSuivies,
     bool? pinEnabled, bool? bioEnabled, bool? nocturne, bool? notifPause,
   }) => AppSettings(
     themeMode:     themeMode     ?? this.themeMode,
@@ -65,6 +72,8 @@ class AppSettings {
     notifPromo:    notifPromo    ?? this.notifPromo,
     notifReferral: notifReferral ?? this.notifReferral,
     notifPremium:  notifPremium  ?? this.notifPremium,
+    notifEquipesSuivies: notifEquipesSuivies ?? this.notifEquipesSuivies,
+    notifLiguesSuivies:  notifLiguesSuivies  ?? this.notifLiguesSuivies,
     pinEnabled:    pinEnabled    ?? this.pinEnabled,
     bioEnabled:    bioEnabled    ?? this.bioEnabled,
     nocturne:      nocturne      ?? this.nocturne,
@@ -110,6 +119,8 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       notifPromo:    p.getBool(_kNotifPromo)    ?? false,
       notifReferral: p.getBool(_kNotifReferral) ?? true,
       notifPremium:  p.getBool(_kNotifPremium)  ?? true,
+      notifEquipesSuivies: p.getBool(_kNotifEquipesSuivies) ?? true,
+      notifLiguesSuivies:  p.getBool(_kNotifLiguesSuivies)  ?? true,
       pinEnabled:    p.getBool(_kPinEnabled)    ?? false,
       bioEnabled:    p.getBool(_kBioEnabled)    ?? false,
       nocturne:      _themeChanged ? state.nocturne : p.getString(_kTheme) == 'nocturne',
@@ -223,6 +234,18 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
         state = state.copyWith(notifPremium: newVal);
         await p.setBool(_kNotifPremium, newVal);
         await _setTopic(_topicPremium, newVal);
+
+      // Pas de topic : ces alertes partent compte par compte, et le serveur
+      // tient la préférence.
+      case 'equipes_suivies':
+        newVal = !state.notifEquipesSuivies;
+        state = state.copyWith(notifEquipesSuivies: newVal);
+        await p.setBool(_kNotifEquipesSuivies, newVal);
+
+      case 'ligues_suivies':
+        newVal = !state.notifLiguesSuivies;
+        state = state.copyWith(notifLiguesSuivies: newVal);
+        await p.setBool(_kNotifLiguesSuivies, newVal);
     }
 
     if (newVal != null) await _syncPrefToServer(key, newVal);
@@ -300,6 +323,8 @@ class SettingsNotifier extends StateNotifier<AppSettings> {
       _kNotifPromo:    p.getBool(_kNotifPromo),
       _kNotifReferral: p.getBool(_kNotifReferral),
       _kNotifPremium:  p.getBool(_kNotifPremium),
+      _kNotifEquipesSuivies: p.getBool(_kNotifEquipesSuivies),
+      _kNotifLiguesSuivies:  p.getBool(_kNotifLiguesSuivies),
       _kPinEnabled:    p.getBool(_kPinEnabled),
       _kBioEnabled:    p.getBool(_kBioEnabled),
       _kNotifPause:    p.getBool(_kNotifPause),

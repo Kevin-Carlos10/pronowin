@@ -88,6 +88,30 @@ class NotificationsReglagesPage extends ConsumerWidget {
             valeur: s.notifPremium, onChanged: bascule('premium')),
         ]),
         const SizedBox(height: 22),
+        // Les équipes et ligues suivies annoncent leurs matchs (15 novembre
+        // 2026). Elles passent par les alertes matchs : sans elles, rien.
+        EnTeteReglages(tr(context, "Équipes et ligues suivies")),
+        CarteReglages([
+          LigneInterrupteur(
+            key: const Key('notif-equipes-suivies'),
+            icone: Icons.shield_outlined,
+            titre: tr(context, "Équipes suivies"),
+            sousTitre: s.notifMatch
+                ? tr(context, "Coup d'envoi, buts et résultat de leurs matchs")
+                : tr(context, "Active d'abord les alertes matchs"),
+            valeur: s.notifMatch && s.notifEquipesSuivies,
+            onChanged: s.notifMatch ? bascule('equipes_suivies') : null),
+          LigneInterrupteur(
+            key: const Key('notif-ligues-suivies'),
+            icone: Icons.emoji_events_outlined,
+            titre: tr(context, "Ligues suivies"),
+            sousTitre: s.notifMatch
+                ? tr(context, "Coup d'envoi et résultat de leurs matchs")
+                : tr(context, "Active d'abord les alertes matchs"),
+            valeur: s.notifMatch && s.notifLiguesSuivies,
+            onChanged: s.notifMatch ? bascule('ligues_suivies') : null),
+        ]),
+        const SizedBox(height: 22),
         EnTeteReglages(tr(context, "Téléphone")),
         CarteReglages([
           LigneReglage(

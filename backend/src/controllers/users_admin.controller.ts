@@ -3,6 +3,7 @@ import { AdminRequest } from '../middleware/admin.middleware';
 import { FiltresUtilisateurs, UsersAdminService } from '../services/users_admin.service';
 import { lirePagination } from '../utils/pagination';
 import { repondreErreur } from '../utils/erreurs';
+import { apercuRelance, relancerExpires } from '../services/relance_premium.service';
 
 const svc = new UsersAdminService();
 
@@ -113,4 +114,20 @@ export const exportCsv = async (req: AdminRequest, res: Response) => {
 export const getStats = async (_req: AdminRequest, res: Response) => {
   try { res.json(await svc.getStats()); }
   catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
+ * GET /admin/users/relance-expires — ce que la relance des Premium expirés
+ * ferait (15 novembre 2026) : combien d'échus, de joignables, de déjà
+ * relancés dans la semaine, et le code promo disponible.
+ */
+export const apercuRelanceExpires = async (_req: AdminRequest, res: Response) => {
+  try { res.json(await apercuRelance()); }
+  catch (e: any) { repondreErreur(res, e, 400); }
+};
+
+/** POST /admin/users/relance-expires — `{ titre?, message?, avec_code? }`. */
+export const relancerPremiumExpires = async (req: AdminRequest, res: Response) => {
+  try { res.json(await relancerExpires(req.body ?? {})); }
+  catch (e: any) { repondreErreur(res, e, 400); }
 };

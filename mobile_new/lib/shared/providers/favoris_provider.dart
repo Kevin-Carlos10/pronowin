@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:pronowin/l10n/app_strings.dart';
 import 'package:pronowin/features/parametres/presentation/providers/settings_provider.dart';
@@ -91,6 +92,7 @@ class EquipeSuivie {
 const _prefixeMatchs = 'favoris_matchs';
 const _prefixeLigues = 'favoris_ligues';
 const _prefixeEquipes = 'favoris_equipes';
+const _prefixeSuivisSynchro = 'favoris_suivis_synchro';
 
 /// Les clés d'un compte donné.
 ///
@@ -99,6 +101,12 @@ const _prefixeEquipes = 'favoris_equipes';
 String cleFavorisMatchs(String compteId) => '${_prefixeMatchs}_$compteId';
 String cleFavorisLigues(String compteId) => '${_prefixeLigues}_$compteId';
 String cleFavorisEquipes(String compteId) => '${_prefixeEquipes}_$compteId';
+
+/// Les équipes et ligues suivies sont aussi sur le serveur (15 novembre
+/// 2026) : c'est lui qui annonce leurs matchs. Tant que cette clé manque,
+/// ce que le téléphone suivait s'ajoute à ce que le serveur connaît ; ensuite,
+/// le serveur fait foi — un retrait sur un autre appareil vaut ici aussi.
+String cleFavorisSuivisSynchro(String compteId) => '${_prefixeSuivisSynchro}_$compteId';
 
 /// Efface les favoris de tous les comptes présents sur l'appareil.
 ///
@@ -124,7 +132,7 @@ Future<void> effacerFavorisLocaux({bool resilierSujets = true}) async {
   for (final cle in p
       .getKeys()
       .where((k) => k.startsWith(_prefixeMatchs) || k.startsWith(_prefixeLigues)
-          || k.startsWith(_prefixeEquipes))
+          || k.startsWith(_prefixeEquipes) || k.startsWith(_prefixeSuivisSynchro))
       .toList()) {
     await p.remove(cle);
   }
@@ -159,6 +167,7 @@ class FavorisNotifier extends AsyncNotifier<EtatFavoris> {
       equipes:  _lireEquipes(p, compte),
     );
 
+    var etat = local;
     try {
       final r = await ref.read(dioProvider).get('/favorites');
       final liste = (r.data as List<dynamic>?) ?? const [];
@@ -170,10 +179,75 @@ class FavorisNotifier extends AsyncNotifier<EtatFavoris> {
           .toSet();
 
       await p.setStringList(cleFavorisMatchs(compte), distants.toList());
-      return local.copyWith(matchIds: distants);
+      etat = local.copyWith(matchIds: distants);
     } catch (_) {
       // Serveur injoignable : la copie locale reste le meilleur état connu.
+    }
+    return _synchroniserSuivis(p, compte, etat);
+  }
+
+  /// Le premier passage en cours : le fournisseur se construit deux fois au
+  /// démarrage (les réglages se chargent), et deux passages enverraient deux
+  /// fois la même liste.
+  Future<void>? _premierPassage;
+
+  /// Les équipes et ligues suivies, d'après le serveur (15 novembre 2026).
+  /// Voir [cleFavorisSuivisSynchro].
+  Future<EtatFavoris> _synchroniserSuivis(SharedPreferences p, String compte, EtatFavoris local) async {
+    final premier = p.getBool(cleFavorisSuivisSynchro(compte)) != true;
+    if (premier && _premierPassage != null) {
+      // Fait, ou manqué : la suite se décide sur l'état qu'il a laissé.
+      await _premierPassage;
+      return _synchroniserSuivis(p, compte, local);
+    }
+    // Pris avant la moindre attente : c'est ce qui écarte le second.
+    final fini = premier ? Completer<void>() : null;
+    if (fini != null) _premierPassage = fini.future;
+    try {
+      final dio = ref.read(dioProvider);
+      final d = (await dio.get('/favorites/suivis')).data as Map<String, dynamic>;
+      final ligues = <String>{for (final l in d['ligues'] as List? ?? const []) if (l is String) l};
+      final equipes = [for (final e in d['equipes'] as List? ?? const []) ?EquipeSuivie.fromJson(e)];
+      var etat = local.copyWith(ligues: ligues, equipes: equipes);
+      if (premier) {
+        // Premier passage sur ce téléphone : ce qu'il suivait s'ajoute.
+        final ids = {for (final e in equipes) e.id};
+        final toutesLigues = {...ligues, ...local.ligues};
+        final toutesEquipes = [...equipes, for (final e in local.equipes) if (!ids.contains(e.id)) e];
+        if (toutesLigues.length != ligues.length || toutesEquipes.length != equipes.length) {
+          await dio.put('/favorites/suivis', data: {
+            'ligues': toutesLigues.toList(),
+            'equipes': [for (final e in toutesEquipes) e.toJson()],
+          });
+        }
+        etat = local.copyWith(ligues: toutesLigues, equipes: toutesEquipes);
+        await p.setBool(cleFavorisSuivisSynchro(compte), true);
+      }
+      await p.setStringList(cleFavorisLigues(compte), etat.ligues.toList());
+      await p.setStringList(cleFavorisEquipes(compte), [for (final e in etat.equipes) jsonEncode(e.toJson())]);
+      return etat;
+    } catch (_) {
+      // Serveur injoignable, ou antérieur : la copie locale, comme avant.
       return local;
+    } finally {
+      if (fini != null) {
+        _premierPassage = null;
+        fini.complete();
+      }
+    }
+  }
+
+  /// Le serveur suit chaque changement : c'est lui qui annonce les matchs.
+  /// Tant que le premier passage n'a pas réussi, rien n'est envoyé — la liste
+  /// du téléphone remplacerait celle du serveur au lieu de s'y ajouter ; s'il
+  /// échoue, le prochain démarrage refait ce passage.
+  Future<void> _envoyerSuivis(String compte, Map<String, Object> corps) async {
+    final p = await SharedPreferences.getInstance();
+    if (p.getBool(cleFavorisSuivisSynchro(compte)) != true) return;
+    try {
+      await ref.read(dioProvider).put('/favorites/suivis', data: corps);
+    } catch (_) {
+      await p.remove(cleFavorisSuivisSynchro(compte));
     }
   }
 
@@ -235,8 +309,9 @@ class FavorisNotifier extends AsyncNotifier<EtatFavoris> {
     }
   }
 
-  /// Suit ou ne suit plus une équipe. Purement local, comme les ligues : ses
-  /// matchs s'affichent dans « Suivis », chacun avec sa cloche.
+  /// Suit ou ne suit plus une équipe : ses matchs s'affichent dans « Suivis »,
+  /// et le serveur annonce leur coup d'envoi, leurs buts et leur résultat
+  /// (15 novembre 2026).
   Future<void> basculerEquipe(EquipeSuivie equipe) async {
     final compte = _compteId;
     if (compte == null) return;
@@ -249,9 +324,11 @@ class FavorisNotifier extends AsyncNotifier<EtatFavoris> {
     state = AsyncData(avant.copyWith(equipes: apres));
     final p = await SharedPreferences.getInstance();
     await p.setStringList(cleFavorisEquipes(compte), [for (final e in apres) jsonEncode(e.toJson())]);
+    await _envoyerSuivis(compte, {'equipes': [for (final e in apres) e.toJson()]});
   }
 
-  /// Met ou retire une ligue des favoris. Purement local.
+  /// Met ou retire une ligue des favoris ; le serveur annonce le coup
+  /// d'envoi et le résultat de ses matchs (15 novembre 2026).
   Future<void> basculerLigue(String ligue) async {
     final compte = _compteId;
     if (compte == null) return;
@@ -263,6 +340,7 @@ class FavorisNotifier extends AsyncNotifier<EtatFavoris> {
     state = AsyncData(avant.copyWith(ligues: apres));
     final p = await SharedPreferences.getInstance();
     await p.setStringList(cleFavorisLigues(compte), apres.toList());
+    await _envoyerSuivis(compte, {'ligues': apres.toList()});
   }
 }
 

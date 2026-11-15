@@ -18,7 +18,7 @@ import '../pronostics/domain/entities/match_entity.dart';
 import '../pronostics/presentation/pages/match_detail_page.dart'
     show classementDeCompetition, palmaresDeCompetition;
 import '../pronostics/presentation/providers/pronostics_provider.dart'
-    show StandingRow, topScorersProvider, Palmares;
+    show StandingRow, topScorersProvider, Palmares, directDeLaLigueProvider;
 import '../pronostics/presentation/widgets/ligne_match_compacte.dart';
 import '../pronostics/presentation/widgets/match_card_widget.dart';
 
@@ -393,7 +393,9 @@ class _ClassementCompetition extends ConsumerWidget {
                       color: context.cl.surface,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: context.cl.borderSoft, width: 0.8)),
-                    child: classementDeCompetition(lignes),
+                    // Le classement en direct pendant les matchs (15 novembre 2026).
+                    child: classementDeCompetition(lignes,
+                      direct: ref.watch(directDeLaLigueProvider(code)).valueOrNull ?? const []),
                   ),
                 ],
               ),

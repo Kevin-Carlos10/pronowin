@@ -148,6 +148,8 @@ describe('dans la synchronisation des scores', () => {
     jest.spyOn(prisma.userFavoriteMatch, 'findMany').mockResolvedValue([{ userId: 'u1' }, { userId: 'u2' }]);
     // u2 suit aussi le pronostic dans sa bankroll : une seule alerte.
     jest.spyOn(prisma.bankrollBet, 'findMany').mockResolvedValue([{ bankroll: { userId: 'u2' } }, { bankroll: { userId: 'u3' } }]);
+    jest.spyOn(prisma.userEquipeSuivie, 'findMany').mockResolvedValue([]);
+    jest.spyOn(prisma.userLigueSuivie, 'findMany').mockResolvedValue([]);
   });
   afterEach(() => jest.restoreAllMocks());
 
@@ -178,6 +180,24 @@ describe('dans la synchronisation des scores', () => {
     await cycle([rencontre(1, 0, 0, { elapsed: 20 })]);
     await cycle([rencontre(1, 0, 1, { elapsed: 31, buts: [[30, 'ext', 'Normal Goal']] })]);
     expect(buts()[0].imageUrl).toBe('https://media.api-sports.io/football/teams/49.png');
+  });
+
+  it("qui suit l'équipe reçoit ses buts ; qui suit la ligue, le coup d'envoi seulement (15 novembre 2026)", async () => {
+    enBase = { ...enBase, status: 'SCHEDULED', league: 'Premier League',
+      homeTeamLogo: 'https://media.api-sports.io/football/teams/42.png' };
+    jest.spyOn(prisma.userEquipeSuivie, 'findMany').mockResolvedValue([{ userId: 'fan', user: { notificationPrefs: null } }] as any);
+    jest.spyOn(prisma.userLigueSuivie, 'findMany').mockResolvedValue([{ userId: 'habitue', user: { notificationPrefs: null } }] as any);
+    await cycle([rencontre(1, 0, 0, { elapsed: 1 })]);
+    expect(envois.filter(e => e.data.type === 'match_live').map(e => e.userId).sort())
+      .toEqual(['fan', 'habitue', 'u1', 'u2', 'u3']);
+    await cycle([rencontre(1, 1, 0, { elapsed: 24, buts: [[23, 'dom', 'Normal Goal']] })]);
+    expect(buts().map(e => e.userId).sort()).toEqual(['fan', 'u1', 'u2', 'u3']);
+    // Le résultat, aux deux ; le favori u1 garde son message habituel.
+    await cycle([rencontre(1, 1, 0, { elapsed: 90, statut: 'FT', buts: [[23, 'dom', 'Normal Goal']] })]);
+    const fins = envois.filter(e => e.data.type === 'match_finished');
+    expect(fins.map(e => e.userId).sort()).toEqual(['fan', 'habitue', 'u1', 'u2']);
+    expect(fins.find(e => e.userId === 'habitue')).toMatchObject({
+      title: 'Fin de match : Arsenal 1 - 0 Chelsea', body: 'Le match est terminé.', titleEn: 'Full time: Arsenal 1 - 0 Chelsea' });
   });
 
   it('la liste des matchs a déjà écrit le nouveau score en base : le but est quand même annoncé', async () => {

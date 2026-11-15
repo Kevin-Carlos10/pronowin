@@ -298,6 +298,14 @@ const views = [
     date_from: '', date_to: '', min_tx: '',
     activeBanIds: [],
   }],
+  ['users (Premium expiré, relance)', 'users', {
+    ...base, page: 'users',
+    data: [fakeUser], stats: userStats,
+    total: 12, page: 1, perPage: 20, totalPages: 1,
+    search: '', plan: 'expire', status: '', sortBy: 'createdAt',
+    date_from: '', date_to: '', min_tx: '',
+    activeBanIds: [],
+  }],
   ['users (vide + filtres)', 'users', {
     ...base, page: 'users',
     data: [], stats: userStats,

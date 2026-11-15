@@ -51,6 +51,22 @@
 </nav>
 
 <style>
+/* Relancer les Premium expirés (15 novembre 2026). */
+.relance-expires { display:flex; align-items:center; gap:16px; justify-content:space-between; flex-wrap:wrap; margin-bottom:16px; padding:16px 18px; }
+.relance-expires h2 { font-size:1rem; margin:0 0 4px; display:flex; align-items:center; gap:8px; }
+.relance-expires p { margin:0; color:var(--text-m); font-size:.85rem; line-height:1.5; max-width:62ch; }
+.relance-dialog { border:1px solid var(--border); border-radius:16px; background:var(--surface); color:var(--text);
+  padding:1.5rem; width:min(96vw,520px); margin:auto; max-height:92vh; overflow:auto; }
+.relance-dialog::backdrop { background:color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter:blur(4px); }
+.relance-dialog h3 { margin:0 0 .4rem; font-size:1.05rem; display:flex; align-items:center; gap:8px; }
+.relance-dialog .relance-impact { margin:0 0 1rem; color:var(--text-m); font-size:.82rem; line-height:1.5; }
+.relance-dialog textarea { min-height:90px; resize:vertical; }
+.relance-code { display:flex; align-items:center; gap:10px; margin:.25rem 0 1rem; min-height:44px; cursor:pointer;
+  text-transform:none; letter-spacing:normal; font-size:.9rem; font-weight:500; color:var(--text); }
+.relance-code input { width:auto; min-width:20px; min-height:20px; }
+.relance-actions { display:flex; justify-content:flex-end; gap:8px; flex-wrap:wrap; }
+.relance-actions .btn { min-height:44px; }
+
 /* Les cartes de stats énonçaient exactement les filtres qu'on veut appliquer
    (« Suspendus », « Premium actifs »…) sans être cliquables. Celles qui
    correspondent à un filtre deviennent des liens ; les autres restent inertes.
@@ -203,6 +219,41 @@
   </div>
   <% } %>
 </section>
+
+<%# Relancer les Premium expirés (15 novembre 2026) : le filtre les montrait,
+    rien ne permettait de leur écrire. L'aperçu se charge à l'ouverture. %>
+<% if(plan === 'expire'){ %>
+<section class="card cr-panel relance-expires" id="relance-expires" aria-labelledby="relance-titre">
+  <div>
+    <h2 id="relance-titre"><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> <%= uiText("Relancer les abonnés expirés") %></h2>
+    <p><%= uiText("Une notification « Abonnement Premium » aux comptes dont le Premium a expiré et qui ont l'application. Un compte relancé dans les 7 derniers jours ne l'est pas deux fois ; une relance part aussi d'elle-même 3 jours après l'échéance.") %></p>
+  </div>
+  <button type="button" class="btn btn-primary" id="relance-ouvrir" onclick="uOuvrirRelance()"><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> <%= uiText("Relancer") %></button>
+</section>
+
+<dialog class="relance-dialog" id="relance-dialog" aria-labelledby="relance-dialog-titre">
+  <form id="relance-form" method="post" action="/admin/users/relance-expires" onsubmit="return uEnvoyerRelance(event)">
+    <h3 id="relance-dialog-titre"><svg class="ic" aria-hidden="true"><use href="#ic-megaphone"/></svg> <%= uiText("Relancer les abonnés expirés") %></h3>
+    <p class="relance-impact" id="relance-impact" aria-live="polite"><%= uiText("Calcul des comptes visés…") %></p>
+    <div class="form-group">
+      <label for="relance-champ-titre"><%= uiText("Titre") %></label>
+      <input class="input" type="text" id="relance-champ-titre" name="titre" maxlength="80" required>
+    </div>
+    <div class="form-group">
+      <label for="relance-champ-message"><%= uiText("Message") %></label>
+      <textarea class="input" id="relance-champ-message" name="message" maxlength="300" required></textarea>
+    </div>
+    <label class="relance-code" for="relance-champ-code">
+      <input type="checkbox" id="relance-champ-code" name="avec_code">
+      <span id="relance-code-libelle"><%= uiText("Ajouter le code promo") %></span>
+    </label>
+    <div class="relance-actions">
+      <button type="button" class="btn btn-outline" onclick="uFermerRelance()"><%= uiText("Annuler") %></button>
+      <button type="submit" class="btn btn-primary" id="relance-envoyer" disabled><%= uiText("Envoyer") %></button>
+    </div>
+  </form>
+</dialog>
+<% } %>
 
 <!-- Alertes -->
 <% if(typeof success !== 'undefined' && success){ %>
@@ -459,6 +510,73 @@ function uBulkNotify() {
       showToast(parts.join(' · '), d.sent ? 'success' : 'error');
       uClearSelection();
     });
+}
+
+/* ── Relancer les Premium expirés (15 novembre 2026) ── */
+const RELANCE_TXT = {
+  vises: <%- JSON.stringify(uiText("{n} compte(s) recevront la notification · {r} déjà relancé(s) cette semaine · {e} expiré(s) au total")).replace(/</g, '\\u003c') %>,
+  aucun: <%- JSON.stringify(uiText("Aucun compte à relancer : tous ont déjà été relancés cette semaine, ou n'ont pas l'application.")).replace(/</g, '\\u003c') %>,
+  code: <%- JSON.stringify(uiText("Ajouter le code promo {code}")).replace(/</g, '\\u003c') %>,
+  sansCode: <%- JSON.stringify(uiText("Aucun code promo configuré")).replace(/</g, '\\u003c') %>,
+  envoye: <%- JSON.stringify(uiText("{n} relance(s) envoyée(s)")).replace(/</g, '\\u003c') %>,
+  erreur: <%- JSON.stringify(uiText("Erreur")).replace(/</g, '\\u003c') %>,
+};
+const remplir = (t, v) => t.replace(/\{(\w+)\}/g, (_, k) => String(v[k] ?? ''));
+
+async function uOuvrirRelance() {
+  const dlg = document.getElementById('relance-dialog');
+  const impact = document.getElementById('relance-impact');
+  const envoyer = document.getElementById('relance-envoyer');
+  const code = document.getElementById('relance-champ-code');
+  envoyer.disabled = true;
+  dlg.showModal();
+  try {
+    const res = await fetch('/admin/api/users/relance-expires', { credentials: 'include' });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.message || `${res.status}`);
+    const titre = document.getElementById('relance-champ-titre');
+    const message = document.getElementById('relance-champ-message');
+    if (!titre.value) titre.value = d.titre;
+    if (!message.value) message.value = d.message;
+    code.disabled = !d.code_promo;
+    if (!d.code_promo) code.checked = false;
+    document.getElementById('relance-code-libelle').textContent =
+      d.code_promo ? remplir(RELANCE_TXT.code, { code: d.code_promo }) : RELANCE_TXT.sansCode;
+    impact.textContent = d.a_relancer > 0
+      ? remplir(RELANCE_TXT.vises, { n: d.a_relancer, r: d.recemment, e: d.expires })
+      : RELANCE_TXT.aucun;
+    envoyer.disabled = d.a_relancer <= 0;
+  } catch (e) {
+    impact.textContent = `${RELANCE_TXT.erreur} : ${e.message}`;
+  }
+}
+
+function uFermerRelance() {
+  document.getElementById('relance-dialog').close();
+}
+
+async function uEnvoyerRelance(ev) {
+  ev.preventDefault();
+  const envoyer = document.getElementById('relance-envoyer');
+  envoyer.disabled = true;
+  try {
+    const res = await fetch('/admin/users/relance-expires', {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        titre: document.getElementById('relance-champ-titre').value,
+        message: document.getElementById('relance-champ-message').value,
+        avec_code: document.getElementById('relance-champ-code').checked,
+      }),
+    });
+    const d = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(d.message || `${res.status}`);
+    uFermerRelance();
+    showToast(remplir(RELANCE_TXT.envoye, { n: d.sent }), d.sent ? 'success' : 'error');
+  } catch (e) {
+    showToast(`${RELANCE_TXT.erreur} : ${e.message}`, 'error');
+    envoyer.disabled = false;
+  }
+  return false;
 }
 
 /* ── Init panneau avancé si filtres actifs ── */

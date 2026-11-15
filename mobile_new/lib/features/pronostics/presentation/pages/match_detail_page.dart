@@ -33,6 +33,7 @@ import '../../../../features/abonnement/presentation/providers/subscription_prov
 import '../../domain/entities/match_entity.dart';
 import '../../domain/chrono_match.dart';
 import '../../domain/series_match.dart';
+import '../../domain/classement_direct.dart';
 import '../providers/pronostics_provider.dart';
 import '../providers/match_info_provider.dart';
 import '../providers/fiche_match_provider.dart';
@@ -108,8 +109,8 @@ Widget confrontationsSeules(String matchId) => _H2HCard(matchId: matchId);
 /// Le classement et les palmarès du détail d'un match, repris par la page
 /// d'une compétition (10 novembre 2026, onglets « Classement » et
 /// « Buteurs » de Sofascore) : les mêmes tableaux, sans match à surligner.
-Widget classementDeCompetition(List<StandingRow> rows) =>
-    _GroupedStandings(rows: rows, homeTeam: '', awayTeam: '', horsMatch: true);
+Widget classementDeCompetition(List<StandingRow> rows, {List<MatchEntity> direct = const []}) =>
+    _GroupedStandings(rows: rows, homeTeam: '', awayTeam: '', horsMatch: true, direct: direct);
 Widget palmaresDeCompetition(String leagueCode) => _MeilleursButeurs(leagueCode: leagueCode);
 
 /// Les statistiques d'un match (total et mi-temps), pour le détail d'une
@@ -620,7 +621,10 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         _StandingsCard(
           matchId: match.id,
           homeTeam: match.homeTeam,
-          awayTeam: match.awayTeam),
+          awayTeam: match.awayTeam,
+          // Le classement en direct (15 novembre 2026), le temps du match.
+          codeLigueEnDirect: match.status == MatchStatus.live && match.leagueCountry.isNotEmpty
+              ? match.leagueCountry : null),
         // Sous le classement, la route qui y a mené. Porte sa marge.
         _EvolutionClassement(match: match),
         _MeilleursButeurs(leagueCode: match.leagueCountry),

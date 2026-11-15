@@ -73,6 +73,8 @@ const REGLES: Regle[] = [
   // ── Utilisateurs ──
   [LIRE,   /^\/admin\/users(\/online|\/stats|\/export\/csv|\/[^/]+)?$/, section('users', 'read')],
   [ECRIRE, /^\/admin\/users\/bulk\/(suspend|notify)$/,          section('users', 'write')],
+  // Relancer les Premium expirés (15 novembre 2026) : une notification groupée.
+  [ECRIRE, /^\/admin\/users\/relance-expires$/,                section('users', 'write')],
   [ECRIRE, /^\/admin\/users\/[^/]+\/(suspend|premium|notify|pseudo)$/, section('users', 'write')],
   [SUPPR,  /^\/admin\/users\/[^/]+\/premium$/,                  section('users', 'write')],
   // Modération des commentaires : la même section que le panneau.

@@ -9,8 +9,11 @@ class _StandingsCard extends ConsumerWidget {
   final String matchId;
   final String homeTeam;
   final String awayTeam;
+  /// La compétition, quand le match est en cours : ses matchs du moment
+  /// donnent le classement en direct.
+  final String? codeLigueEnDirect;
   const _StandingsCard({
-    required this.matchId, required this.homeTeam, required this.awayTeam});
+    required this.matchId, required this.homeTeam, required this.awayTeam, this.codeLigueEnDirect});
 
   /// Rapprochement souple des noms d'équipe : l'API-Football nomme la même
   /// équipe « Bayern München » dans un classement et « Bayern Munich » dans un
@@ -42,6 +45,10 @@ class _StandingsCard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final standingsAsync = ref.watch(standingsProvider(matchId));
     final status = _statusOf(standingsAsync.error);
+    final code = codeLigueEnDirect;
+    final direct = code == null
+        ? const <MatchEntity>[]
+        : ref.watch(directDeLaLigueProvider(code)).valueOrNull ?? const <MatchEntity>[];
 
     return Container(
       width: double.infinity,
@@ -73,7 +80,7 @@ class _StandingsCard extends ConsumerWidget {
           ?  _CardLoginPrompt(message: tr(context, "Connecte-toi pour voir le classement."))
           : standingsAsync.hasValue && standingsAsync.valueOrNull!.isNotEmpty
             ? _GroupedStandings(rows: standingsAsync.valueOrNull!, homeTeam: homeTeam,
-                awayTeam: awayTeam, failed: standingsAsync.hasError)
+                awayTeam: awayTeam, failed: standingsAsync.hasError, direct: direct)
             : standingsAsync.when(
                 loading: () => _H2HLoading(),
                 error: (_, _) => Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -98,7 +105,10 @@ class _StandingsCard extends ConsumerWidget {
 /// classement des seuls matchs à domicile, celui des matchs à l'extérieur, et
 /// la forme des cinq dernières journées. Pour un pronostic, « 3ᵉ à domicile,
 /// 14ᵉ à l'extérieur » en dit plus qu'un rang général.
-enum _VueClassement { general, domicile, exterieur, forme }
+///
+/// Et, pendant les matchs (15 novembre 2026), le classement en direct : les
+/// matchs en cours comptés au score du moment.
+enum _VueClassement { direct, general, domicile, exterieur, forme }
 
 /// Group selection stays independent of rankings (several groups can have rank 1).
 class _GroupedStandings extends StatefulWidget {
@@ -108,17 +118,22 @@ class _GroupedStandings extends StatefulWidget {
   /// Affiché sur la page d'une compétition, sans match : aucune équipe à
   /// surligner, ni à signaler absente.
   final bool horsMatch;
+  /// Les matchs en cours de la compétition : de quoi le classement en direct.
+  final List<MatchEntity> direct;
   const _GroupedStandings({required this.rows, required this.homeTeam,
-    required this.awayTeam, this.failed = false, this.horsMatch = false});
+    required this.awayTeam, this.failed = false, this.horsMatch = false, this.direct = const []});
   @override
   State<_GroupedStandings> createState() => _GroupedStandingsState();
 }
 
 class _GroupedStandingsState extends State<_GroupedStandings> {
   String? _selected;
-  _VueClassement _vue = _VueClassement.general;
+  /// `null` tant qu'on n'a rien choisi : le direct s'il y en a un, sinon le
+  /// général.
+  _VueClassement? _vue;
 
   String _titreVue(BuildContext context, _VueClassement v) => switch (v) {
+    _VueClassement.direct    => tr(context, "En direct"),
     _VueClassement.general   => tr(context, "Général"),
     _VueClassement.domicile  => tr(context, "Domicile"),
     _VueClassement.exterieur => tr(context, "Extérieur"),
@@ -143,14 +158,19 @@ class _GroupedStandingsState extends State<_GroupedStandings> {
     // Une vue n'est proposée que si chaque ligne a de quoi la remplir : un
     // serveur antérieur n'envoie pas les bilans, un début de saison pas la
     // forme.
+    final lignesDirect = classementEnDirect(groupe, widget.direct);
     final vues = [
+      if (lignesDirect != null) _VueClassement.direct,
       _VueClassement.general,
       if (groupe.every((r) => r.home != null && r.away != null)) ...[
         _VueClassement.domicile, _VueClassement.exterieur],
       if (groupe.any((r) => r.form?.isNotEmpty == true)) _VueClassement.forme,
     ];
-    final vue = vues.contains(_vue) ? _vue : _VueClassement.general;
+    final vue = _vue != null && vues.contains(_vue)
+        ? _vue!
+        : (lignesDirect != null ? _VueClassement.direct : _VueClassement.general);
     final rows = switch (vue) {
+      _VueClassement.direct    => [for (final l in lignesDirect!) l.row],
       _VueClassement.domicile  => classementSurTerrain(groupe, domicile: true) ?? groupe,
       _VueClassement.exterieur => classementSurTerrain(groupe, domicile: false) ?? groupe,
       _                        => groupe,
@@ -196,7 +216,14 @@ class _GroupedStandingsState extends State<_GroupedStandings> {
           for (final v in vues)
             ChoiceChip(
               key: Key('classement-${v.name}'),
-              label: Text(_titreVue(context, v)),
+              label: v == _VueClassement.direct
+                  ? Row(mainAxisSize: MainAxisSize.min, children: [
+                      Container(width: 6, height: 6,
+                        decoration: BoxDecoration(color: context.cl.error, shape: BoxShape.circle)),
+                      const SizedBox(width: 5),
+                      Text(_titreVue(context, v)),
+                    ])
+                  : Text(_titreVue(context, v)),
               selected: v == vue,
               onSelected: (_) => setState(() => _vue = v),
               labelStyle: TextStyle(
@@ -213,12 +240,18 @@ class _GroupedStandingsState extends State<_GroupedStandings> {
         ]),
         const SizedBox(height: 12),
       ],
+      if (vue == _VueClassement.direct) Padding(
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Text(tr(context, "Provisoire : les matchs en cours comptent au score du moment."),
+          key: const Key('classement-direct-note'),
+          style: TextStyle(color: context.cl.textS, fontSize: 12))),
       LayoutBuilder(builder: (context, constraints) {
         final minWidth = MediaQuery.textScalerOf(context).scale(310);
         return SingleChildScrollView(scrollDirection: Axis.horizontal,
           child: SizedBox(width: constraints.maxWidth < minWidth ? minWidth : constraints.maxWidth,
             child: _StandingsTable(rows: rows, homeTeam: widget.homeTeam, awayTeam: widget.awayTeam,
-              forme: vue == _VueClassement.forme)));
+              forme: vue == _VueClassement.forme,
+              direct: vue == _VueClassement.direct ? lignesDirect : null)));
       }),
     ]);
   }
@@ -260,9 +293,12 @@ class _StandingsTable extends StatelessWidget {
   /// Vue « Forme » : les cinq dernières issues à la place des matchs joués et
   /// de la différence de buts.
   final bool forme;
+
+  /// Le classement en direct : chaque ligne, avec son mouvement et son score.
+  final List<LigneDirect>? direct;
   const _StandingsTable({
     required this.rows, required this.homeTeam, required this.awayTeam,
-    this.forme = false});
+    this.forme = false, this.direct});
 
   /// Cinq pastilles de 15 et leurs écarts.
   static const largeurForme = 92.0;
@@ -272,7 +308,8 @@ class _StandingsTable extends StatelessWidget {
     final lignes = <Widget>[];
     String? zonePrecedente;
 
-    for (final r in rows) {
+    for (final (i, r) in rows.indexed) {
+      final enDirect = direct != null && i < direct!.length ? direct![i] : null;
       // En-tete de zone, insere au premier changement.
       if (r.zone != null && r.zone != zonePrecedente) {
         final couleur = _couleurZone(r.zoneNature);
@@ -294,12 +331,14 @@ class _StandingsTable extends StatelessWidget {
       }
       zonePrecedente = r.zone;
       lignes.add(_LigneClassement(
-        row: r, homeTeam: homeTeam, awayTeam: awayTeam, forme: forme));
+        row: r, homeTeam: homeTeam, awayTeam: awayTeam, forme: forme,
+        mouvement: enDirect?.mouvement, enJeu: enDirect?.enJeu));
     }
 
     return Column(children: [
       Row(children: [
         SizedBox(width: MediaQuery.textScalerOf(context).scale(22)),
+        if (direct != null) const SizedBox(width: 14),
         Expanded(child: Text(tr(context, "Équipe"),
           style: TextStyle(color: context.cl.textM, fontSize: 11, fontWeight: FontWeight.w600))),
         if (forme)
@@ -323,9 +362,12 @@ class _LigneClassement extends StatelessWidget {
   final StandingRow row;
   final String homeTeam, awayTeam;
   final bool forme;
+  /// Classement en direct : places gagnées ou perdues, score du moment.
+  final int? mouvement;
+  final ({int pour, int contre})? enJeu;
   const _LigneClassement({
     required this.row, required this.homeTeam, required this.awayTeam,
-    this.forme = false});
+    this.forme = false, this.mouvement, this.enJeu});
 
   @override
   Widget build(BuildContext context) {
@@ -360,6 +402,13 @@ class _LigneClassement extends StatelessWidget {
                 ? context.cl.accent
                 : (couleurZone ?? context.cl.textM),
             fontSize: 11, fontWeight: FontWeight.w700))),
+        if (mouvement != null) SizedBox(width: 14, child: mouvement == 0
+            ? null
+            : Icon(mouvement! > 0 ? Icons.arrow_drop_up_rounded : Icons.arrow_drop_down_rounded,
+                size: 18, color: mouvement! > 0 ? context.cl.success : context.cl.error,
+                semanticLabel: mouvement! > 0
+                    ? tr(context, "Gagne {arg0} place(s)", [mouvement])
+                    : tr(context, "Perd {arg0} place(s)", [-mouvement!]))),
         // Ecusson : recupere par le serveur depuis toujours, jamais affiche.
         if (row.teamLogo != null && row.teamLogo!.isNotEmpty) ...[
           SizedBox(width: 16, height: 16,
@@ -373,12 +422,26 @@ class _LigneClassement extends StatelessWidget {
           const SizedBox(width: 7),
         ] else
           const SizedBox(width: 23),
-        Expanded(child: Text(row.teamName,
-          maxLines: 1, overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            color: concernee ? context.cl.textP : context.cl.textS,
-            fontSize: 12,
-            fontWeight: concernee ? FontWeight.w700 : FontWeight.w400))),
+        Expanded(child: Row(children: [
+          Flexible(child: Text(row.teamName,
+            maxLines: 1, overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              color: concernee ? context.cl.textP : context.cl.textS,
+              fontSize: 12,
+              fontWeight: concernee ? FontWeight.w700 : FontWeight.w400))),
+          // Le score du moment, vu de cette équipe, à la couleur du direct.
+          if (enJeu case final s?) ...[
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+              decoration: BoxDecoration(
+                color: context.cl.error.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(5)),
+              child: Text('${s.pour}-${s.contre}',
+                style: TextStyle(color: context.cl.error, fontSize: 11, fontWeight: FontWeight.w700,
+                  fontFeatures: const [FontFeature.tabularFigures()]))),
+          ],
+        ])),
         if (forme)
           SizedBox(width: _StandingsTable.largeurForme, child: Center(child: _RangeeForme(
             formeChronologique(row.form).reversed.take(5).toList().reversed.toList(),

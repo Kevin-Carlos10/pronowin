@@ -90,6 +90,34 @@ module.exports = (app, ctx) => {
     }
   });
 
+  // ── Relancer les Premium expirés (15 novembre 2026) ─────────────────────────
+  // L'aperçu d'abord : combien de comptes la relance viserait, et le code
+  // promo disponible. L'envoi ensuite, journalisé.
+  app.get('/admin/api/users/relance-expires', requireAuth, requirePerm('users'), async (req, res) => {
+    try {
+      const r = await api(req.admin.jeton).get('/admin/users/relance-expires');
+      res.json({ ok: true, ...r.data });
+    } catch (e) {
+      res.status(e.response?.status ?? 500).json({ ok: false, message: e.response?.data?.message ?? e.message });
+    }
+  });
+
+  app.post('/admin/users/relance-expires', requireAuth, requirePerm('users', 'write'), async (req, res) => {
+    try {
+      const corps = {
+        titre:     typeof req.body.titre === 'string' ? req.body.titre : undefined,
+        message:   typeof req.body.message === 'string' ? req.body.message : undefined,
+        avec_code: req.body.avec_code === true || req.body.avec_code === 'true',
+      };
+      const r = await api(req.admin.jeton).post('/admin/users/relance-expires', corps);
+      logAction(req, 'premium_expires_relances', `${r.data?.sent ?? 0} compte(s)`,
+        { sent: r.data?.sent, skipped: r.data?.skipped, avecCode: corps.avec_code, titre: corps.titre });
+      res.json({ ok: true, ...r.data });
+    } catch (e) {
+      res.status(e.response?.status ?? 500).json({ ok: false, message: e.response?.data?.message ?? e.message });
+    }
+  });
+
   // L'API applique les mêmes filtres que la liste (constat A16).
   app.get('/admin/users/export', requireAuth, requirePerm('users'), (req, res) =>
     relayerExportCsv(req, res, {

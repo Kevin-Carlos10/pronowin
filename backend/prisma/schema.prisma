@@ -73,6 +73,8 @@ model User {
   tutorialProgress      TutorialProgress[]
   bankroll              UserBankroll?
   favoriteMatches       UserFavoriteMatch[]
+  equipesSuivies        UserEquipeSuivie[]
+  liguesSuivies         UserLigueSuivie[]
   comments              Comment[]
   pronosticVotes        PronosticVote[]
   votesMatch            VoteMatch[]
@@ -167,6 +169,41 @@ model UserFavoriteMatch {
   @@unique([userId, matchId])
   @@index([matchId])
   @@map("user_favorite_matches")
+}
+
+/// Les équipes suivies (15 novembre 2026). Elles ne vivaient que sur le
+/// téléphone : leurs matchs s'affichaient dans « Suivis », sans la moindre
+/// alerte. Le serveur les connaît désormais pour annoncer le coup d'envoi,
+/// les buts et le résultat de leurs matchs.
+model UserEquipeSuivie {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  /// L'identifiant API-Football de l'équipe, celui que porte son logo.
+  equipeId    Int      @map("equipe_id")
+  nom         String
+  logo        String?
+  competition String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, equipeId])
+  @@index([equipeId])
+  @@map("user_equipes_suivies")
+}
+
+/// Les ligues suivies (15 novembre 2026), par leur nom tel que le
+/// fournisseur l'écrit (`Match.league`) : le coup d'envoi et le résultat de
+/// leurs matchs.
+model UserLigueSuivie {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  ligue     String
+  createdAt DateTime @default(now()) @map("created_at")
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, ligue])
+  @@index([ligue])
+  @@map("user_ligues_suivies")
 }
 
 model Notification {

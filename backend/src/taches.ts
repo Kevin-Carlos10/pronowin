@@ -3,6 +3,7 @@ import logger from './utils/logger';
 import { PronosticsService } from './services/pronostics.service';
 import { signalerAchatsEnRetard, SEUIL_ATTENTE_HEURES, INTERVALLE_CONTROLE_MS } from './services/alerte_achats.service';
 import { SubscriptionService } from './services/subscription.service';
+import { relancerAutomatiquement, RELANCE_APRES_JOURS } from './services/relance_premium.service';
 import { FileNotificationsIap } from './services/iap_notifications.service';
 import { suivre } from './services/etat_taches';
 import { executerProgrammationsEchues } from './services/programmations.service';
@@ -125,6 +126,19 @@ export function demarrerTaches(): () => void {
   programmer(setTimeout(runExpiryReminder, 120_000));
   programmer(setInterval(runExpiryReminder, 24 * 60 * 60 * 1000));
   logger.info('Rappel expiration Premium actif — 1×/jour (J-7, J-3, J-1)');
+
+  // ─── RELANCE DES PREMIUM EXPIRÉS (15 novembre 2026) ──────────────────────
+  // Après l'échéance, plus rien ne rappelait de renouveler. Une relance, une
+  // seule par échéance : sûre à relancer au redémarrage, comme le rappel.
+  const runRelanceExpires = () => {
+    suivre('relance_expires', () => relancerAutomatiquement(),
+      ({ notified }) => `${notified} relance(s)`).then(({ notified }) => {
+      if (notified > 0) logger.info(`[PremiumRelance] ${notified} relance(s) envoyée(s)`);
+    }).catch(err => logger.error('[PremiumRelance] Erreur', { message: err.message }));
+  };
+  programmer(setTimeout(runRelanceExpires, 150_000));
+  programmer(setInterval(runRelanceExpires, 24 * 60 * 60 * 1000));
+  logger.info(`Relance des Premium expirés active — 1×/jour (J+${RELANCE_APRES_JOURS})`);
 
   // ─── NOTIFICATIONS DES STORES ─────────────────────────────────────────────
   // Le webhook inscrit l'événement puis acquitte ; le traitement a lieu ici,

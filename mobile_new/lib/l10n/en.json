@@ -1978,5 +1978,13 @@
   "Le détail de cette rencontre est momentanément indisponible.": "Details for this match are temporarily unavailable.",
   "Le fournisseur ne publie pas les faits de cette rencontre.": "The provider does not publish events for this match.",
   "Le fournisseur ne publie pas les statistiques de cette rencontre.": "The provider does not publish statistics for this match.",
-  "Mi-temps : {arg0} - {arg1}": "Half-time: {arg0} - {arg1}"
+  "Mi-temps : {arg0} - {arg1}": "Half-time: {arg0} - {arg1}",
+  "Équipes et ligues suivies": "Followed teams and leagues",
+  "Équipes suivies": "Followed teams",
+  "Coup d'envoi, buts et résultat de leurs matchs": "Kick-off, goals and result of their matches",
+  "Coup d'envoi et résultat de leurs matchs": "Kick-off and result of their matches",
+  "Active d'abord les alertes matchs": "Turn on match alerts first",
+  "Provisoire : les matchs en cours comptent au score du moment.": "Provisional: matches in progress count at their current score.",
+  "Gagne {arg0} place(s)": "Up {arg0} place(s)",
+  "Perd {arg0} place(s)": "Down {arg0} place(s)"
 }

@@ -12,6 +12,9 @@ r.get ('/export/csv',    C.exportCsv);
 // Déclarées avant `/:id` : sinon « bulk » serait capté comme un identifiant.
 r.patch('/bulk/suspend', C.bulkSuspend);
 r.post ('/bulk/notify',  C.bulkNotify);
+// Relancer les Premium expirés (15 novembre 2026), avant `/:id` lui aussi.
+r.get ('/relance-expires', C.apercuRelanceExpires);
+r.post('/relance-expires', C.relancerPremiumExpires);
 r.get ('/:id',           C.getUserDetail);
 r.patch('/:id/suspend',  C.toggleSuspend);
 r.post ('/:id/premium',  C.grantPremium);

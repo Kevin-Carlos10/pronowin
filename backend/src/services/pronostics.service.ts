@@ -21,7 +21,7 @@ import {
   releverEvenements, releverScores,
   _oublierEtatsDuDirect, _oublierScoresDuDirect, type EvenementsDirect, type Score,
 } from './alertes_direct';
-import { suiveursDuMatch, type CategorieAlerte } from './suiveurs_match';
+import { suiveursDuMatch, suiveursEquipesLigues, type CategorieAlerte } from './suiveurs_match';
 import { nomEquipe, rencontre, traduireEquipes } from '../utils/noms_equipes';
 import { pourcentageConfiance, pourcentageDepuisNiveau } from '../utils/confiance';
 
@@ -549,7 +549,8 @@ export class PronosticsService {
    * quel que soit le chemin qui le détecte.
    */
   private async _alertesDuDirect(
-    match: { id: string; homeTeam: string; awayTeam: string; homeTeamLogo?: string | null; awayTeamLogo?: string | null },
+    match: { id: string; homeTeam: string; awayTeam: string; homeTeamLogo?: string | null; awayTeamLogo?: string | null;
+      league?: string | null },
     coupEnvoi: boolean,
     but: { avant: Score; fixture: AFFixture } | undefined,
     evenements?: EvenementsDirect,
@@ -618,7 +619,8 @@ export class PronosticsService {
     const categories = [...new Set<CategorieAlerte>([
       ...(annoncerCoupEnvoi ? ['coup_envoi' as const] : []), ...messages.map(m => m.categorie)])];
     const parCategorie = new Map<CategorieAlerte, Set<string>>();
-    for (const c of categories) parCategorie.set(c, new Set(await suiveursDuMatch(match.id, prono?.id ?? null, c)));
+    // Avec ceux qui suivent l'une des équipes ou la ligue (15 novembre 2026).
+    for (const c of categories) parCategorie.set(c, new Set(await suiveursDuMatch(match.id, prono?.id ?? null, c, match)));
     // Chacun reçoit ses alertes dans l'ordre où elles se sont produites.
     const destinataires = [...new Set([...parCategorie.values()].flatMap(s => [...s]))];
     const veut = (userId: string, c: CategorieAlerte) => parCategorie.get(c)?.has(userId) ?? false;
@@ -823,6 +825,16 @@ export class PronosticsService {
         where:  { matchId: match.id, alertes: { has: 'fin_de_match' } },
         select: { userId: true },
       });
+      // Et ceux qui suivent l'une des équipes ou la ligue (15 novembre 2026) :
+      // le score final seulement, sans le détail du pronostic — sauf s'ils
+      // suivent aussi le match, dont le choix d'alertes prime.
+      const suivisDuMatch = mappedStatus === 'FINISHED'
+        ? new Set((await prisma.userFavoriteMatch.findMany({ where: { matchId: match.id }, select: { userId: true } }))
+            .map(f => f.userId))
+        : new Set<string>();
+      const parSuivi = mappedStatus === 'FINISHED'
+        ? (await suiveursEquipesLigues(match, 'fin_de_match')).filter(u => !suivisDuMatch.has(u))
+        : [];
 
       // 3. Si le match est TERMINÉ → calculer le résultat du pronostic
       if (mappedStatus === 'FINISHED' && homeScore !== null && awayScore !== null) {
@@ -831,8 +843,21 @@ export class PronosticsService {
         });
 
         // Notifier fin de match (score final) aux favoris
-        if (favorites.length > 0) {
+        if (favorites.length > 0 || parSuivi.length > 0) {
           const scoreStr = `${homeScore} - ${awayScore}`;
+          for (const userId of parSuivi) {
+            notifSvc.sendToUser(userId, {
+              title:   `Fin de match : ${nomEquipe(match.homeTeam)} ${scoreStr} ${nomEquipe(match.awayTeam)}`,
+              body:    'Le match est terminé.',
+              titleEn: `Full time: ${nomEquipe(match.homeTeam)} ${scoreStr} ${nomEquipe(match.awayTeam)}`,
+              bodyEn:  'The match is over.',
+              data:  {
+                type:      'match_finished',
+                deep_link: `/pronostics/${prono?.id ?? match.id}`,
+                match_id:  match.id,
+              },
+            }, 'match').catch((err: any) => journal.error("[PronoSvc]", err.message));
+          }
           for (const fav of favorites) {
             notifSvc.sendToUser(fav.userId, {
               title: `Fin de match : ${nomEquipe(match.homeTeam)} ${scoreStr} ${nomEquipe(match.awayTeam)}`,
