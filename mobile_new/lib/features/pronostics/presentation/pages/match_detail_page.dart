@@ -44,6 +44,7 @@ import '../widgets/fil_evenements.dart';
 import '../widgets/fond_equipes.dart';
 import '../widgets/decompte_coup_envoi.dart';
 import '../widgets/carte_match_partage.dart';
+import 'confrontation_page.dart';
 import '../widgets/equipes_suivies.dart' show EtoileSuivreEquipe;
 import '../widgets/infos_joueurs.dart';
 import '../widgets/prono_share_card.dart';
@@ -101,12 +102,19 @@ Widget analyseModeleSeule(String matchId) => _AnalyseModele(matchId: matchId);
 @visibleForTesting
 Widget formeRecenteSeule(MatchEntity match) => _FormeRecente(match: match);
 
+@visibleForTesting
+Widget confrontationsSeules(String matchId) => _H2HCard(matchId: matchId);
+
 /// Le classement et les palmarès du détail d'un match, repris par la page
 /// d'une compétition (10 novembre 2026, onglets « Classement » et
 /// « Buteurs » de Sofascore) : les mêmes tableaux, sans match à surligner.
 Widget classementDeCompetition(List<StandingRow> rows) =>
     _GroupedStandings(rows: rows, homeTeam: '', awayTeam: '', horsMatch: true);
 Widget palmaresDeCompetition(String leagueCode) => _MeilleursButeurs(leagueCode: leagueCode);
+
+/// Les statistiques d'un match (total et mi-temps), pour le détail d'une
+/// confrontation passée (15 novembre 2026).
+Widget statistiquesParPeriode(MatchStatsData data) => _StatsParPeriode(data: data);
 
 /// Ou revenir quand la page a ete ouverte sans historique —
 /// par un lien profond de notification, qui remplace la pile.

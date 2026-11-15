@@ -19,6 +19,9 @@ import { journal } from '../utils/logger';
  */
 
 export interface EquipeTrouvee { id: number; nom: string; logo: string | null; competition: string | null }
+/** Une compétition : son code (celui de la page /competitions/:code), son nom
+ *  tel que les matchs le portent (celui des ligues suivies), son logo. */
+export interface CompetitionTrouvee { code: string; nom: string; logo: string | null; pays: string | null }
 export interface JoueurTrouve {
   id: number; nom: string; photo: string | null;
   poste: string | null; nationalite: string | null; age: number | null;
@@ -35,6 +38,51 @@ export function idEquipeDepuisLogo(logo: string | null | undefined): number | nu
 }
 
 const normaliser = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+
+/** Noms usuels (normalisés) des grandes compétitions, et leur code. */
+const ALIAS_COMPETITIONS: ReadonlyArray<readonly [string, string]> = [
+  ['ligue des champions', 'CL'], ['champions league', 'CL'], ['ldc', 'CL'],
+  ['ligue europa', 'AF_3'], ['europa league', 'AF_3'],
+  ['premier league', 'PL'], ['championnat d angleterre', 'PL'],
+  ['liga', 'PD'], ['laliga', 'PD'], ['championnat d espagne', 'PD'],
+  ['serie a', 'SA'], ['championnat d italie', 'SA'],
+  ['bundesliga', 'BL1'], ['championnat d allemagne', 'BL1'],
+  ['ligue 1', 'FL1'], ['championnat de france', 'FL1'],
+];
+
+/**
+ * Les championnats dont le nom contient [terme] (15 novembre 2026) : la
+ * recherche trouvait leurs matchs, jamais la compétition elle-même, qu'on ne
+ * pouvait suivre qu'en retrouvant son en-tête dans la liste des matchs. Dans
+ * notre base, comme les équipes : aucune requête au fournisseur.
+ */
+export async function rechercherCompetitions(terme: string): Promise<CompetitionTrouvee[]> {
+  const t = terme.trim();
+  if (t.length < 2 || t.length > RECHERCHE_MAX) return [];
+  const cible = normaliser(t);
+  // Les matchs portent le nom officiel (« UEFA Champions League ») : les noms
+  // français et usuels des grandes compétitions mènent à leur code.
+  const codesAlias = cible.length >= 3
+    ? [...new Set(ALIAS_COMPETITIONS.filter(([alias]) => alias.includes(cible.replace(/['’]/g, ' '))).map(([, code]) => code))]
+    : [];
+  const lignes = await prisma.match.findMany({
+    where: { OR: [
+      { league: { contains: t, mode: 'insensitive' } },
+      { leagueCode: { equals: t.toUpperCase() } },
+      ...(codesAlias.length ? [{ leagueCode: { in: codesAlias } }] : []),
+    ] },
+    distinct: ['leagueCode'],
+    select: { league: true, leagueCode: true, leagueLogo: true, leagueCountry: true },
+    orderBy: { matchDate: 'desc' },
+    take: MAX_RESULTATS,
+  });
+  const commence = (c: CompetitionTrouvee) => normaliser(c.nom).startsWith(cible) ? 0 : 1;
+  return lignes
+    .map(l => ({ code: l.leagueCode, nom: l.league, logo: l.leagueLogo ?? null, pays: l.leagueCountry ?? null }))
+    .map((c, rang) => ({ c, rang }))
+    .sort((a, b) => commence(a.c) - commence(b.c) || a.rang - b.rang)
+    .map(x => x.c);
+}
 
 /**
  * Les équipes dont le nom contient [terme], les plus récemment jouées

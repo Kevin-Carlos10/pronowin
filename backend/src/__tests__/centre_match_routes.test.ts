@@ -7,13 +7,13 @@ jest.mock('../services/notification.service');
 jest.mock('../services/football_data.service');
 jest.mock('../services/api_football.service', () => ({
   apiFootballService: { getMatchInfo: jest.fn(), getMatchStats: jest.fn(), getLineups: jest.fn(), getStandings: jest.fn(),
-    getFormeRecente: jest.fn(), getOdds1xBet: jest.fn() },
+    getFormeRecente: jest.fn(), getOdds1xBet: jest.fn(), getH2H: jest.fn(), getFixtureOfficielle: jest.fn() },
   apiFootballInsights: { getLiveOdds: jest.fn() },
   LEAGUE_INFO: (code: string) => (code === 'PL' ? { id: 39, season: 2026 } : null),
 }));
 import { prisma } from '../lib/prisma';
 import { apiFootballService } from '../services/api_football.service';
-import { getMatchInfo, getPronosticDetail, getPronosticScore, getMatchStats, getLineups, getStandings, getFormeRecente, getCotes, getClassementLigue } from '../controllers/pronostics.controller';
+import { getMatchInfo, getPronosticDetail, getPronosticScore, getMatchStats, getLineups, getStandings, getFormeRecente, getCotes, getClassementLigue, getConfrontation, getH2H } from '../controllers/pronostics.controller';
 const match = { id: 'm', status: 'LIVE', externalId: 42, source: 'API_FOOTBALL', homeTeam: 'A', awayTeam: 'B',
   league: 'Premier League', leagueCode: 'PL', matchDate: new Date(), homeScore: 2, awayScore: 1, elapsedMinutes: 45 };
 const response = () => { const r: any = { json: jest.fn() }; r.status = jest.fn(() => r); return r; };
@@ -138,4 +138,67 @@ it("classement d'une compétition sans passer par un match (page de compétition
   const invente = response(); await getClassementLigue({ query: { league: 'AF_99999' } } as any, invente);
   expect(invente.status).toHaveBeenCalledWith(404);
   expect(apiFootballService.getStandings).not.toHaveBeenCalled();
+});
+
+describe('le détail d\u2019une confrontation passée (15 novembre 2026)', () => {
+  const h2h = {
+    aggregates: { numberOfMatches: 1, homeTeam: { id: 1, name: 'A', wins: 1, draws: 0, losses: 0 },
+      awayTeam: { id: 2, name: 'B', wins: 0, draws: 0, losses: 1 } },
+    matches: [
+      { id: 777, utcDate: '2025-03-01T20:00:00Z', status: 'FINISHED', competition: { name: 'Premier League', code: 'PL' },
+        homeTeam: { id: 1, name: 'A', shortName: 'A' }, awayTeam: { id: 2, name: 'B', shortName: 'B' },
+        score: { winner: 'HOME_TEAM', fullTime: { home: 2, away: 1 } } },
+      { id: 888, utcDate: '2026-12-01T20:00:00Z', status: 'SCHEDULED', competition: { name: 'Premier League', code: 'PL' },
+        homeTeam: { id: 2, name: 'B', shortName: 'B' }, awayTeam: { id: 1, name: 'A', shortName: 'A' },
+        score: { winner: null, fullTime: { home: null, away: null } } },
+    ],
+  };
+  const fixture = {
+    fixture: { id: 777, date: '2025-03-01T20:00:00+00:00', venue: { name: 'Stade' }, referee: 'M. Arbitre' },
+    league: { name: 'Premier League', logo: 'l.png', round: 'Regular Season - 27' },
+    teams: { home: { name: 'A', logo: 'a.png' }, away: { name: 'B', logo: 'b.png' } },
+    goals: { home: 2, away: 1 }, score: { halftime: { home: 1, away: 0 } },
+  };
+  beforeEach(() => {
+    (apiFootballService.getH2H as jest.Mock).mockResolvedValue(h2h);
+    (apiFootballService.getFixtureOfficielle as jest.Mock).mockResolvedValue(fixture);
+    (apiFootballService.getMatchStats as jest.Mock).mockResolvedValue({ fixture_id: 777, events: [], stats: [], home_team: 'A', away_team: 'B' });
+    (prisma.match.findFirst as jest.Mock).mockResolvedValue(null);
+  });
+
+  it('la liste des confrontations porte l\u2019identifiant de chaque rencontre', async () => {
+    (prisma.match.findUnique as jest.Mock).mockResolvedValue({ ...match, source: 'API_FOOTBALL' });
+    const r = response(); await getH2H({ params: { id: 'm' } } as any, r);
+    expect(r.json.mock.calls[0][0].matches[0].fixture_id).toBe(777);
+  });
+
+  it('score, mi-temps, faits et statistiques d\u2019une rencontre du face-à-face', async () => {
+    (prisma.match.findUnique as jest.Mock).mockResolvedValue({ ...match, source: 'API_FOOTBALL' });
+    (prisma.match.findFirst as jest.Mock).mockResolvedValue({ id: 'locale' });
+    const r = response(); await getConfrontation({ params: { id: 'm', fixtureId: '777' } } as any, r);
+    expect(r.status).not.toHaveBeenCalled();
+    expect(r.json).toHaveBeenCalledWith(expect.objectContaining({
+      fixture_id: 777, match_id: 'locale', home_score: 2, away_score: 1, ht_home: 1, ht_away: 0,
+      venue: 'Stade', round: 'Regular Season - 27', home_logo: 'a.png',
+    }));
+    expect(apiFootballService.getMatchStats).toHaveBeenCalledWith(777, 'FINISHED');
+  });
+
+  it('une rencontre hors du face-à-face, ou pas encore jouée, n\u2019est pas servie : pas d\u2019appel au fournisseur', async () => {
+    (prisma.match.findUnique as jest.Mock).mockResolvedValue({ ...match, source: 'API_FOOTBALL' });
+    for (const id of ['999', '888']) {
+      const r = response(); await getConfrontation({ params: { id: 'm', fixtureId: id } } as any, r);
+      expect(r.status).toHaveBeenCalledWith(404);
+    }
+    expect(apiFootballService.getFixtureOfficielle).not.toHaveBeenCalled();
+    const invalide = response(); await getConfrontation({ params: { id: 'm', fixtureId: 'abc' } } as any, invalide);
+    expect(invalide.status).toHaveBeenCalledWith(400);
+  });
+
+  it('un match d\u2019un autre fournisseur n\u2019a pas de détail de confrontation', async () => {
+    (prisma.match.findUnique as jest.Mock).mockResolvedValue({ ...match, source: 'FOOTBALL_DATA' });
+    const r = response(); await getConfrontation({ params: { id: 'm', fixtureId: '777' } } as any, r);
+    expect(r.status).toHaveBeenCalledWith(404);
+    expect(apiFootballService.getH2H).not.toHaveBeenCalled();
+  });
 });

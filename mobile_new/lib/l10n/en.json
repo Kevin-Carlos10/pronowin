@@ -1966,5 +1966,17 @@
   "Historique des gains ({arg0})": "Earnings history ({arg0})",
   "Je suis les matchs sur PronoWin : scores en direct, statistiques et analyses de foot. Mon code de parrainage : {arg0}. {arg1}": "I follow matches on PronoWin: live scores, stats and football analysis. My referral code: {arg0}. {arg1}",
   "Avec l'appareil photo du téléphone : il ouvre la page de téléchargement de PronoWin.": "With the phone's camera: it opens the PronoWin download page.",
-  "Avec l'appareil photo du téléphone : il ouvre la page de téléchargement de PronoWin, avec ton code de parrainage.": "With the phone's camera: it opens the PronoWin download page, with your referral code."
+  "Avec l'appareil photo du téléphone : il ouvre la page de téléchargement de PronoWin, avec ton code de parrainage.": "With the phone's camera: it opens the PronoWin download page, with your referral code.",
+  "Ne plus suivre": "Unfollow",
+  "Connecte-toi pour suivre une compétition.": "Log in to follow a competition.",
+  "Retirée de tes Suivis": "Removed from your Following",
+  "Ajoutée à tes Suivis, onglet Ligues": "Added to your Following, Leagues tab",
+  "COMPÉTITIONS": "COMPETITIONS",
+  "{arg0} {arg1} - {arg2} {arg3}, voir le détail": "{arg0} {arg1} - {arg2} {arg3}, see details",
+  "Confrontation": "Head-to-head",
+  "Voir la fiche complète du match": "See the full match page",
+  "Le détail de cette rencontre est momentanément indisponible.": "Details for this match are temporarily unavailable.",
+  "Le fournisseur ne publie pas les faits de cette rencontre.": "The provider does not publish events for this match.",
+  "Le fournisseur ne publie pas les statistiques de cette rencontre.": "The provider does not publish statistics for this match.",
+  "Mi-temps : {arg0} - {arg1}": "Half-time: {arg0} - {arg1}"
 }

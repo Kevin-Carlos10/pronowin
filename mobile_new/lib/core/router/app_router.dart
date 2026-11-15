@@ -264,7 +264,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/competitions/:code',
         pageBuilder: (_, s) => slideRightPage(
-          state: s, child: CompetitionPage(code: s.pathParameters['code']!)),
+          state: s, child: CompetitionPage(code: s.pathParameters['code']!,
+            nom: s.uri.queryParameters['nom'], logo: s.uri.queryParameters['logo'])),
       ),
       // « Donne-nous ton avis » (8 novembre 2026).
       GoRoute(

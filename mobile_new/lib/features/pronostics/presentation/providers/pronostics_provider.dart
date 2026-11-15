@@ -348,10 +348,13 @@ class H2HMatchResult {
   final int      awayScore;
   final String   winner;
   final String   league;
+  /// L'identifiant API-Football de la rencontre, pour en ouvrir le détail
+  /// (15 novembre 2026). Absent d'un serveur antérieur.
+  final int?     fixtureId;
   const H2HMatchResult({
     required this.date, required this.homeTeam, required this.awayTeam,
     required this.homeScore, required this.awayScore,
-    required this.winner, required this.league,
+    required this.winner, required this.league, this.fixtureId,
   });
 }
 
@@ -389,6 +392,7 @@ final h2hProvider = FutureProvider.autoDispose.family<H2HData, String>((ref, id)
       awayScore: (mm['away_score'] as num).toInt(),
       winner:    mm['winner'] as String? ?? 'DRAW',
       league:    mm['league']  as String? ?? '',
+      fixtureId: (mm['fixture_id'] as num?)?.toInt(),
     );
   }).toList();
 
@@ -696,11 +700,9 @@ class MatchStatsData {
   });
 }
 
-final matchStatsProvider = FutureProvider.autoDispose.family<MatchStatsData?, String>((ref, id) async {
-  final dio = ref.read(dioProvider);
-  try {
-    final r = await dio.get('/pronostics/$id/match-stats');
-    final d = r.data as Map<String, dynamic>;
+/// Faits et statistiques d'un match, au format de `/:id/match-stats` —
+/// celui du détail d'une confrontation passée aussi.
+MatchStatsData lireMatchStats(Map<String, dynamic> d) {
     final events = (d['events'] as List).map((e) {
       final m = e as Map<String, dynamic>;
       return MatchEvent(
@@ -734,10 +736,60 @@ final matchStatsProvider = FutureProvider.autoDispose.family<MatchStatsData?, St
       homeTeam:  nomEquipe(d['home_team'] as String),
       awayTeam:  nomEquipe(d['away_team'] as String),
     );
+}
+
+final matchStatsProvider = FutureProvider.autoDispose.family<MatchStatsData?, String>((ref, id) async {
+  final dio = ref.read(dioProvider);
+  try {
+    final r = await dio.get('/pronostics/$id/match-stats');
+    return lireMatchStats(r.data as Map<String, dynamic>);
   } on DioException catch (e) {
     if (e.response?.statusCode == 400 || e.response?.statusCode == 404) return null;
     rethrow;
   }
+});
+
+/// Une confrontation passée, en détail (15 novembre 2026).
+class Confrontation {
+  final int fixtureId;
+  /// La rencontre est aussi dans notre base : sa fiche complète s'ouvre.
+  final String? matchId;
+  final DateTime? date;
+  final String? venue, referee, league, leagueLogo, round;
+  final String homeTeam, awayTeam;
+  final String? homeLogo, awayLogo;
+  final int? homeScore, awayScore, mtHome, mtAway;
+  final MatchStatsData? stats;
+  const Confrontation({required this.fixtureId, this.matchId, this.date, this.venue,
+    this.referee, this.league, this.leagueLogo, this.round,
+    required this.homeTeam, required this.awayTeam, this.homeLogo, this.awayLogo,
+    this.homeScore, this.awayScore, this.mtHome, this.mtAway, this.stats});
+
+  factory Confrontation.fromJson(Map<String, dynamic> d) => Confrontation(
+    fixtureId:  (d['fixture_id'] as num).toInt(),
+    matchId:    d['match_id'] as String?,
+    date:       DateTime.tryParse(d['date'] as String? ?? '')?.toLocal(),
+    venue:      d['venue'] as String?,
+    referee:    d['referee'] as String?,
+    league:     d['league'] as String?,
+    leagueLogo: d['league_logo'] as String?,
+    round:      d['round'] as String?,
+    homeTeam:   nomEquipe(d['home_team'] as String? ?? ''),
+    awayTeam:   nomEquipe(d['away_team'] as String? ?? ''),
+    homeLogo:   d['home_logo'] as String?,
+    awayLogo:   d['away_logo'] as String?,
+    homeScore:  (d['home_score'] as num?)?.toInt(),
+    awayScore:  (d['away_score'] as num?)?.toInt(),
+    mtHome:     (d['ht_home'] as num?)?.toInt(),
+    mtAway:     (d['ht_away'] as num?)?.toInt(),
+    stats:      d['stats'] is Map<String, dynamic> ? lireMatchStats(d['stats'] as Map<String, dynamic>) : null,
+  );
+}
+
+final confrontationProvider = FutureProvider.autoDispose
+    .family<Confrontation, ({String matchId, int fixtureId})>((ref, c) async {
+  final r = await ref.read(dioProvider).get('/pronostics/${c.matchId}/h2h/${c.fixtureId}');
+  return Confrontation.fromJson(r.data as Map<String, dynamic>);
 });
 
 // ─── Prono gratuit du jour ────────────────────────────────────────────────────

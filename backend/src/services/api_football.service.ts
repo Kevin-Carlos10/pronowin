@@ -430,6 +430,12 @@ export class ApiFootballService {
     return this.matchLive.stats(fixtureId, status);
   }
 
+  /** La fiche officielle d'une rencontre (en cache), pour le détail d'une
+   *  confrontation passée (15 novembre 2026). */
+  getFixtureOfficielle(fixtureId: number): Promise<any | null> {
+    return this.matchLive.fixture(fixtureId);
+  }
+
   // ── Amicaux ("World - Friendlies", league id 10) ───────────────────────────
 
   private _hasKey(): boolean {

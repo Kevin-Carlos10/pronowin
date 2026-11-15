@@ -22,12 +22,21 @@ class JoueurTrouve {
   const JoueurTrouve({required this.id, required this.nom, this.photo, this.poste, this.nationalite, this.age});
 }
 
+/// Une compétition (15 novembre 2026) : son code, celui de sa page ; son nom
+/// tel que ses matchs le portent, celui des ligues suivies ; son logo.
+class CompetitionTrouvee {
+  final String code, nom;
+  final String? logo, pays;
+  const CompetitionTrouvee({required this.code, required this.nom, this.logo, this.pays});
+}
+
 class ResultatsRecherche {
   final List<EquipeTrouvee> equipes;
   final List<JoueurTrouve> joueurs;
-  const ResultatsRecherche({this.equipes = const [], this.joueurs = const []});
+  final List<CompetitionTrouvee> competitions;
+  const ResultatsRecherche({this.equipes = const [], this.joueurs = const [], this.competitions = const []});
   static const vide = ResultatsRecherche();
-  bool get estVide => equipes.isEmpty && joueurs.isEmpty;
+  bool get estVide => equipes.isEmpty && joueurs.isEmpty && competitions.isEmpty;
 }
 
 /// Attente avant d'interroger le serveur : la recherche des joueurs coûte une
@@ -53,6 +62,12 @@ final rechercheEquipesJoueursProvider =
           if (e is Map && e['id'] is num)
             EquipeTrouvee(id: (e['id'] as num).toInt(), nom: nomEquipe(e['nom'] as String? ?? ''),
               logo: e['logo'] as String?, competition: e['competition'] as String?),
+      ],
+      competitions: [
+        for (final c in (d['competitions'] as List? ?? const []))
+          if (c is Map && c['code'] is String && c['nom'] is String)
+            CompetitionTrouvee(code: c['code'] as String, nom: c['nom'] as String,
+              logo: c['logo'] as String?, pays: c['pays'] as String?),
       ],
       joueurs: [
         for (final j in (d['joueurs'] as List? ?? const []))

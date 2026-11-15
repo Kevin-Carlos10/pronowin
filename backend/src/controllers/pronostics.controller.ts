@@ -11,7 +11,7 @@ import { analyzePronostic, explicationSansCotes } from '../services/ai_predictio
 import { buildUserProfile, getPersonalizedPronostics } from '../services/personalized_ai.service';
 import { settleBets }      from '../services/bankroll.service';
 import { apiFootballService, apiFootballInsights, fichesJoueurs, fichesEquipes } from '../services/api_football.service';
-import { rechercherEquipes, rechercherJoueurs } from '../services/recherche_equipes_joueurs.service';
+import { rechercherEquipes, rechercherJoueurs, rechercherCompetitions } from '../services/recherche_equipes_joueurs.service';
 import { CLASSEMENTS_JOUEURS, type ClassementJoueurs } from '../services/api_football_insights.service';
 import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
 import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
@@ -1040,11 +1040,12 @@ export const getFicheEquipe = async (req: AuthRequest, res: Response) => {
 export const getRechercheEquipesJoueurs = async (req: AuthRequest, res: Response) => {
   try {
     const q = typeof req.query.q === 'string' ? req.query.q : '';
-    const [equipes, joueurs] = await Promise.all([
+    const [equipes, joueurs, competitions] = await Promise.all([
       rechercherEquipes(q),
       rechercherJoueurs(apiFootballService.httpClient, q),
+      rechercherCompetitions(q),
     ]);
-    res.json({ equipes, joueurs });
+    res.json({ equipes, joueurs, competitions });
   } catch (e: any) { repondreErreur(res, e); }
 };
 
@@ -1100,6 +1101,10 @@ export const getH2H = async (req: AuthRequest, res: Response) => {
         away_score: m.score.fullTime.away,
         winner:     m.score.winner, // 'HOME_TEAM' | 'AWAY_TEAM' | 'DRAW'
         league:     m.competition.name,
+        // L'identifiant API-Football, pour ouvrir le détail de la rencontre
+        // (GET /:id/h2h/:fixtureId, 15 novembre 2026). Les rencontres de
+        // football-data.org n'en ont pas d'exploitable.
+        fixture_id: match.source === 'API_FOOTBALL' ? m.id : null,
       }));
 
     res.json({
@@ -1107,6 +1112,65 @@ export const getH2H = async (req: AuthRequest, res: Response) => {
       matches:     finished,
       home_team:   match.homeTeam,
       away_team:   match.awayTeam,
+    });
+  } catch (e: any) { repondreErreur(res, e); }
+};
+
+/**
+ * GET /pronostics/:id/h2h/:fixtureId — le détail d'une confrontation passée
+ * (15 novembre 2026) : score, mi-temps, faits du match, statistiques.
+ *
+ * Seulement une rencontre du face-à-face de ce match : l'identifiant doit
+ * figurer dans la liste que sert `/:id/h2h` (en cache une heure). Une route
+ * qui accepterait n'importe quel identifiant laisserait n'importe qui
+ * dépenser le quota du fournisseur, rencontre après rencontre.
+ *
+ * Si la rencontre est dans notre base, `match_id` la désigne : l'application
+ * peut ouvrir sa fiche complète.
+ */
+export const getConfrontation = async (req: AuthRequest, res: Response) => {
+  try {
+    const fixtureId = Number(req.params.fixtureId);
+    if (!Number.isInteger(fixtureId) || fixtureId <= 0) { res.status(400).json({ message: 'Rencontre inconnue.' }); return; }
+    const match = await findMatchByIdOrPronoId(req.params.id);
+    if (!match) { res.status(404).json({ message: 'Match introuvable.' }); return; }
+    if (match.source !== 'API_FOOTBALL') { res.status(404).json({ message: 'Détail indisponible pour ce match.' }); return; }
+
+    const h2h = await apiFootballService.getH2H(
+      match.homeTeam, match.awayTeam,
+      new Date(match.matchDate).toISOString().split('T')[0], 10, fixtureIdDe(match) ?? undefined,
+    );
+    if (!h2h) { res.status(503).json({ message: 'Données H2H indisponibles.' }); return; }
+    if (!h2h.matches.some(m => m.id === fixtureId && m.status === 'FINISHED')) {
+      res.status(404).json({ message: 'Cette rencontre ne fait pas partie des confrontations de ce match.' }); return;
+    }
+
+    const [fixture, stats, locale] = await Promise.all([
+      apiFootballService.getFixtureOfficielle(fixtureId),
+      apiFootballService.getMatchStats(fixtureId, 'FINISHED'),
+      prisma.match.findFirst({ where: { source: 'API_FOOTBALL', externalId: fixtureId }, select: { id: true } }),
+    ]);
+    if (!fixture) { res.status(503).json({ message: 'Rencontre momentanément indisponible.' }); return; }
+
+    res.json({
+      fixture_id:  fixtureId,
+      match_id:    locale?.id ?? null,
+      date:        fixture.fixture?.date ?? null,
+      venue:       fixture.fixture?.venue?.name ?? null,
+      referee:     fixture.fixture?.referee ?? null,
+      league:      fixture.league?.name ?? null,
+      league_logo: fixture.league?.logo ?? null,
+      round:       fixture.league?.round ?? null,
+      home_team:   fixture.teams?.home?.name ?? null,
+      away_team:   fixture.teams?.away?.name ?? null,
+      home_logo:   fixture.teams?.home?.logo ?? null,
+      away_logo:   fixture.teams?.away?.logo ?? null,
+      home_score:  fixture.goals?.home ?? null,
+      away_score:  fixture.goals?.away ?? null,
+      ht_home:     fixture.score?.halftime?.home ?? null,
+      ht_away:     fixture.score?.halftime?.away ?? null,
+      // Faits et statistiques, au format de `/:id/match-stats`.
+      stats:       stats ?? null,
     });
   } catch (e: any) { repondreErreur(res, e); }
 };

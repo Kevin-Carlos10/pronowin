@@ -11,6 +11,8 @@ import '../../core/theme/app_theme.dart';
 import '../../core/widgets/team_logo_widget.dart';
 import '../../shared/utils/retour.dart';
 import '../auth/presentation/providers/auth_provider.dart';
+import '../../shared/providers/favoris_provider.dart';
+import '../../shared/utils/messages.dart';
 import '../pronostics/data/models/match_model.dart';
 import '../pronostics/domain/entities/match_entity.dart';
 import '../pronostics/presentation/pages/match_detail_page.dart'
@@ -208,12 +210,20 @@ bool palmaresDisponible(String code) => code.isNotEmpty && !code.startsWith('AF_
 /// d'un match ; il fallait ouvrir un match pour les voir.
 class CompetitionPage extends ConsumerWidget {
   final String code;
-  const CompetitionPage({super.key, required this.code});
+  /// Nom et logo d'une compétition hors des grandes (ouverte depuis la
+  /// recherche) : sans eux, la page n'affichait que son code.
+  final String? nom, logo;
+  const CompetitionPage({super.key, required this.code, this.nom, this.logo});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final c = competitionDe(code);
     final avecPalmares = palmaresDisponible(code);
+    // Le nom que portent ses matchs : celui des ligues suivies.
+    final premierMatch = ref.watch(matchsCompetitionProvider(code)).valueOrNull?.firstOrNull;
+    final ligue = premierMatch?.league ?? nom;
+    final titre = c != null ? tr(context, c.nom) : (nom ?? premierMatch?.league ?? code);
+    final logoAffiche = c?.logo ?? logo;
     return DefaultTabController(
       length: avecPalmares ? 3 : 2,
       child: Scaffold(
@@ -225,15 +235,19 @@ class CompetitionPage extends ConsumerWidget {
           ),
           titleSpacing: 0,
           title: Row(children: [
-            if (c != null) ...[
+            if (logoAffiche != null && logoAffiche.isNotEmpty) ...[
               Container(
                 width: 30, height: 30, padding: const EdgeInsets.all(4),
                 decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                child: TeamLogoWidget(url: c.logo, size: 22)),
+                child: TeamLogoWidget(url: logoAffiche, size: 22)),
               const SizedBox(width: 10),
             ],
-            Flexible(child: Text(c == null ? code : tr(context, c.nom), overflow: TextOverflow.ellipsis)),
+            Flexible(child: Text(titre, overflow: TextOverflow.ellipsis)),
           ]),
+          actions: [
+            if (ligue != null && ligue.isNotEmpty) BoutonSuivreLigue(ligue: ligue),
+            const SizedBox(width: 4),
+          ],
           bottom: TabBar(
             key: const Key('onglets-competition'),
             labelColor: context.cl.accent,
@@ -412,6 +426,40 @@ class _PalmaresCompetition extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(margeEcran, 0, margeEcran, 40),
               children: [palmaresDeCompetition(code)],
             ),
+    );
+  }
+}
+
+/// Suivre une compétition (15 novembre 2026) : la punaise des en-têtes de
+/// ligue de Pronos, ailleurs — résultats de recherche, page de la
+/// compétition. [ligue] : le nom que portent ses matchs, celui que range
+/// « Suivis > Ligues ».
+class BoutonSuivreLigue extends ConsumerWidget {
+  final String ligue;
+  const BoutonSuivreLigue({super.key, required this.ligue});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final suivie = ref.watch(favorisProvider).valueOrNull?.ligues.contains(ligue) ?? false;
+    return IconButton(
+      key: Key('suivre-ligue-$ligue'),
+      tooltip: suivie ? tr(context, "Ne plus suivre") : tr(context, "Suivre"),
+      icon: Icon(suivie ? Icons.push_pin_rounded : Icons.push_pin_outlined,
+        color: suivie ? context.cl.accent : context.cl.textS, size: 22),
+      onPressed: () async {
+        // Les ligues suivies se rangent par compte : sans compte, rien à ranger.
+        if (!ref.read(effectiveLoggedInProvider)) {
+          afficherMessage(context, tr(context, "Connecte-toi pour suivre une compétition."), type: TypeMessage.info);
+          return;
+        }
+        await ref.read(favorisProvider.notifier).basculerLigue(ligue);
+        if (context.mounted) {
+          afficherMessage(context, suivie
+              ? tr(context, "Retirée de tes Suivis")
+              : tr(context, "Ajoutée à tes Suivis, onglet Ligues"),
+            type: suivie ? TypeMessage.info : TypeMessage.succes);
+        }
+      },
     );
   }
 }

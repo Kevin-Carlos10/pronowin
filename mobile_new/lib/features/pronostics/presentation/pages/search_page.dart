@@ -167,6 +167,30 @@ class _Resultats extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(margeEcran, 0, margeEcran, 100),
       children: [
+        // Les championnats (15 novembre 2026) : leur page, et la punaise pour
+        // les suivre sans passer par la liste des matchs.
+        if (autres.competitions.isNotEmpty) ...[
+          titre(tr(context, "COMPÉTITIONS")),
+          bloc([
+            for (final c in autres.competitions)
+              ListTile(
+                key: Key('competition-${c.code}'),
+                leading: Container(
+                  width: 34, height: 34, padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                  child: TeamLogoWidget(url: c.logo, size: 26)),
+                title: Text(c.nom, maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: context.cl.textP, fontSize: 15, fontWeight: FontWeight.w600)),
+                subtitle: c.pays == null || c.pays!.isEmpty ? null : Text(c.pays!,
+                  maxLines: 1, overflow: TextOverflow.ellipsis,
+                  style: TextStyle(color: context.cl.textM, fontSize: 12)),
+                trailing: BoutonSuivreLigue(ligue: c.nom),
+                onTap: () => context.push(Uri(path: '/competitions/${c.code}', queryParameters: {
+                  'nom': c.nom, if (c.logo != null) 'logo': c.logo!,
+                }).toString()),
+              ),
+          ]),
+        ],
         if (autres.equipes.isNotEmpty) ...[
           titre(tr(context, "ÉQUIPES")),
           bloc([

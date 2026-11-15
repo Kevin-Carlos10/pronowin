@@ -1,6 +1,6 @@
 jest.mock('../lib/prisma', () => ({ prisma: { match: { findMany: jest.fn() } } }));
 import { prisma } from '../lib/prisma';
-import { idEquipeDepuisLogo, rechercherEquipes, rechercherJoueurs } from '../services/recherche_equipes_joueurs.service';
+import { idEquipeDepuisLogo, rechercherEquipes, rechercherJoueurs, rechercherCompetitions } from '../services/recherche_equipes_joueurs.service';
 import { _reinitialiser } from '../services/etat_taches';
 
 const logo = (id: number) => `https://media.api-sports.io/football/teams/${id}.png`;
@@ -49,5 +49,31 @@ describe('recherche d’équipes et de joueurs (7 novembre 2026)', () => {
 
     const enPanne = { get: jest.fn(async () => { throw Error('offline'); }) };
     expect(await rechercherJoueurs(enPanne as any, 'mbappe')).toEqual([]);
+  });
+});
+
+describe('recherche de compétitions (15 novembre 2026)', () => {
+  it('par le nom, au format de l\u2019application ; celles qui commencent par le terme d\u2019abord', async () => {
+    (prisma.match.findMany as jest.Mock).mockResolvedValue([
+      { league: 'Liga Portugal', leagueCode: 'AF_94', leagueLogo: 'pt.png', leagueCountry: 'Portugal' },
+      { league: 'La Liga', leagueCode: 'PD', leagueLogo: 'es.png', leagueCountry: 'Spain' },
+    ]);
+    const r = await rechercherCompetitions('liga');
+    expect(r.map(c => c.code)).toEqual(['AF_94', 'PD']);
+    expect(r[1]).toEqual({ code: 'PD', nom: 'La Liga', logo: 'es.png', pays: 'Spain' });
+    const requete = (prisma.match.findMany as jest.Mock).mock.calls[0][0];
+    expect(requete.distinct).toEqual(['leagueCode']);
+  });
+
+  it('les noms français mènent au code : « ligue des champions » trouve la CL', async () => {
+    (prisma.match.findMany as jest.Mock).mockResolvedValue([]);
+    await rechercherCompetitions('Ligue des champ');
+    const ou = (prisma.match.findMany as jest.Mock).mock.calls[0][0].where.OR;
+    expect(ou).toContainEqual({ leagueCode: { in: ['CL'] } });
+  });
+
+  it('une lettre ne cherche rien', async () => {
+    expect(await rechercherCompetitions('l')).toEqual([]);
+    expect(prisma.match.findMany).not.toHaveBeenCalled();
   });
 });

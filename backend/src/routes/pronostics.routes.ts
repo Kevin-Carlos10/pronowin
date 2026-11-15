@@ -47,6 +47,8 @@ r.get ('/history',   authMiddleware, C.getHistory);
 // ça empêchait juste d'entrer.
 r.get ('/:id/score',       optionalAuthMiddleware, C.getPronosticScore);
 r.get ('/:id/h2h',         optionalAuthMiddleware, C.getH2H);
+// Le détail d'une confrontation passée (15 novembre 2026).
+r.get ('/:id/h2h/:fixtureId', optionalAuthMiddleware, C.getConfrontation);
 r.get ('/:id/lineups',     optionalAuthMiddleware, C.getLineups);
 r.get ('/:id/injuries',    optionalAuthMiddleware, C.getInjuries);
 r.get ('/:id/standings',   optionalAuthMiddleware, C.getStandings);

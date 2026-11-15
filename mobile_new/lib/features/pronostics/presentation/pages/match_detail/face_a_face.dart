@@ -53,7 +53,7 @@ class _H2HCard extends ConsumerWidget {
           : h2hAsync.when(
               loading: () => _H2HLoading(),
               error: (_, _) => const SizedBox.shrink(),
-              data: (h2h) => _H2HContent(
+              data: (h2h) => _H2HContent(matchId: matchId,
                 h2h: h2h, homeLogo: homeLogo, awayLogo: awayLogo),
             ),
       ]),
@@ -62,10 +62,11 @@ class _H2HCard extends ConsumerWidget {
 }
 
 class _H2HContent extends StatelessWidget {
+  final String matchId;
   final H2HData h2h;
   final String? homeLogo;
   final String? awayLogo;
-  const _H2HContent({required this.h2h, this.homeLogo, this.awayLogo});
+  const _H2HContent({required this.matchId, required this.h2h, this.homeLogo, this.awayLogo});
 
   @override
   Widget build(BuildContext context) {
@@ -160,6 +161,7 @@ class _H2HContent extends StatelessWidget {
         return [
           for (var i = 0; i < shown.length; i++)
             _H2HRow(
+              matchId: matchId,
               match: shown[i],
               h2h: h2h,
               homeLogo: homeLogo,
@@ -173,12 +175,14 @@ class _H2HContent extends StatelessWidget {
 }
 
 class _H2HRow extends StatelessWidget {
+  final String         matchId;
   final H2HMatchResult match;
   final H2HData        h2h;
   final String? homeLogo;
   final String? awayLogo;
   final bool showDivider;
   const _H2HRow({
+    required this.matchId,
     required this.match,
     required this.h2h,
     this.homeLogo,
@@ -230,8 +234,32 @@ class _H2HRow extends StatelessWidget {
     );
   }
 
+  /// Le détail de la rencontre (15 novembre 2026) : score à la mi-temps,
+  /// faits du match, statistiques.
+  void _ouvrir(BuildContext context) {
+    HapticFeedback.selectionClick();
+    Navigator.of(context).push(MaterialPageRoute<void>(builder: (_) => ConfrontationPage(
+      matchId: matchId, fixtureId: match.fixtureId!, apercu: match)));
+  }
+
   @override
-  Widget build(BuildContext context) => Column(children: [
+  Widget build(BuildContext context) {
+    final ouvrable = match.fixtureId != null;
+    final ligne = _contenu(context, ouvrable);
+    if (!ouvrable) return ligne;
+    return Semantics(
+      button: true,
+      label: tr(context, "{arg0} {arg1} - {arg2} {arg3}, voir le détail",
+        [match.homeTeam, match.homeScore, match.awayScore, match.awayTeam]),
+      child: InkWell(
+        key: Key('confrontation-${match.fixtureId}'),
+        borderRadius: BorderRadius.circular(8),
+        onTap: () => _ouvrir(context),
+        child: ExcludeSemantics(child: ligne)),
+    );
+  }
+
+  Widget _contenu(BuildContext context, bool ouvrable) => Column(children: [
     Padding(
       padding: const EdgeInsets.symmetric(vertical: 11),
       child: Column(children: [
@@ -267,6 +295,7 @@ class _H2HRow extends StatelessWidget {
                 fontSize: 14, fontWeight: FontWeight.w700)),
           ),
           _teamSide(context, match.awayTeam, alignEnd: false),
+          if (ouvrable) Icon(Icons.chevron_right_rounded, size: 18, color: context.cl.textM),
         ]),
       ]),
     ),
