@@ -14,6 +14,10 @@ import '../../../../core/theme/app_theme.dart';
 /// Tous les fournisseurs partagent désormais la même forme. C'est le modèle des
 /// grandes apps sport (Sofascore, OneFootball) : on propose, on n'oriente pas.
 ///
+/// Sur le fond des cartes depuis le 20 novembre 2026, comme les lignes des
+/// Paramètres : un simple contour se perdait sur le fond sombre. Le même fond
+/// pour tous — aucun ne passe devant les autres.
+///
 /// Ajouter « Continuer avec Apple » — obligatoire dès la sortie iOS, règle 4.8
 /// de l'App Store — ne demandera qu'une entrée de plus dans la pile.
 class BoutonFournisseur extends StatelessWidget {
@@ -43,20 +47,20 @@ class BoutonFournisseur extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      height: 52,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: actif ? onPressed : null,
-          borderRadius: BorderRadius.circular(14),
-          child: Opacity(
-            opacity: actif ? 1 : 0.45,
-            child: Container(
+      height: 54,
+      child: Opacity(
+        opacity: actif ? 1 : 0.45,
+        child: Material(
+          color: context.cl.surface,
+          clipBehavior: Clip.antiAlias,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+            side: BorderSide(color: context.cl.borderS, width: 1),
+          ),
+          child: InkWell(
+            onTap: actif ? onPressed : null,
+            child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: context.cl.borderS, width: 1),
-              ),
               child: Row(children: [
                 SizedBox(width: 22, height: 22, child: Center(child: logo)),
                 // Le libellé reste centré sur toute la largeur du bouton, la

@@ -38,12 +38,15 @@ class LogotypePronoWin extends StatelessWidget {
       // Le lecteur d'écran doit entendre « PronoWin », pas « Prono » puis
       // « Win » : deux fragments d'un même nom propre.
       text: TextSpan(
-        style: TextStyle(
+        // La police du thème (20 novembre 2026) : `RichText` ne la reçoit pas
+        // d'elle-même, et le logotype s'écrivait dans celle du moteur. Pas de
+        // mise à l'échelle du texte : une marque garde sa taille.
+        style: (Theme.of(context).textTheme.bodyMedium ?? const TextStyle()).merge(TextStyle(
           fontSize: taille,
           fontWeight: FontWeight.w900,
           letterSpacing: -taille * 0.025,
           height: 1.1,
-        ),
+        )),
         children: [
           TextSpan(text: 'Prono', style: TextStyle(color: couleurPrincipale)),
           // L'orange de la marque, dans les deux thèmes. Un logotype est

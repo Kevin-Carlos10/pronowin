@@ -1986,5 +1986,16 @@
   "Active d'abord les alertes matchs": "Turn on match alerts first",
   "Provisoire : les matchs en cours comptent au score du moment.": "Provisional: matches in progress count at their current score.",
   "Gagne {arg0} place(s)": "Up {arg0} place(s)",
-  "Perd {arg0} place(s)": "Down {arg0} place(s)"
+  "Perd {arg0} place(s)": "Down {arg0} place(s)",
+  "Connecte-toi pour retrouver tes suivis, tes alertes et ton Premium sur tous tes appareils.": "Sign in to get your follows, alerts and Premium on all your devices.",
+  "ou": "or",
+  "Sans mot de passe, en quelques secondes": "No password, in a few seconds",
+  "nom@exemple.com": "name@example.com",
+  "Tu recevras un code à 6 chiffres. Aucun mot de passe à créer.": "You'll get a 6-digit code. No password to create.",
+  " et notre ": " and our ",
+  "politique de confidentialité": "privacy policy",
+  "Saisis le code à 6 chiffres envoyé à ": "Enter the 6-digit code sent to ",
+  "Modifier l'adresse": "Change address",
+  "Renvoyer le code dans {arg0}": "Resend code in {arg0}",
+  "Rien reçu ? Regarde dans les courriers indésirables (spam) ou les promotions, puis vérifie l'adresse.": "Nothing received? Check your spam or promotions folder, then check the address."
 }

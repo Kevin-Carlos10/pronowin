@@ -34,21 +34,31 @@ void main() {
           reason: 'des hauteurs différentes hiérarchisent les chemins');
     });
 
-    testWidgets('aucun bouton n\'est rempli — seul le contour les distingue',
+    testWidgets('tous sur le même fond, celui des cartes — aucun ne passe devant',
         (tester) async {
-      // Un fond plein sur l'un d'eux rétablirait la hiérarchie qu'on retire.
-      await tester.pumpWidget(_hote(const BoutonFournisseur(
-        libelle: 'Continuer avec Google', logo: LogoGoogle())));
+      // Une couleur propre à l'un d'eux rétablirait la hiérarchie qu'on retire
+      // (20 novembre 2026 : le fond des cartes, pour tous, plutôt qu'un
+      // contour seul qui se perdait sur le fond sombre).
+      await tester.pumpWidget(_hote(Column(children: const [
+        BoutonFournisseur(libelle: 'Continuer avec Google', logo: LogoGoogle()),
+        BoutonFournisseur(libelle: 'Continuer avec Apple', logo: LogoApple()),
+        BoutonFournisseur(libelle: 'Continuer avec un e-mail', logo: LogoEmail()),
+      ])));
 
-      final deco = tester
-          .widgetList<Container>(find.byType(Container))
+      final fonds = tester
+          .widgetList<Material>(find.descendant(
+              of: find.byType(BoutonFournisseur), matching: find.byType(Material)))
+          .map((m) => m.color)
+          .toSet();
+      expect(fonds, hasLength(1), reason: 'un seul fond pour tous les chemins');
+      expect(fonds.single, isNot(anyOf(AppColors.primary, Colors.transparent, isNull)));
+      final degrades = tester
+          .widgetList<Container>(find.descendant(
+              of: find.byType(BoutonFournisseur), matching: find.byType(Container)))
           .map((c) => c.decoration)
-          .whereType<BoxDecoration>();
-      for (final d in deco) {
-        expect(d.color, anyOf(isNull, Colors.transparent),
-            reason: 'un bouton de fournisseur reste en contour');
-        expect(d.gradient, isNull);
-      }
+          .whereType<BoxDecoration>()
+          .where((d) => d.gradient != null);
+      expect(degrades, isEmpty);
     });
   });
 
