@@ -2000,4 +2000,8 @@ const englishMessages = <String, String>{
   "Modifier l'adresse": "Change address",
   "Renvoyer le code dans {arg0}": "Resend code in {arg0}",
   "Rien reçu ? Regarde dans les courriers indésirables (spam) ou les promotions, puis vérifie l'adresse.": "Nothing received? Check your spam or promotions folder, then check the address.",
+  "Besoin d'aide ?": "Need help?",
+  "Problème de connexion": "Sign-in problem",
+  "Le foot au quotidien, avec": "Everyday football, with",
+  "pronostics, scores en direct & alertes": "predictions, live scores & alerts",
 };

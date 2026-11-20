@@ -23,16 +23,21 @@ class LogotypePronoWin extends StatelessWidget {
   /// ailleurs, laisser la valeur par défaut.
   final bool surFondSombre;
 
+  /// Tout en blanc, « Win » compris : sur un fond de l'orange de la marque
+  /// (bandeau de connexion, 20 novembre 2026), « Win » en orange disparaît.
+  final bool toutBlanc;
+
   const LogotypePronoWin({
     super.key,
     this.taille = 24,
     this.surFondSombre = false,
+    this.toutBlanc = false,
   });
 
   @override
   Widget build(BuildContext context) {
     final couleurPrincipale =
-        surFondSombre ? Colors.white : context.cl.textP;
+        surFondSombre || toutBlanc ? Colors.white : context.cl.textP;
 
     return RichText(
       // Le lecteur d'écran doit entendre « PronoWin », pas « Prono » puis
@@ -53,7 +58,7 @@ class LogotypePronoWin extends StatelessWidget {
           // exempté du seuil de contraste (WCAG 1.4.3) — et #E8541A fait tout
           // de même 3,4:1 sur blanc. Le ton de texte (`context.cl.accent`)
           // changerait la marque d'un thème à l'autre.
-          const TextSpan(text: 'Win', style: TextStyle(color: AppColors.primary)),
+          TextSpan(text: 'Win', style: TextStyle(color: toutBlanc ? Colors.white : AppColors.primary)),
         ],
       ),
     );

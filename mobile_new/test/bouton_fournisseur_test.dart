@@ -34,11 +34,11 @@ void main() {
           reason: 'des hauteurs différentes hiérarchisent les chemins');
     });
 
-    testWidgets('tous sur le même fond, celui des cartes — aucun ne passe devant',
+    testWidgets('tous de la même forme, sans fond de couleur — aucun ne passe devant',
         (tester) async {
-      // Une couleur propre à l'un d'eux rétablirait la hiérarchie qu'on retire
-      // (20 novembre 2026 : le fond des cartes, pour tous, plutôt qu'un
-      // contour seul qui se perdait sur le fond sombre).
+      // Une couleur ou une forme propre à l'un d'eux rétablirait la hiérarchie
+      // qu'on retire (20 novembre 2026 : des pilules au contour franc, pour
+      // tous).
       await tester.pumpWidget(_hote(Column(children: const [
         BoutonFournisseur(libelle: 'Continuer avec Google', logo: LogoGoogle()),
         BoutonFournisseur(libelle: 'Continuer avec Apple', logo: LogoApple()),
@@ -51,7 +51,13 @@ void main() {
           .map((m) => m.color)
           .toSet();
       expect(fonds, hasLength(1), reason: 'un seul fond pour tous les chemins');
-      expect(fonds.single, isNot(anyOf(AppColors.primary, Colors.transparent, isNull)));
+      expect(fonds.single, isNot(AppColors.primary));
+      final formes = tester
+          .widgetList<Material>(find.descendant(
+              of: find.byType(BoutonFournisseur), matching: find.byType(Material)))
+          .map((m) => m.shape)
+          .toSet();
+      expect(formes, hasLength(1), reason: 'une seule forme pour tous les chemins');
       final degrades = tester
           .widgetList<Container>(find.descendant(
               of: find.byType(BoutonFournisseur), matching: find.byType(Container)))

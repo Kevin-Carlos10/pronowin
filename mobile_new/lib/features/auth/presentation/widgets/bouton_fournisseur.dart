@@ -14,9 +14,10 @@ import '../../../../core/theme/app_theme.dart';
 /// Tous les fournisseurs partagent désormais la même forme. C'est le modèle des
 /// grandes apps sport (Sofascore, OneFootball) : on propose, on n'oriente pas.
 ///
-/// Sur le fond des cartes depuis le 20 novembre 2026, comme les lignes des
-/// Paramètres : un simple contour se perdait sur le fond sombre. Le même fond
-/// pour tous — aucun ne passe devant les autres.
+/// En pilules depuis le 20 novembre 2026 (écran de connexion d'Alibaba,
+/// montré par l'utilisateur) : un contour franc de la couleur du texte, des
+/// bouts arrondis, un libellé plus grand. La même forme pour tous — aucun ne
+/// passe devant les autres.
 ///
 /// Ajouter « Continuer avec Apple » — obligatoire dès la sortie iOS, règle 4.8
 /// de l'App Store — ne demandera qu'une entrée de plus dans la pile.
@@ -47,36 +48,37 @@ class BoutonFournisseur extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      height: 54,
+      height: 56,
       child: Opacity(
         opacity: actif ? 1 : 0.45,
         child: Material(
-          color: context.cl.surface,
+          color: Colors.transparent,
           clipBehavior: Clip.antiAlias,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-            side: BorderSide(color: context.cl.borderS, width: 1),
+          shape: StadiumBorder(
+            side: BorderSide(color: context.cl.textP.withValues(alpha: 0.85), width: 1.5),
           ),
           child: InkWell(
             onTap: actif ? onPressed : null,
             child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 20),
               child: Row(children: [
-                SizedBox(width: 22, height: 22, child: Center(child: logo)),
+                SizedBox(width: 24, height: 24, child: Center(child: logo)),
                 // Le libellé reste centré sur toute la largeur du bouton, la
                 // marque flottant à gauche — c'est ce qui aligne visuellement
                 // les intitulés d'une pile où les logos n'ont pas la même
                 // largeur.
                 Expanded(
                   child: Padding(
-                    padding: const EdgeInsets.only(right: 22),
+                    padding: const EdgeInsets.only(right: 24),
                     child: Text(
                       libelle,
                       textAlign: TextAlign.center,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
                         color: context.cl.textP,
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -109,7 +111,7 @@ class LogoGoogle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      SvgPicture.string(_svg, width: 20, height: 20);
+      SvgPicture.string(_svg, width: 22, height: 22);
 }
 
 /// Le logo Apple, pour « Continuer avec Apple ». Les règles d'Apple veulent
@@ -119,14 +121,15 @@ class LogoApple extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      Icon(Icons.apple, size: 22, color: context.cl.textP);
+      Icon(Icons.apple, size: 24, color: context.cl.textP);
 }
 
 /// Icône du chemin par e-mail : neutre, elle ne prétend à aucune marque.
+/// Une enveloppe au trait, de la couleur du texte, comme les autres logos.
 class LogoEmail extends StatelessWidget {
   const LogoEmail({super.key});
 
   @override
   Widget build(BuildContext context) =>
-      Icon(Icons.alternate_email_rounded, size: 20, color: context.cl.textS);
+      Icon(Icons.mail_outline_rounded, size: 24, color: context.cl.textP);
 }
