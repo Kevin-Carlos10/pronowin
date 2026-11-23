@@ -4,6 +4,7 @@ import { AuthRequest }  from '../middleware/auth.middleware';
 import { AdminRequest } from '../middleware/admin.middleware';
 import { SubscriptionService } from '../services/subscription.service';
 import { configGeniusPay, geniusPayOuvert } from '../services/geniuspay.service';
+import { historiquePaiements } from '../services/historique_paiements.service';
 import { prisma } from '../lib/prisma';
 import { repondreErreur } from '../utils/erreurs';
 
@@ -118,4 +119,10 @@ export const reviewProof = async (req: AdminRequest, res: Response) => {
     // invalide.
     res.status(/déjà traitée/.test(e.message) ? 409 : 400).json({ message: e.message });
   }
+};
+
+/** GET /subscriptions/historique — les paiements du compte et leurs reçus (23 novembre 2026). */
+export const getHistorique = async (req: AuthRequest, res: Response) => {
+  try { res.json({ paiements: await historiquePaiements(req.userId!) }); }
+  catch (e: any) { repondreErreur(res, e); }
 };

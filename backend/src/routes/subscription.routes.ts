@@ -31,6 +31,7 @@ r.get ('/geniuspay/:id',  authMiddleware, GP.etat);
 // Utilisateur
 r.get ('/current',       authMiddleware, C.getCurrent);
 r.get ('/proof-status',  authMiddleware, C.getProofStatus);
+r.get ('/historique',    authMiddleware, C.getHistorique);
 r.post('/upload-url',    authMiddleware, requireProfileComplete, C.getUploadUrl);
 r.post('/submit-proof',  authMiddleware, requireProfileComplete, C.submitProof);
 

@@ -538,6 +538,20 @@ class _AbonnementTab extends ConsumerWidget {
             return _FreeState(sub: sub, features: _features);
           },
         ),
+        // L'historique des paiements et leurs reçus (23 novembre 2026). Pas
+        // sur iPhone : Apple tient les reçus de l'App Store, et un paiement
+        // Mobile Money n'a pas à y être nommé (règle 3.1.1).
+        if (!ref.watch(achatIntegreProvider)) ...[
+          const SizedBox(height: 20),
+          CarteReglages([
+            LigneReglage(
+              key: const Key('compte-historique-paiements'),
+              icone: Icons.receipt_long_outlined,
+              titre: tr(context, "Historique des paiements"),
+              sousTitre: tr(context, "Tes paiements et leurs reçus"),
+              onTap: () => context.push('/compte/paiements')),
+          ]),
+        ],
       ],
     );
   }

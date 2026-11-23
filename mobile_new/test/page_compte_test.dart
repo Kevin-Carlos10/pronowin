@@ -199,8 +199,9 @@ void main() {
     expect(relus, isNotEmpty);
 
     // `isStoreBuildProvider` ne lit rien : il rend une constante de
-    // compilation, et l'invalider n'aurait aucun effet.
-    const sansObjet = {'isStoreBuildProvider'};
+    // compilation, et l'invalider n'aurait aucun effet. `achatIntegreProvider`
+    // non plus : le canal et le système, fixés à la compilation.
+    const sansObjet = {'isStoreBuildProvider', 'achatIntegreProvider'};
 
     final lus = RegExp(r'ref\.watch\((\w+Provider)')
         .allMatches(source)

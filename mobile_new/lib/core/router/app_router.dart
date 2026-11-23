@@ -13,6 +13,7 @@ import '../../features/tutoriels/domain/entities/tutorial_entity.dart';
 import '../../features/notifications/presentation/pages/notifications_page.dart';
 import '../../features/compte/presentation/pages/edit_profile_page.dart';
 import '../../features/abonnement/presentation/pages/activer_premium_page.dart';
+import '../../features/abonnement/presentation/pages/historique_paiements_page.dart';
 import '../../features/parametres/presentation/pages/parametres_page.dart';
 import '../../features/parametres/presentation/pages/pin_setup_page.dart';
 import '../../features/parametres/presentation/pages/membres_bloques_page.dart';
@@ -66,6 +67,7 @@ const _guestBlockedPrefixes = [
   '/compte/activer-premium',
   '/compte/completer-profil',
   '/compte/edit',
+  '/compte/paiements',
   '/notifications',
   '/parrainage',
   '/performance',
@@ -208,6 +210,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/recherche',
         pageBuilder: (_, s) => slideRightPage(
           state: s, child: const SearchPage()),
+      ),
+      // L'historique des paiements et leurs reçus (23 novembre 2026).
+      GoRoute(
+        path: '/compte/paiements',
+        pageBuilder: (_, s) => slideRightPage(
+          state: s, child: const HistoriquePaiementsPage()),
       ),
       GoRoute(
         path: '/compte/stats',
