@@ -156,6 +156,9 @@ class _ComptePageState extends ConsumerState<ComptePage>
                               ? '$firstName $lastName' : '';
         final plan        = profile['subscription_plan'] as String? ?? 'free';
         final isPremium   = plan == 'premium';
+        // Premium **en cours** : le plan reste « premium » après l'échéance.
+        final echeance    = DateTime.tryParse(profile['subscription_expires_at'] as String? ?? '');
+        final premiumEnCours = isPremium && (echeance == null || echeance.isAfter(DateTime.now()));
         final referralCode = profile['referral_code']   as String? ?? '------';
         final earnings    = (profile['referral_earnings'] as num?)?.toInt() ?? 0;
         final avatarUrl   = profile['avatar_url']       as String?;
@@ -321,7 +324,7 @@ class _ComptePageState extends ConsumerState<ComptePage>
                 // informations en lecture seule, il renvoie vers l'écran qui
                 // permet de les modifier. `onAbonnementTap` était déjà mort —
                 // transmis, jamais lu.
-                const _ApercuTab(),
+                _ApercuTab(premium: premiumEnCours),
                 _AbonnementTab(isPremium: isPremium),
                 _ParrainageTab(refCode: referralCode, earnings: earnings),
               ],
@@ -406,7 +409,10 @@ void confirmerDeconnexion(BuildContext context, WidgetRef ref) {
 // ONGLET APERÇU
 // ══════════════════════════════════════════════════════
 class _ApercuTab extends ConsumerWidget {
-  const _ApercuTab();
+  /// Premium en cours : la page Performance n'est faite que de taux de
+  /// réussite, réservés aux abonnés (23 novembre 2026).
+  final bool premium;
+  const _ApercuTab({required this.premium});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -472,8 +478,9 @@ class _ApercuTab extends ConsumerWidget {
               fin: nonLues > 0 ? _PastilleNombre(nonLues) : null,
               onTap: () => context.push('/actualites'));
           }),
-          LigneReglage(icone: Icons.insights_outlined, titre: 'Performance',
-            onTap: () => context.push('/performance')),
+          if (premium)
+            LigneReglage(icone: Icons.insights_outlined, titre: 'Performance',
+              onTap: () => context.push('/performance')),
           LigneReglage(icone: Icons.emoji_events_outlined, titre: tr(context, "Classement"),
             onTap: () => context.push('/classement')),
           LigneReglage(icone: Icons.notifications_none_rounded, titre: tr(context, "Notifications"),

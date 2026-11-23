@@ -26,6 +26,13 @@
  * de leurs pronostics gagnés). Sans activité, le bilan général seul, comme
  * avant. Un envoi par personne (`sendToUser`) : la push porte l'identifiant
  * de la notification, et la toucher la marque lue (1.0.32).
+ *
+ * ── Sans le bilan général, depuis le 23 novembre 2026 ──────────────────────
+ *
+ * Le taux de réussite est réservé aux abonnés Premium (`taux_reserve.ts`) :
+ * « Pronostics gratuits : 7 gagnés sur 10 · VIP : 4 gagnés sur 5 » ne part
+ * plus aux comptes gratuits. Il ne reste que leur propre semaine — leurs
+ * votes, leurs matchs suivis — et rien pour qui n'a rien fait.
  */
 import { prisma } from '../lib/prisma';
 import { NotificationService } from './notification.service';
@@ -36,47 +43,11 @@ export const TITRE_BILAN = 'Bilan de la semaine';
 const HEURE_DEBUT = 10;
 const HEURE_FIN = 22;
 
-export interface Decompte { gagnes: number; decisifs: number }
-export interface Bilan { gratuits: Decompte; vip: Decompte }
-
 /** Lundi 00:00 UTC de la semaine de [d]. */
 export function debutSemaine(d: Date): Date {
   const lundi = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()));
   lundi.setUTCDate(lundi.getUTCDate() - ((lundi.getUTCDay() + 6) % 7));
   return lundi;
-}
-
-/** Les pronostics réglés des matchs joués entre [debut] (inclus) et [fin] (exclu). */
-export async function bilanEntre(debut: Date, fin: Date): Promise<Bilan> {
-  const regles = await prisma.pronostic.findMany({
-    where: {
-      publicationRecordedAt: { not: null },
-      result: { in: ['WIN', 'LOSS'] },
-      match:  { status: 'FINISHED', matchDate: { gte: debut, lt: fin } },
-    },
-    select: { isPremium: true, result: true },
-  });
-  const bilan: Bilan = { gratuits: { gagnes: 0, decisifs: 0 }, vip: { gagnes: 0, decisifs: 0 } };
-  for (const p of regles) {
-    const d = p.isPremium ? bilan.vip : bilan.gratuits;
-    d.decisifs++;
-    if (p.result === 'WIN') d.gagnes++;
-  }
-  return bilan;
-}
-
-/** Le texte du bilan ; null si aucun pronostic n'a été réglé. */
-export function texteBilan(b: Bilan, langue: 'fr' | 'en'): string | null {
-  const parties: string[] = [];
-  const partie = (libelle: { fr: string; en: string }, d: Decompte) => {
-    if (d.decisifs === 0) return;
-    parties.push(langue === 'fr'
-      ? `${libelle.fr} : ${d.gagnes} ${d.gagnes > 1 ? 'gagnés' : 'gagné'} sur ${d.decisifs}`
-      : `${libelle.en}: ${d.gagnes} of ${d.decisifs} won`);
-  };
-  partie({ fr: 'Pronostics gratuits', en: 'Free predictions' }, b.gratuits);
-  partie({ fr: 'VIP', en: 'VIP' }, b.vip);
-  return parties.length ? parties.join(' · ') : null;
 }
 
 /** Ce que la personne a fait pendant la semaine. */
@@ -164,32 +135,34 @@ export async function envoyerBilanHebdo(
   if (deja) return { envoye: false, raison: 'déjà envoyé' };
 
   const lundiPrecedent = new Date(lundi.getTime() - 7 * 24 * 3600_000);
-  const bilan = await bilanEntre(lundiPrecedent, lundi);
-  const fr = texteBilan(bilan, 'fr');
-  const en = texteBilan(bilan, 'en');
-  if (!fr || !en) return { envoye: false, raison: 'aucun pronostic réglé' };
 
   // Les comptes gratuits joignables, qui n'ont pas coupé « Offres &
   // Promotions » — ceux qu'atteignait l'envoi par segment.
   const comptes = await notifSvc.destinatairesJoignables('free');
   const perso = await bilansPersonnels(comptes.map(u => u.id), lundiPrecedent, lundi);
 
-  let atteints = 0, personnels = 0;
+  // Seuls ceux qui ont une semaine à eux : le bilan général n'est plus
+  // envoyé (taux réservé aux abonnés Premium, 23 novembre 2026).
+  const avecActivite = comptes.flatMap(u => {
+    const fr = textePerso(perso.get(u.id), 'fr');
+    const en = textePerso(perso.get(u.id), 'en');
+    return fr && en ? [{ id: u.id, fr, en }] : [];
+  });
+  if (avecActivite.length === 0) return { envoye: false, raison: 'aucune activité personnelle' };
+
+  let atteints = 0;
   // Par lots de dix : une centaine de comptes, sans file d'attente.
-  for (let i = 0; i < comptes.length; i += 10) {
-    await Promise.all(comptes.slice(i, i + 10).map(async u => {
-      const pFr = textePerso(perso.get(u.id), 'fr');
-      const pEn = textePerso(perso.get(u.id), 'en');
-      if (pFr) personnels++;
+  for (let i = 0; i < avecActivite.length; i += 10) {
+    await Promise.all(avecActivite.slice(i, i + 10).map(async u => {
       const r = await notifSvc.sendToUser(u.id, {
         title: TITRE_BILAN, titleEn: 'Weekly recap',
-        body:   pFr ? `${pFr}\n${fr}` : fr,
-        bodyEn: pEn ? `${pEn}\n${en}` : en,
+        body:   u.fr,
+        bodyEn: u.en,
         data:   { type: 'promo', deep_link: '/historique' },
       }, 'promo').catch(() => ({ success: false }));
       if (r.success) atteints++;
     }));
   }
-  journal.info(`[BilanHebdo] ${fr} — ${atteints} destinataire(s), dont ${personnels} bilan(s) personnel(s)`);
-  return { envoye: true, destinataires: atteints, personnels };
+  journal.info(`[BilanHebdo] ${atteints} destinataire(s) sur ${avecActivite.length} bilan(s) personnel(s)`);
+  return { envoye: true, destinataires: atteints, personnels: avecActivite.length };
 }

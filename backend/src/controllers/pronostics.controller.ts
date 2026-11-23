@@ -17,7 +17,8 @@ import { LEAGUE_INFO, saisonCourante } from '../services/api_football.service';
 import { probabilitesDepuisCotes } from '../services/probabilites_cotes';
 import { repondreErreur, ErreurMetier } from '../utils/erreurs';
 import { articlesDuMatch } from '../services/resumes_match.service';
-import { calculerBilanPremium } from '../services/bilan_premium';
+import { bilanReserve, calculerBilanPremium } from '../services/bilan_premium';
+import { statsSansTaux, voitLeTaux } from '../services/taux_reserve';
 import { resumeVotes, voter } from '../services/votes_match.service';
 import { resumeJoueurDuMatch, voterJoueur } from '../services/joueur_du_match.service';
 import {
@@ -157,6 +158,10 @@ export const getBilanPremium = async (req: AuthRequest, res: Response) => {
   try {
     const jours = Math.min(parseInt((req.query.days as string) ?? '30') || 30, 90);
 
+    // Réservé aux abonnés Premium (23 novembre 2026) : un invité, la
+    // vitrine, un compte gratuit ne reçoivent ni le taux, ni les comptes.
+    if (!(await voitLeTaux(req.userId))) { res.json(bilanReserve(jours)); return; }
+
     const cacheKey = CACHE_KEYS.bilanPremium(jours);
     const cached = cache.get<any>(cacheKey);
     if (cached) { res.json(cached); return; }
@@ -185,8 +190,22 @@ export const getBilanPremium = async (req: AuthRequest, res: Response) => {
   } catch (e: any) { repondreErreur(res, e); }
 };
 
+/**
+ * GET /pronostics/performance — le bilan des pronostics publiés : réussite,
+ * rendement, séries, ligues.
+ *
+ * Réservé aux abonnés Premium depuis le 23 novembre 2026 (`taux_reserve.ts`) :
+ * la page entière n'est faite que de taux. Un refus plutôt qu'une réponse
+ * vidée : des zéros s'afficheraient « 0 % » dans les versions installées ;
+ * un refus, elles le traitent déjà (la bande de l'accueil se tait, la page
+ * propose de réessayer).
+ */
 export const getPerformance = async (req: AuthRequest, res: Response) => {
   try {
+    if (!(await voitLeTaux(req.userId))) {
+      res.status(403).json({ message: 'Le bilan des pronostics est réservé aux membres Premium.', code: 'PREMIUM_REQUIRED' });
+      return;
+    }
     const days   = Math.min(parseInt((req.query.days as string) ?? '30') || 30, 90);
     const since  = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
     const STAKE  = 1000; // mise fictive en FCFA
@@ -771,13 +790,19 @@ export const getHistory = async (req: AuthRequest, res: Response) => {
   } catch (e: any) { repondreErreur(res, e); }
 };
 
-export const getPublicStats = async (_req: Request, res: Response) => {
+/**
+ * GET /pronostics/stats — les chiffres de l'accueil. Le taux de réussite n'y
+ * figure que pour un abonné Premium (23 novembre 2026, `taux_reserve.ts`) ;
+ * le cache garde la réponse entière, retirée à la sortie.
+ */
+export const getPublicStats = async (req: AuthRequest, res: Response) => {
   try {
-    const cached = cache.get<any>(CACHE_KEYS.publicStats);
-    if (cached) { res.json(cached); return; }
-    const data = await svc.getPublicStats();
-    cache.set(CACHE_KEYS.publicStats, data, CACHE_TTL.stats);
-    res.json(data);
+    let data = cache.get<any>(CACHE_KEYS.publicStats);
+    if (!data) {
+      data = await svc.getPublicStats();
+      cache.set(CACHE_KEYS.publicStats, data, CACHE_TTL.stats);
+    }
+    res.json(await voitLeTaux(req.userId) ? data : statsSansTaux(data));
   } catch (e: any) { repondreErreur(res, e); }
 };
 

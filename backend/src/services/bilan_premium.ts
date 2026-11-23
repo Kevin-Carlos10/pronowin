@@ -61,3 +61,34 @@ export function calculerBilanPremium(gagnes: number, perdus: number, jours: numb
     affichable,
   };
 }
+
+/** Ce que reçoit qui n'a pas de Premium en cours : ni taux, ni comptes. */
+export interface BilanReserve extends Omit<BilanPremium, 'pronostics_tranches' | 'gagnes' | 'perdus'> {
+  pronostics_tranches: null;
+  gagnes:              null;
+  perdus:              null;
+  taux_reussite:       null;
+  affichable:          false;
+  reserve_premium:     true;
+}
+
+/**
+ * Le taux de réussite est réservé aux abonnés Premium (23 novembre 2026,
+ * `taux_reserve.ts`). Le mur Premium et la vitrine, qui s'adressent par
+ * définition à des non-abonnés, ne l'annoncent donc plus : `affichable` faux
+ * les fait taire, y compris les versions de l'application déjà installées.
+ */
+export function bilanReserve(jours: number): BilanReserve {
+  return {
+    periode_jours:         jours,
+    pronostics_tranches:   null,
+    gagnes:                null,
+    perdus:                null,
+    taux_reussite:         null,
+    echantillon_minimal:   ECHANTILLON_MINIMAL,
+    echantillon_suffisant: false,
+    seuil_annonce:         SEUIL_ANNONCE,
+    affichable:            false,
+    reserve_premium:       true,
+  };
+}

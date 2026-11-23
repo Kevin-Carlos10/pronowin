@@ -17,6 +17,7 @@ import 'package:pronowin/core/utils/noms_equipes.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
 import 'package:pronowin/shared/utils/premium_nav.dart';
 import 'package:pronowin/shared/utils/retour.dart';
+import '../../../auth/presentation/providers/auth_provider.dart';
 
 /// L'historique des pronostics publiés (refait le 25 octobre 2026).
 ///
@@ -27,6 +28,10 @@ import 'package:pronowin/shared/utils/retour.dart';
 /// juste (réussite sur les seuls gagnés et perdus, à partir de dix), la
 /// série en cours, la réussite des gratuits et des Premium ; la liste par
 /// jour, au modèle de Sofascore ; chaque ligne ouvre la fiche du match.
+///
+/// Le bilan et la courbe de réussite sont réservés aux abonnés Premium
+/// (23 novembre 2026) : pour les autres, ils disparaissent, sans cadenas à
+/// la place. La liste, elle, montre à tous le résultat de chaque pronostic.
 
 // ─── Filtres ──────────────────────────────────────────────────────────────────
 enum _ResultFilter { all, win, loss, push }
@@ -157,6 +162,8 @@ class HistoriquePage extends ConsumerWidget {
         : brut;
     final filtre = ref.watch(_resultFilterProvider);
     final niveau = ref.watch(_tierFilterProvider);
+    final auth   = ref.watch(authProvider);
+    final avecTaux = auth is AuthAuthenticated && auth.user.isPremium;
 
     Future<void> actualiser() async {
       ref.invalidate(historiqueProvider(period.days));
@@ -210,10 +217,12 @@ class HistoriquePage extends ConsumerWidget {
                 if (all.isEmpty)
                   const _VideView(periode: true)
                 else ...[
-                  _StatsHeader(entrees: all, deuxNiveaux: deuxNiveaux)
-                    .animate().fadeIn(duration: 350.ms).slideY(begin: -0.04, end: 0),
-                  const SizedBox(height: 16),
-                  if (BilanHistorique.de(all).tranches >= 2) ...[
+                  if (avecTaux) ...[
+                    _StatsHeader(entrees: all, deuxNiveaux: deuxNiveaux)
+                      .animate().fadeIn(duration: 350.ms).slideY(begin: -0.04, end: 0),
+                    const SizedBox(height: 16),
+                  ],
+                  if (avecTaux && BilanHistorique.de(all).tranches >= 2) ...[
                     _PerformanceChart(entries: all).animate().fadeIn(duration: 400.ms, delay: 100.ms),
                     const SizedBox(height: 16),
                   ],

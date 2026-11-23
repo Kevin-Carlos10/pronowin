@@ -174,6 +174,22 @@ final utilisateurGratuit = UserEntity(
   createdAt: DateTime(2026, 8, 16),
 );
 
+/// Le même compte, abonné Premium sans échéance : ce que la page réserve
+/// aux abonnés (le taux de réussite, 23 novembre 2026).
+final utilisateurPremium = UserEntity(
+  id: 'u1',
+  pseudo: 'Kevin',
+  firstName: 'Kevin',
+  lastName: 'Zongo',
+  birthDate: DateTime(2000, 1, 11),
+  phoneNumber: '+22670000000',
+  countryCode: 'BF',
+  subscriptionPlan: SubscriptionPlan.premium,
+  referralCode: '1A639B',
+  referralEarnings: 0,
+  createdAt: DateTime(2026, 8, 16),
+);
+
 class _Connecte extends AuthNotifier {
   _Connecte(Ref ref, UserEntity utilisateur)
       : super(ref.watch(sendOtpUseCaseProvider), ref.watch(verifyOtpUseCaseProvider),

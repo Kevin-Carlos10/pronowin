@@ -22,54 +22,51 @@ import 'package:flutter_test/flutter_test.dart';
 /// S'y ajoutait une période inventée : `getPublicStats()` compte *tous* les
 /// pronostics publiés ayant un résultat, sans filtre de date. « Cette semaine »
 /// décrivait un découpage qui n'existe pas.
+///
+/// ── Depuis le 23 novembre 2026 : plus de taux pour un prospect ────────────
+///
+/// Le taux de réussite est réservé aux abonnés Premium (décision de
+/// l'utilisateur). Le titre de la carte Premium, qui s'adresse par définition
+/// aux non-abonnés, ne le cite donc plus du tout — la question de son
+/// échantillon disparaît avec lui. Et la tuile « Réussite » de l'accueil ne
+/// s'affiche qu'à un abonné. Le serveur ne l'envoie d'ailleurs plus aux
+/// autres (`taux_reserve.ts`).
 void main() {
   const chemin =
       'lib/features/accueil/presentation/pages/accueil/entete.dart';
   final source = File(chemin).readAsStringSync();
 
-  /// Le code seul, commentaires exclus — ils citent les phrases fautives.
+  /// Le code seul, commentaires exclus — ils citent les phrases retirées.
   String codeSeul() => source
       .split('\n')
       .where((l) => !l.trimLeft().startsWith('//'))
       .join('\n');
 
-  test('le titre commercial existe toujours', () {
-    // Sans ancre, les contrôles suivants verdiraient sur un fichier remanié.
-    expect(source, contains('de réussite'));
+  test('la carte Premium existe toujours, avec son titre', () {
+    // Sans ancre, le contrôle suivant verdirait sur un fichier remanié.
+    expect(source, contains('class _PremiumBanner'));
     expect(source, contains('headline'));
   });
 
-  test('le titre exige un échantillon suffisant', () {
+  test('le titre commercial ne cite plus de taux de réussite', () {
+    expect(codeSeul(), isNot(contains('% de réussite')),
+      reason: 'le taux est réservé aux abonnés Premium : la carte qui '
+              "s'adresse aux non-abonnés ne peut pas l'annoncer");
+    // La carte elle-même ne lit plus le taux.
     final code = codeSeul();
-    final i = code.indexOf('% de réussite');
-    expect(i, greaterThan(-1), reason: 'titre introuvable');
-
-    // La condition qui gouverne ce titre doit peser le nombre de pronostics
-    // tranchés, pas seulement le taux.
-    final avant = code.substring(0, i);
-    final condition = avant.lastIndexOf('if (');
-    expect(condition, greaterThan(-1));
-
-    final garde = avant.substring(condition);
-    expect(garde.contains('tranches'), isTrue,
-      reason: 'le titre s\'affiche sans regarder la taille de l\'échantillon : '
-              'un seul pronostic gagné suffirait à promettre 100 %');
+    final debut = code.indexOf('class _PremiumBanner');
+    final fin = code.indexOf('\nclass ', debut + 1);
+    final carte = code.substring(debut, fin < 0 ? code.length : fin);
+    expect(carte, isNot(contains('winRate')));
   });
 
-  test('le seuil commercial est celui du dépôt', () {
-    expect(codeSeul(), contains('echantillonCommercial = 10'),
-      reason: 'le backend documente ECHANTILLON_MINIMAL = 10 pour le bilan '
-              'Premium : deux seuils différents pour la même promesse '
-              'finiraient par diverger');
-  });
-
-  test('le titre n\'invente pas de période', () {
-    // `getPublicStats()` ne filtre pas par date : annoncer « cette semaine »
-    // décrivait un découpage inexistant.
-    final i = codeSeul().indexOf('% de réussite');
-    final phrase = codeSeul().substring(i, i + 120);
-    expect(phrase.contains('cette semaine'), isFalse,
-      reason: 'le chiffre porte sur tous les pronostics publiés, pas sur une '
-              'semaine');
+  test("la tuile « Réussite » ne s'affiche qu'à un abonné", () {
+    final code = codeSeul();
+    final tuile = code.indexOf('tr(context, "Réussite")');
+    expect(tuile, greaterThan(-1), reason: 'tuile introuvable');
+    final garde = code.lastIndexOf('if (avecTaux)', tuile);
+    expect(garde, greaterThan(-1),
+      reason: 'la tuile Réussite doit dépendre de avecTaux');
+    expect(code, contains('final avecTaux = isPremium && winRate != null;'));
   });
 }

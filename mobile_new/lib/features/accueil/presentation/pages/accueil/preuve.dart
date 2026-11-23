@@ -10,6 +10,10 @@ class _ProofBand extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Le bilan des pronostics est réservé aux abonnés Premium (23 novembre
+    // 2026) : pour les autres, la bande disparaît, sans même être demandée.
+    final auth = ref.watch(authProvider);
+    if (auth is! AuthAuthenticated || !auth.user.isPremium) return const SizedBox.shrink();
     final perf = ref.watch(performance30Provider).valueOrNull;
     if (perf == null) return const SizedBox.shrink();
 

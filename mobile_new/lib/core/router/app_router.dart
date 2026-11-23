@@ -122,6 +122,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/auth/email?from=${Uri.encodeComponent(loc)}';
       }
 
+      // Le taux de réussite est réservé aux abonnés Premium (23 novembre
+      // 2026), et la page Performance n'est faite que de taux : un compte
+      // sans Premium en cours n'y entre pas — lien ancien, abonnement échu
+      // pendant la lecture. Le serveur la refuse aussi.
+      if (loc == '/performance') {
+        final auth = notifier._ref.read(authProvider);
+        if (auth is AuthAuthenticated && !auth.user.isPremium) return '/home';
+      }
+
       return null;
     },
 

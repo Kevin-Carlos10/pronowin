@@ -177,6 +177,10 @@ function lireJson(chemin) {
  * page qui annonce un chiffre faux vaut moins qu'une page qui n'en annonce
  * aucun. C'est le serveur qui décide (`affichable`) ; la page ne refait pas
  * le calcul.
+ *
+ * Depuis le 23 novembre 2026, le taux de réussite est réservé aux abonnés
+ * Premium : le serveur ne le publie plus pour un visiteur, et la section se
+ * tait donc toujours ici. L'appel reste : la règle se décide sur le serveur.
  */
 async function bilanPremium() {
   const d = await lireJson('/pronostics/bilan-premium?days=30');

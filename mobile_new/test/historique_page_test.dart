@@ -59,7 +59,10 @@ void main() {
     });
   });
 
-  Future<GoRouter> monter(WidgetTester t, List<Map<String, dynamic>> entrees, {String depart = '/historique'}) async {
+  // Le bilan est réservé aux abonnés Premium (23 novembre 2026) : un abonné
+  // par défaut, pour le voir.
+  Future<GoRouter> monter(WidgetTester t, List<Map<String, dynamic>> entrees,
+      {String depart = '/historique', bool abonne = true}) async {
     t.view.physicalSize = const Size(390 * 3, 1700 * 3);
     t.view.devicePixelRatio = 3;
     addTearDown(t.view.reset);
@@ -70,7 +73,10 @@ void main() {
       GoRoute(path: '/compte/activer-premium', builder: (_, _) => const Scaffold(body: Text('OFFRE PREMIUM'))),
     ]);
     await t.pumpWidget(ProviderScope(
-      overrides: [...donneesCommunes(), historiqueProvider.overrideWith((ref, jours) async => entrees)],
+      overrides: [
+        ...donneesCommunes(utilisateur: abonne ? utilisateurPremium : utilisateurGratuit),
+        historiqueProvider.overrideWith((ref, jours) async => entrees),
+      ],
       child: MaterialApp.router(
         routerConfig: routeur, theme: AppTheme.light, locale: const Locale('fr'),
         supportedLocales: AppStrings.supportedLocales,
@@ -150,6 +156,19 @@ void main() {
     await t.pumpAndSettle();
     expect(t.takeException(), isNull);
     expect(find.text('ACCUEIL'), findsOneWidget);
+  });
+
+  testWidgets('compte gratuit : ni bilan, ni courbe, ni taux — chaque résultat reste visible', (t) async {
+    await monter(t, douze, abonne: false);
+    expect(find.byKey(const Key('historique-bilan')), findsNothing);
+    expect(find.byKey(const Key('historique-taux')), findsNothing);
+    expect(find.text('Courbe de réussite'), findsNothing);
+    expect(find.textContaining('%'), findsNothing);
+    // Pas de cadenas à la place : le bloc disparaît.
+    expect(find.byIcon(Icons.lock_rounded), findsNothing);
+    expect(find.text('Gagné'), findsWidgets);
+    expect(find.text('Perdu'), findsWidgets);
+    expect(t.takeException(), isNull);
   });
 
   testWidgets('rien sur la période : un message, pas de bilan à 0 %', (t) async {

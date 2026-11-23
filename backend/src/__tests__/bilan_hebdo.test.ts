@@ -2,38 +2,16 @@
  * Bilan de la semaine aux comptes gratuits (18 octobre 2026) : chaque lundi,
  * bonne ou mauvaise semaine, une seule fois, sans prix ni moyen de paiement.
  * Personnel depuis le 27 octobre : votes et matchs suivis d'abord.
+ * Depuis le 23 novembre, plus de bilan général : le taux de réussite est
+ * réservé aux abonnés Premium.
  */
 import {
-  bilansPersonnels, debutSemaine, envoyerBilanHebdo, texteBilan, textePerso, TITRE_BILAN,
+  bilansPersonnels, debutSemaine, envoyerBilanHebdo, textePerso, TITRE_BILAN,
 } from '../services/bilan_hebdo.service';
 
 // Lundi 19 octobre 2026.
 const LUNDI = Date.UTC(2026, 9, 19);
 const heure = 3600_000;
-
-describe('le texte', () => {
-  it('gratuits et VIP', () => {
-    const b = { gratuits: { gagnes: 7, decisifs: 10 }, vip: { gagnes: 4, decisifs: 5 } };
-    expect(texteBilan(b, 'fr')).toBe('Pronostics gratuits : 7 gagnés sur 10 · VIP : 4 gagnés sur 5');
-    expect(texteBilan(b, 'en')).toBe('Free predictions: 7 of 10 won · VIP: 4 of 5 won');
-  });
-
-  it('une mauvaise semaine se dit aussi, au singulier si besoin', () => {
-    const b = { gratuits: { gagnes: 1, decisifs: 6 }, vip: { gagnes: 0, decisifs: 3 } };
-    expect(texteBilan(b, 'fr')).toBe('Pronostics gratuits : 1 gagné sur 6 · VIP : 0 gagné sur 3');
-  });
-
-  it('aucun VIP réglé : seulement les gratuits ; rien du tout : pas de bilan', () => {
-    expect(texteBilan({ gratuits: { gagnes: 3, decisifs: 4 }, vip: { gagnes: 0, decisifs: 0 } }, 'fr'))
-      .toBe('Pronostics gratuits : 3 gagnés sur 4');
-    expect(texteBilan({ gratuits: { gagnes: 0, decisifs: 0 }, vip: { gagnes: 0, decisifs: 0 } }, 'fr')).toBeNull();
-  });
-
-  it('ni prix, ni moyen de paiement, ni lien vers le site', () => {
-    const t = texteBilan({ gratuits: { gagnes: 7, decisifs: 10 }, vip: { gagnes: 4, decisifs: 5 } }, 'fr')!;
-    expect(t).not.toMatch(/FCFA|€|\$|Mobile Money|site|pronowin\.space/i);
-  });
-});
 
 describe('la partie personnelle', () => {
   const vide = { votes: 0, votesJustes: 0, suivis: 0, suivisGagnes: 0, suivisDecisifs: 0 };
@@ -73,7 +51,6 @@ describe('l\'envoi', () => {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { prisma } = require('../lib/prisma');
   let envoi: jest.Mock;
-  let lectures: any[];
   let lecturesVotes: any[];
   const notifSvc = () => ({
     destinatairesJoignables: async () => [{ id: 'u1' }, { id: 'u2' }, { id: 'u3' }],
@@ -82,17 +59,10 @@ describe('l\'envoi', () => {
 
   beforeEach(() => {
     envoi = jest.fn(async (userId: string) => ({ success: userId !== 'u3' }));
-    lectures = [];
     lecturesVotes = [];
     jest.spyOn(prisma.notification, 'findFirst').mockResolvedValue(null);
-    jest.spyOn(prisma.pronostic, 'findMany').mockImplementation(async (args: any) => {
-      lectures.push(args);
-      return [
-        { isPremium: false, result: 'WIN' }, { isPremium: false, result: 'LOSS' }, { isPremium: false, result: 'WIN' },
-        { isPremium: true, result: 'LOSS' },
-      ] as any;
-    });
     // u1 a voté deux fois (une juste) et suivi un match au pronostic gagné.
+    // u2 et u3 n'ont rien fait.
     jest.spyOn(prisma.voteMatch, 'findMany').mockImplementation(async (args: any) => {
       lecturesVotes.push(args);
       return [
@@ -106,30 +76,28 @@ describe('l\'envoi', () => {
   });
   afterEach(() => jest.restoreAllMocks());
 
-  it('lundi 10 h UTC : la semaine écoulée, à chaque compte gratuit, vers l\'historique', async () => {
+  it('lundi 10 h UTC : sa propre semaine, à chaque compte gratuit qui en a une, vers l\'historique', async () => {
     const r = await envoyerBilanHebdo(new Date(LUNDI + 10 * heure + 5 * 60_000), notifSvc());
-    expect(r).toEqual({ envoye: true, destinataires: 2, personnels: 1 });
-    expect(envoi).toHaveBeenCalledTimes(3);
-    // Le bilan général seul pour qui n'a rien fait.
-    expect(envoi).toHaveBeenCalledWith('u2', {
+    expect(r).toEqual({ envoye: true, destinataires: 1, personnels: 1 });
+    // Sa semaine seule : plus de bilan général (taux réservé aux abonnés
+    // Premium, 23 novembre 2026).
+    expect(envoi).toHaveBeenCalledTimes(1);
+    expect(envoi).toHaveBeenCalledWith('u1', {
       title: TITRE_BILAN, titleEn: 'Weekly recap',
-      body: 'Pronostics gratuits : 2 gagnés sur 3 · VIP : 0 gagné sur 1',
-      bodyEn: 'Free predictions: 2 of 3 won · VIP: 0 of 1 won',
+      body: 'Vos votes : 1 bien vu sur 2 · Votre match suivi : 1 pronostic gagné sur 1',
+      bodyEn: 'Your votes: 1 of 2 spot on · Your followed match: 1 of 1 predictions won',
       data: { type: 'promo', deep_link: '/historique' },
     }, 'promo');
-    // Sa propre semaine d'abord.
-    expect(envoi).toHaveBeenCalledWith('u1', expect.objectContaining({
-      body: 'Vos votes : 1 bien vu sur 2 · Votre match suivi : 1 pronostic gagné sur 1\n'
-        + 'Pronostics gratuits : 2 gagnés sur 3 · VIP : 0 gagné sur 1',
-    }), 'promo');
-    // Du lundi 12 (inclus) au lundi 19 (exclu), publiés, remboursés exclus.
+    // Du lundi 12 (inclus) au lundi 19 (exclu).
     const semaine = { status: 'FINISHED', matchDate: { gte: new Date(LUNDI - 7 * 24 * heure), lt: new Date(LUNDI) } };
-    expect(lectures[0].where).toEqual({
-      publicationRecordedAt: { not: null },
-      result: { in: ['WIN', 'LOSS'] },
-      match: semaine,
-    });
     expect(lecturesVotes[0].where).toEqual({ userId: { in: ['u1', 'u2', 'u3'] }, match: semaine });
+  });
+
+  it('aucun message ne porte le bilan général des pronostics', async () => {
+    await envoyerBilanHebdo(new Date(LUNDI + 11 * heure), notifSvc());
+    for (const [, m] of envoi.mock.calls) {
+      expect(`${m.body} ${m.bodyEn}`).not.toMatch(/Pronostics gratuits|VIP|Free predictions|%/);
+    }
   });
 
   it('hors créneau : ni avant 10 h, ni après 22 h, ni un autre jour', async () => {
@@ -146,20 +114,26 @@ describe('l\'envoi', () => {
     expect(envoi).not.toHaveBeenCalled();
   });
 
-  it('semaine sans pronostic réglé : rien', async () => {
-    jest.spyOn(prisma.pronostic, 'findMany').mockResolvedValue([]);
+  it('personne n\'a rien fait de la semaine : rien', async () => {
+    jest.spyOn(prisma.voteMatch, 'findMany').mockResolvedValue([]);
+    jest.spyOn(prisma.userFavoriteMatch, 'findMany').mockResolvedValue([]);
     expect(await envoyerBilanHebdo(new Date(LUNDI + 11 * heure), notifSvc()))
-      .toEqual({ envoye: false, raison: 'aucun pronostic réglé' });
+      .toEqual({ envoye: false, raison: 'aucune activité personnelle' });
     expect(envoi).not.toHaveBeenCalled();
   });
 
   it('un envoi qui échoue n\'arrête pas les autres', async () => {
+    // u2 a suivi un match, lui aussi.
+    jest.spyOn(prisma.userFavoriteMatch, 'findMany').mockResolvedValue([
+      { userId: 'u1', match: { pronostic: { result: 'WIN', publicationRecordedAt: new Date() } } },
+      { userId: 'u2', match: { pronostic: null } },
+    ] as any);
     envoi.mockImplementation(async (userId: string) => {
       if (userId === 'u1') throw new Error('réseau');
       return { success: true };
     });
     expect(await envoyerBilanHebdo(new Date(LUNDI + 11 * heure), notifSvc()))
-      .toEqual({ envoye: true, destinataires: 2, personnels: 1 });
+      .toEqual({ envoye: true, destinataires: 1, personnels: 2 });
   });
 });
 

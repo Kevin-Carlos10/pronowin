@@ -346,14 +346,17 @@ class _QuickStats extends ConsumerWidget {
       ]),
       error: (_, _) => const SizedBox.shrink(),
       data: (stats) {
-        final winRate      = stats['winRate']      as int? ?? 0;
+        final winRate      = (stats['winRate'] as num?)?.toInt();
         final streak       = stats['streak']       as int? ?? 0;
         final upcoming     = stats['upcoming']     as int? ?? 0;
         final totalFinished = stats['totalFinished'] as int? ?? 0;
+        // Le taux de réussite, aux seuls abonnés Premium (23 novembre 2026) :
+        // pour les autres, la tuile disparaît — le serveur ne l'envoie plus.
+        final avecTaux = isPremium && winRate != null;
 
         // Nouvel utilisateur sans aucune donnée : ne rien afficher plutôt
         // que trois tuiles « — » qui n'apportent rien.
-        if (streak == 0 && totalFinished < 3 && upcoming == 0) {
+        if (streak == 0 && (!avecTaux || totalFinished < 3) && upcoming == 0) {
           return const SizedBox.shrink();
         }
 
@@ -367,14 +370,16 @@ class _QuickStats extends ConsumerWidget {
             color: context.cl.warning,
             hint: streak == 0 ? tr(context, "Pas encore de série en cours") : null,
           ),
-          const SizedBox(width: 10),
-          _StatChip(
-            icon: Icons.trending_up_rounded,
-            label: tr(context, "Réussite"),
-            value: totalFinished >= 3 ? '$winRate%' : '—',
-            color: context.cl.success,
-            hint: totalFinished < 3 ? tr(context, "Disponible après 3 pronos terminés") : null,
-          ),
+          if (avecTaux) ...[
+            const SizedBox(width: 10),
+            _StatChip(
+              icon: Icons.trending_up_rounded,
+              label: tr(context, "Réussite"),
+              value: totalFinished >= 3 ? '$winRate%' : '—',
+              color: context.cl.success,
+              hint: totalFinished < 3 ? tr(context, "Disponible après 3 pronos terminés") : null,
+            ),
+          ],
           const SizedBox(width: 10),
           _StatChip(
             icon: Icons.sports_soccer_rounded,
@@ -490,7 +495,6 @@ class _PremiumBanner extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final pronosAsync = ref.watch(pronosticsJourProvider);
-    final statsAsync  = ref.watch(statsJourProvider);
 
     // Compte ce qui est réellement derrière le paywall aujourd'hui : une
     // promesse chiffrée du jour convainc mieux qu'un catalogue de fonctions.
@@ -507,45 +511,12 @@ class _PremiumBanner extends ConsumerWidget {
         .where((p) => ((p['odds_recommended'] as num?) ?? 0) >= 2)
         .length;
 
-    // Taux de réussite pour le titre contextuel
-    final winRate = statsAsync.whenOrNull(
-      data: (s) => (s['winRate'] as num?)?.toDouble(),
-    );
-
-    // Nombre de pronostics tranchés — le dénominateur du taux ci-dessus.
-    //
-    // Le titre ne le lisait pas : il annonçait « 90 % de réussite cette
-    // semaine » dès que `winRate` dépassait 70, fût-il calculé sur un seul
-    // pronostic. Et comme la condition ne se déclenche qu'au-dessus de 70,
-    // le chiffre n'apparaissait *que* quand il flattait — un petit
-    // échantillon favorable devenait une promesse, un petit échantillon
-    // défavorable disparaissait.
-    //
-    // La règle existe déjà à deux endroits : la bande de statistiques, vingt
-    // lignes plus haut, se tait sous trois pronostics tranchés ; et le
-    // backend fixe `ECHANTILLON_MINIMAL = 10` pour le bilan Premium, avec
-    // cette phrase — « l'appelant doit alors se taire plutôt que d'annoncer
-    // 100 % ou 0 % ». Ce titre est précisément cet appelant : un argument
-    // commercial montré à des prospects. Il prend donc le seuil commercial,
-    // pas celui du tableau de bord personnel.
-    const echantillonCommercial = 10;
-    final tranches = statsAsync.whenOrNull(
-      data: (s) => (s['totalFinished'] as num?)?.toInt() ?? 0,
-    ) ?? 0;
-
+    // Le titre ne cite plus le taux de réussite (« 84 % de réussite sur nos
+    // pronostics publiés ») : ce bandeau s'adresse aux non-abonnés, et le
+    // taux est réservé aux abonnés Premium depuis le 23 novembre 2026 — le
+    // serveur ne l'envoie plus aux autres.
     final String headline;
-    if (winRate != null && winRate >= 70 && tranches >= echantillonCommercial) {
-      // Disait « cette semaine ». Le chiffre ne l'est pas : `getPublicStats()`
-      // compte *tous* les pronostics publiés ayant un résultat, sans filtre de
-      // date. La période annoncée était donc fausse — et c'est le genre de
-      // précision qui rend une promesse invérifiable plutôt que fausse à
-      // moitié.
-      //
-      // La formulation suit maintenant ce que la donnée mesure. La rendre
-      // hebdomadaire pour de bon serait un autre changement : il faudrait
-      // filtrer côté serveur, et le nombre annoncé s'en trouverait modifié.
-      headline = tr(context, "{arg0}% de réussite sur nos pronostics publiés — historique complet", [winRate.toStringAsFixed(0)]);
-    } else if (vipList.length > 1) {
+    if (vipList.length > 1) {
       headline = nbGrosseCote > 0
           ? tr(context, "{arg0} pronos VIP aujourd'hui, dont {arg1} à cote supérieure à 2", [vipList.length, nbGrosseCote])
           : tr(context, "{arg0} pronos VIP réservés aux membres", [vipList.length]);

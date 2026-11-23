@@ -4,11 +4,9 @@ import '../../../../core/utils/motion.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../shared/utils/montant.dart';
-import '../../../auth/presentation/providers/auth_provider.dart';
 import '../../../../shared/utils/retour.dart';
 import '../../../../shared/utils/rafraichir.dart';
 import 'package:pronowin/core/config/sans_pari.dart';
@@ -122,8 +120,8 @@ class _PerformancePageState extends ConsumerState<PerformancePage> {
 
   @override
   Widget build(BuildContext context) {
-    final authState = ref.watch(authProvider);
-    final isPremium = authState is AuthAuthenticated && authState.user.isPremium;
+    // Réservée aux abonnés Premium (23 novembre 2026) : le routeur n'y laisse
+    // entrer qu'eux, le serveur ne sert qu'eux.
     final perfAsync = ref.watch(performanceProvider(_days));
 
     return Scaffold(
@@ -159,7 +157,6 @@ class _PerformancePageState extends ConsumerState<PerformancePage> {
         data: (perf) => _PerformanceView(
           perf:      perf,
           days:      _days,
-          isPremium: isPremium,
           onRefresh: () async {
             ref.invalidate(performanceProvider(_days));
             final reussi = await attendreChargements([ref.read(performanceProvider(_days).future)]);
@@ -240,11 +237,9 @@ class _PeriodSheet extends StatelessWidget {
 class _PerformanceView extends StatelessWidget {
   final PerformanceData perf;
   final int    days;
-  final bool   isPremium;
   final Future<void> Function() onRefresh;
 
-  const _PerformanceView({required this.perf, required this.days, required this.isPremium,
-    required this.onRefresh});
+  const _PerformanceView({required this.perf, required this.days, required this.onRefresh});
 
   @override
   Widget build(BuildContext context) {
@@ -335,11 +330,6 @@ class _PerformanceView extends StatelessWidget {
               .animate(delay: 160.ms).fadeIn(duration: 300.ms),
 
           const SizedBox(height: 14),
-
-          // ── CTA Premium si non premium ────────────────────────────────
-          if (!isPremium)
-            _PremiumCTA()
-              .animate(delay: 200.ms).fadeIn(duration: 350.ms),
         ],
       ),
     );
@@ -700,42 +690,6 @@ class _LeaguesCard extends StatelessWidget {
         );
       }),
     ]),
-  );
-}
-
-// ── CTA Premium ───────────────────────────────────────────────────────────────
-class _PremiumCTA extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: () => context.push('/compte/activer-premium'),
-    child: Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: AppColors.degradeBouton,
-          begin: Alignment.topLeft, end: Alignment.bottomRight),
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(
-          color: AppColors.primary.withValues(alpha: 0.35),
-          blurRadius: 14, offset: const Offset(0, 5))]),
-      child: Row(children: [
-        const Icon(Icons.workspace_premium_rounded, color: Colors.white, size: 24),
-        const SizedBox(width: 12),
-         Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(tr(context, "Accède à tous les pronos"), style: TextStyle(
-            color: Colors.white, fontSize: 14, fontWeight: FontWeight.w700)),
-          Text(tr(context, "Et reproduis ces performances en réel"), style: TextStyle(
-            color: Colors.white70, fontSize: 11)),
-        ])),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.2),
-            borderRadius: BorderRadius.circular(20)),
-          child: const Text('Premium', style: TextStyle(
-            color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700))),
-      ]),
-    ),
   );
 }
 
