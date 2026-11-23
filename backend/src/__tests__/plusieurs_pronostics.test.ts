@@ -17,7 +17,8 @@ function transactionSurPrisma() {
   jest.spyOn(prisma, '$transaction').mockImplementation((async (fn: any) => fn(prisma)) as any);
   jest.spyOn(prisma, '$queryRaw').mockResolvedValue([] as any);
   jest.spyOn(prisma.match, 'update').mockResolvedValue({} as any);
-  jest.spyOn(prisma.pronostic, 'count').mockResolvedValue(1);
+  // Aucun autre pronostic publié : le principal ne change pas de lui-même.
+  jest.spyOn(prisma.pronostic, 'count').mockResolvedValue(0);
 }
 
 const demande = (extra: Record<string, unknown> = {}) => ({
@@ -98,5 +99,44 @@ describe('retirer un pronostic', () => {
 
   it('réservé à l\'administrateur principal', () => {
     expect(exigenceDe('DELETE', '/pronostics/admin/pronostic/p1')).toEqual({ acces: 'principal' });
+  });
+});
+
+describe('le principal est un pronostic publié', () => {
+  let maj: jest.SpyInstance;
+  // p1 principal, p2 l'autre pronostic du match.
+  const pronos: Record<string, any> = {};
+  beforeEach(() => {
+    transactionSurPrisma();
+    pronos.p1 = { id: 'p1', matchId: 'm1', principalMatchId: 'm1', isPublished: true, publicationRecordedAt: new Date(), oddsRecommended: 1.8 };
+    pronos.p2 = { id: 'p2', matchId: 'm1', principalMatchId: null, isPublished: true, publicationRecordedAt: new Date(), oddsRecommended: 1.9 };
+    const lire = async ({ where }: any) => where.id ? pronos[where.id]
+      : Object.values(pronos).find((p: any) => p.principalMatchId === where.principalMatchId) ?? null;
+    jest.spyOn(prisma.pronostic, 'findUnique').mockImplementation(lire as any);
+    jest.spyOn(prisma.pronostic, 'findUniqueOrThrow').mockImplementation(lire as any);
+    jest.spyOn(prisma.pronostic, 'count').mockImplementation((async () =>
+      Object.values(pronos).filter((p: any) => p.isPublished).length) as any);
+    jest.spyOn(prisma.pronostic, 'findFirst').mockImplementation((async () =>
+      Object.values(pronos).find((p: any) => p.isPublished) ?? null) as any);
+    maj = jest.spyOn(prisma.pronostic, 'update').mockImplementation((async ({ where, data }: any) =>
+      Object.assign(pronos[where.id], data)) as any);
+  });
+
+  it('le principal dépublié, l\'autre pronostic publié prend sa place — la fiche le montre', async () => {
+    await svc.togglePublish('p1', false);
+    expect(pronos.p1.principalMatchId).toBeNull();
+    expect(pronos.p2.principalMatchId).toBe('m1');
+  });
+
+  it('principal publié : rien ne change', async () => {
+    await svc.togglePublish('p2', true);
+    expect(pronos.p1.principalMatchId).toBe('m1');
+    expect(maj).toHaveBeenCalledTimes(1);
+  });
+
+  it('plus rien de publié : le principal reste où il est', async () => {
+    pronos.p2.isPublished = false;
+    await svc.togglePublish('p1', false);
+    expect(pronos.p1.principalMatchId).toBe('m1');
   });
 });

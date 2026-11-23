@@ -75,13 +75,21 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
     final noProno = !_match.hasPronostic;
 
     final m = _match;
-    final semanticLabel = locked
+    // Plusieurs pronostics par match (23 novembre 2026) : la carte montre le
+    // principal et annonce les autres, qui sont dans la fiche.
+    final autres = m.nbAutresPronostics;
+    final annonceAutres = autres > 0
+        ? AppStrings.of(context).count(autres,
+            one: " {arg0} autre pronostic sur ce match.", other: " {arg0} autres pronostics sur ce match.")
+        : '';
+    final semanticLabel = (locked
         ? tr(context, "{arg0} contre {arg1}, {arg2}. Contenu premium verrouillé.", [m.homeTeam, m.awayTeam, m.league])
         : noProno
             ? tr(context, "{arg0} contre {arg1}, {arg2}. Pas de pronostic disponible.", [m.homeTeam, m.awayTeam, m.league])
             : m.oddsRecommended > 0
                 ? tr(context, "{arg0} contre {arg1}, {arg2}. Pronostic : {arg3}. Indice de confiance {arg4}. Cote recommandée {arg5}.", [m.homeTeam, m.awayTeam, m.league, m.displayPredictionLabel, MatchEntity.affichageConfiance(m.pourcentageConfiance), m.oddsRecommended.toStringAsFixed(2)])
-                : tr(context, "{arg0} contre {arg1}, {arg2}. Pronostic : {arg3}. Indice de confiance {arg4}.", [m.homeTeam, m.awayTeam, m.league, m.displayPredictionLabel, MatchEntity.affichageConfiance(m.pourcentageConfiance)]);
+                : tr(context, "{arg0} contre {arg1}, {arg2}. Pronostic : {arg3}. Indice de confiance {arg4}.", [m.homeTeam, m.awayTeam, m.league, m.displayPredictionLabel, MatchEntity.affichageConfiance(m.pourcentageConfiance)]))
+        + annonceAutres;
 
     // Toute fiche de match est consultable, pronostic ou non : compositions,
     // statistiques, classements, événements et face-à-face ne dépendent pas
@@ -95,7 +103,9 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
       onTapUp: (_) {
         _pressCtrl.reverse();
         HapticFeedback.lightImpact();
-        if (locked) {
+        // Verrouillé, la carte ouvre l'offre Premium — sauf si le match a
+        // d'autres pronostics : la fiche les montre, gratuits compris.
+        if (locked && autres == 0) {
           showPremiumGateSheet(context,
             matchLabel: '${_match.homeTeam} vs ${_match.awayTeam}');
         } else {
@@ -215,6 +225,10 @@ class _MatchCardWidgetState extends ConsumerState<MatchCardWidget>
           if (hasBet) ...[
             const SizedBox(width: 6),
             _BetBadge(),
+          ],
+          if (_match.nbAutresPronostics > 0) ...[
+            const SizedBox(width: 6),
+            _PastilleAutres(nombre: _match.nbAutresPronostics),
           ],
           const Spacer(),
           // Suivre le match (suivre_match.dart)
@@ -1085,6 +1099,26 @@ class _BetBadge extends StatelessWidget {
       ]),
     );
   }
+}
+
+/// « +1 prono » : le match a d'autres pronostics que celui de la carte
+/// (plusieurs par match, 23 novembre 2026). Ils sont dans la fiche du match.
+class _PastilleAutres extends StatelessWidget {
+  final int nombre;
+  const _PastilleAutres({required this.nombre});
+
+  @override
+  Widget build(BuildContext context) => Container(
+    key: const Key('carte-autres-pronostics'),
+    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+    decoration: BoxDecoration(
+      color: AppColors.primary.withValues(alpha: 0.12),
+      borderRadius: BorderRadius.circular(8)),
+    child: Text(
+      AppStrings.of(context).count(nombre, one: '+{arg0} prono', other: '+{arg0} pronos'),
+      maxLines: 1,
+      style: TextStyle(color: context.cl.accent, fontSize: 11, fontWeight: FontWeight.w700)),
+  );
 }
 
 // ─── Helper Hero : transition circulaire fluide ───────────────────────────────

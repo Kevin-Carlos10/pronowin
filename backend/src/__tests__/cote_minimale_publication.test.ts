@@ -36,8 +36,12 @@ jest.mock('../lib/prisma', () => {
       update: jest.fn(async () => { ecritures.push('match.update'); return {}; }),
     },
     pronostic: {
-      findUnique: jest.fn(async ({ where }: any) => pronostics[where.id] ?? null),
+      // Par id, ou le principal d'un match (`principalMatchId`).
+      findUnique: jest.fn(async ({ where }: any) => where.id ? pronostics[where.id] ?? null
+        : Object.values(pronostics).find((p: any) => p.principalMatchId === where.principalMatchId) ?? null),
       findUniqueOrThrow: jest.fn(async ({ where }: any) => pronostics[where.id]),
+      findFirst: jest.fn(async ({ where }: any) =>
+        Object.values(pronostics).find((p: any) => p.matchId === where.matchId && p.isPublished) ?? null),
       upsert: jest.fn(async ({ create }: any) => {
         ecritures.push('pronostic.upsert');
         const p = { id: 'p-' + create.matchId, ...create };

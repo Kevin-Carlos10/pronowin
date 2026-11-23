@@ -70,6 +70,15 @@ class MatchEntity extends Equatable {
   /// couvrant tous les marchés, pas seulement les 8 types de base).
   final PronosticResult? result;
 
+  /// Plusieurs pronostics par match (23 novembre 2026) : combien d'autres
+  /// pronostics publiés s'ajoutent à celui-ci. La liste n'envoie que le
+  /// nombre ; la fiche du match envoie les pronostics eux-mêmes.
+  final int nbAutresPronostics;
+
+  /// Les autres pronostics du match, chacun avec son propre verrou VIP
+  /// (fiche du match seulement ; vide dans les listes).
+  final List<AutrePronostic> autresPronostics;
+
   const MatchEntity({
     required this.id,
     required this.league,
@@ -102,6 +111,8 @@ class MatchEntity extends Equatable {
     this.hasPronostic = true,
     this.isLocked = false,
     this.result,
+    this.nbAutresPronostics = 0,
+    this.autresPronostics = const [],
   }) : _homeTeam = homeTeam, _awayTeam = awayTeam, _predictionLabel = predictionLabel, _analystNote = analystNote;
 
   /// La même rencontre, sans aucune cote : la version iPhone n'en affiche
@@ -121,6 +132,8 @@ class MatchEntity extends Equatable {
     homeFormPoints: homeFormPoints, awayFormPoints: awayFormPoints,
     aiProbability: aiProbability, aiExplanation: aiExplanation,
     hasPronostic: hasPronostic, isLocked: isLocked, result: result,
+    nbAutresPronostics: nbAutresPronostics,
+    autresPronostics: [for (final a in autresPronostics) a.sansCote()],
   );
 
   ConfidenceLevel get confidence {
@@ -227,4 +240,92 @@ class MatchEntity extends Equatable {
 
   @override
   List<Object?> get props => [id, hasPronostic];
+}
+
+/// Un autre pronostic du même match (plusieurs par match, 23 novembre 2026).
+///
+/// Le serveur le filtre comme le principal : un pronostic VIP arrive sans son
+/// choix, sa cote ni son analyse pour qui n'est pas abonné (`isLocked`) ; son
+/// résultat, lui, reste visible.
+class AutrePronostic {
+  final String id;
+  final bool isPremium;
+  final bool isLocked;
+  final String _predictionLabel;
+  final String? predictionLabelEn;
+  String get predictionLabel => editorialText(_predictionLabel, predictionLabelEn);
+  final double oddsRecommended;
+  final int confidenceScore;
+  final int? confidencePct;
+  final String? _analystNote;
+  final String? analystNoteEn;
+  String? get analystNote => _analystNote == null && analystNoteEn == null ? null : editorialText(_analystNote ?? '', analystNoteEn);
+  final PronosticResult? result;
+
+  const AutrePronostic({
+    required this.id,
+    required this.isPremium,
+    this.isLocked = false,
+    required String predictionLabel,
+    this.predictionLabelEn,
+    this.oddsRecommended = 0,
+    this.confidenceScore = 0,
+    this.confidencePct,
+    String? analystNote,
+    this.analystNoteEn,
+    this.result,
+  }) : _predictionLabel = predictionLabel, _analystNote = analystNote;
+
+  /// Le pourcentage à afficher, comme [MatchEntity.pourcentageConfiance].
+  int get pourcentageConfiance => confidencePct ?? MatchEntity.pourcentageDepuisNiveau(confidenceScore);
+
+  /// [predictionLabel] avec les noms des équipes du match.
+  String libelle(MatchEntity match) =>
+      MatchEntity.applyTeamNames(predictionLabel, homeTeam: match.homeTeam, awayTeam: match.awayTeam);
+
+  /// Sans cote : la version iPhone n'en affiche pas (`sansPariProvider`).
+  AutrePronostic sansCote() => AutrePronostic(
+    id: id, isPremium: isPremium, isLocked: isLocked,
+    predictionLabel: _predictionLabel, predictionLabelEn: predictionLabelEn,
+    confidenceScore: confidenceScore, confidencePct: confidencePct,
+    analystNote: _analystNote, analystNoteEn: analystNoteEn, result: result,
+  );
+
+  factory AutrePronostic.fromJson(Map<String, dynamic> j) => AutrePronostic(
+    id:                j['id'] as String,
+    isPremium:         j['is_premium'] as bool? ?? false,
+    isLocked:          j['locked'] as bool? ?? false,
+    predictionLabel:   j['prediction_label'] as String? ?? '',
+    predictionLabelEn: j['prediction_label_en'] as String?,
+    oddsRecommended:   (j['odds_recommended'] as num?)?.toDouble() ?? 0,
+    confidenceScore:   (j['confidence_score'] as num?)?.toInt() ?? 0,
+    confidencePct:     (j['confidence_pct'] as num?)?.toInt(),
+    analystNote:       j['analyst_note'] as String?,
+    analystNoteEn:     j['analyst_note_en'] as String?,
+    result: switch (j['result']) {
+      'WIN'  => PronosticResult.win,
+      'LOSS' => PronosticResult.loss,
+      'PUSH' => PronosticResult.push,
+      _      => null,
+    },
+  );
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'is_premium': isPremium,
+    'locked': isLocked,
+    'prediction_label': _predictionLabel,
+    'prediction_label_en': predictionLabelEn,
+    'odds_recommended': oddsRecommended,
+    'confidence_score': confidenceScore,
+    'confidence_pct': confidencePct,
+    'analyst_note': _analystNote,
+    'analyst_note_en': analystNoteEn,
+    'result': switch (result) {
+      PronosticResult.win  => 'WIN',
+      PronosticResult.loss => 'LOSS',
+      PronosticResult.push => 'PUSH',
+      null                 => null,
+    },
+  };
 }

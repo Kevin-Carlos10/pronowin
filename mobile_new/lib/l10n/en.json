@@ -2043,5 +2043,15 @@
   "Partager le reçu": "Share receipt",
   "Paiement Premium — {arg0}": "Premium payment — {arg0}",
   "Une question sur ce paiement ?": "A question about this payment?",
-  "Tes paiements et leurs reçus": "Your payments and receipts"
+  "Tes paiements et leurs reçus": "Your payments and receipts",
+  "AUTRES PRONOSTICS": "OTHER PREDICTIONS",
+  "Autre pronostic : {arg0}{arg1}.{arg2}{arg3}{arg4}": "Other prediction: {arg0}{arg1}.{arg2}{arg3}{arg4}",
+  " Indice de confiance {arg0}.": " Confidence index {arg0}.",
+  "Confiance {arg0}": "Confidence {arg0}",
+  "Pronostic VIP": "VIP prediction",
+  "Pronostic VIP réservé aux membres Premium.{arg0}": "VIP prediction for Premium members only.{arg0}",
+  " {arg0} autre pronostic sur ce match.": " {arg0} other prediction on this match.",
+  " {arg0} autres pronostics sur ce match.": " {arg0} other predictions on this match.",
+  "+{arg0} prono": "+{arg0} prediction",
+  "+{arg0} pronos": "+{arg0} predictions"
 }

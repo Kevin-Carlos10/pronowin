@@ -32,7 +32,17 @@ class MatchModel extends MatchEntity {
     super.aiProbability,
     super.aiExplanation,
     super.result,
+    super.nbAutresPronostics,
+    super.autresPronostics,
   });
+
+  /// `autres_pronostics` : un nombre dans les listes, les pronostics eux-mêmes
+  /// dans la fiche du match (23 novembre 2026).
+  static List<AutrePronostic> _autres(Object? v) => v is List
+      ? [for (final e in v) if (e is Map) AutrePronostic.fromJson(Map<String, dynamic>.from(e))]
+      : const [];
+
+  static int _nbAutres(Object? v) => v is num ? v.toInt() : v is List ? v.length : 0;
 
   factory MatchModel.fromJson(Map<String, dynamic> j) => MatchModel(
     id:              j['id'] as String,
@@ -71,6 +81,8 @@ class MatchModel extends MatchEntity {
     aiProbability:   (j['ai_probability'] as num?)?.toDouble(),
     aiExplanation:   j['ai_explanation'] as String?,
     result:          _parseResult(j['result'] as String?),
+    nbAutresPronostics: _nbAutres(j['autres_pronostics']),
+    autresPronostics:   _autres(j['autres_pronostics']),
   );
 
   Map<String, dynamic> toJson() => {
@@ -102,6 +114,10 @@ class MatchModel extends MatchEntity {
     'analyst_note_en': analystNoteEn,
     'home_form_points': homeFormPoints,
     'away_form_points': awayFormPoints,
+    // La liste des autres pronostics quand on l'a (fiche), sinon leur nombre.
+    'autres_pronostics': autresPronostics.isNotEmpty
+        ? [for (final a in autresPronostics) a.toJson()]
+        : nbAutresPronostics,
     'result':           switch (result) {
       PronosticResult.win  => 'WIN',
       PronosticResult.loss => 'LOSS',

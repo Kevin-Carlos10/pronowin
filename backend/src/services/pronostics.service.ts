@@ -127,10 +127,27 @@ export function verifierCotePublication(cote: number): void {
 /**
  * `Match.hasPublishedPronostic`, recalculé : vrai dès qu'un des pronostics du
  * match est publié (plusieurs par match, 23 novembre 2026).
+ *
+ * Et le principal — celui que la liste et la fiche du match montrent en tête —
+ * est un pronostic publié dès qu'il en existe un. Sinon un principal resté
+ * brouillon, ou dépublié, masquait les autres : la liste annonçait « +1
+ * prono » sur un match « sans pronostic », et la fiche ne le montrait pas.
+ * Le plus ancien des publiés prend alors sa place.
  */
 async function majPronosticPublie(tx: Prisma.TransactionClient, matchId: string) {
   const publies = await tx.pronostic.count({ where: { matchId, isPublished: true } });
   await tx.match.update({ where: { id: matchId }, data: { hasPublishedPronostic: publies > 0 } });
+  if (publies === 0) return;
+
+  const principal = await tx.pronostic.findUnique({
+    where: { principalMatchId: matchId }, select: { id: true, isPublished: true } });
+  if (principal?.isPublished) return;
+  const promu = await tx.pronostic.findFirst({
+    where: { matchId, isPublished: true }, orderBy: { createdAt: 'asc' }, select: { id: true } });
+  if (!promu) return;
+  // L'index unique : l'ancien principal cède sa place avant.
+  if (principal) await tx.pronostic.update({ where: { id: principal.id }, data: { principalMatchId: null } });
+  await tx.pronostic.update({ where: { id: promu.id }, data: { principalMatchId: matchId } });
 }
 
 export class PronosticsService {

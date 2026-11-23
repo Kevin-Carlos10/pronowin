@@ -90,6 +90,7 @@ part 'match_detail/joueur_du_match.dart';
 part 'match_detail/mini_classement.dart';
 part 'match_detail/series.dart';
 part 'match_detail/evolution_classement.dart';
+part 'match_detail/autres_pronostics.dart';
 
 /// La carte des palmarès d'une compétition, seule, pour les bancs d'essai.
 @visibleForTesting
@@ -540,6 +541,9 @@ class _MatchDetailPageState extends ConsumerState<MatchDetailPage>
         if (match.hasPronostic) ...[
           entree(_PronosticCard(match: match, isLocked: isLocked)),
           const SizedBox(height: 16),
+          // Les autres pronostics du match (23 novembre 2026). Porte sa
+          // propre marge.
+          entree(_AutresPronostics(match: match, abonne: isPremium), delaiMs: 30),
         ],
         // L'avant-match, puis le résumé. Porte sa propre marge : sans
         // article, elle ne laisse pas de trou.
