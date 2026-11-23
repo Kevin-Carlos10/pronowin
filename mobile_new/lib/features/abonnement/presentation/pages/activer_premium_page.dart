@@ -95,7 +95,14 @@ String? libelleMoisOfferts(int mois) => mois <= 0
 
 class ActiverPremiumPage extends ConsumerStatefulWidget {
   final Map<String, dynamic>? subData;
-  const ActiverPremiumPage({super.key, this.subData});
+
+  /// Renouveler en un geste (23 novembre 2026) : la formule à reprendre,
+  /// `premium_monthly` ou `premium_annual`. Le rappel « Ton Premium expire
+  /// demain » et le bouton « Renouveler » du Compte la portent : l'écran
+  /// s'ouvre alors sur l'étape de paiement de cette formule, sans repasser
+  /// par l'offre. En achat intégré (iPhone), l'offre s'ouvre sur la formule.
+  final String? renouveler;
+  const ActiverPremiumPage({super.key, this.subData, this.renouveler});
 
   @override
   ConsumerState<ActiverPremiumPage> createState() => _ActiverPremiumPageState();
@@ -211,6 +218,13 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     _tab.addListener(_onTabChanged);
     WidgetsBinding.instance.addObserver(this);
     AnalyseUsage.paywallVu();
+    final formule = widget.renouveler;
+    if (formule == 'premium_monthly' || formule == 'premium_annual') {
+      _duration = formule == 'premium_annual' ? 'annuel' : 'mensuel';
+      _method   = 'direct';
+      // Hors achat intégré : droit à l'étape de paiement.
+      if (!ref.read(achatIntegreProvider)) _showPaywall = false;
+    }
     if (ref.read(achatIntegreProvider)) {
       _iapSub = ref.read(iapServiceProvider).results.listen(_onIapResult);
     }

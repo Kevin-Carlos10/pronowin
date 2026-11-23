@@ -23,6 +23,16 @@ Décision expresse de l'utilisateur, le 23 novembre 2026, risque accepté.
   décrivent désormais trois versions (iPhone, Google Play, APK). Révision
   datée du 23 novembre 2026.
 
+## Renouveler en un geste
+
+- Les rappels d'échéance (J-7, J-3, J-1) et les relances après expiration
+  mènent droit à l'étape de paiement de la formule de l'abonné (mensuelle ou
+  annuelle) : il ne reste qu'à toucher « Payer ». Le bouton « Renouveler »
+  du Compte fait de même. Lien `/compte/activer-premium?renouveler=…` (les
+  versions précédentes ouvrent l'offre, comme avant).
+- Plus de rappel « renouvelle » pour un abonnement App Store ou Google Play,
+  que la boutique renouvelle elle-même (côté serveur).
+
 ## Écran de connexion refait
 
 - **Bandeau** : un grand bandeau orange, avec le nom, une accroche et une

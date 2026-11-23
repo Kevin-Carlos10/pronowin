@@ -3,6 +3,7 @@ import { ErreurMetier } from '../utils/erreurs';
 import { filtrePremiumEchu } from '../utils/premium';
 import { lireConfig, codePromoPour } from './app_config.service';
 import { NotificationService } from './notification.service';
+import { derniersAbonnements, lienRenouvellement } from './renouvellement.service';
 
 /**
  * Relancer les abonnés dont le Premium a expiré (15 novembre 2026).
@@ -24,11 +25,11 @@ export const TYPE_RELANCE_PREMIUM = 'relance_premium';
 export const MESSAGE_RELANCE = {
   fr: {
     title: 'Ton Premium te manque ?',
-    body:  'Ton abonnement a expiré. Renouvelle-le depuis Compte › Abonnement pour retrouver les pronostics VIP.',
+    body:  'Ton abonnement a expiré. Touche ici pour le renouveler en un geste et retrouver les pronostics VIP.',
   },
   en: {
     title: 'Missing Premium?',
-    body:  'Your subscription has expired. Renew it from Account › Subscription to get VIP predictions back.',
+    body:  'Your subscription has expired. Tap here to renew it in one step and get VIP predictions back.',
   },
 } as const;
 
@@ -42,7 +43,9 @@ export const RELANCE_INTERVALLE_JOURS = 7;
 const JOUR = 86_400_000;
 const notifSvc = new NotificationService();
 
-const lien = { deep_link: '/compte', type: TYPE_RELANCE_PREMIUM };
+/** Le lien de la relance : l'étape de paiement de la formule de l'abonné. */
+const lien = (formule: Parameters<typeof lienRenouvellement>[0]) =>
+  ({ deep_link: lienRenouvellement(formule), type: TYPE_RELANCE_PREMIUM });
 
 /** Une fois par jour : les échéances passées de 3 à 10 jours, jamais relancées depuis. */
 export async function relancerAutomatiquement(maintenant: Date = new Date()) {
@@ -58,6 +61,7 @@ export async function relancerAutomatiquement(maintenant: Date = new Date()) {
     },
     select: { id: true, subscriptionExpiresAt: true },
   });
+  const derniers = await derniersAbonnements(comptes.map(c => c.id));
 
   let notified = 0;
   for (const c of comptes) {
@@ -72,7 +76,7 @@ export async function relancerAutomatiquement(maintenant: Date = new Date()) {
     await notifSvc.sendToUser(c.id, {
       title: MESSAGE_RELANCE.fr.title, body: MESSAGE_RELANCE.fr.body,
       titleEn: MESSAGE_RELANCE.en.title, bodyEn: MESSAGE_RELANCE.en.body,
-      data: lien,
+      data: lien(derniers.get(c.id)?.formule ?? null),
     }, 'premium').catch(() => {});
     notified++;
   }
@@ -152,8 +156,9 @@ export async function relancerExpires(options: { titre?: unknown; message?: unkn
     ? { titleEn: MESSAGE_RELANCE.en.title, bodyEn: `${MESSAGE_RELANCE.en.body}${code ? ` Promo code: ${code}` : ''}` }
     : {};
 
+  const derniers = await derniersAbonnements(cibles.map(c => c.id));
   const res = await Promise.allSettled(cibles.map(c =>
-    notifSvc.sendToUser(c.id, { ...fr, ...en, data: lien }, 'premium')));
+    notifSvc.sendToUser(c.id, { ...fr, ...en, data: lien(derniers.get(c.id)?.formule ?? null) }, 'premium')));
   const sent = res.filter(r => r.status === 'fulfilled').length;
   return { sent, failed: cibles.length - sent, skipped: recemment, total: cibles.length + recemment, avec_code: !!code };
 }

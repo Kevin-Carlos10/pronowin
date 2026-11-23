@@ -21,13 +21,18 @@ bool profilACompleterAvantPremium(WidgetRef ref) {
 
 /// Navigue vers le premium, en passant d'abord par la complétion du profil
 /// quand elle est requise.
-void goToPremium(BuildContext context, WidgetRef ref, {Map<String, dynamic>? extra}) {
+///
+/// [renouveler] : la formule à reprendre (`premium_monthly`, `premium_annual`)
+/// — l'écran s'ouvre alors sur son paiement (23 novembre 2026).
+void goToPremium(BuildContext context, WidgetRef ref, {Map<String, dynamic>? extra, String? renouveler}) {
   if (profilACompleterAvantPremium(ref)) {
     // La destination est passée en `extra` : sans elle, l'utilisateur qui
     // vient de remplir son profil retombait sur l'écran d'où il venait au
     // lieu du paywall qu'il cherchait à atteindre.
     context.push('/compte/completer-profil', extra: '/compte/activer-premium');
   } else {
-    context.push('/compte/activer-premium', extra: extra);
+    context.push(renouveler == null
+        ? '/compte/activer-premium'
+        : '/compte/activer-premium?renouveler=$renouveler', extra: extra);
   }
 }

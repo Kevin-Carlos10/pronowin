@@ -347,7 +347,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         pageBuilder: (_, s) => scaleUpPage(
           state: s,
           child: ActiverPremiumPage(
-            subData: s.extra as Map<String, dynamic>?)),
+            subData: s.extra as Map<String, dynamic>?,
+            // Renouveler en un geste (23 novembre 2026) : le rappel
+            // d'échéance porte la formule de l'abonné.
+            renouveler: s.uri.queryParameters['renouveler'])),
       ),
       GoRoute(
         path: '/compte/completer-profil',

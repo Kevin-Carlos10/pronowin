@@ -19,6 +19,11 @@ beforeEach(() => {
     envois.push({ userId: a[0], ...a[1], categorie: a[2] }); return { success: true } as any;
   });
   jest.spyOn(config, 'lireConfig').mockResolvedValue({ valeurs: { PROMO_CODE: 'PRONOWIN2026' } } as any);
+  // Le dernier abonnement de chacun : « a » au mois, « b » à l'année.
+  jest.spyOn(prisma.subscription, 'findMany').mockResolvedValue([
+    { userId: 'a', startDate: ilYa(33), endDate: ilYa(3), paymentMethod: 'orange_money' },
+    { userId: 'b', startDate: ilYa(370), endDate: ilYa(5), paymentMethod: 'geniuspay' },
+  ] as any);
 });
 afterEach(() => jest.restoreAllMocks());
 
@@ -40,7 +45,9 @@ describe('la relance automatique', () => {
 
     expect(envois).toEqual([expect.objectContaining({
       userId: 'a', title: MESSAGE_RELANCE.fr.title, titleEn: MESSAGE_RELANCE.en.title,
-      data: { deep_link: '/compte', type: TYPE_RELANCE_PREMIUM }, categorie: 'premium',
+      // Droit à l'étape de paiement de sa formule (renouveler en un geste).
+      data: { deep_link: '/compte/activer-premium?renouveler=premium_monthly', type: TYPE_RELANCE_PREMIUM },
+      categorie: 'premium',
     })]);
     // Pas de code promo dans la relance automatique.
     expect(envois[0].body).not.toContain('PRONOWIN2026');
@@ -68,6 +75,8 @@ describe('la relance depuis l\'administration', () => {
     expect(await relancerExpires({ avec_code: true }, maintenant))
       .toEqual({ sent: 2, failed: 0, skipped: 2, total: 4, avec_code: true });
     expect(envois.map(e => e.userId)).toEqual(['a', 'b']);
+    expect(envois.map(e => e.data.deep_link)).toEqual([
+      '/compte/activer-premium?renouveler=premium_monthly', '/compte/activer-premium?renouveler=premium_annual']);
     expect(envois[0].body).toBe(`${MESSAGE_RELANCE.fr.body} Code promo : PRONOWIN2026`);
     expect(envois[0].bodyEn).toBe(`${MESSAGE_RELANCE.en.body} Promo code: PRONOWIN2026`);
     expect(envois[0].categorie).toBe('premium');

@@ -10,6 +10,7 @@ import { cleDe } from './s3.service';
 import { ErreurMetier, ServiceIndisponible } from '../utils/erreurs';
 import { envoyerAlerteAdmin } from './email.service';
 import { STATUTS_AVEC_ACCES } from './iap_statuts';
+import { derniersAbonnements, formuleDe, lienRenouvellement } from './renouvellement.service';
 
 // Import S3 de façon lazy pour éviter le crash si AWS pas configuré
 let s3Svc: any = null;
@@ -225,8 +226,14 @@ export class SubscriptionService {
         },
         select: { id: true },
       });
+      // La formule de chacun, pour un lien qui mène droit au paiement
+      // (renouveler en un geste, 23 novembre 2026).
+      const derniers = await derniersAbonnements(users.map(u => u.id));
 
       for (const u of users) {
+        const dernier = derniers.get(u.id);
+        // Apple ou Google renouvellent eux-mêmes : « renouvelle » serait faux.
+        if (dernier?.boutique) continue;
         const deja = await prisma.notification.findFirst({
           where: {
             userId:    u.id,
@@ -241,9 +248,9 @@ export class SubscriptionService {
             ? '⏳ Ton Premium expire demain'
             : `⏳ Ton Premium expire dans ${days} jours`,
           body: days === 1
-            ? 'Renouvelle maintenant pour ne pas perdre l\'accès aux pronostics VIP.'
-            : 'Renouvelle depuis Compte › Abonnement pour rester couvert sans interruption.',
-          data: { deep_link: '/compte', type: 'premium' },
+            ? 'Touche ici pour renouveler en un geste et garder l\'accès aux pronostics VIP.'
+            : 'Touche ici pour renouveler en un geste et rester couvert sans interruption.',
+          data: { deep_link: lienRenouvellement(dernier?.formule ?? null), type: 'premium' },
         }, 'premium').catch(() => {});
         notified++;
       }
@@ -358,6 +365,8 @@ export class SubscriptionService {
 
       return {
         plan:          user.subscriptionPlan ?? 'free',
+        // La formule en cours, pour « Renouveler » (23 novembre 2026).
+        formule:       sub ? formuleDe(sub.startDate, sub.endDate) : null,
         expires_at:    fin ? new Date(fin).toISOString() : null,
         days_left:     Math.max(0, daysLeft),    // toujours un int >= 0
         // « apple », « google », ou null hors des boutiques.

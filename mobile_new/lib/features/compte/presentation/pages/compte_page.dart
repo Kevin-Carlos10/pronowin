@@ -827,9 +827,12 @@ class _PremiumState extends ConsumerWidget {
                     style: TextStyle(color: color, fontSize: 12,
                       fontWeight: FontWeight.w600))),
                   TextButton(
+                    key: const Key('compte-renouveler'),
                     onPressed: () {
                       HapticFeedback.mediumImpact();
-                      goToPremium(context, ref, extra: sub);
+                      // Droit au paiement de la formule en cours (23 novembre
+                      // 2026) : `formule` vient de `/subscriptions/current`.
+                      goToPremium(context, ref, extra: sub, renouveler: sub['formule'] as String?);
                     },
                     style: TextButton.styleFrom(
                       foregroundColor: color,
