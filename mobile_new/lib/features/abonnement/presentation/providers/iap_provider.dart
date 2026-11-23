@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
@@ -18,7 +17,8 @@ final iapServiceProvider = Provider<IapService>((ref) {
 /// Services, achats restreints par le contrôle parental. Le paywall doit
 /// alors afficher un message, pas une page vide.
 final iapReadyProvider = FutureProvider<bool>((ref) async {
-  if (!ref.watch(isStoreBuildProvider)) return false;
+  // L'achat intégré n'existe que sur iPhone (voir `achatIntegreProvider`).
+  if (!ref.watch(achatIntegreProvider)) return false;
   return ref.read(iapServiceProvider).init();
 });
 
@@ -28,24 +28,6 @@ final iapProductsProvider = Provider<List<dynamic>>((ref) {
   if (!ready) return const [];
   return ref.read(iapServiceProvider).products;
 });
-
-/// Version Google Play sans abonnement en vente.
-///
-/// Aucun compte marchand Google n'est possible depuis le Burkina Faso : la
-/// Play Console ne propose donc aucun abonnement, et le catalogue reste vide.
-/// L'écran Premium affichait « vérifie ta connexion », et les accroches un
-/// prix que personne ne pouvait payer (18 octobre 2026). Google interdit
-/// d'indiquer un autre moyen de paiement dans l'app : on le dit sobrement,
-/// sans prix ni lien.
-///
-/// Vrai sur un build store Android tant que l'abonnement mensuel n'est pas
-/// dans le catalogue — y compris pendant son chargement, pour ne pas faire
-/// apparaître puis disparaître un prix.
-bool premiumIndisponibleSurPlay(WidgetRef ref) {
-  if (!ref.watch(isStoreBuildProvider) || defaultTargetPlatform != TargetPlatform.android) return false;
-  return !ref.watch(iapProductsProvider)
-      .any((p) => p is ProductDetails && p.id == 'com.pronowin.premium.monthly');
-}
 
 /// Prix mensuel à afficher sur les écrans d'accroche (« à partir de X »).
 ///
@@ -57,7 +39,9 @@ bool premiumIndisponibleSurPlay(WidgetRef ref) {
 /// l'acheteur paiera, dans la devise de son pays. Avant, le tarif publié par
 /// le serveur.
 String premiumMonthlyPriceLabel(WidgetRef ref, Map<String, dynamic>? sub) {
-  final store = ref.watch(isStoreBuildProvider);
+  // Google Play paie par Mobile Money depuis le 23 novembre 2026 : sans
+  // commission de boutique, il affiche le tarif Mobile Money, comme l'APK.
+  final store = ref.watch(achatIntegreProvider);
   if (store) {
     for (final p in ref.watch(iapProductsProvider)) {
       if (p is ProductDetails && p.id == 'com.pronowin.premium.monthly') return p.price;

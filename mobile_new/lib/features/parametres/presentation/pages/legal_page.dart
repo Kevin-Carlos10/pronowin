@@ -55,8 +55,8 @@ class LegalPage extends ConsumerWidget {
   /// Un document juridique dont la date de révision bouge sans que son texte
   /// change ne dit plus rien de sa dernière révision.
   String get _lastUpdated => switch (type) {
-    LegalType.cgu             => trCurrent("1er octobre 2026"),
-    LegalType.confidentialite => trCurrent("13 octobre 2026"),
+    LegalType.cgu             => trCurrent("23 novembre 2026"),
+    LegalType.confidentialite => trCurrent("23 novembre 2026"),
     LegalType.jeuResponsable  => trCurrent("Septembre 2026"),
   };
 
@@ -140,7 +140,13 @@ List<LegalSection> sectionsLegales(LegalType type,
         // (`isPremium` → `_PremiumLock` dans tutorial_detail_page.dart), seul
         // le catalogue a changé. Cette ligne doit suivre les données, pas
         // l'inverse.
-        trCurrent("L'abonnement Premium donne accès à des fonctionnalités additionnelles (pronostics VIP, analyses statistiques avancées). Il est proposé sur une base mensuelle ou annuelle selon la formule choisie, dont le tarif est affiché avant toute validation. {arg0} Sauf disposition légale contraire applicable dans votre juridiction, l'abonnement n'est pas remboursable une fois activé. PronoWin se réserve le droit de modifier ses tarifs, moyennant un préavis minimum de 30 jours pour les abonnements en cours, qui ne s'appliquera qu'au renouvellement suivant.", [estStore ? trCurrent("Le paiement s'effectue par l'achat intégré de la boutique d'applications, selon les modalités affichées avant validation.") : trCurrent("Le paiement peut s'effectuer par preuve de transaction (paiement mobile, virement) ou via l'activation gratuite par code promotionnel 1xBet, selon les modalités décrites dans l'Application.")])),
+        trCurrent("L'abonnement Premium donne accès à des fonctionnalités additionnelles (pronostics VIP, analyses statistiques avancées). Il est proposé sur une base mensuelle ou annuelle selon la formule choisie, dont le tarif est affiché avant toute validation. {arg0} Sauf disposition légale contraire applicable dans votre juridiction, l'abonnement n'est pas remboursable une fois activé. PronoWin se réserve le droit de modifier ses tarifs, moyennant un préavis minimum de 30 jours pour les abonnements en cours, qui ne s'appliquera qu'au renouvellement suivant.", [estStore && estIOS
+          ? trCurrent("Le paiement s'effectue par l'achat intégré de la boutique d'applications, selon les modalités affichées avant validation.")
+          // Google Play paie par Mobile Money depuis le 23 novembre 2026,
+          // sans l'activation par code partenaire (APK seulement).
+          : estStore
+            ? trCurrent("Le paiement s'effectue par paiement mobile (Mobile Money), sur la page sécurisée de notre prestataire de paiement ou par preuve de transaction, selon les modalités décrites dans l'Application.")
+            : trCurrent("Le paiement peut s'effectuer par preuve de transaction (paiement mobile, virement) ou via l'activation gratuite par code promotionnel 1xBet, selon les modalités décrites dans l'Application.")])),
       // L'article que le canal store ne publie pas : il décrit une offre qui
       // n'existe pas dans ce build, et c'est précisément celle qui ferait
       // classer l'application dans la catégorie qu'on cherche à éviter.
@@ -203,17 +209,22 @@ List<LegalSection> sectionsLegales(LegalType type,
         trCurrent("Nous collectons, selon votre usage de l'Application :\n\n• Compte et profil : adresse e-mail ou numéro de téléphone, empreinte de votre mot de passe, pseudonyme, prénom et nom, pays, date de naissance (pour vérifier votre majorité) et photo de profil si vous en ajoutez une. Si vous utilisez « Se connecter avec Apple » ou la connexion Google : l'identifiant transmis par ce service, l'adresse e-mail (avec Apple, il peut s'agir d'une adresse relais qui masque la vôtre) et le nom, si vous acceptez de le partager.\n\n• Utilisation du Service : formule d'abonnement, pronostics suivis, favoris, votes, commentaires, historique d'activité, données de bankroll que vous saisissez (application Android uniquement) et informations de parrainage.\n\n• Notifications : jeton de notification propre à votre appareil et préférences d'alerte.\n\n• Diagnostic technique : identifiant d'installation, modèle de l'appareil, version du système et de l'Application, journaux de connexion, rapports de plantage et mesures de performance. Les rapports de plantage sont associés à l'identifiant de votre compte, pour retrouver l'erreur que vous nous signalez.\n\n• Mesure d'audience (Firebase Analytics) : événements d'utilisation associés à l'identifiant d'installation — connexion et inscription, affichage de l'offre Premium et étapes de l'abonnement, ouverture d'un pronostic, pari noté ou confirmé dans la bankroll (application Android uniquement), ouverture d'une notification. Ni nom, ni adresse e-mail, ni numéro de téléphone, ni montant. Ces mesures servent à améliorer l'Application, jamais à de la publicité.\n\n• Abonnement : état de votre abonnement et informations nécessaires à sa vérification.{arg0}\n\nNous ne collectons pas votre position GPS, vos contacts, vos SMS, vos journaux d'appels ni le contenu de votre appareil. Une image n'est lue que si vous choisissez volontairement une photo pour votre profil.", [
           // Sur iPhone, c'est Apple qui facture : nommer Google Play y
           // décrivait la boutique d'un autre système.
-          estStore
-            ? (estIOS
-                ? trCurrent(" Les informations de paiement sont gérées par Apple, via l'App Store, jamais par PronoWin.")
-                : trCurrent(" Les informations de paiement sont gérées par Google Play, jamais par PronoWin."))
-            : trCurrent(" Le cas échéant, les justificatifs que vous transmettez volontairement : preuve de paiement d'abonnement, capture d'écran pour l'activation par code partenaire.")])),
+          estStore && estIOS
+            ? trCurrent(" Les informations de paiement sont gérées par Apple, via l'App Store, jamais par PronoWin.")
+            // Google Play : Mobile Money, sans code partenaire (23 novembre 2026).
+            : estStore
+              ? trCurrent(" Le cas échéant, les justificatifs que vous transmettez volontairement : preuve de paiement d'abonnement.")
+              : trCurrent(" Le cas échéant, les justificatifs que vous transmettez volontairement : preuve de paiement d'abonnement, capture d'écran pour l'activation par code partenaire.")])),
       LegalSection(null, trCurrent("Finalités du traitement"),
         trCurrent("Vos données sont traitées pour : créer et sécuriser votre compte (authentification) ; fournir et personnaliser le Service (pronostics, statistiques, recommandations) ; traiter vos demandes d'abonnement et de parrainage ; vous envoyer des notifications pertinentes que vous avez autorisées ; assurer la sécurité de l'Application et prévenir la fraude ; répondre à nos obligations légales ; et améliorer nos services à partir de statistiques d'usage agrégées.")),
       LegalSection(null, trCurrent("Base légale des traitements"),
         trCurrent("Selon les cas, ces traitements reposent sur : l'exécution du contrat qui vous lie à PronoWin (fourniture du Service) ; votre consentement (notifications{arg0}) ; l'intérêt légitime de PronoWin (sécurité, prévention de la fraude, amélioration du Service) ; ou le respect d'une obligation légale.", [estStore ? "" : trCurrent(", activation par code partenaire")])),
       LegalSection(null, trCurrent("Partage et destinataires des données"),
-        trCurrent("Vos données personnelles ne sont jamais vendues à des tiers. Elles peuvent être partagées, dans la stricte mesure nécessaire, avec : nos prestataires techniques (hébergement, envoi de SMS ou d'e-mails, notifications push, et Google Firebase pour les rapports de plantage, les mesures de performance et la mesure d'audience) agissant sur nos instructions ; Apple ou Google, si vous choisissez de vous connecter avec leur service ;{arg0} ou les autorités compétentes lorsque la loi l'exige.", [estStore ? "" : trCurrent(" GeniusPay, notre prestataire technique de paiement Mobile Money (nom, e-mail, téléphone et pays du compte, montant et formule), si vous payez votre abonnement par ce moyen ; nos partenaires (ex. vérification d'une activation via code 1xBet, avec votre consentement explicite) ;")])),
+        trCurrent("Vos données personnelles ne sont jamais vendues à des tiers. Elles peuvent être partagées, dans la stricte mesure nécessaire, avec : nos prestataires techniques (hébergement, envoi de SMS ou d'e-mails, notifications push, et Google Firebase pour les rapports de plantage, les mesures de performance et la mesure d'audience) agissant sur nos instructions ; Apple ou Google, si vous choisissez de vous connecter avec leur service ;{arg0} ou les autorités compétentes lorsque la loi l'exige.", [estStore && estIOS
+          ? ""
+          : estStore
+            ? trCurrent(" GeniusPay, notre prestataire technique de paiement Mobile Money (nom, e-mail, téléphone et pays du compte, montant et formule), si vous payez votre abonnement par ce moyen ;")
+            : trCurrent(" GeniusPay, notre prestataire technique de paiement Mobile Money (nom, e-mail, téléphone et pays du compte, montant et formule), si vous payez votre abonnement par ce moyen ; nos partenaires (ex. vérification d'une activation via code 1xBet, avec votre consentement explicite) ;")])),
       LegalSection(null, trCurrent("Sécurité des données"),
         trCurrent("Vos données sont chiffrées en transit (HTTPS/TLS) et protégées au repos. L'accès à votre compte repose sur des jetons d'authentification (JWT) à durée de vie limitée, automatiquement renouvelés, ainsi que, si vous l'activez, un code PIN ou une authentification biométrique locale à votre appareil. Nous mettons en œuvre des mesures techniques et organisationnelles raisonnables pour prévenir tout accès non autorisé, perte ou divulgation de vos données.")),
       LegalSection(null, trCurrent("Durée de conservation"),

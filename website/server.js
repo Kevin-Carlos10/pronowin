@@ -658,7 +658,7 @@ app.get('/mentions-legales', (req, res) => {
  * public ne mentionne le partenaire nulle part, et cette page ne doit pas etre
  * la premiere exception.
  */
-const MAJ_CGU = '1er octobre 2026';
+const MAJ_CGU = '23 novembre 2026';
 
 app.get('/cgu', (req, res) => {
   const canalDirect = req.query.canal === 'direct';
@@ -690,7 +690,7 @@ app.get('/cgu', (req, res) => {
  * juridique dont la date de révision change toute seule chaque jour ne dit
  * plus rien de sa dernière révision.
  */
-const MAJ_CONFIDENTIALITE = '13 octobre 2026';
+const MAJ_CONFIDENTIALITE = '23 novembre 2026';
 
 app.get('/confidentialite', (req, res) => {
   res.render('confidentialite', { site, dateMaj: MAJ_CONFIDENTIALITE });

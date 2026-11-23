@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -9,9 +10,13 @@ import 'package:pronowin/shared/utils/premium_nav.dart';
 import 'aides/banc_ecran.dart';
 
 /// Refus Apple du 2 novembre 2026 : le relecteur, venu tester l'abonnement,
-/// est tombé sur « Compléter le profil ». Sur l'App Store et Google Play, le
-/// paywall s'ouvre directement ; l'APK direct (Mobile Money) garde l'étape.
+/// est tombé sur « Compléter le profil ». Sur l'App Store, le paywall s'ouvre
+/// directement. Le paiement Mobile Money, lui, demande nom et téléphone (le
+/// serveur l'exige) : l'APK direct et, depuis le 23 novembre 2026, Google
+/// Play gardent l'étape.
 void main() {
+  tearDown(() => debugDefaultTargetPlatformOverride = null);
+
   setUpAll(() async => preparerBanc());
 
   // Inscrit par e-mail : ni nom, ni date de naissance, ni téléphone.
@@ -41,10 +46,19 @@ void main() {
     await t.pumpAndSettle();
   }
 
-  testWidgets('App Store et Google Play : le paywall, sans « Compléter le profil »', (t) async {
+  testWidgets('App Store : le paywall, sans « Compléter le profil »', (t) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     await ouvrir(t, store: true);
     expect(find.text('paywall'), findsOneWidget);
     expect(find.text('profil'), findsNothing);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('Google Play (Mobile Money) : le profil d\'abord, comme l\'APK', (t) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    await ouvrir(t, store: true);
+    expect(find.text('profil'), findsOneWidget);
+    debugDefaultTargetPlatformOverride = null;
   });
 
   testWidgets('APK direct (Mobile Money) : le profil d\'abord, comme avant', (t) async {

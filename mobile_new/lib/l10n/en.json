@@ -2001,5 +2001,12 @@
   "Besoin d'aide ?": "Need help?",
   "Problème de connexion": "Sign-in problem",
   "Le foot au quotidien, avec": "Everyday football, with",
-  "pronostics, scores en direct & alertes": "predictions, live scores & alerts"
+  "pronostics, scores en direct & alertes": "predictions, live scores & alerts",
+  "Le paiement s'effectue par paiement mobile (Mobile Money), sur la page sécurisée de notre prestataire de paiement ou par preuve de transaction, selon les modalités décrites dans l'Application.": "Payment is made by mobile payment (Mobile Money), on our payment provider's secure page or by proof of transaction, under the terms described in the Application.",
+  " Le cas échéant, les justificatifs que vous transmettez volontairement : preuve de paiement d'abonnement.": " Where applicable, supporting documents you voluntarily provide: subscription payment proof.",
+  " GeniusPay, notre prestataire technique de paiement Mobile Money (nom, e-mail, téléphone et pays du compte, montant et formule), si vous payez votre abonnement par ce moyen ;": " GeniusPay, our Mobile Money payment technical provider (name, email, phone number and country of the account, amount and plan), if you pay your subscription that way;",
+  "Le paiement est traité par ton compte App Store, avec le moyen de paiement qui y est déjà enregistré. Nous ne voyons jamais tes coordonnées bancaires.": "Payment is processed through your App Store account using its saved payment method. We never see your bank details.",
+  "Immédiatement, dès que l'opérateur confirme le paiement.": "Immediately, as soon as the operator confirms the payment.",
+  "Sous {arg0}, le temps de vérifier ton paiement.": "Within {arg0}, while we verify your payment.",
+  "23 novembre 2026": "23 November 2026"
 }

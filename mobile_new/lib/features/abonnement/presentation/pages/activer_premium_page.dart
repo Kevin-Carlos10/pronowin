@@ -5,7 +5,6 @@ import '../../../../core/utils/motion.dart';
 import 'dart:io';
 import 'package:country_picker/country_picker.dart';
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -14,7 +13,6 @@ import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/constants/app_constants.dart';
 import '../../../../core/config/bookmaker_affiliation.dart';
 import '../../../../core/config/contact_support.dart';
 import '../../../../core/theme/app_theme.dart';
@@ -213,7 +211,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     _tab.addListener(_onTabChanged);
     WidgetsBinding.instance.addObserver(this);
     AnalyseUsage.paywallVu();
-    if (ref.read(isStoreBuildProvider)) {
+    if (ref.read(achatIntegreProvider)) {
       _iapSub = ref.read(iapServiceProvider).results.listen(_onIapResult);
     }
     // Rediriger si le profil est incomplet (filet de sécurité, APK direct)
@@ -308,6 +306,9 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   @override
   Widget build(BuildContext context) {
     final submitState = ref.watch(submitProofProvider);
+    // Le parcours « code promo » (compte partenaire 1xBet) : APK seulement.
+    // Google Play paie par Mobile Money depuis le 23 novembre 2026, sans lui.
+    final codePromo = !ref.watch(isStoreBuildProvider);
 
     // Redessine quand les tarifs et le code promo arrivent du serveur. Sans
     // cela, un écran ouvert sans `subData` resterait figé sur « momentanément
@@ -331,7 +332,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
           onPressed: () => setState(() => _showPaywall = true),
         ),
         title: Text(_method == 'code' ? tr(context, "Activation Code Promo") : tr(context, "Paiement Mobile")),
-        bottom: TabBar(
+        bottom: !codePromo ? null : TabBar(
           controller: _tab,
           indicatorColor: AppColors.primary,
           labelColor: context.cl.accent,
@@ -343,7 +344,7 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
           ],
         ),
       ),
-      body: TabBarView(
+      body: !codePromo ? _buildPaymentTab(submitState) : TabBarView(
         controller: _tab,
         children: [
           _buildPaymentTab(submitState),
@@ -382,10 +383,12 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
     // porte que sur le premier mois.
     //
     // Dérivée plutôt que mémorisée : il n'y a plus d'état à penser à remettre.
-    final methode = methodeProposee(duree: _duration, choisie: _method);
-
     final isStore = ref.watch(isStoreBuildProvider);
-    final iapReady = isStore ? (ref.watch(iapReadyProvider).value ?? false) : false;
+    // L'achat intégré : iPhone seulement. Google Play paie par Mobile Money
+    // comme l'APK (23 novembre 2026), sans le parcours code promo.
+    final achatIntegre = ref.watch(achatIntegreProvider);
+    final methode = isStore ? 'direct' : methodeProposee(duree: _duration, choisie: _method);
+    final iapReady = achatIntegre ? (ref.watch(iapReadyProvider).value ?? false) : false;
     // L'abonnement tel que le serveur le connaît (`/subscriptions/current`) :
     // relu après chaque achat, il dit si l'utilisateur est déjà abonné.
     final finPremium = _donnees?['plan'] == 'premium'
@@ -416,9 +419,11 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
       },
       onConfirm:        _goToForm,
       onClose:          () => retourOuAller(context, repli: _repli),
-      iapMode:          isStore,
-      iapLoading:       isStore && ref.watch(iapReadyProvider).isLoading,
-      iapUnavailable:   isStore && !iapReady,
+      iapMode:          achatIntegre,
+      iapLoading:       achatIntegre && ref.watch(iapReadyProvider).isLoading,
+      iapUnavailable:   achatIntegre && !iapReady,
+      codePromo:        !isStore,
+      canalStore:       isStore,
       iapProduct:       iapReady ? _iapProductForDuration() : null,
       iapBusy:          _iapBusy,
       onIapBuy:         _startIapPurchase,
@@ -453,9 +458,10 @@ class _ActiverPremiumPageState extends ConsumerState<ActiverPremiumPage>
   // il interroge l'état toutes les quelques secondes, et tout de suite quand
   // l'abonné revient dans l'application.
 
-  /// Proposé par le serveur à ce compte (canal direct seulement).
+  /// Proposé par le serveur à ce compte, partout sauf en achat intégré
+  /// (iPhone) : APK direct, et Google Play depuis le 23 novembre 2026.
   bool get _paiementAutomatique =>
-      !ref.read(isStoreBuildProvider) && _tarifs.paiementAutomatique;
+      !ref.read(achatIntegreProvider) && _tarifs.paiementAutomatique;
 
   bool    _gpOuverture = false;
   String? _gpPaiement;
@@ -2210,8 +2216,8 @@ class _PaywallPage extends StatelessWidget {
   final VoidCallback onClose;
 
   // ── Achat intégré ──────────────────────────────────────────────────────────
-  /// Build publié sur un store : l'achat intégré remplace intégralement le
-  /// Mobile Money. Les deux ne s'affichent jamais ensemble (Apple 3.1.1).
+  /// Version iPhone : l'achat intégré remplace intégralement le Mobile Money.
+  /// Les deux ne s'affichent jamais ensemble (Apple 3.1.1).
   final bool iapMode;
   final bool iapLoading;
   final bool iapUnavailable;
@@ -2227,7 +2233,16 @@ class _PaywallPage extends StatelessWidget {
   final DateTime? premiumJusquau;
   final bool essaiUtilise;
 
+  /// Le parcours « code promo » (compte partenaire) est proposé : APK seul.
+  final bool codePromo;
+
+  /// Version des boutiques (Google Play ou App Store) : ses CGU n'ont pas
+  /// l'article partenaire.
+  final bool canalStore;
+
   const _PaywallPage({
+    this.codePromo = true,
+    this.canalStore = false,
     this.dejaPremium = false,
     this.premiumJusquau,
     this.essaiUtilise = false,
@@ -2336,7 +2351,7 @@ class _PaywallPage extends StatelessWidget {
                     // méthode sur « direct » en même temps : masquer une carte
                     // encore sélectionnée aurait laissé l'écran suivant ouvrir
                     // le parcours code promo pour une formule annuelle.
-                    if (duration != 'annuel') ...[
+                    if (codePromo && duration != 'annuel') ...[
                       const SizedBox(height: 10),
                       _MethodCard(
                         title:      tr(context, "Avec Code Promo"),
@@ -2370,9 +2385,7 @@ class _PaywallPage extends StatelessWidget {
                     style: const TextStyle(color: Colors.white38, fontSize: 11),
                     textAlign: TextAlign.center),
                   const SizedBox(height: 26),
-                  // La FAQ de paiement n'a pas d'objet là où rien n'est en vente.
-                  if (!(iapMode && defaultTargetPlatform == TargetPlatform.android && iapProduct == null))
-                    _PaywallFaq(promoCode: promoCode, tarifs: tarifs, iapMode: iapMode),
+                  _PaywallFaq(promoCode: promoCode, tarifs: tarifs, iapMode: iapMode, codePromo: codePromo),
                   const SizedBox(height: 18),
                   // Trois mentions qui ressemblaient à des liens sans en être :
                   // de simples `Text`, sans aucune zone tactile. Toucher
@@ -2389,15 +2402,14 @@ class _PaywallPage extends StatelessWidget {
                   // que tout le monde peut lire, relire et citer — y compris
                   // sans l'application.
                   //
-                  // `iapMode` vaut le canal : il est construit avec `isStore`,
-                  // et c'est le canal qui décide du texte des CGU. La version
+                  // C'est le canal qui décide du texte des CGU : la version
                   // des boutiques ne publie pas l'article consacré à
                   // l'activation par code partenaire, absente de ce build.
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
                     _LienLegal(
                       libelle: tr(context, "CGU"),
                       onTap: () => PagesLegales.ouvrir(
-                        context, PagesLegales.cgu(estStore: iapMode, sansPari: sansPari(context)),
+                        context, PagesLegales.cgu(estStore: canalStore, sansPari: sansPari(context)),
                         titre: PagesLegales.titreCgu)),
                     const _PointSeparateur(),
                     _LienLegal(
@@ -2611,54 +2623,6 @@ class _IapSection extends StatelessWidget {
       );
     }
 
-    // Google Play : aucun abonnement en vente (pas de compte marchand possible
-    // depuis le Burkina Faso). Ni « vérifie ta connexion », qui ne changerait
-    // rien.
-    //
-    // Le paiement Mobile Money sur le site (pronowin.space/premium) y est
-    // proposé depuis le 26 octobre 2026, sur décision expresse de
-    // l'utilisateur, risque accepté : Google interdit d'indiquer un autre
-    // moyen de paiement hors de ses programmes (Europe, États-Unis…), et peut
-    // refuser la mise à jour ou retirer l'application. Le bouton est visible,
-    // pour tout le monde — rien n'est caché aux contrôles. Jamais sur iPhone :
-    // ce bloc ne s'affiche que sur Android.
-    if (defaultTargetPlatform == TargetPlatform.android && product == null) {
-      return Container(
-        key: const Key('iap-indisponible-play'),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white.withValues(alpha: 0.06),
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.12))),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-          Row(children: [
-            Icon(Icons.info_outline_rounded, color: context.cl.textS, size: 20),
-            const SizedBox(width: 12),
-            Expanded(child: Text(
-              tr(context, "L'abonnement Premium n'est pas encore proposé dans la version Google Play."),
-              style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.5))),
-          ]),
-          const SizedBox(height: 14),
-          FilledButton.icon(
-            key: const Key('play-payer-site'),
-            onPressed: () => launchUrl(Uri.parse('${AppConstants.siteUrl}/premium'),
-                mode: LaunchMode.externalApplication),
-            style: FilledButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(vertical: 14),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
-            icon: const Icon(Icons.open_in_new_rounded, size: 18),
-            label: Text(tr(context, "Payer par Mobile Money sur le site"),
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700)),
-          ),
-          const SizedBox(height: 8),
-          Text(tr(context, "Paiement sécurisé GeniusPay. Utilise l'adresse e-mail de ce compte : ton Premium s'y active dès le paiement confirmé."),
-            textAlign: TextAlign.center,
-            style: const TextStyle(color: Colors.white54, fontSize: 12, height: 1.45)),
-        ]),
-      );
-    }
-
     if (unavailable || product == null) {
       // Le message demandait de vérifier sa connexion — et rétablir la
       // connexion ne changeait rien : rien ne rechargeait le catalogue avant
@@ -2828,8 +2792,10 @@ class _PaywallFaq extends StatelessWidget {
   /// Délais et opérateurs publiés par le serveur : la FAQ les recopiait à la
   /// main, et devenait fausse dès qu'ils changeaient.
   final TarifsPremium tarifs;
+  /// Sans parcours code promo (Google Play), ses deux questions disparaissent.
+  final bool codePromo;
   const _PaywallFaq({
-    required this.promoCode, required this.tarifs, this.iapMode = false});
+    required this.promoCode, required this.tarifs, this.iapMode = false, this.codePromo = true});
 
   @override
   Widget build(BuildContext context) {
@@ -2837,7 +2803,7 @@ class _PaywallFaq extends StatelessWidget {
       ?  <(String, String)>[
           (
             tr(context, "Comment se passe le paiement ?"),
-            tr(context, "Le paiement est traité par ton compte App Store ou Google Play, avec le moyen de paiement qui y est déjà enregistré. Nous ne voyons jamais tes coordonnées bancaires."),
+            tr(context, "Le paiement est traité par ton compte App Store, avec le moyen de paiement qui y est déjà enregistré. Nous ne voyons jamais tes coordonnées bancaires."),
           ),
           (
             tr(context, "Quand mon accès est-il activé ?"),
@@ -2859,19 +2825,25 @@ class _PaywallFaq extends StatelessWidget {
           ? tr(context, "Choisis ta formule, puis paie par Mobile Money sur la page sécurisée de notre prestataire GeniusPay. PronoWin ne voit jamais ton code secret.")
           : tr(context, "Choisis ta formule, envoie le montant sur le numéro Mobile Money affiché à l'étape suivante{arg0}, puis soumets la capture d'écran de la transaction.", [tarifs.paiementDisponible ? ' (${tarifs.libelleOperateurs})' : '']),
       ),
-      (
-        tr(context, "C'est quoi l'option « Code Promo » ?"),
-        tr(context, "Tu crées un compte sur {arg0} avec le code {arg1}, tu fais ton premier dépôt, et tu envoies une capture de ton compte où le dépôt apparaît. Ton premier mois de Premium est alors offert — tu n'as rien à nous verser.", [tarifs.libellePlateformes, promoCode]),
-      ),
-      (
-        tr(context, "Le mois offert, c'est valable à chaque fois ?"),
-        tr(context, "Non. Il débloque le premier mois, une seule fois. Ensuite, le renouvellement se fait au tarif normal, comme pour tout le monde."),
-      ),
+      if (codePromo) ...[
+        (
+          tr(context, "C'est quoi l'option « Code Promo » ?"),
+          tr(context, "Tu crées un compte sur {arg0} avec le code {arg1}, tu fais ton premier dépôt, et tu envoies une capture de ton compte où le dépôt apparaît. Ton premier mois de Premium est alors offert — tu n'as rien à nous verser.", [tarifs.libellePlateformes, promoCode]),
+        ),
+        (
+          tr(context, "Le mois offert, c'est valable à chaque fois ?"),
+          tr(context, "Non. Il débloque le premier mois, une seule fois. Ensuite, le renouvellement se fait au tarif normal, comme pour tout le monde."),
+        ),
+      ],
       (
         tr(context, "En combien de temps mon compte est activé ?"),
-        tarifs.paiementAutomatique
-          ? tr(context, "Paiement direct : immédiatement, dès que l'opérateur confirme le paiement. Avec code promo : {arg0}, le temps de vérifier le compte partenaire.", [tr(context, tarifs.delaiCode)])
-          : tr(context, "Paiement direct : {arg0}. Avec code promo : {arg1}, le temps de vérifier le compte partenaire.", [tr(context, tarifs.delaiDirect), tr(context, tarifs.delaiCode)]),
+        !codePromo
+          ? (tarifs.paiementAutomatique
+              ? tr(context, "Immédiatement, dès que l'opérateur confirme le paiement.")
+              : tr(context, "Sous {arg0}, le temps de vérifier ton paiement.", [tr(context, tarifs.delaiDirect)]))
+          : tarifs.paiementAutomatique
+            ? tr(context, "Paiement direct : immédiatement, dès que l'opérateur confirme le paiement. Avec code promo : {arg0}, le temps de vérifier le compte partenaire.", [tr(context, tarifs.delaiCode)])
+            : tr(context, "Paiement direct : {arg0}. Avec code promo : {arg1}, le temps de vérifier le compte partenaire.", [tr(context, tarifs.delaiDirect), tr(context, tarifs.delaiCode)]),
       ),
       (
         tr(context, "Suis-je prélevé automatiquement ensuite ?"),

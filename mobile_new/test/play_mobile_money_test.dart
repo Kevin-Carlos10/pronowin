@@ -9,16 +9,16 @@ import 'package:pronowin/features/abonnement/presentation/pages/activer_premium_
 import 'package:pronowin/features/abonnement/presentation/providers/iap_provider.dart';
 import 'package:pronowin/features/abonnement/presentation/providers/subscription_provider.dart';
 
-/// Version Google Play sans abonnement en vente (18 octobre 2026) : aucun
-/// compte marchand Google n'est possible depuis le Burkina Faso, le catalogue
-/// est vide. L'écran disait « vérifie ta connexion, puis réessaie » — ce qui
-/// ne changeait rien — et les accroches annonçaient un prix.
+/// Google Play paie par Mobile Money (23 novembre 2026), comme l'APK direct.
 ///
-/// Depuis le 26 octobre 2026, sur décision expresse de l'utilisateur (risque
-/// accepté : Google interdit d'indiquer un autre moyen de paiement), l'app
-/// Google Play propose le paiement Mobile Money sur le site. Jamais l'iPhone.
+/// Aucun compte marchand Google n'est possible depuis le Burkina Faso : la
+/// Play Console n'a rien à vendre. Depuis le 26 octobre, la version Play
+/// renvoyait vers le paiement du site ; sur décision expresse de
+/// l'utilisateur, risque accepté (Google exige sa facturation pour un
+/// abonnement), le paiement Mobile Money est désormais dans l'application.
+/// Sans le parcours « code promo » 1xBet, réservé à l'APK. Jamais sur iPhone.
 void main() {
-  Future<void> monter(WidgetTester t, {required TargetPlatform plateforme}) async {
+  Future<void> monter(WidgetTester t, {required TargetPlatform plateforme, bool store = true}) async {
     debugDefaultTargetPlatformOverride = plateforme;
     // Écran haut : la page est une liste, construite au fil du défilement.
     t.view.physicalSize = const Size(390 * 2, 2400 * 2);
@@ -27,8 +27,8 @@ void main() {
     await t.pumpWidget(ProviderScope(
       overrides: [
         currentSubscriptionProvider.overrideWith((ref) async => <String, dynamic>{'plan': 'free'}),
-        isStoreBuildProvider.overrideWithValue(true),
-        // Catalogue du store lu, mais vide : aucun abonnement en vente.
+        isStoreBuildProvider.overrideWithValue(store),
+        // Catalogue du store lu, mais vide.
         iapReadyProvider.overrideWith((ref) async => true),
         iapProductsProvider.overrideWithValue(const []),
         // Le vrai passe par le client HTTP de l'app, donc par Firebase.
@@ -44,26 +44,40 @@ void main() {
 
   tearDown(() => debugDefaultTargetPlatformOverride = null);
 
-  testWidgets('Android (Google Play) : le message, et le paiement Mobile Money sur le site ; ni « réessayer », ni FAQ', (t) async {
+  testWidgets('Google Play : le paiement Mobile Money dans l\'app, sans code promo ni achat intégré', (t) async {
     await monter(t, plateforme: TargetPlatform.android);
-    expect(find.byKey(const Key('iap-indisponible-play')), findsOneWidget);
-    expect(find.text("L'abonnement Premium n'est pas encore proposé dans la version Google Play."), findsOneWidget);
-    expect(find.byKey(const Key('play-payer-site')), findsOneWidget);
-    expect(find.text('Payer par Mobile Money sur le site'), findsOneWidget);
+    expect(find.text('Paiement Direct'), findsOneWidget);
+    expect(find.text('Avec Code Promo'), findsNothing);
+    // Ni l'ancien renvoi vers le site, ni la section d'achat intégré.
+    expect(find.byKey(const Key('iap-indisponible-play')), findsNothing);
+    expect(find.byKey(const Key('play-payer-site')), findsNothing);
     expect(find.byKey(const Key('iap-reessayer')), findsNothing);
-    expect(find.textContaining('Vérifie ta connexion'), findsNothing);
-    expect(find.text('Comment se passe le paiement ?'), findsNothing);
+    // La FAQ du paiement direct, sans ses questions sur le code promo.
+    expect(find.text('Comment se passe le paiement ?'), findsOneWidget);
+    expect(find.textContaining('Code Promo'), findsNothing);
+    // Le formulaire : un seul onglet, sans « Code Promo ».
+    await t.tap(find.text('Passer au mensuel'));
+    await t.pump(const Duration(milliseconds: 600));
+    expect(find.byType(TabBar), findsNothing);
+    expect(find.text('Paiement Mobile'), findsOneWidget);
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('iPhone : le message d\'origine, avec « réessayer » — jamais de paiement hors App Store', (t) async {
+  testWidgets('APK direct : le paiement direct et le code promo, comme avant', (t) async {
+    await monter(t, plateforme: TargetPlatform.android, store: false);
+    expect(find.text('Paiement Direct'), findsOneWidget);
+    expect(find.text('Avec Code Promo'), findsOneWidget);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('iPhone : l\'achat intégré seul — jamais de paiement hors App Store', (t) async {
     await monter(t, plateforme: TargetPlatform.iOS);
-    expect(find.byKey(const Key('iap-indisponible-play')), findsNothing);
     expect(find.byKey(const Key('iap-reessayer')), findsOneWidget);
     // Règle 3.1.1 d'Apple : aucun autre moyen de paiement, aucun renvoi au site.
-    expect(find.byKey(const Key('play-payer-site')), findsNothing);
+    expect(find.text('Paiement Direct'), findsNothing);
     expect(find.textContaining('Mobile Money'), findsNothing);
     expect(find.textContaining('GeniusPay'), findsNothing);
+    expect(find.textContaining('Google Play'), findsNothing);
     debugDefaultTargetPlatformOverride = null;
   });
 }

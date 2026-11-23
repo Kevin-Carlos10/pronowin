@@ -41,14 +41,19 @@ void main() {
           reason: 'la version iPhone doit dire qui gère le paiement');
     });
 
-    test('$langue — sur Android, le canal store nomme toujours Google Play', () {
+    test('$langue — sur Google Play, le paiement Mobile Money et son prestataire', () {
+      // Depuis le 23 novembre 2026, la version Play paie par Mobile Money,
+      // comme l'APK : Google n'encaisse rien, GeniusPay reçoit les données
+      // du paiement. Sans l'activation par code partenaire (APK seulement).
       AppStrings.setCurrentLanguage(langue);
       final t = texte(LegalType.confidentialite, estStore: true, estIOS: false);
-      expect(t, contains('Google Play'),
-          reason: 'sur Android, c\'est Google Play qui facture');
+      expect(t, contains('GeniusPay'),
+          reason: 'la version Play transmet les données du paiement à GeniusPay');
       expect(t, isNot(contains('App Store')),
           reason: 'la version Android ne doit pas renvoyer à la boutique '
                   'd\'Apple');
+      expect(t, isNot(contains('1xBet')),
+          reason: 'l\'activation par code partenaire est réservée à l\'APK');
     });
   }
 

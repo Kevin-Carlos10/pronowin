@@ -12,7 +12,9 @@ import '../../features/auth/presentation/providers/auth_provider.dart';
 /// tombé sur ce formulaire, et un achat intégré n'a besoin d'aucune de ces
 /// informations (règle 5.1.1).
 bool profilACompleterAvantPremium(WidgetRef ref) {
-  if (ref.read(isStoreBuildProvider)) return false;
+  // Le paiement Mobile Money (APK, et Google Play depuis le 23 novembre 2026)
+  // demande nom et téléphone ; l'achat intégré d'Apple, non.
+  if (ref.read(achatIntegreProvider)) return false;
   final authState = ref.read(authProvider);
   return authState is AuthAuthenticated && !authState.user.isProfileComplete;
 }

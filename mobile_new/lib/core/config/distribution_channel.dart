@@ -80,3 +80,17 @@ final canalDistributionProvider = Provider<CanalDistribution>((ref) {
 final isStoreBuildProvider = Provider<bool>(
   (ref) => ref.watch(canalDistributionProvider) == CanalDistribution.store,
 );
+
+/// L'abonnement Premium se paie par l'achat intégré d'Apple : la version
+/// iPhone, et elle seule (règle 3.1.1 de l'App Store).
+///
+/// Google Play paie comme l'APK direct depuis le 23 novembre 2026 : Mobile
+/// Money dans l'application, sans le parcours « code promo » (réservé à
+/// l'APK). Décision expresse de l'utilisateur, risque accepté : aucun compte
+/// marchand Google n'est possible depuis le Burkina Faso — la Play Console
+/// n'a rien à vendre —, et Google exige sa propre facturation pour un
+/// abonnement ; il peut refuser une mise à jour, retirer l'application, voire
+/// suspendre le compte développeur. Rien n'est caché aux contrôles.
+final achatIntegreProvider = Provider<bool>(
+  (ref) => ref.watch(isStoreBuildProvider) && defaultTargetPlatform == TargetPlatform.iOS,
+);

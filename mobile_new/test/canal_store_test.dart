@@ -240,19 +240,26 @@ void main() {
   //
   // `sectionsLegales` étant une fonction pure, on l'appelle simplement avec le
   // canal store et on lit ce qu'elle rend. Plus d'heuristique.
-  test('les textes légaux du canal store ne nomment aucun opérateur', () {
-    const interdits = ['1xBet', 'Mobile Money', 'Orange Money', 'Moov'];
+  test('les textes légaux de l\'iPhone ne nomment aucun opérateur ; ceux de Google Play, pas le partenaire', () {
+    // Depuis le 23 novembre 2026, Google Play paie par Mobile Money comme
+    // l'APK : ses textes nomment ce moyen de paiement. Jamais 1xBet : le
+    // parcours code promo reste réservé à l'APK. L'iPhone, lui, ne connaît
+    // que l'achat intégré d'Apple (3.1.1).
+    for (final (estIOS, interdits) in [
+      (true,  const ['1xBet', 'Mobile Money', 'Orange Money', 'Moov', 'GeniusPay']),
+      (false, const ['1xBet']),
+    ]) {
+      for (final type in LegalType.values) {
+        final sections = sectionsLegales(type, estStore: true, estIOS: estIOS);
+        expect(sections, isNotEmpty,
+          reason: '$type ne rend aucune section : le test ne prouve plus rien');
 
-    for (final type in LegalType.values) {
-      final sections = sectionsLegales(type, estStore: true);
-      expect(sections, isNotEmpty,
-        reason: '$type ne rend aucune section : le test ne prouve plus rien');
-
-      final texte = sections.map((s) => '${s.title}\n${s.content}').join('\n');
-      for (final mot in interdits) {
-        expect(texte.contains(mot), isFalse,
-          reason: '$type : « $mot » apparaît dans les textes légaux du build '
-                  'publié sur les stores.');
+        final texte = sections.map((s) => '${s.title}\n${s.content}').join('\n');
+        for (final mot in interdits) {
+          expect(texte.contains(mot), isFalse,
+            reason: '$type (${estIOS ? 'iPhone' : 'Google Play'}) : « $mot » '
+                    'apparaît dans les textes légaux de cette version.');
+        }
       }
     }
   });
@@ -274,28 +281,34 @@ void main() {
     //
     // Le contrôle ne cherche pas de nom d'opérateur — le texte n'en portait
     // pas. C'est pour cela que la garde voisine ne le voyait pas.
-    const interdits = [
-      'preuve de paiement',
-      'code partenaire',
-      'capture d\'écran',
-    ];
+    //
+    // Depuis le 23 novembre 2026, Google Play paie par Mobile Money : la preuve
+    // de paiement y est demandée, l'activation partenaire toujours pas.
+    for (final (estIOS, interdits) in [
+      (true,  const ['preuve de paiement', 'code partenaire', 'capture d\'écran']),
+      (false, const ['code partenaire', 'capture d\'écran']),
+    ]) {
+      for (final type in LegalType.values) {
+        final sections = sectionsLegales(type, estStore: true, estIOS: estIOS);
+        expect(sections, isNotEmpty,
+          reason: '$type ne rend aucune section : le test ne prouve plus rien');
 
-    for (final type in LegalType.values) {
-      final sections = sectionsLegales(type, estStore: true);
-      expect(sections, isNotEmpty,
-        reason: '$type ne rend aucune section : le test ne prouve plus rien');
+        final texte = sections
+            .map((s) => '${s.title}\n${s.content}')
+            .join('\n')
+            .toLowerCase();
 
-      final texte = sections
-          .map((s) => '${s.title}\n${s.content}')
-          .join('\n')
-          .toLowerCase();
-
-      for (final mot in interdits) {
-        expect(texte.contains(mot.toLowerCase()), isFalse,
-          reason: '$type : « $mot » — le build publié déclare une collecte '
-                  'qui n\'y est pas possible');
+        for (final mot in interdits) {
+          expect(texte.contains(mot.toLowerCase()), isFalse,
+            reason: '$type (${estIOS ? 'iPhone' : 'Google Play'}) : « $mot » — '
+                    'cette version déclare une collecte qui n\'y est pas possible');
+        }
       }
     }
+    // Google Play demande bien la preuve d'un paiement Mobile Money : la taire
+    // serait l'erreur inverse.
+    expect(sectionsLegales(LegalType.confidentialite, estStore: true, estIOS: false)
+        .map((s) => s.content).join('\n').toLowerCase().contains('preuve de paiement'), isTrue);
 
     // Et le canal direct, lui, doit continuer de la déclarer : c'est là que
     // ces justificatifs sont réellement demandés. Sans cette moitié, vider la
